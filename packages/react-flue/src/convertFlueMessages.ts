@@ -1,5 +1,4 @@
 import {
-  fromThreadMessageLike,
   toAssistantError,
   type AppendMessage,
   type CompleteAttachment,
@@ -9,37 +8,29 @@ import {
   type PartProviderMetadata,
   type ThreadAssistantMessagePart,
   type ThreadMessage,
-  type ThreadMessageLike,
   type ThreadUserMessagePart,
   type ToolCallMessagePart,
 } from "@assistant-ui/core";
 import {
+  convertExternalMessages,
+  type useExternalMessageConverter,
+} from "@assistant-ui/core/react";
+import {
   httpUrlPattern,
   resolveFilePartSource,
+  resolveImageMediaType,
 } from "@assistant-ui/core/internal";
 import type {
   DeliveredAttachment,
   FlueConversationMessage,
   FlueConversationPart,
+  FlueConversationSettlement,
 } from "@flue/react";
-
-const ASSISTANT_COMPLETE_STATUS = {
-  type: "complete",
-  reason: "stop",
-} satisfies MessageStatus;
-
-const ASSISTANT_RUNNING_STATUS = {
-  type: "running",
-} satisfies MessageStatus;
-
-const USER_STATUS = {
-  type: "complete",
-  reason: "unknown",
-} satisfies MessageStatus;
 
 export type ConvertFlueMessagesOptions = {
   readonly error?: unknown;
   readonly isRunning?: boolean | undefined;
+  readonly settlements?: readonly FlueConversationSettlement[] | undefined;
   readonly getCreatedAt?:
     | ((message: FlueConversationMessage) => Date)
     | undefined;
@@ -171,24 +162,29 @@ const toUserAttachments = (
     ];
   });
 
-const toMessageStatus = (
+const toSettlementStatus = (
   message: FlueConversationMessage,
-  index: number,
-  messages: readonly FlueConversationMessage[],
   options: ConvertFlueMessagesOptions,
-): MessageStatus => {
-  if (message.role !== "assistant") return USER_STATUS;
-  if (index === messages.length - 1 && options.error !== undefined) {
+): MessageStatus | undefined => {
+  if (message.role !== "assistant" || message.submissionId === undefined) {
+    return undefined;
+  }
+  const settlement = options.settlements?.find(
+    (candidate) => candidate.submissionId === message.submissionId,
+  );
+  if (settlement?.outcome === "aborted") {
+    return { type: "incomplete", reason: "cancelled" };
+  }
+  if (settlement?.outcome === "failed") {
     return {
       type: "incomplete",
       reason: "error",
-      error: toAssistantError(options.error),
+      ...(settlement.error !== undefined && {
+        error: toAssistantError(settlement.error),
+      }),
     };
   }
-  if (index === messages.length - 1 && options.isRunning) {
-    return ASSISTANT_RUNNING_STATUS;
-  }
-  return ASSISTANT_COMPLETE_STATUS;
+  return undefined;
 };
 
 const toSystemText = (parts: readonly FlueConversationPart[]) =>
@@ -198,16 +194,29 @@ const toSystemText = (parts: readonly FlueConversationPart[]) =>
     )
     .join("\n");
 
+const toCreatedAt = (message: FlueConversationMessage) => {
+  const timestamp = message.metadata?.timestamp;
+  if (typeof timestamp !== "string" && typeof timestamp !== "number") {
+    return undefined;
+  }
+  const createdAt = new Date(timestamp);
+  return Number.isNaN(createdAt.getTime()) ? undefined : createdAt;
+};
+
 /** Convert one materialized Flue message into an assistant-ui message. */
 export const convertFlueMessage = (
   message: FlueConversationMessage,
-  index: number,
-  messages: readonly FlueConversationMessage[],
   options: ConvertFlueMessagesOptions = {},
-): ThreadMessage => {
+):
+  | useExternalMessageConverter.Message
+  | useExternalMessageConverter.Message[] => {
+  if (message.display !== "visible") return [];
+
+  const status = toSettlementStatus(message, options);
+  const createdAt = options.getCreatedAt?.(message) ?? toCreatedAt(message);
   const common = {
     id: message.id,
-    createdAt: options.getCreatedAt?.(message) ?? new Date(),
+    ...(createdAt && { createdAt }),
     metadata: {
       custom: {
         ...(message.metadata ?? {}),
@@ -221,11 +230,13 @@ export const convertFlueMessage = (
     },
   };
 
-  const like: ThreadMessageLike =
+  const like: useExternalMessageConverter.Message =
     message.role === "assistant"
       ? {
           ...common,
           role: "assistant",
+          convertConfig: { joinStrategy: "none" as const },
+          ...(status && { status }),
           content: message.parts
             .map(convertAssistantPart)
             .filter((part) => part !== null),
@@ -245,11 +256,7 @@ export const convertFlueMessage = (
             content: [{ type: "text", text: toSystemText(message.parts) }],
           };
 
-  return fromThreadMessageLike(
-    like,
-    message.id,
-    toMessageStatus(message, index, messages, options),
-  );
+  return like;
 };
 
 /** Convert the visible Flue conversation into assistant-ui thread messages. */
@@ -257,9 +264,13 @@ export const convertFlueMessages = (
   messages: readonly FlueConversationMessage[],
   options: ConvertFlueMessagesOptions = {},
 ): ThreadMessage[] => {
-  const visible = messages.filter((message) => message.display === "visible");
-  return visible.map((message, index) =>
-    convertFlueMessage(message, index, visible, options),
+  return convertExternalMessages(
+    [...messages],
+    (message) => convertFlueMessage(message, options),
+    options.isRunning ?? false,
+    options.error === undefined
+      ? {}
+      : { error: toAssistantError(options.error) },
   );
 };
 
@@ -277,13 +288,14 @@ const toDeliveredImage = (
   if (source.kind === "url") {
     throw new Error("Flue image attachments must contain base64 data.");
   }
-  if (!source.mimeType.startsWith("image/")) {
+  const resolvedMimeType = resolveImageMediaType(data, mimeType);
+  if (!resolvedMimeType.startsWith("image/")) {
     throw new Error("Flue only supports image attachments.");
   }
   return {
     type: "image",
     data: source.data,
-    mimeType: source.mimeType,
+    mimeType: resolvedMimeType,
     ...(filename && { filename }),
   };
 };
@@ -309,12 +321,15 @@ export const getFlueSendMessage = (message: AppendMessage): FlueSendMessage => {
         images.push(
           toDeliveredImage(
             part.image,
-            attachment?.contentType ?? "image/*",
+            attachment?.contentType ?? "",
             part.filename ?? attachment?.name,
           ),
         );
         break;
       case "file":
+        if (!part.mimeType.startsWith("image/")) {
+          throw new Error("Flue only supports image attachments.");
+        }
         images.push(
           toDeliveredImage(
             part.data,

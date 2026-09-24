@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { getExternalStoreMessages } from "@assistant-ui/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const { mockCreateFlueClient, mockUseFlueAgent } = vi.hoisted(() => ({
@@ -65,18 +66,17 @@ describe("useFlueRuntime", () => {
   });
 
   it("maps Flue streaming state onto the runtime", () => {
+    const message = {
+      id: "assistant-1",
+      role: "assistant",
+      purpose: "assistant",
+      display: "visible",
+      parts: [{ type: "text", text: "Working", state: "streaming" }],
+    } satisfies FlueConversationMessage;
     mockUseFlueAgent.mockReturnValue(
       createAgent({
         status: "streaming",
-        messages: [
-          {
-            id: "assistant-1",
-            role: "assistant",
-            purpose: "assistant",
-            display: "visible",
-            parts: [{ type: "text", text: "Working", state: "streaming" }],
-          },
-        ] satisfies FlueConversationMessage[],
+        messages: [message],
       }),
     );
 
@@ -93,6 +93,9 @@ describe("useFlueRuntime", () => {
         },
       ],
     });
+    expect(
+      getExternalStoreMessages(result.current.thread.getState().messages[0]!),
+    ).toEqual([message]);
   });
 
   it("aborts a URL-addressed conversation through the Flue client", async () => {

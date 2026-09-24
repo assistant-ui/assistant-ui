@@ -115,10 +115,50 @@ describe("convertFlueMessages", () => {
       error: new Error("stream failed"),
     });
 
-    expect(converted[1]?.status).toEqual({
+    expect(converted[1]?.status).toMatchObject({
       type: "incomplete",
       reason: "error",
       error: { code: "unknown", message: "stream failed" },
+    });
+  });
+
+  it("adds an assistant error message when sending fails before a reply", () => {
+    const converted = convertFlueMessages(messages.slice(0, 1), {
+      error: new Error("send failed"),
+    });
+
+    expect(converted.at(-1)).toMatchObject({
+      role: "assistant",
+      status: {
+        type: "incomplete",
+        reason: "error",
+        error: { code: "unknown", message: "send failed" },
+      },
+    });
+  });
+
+  it("maps failed and aborted settlements onto assistant status", () => {
+    const aborted = convertFlueMessages(messages.slice(0, 2), {
+      settlements: [{ submissionId: "submission-1", outcome: "aborted" }],
+    });
+    expect(aborted[1]?.status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+
+    const failed = convertFlueMessages(messages.slice(0, 2), {
+      settlements: [
+        {
+          submissionId: "submission-1",
+          outcome: "failed",
+          error: new Error("model failed"),
+        },
+      ],
+    });
+    expect(failed[1]?.status).toEqual({
+      type: "incomplete",
+      reason: "error",
+      error: { code: "unknown", message: "model failed" },
     });
   });
 });
@@ -173,6 +213,31 @@ describe("getFlueSendMessage", () => {
         ]),
       ),
     ).toThrow("Flue only supports image attachments");
+  });
+
+  it("sniffs image media types when the browser provides no useful type", () => {
+    expect(
+      getFlueSendMessage(
+        appendMessage([
+          {
+            type: "image",
+            image:
+              "data:application/octet-stream;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2w==",
+            filename: "photo",
+          },
+        ]),
+      ),
+    ).toEqual({
+      message: "",
+      images: [
+        {
+          type: "image",
+          data: "/9j/4AAQSkZJRgABAQAAAQABAAD/2w==",
+          mimeType: "image/jpeg",
+          filename: "photo",
+        },
+      ],
+    });
   });
 
   it("rejects remote image URLs because Flue expects base64 bytes", () => {

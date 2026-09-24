@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 import {
   pickExternalStoreSharedOptions,
+  toAssistantError,
   type AppendMessage,
   type AttachmentAdapter,
   type DictationAdapter,
@@ -12,6 +13,7 @@ import {
   type SpeechSynthesisAdapter,
 } from "@assistant-ui/core";
 import {
+  useExternalMessageConverter,
   useExternalStoreRuntime,
   useRuntimeAdapters,
 } from "@assistant-ui/core/react";
@@ -21,7 +23,7 @@ import {
   type UseFlueAgentOptions,
 } from "@flue/react";
 import { createFlueClient } from "@flue/sdk";
-import { convertFlueMessages, getFlueSendMessage } from "./convertFlueMessages";
+import { convertFlueMessage, getFlueSendMessage } from "./convertFlueMessages";
 import { flueExtras } from "./flueExtras";
 
 type FlueSendOptions = Omit<SendMessageOptions, "images">;
@@ -60,35 +62,29 @@ export const useFlueRuntime = (options: UseFlueRuntimeOptions = {}) => {
     ...(live && { live }),
   });
   const runtimeAdapters = useRuntimeAdapters();
-  const createdAtByMessageIdRef = useRef(new Map<string, Date>());
   const isRunning =
     agent.status === "submitted" || agent.status === "streaming";
 
-  const messages = useMemo(() => {
-    const createdAtByMessageId = createdAtByMessageIdRef.current;
-    const messageIds = new Set(agent.messages.map((message) => message.id));
-    for (const messageId of createdAtByMessageId.keys()) {
-      if (!messageIds.has(messageId)) createdAtByMessageId.delete(messageId);
-    }
-
-    return convertFlueMessages(agent.messages, {
-      error: agent.error,
-      isRunning,
-      getCreatedAt: (message) => {
-        const timestamp = message.metadata?.timestamp;
-        if (typeof timestamp === "string" || typeof timestamp === "number") {
-          const durable = new Date(timestamp);
-          if (!Number.isNaN(durable.getTime())) return durable;
-        }
-
-        const existing = createdAtByMessageId.get(message.id);
-        if (existing) return existing;
-        const createdAt = new Date();
-        createdAtByMessageId.set(message.id, createdAt);
-        return createdAt;
-      },
-    });
-  }, [agent.error, agent.messages, isRunning]);
+  const convertMessage = useMemo<
+    useExternalMessageConverter.Callback<(typeof agent.messages)[number]>
+  >(
+    () => (message) =>
+      convertFlueMessage(message, { settlements: agent.settlements }),
+    [agent.settlements],
+  );
+  const conversionMetadata = useMemo(
+    () =>
+      agent.error === undefined
+        ? undefined
+        : { error: toAssistantError(agent.error) },
+    [agent.error],
+  );
+  const messages = useExternalMessageConverter({
+    callback: convertMessage,
+    messages: agent.messages,
+    isRunning,
+    metadata: conversionMetadata,
+  });
 
   const extras = useMemo(
     () =>

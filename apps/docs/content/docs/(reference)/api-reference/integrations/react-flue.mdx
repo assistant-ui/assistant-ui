@@ -19,7 +19,7 @@ import { reactFlue_useFlueRuntime } from "@/generated/integrationTypeDocs";
 Convert one materialized Flue message into an assistant-ui message.
 
 ```ts
-const convertFlueMessage: (message: FlueConversationMessage, index: number, messages: readonly FlueConversationMessage[], options?: ConvertFlueMessagesOptions) => ThreadMessage;
+const convertFlueMessage: (message: FlueConversationMessage, options?: ConvertFlueMessagesOptions) => useExternalMessageConverter.Message | useExternalMessageConverter.Message[];
 ```
 
 ### convertFlueMessages
