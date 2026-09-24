@@ -487,6 +487,42 @@ describe("DefaultEditComposerRuntimeCore sending attachments", () => {
     expect(remove).not.toHaveBeenCalled();
   });
 
+  it("keeps an attachment whose removal failed when the send fails after it", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const upload = Promise.withResolvers<void>();
+    const send = vi
+      .fn<AttachmentAdapter["send"]>()
+      .mockImplementationOnce(async () => {
+        await upload.promise;
+        throw new Error("upload failed");
+      })
+      .mockImplementation(() => new Promise(() => {}));
+    const composer = makeEditComposer(
+      attachmentAdapter({
+        remove: async () => {
+          throw new Error("remove failed");
+        },
+        send,
+      }),
+    );
+
+    await composer.addAttachment(file());
+    const sending = composer.send();
+    await expect(composer.removeAttachment("f")).rejects.toThrow(
+      "remove failed",
+    );
+    upload.resolve();
+    await sending;
+
+    expect(composer.attachments.find(({ id }) => id === "f")?.status).toEqual({
+      type: "incomplete",
+      reason: "error",
+      message: "remove failed",
+    });
+    void composer.send();
+    await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(2));
+  });
+
   it("keeps the reason an upload failed on the edit's attachment", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const composer = makeEditComposer(
