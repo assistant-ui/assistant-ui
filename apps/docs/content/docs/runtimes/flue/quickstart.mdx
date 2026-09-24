@@ -1,0 +1,96 @@
+---
+title: Quickstart
+description: Run the assistant-ui and Flue demo or wire useFlueRuntime into an existing React app.
+---
+
+## Run the demo
+
+The repository includes a deterministic Flue agent, so the complete flow runs without a model API key:
+
+```sh
+pnpm install
+pnpm --filter with-flue dev
+```
+
+Open [http://localhost:5173](http://localhost:5173), select **Run the demo**, and watch the server-side tool call, live progress data, and final answer stream into assistant-ui. Reload the page to confirm the conversation reconnects to its durable history.
+
+## Add it to a Flue app
+
+<Steps>
+<Step>
+
+### Install the adapter
+
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-flue"]} />
+
+</Step>
+<Step>
+
+### Mount the Flue agent
+
+Mount your agent under a stable route and let the caller append its conversation id:
+
+```ts title="src/app.ts"
+import { createAgentRouter } from "@flue/runtime/routing";
+import { Hono } from "hono";
+import { SupportAgent } from "./agents/support";
+
+const app = new Hono();
+app.route("/api/agents/support", createAgentRouter(SupportAgent));
+
+export default app;
+```
+
+</Step>
+<Step>
+
+### Connect assistant-ui
+
+```tsx title="chat.tsx"
+"use client";
+
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useFlueRuntime } from "@assistant-ui/react-flue";
+
+export function Chat({ conversationId }: { conversationId: string }) {
+  const runtime = useFlueRuntime({
+    url: `/api/agents/support/${conversationId}`,
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Step>
+</Steps>
+
+## Render custom Flue data
+
+A Flue part named `data-jobProgress` becomes an assistant-ui data part named `jobProgress`:
+
+```tsx
+import { makeAssistantDataUI } from "@assistant-ui/react";
+
+export const JobProgressUI = makeAssistantDataUI<{
+  step: string;
+  progress: number;
+}>({
+  name: "jobProgress",
+  render: ({ data }) => (
+    <p>
+      {data.step}: {data.progress}%
+    </p>
+  ),
+});
+```
+
+Mount the data UI inside `AssistantRuntimeProvider`, next to the thread. The runnable example includes the complete server writer and a styled progress renderer.
+
+## Production note
+
+Protect the mounted Flue route with your application authentication. The repository demo intentionally leaves it unauthenticated for local development only.

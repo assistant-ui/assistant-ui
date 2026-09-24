@@ -69,6 +69,11 @@ export const INTEGRATION_PACKAGES = [
     entry: path.join(REPO_ROOT, "packages/eve/src/index.ts"),
   },
   {
+    slug: "react-flue",
+    packageName: "@assistant-ui/react-flue",
+    entry: path.join(REPO_ROOT, "packages/react-flue/src/index.ts"),
+  },
+  {
     slug: "assistant-cloud",
     packageName: "assistant-cloud",
     entry: path.join(REPO_ROOT, "packages/cloud/src/index.ts"),

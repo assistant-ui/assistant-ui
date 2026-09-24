@@ -69,6 +69,12 @@
       "gzip": 45642
     }
   },
+  "@assistant-ui/react-flue": {
+    ".": {
+      "min": 5095,
+      "gzip": 2155
+    }
+  },
   "@assistant-ui/react-generative-ui": {
     ".": {
       "min": 35942,
