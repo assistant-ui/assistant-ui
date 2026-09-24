@@ -224,6 +224,8 @@ export class LocalThreadRuntimeCore
   }
 
   private _options!: LocalRuntimeOptionsBase;
+  private _historyScopeInitialized = false;
+  private _historyScopeId: string | undefined;
 
   private _lastRunConfig: RunConfig = {};
 
@@ -251,9 +253,13 @@ export class LocalThreadRuntimeCore
     const previousHistory = this._options?.adapters.history;
     const currentHistory = options.adapters.history;
     const historyScopeChanged =
-      previousHistory !== undefined &&
       currentHistory !== undefined &&
-      previousHistory.scopeId !== currentHistory.scopeId;
+      this._historyScopeInitialized &&
+      this._historyScopeId !== currentHistory.scopeId;
+    if (currentHistory) {
+      this._historyScopeInitialized = true;
+      this._historyScopeId = currentHistory.scopeId;
+    }
     const resetHistoryScope = this._loadRequested && historyScopeChanged;
 
     if (resetHistoryScope) {
@@ -263,7 +269,9 @@ export class LocalThreadRuntimeCore
       this._suggestions = [];
       this._lastRunConfig = {};
       this.repository.clear();
-      if (!this._isLoading) this._loadPromise = undefined;
+      this._loadGeneration++;
+      this._loadPromise = undefined;
+      this._isLoading = false;
     }
 
     this._options = options;
@@ -362,6 +370,7 @@ export class LocalThreadRuntimeCore
   }
 
   private _loadPromise: Promise<void> | undefined;
+  private _loadGeneration = 0;
   private _loadRequested = false;
   public __internal_load() {
     this._loadRequested = true;
@@ -370,60 +379,68 @@ export class LocalThreadRuntimeCore
 
     this._isLoading = true;
 
+    const history = this.adapters.history;
+    const scopeId = history.scopeId;
+    const generation = this._loadGeneration;
+    let loadFailed = false;
+
     const loadCurrentHistory = async () => {
-      while (true) {
-        const history = this.adapters.history;
-        if (!history) return;
-        const scopeId = history.scopeId;
-
-        let repo: Awaited<ReturnType<typeof history.load>>;
-        try {
-          repo = await history.load();
-        } catch (error) {
-          const currentHistory = this.adapters.history;
-          if (!currentHistory) return;
-          if (currentHistory.scopeId !== scopeId) continue;
-          throw error;
-        }
-
+      let repo: Awaited<ReturnType<typeof history.load>>;
+      try {
+        repo = await history.load();
+      } catch (error) {
+        if (generation !== this._loadGeneration) return;
         const currentHistory = this.adapters.history;
-        if (!currentHistory) return;
-        if (currentHistory.scopeId !== scopeId) continue;
-        if (!repo) return;
-        this.repository.import(withLocalPauseReasons(repo));
-        if (repo.messages.length > 0) {
-          this.ensureInitialized();
-        }
-        this._notifySubscribers();
+        if (currentHistory && currentHistory.scopeId !== scopeId) return;
+        loadFailed = true;
+        throw error;
+      }
 
-        const resumeHistory = this.adapters.history;
-        if (!resumeHistory) return;
-        if (resumeHistory.scopeId !== scopeId) continue;
-        const resume = resumeHistory.resume?.bind(resumeHistory);
-        if (repo.unstable_resume && resume) {
-          this.startRun(
-            {
-              parentId: this.repository.headId,
-              sourceId: this.repository.headId,
-              runConfig: this._lastRunConfig,
-            },
-            resume,
-          ).catch(() => {});
-        }
-        return;
+      if (generation !== this._loadGeneration) return;
+      const currentHistory = this.adapters.history;
+      if (currentHistory && currentHistory.scopeId !== scopeId) return;
+      if (!repo) return;
+      this.repository.import(withLocalPauseReasons(repo));
+      if (repo.messages.length > 0) {
+        this.ensureInitialized();
+      }
+      this._notifySubscribers();
+
+      if (generation !== this._loadGeneration) return;
+      const resumeHistory = this.adapters.history;
+      if (!resumeHistory || resumeHistory.scopeId !== scopeId) return;
+      const resume = resumeHistory.resume?.bind(resumeHistory);
+      if (repo.unstable_resume && resume) {
+        this.startRun(
+          {
+            parentId: this.repository.headId,
+            sourceId: this.repository.headId,
+            runConfig: this._lastRunConfig,
+          },
+          resume,
+        ).catch(() => {});
       }
     };
 
-    this._loadPromise = loadCurrentHistory().finally(() => {
+    const loadPromise = loadCurrentHistory().finally(() => {
+      if (
+        generation !== this._loadGeneration ||
+        this._loadPromise !== loadPromise
+      )
+        return;
       this._isLoading = false;
+      if (loadFailed && !this.adapters.history) {
+        this._loadPromise = undefined;
+      }
       this._notifySubscribers();
     });
+    this._loadPromise = loadPromise;
 
     // Notified after the promise is stored so a subscriber that appends
     // re-entrantly finds the barrier it has to wait on.
     this._notifySubscribers();
 
-    return this._loadPromise;
+    return loadPromise;
   }
 
   // The import that ends a load replaces the repository contents and resets
