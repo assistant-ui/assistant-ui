@@ -132,10 +132,8 @@ describe("thread runtime lifecycle media sessions", () => {
 
     disposeThreadRuntime(thread);
 
-    const ended =
-      vi.mocked(dictation.session.cancel).mock.calls.length +
-      vi.mocked(dictation.session.stop).mock.calls.length;
-    expect(ended).toBeGreaterThan(0);
+    expect(dictation.session.stop).toHaveBeenCalledTimes(1);
+    expect(dictation.session.cancel).not.toHaveBeenCalled();
   });
 
   it("stops speech when the thread runtime is disposed", async () => {
@@ -172,9 +170,7 @@ describe("thread runtime lifecycle media sessions", () => {
     core.setAdapter(make("t2"));
     expect(core.threads.getMainThreadRuntimeCore()).not.toBe(first);
 
-    const ended =
-      vi.mocked(dictation.session.cancel).mock.calls.length +
-      vi.mocked(dictation.session.stop).mock.calls.length;
-    expect(ended).toBeGreaterThan(0);
+    expect(dictation.session.stop).toHaveBeenCalledTimes(1);
+    expect(dictation.session.cancel).not.toHaveBeenCalled();
   });
 });
