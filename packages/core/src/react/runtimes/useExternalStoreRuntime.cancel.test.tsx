@@ -36,6 +36,10 @@ describe("useExternalStoreRuntime cancel", () => {
       runtime: AssistantRuntime;
       messages: readonly ThreadMessage[];
     };
+    let sent!: () => void;
+    const onNewCalled = new Promise<void>((resolve) => {
+      sent = resolve;
+    });
     const Host = () => {
       const [messages, setMessages] = useState<readonly ThreadMessage[]>([
         message("u0", "user"),
@@ -47,6 +51,7 @@ describe("useExternalStoreRuntime cancel", () => {
         setMessages,
         onNew: async () => {
           setMessages((current) => [...current, message("u1", "user")]);
+          sent();
         },
         onCancel: async () => {},
       });
@@ -58,7 +63,7 @@ describe("useExternalStoreRuntime cancel", () => {
     vi.useFakeTimers({ toFake: ["setTimeout"] });
     probe.runtime.thread.cancelRun();
     probe.runtime.thread.append("hello");
-    await Promise.resolve();
+    await onNewCalled;
     vi.runAllTimers();
     vi.useRealTimers();
 

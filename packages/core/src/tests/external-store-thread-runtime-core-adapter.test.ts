@@ -551,6 +551,44 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       expect(hostMessages.map((m) => m.id)).toEqual(["u1", "a1", "u2"]);
     });
 
+    it("does not write back over a send that follows a delete the runtime has not received", async () => {
+      let hostMessages: readonly ThreadMessage[] = [
+        createUserMessage("u1"),
+        createAssistantMessage("a1"),
+        createUserMessage("u2"),
+        createAssistantMessage("a2"),
+      ];
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages: hostMessages,
+          onCancel: vi.fn(),
+          onNew: vi.fn(async () => {
+            hostMessages = [...hostMessages, createUserMessage("u3")];
+          }),
+          setMessages: (messages) => {
+            hostMessages = messages;
+          },
+        }),
+      );
+
+      await core.deleteMessage("u1");
+      core.cancelRun();
+      await core.append({
+        role: "user",
+        content: [{ type: "text", text: "next" }],
+        attachments: [],
+        createdAt: new Date(),
+        parentId: "a2",
+        sourceId: null,
+        runConfig: {},
+        metadata: { custom: {} },
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(hostMessages.map((m) => m.id)).toEqual(["a1", "u2", "a2", "u3"]);
+    });
+
     it("keeps the placeholder of a run that started before the resync flushes", async () => {
       const messages = [createUserMessage("u1"), createAssistantMessage("a1")];
       const core = new ExternalStoreThreadRuntimeCore(

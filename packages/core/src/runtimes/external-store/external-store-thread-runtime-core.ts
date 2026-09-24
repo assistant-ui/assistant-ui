@@ -157,8 +157,9 @@ export class ExternalStoreThreadRuntimeCore
   // keeps one identity per response.
   private _optimistic: { id: string; parentId: string | null } | null = null;
 
-  // The branch the last snapshot pass derived from the host, before the
-  // placeholder: what the host holds as far as this runtime knows.
+  // What the host holds as far as this runtime knows: the branch the last
+  // snapshot pass derived, before the placeholder, or the array last handed
+  // to setMessages, whichever is newer.
   private _storeMessages: readonly ThreadMessage[] = [];
 
   private _store!: ExternalStoreAdapter<any>;
@@ -1118,6 +1119,7 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   private updateMessages = (messages: readonly ThreadMessage[]) => {
+    this._storeMessages = messages;
     const hasConverter = this._store.convertMessage !== undefined;
     if (hasConverter) {
       this._store.setMessages?.(messages.flatMap(getExternalStoreMessages));
