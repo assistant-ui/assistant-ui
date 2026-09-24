@@ -274,6 +274,206 @@ describe("convertSurfaceToUISpec", () => {
     });
   });
 
+  it("converts v0.9 single-child references and Button event actions", () => {
+    const result = applyA2uiOperations(new Map(), [
+      {
+        version: "v0.9",
+        createSurface: { surfaceId: "submit" },
+      },
+      {
+        version: "v0.9",
+        updateComponents: {
+          surfaceId: "submit",
+          components: [
+            { id: "root", component: "Card", child: "content" },
+            {
+              id: "content",
+              component: "Column",
+              children: ["submit-button"],
+            },
+            {
+              id: "submit-button",
+              component: "Button",
+              child: "submit-label",
+              action: {
+                event: {
+                  name: "submit",
+                  context: {
+                    ticketId: { path: "/ticketId" },
+                    literal: "kept",
+                  },
+                },
+              },
+            },
+            {
+              id: "submit-label",
+              component: "Text",
+              text: "Submit",
+            },
+          ],
+        },
+      },
+      {
+        version: "v0.9",
+        updateDataModel: {
+          surfaceId: "submit",
+          contents: { ticketId: "ticket-1" },
+        },
+      },
+    ]);
+    const surface = result.state.get("submit");
+    expect(surface).toBeDefined();
+
+    expect(convertSurfaceToUISpec(surface!)).toEqual({
+      spec: {
+        $type: "Card",
+        children: [
+          {
+            $type: "Col",
+            children: [
+              {
+                $type: "Button",
+                label: "Submit",
+                $action: {
+                  type: "a2ui:action",
+                  name: "submit",
+                  surfaceId: "submit",
+                  sourceComponentId: "submit-button",
+                  context: { ticketId: "ticket-1", literal: "kept" },
+                },
+              },
+            ],
+          },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
+  it("converts v1.0 Button child and event payloads", () => {
+    const result = applyA2uiOperations(new Map(), [
+      {
+        version: "v1.0",
+        createSurface: {
+          surfaceId: "v1",
+          dataModel: { requestId: "request-1" },
+          components: [
+            {
+              id: "root",
+              component: "Button",
+              child: "label",
+              action: {
+                event: {
+                  name: "confirm",
+                  context: { requestId: { path: "/requestId" } },
+                },
+              },
+            },
+            { id: "label", component: "Text", text: "Confirm" },
+          ],
+        },
+      },
+    ]);
+    const surface = result.state.get("v1");
+    expect(surface).toBeDefined();
+
+    expect(convertSurfaceToUISpec(surface!)).toEqual({
+      spec: {
+        $type: "Button",
+        label: "Confirm",
+        $action: {
+          type: "a2ui:action",
+          name: "confirm",
+          surfaceId: "v1",
+          sourceComponentId: "root",
+          context: { requestId: "request-1" },
+        },
+      },
+      warnings: [],
+    });
+  });
+
+  it("warns when a single child reference is malformed or missing", () => {
+    expect(
+      convertSurfaceToUISpec(
+        surfaceFrom([{ id: "root", component: "Card", child: null }]),
+      ),
+    ).toEqual({
+      spec: { $type: "Card" },
+      warnings: ['Component "root" has a malformed child reference.'],
+    });
+    expect(
+      convertSurfaceToUISpec(
+        surfaceFrom([{ id: "root", component: "Card", child: "missing" }]),
+      ),
+    ).toEqual({
+      spec: { $type: "Card" },
+      warnings: ['A2UI component "missing" was not found.'],
+    });
+  });
+
+  it("resolves component references nested in kept Tabs and Modal props", () => {
+    const surface = surfaceFrom([
+      {
+        id: "root",
+        component: "Column",
+        children: ["tabs", "modal"],
+      },
+      {
+        id: "tabs",
+        component: "Tabs",
+        tabs: [{ title: "Summary", child: "tab-content" }],
+      },
+      { id: "tab-content", component: "Text", text: "Details" },
+      {
+        id: "modal",
+        component: "Modal",
+        trigger: "modal-trigger",
+        content: "modal-content",
+      },
+      {
+        id: "modal-trigger",
+        component: "Button",
+        child: "trigger-label",
+      },
+      { id: "trigger-label", component: "Text", text: "Open" },
+      {
+        id: "modal-content",
+        component: "Column",
+        children: ["modal-text"],
+      },
+      { id: "modal-text", component: "Text", text: "Modal body" },
+    ]);
+
+    expect(
+      convertSurfaceToUISpec(surface, { keepUnknownComponents: true }),
+    ).toEqual({
+      spec: {
+        $type: "Col",
+        children: [
+          {
+            $type: "Tabs",
+            tabs: [
+              {
+                title: "Summary",
+                child: { $type: "Markdown", value: "Details" },
+              },
+            ],
+          },
+          {
+            $type: "Modal",
+            trigger: { $type: "Button", label: "Open" },
+            content: {
+              $type: "Col",
+              children: [{ $type: "Markdown", value: "Modal body" }],
+            },
+          },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
   it("maps basic catalog icons, lists, choice pickers, and date inputs", () => {
     const surface = surfaceFrom(
       [

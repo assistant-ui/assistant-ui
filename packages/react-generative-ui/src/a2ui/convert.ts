@@ -173,11 +173,14 @@ const childrenOf = (
   context: ConversionContext,
   depth: number,
   visited: Set<string>,
+  skippedChildId?: string,
 ): UIElement[] => {
-  const children = node["children"];
-  if (!Array.isArray(children)) return [];
+  const childIds: unknown[] = Array.isArray(node["children"])
+    ? [...node["children"]]
+    : [];
+  if (Object.hasOwn(node, "child")) childIds.push(node["child"]);
   const result: UIElement[] = [];
-  for (const childId of children) {
+  for (const childId of childIds) {
     if (typeof childId !== "string") {
       context.warnings.push(
         `Component "${String(node["id"] ?? "")}" has a malformed child reference.`,
@@ -191,9 +194,108 @@ const childrenOf = (
       depth + 1,
       visited,
     );
-    if (child) result.push(child);
+    if (child && childId !== skippedChildId) result.push(child);
   }
   return result;
+};
+
+const buttonLabelChildId = (
+  node: Record<string, unknown>,
+  context: ConversionContext,
+): string | undefined => {
+  if (node["component"] !== "Button" || typeof node["child"] !== "string") {
+    return undefined;
+  }
+  return context.surface.components.get(node["child"])?.["component"] === "Text"
+    ? node["child"]
+    : undefined;
+};
+
+const buttonChildLabel = (
+  childId: string | undefined,
+  dataSource: unknown,
+  context: ConversionContext,
+): string | undefined => {
+  if (!childId) return undefined;
+  const child = context.surface.components.get(childId);
+  if (!child) return undefined;
+  return stringProp(
+    {
+      text: materialize(child["text"], dataSource),
+      value: materialize(child["value"], dataSource),
+    },
+    ["text", "value"],
+  );
+};
+
+const convertEmbeddedReference = (
+  value: unknown,
+  path: string,
+  node: Record<string, unknown>,
+  dataSource: unknown,
+  context: ConversionContext,
+  depth: number,
+  visited: Set<string>,
+): UIElement | undefined => {
+  if (typeof value !== "string") {
+    context.warnings.push(
+      `Component "${String(node["id"] ?? "")}" has a malformed "${path}" reference.`,
+    );
+    return undefined;
+  }
+  return (
+    convertComponent(value, dataSource, context, depth + 1, visited) ??
+    undefined
+  );
+};
+
+const convertEmbeddedReferences = (
+  node: Record<string, unknown>,
+  props: Record<string, unknown>,
+  dataSource: unknown,
+  context: ConversionContext,
+  depth: number,
+  visited: Set<string>,
+): Record<string, unknown> => {
+  const component = node["component"];
+  if (component === "Tabs" && Array.isArray(props["tabs"])) {
+    const tabs = (props["tabs"] as unknown[]).map((tab, index) => {
+      if (!isRecord(tab) || !Object.hasOwn(tab, "child")) return tab;
+      const child = convertEmbeddedReference(
+        tab["child"],
+        `tabs[${index}].child`,
+        node,
+        dataSource,
+        context,
+        depth,
+        visited,
+      );
+      const convertedTab = { ...tab };
+      if (child) convertedTab["child"] = child;
+      else delete convertedTab["child"];
+      return convertedTab;
+    });
+    return { ...props, tabs };
+  }
+  if (component === "Modal") {
+    const convertedProps = { ...props };
+    for (const key of ["trigger", "content"] as const) {
+      if (!Object.hasOwn(props, key)) continue;
+      const child = convertEmbeddedReference(
+        props[key],
+        key,
+        node,
+        dataSource,
+        context,
+        depth,
+        visited,
+      );
+      if (child) convertedProps[key] = child;
+      else delete convertedProps[key];
+    }
+    return convertedProps;
+  }
+  return props;
 };
 
 const mappedAction = (
@@ -203,14 +305,18 @@ const mappedAction = (
   context: ConversionContext,
 ): UIElement["$action"] | undefined => {
   const action = props["action"];
+  const event = isRecord(action) ? action["event"] : undefined;
+  const actionPayload = isRecord(event) ? event : action;
   const actionName =
-    typeof action === "string"
-      ? action
-      : isRecord(action) && typeof action["name"] === "string"
-        ? action["name"]
+    typeof actionPayload === "string"
+      ? actionPayload
+      : isRecord(actionPayload) && typeof actionPayload["name"] === "string"
+        ? actionPayload["name"]
         : undefined;
   if (!actionName) return undefined;
-  const rawContext = isRecord(action) ? action["context"] : undefined;
+  const rawContext = isRecord(actionPayload)
+    ? actionPayload["context"]
+    : undefined;
   const resolvedContext =
     rawContext === undefined ? undefined : materialize(rawContext, dataSource);
   return {
@@ -242,6 +348,7 @@ const mappedProps = (
   props: Record<string, unknown>,
   dataSource: unknown,
   context: ConversionContext,
+  childLabel?: string,
 ): UIElement | undefined => {
   const component = node["component"];
 
@@ -345,7 +452,7 @@ const mappedProps = (
   }
 
   if (component === "Button") {
-    const label = stringProp(props, ["label", "text"]);
+    const label = stringProp(props, ["label", "text"]) ?? childLabel;
     const buttonStyle = props["buttonStyle"];
     const block = props["block"];
     const submit = props["submit"];
@@ -544,11 +651,25 @@ function convertComponent(
     }
     const props: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(node)) {
-      if (key === "id" || key === "component" || key === "children") continue;
+      if (
+        key === "id" ||
+        key === "component" ||
+        key === "children" ||
+        key === "child"
+      ) {
+        continue;
+      }
       const resolved = materialize(value, dataSource);
       if (resolved !== undefined) setOwnProperty(props, key, resolved);
     }
-    const mapped = mappedProps(node, props, dataSource, context);
+    const labelChildId = buttonLabelChildId(node, context);
+    const mapped = mappedProps(
+      node,
+      props,
+      dataSource,
+      context,
+      buttonChildLabel(labelChildId, dataSource, context),
+    );
     if (!mapped && SUPPORTED_COMPONENTS.has(component)) {
       context.warnings.push(
         `A2UI component "${component}" could not be mapped and was skipped.`,
@@ -577,9 +698,34 @@ function convertComponent(
       );
     }
     if (!reserveNode(context)) return null;
-    const converted = mapped ?? retained;
+    const retainedWithReferences =
+      !mapped && context.keepUnknownComponents
+        ? {
+            $type: component,
+            ...Object.fromEntries(
+              Object.entries(
+                convertEmbeddedReferences(
+                  node,
+                  props,
+                  dataSource,
+                  context,
+                  depth,
+                  visited,
+                ),
+              ).filter(([key]) => !key.startsWith("$")),
+            ),
+          }
+        : undefined;
+    const converted = mapped ?? retainedWithReferences ?? retained;
     if (!converted) return null;
-    const children = childrenOf(node, dataSource, context, depth, visited);
+    const children = childrenOf(
+      node,
+      dataSource,
+      context,
+      depth,
+      visited,
+      labelChildId,
+    );
     const listChildren =
       component === "List" && mapped?.$type === "ListView"
         ? children.map((child) => ({ $type: "ListViewItem", children: child }))
