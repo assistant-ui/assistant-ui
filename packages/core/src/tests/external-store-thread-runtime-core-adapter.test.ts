@@ -877,6 +877,68 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
   });
 
   describe("tool callbacks", () => {
+    it("evicts a deleted message when a client tool settles before host resync", async () => {
+      let resolveTool!: (value: { forecast: string }) => void;
+      let current: ThreadMessage[] = [
+        createUserMessage("u1", "first"),
+        createAssistantMessage("a1", "answer"),
+        createUserMessage("u2", "second"),
+        {
+          ...createAssistantMessage("a2", "tool call"),
+          status: { type: "requires-action", reason: "tool-calls" },
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "tc1",
+              toolName: "weatherSearch",
+              args: { city: "London" },
+              argsText: '{"city":"London"}',
+            },
+          ],
+        },
+      ];
+      const execute = vi.fn(
+        () =>
+          new Promise<{ forecast: string }>((resolve) => {
+            resolveTool = resolve;
+          }),
+      );
+      const adapter = (messages: readonly ThreadMessage[] = current) =>
+        createBaseAdapter({
+          messages,
+          onDelete: async (id) => {
+            current = current.filter((message) => message.id !== id);
+          },
+          unstable_enableToolInvocations: true,
+          isRunning: false,
+        });
+      const core = new ExternalStoreThreadRuntimeCore(
+        {
+          getModelContext: () => ({
+            tools: {
+              weatherSearch: {
+                parameters: { type: "object", properties: {} },
+                execute,
+              },
+            },
+          }),
+        },
+        adapter([]),
+      );
+      core.__internal_setAdapter(adapter());
+
+      await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+      await vi.waitFor(() => expect(core.isRunning).toBe(true));
+
+      await core.deleteMessage("u1");
+      resolveTool({ forecast: "sunny" });
+
+      await vi.waitFor(() => expect(core.isRunning).toBe(false));
+      core.__internal_setAdapter(adapter());
+
+      expect(core.getBranches("a1")).toEqual(["a1"]);
+    });
+
     it("keeps the runtime running until an executing client tool settles", async () => {
       let resolveTool!: (value: { forecast: string }) => void;
       const execute = vi.fn(

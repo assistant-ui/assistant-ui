@@ -411,7 +411,7 @@ export class ExternalStoreThreadRuntimeCore
         this.repository.addOrUpdateMessage(parent?.id ?? null, message);
       }
 
-      if (this._pendingDeleteEvictions.size > 0) {
+      if (store !== oldStore && this._pendingDeleteEvictions.size > 0) {
         const incomingIds = new Set(messages.map((m) => m.id));
         for (const id of this._pendingDeleteEvictions) {
           this._pendingDeleteEvictions.delete(id);
