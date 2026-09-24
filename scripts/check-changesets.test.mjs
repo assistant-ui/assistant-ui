@@ -395,20 +395,20 @@ test("runCheck rejects a changeset that changesets cannot parse", () => {
     ],
     [
       '---\n\t"@fixture/published": patch\n---\n\nfix: x\n',
-      '"@fixture/published": patch',
+      '\\u0009"@fixture/published": patch',
     ],
     [
       '---\n"@fixture/published": patch\u00a0\n---\n\nfix: x\n',
-      '"@fixture/published": patch',
+      '"@fixture/published": patch\\u00a0',
     ],
     [
       '---\n"@fixture/published"\u00a0: patch\n---\n\nfix: x\n',
-      '"@fixture/published"\u00a0: patch',
+      '"@fixture/published"\\u00a0: patch',
     ],
-    ['---\n\u00a0\n"@fixture/published": patch\n---\n\nfix: x\n', ""],
+    ['---\n\u00a0\n"@fixture/published": patch\n---\n\nfix: x\n', "\\u00a0"],
     [
       '---\n"@fixture/published": patch\n\u00a0\n"@fixture/held": patch\n---\n\nfix: x\n',
-      "",
+      "\\u00a0",
     ],
     [
       '---\n"@fixture/published": patch\n"@fixture/published": minor\n---\n\nfix: x\n',
@@ -426,6 +426,20 @@ test("runCheck rejects a changeset that changesets cannot parse", () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  }
+});
+
+test("runCheck reports the file line of a changeset line it cannot parse", () => {
+  const root = createWorkspace(
+    '\n---\n"@fixture/published": patch\n\n"@fixture/held" : Patch\n---\n\nfix: x\n',
+  );
+  try {
+    assert.deepEqual(
+      runCheck(root).parseErrors.map(({ line, name }) => [line, name]),
+      [[5, '"@fixture/held" : Patch']],
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });
 
@@ -452,7 +466,7 @@ test("the command reports a changeset it cannot parse as a parse error, not a sk
     assert.match(result.stderr, /cannot parse/);
     assert.match(
       result.stderr,
-      /"@fixture\/published: patch" is not a release/,
+      /\.changeset\/[^:\n]+\.md:2: "@fixture\/published: patch" is not a release/,
     );
     assert.doesNotMatch(
       result.stderr,

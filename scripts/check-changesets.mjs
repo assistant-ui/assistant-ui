@@ -74,6 +74,12 @@ export function readChangesetSource(source) {
   return match ? { frontmatter: match[1], body: match[2] } : null;
 }
 
+const visible = (text) =>
+  text.replace(
+    /[^\S ]/g,
+    (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`,
+  );
+
 function readChangesetReleases(source) {
   const changeset = readChangesetSource(source);
   if (!changeset) {
@@ -86,10 +92,10 @@ function readChangesetReleases(source) {
   }
   const releases = [];
   const errors = [];
+  const firstLine = source.slice(0, source.indexOf("---")).split("\n").length;
   let indent;
-  for (const line of changeset.frontmatter.split("\n")) {
+  for (const [index, line] of changeset.frontmatter.split("\n").entries()) {
     if (/^[ \t]*(?:#.*)?\r?$/.test(line)) continue;
-    const text = line.trim();
     const release = parseReleaseLine(line);
     const lineIndent = line.slice(0, line.length - line.trimStart().length);
     if (
@@ -98,7 +104,8 @@ function readChangesetReleases(source) {
       (indent !== undefined && lineIndent !== indent)
     ) {
       errors.push({
-        name: text,
+        name: visible(line.replace(/\r$/, "").replace(/^ +| +$/g, "")),
+        line: firstLine + index,
         reason: "is not a release changesets can parse",
       });
       continue;
@@ -107,6 +114,7 @@ function readChangesetReleases(source) {
     if (releases.some(({ name }) => name === release.name)) {
       errors.push({
         name: release.name,
+        line: firstLine + index,
         reason: "is named twice in one changeset",
       });
       continue;
@@ -472,8 +480,9 @@ function main() {
 
   if (parseErrors.length > 0) {
     console.error("Changesets that `changeset version` cannot parse:\n");
-    for (const { file, name, reason } of parseErrors) {
-      console.error(`  .changeset/${file}: "${name}" ${reason}`);
+    for (const { file, line, name, reason } of parseErrors) {
+      const at = line === undefined ? file : `${file}:${line}`;
+      console.error(`  .changeset/${at}: "${name}" ${reason}`);
     }
     console.error(
       '\nWrite each release as `"<package>": patch` on its own line between `---` fences, with the name quoted, each package once, and every line indented the same way with spaces.',
