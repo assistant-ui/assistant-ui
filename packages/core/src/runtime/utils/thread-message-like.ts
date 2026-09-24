@@ -210,10 +210,15 @@ export const fromThreadMessageLike = (
                 };
               }
 
-              case "audio":
+              case "audio": {
+                const userOnlyType: Exclude<
+                  typeof type,
+                  ThreadAssistantMessagePart["type"]
+                > = type;
                 throw new Error(
-                  `Unsupported assistant message part type: ${part.type}`,
+                  `Unsupported assistant message part type: ${userOnlyType}`,
                 );
+              }
 
               default: {
                 const dataType: `data-${string}` = type;
@@ -259,10 +264,15 @@ export const fromThreadMessageLike = (
             case "reasoning":
             case "source":
             case "generative-ui":
-            case "tool-call":
+            case "tool-call": {
+              const assistantOnlyType: Exclude<
+                typeof type,
+                ThreadUserMessagePart["type"]
+              > = type;
               throw new Error(
-                `Unsupported user message part type: ${part.type}`,
+                `Unsupported user message part type: ${assistantOnlyType}`,
               );
+            }
 
             default: {
               const dataType: `data-${string}` = type;
