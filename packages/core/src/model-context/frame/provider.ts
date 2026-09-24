@@ -7,6 +7,7 @@ import {
   type SerializedModelContext,
   type SerializedTool,
 } from "./types";
+import { isFrameMessage } from "./validate";
 
 const serializeTool = (tool: Tool<any, any>): SerializedTool => ({
   ...(tool.description && { description: tool.description }),
@@ -100,7 +101,8 @@ export class AssistantFrameProvider {
     if (event.source !== window.parent) return;
     if (event.data?.channel !== FRAME_MESSAGE_CHANNEL) return;
 
-    const message = event.data.message as FrameMessage;
+    const message = event.data.message;
+    if (!isFrameMessage(message)) return;
 
     switch (message.type) {
       case "model-context-request":
@@ -269,6 +271,10 @@ export class AssistantFrameProvider {
 
   private broadcastUpdate() {
     if (this._disposed) return;
+    this.postModelContext();
+  }
+
+  private postModelContext() {
     if (window.parent && window.parent !== window) {
       const updateMessage: FrameMessage = {
         type: "model-context-update",
@@ -427,6 +433,7 @@ export class AssistantFrameProvider {
       });
       instance._providerUnsubscribes.clear();
       instance._providers.clear();
+      runCleanup(() => instance.postModelContext());
       instance._activeToolCalls.forEach(({ abortController, event }, id) => {
         runCleanup(() => {
           abortController.abort();

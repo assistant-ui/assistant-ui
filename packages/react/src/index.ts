@@ -1,4 +1,4 @@
-/// <reference types="@assistant-ui/core/react" />
+/// <reference types="@assistant-ui/core/react" preserve="true" />
 
 // Re-export from @assistant-ui/store
 export {
@@ -22,11 +22,13 @@ export type {
   AssistantRuntime,
   ThreadRuntime,
   ThreadState,
+  ThreadRuntimeState,
   CreateAppendMessage,
   CreateStartRunConfig,
   CreateResumeRunConfig,
   MessageRuntime,
   MessageState,
+  MessageRuntimeState,
   MessagePartRuntime,
   MessagePartState,
   ComposerRuntime,
@@ -35,12 +37,15 @@ export type {
   EditComposerState,
   ThreadComposerState,
   ComposerState,
+  ComposerRuntimeState,
   AttachmentRuntime,
   AttachmentState,
+  AttachmentRuntimeState,
   ThreadListRuntime,
   ThreadListState,
   ThreadListItemRuntime,
   ThreadListItemState,
+  ThreadListItemRuntimeState,
 } from "@assistant-ui/core";
 
 export { toolApprovalAcceptsText } from "@assistant-ui/core";
@@ -127,6 +132,7 @@ export type {
   AddToolResultOptions,
   SubmitFeedbackOptions,
   ThreadSuggestion,
+  ComposerSubmission,
   DictationState,
 } from "@assistant-ui/core";
 
@@ -518,6 +524,11 @@ export type { Assistant } from "./augmentations";
 
 // --- mcp-apps ---
 export {
+  CloudRendererHost,
+  type CloudRendererHostProps,
+} from "./cloud-renderer/CloudRendererHost";
+
+export {
   McpAppRenderer,
   McpAppsRemoteHost,
   getMcpAppFromToolPart,
@@ -549,3 +560,20 @@ export {
   type Unstable_WebMcpProviderResult,
 } from "./unstable/webmcp/useWebMcpProvider";
 export { defaultWebMcpFilter as unstable_defaultWebMcpFilter } from "./unstable/webmcp/convertTools";
+
+// Shared surface carried by every distribution (scripts/check-distribution-barrels.mjs)
+export type {
+  JoinStrategy,
+  TitleGenerationAdapter,
+} from "@assistant-ui/core/react";
+export {
+  ChainOfThoughtPartByIndexProvider,
+  createSimpleTitleAdapter,
+} from "@assistant-ui/core/react";
+export type { ThreadsState } from "@assistant-ui/core/store";
+export type {
+  MessageRole,
+  RemoteThreadListOptions,
+  RunConfig,
+  RuntimeCapabilities,
+} from "@assistant-ui/core";

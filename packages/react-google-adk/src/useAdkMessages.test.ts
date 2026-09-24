@@ -77,6 +77,40 @@ describe("optimistic tool outcomes", () => {
 });
 
 describe("ADK runtime callbacks", () => {
+  it("reports the same agent transfer again in a later run", async () => {
+    const onAgentTransfer = vi.fn();
+    const stream: AdkStreamCallback = async function* () {
+      yield {
+        id: "transfer",
+        actions: { transferToAgent: "researcher" },
+      };
+      yield {
+        id: "transfer-duplicate",
+        actions: { transferToAgent: "researcher" },
+      };
+    };
+    const { result } = renderHook(() =>
+      useAdkMessages({ stream, eventHandlers: { onAgentTransfer } }),
+    );
+
+    await act(async () => {
+      await result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "first" }],
+        {},
+      );
+      expect(onAgentTransfer).toHaveBeenCalledTimes(1);
+
+      await result.current.sendMessage(
+        [{ id: "user-2", type: "human", content: "second" }],
+        {},
+      );
+    });
+
+    expect(onAgentTransfer).toHaveBeenCalledTimes(2);
+    expect(onAgentTransfer).toHaveBeenNthCalledWith(1, "researcher");
+    expect(onAgentTransfer).toHaveBeenNthCalledWith(2, "researcher");
+  });
+
   it.each(["onAgentTransfer", "onCustomEvent", "onError"] as const)(
     "continues streaming when %s throws",
     async (callbackName) => {
@@ -465,6 +499,10 @@ describe("optimistic confirmation replies", () => {
         projectAdkToolApprovals(result.current.messages).approvals.values(),
       ),
     ]).toEqual([{ id: "conf-a" }, { id: "conf-b" }]);
+    expect(result.current.toolConfirmations.map((c) => c.toolCallId)).toEqual([
+      "conf-a",
+      "conf-b",
+    ]);
   });
 
   it("keeps both gates pending when an ai message sits between the replies", async () => {
@@ -521,6 +559,102 @@ describe("optimistic confirmation replies", () => {
         projectAdkToolApprovals(result.current.messages).approvals.values(),
       ),
     ]).toEqual([{ id: "conf-a", approved: true }, { id: "conf-b" }]);
+    expect(result.current.toolConfirmations.map((c) => c.toolCallId)).toEqual([
+      "conf-b",
+    ]);
+  });
+});
+
+describe("pending requests across sends", () => {
+  it("keeps an unanswered request listed across sends until its reply is sent", async () => {
+    let run = 0;
+    const stream: AdkStreamCallback = async function* () {
+      run += 1;
+      if (run === 1) {
+        yield {
+          id: "requests",
+          author: "agent",
+          longRunningToolIds: ["conf-1", "cred-1"],
+          content: {
+            role: "model",
+            parts: [
+              {
+                functionCall: {
+                  id: "conf-1",
+                  name: "adk_request_confirmation",
+                  args: {
+                    originalFunctionCall: { id: "gated-1", name: "transfer" },
+                    toolConfirmation: { hint: "Transfer?" },
+                  },
+                },
+              },
+              {
+                functionCall: {
+                  id: "cred-1",
+                  name: "adk_request_credential",
+                  args: {
+                    function_call_id: "gated-2",
+                    auth_config: { credentialKey: "k" },
+                  },
+                },
+              },
+            ],
+          },
+        } satisfies AdkEvent;
+      } else if (run === 2) {
+        yield {
+          id: "answer",
+          author: "agent",
+          content: { role: "model", parts: [{ text: "still waiting" }] },
+        } satisfies AdkEvent;
+      }
+    };
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+    const pending = () => ({
+      confirmations: result.current.toolConfirmations.map((c) => c.toolCallId),
+      authRequests: result.current.authRequests.map((r) => r.toolCallId),
+    });
+
+    await act(async () => {
+      await result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "start" }],
+        {},
+      );
+    });
+    expect(pending()).toEqual({
+      confirmations: ["conf-1"],
+      authRequests: ["cred-1"],
+    });
+
+    await act(async () => {
+      await result.current.sendMessage(
+        [{ id: "user-2", type: "human", content: "any news?" }],
+        {},
+      );
+    });
+    expect(pending()).toEqual({
+      confirmations: ["conf-1"],
+      authRequests: ["cred-1"],
+    });
+
+    await act(async () => {
+      await result.current.sendMessage(
+        [
+          {
+            id: "reply",
+            type: "tool",
+            tool_call_id: "cred-1",
+            name: "adk_request_credential",
+            content: JSON.stringify({
+              exchangedAuthCredential: { authType: "apiKey" },
+            }),
+            status: "success",
+          },
+        ],
+        {},
+      );
+    });
+    expect(pending()).toEqual({ confirmations: ["conf-1"], authRequests: [] });
   });
 });
 

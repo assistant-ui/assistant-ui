@@ -1468,7 +1468,8 @@ export const registry: RegistryItem[] = [
     name: "assistant-modal",
     type: "registry:component",
     title: "Assistant Modal",
-    description: "Floating chat bubble for support widgets and help desks.",
+    description:
+      "Floating chat bubble for support widgets and help desks, with a thread list and a resizable window.",
     files: [
       {
         type: "registry:component",
@@ -1480,9 +1481,10 @@ export const registry: RegistryItem[] = [
     dependencies: ["@assistant-ui/react", "lucide-react"],
     registryDependencies: [
       "https://r.assistant-ui.com/thread.json",
+      "https://r.assistant-ui.com/thread-list.json",
       "https://r.assistant-ui.com/tooltip-icon-button.json",
     ],
-    baseRegistryDependencies: ["popover"],
+    baseDependencies: ["@base-ui/react"],
   },
   {
     name: "assistant-sidebar",
@@ -2029,6 +2031,7 @@ type NativeElementRegistryEntry = {
   dependencies?: string[];
   usesElements?: string[];
   usesIcon?: boolean;
+  usesUtils?: boolean;
   usesSurfaces?: boolean;
 };
 
@@ -2054,7 +2057,9 @@ const createNativeElementRegistryItem = (
       (slug) => `https://r.assistant-ui.com/native/elements-${slug}.json`,
     ),
     ...(entry.usesIcon ? ["https://r.assistant-ui.com/native/icon.json"] : []),
-    "https://r.assistant-ui.com/utils.json",
+    ...(entry.usesUtils === false
+      ? []
+      : ["https://r.assistant-ui.com/utils.json"]),
   ],
   dependencies: [...(entry.dependencies ?? []), "uniwind"],
 });
@@ -2091,6 +2096,7 @@ export const nativeRegistry: RegistryItem[] = [
       "https://r.assistant-ui.com/native/elements-typing-indicator.json",
       "https://r.assistant-ui.com/native/icon.json",
       "https://r.assistant-ui.com/native/markdown-text.json",
+      "https://r.assistant-ui.com/native/elements-tool-fallback.json",
       "https://r.assistant-ui.com/utils.json",
     ],
   },
@@ -2116,7 +2122,10 @@ export const nativeRegistry: RegistryItem[] = [
       "react-native-svg",
       "uniwind",
     ],
-    registryDependencies: ["https://r.assistant-ui.com/native/icon.json"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/native/elements-surfaces.json",
+      "https://r.assistant-ui.com/native/icon.json",
+    ],
   },
   {
     name: "reasoning",
@@ -2235,6 +2244,22 @@ export const nativeRegistry: RegistryItem[] = [
       },
     ],
   },
+  {
+    name: "elements-task",
+    type: "registry:component",
+    title: "Elements Task",
+    description:
+      "Shared task state, labels, timing, elapsed time, and value helpers for task elements.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/task.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react-native/assistant-ui/utils/task.ts",
+      },
+    ],
+    dependencies: ["@assistant-ui/react-native"],
+  },
   createNativeElementRegistryItem({
     slug: "icon-button",
     title: "Icon button",
@@ -2284,6 +2309,15 @@ export const nativeRegistry: RegistryItem[] = [
     file: "message-queue.tsx",
     dependencies: ["lucide-react-native"],
     usesElements: ["icon-button"],
+    usesIcon: true,
+  }),
+  createNativeElementRegistryItem({
+    slug: "tool-fallback",
+    title: "Tool fallback",
+    description: "Default renderer for tool calls that have no dedicated UI.",
+    file: "tool-fallback.tsx",
+    dependencies: ["@assistant-ui/react-native", "lucide-react-native"],
+    usesElements: ["task"],
     usesIcon: true,
   }),
   {
@@ -2357,6 +2391,15 @@ export const nativeRegistry: RegistryItem[] = [
     usesIcon: true,
   }),
   createNativeElementRegistryItem({
+    slug: "task-card",
+    title: "Task card",
+    description:
+      "A delegated task with its state, timing, result, and transcript in one card.",
+    file: "task-card.tsx",
+    dependencies: ["lucide-react-native"],
+    usesIcon: true,
+  }),
+  createNativeElementRegistryItem({
     slug: "tool-timeline",
     title: "Tool timeline",
     description:
@@ -2422,6 +2465,59 @@ export const nativeRegistry: RegistryItem[] = [
       "https://r.assistant-ui.com/native/elements-voice-conversation.json",
     ],
     dependencies: ["@assistant-ui/react-native", "uniwind"],
+  },
+  {
+    name: "task-card",
+    type: "registry:component",
+    title: "Task card",
+    description:
+      "A native task card with nested transcripts, timing, results, and grouped task lanes.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/task-card.aui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react-native/assistant-ui/elements/task-card.aui.tsx",
+      },
+    ],
+    registryDependencies: [
+      "https://r.assistant-ui.com/native/elements-task-card.json",
+      "https://r.assistant-ui.com/native/elements-task.json",
+      "https://r.assistant-ui.com/native/elements-surfaces.json",
+      "https://r.assistant-ui.com/native/elements-tool-fallback.json",
+      "https://r.assistant-ui.com/native/markdown-text.json",
+      "https://r.assistant-ui.com/utils.json",
+    ],
+    dependencies: ["@assistant-ui/react-native", "uniwind"],
+  },
+  {
+    name: "agent-status",
+    type: "registry:component",
+    title: "Agent status",
+    description:
+      "A native task summary chip with an optional tray for every task in the thread.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/agent-status.aui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react-native/assistant-ui/elements/agent-status.aui.tsx",
+      },
+    ],
+    registryDependencies: [
+      "https://r.assistant-ui.com/native/elements-agent-status.json",
+      "https://r.assistant-ui.com/native/elements-task-card.json",
+      "https://r.assistant-ui.com/native/elements-task.json",
+      "https://r.assistant-ui.com/native/elements-surfaces.json",
+      "https://r.assistant-ui.com/native/icon.json",
+      "https://r.assistant-ui.com/utils.json",
+    ],
+    dependencies: [
+      "@assistant-ui/react-native",
+      "lucide-react-native",
+      "react-native-safe-area-context",
+      "uniwind",
+    ],
   },
 ];
 

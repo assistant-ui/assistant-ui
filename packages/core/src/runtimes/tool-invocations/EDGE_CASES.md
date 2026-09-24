@@ -64,7 +64,15 @@ The tracker does **not** restart the stream and does **not** invoke
 `streamCall` a second time. Logs the divergence in non-prod. The host's
 existing `streamCall` keeps its original args view.
 
-### A.5. First resolution (`result` becomes defined)
+The tracked `argsText` advances to the new value, so a snapshot that
+re-observes the same change logs once rather than on every rebuild. This
+is safe only because the stream is already closed; A.2 must keep the
+pre-regression value, since it still drives delta calculation. It also
+means a demoted entry (F.4) carries the changed text, so a pipeline
+restart no longer promotes it and re-fires `streamCall` for a change the
+host's original args view already excluded.
+
+### A.5. First resolution (a final `result` becomes defined)
 The tracker calls `setResponse` on the active controller and closes it.
 The backend result is emitted before the args stream closes, so a stale
 args parse failure cannot replace it. `reader.response.get()` resolves.
@@ -172,7 +180,7 @@ while its `onDelete` path never aborts at all. `reset()` is unaffected
 either way: it clears `_entries` and the recorded ids before aborting,
 because it opens a new execution boundary.
 
-An id is forgotten once a live snapshot observes the call with a result,
+An id is forgotten once a live snapshot observes the call with a final result,
 which bounds the set to the open calls of a discarded turn. That is all
 it does: an id re-emitted inside the same execution boundary keeps its
 existing entry, so A.4 and A.7 govern it rather than this set, and a new
@@ -187,6 +195,11 @@ reason to skip that no later snapshot carries: an `approval` is re-read at
 each snapshot and provider ownership is recomputed, while a rebuilt entry
 would otherwise come back clean. That is what lets F.4 drop a waiting entry
 without a special case.
+
+### A.12. An interim result (`isPreliminary`)
+A result flagged `isPreliminary` marks the entry `skipExecute` like any backend result and reaches the active controller as a preliminary response, which keeps the part open. `entry.hasResult` stays false, so each later snapshot hands the controller its current interim value, while the skip marker keeps the frontend `execute` from running and drops the echo of each value at the result-chunk handler, so `onResult` never fires for it. `reader.response.get()` resolves only when the final result lands, which is A.5 for that call.
+
+A restored or demoted (F.4) entry holding an interim result counts as unresolved, so C.3 promotes it only when its final result lands or its `argsText` changes.
 
 ## B. Tool call disappears from snapshot
 
@@ -211,7 +224,7 @@ Silently kept as restored. Recursion into `content.messages` still
 happens so any nested live tool calls are processed.
 
 ### C.3. Restored entry observed in a live snapshot, signature changed
-A restored entry with a result remains historical regardless of later `argsText` or result changes. An unresolved restored entry is promoted only when a result lands or its `argsText` changes. Complete `argsText` values that parse to equivalent JSON are unchanged. Promotion deletes the restored entry and starts a new active entry via `_startActiveEntry`. `streamCall` fires once, its first and only fire for this `toolCallId`.
+A restored entry with a final result remains historical regardless of later `argsText` or result changes. An unresolved restored entry, with no result or only an interim one (A.12), is promoted only when a final result lands or its `argsText` changes. Complete `argsText` values that parse to equivalent JSON are unchanged. Promotion deletes the restored entry and starts a new active entry via `_startActiveEntry`. `streamCall` fires once, its first and only fire for this `toolCallId`.
 
 ### C.4. `isLoading` transitions `true → false` while messages are stable
 The next `setState` call sees `isLoading === false` and processes
@@ -291,7 +304,9 @@ and a call waiting on the run to settle (A.10) already holds its final
 args, so demoting it would strand it unexecuted.
 
 Starting it over re-fires `streamCall`, which the restart path already
-does for any demoted entry whose signature later changes. The rebuilt
+does for any demoted entry whose signature later changes. A change that
+already happened after completion (A.4) is not such a change: the demoted
+entry carries the changed text, so the restart does not promote it. The rebuilt
 pipeline holds no part for the call, so nothing can reach the executor
 without adding one; a restart is an execution boundary in the same sense
 `reset()` is. Repeated failures

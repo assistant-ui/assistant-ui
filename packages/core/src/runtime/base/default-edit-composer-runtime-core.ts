@@ -13,8 +13,14 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     return true;
   }
 
+  // An edit composer is the message it is editing, so its draft stays in place
+  // until the edit lands rather than moving into a submission row.
+  protected override get detachesDraftOnSend() {
+    return false;
+  }
+
   public get canSend() {
-    return !this.isEmpty && !this.runtime.voice && !this._isSending;
+    return !this.isEmpty && !this.runtime.voice && !this.isSubmitting;
   }
 
   protected getAttachmentAdapter() {
@@ -37,6 +43,7 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
       | undefined;
   };
   private endEditCallback: () => void;
+  private _ended = false;
 
   constructor(
     runtime: ThreadRuntimeCore & {
@@ -119,6 +126,11 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
   }
 
   public handleCancel() {
+    if (this._ended) return;
+    this._ended = true;
+    void this.reset().catch((error: unknown) => {
+      console.error("[assistant-ui] Failed to clear cancelled edit", error);
+    });
     this.endEditCallback();
     this._notifySubscribers();
   }

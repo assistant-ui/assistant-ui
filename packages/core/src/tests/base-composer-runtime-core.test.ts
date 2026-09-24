@@ -445,6 +445,141 @@ describe("BaseComposerRuntimeCore", () => {
     );
   });
 
+  it("rolls back a dictation session when listener setup throws", () => {
+    const setupError = new Error("listener setup failed");
+    const speechCleanup = vi.fn();
+    const session: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn().mockResolvedValue(undefined),
+      cancel: vi.fn(),
+      onSpeech: vi.fn(() => speechCleanup),
+      onSpeechStart: vi.fn(() => {
+        throw setupError;
+      }),
+      onSpeechEnd: vi.fn(() => () => {}),
+    };
+    composer.setDictationAdapter({ listen: () => session });
+
+    expect(() => composer.startDictation()).toThrow(setupError);
+
+    expect(session.cancel).toHaveBeenCalledOnce();
+    expect(speechCleanup).toHaveBeenCalledOnce();
+    expect(session.onSpeechEnd).not.toHaveBeenCalled();
+    expect(composer.dictation).toBeUndefined();
+  });
+
+  it("keeps dictation active when the initial subscriber throws", () => {
+    const listenerError = new Error("subscriber failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    onTestFinished(() => consoleError.mockRestore());
+    const session: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn().mockResolvedValue(undefined),
+      cancel: vi.fn(),
+      onSpeech: vi.fn(() => () => {}),
+      onSpeechStart: vi.fn(() => () => {}),
+      onSpeechEnd: vi.fn(() => () => {}),
+    };
+    composer.setDictationAdapter({ listen: () => session });
+    const unsubscribe = composer.subscribe(() => {
+      throw listenerError;
+    });
+
+    expect(() => composer.startDictation()).not.toThrow();
+
+    expect(composer.dictation).toEqual({
+      status: { type: "running" },
+      inputDisabled: false,
+    });
+    expect(session.onSpeech).toHaveBeenCalledOnce();
+    expect(session.cancel).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] Dictation start notification threw",
+      listenerError,
+    );
+    unsubscribe();
+    composer.stopDictation();
+  });
+
+  it("does not wire a session replaced during its initial notification", () => {
+    const firstSession: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn().mockResolvedValue(undefined),
+      cancel: vi.fn(),
+      onSpeech: vi.fn(() => () => {}),
+      onSpeechStart: vi.fn(() => () => {}),
+      onSpeechEnd: vi.fn(() => () => {}),
+    };
+    const secondSession: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn().mockResolvedValue(undefined),
+      cancel: vi.fn(),
+      onSpeech: vi.fn(() => () => {}),
+      onSpeechStart: vi.fn(() => () => {}),
+      onSpeechEnd: vi.fn(() => () => {}),
+    };
+    const listen = vi
+      .fn()
+      .mockReturnValueOnce(firstSession)
+      .mockReturnValueOnce(secondSession);
+    composer.setDictationAdapter({ listen });
+    let shouldReplace = true;
+    const unsubscribe = composer.subscribe(() => {
+      if (!shouldReplace) return;
+      shouldReplace = false;
+      composer.startDictation();
+    });
+
+    composer.startDictation();
+
+    expect(firstSession.onSpeech).not.toHaveBeenCalled();
+    expect(firstSession.stop).toHaveBeenCalledOnce();
+    expect(firstSession.cancel).not.toHaveBeenCalled();
+    expect(secondSession.onSpeech).toHaveBeenCalledOnce();
+    expect(composer.dictation).toBeDefined();
+    unsubscribe();
+    composer.stopDictation();
+  });
+
+  it("releases setup handles when registration replaces the session", () => {
+    const firstCleanup = vi.fn();
+    const firstSession: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn().mockResolvedValue(undefined),
+      cancel: vi.fn(),
+      onSpeech: vi.fn(() => {
+        composer.startDictation();
+        return firstCleanup;
+      }),
+      onSpeechStart: vi.fn(() => () => {}),
+      onSpeechEnd: vi.fn(() => () => {}),
+    };
+    const secondSession: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn().mockResolvedValue(undefined),
+      cancel: vi.fn(),
+      onSpeech: vi.fn(() => () => {}),
+      onSpeechStart: vi.fn(() => () => {}),
+      onSpeechEnd: vi.fn(() => () => {}),
+    };
+    const listen = vi
+      .fn()
+      .mockReturnValueOnce(firstSession)
+      .mockReturnValueOnce(secondSession);
+    composer.setDictationAdapter({ listen });
+
+    composer.startDictation();
+
+    expect(firstCleanup).toHaveBeenCalledOnce();
+    expect(firstSession.onSpeechStart).not.toHaveBeenCalled();
+    expect(firstSession.cancel).not.toHaveBeenCalled();
+    expect(secondSession.onSpeech).toHaveBeenCalledOnce();
+    expect(composer.dictation).toBeDefined();
+    composer.stopDictation();
+  });
+
   it("sends after a dictation unsubscribe throws", async () => {
     const cleanupError = new Error("cleanup failed");
     const cancelError = new Error("cancel failed");
@@ -915,5 +1050,66 @@ describe("BaseComposerRuntimeCore.retractDraft", () => {
 
     expect(composer.text).toBe("returned");
     expect(composer.attachments).toHaveLength(1);
+  });
+});
+
+describe("BaseComposerRuntimeCore send with a subscriber that restarts dictation", () => {
+  const makeSession = () => {
+    const end = new Set<(result: DictationAdapter.Result) => void>();
+    let listeners = 0;
+    const session: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn(async () => {}),
+      cancel: vi.fn(() => {
+        session.status = { type: "ended", reason: "cancelled" };
+        for (const cb of [...end]) cb({ transcript: "" });
+      }),
+      onSpeechStart: () => {
+        listeners++;
+        return () => listeners--;
+      },
+      onSpeechEnd: (cb) => {
+        end.add(cb);
+        listeners++;
+        return () => {
+          end.delete(cb);
+          listeners--;
+        };
+      },
+      onSpeech: () => {
+        listeners++;
+        return () => listeners--;
+      },
+    };
+    return { session, listeners: () => listeners };
+  };
+
+  it("keeps the session a subscriber starts while send cancels the previous one", async () => {
+    vi.useFakeTimers();
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const sessions: ReturnType<typeof makeSession>[] = [];
+    const composer = new TestComposerCore();
+    composer.setDictationAdapter({
+      listen: () => {
+        const s = makeSession();
+        sessions.push(s);
+        return s.session;
+      },
+    });
+    composer.subscribe(() => {
+      if (composer.dictation === undefined && sessions.length === 1) {
+        composer.startDictation();
+      }
+    });
+    composer.setText("hello");
+    composer.startDictation();
+    await composer.send();
+
+    expect(sessions).toHaveLength(2);
+    expect(composer.dictation).toBeDefined();
+    expect(sessions[1]!.listeners()).toBe(3);
+    expect(sessions[1]!.session.cancel).not.toHaveBeenCalled();
   });
 });

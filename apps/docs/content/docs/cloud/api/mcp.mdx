@@ -1,0 +1,318 @@
+---
+title: MCP
+description: Connect an MCP client to Assistant Cloud project reads.
+---
+
+Assistant Cloud exposes a stateless Model Context Protocol endpoint for agents that need to inspect a project's runs, usage, threads, scores, topics and skills. It uses the backend host and an API key, and the API key strategy still requires `Aui-Workspace-Id` even though the tools scope their reads to the project.
+
+## The MCP endpoint
+
+```http
+POST /v1/mcp
+```
+
+| Request item | Required | Rules |
+|---|---|---|
+| `Authorization` | yes | A bearer API key. |
+| `Aui-Workspace-Id` | yes | Required by the API key strategy. |
+| `Accept` | no | When sent, it must include `application/json`, `text/event-stream` or `*/*`, or the transport answers `406`. A missing header counts as `*/*`. |
+| HTTP method | yes | Only `POST` is accepted. |
+| Transport | yes | Stateless streamable HTTP with JSON responses. |
+
+The server identifies itself as `{ name: "assistant-cloud", version: "1.0.0" }`. It creates no MCP session because the transport is configured without a session id generator. Every exposed tool has `annotations: { readOnlyHint: true }`.
+
+```http title="Request"
+POST /v1/mcp
+Authorization: Bearer sk_aui_proj_…
+Aui-Workspace-Id: usr_000000000000000000000000
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": { "name": "list_runs", "arguments": { "limit": 50 } }
+}
+```
+
+```json title="Response"
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"runs\":[],\"next_cursor\":null}"
+      }
+    ]
+  }
+}
+```
+
+The body is a JSON-RPC 2.0 message as the MCP streamable HTTP transport defines it; `initialize` and `tools/list` use the same envelope, and the tool sections below show only the `result` each tool returns.
+
+The successful tool result is `{ content: [{ type: "text", text: JSON.stringify(result) }] }`. A tool failure adds `isError: true` and serializes `{ error: message }` as the text result. Only the messages in this table pass through unchanged. Every other tool failure becomes `Request failed`.
+
+| Error message | Meaning |
+|---|---|
+| `Invalid cursor` | A thread or score cursor is not valid. |
+| `Invalid run cursor` | A run cursor is not valid. |
+| `Invalid usage day range` | A usage date is not a real UTC day. |
+| `Run not found` | The requested run is not visible in the project. |
+| `Thread not found` | The requested thread is not visible in the project. |
+| `Usage day range must span at most 366 days` | The usage range is negative or spans more than 366 days. |
+
+| Status | Body or headers | When |
+|---|---|---|
+| `200` | A JSON MCP response | The transport returns a tool result. Tool failures use the `isError` result shape. |
+| `401` | An authentication error object. | The authorization header is missing, malformed or expired. |
+| `403` | `{ "error": "This endpoint requires an API key" }` | The request does not use an API key. |
+| `405` | Empty body with `Allow: POST` | The request uses a method other than `POST`. |
+| `406` | A JSON-RPC error, `Not Acceptable: Client must accept application/json or text/event-stream` | An `Accept` header was sent without `application/json`, `text/event-stream` or `*/*`. |
+| `500` | Empty body | The transport returns no response. |
+
+The endpoint and all nine tools are read only. They do not create sessions or write project data, so repeating a successful read is idempotent. A client should send the same backend URL, API key and workspace header on every request.
+
+## `list_runs`
+
+List runs in the authenticated project. System runs are excluded, as they are from the project run read.
+
+| Input | Type | Required | Default | Rules |
+|---|---|---|---|---|
+| `status` | enum | no | | One of the API run status values. |
+| `outcome_type` | enum | no | | One of the API run outcome values. |
+| `model_id` | string | no | | 1 to 255 characters. |
+| `provider` | string | no | | 1 to 255 characters. |
+| `created_by` | string | no | | 1 to 255 characters. |
+| `thread_id` | string | no | | 1 to 48 characters. |
+| `environment` | string | no | | 1 to 64 characters. |
+| `release` | string | no | | 1 to 255 characters. |
+| `tag` | string | no | | 1 to 64 characters. |
+| `from` | ISO 8601 datetime | no | | Converted to a date value. |
+| `to` | ISO 8601 datetime | no | | Converted to a date value. |
+| `limit` | integer | no | 50 | Coerced to an integer from 1 to 100. |
+| `cursor` | string | no | | 1 to 512 characters. |
+
+```json title="Arguments"
+{ "limit": 50 }
+```
+
+```json title="Result"
+{ "runs": [], "next_cursor": null }
+```
+
+Results are ordered by `created_at DESC, id DESC`. The cursor is base64url encoded JSON containing `created_at` as an ISO value and `id`. Pass `next_cursor` unchanged to the next call. An invalid cursor produces the `Invalid run cursor` tool error.
+
+## `get_run`
+
+Get one run and its spans from the authenticated project.
+
+| Input | Type | Required | Rules |
+|---|---|---|---|
+| `run_id` | string | yes | 1 to 48 characters. |
+
+```json title="Arguments"
+{ "run_id": "run_000000000000000000000000" }
+```
+
+```json title="Result"
+{ "id": "run_000000000000000000000000", "spans": [] }
+```
+
+The result is the project run object with `spans`. Spans are ordered by `start_ms ASC, span_index ASC`. This tool does not use a cursor. A missing run produces the `Run not found` tool error.
+
+## `usage_daily`
+
+Get daily usage for the authenticated project.
+
+| Input | Type | Required | Default | Rules |
+|---|---|---|---|---|
+| `from` | `YYYY-MM-DD` | no | 30 day window | Must be a real UTC calendar day. Defaults to 29 days before `to`. |
+| `to` | `YYYY-MM-DD` | no | Today in UTC | Must be a real UTC calendar day. |
+| `group_by` | enum | no | | The only value is `model`. |
+
+```json title="Arguments"
+{ "from": "2026-09-01", "to": "2026-09-17", "group_by": "model" }
+```
+
+```json title="Result"
+{
+  "days": [
+    {
+      "day": "2026-09-17",
+      "provider": null,
+      "model_id": null,
+      "runs": 0,
+      "errors": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "total_tokens": 0,
+      "cost_usd": 0
+    }
+  ]
+}
+```
+
+Without `group_by`, every day in the range is returned with zero filled values. With `group_by=model`, rows are grouped by day, provider and model as stored, with no zero fill, and `provider` or `model_id` can be `null`. `runs` counts `kind = run` rows. `errors` counts `kind = run` rows with `status = error`. Token and cost sums include `kind = sampling` rows. This tool has no cursor. An invalid date produces `Invalid usage day range`, and an invalid span produces `Usage day range must span at most 366 days`.
+
+## `usage_period`
+
+Get the current usage period for the authenticated project.
+
+| Input | Type | Required | Rules |
+|---|---|---|---|
+| No fields | object | yes | The input object is empty. |
+
+```json title="Arguments"
+{}
+```
+
+```json title="Result"
+{
+  "plan": "free",
+  "period_start": "2026-09-01T00:00:00.000Z",
+  "period_end": "2026-10-01T00:00:00.000Z",
+  "active_users": 0,
+  "included": 200,
+  "cap": 200,
+  "capped_at": null,
+  "thread_titles": {
+    "used": 0,
+    "completed": 0,
+    "included": 500,
+    "cap": 500,
+    "capped_at": null
+  }
+}
+```
+
+The result is the full usage period object. `period_start` and `period_end` are the UTC calendar month boundaries. `active_users` is the greater of the stored period count and the sum of period users by day. `included` and `cap` come from the limits resolved for the project. This tool has no cursor. A missing project fails with a message outside the passthrough table, so the tool answers `Request failed`.
+
+## `list_threads`
+
+List threads in the authenticated project.
+
+| Input | Type | Required | Default | Rules |
+|---|---|---|---|---|
+| `created_by` | string | no | | 1 to 255 characters. |
+| `from` | ISO 8601 datetime | no | | Converted to a date value. |
+| `to` | ISO 8601 datetime | no | | Converted to a date value. |
+| `limit` | integer | no | 50 | Coerced to an integer from 1 to 100. |
+| `cursor` | string | no | | 1 to 512 characters. |
+
+```json title="Arguments"
+{ "limit": 50 }
+```
+
+```json title="Result"
+{ "threads": [], "next_cursor": null }
+```
+
+The project scope includes every workspace, including archived threads. Results are ordered by `created_at DESC, id DESC`. The cursor is base64url encoded JSON containing `created_at` as an ISO value and `id`. Pass `next_cursor` unchanged to the next call. An invalid cursor produces `Invalid cursor`.
+
+Each thread row also carries `feedback_positive` and `feedback_negative` as integers for thumbs up and down ratings on the thread's messages, and `topic` and `task` as the names the Intelligence analysis gave the thread or `null`; a junk classification has `null` for both. `review` is `good`, `needs_work`, `unclear` or `null`, the latest review a person on the team recorded on the conversation. `review_note` is that review's note or `null`.
+
+## `get_thread`
+
+Get one thread and its messages from the authenticated project.
+
+| Input | Type | Required | Rules |
+|---|---|---|---|
+| `thread_id` | string | yes | 1 to 48 characters. |
+
+```json title="Arguments"
+{ "thread_id": "thread_0qzof3jPoDwr7K3agyJN3D4U" }
+```
+
+```json title="Result"
+{ "thread": {}, "messages": [] }
+```
+
+The result includes the thread and its messages. Messages are mapped to `ThreadMessageDTO` and ordered by `height ASC, created_at ASC, id ASC`. This tool has no cursor. A missing thread produces `Thread not found`.
+
+## `list_scores`
+
+List scores in the authenticated project.
+
+| Input | Type | Required | Default | Rules |
+|---|---|---|---|---|
+| `thread_id` | string | no | | 1 to 48 characters. |
+| `run_id` | string | no | | 1 to 48 characters. |
+| `name` | string | no | | 1 to 64 characters. |
+| `source` | enum | no | | `end_user`, `human`, `evaluator` or `api`. |
+| `limit` | integer | no | 50 | Coerced to an integer from 1 to 100. |
+| `cursor` | string | no | | 1 to 512 characters. |
+
+```json title="Arguments"
+{ "name": "quality", "limit": 50 }
+```
+
+```json title="Result"
+{ "scores": [], "next_cursor": null }
+```
+
+Scores are ordered by `created_at DESC, id DESC`. Each score contains `id`, `thread_id`, `message_id`, `run_id`, `name`, `data_type`, `value`, `string_value`, `source`, `author_id`, `comment`, `created_at` and `updated_at`; `value` is a number or `null`. The cursor is base64url encoded JSON containing `created_at` and `id`. Pass `next_cursor` unchanged. An invalid cursor produces `Invalid cursor`.
+
+## `list_topics`
+
+List topics and thread counts in the authenticated project.
+
+| Input | Type | Required | Rules |
+|---|---|---|---|
+| No fields | object | yes | The input object is empty. |
+
+```json title="Arguments"
+{}
+```
+
+```json title="Result"
+{ "topics": [] }
+```
+
+Each topic has `id`, `name`, `created_at`, `updated_at` and `thread_count`. Topics are ordered by `thread_count DESC, name ASC`. This tool has no cursor.
+
+## `list_skills`
+
+List skills in the authenticated project. This read only tool takes no input.
+
+| Input | Type | Required | Rules |
+|---|---|---|---|
+| No fields | object | yes | The input object is empty. |
+
+```json title="Arguments"
+{}
+```
+
+```json title="Result"
+{ "skills": [...] }
+```
+
+The result has the same shape as `GET /v1/projects/skills`, with `id`, `name`, `description`, `instructions`, `task`, `published_at` and `updated_at` on each skill. Skills are ordered by `name`.
+
+## Configure a client
+
+Use the MCP URL and both required headers in your client. The Claude Code command is:
+
+```sh title="Claude Code"
+claude mcp add --transport http assistant-cloud https://backend.assistant-api.com/v1/mcp --header "Authorization: Bearer sk_aui_proj_…" --header "Aui-Workspace-Id: usr_000000000000000000000000"
+```
+
+Clients configured through an `mcpServers` file, such as Cursor, use the same values:
+
+```json title="mcp.json"
+{
+  "mcpServers": {
+    "assistant-cloud": {
+      "url": "https://backend.assistant-api.com/v1/mcp",
+      "headers": {
+        "Authorization": "Bearer sk_aui_proj_…",
+        "Aui-Workspace-Id": "usr_000000000000000000000000"
+      }
+    }
+  }
+}
+```
+
+Create a key for this MCP client, scope its use to this tool, give it an expiry and revoke it when the client is no longer needed. The key grants read access to the whole project, so do not reuse it for unrelated access.

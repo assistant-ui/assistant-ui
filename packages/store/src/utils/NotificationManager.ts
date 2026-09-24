@@ -5,6 +5,7 @@ import type {
   AssistantEventPayload,
 } from "../types/events";
 import type { Unsubscribe } from "../types/client";
+import { withBatchedStateReads } from "./proxied-assistant-state";
 
 type InternalCallback = (payload: unknown, clientStack: ClientStack) => unknown;
 
@@ -105,13 +106,15 @@ export const createNotificationManager = (): NotificationManager => {
     },
 
     notifySubscribers() {
-      for (const cb of subscribers) {
-        try {
-          cb();
-        } catch (e) {
-          console.error("NotificationManager: subscriber callback error", e);
+      withBatchedStateReads(() => {
+        for (const cb of subscribers) {
+          try {
+            cb();
+          } catch (e) {
+            console.error("NotificationManager: subscriber callback error", e);
+          }
         }
-      }
+      });
     },
   };
 };

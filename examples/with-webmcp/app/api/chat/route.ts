@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
     stopWhen: stepCountIs(10),
     ...(system ? { system } : {}),

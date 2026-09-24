@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 
+import { getEventListeners } from "node:events";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import { AuiConfig, AuiProvider, useAuiState } from "@assistant-ui/store";
+import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
 import type { AssistantRuntime } from "@assistant-ui/core";
 import { AISDKChat } from "./AISDKChat";
 import type { ChatTransport, UIMessage } from "ai";
@@ -182,6 +184,60 @@ describe("useChatRuntime integration", () => {
 
     view.unmount();
     await waitFor(() => expect(getCancelCount()).toBe(1));
+  });
+
+  it("aborts a nested runtime when only its own component unmounts", async () => {
+    const outer = createCancellableTransport();
+    const { transport, getCancelCount } = createCancellableTransport();
+    let nested: AssistantRuntime | undefined;
+    let providerSignal: AbortSignal | undefined;
+    let setVisible: ((visible: boolean) => void) | undefined;
+
+    const NestedChat = () => {
+      providerSignal = useAssistantClientDestroySignal();
+      nested = useChatRuntime({ transport });
+      return null;
+    };
+    const Shell = () => {
+      const [visible, set] = useState(true);
+      setVisible = set;
+      return (
+        <AuiProvider
+          config={AuiConfig({
+            threads: AISDKChat({ transport: outer.transport }),
+          })}
+        >
+          {visible && <NestedChat />}
+        </AuiProvider>
+      );
+    };
+    const listeners = () => getEventListeners(providerSignal!, "abort").length;
+
+    const view = render(<Shell />);
+    await waitFor(() => expect(nested).toBeDefined());
+    const mounted = listeners();
+
+    for (const cycle of [1, 2]) {
+      await act(async () => {
+        await nested!.thread.append(`stream ${cycle}`);
+      });
+      await waitFor(() =>
+        expect(nested!.thread.getState().isRunning).toBe(true),
+      );
+
+      await act(async () => setVisible?.(false));
+      await waitFor(() => expect(getCancelCount()).toBe(cycle));
+      expect(listeners()).toBe(mounted - 1);
+
+      nested = undefined;
+      await act(async () => setVisible?.(true));
+      await waitFor(() => expect(nested).toBeDefined());
+      expect(listeners()).toBe(mounted);
+    }
+
+    view.unmount();
+    await act(nextTask);
+    expect(getCancelCount()).toBe(2);
   });
 });
 

@@ -11,6 +11,8 @@ import { VercelIcon } from "@/components/icons/vercel";
 
 This page covers the **AI SDK** path. If you use [`@assistant-ui/react-langgraph`](/docs/runtimes/langgraph/overview), tracing flows through LangGraph Cloud automatically; you only need this guide when your route handler talks to AI SDK directly.
 
+<AgentSetup product="guides/langsmith" />
+
 ## How it works
 
 LangSmith provides a wrapper around the `ai` namespace. You call `wrapAISDK(ai)`, get back the same exports (`generateText`, `streamText`, `generateObject`, `streamObject`), and use those in place of the originals. Every call is then traced.
@@ -63,7 +65,7 @@ export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-6-luna"),
     messages: await ai.convertToModelMessages(messages),
   });
 
@@ -84,7 +86,7 @@ Pass a `langsmith` provider option to tag traces with user, session, or run iden
 import { createLangSmithProviderOptions } from "langsmith/experimental/vercel";
 
 const result = streamText({
-  model: openai("gpt-5.6-luna"),
+  model: openai("gpt-6-luna"),
   messages: await ai.convertToModelMessages(messages),
   providerOptions: {
     langsmith: createLangSmithProviderOptions({

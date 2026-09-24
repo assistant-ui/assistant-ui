@@ -17,7 +17,8 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "react-native";
-import type { MessageState, ThreadMessage } from "@assistant-ui/core";
+import type { ThreadMessage } from "@assistant-ui/core";
+import type { MessageState } from "@assistant-ui/core/store";
 import {
   RenderChildrenWithAccessor,
   useAuiEvent,
@@ -81,6 +82,42 @@ export type ThreadMessagesProps = ThreadMessagesFlatListProps;
 
 const DEFAULT_SYSTEM_MESSAGE = () => null;
 const AT_BOTTOM_THRESHOLD = 4;
+
+const useHistoryLoad = (
+  history: ThreadMessagesFlatListProps["history"],
+  onStartReached: FlatListProps<ThreadMessage>["onStartReached"],
+) => {
+  const loadRequestedRef = useRef(false);
+  const hasMore = history?.hasMore ?? false;
+  const isLoadingMore = history?.isLoadingMore ?? false;
+
+  // The latch is scoped to one commit so a no-op load cannot disable paging.
+  useEffect(() => {
+    loadRequestedRef.current = isLoadingMore;
+  });
+
+  const handleStartReached = useCallback<
+    NonNullable<FlatListProps<ThreadMessage>["onStartReached"]>
+  >(
+    (info) => {
+      onStartReached?.(info);
+      if (loadRequestedRef.current) return;
+      loadRequestedRef.current = true;
+      try {
+        history?.loadMore();
+      } catch (error) {
+        loadRequestedRef.current = false;
+        throw error;
+      }
+    },
+    [history, onStartReached],
+  );
+
+  return {
+    canLoadMore: hasMore && !isLoadingMore,
+    handleStartReached,
+  };
+};
 
 const getComponent = (
   components: MessageComponents,
@@ -495,16 +532,9 @@ export const ThreadMessagesFlatList = forwardRef<
       [handleAutoScrollContentSizeChange, onContentSizeChange],
     );
 
-    const canLoadMore = history?.hasMore && !history.isLoadingMore;
-
-    const handleStartReached = useCallback<
-      NonNullable<FlatListProps<ThreadMessage>["onStartReached"]>
-    >(
-      (info) => {
-        onStartReached?.(info);
-        history?.loadMore();
-      },
-      [history, onStartReached],
+    const { canLoadMore, handleStartReached } = useHistoryLoad(
+      history,
+      onStartReached,
     );
 
     return (

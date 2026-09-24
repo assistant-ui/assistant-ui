@@ -3,7 +3,7 @@ title: Limits
 description: Every limit a project enforces, in one place.
 ---
 
-Most limits protect the project from an accidental flood and are the same on every plan; the per project numbers at the end vary by plan. The caps on active users and on thread titles are on [Plans and pricing](/docs/cloud/pricing).
+Most limits protect a project from an accidental flood and apply across plans. The per project numbers at the end vary by plan.
 
 ## Rate limits
 
@@ -11,48 +11,61 @@ Most limits protect the project from an accidental flood and are the same on eve
 |---|---|---|
 | Creating an anonymous session | 30 a minute | client address |
 | Refreshing an anonymous session | 120 a minute | client address |
-| Engagement events | 600 a minute | user |
+| Engagement event requests, each up to 50 events | 600 a minute | user |
 
-A limited request answers `429 { "error": "rate_limited" }` with a `Retry-After` header. Threads, messages, run reports, scores, traces, the project read API and MCP are not rate limited.
+A limited request answers `429 { "error": "rate_limited" }` with a `Retry-After` header. Threads, messages, run reports, scores, traces, the project read API, and MCP are not rate limited.
 
 ## Request sizes
 
 | Object | Limit |
 |---|---|
-| Thread title | 255 characters |
-| Thread `external_id` | 255 characters |
-| Thread `metadata` | 16 keys; keys 64 characters, values 512 |
-| Message `content` | 64 KB serialized |
-| Messages deleted per request | 200 |
-| Run `error` and `error_code` | 2,048 and 64 characters |
+| Thread title | 1 to 255 characters |
+| Thread `external_id` | 1 to 255 characters |
+| Thread `metadata` | 16 keys. Keys are at most 64 characters and values are at most 512 characters. |
+| Thread and message route IDs | 1 to 255 characters. A message list cursor is at most 256 characters. |
+| Message `content` | At most 1,048,576 serialized characters. |
+| Messages deleted per request | 1 to 200 IDs |
+| Run `thread_id`, `message_id`, and `trace_id` | 1 to 255, 1 to 48, and 1 to 48 characters. A trace ID is a W3C trace ID only when it matches `^[0-9a-f]{32}$`. |
+| Run `root_span_id` | Exactly 16 lowercase hexadecimal characters, matching `^[0-9a-f]{16}$`. |
+| Run `error` and `error_code` | 2,048 and 64 characters. |
 | Run `tags` | 20 tags of 64 characters |
 | Run `environment` and `release` | 64 and 255 characters |
-| Run `attributes` | 16 KB |
+| Run `attributes`, with `metadata` and unknown top level keys merged in | 16,384 serialized bytes. |
 | Run `steps`, `tool_calls` and `sampling_calls` | 1,000 entries each |
-| Run `output_text`, tool arguments, tool results, step input | 50,000 characters each |
-| Token counts | up to 100,000,000 |
-| Events per request | 50 |
-| Event `props` | 1 KB; keys 64 characters, strings 256 |
-| Event ids | 48 characters |
-| Score `name` and `comment` | 64 and 2,000 characters |
-| Score `string_value` | 255 characters |
-| Attachment | 25 MB, one of the accepted types |
-| Trace export | 4 MB per request, 500 spans per trace |
-| Span attributes | 16 KB |
+| Run `output_text`, tool arguments, tool results, and step input | 50,000 characters each |
+| Token counts | Whole numbers from 0 to 100,000,000 |
+| Event batch | 1 to 50 events |
+| Event `props` | 1,024 serialized bytes. Keys are 1 to 64 characters and string values are at most 256 characters. |
+| Event IDs | `thread_id`, `message_id`, and `run_id` are each 1 to 48 characters. |
+| Score `name` and `comment` | 1 to 64 and 1 to 2,000 characters. The name uses letters, digits, `.`, `_`, and `-`. |
+| Score targets | `thread_id`, `message_id`, and `run_id` are each 1 to 48 characters. |
+| Score `string_value` | 1 to 255 characters |
+| Attachment upload | Filename is 1 to 255 characters. Declared content length is at most 25 MiB. |
+| Trace export body | At most 4,194,304 bytes, or 4 MB. |
+| Trace span count | At most 500 spans per trace. |
+| Span attributes | 16,384 serialized bytes. Largest entries are dropped first when a trace is assembled. |
 | Allowed origins | 32 entries of 255 characters |
-| `Aui-Sdk` header | 8 tokens |
+| `Aui-Sdk` header | At most 8 tokens. Each name is at most 214 characters and each version is at most 64 characters. |
+| API key user and workspace headers | Each is 1 to 255 characters and cannot contain whitespace or control characters. `Aui-Workspace-Id` is required for every API key request except trace export. `Aui-User-Id` defaults to `__SYSTEM__`; trace export without a workspace ID uses `__OTLP__`. |
+| Auth rule fields | `name` and `provider` are 1 to 255 characters. `jwks_url`, `audience`, and `issuer` are 1 to 2,047 characters when present. `workspace_id_field` and `name_field` are at most 255 characters when present. |
+| Harness | Name is 1 to 80 characters. An ID matches `^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`. A harness has at most 16 backend entries. |
+| Assistant execution | `max_steps` defaults to 10 and accepts 1 to 50. `timeout_seconds` defaults to 300 seconds and accepts 30 to 600 seconds. |
+| Thread title input | At most 8,000 characters across the first user and assistant text. When the assistant has text, it receives up to 500 characters before the user allocation is calculated. |
 
-A run report or a trace export that exceeds a size limit is refused with `400` or `413`; oversized tags and attributes on a report are refused rather than trimmed.
+A run report that exceeds validation caps is refused with `400`. A trace body larger than 4 MB is refused with `413`. The client trims telemetry tags before sending, but an oversized report received by the API is refused rather than trimmed.
 
 ## List pages
 
 | List | Default | Maximum |
 |---|---|---|
 | `GET /v1/threads` | 20 | 100 |
-| `GET /v1/threads/:id/messages` | 200 | 200 |
+| `GET /v1/threads/{thread_id}/messages` | 200 | 200 |
+| `GET /v1/projects/threads` | 20 | 100 |
+| `GET /v1/projects/threads/{thread_id}/messages` | 200 | 200 |
 | `GET /v1/projects/runs` | 50 | 100 |
 | `GET /v1/projects/scores` | 50 | 200 |
 | `GET /v1/projects/usage/daily` | the last 30 days | 366 days |
+| MCP run, thread, and score lists | 50 | 100 |
 | Dashboard tables | 50 rows | 100 rows |
 
 ## Time
@@ -63,16 +76,20 @@ A run report or a trace export that exceeds a size limit is refused with `400` o
 | Access token | 5 minutes |
 | API key expiry | never, or 7, 30, 90 or 365 days |
 | Presigned upload and download URLs | 15 minutes |
-| Retention | 7 to 365 days from the presets, or forever; a shorter setting applies after 24 hours |
+| Anonymous token request, client deadline | 30 seconds |
+| Retention | 1 to 3,650 days, or forever. The dashboard presets are 7, 14, 30, 60, 90, 180, and 365 days. A shorter setting applies after 24 hours. |
 | Alert cooldown | 5 minutes to 7 days |
 | SDK client list | entries not seen for 180 days drop off |
+| Thread title model call | 5 minutes, with at most 256 output tokens |
 
 ## Per project
 
 | What | Limit |
 |---|---|
-| Alert rules | 1, 20 or 100 by plan |
-| Thread titles on the cloud's model | 500 or 5,000 included a month by plan; unlimited from Startup |
+| Active users | Free includes and caps at 200. Pro includes 500 and caps at 5,000. Startup includes 10,000 and caps at 100,000. Enterprise is unlimited. |
+| Alert rules | Free: 1. Pro and Startup: 20. Enterprise: 100. |
+| Thread titles on the cloud model | Free includes and caps at 500 a month. Pro includes 5,000 and caps at 50,000 a month. Startup and Enterprise are unlimited. |
+| Harnesses | Free: 0. Pro: 5. Startup: 25. Enterprise: unlimited. |
 | Evaluators | 20 |
 | Evaluator categories | 10 per rule |
 | Thread title length | 2 to 12 words |

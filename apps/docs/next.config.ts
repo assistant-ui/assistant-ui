@@ -72,12 +72,9 @@ const cspHeader = `
 `;
 
 const config: NextConfig = {
-  experimental: {
-    // Learn previews compile several complete lesson stages into the docs app.
-    // Bound build concurrency so Vercel and other constrained builders do not
-    // run out of memory while Turbopack compiles those routes in parallel.
-    cpus: 2,
-  },
+  // This app keeps a hand-written AGENTS.md, and the root one already points
+  // agents at the bundled Next.js docs, so `next dev` must not append its block.
+  agentRules: false,
   transpilePackages: ["@assistant-ui/ui", "shiki"],
   serverExternalPackages: ["just-bash"],
   skipTrailingSlashRedirect: true,
@@ -139,13 +136,38 @@ const config: NextConfig = {
   redirects: async () => [
     ...LEGACY_TAP_DOCS_REDIRECTS,
     {
+      source: "/tap",
+      destination: "/docs/tap",
+      permanent: true,
+    },
+    {
       source: "/cloud-ai-sdk",
-      destination: "/docs/cloud/ai-sdk",
+      destination: "/docs/cloud/migrate-cloud-ai-sdk",
       permanent: true,
     },
     {
       source: "/docs/api-reference/integrations/cloud-ai-sdk",
+      destination: "/docs/cloud/migrate-cloud-ai-sdk",
+      permanent: true,
+    },
+    {
+      source: "/docs/cloud/ai-sdk-assistant-ui",
       destination: "/docs/cloud/ai-sdk",
+      permanent: true,
+    },
+    {
+      source: "/docs/cloud/telemetry",
+      destination: "/docs/cloud/run-reports",
+      permanent: true,
+    },
+    {
+      source: "/docs/cloud/overview",
+      destination: "/docs/cloud/dashboard/overview",
+      permanent: true,
+    },
+    {
+      source: "/docs/cloud/alerts",
+      destination: "/docs/cloud/settings/alerts",
       permanent: true,
     },
     {

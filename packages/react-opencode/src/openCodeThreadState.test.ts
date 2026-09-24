@@ -5,7 +5,9 @@ import {
 } from "./openCodeThreadState";
 import { serializeOpenCodeParts } from "./serializeUserParts";
 import type {
+  Message,
   MessageWithParts,
+  OpenCodeThreadState,
   PendingUserMessage,
   ThreadUserMessagePart,
 } from "./types";
@@ -209,6 +211,83 @@ describe("reduceOpenCodeThreadState", () => {
     expect(Object.keys(history.pendingUserMessages)).toHaveLength(0);
     expect(history.messageOrder).toEqual(["msg_1"]);
     expect(history.messagesById.msg_1?.shadowParts).toEqual(pending.parts);
+
+    // A second refresh while the server still has no parts: the pending copy
+    // was already reconciled away, so nothing but the retained shadow keeps
+    // the typed text on screen.
+    const refreshed = reduceOpenCodeThreadState(history, {
+      type: "history.loaded",
+      session: null,
+      messages: [
+        {
+          info: {
+            id: "msg_1",
+            role: "user",
+            sessionID: "ses_1",
+            time: { created: 1000 },
+          },
+          parts: [],
+        } as unknown as MessageWithParts,
+      ],
+    });
+
+    expect(refreshed.messagesById.msg_1?.shadowParts).toEqual(pending.parts);
+
+    // Once the server returns the real parts, the shadow is dropped.
+    const settled = reduceOpenCodeThreadState(refreshed, {
+      type: "history.loaded",
+      session: null,
+      messages: [
+        {
+          info: {
+            id: "msg_1",
+            role: "user",
+            sessionID: "ses_1",
+            time: { created: 1000 },
+          },
+          parts: [{ id: "prt_1", type: "text", text: "hello world" }],
+        } as unknown as MessageWithParts,
+      ],
+    });
+
+    expect(settled.messagesById.msg_1?.shadowParts).toBeUndefined();
+  });
+
+  it("does not retain shadow parts on assistant messages", () => {
+    const initial: OpenCodeThreadState = {
+      ...createOpenCodeThreadState("ses_1"),
+      messagesById: {
+        msg_1: {
+          id: "msg_1",
+          info: {
+            id: "msg_1",
+            role: "assistant",
+            sessionID: "ses_1",
+            time: { created: 1000 },
+          } as unknown as Message,
+          parts: [],
+          shadowParts: [{ type: "text", text: "stale" }],
+        },
+      },
+    };
+
+    const history = reduceOpenCodeThreadState(initial, {
+      type: "history.loaded",
+      session: null,
+      messages: [
+        {
+          info: {
+            id: "msg_1",
+            role: "assistant",
+            sessionID: "ses_1",
+            time: { created: 1000 },
+          },
+          parts: [],
+        } as unknown as MessageWithParts,
+      ],
+    });
+
+    expect(history.messagesById.msg_1?.shadowParts).toBeUndefined();
   });
 
   it("reconciles a pending copy whose unsendable parts never reached the wire", () => {

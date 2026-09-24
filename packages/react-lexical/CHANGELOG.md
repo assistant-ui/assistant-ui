@@ -1,5 +1,23 @@
 # @assistant-ui/react-lexical
 
+## 0.2.15
+
+### Patch Changes
+
+- [#8011](https://github.com/assistant-ui/assistant-ui/pull/8011) [`53dceec`](https://github.com/assistant-ui/assistant-ui/commit/53dceecae1cd7fbcd4e1ecd211ba96bd885d1050) - fix: allow Lexical composer submission while a queued run is active. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7830](https://github.com/assistant-ui/assistant-ui/pull/7830) [`039c3c3`](https://github.com/assistant-ui/assistant-ui/commit/039c3c32822632f2a564164f089f538926886124) - fix: build the composer with `LexicalExtensionComposer` instead of the deprecated `LexicalComposer`, with `PlainTextExtension` and `HistoryExtension` replacing the legacy plugins. The editable textbox now carries `aria-placeholder`, and the visual placeholder is hidden from assistive technology. ([@okisdev](https://github.com/okisdev))
+
+- [#7621](https://github.com/assistant-ui/assistant-ui/pull/7621) [`bb12d41`](https://github.com/assistant-ui/assistant-ui/commit/bb12d41c6619ff80a01cfd282770250a2c06465b) - chore: migrate to Lexical 0.51 ([@samdickson22](https://github.com/samdickson22))
+
+- [#7841](https://github.com/assistant-ui/assistant-ui/pull/7841) [`b1b9691`](https://github.com/assistant-ui/assistant-ui/commit/b1b96912a8529aa33d14dd48be5f15a7aa2ccbc2) - fix: declare `lexical` and the `@lexical/*` packages as peer dependencies, so the app resolves one copy of lexical and custom plugins passed as `LexicalComposerInput` children find the composer context. npm, pnpm and bun install the peers on their own; a yarn app adds `lexical`, `@lexical/react`, `@lexical/utils`, `@lexical/history` and `@lexical/plain-text` itself ([@okisdev](https://github.com/okisdev))
+
+## 0.2.14
+
+### Patch Changes
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 0.2.13
 
 ### Patch Changes

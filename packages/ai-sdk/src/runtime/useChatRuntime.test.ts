@@ -52,7 +52,11 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock("@ai-sdk/react", () => ({
-  useChat: mocks.useChat,
+  useChat: (...args: unknown[]) => {
+    const chat = mocks.useChat(...args);
+    if (chat) chat.stop ??= vi.fn(async () => {});
+    return chat;
+  },
   Chat: class MockChat {
     constructor(config: unknown) {
       Object.assign(this, config);
@@ -159,6 +163,24 @@ describe("useChatRuntime", () => {
       expect.objectContaining({ throttle: 50 }),
     );
     expect(mocks.useChat.mock.calls[1]?.[0]).not.toHaveProperty("throttle");
+  });
+
+  it("forwards a custom approval handler to the runtime only", () => {
+    const onRespondToToolApproval = vi.fn();
+    mocks.useChat.mockReturnValue({
+      resumeStream: vi.fn(),
+      status: "ready",
+    });
+
+    renderHook(() => useChatRuntime({ onRespondToToolApproval }));
+
+    expect(mocks.useAISDKRuntime).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ onRespondToToolApproval }),
+    );
+    expect(mocks.useChat.mock.calls[0]?.[0]).not.toHaveProperty(
+      "onRespondToToolApproval",
+    );
   });
 
   it("waits for external history to load before resuming a stream", async () => {

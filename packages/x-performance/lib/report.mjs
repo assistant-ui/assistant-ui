@@ -143,10 +143,13 @@ const compareHeadline = (doc) => {
         : `- **No bench moved.** ${doc.rows.length} benches, all within noise`,
     ];
   if (!s.measured) {
+    const ran = doc.rows.length
+      ? `so all ${doc.rows.length} rows ran as controls · ${controlsText(s)}`
+      : "so no bench ran";
     return [
       doc.changed.length
-        ? `- **No bench exercises the changed dists** (${doc.changed.map(code).join(", ")}), so all ${doc.rows.length} rows ran as controls · ${controlsText(s)}. A bench under \`bench/\` that imports them would measure this class of change.`
-        : `- **Nothing to measure.** Every measured package dist is byte-identical between ${doc.base.label} and ${doc.head.label}, so all ${doc.rows.length} rows ran as controls · ${controlsText(s)}`,
+        ? `- **No bench exercises the changed dists** (${doc.changed.map(code).join(", ")}), ${ran}. A bench under \`bench/\` that imports them would measure this class of change.`
+        : `- **Nothing to measure.** Every measured package dist is byte-identical between ${doc.base.label} and ${doc.head.label}, ${ran}`,
     ];
   }
   const changed = doc.changed.map(code).join(", ");
@@ -164,6 +167,9 @@ const ruleText = (s) =>
   s.scale > 1
     ? `verdicts this run need |Δ| > ${s.scale.toFixed(1)}× floor, the worst control overshoot`
     : "verdicts need |Δ| > floor";
+
+const footerLines = (doc) =>
+  doc.rows.length ? [...doc.footer, ruleText(doc.summary)] : doc.footer;
 
 const splitRows = (doc) => {
   const measured = doc.rows.filter((row) => row.verdict !== null);
@@ -270,7 +276,7 @@ export const renderCompareMarkdown = (
       "</details>",
     );
   }
-  out.push("", [...doc.footer, ruleText(doc.summary)].join(" · "));
+  out.push("", footerLines(doc).join(" · "));
   return out.join("\n");
 };
 
@@ -308,7 +314,7 @@ export const renderCompareTerminal = (doc) => {
   }
   for (const line of compareHeadline(doc))
     console.log(line.replace(/^- /, "").replace(/\*\*/g, ""));
-  console.log([...doc.footer, ruleText(doc.summary)].join("\n"));
+  console.log(footerLines(doc).join("\n"));
 };
 
 const busy = (m) =>

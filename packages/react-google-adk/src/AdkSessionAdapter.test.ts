@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createAdkSessionAdapter } from "./AdkSessionAdapter";
 import { projectAdkToolApprovals } from "./adkToolApproval";
+import type { AdkMessage } from "./types";
 
 // ── Helpers ──
 
@@ -20,6 +21,23 @@ const baseOptions = {
 
 const expectedBaseUrl =
   "http://localhost:8000/apps/my-app/users/user-1/sessions";
+
+describe("createAdkSessionAdapter - load cancellation", () => {
+  it("aborts while dynamic headers are pending", async () => {
+    const controller = new AbortController();
+    const reason = new Error("cancelled");
+    const { load } = createAdkSessionAdapter({
+      ...baseOptions,
+      headers: () => new Promise<Record<string, string>>(() => {}),
+    });
+
+    const result = load("session-1", { signal: controller.signal });
+    controller.abort(reason);
+
+    await expect(result).rejects.toBe(reason);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+});
 
 // ── adapter.list() ──
 
@@ -416,6 +434,76 @@ describe("createAdkSessionAdapter - load", () => {
     ]);
   });
 
+  it("loads valid events when history contains request calls without args", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          id: "s1",
+          events: [
+            {
+              id: "user-1",
+              author: "user",
+              content: { parts: [{ text: "before" }] },
+            },
+            {
+              id: "bad-requests",
+              author: "agent",
+              content: {
+                parts: [
+                  {
+                    functionCall: {
+                      name: "adk_request_confirmation",
+                      id: "rc-1",
+                    },
+                  },
+                  {
+                    functionCall: {
+                      name: "adk_request_credential",
+                      id: "rc-2",
+                    },
+                  },
+                ],
+              },
+            },
+            {
+              id: "agent-1",
+              author: "agent",
+              content: { parts: [{ text: "after" }] },
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const { load } = createAdkSessionAdapter(baseOptions);
+    const result = await load("s1");
+
+    expect(result.messages).toMatchObject([
+      { type: "human", content: "before" },
+      { type: "ai" },
+      { type: "ai", content: [{ type: "text", text: "after" }] },
+    ]);
+    expect(
+      (result.messages[1] as AdkMessage & { type: "ai" }).tool_calls,
+    ).toEqual([
+      {
+        id: "rc-1",
+        name: "adk_request_confirmation",
+        args: {},
+        argsText: "{}",
+      },
+      {
+        id: "rc-2",
+        name: "adk_request_credential",
+        args: {},
+        argsText: "{}",
+      },
+    ]);
+    expect(result.toolConfirmations).toMatchObject([{ toolCallId: "rc-1" }]);
+    expect(result.authRequests).toMatchObject([{ toolCallId: "rc-2" }]);
+  });
+
   it("returns the per-turn state the events imply, not just the messages", async () => {
     const session = {
       id: "s1",
@@ -444,6 +532,85 @@ describe("createAdkSessionAdapter - load", () => {
     expect(result.messageMetadata).toBeInstanceOf(Map);
     expect(result.toolConfirmations).toEqual([]);
     expect(result.authRequests).toEqual([]);
+  });
+
+  it("reports only the requests the stored replies leave unanswered", async () => {
+    const session = {
+      id: "s1",
+      events: [
+        {
+          id: "e1",
+          author: "agent",
+          content: {
+            role: "model",
+            parts: [
+              { functionCall: { name: "transfer", id: "gated-1", args: {} } },
+              { functionCall: { name: "calendar", id: "gated-2", args: {} } },
+            ],
+          },
+        },
+        {
+          id: "e2",
+          author: "agent",
+          longRunningToolIds: ["conf-1", "cred-1"],
+          actions: {
+            requestedToolConfirmations: { "gated-1": { hint: "Transfer?" } },
+          },
+          content: {
+            role: "user",
+            parts: [
+              {
+                functionCall: {
+                  name: "adk_request_confirmation",
+                  id: "conf-1",
+                  args: {
+                    originalFunctionCall: { id: "gated-1", name: "transfer" },
+                    toolConfirmation: { hint: "Transfer?" },
+                  },
+                },
+              },
+              {
+                functionCall: {
+                  name: "adk_request_credential",
+                  id: "cred-1",
+                  args: {
+                    functionCallId: "gated-2",
+                    authConfig: { credentialKey: "k" },
+                  },
+                },
+              },
+            ],
+          },
+        },
+        {
+          id: "e3",
+          author: "user",
+          content: {
+            role: "user",
+            parts: [
+              {
+                functionResponse: {
+                  name: "adk_request_confirmation",
+                  id: "conf-1",
+                  response: { confirmed: true },
+                },
+              },
+            ],
+          },
+        },
+      ],
+    };
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify(session), { status: 200 }),
+    );
+
+    const { load } = createAdkSessionAdapter(baseOptions);
+    const result = await load("s1");
+
+    expect(result.toolConfirmations).toEqual([]);
+    expect(result.authRequests).toEqual([
+      { toolCallId: "cred-1", authConfig: { credentialKey: "k" } },
+    ]);
   });
 
   it("passes an abort signal through to the request", async () => {

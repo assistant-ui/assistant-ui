@@ -101,27 +101,30 @@ Standalone, `MessageActions` is fully controlled: five callbacks and the pieces 
 
 ### Hold the row's state
 
+Install the copy hook from the registry:
+
+```sh
+npx shadcn@latest add "@assistant-ui/use-copy-to-clipboard"
+```
+
 ```tsx title="app/reply.tsx"
 "use client";
 
 import { useState } from "react";
 import { MessageActions, type Reaction } from "@/components/assistant-ui/elements/message-actions";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 
 export function Reply() {
-  const [copied, setCopied] = useState(false);
+  const { isCopied, copyToClipboard } = useCopyToClipboard();
   const [reaction, setReaction] = useState<Reaction>(null);
   const [regenerating, setRegenerating] = useState(false);
 
   return (
     <MessageActions
-      copied={copied}
+      copied={isCopied}
       reaction={reaction}
       regenerating={regenerating}
-      onCopy={() => {
-        navigator.clipboard.writeText("...");
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      }}
+      onCopy={() => copyToClipboard("...")}
       onReactionChange={setReaction}
       onRegenerate={async () => {
         setRegenerating(true);
@@ -158,7 +161,7 @@ export function Reply() {
 </div>
 ```
 
-Standalone, the two rating buttons are `aria-pressed` toggles and mutually exclusive: pressing the active one again calls `onReactionChange(null)` to clear it, and pressing the other switches straight over. The copy button swaps its icon (`iconSwap`/`iconSwapIn`/`iconSwapOut`) and tints emerald while `copied` is true; the regenerate icon spins while `regenerating` is true. At runtime, `ActionBarPrimitive.FeedbackPositive`/`FeedbackNegative` are also mutually exclusive (submitting one replaces the other in `s.message.metadata.submittedFeedback`), but there is no clear: `MessageMethods.submitFeedback` only ever writes a reaction, so once one is submitted a message has no built-in path back to "no reaction" the way the standalone toggle does.
+Standalone, the two rating buttons are `aria-pressed` toggles and mutually exclusive: pressing the active one again calls `onReactionChange(null)` to clear it, and pressing the other switches straight over. The copy button swaps its icon (`iconSwap`/`iconSwapIn`/`iconSwapOut`) and tints emerald while `copied` is true; the regenerate icon spins while `regenerating` is true. At runtime, `ActionBarPrimitive.FeedbackPositive`/`FeedbackNegative` are also `aria-pressed` toggles and mutually exclusive (submitting one replaces the other in `s.message.metadata.submittedFeedback`), but there is no clear: `MessageMethods.submitFeedback` only ever writes a reaction, so once one is submitted a message has no built-in path back to "no reaction" the way the standalone toggle does.
 
 ## Examples
 
@@ -176,7 +179,7 @@ const isCopied = useAuiState((s) => s.message.isCopied);
 
 <StandaloneMode>
 
-You own the timer. Clear `copied` yourself after showing it, as in the example above, or leave it set until the next explicit action.
+The copied state and its timer live inside `useCopyToClipboard`; there's nothing for you to reset. `isCopied` turns true only once the clipboard write succeeds and stays true for three seconds after the latest successful copy (tune it with `useCopyToClipboard({ copiedDuration })`).
 
 </StandaloneMode>
 

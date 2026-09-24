@@ -160,6 +160,47 @@ describe("A2AClient", () => {
       const [, init] = fetchMock.mock.calls[0]!;
       expect(init.headers.Authorization).toBe("Bearer tok123");
     });
+
+    it("aborts a request while dynamic headers are pending", async () => {
+      const dynamicClient = new A2AClient({
+        baseUrl: "https://agent.test",
+        headers: () => new Promise<Record<string, string>>(() => {}),
+      });
+      const controller = new AbortController();
+      const reason = new Error("cancelled");
+
+      const request = dynamicClient.sendMessage(
+        userMessage,
+        undefined,
+        undefined,
+        controller.signal,
+      );
+      controller.abort(reason);
+
+      await expect(request).rejects.toBe(reason);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("aborts a stream while dynamic headers are pending", async () => {
+      const dynamicClient = new A2AClient({
+        baseUrl: "https://agent.test",
+        headers: () => new Promise<Record<string, string>>(() => {}),
+      });
+      const controller = new AbortController();
+      const reason = new Error("cancelled");
+      const stream = dynamicClient.streamMessage(
+        userMessage,
+        undefined,
+        undefined,
+        controller.signal,
+      );
+
+      const next = stream.next();
+      controller.abort(reason);
+
+      await expect(next).rejects.toBe(reason);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
   });
 
   describe("fetchOptions", () => {

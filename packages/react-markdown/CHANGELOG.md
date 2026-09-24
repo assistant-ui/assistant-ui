@@ -1,5 +1,19 @@
 # @assistant-ui/react-markdown
 
+## 0.14.17
+
+### Patch Changes
+
+- [#8039](https://github.com/assistant-ui/assistant-ui/pull/8039) [`41ec387`](https://github.com/assistant-ui/assistant-ui/commit/41ec38783a0a1ed60bf60faae7bf466ac37475e0) - fix(markdown): end quoted code fences and `$$` blocks where their own blockquote ends, so a deeper `>` line no longer closes one early and a blank or shallower line no longer leaves one open ([@rupic-app](https://github.com/apps/rupic-app))
+
+## 0.14.16
+
+### Patch Changes
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#7522](https://github.com/assistant-ui/assistant-ui/pull/7522) [`5f6b4a8`](https://github.com/assistant-ui/assistant-ui/commit/5f6b4a8a62a9ed693ac83f58ce364809c8dfba92) - fix(react-markdown): stop `preprocess` from restarting smooth streaming when a rewrite changes already-revealed text ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.14.15
 
 ### Patch Changes
