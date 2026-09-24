@@ -1,6 +1,24 @@
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { failureLines, flattenBenchmarks, pkgRoot } from "./suite.mjs";
+
+describe("bench files", () => {
+  it("run every bench on the shared sampling budget", () => {
+    const dir = join(pkgRoot, "bench");
+    const offenders = readdirSync(dir, { recursive: true, encoding: "utf8" })
+      .filter((file) => /\.bench\.tsx?$/.test(file))
+      .filter((file) => {
+        const source = readFileSync(join(dir, file), "utf8");
+        const runs = source.match(/\.run\(/g)?.length ?? 0;
+        const budgeted =
+          source.match(/\.run\(\s*inject\(\s*"benchSampling"\s*\)\s*,?\s*\)/g)
+            ?.length ?? 0;
+        return runs === 0 || runs !== budgeted;
+      });
+    expect(offenders).toEqual([]);
+  });
+});
 
 describe("flattenBenchmarks", () => {
   it("maps a vitest 5 JSON report to rows", () => {
