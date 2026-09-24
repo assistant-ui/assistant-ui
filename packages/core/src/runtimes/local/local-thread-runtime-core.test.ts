@@ -3465,6 +3465,99 @@ describe("LocalThreadRuntimeCore runs", () => {
     expect(thread.messages.map((message) => message.id)).toEqual(["restored"]);
   });
 
+  it("discards an in-flight load when the history adapter changes", async () => {
+    const adapter: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    let resolveFirstLoad!: (
+      repo: Awaited<ReturnType<ThreadHistoryAdapter["load"]>>,
+    ) => void;
+    const firstLoad = new Promise<
+      Awaited<ReturnType<ThreadHistoryAdapter["load"]>>
+    >((resolve) => {
+      resolveFirstLoad = resolve;
+    });
+    const firstHistory: ThreadHistoryAdapter = {
+      load: () => firstLoad,
+      append: async () => {},
+    };
+    const secondLoad = vi.fn<ThreadHistoryAdapter["load"]>(async () => ({
+      headId: "second",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "second",
+            role: "user" as const,
+            content: [{ type: "text" as const, text: "second" }],
+            attachments: [],
+            createdAt: new Date(0),
+            metadata: { custom: {} },
+          },
+        },
+      ],
+    }));
+    const thread = createThread(adapter, { history: firstHistory });
+
+    const load = thread.__internal_load();
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: adapter,
+        history: { load: secondLoad, append: async () => {} },
+      },
+    });
+    resolveFirstLoad({
+      headId: "first",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "first",
+            role: "user" as const,
+            content: [{ type: "text" as const, text: "first" }],
+            attachments: [],
+            createdAt: new Date(0),
+            metadata: { custom: {} },
+          },
+        },
+      ],
+    });
+
+    await load;
+
+    expect(secondLoad).toHaveBeenCalledOnce();
+    expect(thread.messages.map((message) => message.id)).toEqual(["second"]);
+  });
+
+  it("ignores a rejected load from a previous history adapter", async () => {
+    const adapter: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    let rejectFirstLoad!: (error: unknown) => void;
+    const firstLoad = new Promise<never>((_, reject) => {
+      rejectFirstLoad = reject;
+    });
+    const secondLoad = vi.fn<ThreadHistoryAdapter["load"]>(async () => ({
+      messages: [],
+    }));
+    const thread = createThread(adapter, {
+      history: { load: () => firstLoad, append: async () => {} },
+    });
+
+    const load = thread.__internal_load();
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: adapter,
+        history: { load: secondLoad, append: async () => {} },
+      },
+    });
+    rejectFirstLoad(new Error("old history unavailable"));
+
+    await expect(load).resolves.toBeUndefined();
+    expect(secondLoad).toHaveBeenCalledOnce();
+    expect(thread.messages).toEqual([]);
+  });
+
   it("does not load late history over a thread that already has messages", async () => {
     const adapter: ChatModelAdapter = {
       run: async () => ({ content: [] }),

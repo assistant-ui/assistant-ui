@@ -351,12 +351,22 @@ export class LocalThreadRuntimeCore
     if (this._loadPromise) return this._loadPromise;
     if (!this.adapters.history) return Promise.resolve();
 
-    const promise = this.adapters.history.load();
-
     this._isLoading = true;
 
-    this._loadPromise = promise
-      .then((repo) => {
+    const loadCurrentHistory = async () => {
+      while (true) {
+        const history = this.adapters.history;
+        if (!history) return;
+
+        let repo: Awaited<ReturnType<typeof history.load>>;
+        try {
+          repo = await history.load();
+        } catch (error) {
+          if (this.adapters.history !== history) continue;
+          throw error;
+        }
+
+        if (this.adapters.history !== history) continue;
         if (!repo) return;
         this.repository.import(withLocalPauseReasons(repo));
         if (repo.messages.length > 0) {
@@ -364,9 +374,8 @@ export class LocalThreadRuntimeCore
         }
         this._notifySubscribers();
 
-        const resume = this.adapters.history?.resume?.bind(
-          this.adapters.history,
-        );
+        if (this.adapters.history !== history) continue;
+        const resume = history.resume?.bind(history);
         if (repo.unstable_resume && resume) {
           this.startRun(
             {
@@ -377,11 +386,14 @@ export class LocalThreadRuntimeCore
             resume,
           ).catch(() => {});
         }
-      })
-      .finally(() => {
-        this._isLoading = false;
-        this._notifySubscribers();
-      });
+        return;
+      }
+    };
+
+    this._loadPromise = loadCurrentHistory().finally(() => {
+      this._isLoading = false;
+      this._notifySubscribers();
+    });
 
     // Notified after the promise is stored so a subscriber that appends
     // re-entrantly finds the barrier it has to wait on.
