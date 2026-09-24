@@ -361,22 +361,19 @@ export class RemoteThreadListThreadListRuntimeCore
     }
   }
 
-  // A replacement adapter can list its own thread under an id an earlier
-  // adapter used; until that list lands, a slot holds a thread it will drop.
-  private _isReplacementThread(
+  // Adapters can list threads under the same id. Until a replacement list
+  // lands, a stale slot still holds the thread of the adapter it came from.
+  private _isOtherAdaptersThread(
     state: RemoteThreadState,
     adapter: RemoteThreadListAdapter,
     threadId: string,
   ) {
-    if (this._options.adapter === adapter) return false;
     const current = getThreadData(state, threadId);
-    return (
-      current !== undefined &&
-      !(
-        this._staleThreadsAdapter === adapter &&
-        this._staleThreadIdsOnReplace?.has(current.id)
-      )
-    );
+    if (current === undefined) return false;
+    const owner = this._staleThreadIdsOnReplace?.has(current.id)
+      ? this._staleThreadsAdapter
+      : this._options.adapter;
+    return owner !== adapter;
   }
 
   private _updateStatusFromAdapter(
@@ -385,7 +382,7 @@ export class RemoteThreadListThreadListRuntimeCore
     threadId: string,
     status: "regular" | "archived" | "deleted",
   ) {
-    if (this._isReplacementThread(state, adapter, threadId)) return state;
+    if (this._isOtherAdaptersThread(state, adapter, threadId)) return state;
     return updateStatusReducer(state, threadId, status);
   }
 
@@ -1147,7 +1144,7 @@ export class RemoteThreadListThreadListRuntimeCore
     // The optimistic layer survives an adapter swap, so a resolved deletion has
     // dropped the slot from `threadData`, where `_replaceWithThreads` would
     // otherwise have found it to stop.
-    if (!this._isReplacementThread(this._state.value, adapter, data.id)) {
+    if (!this._isOtherAdaptersThread(this._state.value, adapter, data.id)) {
       this._hookManager.stopThreadRuntime(data.id);
       clearThreadTitleState(this._titleStates, data.id);
     }
