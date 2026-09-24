@@ -230,9 +230,9 @@ describe("RemoteThreadListThreadListRuntimeCore load race", () => {
       externalId: "remote-1",
     });
     await initializePromise;
-    for (let i = 0; i < 10; i++) await new Promise((r) => setTimeout(r, 0));
-
-    expect(core.getItemById(core.mainThreadId)).toBeDefined();
+    await vi.waitFor(() => {
+      expect(core.getItemById(core.mainThreadId)).toBeDefined();
+    });
     fetchDeferred.resolve({ status: "regular", remoteId: "remote-9" });
     await switching;
     await deletePromise;
