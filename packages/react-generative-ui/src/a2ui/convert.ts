@@ -346,7 +346,14 @@ const mappedProps = (
 
   if (component === "Button") {
     const label = stringProp(props, ["label", "text"]);
-    const buttonStyle = props["buttonStyle"];
+    const buttonStyle =
+      typeof props["buttonStyle"] === "string"
+        ? props["buttonStyle"]
+        : props["variant"] === "primary"
+          ? "primary"
+          : props["variant"] === "borderless"
+            ? "ghost"
+            : undefined;
     const block = props["block"];
     const submit = props["submit"];
     const action = mappedAction(node, props, dataSource, context);
@@ -369,7 +376,8 @@ const mappedProps = (
     const multiline =
       typeof props["multiline"] === "boolean"
         ? props["multiline"]
-        : props["textFieldType"] === "longText"
+        : props["textFieldType"] === "longText" ||
+            props["variant"] === "longText"
           ? true
           : undefined;
     return {

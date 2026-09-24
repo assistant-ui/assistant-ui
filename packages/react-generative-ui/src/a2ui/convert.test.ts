@@ -417,6 +417,90 @@ describe("convertSurfaceToUISpec", () => {
     });
   });
 
+  it("maps v0.9 button and text field variants into vocabulary props", () => {
+    const result = convertSurfaceToUISpec(
+      surfaceFrom([
+        {
+          id: "root",
+          component: "Column",
+          children: [
+            "default-button",
+            "primary-button",
+            "borderless-button",
+            "explicit-button-style",
+            "long-text",
+            "legacy-long-text",
+            "explicit-single-line",
+          ],
+        },
+        {
+          id: "default-button",
+          component: "Button",
+          label: "Default",
+          variant: "default",
+        },
+        {
+          id: "primary-button",
+          component: "Button",
+          label: "Primary",
+          variant: "primary",
+        },
+        {
+          id: "borderless-button",
+          component: "Button",
+          label: "Borderless",
+          variant: "borderless",
+        },
+        {
+          id: "explicit-button-style",
+          component: "Button",
+          label: "Explicit style",
+          variant: "borderless",
+          buttonStyle: "secondary",
+        },
+        {
+          id: "long-text",
+          component: "TextField",
+          label: "Long text",
+          variant: "longText",
+        },
+        {
+          id: "legacy-long-text",
+          component: "TextField",
+          label: "Legacy long text",
+          textFieldType: "longText",
+        },
+        {
+          id: "explicit-single-line",
+          component: "TextField",
+          label: "Explicit single line",
+          variant: "longText",
+          multiline: false,
+        },
+      ]),
+    );
+
+    expect(result).toEqual({
+      spec: {
+        $type: "Col",
+        children: [
+          { $type: "Button", label: "Default" },
+          { $type: "Button", label: "Primary", buttonStyle: "primary" },
+          { $type: "Button", label: "Borderless", buttonStyle: "ghost" },
+          {
+            $type: "Button",
+            label: "Explicit style",
+            buttonStyle: "secondary",
+          },
+          { $type: "Input", label: "Long text", multiline: true },
+          { $type: "Input", label: "Legacy long text", multiline: true },
+          { $type: "Input", label: "Explicit single line", multiline: false },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
   it("drops an unresolvable bound prop without throwing", () => {
     const surface = surfaceFrom([
       {
