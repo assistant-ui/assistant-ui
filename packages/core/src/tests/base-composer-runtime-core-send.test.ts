@@ -1009,6 +1009,38 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     expect(composer.canSend).toBe(true);
   });
 
+  it("does not remove a sending attachment again on reset while its retried removal is in flight", async () => {
+    const upload = deferred();
+    const retry = deferred();
+    const remove = vi
+      .fn<AttachmentAdapter["remove"]>()
+      .mockRejectedValueOnce(new Error("remove failed"))
+      .mockReturnValueOnce(retry.promise)
+      .mockResolvedValue(undefined);
+    const { composer } = makeComposer(
+      makeAdapter({
+        send: async (attachment) => {
+          await upload.promise;
+          return { ...attachment, status: { type: "complete" }, content: [] };
+        },
+        remove,
+      }),
+    );
+
+    await composer.addAttachment(textFile());
+    void composer.send();
+    await vi.waitFor(() =>
+      expect(composer.submission?.attachments).toHaveLength(1),
+    );
+    await composer.removeAttachment("att-1").catch(() => {});
+    void composer.removeAttachment("att-1").catch(() => {});
+    await vi.waitFor(() => expect(remove).toHaveBeenCalledTimes(2));
+    await composer.reset();
+
+    expect(remove).toHaveBeenCalledTimes(2);
+    retry.resolve();
+  });
+
   it("excludes an attachment removed while its upload was still in flight", async () => {
     let resolveSend!: () => void;
     const adapter = makeAdapter({
