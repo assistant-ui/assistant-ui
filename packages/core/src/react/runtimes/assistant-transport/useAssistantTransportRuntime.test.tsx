@@ -803,16 +803,21 @@ describe("useAssistantTransportRuntime", () => {
       });
     });
     vi.stubGlobal("fetch", fetchMock);
+    let released = false;
     let releaseSuspense!: () => void;
     const suspense = new Promise<void>((resolve) => {
-      releaseSuspense = resolve;
+      releaseSuspense = () => {
+        released = true;
+        resolve();
+      };
     });
     let suspend!: () => void;
     const Suspender: FC = () => {
       const [suspended, setSuspended] = useState(false);
       suspend = () => setSuspended(true);
-      if (suspended) throw suspense;
-      return null;
+      if (!suspended) return null;
+      if (!released) throw suspense;
+      return <span data-testid="resumed" />;
     };
     const captured: { aui?: ReturnType<typeof useAui> } = {};
     const Capture: FC = () => {
@@ -836,7 +841,7 @@ describe("useAssistantTransportRuntime", () => {
         </AssistantRuntimeProvider>
       );
     };
-    render(
+    const { findByTestId } = render(
       <Suspense fallback={null}>
         <App />
       </Suspense>,
@@ -858,7 +863,10 @@ describe("useAssistantTransportRuntime", () => {
     act(() => aui().thread.cancelRun());
 
     await waitFor(() => expect(onCancel).toHaveBeenCalledTimes(1));
-    releaseSuspense();
-    await waitFor(() => expect(aui().thread.getState().isRunning).toBe(false));
+    expect(aui().thread.getState().isRunning).toBe(false);
+
+    await act(async () => releaseSuspense());
+    await findByTestId("resumed");
+    expect(aui().thread.getState().isRunning).toBe(false);
   });
 });
