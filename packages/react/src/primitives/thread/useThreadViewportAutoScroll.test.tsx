@@ -166,6 +166,21 @@ const AtBottom: FC = () => {
   return <output data-testid="is-at-bottom">{String(isAtBottom)}</output>;
 };
 
+const ViewportControls: FC = () => {
+  const pauseAutoScroll = useThreadViewport((s) => s.pauseAutoScroll);
+  const resumeAutoScroll = useThreadViewport((s) => s.resumeAutoScroll);
+  const autoScrollPaused = useThreadViewport((s) => s.autoScrollPaused);
+  return (
+    <div>
+      <output data-testid="auto-scroll-paused">
+        {String(autoScrollPaused)}
+      </output>
+      <button data-testid="pause-auto-scroll" onClick={pauseAutoScroll} />
+      <button data-testid="resume-auto-scroll" onClick={resumeAutoScroll} />
+    </div>
+  );
+};
+
 const Thread = ({
   autoScroll,
   scrollToBottomOnInitialize,
@@ -182,6 +197,7 @@ const Thread = ({
     >
       <ThreadPrimitiveMessages components={{ Message }} />
       <AtBottom />
+      <ViewportControls />
       {/* The canonical Thread renders its composer inside the viewport, so
           composer keystrokes bubble to the viewport's keydown listener. */}
       <textarea data-testid="composer" />
@@ -907,5 +923,80 @@ describe("useThreadViewportAutoScroll", () => {
     viewportMeasurementOffset += 200;
     act(notifyResizeObservers);
     expect(screen.getByTestId("is-at-bottom").textContent).toBe("false");
+  });
+
+  it("stops auto-scrolling on content growth when autoScrollPaused is true", async () => {
+    render(
+      <SyncRuntimeProvider>
+        <Thread autoScroll />
+      </SyncRuntimeProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId("thread-message")).toHaveLength(
+        messages.length,
+      );
+    });
+
+    const scrollToSpy = vi.spyOn(HTMLElement.prototype, "scrollTo");
+    scrollToSpy.mockClear();
+
+    act(() => {
+      fireEvent.click(screen.getByTestId("pause-auto-scroll"));
+    });
+    expect(screen.getByTestId("auto-scroll-paused").textContent).toBe("true");
+
+    viewportMeasurementOffset += 200;
+    act(notifyResizeObservers);
+
+    expect(scrollToSpy).not.toHaveBeenCalled();
+
+    scrollToSpy.mockRestore();
+  });
+
+  it("resumes auto-scrolling when user scrolls down to bottom", async () => {
+    render(
+      <SyncRuntimeProvider>
+        <Thread autoScroll />
+      </SyncRuntimeProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId("thread-message")).toHaveLength(
+        messages.length,
+      );
+    });
+
+    const viewport = getViewport();
+    act(() => {
+      viewport.scrollTop = getMaxScrollTop(viewport) - 80;
+      viewport.dispatchEvent(new Event("scroll"));
+    });
+
+    act(() => {
+      fireEvent.click(screen.getByTestId("pause-auto-scroll"));
+    });
+    expect(screen.getByTestId("auto-scroll-paused").textContent).toBe("true");
+
+    act(() => {
+      viewport.scrollTop = getMaxScrollTop(viewport);
+      viewport.dispatchEvent(new Event("scroll"));
+    });
+
+    expect(screen.getByTestId("auto-scroll-paused").textContent).toBe("false");
+
+    const scrollToSpy = vi.spyOn(HTMLElement.prototype, "scrollTo");
+    scrollToSpy.mockClear();
+
+    viewportMeasurementOffset += 200;
+    act(notifyResizeObservers);
+
+    expect(
+      scrollToSpy.mock.calls.map(
+        (call) => (call[0] as ScrollToOptions).behavior,
+      ),
+    ).toContain("instant");
+
+    scrollToSpy.mockRestore();
   });
 });
