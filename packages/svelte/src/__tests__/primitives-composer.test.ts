@@ -107,6 +107,57 @@ describe("composer builders", () => {
     flushSync(() => void unmount(app));
   });
 
+  it("does not submit on Safari's post-compositionend Enter", async () => {
+    let input!: ReturnType<typeof composerInput>;
+    const { app, echo } = mountEcho(() => {
+      input = composerInput();
+    });
+    const textarea = document.createElement("textarea");
+    textarea.value = "draft";
+    textarea.addEventListener("input", input.props.oninput);
+    textarea.addEventListener("keydown", input.props.onkeydown);
+
+    textarea.dispatchEvent(
+      new CompositionEvent("compositionstart", { bubbles: true }),
+    );
+    textarea.dispatchEvent(
+      new InputEvent("input", {
+        data: "draft",
+        inputType: "insertFromComposition",
+        isComposing: true,
+        bubbles: true,
+      }),
+    );
+    textarea.dispatchEvent(
+      new CompositionEvent("compositionend", {
+        data: "draft",
+        bubbles: true,
+      }),
+    );
+    const event = new KeyboardEvent("keydown", {
+      key: "Enter",
+      keyCode: 229,
+      isComposing: false,
+      bubbles: true,
+      cancelable: true,
+    });
+    expect(textarea.dispatchEvent(event)).toBe(true);
+    expect(echo.onNew).not.toHaveBeenCalled();
+    expect(input.props.value).toBe("draft");
+
+    const plainEnter = new KeyboardEvent("keydown", {
+      key: "Enter",
+      keyCode: 13,
+      bubbles: true,
+      cancelable: true,
+    });
+    expect(textarea.dispatchEvent(plainEnter)).toBe(false);
+    await flushEvents();
+    expect(echo.onNew).toHaveBeenCalledOnce();
+
+    flushSync(() => void unmount(app));
+  });
+
   it("cancel routes to the adapter during a run", async () => {
     let cancel!: ReturnType<typeof composerCancel>;
     const { app, echo } = mountEcho(() => {

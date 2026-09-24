@@ -101,7 +101,11 @@ export function MobileComposer({
             onFocus={onFocus}
             onKeyDown={(event) => {
               if (event.key !== "Enter" || event.shiftKey) return;
-              if (event.nativeEvent.isComposing) return;
+              if (
+                event.nativeEvent.isComposing ||
+                event.nativeEvent.keyCode === 229
+              )
+                return;
               event.preventDefault();
               if (!running && value !== "" && onSend) onSend();
             }}

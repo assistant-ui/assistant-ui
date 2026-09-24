@@ -320,7 +320,12 @@ export function ComposerInput({
       onKeyDown={(event) => {
         onKeyDown?.(event);
         if (event.defaultPrevented) return;
-        if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+        if (
+          event.key !== "Enter" ||
+          event.nativeEvent.isComposing ||
+          event.nativeEvent.keyCode === 229
+        )
+          return;
         onSubmit?.();
       }}
       className={cn(
