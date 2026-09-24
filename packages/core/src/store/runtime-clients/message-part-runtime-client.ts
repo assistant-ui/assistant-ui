@@ -16,6 +16,10 @@ const useMessagePartClient = ({
     resumeToolCall: (payload) => runtime.resumeToolCall(payload),
     respondToToolApproval: (response) =>
       runtime.respondToToolApproval(response),
+    ...(runtime.unstable_recordInteraction && {
+      unstable_recordInteraction: (input) =>
+        runtime.unstable_recordInteraction!(input),
+    }),
     __internal_getRuntime: () => runtime,
   };
 };

@@ -8,6 +8,7 @@ import { createApp, defineComponent, h, nextTick, type Component } from "vue";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig } from "@assistant-ui/store/client";
 import { RuntimeAdapter } from "@assistant-ui/core/store";
+import { resource } from "@assistant-ui/tap";
 import { Tools, type Toolkit } from "@assistant-ui/core/react";
 import type {
   ExternalStoreAdapter,
@@ -273,6 +274,154 @@ describe("MessagePrimitiveParts tool UI registry", () => {
       await nextTick();
       expect(el.querySelector("span.slot")).not.toBeNull();
       expect(el.querySelector("span.ui")).toBeNull();
+    });
+
+    unmount();
+  });
+
+  it("renders tools.mcpApp for a tool call with a ui:// resource", async () => {
+    const { runtime, append } = createTestRuntime();
+    const Mcp = defineComponent({
+      props: ["tool"],
+      setup: (props: { tool: ToolUIProps }) => () =>
+        h("span", { class: "mcp" }, props.tool.part.toolName),
+    });
+    const McpApp = resource(function McpApp() {
+      return { render: Mcp as never };
+    });
+    const { el, unmount } = mountChat(runtime, PartsWithToolSlot, {
+      tools: Tools({ mcpApp: McpApp() }),
+    });
+
+    flushTapSync(() =>
+      append({
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "show_chart",
+            args: {},
+            mcp: { app: { resourceUri: "ui://chart" } },
+          },
+        ],
+      }),
+    );
+
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelector("span.mcp")?.textContent).toBe("show_chart");
+    });
+    expect(el.querySelector("span.mcp")?.getAttribute("tool")).toBeNull();
+    expect(el.querySelector("span.mcp")?.getAttribute("name")).toBeNull();
+    expect(el.querySelector("span.slot")).toBeNull();
+
+    unmount();
+  });
+
+  it("renders a registered data renderer for a data part", async () => {
+    const { runtime, append } = createTestRuntime();
+    const PartsWithDataSlot = defineComponent({
+      setup: () => () =>
+        h("li", null, [
+          h(ThreadPrimitiveMessages, null, {
+            default: () =>
+              h(MessagePrimitiveParts, null, {
+                data: () => h("span", { class: "slot" }, "[slot]"),
+              }),
+          }),
+        ]),
+    });
+    const { el, client, unmount } = mountChat(runtime, PartsWithDataSlot);
+    const Chart = defineComponent({
+      props: ["data"],
+      setup: (props: { data: { part: { data: { a: number } } } }) => () =>
+        h("span", { class: "data" }, String(props.data.part.data.a)),
+    });
+    flushTapSync(() =>
+      client().dataRenderers.setDataUI("chart", Chart as never),
+    );
+    flushTapSync(() =>
+      append({
+        role: "assistant",
+        content: [{ type: "data", name: "chart", data: { a: 1 } }],
+      }),
+    );
+
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelector("span.data")?.textContent).toBe("1");
+    });
+    expect(el.querySelector("span.data")?.getAttribute("type")).toBeNull();
+    expect(el.querySelector("span.data")?.getAttribute("name")).toBeNull();
+    expect(el.querySelector("span.data")?.getAttribute("data")).toBeNull();
+    expect(el.querySelector("span.slot")).toBeNull();
+
+    unmount();
+  });
+
+  it("uses the fallback data renderer and keeps its payload isolated", async () => {
+    const { runtime, append } = createTestRuntime();
+    const PartsWithDataSlot = defineComponent({
+      setup: () => () =>
+        h("li", null, [
+          h(ThreadPrimitiveMessages, null, {
+            default: () => h(MessagePrimitiveParts),
+          }),
+        ]),
+    });
+    const { el, client, unmount } = mountChat(runtime, PartsWithDataSlot);
+    const Fallback = defineComponent({
+      props: ["data"],
+      setup: (props: { data: { part: { data: { value: string } } } }) => () =>
+        h("span", { class: "fallback" }, props.data.part.data.value),
+    });
+    flushTapSync(() =>
+      client().dataRenderers.setFallbackDataUI(Fallback as never),
+    );
+    flushTapSync(() =>
+      append({
+        role: "assistant",
+        content: [
+          { type: "data", name: "unknown", data: { value: "fallback" } },
+        ],
+      }),
+    );
+
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelector("span.fallback")?.textContent).toBe("fallback");
+    });
+    expect(el.querySelector("span.fallback")?.getAttribute("name")).toBeNull();
+    expect(el.querySelector("span.fallback")?.getAttribute("data")).toBeNull();
+
+    unmount();
+  });
+
+  it("uses the data slot when no renderer is registered", async () => {
+    const { runtime, append } = createTestRuntime();
+    const PartsWithDataSlot = defineComponent({
+      setup: () => () =>
+        h("li", null, [
+          h(ThreadPrimitiveMessages, null, {
+            default: () =>
+              h(MessagePrimitiveParts, null, {
+                data: () => h("span", { class: "slot" }, "[slot]"),
+              }),
+          }),
+        ]),
+    });
+    const { el, unmount } = mountChat(runtime, PartsWithDataSlot);
+    flushTapSync(() =>
+      append({
+        role: "assistant",
+        content: [{ type: "data", name: "unknown", data: { value: "slot" } }],
+      }),
+    );
+
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelector("span.slot")?.textContent).toBe("[slot]");
     });
 
     unmount();

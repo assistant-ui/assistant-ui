@@ -21,7 +21,7 @@ import { openai } from "@ai-sdk/openai";
 export async function POST(req: Request) {
   const { prompt } = await req.json();
   const result = await generateImage({
-    model: openai.image("gpt-image-1"),
+    model: openai.image("gpt-image-2"),
     prompt,
   });
   const revisedPrompt = (

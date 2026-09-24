@@ -71,7 +71,6 @@ export const useAdkMessages = ({
   const [messageMetadata, setMessageMetadata] = useState<
     Map<string, AdkMessageMetadata>
   >(new Map());
-  const lastTransferToAgentRef = useRef<string | undefined>(undefined);
   // setMessagesImmediate and setLongRunningToolIds are the only writers of their state and publish these refs with it, so neither ref trails a commit.
   const messagesRef = useRef(messages);
   const longRunningToolIdsRef = useRef(longRunningToolIds);
@@ -172,6 +171,7 @@ export const useAdkMessages = ({
       setLongRunningToolIds(accumulator.getLongRunningToolIds());
       setToolConfirmations(accumulator.getToolConfirmations());
       setAuthRequests(accumulator.getAuthRequests());
+      let lastTransferToAgent: string | undefined;
 
       // Google ADK replaces active runs, while React LangGraph queues sends.
       abortControllerRef.current?.abort();
@@ -226,8 +226,8 @@ export const useAdkMessages = ({
           }
 
           const transfer = accumulator.getLastTransferToAgent();
-          if (transfer && transfer !== lastTransferToAgentRef.current) {
-            lastTransferToAgentRef.current = transfer;
+          if (transfer && transfer !== lastTransferToAgent) {
+            lastTransferToAgent = transfer;
             invokeAdkRuntimeCallback(
               "onAgentTransfer",
               onAgentTransfer,

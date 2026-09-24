@@ -17,6 +17,8 @@ on:
       - "scripts/check-distribution-barrels.test.mjs"
       - "scripts/check-workspace-ranges.mjs"
       - "scripts/check-workspace-ranges.test.mjs"
+      - "scripts/check-skills-commit.mjs"
+      - "scripts/check-skills-commit.test.mjs"
       - "scripts/deploy-examples-changes.mjs"
       - "scripts/deploy-examples-changes.test.mjs"
       - ".github/workflows/deploy-examples.yaml"
@@ -44,6 +46,8 @@ on:
       - "scripts/check-distribution-barrels.test.mjs"
       - "scripts/check-workspace-ranges.mjs"
       - "scripts/check-workspace-ranges.test.mjs"
+      - "scripts/check-skills-commit.mjs"
+      - "scripts/check-skills-commit.test.mjs"
       - "scripts/deploy-examples-changes.mjs"
       - "scripts/deploy-examples-changes.test.mjs"
       - ".github/workflows/deploy-examples.yaml"
@@ -135,6 +139,28 @@ jobs:
       - name: Verify published packages publish caret workspace ranges
         run: node scripts/check-workspace-ranges.mjs
 
+  skills-commit:
+    name: Skills Commit Pins
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        with:
+          runtime: node@24
+          install: false
+
+      - name: Test the skills commit checker
+        run: node --test scripts/check-skills-commit.test.mjs
+
+      - name: Verify the skills commit is pinned consistently
+        run: node scripts/check-skills-commit.mjs
+
   build:
     name: Build Changed Packages
     runs-on: ubuntu-latest
@@ -224,7 +250,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # apps/docs is excluded: the Vercel deployment check already builds it on every pull request.
+      # apps/docs is excluded: its build belongs to the Vercel deployment.
       # Examples are demos, so a package change does not rebuild them; an example is built only
       # when its own files change, and deploy-examples builds the deployed ones on main.
       - name: Build apps

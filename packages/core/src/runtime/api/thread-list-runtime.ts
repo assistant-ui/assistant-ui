@@ -14,7 +14,7 @@ import type {
 import {
   type ThreadListItemRuntime,
   ThreadListItemRuntimeImpl,
-  type ThreadListItemState,
+  type ThreadListItemRuntimeState,
   type ThreadListItemStateBinding,
 } from "./thread-list-item-runtime";
 import {
@@ -40,7 +40,7 @@ export type ThreadListState = {
   readonly threadItems: Readonly<
     Record<
       string,
-      Omit<ThreadListItemState, "isMain" | "threadId" | "isRunning">
+      Omit<ThreadListItemRuntimeState, "isMain" | "threadId" | "isRunning">
     >
   >;
 };
@@ -110,7 +110,7 @@ const getThreadListState = (
 const getThreadListItemState = (
   threadList: ThreadListRuntimeCore,
   threadId: string | undefined,
-): ThreadListItemState | SKIP_UPDATE => {
+): ThreadListItemRuntimeState | SKIP_UPDATE => {
   if (threadId === undefined) return SKIP_UPDATE;
 
   const threadData = threadList.getItemById(threadId);

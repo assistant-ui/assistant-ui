@@ -18,6 +18,35 @@ export const captureThreadRuntimeGeneration = (
 
 export const invalidateThreadRuntime = (runtime: ThreadRuntimeCore) => {
   const generation = generations.get(runtime);
+  if (generation?.signal.aborted) return;
   generations.delete(runtime);
   generation?.abort();
+};
+
+const endVoiceSession = (runtime: ThreadRuntimeCore) => {
+  if (!runtime.voice) return;
+  try {
+    runtime.disconnectVoice();
+  } catch (error) {
+    console.error(
+      "[assistant-ui] Voice cleanup threw while discarding a thread runtime",
+      error,
+    );
+  }
+};
+
+// A successor keeps the same thread: the call ends as if hung up, in-flight work
+// (a commit waiting on a load included) is fenced, and later sends still land.
+export const supersedeThreadRuntime = (runtime: ThreadRuntimeCore) => {
+  endVoiceSession(runtime);
+  invalidateThreadRuntime(runtime);
+};
+
+// Disposal is that permanent mark, so only an owner that drops the runtime for
+// good may call it; tap runs every effect cleanup on a soft unmount as well.
+export const disposeThreadRuntime = (runtime: ThreadRuntimeCore) => {
+  const generation = generations.get(runtime) ?? new AbortController();
+  generations.set(runtime, generation);
+  generation.abort();
+  endVoiceSession(runtime);
 };

@@ -15,14 +15,14 @@ import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 
 export function ModelAvailabilitySelector() {
   const openaiModels: ModelOption[] = [
-    { id: "gpt-5.6-luna", name: "GPT-5.6 Luna" },
-    { id: "gpt-5.6-sol", name: "GPT-5.6 Sol", efforts: true },
+    { id: "gpt-6-luna", name: "GPT-6 Luna" },
+    { id: "gpt-6-astra", name: "GPT-6 Astra", efforts: true },
   ];
   const anthropicModels: ModelOption[] = [
-    { id: "claude-fable-5", name: "Claude Fable 5" },
-    { id: "claude-opus-5", name: "Claude Opus 5", disabled: true },
+    { id: "claude-fable-5-1", name: "Claude Fable 5.1" },
+    { id: "claude-opus-5-5", name: "Claude Opus 5.5", disabled: true },
   ];
-  const [model, setModel] = useState("gpt-5.6-luna");
+  const [model, setModel] = useState("gpt-6-luna");
 
   return (
     <ModelSelectorRoot
