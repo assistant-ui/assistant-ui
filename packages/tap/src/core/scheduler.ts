@@ -58,23 +58,35 @@ export class UpdateScheduler {
   }
 }
 
-const scheduledTasks: Task[] = [];
-const taskScheduler = new UpdateScheduler(() => {
-  const tasks = scheduledTasks.splice(0);
-  const errors: unknown[] = [];
-  for (const task of tasks) {
-    try {
-      task();
-    } catch (error) {
-      errors.push(error);
-    }
-  }
-  throwAggregated(errors, "Errors occurred while running scheduled tasks");
-});
+type TaskState = {
+  tasks: Task[];
+  scheduler: UpdateScheduler;
+};
+
+const createTaskState = (): TaskState => {
+  const tasks: Task[] = [];
+  return {
+    tasks,
+    scheduler: new UpdateScheduler(() => {
+      const batch = tasks.splice(0);
+      const errors: unknown[] = [];
+      for (const task of batch) {
+        try {
+          task();
+        } catch (error) {
+          errors.push(error);
+        }
+      }
+      throwAggregated(errors, "Errors occurred while running scheduled tasks");
+    }),
+  };
+};
+
+let taskState = createTaskState();
 
 export const scheduleTask = (task: Task): void => {
-  taskScheduler.markDirty();
-  scheduledTasks.push(task);
+  taskState.scheduler.markDirty();
+  taskState.tasks.push(task);
 };
 
 export const scheduleNotify = (notify: () => void): void => {
@@ -166,10 +178,12 @@ export const flushTapSync = <T>(callback: () => T): T => {
   }
 
   const prev = flushState;
+  const prevTaskState = taskState;
   flushState = {
     schedulers: new Set(),
     isScheduled: true,
   };
+  taskState = createTaskState();
 
   try {
     const value = callback();
@@ -182,6 +196,7 @@ export const flushTapSync = <T>(callback: () => T): T => {
     // lands there. Hand that work to the restored state or it is lost.
     const stranded = flushState.schedulers;
     flushState = prev;
+    taskState = prevTaskState;
     if (stranded.size > 0) {
       for (const scheduler of stranded) flushState.schedulers.add(scheduler);
       scheduleFlush();
