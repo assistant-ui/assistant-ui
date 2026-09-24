@@ -147,8 +147,6 @@ const convertUserPart = (
   switch (part.type) {
     case "text":
       return { type: "text", text: part.text };
-    case "file":
-      return convertFilePart(part);
     default:
       return null;
   }

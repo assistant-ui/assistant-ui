@@ -63,15 +63,7 @@ describe("convertFlueMessages", () => {
     expect(converted[0]).toMatchObject({
       id: "user-1",
       role: "user",
-      content: [
-        { type: "text", text: "Run it" },
-        {
-          type: "file",
-          data: "https://example.com/image.png",
-          mimeType: "image/png",
-          sourceType: "url",
-        },
-      ],
+      content: [{ type: "text", text: "Run it" }],
       attachments: [
         {
           id: "file-1",
