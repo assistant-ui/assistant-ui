@@ -42,6 +42,7 @@ import {
 import {
   captureThreadRuntimeGeneration,
   invalidateThreadRuntime,
+  supersedeThreadRuntime,
 } from "../../runtime/utils/thread-runtime-lifecycle";
 
 class AbortError extends Error {
@@ -223,6 +224,8 @@ export class LocalThreadRuntimeCore
   }
 
   private _options!: LocalRuntimeOptionsBase;
+  private _historyScopeInitialized = false;
+  private _historyScopeId: string | undefined;
 
   private _lastRunConfig: RunConfig = {};
 
@@ -248,6 +251,38 @@ export class LocalThreadRuntimeCore
     if (this._options === options) return;
 
     const previousHistory = this._options?.adapters.history;
+    const currentHistory = options.adapters.history;
+    const historyScopeChanged =
+      currentHistory !== undefined &&
+      this._historyScopeInitialized &&
+      this._historyScopeId !== currentHistory.scopeId;
+    if (currentHistory) {
+      this._historyScopeInitialized = true;
+      this._historyScopeId = currentHistory.scopeId;
+    }
+    const resetHistoryScope = this._loadRequested && historyScopeChanged;
+
+    if (resetHistoryScope) {
+      this._queue?.clear();
+      this.cancelRun();
+      supersedeThreadRuntime(this);
+      // The draft was written under the previous scope, so sending it after
+      // the switch would append one account's content through another's
+      // adapter. Reset also invalidates a send still uploading attachments.
+      void this.composer.reset().catch((error) => {
+        console.error(
+          "[assistant-ui] Composer reset threw after the history scope changed",
+          error,
+        );
+      });
+      this._suggestions = [];
+      this._lastRunConfig = {};
+      this.repository.clear();
+      this._loadGeneration++;
+      this._loadPromise = undefined;
+      this._isLoading = false;
+    }
+
     this._options = options;
     if (!options.adapters.voice && this.voice) {
       try {
@@ -260,7 +295,7 @@ export class LocalThreadRuntimeCore
       }
     }
 
-    let hasUpdates = false;
+    let hasUpdates = resetHistoryScope;
 
     if (!options.adapters.suggestion) {
       this._suggestionsController?.abort();
@@ -350,9 +385,8 @@ export class LocalThreadRuntimeCore
     if (
       this._loadRequested &&
       !this._loadPromise &&
-      !previousHistory &&
-      options.adapters.history &&
-      this.messages.length === 0
+      currentHistory &&
+      (historyScopeChanged || (!previousHistory && this.messages.length === 0))
     ) {
       void this.__internal_load().catch((error: unknown) => {
         console.error(
@@ -364,49 +398,77 @@ export class LocalThreadRuntimeCore
   }
 
   private _loadPromise: Promise<void> | undefined;
+  private _loadGeneration = 0;
   private _loadRequested = false;
   public __internal_load() {
     this._loadRequested = true;
     if (this._loadPromise) return this._loadPromise;
     if (!this.adapters.history) return Promise.resolve();
 
-    const promise = this.adapters.history.load();
-
     this._isLoading = true;
 
-    this._loadPromise = promise
-      .then((repo) => {
-        if (!repo) return;
-        this.repository.import(withLocalPauseReasons(repo));
-        if (repo.messages.length > 0) {
-          this.ensureInitialized();
-        }
-        this._notifySubscribers();
+    const history = this.adapters.history;
+    const scopeId = history.scopeId;
+    const generation = this._loadGeneration;
+    let loadFailed = false;
 
-        const resume = this.adapters.history?.resume?.bind(
-          this.adapters.history,
-        );
-        if (repo.unstable_resume && resume) {
-          this.startRun(
-            {
-              parentId: this.repository.headId,
-              sourceId: this.repository.headId,
-              runConfig: this._lastRunConfig,
-            },
-            resume,
-          ).catch(() => {});
-        }
-      })
-      .finally(() => {
-        this._isLoading = false;
-        this._notifySubscribers();
-      });
+    const loadCurrentHistory = async () => {
+      let repo: Awaited<ReturnType<typeof history.load>>;
+      try {
+        repo = await history.load();
+      } catch (error) {
+        if (generation !== this._loadGeneration) return;
+        const currentHistory = this.adapters.history;
+        if (currentHistory && currentHistory.scopeId !== scopeId) return;
+        loadFailed = true;
+        throw error;
+      }
+
+      if (generation !== this._loadGeneration) return;
+      const currentHistory = this.adapters.history;
+      if (currentHistory && currentHistory.scopeId !== scopeId) return;
+      if (!repo) return;
+      this.repository.import(withLocalPauseReasons(repo));
+      if (repo.messages.length > 0) {
+        this.ensureInitialized();
+      }
+      this._notifySubscribers();
+
+      if (generation !== this._loadGeneration) return;
+      const resumeHistory = this.adapters.history;
+      if (!resumeHistory || resumeHistory.scopeId !== scopeId) return;
+      const resume = resumeHistory.resume?.bind(resumeHistory);
+      if (repo.unstable_resume && resume) {
+        this.startRun(
+          {
+            parentId: this.repository.headId,
+            sourceId: this.repository.headId,
+            runConfig: this._lastRunConfig,
+          },
+          resume,
+        ).catch(() => {});
+      }
+    };
+
+    const loadPromise = loadCurrentHistory().finally(() => {
+      if (
+        generation !== this._loadGeneration ||
+        this._loadPromise !== loadPromise
+      )
+        return;
+      this._isLoading = false;
+      if (loadFailed && !this.adapters.history) {
+        this._loadPromise = undefined;
+      }
+      this._notifySubscribers();
+    });
+    this._loadPromise = loadPromise;
 
     // Notified after the promise is stored so a subscriber that appends
     // re-entrantly finds the barrier it has to wait on.
     this._notifySubscribers();
 
-    return this._loadPromise;
+    return loadPromise;
   }
 
   // The import that ends a load replaces the repository contents and resets
@@ -414,9 +476,23 @@ export class LocalThreadRuntimeCore
   // discarded branch. Awaiting the load promise keeps the wait bounded by the
   // adapter call, unlike polling `isLoading` for a notification that a
   // superseded runtime never sends.
-  private _getHistoryLoadBarrier(): Promise<void> | undefined {
+  private _getHistoryLoadBarrier(
+    generation: AbortSignal,
+  ): Promise<void> | undefined {
     if (!this._isLoading || !this._loadPromise) return undefined;
-    return this._loadPromise.catch(() => {});
+    const loadPromise = this._loadPromise;
+    return new Promise<void>((resolve) => {
+      const finish = () => {
+        generation.removeEventListener("abort", finish);
+        resolve();
+      };
+      if (generation.aborted) {
+        finish();
+        return;
+      }
+      generation.addEventListener("abort", finish, { once: true });
+      void loadPromise.then(finish, finish);
+    });
   }
 
   public async append(message: AppendMessage): Promise<void> {
@@ -527,7 +603,7 @@ export class LocalThreadRuntimeCore
     // the flush re-pointed its parentId at the current tail.
     const generation = captureThreadRuntimeGeneration(this);
 
-    const loadBarrier = this._getHistoryLoadBarrier();
+    const loadBarrier = this._getHistoryLoadBarrier(generation);
     if (loadBarrier) {
       const wasAtTail =
         rawMessage.parentId === (this.messages.at(-1)?.id ?? null);
