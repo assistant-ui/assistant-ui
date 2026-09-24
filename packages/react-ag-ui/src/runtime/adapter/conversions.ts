@@ -244,7 +244,9 @@ function mediaTypeForMime(mimeType: string | undefined): MediaInputType {
 // Build an AG-UI multimodal source from a data URL, raw base64 payload, or an
 // http(s) URL. A `url` source may omit the mime type; a `data` source always
 // resolves one (falling back to application/octet-stream). An explicit
-// `sourceType: "url"` on the part forces the url leg for non-http references.
+// `sourceType: "url"` on the part forces the url leg for non-http references,
+// and a data URL that is not base64 takes it too, since a `data` source
+// carries base64 bytes.
 function buildInputSource(
   value: string,
   declaredMimeType: string | undefined,
@@ -253,7 +255,8 @@ function buildInputSource(
   const source = resolveFilePartSource({
     data: value,
     mimeType: declaredMimeType ?? "application/octet-stream",
-    sourceType,
+    sourceType:
+      /^data:/i.test(value) && !parseDataUrl(value) ? "url" : sourceType,
   });
   if (source.kind === "url") {
     return declaredMimeType !== undefined

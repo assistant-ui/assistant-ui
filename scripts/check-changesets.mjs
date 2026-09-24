@@ -64,6 +64,16 @@ function parseReleaseLine(line) {
   return { name: entry[1] ?? entry[2] ?? entry[3], bump };
 }
 
+// A copy of `mdRegex` from `@changesets/parse`, which `changeset version` uses
+// to read a changeset. The checks run in CI without installed dependencies, so
+// they cannot import it; keep the two patterns identical.
+const CHANGESET_SOURCE = /\s*---([\s\S]*?)\r?\n\s*---(\s*(?:\n|$)[\s\S]*)/;
+
+export function readChangesetSource(source) {
+  const match = CHANGESET_SOURCE.exec(source);
+  return match ? { frontmatter: match[1], body: match[2] } : null;
+}
+
 export function readWorkspacePackages(root) {
   const globs = parseWorkspaceGlobs(
     readFileSync(path.join(root, "pnpm-workspace.yaml"), "utf8"),
@@ -98,12 +108,11 @@ function readChangesetBumps(root, files = null) {
   for (const file of readdirSync(changesetDir).sort()) {
     if (!file.endsWith(".md") || file === "README.md") continue;
     if (files && !files.has(file)) continue;
-    const frontmatter = readFileSync(
-      path.join(changesetDir, file),
-      "utf8",
-    ).match(/^---\r?\n([\s\S]*?)\r?\n---/);
-    if (!frontmatter) continue;
-    for (const line of frontmatter[1].split("\n")) {
+    const changeset = readChangesetSource(
+      readFileSync(path.join(changesetDir, file), "utf8"),
+    );
+    if (!changeset) continue;
+    for (const line of changeset.frontmatter.split("\n")) {
       const release = parseReleaseLine(line);
       if (release) bumps.push({ file, ...release });
     }

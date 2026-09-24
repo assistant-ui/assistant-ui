@@ -17,6 +17,8 @@ npx assistant-ui@latest upgrade
 
 This will automatically handle the hook renames and update your imports.
 
+Hook and component renames follow imports from `@assistant-ui/*`, including aliases, and leave unrelated or shadowed bindings unchanged. Imports through a local re-export need manual review. Unlike the v0.15 accessor codemod's existing hook-name fallback, this rename requires a direct assistant-ui import so it does not rename an unrelated hook.
+
 ## Breaking Changes
 
 ### 1. Assistant API Hooks Renamed

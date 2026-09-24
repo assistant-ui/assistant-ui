@@ -350,6 +350,23 @@ test("runCheck rejects a none release of a package outside the workspace", () =>
   }
 });
 
+test("runCheck reads a changeset whose frontmatter follows blank lines or a byte order mark", () => {
+  for (const prefix of ["\n", "\r\n", "\uFEFF"]) {
+    const root = createWorkspace(
+      `${prefix}---\n"@fixture/published": patch\n"@fixture/internal": patch\n---\n\nfix: something\n`,
+    );
+    try {
+      assert.deepEqual(
+        runCheck(root).problems.map(({ name }) => name),
+        ["@fixture/internal"],
+        JSON.stringify(prefix),
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }
+});
+
 test("readSkipRules follows .changeset/config.json", () => {
   assert.deepEqual(readSkipRules({}), {
     ignored: [],
