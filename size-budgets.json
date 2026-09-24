@@ -72,7 +72,7 @@
   "@assistant-ui/react-flue": {
     ".": {
       "min": 5292,
-      "gzip": 2179
+      "gzip": 2188
     }
   },
   "@assistant-ui/react-generative-ui": {
