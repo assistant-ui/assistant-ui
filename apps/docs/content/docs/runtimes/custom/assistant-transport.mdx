@@ -311,6 +311,7 @@ data: [DONE]
 {
   initialState: T,
   api: string,
+  cloud?: AssistantCloud,
   resumeApi?: string,
   resumeStateApi?: string,
   protocol?: "data-stream" | "assistant-transport",
@@ -319,7 +320,7 @@ data: [DONE]
   body?: object | (() => Promise<object | undefined>),
   prepareSendCommandsRequest?: (body: SendCommandsRequestBody) => Record<string, unknown> | Promise<Record<string, unknown>>,
   capabilities?: { edit?: boolean },
-  adapters?: { attachments?: AttachmentAdapter; history?: ThreadHistoryAdapter },
+  adapters?: { attachments?: AttachmentAdapter },
   onResponse?: (response: Response) => void | Promise<void>,
   onFinish?: () => void,
   onError?: (error: Error, params: { commands: AssistantTransportCommand[]; updateState: (updater: (state: T) => T) => void }) => void | Promise<void>,
@@ -749,10 +750,10 @@ Custom commands follow the same lifecycle as built-in ones; check for them in `o
 | Adapter | Supported via |
 | --- | --- |
 | Attachments | `adapters.attachments` |
-| History | `adapters.history` |
 | threadList | Via [thread list adapter](/docs/runtimes/concepts/threads) |
+| Assistant Cloud | `cloud`: the cloud backs the thread list, every request's `threadId` is the cloud thread id, feedback is stored, and settled messages are copied for the dashboard |
 
-Speech, dictation, feedback, and suggestions are not currently exposed by `AssistantTransport`. Drop down to `ExternalStoreRuntime` if you need them.
+Speech, dictation and suggestions are not currently exposed by `AssistantTransport`. Drop down to `ExternalStoreRuntime` if you need them.
 
 ## Related
 

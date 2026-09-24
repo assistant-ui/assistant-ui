@@ -20,6 +20,7 @@ Command Scheduling
 Thread Identity
 
 - A run sends the thread's remote id as `threadId`. A thread without one yet, as on the first run of a new thread, first awaits the thread list item's `initialize()`, which creates the remote thread or joins the initialization already in flight.
+- With `cloud`, each request carries the Assistant Cloud thread id.
 - The parentId is read with the flush, before that await, so a message appended while the thread initializes keeps its own parentId.
 - A resume never initializes the thread, so a thread that was never initialized resumes without a `threadId`.
 - If initialization fails, no request is sent and the flushed commands reach `onError`.

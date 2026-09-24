@@ -3,6 +3,7 @@
 import { act, render, waitFor } from "@testing-library/react";
 import { useState, type FC } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { AssistantCloud } from "assistant-cloud";
 import { useAui } from "@assistant-ui/store";
 import { AssistantRuntimeProvider } from "../../AssistantRuntimeProvider";
 import type { AssistantRuntime } from "../../../runtime/api/assistant-runtime";
@@ -118,11 +119,93 @@ const deferredInitialization = () => {
   return { adapter, initialization };
 };
 
+const makeCloud = (
+  threads: {
+    id: string;
+    title: string;
+    is_archived: boolean;
+    external_id: string | null;
+    metadata: Record<string, unknown> | null;
+    last_message_at: Date | null;
+  }[] = [],
+) =>
+  ({
+    registerSdk: vi.fn(),
+    telemetry: { enabled: false },
+    threads: {
+      list: vi.fn(async ({ is_archived }: { is_archived?: boolean }) => ({
+        threads: threads.filter(
+          (thread) => thread.is_archived === !!is_archived,
+        ),
+      })),
+      create: vi.fn(async () => ({ thread_id: "cloud-thread" })),
+      update: vi.fn(async () => {}),
+      delete: vi.fn(async () => {}),
+      get: vi.fn(),
+      messages: {
+        list: vi.fn(async () => ({ messages: [] })),
+        create: vi.fn(async () => ({ message_id: "message-1" })),
+        update: vi.fn(async () => {}),
+        feedback: vi.fn(async () => {}),
+      },
+    },
+    runs: {
+      stream: vi.fn(async () => new ReadableStream()),
+    },
+  }) as unknown as AssistantCloud;
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
 describe("assistant transport thread id", () => {
+  it("uses the Cloud thread list and posts the created Cloud thread id", async () => {
+    const cloud = makeCloud([
+      {
+        id: "listed-thread",
+        title: "Listed thread",
+        is_archived: false,
+        external_id: null,
+        metadata: null,
+        last_message_at: null,
+      },
+      {
+        id: "archived-thread",
+        title: "Archived thread",
+        is_archived: true,
+        external_id: null,
+        metadata: null,
+        last_message_at: null,
+      },
+    ]);
+    const requests = recordRequests();
+    const aui = await renderRuntime(function useCloudRuntime() {
+      return useAssistantTransportRuntime({
+        initialState: {},
+        api: API,
+        headers: {},
+        converter,
+        cloud,
+      });
+    });
+
+    await waitFor(() =>
+      expect(aui.threads.getState().threadIds).toEqual(["listed-thread"]),
+    );
+    expect(aui.threads.getState().archivedThreadIds).toEqual([
+      "archived-thread",
+    ]);
+
+    act(() => {
+      aui.threads.switchToNewThread();
+      void aui.thread.append("hello");
+    });
+
+    await waitFor(() => expect(requests).toHaveLength(1));
+    expect(cloud.threads.create).toHaveBeenCalledOnce();
+    expect(requests[0]!.body["threadId"]).toBe("cloud-thread");
+  });
+
   it("waits for a new thread's initialization and posts its remote id", async () => {
     const { adapter, initialization } = deferredInitialization();
     const requests = recordRequests();
