@@ -3593,23 +3593,24 @@ declare class ReadonlyThreadRuntimeCore extends InertThreadRuntimeCore {
     }[];
   };
   composer: {
+    addAttachment(_fileOrAttachment: File | CreateAttachment): Promise<void>;
+    setText(_value: string): void;
+    send(_options?: SendOptions): void;
+    setQuote(_quote: QuoteInfo | undefined): void;
     attachments: never[];
     attachmentAccept: string;
-    addAttachment(): Promise<never>;
     removeAttachment(): Promise<never>;
     isEditing: false;
     canCancel: boolean;
     canSend: boolean;
     isEmpty: boolean;
     text: string;
-    setText(): never;
     role: "user";
     setRole(): never;
     runConfig: {};
     setRunConfig(): never;
     reset(): Promise<void>;
     clearAttachments(): Promise<void>;
-    send(): never;
     cancel(): void;
     queue: never[];
     moveQueueItem(): void;
@@ -3618,7 +3619,6 @@ declare class ReadonlyThreadRuntimeCore extends InertThreadRuntimeCore {
     startDictation(): never;
     stopDictation(): void;
     quote: undefined;
-    setQuote(): never;
     subscribe(): () => void;
     unstable_on(): () => void;
   };

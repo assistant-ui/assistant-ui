@@ -33,12 +33,9 @@ const THREAD_MUTATION_METHODS = [
 ] as const;
 
 const SHARED_THROWING_COMPOSER_METHODS = [
-  "setText",
   "setRole",
   "setRunConfig",
-  "send",
   "startDictation",
-  "setQuote",
 ] as const;
 
 const SHARED_NOOP_COMPOSER_METHODS = [
@@ -71,7 +68,7 @@ describe.each(cores)("%s shared inert surface", (_name, makeCore, error) => {
     },
   );
 
-  it.each(["addAttachment", "removeAttachment"] as const)(
+  it.each(["removeAttachment"] as const)(
     "composer.%s rejects with the core's error",
     async (method) => {
       await expect(makeCore().composer[method]!()).rejects.toThrow(error);
@@ -144,6 +141,36 @@ describe.each(cores)("%s shared inert surface", (_name, makeCore, error) => {
 });
 
 describe("readonly thread mutations", () => {
+  it("ignores composer input, sending, attachments and quotes", async () => {
+    const composer = new ReadonlyThreadRuntimeCore().composer;
+    expect(() => composer.setText("hello")).not.toThrow();
+    expect(() => composer.send()).not.toThrow();
+    expect(() =>
+      composer.setQuote({ text: "quoted", messageId: "message-1" }),
+    ).not.toThrow();
+    await expect(
+      composer.addAttachment(new File([], "test.txt")),
+    ).resolves.toBeUndefined();
+    expect(composer.text).toBe("");
+    expect(composer.quote).toBeUndefined();
+    expect(composer.attachments).toEqual([]);
+  });
+
+  it.each(["setText", "send", "setQuote"] as const)(
+    "empty core composer.%s still throws",
+    (method) => {
+      expect(() =>
+        (EMPTY_THREAD_CORE.composer[method] as () => void)(),
+      ).toThrow(EMPTY_ERROR);
+    },
+  );
+
+  it("empty core composer.addAttachment still rejects", async () => {
+    await expect(
+      EMPTY_THREAD_CORE.composer.addAttachment(new File([], "test.txt")),
+    ).rejects.toThrow(EMPTY_ERROR);
+  });
+
   it("rejects interaction recording on empty threads and resolves on readonly threads", async () => {
     await expect(
       EMPTY_THREAD_CORE.unstable_recordToolInteraction!({

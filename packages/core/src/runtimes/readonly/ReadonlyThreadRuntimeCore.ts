@@ -1,4 +1,7 @@
 import type { ThreadMessage } from "../../types/message";
+import type { CreateAttachment } from "../../types/attachment";
+import type { QuoteInfo } from "../../types/quote";
+import type { SendOptions } from "../../runtime/interfaces/composer-runtime-core";
 import {
   InertThreadRuntimeCore,
   createInertComposer,
@@ -51,7 +54,13 @@ export class ReadonlyThreadRuntimeCore extends InertThreadRuntimeCore {
     };
   }
 
-  composer = createInertComposer(READONLY_THREAD_ERROR, false);
+  composer = {
+    ...createInertComposer(READONLY_THREAD_ERROR, false),
+    async addAttachment(_fileOrAttachment: File | CreateAttachment) {},
+    setText(_value: string) {},
+    send(_options?: SendOptions) {},
+    setQuote(_quote: QuoteInfo | undefined) {},
+  };
 
   isLoading = false;
 
