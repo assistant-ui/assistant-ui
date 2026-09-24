@@ -7,24 +7,24 @@
   },
   "@assistant-ui/core": {
     ".": {
-      "min": 37856,
-      "gzip": 12607
+      "min": 37850,
+      "gzip": 12602
     },
     "./internal": {
-      "min": 148995,
-      "gzip": 37860
+      "min": 149042,
+      "gzip": 37867
     },
     "./react": {
-      "min": 332507,
-      "gzip": 92499
+      "min": 332554,
+      "gzip": 92513
     },
     "./store": {
-      "min": 114116,
-      "gzip": 38622
+      "min": 114110,
+      "gzip": 38624
     },
     "./store/internal": {
-      "min": 37218,
-      "gzip": 13403
+      "min": 37212,
+      "gzip": 13410
     }
   },
   "@assistant-ui/eve": {
@@ -47,8 +47,8 @@
   },
   "@assistant-ui/react-ag-ui": {
     ".": {
-      "min": 82933,
-      "gzip": 21599
+      "min": 82973,
+      "gzip": 21605
     }
   },
   "@assistant-ui/react-ai-sdk": {
