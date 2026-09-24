@@ -308,6 +308,79 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("moves off the main thread when an archive of its listed duplicate settles before initialize", async () => {
+    const list = deferred<{ threads: RemoteThreadMetadata[] }>();
+    const initialize = deferred<{ remoteId: string; externalId: undefined }>();
+    const adapter = makeAdapter({
+      list: vi.fn(() => list.promise),
+      initialize: vi.fn(() => initialize.promise),
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    const loading = aui.threads.getLoadThreadsPromise();
+    const localId = aui.threads.getState().mainThreadId;
+    const initialization = aui.threads.item("main").initialize();
+    await vi.waitFor(() => {
+      expect(aui.threads.item("main").getState().status).toBe("regular");
+    });
+
+    list.resolve({ threads: [{ status: "regular", remoteId: "remote-1" }] });
+    await loading;
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toContain("remote-1");
+    });
+    await aui.threads.item({ id: "remote-1" }).archive();
+
+    initialize.resolve({ remoteId: "remote-1", externalId: undefined });
+    await initialization;
+
+    expect(adapter.archive).toHaveBeenCalledWith("remote-1");
+    await vi.waitFor(() => {
+      const state = aui.threads.getState();
+      expect(state.mainThreadId).not.toBe(localId);
+      expect(state.mainThreadId).toBe(state.newThreadId);
+    });
+    expect(aui.threads.getState().archivedThreadIds).toEqual([localId]);
+    handle.destroy();
+  });
+
+  it("moves off the main thread when a delete of its listed duplicate settles before initialize", async () => {
+    const list = deferred<{ threads: RemoteThreadMetadata[] }>();
+    const initialize = deferred<{ remoteId: string; externalId: undefined }>();
+    const adapter = makeAdapter({
+      list: vi.fn(() => list.promise),
+      initialize: vi.fn(() => initialize.promise),
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    const loading = aui.threads.getLoadThreadsPromise();
+    const localId = aui.threads.getState().mainThreadId;
+    const initialization = aui.threads.item("main").initialize();
+    await vi.waitFor(() => {
+      expect(aui.threads.item("main").getState().status).toBe("regular");
+    });
+
+    list.resolve({ threads: [{ status: "regular", remoteId: "remote-1" }] });
+    await loading;
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toContain("remote-1");
+    });
+    await aui.threads.item({ id: "remote-1" }).delete();
+
+    initialize.resolve({ remoteId: "remote-1", externalId: undefined });
+    await initialization;
+
+    expect(adapter.delete).toHaveBeenCalledWith("remote-1");
+    await vi.waitFor(() => {
+      const state = aui.threads.getState();
+      expect(state.mainThreadId).not.toBe(localId);
+      expect(state.mainThreadId).toBe(state.newThreadId);
+    });
+    expect(aui.threads.getState().threadIds).not.toContain(localId);
+    expect(() => aui.threads.item("main").getState()).not.toThrow();
+    handle.destroy();
+  });
+
   it("moves off a removed main thread while an unrelated switch is still loading", async () => {
     const list = deferred<{ threads: RemoteThreadMetadata[] }>();
     const initialize = deferred<{ remoteId: string; externalId: undefined }>();
