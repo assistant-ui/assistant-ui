@@ -103,6 +103,17 @@ const runtime = useOpenCodeRuntime({
 });
 ```
 
+## Store threads in Assistant Cloud
+
+Pass `cloud` to back the thread list with [Assistant Cloud](/docs/cloud) instead of the OpenCode server's session list. Each cloud thread maps to an OpenCode session through its external id: a new thread creates a session, deleting the thread deletes its session, and the dashboard shows the conversation.
+
+```tsx
+const runtime = useOpenCodeRuntime({
+  baseUrl: "http://localhost:4096",
+  cloud,
+});
+```
+
 ## Next
 
 <Cards>

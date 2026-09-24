@@ -20,6 +20,7 @@ import type {
   Session,
   SessionStatus,
 } from "@opencode-ai/sdk/v2/client";
+import type { AssistantCloud } from "assistant-cloud";
 
 export type {
   AssistantMessage,
@@ -184,6 +185,8 @@ export type OpenCodeUserMessageOptions = {
 };
 
 export type OpenCodeRuntimeOptions = ExternalStoreSharedOptions & {
+  /** Backs the thread list with Assistant Cloud; each cloud thread maps to an OpenCode session. */
+  cloud?: AssistantCloud | undefined;
   /**
    * Called whenever the active thread's canonical (remote) ID changes, so the
    * value can be treated as a managed/controlled variable (e.g. synced to a URL

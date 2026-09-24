@@ -5,6 +5,7 @@ import {
   pickExternalStoreSharedOptions,
   useAui,
   useAuiState,
+  useCloudThreadListAdapter,
   useExternalStoreRuntime,
   useRemoteThreadListRuntime,
 } from "@assistant-ui/react";
@@ -31,7 +32,12 @@ import {
   isOpenCodeStateRunning,
 } from "./openCodeThreadState";
 import { openCodeExtras } from "./openCodeExtras";
-import { createOpenCodeThreadListAdapter } from "./openCodeThreadListAdapter";
+import { OPEN_CODE_REQUEST_OPTIONS } from "./openCodeRequestOptions";
+import {
+  createOpenCodeSession,
+  createOpenCodeThreadListAdapter,
+} from "./openCodeThreadListAdapter";
+import { OPENCODE_SDK } from "./sdkIdentity";
 import { useOpenCodeControllerState } from "./useOpenCodeControllerState";
 import { useOpenCodeStreamingTiming } from "./useOpenCodeStreamingTiming";
 
@@ -377,10 +383,27 @@ export const useOpenCodeRuntime = (
     };
   }, [registry]);
 
-  const adapter = useMemo(
+  const openCodeAdapter = useMemo(
     () => createOpenCodeThreadListAdapter(client),
     [client],
   );
+  const cloudAdapter = useCloudThreadListAdapter({
+    cloud: options.cloud,
+    sdk: OPENCODE_SDK,
+    create: async () => {
+      const { externalId } = await createOpenCodeSession(client);
+      return { externalId };
+    },
+    delete: async (threadId) => {
+      const { external_id } = await options.cloud!.threads.get(threadId);
+      if (!external_id) return;
+      await client.session.delete(
+        { sessionID: external_id },
+        OPEN_CODE_REQUEST_OPTIONS,
+      );
+    },
+  });
+  const adapter = options.cloud ? cloudAdapter : openCodeAdapter;
 
   return useRemoteThreadListRuntime({
     allowNesting: true,
