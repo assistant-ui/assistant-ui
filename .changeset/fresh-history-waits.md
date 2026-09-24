@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-fix: discard pending local history loads after their adapter changes
+fix: scope pending local history loads with a stable adapter identifier

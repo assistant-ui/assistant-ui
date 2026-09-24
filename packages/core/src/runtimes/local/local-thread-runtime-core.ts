@@ -357,16 +357,21 @@ export class LocalThreadRuntimeCore
       while (true) {
         const history = this.adapters.history;
         if (!history) return;
+        const scopeId = history.scopeId;
 
         let repo: Awaited<ReturnType<typeof history.load>>;
         try {
           repo = await history.load();
         } catch (error) {
-          if (this.adapters.history !== history) continue;
+          const currentHistory = this.adapters.history;
+          if (!currentHistory) return;
+          if (currentHistory.scopeId !== scopeId) continue;
           throw error;
         }
 
-        if (this.adapters.history !== history) continue;
+        const currentHistory = this.adapters.history;
+        if (!currentHistory) return;
+        if (currentHistory.scopeId !== scopeId) continue;
         if (!repo) return;
         this.repository.import(withLocalPauseReasons(repo));
         if (repo.messages.length > 0) {
@@ -374,8 +379,10 @@ export class LocalThreadRuntimeCore
         }
         this._notifySubscribers();
 
-        if (this.adapters.history !== history) continue;
-        const resume = history.resume?.bind(history);
+        const resumeHistory = this.adapters.history;
+        if (!resumeHistory) return;
+        if (resumeHistory.scopeId !== scopeId) continue;
+        const resume = resumeHistory.resume?.bind(resumeHistory);
         if (repo.unstable_resume && resume) {
           this.startRun(
             {

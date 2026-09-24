@@ -182,6 +182,7 @@ Per-thread message persistence. Used by `LocalRuntime` and adapters built on it 
 
 ```ts
 type ThreadHistoryAdapter = {
+  scopeId?: string;
   load: () => Promise<{
     messages: { parentId: string | null; message: ThreadMessage }[];
   }>;
@@ -197,6 +198,11 @@ type ThreadHistoryAdapter = {
 ```
 
 `load` runs when a thread opens. `append` runs after each message completes.
+When a runtime can switch accounts, workspaces, or another backing store, set
+`scopeId` to a stable identifier for that storage scope. Keep it unchanged when
+recreating the adapter for the same scope, and change it before loading another
+scope so a pending load from the old scope cannot replace the current history.
+Adapters that omit `scopeId` are treated as sharing one scope.
 
 <Callout type="info">
 `ai-sdk` requires `withFormat` so messages round-trip as AI SDK `UIMessage` objects. An adapter without `withFormat` throws at runtime in the AI SDK path. See the [AI SDK history docs](/docs/runtimes/ai-sdk/v7) for the full pattern.

@@ -3478,6 +3478,7 @@ describe("LocalThreadRuntimeCore runs", () => {
       resolveFirstLoad = resolve;
     });
     const firstHistory: ThreadHistoryAdapter = {
+      scopeId: "first",
       load: () => firstLoad,
       append: async () => {},
     };
@@ -3503,7 +3504,11 @@ describe("LocalThreadRuntimeCore runs", () => {
     thread.__internal_setOptions({
       adapters: {
         chatModel: adapter,
-        history: { load: secondLoad, append: async () => {} },
+        history: {
+          scopeId: "second",
+          load: secondLoad,
+          append: async () => {},
+        },
       },
     });
     resolveFirstLoad({
@@ -3541,14 +3546,22 @@ describe("LocalThreadRuntimeCore runs", () => {
       messages: [],
     }));
     const thread = createThread(adapter, {
-      history: { load: () => firstLoad, append: async () => {} },
+      history: {
+        scopeId: "first",
+        load: () => firstLoad,
+        append: async () => {},
+      },
     });
 
     const load = thread.__internal_load();
     thread.__internal_setOptions({
       adapters: {
         chatModel: adapter,
-        history: { load: secondLoad, append: async () => {} },
+        history: {
+          scopeId: "second",
+          load: secondLoad,
+          append: async () => {},
+        },
       },
     });
     rejectFirstLoad(new Error("old history unavailable"));
@@ -3556,6 +3569,59 @@ describe("LocalThreadRuntimeCore runs", () => {
     await expect(load).resolves.toBeUndefined();
     expect(secondLoad).toHaveBeenCalledOnce();
     expect(thread.messages).toEqual([]);
+  });
+
+  it("accepts an in-flight load when an unkeyed adapter is recreated", async () => {
+    const adapter: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    let resolveLoad!: (
+      repo: Awaited<ReturnType<ThreadHistoryAdapter["load"]>>,
+    ) => void;
+    const pendingLoad = new Promise<
+      Awaited<ReturnType<ThreadHistoryAdapter["load"]>>
+    >((resolve) => {
+      resolveLoad = resolve;
+    });
+    const replacementLoad = vi.fn<ThreadHistoryAdapter["load"]>();
+    const thread = createThread(adapter, {
+      history: {
+        load: () => pendingLoad,
+        append: async () => {},
+      },
+    });
+
+    const load = thread.__internal_load();
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: adapter,
+        history: {
+          load: replacementLoad,
+          append: async () => {},
+        },
+      },
+    });
+    resolveLoad({
+      headId: "restored",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "restored",
+            role: "user" as const,
+            content: [{ type: "text" as const, text: "restored" }],
+            attachments: [],
+            createdAt: new Date(0),
+            metadata: { custom: {} },
+          },
+        },
+      ],
+    });
+
+    await load;
+
+    expect(replacementLoad).not.toHaveBeenCalled();
+    expect(thread.messages.map((message) => message.id)).toEqual(["restored"]);
   });
 
   it("does not load late history over a thread that already has messages", async () => {
