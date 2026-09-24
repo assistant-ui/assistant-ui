@@ -54,7 +54,7 @@ Composable runtime and UI primitives for AI chat in React, React Native, and the
 ### Shipping
 
 - Edit a UI component at its source under `packages/ui/src/components/`, never a template's synced copy; intentional divergence goes in `OVERRIDES` in `scripts/sync-templates.sh`.
-- List every CSS `@import` of a registry item in its `registryDependencies`, as `apps/registry/scripts/build-registry.ts` already requires for `@/` imports, or `shadcn add` lands an unresolvable import.
+- List every `@/` CSS `@import` of a registry item in its `registryDependencies`, as `apps/registry/scripts/build-registry.ts` already requires for its `@/` code imports, or `shadcn add` lands an unresolvable import.
 - Give every PR that changes a published npm package a `patch` changeset (one changeset may name several packages); a maintainer-approved minor or major carries `<!-- caret-break: intended -->`.
 - The Semver Check job fails a PR whose shipped files change without a changeset, and `pnpm changesets:check` rejects one naming a private package.
 - Never `--admin` merge until `gh pr checks`, minus its `pass` and `skipping` rows, is empty; resolve a failing or pending repository check instead of overriding it.
