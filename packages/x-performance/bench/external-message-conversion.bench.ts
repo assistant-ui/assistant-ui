@@ -1,5 +1,6 @@
 import {
   convertExternalMessages,
+  createExternalMessageConversionCache,
   type useExternalMessageConverter,
 } from "@assistant-ui/core/react";
 import { describe, inject, test } from "vitest";
@@ -62,3 +63,55 @@ const benchmarkScenario = (
 benchmarkScenario("unique tool calls", (count) => [makeToolCallMessage(count)]);
 benchmarkScenario("tool results", makeToolResults);
 benchmarkScenario("reasoning continuations", makeReasoningContinuations);
+
+type CachedInput = {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+};
+
+const convertCachedInput = (message: CachedInput) => ({
+  id: message.id,
+  role: message.role,
+  content: message.text,
+});
+
+describe("core: cached external message conversion with a changed tail", () => {
+  for (const count of [10, 100, 1000]) {
+    test(`${count} messages`, async ({ bench }) => {
+      let messages: CachedInput[] = Array.from(
+        { length: count },
+        (_, index) => ({
+          id: `m${index}`,
+          role: index % 2 ? "assistant" : "user",
+          text: `message ${index}`,
+        }),
+      );
+      const cache = createExternalMessageConversionCache();
+      const metadata = {};
+      convertExternalMessages(
+        messages,
+        convertCachedInput,
+        true,
+        metadata,
+        cache,
+      );
+      let flip = false;
+
+      await bench(`${count} messages`, () => {
+        flip = !flip;
+        messages = [
+          ...messages.slice(0, -1),
+          { ...messages.at(-1)!, text: flip ? "token a" : "token b" },
+        ];
+        convertExternalMessages(
+          messages,
+          convertCachedInput,
+          true,
+          metadata,
+          cache,
+        );
+      }).run();
+    });
+  }
+});

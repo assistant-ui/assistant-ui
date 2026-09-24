@@ -390,6 +390,18 @@ export const shallowArrayEqual = (
   return true;
 };
 
+const shallowSetEqual = (
+  a: ReadonlySet<string> | undefined,
+  b: ReadonlySet<string> | undefined,
+) => {
+  if (a === b) return true;
+  if (!a || !b || a.size !== b.size) return false;
+  for (const value of a) {
+    if (!b.has(value)) return false;
+  }
+  return true;
+};
+
 type ExternalMessageChunkConversionCache = {
   message: ThreadMessage | undefined;
   generatedFallbackMessages: WeakSet<object>;
@@ -412,6 +424,16 @@ export type InternalExternalMessageConversionCache<
   converterCache: ThreadMessageConverter;
   // Generatedness is tracked by identity, not by id shape: a caller-supplied id that happens to match the generated pattern must never be rewritten.
   generatedFallbackMessages: WeakSet<object>;
+  previousConversion:
+    | {
+        isRunning: boolean;
+        chunkCount: number;
+        metadata: ExternalMessageConverterMetadata;
+        callback: ExternalMessageConverterCallback<T>;
+        joinStrategy: JoinStrategy | undefined;
+        cancelledMessageIds: ReadonlySet<string> | undefined;
+      }
+    | undefined;
 };
 
 export const createExternalMessageConversionCache = <
@@ -421,6 +443,7 @@ export const createExternalMessageConversionCache = <
   chunkCache: new WeakMap(),
   converterCache: new ThreadMessageConverter(),
   generatedFallbackMessages: new WeakSet(),
+  previousConversion: undefined,
 });
 
 export const convertExternalMessageChunk = <T>(
@@ -574,20 +597,47 @@ export const convertExternalMessages = <T extends WeakKey>(
       return message;
     },
   );
+  if (cache) {
+    const previous = cache.previousConversion;
+    const cancelledMessageIds = metadata.cancelledMessageIds
+      ? new Set(metadata.cancelledMessageIds)
+      : undefined;
+    if (
+      previous?.isRunning !== isRunning ||
+      previous.chunkCount !== chunks.length ||
+      previous.metadata !== metadata ||
+      previous.callback !== callback ||
+      previous.joinStrategy !== joinStrategy ||
+      !shallowSetEqual(previous.cancelledMessageIds, cancelledMessageIds)
+    ) {
+      cache.converterCache = new ThreadMessageConverter();
+    }
+    cache.previousConversion = {
+      isRunning,
+      chunkCount: chunks.length,
+      metadata,
+      callback,
+      joinStrategy,
+      cancelledMessageIds,
+    };
+  }
   const result = cache
-    ? cache.converterCache.convertMessages(chunks, (cached, message, idx) =>
-        convertExternalMessageChunk(
-          message,
-          idx,
-          chunks.length,
-          isRunning,
-          metadata.error,
-          {
-            message: cached,
-            generatedFallbackMessages: cache.generatedFallbackMessages,
-          },
-          metadata.cancelledMessageIds,
-        ),
+    ? cache.converterCache.convertMessages(
+        chunks,
+        (cached, message, idx) =>
+          convertExternalMessageChunk(
+            message,
+            idx,
+            chunks.length,
+            isRunning,
+            metadata.error,
+            {
+              message: cached,
+              generatedFallbackMessages: cache.generatedFallbackMessages,
+            },
+            metadata.cancelledMessageIds,
+          ),
+        true,
       )
     : chunks.map((message, idx) =>
         convertExternalMessageChunk(
