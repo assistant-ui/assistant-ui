@@ -130,6 +130,29 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     expect(composer.attachments).toEqual([]);
   });
 
+  it("leaves the draft untouched when a file leaves the sending message", async () => {
+    const upload = deferred();
+    const { composer } = makeComposer(
+      makeAdapter({
+        send: async (attachment) => {
+          await upload.promise;
+          return { ...attachment, status: { type: "complete" }, content: [] };
+        },
+      }),
+    );
+
+    await composer.addAttachment(textFile());
+    void composer.send();
+    await vi.waitFor(() =>
+      expect(composer.submission?.attachments).toHaveLength(1),
+    );
+    const draft = composer.attachments;
+    await composer.removeAttachment("att-1");
+
+    expect(composer.submission?.attachments).toEqual([]);
+    expect(composer.attachments).toBe(draft);
+  });
+
   it.each(["before", "after"])(
     "returns an attachment whose removal failed %s the send failed to the draft",
     async (order) => {

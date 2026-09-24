@@ -778,7 +778,9 @@ const useComposerClientResource = ({
             }
           : prev,
       );
-      setAttachments((prev) => prev.filter((a) => a !== attachment));
+      setAttachments((prev) =>
+        prev.includes(attachment) ? prev.filter((a) => a !== attachment) : prev,
+      );
     },
     [
       attachmentAddOperations,

@@ -947,7 +947,8 @@ export abstract class BaseComposerRuntimeCore
           (a) => a.id !== attachmentId,
         ),
       };
-    this._attachments = this._attachments.filter((a) => a !== submitted);
+    if (this._attachments.includes(submitted))
+      this._attachments = this._attachments.filter((a) => a !== submitted);
     this._notifySubscribers();
   }
 
