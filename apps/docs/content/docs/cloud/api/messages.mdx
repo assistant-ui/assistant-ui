@@ -238,10 +238,9 @@ curl https://backend.assistant-api.com/v1/threads/thread_0qzof3jPoDwr7K3agyJN3D4
 | `200` | `{}` | The message was updated. |
 | `400` | `{ "success": false, "error": … }` | `content` is missing or invalid, too large, or an unknown field was sent. |
 | `404` | `{ "error": "Message not found" }` | The message is not in this thread. |
-| `409` | `{ "error": "Message has children and cannot be updated" }` | Another message names this message as its parent. |
 | `401` or `403` | An authentication error. | The caller was not accepted. See [Conventions](/docs/cloud/api). |
 
-Only a leaf message can be updated. The write records `updated_by` but does not advance the thread's `last_message_at`.
+Any message in the thread can be updated, including one that later messages follow, and it keeps its parent and its children. The write records `updated_by` but does not advance the thread's `last_message_at`.
 
 ## Submit message feedback
 

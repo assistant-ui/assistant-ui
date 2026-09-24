@@ -9,7 +9,7 @@ Messages are the durable transcript inside a cloud thread. The cloud keeps them 
 
 Every stored message has a `parent_id`. The field must be present when a message is created, and is `null` for a root. A child points to another message in the same thread. The database computes `height` when it inserts the row, so clients supply the parent, not a height.
 
-An update changes one existing message only while it has no children. An edit or regeneration that needs to preserve a followed response creates another path from the appropriate parent instead. That branch keeps the original messages intact and lets the app choose which branch to show. Message pages list the tree in `height`, `created_at`, then id order, all descending, so a page returns the newest rows at each height first.
+An update replaces the content of one existing message in place. The message keeps its parent and its children, so a runtime can store what arrives after the message was written, such as a late tool result, an approval answer or feedback, even when later turns follow it. An edit or regeneration creates another path from the appropriate parent instead. That branch keeps the original messages intact and lets the app choose which branch to show. Message pages list the tree in `height`, `created_at`, then id order, all descending, so a page returns the newest rows at each height first.
 
 ### Stored formats and read conversion
 
@@ -68,13 +68,13 @@ Use the REST creation path when an application mirrors its own message ids. `ext
 | Repeat or parent case | Result |
 |---|---|
 | Same `external_id`, identical content and format | Answers 200 with the existing `message_id`, without a write. |
-| Same `external_id`, changed content | Updates content and format, answers 200, and advances the thread's `last_message_at`. This path updates the message even when it has children; only `PUT` refuses that. |
+| Same `external_id`, changed content | Updates content and format, answers 200, and advances the thread's `last_message_at`. |
 | Same `external_id`, changed `content.role` | Answers 409 with `Message role cannot change`. |
 | Both parent fields supplied | `parent_external_id` wins over `parent_id`. |
 | Parent id does not name a message in this thread | Answers 400 with `Parent message not found in thread`. |
 | Parent external id does not name a message in this thread | Answers 400 with `Parent message with external_id not found in thread`. |
 
-An update rejects a message that has children with 409 `Message has children and cannot be updated`. To change that point in the conversation, append a branch from the earlier parent instead. A delete request accepts from 1 to 200 message ids. It is best effort: a mixed batch answers 200 when at least one id belonged to the thread, and answers 404 `Messages not found` when none did.
+A delete request accepts from 1 to 200 message ids. It is best effort: a mixed batch answers 200 when at least one id belonged to the thread, and answers 404 `Messages not found` when none did.
 
 ### What storing a message triggers
 
@@ -104,6 +104,5 @@ The cloud limits the stored content and the page and deletion batches below. The
 | What you see | Why | What to do |
 |---|---|---|
 | History is empty after switching runtimes | The local runtime reads `aui/v0`, while the AI SDK runtime reads its `ai-sdk/v6` persistence path. A thread id alone does not make every stored format a local runtime history item. | Keep the runtime for a thread consistent, or load through a supported `ai-sdk/v5` or `ai-sdk/v6` conversion path. |
-| An update answers 409 | The target message has a child, so changing it would rewrite an existing branch. | Append a new message from the intended parent to make a new branch. |
 | The first message answers 402 | It is a new user message and the project has reached its active user cap for the UTC calendar month. | Check the plan and the `period_end` in the response, then retry when capacity is available. |
 | A message is stored twice | The application repeated a create without a stable `external_id`, or repeated it with changed content. | Mirror one stable external id for that message. An identical repeat returns the original message without another write. |
