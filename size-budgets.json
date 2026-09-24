@@ -125,18 +125,18 @@
   },
   "@assistant-ui/react-langchain": {
     ".": {
-      "min": 22983,
-      "gzip": 8089
+      "min": 23819,
+      "gzip": 8340
     },
     "./converter": {
-      "min": 3793,
-      "gzip": 1525
+      "min": 4516,
+      "gzip": 1740
     }
   },
   "@assistant-ui/react-langgraph": {
     ".": {
-      "min": 29330,
-      "gzip": 10192
+      "min": 29352,
+      "gzip": 10209
     }
   },
   "@assistant-ui/react-lexical": {

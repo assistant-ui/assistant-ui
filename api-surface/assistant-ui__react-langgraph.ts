@@ -369,7 +369,7 @@ type AssistantCloudThreadsUpdateBody = {
 
 type AssistantMessageContent = string | AssistantMessageContentComplex[];
 
-type AssistantMessageContentComplex = MessageContentText | MessageContentImageUrl | MessageContentToolUse | MessageContentFile | MessageContentAudio | MessageContentReasoning | MessageContentThinking | MessageContentComputerCall;
+type AssistantMessageContentComplex = MessageContentText | MessageContentImageUrl | MessageContentToolUse | MessageContentFile | MessageContentAudio | LangChainMediaBlock | MessageContentReasoning | MessageContentThinking | MessageContentComputerCall;
 
 type AssistantRuntime = {
   readonly threads: ThreadListRuntime;
@@ -1052,6 +1052,21 @@ type JoinStrategy = "concat-content" | "none";
 type LangChainEvent = {
   event: typeof LangGraphKnownEventTypes.MessagesPartial | typeof LangGraphKnownEventTypes.MessagesComplete;
   data: LangChainMessage[];
+};
+
+type LangChainMediaBlock = {
+  type: "audio" | "file" | "image" | "text-plain" | "video";
+  mimeType?: string;
+  mime_type?: string;
+  data?: string | Uint8Array;
+  url?: string;
+  fileId?: string;
+  id?: string;
+  text?: string;
+  source_type?: "base64" | "id" | "text" | "url";
+  metadata?: {
+    filename?: string;
+  };
 };
 
 type LangChainMessage = {
@@ -2510,7 +2525,7 @@ type UseLangGraphRuntimeOptions = ExternalStoreSharedOptions & {
 
 type UserMessageContent = string | UserMessageContentComplex[];
 
-type UserMessageContentComplex = MessageContentText | MessageContentImageUrl | MessageContentFile | MessageContentAudio;
+type UserMessageContentComplex = MessageContentText | MessageContentImageUrl | MessageContentFile | MessageContentAudio | LangChainMediaBlock;
 
 type VoiceSessionState = {
   readonly status: RealtimeVoiceAdapter.Status;
