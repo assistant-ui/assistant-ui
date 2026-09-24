@@ -414,6 +414,10 @@ test("runCheck rejects a changeset that changesets cannot parse", () => {
       '---\n"@fixture/published": patch\n"@fixture/published": minor\n---\n\nfix: x\n',
       "@fixture/published",
     ],
+    [
+      '---\n- "@fixture/published": patch\n---\n\nfix: x\n',
+      '- "@fixture/published": patch',
+    ],
     ["fix: no frontmatter\n", "---"],
   ]) {
     const root = createWorkspace(source);
