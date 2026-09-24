@@ -250,7 +250,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # apps/docs is excluded: the Vercel deployment check already builds it on every pull request.
+      # apps/docs is excluded: its build belongs to the Vercel deployment.
       # Examples are demos, so a package change does not rebuild them; an example is built only
       # when its own files change, and deploy-examples builds the deployed ones on main.
       - name: Build apps
