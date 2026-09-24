@@ -4213,7 +4213,7 @@ importers:
         specifier: ^0.3.21
         version: link:../core
       '@assistant-ui/react-generative-ui':
-        specifier: ^0.0.20
+        specifier: ^0.0.21
         version: link:../react-generative-ui
       '@assistant-ui/store':
         specifier: ^0.3.15
@@ -4256,7 +4256,7 @@ importers:
         specifier: ^0.3.21
         version: link:../core
       '@assistant-ui/react-generative-ui':
-        specifier: ^0.0.20
+        specifier: ^0.0.21
         version: link:../react-generative-ui
       '@assistant-ui/store':
         specifier: ^0.3.15
