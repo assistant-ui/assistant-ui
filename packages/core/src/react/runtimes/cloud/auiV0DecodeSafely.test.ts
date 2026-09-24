@@ -567,6 +567,29 @@ describe("auiV0DecodeSafely against encoder output", () => {
     expect(encodedResult(sparse)).toEqual({ result: [1, 2], warned: 1 });
   });
 
+  it("omits a result JSON cannot serialize at all, and warns", () => {
+    const circular: { self?: unknown } = {};
+    circular.self = circular;
+    expect(encodedResult(circular)).toEqual({ result: undefined, warned: 1 });
+  });
+
+  it("takes an object literal's toJSON as its serialized form", () => {
+    expect(encodedResult({ toJSON: () => "summary" })).toEqual({
+      result: "summary",
+      warned: 0,
+    });
+  });
+
+  it("cannot see data behind prototype getters, matching main", () => {
+    class Wrapper {
+      #value = 1;
+      get value() {
+        return this.#value;
+      }
+    }
+    expect(encodedResult(new Wrapper())).toEqual({ result: {}, warned: 0 });
+  });
+
   it("keeps every assistant status the encoder writes", () => {
     const statuses: MessageStatus[] = [
       { type: "running" },

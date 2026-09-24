@@ -323,12 +323,16 @@ const serializableArtifact = (
   }
 };
 
-// Diagnostic only: names the data-hiding shapes JSON.stringify silently
-// empties (Map and Set entries, symbol-keyed or non-enumerable own data, extra
-// array properties). A wrapper that keeps its data behind prototype getters or
-// a Map from another realm has no own keys and is indistinguishable from an
-// empty object here, so it passes exactly as it does on main.
-const hasLosslessJSONShape = (value: unknown): boolean => {
+// Diagnostic only: names the data JSON.stringify silently loses (Map and Set
+// entries, symbol-keyed or non-enumerable own data, extra array properties,
+// undefined, functions, non-finite numbers). A wrapper that keeps its data
+// behind prototype getters or a Map from another realm has no own keys and is
+// indistinguishable from an empty object here, so it passes exactly as it does
+// on main.
+const hasLosslessJSONShape = (value: unknown, depth = 0): boolean => {
+  if (depth > 100) return false;
+  if (value === undefined || typeof value === "function") return false;
+  if (typeof value === "number") return Number.isFinite(value);
   if (typeof value !== "object" || value === null) return true;
   // A toJSON is the value's own serializer, so whatever it emits is intended.
   if (typeof (value as { toJSON?: unknown }).toJSON === "function") return true;
@@ -337,7 +341,10 @@ const hasLosslessJSONShape = (value: unknown): boolean => {
   if (Array.isArray(value)) {
     if (Reflect.ownKeys(value).length !== value.length + 1) return false;
     for (let index = 0; index < value.length; index++) {
-      if (!Object.hasOwn(value, index) || !hasLosslessJSONShape(value[index])) {
+      if (
+        !Object.hasOwn(value, index) ||
+        !hasLosslessJSONShape(value[index], depth + 1)
+      ) {
         return false;
       }
     }
@@ -348,12 +355,9 @@ const hasLosslessJSONShape = (value: unknown): boolean => {
     (key) =>
       typeof key === "string" &&
       Object.getOwnPropertyDescriptor(value, key)?.enumerable === true &&
-      hasLosslessJSONShape((value as Record<string, unknown>)[key]),
+      hasLosslessJSONShape((value as Record<string, unknown>)[key], depth + 1),
   );
 };
-
-const isPersistableJSONValue = (value: unknown): value is ReadonlyJSONValue =>
-  isJSONValue(value) && hasLosslessJSONShape(value);
 
 export function auiV0Encode(message: ThreadMessage): AuiV0Message {
   // info: ID and createdAt are ignored (we use the server value instead)
@@ -434,10 +438,7 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
           // reload; a part with no result is rejected by providers as an
           // unanswered call, which is worse than a hollowed-out result.
           const result = serializableArtifact(part.result);
-          if (
-            part.result !== undefined &&
-            !isPersistableJSONValue(part.result)
-          ) {
+          if (part.result !== undefined && !hasLosslessJSONShape(part.result)) {
             console.warn(
               `tool-call result for ${part.toolCallId} loses data in JSON; persisted as its JSON form`,
             );
