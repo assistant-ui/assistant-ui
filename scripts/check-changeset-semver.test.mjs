@@ -200,6 +200,75 @@ test("a cascade recurses through an intermediate whose own patch breaks its rang
   );
 });
 
+test("a union range cascades only when the new version leaves every alternative", () => {
+  const { pkgMap, revDeps } = graphOf([
+    { name: "@fixture/dep", version: "0.4.2" },
+    {
+      name: "@fixture/consumer",
+      version: "0.1.0",
+      dependencies: { "@fixture/dep": "^0.4.2 || ^0.5.0" },
+    },
+  ]);
+  const cascade = (bumpType) =>
+    computeCascade(
+      [{ name: "@fixture/dep", version: "0.4.2", bumpType }],
+      pkgMap,
+      revDeps,
+    ).map(({ name }) => name);
+
+  assert.deepEqual(cascade("minor"), []);
+  assert.deepEqual(cascade("major"), ["@fixture/consumer"]);
+});
+
+test("every caret spelling semver reads bounds the cascade the same way", () => {
+  const cascade = (range, bumpType) => {
+    const { pkgMap, revDeps } = graphOf([
+      { name: "@fixture/dep", version: "1.2.3" },
+      {
+        name: "@fixture/consumer",
+        version: "0.1.0",
+        dependencies: { "@fixture/dep": range },
+      },
+    ]);
+    return computeCascade(
+      [{ name: "@fixture/dep", version: "1.2.3", bumpType }],
+      pkgMap,
+      revDeps,
+    ).map(({ name }) => name);
+  };
+
+  for (const range of ["^1.2", "^1.x", "^1.2.3-beta.1", "^ 1.2.3", "^v1.2.3"]) {
+    assert.deepEqual(cascade(range, "minor"), [], range);
+    assert.deepEqual(cascade(range, "major"), ["@fixture/consumer"], range);
+  }
+});
+
+test("a range the current version does not satisfy is not an edge", () => {
+  const { revDeps } = graphOf([
+    { name: "@fixture/dep", version: "0.4.2" },
+    {
+      name: "@fixture/consumer",
+      version: "0.1.0",
+      peerDependencies: { "@fixture/dep": "^0.4.3" },
+    },
+  ]);
+
+  assert.deepEqual([...revDeps.keys()], []);
+});
+
+test("a range with a non-caret alternative is not an edge", () => {
+  const { revDeps } = graphOf([
+    { name: "@fixture/dep", version: "1.2.3" },
+    {
+      name: "@fixture/consumer",
+      version: "0.1.0",
+      dependencies: { "@fixture/dep": "^1.2.3 || ~2.0.0" },
+    },
+  ]);
+
+  assert.deepEqual([...revDeps.keys()], []);
+});
+
 test("a package already carrying its own bump is never cascaded onto", () => {
   const { pkgMap, revDeps } = graphOf([
     { name: "@fixture/dep", version: "0.3.0" },
@@ -798,6 +867,30 @@ test("an intended range break stays listed next to an unaccepted violation", () 
   assert.match(summary, /\| `wild-cats-run.md` \| `@fixture\/other` \|/);
   assert.match(summary, /### Intended range breaks \(1\)/);
   assert.match(summary, /\| `cloud-0-2.md` \| `@fixture\/dep` \|/);
+});
+
+test("runCheck grades a changeset whose frontmatter follows blank lines or a byte order mark", () => {
+  for (const prefix of ["\n", "\r\n", "\uFEFF"]) {
+    const root = createWorkspace(
+      [{ name: "@fixture/dep", version: "0.12.15" }],
+      {},
+    );
+    try {
+      writeFileSync(
+        path.join(root, ".changeset", "leading.md"),
+        `${prefix}---\n"@fixture/dep": minor\n---\n\nfeat: fixture\n`,
+      );
+      assert.deepEqual(
+        runCheck(root).violations.map(
+          ({ name, bumpType }) => `${name}:${bumpType}`,
+        ),
+        ["@fixture/dep:minor"],
+        JSON.stringify(prefix),
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }
 });
 
 test("runCheck reads the intended marker from the changeset body", () => {
