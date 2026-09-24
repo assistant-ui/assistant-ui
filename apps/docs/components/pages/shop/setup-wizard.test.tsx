@@ -614,7 +614,8 @@ describe("SetupWizard", () => {
       plans: [
         {
           revision: 1,
-          markdown: "Install chat",
+          markdown:
+            "## What I found\n\n- **App:** Next.js\n\n## Steps\n\n1. Install chat",
           status: "proposed",
           submittedAt: 2,
         },
@@ -624,6 +625,16 @@ describe("SetupWizard", () => {
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
       "Review the plan",
     );
+    expect(
+      screen
+        .getByRole("button", { name: /^Steps/ })
+        .getAttribute("aria-expanded"),
+    ).toBe("true");
+    expect(screen.getByText("Install chat")).toBeDefined();
+    expect(screen.queryByText("Next.js")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /What I found/ }));
+    expect(screen.getByText("Next.js")).toBeDefined();
+    expect(screen.queryByText("Install chat")).toBeNull();
     const note = screen.getByPlaceholderText(
       "Add a note, or leave it empty to install as proposed.",
     );

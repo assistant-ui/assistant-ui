@@ -12,7 +12,7 @@ import remarkGfm from "remark-gfm";
 import {
   BotIcon,
   ChevronDownIcon,
-  ChevronRightIcon,
+  CircleHelpIcon,
   CpuIcon,
   FileIcon,
   InfoIcon,
@@ -21,6 +21,12 @@ import {
   PackageIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import {
   Collapsible,
   CollapsibleContent,
@@ -155,56 +161,12 @@ function PlanInline({ markdown }: { markdown: string }) {
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 
-function PlanSectionCard({
-  title,
-  eyebrow,
-  children,
-}: {
-  title: string;
-  eyebrow: string;
-  children: ReactNode;
-}) {
-  return (
-    <li className="bg-muted flex min-w-0 flex-col gap-3 rounded-xl p-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h2 className="text-sm font-medium">{title}</h2>
-        <span className="text-muted-foreground text-xs">{eyebrow}</span>
-      </div>
-      {children}
-    </li>
-  );
-}
-
-const CAP = 3;
-
-function PlanDetails({
-  label,
-  hidden = 0,
-  markdown,
-}: {
-  label: string;
-  hidden?: number;
-  markdown: string;
-}) {
-  return (
-    <Collapsible className="flex flex-col items-start">
-      <CollapsibleTrigger className="text-muted-foreground hover:text-foreground group flex items-center gap-1.5 text-sm">
-        {hidden > 0 ? `${label} · ${hidden} more` : label}
-        <ChevronRightIcon className="size-3.5 transition-transform group-data-[panel-open]:rotate-90" />
-      </CollapsibleTrigger>
-      <CollapsibleContent className="border-foreground/10 mt-3 w-full border-t pt-3">
-        <PlanMarkdown markdown={markdown} />
-      </CollapsibleContent>
-    </Collapsible>
-  );
-}
-
 type Row = { icon: Icon; label?: string; value: string; sub?: string };
 
 function Rows({ rows }: { rows: Row[] }) {
   return (
     <ul role="list" className="flex flex-col gap-2 text-sm">
-      {rows.slice(0, CAP).map((row, index) => (
+      {rows.map((row, index) => (
         <li key={index} className="flex min-w-0 gap-1.5">
           <row.icon className="text-muted-foreground mt-0.5 size-4 shrink-0" />
           <span className="min-w-0 truncate">
@@ -280,7 +242,7 @@ const installRows = (section: PlanSection): Row[] => [
 function Steps({ titles }: { titles: string[] }) {
   return (
     <ol role="list" className="flex flex-col gap-2 text-sm">
-      {titles.slice(0, CAP).map((title, index) => (
+      {titles.map((title, index) => (
         <li key={index} className="flex min-w-0 gap-3">
           <span className="text-muted-foreground w-4 shrink-0 text-right font-mono text-xs leading-5">
             {index + 1}
@@ -294,66 +256,54 @@ function Steps({ titles }: { titles: string[] }) {
   );
 }
 
-/** The plan as cards, one per section the agent wrote; the review form rides in the last one. */
-export function PlanCards({
+const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
+
+type Section = { id: string; title: string; eyebrow: string; body: ReactNode };
+
+/** The plan as accordion rows, one per section the agent wrote, with one row open at a time. */
+export function PlanAccordion({
   markdown,
   steps = [],
-  form,
 }: {
   markdown: string;
   steps?: readonly Checkout.Step[] | undefined;
-  form?: ReactNode;
 }) {
   const plan = parsePlan(markdown);
   const stepTitles =
     steps.length > 0
       ? steps.map((step) => step.title)
       : (plan.steps?.items.map((item) => item.text) ?? []);
-  const cards: ReactNode[] = [];
-  const card = (title: string, eyebrow: string, body: ReactNode) =>
-    cards.push(
-      <PlanSectionCard key={title} title={title} eyebrow={eyebrow}>
-        {body}
-      </PlanSectionCard>,
-    );
-  const summary = (
-    section: PlanSection,
-    label: string,
-    count: number,
-    view: ReactNode,
-  ) =>
-    count > 0 ? (
-      <>
-        {view}
-        <PlanDetails
-          label={label}
-          hidden={Math.max(0, count - CAP)}
-          markdown={section.markdown}
-        />
-      </>
+  const sections: Section[] = [];
+  const listed = (section: PlanSection, list: ReactNode, listed: number) =>
+    listed > 0 ? (
+      <div className="flex flex-col gap-2">
+        {list}
+        {section.rest ? (
+          <div className="text-muted-foreground">
+            <PlanMarkdown markdown={section.rest} />
+          </div>
+        ) : null}
+      </div>
     ) : (
       <PlanMarkdown markdown={section.markdown} />
     );
   if (plan.found) {
     const rows = foundRows(plan.found.facts);
-    card(
-      "What I found",
-      "The starting point",
-      summary(plan.found, "Project details", rows.length, <Rows rows={rows} />),
-    );
+    sections.push({
+      id: "found",
+      title: "What I found",
+      eyebrow: count(rows.length, "item"),
+      body: listed(plan.found, <Rows rows={rows} />, rows.length),
+    });
   }
   if (plan.install) {
     const rows = installRows(plan.install);
-    card(
-      "What I will install",
-      "Only the essentials",
-      summary(
-        plan.install,
-        "Packages & files",
-        rows.length,
-        <Rows rows={rows} />,
-      ),
-    );
+    sections.push({
+      id: "install",
+      title: "What I will install",
+      eyebrow: count(rows.length, "item"),
+      body: listed(plan.install, <Rows rows={rows} />, rows.length),
+    });
   }
   if (plan.steps || stepTitles.length > 0) {
     const section = plan.steps ?? {
@@ -363,39 +313,60 @@ export function PlanCards({
       items: [],
       rest: "",
     };
-    card(
-      "Steps",
-      stepTitles.length === 1
-        ? "1 step, start to finish"
-        : `${stepTitles.length} steps, start to finish`,
-      summary(
-        section,
-        "Implementation details",
-        stepTitles.length,
-        <Steps titles={stepTitles} />,
-      ),
-    );
+    sections.push({
+      id: "steps",
+      title: "Steps",
+      eyebrow:
+        stepTitles.length > 0 ? count(stepTitles.length, "step") : "As written",
+      body: listed(section, <Steps titles={stepTitles} />, stepTitles.length),
+    });
   }
   if (plan.other) {
-    card(
-      cards.length > 0 ? "Also in the plan" : "The plan",
-      "As written",
-      <PlanMarkdown markdown={plan.other} />,
-    );
+    sections.push({
+      id: "other",
+      title: sections.length > 0 ? "Also in the plan" : "The plan",
+      eyebrow: "As written",
+      body: <PlanMarkdown markdown={plan.other} />,
+    });
   }
-  if (plan.questions || form) {
-    card(
-      "Open questions",
-      "Optional",
-      <>
-        {plan.questions ? (
-          <PlanMarkdown markdown={plan.questions.markdown} />
-        ) : null}
-        {form}
-      </>,
-    );
+  if (plan.questions) {
+    const rows = plan.questions.items.map((item) => ({
+      icon: CircleHelpIcon,
+      value: item.text,
+    }));
+    sections.push({
+      id: "questions",
+      title: "Open questions",
+      eyebrow: count(rows.length, "question"),
+      body: listed(plan.questions, <Rows rows={rows} />, rows.length),
+    });
   }
-  return <ul className="grid gap-3 @lg:grid-cols-2">{cards}</ul>;
+  const first =
+    sections.find((section) => section.id === "steps") ?? sections[0];
+  return (
+    <Accordion
+      defaultValue={first ? [first.id] : []}
+      className="border-foreground/10 rounded-lg border"
+    >
+      {sections.map((section) => (
+        <AccordionItem
+          key={section.id}
+          value={section.id}
+          className="border-foreground/10"
+        >
+          <AccordionTrigger className="items-center gap-3 px-3 py-2.5 hover:no-underline [&>svg]:translate-y-0">
+            <span className="min-w-0 flex-1 truncate">{section.title}</span>
+            <span className="text-muted-foreground text-xs font-normal">
+              {section.eyebrow}
+            </span>
+          </AccordionTrigger>
+          <AccordionContent className="max-h-28 overflow-y-auto [mask-image:linear-gradient(to_bottom,black_calc(100%_-_1rem),transparent)] px-3 pb-4">
+            {section.body}
+          </AccordionContent>
+        </AccordionItem>
+      ))}
+    </Accordion>
+  );
 }
 
 function PlanDecisionForm({ checkout }: { checkout: CheckoutContextValue }) {
@@ -542,12 +513,9 @@ export function PlanCard({
           </button>
         ) : null}
         {collapsed ? null : (
-          <PlanCards
-            markdown={current.markdown}
-            steps={steps}
-            form={proposed ? <PlanDecisionForm checkout={checkout} /> : null}
-          />
+          <PlanAccordion markdown={current.markdown} steps={steps} />
         )}
+        {proposed ? <PlanDecisionForm checkout={checkout} /> : null}
       </div>
     </div>
   );
