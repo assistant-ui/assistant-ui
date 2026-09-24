@@ -18,7 +18,10 @@ import type {
 } from "../interfaces/thread-runtime-core";
 import { BaseThreadRuntimeCore } from "./base-thread-runtime-core";
 import { LocalRuntimeCore } from "../../runtimes/local/local-runtime-core";
-import { disposeThreadRuntime } from "../utils/thread-runtime-lifecycle";
+import {
+  disposeThreadRuntime,
+  supersedeThreadRuntime,
+} from "../utils/thread-runtime-lifecycle";
 
 const createVoiceAdapter = ({
   sendText,
@@ -151,6 +154,27 @@ class TestRuntime extends BaseThreadRuntimeCore {
   }
   importExternalState(_state: unknown) {}
   unstable_notifySessionReset() {}
+}
+
+class ThrowingCommitRuntime extends TestRuntime {
+  disconnected = 0;
+  private readonly commitError: unknown;
+
+  constructor(
+    voiceAdapter: ReturnType<typeof createVoiceAdapter>,
+    commitError: unknown,
+  ) {
+    super(voiceAdapter);
+    this.commitError = commitError;
+  }
+
+  protected override _commitVoiceMessage(_message: ThreadMessage): void {
+    throw this.commitError;
+  }
+
+  protected override _onVoiceDisconnected() {
+    this.disconnected += 1;
+  }
 }
 
 afterEach(() => {
@@ -730,6 +754,103 @@ describe("BaseThreadRuntimeCore subscriptions", () => {
 });
 
 describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
+  it("finishes disconnecting when voice message finalization throws", () => {
+    const commitError = new Error("voice commit failed");
+    const voice = createVoiceAdapter();
+    const statusCleanup = vi.fn();
+    const transcriptCleanup = vi.fn();
+    let transcriptCallback:
+      | ((transcript: RealtimeVoiceAdapter.TranscriptItem) => void)
+      | undefined;
+    voice.session.onStatusChange = () => statusCleanup;
+    voice.session.onTranscript = (callback) => {
+      transcriptCallback = callback;
+      return () => {
+        transcriptCleanup();
+        transcriptCallback = undefined;
+      };
+    };
+    const runtime = new ThrowingCommitRuntime(voice, commitError);
+    let observedDisconnected = false;
+    runtime.subscribe(() => {
+      if (!runtime.voice) observedDisconnected = true;
+    });
+
+    runtime.connectVoice();
+    transcriptCallback!({
+      role: "assistant",
+      text: "Partial",
+      isFinal: false,
+    });
+
+    expect(() => runtime.disconnectVoice()).toThrow(commitError);
+    expect(statusCleanup).toHaveBeenCalledOnce();
+    expect(transcriptCleanup).toHaveBeenCalledOnce();
+    expect(voice.session.disconnect).toHaveBeenCalledOnce();
+    expect(runtime.voice).toBeUndefined();
+    expect(observedDisconnected).toBe(true);
+    expect(runtime.disconnected).toBe(1);
+  });
+
+  it("reconnects after a voice finalization error without leaving the old session open", () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const commitError = new Error("voice commit failed");
+    const voice = createVoiceAdapter();
+    const replacementVoice = createVoiceAdapter();
+    voice.adapter.connect = vi
+      .fn()
+      .mockReturnValueOnce(voice.session)
+      .mockReturnValueOnce(replacementVoice.session);
+    const runtime = new ThrowingCommitRuntime(voice, commitError);
+    runtime.connectVoice();
+    voice.emitTranscript({
+      role: "assistant",
+      text: "Partial",
+      isFinal: false,
+    });
+
+    expect(() => runtime.connectVoice()).not.toThrow();
+
+    expect(voice.session.disconnect).toHaveBeenCalledOnce();
+    expect(replacementVoice.session.disconnect).not.toHaveBeenCalled();
+    expect(voice.adapter.connect).toHaveBeenCalledTimes(2);
+    expect(runtime.voice).toBeDefined();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] Voice cleanup threw before reconnect",
+      commitError,
+    );
+
+    runtime.disconnectVoice();
+    expect(replacementVoice.session.disconnect).toHaveBeenCalledOnce();
+  });
+
+  it("supersedes a runtime after a voice finalization error", () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const commitError = new Error("voice commit failed");
+    const voice = createVoiceAdapter();
+    const runtime = new ThrowingCommitRuntime(voice, commitError);
+    runtime.connectVoice();
+    voice.emitTranscript({
+      role: "assistant",
+      text: "Partial",
+      isFinal: false,
+    });
+
+    expect(() => supersedeThreadRuntime(runtime)).not.toThrow();
+
+    expect(voice.session.disconnect).toHaveBeenCalledOnce();
+    expect(runtime.voice).toBeUndefined();
+    expect(runtime.disconnected).toBe(1);
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] Voice cleanup threw while discarding a thread runtime",
+      commitError,
+    );
+  });
+
   it("finishes disconnecting when a session cleanup throws", () => {
     const cleanupError = new Error("cleanup failed");
     const laterCleanup = vi.fn();

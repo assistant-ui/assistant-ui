@@ -760,7 +760,14 @@ export abstract class BaseThreadRuntimeCore
   }
 
   private _disconnectVoice(fireHook: boolean) {
-    this._finishVoiceAssistantMessage(false);
+    let finalizationError: unknown;
+    let finalizationFailed = false;
+    try {
+      this._finishVoiceAssistantMessage(false);
+    } catch (error) {
+      finalizationError = error;
+      finalizationFailed = true;
+    }
     this._currentAssistantMsg = null;
     // Drain the shared list in place so reentrant setup cannot release the same handles again.
     const unsubs = this._voiceUnsubs.splice(0);
@@ -788,6 +795,9 @@ export abstract class BaseThreadRuntimeCore
             "Voice volume",
           ),
         () => this._notifySubscribers(),
+        () => {
+          if (finalizationFailed) throw finalizationError;
+        },
       ]);
     } finally {
       if (fireHook && session && this._voiceSession === undefined)
