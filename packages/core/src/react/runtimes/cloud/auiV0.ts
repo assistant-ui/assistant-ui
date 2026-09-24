@@ -323,6 +323,11 @@ const serializableArtifact = (
   }
 };
 
+// Diagnostic only: names the data-hiding shapes JSON.stringify silently
+// empties (Map and Set entries, symbol-keyed or non-enumerable own data, extra
+// array properties). A wrapper that keeps its data behind prototype getters or
+// a Map from another realm has no own keys and is indistinguishable from an
+// empty object here, so it passes exactly as it does on main.
 const hasLosslessJSONShape = (value: unknown): boolean => {
   if (typeof value !== "object" || value === null) return true;
   // A toJSON is the value's own serializer, so whatever it emits is intended.
@@ -425,12 +430,16 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
           };
 
         case "tool-call": {
-          const result = isPersistableJSONValue(part.result)
-            ? part.result
-            : undefined;
-          if (part.result !== undefined && result === undefined) {
+          // Persisting what JSON can carry keeps the tool call answered on
+          // reload; a part with no result is rejected by providers as an
+          // unanswered call, which is worse than a hollowed-out result.
+          const result = serializableArtifact(part.result);
+          if (
+            part.result !== undefined &&
+            !isPersistableJSONValue(part.result)
+          ) {
             console.warn(
-              `tool-call result for ${part.toolCallId} holds data JSON would drop; not persisted`,
+              `tool-call result for ${part.toolCallId} loses data in JSON; persisted as its JSON form`,
             );
           }
           const artifact = serializableArtifact(part.artifact);

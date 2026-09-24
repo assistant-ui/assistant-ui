@@ -516,13 +516,24 @@ describe("auiV0DecodeSafely against encoder output", () => {
     }
   };
 
-  it("drops a tool result JSON would silently empty and warns", () => {
+  it("persists the JSON form of a result JSON would empty, and warns", () => {
     expect(encodedResult(new Map([["answer", 42]]))).toEqual({
-      result: undefined,
+      result: {},
       warned: 1,
     });
-    expect(encodedResult(new Set([1, 2]))).toEqual({
-      result: undefined,
+    expect(encodedResult(new Set([1, 2]))).toEqual({ result: {}, warned: 1 });
+  });
+
+  it("keeps the siblings of a lossy field and warns once", () => {
+    expect(
+      encodedResult({ text: "long answer", index: new Map([["a", 1]]) }),
+    ).toEqual({ result: { text: "long answer", index: {} }, warned: 1 });
+    expect(encodedResult({ a: 1, b: undefined })).toEqual({
+      result: { a: 1 },
+      warned: 1,
+    });
+    expect(encodedResult({ label: "x", score: NaN })).toEqual({
+      result: { label: "x", score: null },
       warned: 1,
     });
   });
@@ -533,24 +544,27 @@ describe("auiV0DecodeSafely against encoder output", () => {
       city = "Berlin";
     }
     const cases: [unknown, unknown][] = [
-      [{ createdAt: new Date(0) }, { createdAt: new Date(0) }],
-      [new Weather(), new Weather()],
-      [new URL("https://x.y/"), new URL("https://x.y/")],
-      [{ nested: [{ items: new Map() }] }, { nested: [{ items: new Map() }] }],
+      [{ createdAt: new Date(0) }, { createdAt: "1970-01-01T00:00:00.000Z" }],
+      [new Weather(), { tempC: 21, city: "Berlin" }],
+      [new URL("https://x.y/"), "https://x.y/"],
+      [{ nested: [{ items: new Map() }] }, { nested: [{ items: {} }] }],
     ];
     for (const [input, expected] of cases) {
       expect(encodedResult(input)).toEqual({ result: expected, warned: 0 });
     }
   });
 
-  it("drops a tool result that hides data behind non-string keys", () => {
+  it("warns for a result that hides data behind non-string keys", () => {
     const symbolKeyed = { [Symbol("hidden")]: 1, shown: 2 };
     const sparse = Object.defineProperty([1, 2], "extra", {
       value: 3,
       enumerable: true,
     });
-    expect(encodedResult(symbolKeyed).warned).toBe(1);
-    expect(encodedResult(sparse).warned).toBe(1);
+    expect(encodedResult(symbolKeyed)).toEqual({
+      result: { shown: 2 },
+      warned: 1,
+    });
+    expect(encodedResult(sparse)).toEqual({ result: [1, 2], warned: 1 });
   });
 
   it("keeps every assistant status the encoder writes", () => {
