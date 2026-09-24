@@ -98,15 +98,18 @@ function readChangesetReleases(source) {
     if (/^[ \t]*(?:#.*)?\r?$/.test(line)) continue;
     const release = parseReleaseLine(line);
     const lineIndent = line.slice(0, line.length - line.trimStart().length);
-    if (
-      !release ||
-      lineIndent.includes("\t") ||
-      (indent !== undefined && lineIndent !== indent)
-    ) {
+    const reason = !release
+      ? "is not a release changesets can parse"
+      : lineIndent.includes("\t")
+        ? "is indented with a tab, which YAML does not allow"
+        : indent !== undefined && lineIndent !== indent
+          ? "is indented differently from the first release"
+          : undefined;
+    if (reason) {
       errors.push({
         name: visible(line.replace(/\r$/, "").replace(/^ +| +$/g, "")),
         line: firstLine + index,
-        reason: "is not a release changesets can parse",
+        reason,
       });
       continue;
     }
@@ -413,9 +416,10 @@ export function runChangedPackageCheck(root, baseSha, headSha) {
       .filter((file) => path.posix.dirname(file) === ".changeset")
       .map((file) => path.posix.basename(file)),
   );
+  const changesets = readChangesetBumps(root, changesetFiles);
   const bumpedNames = new Set(
-    readChangesetBumps(root, changesetFiles)
-      .bumps.filter(({ bump }) => BUMP_VALUES.has(bump))
+    changesets.bumps
+      .filter(({ bump }) => BUMP_VALUES.has(bump))
       .map(({ name }) => name),
   );
 
@@ -454,6 +458,7 @@ export function runChangedPackageCheck(root, baseSha, headSha) {
 
   return {
     changedSourceCount: sourceFiles.length,
+    parseErrors: changesets.errors,
     missingChangesets: [...missing.values()].sort((a, b) =>
       a.name < b.name ? -1 : 1,
     ),
@@ -473,21 +478,24 @@ export function runCheck(root = repoRoot) {
   };
 }
 
+function reportParseErrors(parseErrors) {
+  if (parseErrors.length === 0) return;
+  console.error("Changesets that `changeset version` cannot parse:\n");
+  for (const { file, line, name, reason } of parseErrors) {
+    const at = line === undefined ? file : `${file}:${line}`;
+    console.error(`  .changeset/${at}: "${name}" ${reason}`);
+  }
+  console.error(
+    '\nWrite each release as `"<package>": patch` on its own line between `---` fences, with the name quoted, each package once, and every line indented the same way with spaces.',
+  );
+}
+
 function main() {
   const { packageCount, parseErrors, problems } = runCheck(
     process.env.CHANGESET_CHECK_ROOT,
   );
 
-  if (parseErrors.length > 0) {
-    console.error("Changesets that `changeset version` cannot parse:\n");
-    for (const { file, line, name, reason } of parseErrors) {
-      const at = line === undefined ? file : `${file}:${line}`;
-      console.error(`  .changeset/${at}: "${name}" ${reason}`);
-    }
-    console.error(
-      '\nWrite each release as `"<package>": patch` on its own line between `---` fences, with the name quoted, each package once, and every line indented the same way with spaces.',
-    );
-  }
+  reportParseErrors(parseErrors);
 
   if (problems.length > 0) {
     if (parseErrors.length > 0) console.error("");
@@ -546,7 +554,9 @@ function mainChangedPackages() {
     process.exit(1);
   }
 
+  reportParseErrors(result.parseErrors);
   if (result.missingChangesets.length > 0) {
+    if (result.parseErrors.length > 0) console.error("");
     console.error("Changed published packages without a changeset:\n");
     for (const missing of result.missingChangesets) {
       console.error(describeMissingChangeset(missing));
@@ -554,6 +564,8 @@ function mainChangedPackages() {
     console.error(
       "\nAdd a changeset from this PR that names every changed published package.",
     );
+  }
+  if (result.parseErrors.length > 0 || result.missingChangesets.length > 0) {
     process.exit(1);
   }
 
