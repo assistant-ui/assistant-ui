@@ -9,8 +9,11 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: "Content-Security-Policy",
-            value:
-              "frame-ancestors https://cloud.assistant-ui.com http://localhost:3001",
+            value: `frame-ancestors https://cloud.assistant-ui.com${
+              process.env.NODE_ENV === "development"
+                ? " http://localhost:3001"
+                : ""
+            }`,
           },
         ],
       },

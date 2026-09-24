@@ -264,4 +264,17 @@ describe("CloudRendererHost", () => {
     expect(screen.queryByText("MCP widget")).toBeNull();
     expect(view.container.firstElementChild?.hasAttribute("inert")).toBe(true);
   });
+  it("allows an origin written with a path or a trailing slash", async () => {
+    render(
+      <CloudRendererHost allowedOrigins={[`${dashboard}/`]}>
+        <TinyThread />
+      </CloudRendererHost>,
+    );
+    expect(postMessage).toHaveBeenCalledWith(
+      { channel: "assistant-ui/cloud-renderer", version: 1, type: "ready" },
+      dashboard,
+    );
+    send([message("normalised")]);
+    expect(await screen.findByText("normalised")).toBeTruthy();
+  });
 });

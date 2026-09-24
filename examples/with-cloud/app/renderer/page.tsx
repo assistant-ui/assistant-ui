@@ -8,7 +8,9 @@ export default function RendererPage() {
     <CloudRendererHost
       allowedOrigins={[
         "https://cloud.assistant-ui.com",
-        "http://localhost:3001",
+        ...(process.env.NODE_ENV === "development"
+          ? ["http://localhost:3001"]
+          : []),
       ]}
     >
       <Thread />

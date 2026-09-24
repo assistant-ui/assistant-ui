@@ -23,6 +23,14 @@ import { AssistantRuntimeProvider } from "../legacy-runtime/AssistantRuntimeProv
 import { useExternalStoreRuntime } from "../legacy-runtime/runtime-cores/external-store/useExternalStoreRuntime";
 
 const CHANNEL = "assistant-ui/cloud-renderer";
+
+const toOrigin = (value: string) => {
+  try {
+    return new URL(value).origin;
+  } catch {
+    return value;
+  }
+};
 const DEFAULT_ALLOWED_ORIGINS = ["https://cloud.assistant-ui.com"];
 const INERT_STORE = {
   messages: [] as ThreadMessage[],
@@ -126,7 +134,7 @@ export function CloudRendererHost({
     revision: number;
   } | null>(null);
 
-  const originsKey = allowedOrigins.join(" ");
+  const originsKey = allowedOrigins.map(toOrigin).join(" ");
 
   useEffect(() => {
     const origins = originsKey.split(" ");
