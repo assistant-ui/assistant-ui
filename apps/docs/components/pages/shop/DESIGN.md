@@ -18,3 +18,4 @@
 - `border-foreground/10` is the one hairline, for borders, dividers and the progress track; `/30` is the accent bar; `border-foreground` is the active state.
 - Text: the page title is `text-lg font-semibold`; every other heading is `text-sm font-medium`; helper text is `text-muted-foreground text-sm` and metadata `text-xs`.
 - Icons are `size-4` beside content and `size-3.5` inside a line of text.
+- A step's description shows two lines at most: it is truncated in the middle to `140` characters (two lines of `text-sm` at the `546px` the description gets in the frame, minus what word wrapping loses), `line-clamp-2` caps it at any other width, and the full text is the paragraph's `title`.

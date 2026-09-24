@@ -9,9 +9,12 @@ import {
 } from "lucide-react";
 import type { Checkout } from "@/lib/checkout/protocol";
 import { cn } from "@/lib/utils";
+import { middleTruncate } from "./middle-truncate";
 
 /** A step's status, "attention" when the next move is the user's, or "drafting" for the row the agent is still writing. */
 export type EntryStatus = Checkout.StepStatus | "attention" | "drafting";
+
+const DETAIL_CHARS = 140;
 
 const ENTER =
   "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-300 motion-safe:ease-out";
@@ -124,8 +127,11 @@ export function TimelineEntry({
           </p>
           <span className="sr-only">{STATUS_LABELS[status]}</span>
           {detail ? (
-            <p className="text-muted-foreground mt-1 text-sm [overflow-wrap:anywhere]">
-              {detail}
+            <p
+              title={detail}
+              className="text-muted-foreground mt-1 line-clamp-2 text-sm [overflow-wrap:anywhere]"
+            >
+              {middleTruncate(detail, DETAIL_CHARS)}
             </p>
           ) : null}
           {children ? <div className="mt-3">{children}</div> : null}
