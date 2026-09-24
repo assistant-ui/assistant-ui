@@ -5685,6 +5685,34 @@ describe("LocalThreadRuntimeCore message queue with other runs", () => {
     expect(appended).toEqual(["user"]);
   });
 
+  it("sends a later queued send when a send waiting on the history load is cancelled", async () => {
+    let releaseLoad!: () => void;
+    const loaded = new Promise<void>((resolve) => (releaseLoad = resolve));
+    const { thread, dispatched, send } = createThread({
+      clearOnCancel: false,
+      historyAdapter: {
+        load: () => loaded.then(() => ({ messages: [] })),
+        async append() {},
+      },
+    });
+
+    thread.__internal_load();
+    send("first");
+    await flush();
+    thread.cancelRun();
+    send("second");
+    await flush();
+    releaseLoad();
+    await flush();
+
+    expect(dispatched).toEqual(["second"]);
+    expect(thread.messages.map((message) => message.role)).toEqual([
+      "user",
+      "user",
+      "assistant",
+    ]);
+  });
+
   it("holds a queued send behind a run started in the tick after another run ends", async () => {
     const gate = createGate();
     const { thread, dispatched, send } = createThread({
