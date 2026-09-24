@@ -366,8 +366,8 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   get unstable_copy() {
-    const { telemetry } = this.cloudRef.current;
-    return telemetry.enabled === false || telemetry.messages === false
+    const telemetry = this.cloudRef.current?.telemetry;
+    return telemetry?.enabled === false || telemetry?.messages === false
       ? undefined
       : this.copy;
   }

@@ -211,6 +211,17 @@ describe("Assistant Cloud backend transcript copy", () => {
     },
   );
 
+  it("offers the copy for a cloud without telemetry settings", () => {
+    makeClient();
+    const { cloud } = makeCloud();
+    delete (cloud as { telemetry?: unknown }).telemetry;
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+
+    expect(result.current.unstable_copy).toBeTypeOf("function");
+  });
+
   it("skips a message the cloud refuses and copies the later ones without it", async () => {
     makeClient();
     const { cloud, create } = makeCloud();
