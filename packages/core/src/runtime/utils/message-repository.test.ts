@@ -81,17 +81,22 @@ describe("MessageRepository rejected operations", () => {
     expect(repository.getMessage("a").message).toBe(original);
   });
 
-  it("moves no child when the replacement is a child of the deleted message", () => {
+  it("moves no child when the replacement is a descendant of the deleted message", () => {
     const repository = new MessageRepository();
     repository.addOrUpdateMessage(null, message("a"));
     repository.addOrUpdateMessage("a", message("b"));
     repository.addOrUpdateMessage("a", message("c"));
+    repository.addOrUpdateMessage("c", message("d"));
     const before = snapshot(repository);
 
     expect(() => repository.deleteMessage("a", "c")).toThrow(
       /Replacement is the deleted message or one of its descendants/,
     );
+    expect(snapshot(repository)).toEqual(before);
 
+    expect(() => repository.deleteMessage("a", "d")).toThrow(
+      /Replacement is the deleted message or one of its descendants/,
+    );
     expect(snapshot(repository)).toEqual(before);
     expect(repository.getMessage("b").parentId).toBe("a");
     expect(repository.getBranches("b")).toEqual(["b", "c"]);
