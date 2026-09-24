@@ -5,7 +5,7 @@ description: Compose a Cloud backed thread list around a runtime, adapter or mes
 
 `useCloudThreadListRuntime` puts Assistant Cloud's thread list around a per-thread runtime hook. Use it when your runtime does not have a `cloud` option, including AG-UI and A2A, or when you need to control the backend thread lifecycle yourself.
 
-The hook gives the runtime Cloud threads and the history, attachment and feedback adapters as defaults; an adapter the wrapped runtime supplies itself is kept. A direct adapter is available when you need the list without the wrapper runtime.
+The hook gives the runtime Cloud threads and the history, attachment and feedback adapters as defaults; an adapter the wrapped runtime supplies itself is kept. A runtime built on `useExternalStoreRuntime` stores a copy of its settled messages through that history adapter, as [LangGraph, LangChain and ADK](/docs/cloud/langgraph) describes. A direct adapter is available when you need the list without the wrapper runtime.
 
 ## Wrap a per-thread runtime
 
