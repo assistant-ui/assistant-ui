@@ -224,6 +224,13 @@ const Composer: FC = () => {
 };
 
 const ComposerAction: FC = () => {
+  // The stop control only cancels the send while no run it could stop is going.
+  const isSending = useAuiState(
+    (s) =>
+      s.composer.submission !== undefined &&
+      !(s.thread.isRunning && s.thread.capabilities.cancel),
+  );
+
   return (
     <div className="aui-composer-action-wrapper relative flex items-center justify-between">
       <ComposerAddAttachment />
@@ -261,7 +268,11 @@ const ComposerAction: FC = () => {
           </AuiIf>
         </AuiIf>
         <AuiIf
-          condition={(s) => !s.thread.isRunning || s.thread.voice !== undefined}
+          condition={(s) =>
+            !s.composer.canCancel ||
+            (s.thread.voice !== undefined &&
+              s.composer.submission === undefined)
+          }
         >
           <ComposerPrimitive.Send asChild>
             <TooltipIconButton
@@ -278,7 +289,11 @@ const ComposerAction: FC = () => {
           </ComposerPrimitive.Send>
         </AuiIf>
         <AuiIf
-          condition={(s) => s.thread.isRunning && s.thread.voice === undefined}
+          condition={(s) =>
+            s.composer.canCancel &&
+            (s.thread.voice === undefined ||
+              s.composer.submission !== undefined)
+          }
         >
           <ComposerPrimitive.Cancel asChild>
             <Button
@@ -286,7 +301,7 @@ const ComposerAction: FC = () => {
               variant="default"
               size="icon"
               className="aui-composer-cancel size-7 rounded-full"
-              aria-label="Stop generating"
+              aria-label={isSending ? "Cancel sending" : "Stop generating"}
             >
               <SquareIcon className="aui-composer-cancel-icon size-3.5 fill-current" />
             </Button>

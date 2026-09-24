@@ -626,6 +626,18 @@ describe("auiV0Decode", () => {
     ],
   });
 
+  const artifact = { reportId: "report-1" };
+  const artifactModelContent = [
+    { type: "text" as const, text: "The report is ready." },
+    {
+      type: "file" as const,
+      data: "data:application/pdf;base64,JVBERi0xLjQ=",
+      mediaType: "application/pdf",
+      filename: "report.pdf",
+    },
+  ];
+  const providerMetadata = { openai: { responseId: "resp-1" } };
+
   it.each([
     ["false", false],
     ["zero", 0],
@@ -653,6 +665,157 @@ describe("auiV0Decode", () => {
     } finally {
       warn.mockRestore();
     }
+  });
+
+  it("keeps tool-call artifact, model content, and provider metadata", () => {
+    const encoded = auiV0Encode(
+      toolCallMessage({
+        artifact,
+        modelContent: artifactModelContent,
+        providerMetadata,
+      }),
+    );
+
+    const toolCall = encoded.content.find((p) => p.type === "tool-call");
+    expect(toolCall).toMatchObject({
+      artifact,
+      modelContent: artifactModelContent,
+      providerMetadata,
+    });
+  });
+
+  it("restores tool-call artifact, model content, and provider metadata", () => {
+    const encoded = auiV0Encode(
+      toolCallMessage({
+        artifact,
+        modelContent: artifactModelContent,
+        providerMetadata,
+      }),
+    );
+    const { message } = auiV0Decode({
+      id: "m1",
+      parent_id: null,
+      format: "aui/v0",
+      content: encoded,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0Decode>[0]);
+
+    const toolCall = message.content.find((p) => p.type === "tool-call");
+    expect(toolCall).toMatchObject({
+      artifact,
+      modelContent: artifactModelContent,
+      providerMetadata,
+    });
+  });
+
+  it("omits a non-JSON tool-call artifact without dropping the result", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const encoded = auiV0Encode(
+        toolCallMessage({
+          artifact: { value: 1n },
+          result: { kept: true },
+        }),
+      );
+
+      const toolCall = encoded.content.find((p) => p.type === "tool-call");
+      expect(toolCall).not.toHaveProperty("artifact");
+      expect(toolCall).toHaveProperty("result", { kept: true });
+      expect(warn).toHaveBeenCalledWith(
+        "tool-call artifact is not JSON for call-1",
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("stores a non-finite number in an artifact as JSON does, as null", () => {
+    const encoded = auiV0Encode(
+      toolCallMessage({ artifact: { series: [1, Number.NaN], title: "Q3" } }),
+    );
+
+    const toolCall = encoded.content.find((p) => p.type === "tool-call");
+    expect(toolCall).toHaveProperty("artifact", {
+      series: [1, null],
+      title: "Q3",
+    });
+  });
+
+  it("stores a tool-call artifact as its JSON form, dropping undefined fields", () => {
+    const encoded = auiV0Encode(
+      toolCallMessage({ artifact: { chart: [1, 2], error: undefined } }),
+    );
+
+    const toolCall = encoded.content.find((p) => p.type === "tool-call");
+    expect(toolCall).toHaveProperty("artifact", { chart: [1, 2] });
+    expect(
+      (toolCall as { artifact?: Record<string, unknown> }).artifact,
+    ).not.toHaveProperty("error");
+  });
+
+  it("omits absent tool-call artifact, model content, and provider metadata", () => {
+    const encoded = auiV0Encode(toolCallMessage({}));
+
+    const toolCall = encoded.content.find((p) => p.type === "tool-call");
+    expect(toolCall).not.toHaveProperty("artifact");
+    expect(toolCall).not.toHaveProperty("modelContent");
+    expect(toolCall).not.toHaveProperty("providerMetadata");
+  });
+
+  it("stores and restores readable tool-call interactions", () => {
+    const unstable_interactions = {
+      entries: [
+        {
+          type: "action" as const,
+          occurredAt: 10,
+          payload: { $input: "approve" },
+        },
+        {
+          type: "human-response" as const,
+          occurredAt: 11,
+          payload: false,
+        },
+      ],
+    };
+    const encoded = auiV0Encode(toolCallMessage({ unstable_interactions }));
+
+    expect(encoded.content.find((p) => p.type === "tool-call")).toHaveProperty(
+      "unstable_interactions",
+      unstable_interactions,
+    );
+
+    const { message } = auiV0Decode({
+      id: "m1",
+      parent_id: null,
+      format: "aui/v0",
+      content: encoded,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0Decode>[0]);
+
+    expect(message.content.find((p) => p.type === "tool-call")).toHaveProperty(
+      "unstable_interactions",
+      unstable_interactions,
+    );
+  });
+
+  it("stores only readable tool-call interactions", () => {
+    const encoded = auiV0Encode(
+      toolCallMessage({
+        unstable_interactions: {
+          entries: [
+            { type: "human-response", occurredAt: 10, payload: "kept" },
+            { type: "unknown", occurredAt: 11, payload: "dropped" },
+          ],
+        },
+      }),
+    );
+
+    expect(encoded.content.find((p) => p.type === "tool-call")).toHaveProperty(
+      "unstable_interactions",
+      {
+        entries: [{ type: "human-response", occurredAt: 10, payload: "kept" }],
+      },
+    );
   });
 
   it("carries a falsy tool-call result through a decode round trip", () => {
@@ -717,6 +880,31 @@ describe("auiV0Decode", () => {
       (p) => p.type === "tool-call",
     );
     expect(toolCall).toHaveProperty("modelContent", modelContent);
+  });
+
+  it("keeps tool-call artifact and provider metadata through the safe decoder", () => {
+    const encoded = auiV0Encode(
+      toolCallMessage({
+        artifact,
+        modelContent: artifactModelContent,
+        providerMetadata,
+      }),
+    );
+    const decoded = auiV0DecodeSafely({
+      id: "m1",
+      parent_id: null,
+      format: "aui/v0",
+      content: encoded,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0DecodeSafely>[0]);
+
+    const toolCall = decoded?.message.content.find(
+      (p) => p.type === "tool-call",
+    );
+    expect(toolCall).toMatchObject({
+      artifact,
+      providerMetadata,
+    });
   });
 
   it("omits modelContent for a tool call that does not carry one", () => {

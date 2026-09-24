@@ -198,6 +198,48 @@ describe("ImageActions data URI handling", () => {
     expect(await blob.text()).toBe("<svg><path d='M0,0,1'/></svg>");
   });
 
+  it("preserves non-UTF-8 bytes in a percent-encoded image", async () => {
+    renderActions("data:image/png,%89PNG%0D%0A%1A%0A");
+
+    const blob = await downloadedBlob();
+    expect(Array.from(new Uint8Array(await blob.arrayBuffer()))).toEqual([
+      137, 80, 78, 71, 13, 10, 26, 10,
+    ]);
+  });
+
+  it("uses a same-origin image URL's basename for the default download filename", () => {
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+    try {
+      renderActions("/photos/photo.jpg?size=large");
+      fireEvent.click(screen.getByLabelText("Download image"));
+
+      expect(click).toHaveBeenCalledOnce();
+      expect((click.mock.contexts[0] as HTMLAnchorElement).download).toBe(
+        "photo.jpg",
+      );
+    } finally {
+      click.mockRestore();
+    }
+  });
+
+  it("keeps the image extension when a URL basename has a non-UTF-8 escape", () => {
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+    try {
+      renderActions("/photos/%89photo.jpg");
+      fireEvent.click(screen.getByLabelText("Download image"));
+
+      expect((click.mock.contexts[0] as HTMLAnchorElement).download).toBe(
+        "%89photo.jpg",
+      );
+    } finally {
+      click.mockRestore();
+    }
+  });
+
   it("passes through a payload with an invalid percent escape instead of throwing", async () => {
     const payload = "<svg><text>100% width</text></svg>";
     renderActions(`data:image/svg+xml,${payload}`);

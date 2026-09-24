@@ -62,6 +62,20 @@ describe("checkout session store", () => {
     expect(values.has(storageKey)).toBe(false);
   });
 
+  it("remembers that the intro was read across a reload", async () => {
+    setupStorage();
+    let store = await loadStore();
+    store.startCheckout(["assistant-ui"]);
+    expect(store.getCheckoutSession()?.introSeen).toBeUndefined();
+    store.acknowledgeSetupIntro();
+    expect(store.getCheckoutSession()?.introSeen).toBe(true);
+    const values = (globalThis as { window?: unknown }).window;
+    vi.resetModules();
+    vi.stubGlobal("window", values);
+    store = await import("./session-store");
+    expect(store.getCheckoutSession()?.introSeen).toBe(true);
+  });
+
   it("restores a stored session and drops a malformed one", async () => {
     const values = setupStorage();
     values.set(

@@ -11,10 +11,10 @@ import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 
 export function SelectableModel() {
   const models: ModelOption[] = [
-    { id: "gpt-5.6-luna", name: "GPT-5.6 Luna" },
-    { id: "gpt-5.6-sol", name: "GPT-5.6 Sol", efforts: true },
+    { id: "gpt-6-luna", name: "GPT-6 Luna" },
+    { id: "gpt-6-astra", name: "GPT-6 Astra", efforts: true },
   ];
-  const [value, setValue] = useState("gpt-5.6-sol");
+  const [value, setValue] = useState("gpt-6-astra");
   const [effort, setEffort] = useState<string>("high");
 
   return (

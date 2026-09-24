@@ -36,9 +36,9 @@ import { useConvertedState } from "./useConvertedState";
 import type { ToolExecutionStatus } from "../../../runtimes/tool-invocations/ToolInvocationTracker";
 import { createRequestHeaders } from "../../../runtimes/assistant-transport/utils";
 import { useRemoteThreadListRuntime } from "../useRemoteThreadListRuntime";
-import { InMemoryThreadListAdapter } from "../../../runtimes/remote-thread-list/adapter/in-memory";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import type { UserExternalState } from "../../../types/augmentations";
+import { useCloudThreadListAdapter } from "../cloud/useCloudThreadListAdapter";
 
 const convertAppendMessageToCommand = (
   message: AppendMessage,
@@ -101,6 +101,17 @@ const readResumeState = async <T>(
 
   return { runId: value.runId, state: value.state as T };
 };
+
+// Rejects as soon as the signal aborts; a started operation keeps running.
+const abortable = <T>(signal: AbortSignal, start: () => Promise<T>) =>
+  new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason);
+    if (signal.aborted) return onAbort();
+    signal.addEventListener("abort", onAbort, { once: true });
+    void start()
+      .then(resolve, reject)
+      .finally(() => signal.removeEventListener("abort", onAbort));
+  });
 
 const symbolAssistantTransportExtras = Symbol("assistant-transport-extras");
 type AssistantTransportExtras = {
@@ -173,7 +184,7 @@ const useAssistantTransportThreadRuntime = <T>(
     });
   };
 
-  const threadId = useAuiState((s) => s.threadListItem.remoteId);
+  const aui = useAui();
 
   const runManager = useRunManager({
     onRun: async (signal: AbortSignal) => {
@@ -188,6 +199,15 @@ const useAssistantTransportThreadRuntime = <T>(
       // runs send no commands, so they neither send nor consume it.
       const parentId = isResume ? undefined : parentIdRef.current;
       if (!isResume) parentIdRef.current = undefined;
+
+      // Only a thread without a remote id waits for its initialization, and a
+      // resume, which reconnects to an existing run, never creates the thread.
+      const threadId =
+        aui.threadListItem.getState().remoteId ??
+        (isResume
+          ? undefined
+          : (await abortable(signal, () => aui.threadListItem.initialize()))
+              .remoteId);
 
       const headers = await createRequestHeaders(options.headers);
       let resumeState: { runId: string; state: T } | undefined;
@@ -208,18 +228,19 @@ const useAssistantTransportThreadRuntime = <T>(
         resumeState = retained;
       }
 
-      const bodyValue =
+      // `typeof` narrows the `object` member to `Function`, whose call returns `any`; the annotation keeps `sendCommandsBody` checked against its type.
+      const bodyValue: object | undefined =
         typeof options.body === "function"
           ? await options.body()
           : options.body;
       const context = runtime.thread.getModelContext();
 
-      let requestBody: Record<string, unknown> = {
+      const sendCommandsBody: SendCommandsRequestBody = {
         commands,
         ...(resumeState === undefined && { state: agentStateRef.current }),
         system: context.system,
         tools: context.tools ? toToolsJSONSchema(context.tools) : undefined,
-        threadId,
+        ...(threadId !== undefined && { threadId }),
         ...(parentId !== undefined && {
           parentId,
         }),
@@ -232,10 +253,10 @@ const useAssistantTransportThreadRuntime = <T>(
         ...(bodyValue ?? {}),
       };
 
+      let requestBody: Record<string, unknown> = sendCommandsBody;
       if (options.prepareSendCommandsRequest) {
-        requestBody = await options.prepareSendCommandsRequest(
-          requestBody as SendCommandsRequestBody,
-        );
+        requestBody =
+          await options.prepareSendCommandsRequest(sendCommandsBody);
       }
 
       if (resumeState !== undefined) {
@@ -343,6 +364,7 @@ const useAssistantTransportThreadRuntime = <T>(
       ];
 
       commandQueue.reset();
+      parentIdRef.current = undefined;
 
       options.onCancel?.({
         commands: cmds,
@@ -359,6 +381,7 @@ const useAssistantTransportThreadRuntime = <T>(
       const queuedCmds = [...commandQueue.state.queued];
 
       commandQueue.reset();
+      parentIdRef.current = undefined;
 
       try {
         await options.onError?.(error as Error, {
@@ -474,11 +497,12 @@ const useAssistantTransportThreadRuntime = <T>(
 export const useAssistantTransportRuntime = <T>(
   options: AssistantTransportOptions<T>,
 ): AssistantRuntime => {
+  const adapter = useCloudThreadListAdapter({ cloud: options.cloud });
   const runtime = useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
       return useAssistantTransportThreadRuntime(options);
     },
-    adapter: new InMemoryThreadListAdapter(),
+    adapter,
     allowNesting: true,
   });
   return runtime;

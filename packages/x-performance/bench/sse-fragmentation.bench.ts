@@ -1,4 +1,4 @@
-import { describe, test } from "vitest";
+import { describe, inject, test } from "vitest";
 import { SSEEventDecoder } from "assistant-stream/utils";
 
 describe("assistant-stream: fragmented SSE events", () => {
@@ -14,7 +14,7 @@ describe("assistant-stream: fragmented SSE events", () => {
         await bench(name, () => {
           const decoder = new SSEEventDecoder();
           for (const chunk of chunks) decoder.push(chunk);
-        }).run();
+        }).run(inject("benchSampling"));
       });
     }
   }
