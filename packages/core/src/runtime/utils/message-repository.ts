@@ -262,8 +262,8 @@ export class MessageRepository {
       );
 
     if (existingItem) {
-      existingItem.current = message;
       this.performOp(prev, existingItem, "relink");
+      existingItem.current = message;
       this._messages.dirty();
       return;
     }
@@ -318,6 +318,13 @@ export class MessageRepository {
       throw new Error(
         "MessageRepository(deleteMessage): Replacement not found. This is likely an internal bug in assistant-ui.",
       );
+
+    for (let current = replacement; current; current = current.prev) {
+      if (current === message)
+        throw new Error(
+          "MessageRepository(deleteMessage): Replacement is the deleted message or one of its descendants. This is likely an internal bug in assistant-ui.",
+        );
+    }
 
     for (const child of message.children) {
       const childMessage = this.messages.get(child);
