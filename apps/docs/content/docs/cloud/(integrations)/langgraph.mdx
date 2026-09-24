@@ -1,11 +1,11 @@
 ---
 title: LangGraph, LangChain and ADK
-description: Add an Assistant Cloud thread list, attachments, feedback and engagement events to runtimes whose backend owns the conversation.
+description: Add an Assistant Cloud thread list, a copy of the conversation, feedback and engagement events to runtimes whose backend owns the conversation.
 ---
 
-LangGraph, LangChain and Google ADK keep the conversation on your backend. Passing `cloud` gives those runtimes a Cloud backed thread list, attachments and engagement events, while the backend continues to own the messages and model execution.
+LangGraph, LangChain and Google ADK keep the conversation on your backend. Passing `cloud` gives those runtimes a Cloud backed thread list, a copy of each conversation, feedback and engagement events, while the backend continues to own the messages and model execution.
 
-The cloud creates, lists, renames, archives and deletes the conversation records users see in the app. It does not store these runtimes' messages or receive their browser run reports, so use traces when you want the Runs and Models views to describe your backend.
+The cloud creates, lists, renames, archives and deletes the conversation records users see in the app, and keeps a copy of their messages for the dashboard. It does not receive browser run reports from these runtimes, so use traces when you want the Runs and Models views to describe your backend.
 
 ## What the cloud adds
 
@@ -14,14 +14,18 @@ The cloud creates, lists, renames, archives and deletes the conversation records
 | Surface | What happens |
 |---|---|
 | Thread list | The cloud stores the thread title, archive state, custom data, last message time and your backend id as `external_id`. |
-| Attachments | The runtime receives the Cloud attachment adapter for uploads and composer attachments. |
-| Feedback | The cloud feedback adapter is installed, but a rating needs a cloud message id, and these runtimes store no messages in the cloud, so the rating is skipped with a console warning; see [Feedback needs remote ids](#feedback-needs-remote-ids). |
+| Messages | When a run settles, the runtime stores a copy of the new and changed messages as `aui/v0`, keyed by your backend's message ids, so the dashboard shows the transcript. Earlier messages of a conversation are copied the first time it continues after the upgrade. The runtime never reads the copy back; your backend stays the source. |
+| Tool interactions | What a user does in a tool UI (`unstable_recordInteraction`) is kept on that tool call in the copy, never sent to your backend. |
+| Feedback | Ratings are stored against the copied messages. |
 | Engagement | Composer, message, tool and thread interactions are recorded as engagement events. |
-| Messages and run reports | Neither is sent by these runtimes. The backend remains the transcript source, and Runs and Models have no browser report to show. |
+| Attachments | The runtime keeps the attachment adapter you pass in `adapters`; the Cloud attachment adapter is not installed for it. |
+| Run reports | Not sent by these runtimes. Runs and Models come from [traces](#fill-runs-and-models-with-traces). |
+
+The copy is observability data. `telemetry: { messages: false }` on the `AssistantCloud` client keeps it out while the thread list, events and titles continue; `telemetry: false` also stops events. A stored user message counts its end user toward the project's monthly active users.
 
 ## Connect your backend
 
-`useLangGraphRuntime` accepts `cloud` with three callbacks. `create` creates the backend conversation and returns its id as `externalId`. The cloud writes that value as `external_id`. `load` receives the same value when a user opens the cloud thread, and `delete` receives it before the cloud thread is deleted.
+`useLangGraphRuntime` accepts `cloud` with three callbacks. `create` creates the backend conversation and returns its id as `externalId`. The cloud writes that value as `external_id`. `load` receives the same value when a user opens the cloud thread. `delete` runs before the cloud thread is deleted and receives the cloud thread id, so read the thread to find your backend id.
 
 ```tsx title="app/chat/runtime-provider.tsx"
 const runtime = useLangGraphRuntime({
@@ -35,7 +39,10 @@ const runtime = useLangGraphRuntime({
   load: async (externalId) => ({
     messages: (await getThreadState(externalId)).values.messages ?? [],
   }),
-  delete: async (externalId) => deleteThread(externalId),
+  delete: async (cloudThreadId) => {
+    const { external_id } = await cloud.threads.get(cloudThreadId);
+    if (external_id) await deleteThread(external_id);
+  },
 });
 ```
 
@@ -86,7 +93,7 @@ The feedback adapter submits a rating only after it can resolve both ids needed 
 | What is missing | Console warning | What to do |
 |---|---|---|
 | The cloud thread id | `[assistant-ui] Skipping feedback for message <id>: the thread has no remote id.` | Let the thread finish initialization before users can rate its messages. |
-| The cloud message id | `[assistant-ui] Skipping feedback for message <id>: no cloud message id is mapped.` | Use a message persistence path when the runtime needs Cloud feedback. External runtimes without stored cloud messages cannot resolve that id by themselves. |
+| The cloud message id | `[assistant-ui] Skipping feedback for message <id>: no cloud message id is mapped.` | The message has not been copied yet: it is still streaming, the copy failed, or `telemetry: { messages: false }` is set. The copy is written when the run settles. |
 
 When both ids exist, the adapter sends `positive` or `negative` feedback for that message. See [Scores](/docs/cloud/scores) for how ratings appear in the project.
 
@@ -96,7 +103,7 @@ When both ids exist, the adapter sends `positive` or `negative` feedback for tha
 |---|---|---|
 | A cloud thread has no backend conversation | `create` did not return the backend id, and the runtime had no initialized thread to use as a fallback. | Return `{ externalId }` from `create`, or initialize the runtime's own thread before the cloud thread is created. |
 | The title stays at the app fallback | The title attempt failed and the hourly sweep has not retried it yet, or the list has not reloaded since the cloud wrote the title. | Open the thread in the dashboard and read the Title row of its Details rail, then reload the list. |
-| The dashboard shows a thread but no transcript | The runtime keeps messages on its backend. | Load the conversation through `load` and its backend source. This is expected. |
+| The dashboard shows a thread but no transcript | Nothing has run in it since the upgrade, or `telemetry: { messages: false }` is set, or the copy failed (the console warns once with `[useExternalStoreRuntime] Failed to copy history.`). | Continue the conversation once, or check the telemetry setting and the warning. |
 | Runs and Models are empty | The runtime does not send browser run reports. | Export server spans and set `gen_ai.conversation.id` to the Cloud thread id. |
 | A feedback click logs a skip warning | The remote thread id or mapped message id is not available. | Follow the matching feedback row above. |
 | Cloud options appear to have no effect | `unstable_threadListAdapter` or `sessionAdapter` owns the list. | Remove that adapter to use Cloud, or configure Cloud behavior in the adapter you supplied. |
