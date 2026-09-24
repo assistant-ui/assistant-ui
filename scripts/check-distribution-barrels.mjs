@@ -289,6 +289,8 @@ export function collectBarrelParity({
     for (const symbol of exportsOf(barrel.file)) {
       const target = resolve(symbol);
       const origin = originOf(target);
+      // Every unresolved export shares TypeScript's unknown symbol, which would
+      // otherwise reach publicNames and pair unrelated names.
       if (origin === undefined) continue;
       if (!isShared(origin) && !publicNames.has(target)) continue;
       let byName = groups.get(target);
