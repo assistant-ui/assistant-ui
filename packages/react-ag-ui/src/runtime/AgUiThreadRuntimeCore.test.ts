@@ -103,3 +103,21 @@ describe("AgUiThreadRuntimeCore late history loading", () => {
     expect(replacement.load).not.toHaveBeenCalled();
   });
 });
+
+describe("AgUiThreadRuntimeCore steerAway parent selection", () => {
+  it("starts a root branch for an explicit null parent", async () => {
+    const { core } = createCore();
+    await core.append(userMessage("old"));
+
+    await core.steerAway({
+      parentId: null,
+      content: [{ type: "text", text: "new root" }],
+      startRun: false,
+    });
+
+    expect(core.getMessages().map((message) => message.content)).toEqual([
+      [{ type: "text", text: "new root" }],
+    ]);
+    expect(core.getMessageRepository().messages.at(-1)?.parentId).toBeNull();
+  });
+});

@@ -10,6 +10,8 @@ Enable users to attach files to their messages, enhancing conversations with ima
 
 <AttachmentSample />
 
+<AgentSetup product="guides/attachments" />
+
 ## Overview
 
 The attachment system in assistant-ui provides a flexible framework for handling file uploads in your AI chat interface. It consists of:
@@ -118,7 +120,7 @@ Build your own adapters for specialized file handling. Below are complete exampl
 
 ### Vision-Capable Image Adapter
 
-Send images to vision-capable LLMs like GPT-5.6, Claude Sonnet 4.6, or Gemini Pro Vision:
+Send images to vision-capable LLMs like GPT-6, Claude Sonnet 5, or Gemini 3.8 Flash:
 
 ```tsx
 import {
@@ -276,7 +278,7 @@ const MyModelAdapter: ChatModelAdapter = {
         msg.role === "user" &&
         msg.content.some((part) => part.type === "image")
       ) {
-        // Format for GPT-5.6 or similar vision models
+        // Format for GPT-6 or similar vision models
         return {
           role: "user",
           content: msg.content.map((part) => {
@@ -401,6 +403,50 @@ class UploadAttachmentAdapter implements AttachmentAdapter {
   }
 }
 ```
+
+### Sending Before an Upload Finishes
+
+A user can send while an attachment is still uploading. The message leaves the composer right away and appears as the thread's last message, where its attachments keep reporting their upload status; the composer is empty and ready for the next message, and the send button is unavailable until the message has been handed to the runtime.
+
+Nothing reaches the runtime until every attachment is complete. An attachment still uploading inside `add()` is waited for, so `send()` is never called on an attachment the adapter cannot finalize yet. A send that fails, or that the user cancels while its attachments are prepared, takes its content back into the composer: the text returns ahead of anything typed since, the attachments return with it, and each one that failed carries `status: { type: "incomplete", reason: "error" }` with its own message so it can be retried or removed.
+
+The message the composer is preparing is available as `composer.submission`. Once it is handed to the runtime it moves to `composer.inTransit`, where it stays until the thread shows the runtime's own message, so it never leaves the conversation in between. The thread row that renders either one carries it as `message.submission`:
+
+```tsx
+const sending = useAuiState((s) => s.composer.submission !== undefined);
+```
+
+### Aborting Work in `send()`
+
+`send()` receives an options object whose `signal` aborts when the send is abandoned: the user cancels it while its attachments are prepared, or, for a thread built on the tap-native `ExternalThread`, the thread is torn down for good, as when the component rendering its `AuiProvider` unmounts. Hiding a thread, for example inside `<Activity>`, never aborts its send, and the message is still delivered. The built-in adapters that read the file in `send()` stop reading when the signal aborts; a custom adapter that does slow work there should pass the signal on:
+
+```tsx
+async send(
+  attachment: PendingAttachment,
+  options?: { signal?: AbortSignal },
+): Promise<CompleteAttachment> {
+  const response = await fetch("/api/convert", {
+    method: "POST",
+    body: attachment.file,
+    signal: options?.signal,
+  });
+  const { url } = await response.json();
+  return {
+    ...attachment,
+    status: { type: "complete" },
+    content: [
+      {
+        type: "file",
+        data: url,
+        mimeType: attachment.contentType ?? "",
+        filename: attachment.name,
+      },
+    ],
+  };
+}
+```
+
+A result that arrives after the signal aborts is discarded either way, so an adapter that ignores the signal only wastes the work it keeps doing.
 
 ### Validation and Error Handling
 
@@ -601,7 +647,7 @@ class ServerUploadAdapter implements AttachmentAdapter {
 ```
 
 <Callout type="tip">
-  [assistant-ui Cloud](/docs/cloud/ai-sdk-assistant-ui) includes `CloudFileAttachmentAdapter` which handles large file uploads via presigned URLs out of the box.
+  [assistant-ui Cloud](/docs/cloud/ai-sdk) includes `CloudFileAttachmentAdapter`, which uploads through `cloud.files.generatePresignedUploadUrl` and persists the returned `publicUrl` with the message. For a private bucket, `cloud.files.generatePresignedDownloadUrl({ key })` or `cloud.files.generatePresignedDownloadUrl({ url })` returns a signed read URL together with its expiry.
 </Callout>
 
 ## Best Practices

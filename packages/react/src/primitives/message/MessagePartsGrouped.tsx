@@ -44,7 +44,7 @@ const groupMessagePartsByParentId: GroupingFunction = (
   parts: readonly any[],
 ): MessagePartGroup[] => {
   // Map maintains insertion order, so groups appear in order of first occurrence
-  const groupMap = new Map<string, number[]>();
+  const groupMap = new Map<string | number, number[]>();
 
   // Process each part in order
   for (let i = 0; i < parts.length; i++) {
@@ -52,7 +52,7 @@ const groupMessagePartsByParentId: GroupingFunction = (
     const parentId = part?.parentId as string | undefined;
 
     // For parts without parentId, assign a unique group ID to maintain their position
-    const groupId = parentId ?? `__ungrouped_${i}`;
+    const groupId = parentId ?? i;
 
     // Get or create the indices array for this group
     const indices = groupMap.get(groupId) ?? [];
@@ -64,7 +64,7 @@ const groupMessagePartsByParentId: GroupingFunction = (
   const groups: MessagePartGroup[] = [];
   for (const [groupId, indices] of groupMap) {
     // Extract parentId (undefined for ungrouped parts)
-    const groupKey = groupId.startsWith("__ungrouped_") ? undefined : groupId;
+    const groupKey = typeof groupId === "string" ? groupId : undefined;
     groups.push({ groupKey, indices });
   }
 
@@ -94,15 +94,15 @@ export namespace MessagePrimitiveUnstable_PartsGrouped {
      * ```tsx
      * // Group by parent ID (default behavior)
      * groupingFunction={(parts) => {
-     *   const groups = new Map<string, number[]>();
+     *   const groups = new Map<string | number, number[]>();
      *   parts.forEach((part, i) => {
-     *     const key = part.parentId ?? `__ungrouped_${i}`;
+     *     const key = part.parentId ?? i;
      *     const indices = groups.get(key) ?? [];
      *     indices.push(i);
      *     groups.set(key, indices);
      *   });
      *   return Array.from(groups.entries()).map(([key, indices]) => ({
-     *     key: key.startsWith("__ungrouped_") ? undefined : key,
+     *     groupKey: typeof key === "string" ? key : undefined,
      *     indices
      *   }));
      * }}
@@ -249,9 +249,9 @@ const DataUIDisplay = ({
   Fallback: DataMessagePartComponent | undefined;
 } & DataMessagePartProps) => {
   const Render = useAuiState((s) => {
-    const Render = s.dataRenderers.renderers[props.name] ?? Fallback;
-    if (Array.isArray(Render)) return Render[0] ?? Fallback;
-    return Render;
+    const named = s.dataRenderers.renderers[props.name]?.[0];
+    if (named) return named;
+    return s.dataRenderers.fallbacks[0] ?? Fallback;
   });
   if (!Render) return null;
   return <Render {...props} />;
@@ -298,6 +298,7 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
     const addResult = aui.part.addToolResult;
     const resume = aui.part.resumeToolCall;
     const respondToApproval = aui.part.respondToToolApproval;
+    const unstable_recordInteraction = aui.part.unstable_recordInteraction;
     if ("Override" in tools)
       return (
         <tools.Override
@@ -305,9 +306,13 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
           addResult={addResult}
           resume={resume}
           respondToApproval={respondToApproval}
+          {...(unstable_recordInteraction && { unstable_recordInteraction })}
         />
       );
-    const Tool = tools.by_name?.[part.toolName] ?? tools.Fallback;
+    const Tool =
+      (tools.by_name && Object.hasOwn(tools.by_name, part.toolName)
+        ? tools.by_name[part.toolName]
+        : undefined) ?? tools.Fallback;
     return (
       <ToolUIDisplay
         {...part}
@@ -315,6 +320,7 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
         addResult={addResult}
         resume={resume}
         respondToApproval={respondToApproval}
+        {...(unstable_recordInteraction && { unstable_recordInteraction })}
       />
     );
   }
@@ -342,7 +348,10 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
       return <Audio {...part} />;
 
     case "data": {
-      const Data = data?.by_name?.[part.name] ?? data?.Fallback;
+      const Data =
+        (data?.by_name && Object.hasOwn(data.by_name, part.name)
+          ? data.by_name[part.name]
+          : undefined) ?? data?.Fallback;
       return <DataUIDisplay {...part} Fallback={Data} />;
     }
 

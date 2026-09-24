@@ -31,6 +31,8 @@ npx assistant-ui@latest upgrade
 
 This runs the `v0-15/aui-accessor-calls-to-properties` codemod, which rewrites nullary accessor calls (`aui.thread()`) to property access (`aui.thread`).
 
+The codemod follows recognized client bindings rather than every variable with the same name. Clients received through properties, such as `const { aui } = props` or `const aui = ctx.aui`, may need manual updates. Review the diff and run your project's typecheck after migrating.
+
 ## Scope Accessors Are Properties
 
 Nullary scope accessors are now properties. Calling them still works but is deprecated:

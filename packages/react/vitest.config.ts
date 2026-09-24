@@ -5,6 +5,8 @@ export default defineConfig({
   plugins: [aui()],
   test: {
     environment: "node",
+    pool: "threads",
+    fsModuleCache: true,
     globals: true,
     setupFiles: ["./src/tests/setup.ts"],
     typecheck: {

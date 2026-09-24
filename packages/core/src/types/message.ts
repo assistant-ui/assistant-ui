@@ -104,12 +104,14 @@ export type DataMessagePart<T = any> = {
  */
 export type GenerativeUINode =
   | string
+  | number
+  | readonly GenerativeUINode[]
   | {
       /** Allowlisted component name (resolved against the consumer registry). */
       readonly component: string;
       /** Props passed to the resolved component (must be JSON-serializable). */
       readonly props?: Record<string, unknown>;
-      /** Optional children — strings render as text, objects recurse. */
+      /** Optional child nodes — strings and numbers render as text; nested arrays and objects recurse. */
       readonly children?: readonly GenerativeUINode[];
       /** Optional stable key for React reconciliation. */
       readonly key?: string;
@@ -227,6 +229,38 @@ export type ToolApprovalResponse =
       readonly reason?: string;
     };
 
+/** One thing a user did in a tool call's rendered UI, stored with the call. */
+export type Unstable_ToolInteraction =
+  | {
+      /** A generative UI action the user fired, with the user's input under `$input`. */
+      readonly type: "action";
+      /** When the user acted, in epoch milliseconds. */
+      readonly occurredAt: number;
+      readonly payload: ReadonlyJSONObject;
+    }
+  | {
+      /** The answer the user gave to the tool's request for human input. */
+      readonly type: "human-response";
+      /** When the user answered, in epoch milliseconds. */
+      readonly occurredAt: number;
+      readonly payload: ReadonlyJSONValue;
+    };
+
+/**
+ * The interactions recorded on a tool call, oldest first. `omitted` counts
+ * earlier entries dropped to keep the log within its size limit.
+ */
+export type Unstable_ToolInteractionLog = {
+  readonly entries: readonly Unstable_ToolInteraction[];
+  readonly omitted?: number;
+};
+
+/** An interaction to record; the runtime validates the payload and stamps the time. */
+export type Unstable_ToolInteractionInput = {
+  readonly type: Unstable_ToolInteraction["type"];
+  readonly payload: unknown;
+};
+
 export type ToolCallMessagePart<
   TArgs = ReadonlyJSONObject,
   TResult = unknown,
@@ -243,10 +277,12 @@ export type ToolCallMessagePart<
    * `useToolArgsStatus` to detect which fields are still arriving.
    */
   readonly args: TArgs;
-  /** Result returned by the tool, if it has completed. */
+  /** Result returned by the tool. Final once it has completed; an interim value while `isPreliminary` is set. */
   readonly result?: TResult | undefined;
   /** Whether the result represents a tool execution error. */
   readonly isError?: boolean | undefined;
+  /** Whether `result` is an interim value from a tool that is still running, so the call is not settled yet. */
+  readonly isPreliminary?: boolean | undefined;
   /** Raw JSON argument text streamed by the model. */
   readonly argsText: string;
   /** UI-only artifact associated with the tool result. */
@@ -274,6 +310,12 @@ export type ToolCallMessagePart<
     readonly display?: ToolApprovalDisplay;
     /** Whether a free-form answer is accepted alongside the options. */
     readonly allowFreeform?: boolean;
+    /**
+     * Whether the request accepts a dismissal: `approved: false` with no
+     * answer. A decision is always refusable; a question is only when its host
+     * records a dismissal, so a renderer offers one only when this is set.
+     */
+    readonly dismissible?: boolean;
     readonly approved?: boolean;
     readonly reason?: string;
     readonly isAutomatic?: boolean;
@@ -293,6 +335,11 @@ export type ToolCallMessagePart<
    * conversation.
    */
   readonly messages?: readonly ThreadMessage[];
+  /**
+   * What the user did in this call's rendered UI, recorded so a stored
+   * conversation shows the answer beside the question.
+   */
+  readonly unstable_interactions?: Unstable_ToolInteractionLog;
 };
 
 export type ThreadUserMessagePart =
@@ -395,6 +442,8 @@ export type MessageTiming = {
   readonly toolCallCount: number;
 };
 
+export type MessageModality = "voice";
+
 export type ThreadStep = {
   readonly messageId?: string;
   readonly usage?:
@@ -420,6 +469,7 @@ export type ThreadSystemMessage = MessageCommonProps & {
     readonly steps?: undefined;
     readonly submittedFeedback?: undefined;
     readonly timing?: undefined;
+    readonly modality?: undefined;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -436,6 +486,8 @@ export type ThreadUserMessage = MessageCommonProps & {
     readonly submittedFeedback?: undefined;
     readonly timing?: undefined;
     readonly isOptimistic?: boolean;
+    /** Set when the message was produced by a voice session rather than typed. */
+    readonly modality?: MessageModality;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -449,13 +501,18 @@ export type ThreadAssistantMessage = MessageCommonProps & {
     readonly unstable_annotations: readonly ReadonlyJSONValue[];
     readonly unstable_data: readonly ReadonlyJSONValue[];
     readonly steps: readonly ThreadStep[];
-    readonly submittedFeedback?: { readonly type: "positive" | "negative" };
+    readonly submittedFeedback?: {
+      readonly type: "positive" | "negative";
+      readonly comment?: string;
+    };
     readonly timing?: MessageTiming;
     /**
      * Marks a client-side optimistic placeholder. Such messages are evicted
      * once off the head branch and are never persisted.
      */
     readonly isOptimistic?: boolean;
+    /** Set when the message was produced by a voice session rather than typed. */
+    readonly modality?: MessageModality;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -463,13 +520,19 @@ export type ThreadAssistantMessage = MessageCommonProps & {
 type BaseThreadMessage = {
   readonly status?: ThreadAssistantMessage["status"];
   readonly metadata: {
-    readonly unstable_state?: ReadonlyJSONValue;
-    readonly unstable_annotations?: readonly ReadonlyJSONValue[];
-    readonly unstable_data?: readonly ReadonlyJSONValue[];
-    readonly steps?: readonly ThreadStep[];
-    readonly submittedFeedback?: { readonly type: "positive" | "negative" };
-    readonly timing?: MessageTiming;
+    readonly unstable_state?: ReadonlyJSONValue | undefined;
+    readonly unstable_annotations?: readonly ReadonlyJSONValue[] | undefined;
+    readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
+    readonly steps?: readonly ThreadStep[] | undefined;
+    readonly submittedFeedback?:
+      | {
+          readonly type: "positive" | "negative";
+          readonly comment?: string;
+        }
+      | undefined;
+    readonly timing?: MessageTiming | undefined;
     readonly isOptimistic?: boolean;
+    readonly modality?: MessageModality | undefined;
     readonly custom: Record<string, unknown>;
   };
   readonly attachments?: ThreadUserMessage["attachments"];

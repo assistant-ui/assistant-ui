@@ -26,6 +26,7 @@ const threadState = {
   isDisabled: false,
   isRunning: false,
   capabilities: { queue: false, attachments: false },
+  voice: undefined as undefined | { status: { type: "running" } },
 };
 
 const plugin = {
@@ -197,6 +198,7 @@ describe("ComposerPrimitiveInput", () => {
     threadState.isDisabled = false;
     threadState.isRunning = false;
     threadState.capabilities = { queue: false, attachments: false };
+    threadState.voice = undefined;
     pluginRegistry = null;
     activeAria = null;
     escapeKeydownHandler = null;
@@ -239,6 +241,28 @@ describe("ComposerPrimitiveInput", () => {
     expect(textarea).not.toBeNull();
     return textarea;
   };
+
+  it("composes a render element with the computed input props", async () => {
+    await act(async () => {
+      root.render(
+        <form>
+          <ComposerPrimitiveInput
+            render={<textarea data-testid="custom" className="child" />}
+            className="parent"
+          />
+        </form>,
+      );
+    });
+
+    const textarea = container.querySelector(
+      "textarea[data-testid='custom']",
+    ) as HTMLTextAreaElement;
+    expect(textarea).not.toBeNull();
+    expect(textarea.className).toContain("parent");
+    expect(textarea.className).toContain("child");
+    expect(textarea.name).toBe("input");
+    expect(textarea.hasAttribute("render")).toBe(false);
+  });
 
   it("syncs setText during active composition so React 19 cannot reset the textarea", async () => {
     const textarea = await mount();
@@ -375,6 +399,22 @@ describe("ComposerPrimitiveInput", () => {
 
       expect(requestSubmitSpy).toHaveBeenCalledTimes(1);
       expect(event.defaultPrevented).toBe(true);
+    });
+
+    it("blocks Enter while a run is in progress without a queue, except during a voice session", async () => {
+      threadState.isRunning = true;
+      const textarea = await mount();
+
+      await act(async () => {
+        fireKeyDown(textarea, { key: "Enter" });
+      });
+      expect(requestSubmitSpy).not.toHaveBeenCalled();
+
+      threadState.voice = { status: { type: "running" } };
+      await act(async () => {
+        fireKeyDown(textarea, { key: "Enter" });
+      });
+      expect(requestSubmitSpy).toHaveBeenCalledTimes(1);
     });
 
     it("inserts a newline on Shift+Enter without submitting", async () => {

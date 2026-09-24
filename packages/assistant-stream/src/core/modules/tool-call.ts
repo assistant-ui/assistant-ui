@@ -14,11 +14,15 @@ export type ToolCallStreamController = {
   argsText: TextStreamController;
 
   /**
-   * Sets the tool response and settles the part. The part closes automatically
-   * and subsequent calls are ignored.
+   * Sets a tool response. Preliminary responses keep the part open; a final
+   * response closes it automatically and subsequent calls are ignored.
    */
   setResponse(response: ToolResponseLike<ReadonlyJSONValue>): void;
   close(): void;
+};
+
+type ToolCallStreamOptions = {
+  strict?: boolean | undefined;
 };
 
 class ToolCallStreamControllerImpl implements ToolCallStreamController {
@@ -29,13 +33,17 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
 
   constructor(
     _controller: ReadableStreamDefaultController<AssistantStreamChunk>,
+    options: ToolCallStreamOptions = {},
   ) {
     this._controller = _controller;
-    const stream = createTextStream({
-      start: (c) => {
-        this._argsTextController = c;
+    const stream = createTextStream(
+      {
+        start: (c) => {
+          this._argsTextController = c;
+        },
       },
-    });
+      options,
+    );
 
     let hasArgsText = false;
     this._mergeTask = stream.pipeTo(
@@ -92,6 +100,7 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
         : {}),
       result: result === undefined ? NO_RESULT : result,
       isError: response.isError ?? false,
+      ...(response.isPreliminary ? { isPreliminary: true } : {}),
       ...(response.modelContent !== undefined
         ? { modelContent: response.modelContent }
         : {}),
@@ -99,7 +108,11 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
         ? { messages: response.messages }
         : {}),
     });
-    await this.close();
+    if (response.isPreliminary) {
+      this._argsTextController.close();
+    } else {
+      await this.close();
+    }
   }
 
   async close() {
@@ -119,16 +132,19 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
 
 export const createToolCallStream = (
   readable: UnderlyingReadable<ToolCallStreamController>,
+  options: ToolCallStreamOptions = {},
 ): AssistantStream => {
   return createControllerStream(
     readable,
-    (controller) => new ToolCallStreamControllerImpl(controller),
+    (controller) => new ToolCallStreamControllerImpl(controller, options),
   );
 };
 
-export const createToolCallStreamController = () => {
+export const createToolCallStreamController = (
+  options: ToolCallStreamOptions = {},
+) => {
   return createControllerStreamPair<
     AssistantStreamChunk,
     ToolCallStreamController
-  >((controller) => new ToolCallStreamControllerImpl(controller));
+  >((controller) => new ToolCallStreamControllerImpl(controller, options));
 };

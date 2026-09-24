@@ -139,6 +139,30 @@ describe("AISDKToolkit", () => {
     mocks.createMCPClient.mockReset();
   });
 
+  it("preserves prototype-named MCP tools", async () => {
+    const prototypeTool = { inputSchema: {} };
+    mocks.tools.mockResolvedValue(
+      Object.fromEntries([["__proto__", prototypeTool]]),
+    );
+    mocks.createMCPClient.mockResolvedValue({
+      tools: mocks.tools,
+      close: mocks.close,
+    });
+
+    const toolkit = new AISDKToolkit({
+      toolkit: {
+        docs: {
+          type: "mcp",
+          server: { type: "http", url: "http://localhost:3001/mcp" },
+        },
+      },
+    });
+
+    const tools = await toolkit.tools();
+    expect(Object.hasOwn(tools, "__proto__")).toBe(true);
+    expect(tools["__proto__"]).toBe(prototypeTool);
+  });
+
   it("loads MCP tools through pooled clients", async () => {
     mocks.tools.mockResolvedValue({ echo: { inputSchema: {} } });
     mocks.createMCPClient.mockResolvedValue({
@@ -454,6 +478,61 @@ describe("AISDKToolkit", () => {
     }
   });
 
+  it("does not evict a replacement client after an older listing timeout", async () => {
+    vi.useFakeTimers();
+    const oldClient = {
+      tools: vi.fn(() => never()),
+      close: vi.fn().mockResolvedValue(undefined),
+    };
+    const replacementClient = {
+      tools: vi.fn().mockResolvedValue({ echo: { inputSchema: {} } }),
+      close: vi.fn().mockResolvedValue(undefined),
+    };
+    mocks.createMCPClient
+      .mockResolvedValueOnce(oldClient)
+      .mockResolvedValue(replacementClient);
+
+    const toolkit = new AISDKToolkit({
+      toolkit: {
+        docs: {
+          type: "mcp",
+          server: {
+            type: "http",
+            url: "http://localhost:3001/mcp",
+            connectionTimeout: 100,
+          },
+        },
+      },
+    });
+
+    try {
+      const first = toolkit.tools();
+      const firstRejection = expect(first).rejects.toThrow(
+        /timed out while listing tools/,
+      );
+      await vi.advanceTimersByTimeAsync(50);
+
+      const second = toolkit.tools();
+      const secondRejection = expect(second).rejects.toThrow(
+        /timed out while listing tools/,
+      );
+      await vi.advanceTimersByTimeAsync(50);
+      await firstRejection;
+
+      await expect(toolkit.tools()).resolves.toHaveProperty("echo");
+      expect(mocks.createMCPClient).toHaveBeenCalledTimes(2);
+
+      await vi.advanceTimersByTimeAsync(50);
+      await secondRejection;
+
+      await expect(toolkit.tools()).resolves.toHaveProperty("echo");
+      expect(mocks.createMCPClient).toHaveBeenCalledTimes(2);
+      expect(oldClient.close).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("includes the MCP toolkit entry name when listing tools fails", async () => {
     const error = new Error("list failed");
     mocks.tools.mockRejectedValue(error);
@@ -544,8 +623,14 @@ describe("AISDKToolkit", () => {
       toolCallId: "call-docs-search",
       messages: [],
     };
+    const execute = toolSet.docs_search?.execute as
+      | ((
+          args: { query: string },
+          options: typeof executeOptions,
+        ) => Promise<string>)
+      | undefined;
     await expect(
-      toolSet.docs_search?.execute?.({ query: "assistant-ui" }, executeOptions),
+      execute?.({ query: "assistant-ui" }, executeOptions),
     ).resolves.toBe("docs result");
     expect(docsExecute).toHaveBeenCalledWith(
       { query: "assistant-ui" },

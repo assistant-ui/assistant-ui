@@ -1,23 +1,27 @@
 import { describe, expect, it } from "vitest";
 import { BaseSubscribable } from "../../subscribable/subscribable";
+import type { ThreadMessage } from "../../types/message";
 import { ReadonlyThreadRuntimeCore } from "../readonly/ReadonlyThreadRuntimeCore";
 import { EMPTY_THREAD_CORE } from "../remote-thread-list/empty-thread-core";
 
 const READONLY_ERROR = /readonly thread/;
 const EMPTY_ERROR = /empty thread/;
 
-const SHARED_THROWING_METHODS = [
+const THREAD_MUTATION_METHODS = [
   "switchToBranch",
   "append",
   "deleteMessage",
   "startRun",
   "resumeRun",
+  "cancelRun",
   "unstable_notifySessionReset",
   "addToolResult",
   "resumeToolCall",
   "respondToToolApproval",
   "speak",
+  "stopSpeaking",
   "connectVoice",
+  "disconnectVoice",
   "muteVoice",
   "unmuteVoice",
   "submitFeedback",
@@ -29,12 +33,9 @@ const SHARED_THROWING_METHODS = [
 ] as const;
 
 const SHARED_THROWING_COMPOSER_METHODS = [
-  "setText",
   "setRole",
   "setRunConfig",
-  "send",
   "startDictation",
-  "setQuote",
 ] as const;
 
 const SHARED_NOOP_COMPOSER_METHODS = [
@@ -60,10 +61,6 @@ const cores = [
 ] as const;
 
 describe.each(cores)("%s shared inert surface", (_name, makeCore, error) => {
-  it.each(SHARED_THROWING_METHODS)("%s throws the core's error", (method) => {
-    expect(() => makeCore()[method]!()).toThrow(error);
-  });
-
   it.each(SHARED_THROWING_COMPOSER_METHODS)(
     "composer.%s throws the core's error",
     (method) => {
@@ -71,7 +68,7 @@ describe.each(cores)("%s shared inert surface", (_name, makeCore, error) => {
     },
   );
 
-  it.each(["addAttachment", "removeAttachment"] as const)(
+  it.each(["removeAttachment"] as const)(
     "composer.%s rejects with the core's error",
     async (method) => {
       await expect(makeCore().composer[method]!()).rejects.toThrow(error);
@@ -117,8 +114,6 @@ describe.each(cores)("%s shared inert surface", (_name, makeCore, error) => {
     expect(core.state).toBeNull();
     expect(core.suggestions).toEqual([]);
     expect(core.extras).toBeUndefined();
-    expect(core.isDisabled).toBe(false);
-    expect(core.isSendDisabled).toBe(false);
   });
 
   it("exposes an empty composer that accepts everything and holds nothing", () => {
@@ -136,9 +131,126 @@ describe.each(cores)("%s shared inert surface", (_name, makeCore, error) => {
     expect(composer.canCancel).toBe(false);
   });
 
-  it("throws one stable error object from every mutator", () => {
+  it("subscribeVoiceVolume and unstable_on hand back no-op unsubscribers", () => {
     const core = makeCore();
-    const thrown = SHARED_THROWING_METHODS.map((method) => {
+    expect(() => core.subscribeVoiceVolume(() => {})()).not.toThrow();
+    expect(() => core.unstable_on("runStart", () => {})()).not.toThrow();
+  });
+});
+
+describe("readonly thread mutations", () => {
+  it("reports a readonly thread disabled and the empty core enabled", () => {
+    const readonlyThread = new ReadonlyThreadRuntimeCore();
+    expect(readonlyThread.isDisabled).toBe(true);
+    expect(readonlyThread.isSendDisabled).toBe(true);
+    expect(EMPTY_THREAD_CORE.isDisabled).toBe(false);
+    expect(EMPTY_THREAD_CORE.isSendDisabled).toBe(false);
+  });
+
+  it("ignores composer input, sending, attachments and quotes", async () => {
+    const composer = new ReadonlyThreadRuntimeCore().composer;
+    expect(() => composer.setText("hello")).not.toThrow();
+    expect(() => composer.send()).not.toThrow();
+    expect(() =>
+      composer.setQuote({ text: "quoted", messageId: "message-1" }),
+    ).not.toThrow();
+    await expect(
+      composer.addAttachment(new File([], "test.txt")),
+    ).resolves.toBeUndefined();
+    expect(composer.text).toBe("");
+    expect(composer.quote).toBeUndefined();
+    expect(composer.attachments).toEqual([]);
+  });
+
+  it.each(["setText", "send", "setQuote"] as const)(
+    "empty core composer.%s still throws",
+    (method) => {
+      expect(() =>
+        (EMPTY_THREAD_CORE.composer[method] as () => void)(),
+      ).toThrow(EMPTY_ERROR);
+    },
+  );
+
+  it("empty core composer.addAttachment still rejects", async () => {
+    await expect(
+      EMPTY_THREAD_CORE.composer.addAttachment(new File([], "test.txt")),
+    ).rejects.toThrow(EMPTY_ERROR);
+  });
+
+  it("rejects interaction recording on empty threads and resolves on readonly threads", async () => {
+    await expect(
+      EMPTY_THREAD_CORE.unstable_recordToolInteraction!({
+        messageId: "message-1",
+        toolCallId: "call-1",
+        interaction: { type: "action", payload: {}, occurredAt: 0 },
+      }),
+    ).rejects.toThrow(EMPTY_ERROR);
+
+    const readonlyThread = new ReadonlyThreadRuntimeCore();
+    const messages: readonly ThreadMessage[] = [
+      {
+        id: "message-1",
+        role: "user" as const,
+        content: [{ type: "text" as const, text: "hello" }],
+        attachments: [],
+        createdAt: new Date(0),
+        status: { type: "complete" as const, reason: "stop" as const },
+        metadata: { custom: {} },
+      },
+    ];
+    readonlyThread.setMessages(messages);
+
+    await expect(
+      readonlyThread.unstable_recordToolInteraction!({
+        messageId: "message-1",
+        toolCallId: "call-1",
+        interaction: { type: "action", payload: {}, occurredAt: 0 },
+      }),
+    ).resolves.toBeUndefined();
+    expect(readonlyThread.messages).toBe(messages);
+  });
+
+  it.each(
+    THREAD_MUTATION_METHODS.filter(
+      (method) => method !== "exportExternalState",
+    ),
+  )("%s is ignored without changing messages", async (method) => {
+    const core = new ReadonlyThreadRuntimeCore() as unknown as AnyCore;
+    const messages = [
+      {
+        id: "m1",
+        role: "user",
+        content: [{ type: "text", text: "hi" }],
+        createdAt: new Date(0),
+        status: { type: "complete", reason: "stop" },
+        metadata: { custom: {} },
+      },
+    ];
+    core.setMessages(messages);
+
+    await core[method]!();
+
+    expect(core.messages).toBe(messages);
+  });
+
+  it("exportExternalState still throws on a readonly thread", () => {
+    expect(() => new ReadonlyThreadRuntimeCore().exportExternalState()).toThrow(
+      READONLY_ERROR,
+    );
+  });
+
+  it.each(THREAD_MUTATION_METHODS)(
+    "%s still throws on the empty core",
+    (method) => {
+      expect(() =>
+        (EMPTY_THREAD_CORE as unknown as AnyCore)[method]!(),
+      ).toThrow(EMPTY_ERROR);
+    },
+  );
+
+  it("empty core mutators throw one stable error object", () => {
+    const core = EMPTY_THREAD_CORE as unknown as AnyCore;
+    const thrown = THREAD_MUTATION_METHODS.map((method) => {
       try {
         core[method]!();
         return undefined;
@@ -151,29 +263,10 @@ describe.each(cores)("%s shared inert surface", (_name, makeCore, error) => {
     expect(thrown.every((e) => e === thrown[0])).toBe(true);
   });
 
-  it("throws a receiver TypeError when a mutator is detached", () => {
-    const detached = makeCore().append!;
+  it("an empty core mutator throws a receiver TypeError when detached", () => {
+    const detached = (EMPTY_THREAD_CORE as unknown as AnyCore).append!;
     expect(() => detached()).toThrow(TypeError);
   });
-
-  it("subscribeVoiceVolume and unstable_on hand back no-op unsubscribers", () => {
-    const core = makeCore();
-    expect(() => core.subscribeVoiceVolume(() => {})()).not.toThrow();
-    expect(() => core.unstable_on("runStart", () => {})()).not.toThrow();
-  });
-});
-
-describe("no-op versus throw divergences", () => {
-  it.each(["cancelRun", "stopSpeaking", "disconnectVoice"] as const)(
-    "%s is a no-op on the readonly core but throws on the empty core",
-    (method) => {
-      const readonly = new ReadonlyThreadRuntimeCore() as unknown as AnyCore;
-      expect(() => readonly[method]!()).not.toThrow();
-      expect(() =>
-        (EMPTY_THREAD_CORE as unknown as AnyCore)[method]!(),
-      ).toThrow(EMPTY_ERROR);
-    },
-  );
 
   it("readonly is not loading; empty is loading so it is not read as an empty conversation", () => {
     expect(new ReadonlyThreadRuntimeCore().isLoading).toBe(false);
@@ -183,28 +276,6 @@ describe("no-op versus throw divergences", () => {
   it("readonly composer is not editing; empty composer is", () => {
     expect(new ReadonlyThreadRuntimeCore().composer.isEditing).toBe(false);
     expect(EMPTY_THREAD_CORE.composer.isEditing).toBe(true);
-  });
-
-  it("the two cores carry distinct error objects and messages", () => {
-    const grab = (fn: () => void) => {
-      try {
-        fn();
-        return undefined;
-      } catch (e) {
-        return e as Error;
-      }
-    };
-
-    const readonlyError = grab(() => new ReadonlyThreadRuntimeCore().append());
-    const emptyError = grab(() =>
-      (EMPTY_THREAD_CORE as unknown as AnyCore).append!(),
-    );
-
-    expect(readonlyError).not.toBe(emptyError);
-    expect(readonlyError?.message).toBe(
-      "This is a readonly thread. You cannot perform mutations on readonly threads.",
-    );
-    expect(emptyError?.message).toMatch(/placeholder for the main thread/);
   });
 });
 

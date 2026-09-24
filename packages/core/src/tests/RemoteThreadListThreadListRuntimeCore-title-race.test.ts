@@ -6,6 +6,33 @@ import {
 } from "./remote-thread-list-test-helpers";
 
 describe("RemoteThreadListThreadListRuntimeCore title generation", () => {
+  it("preserves an existing title when generation returns no title", async () => {
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "thread-1",
+            externalId: "thread-1",
+            title: "Existing title",
+          },
+        ],
+      })),
+    });
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+
+    const internals = core as unknown as {
+      _hookManager: { getThreadRuntimeCore: () => { messages: never[] } };
+    };
+    internals._hookManager.getThreadRuntimeCore = () => ({ messages: [] });
+
+    await core.generateTitle("thread-1");
+
+    expect(adapter.generateTitle).toHaveBeenCalledOnce();
+    expect(core.getItemById("thread-1")?.title).toBe("Existing title");
+  });
+
   it("keeps a manual rename made during automatic title generation", async () => {
     const generatedTitle = deferred<ReadableStream>();
     const adapter = makeAdapter({

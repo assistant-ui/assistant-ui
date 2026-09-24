@@ -10,6 +10,7 @@ import { createRequire } from "node:module";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { ensureRefWorktree } from "./ref-worktree.mjs";
 import {
+  baseLabel,
   renderTraceMarkdown,
   renderTraceTerminal,
   writeLaneOutputs,
@@ -166,7 +167,7 @@ export const traceRef = async (ref, targets, seconds, outputs = {}) => {
       schema: "aui-perf/trace@1",
       generatedAt: new Date().toISOString(),
       seconds,
-      base: { label: ref === sha ? `base (${sha})` : `${ref} (${sha})`, sha },
+      base: { label: baseLabel(ref, sha), sha },
       head: { label: `head (${stamp(env)})`, sha: env.sha, dirty: env.dirty },
       fixtures,
     },

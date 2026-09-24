@@ -2,7 +2,7 @@
   "name": "@assistant-ui/monorepo",
   "private": true,
   "engines": {
-    "node": ">=24"
+    "node": ">=24.11"
   },
   "scripts": {
     "cleanup": "bash scripts/cleanup-monorepo.sh",
@@ -20,10 +20,15 @@
     "changesets:test": "node --test scripts/check-changesets.test.mjs",
     "declarations:check": "node scripts/check-built-declarations.mjs",
     "declarations:test": "node --test scripts/check-built-declarations.test.mjs",
+    "distributions:check": "node scripts/check-distribution-barrels.mjs",
+    "distributions:test": "node --test scripts/check-distribution-barrels.test.mjs",
+    "deploy-examples:test": "node --test scripts/deploy-examples-changes.test.mjs",
     "workspace-ranges:check": "node scripts/check-workspace-ranges.mjs",
     "workspace-ranges:test": "node --test scripts/check-workspace-ranges.test.mjs",
     "unmanaged-pins:check": "node scripts/check-unmanaged-pins.mjs",
     "unmanaged-pins:test": "node --test scripts/check-unmanaged-pins.test.mjs",
+    "skills-commit:check": "node scripts/check-skills-commit.mjs",
+    "skills-commit:test": "node --test scripts/check-skills-commit.test.mjs",
     "lint": "pnpm exec oxlint && pnpm exec oxfmt --check",
     "check:resource-memo": "node packages/x-buildutils/check-resource-memoization.mjs",
     "size:check": "node packages/x-performance/bin/aui-perf.mjs size",
@@ -33,26 +38,26 @@
     "format": "pnpm exec oxfmt --check",
     "format:fix": "pnpm exec oxfmt",
     "sync-templates": "bash scripts/sync-templates.sh",
-    "test": "turbo test && pnpm test:react-compiler && pnpm test:types",
+    "test": "turbo test && pnpm test:react-compiler && pnpm typecheck",
     "test:react-compiler": "turbo test:react-compiler --filter=@assistant-ui/ai-sdk --filter=@assistant-ui/core --filter=@assistant-ui/store",
-    "test:types": "pnpm -r --workspace-concurrency=4 --no-bail exec sh -c '! test -f tsconfig.json || tsc --noEmit'",
+    "typecheck": "bash scripts/typecheck.sh",
     "prepare": "husky && pnpm --filter @assistant-ui/react-devtools run build:css",
     "deps:check": "npx taze major -f -r",
     "deps:update": "bash scripts/update-deps.sh"
   },
   "devDependencies": {
     "@assistant-ui/x-changelog": "workspace:*",
-    "@changesets/cli": "^3.0.1",
+    "@changesets/cli": "^3.0.3",
     "husky": "^9.1.7",
-    "lint-staged": "^17.4.1",
-    "oxfmt": "^0.65.0",
-    "oxlint": "^1.80.0",
+    "lint-staged": "^17.5.1",
+    "oxfmt": "^0.68.0",
+    "oxlint": "^1.83.0",
     "pkg-pr-new": "^0.0.88",
     "sharp": "0.35.3",
-    "turbo": "^2.10.12",
+    "turbo": "^2.10.13",
     "typescript": "^7.0.2"
   },
-  "packageManager": "pnpm@12.1.0",
+  "packageManager": "pnpm@12.4.2",
   "lint-staged": {
     "*.{js,jsx,ts,tsx,cjs,mjs,cts,mts,json,jsonc}": [
       "oxlint --fix --no-error-on-unmatched-pattern",

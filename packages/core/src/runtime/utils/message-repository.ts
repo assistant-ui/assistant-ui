@@ -2,7 +2,7 @@ import type { ThreadMessage } from "../../types/message";
 import type { RunConfig } from "../../types/message";
 import { generateId } from "../../utils/id";
 import type { ThreadMessageLike } from "./thread-message-like";
-import { getContentAutoStatus } from "./auto-status";
+import { getRepositoryContentAutoStatus } from "./auto-status";
 import { fromThreadMessageLike } from "./thread-message-like";
 
 export type ExportedMessageRepositoryItem = {
@@ -28,7 +28,7 @@ export const ExportedMessageRepository = {
       fromThreadMessageLike(
         m,
         generateId(),
-        getContentAutoStatus(m.content, false, false),
+        getRepositoryContentAutoStatus(m.content),
       ),
     );
 
@@ -62,7 +62,7 @@ export const ExportedMessageRepository = {
           message: fromThreadMessageLike(
             message,
             message.id,
-            getContentAutoStatus(message.content, false, false),
+            getRepositoryContentAutoStatus(message.content),
           ),
         };
       }),
@@ -134,6 +134,16 @@ export class MessageRepository {
     }
   }
 
+  private selectPathTo(message: RepositoryMessage) {
+    for (
+      let current: RepositoryMessage | null = message;
+      current;
+      current = current.prev
+    ) {
+      (current.prev ?? this.root).next = current;
+    }
+  }
+
   private performOp(
     newParent: RepositoryMessage | null,
     child: RepositoryMessage,
@@ -182,11 +192,16 @@ export class MessageRepository {
         child.current.id,
       ];
 
-      if (findHead(child) === this.head || newParentOrRoot.next === null) {
-        newParentOrRoot.next = child;
-      }
-
       child.prev = newParent;
+
+      if (findHead(child) === this.head) {
+        this.selectPathTo(child);
+      } else if (newParentOrRoot.next === null) {
+        newParentOrRoot.next = child;
+        if (this.head === newParentOrRoot) {
+          this.head = findHead(child);
+        }
+      }
 
       const newLevel = newParent ? newParent.level + 1 : 0;
       this.updateLevels(child, newLevel);
@@ -247,8 +262,8 @@ export class MessageRepository {
       );
 
     if (existingItem) {
-      existingItem.current = message;
       this.performOp(prev, existingItem, "relink");
+      existingItem.current = message;
       this._messages.dirty();
       return;
     }
@@ -304,6 +319,13 @@ export class MessageRepository {
         "MessageRepository(deleteMessage): Replacement not found. This is likely an internal bug in assistant-ui.",
       );
 
+    for (let current = replacement; current; current = current.prev) {
+      if (current === message)
+        throw new Error(
+          "MessageRepository(deleteMessage): Replacement is the deleted message or one of its descendants. This is likely an internal bug in assistant-ui.",
+        );
+    }
+
     for (const child of message.children) {
       const childMessage = this.messages.get(child);
       if (!childMessage)
@@ -335,12 +357,12 @@ export class MessageRepository {
   }
 
   /**
-   * Evicts optimistic messages (`metadata.isOptimistic`) the head just moved
-   * away from. Since eviction runs on every head move, the only optimistic
-   * messages in the repository live on the branch the head previously pointed
-   * at — so we walk just that branch rather than the whole repository. Keeps a
-   * client→server id swap from leaving a phantom sibling, and drops off-branch
-   * placeholders.
+   * Evicts optimistic messages (`metadata.isOptimistic`) on the branch the head
+   * just moved away from. Only that branch is walked, so an optimistic message
+   * added off the head branch (such as the server-id copy that replaces a
+   * client-id placeholder before the head moves to it) is kept until a
+   * `switchToBranch` or `resetHead` moves the head off the branch it is on.
+   * Keeps a client→server id swap from leaving a phantom sibling.
    */
   private evictOffBranchOptimisticMessages(
     previousHead: RepositoryMessage | null,
@@ -381,8 +403,7 @@ export class MessageRepository {
       );
 
     const previousHead = this.head;
-    const prevOrRoot = message.prev ?? this.root;
-    prevOrRoot.next = message;
+    this.selectPathTo(message);
 
     this.head = findHead(message);
 
@@ -423,17 +444,7 @@ export class MessageRepository {
     }
 
     this.head = message;
-    for (
-      let current: RepositoryMessage | null = message;
-      current;
-      current = current.prev
-    ) {
-      if (current.prev) {
-        current.prev.next = current;
-      } else {
-        this.root.next = current;
-      }
-    }
+    this.selectPathTo(message);
 
     this.evictOffBranchOptimisticMessages(previousHead, this.head);
 
@@ -456,7 +467,15 @@ export class MessageRepository {
     // Optimistic messages are ephemeral and never persisted. A persisted child
     // of an optimistic node is re-parented onto its nearest persisted ancestor
     // so the exported tree never references a skipped id.
-    for (const [, message] of this.messages) {
+    // Import and external-state conversion require parents before children, so
+    // the tree is walked in pre-order rather than iterated in insertion order.
+    const pending = [...this.root.children].reverse();
+    while (pending.length > 0) {
+      const message = this.messages.get(pending.pop()!);
+      if (!message) continue;
+      for (let i = message.children.length - 1; i >= 0; i--) {
+        pending.push(message.children[i]!);
+      }
       if (message.current.metadata?.isOptimistic) continue;
       let prev = message.prev;
       while (prev && prev.current.metadata?.isOptimistic) {

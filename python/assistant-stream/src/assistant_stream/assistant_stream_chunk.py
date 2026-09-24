@@ -52,6 +52,7 @@ class ToolResultChunk:
     result: Any
     artifact: Any | None = None
     is_error: bool = False
+    is_preliminary: bool = False
     type: str = "tool-result"
 
 

@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-ai-sdk",
-  "version": "1.4.9",
+  "version": "1.4.13",
   "description": "Vercel AI SDK adapter for assistant-ui",
   "keywords": [
     "ai-sdk",
@@ -35,13 +35,15 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "aui-build"
+    "build": "aui-build",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@assistant-ui/ai-sdk": "^0.0.4"
+    "@assistant-ui/ai-sdk": "^0.0.8"
   },
   "peerDependencies": {
     "@types/react": "*",
+    "ai": "^7.0.101",
     "react": "^18 || ^19"
   },
   "peerDependenciesMeta": {

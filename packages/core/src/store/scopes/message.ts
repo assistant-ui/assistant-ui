@@ -2,6 +2,7 @@ import type { ThreadMessage } from "../../types/message";
 import type { RunConfig } from "../../types/message";
 import type { SpeechState } from "../../runtime/interfaces/thread-runtime-core";
 import type { MessageRuntime } from "../../runtime/api/message-runtime";
+import type { ComposerSubmission } from "../../runtime/interfaces/composer-runtime-core";
 import type { ComposerMethods, ComposerState } from "./composer";
 import type { PartMethods, PartState } from "./part";
 import type { AttachmentMethods } from "./attachment";
@@ -34,6 +35,13 @@ export type MessageState = ThreadMessage & {
   readonly isHovering: boolean;
   /** The position of this message in the thread (0 for first message) */
   readonly index: number;
+  /**
+   * Set while this row is a message the composer sent that the thread does
+   * not show as one of its own yet. Its attachments live here rather than on
+   * `attachments`, which only ever holds the ones a thread message was
+   * delivered with.
+   */
+  readonly submission?: ComposerSubmission | undefined;
 };
 
 export type MessageMethods = {
@@ -48,7 +56,10 @@ export type MessageMethods = {
   speak(): void;
   /** @deprecated This API is still under active development and might change without notice. */
   stopSpeaking(): void;
-  submitFeedback(feedback: { type: "positive" | "negative" }): void;
+  submitFeedback(feedback: {
+    type: "positive" | "negative";
+    comment?: string;
+  }): void;
   switchToBranch(options: {
     position?: "previous" | "next";
     branchId?: string;
@@ -66,7 +77,21 @@ export type MessageMeta = {
   query: { type: "id"; id: string } | { type: "index"; index: number };
 };
 
+export type MessageEvents = {
+  /** The user asked for this assistant message to be generated again. */
+  "message.reload": { threadId: string; messageId: string };
+  /** The user moved to another branch at this message. */
+  "message.branchSwitched": { threadId: string; messageId: string };
+  /** The user copied this message. */
+  "message.copied": { threadId: string; messageId: string };
+  /** Speech synthesis started for this message. */
+  "message.speak": { threadId: string; messageId: string };
+  /** This message entered an error status. */
+  "message.error": { threadId: string; messageId: string; reason: "error" };
+};
+
 export type MessageClientSchema = {
   methods: MessageMethods;
   meta: MessageMeta;
+  events: MessageEvents;
 };

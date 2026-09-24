@@ -22,7 +22,11 @@ import type {
 function getField<T>(obj: T, fieldPath: (string | number)[]): unknown {
   let current: unknown = obj;
   for (const key of fieldPath) {
-    if (current === undefined || current === null) {
+    if (
+      current === undefined ||
+      current === null ||
+      !Object.hasOwn(current, key)
+    ) {
       return undefined;
     }
     current = current[key as keyof typeof current];
@@ -31,8 +35,10 @@ function getField<T>(obj: T, fieldPath: (string | number)[]): unknown {
 }
 
 interface Handle {
+  readonly isDisposed: boolean;
   update(args: unknown): void;
   end(args: unknown): void;
+  error(reason: unknown): void;
   dispose(): void;
 }
 
@@ -41,6 +47,10 @@ class GetHandle<T, TValue> implements Handle {
   private reject: (reason: unknown) => void;
   private disposed = false;
   private fieldPath: (string | number)[];
+
+  get isDisposed() {
+    return this.disposed;
+  }
 
   constructor(
     resolve: (value: TValue) => void,
@@ -88,6 +98,13 @@ class GetHandle<T, TValue> implements Handle {
     }
   }
 
+  error(reason: unknown): void {
+    if (this.disposed) return;
+
+    this.reject(reason);
+    this.dispose();
+  }
+
   dispose(): void {
     this.disposed = true;
   }
@@ -97,6 +114,10 @@ class StreamValuesHandle<T> implements Handle {
   private controller: ReadableStreamDefaultController<unknown>;
   private disposed = false;
   private fieldPath: (string | number)[];
+
+  get isDisposed() {
+    return this.disposed;
+  }
 
   constructor(
     controller: ReadableStreamDefaultController<unknown>,
@@ -138,6 +159,12 @@ class StreamValuesHandle<T> implements Handle {
     this.dispose();
   }
 
+  error(reason: unknown): void {
+    if (this.disposed) return;
+    this.controller.error(reason);
+    this.dispose();
+  }
+
   dispose(): void {
     this.disposed = true;
   }
@@ -148,6 +175,10 @@ class StreamTextHandle<T> implements Handle {
   private disposed = false;
   private fieldPath: (string | number)[];
   private lastValue: string | undefined = undefined;
+
+  get isDisposed() {
+    return this.disposed;
+  }
 
   constructor(
     controller: ReadableStreamDefaultController<unknown>,
@@ -191,6 +222,12 @@ class StreamTextHandle<T> implements Handle {
     this.dispose();
   }
 
+  error(reason: unknown): void {
+    if (this.disposed) return;
+    this.controller.error(reason);
+    this.dispose();
+  }
+
   dispose(): void {
     this.disposed = true;
   }
@@ -200,7 +237,11 @@ class ForEachHandle<T> implements Handle {
   private controller: ReadableStreamDefaultController<unknown>;
   private disposed = false;
   private fieldPath: (string | number)[];
-  private processedIndexes = new Set<number>();
+  private nextIndex = 0;
+
+  get isDisposed() {
+    return this.disposed;
+  }
 
   constructor(
     controller: ReadableStreamDefaultController<unknown>,
@@ -220,20 +261,17 @@ class ForEachHandle<T> implements Handle {
         return;
       }
 
-      // Check each array element and emit completed ones that haven't been processed
-      for (let i = 0; i < array.length; i++) {
-        if (!this.processedIndexes.has(i)) {
-          const elementPath = [...this.fieldPath, i];
-          if (
-            getPartialJsonObjectFieldState(
-              args as Record<string, unknown>,
-              elementPath,
-            ) === "complete"
-          ) {
-            this.controller.enqueue(array[i]);
-            this.processedIndexes.add(i);
-          }
-        }
+      // The parser's single partial path can only leave the trailing array element incomplete.
+      for (; this.nextIndex < array.length; this.nextIndex++) {
+        const elementPath = [...this.fieldPath, this.nextIndex];
+        if (
+          getPartialJsonObjectFieldState(
+            args as Record<string, unknown>,
+            elementPath,
+          ) !== "complete"
+        )
+          break;
+        this.controller.enqueue(array[this.nextIndex]);
       }
 
       // Check if the entire array is complete
@@ -258,6 +296,12 @@ class ForEachHandle<T> implements Handle {
     this.dispose();
   }
 
+  error(reason: unknown): void {
+    if (this.disposed) return;
+    this.controller.error(reason);
+    this.dispose();
+  }
+
   dispose(): void {
     this.disposed = true;
   }
@@ -269,8 +313,11 @@ export class ToolCallArgsReaderImpl<
 > implements ToolCallArgsReader<T> {
   private argTextDeltas: ReadableStream<string>;
   private handles: Set<Handle> = new Set();
-  private args: unknown = parsePartialJsonObject("");
+  private accumulatedText = "";
+  private parsedTextLength = -1;
+  private args: unknown = undefined;
   private finished = false;
+  private failure: { reason: unknown } | undefined = undefined;
 
   constructor(argTextDeltas: ReadableStream<string>) {
     this.argTextDeltas = argTextDeltas;
@@ -279,33 +326,68 @@ export class ToolCallArgsReaderImpl<
 
   private async processStream(): Promise<void> {
     try {
-      let accumulatedText = "";
       const reader = this.argTextDeltas.getReader();
 
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
 
-        accumulatedText += value;
-        const parsedArgs = parsePartialJsonObject(accumulatedText);
+        this.accumulatedText += value;
+        if (this.handles.size === 0) continue;
 
-        if (parsedArgs !== undefined) {
-          this.args = parsedArgs;
-          // Notify all handles of the updated args
-          for (const handle of this.handles) {
-            handle.update(parsedArgs);
-          }
-        }
+        if (this.parseCurrentArgs()) this.updateHandles();
       }
     } catch (error) {
-      console.error("Error processing argument stream:", error);
+      this.failure = { reason: error };
     } finally {
       this.finished = true;
       for (const handle of this.handles) {
-        handle.end(this.args);
+        this.settleHandle(handle);
       }
       this.handles.clear();
     }
+  }
+
+  private settleHandle(handle: Handle): void {
+    if (this.failure) {
+      handle.error(this.failure.reason);
+    } else {
+      handle.end(this.args);
+    }
+  }
+
+  private parseCurrentArgs(): boolean {
+    if (this.parsedTextLength === this.accumulatedText.length) return false;
+
+    const parsedArgs = parsePartialJsonObject(this.accumulatedText);
+    this.parsedTextLength = this.accumulatedText.length;
+    if (parsedArgs === undefined) {
+      this.args ??= parsePartialJsonObject("");
+      return false;
+    }
+
+    this.args = parsedArgs;
+    return true;
+  }
+
+  private updateHandles(): void {
+    for (const handle of this.handles) {
+      handle.update(this.args);
+      if (handle.isDisposed) this.handles.delete(handle);
+    }
+  }
+
+  private activateHandle(handle: Handle): void {
+    this.parseCurrentArgs();
+    handle.update(this.args);
+    if (handle.isDisposed) return;
+
+    if (this.finished) {
+      this.settleHandle(handle);
+      return;
+    }
+
+    this.handles.add(handle);
   }
 
   get<PathT extends TypePath<T>>(
@@ -317,29 +399,7 @@ export class ToolCallArgsReaderImpl<
         reject,
         fieldPath,
       );
-
-      // Check if the field is already complete in current args
-      if (
-        this.args &&
-        getPartialJsonObjectFieldState(
-          this.args as Record<string, unknown>,
-          fieldPath,
-        ) === "complete"
-      ) {
-        const value = getField(this.args as T, fieldPath);
-        if (value !== undefined) {
-          resolve(value as TypeAtPath<T, PathT>);
-          return;
-        }
-      }
-
-      if (this.finished) {
-        handle.end(this.args);
-        return;
-      }
-
-      this.handles.add(handle);
-      handle.update(this.args);
+      this.activateHandle(handle);
     });
   }
 
@@ -353,12 +413,7 @@ export class ToolCallArgsReaderImpl<
     const stream = new ReadableStream<DeepPartial<TypeAtPath<T, PathT>>>({
       start: (controller) => {
         handle = new StreamValuesHandle<T>(controller, simplePath);
-        if (!this.finished) this.handles.add(handle);
-
-        // Check current args immediately
-        handle.update(this.args);
-
-        if (this.finished) handle.end();
+        this.activateHandle(handle);
       },
       cancel: () => {
         // Dispose this stream's own handle (captured above) — scanning for the
@@ -385,12 +440,7 @@ export class ToolCallArgsReaderImpl<
     const stream = new ReadableStream<unknown>({
       start: (controller) => {
         handle = new StreamTextHandle<T>(controller, simplePath);
-        if (!this.finished) this.handles.add(handle);
-
-        // Check current args immediately
-        handle.update(this.args);
-
-        if (this.finished) handle.end();
+        this.activateHandle(handle);
       },
       cancel: () => {
         // Dispose this stream's own handle (captured above) — scanning for the
@@ -417,12 +467,7 @@ export class ToolCallArgsReaderImpl<
     const stream = new ReadableStream<unknown>({
       start: (controller) => {
         handle = new ForEachHandle<T>(controller, simplePath);
-        if (!this.finished) this.handles.add(handle);
-
-        // Check current args immediately
-        handle.update(this.args);
-
-        if (this.finished) handle.end();
+        this.activateHandle(handle);
       },
       cancel: () => {
         // Dispose this stream's own handle (captured above) — scanning for the

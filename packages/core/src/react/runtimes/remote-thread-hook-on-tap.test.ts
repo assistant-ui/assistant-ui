@@ -7,11 +7,12 @@ import {
 } from "@assistant-ui/tap";
 import { useExternalStoreRuntime } from "./useExternalStoreRuntime";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
+import type { ThreadMessage } from "../../types/message";
 
 const EMPTY_MESSAGES: readonly never[] = [];
 
 const useTestThreadRuntime = () =>
-  useExternalStoreRuntime({
+  useExternalStoreRuntime<ThreadMessage>({
     messages: EMPTY_MESSAGES,
     isRunning: false,
     onNew: async () => {},

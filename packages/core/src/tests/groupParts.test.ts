@@ -114,6 +114,53 @@ describe("groupPartByType", () => {
     ]);
   });
 
+  it("routes a tool call by name through its tool-call:<name> entry", () => {
+    const fn = groupPartByType({
+      "tool-call:task": ["group-subagents"],
+      "tool-call": ["group-tool"],
+    });
+
+    expect(
+      fn(
+        part({
+          type: "tool-call",
+          toolName: "task",
+        } as Partial<PartState>),
+      ),
+    ).toEqual(["group-subagents"]);
+  });
+
+  it("falls back to the plain tool-call entry for other tool names", () => {
+    const fn = groupPartByType({
+      "tool-call:task": ["group-subagents"],
+      "tool-call": ["group-tool"],
+    });
+
+    expect(
+      fn(
+        part({
+          type: "tool-call",
+          toolName: "search",
+        } as Partial<PartState>),
+      ),
+    ).toEqual(["group-tool"]);
+  });
+
+  it("routes standalone tool calls before matching a tool name entry", () => {
+    const fn = groupPartByType({
+      "standalone-tool-call": ["group-standalone"],
+      "tool-call:task": ["group-subagents"],
+      "tool-call": ["group-tool"],
+    });
+    const standaloneTask = part({
+      type: "tool-call",
+      toolName: "task",
+      mcp: { app: { resourceUri: "ui://task" } },
+    } as Partial<PartState>);
+
+    expect(fn(standaloneTask)).toEqual(["group-standalone"]);
+  });
+
   it("returns [] for part types not in the map", () => {
     const fn = groupPartByType({ reasoning: ["group-r"] });
     expect(fn(part({ type: "text" }))).toEqual([]);
@@ -253,6 +300,30 @@ describe("groupPartByType", () => {
       GROUPBY_MEMO_KEY
     ];
     expect(keyA).not.toBe(keyB);
+  });
+
+  it("includes tool-call name entries in an order-insensitive fingerprint", () => {
+    const withoutName = groupPartByType({ "tool-call": ["group-tool"] });
+    const a = groupPartByType({
+      "tool-call:task": ["group-subagents"],
+      "tool-call": ["group-tool"],
+    });
+    const b = groupPartByType({
+      "tool-call": ["group-tool"],
+      "tool-call:task": ["group-subagents"],
+    });
+    const withoutNameKey = (
+      withoutName as unknown as { [GROUPBY_MEMO_KEY]: string }
+    )[GROUPBY_MEMO_KEY];
+    const keyA = (a as unknown as { [GROUPBY_MEMO_KEY]: string })[
+      GROUPBY_MEMO_KEY
+    ];
+    const keyB = (b as unknown as { [GROUPBY_MEMO_KEY]: string })[
+      GROUPBY_MEMO_KEY
+    ];
+
+    expect(keyA).not.toBe(withoutNameKey);
+    expect(keyA).toBe(keyB);
   });
 });
 

@@ -47,6 +47,9 @@ CHUNKS = [
     UpdateStateChunk(
         operations=[{"type": "set", "path": ["status"], "value": "running"}]
     ),
+    ToolResultChunk(
+        tool_call_id="call_1", result={"status": "working"}, is_preliminary=True
+    ),
     ToolResultChunk(tool_call_id="call_1", result={"temp": 70}),
     DataChunk(data={"progress": 1}),
     AnnotationsChunk(annotations=[{"type": "citation", "id": "a1"}]),

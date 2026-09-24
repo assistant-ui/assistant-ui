@@ -7,6 +7,7 @@ import type {
   ExportedMessageRepositoryItem,
 } from "../runtime/utils/message-repository";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
+import type { ThreadMessage } from "../types";
 
 export interface MessageStorageEntry<TPayload> {
   id: string;
@@ -52,11 +53,28 @@ export type GenericThreadHistoryAdapter<TMessage> = {
     options?: {
       durationMs?: number;
       stepTimestamps?: { start_ms: number; end_ms: number }[];
+      /** The thread message the items were persisted from; its status and timing complete a report the stored format cannot carry. */
+      message?: ThreadMessage;
     },
   ): void;
 };
 
 export type ThreadHistoryAdapter = {
+  /**
+   * Keeps a copy of messages whose source of truth is the runtime's backend.
+   * `branch` is the conversation from its first message to its last, and
+   * `messageIds` names the ones in it that are new or changed; the adapter
+   * stores those, and first any earlier message of the branch it does not hold
+   * yet, keyed by each message's own id. It is undefined while the adapter
+   * keeps no copies, so the runtime then neither copies nor records tool
+   * interactions.
+   */
+  unstable_copy?:
+    | ((
+        branch: readonly ThreadMessage[],
+        messageIds: readonly string[],
+      ) => Promise<void>)
+    | undefined;
   load(): Promise<
     ExportedMessageRepository & {
       state?: ReadonlyJSONValue;
@@ -68,11 +86,7 @@ export type ThreadHistoryAdapter = {
   ): AsyncGenerator<ChatModelRunResult, void, unknown>;
   append(item: ExportedMessageRepositoryItem): Promise<void>;
   /**
-   * Rewrites a previously appended message in place, keyed by its message id.
-   * Adapters that implement this let a runtime persist a run paused for tool
-   * approval and finalize the same message once the run resumes. An update may
-   * arrive for an id whose earlier write failed; treat it as an upsert keyed
-   * on the message id rather than assuming the entry exists.
+   * Rewrites a previously appended message in place, keyed by its message id. Adapters that implement this let a runtime persist a run paused for tool approval, finalize the same message once the run resumes, and record a tool result that arrives after the message settled, which can be a message later turns follow. An update may arrive for an id whose earlier write failed; treat it as an upsert keyed on the message id rather than assuming the entry exists.
    */
   update?(item: ExportedMessageRepositoryItem): Promise<void>;
   delete?(items: ExportedMessageRepositoryItem[]): Promise<void>;

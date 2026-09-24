@@ -7,6 +7,9 @@ import {
   PlatformTabsLLM,
 } from "@/components/pages/docs/platform/mdx.llm";
 import type { CalloutProps } from "@/components/ui/callout";
+import { DEFAULT_PLATFORM } from "@/lib/constants";
+import { rewritePlatformPackages } from "@/components/pages/docs/platform/rewrite";
+import type { LLMRenderContext } from "@/lib/get-llm-text";
 import { CardLLM, CardsLLM } from "@/components/pages/docs/fumadocs/card";
 import { InstallCommandLLM } from "@/components/pages/docs/fumadocs/install/install-command";
 import { ParametersTableLLM } from "@/components/pages/docs/parameters-table";
@@ -72,7 +75,11 @@ export const LLM_COMPONENTS: MDXComponents = {
   h4: Heading("h4"),
   h5: Heading("h5"),
   h6: Heading("h6"),
-  pre: ({ children }: ComponentProps<"pre">) => <pre>{children}</pre>,
+  pre: ({ children }: ComponentProps<"pre">, ctx?: LLMRenderContext) => (
+    <pre>
+      {rewritePlatformPackages(children, ctx?.platform ?? DEFAULT_PLATFORM)}
+    </pre>
+  ),
   // Static markdown images render via next/image (client), whose fallback drops
   // src and leaks alt. A host <img> survives as `![alt](src)`; src may be a
   // string or a StaticImageData object.

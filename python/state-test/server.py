@@ -120,7 +120,7 @@ async def string_test():
         await asyncio.sleep(1)
         controller.state["length"] = len(controller.state["message"])
 
-    return DataStreamResponse(create_run(run))
+    return DataStreamResponse(create_run(run, state={}))
 
 
 @app.post("/list-test")
@@ -154,7 +154,7 @@ async def list_test():
         await asyncio.sleep(1)
         controller.state["items"].clear()
 
-    return DataStreamResponse(create_run(run))
+    return DataStreamResponse(create_run(run, state={}))
 
 
 @app.post("/dict-test")
@@ -196,7 +196,7 @@ async def dict_test():
         await asyncio.sleep(1)
         controller.state["config"].clear()
 
-    return DataStreamResponse(create_run(run))
+    return DataStreamResponse(create_run(run, state={}))
 
 
 if __name__ == "__main__":

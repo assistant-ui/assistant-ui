@@ -72,12 +72,14 @@ export const prepareElicitationContent = (
   const contentWithBooleanDefaults = {
     ...candidateContent,
     ...Object.fromEntries(
-      missingRequiredBooleans.map(({ property }) => [
-        property,
-        typeof properties[property].default === "boolean"
-          ? properties[property].default
-          : false,
-      ]),
+      missingRequiredBooleans.map(({ property }) => {
+        const schema = properties[property];
+        const defaultValue = isRecord(schema) ? schema.default : undefined;
+        return [
+          property,
+          typeof defaultValue === "boolean" ? defaultValue : false,
+        ];
+      }),
     ),
   };
   const validationErrors = validateElicitationContent(

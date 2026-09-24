@@ -7,8 +7,10 @@ import { AssistantRuntimeProvider } from "../context";
 import * as MessagePrimitive from "../primitives/message";
 import * as ThreadPrimitive from "../primitives/thread";
 import { useLocalRuntime } from "../legacy-runtime/runtime-cores/local/useLocalRuntime";
-import type { ChatModelAdapter, ThreadMessageLike } from "../index";
 import {
+  type ChatModelAdapter,
+  type ThreadMessageLike,
+  useExternalStoreRuntime,
   useToolCallElapsed,
   unstable_useMessageStallDetection,
 } from "../index";
@@ -60,6 +62,22 @@ const RuntimeProvider: FC<
   );
 };
 
+const ExternalRuntimeProvider: FC<
+  PropsWithChildren<{ messages: ThreadMessageLike[] }>
+> = ({ messages, children }) => {
+  const runtime = useExternalStoreRuntime({
+    messages,
+    isRunning: true,
+    convertMessage: (message) => message,
+    onNew: async () => {},
+  });
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+};
+
 const renderHarness = async (messages: ThreadMessageLike[], probe: FC) => {
   render(<Harness messages={messages} probe={probe} />);
   // Flush the runtime's deferred initialization, which fake timers hold back.
@@ -81,6 +99,19 @@ const Harness: FC<{ messages: ThreadMessageLike[]; probe: FC }> = ({
       }}
     />
   </RuntimeProvider>
+);
+
+const ExternalHarness: FC<{
+  messages: ThreadMessageLike[];
+  probe: FC;
+}> = ({ messages, probe: Probe }) => (
+  <ExternalRuntimeProvider messages={messages}>
+    <ThreadPrimitive.Messages
+      components={{
+        Message: () => <MessagePrimitive.Parts components={{ Text: Probe }} />,
+      }}
+    />
+  </ExternalRuntimeProvider>
 );
 
 describe("useToolCallElapsed", () => {
@@ -217,5 +248,28 @@ describe("unstable_useMessageStallDetection", () => {
     });
 
     expect(screen.getByTestId("stalled").textContent).toBe("false");
+  });
+
+  it("resets the timer for equal-length content changes", async () => {
+    const message = (text: string): ThreadMessageLike => ({
+      role: "assistant",
+      content: [{ type: "text", text }],
+      status: { type: "running" },
+    });
+    const view = render(
+      <ExternalHarness messages={[message("first")]} probe={StallProbe} />,
+    );
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+
+    await act(async () => vi.advanceTimersByTimeAsync(1500));
+    view.rerender(
+      <ExternalHarness messages={[message("other")]} probe={StallProbe} />,
+    );
+    await act(async () => vi.advanceTimersByTimeAsync(1000));
+
+    expect(screen.getByTestId("stalled").textContent).toBe("false");
+
+    await act(async () => vi.advanceTimersByTimeAsync(1000));
+    expect(screen.getByTestId("stalled").textContent).toBe("true");
   });
 });

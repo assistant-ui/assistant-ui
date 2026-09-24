@@ -5,18 +5,12 @@ import type { CloudMessage } from "./AssistantCloudThreadMessages";
 const CLOUD_MESSAGE_PAGE_SIZE = 200;
 
 /**
- * Shared persistence logic for cloud message storage.
- *
- * Handles ID mapping (local → remote) and parent_id chaining for both:
- * - AssistantCloudThreadHistoryAdapter (assistant-ui runtime)
- * - useCloudChat (standalone AI SDK hook)
- *
- * The promise-based ID resolution handles concurrent appends — if message B's
- * parent is message A, and A is still being created, we await A's promise
- * to get its remote ID before creating B.
+ * Appends, updates and loads cloud messages while mapping local ids to cloud
+ * ids and chaining parent_id. A parent that is still being created is awaited,
+ * so concurrent appends land under the right parent.
  */
 export class CloudMessagePersistence {
-  private idMapping: Record<string, string | Promise<string>> = {};
+  private idMapping = new Map<string, string | Promise<string>>();
   private getCloud: () => AssistantCloud;
 
   constructor(cloud: AssistantCloud);
@@ -42,15 +36,16 @@ export class CloudMessagePersistence {
     content: ReadonlyJSONObject,
   ): Promise<void> {
     const cloud = this.getCloud();
-    const existing = this.idMapping[messageId];
+    const existing = this.idMapping.get(messageId);
     if (existing instanceof Promise) {
       await existing;
       return;
     }
 
     const task = (async () => {
+      const parentEntry = parentId ? this.idMapping.get(parentId) : undefined;
       const resolvedParentId = parentId
-        ? ((await this.idMapping[parentId]) ?? parentId)
+        ? ((await parentEntry) ?? parentId)
         : null;
       const { message_id } = await cloud.threads.messages.create(threadId, {
         parent_id: resolvedParentId,
@@ -60,15 +55,15 @@ export class CloudMessagePersistence {
       return message_id;
     })();
 
-    this.idMapping[messageId] = task;
+    this.idMapping.set(messageId, task);
     try {
       const remoteId = await task;
-      if (this.idMapping[messageId] === task) {
-        this.idMapping[messageId] = remoteId;
+      if (this.idMapping.get(messageId) === task) {
+        this.idMapping.set(messageId, remoteId);
       }
     } catch (err) {
-      if (this.idMapping[messageId] === task) {
-        delete this.idMapping[messageId];
+      if (this.idMapping.get(messageId) === task) {
+        this.idMapping.delete(messageId);
       }
       throw err;
     }
@@ -98,7 +93,7 @@ export class CloudMessagePersistence {
    * Check if a message has been persisted (or is currently being persisted).
    */
   isPersisted(messageId: string): boolean {
-    return messageId in this.idMapping;
+    return this.idMapping.has(messageId);
   }
 
   /**
@@ -106,9 +101,18 @@ export class CloudMessagePersistence {
    * Returns undefined if not persisted.
    */
   async getRemoteId(messageId: string): Promise<string | undefined> {
-    const entry = this.idMapping[messageId];
+    const entry = this.idMapping.get(messageId);
     if (!entry) return undefined;
     return entry;
+  }
+
+  getResolvedRemoteId(messageId: string): string | undefined {
+    const entry = this.idMapping.get(messageId);
+    return typeof entry === "string" ? entry : undefined;
+  }
+
+  record(localId: string, remoteId: string): void {
+    this.idMapping.set(localId, remoteId);
   }
 
   /**
@@ -120,11 +124,14 @@ export class CloudMessagePersistence {
    * The ID mapping is populated so that `isPersisted()` returns true for
    * loaded messages, preventing re-persistence of already-stored messages.
    *
+   * A loaded ID that an append already maps keeps the remote ID from that append, and falls back to the loaded ID if the append fails.
+   *
    * @param threadId - Remote thread ID
    * @param format - Optional format filter
    * @returns Array of cloud messages
    */
   async load(threadId: string, format?: string) {
+    const idMapping = this.idMapping;
     const cloud = this.getCloud();
     const messages: CloudMessage[] = [];
     const seen = new Set<string>();
@@ -150,17 +157,31 @@ export class CloudMessagePersistence {
       after = last.id;
     }
 
-    // Populate ID mapping so isPersisted() recognizes loaded messages
-    for (const m of messages) {
-      this.idMapping[m.id] = m.id;
+    if (this.idMapping === idMapping) {
+      for (const m of messages) {
+        const entry = idMapping.get(m.id);
+        if (entry === undefined) {
+          idMapping.set(m.id, m.id);
+        } else if (entry instanceof Promise) {
+          void entry.catch(() => {
+            const current = idMapping.get(m.id);
+            if (current === undefined || current === entry) {
+              idMapping.set(m.id, m.id);
+            }
+          });
+        }
+      }
     }
     return messages;
   }
 
   /**
    * Reset the ID mapping (call when switching threads).
+   *
+   * Pending `load()` and `append()` calls are not cancelled and still settle
+   * normally, but their results no longer populate the ID mapping.
    */
   reset() {
-    this.idMapping = {};
+    this.idMapping = new Map();
   }
 }

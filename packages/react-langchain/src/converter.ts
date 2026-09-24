@@ -1,6 +1,7 @@
 import type {
   AppendMessage,
   DataMessagePart,
+  MessageModality,
   ThreadAssistantMessage,
   ThreadUserMessage,
 } from "@assistant-ui/core";
@@ -61,7 +62,10 @@ export const convertLangChainContentBlock = (
   switch (type) {
     case "text":
     case "text_delta":
-      return { type: "text" as const, text: part.text };
+      return {
+        type: "text" as const,
+        text: typeof part.text === "string" ? part.text : "",
+      };
     case "image_url": {
       const image =
         typeof part.image_url === "string"
@@ -142,6 +146,11 @@ export const getCustomMetadata = (
   additionalKwargs: Record<string, unknown> | undefined,
 ): Record<string, unknown> =>
   (additionalKwargs?.metadata as Record<string, unknown>) ?? {};
+
+export const getMessageModality = (
+  additionalKwargs: Record<string, unknown> | undefined,
+): MessageModality | undefined =>
+  additionalKwargs?.modality === "voice" ? "voice" : undefined;
 
 export const uiMessageToDataPart = <
   TUIMessage extends { name: string; props: Record<string, unknown> },
@@ -298,6 +307,7 @@ export const createLangChainStreamingTimingAccessors = <
     if (!Array.isArray(content)) return 0;
     let len = 0;
     for (const part of content as readonly LangChainContentBlock[]) {
+      if (typeof part !== "object" || part === null) continue;
       switch (part.type) {
         case "text":
         case "text_delta":

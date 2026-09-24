@@ -1,0 +1,239 @@
+---
+title: Quickstart
+description: From an empty project to a persisted, reported and titled conversation in the dashboard, and what to check when the first turn does not show up.
+---
+
+The shortest path: an anonymous session, the AI SDK runtime and the assistant-ui components. The other guides swap the runtime; the cloud side stays the same.
+
+<Steps>
+<Step>
+
+### Create a project
+
+Sign in at [cloud.assistant-ui.com](https://cloud.assistant-ui.com) and create a project. Copy its **Frontend API URL** from **Settings › General**; it looks like `https://proj-<id>.assistant-api.com`. A new project accepts anonymous sessions from any origin, so nothing else needs to be configured for a first run.
+
+</Step>
+<Step>
+
+### Configure the environment
+
+<PlatformTabs>
+<Tab value="React">
+
+```bash title=".env.local"
+NEXT_PUBLIC_ASSISTANT_BASE_URL=https://proj-<id>.assistant-api.com
+OPENAI_API_KEY=sk-…
+```
+
+With this variable set, the React runtimes create an anonymous cloud client on their own when you pass no `cloud`.
+
+</Tab>
+<Tab value="React Native">
+
+```bash title=".env"
+EXPO_PUBLIC_ASSISTANT_BASE_URL=https://proj-<id>.assistant-api.com
+EXPO_PUBLIC_API_URL=https://your-app.example.com
+```
+
+The second variable names the server that hosts your chat route, since it is not on the app's own origin.
+
+</Tab>
+<Tab value="React Ink">
+
+```bash title=".env"
+ASSISTANT_BASE_URL=https://proj-<id>.assistant-api.com
+API_URL=https://your-app.example.com
+```
+
+The second variable names the server that hosts your chat route.
+
+</Tab>
+</PlatformTabs>
+
+</Step>
+<Step>
+
+### Install and wire the runtime
+
+<PlatformTabs>
+<Tab value="React">
+
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/ai-sdk", "ai", "@ai-sdk/openai"]} />
+
+```tsx title="app/chat/page.tsx"
+"use client";
+
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+
+export default function ChatPage() {
+  const runtime = useChatRuntime();
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <div className="grid h-dvh grid-cols-[240px_1fr]">
+        <ThreadList />
+        <Thread />
+      </div>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+`useChatRuntime()` reads the base URL from the environment and posts chat requests to `/api/chat`, the AI SDK route you already have.
+
+</Tab>
+<Tab value="React Native">
+
+<InstallCommand expo={["@assistant-ui/react-native", "@assistant-ui/ai-sdk", "assistant-cloud"]} />
+
+```tsx title="app/chat.tsx"
+import { useMemo } from "react";
+import { View } from "react-native";
+import { AssistantRuntimeProvider } from "@assistant-ui/react-native";
+import { AssistantCloud } from "assistant-cloud";
+import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+
+export default function ChatScreen() {
+  const cloud = useMemo(
+    () =>
+      new AssistantCloud({
+        baseUrl: process.env.EXPO_PUBLIC_ASSISTANT_BASE_URL!,
+        anonymous: true,
+      }),
+    [],
+  );
+  const runtime = useChatRuntime({
+    cloud,
+    transport: new AssistantChatTransport({
+      api: `${process.env.EXPO_PUBLIC_API_URL}/api/chat`,
+    }),
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <View style={{ flex: 1 }}>
+        <Thread />
+      </View>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+There is no `localStorage` on this platform, so an anonymous identity lasts one launch. Give users a lasting identity with an [auth provider token](/docs/cloud/auth-providers) before shipping.
+
+</Tab>
+<Tab value="React Ink">
+
+<InstallCommand npm={["@assistant-ui/react-ink", "@assistant-ui/ai-sdk", "assistant-cloud", "ink", "react"]} />
+
+```tsx title="chat.tsx"
+import { useMemo } from "react";
+import { Box } from "ink";
+import { AssistantRuntimeProvider } from "@assistant-ui/react-ink";
+import { AssistantCloud } from "assistant-cloud";
+import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
+import { Thread } from "./components/thread.js";
+
+export function Chat() {
+  const cloud = useMemo(
+    () =>
+      new AssistantCloud({
+        baseUrl: process.env.ASSISTANT_BASE_URL!,
+        anonymous: true,
+      }),
+    [],
+  );
+  const runtime = useChatRuntime({
+    cloud,
+    transport: new AssistantChatTransport({
+      api: `${process.env.API_URL}/api/chat`,
+    }),
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Box flexDirection="column">
+        <Thread />
+      </Box>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+There is no `localStorage` in a terminal, so an anonymous identity lasts one process. Give users a lasting identity with an [auth provider token](/docs/cloud/auth-providers) before shipping.
+
+</Tab>
+</PlatformTabs>
+
+</Step>
+<Step>
+
+### Report model and usage
+
+The browser cannot see which model answered or how many tokens it used. Add a `messageMetadata` callback to your route so the run report carries them:
+
+```ts title="app/api/chat/route.ts"
+import { convertToModelMessages, streamText } from "ai";
+import { openai } from "@ai-sdk/openai";
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const model = openai("gpt-6-luna");
+  const result = streamText({
+    model,
+    messages: await convertToModelMessages(messages),
+  });
+
+  return result.toUIMessageStreamResponse({
+    messageMetadata: ({ part }) => {
+      if (part.type === "finish") {
+        return { usage: part.totalUsage, finishReason: part.finishReason };
+      }
+      if (part.type === "finish-step") {
+        return { modelId: part.response.modelId, provider: model.provider };
+      }
+      return undefined;
+    },
+  });
+}
+```
+
+</Step>
+<Step>
+
+### Send a message and look
+
+Send one message and open the dashboard. This is what the first turn leaves behind, and where to find it:
+
+| In the dashboard | What you see | Written by |
+|---|---|---|
+| **Threads** | One thread for the anonymous visitor, with the two messages rendered on its page | The runtime, as the response settles |
+| **Threads**, the thread's title | A short title in place of *Untitled*, as the response starts | The cloud, from the first message, streamed back to the runtime's own request |
+| **Runs** | One completed run with its duration, time to first token, tokens, model and cost | The runtime's report, with the model and usage from the route |
+| **Engagement** | One send, and the thread's satisfaction reading once a second turn or a copy happens | The runtime's events |
+| **Users** | One anonymous user, active this month | The user's first message |
+
+The app shows the title as soon as the model writes it; [Thread titles](/docs/cloud/thread-titles) explains how.
+
+</Step>
+</Steps>
+
+## When the first turn does not show up
+
+| What you see | Why | What to do |
+|---|---|---|
+| No thread appears | The environment variable is missing, so the thread list stayed in memory; or the browser's origin is refused, so every cloud request fails | Set `NEXT_PUBLIC_ASSISTANT_BASE_URL` and restart the dev server; check **Settings › Access** and the browser console for a CORS refusal |
+| The thread exists but stays Untitled | The title attempt failed, for instance because the title provider refused the call; the hourly sweep retries it up to three times | Open the thread in the dashboard: the Title row of its Details rail names the error. Fix the provider under **Settings › Thread titles** |
+| The run reads *No model reported* and has no cost | The route did not return `modelId` and `usage` in its metadata | Add the `messageMetadata` callback from the step above |
+| A 402 in the console | The project's plan has reached its active user cap for the month | See [Plans and pricing](/docs/cloud/pricing) |
+
+## Next
+
+- Give users an identity of their own and lock down origins: [Authentication](/docs/cloud/authorization).
+- Join your server's spans to the browser's report: [Traces](/docs/cloud/traces).
+- Read what every field of a report means: [Run reports](/docs/cloud/run-reports).
+- Start from a template instead: [cloud](https://github.com/assistant-ui/assistant-ui/tree/main/templates/cloud) with anonymous sessions, or [cloud-clerk](https://github.com/assistant-ui/assistant-ui/tree/main/templates/cloud-clerk) with Clerk sign in.

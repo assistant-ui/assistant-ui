@@ -114,7 +114,7 @@ async function streamModel(
 
   const result = streamText({
     // Reasoning model so the chain-of-thought group has real content.
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
     stopWhen: stepCountIs(10),
     tools: {

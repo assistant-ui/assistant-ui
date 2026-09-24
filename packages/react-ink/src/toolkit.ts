@@ -98,14 +98,14 @@ function assertValid(name: string, tool: Record<string, unknown>): void {
  * unchanged.
  */
 function defineToolkitRuntime(definition: ToolkitDefinition): Toolkit {
-  const toolkit: Record<string, unknown> = {};
+  const toolkit = new Map<string, unknown>();
 
   for (const [name, entry] of Object.entries(definition)) {
     const tool = entry as Record<string, unknown>;
 
     // Already-typed entry (render-only `{ type, render }`, factory output, ...).
     if (typeof tool["type"] === "string") {
-      toolkit[name] = tool;
+      toolkit.set(name, tool);
       continue;
     }
 
@@ -130,10 +130,10 @@ function defineToolkitRuntime(definition: ToolkitDefinition): Toolkit {
     }
 
     assertValid(name, resolved);
-    toolkit[name] = resolved;
+    toolkit.set(name, resolved);
   }
 
-  return toolkit as Toolkit;
+  return Object.fromEntries(toolkit) as Toolkit;
 }
 
 /**

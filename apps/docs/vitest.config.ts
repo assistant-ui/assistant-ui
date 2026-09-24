@@ -7,7 +7,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export default {
   test: {
     environment: "node",
+    pool: "threads",
+    fsModuleCache: true,
     globals: true,
+    env: { NEXT_PUBLIC_CHECKOUT_URL: "https://checkout.test" },
     // The generated repo source tree is a verbatim copy of the monorepo, and
     // vitest discovers dotted directories, so its tests would be collected here.
     exclude: [...defaultExclude, "generated/.repo-source/**"],
@@ -17,6 +20,10 @@ export default {
       "server-only": resolve(__dirname, "./test/server-only"),
       // Keep in step with the tsconfig paths: packages/ui ships stock shadcn
       // sidebars importing this bare alias, and it resolves outside this app.
+      "@/hooks/use-copy-to-clipboard": resolve(
+        __dirname,
+        "../../packages/ui/src/hooks/use-copy-to-clipboard",
+      ),
       "@/hooks/use-mobile": resolve(
         __dirname,
         "../../packages/ui/src/hooks/use-mobile",

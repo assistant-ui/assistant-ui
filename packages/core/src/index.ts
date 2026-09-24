@@ -1,6 +1,6 @@
 // @assistant-ui/core - Framework-agnostic core runtime (public API)
 
-/// <reference path="./store/scope-registration.ts" />
+/// <reference path="./store/scope-registration.ts" preserve="true" />
 
 import { checkDuplicateCore } from "./internal/duplicate-detection";
 
@@ -28,6 +28,9 @@ export type {
   ToolApprovalResponse,
   ToolCallMessagePart,
   ToolCallTiming,
+  Unstable_ToolInteraction,
+  Unstable_ToolInteractionInput,
+  Unstable_ToolInteractionLog,
   ToolCallMessagePartMcpMetadata,
   McpAppMetadata,
   ToolModelContentPart,
@@ -40,6 +43,7 @@ export type {
   MessageStatus,
   // Thread messages
   MessageTiming,
+  MessageModality,
   ThreadStep,
   ThreadSystemMessage,
   ThreadUserMessage,
@@ -200,6 +204,7 @@ export type {
   ComposerRuntimeEventCallback,
   ComposerRuntimeEventPayload,
   ComposerRuntimeEventType,
+  ComposerSubmission,
   DictationState,
   EditComposerRuntimeCore,
   SendOptions,
@@ -220,6 +225,7 @@ export type {
   AddToolResultOptions,
   ResumeToolCallOptions,
   RespondToToolApprovalOptions,
+  Unstable_RecordToolInteractionOptions,
   SubmitFeedbackOptions,
   ThreadSuggestion,
   SpeechState,
@@ -249,6 +255,7 @@ export type {
   CreateResumeRunConfig,
   CreateAppendMessage,
   ThreadState,
+  ThreadRuntimeState,
   ThreadRuntime,
 } from "./runtime/api/thread-runtime";
 
@@ -265,10 +272,14 @@ export type {
   ThreadListItemRuntime,
 } from "./runtime/api/thread-list-item-runtime";
 
-export type { ThreadListItemState } from "./runtime/api/bindings";
+export type {
+  ThreadListItemState,
+  ThreadListItemRuntimeState,
+} from "./runtime/api/bindings";
 
 export type {
   MessageState,
+  MessageRuntimeState,
   MessageRuntime,
 } from "./runtime/api/message-runtime";
 export type {
@@ -280,6 +291,7 @@ export type {
   ThreadComposerState,
   EditComposerState,
   ComposerState,
+  ComposerRuntimeState,
   ComposerRuntime,
   ThreadComposerRuntime,
   EditComposerRuntime,
@@ -287,6 +299,7 @@ export type {
 
 export type {
   AttachmentState,
+  AttachmentRuntimeState,
   AttachmentRuntime,
 } from "./runtime/api/attachment-runtime";
 

@@ -74,6 +74,49 @@ describe("ComposerPrimitiveAttachmentDropzone", () => {
     vi.restoreAllMocks();
   });
 
+  it("composes a render element and keeps the drag props attached", async () => {
+    await act(async () => {
+      root.render(
+        <ComposerPrimitiveAttachmentDropzone
+          data-testid="dropzone"
+          render={<section className="child" />}
+          className="parent"
+        >
+          <div>outer</div>
+        </ComposerPrimitiveAttachmentDropzone>,
+      );
+    });
+
+    const dropzone = container.querySelector(
+      "section[data-testid='dropzone']",
+    ) as HTMLElement;
+    expect(dropzone).not.toBeNull();
+    expect(dropzone.textContent).toBe("outer");
+    expect(dropzone.className).toContain("parent");
+    expect(dropzone.className).toContain("child");
+
+    await act(async () => {
+      dropzone.dispatchEvent(createDragEvent("dragenter", ["Files"]));
+    });
+
+    expect(dropzone.getAttribute("data-dragging")).toBe("true");
+  });
+
+  it("falls back to the render element's own children", async () => {
+    await act(async () => {
+      root.render(
+        <ComposerPrimitiveAttachmentDropzone
+          data-testid="dropzone"
+          render={<section>fallback</section>}
+        />,
+      );
+    });
+
+    expect(
+      container.querySelector("section[data-testid='dropzone']")?.textContent,
+    ).toBe("fallback");
+  });
+
   it("starts all dropped attachments before awaiting completion", async () => {
     const resolvers: Array<() => void> = [];
     addAttachment.mockImplementation(
@@ -151,6 +194,60 @@ describe("ComposerPrimitiveAttachmentDropzone", () => {
 
     expect(dropzone!.getAttribute("data-dragging")).toBe("true");
     expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("clears the drag highlight when disabled during a drag", async () => {
+    const dropzone = container.querySelector("[data-testid='dropzone']");
+    expect(dropzone).not.toBeNull();
+
+    await act(async () => {
+      dropzone!.dispatchEvent(createDragEvent("dragenter", ["Files"]));
+    });
+    expect(dropzone!.getAttribute("data-dragging")).toBe("true");
+
+    await act(async () => {
+      root.render(
+        <ComposerPrimitiveAttachmentDropzone data-testid="dropzone" disabled />,
+      );
+    });
+
+    expect(dropzone!.hasAttribute("data-dragging")).toBe(false);
+
+    await act(async () => {
+      root.render(
+        <ComposerPrimitiveAttachmentDropzone data-testid="dropzone" />,
+      );
+    });
+
+    expect(dropzone!.hasAttribute("data-dragging")).toBe(false);
+
+    await act(async () => {
+      dropzone!.dispatchEvent(createDragEvent("dragenter", ["Files"]));
+    });
+    expect(dropzone!.getAttribute("data-dragging")).toBe("true");
+  });
+
+  it("prevents a disabled file drop from navigating away without adding attachments", async () => {
+    await act(async () => {
+      root.render(
+        <ComposerPrimitiveAttachmentDropzone data-testid="dropzone" disabled />,
+      );
+    });
+    const dropzone = container.querySelector("[data-testid='dropzone']")!;
+    const over = createDragEvent("dragover", ["Files"]);
+    const drop = createDropEvent([
+      new File(["file"], "photo.png", { type: "image/png" }),
+    ]);
+
+    await act(async () => {
+      dropzone.dispatchEvent(over);
+      dropzone.dispatchEvent(drop);
+    });
+
+    expect(over.defaultPrevented).toBe(true);
+    expect(drop.defaultPrevented).toBe(true);
+    expect(addAttachment).not.toHaveBeenCalled();
+    expect(dropzone.hasAttribute("data-dragging")).toBe(false);
   });
 
   it("ignores non-file drags", async () => {

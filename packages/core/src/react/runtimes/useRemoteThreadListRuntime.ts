@@ -1,6 +1,8 @@
 import {
   useState,
   useEffect,
+  useInsertionEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useCallback,
@@ -39,6 +41,16 @@ const useRemoteThreadListRuntimeImpl = (
   options: RemoteThreadListOptions,
 ): AssistantRuntime => {
   const [runtime] = useState(() => new RemoteThreadListRuntimeCore(options));
+
+  // Insertion-effect cleanup runs only when React deletes the fiber, so a
+  // hidden <Activity> or a re-suspended boundary keeps the threads alive; the
+  // disposal is deferred to a microtask because it notifies subscribers and
+  // React forbids scheduling updates from an insertion effect.
+  useInsertionEffect(
+    () => () => queueMicrotask(() => runtime.threads.__internal_dispose()),
+    [runtime],
+  );
+
   useEffect(() => {
     runtime.threads.__internal_setOptions(options);
     runtime.threads.__internal_load();
@@ -75,7 +87,10 @@ export const useRemoteThreadListRuntime = (
   const [runtimeHookStore] = useState(
     () => new WritableSubscribable(options.runtimeHook),
   );
-  useEffect(() => {
+  // The layout phase re-renders hosted threads before this commit yields. An
+  // insertion effect cannot notify subscribers, so descendant layout effects
+  // of the same commit still see the previous hook.
+  useLayoutEffect(() => {
     runtimeHookStore.setState(options.runtimeHook);
   }, [runtimeHookStore, options.runtimeHook]);
 
@@ -98,7 +113,7 @@ export const useRemoteThreadListRuntime = (
   );
 
   const onThreadIdChange = useEffectEvent((threadId: string | undefined) => {
-    options.onThreadIdChange?.(threadId);
+    return options.onThreadIdChange?.(threadId);
   });
 
   const stableOptions = useMemo<RemoteThreadListOptions>(

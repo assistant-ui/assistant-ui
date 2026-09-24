@@ -194,7 +194,7 @@ Register the renderer on a toolkit entry's `render` field and attach the toolkit
 | `pins` | `readonly MapPin[]` | required | The markers to place, in order. Also the order the route line connects them in. |
 | `activeId` | `string` | required | Id of the highlighted pin. An id matching no pin highlights none. |
 | `route` | `boolean` | | Draws a dashed line through `pins` in array order. No line below two pins even when `true`. |
-| `onSelect` | `(id: string) => void` | | Called with a pin's `id` from either its marker or its list row. |
+| `onSelect` | `(id: string) => void` | | Called with a pin's `id` from either its marker or its list row. Without it, both surfaces render as non-interactive map content. |
 | `className` | `string` | | Merged onto the root. |
 
 ### MapPin

@@ -61,13 +61,67 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
   let reserve: HTMLElement | null = null;
   let lastScrolledAnchorId: string | undefined;
 
+  let listenedViewport: HTMLElement | null = null;
+  let lastScrollTop = 0;
+  let restoreScrollTop: number | null = null;
+  let restoredThisTurn = false;
+  let lastAppliedTarget: number | null = null;
+
+  const clearRestore = () => {
+    restoreScrollTop = null;
+    lastAppliedTarget = null;
+  };
+
+  const wasPinnedAtLastScroll = () =>
+    lastAppliedTarget !== null &&
+    Math.abs(lastScrollTop - lastAppliedTarget) <= 1;
+
+  const handleScroll = () => {
+    const viewport = listenedViewport;
+    if (!viewport) return;
+    const scrollTop = viewport.scrollTop;
+    const maxScrollTop = Math.max(
+      0,
+      viewport.scrollHeight - viewport.clientHeight,
+    );
+    // A range clamp starts beyond the new maximum and lands on it.
+    const isRangeClamp =
+      scrollTop < lastScrollTop &&
+      lastScrollTop > maxScrollTop + 1 &&
+      Math.abs(scrollTop - maxScrollTop) <= 1;
+
+    if (isRangeClamp && wasPinnedAtLastScroll() && !restoredThisTurn) {
+      restoreScrollTop ??= lastScrollTop;
+      scheduler.schedule();
+    }
+
+    lastScrollTop = scrollTop;
+  };
+
+  const listenViewport = (viewport: HTMLElement | null) => {
+    if (listenedViewport === viewport) return;
+    if (listenedViewport) {
+      listenedViewport.removeEventListener("scroll", handleScroll);
+    }
+    listenedViewport = viewport;
+    restoredThisTurn = false;
+    clearRestore();
+    if (viewport) {
+      viewport.addEventListener("scroll", handleScroll, { passive: true });
+      lastScrollTop = viewport.scrollTop;
+    }
+  };
+
   function apply() {
     const state = store.getState();
     const { viewport, anchor, target } = state.element;
     const clamp = state.targetConfig;
 
+    listenViewport(state.turnAnchor === "top" ? viewport : null);
+
     if (state.turnAnchor !== "top" || !viewport) {
       observers.disconnect();
+      clearRestore();
       if (reserve) {
         setReserveHeight(reserve, 0);
         reserve.remove();
@@ -80,6 +134,7 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
       // trailing turn (followed at most by pending user messages), so reaching
       // here means the anchor gap is transient and the next run is imminent.
       observers.disconnect();
+      clearRestore();
       if (
         reserve?.parentElement &&
         reserve.parentElement.lastElementChild !== reserve
@@ -91,6 +146,7 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
 
     if (!anchor || !target || !clamp) {
       observers.disconnect();
+      clearRestore();
       if (reserve) {
         setReserveHeight(reserve, 0);
         reserve.remove();
@@ -120,17 +176,33 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
     }
 
     const anchorId = getAnchorId(anchor);
-    if (anchorId !== undefined && lastScrolledAnchorId === anchorId) return;
-
     const targetScrollTop = snapScrollTop(
       computeTopAnchorTargetScrollTop({ viewport, anchor, ...clamp }),
     );
 
-    if (Math.abs(viewport.scrollTop - targetScrollTop) > 1) {
-      viewport.scrollTo({ top: targetScrollTop, behavior: "smooth" });
+    if (anchorId === undefined || anchorId !== lastScrolledAnchorId) {
+      restoreScrollTop = null;
+      restoredThisTurn = false;
+      if (Math.abs(viewport.scrollTop - targetScrollTop) > 1) {
+        viewport.scrollTo({ top: targetScrollTop, behavior: "smooth" });
+      }
+      if (anchorId !== undefined) lastScrolledAnchorId = anchorId;
+    } else if (restoreScrollTop !== null && lastAppliedTarget !== null) {
+      // Restore the anchor-relative position: if content above the anchor
+      // changed height and the browser already adjusted scrollTop to match
+      // (scroll anchoring), the desired offset equals the current one and
+      // this is a no-op.
+      const desired = snapScrollTop(
+        restoreScrollTop + (targetScrollTop - lastAppliedTarget),
+      );
+      restoreScrollTop = null;
+      restoredThisTurn = true;
+      if (Math.abs(viewport.scrollTop - desired) > 1) {
+        viewport.scrollTo({ top: desired, behavior: "instant" });
+      }
     }
 
-    if (anchorId !== undefined) lastScrolledAnchorId = anchorId;
+    lastAppliedTarget = targetScrollTop;
   }
 
   const scheduler = createFrameScheduler(apply);
@@ -143,6 +215,7 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
     scheduler.cancel();
     unsubscribe();
     observers.disconnect();
+    listenViewport(null);
     reserve?.remove();
   };
 };

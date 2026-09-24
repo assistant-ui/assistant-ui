@@ -67,7 +67,6 @@ const pressEnter = () => {
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
   inputHandlers.length = 0;
 });
 

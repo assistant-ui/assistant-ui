@@ -613,6 +613,7 @@ export const generativeUiVocabularyCss: CssRuleset = {
 
   '[data-aui="badge"]': {
     display: "inline-flex",
+    "align-self": "flex-start",
     "align-items": "center",
     gap: "0.25rem",
     "border-radius": "9999px",
@@ -626,6 +627,18 @@ export const generativeUiVocabularyCss: CssRuleset = {
     "flex-shrink": "0",
     "white-space": "nowrap",
   },
+  '[data-aui="row"][data-aui-align="start"] > [data-aui="badge"], [data-aui="col"][data-aui-align="start"] > [data-aui="badge"]':
+    {
+      "align-self": "flex-start",
+    },
+  '[data-aui="row"][data-aui-align="center"] > [data-aui="badge"], [data-aui="col"][data-aui-align="center"] > [data-aui="badge"]':
+    {
+      "align-self": "center",
+    },
+  '[data-aui="row"][data-aui-align="end"] > [data-aui="badge"], [data-aui="col"][data-aui-align="end"] > [data-aui="badge"]':
+    {
+      "align-self": "flex-end",
+    },
   '[data-aui="badge"][data-aui-variant="info"]': {
     "background-color": "color-mix(in oklab, var(--primary) 15%, transparent)",
     color: "var(--primary)",

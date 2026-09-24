@@ -35,7 +35,6 @@ const createProps = (
 
 beforeEach(() => {
   mocks.theme = "light";
-  vi.clearAllMocks();
 });
 
 afterEach(() => {

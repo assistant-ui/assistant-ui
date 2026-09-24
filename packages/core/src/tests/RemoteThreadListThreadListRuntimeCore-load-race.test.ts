@@ -113,6 +113,52 @@ describe("RemoteThreadListThreadListRuntimeCore load race", () => {
     expect(core.threadIds).toEqual([]);
   });
 
+  it("keeps the initialized runtime when its listed duplicate is selected", async () => {
+    const listDeferred = deferred<ListResult>();
+    const initializeDeferred = deferred<{
+      remoteId: string;
+      externalId: undefined;
+    }>();
+    const adapter = makeAdapter({
+      list: vi.fn(() => listDeferred.promise),
+      initialize: vi.fn(() => initializeDeferred.promise),
+    });
+    const core = createCore(adapter);
+    const hookManager = (
+      core as unknown as {
+        _hookManager: { stopThreadRuntime: (threadId: string) => void };
+      }
+    )._hookManager;
+    const stopThreadRuntime = vi.spyOn(hookManager, "stopThreadRuntime");
+
+    const loadPromise = core.getLoadThreadsPromise();
+    await core.switchToNewThread();
+    const localId = core.newThreadId!;
+    const initializePromise = core.initialize(localId);
+
+    listDeferred.resolve({
+      threads: [
+        { status: "regular", remoteId: "remote-1", externalId: "remote-1" },
+      ],
+    });
+    await loadPromise;
+    await core.switchToThread("remote-1");
+
+    initializeDeferred.resolve({
+      remoteId: "remote-1",
+      externalId: undefined,
+    });
+    await initializePromise;
+
+    expect(core.mainThreadId).toBe(localId);
+    expect(core.threadIds).toEqual([localId]);
+    expect(Object.keys(core.threadItems)).toEqual([localId]);
+    expect(core.getItemById("remote-1")?.id).toBe(localId);
+    expect(core.getItemById("remote-1")?.externalId).toBe("remote-1");
+    expect(stopThreadRuntime).toHaveBeenCalledWith("remote-1");
+    expect(stopThreadRuntime).not.toHaveBeenCalledWith(localId);
+  });
+
   it("does not leave the collapsed slot in both lists when the race reported it archived", async () => {
     const listDeferred = deferred<ListResult>();
     const initializeDeferred = deferred<{

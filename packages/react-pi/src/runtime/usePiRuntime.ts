@@ -4,6 +4,7 @@ import {
   ExportedMessageRepository,
   useAui,
   useAuiState,
+  useCloudThreadListAdapter,
   useExternalStoreRuntime,
   useRemoteThreadListRuntime,
 } from "@assistant-ui/react";
@@ -30,11 +31,16 @@ import {
   type PiThreadControllerLike,
 } from "./ThreadController";
 import { piQueueItemId } from "../queueIds";
-import { splitHostUiRequests, type PiInterruptAnswer } from "./hostUi";
+import {
+  responseForToolApproval,
+  splitHostUiRequests,
+  type PiInterruptAnswer,
+} from "./hostUi";
 import { createPiThreadState, type PiThreadState } from "./threadState";
 import type { PiClient, PiThreadMetadata } from "../types";
 import { piExtras } from "./piExtras";
 import type { PiRuntimeExtrasInternal, PiRuntimeOptions } from "./runtimeTypes";
+import { PI_SDK } from "../sdkIdentity";
 
 const EMPTY_THREAD_STATE = createPiThreadState("__pending__");
 const EMPTY_PROJECTED_MESSAGES: readonly ThreadMessageLike[] = [];
@@ -48,15 +54,25 @@ type PiControllerRegistry = {
   /** The client these controllers are bound to (a new client ⇒ a new registry). */
   client: PiClient;
   controllers: Map<string, PiThreadController>;
+  readonly disposed: boolean;
+  activate(): void;
   dispose(): void;
 };
 
 const createRegistry = (client: PiClient): PiControllerRegistry => {
   const controllers = new Map<string, PiThreadController>();
+  let disposed = false;
   return {
     client,
     controllers,
+    get disposed() {
+      return disposed;
+    },
+    activate() {
+      disposed = false;
+    },
     dispose() {
+      disposed = true;
       for (const controller of controllers.values()) controller.dispose();
       // Controllers stay cached so a StrictMode cleanup/remount reuses them;
       // a real unmount drops this whole registry.
@@ -328,9 +344,19 @@ const usePiThreadStore = (
           throw error;
         }
       },
-      onRespondToToolApproval: async ({ approvalId, approved }) => {
+      onRespondToToolApproval: async (response) => {
         try {
-          await controller.respondToToolApproval(approvalId, approved);
+          const request = controller
+            .getState()
+            .hostUiRequests.find((r) => r.id === response.approvalId);
+          if (!request) {
+            throw new Error(
+              `No pending host-UI request "${response.approvalId}"`,
+            );
+          }
+          await controller.respondToHostUiRequest(
+            responseForToolApproval(request, response),
+          );
         } catch (error) {
           invokePiErrorCallback(onError, error);
           throw error;
@@ -378,6 +404,7 @@ const useNewPiThreadStore = (
   const aui = useAui();
   const {
     adapters,
+    cloud,
     isDisabled,
     isSendDisabled,
     onError,
@@ -410,22 +437,29 @@ const useNewPiThreadStore = (
           optimisticMessageIndexRef.current++,
         );
         setOptimisticMessages((messages) => [...messages, optimistic]);
+        const removeOptimisticMessage = () => {
+          setOptimisticMessages((messages) =>
+            messages.filter((candidate) => candidate !== optimistic),
+          );
+        };
         try {
           // The core starts thread initialization before dispatching onNew,
           // so adapter.initialize has already created the thread empty;
           // deliver the message to the live thread.
           const { remoteId, externalId } =
             await aui.threadListItem.initialize();
-          await getController(registry, externalId ?? remoteId).sendMessage(
-            message,
-          );
-          setOptimisticMessages((messages) =>
-            messages.filter((candidate) => candidate !== optimistic),
-          );
+          if (registry.disposed) {
+            removeOptimisticMessage();
+            return;
+          }
+          const piThreadId = cloud ? externalId : (externalId ?? remoteId);
+          if (!piThreadId) {
+            throw new Error("This thread has no Pi thread to send to.");
+          }
+          await getController(registry, piThreadId).sendMessage(message);
+          removeOptimisticMessage();
         } catch (error) {
-          setOptimisticMessages((messages) =>
-            messages.filter((message) => message !== optimistic),
-          );
+          removeOptimisticMessage();
           invokePiErrorCallback(onError, error);
           throw error;
         }
@@ -436,6 +470,7 @@ const useNewPiThreadStore = (
       optimisticRepository,
       registry,
       adapters,
+      cloud,
       isDisabled,
       isSendDisabled,
       onError,
@@ -455,7 +490,9 @@ const useRuntimeHook = (
   const isMainThread = useAuiState(
     (state) => state.threads.mainThreadId === state.threadListItem.id,
   );
-  const threadId = threadListItem.externalId ?? threadListItem.remoteId;
+  const threadId = options.cloud
+    ? threadListItem.externalId
+    : (threadListItem.externalId ?? threadListItem.remoteId);
 
   // No render-local cache on top: `getController` is already an idempotent
   // registry lookup, and a second cache could outlive a recreated registry.
@@ -506,12 +543,15 @@ const mapThreadMetadata = (metadata: PiThreadMetadata) => ({
 // ---------------------------------------------------------------------------
 
 export const usePiRuntime = (options: PiRuntimeOptions): AssistantRuntime => {
-  const { client } = options;
+  const { client, cloud } = options;
   const registry = useMemo(() => createRegistry(client), [client]);
 
-  useEffect(() => () => registry.dispose(), [registry]);
+  useEffect(() => {
+    registry.activate();
+    return () => registry.dispose();
+  }, [registry]);
 
-  const adapter = useMemo(
+  const piAdapter = useMemo(
     () => ({
       list: async () => {
         const threads = await client.listThreads({
@@ -563,9 +603,33 @@ export const usePiRuntime = (options: PiRuntimeOptions): AssistantRuntime => {
     [client, options.workspacePath, options.includeArchived],
   );
 
+  const cloudAdapter = useCloudThreadListAdapter({
+    cloud,
+    sdk: cloud ? PI_SDK : undefined,
+    create: async () => {
+      const snapshot = await client.createThread({
+        ...(options.workspacePath !== undefined
+          ? { workspacePath: options.workspacePath }
+          : {}),
+      });
+      return { externalId: snapshot.metadata.id };
+    },
+    delete: async (threadId) => {
+      if (!cloud) return;
+      const { external_id } = await cloud.threads.get(threadId);
+      if (external_id) await client.deleteThread?.(external_id);
+    },
+  });
+
+  const adapter = cloud ? cloudAdapter : piAdapter;
+
   return useRemoteThreadListRuntime({
-    allowNesting: true,
+    runtimeHook: () => {
+      // oxlint-disable-next-line react-hooks/rules-of-hooks -- runtimeHook is invoked by useRemoteThreadListRuntime at the correct hook position
+      return useRuntimeHook(registry, options);
+    },
     adapter,
+    allowNesting: true,
     ...(options.initialThreadId !== undefined
       ? { initialThreadId: options.initialThreadId }
       : {}),
@@ -573,9 +637,5 @@ export const usePiRuntime = (options: PiRuntimeOptions): AssistantRuntime => {
     ...(options.onThreadIdChange !== undefined
       ? { onThreadIdChange: options.onThreadIdChange }
       : {}),
-    runtimeHook: () => {
-      // oxlint-disable-next-line react-hooks/rules-of-hooks -- runtimeHook is invoked by useRemoteThreadListRuntime at the correct hook position
-      return useRuntimeHook(registry, options);
-    },
   });
 };

@@ -528,7 +528,7 @@ export function WeatherDataOverlay({
                     >
                       <span
                         className={cn(
-                          "text-[10px] tracking-[0.08em] uppercase",
+                          "text-[10px] tracking-[0.08em]",
                           index === 0 ? "font-semibold" : "font-medium",
                           textPrimary,
                         )}

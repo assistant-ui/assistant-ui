@@ -7,6 +7,9 @@ import type {
 import type { ThreadUserMessagePart } from "../../../types/message";
 import type { AttachmentAdapter } from "../../../adapters/attachment";
 import { generateId } from "../../../utils/id";
+import { resolveFileMediaType } from "../../../utils/wire-media";
+
+const DEFAULT_CONTENT_TYPE = "application/octet-stream";
 
 const guessAttachmentType = (
   contentType: string,
@@ -28,6 +31,10 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
   }
 
   private uploadedUrls = new Map<string, string>();
+  private activeUploads = new Map<
+    string,
+    { cancelled: boolean; controller: AbortController }
+  >();
 
   public async *add({
     file,
@@ -36,29 +43,40 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
   }): AsyncGenerator<PendingAttachment, void> {
     const id = generateId();
     const type = guessAttachmentType(file.type);
+    const contentType = file.type || DEFAULT_CONTENT_TYPE;
     let attachment: PendingAttachment = {
       id,
       type,
       name: file.name,
-      contentType: file.type,
+      contentType,
       file,
       status: { type: "running", reason: "uploading", progress: 0 },
     };
-    yield attachment;
+    const controller = new AbortController();
+    const upload = { cancelled: false, controller };
+    this.activeUploads.set(id, upload);
 
     try {
+      yield attachment;
+      if (upload.cancelled) return;
+
       const { signedUrl, publicUrl } =
         await this.getCloud().files.generatePresignedUploadUrl({
           filename: file.name,
         });
+      if (upload.cancelled) return;
+
       const res = await fetch(signedUrl, {
         method: "PUT",
         body: file,
         headers: {
-          "Content-Type": file.type,
+          "Content-Type": contentType,
         },
         mode: "cors",
+        signal: controller.signal,
       });
+      if (upload.cancelled) return;
+
       if (!res.ok) {
         throw new Error(
           `Failed to upload file: ${res.status} ${res.statusText}`,
@@ -71,6 +89,8 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
       };
       yield attachment;
     } catch (error) {
+      if (upload.cancelled) return;
+
       console.error("[assistant-ui] Failed to upload attachment:", error);
       attachment = {
         ...attachment,
@@ -81,10 +101,20 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
         },
       };
       yield attachment;
+    } finally {
+      if (this.activeUploads.get(id) === upload) {
+        this.activeUploads.delete(id);
+      }
     }
   }
 
   public async remove(attachment: Attachment): Promise<void> {
+    const upload = this.activeUploads.get(attachment.id);
+    if (upload) {
+      upload.cancelled = true;
+      upload.controller.abort();
+      this.activeUploads.delete(attachment.id);
+    }
     this.uploadedUrls.delete(attachment.id);
   }
 
@@ -103,7 +133,7 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
         {
           type: "file",
           data: url,
-          mimeType: attachment.contentType ?? "",
+          mimeType: resolveFileMediaType(url, attachment.contentType),
           filename: attachment.name,
         },
       ];

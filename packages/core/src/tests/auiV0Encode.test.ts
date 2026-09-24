@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { auiV0Decode, auiV0Encode } from "../react/runtimes/cloud/auiV0";
+import {
+  auiV0Decode,
+  auiV0DecodeSafely,
+  auiV0Encode,
+} from "../react/runtimes/cloud/auiV0";
 
 describe("auiV0Encode", () => {
   it("preserves document source parts in the core cloud encoder", () => {
@@ -236,6 +240,36 @@ describe("auiV0Encode", () => {
     ]);
   });
 
+  it("preserves reasoning provider metadata", () => {
+    const encoded = auiV0Encode({
+      id: "m1",
+      createdAt: new Date(),
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      content: [
+        {
+          type: "reasoning",
+          text: "thinking",
+          providerMetadata: { "assistant-ui": { duration: 3200 } },
+        },
+      ],
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+    });
+    expect(encoded.content).toEqual([
+      {
+        type: "reasoning",
+        text: "thinking",
+        providerMetadata: { "assistant-ui": { duration: 3200 } },
+      },
+    ]);
+  });
+
   it("preserves reasoning summaries and omits absent summaries", () => {
     const encoded = auiV0Encode({
       id: "m1",
@@ -356,6 +390,40 @@ describe("auiV0Encode", () => {
       { type: "data", name: "PredictState", data: { steps: ["a"] } },
       { type: "data", name: "PredictState", data: '{"steps":["a","b"]}' },
     ]);
+  });
+
+  it("omits absent image filename and provider metadata", () => {
+    const content = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "user",
+      metadata: { custom: {} },
+      attachments: [],
+      content: [{ type: "image", image: "data:image/png;base64,iVBORw0KGgo=" }],
+    });
+
+    const image = content.content[0];
+    expect(image).not.toHaveProperty("filename");
+    expect(image).not.toHaveProperty("providerMetadata");
+  });
+
+  it("omits absent text provider metadata", () => {
+    const content = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [{ type: "text", text: "answer" }],
+    });
+
+    expect(content.content[0]).not.toHaveProperty("providerMetadata");
   });
 });
 
@@ -558,6 +626,18 @@ describe("auiV0Decode", () => {
     ],
   });
 
+  const artifact = { reportId: "report-1" };
+  const artifactModelContent = [
+    { type: "text" as const, text: "The report is ready." },
+    {
+      type: "file" as const,
+      data: "data:application/pdf;base64,JVBERi0xLjQ=",
+      mediaType: "application/pdf",
+      filename: "report.pdf",
+    },
+  ];
+  const providerMetadata = { openai: { responseId: "resp-1" } };
+
   it.each([
     ["false", false],
     ["zero", 0],
@@ -587,6 +667,157 @@ describe("auiV0Decode", () => {
     }
   });
 
+  it("keeps tool-call artifact, model content, and provider metadata", () => {
+    const encoded = auiV0Encode(
+      toolCallMessage({
+        artifact,
+        modelContent: artifactModelContent,
+        providerMetadata,
+      }),
+    );
+
+    const toolCall = encoded.content.find((p) => p.type === "tool-call");
+    expect(toolCall).toMatchObject({
+      artifact,
+      modelContent: artifactModelContent,
+      providerMetadata,
+    });
+  });
+
+  it("restores tool-call artifact, model content, and provider metadata", () => {
+    const encoded = auiV0Encode(
+      toolCallMessage({
+        artifact,
+        modelContent: artifactModelContent,
+        providerMetadata,
+      }),
+    );
+    const { message } = auiV0Decode({
+      id: "m1",
+      parent_id: null,
+      format: "aui/v0",
+      content: encoded,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0Decode>[0]);
+
+    const toolCall = message.content.find((p) => p.type === "tool-call");
+    expect(toolCall).toMatchObject({
+      artifact,
+      modelContent: artifactModelContent,
+      providerMetadata,
+    });
+  });
+
+  it("omits a non-JSON tool-call artifact without dropping the result", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const encoded = auiV0Encode(
+        toolCallMessage({
+          artifact: { value: 1n },
+          result: { kept: true },
+        }),
+      );
+
+      const toolCall = encoded.content.find((p) => p.type === "tool-call");
+      expect(toolCall).not.toHaveProperty("artifact");
+      expect(toolCall).toHaveProperty("result", { kept: true });
+      expect(warn).toHaveBeenCalledWith(
+        "tool-call artifact is not JSON for call-1",
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("stores a non-finite number in an artifact as JSON does, as null", () => {
+    const encoded = auiV0Encode(
+      toolCallMessage({ artifact: { series: [1, Number.NaN], title: "Q3" } }),
+    );
+
+    const toolCall = encoded.content.find((p) => p.type === "tool-call");
+    expect(toolCall).toHaveProperty("artifact", {
+      series: [1, null],
+      title: "Q3",
+    });
+  });
+
+  it("stores a tool-call artifact as its JSON form, dropping undefined fields", () => {
+    const encoded = auiV0Encode(
+      toolCallMessage({ artifact: { chart: [1, 2], error: undefined } }),
+    );
+
+    const toolCall = encoded.content.find((p) => p.type === "tool-call");
+    expect(toolCall).toHaveProperty("artifact", { chart: [1, 2] });
+    expect(
+      (toolCall as { artifact?: Record<string, unknown> }).artifact,
+    ).not.toHaveProperty("error");
+  });
+
+  it("omits absent tool-call artifact, model content, and provider metadata", () => {
+    const encoded = auiV0Encode(toolCallMessage({}));
+
+    const toolCall = encoded.content.find((p) => p.type === "tool-call");
+    expect(toolCall).not.toHaveProperty("artifact");
+    expect(toolCall).not.toHaveProperty("modelContent");
+    expect(toolCall).not.toHaveProperty("providerMetadata");
+  });
+
+  it("stores and restores readable tool-call interactions", () => {
+    const unstable_interactions = {
+      entries: [
+        {
+          type: "action" as const,
+          occurredAt: 10,
+          payload: { $input: "approve" },
+        },
+        {
+          type: "human-response" as const,
+          occurredAt: 11,
+          payload: false,
+        },
+      ],
+    };
+    const encoded = auiV0Encode(toolCallMessage({ unstable_interactions }));
+
+    expect(encoded.content.find((p) => p.type === "tool-call")).toHaveProperty(
+      "unstable_interactions",
+      unstable_interactions,
+    );
+
+    const { message } = auiV0Decode({
+      id: "m1",
+      parent_id: null,
+      format: "aui/v0",
+      content: encoded,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0Decode>[0]);
+
+    expect(message.content.find((p) => p.type === "tool-call")).toHaveProperty(
+      "unstable_interactions",
+      unstable_interactions,
+    );
+  });
+
+  it("stores only readable tool-call interactions", () => {
+    const encoded = auiV0Encode(
+      toolCallMessage({
+        unstable_interactions: {
+          entries: [
+            { type: "human-response", occurredAt: 10, payload: "kept" },
+            { type: "unknown", occurredAt: 11, payload: "dropped" },
+          ],
+        },
+      }),
+    );
+
+    expect(encoded.content.find((p) => p.type === "tool-call")).toHaveProperty(
+      "unstable_interactions",
+      {
+        entries: [{ type: "human-response", occurredAt: 10, payload: "kept" }],
+      },
+    );
+  });
+
   it("carries a falsy tool-call result through a decode round trip", () => {
     const encoded = auiV0Encode(toolCallMessage({ result: false }));
     const { message } = auiV0Decode({
@@ -599,6 +830,114 @@ describe("auiV0Decode", () => {
 
     const toolCall = message.content.find((p) => p.type === "tool-call");
     expect(toolCall).toHaveProperty("result", false);
+  });
+
+  const modelContent = [
+    { type: "text" as const, text: "The report is ready." },
+    {
+      type: "file" as const,
+      data: "AAAA",
+      mediaType: "application/pdf",
+      filename: "report.pdf",
+    },
+  ];
+
+  it("keeps a tool-call modelContent distinct from its result across a decode round trip", () => {
+    const encoded = auiV0Encode(
+      toolCallMessage({ result: { blob: "x".repeat(16) }, modelContent }),
+    );
+    expect(encoded.content.find((p) => p.type === "tool-call")).toHaveProperty(
+      "modelContent",
+      modelContent,
+    );
+
+    const { message } = auiV0Decode({
+      id: "m1",
+      parent_id: null,
+      format: "aui/v0",
+      content: encoded,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0Decode>[0]);
+
+    const toolCall = message.content.find((p) => p.type === "tool-call");
+    expect(toolCall).toHaveProperty("result", { blob: "x".repeat(16) });
+    expect(toolCall).toHaveProperty("modelContent", modelContent);
+  });
+
+  it("keeps a tool-call modelContent through the safe decoder", () => {
+    const encoded = auiV0Encode(
+      toolCallMessage({ result: "ui blob", modelContent }),
+    );
+    const decoded = auiV0DecodeSafely({
+      id: "m1",
+      parent_id: null,
+      format: "aui/v0",
+      content: encoded,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0DecodeSafely>[0]);
+
+    const toolCall = decoded?.message.content.find(
+      (p) => p.type === "tool-call",
+    );
+    expect(toolCall).toHaveProperty("modelContent", modelContent);
+  });
+
+  it("keeps tool-call artifact and provider metadata through the safe decoder", () => {
+    const encoded = auiV0Encode(
+      toolCallMessage({
+        artifact,
+        modelContent: artifactModelContent,
+        providerMetadata,
+      }),
+    );
+    const decoded = auiV0DecodeSafely({
+      id: "m1",
+      parent_id: null,
+      format: "aui/v0",
+      content: encoded,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0DecodeSafely>[0]);
+
+    const toolCall = decoded?.message.content.find(
+      (p) => p.type === "tool-call",
+    );
+    expect(toolCall).toMatchObject({
+      artifact,
+      providerMetadata,
+    });
+  });
+
+  it("omits modelContent for a tool call that does not carry one", () => {
+    const encoded = auiV0Encode(toolCallMessage({ result: "plain" }));
+
+    expect(
+      encoded.content.find((p) => p.type === "tool-call"),
+    ).not.toHaveProperty("modelContent");
+  });
+
+  it("round-trips the preliminary marker on a tool-call result", () => {
+    const encoded = auiV0Encode(
+      toolCallMessage({ result: "interim", isPreliminary: true }),
+    );
+    const encodedToolCall = encoded.content.find((p) => p.type === "tool-call");
+    expect(encodedToolCall).toMatchObject({
+      result: "interim",
+      isPreliminary: true,
+    });
+
+    const { message } = auiV0Decode({
+      id: "m1",
+      parent_id: null,
+      format: "aui/v0",
+      content: encoded,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0Decode>[0]);
+
+    const decodedToolCall = message.content.find((p) => p.type === "tool-call");
+    expect(decodedToolCall).toMatchObject({
+      result: "interim",
+      isPreliminary: true,
+    });
   });
 
   it("round-trips data message parts, keeping repeated names in order", () => {
@@ -638,5 +977,377 @@ describe("auiV0Decode", () => {
       { type: "data", name: "PredictState", data: { steps: ["a"] } },
       { type: "data", name: "PredictState", data: '{"steps":["a","b"]}' },
     ]);
+  });
+
+  it("round-trips parent IDs and tool-call state", () => {
+    const content = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        { type: "text", text: "answer", parentId: "text-parent" },
+        {
+          type: "reasoning",
+          text: "thinking",
+          parentId: "reasoning-parent",
+        },
+        {
+          type: "source",
+          sourceType: "url",
+          id: "source-url",
+          url: "https://example.com",
+          parentId: "url-parent",
+        },
+        {
+          type: "source",
+          sourceType: "document",
+          id: "source-document",
+          title: "notes",
+          mediaType: "text/plain",
+          parentId: "document-parent",
+        },
+        {
+          type: "file",
+          data: "file-1",
+          mimeType: "application/pdf",
+          parentId: "file-parent",
+        },
+        {
+          type: "tool-call",
+          toolCallId: "tool-1",
+          toolName: "review",
+          args: { document: "proposal" },
+          argsText: '{"document":"proposal"}',
+          parentId: "tool-parent",
+          interrupt: { type: "human", payload: { question: "continue?" } },
+          timing: { startedAt: 10, completedAt: 20 },
+          mcp: {
+            app: { resourceUri: "ui://review", serverId: "server-1" },
+          },
+          messages: [
+            {
+              id: "nested",
+              createdAt: new Date("2026-03-15T00:00:00.000Z"),
+              role: "assistant",
+              status: { type: "complete", reason: "stop" },
+              metadata: {
+                unstable_state: null,
+                unstable_annotations: [],
+                unstable_data: [],
+                steps: [],
+                custom: {},
+              },
+              content: [
+                { type: "text", text: "nested", parentId: "nested-parent" },
+              ],
+            },
+          ],
+        },
+        {
+          type: "generative-ui",
+          id: "ui-1",
+          parentId: "ui-parent",
+          spec: { root: { component: "Card", props: { title: "Review" } } },
+        },
+      ],
+    });
+
+    expect(content.content).toEqual([
+      { type: "text", text: "answer", parentId: "text-parent" },
+      {
+        type: "reasoning",
+        text: "thinking",
+        parentId: "reasoning-parent",
+      },
+      {
+        type: "source",
+        sourceType: "url",
+        id: "source-url",
+        url: "https://example.com",
+        parentId: "url-parent",
+      },
+      {
+        type: "source",
+        sourceType: "document",
+        id: "source-document",
+        title: "notes",
+        mediaType: "text/plain",
+        parentId: "document-parent",
+      },
+      {
+        type: "file",
+        data: "file-1",
+        mimeType: "application/pdf",
+        parentId: "file-parent",
+      },
+      {
+        type: "tool-call",
+        toolCallId: "tool-1",
+        toolName: "review",
+        args: { document: "proposal" },
+        parentId: "tool-parent",
+        interrupt: { type: "human", payload: { question: "continue?" } },
+        timing: { startedAt: 10, completedAt: 20 },
+        mcp: {
+          app: { resourceUri: "ui://review", serverId: "server-1" },
+        },
+        messages: [
+          {
+            id: "nested",
+            createdAt: "2026-03-15T00:00:00.000Z",
+            role: "assistant",
+            status: { type: "complete", reason: "stop" },
+            metadata: {
+              unstable_state: null,
+              unstable_annotations: [],
+              unstable_data: [],
+              steps: [],
+              custom: {},
+            },
+            content: [
+              { type: "text", text: "nested", parentId: "nested-parent" },
+            ],
+          },
+        ],
+      },
+      {
+        type: "generative-ui",
+        id: "ui-1",
+        parentId: "ui-parent",
+        spec: { root: { component: "Card", props: { title: "Review" } } },
+      },
+    ]);
+
+    const decoded = auiV0Decode({
+      id: "cloud",
+      parent_id: null,
+      height: 0,
+      format: "aui/v0",
+      content: content as never,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+      updated_at: new Date("2026-03-15T00:00:00.000Z"),
+    });
+
+    if (decoded.message.role !== "assistant")
+      throw new Error("expected assistant");
+    expect(decoded.message.content).toEqual([
+      { type: "text", text: "answer", parentId: "text-parent" },
+      {
+        type: "reasoning",
+        text: "thinking",
+        parentId: "reasoning-parent",
+      },
+      {
+        type: "source",
+        sourceType: "url",
+        id: "source-url",
+        url: "https://example.com",
+        parentId: "url-parent",
+      },
+      {
+        type: "source",
+        sourceType: "document",
+        id: "source-document",
+        title: "notes",
+        mediaType: "text/plain",
+        parentId: "document-parent",
+      },
+      {
+        type: "file",
+        data: "file-1",
+        mimeType: "application/pdf",
+        parentId: "file-parent",
+      },
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "tool-1",
+        toolName: "review",
+        args: { document: "proposal" },
+        argsText: '{"document":"proposal"}',
+        parentId: "tool-parent",
+        interrupt: { type: "human", payload: { question: "continue?" } },
+        timing: { startedAt: 10, completedAt: 20 },
+        mcp: {
+          app: { resourceUri: "ui://review", serverId: "server-1" },
+        },
+        messages: [
+          expect.objectContaining({
+            id: "nested",
+            createdAt: new Date("2026-03-15T00:00:00.000Z"),
+            role: "assistant",
+            content: [
+              { type: "text", text: "nested", parentId: "nested-parent" },
+            ],
+          }),
+        ],
+      }),
+      {
+        type: "generative-ui",
+        id: "ui-1",
+        parentId: "ui-parent",
+        spec: { root: { component: "Card", props: { title: "Review" } } },
+      },
+    ]);
+  });
+
+  it("round-trips image filename and provider metadata", () => {
+    const content = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "user",
+      metadata: { custom: {} },
+      attachments: [],
+      content: [
+        {
+          type: "image",
+          image: "data:image/png;base64,iVBORw0KGgo=",
+          filename: "screenshot.png",
+          providerMetadata: { openai: { detail: "high" } },
+        },
+      ],
+    });
+
+    expect(content.content).toEqual([
+      {
+        type: "image",
+        image: "data:image/png;base64,iVBORw0KGgo=",
+        filename: "screenshot.png",
+        providerMetadata: { openai: { detail: "high" } },
+      },
+    ]);
+
+    const decoded = auiV0Decode({
+      id: "cloud",
+      parent_id: null,
+      height: 0,
+      format: "aui/v0",
+      content: content as never,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+      updated_at: new Date("2026-03-15T00:00:00.000Z"),
+    });
+
+    if (decoded.message.role !== "user") throw new Error("expected user");
+    expect(decoded.message.content).toEqual([
+      {
+        type: "image",
+        image: "data:image/png;base64,iVBORw0KGgo=",
+        filename: "screenshot.png",
+        providerMetadata: { openai: { detail: "high" } },
+      },
+    ]);
+  });
+
+  it("round-trips text provider metadata", () => {
+    const content = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        {
+          type: "text",
+          text: "answer",
+          providerMetadata: { anthropic: { signature: "sig-1" } },
+        },
+      ],
+    });
+
+    expect(content.content).toEqual([
+      {
+        type: "text",
+        text: "answer",
+        providerMetadata: { anthropic: { signature: "sig-1" } },
+      },
+    ]);
+
+    const decoded = auiV0Decode({
+      id: "cloud",
+      parent_id: null,
+      height: 0,
+      format: "aui/v0",
+      content: content as never,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+      updated_at: new Date("2026-03-15T00:00:00.000Z"),
+    });
+
+    if (decoded.message.role !== "assistant")
+      throw new Error("expected assistant");
+    expect(decoded.message.content).toEqual([
+      {
+        type: "text",
+        text: "answer",
+        providerMetadata: { anthropic: { signature: "sig-1" } },
+      },
+    ]);
+  });
+
+  it("keeps audio message and attachment parts as audio", () => {
+    const content = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "user",
+      metadata: { custom: {} },
+      content: [
+        {
+          type: "audio",
+          audio: { data: "SUQzAw==", format: "mp3" },
+        },
+      ],
+      attachments: [
+        {
+          id: "attachment",
+          type: "file",
+          name: "recording",
+          status: { type: "complete" },
+          content: [
+            {
+              type: "audio",
+              audio: { data: "data:audio/wav;base64,UklGRg==", format: "wav" },
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(content.content).toEqual([
+      { type: "audio", audio: { data: "SUQzAw==", format: "mp3" } },
+    ]);
+    expect(content.attachments?.[0]?.content).toEqual([
+      {
+        type: "audio",
+        audio: { data: "data:audio/wav;base64,UklGRg==", format: "wav" },
+      },
+    ]);
+
+    const decoded = auiV0Decode({
+      id: "cloud",
+      parent_id: null,
+      height: 0,
+      format: "aui/v0",
+      content: content as never,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+      updated_at: new Date("2026-03-15T00:00:00.000Z"),
+    });
+
+    if (decoded.message.role !== "user") throw new Error("expected user");
+    expect(decoded.message.content).toEqual(content.content);
+    expect(decoded.message.attachments[0]?.content).toEqual(
+      content.attachments?.[0]?.content,
+    );
   });
 });

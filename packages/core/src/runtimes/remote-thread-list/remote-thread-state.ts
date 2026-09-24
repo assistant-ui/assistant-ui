@@ -274,16 +274,133 @@ export const getThreadData = (
     : undefined;
 };
 
-export const updateStatusReducer = (
+export const reconcileInitializedThread = (
+  state: RemoteThreadState,
+  threadId: string,
+  remoteId: string,
+  externalId: string | undefined,
+  retainedThreadId?: string,
+): {
+  state: RemoteThreadState;
+  removedMappingId: THREAD_MAPPING_ID | undefined;
+  survivorMappingId: THREAD_MAPPING_ID;
+} => {
+  const mappingId = createThreadMappingId(threadId);
+  const data = Object.hasOwn(state.threadData, mappingId)
+    ? state.threadData[mappingId]
+    : undefined;
+  if (!data) {
+    return { state, removedMappingId: undefined, survivorMappingId: mappingId };
+  }
+
+  // A concurrent list cannot associate the remote ID with this initializing
+  // slot and may mint a duplicate. Retain the slot whose mounted runtime owns
+  // local state; initialized metadata remains authoritative over list metadata.
+  const listedMappingId = Object.hasOwn(state.threadIdMap, remoteId)
+    ? state.threadIdMap[remoteId]
+    : undefined;
+  const listedData =
+    listedMappingId !== undefined &&
+    listedMappingId !== mappingId &&
+    Object.hasOwn(state.threadData, listedMappingId)
+      ? state.threadData[listedMappingId]
+      : undefined;
+  const listedSlot =
+    listedMappingId !== undefined && listedData !== undefined
+      ? { mappingId: listedMappingId, data: listedData }
+      : undefined;
+  const retainedMappingId =
+    retainedThreadId !== undefined &&
+    Object.hasOwn(state.threadIdMap, retainedThreadId)
+      ? state.threadIdMap[retainedThreadId]
+      : undefined;
+  const survivorMappingId =
+    listedSlot !== undefined && retainedMappingId === listedSlot.mappingId
+      ? listedSlot.mappingId
+      : mappingId;
+  const removedMappingId =
+    listedSlot === undefined
+      ? undefined
+      : survivorMappingId === mappingId
+        ? listedSlot.mappingId
+        : mappingId;
+  const resolvedExternalId = externalId ?? listedSlot?.data.externalId;
+  const threadData = nullProtoRecord(state.threadData);
+  if (removedMappingId !== undefined) delete threadData[removedMappingId];
+  const initializedData = {
+    ...data,
+    id: survivorMappingId,
+    initializeTask: Promise.resolve({
+      remoteId,
+      externalId: resolvedExternalId,
+    }),
+    remoteId,
+    externalId: resolvedExternalId,
+  } as RemoteThreadData;
+  threadData[survivorMappingId] = {
+    ...listedSlot?.data,
+    ...initializedData,
+    title: data.title ?? listedSlot?.data.title,
+    lastMessageAt:
+      ("lastMessageAt" in data ? data.lastMessageAt : undefined) ??
+      (listedSlot && "lastMessageAt" in listedSlot.data
+        ? listedSlot.data.lastMessageAt
+        : undefined),
+    custom: data.custom ?? listedSlot?.data.custom,
+  } as RemoteThreadData;
+
+  const threadIdMap = nullProtoRecord(state.threadIdMap);
+  if (removedMappingId !== undefined) {
+    for (const [id, target] of Object.entries(threadIdMap)) {
+      if (target === removedMappingId) threadIdMap[id] = survivorMappingId;
+    }
+  }
+  threadIdMap[threadId] = survivorMappingId;
+  threadIdMap[remoteId] = survivorMappingId;
+
+  const rewire = (ids: readonly string[]) =>
+    listedSlot === undefined
+      ? ids
+      : ids
+          .filter((id) => id !== listedSlot.data.id)
+          .map((id) => (id === data.id ? survivorMappingId : id));
+
+  return {
+    state: {
+      ...state,
+      threadIds: rewire(state.threadIds),
+      archivedThreadIds: rewire(state.archivedThreadIds),
+      threadIdMap,
+      threadData,
+    },
+    removedMappingId,
+    survivorMappingId,
+  };
+};
+
+const transitionReducer = (
   state: RemoteThreadState,
   threadIdOrRemoteId: string,
   newStatus: "regular" | "archived" | "deleted",
+  initializeTask: Promise<RemoteThreadInitializeResponse> | undefined,
 ) => {
   const data = getThreadData(state, threadIdOrRemoteId);
   if (!data) return state;
 
   const { id, status: lastStatus } = data;
   if (lastStatus === newStatus) return state;
+
+  let nextData: RemoteThreadData | undefined;
+  if (newStatus !== "deleted") {
+    if (data.status === "new") {
+      // The new variant holds no initialization promise, so the destination
+      // union member cannot be built unless the caller supplies one.
+      if (initializeTask === undefined) return state;
+      nextData = { ...data, initializeTask, status: newStatus };
+    } else {
+      nextData = { ...data, status: newStatus };
+    }
+  }
 
   const newState = { ...state };
 
@@ -336,15 +453,31 @@ export const updateStatusReducer = (
     }
   }
 
-  if (newStatus !== "deleted") {
-    newState.threadData = {
-      ...newState.threadData,
-      [id]: {
-        ...data,
-        status: newStatus,
-      },
-    };
+  if (nextData !== undefined) {
+    newState.threadData = { ...newState.threadData, [id]: nextData };
   }
 
   return newState;
 };
+
+/**
+ * Transitions a thread that already exists remotely. Promoting the local draft
+ * off `new` needs the initialization promise its destination variant requires,
+ * so that goes through `promoteNewThreadReducer`; asking for it here leaves the
+ * state unchanged.
+ */
+export const updateStatusReducer = (
+  state: RemoteThreadState,
+  threadIdOrRemoteId: string,
+  newStatus: "regular" | "archived" | "deleted",
+) => transitionReducer(state, threadIdOrRemoteId, newStatus, undefined);
+
+/**
+ * Promotes the local draft to `regular`, carrying the initialization promise
+ * onto the slot.
+ */
+export const promoteNewThreadReducer = (
+  state: RemoteThreadState,
+  threadIdOrRemoteId: string,
+  initializeTask: Promise<RemoteThreadInitializeResponse>,
+) => transitionReducer(state, threadIdOrRemoteId, "regular", initializeTask);

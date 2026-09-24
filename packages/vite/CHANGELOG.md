@@ -1,5 +1,28 @@
 # @assistant-ui/vite
 
+## 0.0.19
+
+### Patch Changes
+
+- Updated dependencies [[`407a0ff`](https://github.com/assistant-ui/assistant-ui/commit/407a0ff8ad7aee137b841a5474e188790c9a7ce4)]:
+  - @assistant-ui/x-generative-compiler@0.0.19
+
+## 0.0.18
+
+### Patch Changes
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc)]:
+  - @assistant-ui/x-generative-compiler@0.0.18
+
+## 0.0.17
+
+### Patch Changes
+
+- [#6993](https://github.com/assistant-ui/assistant-ui/pull/6993) [`91689ab`](https://github.com/assistant-ui/assistant-ui/commit/91689ab92fa8ccaecff463c6fdc3e6a666bf93e5) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`91689ab`](https://github.com/assistant-ui/assistant-ui/commit/91689ab92fa8ccaecff463c6fdc3e6a666bf93e5), [`da3ac39`](https://github.com/assistant-ui/assistant-ui/commit/da3ac399c040771415eb17c58dcac0eada7f9b02)]:
+  - @assistant-ui/x-generative-compiler@0.0.17
+
 ## 0.0.16
 
 ### Patch Changes

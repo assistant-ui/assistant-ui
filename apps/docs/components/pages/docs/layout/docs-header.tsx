@@ -15,20 +15,23 @@ import { useDocsSidebar } from "@/components/pages/docs/contexts/sidebar";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { HeaderBrandLink } from "@/components/shared/header-brand-link";
+import { CartButton } from "@/components/shared/shop-entry";
 import { headerBarClassName } from "@/components/shared/header-chrome";
 import { useScrolled } from "@/hooks/use-scrolled";
 import { analytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { usePlatform } from "@/components/pages/docs/platform/context";
+import { PlatformSwitcher } from "@/components/pages/docs/platform/switcher";
 import {
   buildPlatformSections,
   findPathToNode,
+  getPlatformHomeUrl,
 } from "@/components/pages/docs/platform/tree";
 
 interface DocsHeaderProps {
   section: string;
   sectionHref: string;
-  mobileSectionTree?: PageTree.Root | undefined;
+  tree: PageTree.Root;
 }
 
 function AskAIButton() {
@@ -125,11 +128,7 @@ function MobileSectionBreadcrumb({
   );
 }
 
-export function DocsHeader({
-  section,
-  sectionHref,
-  mobileSectionTree,
-}: DocsHeaderProps) {
+export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
   const { setOpenSearch } = useSearchContext();
   const {
     open: sidebarOpen,
@@ -138,6 +137,11 @@ export function DocsHeader({
   } = useDocsSidebar();
   const [navMenuOpen, setNavMenuOpen] = useState(false);
   const scrolled = useScrolled();
+  const { platform } = usePlatform();
+  const homeHref = useMemo(
+    () => getPlatformHomeUrl(tree, platform) ?? sectionHref,
+    [tree, platform, sectionHref],
+  );
 
   const sectionFilter = (item: (typeof NAV_ITEMS)[number]) =>
     item.type !== "link" || item.href !== sectionHref;
@@ -171,33 +175,25 @@ export function DocsHeader({
         >
           <div className="flex min-w-0 flex-1 items-center">
             <HeaderBrandLink labelClassName="hidden sm:inline" />
-            <span
-              className={cn(
-                "text-muted-foreground/40 mx-3",
-                mobileSectionTree && "max-md:hidden",
-              )}
-            >
+            <span className="text-muted-foreground/40 mx-3 max-md:hidden">
               /
             </span>
             <Link
-              href={sectionHref}
-              className={cn(
-                "text-foreground hover:text-foreground/80 text-sm font-medium transition-colors",
-                mobileSectionTree && "max-md:hidden",
-              )}
+              href={homeHref}
+              className="text-foreground hover:text-foreground/80 text-sm font-medium transition-colors max-md:hidden"
             >
               {section}
             </Link>
-            {mobileSectionTree && (
-              <MobileSectionBreadcrumb
-                tree={mobileSectionTree}
-                section={section}
-              />
-            )}
+            <span className="flex items-center max-lg:hidden">
+              <span className="text-muted-foreground mx-1.5 text-sm">for</span>
+              <PlatformSwitcher tree={tree} />
+            </span>
+            <MobileSectionBreadcrumb tree={tree} section={section} />
           </div>
 
           {/* Mobile controls */}
           <div className="ml-auto flex shrink-0 items-center gap-1 md:hidden">
+            <CartButton />
             <AskAIButton />
             <button
               type="button"
@@ -239,6 +235,7 @@ export function DocsHeader({
           {/* Condensed nav: md to lg */}
           <div className="ml-auto hidden items-center gap-4 md:flex lg:hidden">
             <div className="flex items-center gap-2">
+              <CartButton />
               <AskAIButton />
               <button
                 type="button"
@@ -280,6 +277,7 @@ export function DocsHeader({
           {/* Full nav: lg+ */}
           <div className="ml-auto hidden items-center gap-4 lg:flex">
             <div className="flex min-w-0 items-center gap-2">
+              <CartButton />
               <AskAIButton />
               <HeaderSearch />
             </div>

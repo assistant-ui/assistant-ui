@@ -1,18 +1,40 @@
 import type {
   MessageStatus,
+  PartProviderMetadata,
   SourceProviderMetadata,
   ThreadMessage,
+  ToolCallMessagePartMcpMetadata,
+  ToolCallTiming,
   ToolApprovalDisplay,
   ToolApprovalOption,
+  ReasoningMessagePart,
+  TextMessagePart,
+  ImageMessagePart,
+  FileMessagePart,
+  Unstable_ToolInteractionLog,
 } from "../../../types/message";
 import type { CompleteAttachment } from "../../../types/attachment";
-import { fromThreadMessageLike } from "../../../runtime/utils/thread-message-like";
+import {
+  fromThreadMessageLike,
+  type ThreadMessageLike,
+} from "../../../runtime/utils/thread-message-like";
+import { readToolInteractionLog } from "../../../runtime/utils/tool-interactions";
 import type { CloudMessage } from "assistant-cloud";
-import { isJSONValue } from "../../../utils/json/is-json";
+import { isJSONValue, isRecord } from "../../../utils/json/is-json";
+import {
+  MAX_STORED_MESSAGE_DEPTH,
+  isStoredAuiV0RolePart,
+  isStoredMessageStatus,
+  isStoredMessageRole,
+  parseStoredAttachment,
+  parseStoredDate,
+  parseStoredThreadSteps,
+} from "../../../runtime/utils/stored-message-parts";
 import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
 } from "assistant-stream/utils";
+import type { ToolModelContentPart } from "assistant-stream";
 import type { ExportedMessageRepositoryItem } from "../../../runtime/utils/message-repository";
 
 type AuiV0ToolApproval = {
@@ -20,6 +42,7 @@ type AuiV0ToolApproval = {
   readonly prompt?: string;
   readonly display?: ToolApprovalDisplay;
   readonly allowFreeform?: boolean;
+  readonly dismissible?: boolean;
   readonly approved?: boolean;
   readonly reason?: string;
   readonly isAutomatic?: boolean;
@@ -33,11 +56,19 @@ type AuiV0MessagePart =
   | {
       readonly type: "text";
       readonly text: string;
+      readonly providerMetadata?: NonNullable<
+        TextMessagePart["providerMetadata"]
+      >;
+      readonly parentId?: string;
     }
   | {
       readonly type: "reasoning";
       readonly text: string;
       readonly unstable_summary?: string;
+      readonly providerMetadata?: NonNullable<
+        ReasoningMessagePart["providerMetadata"]
+      >;
+      readonly parentId?: string;
     }
   | {
       readonly type: "source";
@@ -46,6 +77,7 @@ type AuiV0MessagePart =
       readonly url: string;
       readonly title?: string;
       readonly providerMetadata?: SourceProviderMetadata;
+      readonly parentId?: string;
     }
   | {
       readonly type: "source";
@@ -55,28 +87,17 @@ type AuiV0MessagePart =
       readonly mediaType: string;
       readonly filename?: string;
       readonly providerMetadata?: SourceProviderMetadata;
+      readonly parentId?: string;
     }
-  | {
-      readonly type: "tool-call";
-      readonly toolCallId: string;
-      readonly toolName: string;
-      readonly args: ReadonlyJSONObject;
-      readonly result?: ReadonlyJSONValue;
-      readonly isError?: true;
-      readonly approval?: AuiV0ToolApproval;
-    }
-  | {
-      readonly type: "tool-call";
-      readonly toolCallId: string;
-      readonly toolName: string;
-      readonly argsText: string;
-      readonly result?: ReadonlyJSONValue;
-      readonly isError?: true;
-      readonly approval?: AuiV0ToolApproval;
-    }
+  | (AuiV0ToolCallPart &
+      ({ readonly args: ReadonlyJSONObject } | { readonly argsText: string }))
   | {
       readonly type: "image";
       readonly image: string;
+      readonly filename?: string;
+      readonly providerMetadata?: NonNullable<
+        ImageMessagePart["providerMetadata"]
+      >;
     }
   | {
       readonly type: "file";
@@ -84,22 +105,68 @@ type AuiV0MessagePart =
       readonly mimeType: string;
       readonly filename?: string;
       readonly sourceType?: "url" | "id";
+      readonly providerMetadata?: NonNullable<
+        FileMessagePart["providerMetadata"]
+      >;
+      readonly parentId?: string;
     }
   | {
       readonly type: "data";
       readonly name: string;
       readonly data: ReadonlyJSONValue;
+    }
+  | {
+      readonly type: "audio";
+      readonly audio: {
+        readonly data: string;
+        readonly format: "mp3" | "wav";
+      };
+    }
+  | {
+      readonly type: "generative-ui";
+      readonly spec: ReadonlyJSONObject;
+      readonly id?: string;
+      readonly parentId?: string;
     };
+
+type AuiV0ToolCallPart = {
+  readonly type: "tool-call";
+  readonly toolCallId: string;
+  readonly toolName: string;
+  readonly result?: ReadonlyJSONValue;
+  readonly artifact?: ReadonlyJSONValue;
+  readonly modelContent?: readonly ToolModelContentPart[];
+  readonly providerMetadata?: PartProviderMetadata;
+  readonly isPreliminary?: true;
+  readonly isError?: true;
+  readonly interrupt?: {
+    readonly type: "human";
+    readonly payload: ReadonlyJSONValue;
+  };
+  readonly timing?: ToolCallTiming;
+  readonly mcp?: ToolCallMessagePartMcpMetadata;
+  readonly approval?: AuiV0ToolApproval;
+  readonly parentId?: string;
+  readonly messages?: readonly AuiV0Message[];
+  readonly unstable_interactions?: Unstable_ToolInteractionLog;
+};
 
 type AuiV0AttachmentPart =
   | {
       readonly type: "text";
       readonly text: string;
+      readonly providerMetadata?: NonNullable<
+        TextMessagePart["providerMetadata"]
+      >;
+      readonly parentId?: string;
     }
   | {
       readonly type: "image";
       readonly image: string;
       readonly filename?: string;
+      readonly providerMetadata?: NonNullable<
+        ImageMessagePart["providerMetadata"]
+      >;
     }
   | {
       readonly type: "file";
@@ -107,6 +174,10 @@ type AuiV0AttachmentPart =
       readonly mimeType: string;
       readonly filename?: string;
       readonly sourceType?: "url" | "id";
+      readonly providerMetadata?: NonNullable<
+        FileMessagePart["providerMetadata"]
+      >;
+      readonly parentId?: string;
     }
   | {
       readonly type: "audio";
@@ -131,6 +202,8 @@ type AuiV0Attachment = {
 };
 
 type AuiV0Message = {
+  readonly id?: string;
+  readonly createdAt?: string;
   readonly role: "assistant" | "user" | "system";
   readonly status?: MessageStatus;
   readonly content: readonly AuiV0MessagePart[];
@@ -155,13 +228,25 @@ const encodeAttachmentPart = (
   const type = part.type;
   switch (type) {
     case "text":
-      return { type: "text", text: part.text };
+      return {
+        type: "text",
+        text: part.text,
+        ...(part.providerMetadata !== undefined
+          ? { providerMetadata: part.providerMetadata }
+          : undefined),
+        ...(part.parentId !== undefined
+          ? { parentId: part.parentId }
+          : undefined),
+      };
 
     case "image":
       return {
         type: "image",
         image: part.image,
         ...(part.filename != null ? { filename: part.filename } : undefined),
+        ...(part.providerMetadata !== undefined
+          ? { providerMetadata: part.providerMetadata }
+          : undefined),
       };
 
     case "file":
@@ -172,6 +257,12 @@ const encodeAttachmentPart = (
         ...(part.filename != null ? { filename: part.filename } : undefined),
         ...(part.sourceType != null
           ? { sourceType: part.sourceType }
+          : undefined),
+        ...(part.providerMetadata != null
+          ? { providerMetadata: part.providerMetadata }
+          : undefined),
+        ...(part.parentId !== undefined
+          ? { parentId: part.parentId }
           : undefined),
       };
 
@@ -220,6 +311,67 @@ const encodeAttachments = (
   );
 };
 
+const serializableArtifact = (
+  artifact: unknown,
+): ReadonlyJSONValue | undefined => {
+  if (artifact === undefined) return undefined;
+  try {
+    const serialized = JSON.stringify(artifact);
+    return serialized === undefined ? undefined : JSON.parse(serialized);
+  } catch {
+    return undefined;
+  }
+};
+
+// Diagnostic only: names the data JSON.stringify silently loses (Map and Set
+// entries, symbol-keyed or non-enumerable own data, extra array properties,
+// undefined, functions, non-finite numbers). A wrapper that keeps its data
+// behind prototype getters or a Map from another realm has no own keys and is
+// indistinguishable from an empty object here, so it passes exactly as it does
+// on main.
+const hasLosslessJSONShape = (value: unknown, depth = 0): boolean => {
+  if (depth > 100) return false;
+  if (value === undefined || typeof value === "function") return false;
+  if (typeof value === "number") return Number.isFinite(value);
+  if (typeof value !== "object" || value === null) return true;
+  // A toJSON is the value's own serializer, so whatever it emits is intended.
+  if (typeof (value as { toJSON?: unknown }).toJSON === "function") return true;
+  if ((value instanceof Map || value instanceof Set) && value.size > 0) {
+    return false;
+  }
+
+  if (Array.isArray(value)) {
+    if (Reflect.ownKeys(value).length !== value.length + 1) return false;
+    for (let index = 0; index < value.length; index++) {
+      if (
+        !Object.hasOwn(value, index) ||
+        !hasLosslessJSONShape(value[index], depth + 1)
+      ) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  return Reflect.ownKeys(value).every(
+    (key) =>
+      typeof key === "string" &&
+      Object.getOwnPropertyDescriptor(value, key)?.enumerable === true &&
+      hasLosslessJSONShape((value as Record<string, unknown>)[key], depth + 1),
+  );
+};
+
+// Reading a getter a second time can throw where JSON.stringify's read did
+// not; a diagnostic that throws is reported as loss rather than failing the
+// write.
+const losesDataInJSON = (value: unknown): boolean => {
+  try {
+    return !hasLosslessJSONShape(value);
+  } catch {
+    return true;
+  }
+};
+
 export function auiV0Encode(message: ThreadMessage): AuiV0Message {
   // info: ID and createdAt are ignored (we use the server value instead)
   const status: MessageStatus | undefined =
@@ -234,7 +386,16 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
       const type = part.type;
       switch (type) {
         case "text":
-          return { type: "text", text: part.text };
+          return {
+            type: "text",
+            text: part.text,
+            ...(part.providerMetadata !== undefined
+              ? { providerMetadata: part.providerMetadata }
+              : undefined),
+            ...(part.parentId !== undefined
+              ? { parentId: part.parentId }
+              : undefined),
+          };
 
         case "reasoning":
           return {
@@ -242,6 +403,12 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
             text: part.text,
             ...(part.unstable_summary !== undefined
               ? { unstable_summary: part.unstable_summary }
+              : undefined),
+            ...(part.providerMetadata !== undefined
+              ? { providerMetadata: part.providerMetadata }
+              : undefined),
+            ...(part.parentId !== undefined
+              ? { parentId: part.parentId }
               : undefined),
           };
 
@@ -255,6 +422,9 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
               ...(part.title != null ? { title: part.title } : undefined),
               ...(part.providerMetadata != null
                 ? { providerMetadata: part.providerMetadata }
+                : undefined),
+              ...(part.parentId !== undefined
+                ? { parentId: part.parentId }
                 : undefined),
             };
           }
@@ -271,14 +441,35 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
             ...(part.providerMetadata != null
               ? { providerMetadata: part.providerMetadata }
               : undefined),
+            ...(part.parentId !== undefined
+              ? { parentId: part.parentId }
+              : undefined),
           };
 
         case "tool-call": {
-          if (part.result !== undefined && !isJSONValue(part.result)) {
+          // Persisting what JSON can carry keeps the tool call answered on
+          // reload; a part with no result is rejected by providers as an
+          // unanswered call, which is worse than a hollowed-out result.
+          const result = serializableArtifact(part.result);
+          if (
+            part.result !== undefined &&
+            (result === undefined || losesDataInJSON(part.result))
+          ) {
             console.warn(
-              `tool-call result is not JSON! ${JSON.stringify(part)}`,
+              result === undefined
+                ? `tool-call result for ${part.toolCallId} cannot be serialized as JSON; omitted`
+                : `tool-call result for ${part.toolCallId} loses data in JSON; persisted as its JSON form`,
             );
           }
+          const artifact = serializableArtifact(part.artifact);
+          if (part.artifact !== undefined && artifact === undefined) {
+            console.warn(
+              `tool-call artifact is not JSON for ${part.toolCallId}`,
+            );
+          }
+          const interactions = readToolInteractionLog(
+            part.unstable_interactions,
+          );
           return {
             type: "tool-call",
             toolCallId: part.toolCallId,
@@ -286,16 +477,52 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
             ...(JSON.stringify(part.args) === part.argsText
               ? { args: part.args }
               : { argsText: part.argsText }),
-            ...(part.result !== undefined
-              ? { result: part.result as ReadonlyJSONValue }
+            ...(result !== undefined ? { result } : undefined),
+            ...(artifact !== undefined ? { artifact } : undefined),
+            ...(part.modelContent !== undefined
+              ? { modelContent: part.modelContent }
               : undefined),
+            ...(part.providerMetadata !== undefined
+              ? { providerMetadata: part.providerMetadata }
+              : undefined),
+            ...(part.isPreliminary ? { isPreliminary: true } : undefined),
             ...(part.isError ? { isError: true } : undefined),
+            ...(part.interrupt !== undefined
+              ? {
+                  interrupt: {
+                    type: part.interrupt.type,
+                    payload: part.interrupt.payload as ReadonlyJSONValue,
+                  },
+                }
+              : undefined),
+            ...(part.timing !== undefined
+              ? { timing: part.timing }
+              : undefined),
+            ...(part.mcp !== undefined ? { mcp: part.mcp } : undefined),
             ...(part.approval ? { approval: part.approval } : undefined),
+            ...(part.parentId !== undefined
+              ? { parentId: part.parentId }
+              : undefined),
+            ...(part.messages !== undefined
+              ? { messages: part.messages.map(encodeNestedMessage) }
+              : undefined),
+            ...(interactions !== undefined
+              ? { unstable_interactions: interactions }
+              : undefined),
           };
         }
 
         case "image":
-          return { type: "image", image: part.image };
+          return {
+            type: "image",
+            image: part.image,
+            ...(part.filename != null
+              ? { filename: part.filename }
+              : undefined),
+            ...(part.providerMetadata != null
+              ? { providerMetadata: part.providerMetadata }
+              : undefined),
+          };
 
         case "file":
           return {
@@ -304,6 +531,12 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
             mimeType: part.mimeType,
             ...(part.filename ? { filename: part.filename } : undefined),
             ...(part.sourceType ? { sourceType: part.sourceType } : undefined),
+            ...(part.providerMetadata != null
+              ? { providerMetadata: part.providerMetadata }
+              : undefined),
+            ...(part.parentId !== undefined
+              ? { parentId: part.parentId }
+              : undefined),
           };
 
         case "data": {
@@ -317,8 +550,24 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
           };
         }
 
+        case "audio":
+          return {
+            type: "audio",
+            audio: { data: part.audio.data, format: part.audio.format },
+          };
+
+        case "generative-ui":
+          return {
+            type: "generative-ui",
+            spec: part.spec as unknown as ReadonlyJSONObject,
+            ...(part.id !== undefined ? { id: part.id } : undefined),
+            ...(part.parentId !== undefined
+              ? { parentId: part.parentId }
+              : undefined),
+          };
+
         default: {
-          const unhandledType: "audio" | "generative-ui" = type;
+          const unhandledType: never = type;
           throw new Error(
             `Message part type not supported by aui/v0: ${unhandledType}`,
           );
@@ -331,18 +580,133 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
   };
 }
 
+const readableAuiV0Parts = (
+  role: AuiV0Message["role"],
+  content: readonly unknown[],
+  depth: number,
+): AuiV0MessagePart[] =>
+  content.flatMap((part) => {
+    if (!isStoredAuiV0RolePart(role, part)) return [];
+    if (part.type !== "tool-call" || part.messages === undefined)
+      return [part as unknown as AuiV0MessagePart];
+
+    const { messages, ...toolCall } = part;
+    if (!Array.isArray(messages) || depth >= MAX_STORED_MESSAGE_DEPTH)
+      return [toolCall as unknown as AuiV0MessagePart];
+    return [
+      {
+        ...toolCall,
+        messages: messages.flatMap((message) => {
+          const nested = readableAuiV0Message(message, depth + 1);
+          return nested ? [nested] : [];
+        }),
+      } as unknown as AuiV0MessagePart,
+    ];
+  });
+
+const readableAuiV0Attachments = (
+  attachments: readonly unknown[],
+): AuiV0Attachment[] =>
+  attachments.flatMap((attachment) => {
+    const parsed = parseStoredAttachment(attachment, (value) =>
+      isStoredAuiV0RolePart("user", value),
+    );
+    return parsed ? [parsed as unknown as AuiV0Attachment] : [];
+  });
+
+const readableAuiV0Message = (
+  value: unknown,
+  depth: number,
+): AuiV0Message | null => {
+  if (
+    !isRecord(value) ||
+    !isStoredMessageRole(value.role) ||
+    !Array.isArray(value.content)
+  ) {
+    return null;
+  }
+
+  const { role } = value;
+  const content = readableAuiV0Parts(role, value.content, depth);
+  // fromThreadMessageLike takes a system row only with exactly one text part,
+  // so one that no longer matches after filtering is dropped here rather than
+  // costing the row or the tool call that carries it.
+  if (role === "system" && content.length !== 1) return null;
+
+  const { attachments, createdAt, status, metadata, ...rest } = value;
+  // decodeAuiV0Message turns a nested createdAt into a Date without checking
+  // it, and encodeNestedMessage later calls toISOString on the result, so an
+  // unparseable one would reject the next write to the message that holds it.
+  // Dropping the field falls back to the parent's timestamp.
+  const storedCreatedAt = parseStoredDate(createdAt);
+  const readableMetadata = !isRecord(metadata)
+    ? metadata
+    : role === "assistant"
+      ? { ...metadata, steps: parseStoredThreadSteps(metadata.steps) }
+      : { ...metadata, steps: undefined };
+
+  return {
+    ...rest,
+    ...(storedCreatedAt ? { createdAt } : undefined),
+    // fromThreadMessageLike throws on a status, a metadata.steps or an
+    // attachments list carried by a row whose role cannot hold one, and
+    // auiV0Encode only ever writes each onto the role that can, so dropping a
+    // misplaced field costs no valid data and saves the row.
+    ...(role === "assistant" && isStoredMessageStatus(status)
+      ? { status }
+      : undefined),
+    ...(metadata !== undefined ? { metadata: readableMetadata } : undefined),
+    content,
+    ...(role === "user" && Array.isArray(attachments)
+      ? { attachments: readableAuiV0Attachments(attachments) }
+      : undefined),
+  } as unknown as AuiV0Message;
+};
+
+/**
+ * Decodes a stored row, dropping the parts, attachments and nested messages
+ * that cannot be read back instead of rejecting the row, and returning null
+ * when the row itself is unreadable. Loading a thread must not fail because a
+ * single stored row is malformed.
+ */
+export function auiV0DecodeSafely(
+  cloudMessage: CloudMessage & { format: "aui/v0" },
+): ExportedMessageRepositoryItem | null {
+  try {
+    const payload = readableAuiV0Message(cloudMessage.content, 0);
+    if (!payload) throw new Error("stored row is not an aui/v0 message");
+
+    return {
+      parentId: cloudMessage.parent_id,
+      message: decodeAuiV0Message(
+        {
+          ...payload,
+          id: cloudMessage.id,
+          createdAt: cloudMessage.created_at,
+        },
+        cloudMessage.id,
+      ),
+    };
+  } catch (error) {
+    console.warn(
+      `aui/v0: dropping unreadable message ${cloudMessage.id}`,
+      error,
+    );
+    return null;
+  }
+}
+
 export function auiV0Decode(
   cloudMessage: CloudMessage & { format: "aui/v0" },
 ): ExportedMessageRepositoryItem {
   const payload = cloudMessage.content as unknown as AuiV0Message;
-  const message = fromThreadMessageLike(
+  const message = decodeAuiV0Message(
     {
+      ...payload,
       id: cloudMessage.id,
       createdAt: cloudMessage.created_at,
-      ...payload,
     },
     cloudMessage.id,
-    { type: "complete", reason: "unknown" },
   );
 
   return {
@@ -350,3 +714,43 @@ export function auiV0Decode(
     message,
   };
 }
+
+const encodeNestedMessage = (message: ThreadMessage): AuiV0Message => ({
+  ...auiV0Encode(message),
+  id: message.id,
+  createdAt: message.createdAt.toISOString(),
+});
+
+const decodeAuiV0Message = (
+  payload: Omit<AuiV0Message, "createdAt"> & {
+    readonly createdAt?: Date | undefined;
+  },
+  fallbackId: string,
+): ThreadMessage =>
+  fromThreadMessageLike(
+    {
+      ...payload,
+      content: payload.content.map((part, index) => {
+        if (part.type !== "tool-call" || part.messages === undefined)
+          return part;
+        return {
+          ...part,
+          messages: part.messages.map((message, nestedIndex) =>
+            decodeAuiV0Message(
+              {
+                ...message,
+                createdAt:
+                  message.createdAt !== undefined
+                    ? new Date(message.createdAt)
+                    : payload.createdAt,
+              },
+              message.id ??
+                `${fallbackId}-${part.toolCallId}-${index}-${nestedIndex}`,
+            ),
+          ),
+        };
+      }),
+    } as ThreadMessageLike,
+    fallbackId,
+    { type: "complete", reason: "unknown" },
+  );

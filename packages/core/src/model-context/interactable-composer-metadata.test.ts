@@ -104,6 +104,18 @@ describe("interactableToolName", () => {
 });
 
 describe("shallowMergeInteractableState", () => {
+  it("adds prototype-named fields as own properties", () => {
+    const value = { enabled: true };
+    const result = shallowMergeInteractableState(
+      { title: "Example" },
+      Object.fromEntries([["__proto__", value]]),
+    ) as Record<string, unknown>;
+
+    expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
+    expect(Object.hasOwn(result, "__proto__")).toBe(true);
+    expect(result["__proto__"]).toBe(value);
+  });
+
   it("applies array operations from a baseline", () => {
     const prev = {
       tasks: [
@@ -131,6 +143,34 @@ describe("shallowMergeInteractableState", () => {
     });
   });
 
+  it("uses the first valid patch for each array item id", () => {
+    expect(
+      shallowMergeInteractableState(
+        { tasks: [{ id: 1, title: "Original", done: false }] },
+        {
+          tasks: {
+            update: [
+              null,
+              { title: "Missing id" },
+              { id: "1", title: "String id" },
+              { id: 1, title: "First", done: true },
+              { id: 1, title: "Second" },
+            ],
+          },
+        },
+      ),
+    ).toEqual({ tasks: [{ id: 1, title: "First", done: true }] });
+  });
+
+  it("does not match NaN array item ids", () => {
+    expect(
+      shallowMergeInteractableState(
+        { tasks: [{ id: Number.NaN, title: "Original" }] },
+        { tasks: { update: [{ id: Number.NaN, title: "Patched" }] } },
+      ),
+    ).toEqual({ tasks: [{ id: Number.NaN, title: "Original" }] });
+  });
+
   it("keeps raw array replacement semantics", () => {
     expect(
       shallowMergeInteractableState(
@@ -153,6 +193,88 @@ describe("shallowMergeInteractableState", () => {
         { id: "final", title: "final" },
       ],
       title: "final",
+    });
+  });
+
+  it("keeps the unwritten fields of the record still streaming", () => {
+    const prev = { title: "old", settings: { name: "n", size: 1 } };
+
+    expect(
+      shallowMergeInteractableState(
+        prev,
+        { settings: {} },
+        { partialPath: ["settings"] },
+      ),
+    ).toEqual({ title: "old", settings: { name: "n", size: 1 } });
+    expect(
+      shallowMergeInteractableState(
+        prev,
+        { settings: { name: "m" } },
+        { partialPath: ["settings", "name"] },
+      ),
+    ).toEqual({ title: "old", settings: { name: "m", size: 1 } });
+  });
+
+  it("replaces a nested record once the parser has closed it", () => {
+    expect(
+      shallowMergeInteractableState(
+        { title: "old", settings: { name: "n", size: 1, stale: true } },
+        { settings: { name: "m", size: 2 }, title: "ne" },
+        { partialPath: ["title"] },
+      ),
+    ).toEqual({ title: "ne", settings: { name: "m", size: 2 } });
+    expect(
+      shallowMergeInteractableState(
+        { settings: { name: "n", size: 1, stale: true } },
+        { settings: { name: "m", size: 2 } },
+      ),
+    ).toEqual({ settings: { name: "m", size: 2 } });
+  });
+
+  it("overlays along the whole partial path", () => {
+    expect(
+      shallowMergeInteractableState(
+        {
+          settings: {
+            name: "n",
+            theme: { fg: "black", bg: "white" },
+            tags: ["a"],
+          },
+        },
+        { settings: { theme: { fg: "r" }, tags: ["b"] } },
+        { partialPath: ["settings", "theme", "fg"] },
+      ),
+    ).toEqual({
+      settings: { name: "n", theme: { fg: "r", bg: "white" }, tags: ["b"] },
+    });
+  });
+
+  it("overlays a streaming array item patch onto the item", () => {
+    const prev = {
+      tasks: [
+        { id: "a", title: "A", meta: { owner: "me", due: "soon" } },
+        { id: "b", title: "B", meta: { owner: "you", due: "later" } },
+      ],
+    };
+
+    expect(
+      shallowMergeInteractableState(
+        prev,
+        {
+          tasks: {
+            update: [
+              { id: "b", meta: { owner: "them" } },
+              { id: "a", meta: { owner: "u" } },
+            ],
+          },
+        },
+        { partialPath: ["tasks", "update", "1", "meta", "owner"] },
+      ),
+    ).toEqual({
+      tasks: [
+        { id: "a", title: "A", meta: { owner: "u", due: "soon" } },
+        { id: "b", title: "B", meta: { owner: "them" } },
+      ],
     });
   });
 });
@@ -424,6 +546,24 @@ describe("gateInteractableComposerMetadata", () => {
     const gated = gateInteractableComposerMetadata(meta, history);
     expect(gated?.interactables).toEqual([entry("a", { v: 1 })]);
   });
+
+  it.each(["__proto__", "toString"])(
+    "treats a removed prototype-named field %s as a full snapshot",
+    (field) => {
+      const known = Object.fromEntries([
+        [field, { enabled: true }],
+        ["title", "draft"],
+        ["stable", true],
+      ]);
+      const current = { title: "edited", stable: true };
+      const meta = { interactables: [entry("a", current)] };
+      const history = [userMsg([entry("a", known)])];
+
+      const gated = gateInteractableComposerMetadata(meta, history);
+
+      expect(gated?.interactables).toEqual([entry("a", current)]);
+    },
+  );
 
   it("omits an interactable the model already knows via its own update_* call", () => {
     const meta = { interactables: [entry("a", { v: 2 }, "note")] };

@@ -1,9 +1,23 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { ThreadListRuntimeCore } from "../../runtime/interfaces/thread-list-runtime-core";
 import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInstanceManager";
 import { ExternalStoreThreadRuntimeCore } from "../../runtimes/external-store/external-store-thread-runtime-core";
 import type { ExternalStoreAdapter } from "../../runtimes/external-store/external-store-adapter";
 import type { ModelContextProvider } from "../../model-context/types";
+import type { ThreadRuntimeCore } from "../../runtime/interfaces/thread-runtime-core";
+import type { RealtimeVoiceAdapter } from "../../adapters/voice";
+
+const createExternalStoreRuntime = (
+  store: Partial<ExternalStoreAdapter> = {},
+) =>
+  new ExternalStoreThreadRuntimeCore(
+    { getModelContext: () => ({}) } satisfies ModelContextProvider,
+    {
+      messages: [],
+      onNew: async () => {},
+      ...store,
+    } satisfies ExternalStoreAdapter,
+  );
 
 describe("RemoteThreadListHookInstanceManager", () => {
   it("rejects a pending start when the thread runtime is stopped", async () => {
@@ -37,13 +51,19 @@ describe("RemoteThreadListHookInstanceManager", () => {
     const internals = manager as unknown as {
       instances: Map<
         string,
-        { runtime: typeof runtime; generation: number; isRunning: boolean }
+        {
+          runtime: typeof runtime;
+          generation: number;
+          isRunning: boolean;
+          destroy: AbortController;
+        }
       >;
     };
     internals.instances.set("thread-1", {
       runtime,
       generation: 0,
       isRunning: false,
+      destroy: new AbortController(),
     });
 
     const appendPromise = runtime.append({
@@ -91,9 +111,10 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
     instances: Map<
       string,
       {
-        runtime?: unknown;
+        runtime?: ThreadRuntimeCore;
         publishedGeneration?: number;
         generation: number;
+        unsubscribeRunning?: () => void;
       }
     >;
     _notifySubscribers: () => void;
@@ -155,7 +176,7 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
   const publish = (
     manager: RemoteThreadListHookInstanceManager,
     id: string,
-    runtime: unknown,
+    runtime: ThreadRuntimeCore,
     options?: { generation?: number },
   ) => {
     const instance = internalsOf(manager).instances.get(id)!;
@@ -164,27 +185,176 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
     internalsOf(manager)._notifySubscribers();
   };
 
+  const createVoiceSession = () => {
+    const disconnect = vi.fn();
+    let emitTranscript!: (item: RealtimeVoiceAdapter.TranscriptItem) => void;
+    const session: RealtimeVoiceAdapter.Session = {
+      status: { type: "running" },
+      isMuted: false,
+      disconnect,
+      mute: vi.fn(),
+      unmute: vi.fn(),
+      onStatusChange: () => () => {},
+      onTranscript: (callback) => {
+        emitTranscript = callback;
+        return () => {};
+      },
+      onModeChange: () => () => {},
+      onVolumeChange: () => () => {},
+    };
+    return {
+      session,
+      disconnect,
+      emitTranscript: (item: RealtimeVoiceAdapter.TranscriptItem) =>
+        emitTranscript(item),
+    };
+  };
+
+  it("disconnects voice without delivering the unfinished transcript on remote stop", () => {
+    const onVoiceTranscript = vi.fn();
+    const { session, disconnect, emitTranscript } = createVoiceSession();
+    const runtime = createExternalStoreRuntime({
+      onVoiceTranscript,
+      adapters: { voice: { connect: () => session } },
+    });
+    const manager = makeManager();
+    start(manager, "thread-1");
+    publish(manager, "thread-1", runtime);
+    runtime.connectVoice();
+    emitTranscript({ role: "assistant", text: "unfinished" });
+    expect(runtime.messages).toHaveLength(1);
+
+    manager.stopThreadRuntime("thread-1");
+
+    expect(disconnect).toHaveBeenCalledOnce();
+    expect(onVoiceTranscript).not.toHaveBeenCalled();
+    expect(runtime.messages).toHaveLength(0);
+  });
+
+  it("hangs up on remote restart and commits the unfinished transcript as a disconnect does", () => {
+    const onVoiceTranscript = vi.fn();
+    const { session, disconnect, emitTranscript } = createVoiceSession();
+    const runtime = createExternalStoreRuntime({
+      onVoiceTranscript,
+      adapters: { voice: { connect: () => session } },
+    });
+    const manager = makeManager();
+    start(manager, "thread-1");
+    publish(manager, "thread-1", runtime);
+    runtime.connectVoice();
+    emitTranscript({ role: "assistant", text: "unfinished" });
+
+    restart(manager, "thread-1");
+
+    expect(disconnect).toHaveBeenCalledOnce();
+    expect(onVoiceTranscript).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        role: "assistant",
+        status: { type: "complete", reason: "stop" },
+      }),
+    );
+  });
+
+  it("drops the unfinished transcript on a remote restart while history is still loading", async () => {
+    const onVoiceTranscript = vi.fn();
+    const { session, disconnect, emitTranscript } = createVoiceSession();
+    const runtime = createExternalStoreRuntime({
+      isLoading: true,
+      onVoiceTranscript,
+      adapters: { voice: { connect: () => session } },
+    });
+    const manager = makeManager();
+    start(manager, "thread-1");
+    publish(manager, "thread-1", runtime);
+    runtime.connectVoice();
+    emitTranscript({ role: "assistant", text: "unfinished" });
+
+    restart(manager, "thread-1");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(disconnect).toHaveBeenCalledOnce();
+    expect(onVoiceTranscript).not.toHaveBeenCalled();
+  });
+
+  it("stops every thread when one running subscription cleanup throws", () => {
+    const first = createVoiceSession();
+    const second = createVoiceSession();
+    const firstRuntime = createExternalStoreRuntime({
+      adapters: { voice: { connect: () => first.session } },
+    });
+    const secondRuntime = createExternalStoreRuntime({
+      adapters: { voice: { connect: () => second.session } },
+    });
+    const manager = makeManager();
+    start(manager, "thread-1");
+    start(manager, "thread-2");
+    publish(manager, "thread-1", firstRuntime);
+    publish(manager, "thread-2", secondRuntime);
+    firstRuntime.connectVoice();
+    secondRuntime.connectVoice();
+    const error = new Error("unsubscribe failed");
+    internalsOf(manager).instances.get("thread-1")!.unsubscribeRunning = () => {
+      throw error;
+    };
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+
+    expect(() => manager.__internal_dispose()).not.toThrow();
+
+    expect(first.disconnect).toHaveBeenCalledOnce();
+    expect(second.disconnect).toHaveBeenCalledOnce();
+    expect(internalsOf(manager).instances.size).toBe(0);
+    expect(consoleError).toHaveBeenCalledExactlyOnceWith(
+      "[assistant-ui] Thread runtime cleanup threw while stopping a thread",
+      error,
+    );
+  });
+
+  it("keeps a send made before the restarted runtime publishes", async () => {
+    const onNew = vi.fn(async () => {});
+    const runtime = createExternalStoreRuntime({ onNew });
+    const manager = makeManager();
+    start(manager, "thread-1");
+    publish(manager, "thread-1", runtime);
+
+    restart(manager, "thread-1");
+    await runtime.append({
+      parentId: null,
+      sourceId: null,
+      runConfig: {},
+      role: "user",
+      content: [{ type: "text", text: "hello" }],
+      attachments: [],
+      metadata: { custom: {} },
+      createdAt: new Date(0),
+    });
+
+    expect(onNew).toHaveBeenCalledOnce();
+  });
+
   it("does not settle with the pre-restart runtime; only the incoming binder's publication resolves it", async () => {
     const manager = makeManager();
     start(manager, "thread-1");
-    publish(manager, "thread-1", { tag: "pre-reload-runtime" });
+    const preReloadRuntime = createExternalStoreRuntime();
+    const postReloadRuntime = createExternalStoreRuntime();
+    publish(manager, "thread-1", preReloadRuntime);
 
     let settledWith = "NOT_SETTLED";
-    manager.__internal_restartThreadRuntime("thread-1").then((r) => {
-      settledWith = (r as { tag: string }).tag;
+    manager.__internal_restartThreadRuntime("thread-1").then((runtime) => {
+      settledWith = runtime === postReloadRuntime ? "post-reload-runtime" : "";
     });
 
     // the outgoing runtime rides across the restart (stays readable)…
-    expect(manager.getThreadRuntimeCore("thread-1")).toEqual({
-      tag: "pre-reload-runtime",
-    });
+    expect(manager.getThreadRuntimeCore("thread-1")).toBe(preReloadRuntime);
     // …but must not count as attached
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
     expect(settledWith).toBe("NOT_SETTLED");
 
-    publish(manager, "thread-1", { tag: "post-reload-runtime" });
+    publish(manager, "thread-1", postReloadRuntime);
     await Promise.resolve();
     expect(settledWith).toBe("post-reload-runtime");
   });
@@ -192,19 +362,20 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
   it("keeps the outgoing runtime readable while the restart promise is pending", () => {
     const manager = makeManager();
     start(manager, "thread-1");
-    publish(manager, "thread-1", { tag: "pre-reload-runtime" });
+    const preReloadRuntime = createExternalStoreRuntime();
+    publish(manager, "thread-1", preReloadRuntime);
 
     restart(manager, "thread-1");
 
-    expect(manager.getThreadRuntimeCore("thread-1")).toEqual({
-      tag: "pre-reload-runtime",
-    });
+    expect(manager.getThreadRuntimeCore("thread-1")).toBe(preReloadRuntime);
   });
 
   it("a stale-generation publication does not resolve the restart promise", async () => {
     const manager = makeManager();
     start(manager, "thread-1");
-    publish(manager, "thread-1", { tag: "pre-reload-runtime" });
+    const preReloadRuntime = createExternalStoreRuntime();
+    const staleRuntime = createExternalStoreRuntime();
+    publish(manager, "thread-1", preReloadRuntime);
 
     let settled = false;
     manager.__internal_restartThreadRuntime("thread-1").then(() => {
@@ -215,12 +386,7 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
     // outerSubscribe callback) must not count as the new attachment
     const staleGeneration =
       internalsOf(manager).instances.get("thread-1")!.generation - 1;
-    publish(
-      manager,
-      "thread-1",
-      { tag: "stale-publication" },
-      { generation: staleGeneration },
-    );
+    publish(manager, "thread-1", staleRuntime, { generation: staleGeneration });
 
     await Promise.resolve();
     await Promise.resolve();

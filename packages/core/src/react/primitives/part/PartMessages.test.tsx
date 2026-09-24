@@ -1,4 +1,13 @@
-import { expectTypeOf } from "vitest";
+// @vitest-environment jsdom
+
+import { cleanup, render, screen } from "@testing-library/react";
+import { useAuiState } from "@assistant-ui/store";
+import { afterEach, describe, expect, expectTypeOf, it } from "vitest";
+import type { ThreadMessage } from "../../../types/message";
+import { AssistantRuntimeProvider } from "../../AssistantRuntimeProvider";
+import { useExternalStoreRuntime } from "../../runtimes/useExternalStoreRuntime";
+import { MessagePrimitiveParts } from "../message/MessageParts";
+import { ThreadPrimitiveMessages } from "../thread/ThreadMessages";
 import { PartPrimitiveMessages } from "./PartMessages";
 
 const checkPartMessagesProps = () => {
@@ -15,3 +24,97 @@ const checkPartMessagesProps = () => {
   </PartPrimitiveMessages>;
 };
 expectTypeOf(checkPartMessagesProps).toEqualTypeOf<() => void>();
+
+const nestedAssistant: ThreadMessage = {
+  id: "nested-assistant",
+  createdAt: new Date(0),
+  role: "assistant",
+  content: [],
+  status: { type: "running" },
+  metadata: {
+    unstable_state: {},
+    unstable_annotations: [],
+    unstable_data: [],
+    steps: [],
+    custom: {},
+  },
+};
+
+const NestedThreadStatus = () => {
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+  return (
+    <output data-testid="nested-thread-running">{String(isRunning)}</output>
+  );
+};
+
+const OuterMessageStatus = () => {
+  const status = useAuiState((s) => s.message.status?.type);
+  return <output data-testid="outer-message-status">{status}</output>;
+};
+
+afterEach(cleanup);
+
+describe("PartPrimitiveMessages", () => {
+  it("keeps the outer message running and reports the nested thread as running after the outer run ends", () => {
+    const App = () => {
+      const runtime = useExternalStoreRuntime({
+        messages: [
+          {
+            id: "outer-assistant",
+            createdAt: new Date(0),
+            role: "assistant" as const,
+            content: [
+              {
+                type: "tool-call" as const,
+                toolCallId: "delegate-1",
+                toolName: "delegate",
+                args: {},
+                argsText: "",
+                messages: [nestedAssistant],
+              },
+            ],
+            metadata: {
+              unstable_state: {},
+              unstable_annotations: [],
+              unstable_data: [],
+              steps: [],
+              custom: {},
+            },
+          },
+        ],
+        isRunning: false,
+        convertMessage: (message) => message,
+        onNew: async () => {},
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <ThreadPrimitiveMessages>
+            {() => (
+              <>
+                <OuterMessageStatus />
+                <MessagePrimitiveParts>
+                  {({ part }) =>
+                    part.type === "tool-call" ? (
+                      <PartPrimitiveMessages>
+                        {() => <NestedThreadStatus />}
+                      </PartPrimitiveMessages>
+                    ) : null
+                  }
+                </MessagePrimitiveParts>
+              </>
+            )}
+          </ThreadPrimitiveMessages>
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<App />);
+
+    expect(screen.getByTestId("outer-message-status").textContent).toBe(
+      "running",
+    );
+    expect(screen.getByTestId("nested-thread-running").textContent).toBe(
+      "true",
+    );
+  });
+});
