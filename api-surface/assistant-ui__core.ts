@@ -3624,6 +3624,8 @@ declare class ReadonlyThreadRuntimeCore extends InertThreadRuntimeCore {
     unstable_on(): () => void;
   };
   isLoading: boolean;
+  isDisabled: boolean;
+  isSendDisabled: boolean;
   switchToBranch(): void;
   append(): void;
   deleteMessage(): void;
