@@ -681,10 +681,12 @@ export abstract class BaseThreadRuntimeCore
 
   private _commitVoiceUserMessage(message: ThreadMessage) {
     this._voiceMessages.push(message);
-    const committed = this._commitVoiceMessage(message);
-    this._markVoiceMessagesDirty();
-    this._notifySubscribers();
-    return committed;
+    try {
+      return this._commitVoiceMessage(message);
+    } finally {
+      this._markVoiceMessagesDirty();
+      this._notifySubscribers();
+    }
   }
 
   protected async _appendToVoiceSession(message: AppendMessage) {

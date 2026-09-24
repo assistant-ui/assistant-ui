@@ -2242,6 +2242,49 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
         commitError,
       );
     });
+
+    it("shows a final user transcript whose commit throws after a finished reply", async () => {
+      const voiceAdapter = createVoiceAdapter();
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const onVoiceTranscript = vi.fn((message: ThreadMessage) => {
+        if (message.role === "user") throw commitError;
+      });
+      const core = new ExternalStoreThreadRuntimeCore(
+        createContextProvider(),
+        createBaseAdapter({
+          onVoiceTranscript,
+          adapters: { voice: voiceAdapter.adapter },
+        }),
+      );
+      core.connectVoice();
+      voiceAdapter.emitTranscript({
+        role: "assistant",
+        text: "Hello",
+        isFinal: true,
+      });
+      expect(core.messages.map(getThreadMessageText)).toEqual(["Hello"]);
+      const listener = vi.fn();
+      core.subscribe(listener);
+
+      voiceAdapter.emitTranscript({
+        role: "user",
+        text: "Stop",
+        isFinal: true,
+      });
+
+      expect(core.messages.map(getThreadMessageText)).toEqual([
+        "Hello",
+        "Stop",
+      ]);
+      expect(listener).toHaveBeenCalled();
+      await Promise.resolve();
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] Voice message commit failed",
+        commitError,
+      );
+    });
   });
 
   it("parents a send after the session ended on the last repository message", async () => {
