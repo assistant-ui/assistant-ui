@@ -78,6 +78,7 @@ export {
   abortableIterable,
   openAbortableIterable,
 } from "./utils/abortable-iterable";
+export { raceWithAbortSignal } from "./utils/abortable-promise";
 export { detectImageMediaType } from "./utils/image-media-type";
 export {
   resolveFileMediaType,
