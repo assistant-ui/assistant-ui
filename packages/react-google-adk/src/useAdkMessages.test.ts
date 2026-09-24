@@ -84,6 +84,10 @@ describe("ADK runtime callbacks", () => {
         id: "transfer",
         actions: { transferToAgent: "researcher" },
       };
+      yield {
+        id: "transfer-duplicate",
+        actions: { transferToAgent: "researcher" },
+      };
     };
     const { result } = renderHook(() =>
       useAdkMessages({ stream, eventHandlers: { onAgentTransfer } }),
@@ -94,6 +98,8 @@ describe("ADK runtime callbacks", () => {
         [{ id: "user-1", type: "human", content: "first" }],
         {},
       );
+      expect(onAgentTransfer).toHaveBeenCalledTimes(1);
+
       await result.current.sendMessage(
         [{ id: "user-2", type: "human", content: "second" }],
         {},
