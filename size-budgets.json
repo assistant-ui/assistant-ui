@@ -94,7 +94,7 @@
   "@assistant-ui/react-google-adk": {
     ".": {
       "min": 37699,
-      "gzip": 11419
+      "gzip": 11421
     },
     "./server": {
       "min": 6384,
@@ -136,7 +136,7 @@
   "@assistant-ui/react-langgraph": {
     ".": {
       "min": 29330,
-      "gzip": 10193
+      "gzip": 10192
     }
   },
   "@assistant-ui/react-lexical": {
