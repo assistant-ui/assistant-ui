@@ -1,17 +1,32 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
+  AddToolResultOptions,
+  AppendMessage,
   RespondToToolApprovalOptions,
   ThreadMessage,
   ToolCallMessagePart,
 } from "@assistant-ui/core";
-import type { AdkMessage } from "./types";
+import type { AdkMessage, AdkSendMessageConfig } from "./types";
 
-const mocks = vi.hoisted(() => ({
-  adapters: [] as unknown[],
-  sendMessage: vi.fn().mockResolvedValue(undefined),
-  messages: [] as AdkMessage[],
-}));
+const mocks = vi.hoisted(() => {
+  const threadListItem = {
+    source: null as object | null,
+    externalId: undefined as string | undefined,
+    getState: () => ({
+      externalId: threadListItem.externalId,
+    }),
+    initialize: vi.fn(),
+  };
+  return {
+    adapters: [] as unknown[],
+    sendMessage: vi.fn().mockResolvedValue(undefined),
+    messages: [] as AdkMessage[],
+    messageRunConfig: undefined as unknown,
+    applySnapshot: vi.fn(),
+    threadListItem,
+  };
+});
 
 vi.mock("@assistant-ui/core/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/core/react")>()),
@@ -27,49 +42,78 @@ vi.mock("@assistant-ui/core/react", async (importOriginal) => ({
 vi.mock("@assistant-ui/store", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/store")>()),
   useAui: () => ({
-    threadListItem: {
-      source: null,
-      getState: () => ({ externalId: undefined }),
-      initialize: vi.fn(),
-    },
+    threadListItem: mocks.threadListItem,
   }),
 }));
 
-vi.mock("./useAdkMessages", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./useAdkMessages")>()),
-  useAdkMessages: () => ({
-    messages: mocks.messages,
-    stateDelta: {},
-    agentInfo: {},
-    longRunningToolIds: [],
-    artifactDelta: {},
-    // Deliberately empty: the projection must come from the transcript, not
-    // from derived confirmation state that a mid-run accumulator swap drops.
-    toolConfirmations: [],
-    authRequests: [],
-    escalated: false,
-    messageMetadata: new Map(),
-    sendMessage: mocks.sendMessage,
-    cancel: vi.fn(),
-    setMessages: vi.fn(),
-    replaceMessages: vi.fn(),
-    applySnapshot: vi.fn(),
-  }),
-}));
+vi.mock("./useAdkMessages", async (importOriginal) => {
+  const useMockAdkMessages = (options: {
+    onMessages?: (messages: AdkMessage[], runConfig: unknown) => void;
+  }) => {
+    options.onMessages?.(mocks.messages, mocks.messageRunConfig);
+    return {
+      messages: mocks.messages,
+      stateDelta: {},
+      agentInfo: {},
+      longRunningToolIds: [],
+      artifactDelta: {},
+      // Deliberately empty: the projection must come from the transcript, not
+      // from derived confirmation state that a mid-run accumulator swap drops.
+      toolConfirmations: [],
+      authRequests: [],
+      escalated: false,
+      messageMetadata: new Map(),
+      sendMessage: mocks.sendMessage,
+      cancel: vi.fn(),
+      setMessages: vi.fn(),
+      replaceMessages: vi.fn(),
+      applySnapshot: mocks.applySnapshot,
+    };
+  };
+
+  return {
+    ...(await importOriginal<typeof import("./useAdkMessages")>()),
+    useAdkMessages: useMockAdkMessages,
+    useAdkMessagesInternal: useMockAdkMessages,
+  };
+});
 
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
 import { useAdkRuntime } from "./useAdkRuntime";
 
-type ApprovalAdapter = {
+type RuntimeAdapter = {
   messages: readonly ThreadMessage[];
+  extras: {
+    send: (
+      messages: AdkMessage[],
+      config: AdkSendMessageConfig,
+    ) => Promise<void>;
+  };
+  onNew?: (message: AppendMessage) => Promise<void> | void;
+  onAddToolResult?: (options: AddToolResultOptions) => Promise<void> | void;
   onRespondToToolApproval?: (
     options: RespondToToolApprovalOptions,
   ) => Promise<void> | void;
+  onRefetchThread?: () => Promise<void> | void;
 };
 
 const CONFIRMATION_CALL = "adk-confirmation-1";
 
-const latestAdapter = () => mocks.adapters.at(-1) as ApprovalAdapter;
+const latestAdapter = () => mocks.adapters.at(-1) as RuntimeAdapter;
+
+const makeUserMessage = (
+  text: string,
+  runConfig: AppendMessage["runConfig"],
+): AppendMessage =>
+  ({
+    role: "user",
+    content: [{ type: "text", text }],
+    attachments: [],
+    parentId: null,
+    sourceId: null,
+    runConfig,
+    metadata: { custom: {} },
+  }) as unknown as AppendMessage;
 
 const makeConfirmationRequest = (): AdkMessage => ({
   id: "ai-1",
@@ -96,20 +140,168 @@ const approvalPart = () =>
 
 afterEach(() => {
   mocks.adapters.length = 0;
+  mocks.sendMessage.mockClear();
   mocks.messages = [];
+  mocks.messageRunConfig = undefined;
+  mocks.applySnapshot.mockReset();
+  mocks.threadListItem.source = null;
+  mocks.threadListItem.externalId = undefined;
 });
 
 describe("useAdkRuntime tool approvals", () => {
+  it("resumes a delayed tool result with its originating run config", async () => {
+    const runConfigA = { custom: { model: "model-a" } };
+    const runConfigB = { custom: { model: "model-b" } };
+    const { rerender } = renderHook(() => useAdkRuntime({ stream: vi.fn() }));
+
+    await act(async () => {
+      await latestAdapter().onNew!(makeUserMessage("first", runConfigA));
+    });
+
+    mocks.messages = [
+      { id: "u-1", type: "human", content: "first" },
+      {
+        id: "ai-1",
+        type: "ai",
+        content: [],
+        tool_calls: [
+          {
+            id: "tool-a",
+            name: "lookup",
+            args: {},
+          },
+        ],
+      },
+    ];
+    mocks.messageRunConfig = runConfigA;
+    rerender();
+
+    await act(async () => {
+      await latestAdapter().onNew!(makeUserMessage("second", runConfigB));
+      await latestAdapter().onAddToolResult!({
+        messageId: "ai-1",
+        toolCallId: "tool-a",
+        toolName: "lookup",
+        result: { value: "done" },
+        isError: false,
+      });
+    });
+
+    expect(
+      mocks.sendMessage.mock.calls.map((call) => call[1].runConfig),
+    ).toEqual([runConfigA, runConfigB, runConfigA]);
+  });
+
+  it("preserves pending tool ownership across a thread refetch", async () => {
+    const runConfig = { custom: { model: "model-a" } };
+    const loadedMessages: AdkMessage[] = [
+      {
+        id: "ai-1",
+        type: "ai",
+        content: [],
+        tool_calls: [{ id: "tool-a", name: "lookup", args: {} }],
+      },
+    ];
+    const load = vi.fn(async () => ({ messages: loadedMessages }));
+    mocks.threadListItem.source = {};
+
+    const { rerender } = renderHook(() =>
+      useAdkRuntime({ stream: vi.fn(), load }),
+    );
+
+    await act(async () => {
+      await latestAdapter().onNew!(makeUserMessage("first", runConfig));
+    });
+    mocks.messages = loadedMessages;
+    mocks.messageRunConfig = runConfig;
+    rerender();
+
+    mocks.threadListItem.externalId = "thread-a";
+    rerender();
+    await act(async () => {
+      await latestAdapter().onRefetchThread!();
+    });
+
+    await act(async () => {
+      await latestAdapter().onAddToolResult!({
+        messageId: "ai-1",
+        toolCallId: "tool-a",
+        toolName: "lookup",
+        result: { value: "done" },
+        isError: false,
+      });
+    });
+
+    expect(mocks.sendMessage.mock.calls.at(-1)![1]).toEqual({ runConfig });
+  });
+
+  it("attributes new tool calls to an explicitly configured continuation", async () => {
+    const runConfigA = { custom: { model: "model-a" } };
+    const runConfigB = { custom: { model: "model-b" } };
+    const { rerender } = renderHook(() => useAdkRuntime({ stream: vi.fn() }));
+
+    await act(async () => {
+      await latestAdapter().onNew!(makeUserMessage("first", runConfigA));
+      await latestAdapter().extras.send(
+        [
+          {
+            id: "tool-result-a",
+            type: "tool",
+            tool_call_id: "tool-a",
+            name: "lookup",
+            content: JSON.stringify({ value: "first" }),
+          },
+        ],
+        { runConfig: runConfigB },
+      );
+    });
+
+    mocks.messages = [
+      {
+        id: "ai-b",
+        type: "ai",
+        content: [],
+        tool_calls: [{ id: "tool-b", name: "lookup", args: {} }],
+      },
+    ];
+    mocks.messageRunConfig = runConfigB;
+    rerender();
+
+    await act(async () => {
+      await latestAdapter().onAddToolResult!({
+        messageId: "ai-b",
+        toolCallId: "tool-b",
+        toolName: "lookup",
+        result: { value: "second" },
+        isError: false,
+      });
+    });
+
+    expect(mocks.sendMessage.mock.calls.at(-1)![1]).toEqual({
+      runConfig: runConfigB,
+    });
+  });
+
   it("exposes, answers, and settles the default approval seam across a rerender", async () => {
+    const runConfig = { custom: { model: "model-a" } };
+    const nextRunConfig = { custom: { model: "model-b" } };
     // Retained across the rerender: core caches converted messages by input
     // object, so only a rebuilt converter can surface the settled decision.
     const confirmationRequest = makeConfirmationRequest();
+    const { rerender } = renderHook(() => useAdkRuntime({ stream: vi.fn() }));
+
+    await act(async () => {
+      await latestAdapter().onNew!(
+        makeUserMessage("delete the file", runConfig),
+      );
+    });
+
     mocks.messages = [
       { id: "u-1", type: "human", content: "delete the file" },
       confirmationRequest,
     ];
-
-    const { rerender } = renderHook(() => useAdkRuntime({ stream: vi.fn() }));
+    mocks.messageRunConfig = runConfig;
+    rerender();
 
     expect(latestAdapter().messages.at(-1)!.status).toMatchObject({
       type: "requires-action",
@@ -121,6 +313,9 @@ describe("useAdkRuntime tool approvals", () => {
     });
 
     await act(async () => {
+      await latestAdapter().onNew!(
+        makeUserMessage("start another run", nextRunConfig),
+      );
       await latestAdapter().onRespondToToolApproval!({
         approvalId: CONFIRMATION_CALL,
         approved: false,
@@ -135,6 +330,7 @@ describe("useAdkRuntime tool approvals", () => {
         content: JSON.stringify({ confirmed: false }),
       }),
     ]);
+    expect(mocks.sendMessage.mock.calls.at(-1)![1]).toEqual({ runConfig });
 
     mocks.messages = [
       ...mocks.messages,

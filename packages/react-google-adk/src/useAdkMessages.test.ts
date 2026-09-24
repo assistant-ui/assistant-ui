@@ -17,6 +17,7 @@ import {
   messageToEvent,
   messagesToEvents,
   useAdkMessages,
+  useAdkMessagesInternal,
 } from "./useAdkMessages";
 import { projectAdkToolApprovals } from "./adkToolApproval";
 import { createAdkStream } from "./AdkClient";
@@ -212,6 +213,47 @@ describe("ADK runtime callbacks", () => {
 });
 
 describe("ADK stream lifecycle", () => {
+  it("reports streamed tool calls with the run config that produced them", async () => {
+    const runConfig = { custom: { model: "model-a" } };
+    const onMessages = vi.fn();
+    const stream: AdkStreamCallback = async function* () {
+      yield {
+        id: "event-1",
+        author: "agent",
+        content: {
+          role: "model",
+          parts: [
+            { functionCall: { id: "tool-1", name: "lookup", args: {} } },
+            { functionCall: { id: "tool-2", name: "search", args: {} } },
+          ],
+        },
+      };
+    };
+    const { result } = renderHook(() =>
+      useAdkMessagesInternal({ stream, onMessages }),
+    );
+
+    await act(async () => {
+      await result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "look it up" }],
+        { runConfig },
+      );
+    });
+
+    expect(onMessages).toHaveBeenLastCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "ai",
+          tool_calls: [
+            expect.objectContaining({ id: "tool-1" }),
+            expect.objectContaining({ id: "tool-2" }),
+          ],
+        }),
+      ]),
+      runConfig,
+    );
+  });
+
   it("settles a superseded send while its stream is still opening", async () => {
     const signals: AbortSignal[] = [];
     const parked = new Promise<AsyncGenerator<AdkEvent>>(() => {});
