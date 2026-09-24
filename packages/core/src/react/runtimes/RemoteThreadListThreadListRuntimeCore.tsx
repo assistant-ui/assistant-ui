@@ -358,6 +358,22 @@ export class RemoteThreadListThreadListRuntimeCore
     }
   }
 
+  // A replacement adapter can list its own thread under an id the previous
+  // adapter used; until that list lands, a slot holds a thread it will drop.
+  private _updateStatusFromAdapter(
+    state: RemoteThreadState,
+    adapter: RemoteThreadListAdapter,
+    threadId: string,
+    status: "regular" | "archived" | "deleted",
+  ) {
+    if (this._options.adapter !== adapter) {
+      const current = getThreadData(state, threadId);
+      if (current && !this._staleThreadIdsOnReplace?.has(current.id))
+        return state;
+    }
+    return updateStatusReducer(state, threadId, status);
+  }
+
   private _requireAdapterSettled() {
     if (this._replaceListOnNextLoad) {
       throw new ThreadListAdapterChangedError();
@@ -1061,9 +1077,8 @@ export class RemoteThreadListThreadListRuntimeCore
         this._requireAdapterGeneration(adapterGeneration);
         return adapter.archive(remoteId);
       },
-      optimistic: (state) => {
-        return updateStatusReducer(state, data.id, "archived");
-      },
+      optimistic: (state) =>
+        this._updateStatusFromAdapter(state, adapter, data.id, "archived"),
     });
   }
 
@@ -1089,9 +1104,8 @@ export class RemoteThreadListThreadListRuntimeCore
           throw error;
         }
       },
-      optimistic: (state) => {
-        return updateStatusReducer(state, data.id, "regular");
-      },
+      optimistic: (state) =>
+        this._updateStatusFromAdapter(state, adapter, data.id, "regular"),
     });
   }
 
@@ -1112,9 +1126,8 @@ export class RemoteThreadListThreadListRuntimeCore
         this._requireAdapterGeneration(adapterGeneration);
         return await adapter.delete(remoteId);
       },
-      optimistic: (state) => {
-        return updateStatusReducer(state, data.id, "deleted");
-      },
+      optimistic: (state) =>
+        this._updateStatusFromAdapter(state, adapter, data.id, "deleted"),
     });
     // The optimistic layer survives an adapter swap, so a resolved deletion has
     // dropped the slot from `threadData`, where `_replaceWithThreads` would

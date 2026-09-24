@@ -489,4 +489,155 @@ describe("RemoteThreadList adapter changes", () => {
     expect(core.getItemById(draftId!)).toBeUndefined();
     expect(core.threadIds).toEqual(["thread-b"]);
   });
+
+  it("keeps the replacement's thread when an old deletion of a listed thread with the same id settles", async () => {
+    const deleteRequest = deferred<void>();
+    const adapterA = makeAdapter({
+      list: async () => ({ threads: [thread("same")] }),
+      delete: vi.fn(() => deleteRequest.promise),
+    });
+    const adapterB = makeAdapter({
+      list: async () => ({ threads: [thread("same")] }),
+    });
+    const core = createCore(adapterA);
+
+    await core.getLoadThreadsPromise();
+    const deleteTask = core.delete("same");
+    await vi.waitFor(() => expect(adapterA.delete).toHaveBeenCalledOnce());
+
+    core.__internal_setOptions({
+      adapter: adapterB,
+      runtimeHook: () => ({}) as never,
+    });
+    await core.getLoadThreadsPromise();
+    expect(core.threadIds).toEqual(["same"]);
+
+    deleteRequest.resolve();
+    await deleteTask;
+
+    expect(core.threadIds).toEqual(["same"]);
+  });
+
+  it("keeps the replacement's thread listed when an old archive of the same id settles", async () => {
+    const archiveRequest = deferred<void>();
+    const adapterA = makeAdapter({
+      list: async () => ({ threads: [thread("same")] }),
+      archive: vi.fn(() => archiveRequest.promise),
+    });
+    const adapterB = makeAdapter({
+      list: async () => ({ threads: [thread("same")] }),
+    });
+    const core = createCore(adapterA);
+
+    await core.getLoadThreadsPromise();
+    const archiveTask = core.archive("same");
+    await vi.waitFor(() => expect(adapterA.archive).toHaveBeenCalledOnce());
+
+    core.__internal_setOptions({
+      adapter: adapterB,
+      runtimeHook: () => ({}) as never,
+    });
+    await core.getLoadThreadsPromise();
+    archiveRequest.resolve();
+    await archiveTask;
+
+    expect(core.threadIds).toEqual(["same"]);
+    expect(core.archivedThreadIds).toEqual([]);
+  });
+
+  it("keeps the replacement's thread archived when an old unarchive of the same id settles", async () => {
+    const unarchiveRequest = deferred<void>();
+    const archived = { ...thread("same"), status: "archived" as const };
+    const adapterA = makeAdapter({
+      list: async () => ({ threads: [archived] }),
+      unarchive: vi.fn(() => unarchiveRequest.promise),
+    });
+    const adapterB = makeAdapter({
+      list: async () => ({ threads: [archived] }),
+    });
+    const core = createCore(adapterA);
+
+    await core.getLoadThreadsPromise();
+    const unarchiveTask = core.unarchive("same");
+    await vi.waitFor(() => expect(adapterA.unarchive).toHaveBeenCalledOnce());
+
+    core.__internal_setOptions({
+      adapter: adapterB,
+      runtimeHook: () => ({}) as never,
+    });
+    await core.getLoadThreadsPromise();
+    unarchiveRequest.resolve();
+    await unarchiveTask;
+
+    expect(core.threadIds).toEqual([]);
+    expect(core.archivedThreadIds).toEqual(["same"]);
+  });
+
+  it("keeps a thread deleted before an adapter swap hidden until the replacement list lands", async () => {
+    const deleteRequest = deferred<void>();
+    const adapterA = makeAdapter({
+      list: async () => ({ threads: [thread("same"), thread("other")] }),
+      delete: vi.fn(() => deleteRequest.promise),
+    });
+    const listB = deferred<{ threads: ReturnType<typeof thread>[] }>();
+    const adapterB = makeAdapter({ list: vi.fn(() => listB.promise) });
+    const core = createCore(adapterA);
+
+    await core.getLoadThreadsPromise();
+    const deleteTask = core.delete("same");
+    await vi.waitFor(() => expect(adapterA.delete).toHaveBeenCalledOnce());
+
+    core.__internal_setOptions({
+      adapter: adapterB,
+      runtimeHook: () => ({}) as never,
+    });
+    const loading = core.getLoadThreadsPromise();
+    expect(core.threadIds).toEqual(["other"]);
+
+    deleteRequest.resolve();
+    await deleteTask;
+    expect(core.threadIds).toEqual(["other"]);
+
+    listB.resolve({ threads: [thread("same")] });
+    await loading;
+
+    expect(core.threadIds).toEqual(["same"]);
+  });
+
+  it("keeps a listed thread deleted when the adapter swaps away and back before the deletion settles", async () => {
+    const deleteRequest = deferred<void>();
+    const staleList = deferred<{ threads: ReturnType<typeof thread>[] }>();
+    const list = vi
+      .fn()
+      .mockResolvedValueOnce({ threads: [thread("same")] })
+      .mockReturnValueOnce(staleList.promise);
+    const adapterA = makeAdapter({
+      list,
+      delete: vi.fn(() => deleteRequest.promise),
+    });
+    const adapterB = makeAdapter();
+    const core = createCore(adapterA);
+
+    await core.getLoadThreadsPromise();
+    const deleteTask = core.delete("same");
+    await vi.waitFor(() => expect(adapterA.delete).toHaveBeenCalledOnce());
+
+    core.__internal_setOptions({
+      adapter: adapterB,
+      runtimeHook: () => ({}) as never,
+    });
+    await core.getLoadThreadsPromise();
+    core.__internal_setOptions({
+      adapter: adapterA,
+      runtimeHook: () => ({}) as never,
+    });
+    const loading = core.getLoadThreadsPromise();
+    await vi.waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+    deleteRequest.resolve();
+    await deleteTask;
+    staleList.resolve({ threads: [thread("same")] });
+    await loading;
+
+    expect(core.getItemById("same")).toBeUndefined();
+  });
 });
