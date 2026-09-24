@@ -280,7 +280,8 @@ const useInteractablesResource = ({
   );
 
   // Applies adapter.load() output: a local edit made while the load was in
-  // flight wins, and thread-scoped items never restore from the adapter.
+  // flight wins, the load replaces the detached copy of an id nobody edited,
+  // and thread-scoped items never restore from the adapter.
   const applyLoadedState = useCallback(
     (saved: Unstable_InteractablePersistedState) => {
       for (const id of Object.keys(saved)) {
