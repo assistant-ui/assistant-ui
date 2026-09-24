@@ -248,6 +248,7 @@ export class LocalThreadRuntimeCore
     if (this._options === options) return;
 
     const previousHistory = this._options?.adapters.history;
+    this._options = options;
     if (!options.adapters.voice && this.voice) {
       try {
         this.disconnectVoice();
@@ -258,7 +259,6 @@ export class LocalThreadRuntimeCore
         );
       }
     }
-    this._options = options;
 
     let hasUpdates = false;
 

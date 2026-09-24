@@ -130,6 +130,41 @@ describe("LocalThreadRuntimeCore events", () => {
     expect(thread.voice).toBeUndefined();
   });
 
+  it("installs replacement adapters before disconnecting voice", async () => {
+    const previousChatModel: ChatModelAdapter = {
+      async run() {
+        return { content: [] };
+      },
+    };
+    const replacementChatModel: ChatModelAdapter = {
+      async run() {
+        return { content: [] };
+      },
+    };
+    let thread: ReturnType<typeof createThread>;
+    const disconnect = vi.fn(() => {
+      expect(thread.adapters.chatModel).toBe(replacementChatModel);
+    });
+    thread = createThread(previousChatModel, {
+      voice: {
+        connect: (options) =>
+          createVoiceSession(options, async () => ({
+            disconnect,
+            mute: vi.fn(),
+            unmute: vi.fn(),
+          })),
+      },
+    });
+
+    thread.connectVoice();
+    await flush();
+    thread.__internal_setOptions({
+      adapters: { chatModel: replacementChatModel },
+    });
+
+    expect(disconnect).toHaveBeenCalledOnce();
+  });
+
   it("keeps voice connected when the adapter object is recreated", async () => {
     const disconnect = vi.fn();
     const chatModel: ChatModelAdapter = {
