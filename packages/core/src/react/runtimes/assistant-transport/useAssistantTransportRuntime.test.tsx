@@ -587,6 +587,9 @@ describe("useAssistantTransportRuntime", () => {
       await waitFor(() =>
         expect(aui().thread.getState().isRunning).toBe(false),
       );
+      expect(
+        onCancel.mock.calls.filter(([payload]) => !payload.error),
+      ).toHaveLength(1);
       expect(pendingCommands).toEqual([]);
       expect(fetchMock.requests).toHaveLength(1);
     });
