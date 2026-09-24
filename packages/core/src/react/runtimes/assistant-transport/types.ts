@@ -112,7 +112,10 @@ export type SendCommandsRequestBody = {
 export type AssistantTransportOptions<T> = {
   initialState: T;
   api: string;
-  /** Backs the thread list with Assistant Cloud; requests carry the cloud thread id. */
+  /**
+   * Backs the thread list with Assistant Cloud; requests carry the cloud thread id.
+   * Without it, `NEXT_PUBLIC_ASSISTANT_BASE_URL` selects Assistant Cloud, as for `useLocalRuntime`.
+   */
   cloud?: AssistantCloud | undefined;
   resumeApi?: string;
   /** Endpoint that returns the retained initial state and run ID for a resume stream. A 204 response means no run is active and the resume is skipped. */

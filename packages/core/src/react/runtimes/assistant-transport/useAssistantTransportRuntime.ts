@@ -36,11 +36,9 @@ import { useConvertedState } from "./useConvertedState";
 import type { ToolExecutionStatus } from "../../../runtimes/tool-invocations/ToolInvocationTracker";
 import { createRequestHeaders } from "../../../runtimes/assistant-transport/utils";
 import { useRemoteThreadListRuntime } from "../useRemoteThreadListRuntime";
-import { InMemoryThreadListAdapter } from "../../../runtimes/remote-thread-list/adapter/in-memory";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import type { UserExternalState } from "../../../types/augmentations";
 import { useCloudThreadListAdapter } from "../cloud/useCloudThreadListAdapter";
-import { ASSISTANT_TRANSPORT_SDK } from "./sdkIdentity";
 
 const convertAppendMessageToCommand = (
   message: AppendMessage,
@@ -495,12 +493,7 @@ const useAssistantTransportThreadRuntime = <T>(
 export const useAssistantTransportRuntime = <T>(
   options: AssistantTransportOptions<T>,
 ): AssistantRuntime => {
-  const cloudAdapter = useCloudThreadListAdapter({
-    cloud: options.cloud,
-    sdk: ASSISTANT_TRANSPORT_SDK,
-  });
-  const [inMemoryAdapter] = useState(() => new InMemoryThreadListAdapter());
-  const adapter = options.cloud ? cloudAdapter : inMemoryAdapter;
+  const adapter = useCloudThreadListAdapter({ cloud: options.cloud });
   const runtime = useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
       return useAssistantTransportThreadRuntime(options);
