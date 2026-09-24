@@ -6,6 +6,7 @@ import { ThreadListNew } from "./ThreadListNew";
 const h = vi.hoisted(() => ({
   switchToNewThread: vi.fn<() => void>(),
   state: { threads: { newThreadId: "new", mainThreadId: "other" } },
+  platform: { os: "web" },
   pressableProps: null as Record<string, unknown> | null,
 }));
 
@@ -41,7 +42,16 @@ vi.mock("react-native", async (importOriginal) => {
     );
   });
 
-  return { ...actual, Pressable: PressableMock };
+  return {
+    ...actual,
+    Platform: {
+      ...actual.Platform,
+      get OS() {
+        return h.platform.os;
+      },
+    },
+    Pressable: PressableMock,
+  };
 });
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
@@ -58,6 +68,7 @@ describe("ThreadListNew", () => {
   beforeEach(() => {
     h.switchToNewThread.mockReset();
     h.state.threads = { newThreadId: "new", mainThreadId: "other" };
+    h.platform.os = "web";
     h.pressableProps = null;
 
     container = document.createElement("div");
@@ -110,39 +121,55 @@ describe("ThreadListNew", () => {
     expect(h.switchToNewThread).not.toHaveBeenCalled();
   });
 
-  it("marks itself selected while the new thread is the current one", async () => {
+  it("marks itself current on the web while the new thread is current", async () => {
     h.state.threads = { newThreadId: "new", mainThreadId: "new" };
 
-    await mount();
+    const el = await mount();
 
+    expect(el.getAttribute("aria-current")).toBe("true");
+    expect(el.hasAttribute("aria-selected")).toBe(false);
     expect(accessibilityState()).toMatchObject({ selected: true });
   });
 
-  it("is not selected while another thread is current", async () => {
-    await mount();
+  it("is not current while another thread is current", async () => {
+    const el = await mount();
 
+    expect(el.hasAttribute("aria-current")).toBe(false);
     expect(accessibilityState()).toMatchObject({ selected: false });
+  });
+
+  it("marks itself selected without aria-current on native", async () => {
+    h.platform.os = "ios";
+    h.state.threads = { newThreadId: "new", mainThreadId: "new" };
+
+    const el = await mount();
+
+    expect(el.hasAttribute("aria-current")).toBe(false);
+    expect(accessibilityState()).toMatchObject({ selected: true });
   });
 
   it("keeps other accessibility state the caller passes", async () => {
     h.state.threads = { newThreadId: "new", mainThreadId: "new" };
 
-    await mount({ accessibilityState: { busy: true } });
+    const el = await mount({ accessibilityState: { busy: true } });
 
+    expect(el.getAttribute("aria-current")).toBe("true");
     expect(accessibilityState()).toMatchObject({ selected: true, busy: true });
   });
 
   it("lets the caller override the selected state", async () => {
     h.state.threads = { newThreadId: "new", mainThreadId: "new" };
 
-    await mount({ accessibilityState: { selected: false } });
+    const el = await mount({ accessibilityState: { selected: false } });
 
+    expect(el.hasAttribute("aria-current")).toBe(false);
     expect(accessibilityState()).toMatchObject({ selected: false });
   });
 
   it("lets the caller select a control the state reports inactive", async () => {
-    await mount({ accessibilityState: { selected: true } });
+    const el = await mount({ accessibilityState: { selected: true } });
 
+    expect(el.getAttribute("aria-current")).toBe("true");
     expect(accessibilityState()).toMatchObject({ selected: true });
   });
 

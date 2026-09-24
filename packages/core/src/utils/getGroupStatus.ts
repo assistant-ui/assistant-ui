@@ -10,22 +10,45 @@ type PartWithStatus = {
 
 export const getGroupStatus = (
   parts: readonly (PartWithStatus | undefined)[],
-  indices?: readonly number[],
 ): MessagePartStatus | ToolCallMessagePartStatus => {
-  if (indices) {
-    for (const index of indices) {
-      if (parts[index]?.status.type === "running") return RUNNING_STATUS;
-    }
-
-    const lastIndex = indices.at(-1);
-    return lastIndex === undefined
-      ? COMPLETE_STATUS
-      : (parts[lastIndex]?.status ?? COMPLETE_STATUS);
-  }
-
   for (const part of parts) {
     if (part?.status.type === "running") return RUNNING_STATUS;
   }
 
   return parts.at(-1)?.status ?? COMPLETE_STATUS;
+};
+
+export const getGroupSummary = (
+  parts: readonly (PartWithStatus | undefined)[],
+  indices: readonly number[],
+) => {
+  const counts = {
+    running: 0,
+    complete: 0,
+    incomplete: 0,
+    requiresAction: 0,
+  };
+  let status: MessagePartStatus | ToolCallMessagePartStatus = COMPLETE_STATUS;
+  let isRunning = false;
+
+  for (const index of indices) {
+    status = parts[index]?.status ?? COMPLETE_STATUS;
+    switch (status.type) {
+      case "running":
+        counts.running++;
+        isRunning = true;
+        break;
+      case "complete":
+        counts.complete++;
+        break;
+      case "incomplete":
+        counts.incomplete++;
+        break;
+      case "requires-action":
+        counts.requiresAction++;
+        break;
+    }
+  }
+
+  return { status: isRunning ? RUNNING_STATUS : status, counts };
 };

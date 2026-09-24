@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createAdkSessionAdapter } from "./AdkSessionAdapter";
 import { projectAdkToolApprovals } from "./adkToolApproval";
+import type { AdkMessage } from "./types";
 
 // ── Helpers ──
 
@@ -20,6 +21,23 @@ const baseOptions = {
 
 const expectedBaseUrl =
   "http://localhost:8000/apps/my-app/users/user-1/sessions";
+
+describe("createAdkSessionAdapter - load cancellation", () => {
+  it("aborts while dynamic headers are pending", async () => {
+    const controller = new AbortController();
+    const reason = new Error("cancelled");
+    const { load } = createAdkSessionAdapter({
+      ...baseOptions,
+      headers: () => new Promise<Record<string, string>>(() => {}),
+    });
+
+    const result = load("session-1", { signal: controller.signal });
+    controller.abort(reason);
+
+    await expect(result).rejects.toBe(reason);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+});
 
 // ── adapter.list() ──
 
@@ -294,6 +312,198 @@ describe("createAdkSessionAdapter - fetch", () => {
 // ── load() ──
 
 describe("createAdkSessionAdapter - load", () => {
+  it("restores tool failures from stored function responses", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          id: "s1",
+          events: [
+            {
+              id: "failed",
+              author: "user",
+              content: {
+                parts: [
+                  {
+                    functionResponse: {
+                      id: "tc-1",
+                      name: "search",
+                      response: { error: "denied" },
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+    const { load } = createAdkSessionAdapter(baseOptions);
+    const result = await load("s1");
+    expect(result.messages).toMatchObject([
+      {
+        type: "tool",
+        tool_call_id: "tc-1",
+        status: "error",
+        content: JSON.stringify({ error: "denied" }),
+      },
+    ]);
+  });
+
+  it("restores snake_case image and file parts from session history", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          id: "s1",
+          events: [
+            {
+              id: "media",
+              author: "user",
+              content: {
+                parts: [
+                  { inline_data: { mime_type: "image/png", data: "aGVsbG8=" } },
+                  {
+                    file_data: {
+                      mime_type: "application/pdf",
+                      file_uri: "https://example.test/report.pdf",
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+    const { load } = createAdkSessionAdapter(baseOptions);
+    const result = await load("s1");
+    expect(result.messages).toMatchObject([
+      {
+        type: "human",
+        content: [
+          { type: "image", mimeType: "image/png", data: "aGVsbG8=" },
+          {
+            type: "file_url",
+            mimeType: "application/pdf",
+            url: "https://example.test/report.pdf",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("loads valid events when history contains malformed media", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          id: "s1",
+          events: [
+            {
+              id: "user-1",
+              author: "user",
+              content: { parts: [{ text: "before" }] },
+            },
+            {
+              id: "bad-media",
+              author: "agent",
+              content: {
+                parts: [
+                  { inlineData: { data: "aGVsbG8=" } },
+                  { fileData: { mimeType: "image/png" } },
+                ],
+              },
+            },
+            {
+              id: "agent-1",
+              author: "agent",
+              content: { parts: [{ text: "after" }] },
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const { load } = createAdkSessionAdapter(baseOptions);
+    const result = await load("s1");
+
+    expect(result.messages).toMatchObject([
+      { type: "human", content: "before" },
+      { type: "ai", content: [{ type: "text", text: "after" }] },
+    ]);
+  });
+
+  it("loads valid events when history contains request calls without args", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          id: "s1",
+          events: [
+            {
+              id: "user-1",
+              author: "user",
+              content: { parts: [{ text: "before" }] },
+            },
+            {
+              id: "bad-requests",
+              author: "agent",
+              content: {
+                parts: [
+                  {
+                    functionCall: {
+                      name: "adk_request_confirmation",
+                      id: "rc-1",
+                    },
+                  },
+                  {
+                    functionCall: {
+                      name: "adk_request_credential",
+                      id: "rc-2",
+                    },
+                  },
+                ],
+              },
+            },
+            {
+              id: "agent-1",
+              author: "agent",
+              content: { parts: [{ text: "after" }] },
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const { load } = createAdkSessionAdapter(baseOptions);
+    const result = await load("s1");
+
+    expect(result.messages).toMatchObject([
+      { type: "human", content: "before" },
+      { type: "ai" },
+      { type: "ai", content: [{ type: "text", text: "after" }] },
+    ]);
+    expect(
+      (result.messages[1] as AdkMessage & { type: "ai" }).tool_calls,
+    ).toEqual([
+      {
+        id: "rc-1",
+        name: "adk_request_confirmation",
+        args: {},
+        argsText: "{}",
+      },
+      {
+        id: "rc-2",
+        name: "adk_request_credential",
+        args: {},
+        argsText: "{}",
+      },
+    ]);
+    expect(result.toolConfirmations).toMatchObject([{ toolCallId: "rc-1" }]);
+    expect(result.authRequests).toMatchObject([{ toolCallId: "rc-2" }]);
+  });
+
   it("returns the per-turn state the events imply, not just the messages", async () => {
     const session = {
       id: "s1",
@@ -322,6 +532,85 @@ describe("createAdkSessionAdapter - load", () => {
     expect(result.messageMetadata).toBeInstanceOf(Map);
     expect(result.toolConfirmations).toEqual([]);
     expect(result.authRequests).toEqual([]);
+  });
+
+  it("reports only the requests the stored replies leave unanswered", async () => {
+    const session = {
+      id: "s1",
+      events: [
+        {
+          id: "e1",
+          author: "agent",
+          content: {
+            role: "model",
+            parts: [
+              { functionCall: { name: "transfer", id: "gated-1", args: {} } },
+              { functionCall: { name: "calendar", id: "gated-2", args: {} } },
+            ],
+          },
+        },
+        {
+          id: "e2",
+          author: "agent",
+          longRunningToolIds: ["conf-1", "cred-1"],
+          actions: {
+            requestedToolConfirmations: { "gated-1": { hint: "Transfer?" } },
+          },
+          content: {
+            role: "user",
+            parts: [
+              {
+                functionCall: {
+                  name: "adk_request_confirmation",
+                  id: "conf-1",
+                  args: {
+                    originalFunctionCall: { id: "gated-1", name: "transfer" },
+                    toolConfirmation: { hint: "Transfer?" },
+                  },
+                },
+              },
+              {
+                functionCall: {
+                  name: "adk_request_credential",
+                  id: "cred-1",
+                  args: {
+                    functionCallId: "gated-2",
+                    authConfig: { credentialKey: "k" },
+                  },
+                },
+              },
+            ],
+          },
+        },
+        {
+          id: "e3",
+          author: "user",
+          content: {
+            role: "user",
+            parts: [
+              {
+                functionResponse: {
+                  name: "adk_request_confirmation",
+                  id: "conf-1",
+                  response: { confirmed: true },
+                },
+              },
+            ],
+          },
+        },
+      ],
+    };
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify(session), { status: 200 }),
+    );
+
+    const { load } = createAdkSessionAdapter(baseOptions);
+    const result = await load("s1");
+
+    expect(result.toolConfirmations).toEqual([]);
+    expect(result.authRequests).toEqual([
+      { toolCallId: "cred-1", authConfig: { credentialKey: "k" } },
+    ]);
   });
 
   it("passes an abort signal through to the request", async () => {
@@ -543,9 +832,16 @@ describe("createAdkSessionAdapter - load replays tool confirmations", () => {
     const result = await load("s1");
     return {
       messages: result.messages,
+      longRunningToolIds: result.longRunningToolIds,
       approvals: projectAdkToolApprovals(result.messages).approvals,
     };
   };
+
+  it("settles an answered long-running tool on replay", async () => {
+    const { longRunningToolIds } = await loadApprovals({ confirmed: true });
+
+    expect(longRunningToolIds).toEqual([]);
+  });
 
   it("keeps a user-authored confirmation reply as a tool message", async () => {
     const { messages } = await loadApprovals({ confirmed: true });
@@ -639,6 +935,7 @@ describe("createAdkSessionAdapter - artifacts", () => {
       "inline data",
       { inlineData: { mimeType: "image/png", data: "aGVsbG8=" } },
     ],
+    ["file data", { fileData: { fileUri: "https://example.test/report.pdf" } }],
   ])("loads valid %s artifacts", async (_label, artifact) => {
     mockFetch.mockResolvedValueOnce(
       new Response(JSON.stringify(artifact), { status: 200 }),
@@ -649,6 +946,75 @@ describe("createAdkSessionAdapter - artifacts", () => {
     await expect(artifacts.load("s1", "report.pdf")).resolves.toEqual(artifact);
   });
 
+  it.each([
+    [
+      "inline data",
+      { inline_data: { mime_type: "application/pdf", data: "aGVsbG8=" } },
+      { inlineData: { mimeType: "application/pdf", data: "aGVsbG8=" } },
+    ],
+    [
+      "file data",
+      {
+        file_data: {
+          mime_type: "application/pdf",
+          file_uri: "https://example.test/report.pdf",
+        },
+      },
+      {
+        fileData: {
+          mimeType: "application/pdf",
+          fileUri: "https://example.test/report.pdf",
+        },
+      },
+    ],
+  ])(
+    "normalizes snake_case %s artifact responses",
+    async (_label, value, expected) => {
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify(value), { status: 200 }),
+      );
+
+      const { artifacts } = createAdkSessionAdapter(baseOptions);
+
+      await expect(artifacts.load("s1", "report.pdf")).resolves.toMatchObject(
+        expected,
+      );
+    },
+  );
+
+  it("prefers camelCase artifact fields when both aliases are present", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          inlineData: {
+            mimeType: "image/png",
+            mime_type: "application/pdf",
+            data: "right",
+          },
+          inline_data: { mime_type: "text/plain", data: "wrong" },
+          fileData: {
+            mimeType: "application/pdf",
+            mime_type: "image/png",
+            fileUri: "https://example.test/right.pdf",
+            file_uri: "https://example.test/wrong.png",
+          },
+          file_data: { file_uri: "https://example.test/other.png" },
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const { artifacts } = createAdkSessionAdapter(baseOptions);
+
+    await expect(artifacts.load("s1", "report.pdf")).resolves.toMatchObject({
+      inlineData: { mimeType: "image/png", data: "right" },
+      fileData: {
+        mimeType: "application/pdf",
+        fileUri: "https://example.test/right.pdf",
+      },
+    });
+  });
+
   it("rejects an artifact without supported content", async () => {
     mockFetch.mockResolvedValueOnce(
       new Response(JSON.stringify({}), { status: 200 }),
@@ -657,7 +1023,7 @@ describe("createAdkSessionAdapter - artifacts", () => {
     const { artifacts } = createAdkSessionAdapter(baseOptions);
 
     await expect(artifacts.load("s1", "report.pdf")).rejects.toThrow(
-      'Invalid ADK artifact load response: expected an object containing "text" or "inlineData".',
+      'Invalid ADK artifact load response: expected an object containing "text", "inlineData", or "fileData".',
     );
   });
 
@@ -671,6 +1037,11 @@ describe("createAdkSessionAdapter - artifacts", () => {
       "inline data",
       { inlineData: { mimeType: "image/png" } },
       'Invalid ADK artifact load response: "inlineData" must contain string "mimeType" and "data" fields.',
+    ],
+    [
+      "file data",
+      { fileData: { mimeType: "application/pdf" } },
+      'Invalid ADK artifact load response: "fileData" must contain a string "fileUri" and an optional string "mimeType" field.',
     ],
   ])("rejects malformed %s artifact content", async (_label, value, error) => {
     mockFetch.mockResolvedValueOnce(

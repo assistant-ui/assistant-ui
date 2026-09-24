@@ -57,6 +57,7 @@ import {
   startThreadTitleRename,
   type ThreadTitleState,
 } from "../../runtimes/remote-thread-list/title-generation";
+import { invokeUserCallback } from "../../utils/invoke-user-callback";
 
 const RESOLVED_PROMISE = Promise.resolve();
 
@@ -550,7 +551,14 @@ const useRemoteThreadList = (
     (remoteId: string | undefined, emit: boolean) => {
       if (session.lastNotifiedRemoteId === remoteId) return;
       session.lastNotifiedRemoteId = remoteId;
-      if (emit) session.onThreadIdChange?.(remoteId);
+      if (emit) {
+        invokeUserCallback(
+          "assistant-ui",
+          "onThreadIdChange",
+          session.onThreadIdChange,
+          remoteId,
+        );
+      }
     },
     [session],
   );
@@ -868,6 +876,12 @@ const useRemoteThreadList = (
       }
       let lastAwaitedTask: Promise<void> | undefined;
       while (isSameThread(store.value, threadId, session.mainThreadId)) {
+        // Rechecked each pass: the draft can become the new thread again
+        // mid-loop when its failed first save rolls it back, and switching to
+        // a new thread then re-adopts it, so no switch can move main off it.
+        if (threadId === store.value.newThreadId) {
+          throw new Error("Cannot ensure new thread is not main");
+        }
         let switchTask = session.switchTask;
         const startedFallback = !switchTask || switchTask === lastAwaitedTask;
         if (startedFallback) {
@@ -1255,7 +1269,12 @@ const useRemoteThreadList = (
   useEffect(() => {
     if (session.lastNotifiedRemoteId === mainRemoteId) return;
     session.lastNotifiedRemoteId = mainRemoteId;
-    onThreadIdChange?.(mainRemoteId);
+    invokeUserCallback(
+      "assistant-ui",
+      "onThreadIdChange",
+      onThreadIdChange,
+      mainRemoteId,
+    );
   }, [mainRemoteId, onThreadIdChange, session]);
 
   useEffect(() => {

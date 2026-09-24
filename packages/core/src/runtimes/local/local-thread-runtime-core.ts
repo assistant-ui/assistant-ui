@@ -1,4 +1,5 @@
 import { fromThreadMessageLike } from "../../runtime/utils/thread-message-like";
+import { appendToolInteraction } from "../../runtime/utils/tool-interactions";
 import { generateId } from "../../utils/id";
 import type {
   ChatModelAdapter,
@@ -15,6 +16,7 @@ import type {
   RespondToToolApprovalOptions,
   ThreadSuggestion,
   ThreadRuntimeCore,
+  Unstable_RecordToolInteractionOptions,
   StartRunConfig,
   ResumeRunConfig,
 } from "../../runtime/interfaces/thread-runtime-core";
@@ -22,6 +24,8 @@ import { BaseThreadRuntimeCore } from "../../runtime/base/base-thread-runtime-co
 import type {
   AppendMessage,
   ThreadAssistantMessage,
+  ThreadAssistantMessagePart,
+  ToolCallMessagePart,
 } from "../../types/message";
 import type { RunConfig, ThreadMessage } from "../../types/message";
 import { MessageNotSentError, toAssistantError } from "../../types/error";
@@ -38,7 +42,6 @@ import {
 import {
   captureThreadRuntimeGeneration,
   invalidateThreadRuntime,
-  isThreadRuntimeGenerationCurrent,
 } from "../../runtime/utils/thread-runtime-lifecycle";
 
 class AbortError extends Error {
@@ -90,6 +93,30 @@ const withLocalPauseReasons = (
   })),
 });
 
+const withoutToolInteractions = (message: ThreadMessage): ThreadMessage => {
+  if (message.role !== "assistant") return message;
+  let hasInteractions = false;
+  const content = message.content.map((part): ThreadAssistantMessagePart => {
+    if (part.type !== "tool-call") return part;
+    const nestedMessages = part.messages?.map(withoutToolInteractions);
+    const hasNestedInteractions = nestedMessages?.some(
+      (nestedMessage, index) => nestedMessage !== part.messages?.[index],
+    );
+    if (
+      part.unstable_interactions === undefined &&
+      hasNestedInteractions !== true
+    ) {
+      return part;
+    }
+    hasInteractions = true;
+    const { unstable_interactions: _, ...withoutInteractions } = part;
+    return hasNestedInteractions
+      ? { ...withoutInteractions, messages: nestedMessages! }
+      : withoutInteractions;
+  });
+  return hasInteractions ? { ...message, content } : message;
+};
+
 export class LocalThreadRuntimeCore
   extends BaseThreadRuntimeCore
   implements ThreadRuntimeCore
@@ -114,9 +141,17 @@ export class LocalThreadRuntimeCore
   private abortController: AbortController | null = null;
 
   private _queue: MessageQueueController | null = null;
-  private _queueRunInFlight = false;
+  // Identifies the dispatch in flight, not merely that one is: consecutive
+  // queue runs overlap, and the previous dispatch settles after the next one
+  // has already started.
+  private _queueRunInFlight: object | null = null;
   private _activeRun: { cancelled: boolean } | null = null;
   private _runGeneration = 0;
+  // A metadata change such as feedback, and a tool result on a running message, replace a message without superseding the run that is streaming it; any other replacement ends that run, whose later chunks would overwrite it.
+  private _messageReplacements = new WeakMap<
+    ThreadAssistantMessage,
+    { message: ThreadAssistantMessage; toolCallId?: string }
+  >();
 
   private _historyWrites = new Map<string, Promise<void>>();
 
@@ -143,15 +178,19 @@ export class LocalThreadRuntimeCore
     return next;
   }
 
-  // A decision recorded on a still-paused message must reach history before
-  // the run resumes, or a refresh would restore the message without it.
-  private _persistPausedMessage(
-    parentId: string | null,
-    message: ThreadAssistantMessage,
-  ) {
-    if (message.status?.type !== "requires-action") return;
+  // A result or decision recorded after a run wrote its message rewrites the stored entry from the repository's current state, so a rewrite queued after a change a subscriber made in response still carries it; a running message is written by its own run once it settles.
+  private _persistMessageUpdate(messageId: string) {
     const history = this._options.adapters.history;
     if (!history?.update) return;
+    let entry: { parentId: string | null; message: ThreadMessage };
+    try {
+      entry = this.repository.getMessage(messageId);
+    } catch {
+      return;
+    }
+    const { parentId, message } = entry;
+    if (message.role !== "assistant" || message.status.type === "running")
+      return;
     const update = history.update.bind(history);
     const item = { parentId, message, runConfig: this._lastRunConfig };
     this._chainHistoryWrite(message.id, () => update(item)).catch(() => {});
@@ -210,6 +249,16 @@ export class LocalThreadRuntimeCore
 
     const previousHistory = this._options?.adapters.history;
     this._options = options;
+    if (!options.adapters.voice && this.voice) {
+      try {
+        this.disconnectVoice();
+      } catch (error) {
+        console.error(
+          "[assistant-ui] Voice cleanup threw after the adapter changed",
+          error,
+        );
+      }
+    }
 
     let hasUpdates = false;
 
@@ -255,22 +304,29 @@ export class LocalThreadRuntimeCore
         run: (message) => {
           // release the queue when the dispatch settles, even if it rejects
           // before reaching startRun's finally, so a failure can't deadlock it
-          this._queueRunInFlight = true;
+          const dispatch = {};
+          this._queueRunInFlight = dispatch;
           const generation = this._runGeneration;
           // the tail may have moved since the message was enqueued
           void this._runAppend({
             ...message,
-            parentId: this.messages.at(-1)?.id ?? null,
+            parentId: this._resolveAppendParent(
+              this.messages.at(-1)?.id ?? null,
+            ),
           })
             .finally(() => {
-              this._queueRunInFlight = false;
-              // a dispatch that failed before starting a run settles here;
-              // runs that did start release from _runLoop
-              if (this._runGeneration === generation) this._queue?.notifyIdle();
+              if (this._queueRunInFlight === dispatch) {
+                this._queueRunInFlight = null;
+                // A dispatch that failed before starting a run settles here;
+                // runs that did start release from _runLoop.
+                if (this._runGeneration === generation)
+                  this._queue?.notifyIdle();
+              }
             })
             .catch(() => {});
         },
       });
+      if (this.voice) this._queue.hold();
       this._queue.subscribe(() => this._notifySubscribers());
     } else if (!canQueue && this._queue) {
       this._queue = null;
@@ -308,7 +364,6 @@ export class LocalThreadRuntimeCore
     const promise = this.adapters.history.load();
 
     this._isLoading = true;
-    this._notifySubscribers();
 
     this._loadPromise = promise
       .then((repo) => {
@@ -338,14 +393,35 @@ export class LocalThreadRuntimeCore
         this._notifySubscribers();
       });
 
+    // Notified after the promise is stored so a subscriber that appends
+    // re-entrantly finds the barrier it has to wait on.
+    this._notifySubscribers();
+
     return this._loadPromise;
   }
 
+  // The import that ends a load replaces the repository contents and resets
+  // the head, so a message added while it is in flight would be left on a
+  // discarded branch. Awaiting the load promise keeps the wait bounded by the
+  // adapter call, unlike polling `isLoading` for a notification that a
+  // superseded runtime never sends.
+  private _getHistoryLoadBarrier(): Promise<void> | undefined {
+    if (!this._isLoading || !this._loadPromise) return undefined;
+    return this._loadPromise.catch(() => {});
+  }
+
   public async append(message: AppendMessage): Promise<void> {
+    message = {
+      ...message,
+      parentId: this._resolveAppendParent(message.parentId),
+    };
+    if (this.voice) return this._appendToVoiceSession(message);
+    if (this._isVoiceMessage(message.sourceId))
+      throw new Error("Voice transcript messages cannot be edited");
     const isTail = message.parentId === (this.messages.at(-1)?.id ?? null);
     const willRun = message.startRun ?? message.role === "user";
     if (this._queue && willRun && isTail) {
-      if (message.steer ?? this._queueRunInFlight)
+      if (message.steer ?? this._queueRunInFlight !== null)
         this._queue.adapter.steer(message);
       else this._queue.adapter.enqueue(message);
       return;
@@ -357,6 +433,42 @@ export class LocalThreadRuntimeCore
     )
       this._queue.clear();
     return this._runAppend(message);
+  }
+
+  protected override _commitVoiceMessage(
+    message: ThreadMessage,
+  ): void | Promise<void> {
+    const generation = captureThreadRuntimeGeneration(this);
+    const commit = (notify: boolean) => {
+      if (generation.aborted) {
+        this._dropVoiceMessage(message.id, notify);
+        return;
+      }
+      const parentId = this.repository.headId;
+      this.repository.addOrUpdateMessage(parentId, message);
+      this.repository.resetHead(message.id);
+      const historyWrite = this._options.adapters.history?.append({
+        parentId,
+        message,
+      });
+      void historyWrite?.catch(() => {});
+      // The write lands whether or not the session still carries the message,
+      // so the notification cannot ride on removing it: hanging up mid load
+      // clears the side list before the barrier resolves.
+      this._dropVoiceMessage(message.id, false);
+      if (notify) this._notifySubscribers();
+      return historyWrite;
+    };
+    const barrier = this._getVoiceCommitBarrier();
+    return barrier ? barrier.then(() => commit(true)) : commit(false);
+  }
+
+  protected override _onVoiceConnected(): void {
+    this._queue?.hold();
+  }
+
+  protected override _onVoiceDisconnected(): void {
+    this._queue?.release();
   }
 
   public getQueueItems(): readonly QueueItemState[] {
@@ -386,10 +498,42 @@ export class LocalThreadRuntimeCore
     this._notifySubscribers();
   }
 
+  private _pendingAppends = 0;
+
+  protected override _isRunActive(): boolean {
+    return this._pendingAppends > 0 || super._isRunActive();
+  }
+
   private async _runAppend(rawMessage: AppendMessage): Promise<void> {
+    this._pendingAppends += 1;
+    try {
+      await this._runAppendInner(rawMessage);
+    } finally {
+      this._pendingAppends -= 1;
+    }
+  }
+
+  private async _runAppendInner(rawMessage: AppendMessage): Promise<void> {
     // Stamped here rather than in `append` so a queued message is gated after
     // the flush re-pointed its parentId at the current tail.
     const generation = captureThreadRuntimeGeneration(this);
+
+    const loadBarrier = this._getHistoryLoadBarrier();
+    if (loadBarrier) {
+      const wasAtTail =
+        rawMessage.parentId === (this.messages.at(-1)?.id ?? null);
+      await loadBarrier;
+      if (generation.aborted) return;
+      // A message aimed at the tail follows the tail the load established; one
+      // aimed at a specific parent keeps it, the way an edit does.
+      if (wasAtTail) {
+        rawMessage = {
+          ...rawMessage,
+          parentId: this._resolveAppendParent(this.messages.at(-1)?.id ?? null),
+        };
+      }
+    }
+
     const message = this.enrichAppendMetadata(rawMessage);
     this.ensureInitialized();
 
@@ -411,12 +555,12 @@ export class LocalThreadRuntimeCore
       }
     } catch (error) {
       this._rollbackAppend(newMessage.id);
-      if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
+      if (generation.aborted) return;
       const notSent = new MessageNotSentError();
       notSent.cause = error;
       throw notSent;
     }
-    if (!isThreadRuntimeGenerationCurrent(this, generation)) {
+    if (generation.aborted) {
       this._rollbackAppend(newMessage.id);
       return;
     }
@@ -488,10 +632,14 @@ export class LocalThreadRuntimeCore
   }
 
   public async startRun(
-    { parentId, runConfig }: StartRunConfig,
+    { parentId, sourceId, runConfig }: StartRunConfig,
     runCallback?: ChatModelAdapter["run"],
   ): Promise<void> {
     this.ensureInitialized();
+    if (this.voice)
+      throw new Error("Cannot start a run while a voice session is connected");
+    if (this._isVoiceMessage(sourceId))
+      throw new Error("Voice transcript messages cannot be reloaded");
 
     // add assistant message
     const id = generateId();
@@ -519,6 +667,8 @@ export class LocalThreadRuntimeCore
     runConfig: RunConfig | undefined,
     runCallback?: ChatModelAdapter["run"],
   ): Promise<void> {
+    if (this.voice)
+      throw new Error("Cannot start a run while a voice session is connected");
     this._notifyEventSubscribers("runStart", {});
 
     // A run entered on a requires-action message resumes a pause an
@@ -551,6 +701,12 @@ export class LocalThreadRuntimeCore
         );
         runCallback = undefined;
         if (this._activeRun !== run) break;
+        let replacement = this._messageReplacements.get(message);
+        while (replacement) {
+          message = replacement.message;
+          replacement = this._messageReplacements.get(message);
+        }
+        if (this.getMessageById(message.id)?.message !== message) break;
       } while (shouldContinue(message, this._options.unstable_humanToolNames));
     } finally {
       this._notifyEventSubscribers("runEnd", {});
@@ -599,6 +755,7 @@ export class LocalThreadRuntimeCore
     runCallback?: ChatModelAdapter["run"],
   ) {
     const messages = parentId ? this.repository.getMessages(parentId) : [];
+    const modelMessages = messages.map(withoutToolInteractions);
 
     // abort existing run
     this.abortController?.abort();
@@ -610,23 +767,106 @@ export class LocalThreadRuntimeCore
     const initialData = message.metadata?.unstable_data;
     const initialSteps = message.metadata?.steps;
     const initialCustom = message.metadata?.custom;
+    const externalToolCallIds = new Set<string>();
     let hasStoredMessage = true;
     try {
       this.repository.getMessage(message.id);
     } catch {
       hasStoredMessage = false;
     }
-    // Other writers replace the stored message object, so identity distinguishes this run from a newer owner.
-    const ownsMessage = () => {
+    const syncOwnedMessage = () => {
       if (!hasStoredMessage) return this._activeRun === run;
       try {
-        return this.repository.getMessage(message.id).message === message;
+        let ownedMessage = message;
+        let replacement = this._messageReplacements.get(ownedMessage);
+        while (replacement) {
+          if (replacement.toolCallId !== undefined) {
+            externalToolCallIds.add(replacement.toolCallId);
+          }
+          ownedMessage = replacement.message;
+          replacement = this._messageReplacements.get(ownedMessage);
+        }
+        if (this.repository.getMessage(message.id).message !== ownedMessage)
+          return false;
+        message = ownedMessage;
+        return true;
       } catch {
         return false;
       }
     };
+    const withExternalResults = (parts: ThreadAssistantMessage["content"]) => {
+      const interactions = new Map<
+        string,
+        ToolCallMessagePart["unstable_interactions"]
+      >();
+      for (const part of message.content) {
+        if (
+          part.type === "tool-call" &&
+          part.unstable_interactions !== undefined
+        ) {
+          interactions.set(part.toolCallId, part.unstable_interactions);
+        }
+      }
+      const withInteractions = parts.map((part) => {
+        if (
+          part.type !== "tool-call" ||
+          part.unstable_interactions !== undefined
+        ) {
+          return part;
+        }
+        const unstable_interactions = interactions.get(part.toolCallId);
+        return unstable_interactions === undefined
+          ? part
+          : { ...part, unstable_interactions };
+      });
+
+      if (externalToolCallIds.size === 0) return withInteractions;
+      const previousToolCalls = new Map<string, ToolCallMessagePart[]>();
+      for (const part of message.content) {
+        if (
+          part.type !== "tool-call" ||
+          !externalToolCallIds.has(part.toolCallId)
+        )
+          continue;
+        const occurrences = previousToolCalls.get(part.toolCallId) ?? [];
+        occurrences.push(part);
+        previousToolCalls.set(part.toolCallId, occurrences);
+      }
+      const incomingOccurrences = new Map<string, number>();
+      return withInteractions.map((part) => {
+        if (part.type !== "tool-call") return part;
+        const occurrence = incomingOccurrences.get(part.toolCallId) ?? 0;
+        incomingOccurrences.set(part.toolCallId, occurrence + 1);
+        if (part.result !== undefined && part.isPreliminary !== true)
+          return part;
+        const completed = previousToolCalls.get(part.toolCallId)?.[occurrence];
+        if (
+          !completed ||
+          completed.result === undefined ||
+          completed.isPreliminary === true
+        )
+          return part;
+        const {
+          isPreliminary: _,
+          artifact: _artifact,
+          modelContent: _modelContent,
+          ...settledPart
+        } = part;
+        return {
+          ...settledPart,
+          result: completed.result,
+          isError: completed.isError,
+          ...(completed.artifact !== undefined && {
+            artifact: completed.artifact,
+          }),
+          ...(completed.modelContent !== undefined && {
+            modelContent: completed.modelContent,
+          }),
+        };
+      });
+    };
     const updateMessage = (m: Partial<ChatModelRunResult>) => {
-      if (!ownsMessage()) return;
+      if (!syncOwnedMessage()) return;
       const newSteps = m.metadata?.steps;
       const steps = newSteps
         ? [...(initialSteps ?? []), ...newSteps]
@@ -639,11 +879,13 @@ export class LocalThreadRuntimeCore
         : undefined;
       const data = newData ? [...(initialData ?? []), ...newData] : undefined;
 
+      const content = m.content
+        ? withExternalResults([...initialContent, ...m.content])
+        : undefined;
+
       message = {
         ...message,
-        ...(m.content
-          ? { content: [...initialContent, ...(m.content ?? [])] }
-          : undefined),
+        ...(content ? { content } : undefined),
         status: m.status ?? message.status,
         ...(m.metadata
           ? {
@@ -720,7 +962,7 @@ export class LocalThreadRuntimeCore
               shouldContinue(message, this._options.unstable_humanToolNames))));
       const threadId = this._getThreadId?.();
       const promiseOrGenerator = runCallback({
-        messages,
+        messages: modelMessages,
         runConfig: this._lastRunConfig,
         abortSignal,
         context,
@@ -728,7 +970,8 @@ export class LocalThreadRuntimeCore
         unstable_threadId: threadId,
         unstable_parentId: parentId,
         unstable_getMessage() {
-          return message;
+          syncOwnedMessage();
+          return withoutToolInteractions(message);
         },
       });
 
@@ -785,6 +1028,7 @@ export class LocalThreadRuntimeCore
       }
 
       const history = this._options.adapters.history;
+      const ownsCurrentMessage = syncOwnedMessage();
       const item = {
         parentId,
         message,
@@ -799,7 +1043,10 @@ export class LocalThreadRuntimeCore
 
       // Pauses are written only for adapters that can rewrite the entry later;
       // an append-only adapter would strand a half-finished run in history.
-      if (ownsMessage() && (isTerminal || (isPausing && history?.update))) {
+      if (
+        ownsCurrentMessage &&
+        (isTerminal || (isPausing && history?.update))
+      ) {
         const write =
           alreadyPersisted && history?.update
             ? history.update.bind(history)
@@ -839,13 +1086,26 @@ export class LocalThreadRuntimeCore
     this._suggestionsController = null;
   }
 
+  protected override _onMessageMetadataChanged(
+    previousMessage: ThreadAssistantMessage,
+    message: ThreadAssistantMessage,
+  ): void {
+    this._messageReplacements.set(previousMessage, { message });
+    this._persistMessageUpdate(message.id);
+  }
+
   public addToolResult({
     messageId,
     toolCallId,
     result,
     isError,
     artifact,
+    modelContent,
   }: AddToolResultOptions) {
+    if (this.voice)
+      throw new Error(
+        "Cannot add a tool result while a voice session is connected",
+      );
     const messageData = this.repository.getMessage(messageId);
     const { parentId } = messageData;
     let { message } = messageData;
@@ -859,34 +1119,50 @@ export class LocalThreadRuntimeCore
       if (c.type !== "tool-call") return c;
       if (c.toolCallId !== toolCallId) return c;
       found = true;
-      if (c.result === undefined) added = true;
+      if (c.result === undefined || c.isPreliminary === true) added = true;
+      const { isPreliminary: _isPreliminary, ...part } = c;
+      // artifact and modelContent are optional; only override when supplied so
+      // a later result that omits them does not clobber a stored value.
       return {
-        ...c,
+        ...part,
         result,
-        artifact,
         isError,
+        ...(artifact !== undefined && { artifact }),
+        ...(modelContent !== undefined && { modelContent }),
       };
     });
 
     if (!found)
       throw new Error("Tried to add tool result to non-existing tool call");
 
+    const previousMessage = message;
     message = {
       ...message,
       content: newContent,
     };
+    if (previousMessage.status.type === "running") {
+      this._messageReplacements.set(previousMessage, {
+        message,
+        toolCallId,
+      });
+    }
     this.repository.addOrUpdateMessage(parentId, message);
     this._notifySubscribers();
+    if (!added) return;
 
+    // A subscriber may replace the message while it is notified, so the resume starts from the stored entry.
+    const stored = this.getMessageById(messageId);
     // a result may arrive mid-run or on a non-head message; the resume
     // intentionally aborts any in-flight run, unlike respondToToolApproval
     if (
-      added &&
-      shouldContinue(message, this._options.unstable_humanToolNames)
+      stored?.message.role === "assistant" &&
+      shouldContinue(stored.message, this._options.unstable_humanToolNames)
     ) {
-      this._runLoop(parentId, message, this._lastRunConfig).catch(() => {});
-    } else if (added) {
-      this._persistPausedMessage(parentId, message);
+      this._runLoop(stored.parentId, stored.message, this._lastRunConfig).catch(
+        () => {},
+      );
+    } else {
+      this._persistMessageUpdate(messageId);
     }
   }
 
@@ -896,6 +1172,61 @@ export class LocalThreadRuntimeCore
     );
   }
 
+  public async unstable_recordToolInteraction({
+    messageId,
+    toolCallId,
+    interaction,
+  }: Unstable_RecordToolInteractionOptions): Promise<void> {
+    let messageData: { parentId: string | null; message: ThreadMessage };
+    try {
+      messageData = this.repository.getMessage(messageId);
+    } catch {
+      throw new Error(
+        "Tried to record a tool interaction on a non-existing message",
+      );
+    }
+    const { parentId, message: previousMessage } = messageData;
+    if (previousMessage.role !== "assistant") {
+      throw new Error(
+        "Tried to record a tool interaction on a non-assistant message",
+      );
+    }
+    const toolCallIndex = previousMessage.content.findIndex(
+      (part) => part.type === "tool-call" && part.toolCallId === toolCallId,
+    );
+    if (toolCallIndex === -1) {
+      throw new Error(
+        "Tried to record a tool interaction on a non-existing tool call",
+      );
+    }
+    const target = previousMessage.content[toolCallIndex]!;
+    if (target.type !== "tool-call") {
+      throw new Error(
+        "Tried to record a tool interaction on a non-existing tool call",
+      );
+    }
+    const message: ThreadAssistantMessage = {
+      ...previousMessage,
+      content: previousMessage.content.map((part, index) =>
+        index === toolCallIndex
+          ? {
+              ...part,
+              unstable_interactions: appendToolInteraction(
+                target.unstable_interactions,
+                interaction,
+              ),
+            }
+          : part,
+      ),
+    };
+    if (previousMessage.status.type === "running") {
+      this._messageReplacements.set(previousMessage, { message });
+    }
+    this.repository.addOrUpdateMessage(parentId, message);
+    this._notifySubscribers();
+    this._persistMessageUpdate(message.id);
+  }
+
   public respondToToolApproval({
     approvalId,
     approved,
@@ -903,6 +1234,10 @@ export class LocalThreadRuntimeCore
     text,
     reason,
   }: RespondToToolApprovalOptions): Promise<void> {
+    if (this.voice)
+      throw new Error(
+        "Cannot respond to a tool approval while a voice session is connected",
+      );
     let message = this.repository
       .getMessages()
       .findLast(
@@ -961,14 +1296,24 @@ export class LocalThreadRuntimeCore
     const { parentId } = this.repository.getMessage(message.id);
     this.repository.addOrUpdateMessage(parentId, message);
     this._notifySubscribers();
+    this._notifyToolApprovalAnswered(
+      message.id,
+      target.toolCallId,
+      target.toolName,
+      approved,
+    );
 
+    const stored = this.getMessageById(message.id);
     if (
       this.repository.headId === message.id &&
-      shouldContinue(message, this._options.unstable_humanToolNames)
+      stored?.message.role === "assistant" &&
+      shouldContinue(stored.message, this._options.unstable_humanToolNames)
     ) {
-      this._runLoop(parentId, message, this._lastRunConfig).catch(() => {});
+      this._runLoop(stored.parentId, stored.message, this._lastRunConfig).catch(
+        () => {},
+      );
     } else {
-      this._persistPausedMessage(parentId, message);
+      this._persistMessageUpdate(message.id);
     }
 
     return Promise.resolve();

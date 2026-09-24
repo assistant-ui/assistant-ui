@@ -10,14 +10,27 @@ import {
   isValidElement,
   memo,
   useContext,
+  useRef,
 } from "react";
-import { memoCompareNodes } from "../memoization";
+import {
+  isEqualToDepth,
+  isSameHastNode,
+  memoCompareNodes,
+} from "../memoization";
 
 export type PreOverrideProps = ComponentPropsWithoutRef<"pre"> & {
   node?: Element | undefined;
 };
 
 export type PreComponent = ComponentType<PreOverrideProps>;
+
+function isSamePreProps(prev: PreOverrideProps, next: PreOverrideProps) {
+  const { node: prevNode, ...prevRest } = prev;
+  const { node: nextNode, ...nextRest } = next;
+  return (
+    isSameHastNode(prevNode, nextNode) && isEqualToDepth(prevRest, nextRest, 2)
+  );
+}
 
 export function DefaultPre({ node: _, ...props }: PreOverrideProps) {
   return <pre {...props} />;
@@ -49,7 +62,9 @@ export function useStreamdownPreProps(): PreOverrideProps | null {
  * Mirrors streamdown's pre override by marking the child code element as block
  * content without adding an extra <pre> wrapper around it. A pre without a code
  * child (raw HTML) has no code component to re-emit its element, so it renders
- * through the fallback pre instead of losing the element.
+ * through the fallback pre instead of losing the element. Streamdown re-parses a
+ * block whenever it re-renders, so the context value keeps its identity while
+ * the pre props are equal by value, and its consumers skip unchanged fences.
  */
 export const PreOverride = memo(
   function PreOverride({
@@ -58,6 +73,8 @@ export const PreOverride = memo(
     fallbackPre: FallbackPre = DefaultPre,
     ...rest
   }: PreOverrideProps & { fallbackPre?: PreComponent | undefined }) {
+    const preProps = useRef<PreOverrideProps | null>(null);
+
     const hasCodeChild =
       node?.children.some(
         (child) => child.type === "element" && child.tagName === "code",
@@ -71,6 +88,14 @@ export const PreOverride = memo(
       );
     }
 
+    const nextPreProps = { node, ...rest };
+    if (
+      preProps.current === null ||
+      !isSamePreProps(preProps.current, nextPreProps)
+    ) {
+      preProps.current = nextPreProps;
+    }
+
     const childWithBlock = isValidElement(children)
       ? cloneElement(children as ReactElement<{ "data-block"?: string }>, {
           "data-block": "true",
@@ -78,7 +103,7 @@ export const PreOverride = memo(
       : children;
 
     return (
-      <PreContext.Provider value={{ node, ...rest }}>
+      <PreContext.Provider value={preProps.current}>
         {childWithBlock}
       </PreContext.Provider>
     );

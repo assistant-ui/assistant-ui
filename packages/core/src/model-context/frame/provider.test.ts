@@ -2,8 +2,23 @@
  * @vitest-environment jsdom
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Tool } from "assistant-stream";
 import { AssistantFrameProvider } from "./provider";
 import { FRAME_MESSAGE_CHANNEL } from "./types";
+
+const createTool = <TResult>(
+  execute: NonNullable<
+    Extract<
+      Tool<Record<string, unknown>, TResult>,
+      { type: "frontend" }
+    >["execute"]
+  >,
+) =>
+  ({
+    type: "frontend",
+    parameters: { type: "object", properties: {} },
+    execute,
+  }) satisfies Tool<Record<string, unknown>, TResult>;
 
 describe("AssistantFrameProvider", () => {
   let messageHandler: ((event: MessageEvent) => void) | undefined;
@@ -69,6 +84,45 @@ describe("AssistantFrameProvider", () => {
     vi.spyOn(window, "removeEventListener").mockImplementation(() => {});
   });
 
+  it.each([
+    null,
+    {},
+    { type: "tool-call", id: null, toolName: "sensitiveTool", args: {} },
+    { type: "tool-call", id: "tool-call-1", toolName: null, args: {} },
+    { type: "tool-call", id: "tool-call-1", toolName: "sensitiveTool" },
+    { type: "tool-cancel", id: null },
+  ])("ignores malformed frame messages", async (message) => {
+    const execute = vi.fn(async () => "result");
+    AssistantFrameProvider.addModelContextProvider(
+      {
+        getModelContext: () => ({
+          tools: { sensitiveTool: createTool(execute) },
+        }),
+      },
+      "https://parent.example",
+    );
+
+    expect(() =>
+      messageHandler?.(
+        new MessageEvent("message", {
+          data: { channel: FRAME_MESSAGE_CHANNEL, message },
+          origin: "https://parent.example",
+          source: parentWindow,
+        }),
+      ),
+    ).not.toThrow();
+
+    await Promise.resolve();
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(parentWindow.postMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.objectContaining({ type: "tool-result" }),
+      }),
+      expect.anything(),
+    );
+  });
+
   afterEach(() => {
     AssistantFrameProvider.dispose();
     vi.restoreAllMocks();
@@ -80,7 +134,7 @@ describe("AssistantFrameProvider", () => {
       {
         getModelContext: () => ({
           tools: {
-            sensitiveTool: { execute },
+            sensitiveTool: createTool(execute),
           },
         }),
       },
@@ -104,7 +158,7 @@ describe("AssistantFrameProvider", () => {
     const execute = vi.fn(async () => "result");
     AssistantFrameProvider.addModelContextProvider({
       getModelContext: () => ({
-        tools: { sensitiveTool: { execute } },
+        tools: { sensitiveTool: createTool(execute) },
       }),
     });
 
@@ -120,6 +174,42 @@ describe("AssistantFrameProvider", () => {
     await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
   });
 
+  it("does not broadcast from a disposed provider", async () => {
+    vi.useFakeTimers();
+
+    try {
+      AssistantFrameProvider.addModelContextProvider({
+        getModelContext: () => ({ system: "disposed context" }),
+      });
+      AssistantFrameProvider.dispose();
+
+      AssistantFrameProvider.addModelContextProvider({
+        getModelContext: () => ({ system: "current context" }),
+      });
+      vi.mocked(parentWindow.postMessage).mockClear();
+
+      await vi.runAllTimersAsync();
+
+      expect(parentWindow.postMessage).toHaveBeenCalledOnce();
+      expect(parentWindow.postMessage).toHaveBeenCalledWith(
+        {
+          channel: FRAME_MESSAGE_CHANNEL,
+          message: {
+            type: "model-context-update",
+            context: {
+              system: "current context",
+              tools: {},
+            },
+          },
+        },
+        window.location.origin,
+      );
+    } finally {
+      AssistantFrameProvider.dispose();
+      vi.useRealTimers();
+    }
+  });
+
   it("reports a failure even when the thrown error has an empty message", async () => {
     const execute = vi.fn(async () => {
       throw new Error();
@@ -127,7 +217,7 @@ describe("AssistantFrameProvider", () => {
     AssistantFrameProvider.addModelContextProvider({
       getModelContext: () => ({
         tools: {
-          sensitiveTool: { execute },
+          sensitiveTool: createTool(execute),
         },
       }),
     });
@@ -156,7 +246,7 @@ describe("AssistantFrameProvider", () => {
     });
     AssistantFrameProvider.addModelContextProvider({
       getModelContext: () => ({
-        tools: { sensitiveTool: { execute } },
+        tools: { sensitiveTool: createTool(execute) },
       }),
     });
 
@@ -197,7 +287,7 @@ describe("AssistantFrameProvider", () => {
     );
     AssistantFrameProvider.addModelContextProvider({
       getModelContext: () => ({
-        tools: { sensitiveTool: { execute } },
+        tools: { sensitiveTool: createTool(execute) },
       }),
     });
 
@@ -234,7 +324,9 @@ describe("AssistantFrameProvider", () => {
       },
     );
     AssistantFrameProvider.addModelContextProvider({
-      getModelContext: () => ({ tools: { sensitiveTool: { execute } } }),
+      getModelContext: () => ({
+        tools: { sensitiveTool: createTool(execute) },
+      }),
     });
 
     dispatchToolCall(window.location.origin, parentWindow, "tool-a");
@@ -262,7 +354,9 @@ describe("AssistantFrameProvider", () => {
       },
     );
     AssistantFrameProvider.addModelContextProvider({
-      getModelContext: () => ({ tools: { sensitiveTool: { execute } } }),
+      getModelContext: () => ({
+        tools: { sensitiveTool: createTool(execute) },
+      }),
     });
 
     dispatchToolCall(window.location.origin, parentWindow, "duplicate");
@@ -272,6 +366,28 @@ describe("AssistantFrameProvider", () => {
 
     expect(signals[0]?.aborted).toBe(true);
     expect(signals[1]?.aborted).toBe(false);
+  });
+
+  it("withdraws its context from the parent when disposed", () => {
+    AssistantFrameProvider.addModelContextProvider(
+      {
+        getModelContext: () => ({
+          tools: { sensitiveTool: createTool(vi.fn()) },
+        }),
+      },
+      "https://parent.example",
+    );
+    vi.mocked(parentWindow.postMessage).mockClear();
+
+    AssistantFrameProvider.dispose();
+
+    expect(parentWindow.postMessage).toHaveBeenCalledExactlyOnceWith(
+      {
+        channel: FRAME_MESSAGE_CHANNEL,
+        message: { type: "model-context-update", context: {} },
+      },
+      "https://parent.example",
+    );
   });
 
   it("aborts in-flight tool calls when the provider is disposed", async () => {
@@ -289,7 +405,9 @@ describe("AssistantFrameProvider", () => {
       },
     );
     AssistantFrameProvider.addModelContextProvider({
-      getModelContext: () => ({ tools: { sensitiveTool: { execute } } }),
+      getModelContext: () => ({
+        tools: { sensitiveTool: createTool(execute) },
+      }),
     });
 
     dispatchToolCall(window.location.origin);
@@ -335,7 +453,9 @@ describe("AssistantFrameProvider", () => {
       },
     );
     const removeProvider = AssistantFrameProvider.addModelContextProvider({
-      getModelContext: () => ({ tools: { sensitiveTool: { execute } } }),
+      getModelContext: () => ({
+        tools: { sensitiveTool: createTool(execute) },
+      }),
     });
 
     dispatchToolCall(window.location.origin);
@@ -381,7 +501,9 @@ describe("AssistantFrameProvider", () => {
       },
     );
     const provider = {
-      getModelContext: () => ({ tools: { sensitiveTool: { execute } } }),
+      getModelContext: () => ({
+        tools: { sensitiveTool: createTool(execute) },
+      }),
     };
     const removeFirst =
       AssistantFrameProvider.addModelContextProvider(provider);
@@ -402,7 +524,7 @@ describe("AssistantFrameProvider", () => {
     const shadowedExecute = vi.fn(async () => "shadowed");
     const removeShadowed = AssistantFrameProvider.addModelContextProvider({
       getModelContext: () => ({
-        tools: { sensitiveTool: { execute: shadowedExecute } },
+        tools: { sensitiveTool: createTool(shadowedExecute) },
       }),
     });
 
@@ -421,7 +543,7 @@ describe("AssistantFrameProvider", () => {
     );
     const removeOwner = AssistantFrameProvider.addModelContextProvider({
       getModelContext: () => ({
-        tools: { sensitiveTool: { execute } },
+        tools: { sensitiveTool: createTool(execute) },
       }),
     });
 
@@ -454,10 +576,10 @@ describe("AssistantFrameProvider", () => {
       },
     );
     const removeFirst = AssistantFrameProvider.addModelContextProvider({
-      getModelContext: () => ({ tools: { firstTool: { execute } } }),
+      getModelContext: () => ({ tools: { firstTool: createTool(execute) } }),
     });
     const removeSecond = AssistantFrameProvider.addModelContextProvider({
-      getModelContext: () => ({ tools: { secondTool: { execute } } }),
+      getModelContext: () => ({ tools: { secondTool: createTool(execute) } }),
     });
 
     dispatchToolCall(
@@ -504,7 +626,7 @@ describe("AssistantFrameProvider", () => {
       {
         getModelContext: () => ({
           tools: {
-            sensitiveTool: { execute },
+            sensitiveTool: createTool(execute),
           },
         }),
       },
@@ -531,7 +653,7 @@ describe("AssistantFrameProvider", () => {
       {
         getModelContext: () => ({
           tools: {
-            sensitiveTool: { execute },
+            sensitiveTool: createTool(execute),
           },
         }),
       },
@@ -573,7 +695,7 @@ describe("AssistantFrameProvider", () => {
       AssistantFrameProvider.addModelContextProvider(
         {
           getModelContext: () => ({
-            tools: { sensitiveTool: { execute } },
+            tools: { sensitiveTool: createTool(execute) },
           }),
           subscribe: () => {
             throw new Error("subscribe failed");
@@ -612,7 +734,7 @@ describe("AssistantFrameProvider", () => {
     expect(() =>
       AssistantFrameProvider.addModelContextProvider({
         getModelContext: () => ({
-          tools: { sensitiveTool: { execute } },
+          tools: { sensitiveTool: createTool(execute) },
         }),
         subscribe: () => {
           dispatchToolCall(window.location.origin);
@@ -642,7 +764,7 @@ describe("AssistantFrameProvider", () => {
     let subscriptionCount = 0;
     const provider = {
       getModelContext: () => ({
-        tools: { sensitiveTool: { execute } },
+        tools: { sensitiveTool: createTool(execute) },
       }),
       subscribe: () => {
         subscriptionCount += 1;
@@ -898,7 +1020,7 @@ describe("AssistantFrameProvider", () => {
       {
         getModelContext: () => ({
           tools: {
-            sensitiveTool: { execute },
+            sensitiveTool: createTool(execute),
           },
         }),
       },

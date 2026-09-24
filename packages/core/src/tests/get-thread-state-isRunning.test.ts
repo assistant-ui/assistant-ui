@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { getThreadState } from "../runtime/api/thread-runtime";
 import type { ThreadRuntimeCore } from "../runtime/interfaces/thread-runtime-core";
 import type { ThreadMessage } from "../types/message";
-import type { ThreadListItemState } from "../runtime/api/thread-list-item-runtime";
+import type { ThreadListItemRuntimeState } from "../runtime/api/thread-list-item-runtime";
 
-const listItem = { id: "t1" } as unknown as ThreadListItemState;
+const listItem = { id: "t1" } as unknown as ThreadListItemRuntimeState;
 
 const baseRuntime = (
   overrides: Partial<ThreadRuntimeCore>,

@@ -1,5 +1,53 @@
 # @assistant-ui/store
 
+## 0.3.15
+
+### Patch Changes
+
+- [#7871](https://github.com/assistant-ui/assistant-ui/pull/7871) [`21f8bdf`](https://github.com/assistant-ui/assistant-ui/commit/21f8bdfd8c5c0541cf6d0541eec07fb9e88c3ad3) - fix: stop a nested `useChatRuntime` chat when its own component unmounts, stop registering `AISDKThreads` cloud threads on the client destroy signal, and stop fast refresh from aborting the destroy signal of `useAui(config)` hosts ([@okisdev](https://github.com/okisdev))
+
+- [#7749](https://github.com/assistant-ui/assistant-ui/pull/7749) [`8e1508a`](https://github.com/assistant-ui/assistant-ui/commit/8e1508a9cde31e3d682a3b142dcd2aca29696b11) - perf: keep a thread update off every message client ([@okisdev](https://github.com/okisdev))
+  
+  A streamed token no longer re-runs every message client in an external-store thread, cutting per-token cost by about 60% at 1000 messages.
+
+## 0.3.14
+
+### Patch Changes
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#7338](https://github.com/assistant-ui/assistant-ui/pull/7338) [`11969a2`](https://github.com/assistant-ui/assistant-ui/commit/11969a219201f49eb42a76d05e9f3cc787c5f025) - docs: teach `AuiConfig` and the provider `config` prop instead of the deprecated `useAui({...})` overload in docblocks and the agent skill ([@L4XB](https://github.com/L4XB))
+
+## 0.3.13
+
+### Patch Changes
+
+- [#6993](https://github.com/assistant-ui/assistant-ui/pull/6993) [`91689ab`](https://github.com/assistant-ui/assistant-ui/commit/91689ab92fa8ccaecff463c6fdc3e6a666bf93e5) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#6872](https://github.com/assistant-ui/assistant-ui/pull/6872) [`96f011a`](https://github.com/assistant-ui/assistant-ui/commit/96f011a916de97ea73e25c307d9b2cb2f4758a85) - fix: preserve client list order for numeric string keys ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6883](https://github.com/assistant-ui/assistant-ui/pull/6883) [`f044254`](https://github.com/assistant-ui/assistant-ui/commit/f04425409c270c879f86962eeb920dafe2adfe5d) - fix: add and retrieve client resources with prototype-named keys ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6957](https://github.com/assistant-ui/assistant-ui/pull/6957) [`71c5416`](https://github.com/assistant-ui/assistant-ui/commit/71c5416bca4446ff6b18fab502107abe8f89fc09) - fix: expire falsy values in the last-valid cache and preserve cached null and undefined during the stale window. ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#7027](https://github.com/assistant-ui/assistant-ui/pull/7027) [`6c85699`](https://github.com/assistant-ui/assistant-ui/commit/6c85699526007e2febe3add80515af16ae84111f) - fix(core): cancel a thread's in-flight request when its runtime is torn down ([@okisdev](https://github.com/okisdev))
+  
+  each thread the remote thread list hosts now owns a destroy signal that aborts when its runtime is stopped or restarted, and `useChatRuntime` stops the chat on it. deleting or detaching a thread, replacing the thread list with one that drops it, or restarting its runtime now cancels the request that thread had in flight instead of leaving it streaming into a runtime nothing reads. hiding a thread under `<Activity mode="hidden">` is a soft unmount and keeps streaming.
+
+- [#7033](https://github.com/assistant-ui/assistant-ui/pull/7033) [`40f0978`](https://github.com/assistant-ui/assistant-ui/commit/40f0978744647043bac9089d63ab4a777d29d5ec) - fix(store): cancel in-flight work when the React host that owns it unmounts ([@okisdev](https://github.com/okisdev))
+  
+  a React-hosted client now carries a permanent teardown signal, so unmounting an `AuiProvider`, a `useAui(config)` host, or a `useRemoteThreadListRuntime` host cancels the requests it owned instead of leaving them streaming into a deleted tree. a hidden `<Activity>`, a Strict Mode replay, and a re-suspended boundary are soft and keep streaming.
+
+- [#6521](https://github.com/assistant-ui/assistant-ui/pull/6521) [`928c580`](https://github.com/assistant-ui/assistant-ui/commit/928c580f4132496ee6ae9dc5a64fe44ca4bfd1b7) - fix: commit hosted tap resources before descendant layout effects ([@rupic-app](https://github.com/apps/rupic-app))
+  
+  AuiProvider mounts the tap host's commit in the layout phase instead of the passive phase, so a descendant layout effect that calls a client action runs against the render it was mounted with. Previously a `RemoteThreadList` consumer reloading from a layout effect reached the previously committed adapter. The commit now runs before paint; direct `useTapHost` consumers that do not mount `effects` themselves keep the passive fallback.
+
+- [#6955](https://github.com/assistant-ui/assistant-ui/pull/6955) [`56f13b5`](https://github.com/assistant-ui/assistant-ui/commit/56f13b550059b1371590a85310db53f14b95e2c9) - fix: detect values that replace empty positions in sparse arrays during shallow comparison ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6891](https://github.com/assistant-ui/assistant-ui/pull/6891) [`08088b4`](https://github.com/assistant-ui/assistant-ui/commit/08088b4732a08ca7b1c5fd603d5d1567f5853ef6) - fix: keep replacement event listeners after a stale unsubscribe call. ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6272](https://github.com/assistant-ui/assistant-ui/pull/6272) [`b2d12e7`](https://github.com/assistant-ui/assistant-ui/commit/b2d12e7b48e790daf085525f1f3de4e3a25c2da1) - fix: log event listener errors instead of raising uncatchable exceptions ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.3.12
 
 ### Patch Changes

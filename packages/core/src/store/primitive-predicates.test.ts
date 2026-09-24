@@ -8,6 +8,7 @@ import {
   composerCancelDisabled,
   composerInputDisabled,
   composerSendDisabled,
+  suggestionSendMode,
   suggestionTriggerDisabled,
 } from "./primitive-predicates";
 
@@ -50,13 +51,45 @@ describe("primitive predicates", () => {
     ).toBe(true);
   });
 
-  it("actionBarReloadDisabled rejects user messages and busy threads", () => {
-    const thread = { isRunning: false, isDisabled: false };
+  it("composerSendDisabled leaves a spoken reply in progress to canSend while a voice session is connected", () => {
+    const voice = { status: { type: "running" }, canSendText: true };
+    expect(
+      composerSendDisabled(
+        state({
+          composer: { canSend: true },
+          thread: { isRunning: true, capabilities: { queue: false }, voice },
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      composerSendDisabled(
+        state({
+          composer: { canSend: false },
+          thread: { isRunning: true, capabilities: { queue: false }, voice },
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("actionBarReloadDisabled rejects user messages, busy threads, and runtimes without reload", () => {
+    const thread = {
+      isRunning: false,
+      isDisabled: false,
+      capabilities: { reload: true },
+    };
     expect(
       actionBarReloadDisabled(
         state({ thread, message: { role: "assistant" } }),
       ),
     ).toBe(false);
+    expect(
+      actionBarReloadDisabled(
+        state({
+          thread: { ...thread, voice: {} },
+          message: { role: "assistant" },
+        }),
+      ),
+    ).toBe(true);
     expect(
       actionBarReloadDisabled(state({ thread, message: { role: "user" } })),
     ).toBe(true);
@@ -64,6 +97,14 @@ describe("primitive predicates", () => {
       actionBarReloadDisabled(
         state({
           thread: { ...thread, isRunning: true },
+          message: { role: "assistant" },
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      actionBarReloadDisabled(
+        state({
+          thread: { ...thread, capabilities: { reload: false } },
           message: { role: "assistant" },
         }),
       ),
@@ -109,7 +150,7 @@ describe("primitive predicates", () => {
   it("branch picker predicates respect bounds and run capabilities", () => {
     const thread = {
       isRunning: false,
-      capabilities: { switchBranchDuringRun: false },
+      capabilities: { switchToBranch: true, switchBranchDuringRun: false },
     };
     const message = { branchNumber: 2, branchCount: 3 };
     expect(branchPickerPreviousDisabled(state({ thread, message }))).toBe(
@@ -131,6 +172,16 @@ describe("primitive predicates", () => {
         state({ thread: { ...thread, isRunning: true }, message }),
       ),
     ).toBe(true);
+    const noSwitching = {
+      ...thread,
+      capabilities: { ...thread.capabilities, switchToBranch: false },
+    };
+    expect(
+      branchPickerPreviousDisabled(state({ thread: noSwitching, message })),
+    ).toBe(true);
+    expect(
+      branchPickerNextDisabled(state({ thread: noSwitching, message })),
+    ).toBe(true);
   });
 
   it("suggestionTriggerDisabled gates on send only for queueless runs", () => {
@@ -147,6 +198,69 @@ describe("primitive predicates", () => {
         true,
       ),
     ).toBe(false);
+  });
+
+  it("suggestionTriggerDisabled follows canSendText instead of the run while a voice session is connected", () => {
+    const thread = {
+      isDisabled: false,
+      isRunning: true,
+      capabilities: { queue: false },
+    };
+    expect(
+      suggestionTriggerDisabled(
+        state({ thread: { ...thread, voice: { canSendText: true } } }),
+        true,
+      ),
+    ).toBe(false);
+    expect(
+      suggestionTriggerDisabled(
+        state({
+          thread: {
+            ...thread,
+            isRunning: false,
+            voice: { canSendText: false },
+          },
+        }),
+        true,
+      ),
+    ).toBe(true);
+    expect(
+      suggestionTriggerDisabled(
+        state({ thread: { ...thread, voice: { canSendText: false } } }),
+        false,
+      ),
+    ).toBe(false);
+  });
+
+  it("suggestionSendMode queues only a text run with queue support", () => {
+    const idle = { isRunning: false, capabilities: { queue: false } };
+    expect(suggestionSendMode(state(idle))).toBe("now");
+    expect(suggestionSendMode(state({ ...idle, isRunning: true }))).toBe(
+      "blocked",
+    );
+    expect(
+      suggestionSendMode(
+        state({ isRunning: true, capabilities: { queue: true } }),
+      ),
+    ).toBe("queued");
+    expect(
+      suggestionSendMode(
+        state({
+          isRunning: true,
+          capabilities: { queue: true },
+          voice: { canSendText: true },
+        }),
+      ),
+    ).toBe("now");
+    expect(
+      suggestionSendMode(
+        state({
+          isRunning: false,
+          capabilities: { queue: true },
+          voice: { canSendText: false },
+        }),
+      ),
+    ).toBe("blocked");
   });
   it("composerCancelDisabled, composerInputDisabled, and actionBarEditDisabled mirror their fields", () => {
     expect(
@@ -174,11 +288,59 @@ describe("primitive predicates", () => {
       ),
     ).toBe(true);
 
+    const editable = { optional: { thread: { capabilities: { edit: true } } } };
     expect(
-      actionBarEditDisabled(state({ composer: { isEditing: false } })),
+      actionBarEditDisabled(
+        state({ ...editable, composer: { isEditing: false } }),
+      ),
     ).toBe(false);
     expect(
-      actionBarEditDisabled(state({ composer: { isEditing: true } })),
+      actionBarEditDisabled(
+        state({
+          optional: { thread: { capabilities: { edit: true }, voice: {} } },
+          composer: { isEditing: false },
+        }),
+      ),
     ).toBe(true);
+    expect(
+      actionBarEditDisabled(
+        state({ ...editable, composer: { isEditing: true } }),
+      ),
+    ).toBe(true);
+    expect(
+      actionBarEditDisabled(
+        state({
+          optional: { thread: { capabilities: { edit: false } } },
+          composer: { isEditing: false },
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      actionBarEditDisabled(
+        state({
+          optional: { thread: undefined },
+          composer: { isEditing: false },
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      actionBarEditDisabled(
+        state({
+          optional: { ...editable.optional, message: { submission: {} } },
+          composer: { isEditing: false },
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      actionBarEditDisabled(
+        state({
+          optional: {
+            ...editable.optional,
+            message: { submission: undefined },
+          },
+          composer: { isEditing: false },
+        }),
+      ),
+    ).toBe(false);
   });
 });

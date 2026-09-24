@@ -7,7 +7,7 @@ import { careers, type CareerPage } from "@/lib/source";
 import { sceneFor } from "@/components/pages/careers/scenes";
 import { GlyphPlate } from "@/components/shared/glyph-scene";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";
+import { typeDeck, typePage } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 
 const title = "Careers";
@@ -50,9 +50,9 @@ export default function CareersPage(): ReactElement {
         </p>
       </header>
 
-      <p className={cn(typeEyebrow, "mt-16 md:mt-20")}>
+      <h2 className="mt-16 text-sm font-medium md:mt-20">
         Open roles · {String(roles.length).padStart(2, "0")}
-      </p>
+      </h2>
       <div className="border-foreground/10 mt-4 border-t">
         <div className="divide-foreground/10 border-foreground/10 grid divide-y border-b md:[grid-template-columns:calc((100%-8rem)/3+2rem)_calc((100%-8rem)/3+4rem)_calc((100%-8rem)/3+2rem)] md:divide-x md:divide-y-0">
           {roles.map((role, index) => (

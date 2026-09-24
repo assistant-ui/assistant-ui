@@ -3,6 +3,8 @@ import { createResumableStreamContext } from "./ResumableStreamContext";
 import { ResumableStreamError } from "./errors";
 import { createInMemoryResumableStreamStore } from "./stores/InMemoryResumableStreamStore";
 
+import type { ResumableStreamStore } from "./types";
+
 const enc = new TextEncoder();
 const dec = new TextDecoder();
 
@@ -39,6 +41,96 @@ function makeStringStream(parts: string[]): ReadableStream<Uint8Array> {
 }
 
 describe("createResumableStreamContext", () => {
+  it.each(["done", "error"] as const)(
+    "passes the acquisition lease to append and %s finalize",
+    async (status) => {
+      const lease = { token: "producer-token" };
+      const append = vi.fn<ResumableStreamStore["append"]>(async () => {
+        if (status === "error") throw new Error("append failed");
+      });
+      const finalize = vi.fn<ResumableStreamStore["finalize"]>(async () => {});
+      const acquire = vi.fn<ResumableStreamStore["acquire"]>();
+      const acquireLease = vi.fn<
+        NonNullable<ResumableStreamStore["acquireLease"]>
+      >(async () => ({ role: "producer", lease }));
+      const store: ResumableStreamStore = {
+        acquire,
+        acquireLease,
+        append,
+        finalize,
+        async *read() {},
+        async status() {
+          return "streaming";
+        },
+        async delete() {},
+      };
+      const tasks: Promise<unknown>[] = [];
+      const ctx = createResumableStreamContext({
+        store,
+        ttlMs: 123,
+        waitUntil: (task) => tasks.push(task),
+      });
+      await ctx.run("a", () => makeStringStream(["x"]));
+      await Promise.all(tasks);
+      expect(acquire).not.toHaveBeenCalled();
+      expect(acquireLease).toHaveBeenCalledWith("a", { ttlMs: 123 });
+      expect(append).toHaveBeenCalledWith("a", bytes("x"), lease);
+      expect(finalize).toHaveBeenCalledWith(
+        "a",
+        status,
+        status === "error" ? "append failed" : undefined,
+        lease,
+      );
+    },
+  );
+
+  it("runs a producer through acquire when acquireLease is absent", async () => {
+    const backing = createInMemoryResumableStreamStore();
+    const store: ResumableStreamStore = {
+      acquire: vi.fn(backing.acquire),
+      append: backing.append,
+      finalize: backing.finalize,
+      read: backing.read,
+      status: backing.status,
+      delete: backing.delete,
+    };
+    const ctx = createResumableStreamContext({ store });
+    expect(
+      await collect(await ctx.run("a", () => makeStringStream(["legacy"]))),
+    ).toBe("legacy");
+    expect(store.acquire).toHaveBeenCalledWith("a", undefined);
+  });
+  it("keeps a producer that outlived its TTL out of the stream a second run reacquired", async () => {
+    let now = 0;
+    const store = createInMemoryResumableStreamStore({
+      now: () => now,
+      defaultTtlMs: 10,
+    });
+    const errors: unknown[] = [];
+    const ctx = createResumableStreamContext({
+      store,
+      onError: (_id, err) => errors.push(err),
+    });
+    let releaseStale!: () => void;
+    const stale = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        controller.enqueue(bytes("old"));
+        await new Promise<void>((resolve) => (releaseStale = resolve));
+        controller.enqueue(bytes("late"));
+        controller.close();
+      },
+    });
+    await ctx.run("a", () => stale);
+    await vi.waitFor(() => expect(releaseStale).toBeDefined());
+
+    now = 11;
+    const fresh = await ctx.run("a", () => makeStringStream(["new"]));
+    releaseStale();
+    expect(await collect(fresh)).toBe("new");
+    await vi.waitFor(() => expect(errors).toHaveLength(1));
+    expect(errors[0]).toMatchObject({ code: "missing" });
+  });
+
   it("producer caller receives full byte stream", async () => {
     const ctx = createResumableStreamContext({
       store: createInMemoryResumableStreamStore(),
@@ -340,6 +432,147 @@ describe("createResumableStreamContext", () => {
     const stream = await ctx.run("a", () => failing);
     await expect(collect(stream)).rejects.toThrow("boom");
     expect(calls).toEqual([{ id: "a", status: "error", error: "boom" }]);
+  });
+
+  describe("a producer fenced out by a reacquisition", () => {
+    type Ending = "chunk" | "close" | "error";
+
+    const gatedStream = (first: string, ending: Ending) => {
+      let release!: () => void;
+      const stream = new ReadableStream<Uint8Array>({
+        async start(controller) {
+          controller.enqueue(bytes(first));
+          await new Promise<void>((resolve) => (release = resolve));
+          if (ending === "chunk") {
+            controller.enqueue(bytes("late"));
+            controller.close();
+          } else if (ending === "close") {
+            controller.close();
+          } else {
+            controller.error(new Error("boom"));
+          }
+        },
+      });
+      return { stream, release: () => release() };
+    };
+
+    const runStaleProducer = async (
+      ending: Ending,
+      wrap: (store: ResumableStreamStore) => ResumableStreamStore = (s) => s,
+    ) => {
+      let now = 0;
+      const store = wrap(
+        createInMemoryResumableStreamStore({
+          now: () => now,
+          defaultTtlMs: 10,
+        }),
+      );
+      const errors: unknown[] = [];
+      const finalizes: unknown[][] = [];
+      const tasks: Promise<unknown>[] = [];
+      const ctx = createResumableStreamContext({
+        store,
+        waitUntil: (task) => tasks.push(task),
+        onError: (_id, error) => errors.push(error),
+        onFinalize: (...args) => finalizes.push(args),
+      });
+      const stale = gatedStream("old", ending);
+      await ctx.run("a", () => stale.stream);
+      await vi.waitFor(() => expect(tasks).toHaveLength(1));
+      now = 11;
+      const fresh = gatedStream("new", "close");
+      await ctx.run("a", () => fresh.stream);
+      await vi.waitFor(() => expect(tasks).toHaveLength(2));
+      stale.release();
+      await tasks[0];
+      const observed = {
+        errors,
+        finalizes: [...finalizes],
+        status: await ctx.status("a"),
+      };
+      fresh.release();
+      await tasks[1];
+      return observed;
+    };
+
+    it("reports the superseded append through onError only", async () => {
+      const { errors, finalizes, status } = await runStaleProducer("chunk");
+      expect(errors).toEqual([
+        expect.objectContaining({
+          code: "missing",
+          message: "Stream superseded by a new acquisition: a",
+        }),
+      ]);
+      expect(finalizes).toEqual([]);
+      expect(status).toBe("streaming");
+    });
+
+    it("reports a fenced done finalize through onError only", async () => {
+      const { errors, finalizes, status } = await runStaleProducer("close");
+      expect(errors).toEqual([
+        expect.objectContaining({
+          code: "missing",
+          message: "Stream no longer owned by this producer: a",
+        }),
+      ]);
+      expect(errors[0]).toBeInstanceOf(ResumableStreamError);
+      expect(finalizes).toEqual([]);
+      expect(status).toBe("streaming");
+    });
+
+    it("does not report a fenced error finalize", async () => {
+      const { errors, finalizes, status } = await runStaleProducer("error");
+      expect(errors).toEqual([expect.objectContaining({ message: "boom" })]);
+      expect(finalizes).toEqual([]);
+      expect(status).toBe("streaming");
+    });
+
+    it("needs no particular error message from the store", async () => {
+      const { errors, finalizes, status } = await runStaleProducer(
+        "chunk",
+        (inner) => ({
+          ...inner,
+          acquireLease: (id, options) => inner.acquireLease!(id, options),
+          async append(id, chunk, lease) {
+            try {
+              await inner.append(id, chunk, lease);
+            } catch (error) {
+              if (
+                error instanceof ResumableStreamError &&
+                error.code === "missing"
+              ) {
+                throw new ResumableStreamError("missing", `lost ${id}`);
+              }
+              throw error;
+            }
+          },
+        }),
+      );
+      expect(errors).toEqual([expect.objectContaining({ message: "lost a" })]);
+      expect(finalizes).toEqual([]);
+      expect(status).toBe("streaming");
+    });
+  });
+
+  it("treats a finalize that resolves without a value as finalized", async () => {
+    const calls: unknown[][] = [];
+    const backing = createInMemoryResumableStreamStore();
+    const store: ResumableStreamStore = {
+      acquire: backing.acquire,
+      append: backing.append,
+      async finalize(id, status, error) {
+        await backing.finalize(id, status, error);
+      },
+      read: backing.read,
+      status: backing.status,
+      delete: backing.delete,
+    };
+    const ctx = createResumableStreamContext({
+      store,
+      onFinalize: (...args) => calls.push(args),
+    });
+    await collect(await ctx.run("a", () => makeStringStream(["x"])));
+    expect(calls).toEqual([["a", "done"]]);
   });
 
   it("onError fires when the producer task throws", async () => {

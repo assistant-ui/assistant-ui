@@ -1,8 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { transform as transformCodemod } from "../../src/lib/transform";
 
 const mocks = vi.hoisted(() => ({
   getRelevantFiles: vi.fn(() => ["src/app.tsx"]),
-  transform: vi.fn(() => []),
+  transform: vi.fn<typeof transformCodemod>(async () => []),
   installEdgeLib: vi.fn(),
   installAiSdkLib: vi.fn(),
   loggerSuccess: vi.fn(),
@@ -49,15 +50,9 @@ vi.mock("debug", async (importOriginal) => ({
 import { upgrade } from "../../src/lib/upgrade";
 
 describe("upgrade", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it("does not run the legacy UI package split", async () => {
-    await upgrade({ dry: true });
-
-    const codemods = mocks.transform.mock.calls.map(([codemod]) => codemod);
-    expect(codemods).toEqual([
+    await upgrade({});
+    expect(mocks.transform.mock.calls.map(([codemod]) => codemod)).toEqual([
       "v0-9/edge-package-split",
       "v0-11/content-part-to-message-part",
       "v0-12/assistant-api-to-aui",
@@ -69,17 +64,34 @@ describe("upgrade", () => {
     expect(mocks.installAiSdkLib).toHaveBeenCalledOnce();
   });
 
-  it("stops at a failed codemod without installing dependencies", async () => {
-    const failure = new Error("Process exited with code 7");
-    mocks.transform.mockImplementationOnce(() => {
-      throw failure;
-    });
+  it.each([false, true])(
+    "stops at a failed codemod without installing dependencies (dry: %s)",
+    async (dry) => {
+      const failure = new Error("Process exited with code 7");
+      mocks.transform.mockImplementationOnce(() => {
+        throw failure;
+      });
+      await expect(upgrade({ dry })).rejects.toBe(failure);
+      expect(mocks.transform).toHaveBeenCalledOnce();
+      expect(mocks.installEdgeLib).not.toHaveBeenCalled();
+      expect(mocks.installAiSdkLib).not.toHaveBeenCalled();
+      expect(mocks.loggerSuccess).not.toHaveBeenCalled();
+    },
+  );
 
-    await expect(upgrade({ dry: true })).rejects.toBe(failure);
-
-    expect(mocks.transform).toHaveBeenCalledOnce();
-    expect(mocks.installEdgeLib).not.toHaveBeenCalled();
-    expect(mocks.installAiSdkLib).not.toHaveBeenCalled();
-    expect(mocks.loggerSuccess).not.toHaveBeenCalled();
-  });
+  it.each([true, false])(
+    "does not install dependencies during a dry run (print: %s)",
+    async (print) => {
+      await upgrade({ dry: true, print });
+      expect(mocks.transform).toHaveBeenCalledTimes(6);
+      for (const call of mocks.transform.mock.calls) {
+        expect(call[2]).toEqual({ dry: true, print });
+      }
+      expect(mocks.installEdgeLib).not.toHaveBeenCalled();
+      expect(mocks.installAiSdkLib).not.toHaveBeenCalled();
+      expect(mocks.loggerSuccess).toHaveBeenCalledWith(
+        "Dry run complete. No files were changed.",
+      );
+    },
+  );
 });

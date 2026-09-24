@@ -72,6 +72,26 @@ describe("unstable_createLangGraphStream", () => {
     );
   });
 
+  it("forwards streamSubgraphs when enabled", async () => {
+    const { client, stream } = makeClient();
+    const callback = unstable_createLangGraphStream({
+      client,
+      assistantId: "graph-1",
+      streamSubgraphs: true,
+    });
+
+    await callback([humanMessage], {
+      abortSignal: new AbortController().signal,
+      initialize,
+    });
+
+    expect(stream).toHaveBeenCalledWith(
+      "t-1",
+      "graph-1",
+      expect.objectContaining({ streamSubgraphs: true }),
+    );
+  });
+
   it("honors custom streamMode and onDisconnect", async () => {
     const { client, stream } = makeClient();
     const callback = unstable_createLangGraphStream({
@@ -191,7 +211,7 @@ describe("unstable_createLangGraphStream", () => {
       client,
       assistantId: "graph-1",
     });
-    const runConfig = { configurable: { model_name: "gpt-5.6-luna" } };
+    const runConfig = { configurable: { model_name: "gpt-6-luna" } };
 
     await callback([humanMessage], {
       abortSignal: new AbortController().signal,
@@ -206,7 +226,7 @@ describe("unstable_createLangGraphStream", () => {
     );
   });
 
-  it("omits checkpoint and config keys when unset", async () => {
+  it("omits checkpoint, config, and streamSubgraphs keys when unset", async () => {
     const { client, stream } = makeClient();
     const callback = unstable_createLangGraphStream({
       client,
@@ -221,6 +241,7 @@ describe("unstable_createLangGraphStream", () => {
     const payload = stream.mock.calls[0]![2]!;
     expect(payload).not.toHaveProperty("checkpoint");
     expect(payload).not.toHaveProperty("config");
+    expect(payload).not.toHaveProperty("streamSubgraphs");
   });
 
   it("throws when initialize returns no externalId", async () => {

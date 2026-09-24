@@ -1,5 +1,53 @@
 # @assistant-ui/x-buildutils
 
+## 0.0.29
+
+### Patch Changes
+
+- [#7746](https://github.com/assistant-ui/assistant-ui/pull/7746) [`05a1f0d`](https://github.com/assistant-ui/assistant-ui/commit/05a1f0d264d12bac243fc795a99a1bc7cd1326ba) - fix: fail the build when emitted output imports an undeclared package ([@okisdev](https://github.com/okisdev))
+  
+  `aui-build` kept package imports external without checking them against the manifest, so emitted JavaScript or declarations could import a package a consumer cannot resolve. A build now allows only the package's own name, its declared dependencies, peers and optional dependencies (with a `@types/*` package standing in for the module it types), its `imports` map and node builtins. tsdown's `deps.onlyImport` covers import statements; a pass over the finished declarations covers the two shapes it does not visit, an inline `import("pkg").Type` and a `/// <reference types="pkg" />` directive.
+  
+  Test helpers, `testUtils` modules and benches under `src` are no longer build entries. They were unreachable through every exports map and carried `vitest` and `ink-testing-library` imports into published output.
+  
+  `@assistant-ui/react-streamdown` declares `remark-rehype`, whose `Options` type it re-exports as `RemarkRehypeOptions`.
+
+- [#7752](https://github.com/assistant-ui/assistant-ui/pull/7752) [`6d74c3f`](https://github.com/assistant-ui/assistant-ui/commit/6d74c3fcb3fe7b13e212917ab5c653875eb4bbb7) - chore: cover the undeclared-import guard with tests ([@okisdev](https://github.com/okisdev))
+  
+  The allowlist and declaration scan behind the undeclared-import guard move unchanged to `src/declared-imports.ts`, where `node --test` pins the `@types/*` mapping, specifier splitting, builtin listing and the two declaration shapes the scan reports. Test files stay out of the published tarball.
+
+- [#7920](https://github.com/assistant-ui/assistant-ui/pull/7920) [`546bf4c`](https://github.com/assistant-ui/assistant-ui/commit/546bf4cadcea6b40c5516a84c7db53782cceac55) - fix(build): catch statement-level type imports in published declarations ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7760](https://github.com/assistant-ui/assistant-ui/pull/7760) [`84e0cf4`](https://github.com/assistant-ui/assistant-ui/commit/84e0cf4c9b7fc92a85d1360b37e2e20b73bed650) - fix: emit declarations from one TypeScript program so two builds of the same commit produce the same `.d.ts` ([@okisdev](https://github.com/okisdev))
+  
+  `aui-build` now emits the unbundled `.d.ts` output in one TypeScript pass over the whole package, so two builds of the same commit produce identical declarations; the per-module emit it replaced followed the bundler's load order and let union member order, alias visibility and import specifiers move between builds. Declarations import barrels as the source does and keep `import type`; the exported types are unchanged. A `/// <reference>` directive that must reach the published declarations now carries `preserve="true"` in the source.
+
+- [#7722](https://github.com/assistant-ui/assistant-ui/pull/7722) [`4910704`](https://github.com/assistant-ui/assistant-ui/commit/4910704c29ec7db5573d3d0fe0aea6bcabab7874) - fix: sort the entry list so two builds of the same commit emit identical javascript ([@okisdev](https://github.com/okisdev))
+
+## 0.0.28
+
+### Patch Changes
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#7591](https://github.com/assistant-ui/assistant-ui/pull/7591) [`408d5f4`](https://github.com/assistant-ui/assistant-ui/commit/408d5f43a69baa9df723b395eaafba7a501f8884) - fix: keep package imports external in `aui-build` output without resolving them, and fail the build when anything from `node_modules` would be bundled. `assistant-stream` and `@assistant-ui/react-generative-ui` now depend on `@types/json-schema` instead of shipping a copy of it under `dist/node_modules`. ([@okisdev](https://github.com/okisdev))
+
+- [#7595](https://github.com/assistant-ui/assistant-ui/pull/7595) [`c2beb1e`](https://github.com/assistant-ui/assistant-ui/commit/c2beb1e6102dbfd5c302bb44c39daa960928b550) - chore: bump tsdown to 0.23 ([@okisdev](https://github.com/okisdev))
+
+- [#7545](https://github.com/assistant-ui/assistant-ui/pull/7545) [`4a7002e`](https://github.com/assistant-ui/assistant-ui/commit/4a7002ed69fa010c2e05d180608a28e0c88b796b) - chore: add the ts/test preset so colocated vitest suites typecheck against the Node and ES2024 environment they run in ([@okisdev](https://github.com/okisdev))
+
+## 0.0.27
+
+### Patch Changes
+
+- [#7236](https://github.com/assistant-ui/assistant-ui/pull/7236) [`063b9ec`](https://github.com/assistant-ui/assistant-ui/commit/063b9ec8c92098c51b6924d49b1a6c3cc80eec45) - feat: define `__AUI_PACKAGE_VERSION__` from the built package's version in both builds and ship its ambient declaration through the shared tsconfig base ([@okisdev](https://github.com/okisdev))
+
+## 0.0.26
+
+### Patch Changes
+
+- [#6993](https://github.com/assistant-ui/assistant-ui/pull/6993) [`91689ab`](https://github.com/assistant-ui/assistant-ui/commit/91689ab92fa8ccaecff463c6fdc3e6a666bf93e5) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.25
 
 ### Patch Changes

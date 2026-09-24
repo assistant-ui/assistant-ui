@@ -19,8 +19,10 @@ import type {
   ThreadHistoryAdapter,
   ThreadMessage,
   ToolCallMessagePart,
+  Unstable_ToolInteraction,
 } from "@assistant-ui/core";
 import {
+  appendToolInteraction,
   createMessageRepositorySession,
   invokeUserCallback,
   iterateToolCallParts,
@@ -327,6 +329,14 @@ export class AgUiThreadRuntimeCore {
     const threadMessageId = this.appendEntry(message);
     if (!startRun || !ownsThread) return;
     await this.startRun(threadMessageId, message.runConfig);
+  }
+
+  appendVoiceTranscript(message: ThreadMessage): void {
+    const parentId = this.session.headId;
+    this.session.addOrUpdateMessage(parentId, message);
+    this.session.switchToBranch(message.id);
+    this.notifyUpdate();
+    this.recordHistoryEntry(parentId, message);
   }
 
   private maybeAutoCancelPendingToolCalls(): void {
@@ -871,11 +881,17 @@ export class AgUiThreadRuntimeCore {
       const { content } = mapToolCallPartsDeep(assistant.content, (part) => {
         if (part.toolCallId !== options.toolCallId) return part;
         matchedToolCall = true;
+        // artifact and modelContent are optional; only override when supplied
+        // so a later result that omits them keeps a stored value, and
+        // emitToolResult can forward the model-facing content to the agent.
         return {
           ...part,
           result: options.result,
-          artifact: options.artifact,
           isError: options.isError,
+          ...(options.artifact !== undefined && { artifact: options.artifact }),
+          ...(options.modelContent !== undefined && {
+            modelContent: options.modelContent,
+          }),
         };
       });
       if (!matchedToolCall) return message;
@@ -885,6 +901,67 @@ export class AgUiThreadRuntimeCore {
     if (!updated) return;
     this.notifyUpdate();
     this.maybeResumeAfterToolResults(sessionMessageId);
+  }
+
+  async recordToolInteraction(options: {
+    messageId: string;
+    toolCallId: string;
+    interaction: Unstable_ToolInteraction;
+  }): Promise<void> {
+    const sessionMessageId = this.session.tryGetMessage(options.messageId)
+      ? options.messageId
+      : this.findMessageIdForToolCall(options.toolCallId);
+    if (sessionMessageId === undefined) {
+      throw new Error(
+        `[agui] recordToolInteraction: message "${options.messageId}" was not found`,
+      );
+    }
+
+    const item = this.session.tryGetMessage(sessionMessageId);
+    if (!item) {
+      throw new Error(
+        `[agui] recordToolInteraction: message "${sessionMessageId}" was not found`,
+      );
+    }
+
+    let recorded = false;
+    const updated = this.session.updateMessage(sessionMessageId, (message) => {
+      if (message.role !== "assistant") return message;
+      const assistant = message as ThreadAssistantMessage;
+      const { content } = mapToolCallPartsDeep(assistant.content, (part) => {
+        if (part.toolCallId !== options.toolCallId) return part;
+        recorded = true;
+        return {
+          ...part,
+          unstable_interactions: appendToolInteraction(
+            part.unstable_interactions,
+            options.interaction,
+          ),
+        };
+      });
+      return recorded ? { ...assistant, content } : assistant;
+    });
+    if (!recorded || !updated) {
+      throw new Error(
+        `[agui] recordToolInteraction: tool call "${options.toolCallId}" was not found on message "${options.messageId}"`,
+      );
+    }
+
+    this.notifyUpdate();
+
+    const message = this.session.tryGetMessage(sessionMessageId)?.message;
+    const history = this.history;
+    if (
+      !message ||
+      !history?.update ||
+      !this.isPersistableStatus(message.status)
+    ) {
+      return;
+    }
+
+    await this.chainHistoryWrite(sessionMessageId, () =>
+      history.update!({ parentId: item.parentId, message }),
+    );
   }
 
   sendA2uiAction(action: Record<string, unknown>): void {
@@ -973,6 +1050,17 @@ export class AgUiThreadRuntimeCore {
   }
 
   applyExternalMessages(messages: readonly ThreadMessage[]): void {
+    messages = messages.map((message) => {
+      if (message.role === "system" || message.metadata.modality !== undefined)
+        return message;
+      const modality = this.session.tryGetMessage(message.id)?.message.metadata
+        .modality;
+      if (modality === undefined) return message;
+      return {
+        ...message,
+        metadata: { ...message.metadata, modality },
+      } as ThreadMessage;
+    });
     this.pendingA2uiResumeOwner = null;
     this.pendingA2uiAction = undefined;
     this.assistantHistoryParents.clear();
@@ -1051,6 +1139,31 @@ export class AgUiThreadRuntimeCore {
   resetState(): void {
     this.stateSnapshot = undefined;
     this.notifyUpdate();
+  }
+
+  resetThreadState(): void {
+    const controller = this.abortController;
+    const activeRunAgent = this.activeRunAgent;
+
+    this.stateSnapshot = undefined;
+    this.pendingResume = null;
+    this.pendingA2uiResumeOwner = null;
+    this.pendingA2uiAction = undefined;
+
+    if (controller) {
+      this.abortController = null;
+      this.activeRunAgent = null;
+      this.setRunning(false);
+      try {
+        (activeRunAgent ?? this.agent).abortRun();
+      } catch (error) {
+        this.logger.error?.("[agui] agent abortRun failed", error);
+      } finally {
+        controller.abort();
+      }
+    } else {
+      this.notifyUpdate();
+    }
   }
 
   private async startRun(
@@ -1171,6 +1284,8 @@ export class AgUiThreadRuntimeCore {
       }
     };
 
+    const abortController = new AbortController();
+    const abortSignal = abortController.signal;
     const aggregator = new RunAggregator({
       showThinking: this.showThinking,
       logger: this.logger,
@@ -1180,11 +1295,18 @@ export class AgUiThreadRuntimeCore {
       },
       onTextMessageStart: (serverId) => adoptServerMessageId(serverId, true),
     });
-    const dispatch = (event: AgUiEvent) =>
-      this.handleEvent(aggregator, event, assistantMessageId);
+    const dispatch = (event: AgUiEvent) => {
+      if (this.abortController !== abortController) return;
+      const nextAssistantMessageId = this.handleEvent(
+        aggregator,
+        event,
+        assistantMessageId,
+      );
+      if (event.type === "MESSAGES_SNAPSHOT") {
+        assistantMessageId = nextAssistantMessageId;
+      }
+    };
 
-    const abortController = new AbortController();
-    const abortSignal = abortController.signal;
     this.abortController = abortController;
     const runAgentInstance = this.agent;
     this.activeRunAgent = runAgentInstance;
@@ -1585,26 +1707,57 @@ export class AgUiThreadRuntimeCore {
     previous: ThreadAssistantMessage["content"],
     next: ThreadAssistantMessage["content"],
   ): ThreadAssistantMessage["content"] {
-    const resolved = new Map<string, ToolCallMessagePart>();
+    const preserved = new Map<string, ToolCallMessagePart>();
     for (const part of iterateToolCallParts(previous)) {
       if (isResolvedToolCall(part)) {
-        resolved.set(part.toolCallId, part);
+        preserved.set(part.toolCallId, part);
       }
     }
-    if (resolved.size === 0) return next;
+    if (preserved.size === 0) {
+      return this.preserveToolInteractions(previous, next);
+    }
 
     const { content: merged, changed } = mapToolCallPartsDeep(next, (part) => {
-      if (isResolvedToolCall(part)) return part;
-      const prior = resolved.get(part.toolCallId);
+      const prior = preserved.get(part.toolCallId);
       if (!prior) return part;
-      return {
-        ...part,
-        result: prior.result,
-        ...(prior.artifact !== undefined ? { artifact: prior.artifact } : {}),
-        ...(prior.isError !== undefined ? { isError: prior.isError } : {}),
-      };
+      if (!isResolvedToolCall(part) && isResolvedToolCall(prior)) {
+        return {
+          ...part,
+          result: prior.result,
+          ...(prior.artifact !== undefined ? { artifact: prior.artifact } : {}),
+          ...(prior.isError !== undefined ? { isError: prior.isError } : {}),
+          ...(prior.modelContent !== undefined
+            ? { modelContent: prior.modelContent }
+            : {}),
+        };
+      }
+      return part;
     });
-    return changed ? merged : next;
+    return this.preserveToolInteractions(previous, changed ? merged : next);
+  }
+
+  private preserveToolInteractions(
+    previous: ThreadAssistantMessage["content"],
+    next: ThreadAssistantMessage["content"],
+  ): ThreadAssistantMessage["content"] {
+    const interactions = new Map<
+      string,
+      NonNullable<ToolCallMessagePart["unstable_interactions"]>
+    >();
+    for (const part of iterateToolCallParts(previous)) {
+      if (part.unstable_interactions !== undefined) {
+        interactions.set(part.toolCallId, part.unstable_interactions);
+      }
+    }
+    if (interactions.size === 0) return next;
+
+    const { content, changed } = mapToolCallPartsDeep(next, (part) => {
+      const interaction = interactions.get(part.toolCallId);
+      if (interaction === undefined || part.unstable_interactions !== undefined)
+        return part;
+      return { ...part, unstable_interactions: interaction };
+    });
+    return changed ? content : next;
   }
 
   private mergeAssistantMetadata(
@@ -1640,15 +1793,15 @@ export class AgUiThreadRuntimeCore {
     aggregator: RunAggregator,
     event: AgUiEvent,
     activeAssistantId: string | undefined,
-  ) {
+  ): string | undefined {
     switch (event.type) {
       case "STATE_SNAPSHOT": {
         this.stateSnapshot = event.snapshot as ReadonlyJSONValue;
-        this.notifyUpdate();
-        return;
+        this.updateActiveAssistantState(activeAssistantId);
+        break;
       }
       case "STATE_DELTA": {
-        if (event.delta.length === 0) return;
+        if (event.delta.length === 0) break;
         try {
           const state = this.stateSnapshot ?? {};
           const result = jsonpatch.applyPatch(
@@ -1658,26 +1811,44 @@ export class AgUiThreadRuntimeCore {
             /* mutateDocument */ false,
           );
           this.stateSnapshot = result.newDocument as ReadonlyJSONValue;
-          this.notifyUpdate();
+          this.updateActiveAssistantState(activeAssistantId);
         } catch (error) {
           this.logger.error?.("[agui] failed to apply state delta", error);
         }
-        return;
+        break;
       }
       case "MESSAGES_SNAPSHOT": {
+        const previousHeadId = this.session.headId;
+        const activeAssistant =
+          activeAssistantId === undefined
+            ? undefined
+            : this.session.tryGetMessage(activeAssistantId)?.message;
+        const hasActiveText =
+          activeAssistant?.role === "assistant" &&
+          activeAssistant.content.some((part) => part.type === "text");
         this.importMessagesSnapshot(event.messages, activeAssistantId);
-        return;
+        const headId = this.session.headId;
+        if (hasActiveText && headId !== previousHeadId) {
+          const head =
+            headId === null
+              ? undefined
+              : this.session.tryGetMessage(headId)?.message;
+          activeAssistantId =
+            head?.role === "assistant" ? (headId ?? undefined) : undefined;
+        }
+        this.updateActiveAssistantState(activeAssistantId);
+        break;
       }
       case "TOOL_CALL_RESULT": {
         if (!aggregator.hasToolCall(event.toolCallId)) {
           const messageId = this.findMessageIdForToolCall(event.toolCallId);
           if (messageId !== undefined) {
             this.applyCrossRunToolResult(messageId, event);
-            return;
+            break;
           }
         }
         aggregator.handle(event);
-        return;
+        break;
       }
       case "ACTIVITY_SNAPSHOT": {
         const toolCallId = event.content["toolCallId"];
@@ -1689,15 +1860,41 @@ export class AgUiThreadRuntimeCore {
           const messageId = this.findMessageIdForToolCall(toolCallId);
           if (messageId !== undefined) {
             this.applyCrossRunActivitySnapshot(messageId, toolCallId, event);
-            return;
+            break;
           }
         }
         aggregator.handle(event);
-        return;
+        break;
       }
       default:
         aggregator.handle(event);
     }
+    return activeAssistantId;
+  }
+
+  private updateActiveAssistantState(messageId: string | undefined): void {
+    const current =
+      messageId === undefined
+        ? undefined
+        : this.session.tryGetMessage(messageId)?.message;
+    const activeAssistantId =
+      current?.role === "assistant" && this.session.headId === messageId
+        ? messageId
+        : this.session.headId;
+    if (activeAssistantId !== null && activeAssistantId !== undefined) {
+      this.session.updateMessage(activeAssistantId, (message) => {
+        if (message.role !== "assistant") return message;
+        const assistant = message as ThreadAssistantMessage;
+        return {
+          ...assistant,
+          metadata: {
+            ...assistant.metadata,
+            unstable_state: this.stateSnapshot ?? null,
+          },
+        };
+      });
+    }
+    this.notifyUpdate();
   }
 
   private applyCrossRunToolResult(
@@ -1851,9 +2048,28 @@ export class AgUiThreadRuntimeCore {
       const converted: ThreadMessage[] = [];
       for (const message of normalized) {
         try {
-          converted.push(
-            fromThreadMessageLike(message, generateId(), FALLBACK_USER_STATUS),
+          const convertedMessage = fromThreadMessageLike(
+            message,
+            generateId(),
+            FALLBACK_USER_STATUS,
           );
+          const existing = this.session.tryGetMessage(
+            convertedMessage.id,
+          )?.message;
+          if (
+            convertedMessage.role === "assistant" &&
+            existing?.role === "assistant"
+          ) {
+            converted.push({
+              ...convertedMessage,
+              content: this.preserveToolInteractions(
+                existing.content,
+                convertedMessage.content,
+              ),
+            });
+          } else {
+            converted.push(convertedMessage);
+          }
         } catch (error) {
           this.logger.error?.(
             "[agui] failed to import message from snapshot",

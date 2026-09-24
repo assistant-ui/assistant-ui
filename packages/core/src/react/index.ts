@@ -1,5 +1,5 @@
-/// <reference path="../store/scope-registration.ts" />
-/// <reference path="./types/store-augmentation.ts" />
+/// <reference path="../store/scope-registration.ts" preserve="true" />
+/// <reference path="./types/store-augmentation.ts" preserve="true" />
 
 // model-context
 export {
@@ -217,8 +217,12 @@ export { useExternalStoreSharedOptions } from "./runtimes/useExternalStoreShared
 export {
   useExternalMessageConverter,
   convertExternalMessages,
+  createExternalMessageConversionCache,
 } from "./runtimes/external-message-converter";
-export type { JoinStrategy } from "./runtimes/external-message-converter";
+export type {
+  ExternalMessageConversionCache,
+  JoinStrategy,
+} from "./runtimes/external-message-converter";
 export { createMessageConverter } from "./runtimes/createMessageConverter";
 export {
   useStreamingTiming,

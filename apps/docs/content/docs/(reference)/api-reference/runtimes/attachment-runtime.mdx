@@ -3,7 +3,7 @@ title: AttachmentRuntime
 description: AttachmentRuntime state and actions for reading attachment data and controlling files inside assistant-ui messages and composers.
 ---
 
-import { AttachmentRuntime, AttachmentState } from "@/generated/typeDocs";
+import { AttachmentRuntime, AttachmentRuntimeState, AttachmentState } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -18,7 +18,15 @@ import { AttachmentRuntime, AttachmentState } from "@/generated/typeDocs";
 
 <ParametersTable {...AttachmentRuntime} />
 
+### AttachmentRuntimeState
+
+<ParametersTable {...AttachmentRuntimeState} />
+
 ### AttachmentState
+
+<Callout type="warn">
+<strong>Deprecated.</strong> Use `AttachmentRuntimeState`. From `@assistant-ui/react` 0.16, `AttachmentState` names the attachment state read through `useAuiState`.
+</Callout>
 
 <ParametersTable {...AttachmentState} />
 {/* api-reference:end */}

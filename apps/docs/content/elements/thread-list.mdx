@@ -196,7 +196,7 @@ Both lanes take `className` on the root. Standalone, the active row's fill and t
 |------|------|---------|-------------|
 | `threads` | `readonly ThreadItem[]` | required | The rows to render, in order. |
 | `activeIndex` | `number` | required | Index of the highlighted row. |
-| `onActiveIndexChange` | `(index: number) => void` | | Called with the clicked row's index. |
+| `onActiveIndexChange` | `(index: number) => void` | | Called with the clicked row's index. Without it, thread rows render as non-interactive list items. |
 | `className` | `string` | | Merged onto the root. |
 
 All other `div` props are forwarded to the root.

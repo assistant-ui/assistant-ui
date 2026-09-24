@@ -1,24 +1,16 @@
 import { Command } from "commander";
-import { resolve, dirname } from "node:path";
-import { existsSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { launch } from "@assistant-ui/agent-launcher";
+import { ensureSkillsPlugin, skillsPluginDir } from "../lib/agent-skill";
+import { logger } from "../lib/utils/logger";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-function getPluginPath(): string {
-  // In dist/, plugin is at ../../plugin relative to dist/commands/agent.js
-  // In dev (src/), plugin is at ../../plugin relative to src/commands/
-  const candidates = [
-    resolve(__dirname, "..", "..", "plugin"),
-    resolve(__dirname, "..", "plugin"),
-  ];
-  for (const candidate of candidates) {
-    if (existsSync(candidate)) return candidate;
+async function resolvePluginDir(dry: boolean): Promise<string> {
+  if (dry) return skillsPluginDir();
+  try {
+    return await ensureSkillsPlugin();
+  } catch (error) {
+    logger.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
   }
-  throw new Error(
-    `Could not locate the assistant-ui plugin directory. Checked:\n${candidates.map((c) => `  ${c}`).join("\n")}`,
-  );
 }
 
 export const agent = new Command()
@@ -26,13 +18,14 @@ export const agent = new Command()
   .description("launch Claude Code with assistant-ui skills")
   .argument("<prompt...>", "prompt for the agent")
   .option("--dry", "print the command instead of running it")
-  .action((promptParts: string[], opts) => {
-    const prompt = promptParts.join(" ");
+  .action(async (promptParts: string[], opts: { dry?: boolean }) => {
+    const dry = opts.dry === true;
+    const pluginDir = await resolvePluginDir(dry);
 
     launch({
-      pluginDir: getPluginPath(),
+      pluginDir,
       skillName: "assistant-ui",
-      prompt,
-      dry: opts.dry,
+      prompt: promptParts.join(" "),
+      dry,
     });
   });

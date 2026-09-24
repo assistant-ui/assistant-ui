@@ -102,7 +102,7 @@ export function RefusalNotice() {
 />
 ```
 
-`onPick` is optional; omitting it still renders the alternative buttons, they just do nothing on click.
+`onPick` is optional; omitting it renders the alternatives as non-interactive suggestions instead of buttons.
 
   </Step>
 </Steps>
@@ -119,7 +119,7 @@ export function RefusalNotice() {
 </div>
 ```
 
-The alternatives block is entirely omitted, not just empty, when `alternatives` is an empty array; the notice then ends after the explanation paragraph. Every alternative renders as its own button regardless of whether `onPick` is provided.
+The alternatives block is entirely omitted, not just empty, when `alternatives` is an empty array; the notice then ends after the explanation paragraph. Each alternative renders as a button when `onPick` is provided and as non-interactive text otherwise.
 
 ## Examples
 
@@ -162,7 +162,7 @@ Both lanes take `className` on the root, which starts as `flex w-full max-w-sm f
 | `explanation` | `string` | required | Body text; always rendered. |
 | `policy` | `string` | required | Short tag shown at the end of the header row. |
 | `alternatives` | `readonly string[]` | required | Suggested next prompts. An empty array omits the whole block. |
-| `onPick` | `(alternative: string) => void` | | Called with the clicked alternative's text. Optional; omitting it leaves the buttons inert. |
+| `onPick` | `(alternative: string) => void` | | Called with the selected alternative's text. Without it, alternatives render as non-interactive suggestions. |
 | `className` | `string` | | Merged onto the root. |
 
 All other `div` props except `children`, `title`, `explanation`, `policy`, `alternatives`, and `onPick` are forwarded to the root.

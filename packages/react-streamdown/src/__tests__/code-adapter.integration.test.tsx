@@ -2,19 +2,21 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import {
   CodeAdapter,
+  CodeAdapterContext,
   type CodeAdapterOptions,
   type CodeAdapterProps,
 } from "../adapters/code-adapter";
 
 import { PreOverride } from "../adapters/PreOverride";
-import type { Root } from "hast";
+import type { Element, Root } from "hast";
 import { Streamdown } from "streamdown";
 import type { SyntaxHighlighterProps } from "../types";
 
 const bindAdapter =
-  (adapter: CodeAdapterOptions) =>
-  (props: Omit<CodeAdapterProps, "adapter">) => (
-    <CodeAdapter adapter={adapter} {...props} />
+  (adapter: CodeAdapterOptions) => (props: CodeAdapterProps) => (
+    <CodeAdapterContext.Provider value={adapter}>
+      <CodeAdapter {...props} />
+    </CodeAdapterContext.Provider>
   );
 
 afterEach(cleanup);
@@ -373,6 +375,76 @@ describe("CodeAdapter integration", () => {
 
       expect(screen.getByTestId("hl-pre").className).toBe("from-pre hl-pre");
       expect(screen.getByTestId("hl-code").className).toBe("language-ts hljs");
+    });
+
+    it("re-renders the highlighter only when the pre props change", () => {
+      const SyntaxHighlighter = vi.fn(
+        ({ components: { Pre: HlPre }, code }: SyntaxHighlighterProps) => (
+          <HlPre data-testid="hl-pre">{code}</HlPre>
+        ),
+      );
+      const AdaptedCode = bindAdapter({ SyntaxHighlighter, Pre });
+      const preNode = (line: number, title = "a.ts"): Element => ({
+        type: "element",
+        tagName: "pre",
+        properties: { dataTitle: title },
+        children: [
+          { type: "element", tagName: "code", properties: {}, children: [] },
+        ],
+        position: {
+          start: { line, column: 1 },
+          end: { line: line + 2, column: 4 },
+        },
+      });
+      const view = (node: Element, className: string) => (
+        <PreOverride node={node} className={className}>
+          <AdaptedCode className="language-ts">code</AdaptedCode>
+        </PreOverride>
+      );
+
+      const { rerender } = render(view(preNode(1), "a"));
+      rerender(view(preNode(1), "a"));
+      expect(SyntaxHighlighter).toHaveBeenCalledTimes(1);
+
+      rerender(view(preNode(1), "b"));
+      expect(SyntaxHighlighter).toHaveBeenCalledTimes(2);
+      expect(screen.getByTestId("hl-pre").className).toBe("b");
+
+      rerender(view(preNode(3), "b"));
+      expect(SyntaxHighlighter).toHaveBeenCalledTimes(3);
+
+      rerender(view(preNode(3, "b.ts"), "b"));
+      expect(SyntaxHighlighter).toHaveBeenCalledTimes(4);
+    });
+
+    it("compares the node only after every other prop matches", () => {
+      let nodeKeyReads = 0;
+      const codeNode = () =>
+        new Proxy(
+          { type: "element", tagName: "code", properties: {}, children: [] },
+          {
+            ownKeys: (target) => {
+              nodeKeyReads += 1;
+              return Reflect.ownKeys(target);
+            },
+          },
+        ) as Element;
+      const AdaptedCode = bindAdapter({ Code });
+
+      const { rerender } = render(
+        <AdaptedCode node={codeNode()}>
+          <span>nested</span>
+        </AdaptedCode>,
+      );
+      nodeKeyReads = 0;
+      rerender(
+        <AdaptedCode node={codeNode()}>
+          <span>nested</span>
+        </AdaptedCode>,
+      );
+
+      expect(nodeKeyReads).toBe(0);
+      expect(screen.getByTestId("user-code").textContent).toBe("nested");
     });
 
     it("wraps the block fallback in the user Pre and Code", () => {

@@ -346,6 +346,33 @@ describe("PiThreadController", () => {
     expect(controller.getState().hostUiRequests).toHaveLength(0);
   });
 
+  it("answers a select approval from a decision alone only by dismissing it", async () => {
+    const request: PiHostUiRequest = {
+      id: "r4",
+      kind: "select",
+      title: "Deploy where?",
+      options: ["staging", "production"],
+      toolCallId: "tc1",
+    };
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+    client.emit(ev({ type: "extension_ui_request", request }, 1));
+
+    await expect(controller.respondToToolApproval("r4", true)).rejects.toThrow(
+      'Pi select request "r4" was not answered with one of its options',
+    );
+    expect(client.hostUiResponses).toEqual([]);
+    expect(controller.getState().hostUiRequests).toHaveLength(1);
+
+    await controller.respondToToolApproval("r4", false);
+    expect(client.hostUiResponses[0]!.response).toEqual({
+      requestId: "r4",
+      dismissed: true,
+    });
+    expect(controller.getState().hostUiRequests).toHaveLength(0);
+  });
+
   it("resumes a tool-call interrupt by toolCallId", async () => {
     const request: PiHostUiRequest = {
       id: "r2",
@@ -448,6 +475,155 @@ describe("PiThreadController", () => {
     await Promise.resolve();
     expect(getThread).toHaveBeenCalled();
     expect(controller.getState().messages).toHaveLength(1);
+  });
+
+  it("ignores an HTTP snapshot that predates live events", async () => {
+    const client = createFakeClient();
+    let resolveSnapshot!: (snapshot: PiThreadSnapshot) => void;
+    client.getThread = () =>
+      new Promise((resolve) => {
+        resolveSnapshot = resolve;
+      });
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+
+    const load = controller.load();
+    client.emit(
+      ev(
+        {
+          type: "message_start",
+          message: assistantMessage("live", 1),
+        },
+        2,
+      ),
+    );
+    resolveSnapshot(
+      snapshot({
+        seq: 1,
+        messages: [],
+      }),
+    );
+    await load;
+
+    expect(controller.getState()).toMatchObject({
+      loadState: "loaded",
+      lastSeq: 2,
+      messages: [assistantMessage("live", 1)],
+    });
+  });
+
+  it("advances the event watermark from a current HTTP snapshot", async () => {
+    const client = createFakeClient(
+      snapshot({
+        seq: 3,
+        messages: [{ role: "user", content: "snapshot", timestamp: 1 }],
+      }),
+    );
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+
+    await controller.load();
+    client.emit(
+      ev(
+        {
+          type: "message_start",
+          message: assistantMessage("stale", 2),
+        },
+        2,
+      ),
+    );
+
+    expect(controller.getState()).toMatchObject({
+      lastSeq: 3,
+      messages: [{ role: "user", content: "snapshot", timestamp: 1 }],
+    });
+  });
+
+  it("rebases from an HTTP snapshot after the supervisor sequence resets", async () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+    client.emit(
+      ev(
+        {
+          type: "message_start",
+          message: assistantMessage("old generation", 1),
+        },
+        5,
+      ),
+    );
+    client.getThreadSnapshot = snapshot({
+      seq: 0,
+      messages: [{ role: "user", content: "new generation", timestamp: 2 }],
+    });
+
+    await controller.load();
+    client.emit(
+      ev(
+        {
+          type: "message_start",
+          message: assistantMessage("first live event", 3),
+        },
+        1,
+      ),
+    );
+
+    expect(controller.getState()).toMatchObject({
+      lastSeq: 1,
+      messages: [
+        { role: "user", content: "new generation", timestamp: 2 },
+        assistantMessage("first live event", 3),
+      ],
+    });
+  });
+
+  it("ignores an HTTP response from before a stream sequence reset", async () => {
+    const client = createFakeClient();
+    let resolveSnapshot!: (snapshot: PiThreadSnapshot) => void;
+    client.getThread = () =>
+      new Promise((resolve) => {
+        resolveSnapshot = resolve;
+      });
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+    client.emit(
+      ev(
+        {
+          type: "message_start",
+          message: assistantMessage("old generation", 1),
+        },
+        5,
+      ),
+    );
+
+    const load = controller.load();
+    client.emit(
+      ev(
+        {
+          type: "snapshot",
+          snapshot: snapshot({
+            seq: 0,
+            messages: [
+              { role: "user", content: "new generation", timestamp: 2 },
+            ],
+          }),
+        },
+        0,
+      ),
+    );
+    resolveSnapshot(
+      snapshot({
+        seq: 5,
+        messages: [{ role: "user", content: "stale response", timestamp: 1 }],
+      }),
+    );
+    await load;
+
+    expect(controller.getState()).toMatchObject({
+      loadState: "loaded",
+      lastSeq: 0,
+      messages: [{ role: "user", content: "new generation", timestamp: 2 }],
+    });
   });
 
   it("does not refresh snapshots for settled or custom entry events", async () => {
@@ -619,6 +795,88 @@ describe("PiThreadController", () => {
     expect(state.runStatus).toBe("running");
   });
 
+  it("does not remove a surviving identical message when an earlier send fails", async () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+    client.emit(ev({ type: "agent_start" }, 1));
+
+    // First send fails, but only after the second (identical) send succeeds and
+    // the server reconciles the queue down to that one surviving entry.
+    let failFirst!: () => void;
+    const firstFailed = new Promise<void>((_, reject) => {
+      failFirst = () => reject(new Error("first failed"));
+    });
+    client.sendMessage = async () => {
+      await firstFailed;
+    };
+    const first = controller.sendMessage(userMessage("hello"));
+
+    client.sendMessage = async (threadId, input) => {
+      client.sent.push({ threadId, input });
+    };
+    await controller.sendMessage(userMessage("hello"));
+
+    // Server confirms only the second "hello" is genuinely queued.
+    client.emit(
+      ev({ type: "queue_update", steering: [], followUp: ["hello"] }, 2),
+    );
+    expect(controller.getState().queue.followUp).toEqual(["hello"]);
+
+    failFirst();
+    await expect(first).rejects.toThrow("first failed");
+
+    // The failed send must not remove the second, genuinely-queued message.
+    expect(controller.getState().queue.followUp).toEqual(["hello"]);
+  });
+
+  it("does not remove a surviving identical message reconciled by a snapshot", async () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+    client.emit(ev({ type: "agent_start" }, 1));
+
+    let failFirst!: () => void;
+    const firstFailed = new Promise<void>((_, reject) => {
+      failFirst = () => reject(new Error("first failed"));
+    });
+    client.sendMessage = async () => {
+      await firstFailed;
+    };
+    const first = controller.sendMessage(userMessage("hello"));
+
+    client.sendMessage = async (threadId, input) => {
+      client.sent.push({ threadId, input });
+    };
+    await controller.sendMessage(userMessage("hello"));
+
+    // A snapshot on (re)connect/refresh also reconciles the queue wholesale —
+    // down to the one genuinely-queued "hello" — without a queue_update.
+    client.emit(
+      ev(
+        {
+          type: "snapshot",
+          snapshot: snapshot({
+            metadata: {
+              id: THREAD,
+              status: "running",
+              queuedMessages: [
+                { id: "q1", mode: "followUp", content: "hello" },
+              ],
+            },
+          }),
+        },
+        2,
+      ),
+    );
+    expect(controller.getState().queue.followUp).toEqual(["hello"]);
+
+    failFirst();
+    await expect(first).rejects.toThrow("first failed");
+
+    expect(controller.getState().queue.followUp).toEqual(["hello"]);
+  });
+
   it("clears the queue via the client and returns the cleared text", async () => {
     const client = createFakeClient();
     client.clearQueueResult = { steering: ["a"], followUp: ["b", "c"] };
@@ -635,6 +893,67 @@ describe("PiThreadController", () => {
       steering: [],
       followUp: [],
     });
+  });
+
+  it("does not empty a queue that a newer message repopulated before the clear response", async () => {
+    const client = createFakeClient();
+    let resolveClear!: () => void;
+    client.clearQueue = async (threadId) => {
+      client.queueCleared.push(threadId);
+      await new Promise<void>((resolve) => {
+        resolveClear = resolve;
+      });
+      return client.clearQueueResult;
+    };
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+    client.emit(ev({ type: "agent_start" }, 1));
+    await controller.sendMessage(userMessage("old"));
+
+    const clearing = controller.clearQueue();
+
+    // The server clears, then a newer message is queued and confirmed while the
+    // clear response is still in flight.
+    client.emit(ev({ type: "queue_update", steering: [], followUp: [] }, 2));
+    client.emit(
+      ev({ type: "queue_update", steering: [], followUp: ["new"] }, 3),
+    );
+    expect(controller.getState().queue.followUp).toEqual(["new"]);
+
+    resolveClear();
+    await clearing;
+
+    // The stale clear response must not wipe the newer message.
+    expect(controller.getState().queue.followUp).toEqual(["new"]);
+  });
+
+  it("does not empty a queue an optimistic sendQueued repopulated before the clear response", async () => {
+    const client = createFakeClient();
+    let resolveClear!: () => void;
+    client.clearQueue = async (threadId) => {
+      client.queueCleared.push(threadId);
+      await new Promise<void>((resolve) => {
+        resolveClear = resolve;
+      });
+      return client.clearQueueResult;
+    };
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+    client.emit(ev({ type: "agent_start" }, 1));
+    await controller.sendMessage(userMessage("old"));
+
+    const clearing = controller.clearQueue();
+
+    // A new mid-run send optimistically repopulates the queue while the clear
+    // response is still in flight (no server queue_update involved).
+    await controller.sendMessage(userMessage("new"));
+    expect(controller.getState().queue.followUp).toEqual(["old", "new"]);
+
+    resolveClear();
+    await clearing;
+
+    // The stale clear response must not wipe the optimistic entry.
+    expect(controller.getState().queue.followUp).toEqual(["old", "new"]);
   });
 
   it("reconciles an optimistic message against an enriched echo", async () => {

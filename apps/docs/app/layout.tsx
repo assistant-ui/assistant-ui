@@ -41,6 +41,7 @@ export const viewport = {
 
 export const metadata = {
   metadataBase: getMetadataBase(),
+  alternates: { canonical: "./" },
   title: {
     template: "%s · assistant-ui",
     default: "assistant-ui · The frontend library for AI agents",

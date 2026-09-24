@@ -1,0 +1,191 @@
+---
+title: Runs
+description: Record completed, incomplete, or failed model runs and start streamed assistant runs.
+---
+
+Runs record the outcome, usage, cost, and execution detail for work in a thread. The browser reaches these routes on the project's frontend host with an anonymous or provider token, and a server reaches them on `https://backend.assistant-api.com` with an API key plus the `Aui-User-Id` and `Aui-Workspace-Id` headers; see [Conventions](/docs/cloud/api) for hosts, headers, and shared error shapes. Every route resolves the thread in the caller's workspace.
+
+## The run result
+
+| Field | Type | Meaning |
+|---|---|---|
+| `run_id` | string | The Assistant Cloud run identifier, returned after a run report is recorded. |
+
+## Record a run
+
+```http
+POST /v1/runs
+```
+
+| Field | Type | Required | Rules |
+|---|---|---|---|
+| `thread_id` | string | yes | 1 to 255 characters. |
+| `status` | string | yes | `completed`, `incomplete`, or `error`. |
+| `message_id` | string | no | 1 to 48 characters. When present, it must belong to `thread_id`. |
+| `outcome_type` | string | no | `rate_limited`, `validation_failed`, `provider_error`, `server_error`, `budget_denied`, `persistence_error`, `aborted`, `timeout`, `disconnected`, `length`, or `content_filter`. |
+| `error_code` | string | no | 1 to 64 characters. |
+| `error` | string | no | 1 to 2,048 characters. |
+| `tags` | string array | no | At most 20 unique trimmed values. Each value is 1 to 64 characters. |
+| `environment` | string | no | 1 to 64 characters. |
+| `release` | string | no | 1 to 255 characters. |
+| `total_steps` | integer | no | 0 or greater. |
+| `tool_calls` | tool call array | no | At most 1,000 items. See [Tool calls](#tool-calls). |
+| `steps` | step array | no | At most 1,000 items. See [Steps](#steps). |
+| `input_tokens`, `output_tokens`, `reasoning_tokens`, `cached_input_tokens` | integer | no | Each is 0 to 100,000,000. |
+| `model_id` | string | no | 1 to 255 characters. |
+| `provider` | string | no | 1 to 255 characters. |
+| `provider_type` | string | no | 1 to 255 characters. Legacy alias for `provider`; it is used only when `provider` is absent. |
+| `duration_ms`, `first_token_ms` | integer | no | Each is 0 or greater. |
+| `cost_details` | object | no | `input`, `input_cached_tokens`, `output`, and `total` are each optional finite nonnegative numbers. |
+| `cost_usd` | number | no | A finite nonnegative number. |
+| `output_text` | string | no | At most 50,000 characters. |
+| `metadata` | object | no | Legacy alias for `attributes`. It is merged into attributes, then removed. |
+| `attributes` | object | no | Named attributes for the run. These take precedence over `metadata` and unknown top level keys. |
+| `trace_id` | string | no | 1 to 48 characters. It enables merge behavior only when it is exactly 32 lowercase hexadecimal characters. |
+| `root_span_id` | string | no | Exactly 16 lowercase hexadecimal characters. |
+
+The body accepts unknown top level keys. Assistant Cloud folds them into `attributes` after `metadata` and before explicit `attributes`, so explicit attributes win. The merged attributes object must serialize to at most 16,384 bytes. A larger object returns `attributes must not exceed 16384 bytes`.
+
+### Tool calls
+
+Each `tool_calls` item has the following fields.
+
+| Field | Type | Required | Rules |
+|---|---|---|---|
+| `tool_name` | string | yes | 1 to 255 characters. |
+| `tool_call_id` | string | no | 1 to 255 characters. A span id is generated when omitted. |
+| `tool_args` | string | no | At most 50,000 characters. The SDK sends the arguments serialized as JSON. |
+| `tool_result` | string | no | At most 50,000 characters. The SDK sends the result serialized as JSON. |
+| `tool_source` | string | no | `mcp`, `frontend`, or `backend`. |
+| `start_ms`, `end_ms` | integer | no | Each is 0 or greater. |
+| `sampling_calls` | sampling call array | no | At most 1,000 items. |
+
+### Sampling calls
+
+Each `sampling_calls` item has only optional fields.
+
+| Field | Type | Rules |
+|---|---|---|
+| `model_id` | string | At most 255 characters. |
+| `input_tokens`, `output_tokens`, `reasoning_tokens`, `cached_input_tokens` | integer | Each is 0 to 100,000,000. |
+| `duration_ms` | integer | 0 or greater. |
+
+### Steps
+
+Each `steps` item has only optional fields.
+
+| Field | Type | Rules |
+|---|---|---|
+| `input_tokens`, `output_tokens`, `reasoning_tokens`, `cached_input_tokens` | integer | Each is 0 to 100,000,000. |
+| `tool_calls` | tool call array | At most 1,000 items. |
+| `start_ms`, `end_ms` | integer | Each is 0 or greater. |
+| `finish_reason` | string | At most 32 characters. |
+| `input` | string | At most 50,000 characters. |
+
+```bash title="curl"
+curl https://backend.assistant-api.com/v1/runs \
+  -H "Authorization: Bearer $ASSISTANT_API_KEY" \
+  -H "Aui-User-Id: user_123" \
+  -H "Aui-Workspace-Id: workspace_123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "thread_id": "thread_…",
+    "status": "completed"
+  }'
+```
+
+```json title="Request"
+{
+  "thread_id": "thread_…",
+  "status": "completed"
+}
+```
+
+```json title="Response"
+{ "run_id": "run_…" }
+```
+
+| Status | Body | When |
+|---|---|---|
+| `201` | `{ "run_id": "run_…" }` | The report was recorded, including when it merged into a matching traced run. |
+| `400` | `{ "success": false, "error": … }` | A field failed validation, including an attributes object over 16,384 bytes. |
+| `400` | `{ "error": "attributes must not exceed 16384 bytes" }` | The merged attributes object is too large. |
+| `400` | `{ "error": "message_id must belong to thread_id" }` | `message_id` is not a message in `thread_id`. |
+| `404` | `{ "error": "Thread not found" }` | The thread is not in the caller's workspace. |
+| `401` or `403` | An authentication error. | The caller was not accepted. See [Conventions](/docs/cloud/api). |
+
+A valid 32 character lowercase hexadecimal `trace_id` is the idempotency key for a project. If a run with that project and trace id already exists, Assistant Cloud locks and merges it rather than inserting a second run. The report may overwrite `message_id` and `tags`; it may set `outcome_type` only to `aborted` or `disconnected`; it may set `thread_id` only when the server run has none; it may set the creator only when the server run has the unknown user; it may set `environment` or `release` only when each is absent; and it may set `first_token_ms` only when it is null. The reported `first_token_ms` is always also copied to `attributes["client.first_token_ms"]`.
+
+An inserted report creates the run, builds its spans from the report, increments the thread's run count, and applies the run's daily rollup. A merge reworks the daily rollup when its changes affect it. Assistant Cloud resolves model and provider pricing with per project price overrides, but caller supplied `cost_details` or `cost_usd` take precedence over the catalog. When `cost_details` is present and not empty, the run cost is its `total`, or the sum of `input`, `input_cached_tokens`, and `output` when `total` is absent, and `cost_usd` is ignored.
+
+## Start a streamed run
+
+```http
+POST /v1/runs/stream
+```
+
+| Field | Type | Required | Rules |
+|---|---|---|---|
+| `Accept` | header | yes | `text/plain` or `text/event-stream`. |
+| `thread_id` | string | yes | 1 to 255 characters. |
+| `assistant_id` | string | yes | The assistant to dispatch, or `system/thread_title` for the title assistant. |
+| `messages` | message array | yes | Every item must satisfy the message shape below. |
+| `response_format` | string | no | `text/plain` or `vercel-ai-data-stream/v1`. |
+| `tools` | any JSON value | no | The frontend tools of the run, merged into the provider call. |
+| `system` | string | no | Appended to the assistant's stored system prompt after a blank line. |
+| `trace_id` | string | no | 1 to 48 characters. |
+
+The body is not strict. Each item in `messages` must have a `role` of `system`, `user`, or `assistant`, and a `content` array. Every content item must have a string `type`; it may carry additional fields. A `user` item may also carry `attachments`, each with its own `content` array of such items, which are sent to the assistant with the message.
+
+```bash title="curl"
+curl https://backend.assistant-api.com/v1/runs/stream \
+  -H "Authorization: Bearer $ASSISTANT_API_KEY" \
+  -H "Aui-User-Id: user_123" \
+  -H "Aui-Workspace-Id: workspace_123" \
+  -H "Accept: text/event-stream" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "thread_id": "thread_…",
+    "assistant_id": "assistant_…",
+    "messages": [
+      {
+        "role": "user",
+        "content": [{ "type": "text", "text": "Summarize this thread." }]
+      }
+    ],
+    "response_format": "vercel-ai-data-stream/v1"
+  }'
+```
+
+```json title="Request"
+{
+  "thread_id": "thread_…",
+  "assistant_id": "assistant_…",
+  "messages": [
+    {
+      "role": "user",
+      "content": [{ "type": "text", "text": "Summarize this thread." }]
+    }
+  ],
+  "response_format": "vercel-ai-data-stream/v1"
+}
+```
+
+```text title="Response"
+The response streams from the selected assistant.
+```
+
+| Status | Body | When |
+|---|---|---|
+| `200` | A stream. | The title or selected assistant run started. |
+| `400` | `{ "success": false, "error": … }` | `Accept` is missing or is not `text/plain` or `text/event-stream`, or the body failed validation. |
+| `400` | `{ "error": "Invalid messages format: <zod message>" }` | A message does not have an allowed role, content array, or typed content item. |
+| `400` | `{ "error": "Invalid response format" }` | A normal assistant run did not request `vercel-ai-data-stream/v1`. |
+| `400` | An outbound URL validation error. | The selected assistant's provider base URL was refused. |
+| `404` | `{ "error": "Thread not found" }` | The thread is not in the caller's workspace. |
+| `404` | `{ "error": "Assistant not found" }` | No selected assistant is available to the caller. |
+| `401` or `403` | An authentication error. | The caller was not accepted. See [Conventions](/docs/cloud/api). |
+
+When `assistant_id` is `system/thread_title`, Assistant Cloud streams the stored title as plain text if the thread already has one, and never replaces it. Otherwise it runs the title assistant on the messages sent, which may be the user message alone, and streams the title as plain text. For another assistant, `response_format` must be `vercel-ai-data-stream/v1`, which dispatches a UI message stream.
+
+A normal streamed assistant run records a server sourced run, its spans, the thread run count, and the daily rollup. It also records a generative AI telemetry span. The selected assistant's timeout is its configured `timeout_seconds` or 300 seconds, and its step cap is its configured `max_steps` or 10.

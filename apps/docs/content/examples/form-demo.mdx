@@ -61,7 +61,7 @@ export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
     system,
     tools: {
@@ -162,7 +162,7 @@ export default function Home() {
           <div className="h-full overflow-y-auto bg-muted/30">
             <main className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-6 sm:py-12">
               <header className="mb-8 space-y-2">
-                <p className="font-medium text-muted-foreground text-sm uppercase tracking-wide">
+                <p className="font-medium text-muted-foreground text-sm">
                   Simon's Hackathon
                 </p>
                 <h1 className="font-semibold text-3xl tracking-tight">

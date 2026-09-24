@@ -7,6 +7,7 @@ import {
   type SerializedModelContext,
   type SerializedTool,
 } from "./types";
+import { isFrameMessage } from "./validate";
 
 const serializeTool = (tool: Tool<any, any>): SerializedTool => ({
   ...(tool.description && { description: tool.description }),
@@ -47,13 +48,18 @@ export class AssistantFrameProvider {
   private _targetOrigin: string;
   private _strictRegistrations = 0;
   private _wildcardRegistrations = 0;
+  private _startupTimer: ReturnType<typeof setTimeout> | undefined;
+  private _disposed = false;
 
   private constructor(targetOrigin: string = getDefaultTargetOrigin()) {
     this._targetOrigin = targetOrigin;
     this.handleMessage = this.handleMessage.bind(this);
     window.addEventListener("message", this.handleMessage);
 
-    setTimeout(() => this.broadcastUpdate(), 0);
+    this._startupTimer = setTimeout(() => {
+      this._startupTimer = undefined;
+      this.broadcastUpdate();
+    }, 0);
   }
 
   private static getInstance(targetOrigin?: string): AssistantFrameProvider {
@@ -95,7 +101,8 @@ export class AssistantFrameProvider {
     if (event.source !== window.parent) return;
     if (event.data?.channel !== FRAME_MESSAGE_CHANNEL) return;
 
-    const message = event.data.message as FrameMessage;
+    const message = event.data.message;
+    if (!isFrameMessage(message)) return;
 
     switch (message.type) {
       case "model-context-request":
@@ -263,6 +270,11 @@ export class AssistantFrameProvider {
   }
 
   private broadcastUpdate() {
+    if (this._disposed) return;
+    this.postModelContext();
+  }
+
+  private postModelContext() {
     if (window.parent && window.parent !== window) {
       const updateMessage: FrameMessage = {
         type: "model-context-update",
@@ -394,6 +406,11 @@ export class AssistantFrameProvider {
   static dispose() {
     if (AssistantFrameProvider._instance) {
       const instance = AssistantFrameProvider._instance;
+      instance._disposed = true;
+      if (instance._startupTimer !== undefined) {
+        clearTimeout(instance._startupTimer);
+        instance._startupTimer = undefined;
+      }
       window.removeEventListener("message", instance.handleMessage);
 
       let cleanupFailed = false;
@@ -416,6 +433,7 @@ export class AssistantFrameProvider {
       });
       instance._providerUnsubscribes.clear();
       instance._providers.clear();
+      runCleanup(() => instance.postModelContext());
       instance._activeToolCalls.forEach(({ abortController, event }, id) => {
         runCleanup(() => {
           abortController.abort();
