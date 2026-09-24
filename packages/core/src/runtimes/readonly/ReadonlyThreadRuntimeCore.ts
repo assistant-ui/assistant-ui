@@ -63,6 +63,8 @@ export class ReadonlyThreadRuntimeCore extends InertThreadRuntimeCore {
   };
 
   isLoading = false;
+  override isDisabled = true;
+  override isSendDisabled = true;
 
   override switchToBranch(): void {}
 

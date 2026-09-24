@@ -326,8 +326,26 @@ describe("CloudRendererHost", () => {
       expect(screen.getByText("fallback")).toBeTruthy();
     });
     expect(screen.queryByText("MCP widget")).toBeNull();
-    expect(view.container.firstElementChild?.hasAttribute("inert")).toBe(true);
+    expect((view.container.firstElementChild as HTMLElement).inert).toBe(true);
   });
+  it("ignores allowed origins that are not http or https origins", async () => {
+    render(
+      <CloudRendererHost
+        allowedOrigins={["cloud.example.com", "*", "file:///tmp", dashboard]}
+      >
+        <TinyThread />
+      </CloudRendererHost>,
+    );
+    expect(postMessage.mock.calls).toEqual([
+      [
+        { channel: "assistant-ui/cloud-renderer", version: 1, type: "ready" },
+        dashboard,
+      ],
+    ]);
+    send([message("still-listening")]);
+    expect(await screen.findByText("still-listening")).toBeTruthy();
+  });
+
   it("allows an origin written with a path or a trailing slash", async () => {
     render(
       <CloudRendererHost allowedOrigins={[`${dashboard}/`]}>

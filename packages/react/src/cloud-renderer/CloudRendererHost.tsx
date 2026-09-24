@@ -26,9 +26,12 @@ const CHANNEL = "assistant-ui/cloud-renderer";
 
 const toOrigin = (value: string) => {
   try {
-    return new URL(value).origin;
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:"
+      ? url.origin
+      : undefined;
   } catch {
-    return value;
+    return undefined;
   }
 };
 const DEFAULT_ALLOWED_ORIGINS = ["https://cloud.assistant-ui.com"];
@@ -136,7 +139,9 @@ export function CloudRendererHost({
     revision: number;
   } | null>(null);
 
-  const originsKey = allowedOrigins.map(toOrigin).join(" ");
+  const originsKey = allowedOrigins
+    .flatMap((value) => toOrigin(value) ?? [])
+    .join(" ");
 
   useEffect(() => {
     const origins = originsKey ? originsKey.split(" ") : [];
@@ -221,7 +226,13 @@ export function CloudRendererHost({
   };
 
   return (
-    <div ref={rootRef} inert style={{ width: "100%" }}>
+    <div
+      ref={(node) => {
+        rootRef.current = node;
+        if (node) node.inert = true;
+      }}
+      style={{ width: "100%" }}
+    >
       {render && (
         <RenderBoundary key={render.revision} onError={reportError}>
           <ReadonlyConversation

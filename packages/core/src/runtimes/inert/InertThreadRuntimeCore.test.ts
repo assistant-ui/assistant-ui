@@ -114,8 +114,6 @@ describe.each(cores)("%s shared inert surface", (_name, makeCore, error) => {
     expect(core.state).toBeNull();
     expect(core.suggestions).toEqual([]);
     expect(core.extras).toBeUndefined();
-    expect(core.isDisabled).toBe(false);
-    expect(core.isSendDisabled).toBe(false);
   });
 
   it("exposes an empty composer that accepts everything and holds nothing", () => {
@@ -141,6 +139,14 @@ describe.each(cores)("%s shared inert surface", (_name, makeCore, error) => {
 });
 
 describe("readonly thread mutations", () => {
+  it("reports a readonly thread disabled and the empty core enabled", () => {
+    const readonlyThread = new ReadonlyThreadRuntimeCore();
+    expect(readonlyThread.isDisabled).toBe(true);
+    expect(readonlyThread.isSendDisabled).toBe(true);
+    expect(EMPTY_THREAD_CORE.isDisabled).toBe(false);
+    expect(EMPTY_THREAD_CORE.isSendDisabled).toBe(false);
+  });
+
   it("ignores composer input, sending, attachments and quotes", async () => {
     const composer = new ReadonlyThreadRuntimeCore().composer;
     expect(() => composer.setText("hello")).not.toThrow();
