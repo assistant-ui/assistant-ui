@@ -14,10 +14,10 @@ import { DEFAULT_MODEL_ID } from "../model";
 import { resolveChatModel } from "./provider";
 
 describe("resolveChatModel", () => {
-  it("stays on Chat Completions when no effort is requested", () => {
-    expect(resolveChatModel(undefined)).toEqual({
-      model: { api: "chat", id: DEFAULT_MODEL_ID },
-      providerOptions: undefined,
+  it("runs a reasoning model through the Responses API when no effort is requested", () => {
+    expect(resolveChatModel()).toEqual({
+      model: { api: "responses", id: DEFAULT_MODEL_ID },
+      providerOptions: { openai: { store: false } },
       reasoning: false,
     });
   });
@@ -61,11 +61,11 @@ describe("resolveChatModel", () => {
   it("keeps models without reasoning on Chat Completions", () => {
     expect(
       resolveChatModel({
-        modelName: "grok/grok-4-1-fast",
+        modelName: "grok/grok-4.3",
         reasoningEffort: "high",
       }),
     ).toEqual({
-      model: { api: "chat", id: "grok/grok-4-1-fast" },
+      model: { api: "chat", id: "grok/grok-4.3" },
       providerOptions: undefined,
       reasoning: false,
     });
@@ -79,12 +79,12 @@ describe("resolveChatModel", () => {
 
   it("falls back to the default model for an unknown model id", () => {
     expect(resolveChatModel({ modelName: "gpt-4.1-mini" }).model).toEqual({
-      api: "chat",
+      api: "responses",
       id: DEFAULT_MODEL_ID,
     });
   });
 
   it("treats a non-object config as empty", () => {
-    expect(resolveChatModel("gpt-5.6-luna").reasoning).toBe(false);
+    expect(resolveChatModel("gpt-6-luna").reasoning).toBe(false);
   });
 });
