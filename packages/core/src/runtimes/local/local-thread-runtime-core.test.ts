@@ -894,6 +894,52 @@ describe("LocalThreadRuntimeCore history persistence", () => {
     ]);
   });
 
+  it("persists a tool result added after later turns follow its message", async () => {
+    const update = vi.fn(async (_item: ExportedMessageRepositoryItem) => {});
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [toolCallPart("lookup_weather")] };
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          async append() {},
+          update,
+        },
+      },
+    );
+
+    await thread.append(userMessage("what is the weather"));
+    const [question, answer] = thread.messages;
+    await thread.append({
+      ...userMessage("and tomorrow?"),
+      parentId: answer!.id,
+    });
+    expect(thread.messages).toHaveLength(4);
+
+    thread.addToolResult({
+      messageId: answer!.id,
+      toolCallId: "call-lookup_weather",
+      toolName: "lookup_weather",
+      result: { temperature: 21 },
+      isError: false,
+    });
+    await flush();
+
+    expect(update).toHaveBeenCalledOnce();
+    expect(update.mock.calls[0]?.[0]).toMatchObject({
+      parentId: question!.id,
+      message: {
+        id: answer!.id,
+        content: [expect.objectContaining({ result: { temperature: 21 } })],
+      },
+    });
+  });
+
   it("writes a result a subscriber adds in response after the late result", async () => {
     const update = vi.fn(async (_item: ExportedMessageRepositoryItem) => {});
     const thread = createThread(
@@ -2777,6 +2823,39 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     ).toHaveLength(1);
     expect(updated.at(-1)?.message.id).toBe(assistant?.message.id);
     expect(updated.at(-1)?.message.status?.type).toBe("complete");
+  });
+
+  it("persists an approval answer and feedback given after later turns follow the message", async () => {
+    const { history, updated } = createHistory();
+    const thread = createApprovalThreadWithHistory(history);
+
+    await thread.append(userMessage("send an email"));
+    await flush();
+    const [question, paused] = thread.messages;
+    expect(paused?.status?.type).toBe("requires-action");
+    await thread.append({
+      ...userMessage("and cc my manager"),
+      parentId: paused!.id,
+    });
+    await flush();
+    expect(thread.messages).toHaveLength(4);
+
+    thread.respondToToolApproval({ approvalId: "a1", approved: true });
+    thread.submitFeedback({ messageId: paused!.id, type: "positive" });
+    await flush();
+
+    expect(updated.map((i) => i.message.id)).toEqual([paused!.id, paused!.id]);
+    expect(updated.at(-1)).toMatchObject({
+      parentId: question!.id,
+      message: {
+        content: [
+          expect.objectContaining({
+            approval: expect.objectContaining({ id: "a1", approved: true }),
+          }),
+        ],
+        metadata: { submittedFeedback: { type: "positive" } },
+      },
+    });
   });
 
   it("keeps the append-only behavior for adapters without update", async () => {
