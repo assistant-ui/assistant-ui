@@ -58,7 +58,7 @@ export const MODEL_PROVIDERS: Record<string, ModelProvider> = {
       hint: "Sign in to the OpenAI platform and create a secret key under API keys.",
     },
     reasoning: true,
-    defaultModel: "gpt-5.6-luna",
+    defaultModel: "gpt-6-luna",
     ...openAiCompatible("https://api.openai.com/v1/models"),
   },
   anthropic: {
