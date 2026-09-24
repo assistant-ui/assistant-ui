@@ -359,7 +359,20 @@ const uiPartStateToStatus = (
 const toSystemContent = (content: MessageContent): MessageContent => {
   const text = content.filter((part) => part.type === "text");
   if (text.length === 1) return text;
-  return [{ type: "text", text: text.map((part) => part.text).join("") }];
+  const providerMetadata = text.reduce<PartProviderMetadata>(
+    (merged, part) =>
+      part.providerMetadata != null
+        ? { ...merged, ...part.providerMetadata }
+        : merged,
+    {},
+  );
+  return [
+    {
+      type: "text",
+      text: text.map((part) => part.text).join(""),
+      ...(Object.keys(providerMetadata).length > 0 && { providerMetadata }),
+    },
+  ];
 };
 
 function convertParts(
@@ -587,10 +600,11 @@ function convertParts(
       }
 
       if (isReasoningFileUIPart(part)) {
+        if (typeof part.url !== "string") return null;
         return {
           type: "file",
           data: part.url,
-          mimeType: part.mediaType,
+          mimeType: part.mediaType ?? "unknown/unknown",
         } satisfies FileMessagePart;
       }
 
