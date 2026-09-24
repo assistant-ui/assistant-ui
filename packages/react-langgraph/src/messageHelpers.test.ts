@@ -159,6 +159,41 @@ describe("getPendingToolCallGroups", () => {
       },
     ]);
   });
+
+  it("leaves a tool call without an id out of its pending group", () => {
+    const message = {
+      id: "ai-1",
+      type: "ai",
+      content: "",
+      tool_calls: [
+        { name: "lookup", args: {} },
+        { id: "tc-1", name: "get_weather", args: {} },
+      ],
+    } as unknown as LangChainMessage;
+    expect(getPendingToolCallGroups([message])).toEqual([
+      {
+        key: "message:ai-1",
+        toolCalls: [{ id: "tc-1", name: "get_weather", args: {} }],
+      },
+    ]);
+  });
+
+  it("falls back to the first tool call with an id when the AI message has no id", () => {
+    const message = {
+      type: "ai",
+      content: "",
+      tool_calls: [
+        { name: "lookup", args: {} },
+        { id: "tc-1", name: "get_weather", args: {} },
+      ],
+    } as unknown as LangChainMessage;
+    expect(getPendingToolCallGroups([message])).toEqual([
+      {
+        key: "tool:tc-1",
+        toolCalls: [{ id: "tc-1", name: "get_weather", args: {} }],
+      },
+    ]);
+  });
 });
 
 describe("getPendingToolCalls", () => {
