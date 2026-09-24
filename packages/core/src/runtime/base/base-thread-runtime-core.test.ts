@@ -3082,4 +3082,40 @@ describe("BaseThreadRuntimeCore voice reconnects from a notification", () => {
     expect(delivered.map((m) => m.role)).toEqual(["assistant"]);
     expect(thread.messages).toEqual([]);
   });
+
+  it("keeps the previous session when finishing its reply throws during connectVoice", () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const { adapter, sessions } = makeAdapter();
+    const transcriptError = new Error("transcript failed");
+    let fail = false;
+    const thread = new ExternalStoreThreadRuntimeCore(
+      { getModelContext: () => ({}) },
+      {
+        messages: [],
+        onNew: async () => {},
+        onVoiceTranscript: () => {
+          if (fail) throw transcriptError;
+        },
+        adapters: { voice: adapter },
+      },
+    );
+    thread.connectVoice();
+    sessions[0]!.emitTranscript({ role: "assistant", text: "partial" });
+    fail = true;
+
+    expect(() => thread.connectVoice()).not.toThrow();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] Voice cleanup threw before reconnect",
+      transcriptError,
+    );
+    expect(sessions).toHaveLength(1);
+    expect(liveSessions(sessions)).toHaveLength(1);
+    expect(thread.voice).toBeDefined();
+
+    sessions[0]!.emitStatus({ type: "ended", reason: "finished" });
+
+    expect(thread.voice).toBeUndefined();
+  });
 });
