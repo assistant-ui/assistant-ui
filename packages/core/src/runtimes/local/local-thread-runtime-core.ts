@@ -275,6 +275,16 @@ export class LocalThreadRuntimeCore
     }
 
     this._options = options;
+    if (!options.adapters.voice && this.voice) {
+      try {
+        this.disconnectVoice();
+      } catch (error) {
+        console.error(
+          "[assistant-ui] Voice cleanup threw after the adapter changed",
+          error,
+        );
+      }
+    }
 
     let hasUpdates = resetHistoryScope;
 
