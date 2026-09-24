@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["browser-process", "aui-build", "vitest/globals"],
+    "typeRoots": [
+      "${configDir}/node_modules",
+      "${configDir}/node_modules/@types",
+      "${configDir}/node_modules/@assistant-ui/x-buildutils/types"
+    ],
+    "allowImportingTsExtensions": true
+  },
+  "exclude": ["node_modules"]
+}

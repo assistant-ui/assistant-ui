@@ -214,11 +214,11 @@ Quick action chips are `ThreadPrimitive.Suggestion`, the same primitive the [lau
 | `keyboardOpen` | `boolean` | required | Hides the quick actions row and swaps the grabber for a "return to send" hint. |
 | `running` | `boolean` | required | Swaps the send button to a stop button and blocks Enter-to-send. |
 | `actions` | `readonly string[]` | required | Quick action labels shown above the input. |
-| `onAction` | `(action: string) => void` | | Called with an action's label when its chip is pressed. Its absence disables every chip. |
-| `onAttach` | `() => void` | | Called when the attach button is pressed. Its absence disables the button. |
-| `onValueChange` | `(value: string) => void` | | Called on every input change. |
-| `onSend` | `() => void` | | Called on Enter (when sendable) or the send button. |
-| `onStop` | `() => void` | | Called from the button while `running` is true. |
+| `onAction` | `(action: string) => void` | | Called with an action's label when its chip is pressed. Without it, every action chip is disabled. |
+| `onAttach` | `() => void` | | Called when the attach button is pressed. Without it, the attach button is disabled. |
+| `onValueChange` | `(value: string) => void` | | Called on every input change. Without it, typing does not update the controlled value. |
+| `onSend` | `() => void` | | Called on Enter when sendable or from the send button. The send button renders only when `onSend` or `onStop` is supplied, and is disabled when this handler is absent. |
+| `onStop` | `() => void` | | Called from the button while `running` is true. The stop button renders only when `onSend` or `onStop` is supplied, and is disabled when this handler is absent. |
 | `onFocus` | `() => void` | | Called when the input receives focus. |
 | `className` | `string` | | Merged onto the root. |
 

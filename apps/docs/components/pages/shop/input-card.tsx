@@ -1,0 +1,75 @@
+"use client";
+
+import { useState, type FormEvent } from "react";
+import { Input } from "@/components/ui/input";
+import { ChoiceInputCard } from "@/components/pages/shop/choice-input-card";
+import { ProductInputCard } from "@/components/pages/shop/product-input-card";
+import { ModelInputCard } from "@/components/pages/shop/model-input-card";
+import {
+  NoteField,
+  SubmitRow,
+  inputCardClassName,
+  useInputActions,
+} from "@/components/pages/shop/input-shared";
+import { useWizardFormId } from "@/components/pages/shop/wizard-actions";
+import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
+import type { Checkout } from "@/lib/checkout/protocol";
+
+function TextInputCard({
+  input,
+  checkout,
+}: {
+  input: Checkout.Input;
+  checkout: CheckoutContextValue;
+}) {
+  const [answer, setAnswer] = useState(input.default ?? "");
+  const [note, setNote] = useState("");
+  const { busy, answer: send, dismiss } = useInputActions(input, checkout);
+  const formId = useWizardFormId();
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (answer.trim() === "") return;
+    void send(answer.trim(), note);
+  };
+  return (
+    <form id={formId} onSubmit={submit} className={inputCardClassName}>
+      <fieldset disabled={busy} className="flex min-w-0 flex-col gap-3">
+        <legend className="max-w-full text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
+          {input.prompt}
+        </legend>
+        <Input
+          value={answer}
+          onChange={(event) => setAnswer(event.target.value)}
+          placeholder={input.placeholder ?? "Type your answer"}
+          aria-label={input.prompt}
+        />
+        <NoteField value={note} onChange={setNote} />
+      </fieldset>
+      <SubmitRow
+        input={input}
+        busy={busy}
+        disabled={answer.trim() === ""}
+        onDismiss={dismiss}
+      />
+    </form>
+  );
+}
+
+export function InputCard({
+  input,
+  checkout,
+}: {
+  input: Checkout.Input;
+  checkout: CheckoutContextValue;
+}) {
+  switch (input.kind) {
+    case "choice":
+      return <ChoiceInputCard input={input} checkout={checkout} />;
+    case "model":
+      return <ModelInputCard input={input} checkout={checkout} />;
+    case "product":
+      return <ProductInputCard input={input} checkout={checkout} />;
+    default:
+      return <TextInputCard input={input} checkout={checkout} />;
+  }
+}

@@ -22,7 +22,11 @@ import type {
 function getField<T>(obj: T, fieldPath: (string | number)[]): unknown {
   let current: unknown = obj;
   for (const key of fieldPath) {
-    if (current === undefined || current === null) {
+    if (
+      current === undefined ||
+      current === null ||
+      !Object.hasOwn(current, key)
+    ) {
       return undefined;
     }
     current = current[key as keyof typeof current];
@@ -34,6 +38,7 @@ interface Handle {
   readonly isDisposed: boolean;
   update(args: unknown): void;
   end(args: unknown): void;
+  error(reason: unknown): void;
   dispose(): void;
 }
 
@@ -93,6 +98,13 @@ class GetHandle<T, TValue> implements Handle {
     }
   }
 
+  error(reason: unknown): void {
+    if (this.disposed) return;
+
+    this.reject(reason);
+    this.dispose();
+  }
+
   dispose(): void {
     this.disposed = true;
   }
@@ -144,6 +156,12 @@ class StreamValuesHandle<T> implements Handle {
   end(): void {
     if (this.disposed) return;
     this.controller.close();
+    this.dispose();
+  }
+
+  error(reason: unknown): void {
+    if (this.disposed) return;
+    this.controller.error(reason);
     this.dispose();
   }
 
@@ -204,6 +222,12 @@ class StreamTextHandle<T> implements Handle {
     this.dispose();
   }
 
+  error(reason: unknown): void {
+    if (this.disposed) return;
+    this.controller.error(reason);
+    this.dispose();
+  }
+
   dispose(): void {
     this.disposed = true;
   }
@@ -213,7 +237,7 @@ class ForEachHandle<T> implements Handle {
   private controller: ReadableStreamDefaultController<unknown>;
   private disposed = false;
   private fieldPath: (string | number)[];
-  private processedIndexes = new Set<number>();
+  private nextIndex = 0;
 
   get isDisposed() {
     return this.disposed;
@@ -237,20 +261,17 @@ class ForEachHandle<T> implements Handle {
         return;
       }
 
-      // Check each array element and emit completed ones that haven't been processed
-      for (let i = 0; i < array.length; i++) {
-        if (!this.processedIndexes.has(i)) {
-          const elementPath = [...this.fieldPath, i];
-          if (
-            getPartialJsonObjectFieldState(
-              args as Record<string, unknown>,
-              elementPath,
-            ) === "complete"
-          ) {
-            this.controller.enqueue(array[i]);
-            this.processedIndexes.add(i);
-          }
-        }
+      // The parser's single partial path can only leave the trailing array element incomplete.
+      for (; this.nextIndex < array.length; this.nextIndex++) {
+        const elementPath = [...this.fieldPath, this.nextIndex];
+        if (
+          getPartialJsonObjectFieldState(
+            args as Record<string, unknown>,
+            elementPath,
+          ) !== "complete"
+        )
+          break;
+        this.controller.enqueue(array[this.nextIndex]);
       }
 
       // Check if the entire array is complete
@@ -275,6 +296,12 @@ class ForEachHandle<T> implements Handle {
     this.dispose();
   }
 
+  error(reason: unknown): void {
+    if (this.disposed) return;
+    this.controller.error(reason);
+    this.dispose();
+  }
+
   dispose(): void {
     this.disposed = true;
   }
@@ -290,6 +317,7 @@ export class ToolCallArgsReaderImpl<
   private parsedTextLength = -1;
   private args: unknown = undefined;
   private finished = false;
+  private failure: { reason: unknown } | undefined = undefined;
 
   constructor(argTextDeltas: ReadableStream<string>) {
     this.argTextDeltas = argTextDeltas;
@@ -310,13 +338,21 @@ export class ToolCallArgsReaderImpl<
         if (this.parseCurrentArgs()) this.updateHandles();
       }
     } catch (error) {
-      console.error("Error processing argument stream:", error);
+      this.failure = { reason: error };
     } finally {
       this.finished = true;
       for (const handle of this.handles) {
-        handle.end(this.args);
+        this.settleHandle(handle);
       }
       this.handles.clear();
+    }
+  }
+
+  private settleHandle(handle: Handle): void {
+    if (this.failure) {
+      handle.error(this.failure.reason);
+    } else {
+      handle.end(this.args);
     }
   }
 
@@ -347,7 +383,7 @@ export class ToolCallArgsReaderImpl<
     if (handle.isDisposed) return;
 
     if (this.finished) {
-      handle.end(this.args);
+      this.settleHandle(handle);
       return;
     }
 

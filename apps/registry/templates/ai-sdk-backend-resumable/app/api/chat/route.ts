@@ -10,6 +10,8 @@ import {
 import { RESUMABLE_STREAM_ID_HEADER } from "assistant-stream/resumable";
 import { resumableContext } from "@/lib/resumable-context";
 
+export const maxDuration = 60;
+
 export async function POST(req: Request) {
   const {
     messages,
@@ -24,7 +26,7 @@ export async function POST(req: Request) {
   const streamId = crypto.randomUUID();
 
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
     tools: {
       ...frontendTools(tools ?? {}),

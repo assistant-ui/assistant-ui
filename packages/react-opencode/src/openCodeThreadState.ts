@@ -13,7 +13,7 @@ import { serializeOpenCodeParts } from "./serializeUserParts";
 const PENDING_MATCH_WINDOW_MS = 2 * 60 * 1000;
 const MAX_UNHANDLED_EVENTS = 25;
 
-const copyMessagesById = (
+export const copyMessagesById = (
   messagesById?: Readonly<Record<string, OpenCodeServerMessage>>,
 ): Record<string, OpenCodeServerMessage> =>
   Object.assign(
@@ -178,9 +178,12 @@ const historyLoaded = (
       id: message.info.id,
       info: message.info,
       parts: message.parts,
+      // The server acknowledges a user message before it returns that
+      // message's parts.
       shadowParts:
-        message.parts.length === 0 && pendingMatch
-          ? pendingMatch.parts
+        message.info.role === "user" && message.parts.length === 0
+          ? (pendingMatch?.parts ??
+            state.messagesById[message.info.id]?.shadowParts)
           : undefined,
     };
 
@@ -238,6 +241,18 @@ const applyMessagePartDelta = (
 
   return null;
 };
+
+/**
+ * Whether the thread is mid-run. The transient `cancelling` and `reverting`
+ * states leave it only on a server busy-to-idle transition, so an action that
+ * enters one while the session is already idle would never settle.
+ */
+export const isOpenCodeStateRunning = (state: OpenCodeThreadState): boolean =>
+  state.runState.type === "streaming" ||
+  state.runState.type === "cancelling" ||
+  state.runState.type === "reverting" ||
+  state.sessionStatus?.type === "busy" ||
+  state.sessionStatus?.type === "retry";
 
 export const createOpenCodeThreadState = (
   sessionId: string,

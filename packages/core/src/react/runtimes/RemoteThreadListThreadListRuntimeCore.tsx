@@ -7,6 +7,7 @@ import {
   WritableSubscribable,
 } from "../../subscribable/subscribable";
 import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
+import { handleThreadListAction } from "../../store/runtime-clients/handle-thread-list-action";
 import { nullProtoRecord } from "../../utils/record";
 import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-state";
 import { EMPTY_THREAD_CORE } from "../../runtimes/remote-thread-list/empty-thread-core";
@@ -58,6 +59,7 @@ import { useAui } from "@assistant-ui/store";
 import type { ModelContextProvider } from "../../model-context/types";
 import { RuntimeAdapterProvider } from "./RuntimeAdapterProvider";
 import { useStableRuntimeAdapters } from "./useRuntimeAdapters";
+import { invokeUserCallback } from "../../utils/invoke-user-callback";
 
 const threadNotFoundError = (threadIdOrRemoteId: string, action: string) =>
   new Error(`Thread "${threadIdOrRemoteId}" not found while ${action}.`);
@@ -460,8 +462,14 @@ export class RemoteThreadListThreadListRuntimeCore
       Object.values(nextState.threadData).map((item) => item.id),
     );
     for (const item of Object.values(state.threadData)) {
-      if (!nextIds.has(item.id)) {
+      if (nextIds.has(item.id)) continue;
+      try {
         this._hookManager.stopThreadRuntime(item.id);
+      } catch (error) {
+        console.error(
+          "[assistant-ui] Thread runtime cleanup threw while stopping a thread",
+          error,
+        );
       }
     }
     void this._hookManager.startThreadRuntime(this._mainThreadId).then(
@@ -573,7 +581,12 @@ export class RemoteThreadListThreadListRuntimeCore
     if (this._lastNotifiedThreadId === threadId) return;
     this._lastNotifiedThreadId = threadId;
     if (emit) {
-      this._options.onThreadIdChange?.(threadId);
+      invokeUserCallback(
+        "assistant-ui",
+        "onThreadIdChange",
+        this._options.onThreadIdChange,
+        threadId,
+      );
     }
   }
 
@@ -763,8 +776,12 @@ export class RemoteThreadListThreadListRuntimeCore
 
   private _switchToThreadFromProp(threadId: string | undefined): Promise<void> {
     return threadId !== undefined
-      ? this._startSwitchToThread(threadId, undefined, false)
-      : this._startSwitchToNewThread(false);
+      ? handleThreadListAction("switch", () =>
+          this._startSwitchToThread(threadId, undefined, false),
+        )
+      : handleThreadListAction("create", () =>
+          this._startSwitchToNewThread(false),
+        );
   }
 
   private _startSwitchToNewThread(emitThreadIdChange: boolean): Promise<void> {
@@ -1006,6 +1023,11 @@ export class RemoteThreadListThreadListRuntimeCore
     let lastAwaitedTask: Promise<void> | undefined;
 
     while (threadId === this._mainThreadId) {
+      // Rechecked each pass: the draft can become the new thread again
+      // mid-loop when its failed first save rolls it back, and switching to a
+      // new thread then re-adopts it, so no switch can move main off it.
+      if (threadId === this.newThreadId)
+        throw new Error("Cannot ensure new thread is not main");
       let switchTask = this._switchTask;
       const startedFallback = !switchTask || switchTask === lastAwaitedTask;
       if (startedFallback) switchTask = this.switchToNewThread();

@@ -1,6 +1,7 @@
 import type {
   AppendMessage,
   DataMessagePart,
+  MessageModality,
   ThreadAssistantMessage,
   ThreadUserMessage,
 } from "@assistant-ui/core";
@@ -145,6 +146,11 @@ export const getCustomMetadata = (
   additionalKwargs: Record<string, unknown> | undefined,
 ): Record<string, unknown> =>
   (additionalKwargs?.metadata as Record<string, unknown>) ?? {};
+
+export const getMessageModality = (
+  additionalKwargs: Record<string, unknown> | undefined,
+): MessageModality | undefined =>
+  additionalKwargs?.modality === "voice" ? "voice" : undefined;
 
 export const uiMessageToDataPart = <
   TUIMessage extends { name: string; props: Record<string, unknown> },

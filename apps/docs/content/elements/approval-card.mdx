@@ -225,9 +225,9 @@ onDeny={() => {
 | `command` | `string` | required | Shown in the monospace command block. |
 | `title` | `string` | required | Header title. |
 | `subtitle` | `string` | required | Header subtitle. |
-| `onAllowOnce` | `() => void` | | Fires from the request row's primary button. |
-| `onAlwaysAllow` | `() => void` | | Fires from the request row's secondary button. |
-| `onDeny` | `() => void` | | Fires from the request row's Deny button. |
+| `onAllowOnce` | `() => void` | | Fires from the request row's primary button, which renders only when this is supplied. |
+| `onAlwaysAllow` | `() => void` | | Fires from the request row's secondary button, which renders only when this is supplied. |
+| `onDeny` | `() => void` | | Fires from the request row's Deny button, which renders only when this is supplied. |
 | `className` | `string` | | Merged onto the root. |
 
 All other `div` props are forwarded to the root.

@@ -1,5 +1,6 @@
 import { createTapRoot, resource, useResource } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
+import { UnauthorizedError } from "@modelcontextprotocol/client";
 import { useEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MCPAuthConfig } from "../mcp-scope";
@@ -113,8 +114,8 @@ const requestElicitation = (
   client: any,
   message: string,
   requestedSchema: unknown,
-  context: { signal: AbortSignal } = {
-    signal: new AbortController().signal,
+  context: { mcpReq: { signal: AbortSignal } } = {
+    mcpReq: { signal: new AbortController().signal },
   },
 ) => {
   const handler = client.requestHandlers.get("elicitation/create");
@@ -156,7 +157,6 @@ const mount = (
     cache?: { readonly defaultTtlMs?: number } | undefined;
     elicitation?: boolean | undefined;
     kind?: "connector" | "custom" | undefined;
-    storage?: MCPStorage | undefined;
     onRemove?: (() => Promise<void>) | undefined;
   },
   onMount?: (server: ClientOutput<"mcpServer">) => void,
@@ -192,6 +192,15 @@ const mount = (
 
 const unboundAuthMessage =
   'MCP server "docs" has saved authentication for a different URL. Authenticate again to connect to https://example.com/mcp.';
+
+const getOAuthProvider = (index: number) => {
+  const provider =
+    mocks.StreamableHTTPClientTransport.mock.calls[index]?.[1]?.authProvider;
+  if (!provider) throw new Error("Expected OAuth provider");
+  return provider as {
+    redirectToAuthorization: (url: URL) => Promise<void>;
+  };
+};
 
 describe("McpServerResource automatic authentication", () => {
   beforeEach(resetMocks);
@@ -292,7 +301,9 @@ describe("McpServerResource automatic authentication", () => {
     });
 
     try {
-      await waitFor(() => storage.loadAuthState.mock.calls.length > 0);
+      await waitFor(
+        () => vi.mocked(storage.loadAuthState).mock.calls.length > 0,
+      );
       await flushMacrotask();
 
       expect(root.getValue().getState()).toMatchObject({
@@ -338,7 +349,9 @@ describe("McpServerResource automatic authentication", () => {
     });
 
     try {
-      await waitFor(() => storage.loadAuthState.mock.calls.length > 0);
+      await waitFor(
+        () => vi.mocked(storage.loadAuthState).mock.calls.length > 0,
+      );
       await flushMacrotask();
 
       expect(root.getValue().getState()).toMatchObject({
@@ -629,6 +642,70 @@ describe("McpServerResource connectionTimeout", () => {
 describe("McpServerResource connection lifecycle", () => {
   beforeEach(resetMocks);
 
+  it("publishes authorization URLs from the current connection", async () => {
+    const root = mount({ auth: { type: "oauth" } });
+
+    try {
+      await root.getValue().connect();
+      await getOAuthProvider(0).redirectToAuthorization(
+        new URL("https://auth.example.com/current"),
+      );
+      await waitForResourceUpdate(
+        () => root.getValue().getState().authorizationUrl !== null,
+      );
+
+      expect(root.getValue().getState().authorizationUrl).toBe(
+        "https://auth.example.com/current",
+      );
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("ignores authorization URLs after disconnect", async () => {
+    const root = mount({ auth: { type: "oauth" } });
+
+    try {
+      await root.getValue().connect();
+      const provider = getOAuthProvider(0);
+      await root.getValue().disconnect();
+
+      await provider.redirectToAuthorization(
+        new URL("https://auth.example.com/stale"),
+      );
+      await flushMacrotask();
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "disconnected",
+        authorizationUrl: null,
+      });
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("ignores authorization URLs from a superseded connection", async () => {
+    const root = mount({ auth: { type: "oauth" } });
+
+    try {
+      await root.getValue().connect();
+      const staleProvider = getOAuthProvider(0);
+      await root.getValue().connect();
+
+      await staleProvider.redirectToAuthorization(
+        new URL("https://auth.example.com/stale"),
+      );
+      await flushMacrotask();
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "connected",
+        authorizationUrl: null,
+      });
+    } finally {
+      root.unmount();
+    }
+  });
+
   it("replaces direct resource connections when the server id changes", async () => {
     const storage = createStorage();
     let updateId = (_id: string) => {};
@@ -743,6 +820,44 @@ describe("McpServerResource connection lifecycle", () => {
 
 describe("McpServerResource completeAuth", () => {
   beforeEach(resetMocks);
+
+  it("transfers authorization URL ownership when reusing the auth transport", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({
+      serverUrl: "https://example.com/mcp",
+      state: "expected",
+    });
+    mocks.connectResults.push(() =>
+      Promise.reject(new UnauthorizedError("authorization required")),
+    );
+    const root = mount({ auth: { type: "oauth" }, storage });
+
+    try {
+      await root.getValue().connect();
+      await waitForResourceUpdate(
+        () => root.getValue().getState().connectionState === "authRequired",
+      );
+      const provider = getOAuthProvider(0);
+
+      await root
+        .getValue()
+        .completeAuth("https://example.com/callback?code=abc&state=expected");
+      await provider.redirectToAuthorization(
+        new URL("https://auth.example.com/reauthorize"),
+      );
+      await waitForResourceUpdate(
+        () => root.getValue().getState().authorizationUrl !== null,
+      );
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "connected",
+        authorizationUrl: "https://auth.example.com/reauthorize",
+      });
+      expect(mocks.transports).toHaveLength(1);
+    } finally {
+      root.unmount();
+    }
+  });
 
   it("lets callback validation win over mount-time auto-connect", async () => {
     const pendingLoads: Array<(value: MCPPersistedAuthState | null) => void> =
@@ -1474,7 +1589,7 @@ describe("McpServerResource elicitation", () => {
           type: "object",
           properties: {},
         },
-        { signal: controller.signal },
+        { mcpReq: { signal: controller.signal } },
       );
       await waitForResourceUpdate(
         () => root.getValue().getState().pendingElicitations.length === 1,

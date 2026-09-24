@@ -220,9 +220,15 @@ describe("RemoteThreadList concurrent rendering", () => {
     const unsubscribe = client.on(
       "threads.selectionChanged" as never,
       (() => {
-        selectionToolIds.push(
-          Object.keys(client.thread.getModelContext().tools)[0]!,
-        );
+        const tools = client.thread.getModelContext().tools;
+        if (tools === undefined) {
+          throw new Error("Expected thread model context tools");
+        }
+        const toolId = Object.keys(tools)[0];
+        if (toolId === undefined) {
+          throw new Error("Expected thread model context tool");
+        }
+        selectionToolIds.push(toolId);
       }) as never,
     );
 

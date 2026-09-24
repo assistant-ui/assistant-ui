@@ -131,7 +131,7 @@ export const appendLangChainChunk = (
       const toolCalls = (curr.tool_call_chunks ?? []).map(chunkToToolCall);
       return {
         ...prev,
-        content: curr.content ?? [],
+        content: typeof curr.content === "string" ? curr.content : [],
         ...(toolCalls.length > 0 && { tool_calls: toolCalls }),
       };
     }
@@ -140,7 +140,9 @@ export const appendLangChainChunk = (
   const newContent =
     typeof prev.content === "string"
       ? [{ type: "text" as const, text: prev.content }]
-      : [...(prev.content ?? [])];
+      : Array.isArray(prev.content)
+        ? [...prev.content]
+        : [];
 
   if (typeof curr?.content === "string") {
     const lastIndex = newContent.length - 1;

@@ -101,16 +101,10 @@ export const toMcpContent = async (
   return response.isError ? { isError: true, content } : { content };
 };
 
-type StandardSchemaLike = {
-  "~standard": {
-    version: number;
-    validate: (
-      value: unknown,
-    ) =>
-      | { issues?: readonly unknown[] | undefined }
-      | Promise<{ issues?: readonly unknown[] | undefined }>;
-  };
-};
+type StandardSchemaLike = Extract<
+  NonNullable<Tool["parameters"]>,
+  { readonly "~standard": unknown }
+>;
 
 const isStandardSchema = (schema: unknown): schema is StandardSchemaLike =>
   typeof schema === "object" &&
@@ -193,7 +187,7 @@ export const toWebMcpTool = (
       return errorResult(`Tool "${name}" is no longer registered`);
     }
     const tool = getTool();
-    const args = (rawArgs ?? {}) as Record<string, unknown>;
+    let args = (rawArgs ?? {}) as Record<string, unknown>;
     const toolCallId = generateId();
     let cleanup: (() => void) | undefined;
     try {
@@ -231,6 +225,8 @@ export const toWebMcpTool = (
                 `Function parameter validation failed. ${JSON.stringify(issues)}`,
               );
             });
+        } else {
+          args = validation.value;
         }
       }
 

@@ -1,13 +1,16 @@
 {
   "pages": [
+    "(before-you-start)",
     "(getting-started)",
+    "react-native",
+    "ink",
+    "tap",
+    "store",
     "guides",
     "tools",
     "primitives",
     "runtimes",
     "integrations",
-    "react-native",
-    "ink",
     "cloud",
     "utilities",
     "migrations",

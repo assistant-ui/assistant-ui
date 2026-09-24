@@ -192,7 +192,7 @@ This element has no dedicated primitive: it is fed from `useAuiState` selectors,
 | `query` | `string` | required | The current search text. |
 | `activeId` | `string` | required | Id of the highlighted thread. |
 | `onQueryChange` | `(query: string) => void` | | Called as the user types. |
-| `onSelect` | `(id: string) => void` | | Called with a thread's id when its row is clicked, and immediately on every Arrow Down or Arrow Up press in the search input; there is no separate highlight step, so moving is selecting. |
+| `onSelect` | `(id: string) => void` | | Called with a thread's id when its row is clicked, and immediately on every Arrow Down or Arrow Up press in the search input. Without it, rows render as non-interactive results and arrow keys do not select. |
 | `className` | `string` | | Merged onto the root. |
 
 All other `div` props are forwarded to the root.

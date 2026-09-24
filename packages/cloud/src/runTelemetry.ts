@@ -3,7 +3,7 @@ import type { AssistantCloudRunReport } from "./AssistantCloudRuns";
 
 const MAX_TELEMETRY_TEXT_LENGTH = 50_000;
 
-const BASE64_PATTERN = /^[A-Za-z0-9+/]{100,}={0,2}$/;
+const BASE64_PATTERN = /^[A-Za-z0-9+/]+={0,2}$/;
 
 export type AssistantCloudRunReportToolCall = {
   tool_name: string;
@@ -114,28 +114,81 @@ function safeStringify(value: unknown): string | undefined {
   }
 }
 
+const base64SizeKB = (value: string) =>
+  ((value.length * 3) / 4 / 1024).toFixed(1);
+
+// Both call sites read a field the MCP content grammar already defines as
+// base64, so the test only has to recognise the encoding's own shape: its
+// alphabet, and a length that is a multiple of four. A size floor would leave
+// a short payload — `aGk=` is a whole image in this repo's own fixtures —
+// serialized raw.
+const isInlineBase64 = (value: unknown): value is string => {
+  if (typeof value !== "string") return false;
+  const head = value.slice(0, 200);
+  return head.length > 0 && head.length % 4 === 0 && BASE64_PATTERN.test(head);
+};
+
+function summarizeMcpContentBlock(item: unknown): unknown {
+  if (!item || typeof item !== "object") return item;
+  const block = item as {
+    type?: unknown;
+    data?: unknown;
+    resource?: unknown;
+  };
+  if (
+    (block.type === "image" || block.type === "audio") &&
+    isInlineBase64(block.data)
+  ) {
+    return {
+      ...block,
+      data: `[${String(block.type)}: ${base64SizeKB(block.data)}KB]`,
+    };
+  }
+  // An EmbeddedResource is the third inline carrier: a binary resource arrives
+  // as base64 under `resource.blob` rather than as a top-level `data` field.
+  if (
+    block.type === "resource" &&
+    block.resource &&
+    typeof block.resource === "object"
+  ) {
+    const resource = block.resource as { blob?: unknown };
+    if (isInlineBase64(resource.blob)) {
+      return {
+        ...block,
+        resource: {
+          ...resource,
+          blob: `[resource: ${base64SizeKB(resource.blob)}KB]`,
+        },
+      };
+    }
+  }
+  return item;
+}
+
 function summarizeMcpResult(value: unknown): string | undefined {
   if (value == null) return undefined;
   try {
     const parsed = typeof value === "string" ? JSON.parse(value) : value;
     if (Array.isArray(parsed)) {
-      const summarized = parsed.map((item) => {
-        if (item && typeof item === "object" && item.type) {
-          if (
-            (item.type === "image" || item.type === "audio") &&
-            typeof item.data === "string" &&
-            BASE64_PATTERN.test(item.data.slice(0, 200))
-          ) {
-            const sizeKB = ((item.data.length * 3) / 4 / 1024).toFixed(1);
-            return { ...item, data: `[${item.type}: ${sizeKB}KB]` };
-          }
-        }
-        return item;
-      });
-      return truncateRunTelemetryText(JSON.stringify(summarized));
+      return truncateRunTelemetryText(
+        JSON.stringify(parsed.map(summarizeMcpContentBlock)),
+      );
+    }
+    // `callTool` resolves to a CallToolResult, so the blocks carrying base64
+    // arrive under `content` rather than as the result itself.
+    if (typeof parsed === "object") {
+      const content = (parsed as { content?: unknown }).content;
+      if (Array.isArray(content)) {
+        return truncateRunTelemetryText(
+          JSON.stringify({
+            ...(parsed as Record<string, unknown>),
+            content: content.map(summarizeMcpContentBlock),
+          }),
+        );
+      }
     }
   } catch {
-    // not JSON array, fall through
+    // not a shape with summarizable content, fall through
   }
   return safeStringify(value);
 }
@@ -223,16 +276,35 @@ export type RunReportStepInit = {
   startMs?: number | undefined;
   endMs?: number | undefined;
   finishReason?: string | undefined;
+  input?: string | undefined;
+};
+
+/**
+ * The run report fields read from the messages of one run, in whichever
+ * format they were stored: the status the messages imply, the tool calls, the
+ * steps, the text, the usage and the model.
+ */
+export type RunMessageTelemetry = {
+  assistantMessageId?: string;
+  status: "completed" | "incomplete";
+  toolCalls?: AssistantCloudRunReportToolCall[];
+  steps?: RunReportStepInit[];
+  totalSteps?: number;
+  outputText?: string;
+  usage?: RunTelemetryUsage;
+  modelId?: string;
+  metadata?: Record<string, unknown>;
 };
 
 export type RunReportInit = {
   threadId: string;
   status: AssistantCloudRunReport["status"];
-  outcome?: RunReportOutcome | undefined;
+  outcome?: AssistantCloudRunReport["outcome_type"] | undefined;
   errorCode?: string | undefined;
   error?: string | undefined;
   messageId?: string | undefined;
   traceId?: string | undefined;
+  rootSpanId?: string | undefined;
   modelId?: string | undefined;
   provider?: string | undefined;
   usage?: RunTelemetryUsageInit | undefined;
@@ -241,7 +313,17 @@ export type RunReportInit = {
   toolCalls?: AssistantCloudRunReportToolCall[] | undefined;
   durationMs?: number | undefined;
   firstTokenMs?: number | undefined;
+  costUsd?: number | undefined;
+  costDetails?:
+    | {
+        input?: number | undefined;
+        inputCachedTokens?: number | undefined;
+        output?: number | undefined;
+        total?: number | undefined;
+      }
+    | undefined;
   outputText?: string | undefined;
+  attributes?: Record<string, unknown> | undefined;
   metadata?: Record<string, unknown> | undefined;
   telemetry?: {
     environment?: string | undefined;
@@ -291,6 +373,9 @@ function createRunReportStep(
   if (init.finishReason !== undefined) {
     step.finish_reason = init.finishReason.slice(0, 32);
   }
+  if (init.input !== undefined) {
+    step.input = truncateRunTelemetryText(init.input);
+  }
   return step;
 }
 
@@ -317,6 +402,34 @@ function normalizeRunReportMilliseconds(
   return Math.max(0, Math.round(value));
 }
 
+function normalizeRunReportCost(value: number | undefined): number | undefined {
+  if (value === undefined || !Number.isFinite(value) || value < 0) {
+    return undefined;
+  }
+  return value;
+}
+
+function assignCostDetails(
+  report: AssistantCloudRunReport,
+  costDetails: RunReportInit["costDetails"],
+): void {
+  if (!costDetails) return;
+  const normalized: NonNullable<AssistantCloudRunReport["cost_details"]> = {};
+  const input = normalizeRunReportCost(costDetails.input);
+  if (input !== undefined) normalized.input = input;
+  const inputCachedTokens = normalizeRunReportCost(
+    costDetails.inputCachedTokens,
+  );
+  if (inputCachedTokens !== undefined) {
+    normalized.input_cached_tokens = inputCachedTokens;
+  }
+  const output = normalizeRunReportCost(costDetails.output);
+  if (output !== undefined) normalized.output = output;
+  const total = normalizeRunReportCost(costDetails.total);
+  if (total !== undefined) normalized.total = total;
+  if (Object.keys(normalized).length > 0) report.cost_details = normalized;
+}
+
 export function createRunReport(init: RunReportInit): AssistantCloudRunReport {
   const report: AssistantCloudRunReport = {
     thread_id: init.threadId,
@@ -324,6 +437,10 @@ export function createRunReport(init: RunReportInit): AssistantCloudRunReport {
   };
   const traceId = init.traceId?.toLowerCase();
   if (traceId && /^[0-9a-f]{32}$/.test(traceId)) report.trace_id = traceId;
+  const rootSpanId = init.rootSpanId?.toLowerCase();
+  if (rootSpanId && /^[0-9a-f]{16}$/.test(rootSpanId)) {
+    report.root_span_id = rootSpanId;
+  }
   if (init.outcome !== undefined) report.outcome_type = init.outcome;
   if (init.errorCode !== undefined) report.error_code = init.errorCode;
   if (init.error !== undefined) report.error = init.error;
@@ -345,9 +462,13 @@ export function createRunReport(init: RunReportInit): AssistantCloudRunReport {
   if (durationMs !== undefined) report.duration_ms = durationMs;
   const firstTokenMs = normalizeRunReportMilliseconds(init.firstTokenMs);
   if (firstTokenMs !== undefined) report.first_token_ms = firstTokenMs;
+  const costUsd = normalizeRunReportCost(init.costUsd);
+  if (costUsd !== undefined) report.cost_usd = costUsd;
+  assignCostDetails(report, init.costDetails);
   if (init.outputText !== undefined) {
     report.output_text = truncateRunTelemetryText(init.outputText);
   }
+  if (init.attributes !== undefined) report.attributes = init.attributes;
   if (init.metadata !== undefined) report.metadata = init.metadata;
   if (init.telemetry?.environment !== undefined) {
     report.environment = init.telemetry.environment;
