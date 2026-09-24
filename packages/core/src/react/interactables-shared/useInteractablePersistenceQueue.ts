@@ -233,8 +233,9 @@ export const useInteractablePersistenceQueue = <State>({
 
   const isSaving = useCallback(
     (id: string) =>
+      !dirtyIdsRef.current.has(id) &&
       latestSyncByIdRef.current.get(id)?.adapterGeneration ===
-      adapterGenerationRef.current,
+        adapterGenerationRef.current,
     [adapterGenerationRef],
   );
 

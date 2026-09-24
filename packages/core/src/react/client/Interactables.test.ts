@@ -954,11 +954,13 @@ describe("Interactables persistence save", () => {
     await vi.advanceTimersByTimeAsync(500);
     root.getValue().setPersistenceAdapter(undefined);
     root.getValue().setState("n1", () => ({ v: 2 }));
-    resolveSave();
-    await flushMicrotasks();
 
     unregister();
     root.getValue().register(reg("n1"));
+    expect(root.getValue().getState().persistence.n1).toBeUndefined();
+
+    resolveSave();
+    await flushMicrotasks();
     expect(root.getValue().getState().persistence.n1).toBeUndefined();
   });
 
