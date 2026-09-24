@@ -34,12 +34,14 @@ export async function POST(req: Request): Promise<Response> {
       return new Response("Invalid prompt", { status: 400 });
     }
 
-    const { model, providerOptions } = resolveChatModel();
+    const { model, providerOptions } = resolveChatModel({
+      reasoningEffort: "low",
+    });
     const { text } = await generateText({
       model,
       ...(providerOptions ? { providerOptions } : {}),
       prompt: boundPrompt(prompt),
-      maxOutputTokens: 160,
+      maxOutputTokens: 1024,
       ...posthogTelemetry({
         distinctId: getDistinctId(req),
         spanName: "follow_up_suggestions",

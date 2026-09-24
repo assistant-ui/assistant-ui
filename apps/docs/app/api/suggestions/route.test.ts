@@ -127,12 +127,14 @@ describe("POST /api/suggestions", () => {
         "Remember this preference",
       ],
     });
-    expect(mocks.resolveChatModel).toHaveBeenCalledWith();
+    expect(mocks.resolveChatModel).toHaveBeenCalledWith({
+      reasoningEffort: "low",
+    });
     expect(mocks.generateText).toHaveBeenCalledWith(
       expect.objectContaining({
         model,
         prompt: "Explain thread state",
-        maxOutputTokens: 160,
+        maxOutputTokens: 1024,
       }),
     );
   });
