@@ -3,6 +3,7 @@ import type {
   ExternalStoreSharedOptions,
   ThreadMessageLike,
 } from "@assistant-ui/react";
+import type { AssistantCloud } from "assistant-cloud";
 import type { PiThreadControllerLike } from "./ThreadController";
 import type { PiInterruptAnswer } from "./hostUi";
 import type { PiThreadState } from "./threadState";
@@ -20,10 +21,15 @@ import type {
 export type PiRuntimeOptions = ExternalStoreSharedOptions & {
   /** The transport-agnostic Pi client (HTTP/SSE, RPC, IPC). */
   client: PiClient;
-  /** Workspace scoping for the thread list. */
+  /** Backs the thread list with Assistant Cloud; each cloud thread maps to a Pi thread. */
+  cloud?: AssistantCloud | undefined;
+  /** Workspace scoping for the thread list. With `cloud`, the list holds every thread of the cloud project and this only places new Pi threads. */
   workspacePath?: string;
+  /** Lists archived threads too. Not used with `cloud`, whose list keeps archived threads apart. */
   includeArchived?: boolean;
+  /** The thread to open first: a Pi thread id, or with `cloud` a cloud thread id. */
   initialThreadId?: string;
+  /** The thread to show: a Pi thread id, or with `cloud` a cloud thread id. */
   threadId?: string;
   /** Notified when the active thread's settled remote ID changes; `undefined` while still optimistic. */
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;

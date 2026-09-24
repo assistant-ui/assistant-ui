@@ -138,7 +138,7 @@ console.log(messages);
 await cloud.runs.report({
   thread_id: "thread_0qzof3jPoDwr7K3agyJN3D4U",
   status: "completed",
-  model_id: "gpt-5.6-luna",
+  model_id: "gpt-6-luna",
   provider: "openai",
   input_tokens: 128,
   output_tokens: 96,
@@ -253,7 +253,7 @@ const reporter = new CloudRunReporter(cloud);
 await reporter.report({
   threadId: "thread_0qzof3jPoDwr7K3agyJN3D4U",
   status: "completed",
-  modelId: "gpt-5.6-luna",
+  modelId: "gpt-6-luna",
   provider: "openai",
   usage: { inputTokens: 128, outputTokens: 96 },
   durationMs: 1420,

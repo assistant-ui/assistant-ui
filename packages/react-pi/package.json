@@ -56,6 +56,7 @@
     "@assistant-ui/core": "^0.3.20",
     "@assistant-ui/store": "^0.3.14",
     "@standard-schema/spec": "^1.1.0",
+    "assistant-cloud": "*",
     "assistant-stream": "^0.3.44"
   },
   "peerDependencies": {
