@@ -77,6 +77,34 @@ describe("optimistic tool outcomes", () => {
 });
 
 describe("ADK runtime callbacks", () => {
+  it("reports the same agent transfer again in a later run", async () => {
+    const onAgentTransfer = vi.fn();
+    const stream: AdkStreamCallback = async function* () {
+      yield {
+        id: "transfer",
+        actions: { transferToAgent: "researcher" },
+      };
+    };
+    const { result } = renderHook(() =>
+      useAdkMessages({ stream, eventHandlers: { onAgentTransfer } }),
+    );
+
+    await act(async () => {
+      await result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "first" }],
+        {},
+      );
+      await result.current.sendMessage(
+        [{ id: "user-2", type: "human", content: "second" }],
+        {},
+      );
+    });
+
+    expect(onAgentTransfer).toHaveBeenCalledTimes(2);
+    expect(onAgentTransfer).toHaveBeenNthCalledWith(1, "researcher");
+    expect(onAgentTransfer).toHaveBeenNthCalledWith(2, "researcher");
+  });
+
   it.each(["onAgentTransfer", "onCustomEvent", "onError"] as const)(
     "continues streaming when %s throws",
     async (callbackName) => {
