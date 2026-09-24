@@ -1975,14 +1975,13 @@ describe("AGUIThreadRuntimeCore", () => {
 
     const failure = new TypeError("network error");
     http.fail(failure);
-    await run.catch(() => {});
+    await expect(run).rejects.toBe(failure);
 
     expect(core.getMessages().at(-1)?.status).toEqual({
       type: "complete",
       reason: "unknown",
     });
     expect(onError.mock.calls).toEqual([[failure]]);
-    await expect(run).rejects.toBe(failure);
   });
 
   it("reports an HttpAgent network failure once", async () => {
