@@ -33,8 +33,6 @@
         "ASSISTANT_*",
         "JWT_*",
         "ENTELLIGENCE_*",
-        "NEXT_PUBLIC_*",
-        "!NEXT_PUBLIC_VERCEL_*",
         "KV_*",
         "SENTRY_*",
         "REDIS_*",
