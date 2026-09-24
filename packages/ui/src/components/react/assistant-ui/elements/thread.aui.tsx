@@ -511,9 +511,7 @@ const ComposerAction: FC = () => {
             </TooltipIconButton>
           </ComposerPrimitive.Send>
         </AuiIf>
-        <AuiIf
-          condition={shouldShowComposerResume}
-        >
+        <AuiIf condition={shouldShowComposerResume}>
           <ComposerPrimitive.Resume asChild>
             <TooltipIconButton
               tooltip="Resume generating"

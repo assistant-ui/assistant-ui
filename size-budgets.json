@@ -1,30 +1,30 @@
 {
   "@assistant-ui/ai-sdk": {
     ".": {
-      "min": 45891,
-      "gzip": 15981
+      "min": 46335,
+      "gzip": 16133
     }
   },
   "@assistant-ui/core": {
     ".": {
-      "min": 37840,
-      "gzip": 12599
+      "min": 37862,
+      "gzip": 12609
     },
     "./internal": {
-      "min": 150054,
-      "gzip": 38102
+      "min": 150386,
+      "gzip": 38188
     },
     "./react": {
-      "min": 340975,
-      "gzip": 95051
+      "min": 341906,
+      "gzip": 95309
     },
     "./store": {
-      "min": 114179,
-      "gzip": 38626
+      "min": 110503,
+      "gzip": 37106
     },
     "./store/internal": {
-      "min": 37202,
-      "gzip": 13406
+      "min": 37260,
+      "gzip": 13449
     }
   },
   "@assistant-ui/eve": {
@@ -35,8 +35,8 @@
   },
   "@assistant-ui/react": {
     ".": {
-      "min": 137420,
-      "gzip": 44738
+      "min": 137736,
+      "gzip": 44854
     }
   },
   "@assistant-ui/react-a2a": {
@@ -109,8 +109,8 @@
   },
   "@assistant-ui/react-ink": {
     ".": {
-      "min": 67247,
-      "gzip": 19615
+      "min": 67294,
+      "gzip": 19616
     },
     "./internal": {
       "min": 427,
@@ -163,8 +163,8 @@
   },
   "@assistant-ui/react-native": {
     ".": {
-      "min": 37445,
-      "gzip": 10220
+      "min": 37493,
+      "gzip": 10241
     },
     "./internal": {
       "min": 427,
