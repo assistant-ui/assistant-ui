@@ -108,12 +108,7 @@ export const ThreadTab = ({
     if (!hasConversationList) {
       return resolveSingleThread(data.state);
     }
-    return resolveThreadForId(
-      data.state,
-      snapshots,
-      activeThreadId,
-      threadList,
-    );
+    return resolveThreadForId(snapshots, activeThreadId, threadList);
   }, [hasConversationList, data.state, snapshots, activeThreadId, threadList]);
 
   const selectedMessage = useSelectedMessage(
