@@ -590,6 +590,35 @@ describe("auiV0DecodeSafely against encoder output", () => {
     expect(encodedResult(new Wrapper())).toEqual({ result: {}, warned: 0 });
   });
 
+  it("warns for opaque own state JSON cannot see", () => {
+    const empty = Object.assign(new Map(), { [Symbol("hidden")]: 1 });
+    expect(encodedResult(empty)).toEqual({ result: {}, warned: 1 });
+    expect(encodedResult(/x/)).toEqual({ result: {}, warned: 1 });
+  });
+
+  it("warns when a toJSON round trip yields nothing to store", () => {
+    expect(encodedResult({ toJSON: () => undefined })).toEqual({
+      result: undefined,
+      warned: 1,
+    });
+    expect(encodedResult({ toJSON: () => 1n })).toEqual({
+      result: undefined,
+      warned: 1,
+    });
+  });
+
+  it("reports a getter that throws on its second read instead of failing", () => {
+    let reads = 0;
+    const flaky = Object.defineProperty({}, "x", {
+      enumerable: true,
+      get() {
+        if (reads++ > 0) throw new Error("second read");
+        return 1;
+      },
+    });
+    expect(encodedResult(flaky)).toEqual({ result: { x: 1 }, warned: 1 });
+  });
+
   it("keeps every assistant status the encoder writes", () => {
     const statuses: MessageStatus[] = [
       { type: "running" },

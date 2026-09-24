@@ -336,7 +336,9 @@ const hasLosslessJSONShape = (value: unknown, depth = 0): boolean => {
   if (typeof value !== "object" || value === null) return true;
   // A toJSON is the value's own serializer, so whatever it emits is intended.
   if (typeof (value as { toJSON?: unknown }).toJSON === "function") return true;
-  if (value instanceof Map || value instanceof Set) return value.size === 0;
+  if ((value instanceof Map || value instanceof Set) && value.size > 0) {
+    return false;
+  }
 
   if (Array.isArray(value)) {
     if (Reflect.ownKeys(value).length !== value.length + 1) return false;
@@ -357,6 +359,17 @@ const hasLosslessJSONShape = (value: unknown, depth = 0): boolean => {
       Object.getOwnPropertyDescriptor(value, key)?.enumerable === true &&
       hasLosslessJSONShape((value as Record<string, unknown>)[key], depth + 1),
   );
+};
+
+// Reading a getter a second time can throw where JSON.stringify's read did
+// not; a diagnostic that throws is reported as loss rather than failing the
+// write.
+const losesDataInJSON = (value: unknown): boolean => {
+  try {
+    return !hasLosslessJSONShape(value);
+  } catch {
+    return true;
+  }
 };
 
 export function auiV0Encode(message: ThreadMessage): AuiV0Message {
@@ -438,9 +451,14 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
           // reload; a part with no result is rejected by providers as an
           // unanswered call, which is worse than a hollowed-out result.
           const result = serializableArtifact(part.result);
-          if (part.result !== undefined && !hasLosslessJSONShape(part.result)) {
+          if (
+            part.result !== undefined &&
+            (result === undefined || losesDataInJSON(part.result))
+          ) {
             console.warn(
-              `tool-call result for ${part.toolCallId} loses data in JSON; persisted as its JSON form`,
+              result === undefined
+                ? `tool-call result for ${part.toolCallId} cannot be serialized as JSON; omitted`
+                : `tool-call result for ${part.toolCallId} loses data in JSON; persisted as its JSON form`,
             );
           }
           const artifact = serializableArtifact(part.artifact);
