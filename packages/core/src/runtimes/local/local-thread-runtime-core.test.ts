@@ -3867,6 +3867,49 @@ describe("LocalThreadRuntimeCore runs", () => {
     expect(thread.messages).toEqual([]);
   });
 
+  it("releases appends waiting on a superseded history load", async () => {
+    const firstAppend = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
+    const secondAppend = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
+    const adapter: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    const thread = createThread(adapter, {
+      history: {
+        scopeId: "first",
+        load: () => new Promise(() => {}),
+        append: firstAppend,
+      },
+    });
+
+    thread.__internal_load();
+    const staleAppend = thread.append({
+      ...userMessage("first scope"),
+      startRun: false,
+    });
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: adapter,
+        history: {
+          scopeId: "second",
+          load: async () => ({ messages: [] }),
+          append: secondAppend,
+        },
+      },
+    });
+
+    await staleAppend;
+    await thread.append({
+      ...userMessage("second scope"),
+      startRun: false,
+    });
+
+    expect(firstAppend).not.toHaveBeenCalled();
+    expect(secondAppend).toHaveBeenCalledOnce();
+    expect(thread.messages.map((message) => message.content)).toEqual([
+      [{ type: "text", text: "second scope" }],
+    ]);
+  });
+
   it("cancels active and queued work when the history scope changes", async () => {
     const secondAppend = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
     const run = vi.fn<ChatModelAdapter["run"]>(

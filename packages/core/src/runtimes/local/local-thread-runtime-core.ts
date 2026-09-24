@@ -448,9 +448,23 @@ export class LocalThreadRuntimeCore
   // discarded branch. Awaiting the load promise keeps the wait bounded by the
   // adapter call, unlike polling `isLoading` for a notification that a
   // superseded runtime never sends.
-  private _getHistoryLoadBarrier(): Promise<void> | undefined {
+  private _getHistoryLoadBarrier(
+    generation: AbortSignal,
+  ): Promise<void> | undefined {
     if (!this._isLoading || !this._loadPromise) return undefined;
-    return this._loadPromise.catch(() => {});
+    const loadPromise = this._loadPromise;
+    return new Promise<void>((resolve) => {
+      const finish = () => {
+        generation.removeEventListener("abort", finish);
+        resolve();
+      };
+      if (generation.aborted) {
+        finish();
+        return;
+      }
+      generation.addEventListener("abort", finish, { once: true });
+      void loadPromise.then(finish, finish);
+    });
   }
 
   public async append(message: AppendMessage): Promise<void> {
@@ -561,7 +575,7 @@ export class LocalThreadRuntimeCore
     // the flush re-pointed its parentId at the current tail.
     const generation = captureThreadRuntimeGeneration(this);
 
-    const loadBarrier = this._getHistoryLoadBarrier();
+    const loadBarrier = this._getHistoryLoadBarrier(generation);
     if (loadBarrier) {
       const wasAtTail =
         rawMessage.parentId === (this.messages.at(-1)?.id ?? null);
