@@ -203,12 +203,16 @@ class IncrementalToolCallArgsParser {
     return this.frames.at(-1)?.path ?? [];
   }
 
+  private isFallback() {
+    return this.mode === "fallback";
+  }
+
   private consumeDelta(delta: string) {
-    if (this.mode === "fallback") return;
+    if (this.isFallback()) return;
 
     for (const char of delta) {
       this.consumeCharacter(char);
-      if (this.mode === "fallback") return;
+      if (this.isFallback()) return;
     }
 
     if (this.token?.kind === "string" && this.token.role === "value") {
@@ -559,7 +563,7 @@ export const transferIncrementalToolCallArgs = (
   next: LangChainToolCall,
 ) => {
   const parser = parserByToolCall.get(previous);
-  if (parser?.currentText === next.partial_json) {
+  if (parser !== undefined && parser.currentText === next.partial_json) {
     parserByToolCall.set(next, parser);
   }
 };
