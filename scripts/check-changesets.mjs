@@ -460,14 +460,28 @@ export function runCheck(root = repoRoot) {
   const { bumps, errors } = readChangesetBumps(root);
   return {
     packageCount: packages.size,
-    problems: [...errors, ...findUnreleasablePackages(packages, bumps, rules)],
+    parseErrors: errors,
+    problems: findUnreleasablePackages(packages, bumps, rules),
   };
 }
 
 function main() {
-  const { packageCount, problems } = runCheck(process.env.CHANGESET_CHECK_ROOT);
+  const { packageCount, parseErrors, problems } = runCheck(
+    process.env.CHANGESET_CHECK_ROOT,
+  );
+
+  if (parseErrors.length > 0) {
+    console.error("Changesets that `changeset version` cannot parse:\n");
+    for (const { file, name, reason } of parseErrors) {
+      console.error(`  .changeset/${file}: "${name}" ${reason}`);
+    }
+    console.error(
+      '\nWrite each release as `"<package>": patch` on its own line between `---` fences, with the name quoted, each package once, and every line indented the same way with spaces.',
+    );
+  }
 
   if (problems.length > 0) {
+    if (parseErrors.length > 0) console.error("");
     console.error("Changesets name packages that cannot be released:\n");
     for (const { file, name, reason } of problems) {
       console.error(`  .changeset/${file}: "${name}" ${reason}`);
@@ -479,8 +493,9 @@ function main() {
       "so `changeset version` aborts and every release stays blocked until the line is removed.",
     );
     console.error("\nDrop the offending line from the changeset frontmatter.");
-    process.exit(1);
   }
+
+  if (parseErrors.length > 0 || problems.length > 0) process.exit(1);
 
   console.log(
     `All changeset bumps name releasable workspace packages. (${packageCount} packages scanned)`,
