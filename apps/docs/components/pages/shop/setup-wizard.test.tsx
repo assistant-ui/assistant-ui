@@ -624,7 +624,9 @@ describe("SetupWizard", () => {
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
       "Review the plan",
     );
-    const note = screen.getByPlaceholderText("Write a note for the plan…");
+    const note = screen.getByPlaceholderText(
+      "Add a note, or leave it empty to install as proposed.",
+    );
     fireEvent.change(note, { target: { value: "Use Anthropic." } });
     expect(footer().getByRole("button", { name: "Send" })).toBeDefined();
     fireEvent.change(note, { target: { value: "" } });

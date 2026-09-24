@@ -15,6 +15,7 @@ import {
   ChevronRightIcon,
   CpuIcon,
   FileIcon,
+  InfoIcon,
   LayoutGridIcon,
   MessageSquareIcon,
   PackageIcon,
@@ -28,7 +29,6 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import {
-  fieldClassName,
   getHttpsUrl,
   submitOnModifiedEnter,
 } from "@/components/pages/shop/input-shared";
@@ -156,40 +156,40 @@ function PlanInline({ markdown }: { markdown: string }) {
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 
 function PlanSectionCard({
-  number,
   title,
   eyebrow,
   children,
 }: {
-  number: number;
   title: string;
   eyebrow: string;
   children: ReactNode;
 }) {
   return (
-    <li className="relative flex flex-col gap-2 sm:block">
-      <span
-        aria-hidden="true"
-        className="text-muted-foreground bg-background font-mono text-xs sm:absolute sm:top-5 sm:-left-12 sm:w-7 sm:py-1 sm:text-center"
-      >
-        {String(number).padStart(2, "0")}
-      </span>
-      <section className="bg-muted flex min-w-0 flex-col gap-4 rounded-xl p-5 sm:p-6">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-          <h2 className="text-sm font-medium">{title}</h2>
-          <span className="text-muted-foreground text-xs">{eyebrow}</span>
-        </div>
-        {children}
-      </section>
+    <li className="bg-muted flex min-w-0 flex-col gap-3 rounded-xl p-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <h2 className="text-sm font-medium">{title}</h2>
+        <span className="text-muted-foreground text-xs">{eyebrow}</span>
+      </div>
+      {children}
     </li>
   );
 }
 
-function PlanDetails({ label, markdown }: { label: string; markdown: string }) {
+const CAP = 3;
+
+function PlanDetails({
+  label,
+  hidden = 0,
+  markdown,
+}: {
+  label: string;
+  hidden?: number;
+  markdown: string;
+}) {
   return (
     <Collapsible className="flex flex-col items-start">
       <CollapsibleTrigger className="text-muted-foreground hover:text-foreground group flex items-center gap-1.5 text-sm">
-        {label}
+        {hidden > 0 ? `${label} · ${hidden} more` : label}
         <ChevronRightIcon className="size-3.5 transition-transform group-data-[panel-open]:rotate-90" />
       </CollapsibleTrigger>
       <CollapsibleContent className="border-foreground/10 mt-3 w-full border-t pt-3">
@@ -199,31 +199,34 @@ function PlanDetails({ label, markdown }: { label: string; markdown: string }) {
   );
 }
 
-function FactRows({ facts }: { facts: PlanFact[] }) {
-  if (facts.length === 0) return null;
+type Row = { icon: Icon; label?: string; value: string; sub?: string };
+
+function Rows({ rows }: { rows: Row[] }) {
   return (
-    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-      {facts.map((fact) => (
-        <div key={fact.label} className="contents">
-          <dt className="text-muted-foreground">{fact.label}</dt>
-          <dd className="min-w-0">
-            <PlanInline markdown={fact.value} />
-          </dd>
-        </div>
+    <ul role="list" className="flex flex-col gap-2 text-sm">
+      {rows.slice(0, CAP).map((row, index) => (
+        <li key={index} className="flex min-w-0 gap-1.5">
+          <row.icon className="text-muted-foreground mt-0.5 size-4 shrink-0" />
+          <span className="min-w-0 truncate">
+            {row.label ? (
+              <span className="me-2 font-medium">{row.label}</span>
+            ) : null}
+            <span className={cn(row.label && "text-muted-foreground")}>
+              <PlanInline markdown={row.value} />
+            </span>
+            {row.sub ? (
+              <span className="text-muted-foreground ms-2">
+                <PlanInline markdown={row.sub} />
+              </span>
+            ) : null}
+          </span>
+        </li>
       ))}
-    </dl>
+    </ul>
   );
 }
 
-type Column = {
-  icon: Icon;
-  label: string;
-  value: string;
-  sub?: string;
-  mono?: boolean;
-};
-
-const columnsOf = (facts: PlanFact[]) => {
+const foundRows = (facts: PlanFact[]): Row[] => {
   const left = [...facts];
   const take = (test: RegExp, exclude?: RegExp) => {
     const index = left.findIndex(
@@ -236,62 +239,26 @@ const columnsOf = (facts: PlanFact[]) => {
   const agent = take(/agent/i);
   const provider = take(/provider/i);
   const model = take(/\bmodel\b/i);
-  const columns: Column[] = [];
+  const rows: Row[] = [];
   if (app) {
-    columns.push({
+    rows.push({
       icon: LayoutGridIcon,
       label: "App",
       value: app.value,
       ...(appSub && { sub: appSub.value }),
     });
   }
-  if (agent)
-    columns.push({ icon: BotIcon, label: "Agent", value: agent.value });
+  if (agent) rows.push({ icon: BotIcon, label: "Agent", value: agent.value });
   if (provider || model) {
-    columns.push({
+    rows.push({
       icon: CpuIcon,
       label: "Model",
       value: (provider ?? model)!.value,
-      ...(provider && model && { sub: model.value, mono: true }),
+      ...(provider && model && { sub: model.value }),
     });
   }
-  return { columns, rows: left };
+  return [...rows, ...left.map((fact) => ({ icon: InfoIcon, ...fact }))];
 };
-
-function FoundBody({ section }: { section: PlanSection }) {
-  const { columns, rows } = columnsOf(section.facts);
-  return (
-    <>
-      {columns.length > 0 ? (
-        <div className="grid gap-4 sm:grid-cols-3">
-          {columns.map((column) => (
-            <div key={column.label} className="flex min-w-0 flex-col gap-1">
-              <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
-                <column.icon className="size-3.5" />
-                {column.label}
-              </span>
-              <span className="text-sm font-medium [overflow-wrap:anywhere]">
-                <PlanInline markdown={column.value} />
-              </span>
-              {column.sub ? (
-                <span
-                  className={cn(
-                    "text-muted-foreground text-sm [overflow-wrap:anywhere]",
-                    column.mono && "font-mono text-xs",
-                  )}
-                >
-                  <PlanInline markdown={column.sub} />
-                </span>
-              ) : null}
-            </div>
-          ))}
-        </div>
-      ) : null}
-      <FactRows facts={rows} />
-      {section.rest ? <PlanMarkdown markdown={section.rest} /> : null}
-    </>
-  );
-}
 
 const installIcon = (text: string): Icon => {
   if (/chat|thread|assistant|ui\b/i.test(text)) return MessageSquareIcon;
@@ -302,68 +269,32 @@ const installIcon = (text: string): Icon => {
   return PackageIcon;
 };
 
-function InstallBody({ section }: { section: PlanSection }) {
-  const rows = [
-    ...section.facts.map((fact) => ({
-      ...fact,
-      icon: installIcon(fact.label),
-    })),
-    ...section.items.map((item) => ({
-      label: undefined,
-      value: item.text,
-      icon: installIcon(item.text),
-    })),
-  ];
+const installRows = (section: PlanSection): Row[] => [
+  ...section.facts.map((fact) => ({ ...fact, icon: installIcon(fact.label) })),
+  ...section.items.map((item) => ({
+    value: item.text,
+    icon: installIcon(item.text),
+  })),
+];
+
+function Steps({ titles }: { titles: string[] }) {
   return (
-    <>
-      <ul role="list" className="flex flex-col gap-2 text-sm">
-        {rows.map((row, index) => (
-          <li key={index} className="flex min-w-0 gap-1.5">
-            <row.icon className="text-muted-foreground mt-0.5 size-4 shrink-0" />
-            {row.label ? (
-              <span className="flex min-w-0 flex-wrap gap-x-4 gap-y-0.5">
-                <span className="font-medium">{row.label}</span>
-                <span className="text-muted-foreground [overflow-wrap:anywhere]">
-                  <PlanInline markdown={row.value} />
-                </span>
-              </span>
-            ) : (
-              <span className="min-w-0 [overflow-wrap:anywhere]">
-                <PlanInline markdown={row.value} />
-              </span>
-            )}
-          </li>
-        ))}
-      </ul>
-      {section.rest ? <PlanMarkdown markdown={section.rest} /> : null}
-    </>
+    <ol role="list" className="flex flex-col gap-2 text-sm">
+      {titles.slice(0, CAP).map((title, index) => (
+        <li key={index} className="flex min-w-0 gap-3">
+          <span className="text-muted-foreground w-4 shrink-0 text-right font-mono text-xs leading-5">
+            {index + 1}
+          </span>
+          <span className="min-w-0 truncate">
+            <PlanInline markdown={title} />
+          </span>
+        </li>
+      ))}
+    </ol>
   );
 }
 
-function StepsBody({ titles, rest }: { titles: string[]; rest: string }) {
-  return (
-    <>
-      <ol role="list" className="flex flex-col gap-2 text-sm">
-        {titles.map((title, index) => (
-          <li key={index} className="flex min-w-0 gap-3">
-            <span className="text-muted-foreground w-4 shrink-0 text-right font-mono text-xs leading-5">
-              {index + 1}
-            </span>
-            <span className="min-w-0 [overflow-wrap:anywhere]">
-              <PlanInline markdown={title} />
-            </span>
-          </li>
-        ))}
-      </ol>
-      {rest ? <PlanMarkdown markdown={rest} /> : null}
-    </>
-  );
-}
-
-const structured = (section: PlanSection) =>
-  section.facts.length > 0 || section.items.length > 0;
-
-/** The plan as numbered cards, one per section the agent wrote; the review form rides in the last one. */
+/** The plan as cards, one per section the agent wrote; the review form rides in the last one. */
 export function PlanCards({
   markdown,
   steps = [],
@@ -381,44 +312,46 @@ export function PlanCards({
   const cards: ReactNode[] = [];
   const card = (title: string, eyebrow: string, body: ReactNode) =>
     cards.push(
-      <PlanSectionCard
-        key={title}
-        number={cards.length + 1}
-        title={title}
-        eyebrow={eyebrow}
-      >
+      <PlanSectionCard key={title} title={title} eyebrow={eyebrow}>
         {body}
       </PlanSectionCard>,
     );
-  const body = (
+  const summary = (
     section: PlanSection,
     label: string,
+    count: number,
     view: ReactNode,
-    shown = structured(section),
   ) =>
-    shown ? (
+    count > 0 ? (
       <>
         {view}
-        <PlanDetails label={label} markdown={section.markdown} />
+        <PlanDetails
+          label={label}
+          hidden={Math.max(0, count - CAP)}
+          markdown={section.markdown}
+        />
       </>
     ) : (
       <PlanMarkdown markdown={section.markdown} />
     );
   if (plan.found) {
+    const rows = foundRows(plan.found.facts);
     card(
       "What I found",
       "The starting point",
-      body(plan.found, "Project details", <FoundBody section={plan.found} />),
+      summary(plan.found, "Project details", rows.length, <Rows rows={rows} />),
     );
   }
   if (plan.install) {
+    const rows = installRows(plan.install);
     card(
       "What I will install",
       "Only the essentials",
-      body(
+      summary(
         plan.install,
         "Packages & files",
-        <InstallBody section={plan.install} />,
+        rows.length,
+        <Rows rows={rows} />,
       ),
     );
   }
@@ -435,11 +368,11 @@ export function PlanCards({
       stepTitles.length === 1
         ? "1 step, start to finish"
         : `${stepTitles.length} steps, start to finish`,
-      body(
+      summary(
         section,
         "Implementation details",
-        <StepsBody titles={stepTitles} rest={section.rest} />,
-        stepTitles.length > 0,
+        stepTitles.length,
+        <Steps titles={stepTitles} />,
       ),
     );
   }
@@ -462,15 +395,7 @@ export function PlanCards({
       </>,
     );
   }
-  return (
-    <ol className="relative flex flex-col gap-4 sm:pl-12">
-      <span
-        aria-hidden="true"
-        className="bg-foreground/10 absolute top-6 bottom-6 left-3.5 hidden w-px sm:block"
-      />
-      {cards}
-    </ol>
-  );
+  return <ul className="grid gap-3 @lg:grid-cols-2">{cards}</ul>;
 }
 
 function PlanDecisionForm({ checkout }: { checkout: CheckoutContextValue }) {
@@ -503,21 +428,17 @@ function PlanDecisionForm({ checkout }: { checkout: CheckoutContextValue }) {
     void decide({ decision: "revise", feedback: feedback.trim() });
   };
   return (
-    <form id={formId} onSubmit={submit} className={fieldClassName}>
-      <label htmlFor={`${formId}-feedback`} className="font-medium">
+    <form id={formId} onSubmit={submit}>
+      <label htmlFor={`${formId}-feedback`} className="sr-only">
         What should I account for before I start?
       </label>
-      <p className="text-muted-foreground">
-        Add a note, constraint, or open question for this plan. Leave it empty
-        to install as proposed.
-      </p>
       <Textarea
         id={`${formId}-feedback`}
         value={feedback}
         onChange={(event) => setFeedback(event.target.value)}
         onKeyDown={submitOnModifiedEnter}
-        placeholder="Write a note for the plan…"
-        rows={3}
+        placeholder="Add a note, or leave it empty to install as proposed."
+        rows={2}
         disabled={busy}
         className="bg-background"
       />
@@ -560,39 +481,45 @@ export function PlanCard({
   const proposed = current.status === "proposed" && !closed;
   const collapsed = current.status === "approved" && !showApproved;
 
+  const label = `${
+    current.status === "approved"
+      ? "Approved plan"
+      : current.status === "changes-requested"
+        ? "Plan under revision"
+        : earlier.length > 0
+          ? "Revised plan"
+          : "Proposed plan"
+  } · Revision ${current.revision}`;
+  const header = (
+    <div className="flex items-center justify-between gap-3">
+      {earlier.length > 0 ? (
+        <CollapsibleTrigger className="text-muted-foreground hover:text-foreground group flex items-center gap-1.5 text-xs">
+          {earlier.length === 1
+            ? "1 earlier revision"
+            : `${earlier.length} earlier revisions`}
+          <ChevronDownIcon className="size-3.5 transition-transform group-data-[panel-open]:rotate-180" />
+        </CollapsibleTrigger>
+      ) : null}
+      <p className="text-muted-foreground ml-auto text-xs">{label}</p>
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-3">
       {earlier.length > 0 ? (
-        <Collapsible>
-          <CollapsibleTrigger className="text-muted-foreground hover:text-foreground group flex items-center gap-1.5 text-sm">
-            {earlier.length === 1
-              ? "1 earlier revision"
-              : `${earlier.length} earlier revisions`}
-            <ChevronDownIcon className="size-3.5 transition-transform group-data-[panel-open]:rotate-180" />
-          </CollapsibleTrigger>
-          <CollapsibleContent className="mt-2 flex flex-col gap-2">
+        <Collapsible className="flex flex-col gap-3">
+          {header}
+          <CollapsibleContent className="flex flex-col gap-2">
             {earlier.map((plan) => (
               <RevisionSummary key={plan.revision} plan={plan} />
             ))}
           </CollapsibleContent>
         </Collapsible>
-      ) : null}
+      ) : (
+        header
+      )}
 
       <div className="flex min-w-0 flex-col gap-3">
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-2">
-          <p className="text-muted-foreground text-xs">
-            {current.status === "approved"
-              ? "Approved plan"
-              : current.status === "changes-requested"
-                ? "Plan under revision"
-                : earlier.length > 0
-                  ? `Revised plan`
-                  : "Proposed plan"}
-          </p>
-          <p className="text-muted-foreground text-xs">
-            Revision {current.revision}
-          </p>
-        </div>
         {current.status === "changes-requested" && current.feedback ? (
           <p className="text-muted-foreground text-sm">
             You asked: {current.feedback}

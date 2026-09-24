@@ -61,7 +61,7 @@ describe("PlanMarkdown links", () => {
 });
 
 describe("PlanCards", () => {
-  it("shows each section as a numbered card with its highlights", () => {
+  it("shows each section as a card with its highlights", () => {
     const { container } = render(<PlanCards markdown={PLAN} />);
 
     expect(headings()).toEqual([
@@ -70,11 +70,6 @@ describe("PlanCards", () => {
       "Steps",
       "Open questions",
     ]);
-    expect(
-      [...container.querySelectorAll("li > span[aria-hidden]")].map(
-        (n) => n.textContent,
-      ),
-    ).toEqual(["01", "02", "03", "04"]);
     expect(screen.getByText("App").parentElement?.textContent).toBe(
       "AppNext.js 15pnpm",
     );
@@ -84,19 +79,34 @@ describe("PlanCards", () => {
     expect(screen.getByText("Model").parentElement?.textContent).toBe(
       "ModelOpenAIgpt-4o",
     );
-    expect(screen.getByText("Components").nextElementSibling?.textContent).toBe(
-      "src/components",
-    );
+    expect(screen.queryByText("Components")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Project details · 1 more" }),
+    ).toBeDefined();
     expect(screen.getByText("The chat").parentElement?.textContent).toBe(
       "The chat@assistant-ui/react",
     );
     expect(screen.getByText("app/api/chat/route.ts")).toBeDefined();
     expect(screen.getByText("2 steps, start to finish")).toBeDefined();
     expect(
-      [...container.querySelectorAll("ol ol li")].map((n) => n.textContent),
+      [...container.querySelectorAll("ul ol li")].map((n) => n.textContent),
     ).toEqual(["1Install the packages.", "2Add the chat route."]);
     expect(container.textContent).not.toContain("Peer packages come along.");
     expect(screen.getByText("Keep the thread list?")).toBeDefined();
+  });
+
+  it("caps a card at three rows and counts the rest on its details link", () => {
+    const { container } = render(
+      <PlanCards
+        markdown={"## Steps\n\n1. One\n2. Two\n3. Three\n4. Four\n5. Five"}
+      />,
+    );
+    expect(
+      [...container.querySelectorAll("ul ol li")].map((n) => n.textContent),
+    ).toEqual(["1One", "2Two", "3Three"]);
+    expect(
+      screen.getByRole("button", { name: "Implementation details · 2 more" }),
+    ).toBeDefined();
   });
 
   it("expands a section's full markdown behind its details link", () => {
