@@ -13,13 +13,14 @@ export type EngagementEventIds = Pick<
  * Turns the ids an integration knows (its own thread and message ids) into the
  * ids the cloud stores. A send is the one event that may create the remote
  * thread, so it asks for `awaitThread`; every other event reads the ids that
- * already exist.
+ * already exist. Returning nothing declines the event: the thread is not one
+ * the integration knows, so there is nothing to attribute it to.
  */
 export type EngagementIdResolver = (
   threadId: string,
   messageId: string | undefined,
   options: { awaitThread: boolean },
-) => EngagementEventIds | Promise<EngagementEventIds>;
+) => EngagementEventIds | undefined | Promise<EngagementEventIds | undefined>;
 
 type EngagementEventInit = Pick<AssistantCloudEvent, "value" | "props">;
 
@@ -86,9 +87,13 @@ export class CloudEngagementReporter {
   public runStopped(threadId: string): void {
     const startedAt = this.runStartedAt.get(threadId);
     if (startedAt === undefined) return;
+    const stoppedAt = Date.now();
     this.runStartedAt.delete(threadId);
+    // A stopped run is a run that ended, so the next send measures its idle
+    // time from here rather than from the last run allowed to finish.
+    remember(this.runEndedAt, threadId, stoppedAt);
     this.track("run_stopped", threadId, undefined, {
-      value: Math.max(0, Date.now() - startedAt),
+      value: Math.max(0, stoppedAt - startedAt),
     });
   }
 
@@ -186,6 +191,28 @@ export class CloudEngagementReporter {
     this.track("message_copied", threadId, messageId);
   }
 
+  public toolApproved(
+    threadId: string,
+    messageId: string,
+    toolCallId: string,
+    toolName: string,
+  ): void {
+    this.track("tool_approved", threadId, messageId, {
+      props: { toolCallId, toolName },
+    });
+  }
+
+  public toolRejected(
+    threadId: string,
+    messageId: string,
+    toolCallId: string,
+    toolName: string,
+  ): void {
+    this.track("tool_rejected", threadId, messageId, {
+      props: { toolCallId, toolName },
+    });
+  }
+
   /** Reported only for a thread the cloud already knows. */
   public threadSwitched(threadId: string): void {
     this.track("thread_switched", threadId);
@@ -201,6 +228,7 @@ export class CloudEngagementReporter {
     void Promise.resolve()
       .then(() => this.resolveIds(threadId, messageId, options))
       .then((ids) => {
+        if (!ids) return;
         if (kind === "thread_switched" && !ids.thread_id) return;
         this.getCloud().events.track({ kind, ...init, ...ids });
       })

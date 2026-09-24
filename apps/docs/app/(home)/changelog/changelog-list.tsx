@@ -235,7 +235,7 @@ function TypeGroup({
     <div className="flex flex-col gap-3">
       <h4
         className={cn(
-          "font-mono text-[10px] font-medium tracking-wide uppercase",
+          "font-mono text-[10px] font-medium",
           type === "breaking" ? "text-destructive" : "text-muted-foreground/70",
         )}
       >
@@ -270,12 +270,12 @@ function ReleaseEntry({ info }: { info: ReleaseInfo }) {
           <span className="font-medium">@{release.version}</span>
         </span>
         {info.semver === "major" ? (
-          <span className="text-destructive shrink-0 font-mono text-[10px] font-medium tracking-wide uppercase">
-            major
+          <span className="text-destructive shrink-0 font-mono text-[10px] font-medium">
+            Major
           </span>
         ) : info.semver === "minor" ? (
-          <span className="shrink-0 font-mono text-[10px] font-medium tracking-wide uppercase">
-            minor
+          <span className="shrink-0 font-mono text-[10px] font-medium">
+            Minor
           </span>
         ) : null}
         <span className="text-muted-foreground min-w-0 flex-1 truncate text-sm group-open/release:opacity-0">

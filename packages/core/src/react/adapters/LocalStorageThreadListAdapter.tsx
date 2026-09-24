@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useAui } from "@assistant-ui/store";
 import type {
+  MessageModality,
   RemoteThreadInitializeResponse,
   RemoteThreadListAdapter,
   RemoteThreadListResponse,
@@ -23,6 +24,15 @@ import type {
 } from "../../internal";
 import { isRecord } from "../../utils/json/is-json";
 import {
+  MAX_STORED_MESSAGE_DEPTH,
+  isStoredMessageStatus,
+  isStoredMessagePart,
+  isStoredMessageRole,
+  parseStoredAttachment,
+  parseStoredDate,
+  parseStoredThreadSteps,
+} from "../../runtime/utils/stored-message-parts";
+import {
   RuntimeAdapterProvider,
   type RuntimeAdapters,
 } from "../runtimes/RuntimeAdapterProvider";
@@ -36,7 +46,20 @@ export type AsyncStorageLike = {
 
 class KeyedMutationQueue {
   private readonly tails = new Map<string, Promise<void>>();
+  private readonly staleKeys = new Set<string>();
 
+  markStale(key: string) {
+    this.staleKeys.add(key);
+  }
+
+  async removeStale(key: string, storage: AsyncStorageLike) {
+    if (!this.staleKeys.has(key)) return;
+    await storage.removeItem(key);
+    this.staleKeys.delete(key);
+  }
+
+  // Mutations may acquire another key but must never re-enter the key they
+  // already hold. Thread lifecycle mutations acquire messages before metadata.
   run<T>(key: string, mutation: () => Promise<T>): Promise<T> {
     const previous = this.tails.get(key);
     const result = previous ? previous.then(mutation) : mutation();
@@ -109,41 +132,71 @@ const parseStoredThread = (value: unknown): StoredThreadMetadata | null => {
   };
 };
 
-const parseDate = (value: unknown): Date | null => {
-  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
-  if (typeof value !== "string" && typeof value !== "number") return null;
+const messageModalities = {
+  voice: true,
+} satisfies Record<MessageModality, true>;
 
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-};
+const isMessageModality = (value: unknown): value is MessageModality =>
+  typeof value === "string" && Object.hasOwn(messageModalities, value);
 
-const isMessageRole = (value: unknown): value is ThreadMessage["role"] =>
-  value === "system" || value === "user" || value === "assistant";
+const parseStoredMessageParts = (
+  content: unknown[],
+  depth: number,
+): unknown[] =>
+  content.flatMap((part) => {
+    if (!isStoredMessagePart(part)) return [];
+    if (part.type !== "tool-call" || part.messages === undefined) return [part];
 
-const parseStoredThreadMessage = (value: unknown): ThreadMessage | null => {
+    const { messages, ...toolCall } = part;
+    if (!Array.isArray(messages)) return [toolCall];
+    return [
+      {
+        ...toolCall,
+        messages: messages.flatMap((item) => {
+          const message = parseStoredThreadMessage(item, depth + 1);
+          return message ? [message] : [];
+        }),
+      },
+    ];
+  });
+
+const parseStoredThreadMessage = (
+  value: unknown,
+  depth: number,
+): ThreadMessage | null => {
+  if (depth > MAX_STORED_MESSAGE_DEPTH) return null;
   if (!isRecord(value) || typeof value.id !== "string") return null;
-  if (!isMessageRole(value.role)) return null;
+  if (!isStoredMessageRole(value.role)) return null;
   if (!Array.isArray(value.content)) return null;
 
-  const createdAt = parseDate(value.createdAt);
+  const createdAt = parseStoredDate(value.createdAt);
   if (!createdAt) return null;
 
   const metadata = value.metadata;
   if (!isRecord(metadata) || !isRecord(metadata.custom)) return null;
 
+  const modality = isMessageModality(metadata.modality)
+    ? metadata.modality
+    : undefined;
+
   if (value.role === "assistant") {
-    const status = value.status;
-    if (!isRecord(status) || typeof status.type !== "string") return null;
+    const status = isStoredMessageStatus(value.status)
+      ? value.status
+      : { type: "complete", reason: "unknown" as const };
 
     const submittedFeedback = isRecord(metadata.submittedFeedback)
       ? metadata.submittedFeedback
       : undefined;
     const submittedFeedbackType = submittedFeedback?.type;
+    const submittedFeedbackComment = submittedFeedback?.comment;
 
     return {
       id: value.id,
       role: "assistant",
-      content: value.content as StoredAssistantMessage["content"],
+      content: parseStoredMessageParts(
+        value.content,
+        depth,
+      ) as StoredAssistantMessage["content"],
       status: status as StoredAssistantMessage["status"],
       createdAt,
       metadata: {
@@ -155,14 +208,16 @@ const parseStoredThreadMessage = (value: unknown): ThreadMessage | null => {
         unstable_data: Array.isArray(metadata.unstable_data)
           ? (metadata.unstable_data as StoredAssistantMessage["metadata"]["unstable_data"])
           : [],
-        steps: Array.isArray(metadata.steps)
-          ? (metadata.steps as StoredAssistantMessage["metadata"]["steps"])
-          : [],
+        steps: parseStoredThreadSteps(metadata.steps),
         ...(submittedFeedbackType === "positive" ||
         submittedFeedbackType === "negative"
           ? {
               submittedFeedback: {
                 type: submittedFeedbackType,
+                ...(typeof submittedFeedbackComment === "string" &&
+                submittedFeedbackComment !== ""
+                  ? { comment: submittedFeedbackComment }
+                  : undefined),
               },
             }
           : undefined),
@@ -176,6 +231,7 @@ const parseStoredThreadMessage = (value: unknown): ThreadMessage | null => {
         ...(metadata.isOptimistic === true
           ? { isOptimistic: true }
           : undefined),
+        ...(modality !== undefined ? { modality } : undefined),
         custom: metadata.custom,
       },
     };
@@ -185,23 +241,31 @@ const parseStoredThreadMessage = (value: unknown): ThreadMessage | null => {
     return {
       id: value.id,
       role: "user",
-      content: value.content as StoredUserMessage["content"],
+      content: parseStoredMessageParts(
+        value.content,
+        depth,
+      ) as StoredUserMessage["content"],
       attachments: Array.isArray(value.attachments)
-        ? (value.attachments as StoredUserMessage["attachments"])
+        ? value.attachments.flatMap((item) => {
+            const attachment = parseStoredAttachment(item, isStoredMessagePart);
+            return attachment ? [attachment] : [];
+          })
         : [],
       createdAt,
       metadata: {
+        ...(modality !== undefined ? { modality } : undefined),
         custom: metadata.custom,
       },
     };
   }
 
-  if (value.content.length !== 1) return null;
+  const content = parseStoredMessageParts(value.content, depth);
+  if (content.length !== 1) return null;
 
   return {
     id: value.id,
     role: "system",
-    content: [value.content[0] as StoredSystemMessage["content"][0]],
+    content: [content[0] as StoredSystemMessage["content"][0]],
     createdAt,
     metadata: {
       custom: metadata.custom,
@@ -226,7 +290,7 @@ const parseStoredMessageRepositoryItem = (
 ): ExportedMessageRepositoryItem | null => {
   if (!isRecord(value)) return null;
 
-  const message = parseStoredThreadMessage(value.message);
+  const message = parseStoredThreadMessage(value.message, 0);
   if (!message) return null;
 
   const parentId = value.parentId;
@@ -308,6 +372,10 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
     return `${this.prefix}messages:${remoteId}`;
   }
 
+  private _threadsKey() {
+    return `${this.prefix}threads`;
+  }
+
   async load(): Promise<ExportedMessageRepository> {
     const remoteId = this.aui.threadListItem.getState().remoteId;
     if (!remoteId) return { messages: [] };
@@ -316,11 +384,33 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
     return parseStoredMessageRepository(raw);
   }
 
-  async append(item: ExportedMessageRepositoryItem): Promise<void> {
+  private async _upsert(
+    item: ExportedMessageRepositoryItem,
+    moveHead: boolean,
+  ): Promise<void> {
+    // Initialization acquires the same message key, so it must settle before
+    // the upsert takes that lock.
     const { remoteId } = await this.aui.threadListItem.initialize();
-
     const key = this._messagesKey(remoteId);
+
     await this.mutationQueue.run(key, async () => {
+      // A missing or unreadable metadata blob is not evidence of deletion, so
+      // only a readable list that omits the thread skips the write.
+      const deleted = await this.mutationQueue.run(
+        this._threadsKey(),
+        async () => {
+          const raw = await this.storage.getItem(this._threadsKey());
+          const parsed = parseJSON(raw);
+          return (
+            Array.isArray(parsed) &&
+            !parsed.some(
+              (thread) => parseStoredThread(thread)?.remoteId === remoteId,
+            )
+          );
+        },
+      );
+      if (deleted) return;
+
       const raw = await this.storage.getItem(key);
       const repo = parseStoredMessageRepository(raw);
 
@@ -332,12 +422,28 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
       } else {
         repo.messages.push(item);
       }
-      repo.headId = item.message.id;
+      if (moveHead) repo.headId = item.message.id;
 
       await this.storage.setItem(key, JSON.stringify(repo));
     });
   }
+
+  async append(item: ExportedMessageRepositoryItem): Promise<void> {
+    await this._upsert(item, true);
+  }
+
+  async update(item: ExportedMessageRepositoryItem): Promise<void> {
+    await this._upsert(item, false);
+  }
 }
+
+export const createLocalStorageHistoryAdapter = (
+  storage: AsyncStorageLike,
+  getAui: () => ReturnType<typeof useAui>,
+  prefix: string,
+  mutationQueue = getMutationQueue(storage),
+): ThreadHistoryAdapter =>
+  new AsyncStorageHistoryAdapter(storage, getAui, prefix, mutationQueue);
 
 const useLocalStorageThreadAdapters = (
   storage: AsyncStorageLike,
@@ -350,14 +456,13 @@ const useLocalStorageThreadAdapters = (
   useEffect(() => {
     auiRef.current = aui;
   });
-  const [history] = useState(
-    () =>
-      new AsyncStorageHistoryAdapter(
-        storage,
-        () => auiRef.current,
-        prefix,
-        mutationQueue,
-      ),
+  const [history] = useState(() =>
+    createLocalStorageHistoryAdapter(
+      storage,
+      () => auiRef.current,
+      prefix,
+      mutationQueue,
+    ),
   );
   return useMemo(() => ({ history }), [history]);
 };
@@ -439,19 +544,24 @@ export const createLocalStorageAdapter = (
       threadId: string,
     ): Promise<RemoteThreadInitializeResponse> {
       const remoteId = threadId;
-      return mutationQueue.run(threadsKey, async () => {
-        const threads = await loadThreadMetadata();
+      const key = messagesKey(remoteId);
+      return mutationQueue.run(key, async () => {
+        await mutationQueue.removeStale(key, storage);
 
-        // Only add if not already present
-        if (!threads.some((t) => t.remoteId === remoteId)) {
-          threads.unshift({
-            remoteId,
-            status: "regular",
-          });
-          await saveThreadMetadata(threads);
-        }
+        return mutationQueue.run(threadsKey, async () => {
+          const threads = await loadThreadMetadata();
 
-        return { remoteId, externalId: undefined };
+          // Only add if not already present
+          if (!threads.some((t) => t.remoteId === remoteId)) {
+            threads.unshift({
+              remoteId,
+              status: "regular",
+            });
+            await saveThreadMetadata(threads);
+          }
+
+          return { remoteId, externalId: undefined };
+        });
       });
     },
 
@@ -483,13 +593,16 @@ export const createLocalStorageAdapter = (
     },
 
     async delete(remoteId: string): Promise<void> {
-      await mutationQueue.run(threadsKey, async () => {
-        const threads = await loadThreadMetadata();
-        const filtered = threads.filter((t) => t.remoteId !== remoteId);
-        await saveThreadMetadata(filtered);
-      });
       const key = messagesKey(remoteId);
-      await mutationQueue.run(key, () => storage.removeItem(key));
+      await mutationQueue.run(key, async () => {
+        await mutationQueue.run(threadsKey, async () => {
+          const threads = await loadThreadMetadata();
+          const filtered = threads.filter((t) => t.remoteId !== remoteId);
+          await saveThreadMetadata(filtered);
+        });
+        mutationQueue.markStale(key);
+        await mutationQueue.removeStale(key, storage);
+      });
     },
 
     async fetch(threadId: string): Promise<RemoteThreadMetadata> {

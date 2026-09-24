@@ -1,8 +1,13 @@
-import { useId } from "react";
+import { useId, type ReactNode } from "react";
 import { z } from "zod";
+import { GENERATED_NAME_ATTR } from "../constants";
 import type { Action } from "../ir";
 import { BUTTON_STYLES } from "../ir";
-import type { GenerativeUIDispatch, GenerativeUILibrary } from "../types";
+import type {
+  GenerativeUIDispatch,
+  GenerativeUILibrary,
+  GenerativeUIStatus,
+} from "../types";
 import { actionAttr, fire } from "./dispatch";
 import { toTextContent } from "./toTextContent";
 
@@ -26,6 +31,8 @@ type RadioGroupRenderProps = {
   name?: string;
   label?: string;
   defaultValue?: string;
+  children?: ReactNode;
+  $status: GenerativeUIStatus;
   $action?: Action;
   $dispatch?: GenerativeUIDispatch;
 };
@@ -35,6 +42,7 @@ function RadioGroupRender({
   name,
   label,
   defaultValue,
+  children,
   $action,
   $dispatch,
 }: RadioGroupRenderProps) {
@@ -53,6 +61,7 @@ function RadioGroupRender({
             <input
               type="radio"
               name={fieldName}
+              {...(name == null ? { [GENERATED_NAME_ATTR]: "" } : {})}
               value={option.value}
               defaultChecked={defaultValue === option.value}
               onChange={() => fire($action, $dispatch, option.value)}
@@ -61,6 +70,7 @@ function RadioGroupRender({
           </label>
         ) : null,
       )}
+      {children}
     </fieldset>
   );
 }

@@ -1,0 +1,285 @@
+---
+title: The assistant-cloud client
+description: Construct the Assistant Cloud client, choose authentication, and use its namespaces.
+---
+
+`assistant-cloud` is the JavaScript client for Assistant Cloud. It reaches a project frontend host with a JWT or anonymous session, or the backend host with an API key and user and workspace headers.
+
+## Package and entry points
+
+| Item | Value |
+|---|---|
+| Package | `assistant-cloud`, the 0.2 line |
+| Runtime dependency | `assistant-stream` |
+| Optional peers | `@opentelemetry/api`, `@opentelemetry/exporter-trace-otlp-http` and `@opentelemetry/sdk-trace-base` for the telemetry entry, and `ai` for the AI SDK entry |
+| `assistant-cloud` | The client, persistence, reporting, events, scores, and sampling helpers. |
+| `assistant-cloud/ai-sdk` | AI SDK message storage and telemetry helpers. |
+| `assistant-cloud/telemetry` | OpenTelemetry trace exporter, span processor, and message metadata helpers. |
+
+## Construct the client
+
+```ts title="cloud.ts"
+import { AssistantCloud } from "assistant-cloud";
+
+const cloud = new AssistantCloud({
+  baseUrl: "https://proj-<id>.assistant-api.com",
+  authToken: async () => token,
+});
+```
+
+`AssistantCloud` exposes `threads`, `projects`, `auth.tokens`, `runs`, `files`, `events`, `scores`, `telemetry`, and `registerSdk`. It has no `dispose` method. Call `cloud.events.dispose()` when an event buffer must flush and its listeners must be removed.
+
+| Configuration arm | Fields | Default | Behaviour |
+|---|---|---|---|
+| JWT | `baseUrl: string`, `authToken: () => Promise<string \| null>` | None | Sends the callback result as a bearer token. |
+| API key | `apiKey: string`, `userId: string`, `workspaceId: string`, `baseUrl?: string` | Backend URL | Sends an API key as a bearer token with `Aui-User-Id` and `Aui-Workspace-Id`. |
+| Anonymous | `baseUrl: string`, `anonymous: true` | None | Creates and refreshes an anonymous session in browser storage. |
+| Shared | `telemetry?: boolean \| AssistantCloudTelemetryConfig` | Enabled | Controls run reports and engagement events. |
+
+The client chooses an arm in this order: `authToken`, then `apiKey`, then `anonymous`. Any other configuration throws `Invalid configuration: Must provide authToken, apiKey, or anonymous configuration`. Base URL normalization removes one trailing `/`.
+
+### Configure telemetry
+
+| Field | Default | Effect |
+|---|---|---|
+| `enabled` | `true` | `false` prevents run reports and events. `true` and an omitted option are equivalent. |
+| `events` | `true` when telemetry is enabled | `false` keeps run reports and prevents engagement events. |
+| `release` | Omitted | Added to every run report. |
+| `environment` | Omitted | Added to every run report. |
+| `tags` | Omitted | Trimmed, limited to 64 characters, deduplicated, and limited to 20 entries. An empty result is omitted. |
+| `beforeReport` | Omitted | Runs last, after environment, release, and tags are added. Returning `null` skips the send without consuming the report key. A thrown error is ignored. |
+
+### Choose authentication
+
+**JWT.** The client caches a token until it is within 30 seconds of its JWT expiry and shares one pending callback invocation. It sends `Authorization: Bearer <token>`. A null or empty callback result makes the request throw `Authorization failed`. Every response is inspected for an `Authorization: Bearer <token>` header, which refreshes the cache. A response authorization header with another scheme throws `Invalid auth header received`.
+
+**API key.** The client does no token caching or network work. Every request sends `Authorization: Bearer <apiKey>`, `Aui-User-Id: <userId>`, and `Aui-Workspace-Id: <workspaceId>`.
+
+**Anonymous.** The refresh record is stored in `localStorage` under `aui:refresh_token:<normalized base URL>`. The client migrates the old `aui:refresh_token` entry once. Storage failures and unavailable storage leave the session without persistence.
+
+An anonymous client shares an in flight token request for the same storage and base URL, and uses the Web Lock `assistant-cloud:anonymous-auth:<base URL>` when Web Locks are available. A refresh token valid for more than 30 seconds is sent to `/v1/auth/tokens/refresh`. A `429` or server error throws `Assistant Cloud token refresh failed with status <status>`; another failed refresh falls through to `/v1/auth/tokens/anonymous`. A refresh token within 30 seconds of expiry is removed. Both requests have a 30,000 millisecond deadline and throw `Assistant Cloud <operation> timed out after 30000ms` if it expires. Invalid token response shapes throw `CloudResponseError`. `readAnonymousRefreshToken(baseUrl)` returns a stored token only when it remains valid for more than 30 seconds.
+
+## Identify the SDK and send requests
+
+`registerSdk({ name, version })` trims both strings and ignores an identity when either contains a nonprintable token character. It registers each `name/version` once, preserving the first insertion order. Every request carries `Aui-Sdk`, beginning with `assistant-cloud/<version>` and followed by registered identities separated by spaces.
+
+The client adds `/v1` to every namespace route, serializes object bodies as JSON, and always sets `Content-Type: application/json`. The caller can set `Accept`, but cannot replace the content type or `Aui-Sdk`. Query strings use `URLSearchParams`: `true` becomes `true`, numbers become strings, and `false` is dropped. Only event delivery uses `keepalive`.
+
+There is no client retry policy. `CloudRunReporter` is the one exception to deduplication: it releases a report key after a `CloudAPIError` with status `429`, so a later observation can send that report. A `204`, `content-length: 0`, or blank response body resolves as `undefined`.
+
+## Handle errors
+
+`CloudAPIError` is thrown for every non successful HTTP response. It has `status`, optional `code`, and optional `details`. The response body supplies its message only from a nonempty `message` string; otherwise the message is `Request failed with status <status>, <body>`. A string `error` becomes `code`, and `details` becomes a shallow copy of the response object without `error`, including an empty object. A nonobject, array, or unparseable body supplies none of those fields.
+
+`CloudResponseError` means a successful response did not have the shape a method expects. Its message is `Invalid Assistant Cloud response for "<field>": expected <expectation>`.
+
+```ts title="Handle a cloud error"
+import { CloudAPIError, CloudResponseError } from "assistant-cloud";
+
+async function findThread(threadId: string) {
+  try {
+    return await cloud.threads.get(threadId);
+  } catch (error) {
+    if (error instanceof CloudAPIError && error.status === 404) return null;
+    if (error instanceof CloudAPIError) {
+      console.error(error.status, error.code, error.details);
+    }
+    if (error instanceof CloudResponseError) console.error(error.message);
+    throw error;
+  }
+}
+```
+
+## Use the client namespaces
+
+Unless a row says otherwise, a data response can throw `CloudAPIError` for an HTTP failure and `CloudResponseError` for an invalid successful response.
+
+### Threads and messages
+
+| Method | Signature | Route | Errors |
+|---|---|---|---|
+| `cloud.threads.list` | `(query?: { is_archived?: boolean; limit?: number; after?: string }) => Promise<{ threads: CloudThread[] }>` | `GET /threads` | Both. |
+| `cloud.threads.get` | `(threadId: string) => Promise<CloudThread>` | `GET /threads/{threadId}` | Both. |
+| `cloud.threads.create` | `(body: { last_message_at: Date; title?: string; metadata?: unknown; external_id?: string }) => Promise<{ thread_id: string }>` | `POST /threads` | Both. |
+| `cloud.threads.update` | `(threadId: string, body: { title?: string; last_message_at?: Date; metadata?: unknown; is_archived?: boolean }) => Promise<void>` | `PUT /threads/{threadId}` | `CloudAPIError`. |
+| `cloud.threads.claim` | `(body: { refresh_token: string }) => Promise<{ moved: number }>` | `POST /threads/claim` | Both. |
+| `cloud.threads.delete` | `(threadId: string) => Promise<void>` | `DELETE /threads/{threadId}` | `CloudAPIError`. |
+| `cloud.threads.messages.list` | `(threadId: string, query?: { format?: string; limit?: number; after?: string }) => Promise<{ messages: CloudMessage[] }>` | `GET /threads/{threadId}/messages` | Both. |
+| `cloud.threads.messages.create` | `(threadId: string, body: { parent_id: string \| null; format: "aui/v0" \| string; content: ReadonlyJSONObject }) => Promise<{ message_id: string }>` | `POST /threads/{threadId}/messages` | Both. |
+| `cloud.threads.messages.update` | `(threadId: string, messageId: string, body: { content: ReadonlyJSONObject }) => Promise<void>` | `PUT /threads/{threadId}/messages/{messageId}` | `CloudAPIError`. |
+| `cloud.threads.messages.feedback` | `(threadId: string, messageId: string, body: { type: "positive" \| "negative"; comment?: string }) => Promise<{ feedback_id: string; type: "positive" \| "negative"; comment?: string \| null }>` | `POST /threads/{threadId}/messages/{messageId}/feedback` | Both. |
+
+`CloudThread` has `id`, `project_id`, `workspace_id`, `created_at`, `updated_at`, `title`, `last_message_at`, `is_archived`, `external_id`, and `metadata`. The client converts a null thread title to `""` and reads workspace and project IDs from the response. `CloudMessage` has `id`, `parent_id`, `height`, `created_at`, `updated_at`, `format`, and `content`.
+
+```ts title="Threads and messages"
+const { thread_id } = await cloud.threads.create({
+  last_message_at: new Date(),
+  external_id: "order-1042",
+});
+await cloud.threads.messages.create(thread_id, {
+  parent_id: null,
+  format: "aui/v0",
+  content: { role: "user", content: [{ type: "text", text: "My order 1042 arrived damaged." }] },
+});
+const { messages } = await cloud.threads.messages.list(thread_id, { format: "ai-sdk/v6" });
+console.log(messages);
+```
+
+### Runs
+
+| Method | Signature | Route | Errors |
+|---|---|---|---|
+| `cloud.runs.stream` | `(body: { thread_id: string; assistant_id: "system/thread_title"; messages: readonly unknown[] }) => Promise<AssistantStream>` | `POST /runs/stream` | `CloudAPIError`; `CloudResponseError` for no body or a content type whose first token is not `text/plain`. |
+| `cloud.runs.report` | `(body: AssistantCloudRunReport) => Promise<{ run_id: string }>` | `POST /runs` | Both. |
+
+`stream` is for `system/thread_title`. It sends `Accept: text/plain` and decodes a plain text `AssistantStream`.
+
+```ts title="Runs"
+await cloud.runs.report({
+  thread_id: "thread_0qzof3jPoDwr7K3agyJN3D4U",
+  status: "completed",
+  model_id: "gpt-6-luna",
+  provider: "openai",
+  input_tokens: 128,
+  output_tokens: 96,
+  duration_ms: 1420,
+});
+```
+
+### Files and scores
+
+| Method | Signature | Route | Errors |
+|---|---|---|---|
+| `cloud.files.generatePresignedUploadUrl` | `(body: { filename: string }) => Promise<{ success: boolean; signedUrl: string; expiresAt: string; publicUrl: string; key?: string }>` | `POST /files/attachments/generate-presigned-upload-url` | Both. |
+| `cloud.files.generatePresignedDownloadUrl` | `(body: { key: string } \| { url: string }) => Promise<{ signedUrl: string; expiresAt: string; key: string }>` | `POST /files/attachments/generate-presigned-download-url` | Both. |
+| `cloud.scores.create` | `(body: { name: string; data_type: "numeric" \| "categorical" \| "boolean"; value?: number \| boolean; string_value?: string; comment?: string; thread_id?: string; message_id?: string; run_id?: string }) => Promise<AssistantCloudScoreResponse>` | `POST /scores` | Both. |
+
+An upload response exposes `key` only when the server sent it. A score response has `score_id`, `name`, `data_type`, `value`, and `string_value`.
+
+```ts title="Files and scores"
+async function uploadPhoto(file: File) {
+  const upload = await cloud.files.generatePresignedUploadUrl({ filename: file.name });
+  await fetch(upload.signedUrl, {
+    method: "PUT",
+    headers: { "Content-Type": file.type },
+    body: file,
+  });
+  return cloud.files.generatePresignedDownloadUrl(
+    upload.key ? { key: upload.key } : { url: upload.publicUrl },
+  );
+}
+
+await cloud.scores.create({
+  name: "resolution",
+  data_type: "numeric",
+  value: 1,
+  run_id: "run_0qzof3jPoDwr7K3agyJN3D4U",
+});
+```
+
+### Events, tokens, and project reads
+
+| Method | Signature | Route | Errors |
+|---|---|---|---|
+| `cloud.events.track` | `(event: AssistantCloudEvent) => void` | `POST /events` | Never surfaces delivery failures. |
+| `cloud.events.dispose` | `() => void` | `POST /events` when buffered | Never surfaces delivery failures. |
+| `cloud.auth.tokens.create` | `() => Promise<{ token: string }>` | `POST /auth/tokens` | Both. |
+| `cloud.projects.threads.list` | `(query?: { is_archived?: boolean; limit?: number; after?: string }) => Promise<{ threads: CloudThread[] }>` | `GET /projects/threads` | Both. |
+| `cloud.projects.threads.messages.list` | `(threadId: string, query?: { format?: string; limit?: number; after?: string }) => Promise<{ messages: CloudMessage[] }>` | `GET /projects/threads/{threadId}/messages` | Both. |
+
+`track` does nothing when events are disabled. Otherwise it normalizes an event, flushes at 20 buffered events, and otherwise waits 2,000 milliseconds. `pagehide`, a hidden document, and `dispose()` also flush. Each request contains at most 50 events, uses `keepalive`, and failures are ignored. Empty or overlength IDs are dropped, and invalid or oversize props are dropped as a whole. The project namespace is read only.
+
+```ts title="Events"
+cloud.events.track({
+  kind: "message_copied",
+  thread_id: "thread_0qzof3jPoDwr7K3agyJN3D4U",
+  message_id: "msg_0qzof3jPoDwr7K3agyJN3D4U",
+});
+window.addEventListener("beforeunload", () => cloud.events.dispose());
+```
+
+```ts title="Tokens and project reads, with an API key client"
+const server = new AssistantCloud({
+  apiKey: process.env.ASSISTANT_API_KEY!,
+  userId: "user_123",
+  workspaceId: "workspace_123",
+});
+
+const { token } = await server.auth.tokens.create();
+
+const { threads } = await server.projects.threads.list({ limit: 10 });
+for (const thread of threads) {
+  const { messages } = await server.projects.threads.messages.list(thread.id, {
+    format: "ai-sdk/v6",
+  });
+  console.log(thread.title, messages.length);
+}
+```
+
+## Generate a thread title
+
+`generateThreadTitle(cloud, { threadId, messages }): Promise<string | null>` sends `system/thread_title` through `cloud.runs.stream`, joins every text delta, trims the result, and writes a nonempty result through `cloud.threads.update`. On a thread that already has a title the stream carries that title and the helper writes it back unchanged. An empty stream returns `null` and does not write a title.
+
+```ts title="Generate a thread title"
+import { generateThreadTitle } from "assistant-cloud";
+
+const title = await generateThreadTitle(cloud, {
+  threadId: "thread_0qzof3jPoDwr7K3agyJN3D4U",
+  messages: [
+    { role: "user", content: [{ type: "text", text: "My order 1042 arrived damaged." }] },
+    { role: "assistant", content: [{ type: "text", text: "I can help with a replacement." }] },
+  ],
+});
+if (title === null) throw new Error("The cloud returned no title.");
+```
+
+## Use the building blocks
+
+| Building block | Purpose |
+|---|---|
+| `CloudMessagePersistence` | Persists message IDs, waits for parent writes, pages history, and keeps a local to remote ID map. |
+| `createFormattedPersistence` | Adds format encoding and decoding to a persistence implementation, filters its format, and reverses loaded messages. |
+| `CloudRunReporter` | Builds and deduplicates telemetry reports, swallowing delivery failures and releasing a key only after a `429`. |
+| `createRunReport` | Maps runtime telemetry into the run report wire shape and normalizes timing, text, usage, tags, release, and environment. |
+| `CloudEngagementReporter` | Resolves runtime IDs and records interaction events with the event namespace. |
+| `wrapSamplingHandler` and `createSamplingCollector` | Capture model, usage, and duration for MCP sampling calls without interrupting the sampling handler. |
+
+Use these with a [custom thread list](/docs/cloud/custom-thread-list) when the built in thread list adapter is not the right source of thread identity or history.
+
+```ts title="Report a run with CloudRunReporter"
+import { CloudRunReporter } from "assistant-cloud";
+
+const reporter = new CloudRunReporter(cloud);
+await reporter.report({
+  threadId: "thread_0qzof3jPoDwr7K3agyJN3D4U",
+  status: "completed",
+  modelId: "gpt-6-luna",
+  provider: "openai",
+  usage: { inputTokens: 128, outputTokens: 96 },
+  durationMs: 1420,
+});
+```
+
+## Import AI SDK helpers
+
+| Export | Type | Purpose |
+|---|---|---|
+| `AISDKStorageFormat` | Type | A UI message without its `id`. |
+| `aiSDKV6FormatAdapter` | Value | Encodes `ai-sdk/v6` storage by dropping the message ID and restores the server ID and parent ID on read. |
+| `AISDKMessageLike` | Type | The minimal AI SDK message shape used by telemetry extraction. |
+| `extractAISDKRunTelemetry` | Function | Extracts assistant text, tools, usage, model, steps, and sampling calls from AI SDK messages. |
+
+## Import OpenTelemetry helpers
+
+| Export | Purpose |
+|---|---|
+| `AssistantCloudTraceExportOptions` | The API key, optional base URL, and optional headers for trace export. |
+| `AssistantCloudSpanProcessorOptions` | The optional span filter type. |
+| `assistantCloudTraceExportOptions` | Builds the `/v1/traces` URL and bearer header, and throws `An Assistant Cloud API key is required` without an API key. |
+| `createAssistantCloudTraceExporter` | Creates the OTLP trace exporter for Assistant Cloud. |
+| `isAssistantCloudSpan` | Recognizes a span with a GenAI operation attribute or an `gen_ai.`, `ai.`, or `llm.` name prefix. |
+| `createAssistantCloudSpanProcessor` | Wraps a batch processor that filters spans on end, using `isAssistantCloudSpan` by default. |
+| `assistantCloudTraceMetadata` | Reads a valid active trace context as `{ traceId }`. |
+| `withAssistantCloudTraceMetadata` | Adds a trace ID only to metadata for a `start` message part. |
+
+For the complete generated symbol reference, see [assistant-cloud](/docs/api-reference/integrations/assistant-cloud).

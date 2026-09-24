@@ -8,13 +8,14 @@ import { trace, traceRef } from "../lib/trace-lane.mjs";
 const usage = `usage:
   aui-perf record [name.json] [--runs N]        run benches N times (default 3), save best-of per benchmark to .perf/
   aui-perf compare <a> <b>                      diff two recordings (names in .perf/ or paths)
-  aui-perf compare --ref <git-ref> [--runs N]   build <git-ref> in a temp worktree, interleave runs, diff against the current tree
+  aui-perf compare --ref <git-ref> [--runs N] [--all]
+                                                build <git-ref> in a temp worktree, interleave runs of the benches that exercise a changed dist plus a few controls, diff against the current tree; --all runs every bench
   aui-perf trace <fixture.html...> [--seconds N] trace each page in headless Chrome (default 5s), report paint and thread cost
   aui-perf trace --ref <git-ref> <fixture.html...>
                                                 trace each fixture against <git-ref>'s package sources, both sides plus screenshots
   aui-perf report --out <file.md> [--bench <json>] [--trace <json>]
                                                 assemble the PR comment from lane outputs
-  aui-perf size [--update [--all]] [--json <file>]  bundle every published entry with rolldown and check it against size-budgets.json; --update re-records only packages changed vs origin/main, --all re-records every drifted entry
+  aui-perf size [--update [--all]] [--json <file>]  bundle every published entry with rolldown and check it against size-budgets.json; --update records every entry of the packages changed vs origin/main, --all every entry
   aui-perf history append --dir <dir> [--from <recording.json>]
   aui-perf history render --dir <dir> [--out <file.md>]
                                                 keep and render the nightly wall-time record
@@ -63,11 +64,11 @@ const lanes = {
 const dir = resolved(takeValue("--dir"));
 const from = resolved(takeValue("--from"));
 const update = takeFlag("--update");
-const updateAll = takeFlag("--all");
+const all = takeFlag("--all");
 
 if (cmd === "record") record(rest[0], runs);
 else if (cmd === "compare" && rest[0] === "--ref" && rest[1])
-  compareRef(rest[1], runs, outputs);
+  compareRef(rest[1], runs, outputs, { all });
 else if (cmd === "compare" && rest.length === 2)
   compareFiles(rest[0], rest[1], outputs);
 else if (cmd === "trace" && rest[0] === "--ref" && rest.length > 2)
@@ -84,7 +85,7 @@ else if (cmd === "report" && out) {
     repoRoot: repoRoot(),
     budgetsPath: resolve(repoRoot(), "size-budgets.json"),
     update,
-    updateAll,
+    updateAll: all,
     json: outputs.json,
   });
   process.exit(ok ? 0 : 1);

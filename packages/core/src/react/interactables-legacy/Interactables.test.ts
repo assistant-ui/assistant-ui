@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTapRoot, flushTapSync, useResource } from "@assistant-ui/tap";
+import { parsePartialJsonObject } from "assistant-stream/utils";
+import { z } from "zod";
 import type {
+  InteractablePersistedState,
   InteractablePersistenceAdapter,
   InteractableRegistration,
 } from "./scopes";
@@ -8,7 +11,12 @@ import type {
 const clientHolder: { client: unknown } = { client: null };
 const clientListeners = new Set<() => void>();
 let registeredModelContextProvider:
-  | { subscribe?: (callback: () => void) => () => void }
+  | {
+      getModelContext?: () => {
+        tools?: Record<string, { parameters?: unknown }>;
+      };
+      subscribe?: (callback: () => void) => () => void;
+    }
   | undefined;
 
 vi.mock("@assistant-ui/store", async (importOriginal) => {
@@ -89,7 +97,10 @@ const reg = (id: string): InteractableRegistration => ({
   id,
   name: "note",
   description: "a note",
-  stateSchema: { type: "object", properties: {} } as never,
+  stateSchema: {
+    type: "object",
+    properties: {},
+  } satisfies InteractableRegistration["stateSchema"],
   initialState: { v: 0 },
 });
 
@@ -108,6 +119,139 @@ afterEach(() => {
   clientListeners.clear();
   vi.useRealTimers();
   vi.restoreAllMocks();
+});
+
+describe("legacy Interactables update tool", () => {
+  it("relaxes only the root requirement of the update tool", async () => {
+    const stateSchema = z.object({
+      title: z.string(),
+      settings: z.object({ name: z.string(), size: z.number() }),
+    });
+    root = mount();
+    await flushMicrotasks();
+    root.getValue().register({
+      ...reg("n1"),
+      stateSchema,
+      initialState: { title: "old", settings: { name: "n", size: 1 } },
+    });
+
+    const tool = registeredModelContextProvider?.getModelContext?.().tools
+      ?.update_note as
+      | {
+          parameters: {
+            required?: string[];
+            properties: { settings: { required?: string[] } };
+          };
+          execute(
+            args: Record<string, unknown>,
+            context: { toolCallId: string },
+          ): Promise<unknown>;
+        }
+      | undefined;
+    expect(tool).toBeDefined();
+    const { parameters } = tool!;
+    expect("~standard" in parameters).toBe(false);
+    expect(parameters.required).toBeUndefined();
+    expect(parameters.properties.settings.required).toEqual(["name", "size"]);
+
+    await tool!.execute({ title: "new" }, { toolCallId: "call-1" });
+    await tool!.execute(
+      { settings: { name: "new", size: 2 } },
+      { toolCallId: "call-2" },
+    );
+    await flushMicrotasks();
+    expect(
+      stateSchema.parse(root.getValue().getState().definitions["n1"]?.state),
+    ).toEqual({ title: "new", settings: { name: "new", size: 2 } });
+  });
+
+  it("keeps a streaming nested object parseable at every token", async () => {
+    const stateSchema = z.object({
+      title: z.string(),
+      settings: z.object({ name: z.string(), size: z.number() }),
+    });
+    root = mount();
+    await flushMicrotasks();
+    root.getValue().register({
+      ...reg("n1"),
+      stateSchema,
+      initialState: { title: "old", settings: { name: "n", size: 1 } },
+    });
+
+    const tool = registeredModelContextProvider?.getModelContext?.().tools
+      ?.update_note as
+      | {
+          streamCall(reader: {
+            args: { streamValues(): AsyncIterable<unknown> };
+          }): Promise<unknown>;
+          execute(
+            args: Record<string, unknown>,
+            context: { toolCallId: string },
+          ): Promise<unknown>;
+        }
+      | undefined;
+    expect(tool).toBeDefined();
+
+    const text = '{"settings":{"name":"medium","size":2}}';
+    const ticks: { prefix: string; state: unknown }[] = [];
+    await tool!.streamCall({
+      args: {
+        async *streamValues() {
+          for (let end = 1; end <= text.length; end++) {
+            const parsed = parsePartialJsonObject(text.slice(0, end));
+            if (!parsed) continue;
+            yield parsed;
+            await flushMicrotasks();
+            ticks.push({
+              prefix: text.slice(0, end),
+              state: root!.getValue().getState().definitions["n1"]?.state,
+            });
+          }
+        },
+      },
+    });
+    for (const { prefix, state } of ticks) {
+      expect(stateSchema.safeParse(state).success, prefix).toBe(true);
+    }
+    const distinct = ticks
+      .map(({ state }) => JSON.stringify(state))
+      .filter((state, index, all) => state !== all[index - 1])
+      .map((state) => JSON.parse(state));
+    expect(distinct).toEqual(
+      ["n", "", "m", "me", "med", "medi", "mediu", "medium"]
+        .map((name) => ({ title: "old", settings: { name, size: 1 } }))
+        .concat({ title: "old", settings: { name: "medium", size: 2 } }),
+    );
+
+    await tool!.execute(JSON.parse(text), { toolCallId: "call-1" });
+    await flushMicrotasks();
+    expect(
+      stateSchema.parse(root.getValue().getState().definitions["n1"]?.state),
+    ).toEqual({ title: "old", settings: { name: "medium", size: 2 } });
+  });
+
+  it("falls back to the raw schema when a re-registration cannot convert", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const unconvertible = {
+      "~standard": {
+        version: 1 as const,
+        vendor: "zod",
+        validate: () => ({ value: {} }),
+      },
+    };
+    root = mount();
+    await flushMicrotasks();
+    root
+      .getValue()
+      .register({ ...reg("n1"), stateSchema: z.object({ v: z.number() }) });
+    root.getValue().register({ ...reg("n1"), stateSchema: unconvertible });
+
+    expect(
+      registeredModelContextProvider?.getModelContext?.().tools?.update_note
+        ?.parameters,
+    ).toBe(unconvertible);
+    expect(warn).toHaveBeenCalledOnce();
+  });
 });
 
 describe("legacy Interactables persistence", () => {
@@ -152,9 +296,24 @@ describe("legacy Interactables persistence", () => {
     expect(secondSave).not.toHaveBeenCalled();
   });
 
+  it("does not retain edits made before an adapter attaches", async () => {
+    const save = vi.fn();
+    root = mount();
+    await flushMicrotasks();
+    root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 1 }));
+
+    root.getValue().setPersistenceAdapter({ save });
+    await root.getValue().flush();
+
+    expect(save).not.toHaveBeenCalled();
+  });
+
   it("keeps edits queued during an in-flight flush with the outgoing adapter", async () => {
     const saveResolvers: Array<() => void> = [];
-    const firstSave = vi.fn(
+    const firstSave = vi.fn<
+      (state: InteractablePersistedState) => Promise<void>
+    >(
       () =>
         new Promise<void>((resolve) => {
           saveResolvers.push(resolve);
@@ -177,7 +336,7 @@ describe("legacy Interactables persistence", () => {
     saveResolvers[0]!();
     await flushMicrotasks();
     expect(firstSave).toHaveBeenCalledTimes(2);
-    expect(firstSave.mock.calls[1]![0]).toEqual({
+    expect(firstSave.mock.calls[1]?.[0]).toEqual({
       n1: { name: "note", state: { v: 2 } },
     });
     expect(firstSave.mock.calls.at(-1)?.[0]).toEqual({
@@ -281,6 +440,64 @@ describe("legacy Interactables persistence", () => {
     resolveFirstSave();
     await flushMicrotasks();
     expect(root.getValue().getState().persistence["n1"]).toBeUndefined();
+  });
+
+  it("does not publish a previous adapter's failure into the new adapter's scope", async () => {
+    let rejectFirstSave!: (reason: unknown) => void;
+    const firstSave = vi.fn(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectFirstSave = reject;
+        }),
+    );
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    root = mount();
+    await flushMicrotasks();
+    root.getValue().setPersistenceAdapter({ save: firstSave });
+    root.getValue().register(reg("n1"));
+
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    root.getValue().setPersistenceAdapter({ save: vi.fn() });
+    await flushMicrotasks();
+
+    rejectFirstSave(new Error("stale adapter save failed"));
+    await flushMicrotasks();
+
+    expect(root.getValue().getState().persistence["n1"]?.error).toBeUndefined();
+    expect(warn).toHaveBeenCalledWith(
+      "[Interactables] Persistence save failed after the adapter changed.",
+      expect.any(Error),
+    );
+    warn.mockRestore();
+  });
+
+  it("keeps an in-flight save failure in the same scope across a detach and reattach", async () => {
+    let rejectSave!: (reason: unknown) => void;
+    const save = vi.fn(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectSave = reject;
+        }),
+    );
+    const adapter: InteractablePersistenceAdapter = { save };
+    root = mount();
+    await flushMicrotasks();
+    root.getValue().setPersistenceAdapter(adapter);
+    root.getValue().register(reg("n1"));
+
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    root.getValue().setPersistenceAdapter(undefined);
+    root.getValue().setPersistenceAdapter(adapter);
+    await flushMicrotasks();
+
+    rejectSave(new Error("same scope save failed"));
+    await flushMicrotasks();
+
+    expect(root.getValue().getState().persistence["n1"]?.error).toBeInstanceOf(
+      Error,
+    );
   });
 
   it("keeps an interactable pending while its newer edit is queued", async () => {

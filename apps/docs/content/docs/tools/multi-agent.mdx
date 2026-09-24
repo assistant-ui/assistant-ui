@@ -59,9 +59,9 @@ const toolkit = defineToolkit({
 
 ### Provide the Messages from the Backend
 
-The sub-agent's conversation has to reach `ToolCallMessagePart.messages`. AI SDK and LangGraph backends populate it from the tool result; an AG-UI backend emits the protocol's subagent lifecycle events and the runtime assembles it.
+The sub-agent's conversation has to reach `ToolCallMessagePart.messages`. An AI SDK backend populates it from the tool result. The AG-UI runtime assembles it from the protocol's subagent lifecycle events, the LangChain runtime from the subagent discovered for each `task` tool call, and the OpenCode runtime from the child session behind each `task` tool call. The LangGraph runtime and Google ADK leave it unset: LangGraph streams subgraph messages into the parent thread and attributes them through the namespaced events, and an ADK long-running call is owned by the client and settles on `requires-action` until the function response is sent, see [long-running tools](/docs/runtimes/google-adk/hooks#long-running-tools).
 
-<Tabs items={["AI SDK", "LangGraph", "AG-UI"]}>
+<Tabs items={["AI SDK", "LangGraph", "LangChain", "AG-UI"]}>
 <Tab value="AI SDK">
 
 ```ts title="api/chat/route.ts"
@@ -83,27 +83,35 @@ tools: {
 </Tab>
 <Tab value="LangGraph">
 
-With `@assistant-ui/react-langgraph`, use `unstable_createLangGraphStream` and set `unstable_allowCancellation: true` to wire up the stop button. When your graph runs a subgraph, the subgraph's messages appear on `ToolCallMessagePart.messages` automatically once you handle the `onSubgraphValues` / `onSubgraphUpdates` events.
+`@assistant-ui/react-langgraph` does not nest subgraph output. Messages a subgraph emits stream into the parent thread, and the namespaced events attribute them: `onSubgraphValues` and `onSubgraphUpdates` receive the subgraph's namespace and state, and `onMessageChunk` carries `metadata.namespace` for chunks that originate in a subgraph. Those events exist only when the run streams subgraphs, so `unstable_createLangGraphStream` forwards `streamSubgraphs` to `client.runs.stream` and this example enables it together with `"updates"` in `streamMode`. Set `unstable_allowCancellation: true` to wire up the stop button. A nested conversation per sub-agent on LangGraph needs `@assistant-ui/react-langchain`, which attaches each `task` subagent's transcript to its tool call.
 
 ```ts title="runtime.ts"
+import { useMemo } from "react";
 import {
-  useLangGraphRuntime,
   unstable_createLangGraphStream,
+  useLangGraphRuntime,
 } from "@assistant-ui/react-langgraph";
+
+const stream = useMemo(
+  () =>
+    unstable_createLangGraphStream({
+      client,
+      assistantId,
+      // "updates" carries the subgraph events; "custom" is required for generative UI
+      streamMode: ["messages", "updates", "custom"],
+      // without it the run streams the top graph only
+      streamSubgraphs: true,
+      onDisconnect: "cancel",
+    }),
+  [client, assistantId],
+);
 
 const runtime = useLangGraphRuntime({
   unstable_allowCancellation: true,
-  stream: unstable_createLangGraphStream({
-    client,
-    assistantId,
-    // "custom" is required for generative UI; "updates" for subgraph events
-    streamMode: ["messages", "updates", "custom"],
-    // abort the run server-side when the user clicks stop
-    onDisconnect: "cancel",
-  }),
+  stream,
   eventHandlers: {
     onSubgraphValues: (namespace, values) => {
-      // namespace = e.g. "tools:call_abc" — the sub-agent's node path
+      // namespace = e.g. "tools:call_abc", the sub-agent's node path
       // values contains the subgraph state, including its messages array
     },
     onSubgraphUpdates: (namespace, updates) => {
@@ -121,6 +129,13 @@ const runtime = useLangGraphRuntime({
 ```
 
 See [LangGraph Streaming](/docs/runtimes/langgraph/streaming) for the full event handler reference.
+
+</Tab>
+<Tab value="LangChain">
+
+With `@assistant-ui/react-langchain` there is nothing to populate. `useStream` discovers every `task` subagent on the run, and the runtime reads that subagent's own message projection and attaches it to the spawning call's `ToolCallMessagePart.messages`, keyed by the `task` tool call id. The transcript streams while the subagent runs, nests recursively up to sixteen levels deep when subagents spawn subagents, and is present again on a thread loaded from history, because the SDK seeds subagent discovery from checkpoint messages.
+
+See [subagent and subgraph views](/docs/runtimes/langchain#subagent-and-subgraph-views) for the discovery hooks and custom views.
 
 </Tab>
 <Tab value="AG-UI">
@@ -205,6 +220,44 @@ const toolkit = defineToolkit({
 });
 ```
 
+## Status
+
+While a nested conversation has a running assistant message, the tool call and the message that holds it stay `running` even after the outer run has ended. This is how delegated work that outlives the run shows up. Once the nested conversation settles without a tool result, the message reads `requires-action` with reason `tool-calls`, the same as any other pending tool call.
+
+The nested thread rendered by `MessagePartPrimitive.Messages` or `ReadonlyThreadProvider` reports `isRunning` from its trailing assistant message, and the background rule reads the same trailing message. A runtime that fills `messages` owns settling the nested status: a trailing nested assistant message left `running` keeps the outer message `running` until it is settled. On the `useExternalMessageConverter` path a cancelled run clears it; on the plain `useExternalStoreRuntime` path the store settles the nested transcript on cancel as well. A transcript imported from persistence starts idle: a nested message that was saved while running does not keep the outer message running.
+
+## Tasks
+
+`s.thread.tasks` derives child work from every tool call that carries a `messages` array, including an empty array. Tasks follow document order, with nested tasks directly after their parent. Each task includes `parentTaskId` and `depth` for reconstructing the hierarchy.
+
+The array keeps its identity while no task changes, so a component that subscribes to it does not rerender for unrelated streamed tokens. The walk stops past 32 levels of nesting; deeper tasks are not listed.
+
+```tsx
+import { useMemo } from "react";
+import { useAuiState } from "@assistant-ui/react";
+
+function TasksChip() {
+  const tasks = useAuiState((s) => s.thread.tasks);
+  const { running, total } = useMemo(
+    () => ({
+      running: tasks.filter((task) => task.status.type === "running").length,
+      total: tasks.length,
+    }),
+    [tasks],
+  );
+
+  return <span>{`${running}/${total} tasks running`}</span>;
+}
+```
+
+For imperative lookup, `aui.thread.task({ id })` resolves the first task with that toolCallId in document order (nested conversations may repeat ids), or use an index selector.
+
+## Kit elements
+
+[`Task card`](/elements/task-card) renders nested tool calls inside `Thread` once `components.TaskGroup` is set: every tool call that carries `messages` and has no registered tool UI becomes a lane with its state and timing, sibling tasks are grouped four at a time, and each nested transcript opens on demand.
+
+[`Agent status`](/elements/agent-status) reads `s.thread.tasks` for a compact task summary. Its chip reports the current work, and its tray lists every task with nesting, state, label, meta, and elapsed time.
+
 ## ReadonlyThreadProvider
 
 For advanced use cases where you have a `ThreadMessage[]` array and want to render it as a thread outside of a tool call context, use `ReadonlyThreadProvider` directly:
@@ -241,7 +294,7 @@ function SubConversation({
 - [Generative UI](/docs/tools/tool-ui) — Creating tool call UIs
 - [react-o11y](/docs/utilities/react-o11y) — Visualize sub-agent execution as collapsible span trees, waterfalls, and call timelines
 - [MessagePartPrimitive](/docs/api-reference/primitives/message-part) — API reference for message part primitives
-- [Sub-Agent Model Tracking](/docs/cloud/traces#sub-agent-model-tracking) — Track delegated model usage and costs in the Cloud dashboard
+- [Sub-Agent Model Tracking](/docs/cloud/traces#track-sub-agent-model-work) — Track delegated model usage and costs in the Cloud dashboard
 - [AG-UI Subagents](/docs/runtimes/ag-ui/runtime-options#subagents) — Nested subagent messages attributed from the AG-UI event stream
 - [LangGraph Streaming](/docs/runtimes/langgraph/streaming) — Event handlers, subgraph events, and message metadata
 - [LangGraph Generative UI](/docs/runtimes/langgraph/generative-ui) — Structured UI components emitted by your graph

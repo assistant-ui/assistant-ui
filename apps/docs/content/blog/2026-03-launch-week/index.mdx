@@ -111,6 +111,10 @@ Or integrate directly with the AI SDK using `useCloudChat`:
 npm install @assistant-ui/cloud-ai-sdk @ai-sdk/react ai
 ```
 
+<Callout type="info" title="Update">
+The `cloud` command is no longer part of the CLI, and `@assistant-ui/cloud-ai-sdk` has since been retired. Follow the [Cloud quickstart](/docs/cloud/quickstart) to add thread persistence today, and see [Migrate from Cloud AI SDK](/docs/cloud/migrate-cloud-ai-sdk) if you use `useCloudChat`.
+</Callout>
+
 Works with any assistant-ui runtime — AI SDK, LangGraph, or custom backends. No migration required.
 
 [Read the docs →](/docs/cloud) 
@@ -163,6 +167,10 @@ Then use it:
 ## Day 5 — Cloud AI SDK
 
 **Add cloud persistence to any AI SDK app. Just change your import.**
+
+<Callout type="info" title="Update">
+`@assistant-ui/cloud-ai-sdk` has since been retired: `useChatRuntime` from `@assistant-ui/ai-sdk` replaces it. See [Migrate from Cloud AI SDK](/docs/cloud/migrate-cloud-ai-sdk).
+</Callout>
 
 We're launching `@assistant-ui/cloud-ai-sdk` — a standalone package that adds full thread persistence and management to any Vercel AI SDK application with a single hook change. No providers, no context, no runtime objects.
 

@@ -1,6 +1,7 @@
-import { type ReactNode, useMemo } from "react";
+import { type ReactNode, useMemo, useRef, useState } from "react";
 import { Box, Text } from "ink";
 import Spinner from "ink-spinner";
+import { Pressable } from "../internal/Pressable";
 import type { ToolCallMessagePartStatus } from "@assistant-ui/core";
 import type { ToolCallMessagePartProps } from "@assistant-ui/core/react";
 
@@ -132,6 +133,8 @@ export const ToolFallback = ({
   isError,
   interrupt,
   status,
+  approval,
+  respondToApproval,
   expanded: expandedProp,
   maxArgLines = 20,
   maxResultLines = 20,
@@ -160,6 +163,22 @@ export const ToolFallback = ({
       ? formatResult(result)
       : "";
   const argsDisplay = useMemo(() => prettyPrintArgs(argsText), [argsText]);
+  const approvalPendingRef = useRef(false);
+  const [approvalPending, setApprovalPending] = useState(false);
+  const [approvalError, setApprovalError] = useState<string | null>(null);
+  const handleApproval = async (approved: boolean) => {
+    if (!respondToApproval || approvalPendingRef.current) return;
+    approvalPendingRef.current = true;
+    setApprovalPending(true);
+    setApprovalError(null);
+    try {
+      await respondToApproval({ approved });
+    } catch (error) {
+      setApprovalError(error instanceof Error ? error.message : String(error));
+      approvalPendingRef.current = false;
+      setApprovalPending(false);
+    }
+  };
 
   return (
     <Box flexDirection="column">
@@ -219,9 +238,45 @@ export const ToolFallback = ({
 
           {displayStatus === "running" && <Text dimColor>Running...</Text>}
 
-          {displayStatus === "requires-action" && (
-            <Text color="cyan">Waiting for approval...</Text>
-          )}
+          {displayStatus === "requires-action" &&
+            (respondToApproval &&
+            approval &&
+            approval.approved === undefined &&
+            approval.resolution === undefined &&
+            approval.options === undefined &&
+            (approval.display === undefined ||
+              approval.display === "decision") ? (
+              <Box flexDirection="column">
+                {approval.prompt ? <Text>{approval.prompt}</Text> : null}
+                <Box gap={1}>
+                  <Pressable onPress={() => void handleApproval(true)}>
+                    {({ isFocused }) => (
+                      <Text
+                        color="green"
+                        dimColor={approvalPending}
+                        inverse={isFocused}
+                      >
+                        Allow
+                      </Text>
+                    )}
+                  </Pressable>
+                  <Pressable onPress={() => void handleApproval(false)}>
+                    {({ isFocused }) => (
+                      <Text
+                        color="red"
+                        dimColor={approvalPending}
+                        inverse={isFocused}
+                      >
+                        Deny
+                      </Text>
+                    )}
+                  </Pressable>
+                </Box>
+              </Box>
+            ) : (
+              <Text color="cyan">Waiting for approval...</Text>
+            ))}
+          {approvalError ? <Text color="red">{approvalError}</Text> : null}
         </Box>
       )}
     </Box>

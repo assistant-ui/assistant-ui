@@ -7,12 +7,7 @@ import { blog, type BlogPage } from "@/lib/source";
 import { GlyphPlate } from "@/components/shared/glyph-scene";
 import { sceneFor } from "@/components/pages/blog/scenes";
 import { PageFrame } from "@/components/shared/page-frame";
-import {
-  typeDeck,
-  typeEyebrow,
-  typePage,
-  typeSection,
-} from "@/components/shared/type";
+import { typeDeck, typePage, typeSection } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 
 const title = "Blog";
@@ -222,8 +217,7 @@ function FeaturedCell({ post, fig }: { post: BlogPage; fig: number }) {
     <PostLink post={post} className="group block py-10 md:py-14">
       <span className="grid gap-10 md:grid-cols-[minmax(0,1fr)_minmax(0,30rem)] md:items-center md:gap-16">
         <span className="block">
-          <span className={cn(typeEyebrow, "block")}>Latest</span>
-          <PostMeta post={post} className="mt-5 text-sm" />
+          <PostMeta post={post} className="text-sm" />
           <span className={cn(typeSection, "mt-3 block")}>
             {post.data.title}
             <ArrowUpRight className="ms-1.5 mb-0.5 inline size-4 opacity-0 transition-opacity group-hover:opacity-50" />

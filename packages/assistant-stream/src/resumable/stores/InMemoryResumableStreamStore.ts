@@ -2,6 +2,9 @@ import { DEFAULT_TTL_MS } from "../constants";
 import { ResumableStreamError, validateStreamId } from "../errors";
 import type {
   ResumableStreamEntry,
+  ResumableStreamAcquireOptions,
+  ResumableStreamAcquisition,
+  ResumableStreamLease,
   ResumableStreamStatus,
   ResumableStreamStore,
 } from "../types";
@@ -9,6 +12,7 @@ import type {
 type FinalizeMarker = { kind: "done" } | { kind: "error"; error: string };
 
 type StreamState = {
+  token: string;
   entries: ResumableStreamEntry[];
   nextSeq: number;
   expiresAt: number;
@@ -36,17 +40,25 @@ export type InMemoryResumableStreamStoreOptions = {
 export function createInMemoryResumableStreamStore(
   options: InMemoryResumableStreamStoreOptions = {},
 ): ResumableStreamStore & { dispose: () => void } {
+  let nextToken = 0;
   const streams = new Map<string, StreamState>();
   const defaultTtlMs = options.defaultTtlMs ?? DEFAULT_TTL_MS;
   const now = options.now ?? Date.now;
   const maxChunkBytes = options.maxChunkBytes;
   const maxEntriesPerStream = options.maxEntriesPerStream;
   const maxStreams = options.maxStreams;
+  // TTL refreshes can leave this lower bound earlier than the next actual expiry.
+  let nextExpiry = Infinity;
 
   const evictExpired = (): void => {
     const t = now();
+    if (t < nextExpiry) return;
+    nextExpiry = Infinity;
     for (const [id, state] of streams) {
-      if (state.expiresAt > t) continue;
+      if (state.expiresAt > t) {
+        nextExpiry = Math.min(nextExpiry, state.expiresAt);
+        continue;
+      }
       streams.delete(id);
       state.final ??= { kind: "error", error: "Stream expired" };
       notify(state);
@@ -107,10 +119,19 @@ export function createInMemoryResumableStreamStore(
       }
     });
 
-  const requireActive = (streamId: string): StreamState => {
+  const requireActive = (
+    streamId: string,
+    lease: ResumableStreamLease | undefined,
+  ): StreamState => {
     evictExpired();
     const state = streams.get(streamId);
     if (!state) throw new Error(`Stream not found: ${streamId}`);
+    if (lease && state.token !== lease.token) {
+      throw new ResumableStreamError(
+        "missing",
+        `Stream superseded by a new acquisition: ${streamId}`,
+      );
+    }
     if (state.final) {
       throw new ResumableStreamError(
         "finalized",
@@ -126,35 +147,47 @@ export function createInMemoryResumableStreamStore(
       : undefined;
   gcTimer?.unref?.();
 
+  const acquireLease = async (
+    streamId: string,
+    acquireOptions?: ResumableStreamAcquireOptions,
+  ): Promise<ResumableStreamAcquisition> => {
+    validateStreamId(streamId);
+    evictExpired();
+    const existing = streams.get(streamId);
+    if (existing) return { role: "consumer" };
+
+    if (maxStreams !== undefined && streams.size >= maxStreams) {
+      throw new Error("maxStreams exceeded");
+    }
+
+    const ttlMs = acquireOptions?.ttlMs ?? defaultTtlMs;
+    const token = String(++nextToken);
+    const expiresAt = now() + ttlMs;
+    nextExpiry = Math.min(nextExpiry, expiresAt);
+    streams.set(streamId, {
+      token,
+      entries: [],
+      nextSeq: 1,
+      expiresAt,
+      ttlMs,
+      final: undefined,
+      waiters: [],
+    });
+    return { role: "producer", lease: { token } };
+  };
+
   return {
     async acquire(streamId, acquireOptions) {
-      validateStreamId(streamId);
-      evictExpired();
-      const existing = streams.get(streamId);
-      if (existing) return "consumer";
-
-      if (maxStreams !== undefined && streams.size >= maxStreams) {
-        throw new Error("maxStreams exceeded");
-      }
-
-      const ttlMs = acquireOptions?.ttlMs ?? defaultTtlMs;
-      streams.set(streamId, {
-        entries: [],
-        nextSeq: 1,
-        expiresAt: now() + ttlMs,
-        ttlMs,
-        final: undefined,
-        waiters: [],
-      });
-      return "producer";
+      return (await acquireLease(streamId, acquireOptions)).role;
     },
+    acquireLease,
 
-    async append(streamId, chunk) {
+    async append(streamId, chunk, lease) {
       validateStreamId(streamId);
       if (maxChunkBytes !== undefined && chunk.byteLength > maxChunkBytes) {
         throw new Error(`Chunk exceeds maxChunkBytes: ${chunk.byteLength}`);
       }
-      const state = requireActive(streamId);
+      const state = requireActive(streamId, lease);
       if (
         maxEntriesPerStream !== undefined &&
         state.entries.length >= maxEntriesPerStream
@@ -168,21 +201,25 @@ export function createInMemoryResumableStreamStore(
         chunk: new Uint8Array(chunk),
       });
       state.expiresAt = now() + state.ttlMs;
+      nextExpiry = Math.min(nextExpiry, state.expiresAt);
       notify(state);
     },
 
-    async finalize(streamId, status, error) {
+    async finalize(streamId, status, error, lease) {
       validateStreamId(streamId);
       evictExpired();
       const state = streams.get(streamId);
       if (!state) throw new Error(`Stream not found: ${streamId}`);
-      if (state.final) return;
+      if (lease && state.token !== lease.token) return false;
+      if (state.final) return false;
       state.final =
         status === "done"
           ? { kind: "done" }
           : { kind: "error", error: error ?? "Stream errored" };
       state.expiresAt = now() + state.ttlMs;
+      nextExpiry = Math.min(nextExpiry, state.expiresAt);
       notify(state);
+      return true;
     },
 
     async *read(streamId, cursor, signal) {

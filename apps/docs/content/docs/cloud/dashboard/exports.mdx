@@ -1,0 +1,74 @@
+---
+title: Exports
+description: Download the current Threads, Runs, or Users view as CSV or JSONL.
+---
+
+Exports download the selected Threads, Runs, or Users data for the current project. Each export keeps the list's date range and supported filters, then writes either a spreadsheet friendly CSV file or line oriented JSONL. The feature is available on Pro, Startup, and Enterprise plans.
+
+## Choose what to export
+
+The **Export** control appears on the Threads, Runs, and Users list pages when the project's plan includes Export. It applies to the view that page supports, rather than exporting every project record.
+
+| Export | Where to find it | What it honours |
+|---|---|---|
+| Threads | [Threads](/docs/cloud/dashboard/threads) | `from`, `to`, `search`, `created_by`, `satisfaction`, `signal`, `topic`, `task`, `question`, `junk`, `sentiment`, `resolved`, `language`, `feedback` (`negative`, `positive`, `any`), and `review` (`unreviewed`, `reviewed`, `good`, `needs_work`, `unclear`). |
+| Runs | [Runs](/docs/cloud/dashboard/runs) | `from`, `to`, `status`, `outcome_type`, `model_id`, `provider`, `created_by`, `assistant_id`, `environment`, `release`, `agent`, `service`, `tag`, `cost_min`, `cost_max`, `duration_min`, `duration_max`, and `search`. |
+| Users | [Users](/docs/cloud/dashboard/users) | `from` and `to`. The export is one page, sorted by cost. |
+
+All three requests also carry the organization slug, project slug, and chosen `format`. A date must use `YYYY-MM-DD`. The cloud reads `from` from the start of that UTC day and `to` through the end of that UTC day.
+
+## Pick a file format
+
+| Format | How the cloud writes it | Content type |
+|---|---|---|
+| CSV | A header row followed by rows of values. Any value beginning with `=`, `+`, `@`, or `-` receives a leading apostrophe, so spreadsheet software does not treat it as a formula. | `text/csv` |
+| JSONL | One JSON object per line. The Threads export nests every message inside its thread object. | `application/x-ndjson` |
+
+The download streams through a keyset cursor in pages of 500 rows, so the server does not build the complete file before sending it. Its name is `runs_{utcDay}.{format}`, `threads_{utcDay}.{format}`, or `users_{utcDay}.{format}`.
+
+## Fields in each export
+
+The CSV header uses the fields in these tables. JSONL uses the same fields, except that a Threads JSONL object also contains `messages`.
+
+### Runs
+
+| Columns |
+|---|
+| `id`, `project_id`, `assistant_id`, `thread_id`, `created_by`, `created_at`, `source`, `model_id`, `provider`, `input_tokens`, `cached_input_tokens`, `output_tokens`, `reasoning_tokens`, `duration_ms`, `cost_usd`, `usage_details`, `cost_details`, `status`, `outcome_type`, `error_code`, `error`, `total_steps`, `trace_id`, `message_id`, `environment`, `release`, `tags`, `metadata`, `agent_name`, `service_name`, `attributes` |
+
+`metadata` is the same value as `attributes` in the Runs export.
+
+### Threads
+
+| Columns |
+|---|
+| `id`, `workspace_id`, `created_by`, `created_at`, `updated_by`, `updated_at`, `title`, `last_message_at`, `is_archived`, `external_id`, `metadata`, `run_count`, `cost_usd`, `total_tokens`, `feedback_positive`, `feedback_negative`, `topic`, `task`, `review`, `review_note` |
+
+The JSONL form writes `{ ...thread, messages }`, including every message for that thread.
+
+### Users
+
+| Columns |
+|---|
+| `user_id`, `name`, `threads`, `runs`, `tokens`, `cost`, `last_active` |
+
+## Use the project read API instead
+
+For a programmatic feed, use the [project read API](/docs/cloud/api/project) with an API key. It provides project scoped routes for threads, a thread's messages, scores, runs, an individual run with spans, daily usage, and the current usage period. The API returns its resource objects and cursors instead of a CSV or JSONL download, which suits a job that needs to fetch or process data repeatedly.
+
+```bash title="The runs of the last week, one page"
+curl "https://backend.assistant-api.com/v1/projects/runs?from=2026-09-10T00%3A00%3A00.000Z&to=2026-09-17T00%3A00%3A00.000Z&limit=100" \
+  -H "Authorization: Bearer $ASSISTANT_API_KEY" \
+  -H "Aui-User-Id: user_123" \
+  -H "Aui-Workspace-Id: workspace_123"
+```
+
+The response carries `next_cursor` while more pages remain; pass it back as `cursor`. [Project read API](/docs/cloud/api/project) documents every route and field.
+
+## Troubleshooting
+
+| What you see | Why | What to do |
+|---|---|---|
+| No **Export** button | The project plan does not include the Export feature. | Upgrade to Pro, Startup, or Enterprise. |
+| An export stops early | The request can return `401`, `404`, `403`, or `500` when authentication, project resolution, the Export gate, or the export service prevents completion. | Check that you are in the intended project and that the plan includes Export, then request the file again. Use the project read API for a repeatable programmatic read. |
+| A CSV cell begins with an apostrophe | Its original value began with a formula character, so the CSV writer escaped it. | Keep the apostrophe when opening the file in a spreadsheet. It is the formula injection protection. |

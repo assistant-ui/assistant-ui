@@ -12,6 +12,7 @@ import type { QueueItemState } from "../scopes/queue-item";
 import type { QueuePlacement } from "../../runtime/queue/external-thread-queue-adapter";
 import { AttachmentRuntimeClient } from "./attachment-runtime-client";
 import { useSubscribable } from "./useSubscribable";
+import { runCleanups } from "../../subscribable/subscribable";
 
 const useComposerAttachmentClientByIndex = ({
   runtime,
@@ -118,9 +119,7 @@ const useComposerClient = ({
       }),
     );
 
-    return () => {
-      for (const unsub of unsubscribers) unsub();
-    };
+    return () => runCleanups(unsubscribers);
   }, [runtime, emit, threadIdRef, messageIdRef]);
 
   const attachments = useClientLookup(
@@ -165,6 +164,8 @@ const useComposerClient = ({
       dictation: runtimeState.dictation,
       quote: runtimeState.quote,
       queue,
+      submission: runtimeState.submission,
+      inTransit: runtimeState.inTransit,
     };
   }, [runtimeState, attachments.state, queue]);
 

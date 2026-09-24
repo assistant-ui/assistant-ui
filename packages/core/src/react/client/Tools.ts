@@ -22,6 +22,7 @@ import {
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 import { ModelContext } from "../../store/clients/model-context-client";
 import { nullProtoRecord } from "../../utils/record";
+import { runCleanups } from "../../subscribable/subscribable";
 
 export type { McpAppResourceOutput };
 
@@ -127,9 +128,7 @@ const useTools = ({
       }
     }
 
-    return () => {
-      unsubscribes.forEach((fn) => fn());
-    };
+    return () => runCleanups(unsubscribes);
   }, [toolkit, setToolUI]);
 
   useAssistantScopeEffect(

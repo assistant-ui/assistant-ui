@@ -9,7 +9,7 @@ Server- and client-side SDK for [Assistant Cloud](https://cloud.assistant-ui.com
 ## Installation
 
 ```bash
-npm install @assistant-ui/react @assistant-ui/ai-sdk assistant-cloud
+npm install @assistant-ui/react @assistant-ui/ai-sdk ai assistant-cloud
 ```
 
 ## Usage
@@ -37,7 +37,7 @@ The pieces every client integration needs live in the package, so a runtime bind
 
 Every API request carries `Aui-Sdk` with the client's own version and the identities integrations pass to `registerSdk` (the anonymous token bootstrap requests do not), so the cloud can tell which packages talk to a project.
 
-- `CloudRunReporter` sends run reports: nothing while telemetry is off, the cloud's environment, release and tags on every report, the `beforeReport` hook applied last, and a failed send that never surfaces. A report given a key is sent once per key, so the key has to name one run; without a key every call reports.
+- `CloudRunReporter` sends run reports: nothing while telemetry is off, the cloud's environment, release and tags on every report, the `beforeReport` hook applied last, and a failed send that never surfaces. Keyed reports are deduplicated while in flight and after an attempt, while rate limiting releases the key for a later attempt; without a key every call reports.
 - `CloudEngagementReporter` derives engagement events (`message_sent`, `run_stopped`, `error_shown`, `suggestions_shown` and the rest) from what a chat integration observes and keeps the per thread state they need, such as a run's start for the stop duration. An id resolver turns the integration's own thread and message ids into the ids the cloud stores.
 - `assistant-cloud/ai-sdk` holds the AI SDK specifics: `aiSDKV6FormatAdapter`, the stored form of a `UIMessage`, and `extractAISDKRunTelemetry`, which reads the run report fields out of one run's assistant messages. The entry types its messages with `ai` and needs no runtime from it.
 
@@ -59,11 +59,13 @@ if (run) {
 
 ## Server telemetry
 
-Send AI SDK 7 GenAI spans to Assistant Cloud from a Next.js `instrumentation.ts` file. The `assistant-cloud/telemetry` entry needs the OpenTelemetry packages installed next to it:
+Send AI SDK 7 GenAI spans to Assistant Cloud from a Next.js app. The AI SDK emits spans through `@ai-sdk/otel`, and the `assistant-cloud/telemetry` entry needs the OpenTelemetry packages installed next to it:
 
 ```sh
-npm i @vercel/otel @opentelemetry/api @opentelemetry/sdk-trace-base @opentelemetry/exporter-trace-otlp-http
+npm i @vercel/otel @ai-sdk/otel @opentelemetry/api @opentelemetry/sdk-trace-base @opentelemetry/exporter-trace-otlp-http
 ```
+
+Register the span processor in `instrumentation.ts` so it starts once per server process:
 
 ```ts
 import { registerOTel } from "@vercel/otel";
@@ -87,15 +89,29 @@ export function register() {
 }
 ```
 
-Pass the active server trace ID to the browser with `messageMetadata` in the route that calls `streamText`:
+In the route that calls `streamText`, enable the OpenTelemetry integration and pass the active trace ID to the browser with `messageMetadata`:
 
 ```ts
+import { OpenTelemetry } from "@ai-sdk/otel";
+import { openai } from "@ai-sdk/openai";
+import { convertToModelMessages, streamText } from "ai";
 import { withAssistantCloudTraceMetadata } from "assistant-cloud/telemetry";
 
-return result.toUIMessageStreamResponse({
-  messageMetadata: withAssistantCloudTraceMetadata(),
-});
+export async function POST(request: Request) {
+  const { messages } = await request.json();
+  const result = streamText({
+    model: openai("gpt-6-luna"),
+    messages: await convertToModelMessages(messages),
+    telemetry: { integrations: [new OpenTelemetry()] },
+  });
+
+  return result.toUIMessageStreamResponse({
+    messageMetadata: withAssistantCloudTraceMetadata(),
+  });
+}
 ```
+
+[Traces](https://www.assistant-ui.com/docs/cloud/traces) covers the exporter options, the span filter, and how Assistant Cloud merges a trace with the browser's run report.
 
 ## Authentication
 

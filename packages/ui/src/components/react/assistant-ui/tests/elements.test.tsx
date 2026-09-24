@@ -15,15 +15,20 @@ import { ContextBreakdown } from "../elements/context-breakdown";
 import { CostMeter } from "../elements/cost-meter";
 import { DocumentReference } from "../elements/document-reference";
 import { FeedbackDialog } from "../elements/feedback-dialog";
+import { File } from "../elements/file";
 import { FileTree } from "../elements/file-tree";
 import { FlowGraph } from "../elements/flow-graph";
 import { JobProgress } from "../elements/job-progress";
+import { LauncherBubble } from "../elements/launcher-bubble";
 import { GenerationLoader } from "../elements/loading-state";
 import { MapAnswer } from "../elements/map-answer";
 import { MathBlock } from "../elements/math-block";
 import { McpServerPanel } from "../elements/mcp-server-panel";
 import { MessagePair } from "../elements/message-pair";
+import { MobileComposer } from "../elements/mobile-composer";
+import { ModelPicker } from "../elements/model-picker";
 import { Onboarding } from "../elements/onboarding";
+import { PermissionGrant } from "../elements/permission-grant";
 import { PromptLibrary } from "../elements/prompt-library";
 import { QuotaBanner } from "../elements/quota-banner";
 import { ReadAloud } from "../elements/read-aloud";
@@ -148,6 +153,7 @@ const CASES: Record<string, Case> = {
       pages={items}
       anchors={list(items, (i) => ({ page: i, quote: "q".repeat(300) }))}
       activePage={n}
+      onJump={() => undefined}
     />
   ),
   "feedback-dialog": (_n, items) => (
@@ -220,6 +226,7 @@ const CASES: Record<string, Case> = {
         status: "connected" as const,
         tools: ["read"],
       }))}
+      onToggle={() => undefined}
     />
   ),
   "message-pair": (n, items) => (
@@ -379,6 +386,7 @@ const CASES: Record<string, Case> = {
         unread: true,
       }))}
       activeIndex={n}
+      onActiveIndexChange={() => undefined}
     />
   ),
   timeline: (n, items) => (
@@ -559,6 +567,71 @@ beforeAll(() => {
 });
 
 afterEach(cleanup);
+
+describe("file download", () => {
+  it("names the default download action with the filename", () => {
+    const { getByRole } = render(
+      <File
+        type="file"
+        status={{ type: "complete" }}
+        data="https://example.com/report.pdf"
+        mimeType="application/pdf"
+        filename="report.pdf"
+      />,
+    );
+
+    expect(
+      getByRole("link", { name: "Download report.pdf" }).getAttribute(
+        "aria-label",
+      ),
+    ).toBe("Download report.pdf");
+  });
+
+  it("falls back to a generic name without a filename", () => {
+    const { getByRole } = render(
+      <File
+        type="file"
+        status={{ type: "complete" }}
+        data="https://example.com/file"
+        mimeType="application/octet-stream"
+      />,
+    );
+
+    expect(
+      getByRole("link", { name: "Download file" }).getAttribute("aria-label"),
+    ).toBe("Download file");
+  });
+
+  it("preserves custom children as the accessible name", () => {
+    const { getByRole } = render(
+      <File.Download
+        data="https://example.com/report.pdf"
+        mimeType="application/pdf"
+        filename="report.pdf"
+      >
+        Download manually
+      </File.Download>,
+    );
+
+    const link = getByRole("link", { name: "Download manually" });
+    expect(link.getAttribute("aria-label")).toBeNull();
+  });
+
+  it("preserves a caller-provided aria-label", () => {
+    const { getByRole } = render(
+      <File.Download
+        data="https://example.com/report.pdf"
+        mimeType="application/pdf"
+        filename="report.pdf"
+        aria-label="Save report"
+      />,
+    );
+
+    expect(
+      getByRole("link", { name: "Save report" }).getAttribute("aria-label"),
+    ).toBe("Save report");
+  });
+});
 
 describe("todo-list", () => {
   it("renders a failed item with its reason and keeps it out of the numerator", () => {
@@ -1198,6 +1271,169 @@ describe("state that is carried by more than colour", () => {
       "true",
       null,
     ]);
+  });
+
+  it("keeps the pressed state on static feedback reasons", () => {
+    const { container } = render(
+      <FeedbackDialog
+        reasons={["Wrong answer", "Too slow"]}
+        selected={["Wrong answer"]}
+        note=""
+        sent={false}
+      />,
+    );
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector('[aria-pressed="true"]')?.textContent).toBe(
+      "Wrong answer",
+    );
+    expect(
+      container
+        .querySelector('[aria-pressed="true"]')
+        ?.getAttribute("aria-disabled"),
+    ).toBe("true");
+  });
+
+  it("keeps a send-only mobile composer control mounted while running", () => {
+    const props = {
+      value: "Draft",
+      keyboardOpen: false,
+      actions: [],
+      onSend: () => undefined,
+    };
+    const { container, rerender } = render(
+      <MobileComposer {...props} running={false} />,
+    );
+    const send = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Send"]',
+    );
+
+    rerender(<MobileComposer {...props} running />);
+    const stop = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Stop"]',
+    );
+
+    expect(
+      container.querySelectorAll('[aria-label="Send"], [aria-label="Stop"]'),
+    ).toHaveLength(1);
+    expect(stop).toBe(send);
+    expect(stop?.disabled).toBe(true);
+  });
+
+  it("labels a pending grant without an action handler", () => {
+    const { container } = render(
+      <PermissionGrant
+        capability="Filesystem access"
+        requester="filesystem-mcp"
+        reach={["Read files"]}
+        scope="pending"
+      />,
+    );
+    const pending = [...container.querySelectorAll<HTMLElement>("span")].find(
+      (element) => element.textContent === "pending",
+    );
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(pending?.className).toContain("rounded-full");
+  });
+
+  it("labels a pending hunk without decision handlers", () => {
+    const { container } = render(
+      <ReviewableDiff
+        filename="composer.tsx"
+        hunks={[
+          {
+            id: "hunk",
+            range: "@@ -1 +1 @@",
+            decision: "pending",
+            lines: [{ kind: "added", text: "const draft = useDraft();" }],
+          },
+        ]}
+      />,
+    );
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.textContent).toContain("pending");
+  });
+
+  it("marks the selected static model current", () => {
+    const { container } = render(
+      <ModelPicker
+        models={[
+          {
+            id: "small",
+            name: "Small",
+            family: "A",
+            context: "32k",
+            price: "$0.10",
+            capabilities: [],
+          },
+          {
+            id: "large",
+            name: "Large",
+            family: "A",
+            context: "128k",
+            price: "$0.50",
+            capabilities: [],
+          },
+        ]}
+        selectedId="large"
+      />,
+    );
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector('[aria-current="true"]')?.textContent).toBe(
+      "Large128k$0.50",
+    );
+  });
+
+  it("marks the selected static effort level current", () => {
+    const { container } = render(
+      <ReasoningEffort
+        levels={[
+          { key: "low", label: "Low", budget: 1_000 },
+          { key: "high", label: "High", budget: 2_000 },
+        ]}
+        selectedKey="high"
+        spent={250}
+      />,
+    );
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector('[aria-current="true"]')?.textContent).toBe(
+      "High",
+    );
+  });
+
+  it("marks the selected static setting model current and exposes its switch", () => {
+    const { container } = render(
+      <SettingsPanel
+        model="large"
+        models={["small", "large"]}
+        systemPrompt=""
+        temperature={1}
+        toggles={[
+          { key: "web", label: "Web search", detail: "Use web", on: true },
+        ]}
+      />,
+    );
+    const toggle = container.querySelector<HTMLElement>('[role="switch"]')!;
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector('[aria-current="true"]')?.textContent).toBe(
+      "large",
+    );
+    expect(toggle.getAttribute("aria-checked")).toBe("true");
+    expect(toggle.getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it("keeps the unread count on a static closed launcher", () => {
+    const { container } = render(
+      <LauncherBubble open={false} unread={3} greeting="Hello" prompts={[]} />,
+    );
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.textContent).toContain("3");
   });
 
   it("keeps feedback's live region mounted before it has anything to say", () => {

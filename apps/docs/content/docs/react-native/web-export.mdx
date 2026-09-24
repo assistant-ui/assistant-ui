@@ -1,0 +1,36 @@
+---
+title: Static web export
+description: Export the Expo example for the web and understand the React Native Web limits that affect chat screens.
+---
+
+The React Native elements also run through react-native-web. The Expo example uses a static web output and its Vercel deployment powers the live native element showcase, so the same thread and element source can serve a browser build.
+
+## Export the example
+
+`examples/with-expo` defines an `export:web` script that runs Expo's web export and then flattens the generated assets.
+
+```sh
+pnpm -C examples/with-expo export:web
+```
+
+The example's Expo configuration sets `web.output` to `"static"`. Its Vercel configuration publishes `dist` and rewrites `/showcase` and `/showcase/:slug` to the corresponding exported HTML files.
+
+## History does not stay anchored on web
+
+Native `FlatList` supports `maintainVisibleContentPosition`, which `ThreadPrimitive.MessagesFlatList` uses to keep the first visible message in place when older history is inserted above it. react-native-web does not implement that prop, so a static web build cannot preserve that anchor while history pages load.
+
+The thread still renders on web, but a long conversation can move when earlier messages arrive. Treat [Windowed History](/docs/react-native/history) as a native behavior and test the browser view separately when a screen loads older messages.
+
+## Wait for hydration before reading the CSSOM
+
+Uniwind maps some `className` utilities to component props and resolves `useCSSVariable` and `useUniwind().theme` through the CSSOM. On the static HTML pass there is no CSSOM, so those reads return their fallbacks, and React does not repair the resulting attribute or style mismatch during hydration; a production build logs nothing for a style mismatch. The affected paths in this kit are Lucide icon size and color, text-input placeholder color, the markdown text colors, and the example's navigation colors.
+
+Every such read applies from the first render after hydration through `useHydrated` from the elements' `surfaces` module; the native `Icon` wrapper carries its own copy of that gate because the `ui` layer does not import from the elements. `Icon` keeps the SVG class names for the server render and delays its mapped `className` until hydration, the composer delays its placeholder color, and `MarkdownText` and the example's drawer layout keep the server fallbacks until then. Use the same gate when an element reads a class-to-prop mapping, a CSS variable, or the theme during render.
+
+## Keep clean URLs disabled
+
+Do not enable Vercel's `cleanUrls` for the Expo export. Expo Router's static index routes rely on the exported `.html` paths, and clean URLs would make those index-route redirects point at a route with no exported target. The example's `vercel.json` leaves `cleanUrls` off and uses explicit showcase rewrites instead.
+
+## Verify the browser build
+
+Run the export command after changing an element used by the example, then open the generated showcase routes in the deployment or a static server. Check a normal thread, an icon-bearing element, an input with a placeholder, and markdown with a code block after hydration, in the light and the dark scheme, comparing each element's React style props with its DOM style attribute rather than relying on the console. For history, confirm that the expected web limitation is documented rather than relying on native anchoring behavior.

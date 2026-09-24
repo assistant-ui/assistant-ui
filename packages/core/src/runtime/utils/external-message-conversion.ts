@@ -1,5 +1,6 @@
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { ToolExecutionStatus } from "../../runtimes/tool-invocations/ToolInvocationTracker";
+import { ThreadMessageConverter } from "../../runtimes/external-store/thread-message-converter";
 import type {
   ThreadAssistantMessage,
   ThreadMessage,
@@ -11,6 +12,7 @@ import { isJSONValueEqual } from "../../utils/json/is-json-equal";
 import {
   getAutoStatus,
   isAutoStatus,
+  isBackgroundToolCall,
   isInterruptedToolCall,
   isPendingToolCall,
 } from "./auto-status";
@@ -155,9 +157,8 @@ export const joinExternalMessages = (
       // Ignore orphaned tool results so one bad tool message does not
       // prevent rendering the rest of the conversation.
       if (toolCallIdx !== -1) {
-        const toolCall = assistantMessage.content[
-          toolCallIdx
-        ]! as ToolCallMessagePart;
+        const { isPreliminary: _isPreliminary, ...toolCall } = assistantMessage
+          .content[toolCallIdx]! as ToolCallMessagePart;
         if (output.toolName != null) {
           if (toolCall.toolName !== output.toolName)
             throw new Error(
@@ -242,6 +243,10 @@ export const joinExternalMessages = (
 
             if (output.metadata.timing) {
               assistantMessage.metadata.timing = output.metadata.timing;
+            }
+
+            if (output.metadata.modality) {
+              assistantMessage.metadata.modality = output.metadata.modality;
             }
 
             if (output.metadata.submittedFeedback) {
@@ -342,11 +347,14 @@ export const chunkExternalMessages = <T>(
 
   for (const callbackResult of callbackResults) {
     for (const output of callbackResult.outputs) {
+      const isVoice =
+        output.role === "assistant" && output.metadata?.modality === "voice";
       if (
         (pendingNone && output.role !== "tool") ||
         !isAssistant ||
         output.role === "user" ||
-        output.role === "system"
+        output.role === "system" ||
+        isVoice
       ) {
         flush();
       }
@@ -359,7 +367,8 @@ export const chunkExternalMessages = <T>(
 
       if (
         output.role === "assistant" &&
-        (output.convertConfig?.joinStrategy === "none" ||
+        (isVoice ||
+          output.convertConfig?.joinStrategy === "none" ||
           joinStrategy === "none")
       ) {
         pendingNone = true;
@@ -381,10 +390,38 @@ export const shallowArrayEqual = (
   return true;
 };
 
-type ExternalMessageConversionCache = {
+type ExternalMessageChunkConversionCache = {
   message: ThreadMessage | undefined;
   generatedFallbackMessages: WeakSet<object>;
 };
+
+type ExternalMessageConversionCallbackCacheEntry<T> =
+  ExternalMessageConverterCallbackResult<T> & {
+    metadata: ExternalMessageConverterMetadata;
+    callback: ExternalMessageConverterCallback<T>;
+  };
+
+export type InternalExternalMessageConversionCache<
+  T extends WeakKey = WeakKey,
+> = {
+  callbackCache: WeakMap<T, ExternalMessageConversionCallbackCacheEntry<T>>;
+  chunkCache: WeakMap<
+    ExternalMessageConverterMessage,
+    ExternalMessageConverterChunk<T>
+  >;
+  converterCache: ThreadMessageConverter;
+  // Generatedness is tracked by identity, not by id shape: a caller-supplied id that happens to match the generated pattern must never be rewritten.
+  generatedFallbackMessages: WeakSet<object>;
+};
+
+export const createExternalMessageConversionCache = <
+  T extends WeakKey = WeakKey,
+>(): InternalExternalMessageConversionCache<T> => ({
+  callbackCache: new WeakMap(),
+  chunkCache: new WeakMap(),
+  converterCache: new ThreadMessageConverter(),
+  generatedFallbackMessages: new WeakSet(),
+});
 
 export const convertExternalMessageChunk = <T>(
   message: ExternalMessageConverterChunk<T>,
@@ -392,7 +429,7 @@ export const convertExternalMessageChunk = <T>(
   chunkCount: number,
   isRunning: boolean,
   error: ReadonlyJSONValue | undefined,
-  cache?: ExternalMessageConversionCache,
+  cache?: ExternalMessageChunkConversionCache,
   cancelledMessageIds?: ReadonlySet<string>,
 ) => {
   const isLast = idx === chunkCount - 1;
@@ -411,6 +448,9 @@ export const convertExternalMessageChunk = <T>(
   const hasPendingToolCalls =
     typeof joined.content === "object" &&
     joined.content.some(isPendingToolCall);
+  const hasBackgroundToolCalls =
+    typeof joined.content === "object" &&
+    joined.content.some(isBackgroundToolCall);
   const autoStatus = getAutoStatus(
     isLast,
     isRunning,
@@ -418,6 +458,7 @@ export const convertExternalMessageChunk = <T>(
     hasPendingToolCalls,
     isLast ? error : undefined,
     isCancelled,
+    hasBackgroundToolCalls,
   );
   const fallbackId = `${FALLBACK_ID_PREFIX}${idx}`;
 
@@ -487,7 +528,7 @@ export const completeExternalMessageConversion = (
   messages: ThreadMessage[],
   error: ReadonlyJSONValue | undefined,
 ) => {
-  if (error) {
+  if (error !== undefined && error !== null) {
     const lastMessage = messages.at(-1);
     if (!lastMessage || lastMessage.role !== "assistant") {
       messages.push(createErrorAssistantMessage(error));
@@ -501,21 +542,63 @@ export const convertExternalMessages = <T extends WeakKey>(
   callback: ExternalMessageConverterCallback<T>,
   isRunning: boolean,
   metadata: ExternalMessageConverterMetadata,
+  joinStrategy?: JoinStrategy,
+  cache?: InternalExternalMessageConversionCache<T>,
 ) => {
-  const callbackResults = messages.map((message) =>
-    convertExternalMessageCallback(message, callback, metadata),
+  const callbackResults = messages.map((message) => {
+    let result = cache?.callbackCache.get(message);
+    if (
+      !result ||
+      result.metadata !== metadata ||
+      result.callback !== callback
+    ) {
+      result = {
+        ...convertExternalMessageCallback(message, callback, metadata),
+        metadata,
+        callback,
+      };
+      cache?.callbackCache.set(message, result);
+    }
+    return result;
+  });
+  const chunks = chunkExternalMessages(callbackResults, joinStrategy).map(
+    (message) => {
+      const key = message.outputs[0];
+      if (!key || !cache) return message;
+
+      const cached = cache.chunkCache.get(key);
+      if (cached && shallowArrayEqual(cached.outputs, message.outputs)) {
+        return cached;
+      }
+      cache.chunkCache.set(key, message);
+      return message;
+    },
   );
-  const chunks = chunkExternalMessages(callbackResults);
-  const result = chunks.map((message, idx) =>
-    convertExternalMessageChunk(
-      message,
-      idx,
-      chunks.length,
-      isRunning,
-      metadata.error,
-      undefined,
-      metadata.cancelledMessageIds,
-    ),
-  );
+  const result = cache
+    ? cache.converterCache.convertMessages(chunks, (cached, message, idx) =>
+        convertExternalMessageChunk(
+          message,
+          idx,
+          chunks.length,
+          isRunning,
+          metadata.error,
+          {
+            message: cached,
+            generatedFallbackMessages: cache.generatedFallbackMessages,
+          },
+          metadata.cancelledMessageIds,
+        ),
+      )
+    : chunks.map((message, idx) =>
+        convertExternalMessageChunk(
+          message,
+          idx,
+          chunks.length,
+          isRunning,
+          metadata.error,
+          undefined,
+          metadata.cancelledMessageIds,
+        ),
+      );
   return completeExternalMessageConversion(result, metadata.error);
 };

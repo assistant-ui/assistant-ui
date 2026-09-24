@@ -113,12 +113,13 @@ async function contentSalt(
 ): Promise<ArrayBuffer> {
   const enc = new TextEncoder();
   const sep = enc.encode("$@#|");
+  const encodedPathname = enc.encode(pathname);
   const combined = new Uint8Array(
-    content.length + sep.length + pathname.length,
+    content.length + sep.length + encodedPathname.length,
   );
   combined.set(content, 0);
   combined.set(sep, content.length);
-  combined.set(enc.encode(pathname), content.length + sep.length);
+  combined.set(encodedPathname, content.length + sep.length);
   return sha256(combined.buffer as ArrayBuffer);
 }
 

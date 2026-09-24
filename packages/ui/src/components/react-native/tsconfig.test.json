@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "types": ["node"]
+  },
+  "include": ["uniwind-env.d.ts", "**/*.test.ts", "**/*.test.tsx"],
+  "exclude": ["node_modules"]
+}

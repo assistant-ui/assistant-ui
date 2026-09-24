@@ -3,7 +3,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 afterEach(() => {
   vi.restoreAllMocks();
 });
-import { createApp, defineComponent, h, nextTick, type Component } from "vue";
+import {
+  createApp,
+  defineComponent,
+  h,
+  nextTick,
+  ref,
+  type Component,
+} from "vue";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig } from "@assistant-ui/store/client";
 import { RuntimeAdapter } from "@assistant-ui/core/store";
@@ -375,6 +382,42 @@ describe("ComposerPrimitiveAttachmentDropzone", () => {
     dz.dispatchEvent(dragEvent("dragover"));
     await nextTick();
     expect(dz.dataset["dragging"]).toBe("true");
+
+    unmount();
+  });
+
+  it("clears dragging state when disabled during a drag", async () => {
+    const { runtime, attachmentAdapter } = createTestRuntime();
+    const disabled = ref(false);
+    const view = defineComponent({
+      setup: () => () =>
+        h(
+          ComposerPrimitiveAttachmentDropzone,
+          { class: "dz", disabled: disabled.value },
+          { default: () => "drop here" },
+        ),
+    });
+    const { el, unmount } = mountChat(runtime, view);
+    await nextTick();
+    const dz = el.querySelector(".dz") as HTMLElement;
+
+    dz.dispatchEvent(dragEvent("dragenter"));
+    await nextTick();
+    expect(dz.dataset["dragging"]).toBe("true");
+
+    disabled.value = true;
+    await nextTick();
+    expect(dz.dataset["dragging"]).toBeUndefined();
+
+    disabled.value = false;
+    await nextTick();
+    expect(dz.dataset["dragging"]).toBeUndefined();
+
+    disabled.value = true;
+    await nextTick();
+    dz.dispatchEvent(dragEvent("drop", [makeFile("ignored.txt")]));
+    await nextTick();
+    expect(attachmentAdapter.added).toHaveLength(0);
 
     unmount();
   });

@@ -194,7 +194,7 @@ const runtime = useExternalStoreRuntime({
 });
 ```
 
-`joinStrategy` controls how adjacent assistant messages combine: `concat-content` (default) merges them into one; `none` keeps them separate.
+`joinStrategy` controls how adjacent assistant messages combine: `concat-content` (default) merges them into one; `none` keeps them separate. A message carrying `metadata.modality: "voice"` never joins under either strategy, so a voice transcript stays its own thread message.
 
 ## Handler matrix
 
@@ -209,6 +209,7 @@ Each handler enables a specific UI feature.
 | `onCancel` | Cancel button while generating |
 | `onRefetchThread` | `threads.reloadMainThread()` refetching the open thread in place |
 | `onAddToolResult` | Client-side tool result handoff |
+| `onVoiceTranscript` | Persist finalized voice transcripts. Convert the `ThreadMessage` to the host message type when one is used and retain its id. A transcript that finalizes while `isLoading` is true arrives once loading ends, and is not delivered at all when the conversation changed while it waited, which is recognized by a new `unstable_messageRepositoryInstance`. |
 | `queue` | Queueing messages sent while a run is in progress |
 
 ## Streaming responses
@@ -830,6 +831,12 @@ useExternalStoreRuntime({
       type: "(config: ResumeRunConfig) => Promise<void>",
       description:
         "Handler for resuming an interrupted run (e.g. after a page reload mid-generation). For AI SDK reload-safe streaming, see the [Resumable Streams](/docs/guides/resumable-streams) guide.",
+    },
+    {
+      name: "onVoiceTranscript",
+      type: "(message: ThreadMessage) => void",
+      description:
+        "Receives each finalized voice transcript message; when your host uses its own message type, convert the `ThreadMessage` while keeping its id, then append it so it persists. Without it, transcripts stay for the session only. A transcript that finalizes while `isLoading` is true arrives once loading ends, and is not delivered at all when the conversation changed while it waited, which is recognized by a new `unstable_messageRepositoryInstance`.",
     },
     {
       name: "onResumeToolCall",

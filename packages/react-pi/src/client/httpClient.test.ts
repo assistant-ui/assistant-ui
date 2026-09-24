@@ -255,6 +255,14 @@ describe("createPiHttpClient", () => {
     ]);
   });
 
+  it("treats deleting a thread the server no longer has as done", async () => {
+    const { fn } = fakeFetch(() => new Response(null, { status: 404 }));
+
+    await expect(
+      createPiHttpClient({ fetchImpl: fn }).deleteThread("gone"),
+    ).resolves.toBeUndefined();
+  });
+
   it("posts a host-ui response wrapped as { response }", async () => {
     const { fn, calls } = fakeFetch(() => new Response(null, { status: 204 }));
     await createPiHttpClient({ fetchImpl: fn }).respondToHostUiRequest("t1", {
@@ -527,12 +535,16 @@ describe("createPiHttpClient", () => {
           finishBackoff = resolve;
         }),
     );
-    const fetchImpl = vi.fn(async () =>
+    const fetchImpl =
+      vi.fn<
+        (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+      >();
+    fetchImpl.mockImplementation(async () =>
       sseResponse(
         { type: "agent_start", threadId: "t1", seq: 1 },
         { keepOpen: fetchImpl.mock.calls.length > 1 },
       ),
-    ) as unknown as typeof fetch;
+    );
     const client = createPiHttpClient({
       fetchImpl,
       reconnectDelay,
@@ -593,7 +605,9 @@ describe("createPiHttpClient", () => {
           finishBackoffs.push(resolve);
         }),
     );
-    const fetchImpl = vi.fn(async () => {
+    const fetchImpl = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(async () => {
       if (fetchImpl.mock.calls.length === 1) {
         return sseResponse({
           type: "agent_start",
@@ -602,7 +616,7 @@ describe("createPiHttpClient", () => {
         });
       }
       throw new Error("offline");
-    }) as unknown as typeof fetch;
+    });
     const client = createPiHttpClient({
       fetchImpl,
       reconnectDelay,
@@ -630,12 +644,16 @@ describe("createPiHttpClient", () => {
 
   it("re-enables prompt reconnects after a successful connection", async () => {
     const reconnectDelay = vi.fn(() => new Promise<void>(() => {}));
-    const fetchImpl = vi.fn(async () =>
+    const fetchImpl =
+      vi.fn<
+        (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+      >();
+    fetchImpl.mockImplementation(async () =>
       sseResponse(
         { type: "agent_start", threadId: "t1", seq: 1 },
         { keepOpen: fetchImpl.mock.calls.length > 2 },
       ),
-    ) as unknown as typeof fetch;
+    );
     const client = createPiHttpClient({
       fetchImpl,
       reconnectDelay,

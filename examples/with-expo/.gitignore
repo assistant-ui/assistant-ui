@@ -42,3 +42,6 @@ app-example
 /ios
 /android
 .vercel
+
+# Uniwind
+uniwind-types.d.ts

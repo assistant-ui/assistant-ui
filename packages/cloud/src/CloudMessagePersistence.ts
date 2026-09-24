@@ -111,6 +111,10 @@ export class CloudMessagePersistence {
     return typeof entry === "string" ? entry : undefined;
   }
 
+  record(localId: string, remoteId: string): void {
+    this.idMapping.set(localId, remoteId);
+  }
+
   /**
    * Load messages from the cloud and populate the ID mapping.
    *
@@ -120,11 +124,14 @@ export class CloudMessagePersistence {
    * The ID mapping is populated so that `isPersisted()` returns true for
    * loaded messages, preventing re-persistence of already-stored messages.
    *
+   * A loaded ID that an append already maps keeps the remote ID from that append, and falls back to the loaded ID if the append fails.
+   *
    * @param threadId - Remote thread ID
    * @param format - Optional format filter
    * @returns Array of cloud messages
    */
   async load(threadId: string, format?: string) {
+    const idMapping = this.idMapping;
     const cloud = this.getCloud();
     const messages: CloudMessage[] = [];
     const seen = new Set<string>();
@@ -150,17 +157,31 @@ export class CloudMessagePersistence {
       after = last.id;
     }
 
-    // Populate ID mapping so isPersisted() recognizes loaded messages
-    for (const m of messages) {
-      this.idMapping.set(m.id, m.id);
+    if (this.idMapping === idMapping) {
+      for (const m of messages) {
+        const entry = idMapping.get(m.id);
+        if (entry === undefined) {
+          idMapping.set(m.id, m.id);
+        } else if (entry instanceof Promise) {
+          void entry.catch(() => {
+            const current = idMapping.get(m.id);
+            if (current === undefined || current === entry) {
+              idMapping.set(m.id, m.id);
+            }
+          });
+        }
+      }
     }
     return messages;
   }
 
   /**
    * Reset the ID mapping (call when switching threads).
+   *
+   * Pending `load()` and `append()` calls are not cancelled and still settle
+   * normally, but their results no longer populate the ID mapping.
    */
   reset() {
-    this.idMapping.clear();
+    this.idMapping = new Map();
   }
 }
