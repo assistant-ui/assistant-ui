@@ -849,6 +849,7 @@ type AssistantTransportOptions<T> = Omit<AssistantTransportOptions$1<T>, "conver
 type AssistantTransportOptions$1<T> = {
   initialState: T;
   api: string;
+  cloud?: AssistantCloud | undefined;
   resumeApi?: string;
   resumeStateApi?: string;
   protocol?: AssistantTransportProtocol;
