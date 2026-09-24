@@ -322,7 +322,14 @@ const useNewOpenCodeThreadStore = (
               removeOptimisticMessage();
               return;
             }
-            const sessionId = externalId ?? remoteId;
+            const sessionId = options.cloud
+              ? externalId
+              : (externalId ?? remoteId);
+            if (!sessionId) {
+              throw new Error(
+                "This thread has no OpenCode session to send to.",
+              );
+            }
             const controller = getController(registry, client, sessionId);
             const dispatch = sendOpenCodeMessage(controller, message, options);
             removeOptimisticMessage();
@@ -351,7 +358,9 @@ const useRuntimeHook = (
   options: OpenCodeRuntimeOptions,
 ) => {
   const threadListItem = useAuiState((state) => state.threadListItem);
-  const sessionId = threadListItem.externalId ?? threadListItem.remoteId;
+  const sessionId = options.cloud
+    ? threadListItem.externalId
+    : (threadListItem.externalId ?? threadListItem.remoteId);
 
   const controller = sessionId
     ? getController(registry, client, sessionId)
