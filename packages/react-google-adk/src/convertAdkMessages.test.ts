@@ -434,6 +434,38 @@ describe("convertAdkMessage - ai messages", () => {
     ]);
   });
 
+  it.each([
+    ["an empty", ""],
+    ["a non-string", 42],
+  ])(
+    "skips a tool call with %s name, so its named result does not break the thread",
+    (_, name) => {
+      const messages = convertExternalMessages<AdkMessage>(
+        [
+          {
+            id: "m1",
+            type: "ai",
+            content: "Checking",
+            tool_calls: [{ id: "tc-1", name, args: {} }],
+          } as AdkMessage,
+          {
+            id: "m2",
+            type: "tool",
+            tool_call_id: "tc-1",
+            name: "search",
+            content: "{}",
+          },
+        ],
+        (message) => convertAdkMessage(message, {}),
+        false,
+        {},
+      );
+      expect(messages).toMatchObject([
+        { role: "assistant", content: [{ type: "text", text: "Checking" }] },
+      ]);
+    },
+  );
+
   it("includes status when present", () => {
     const msg: AdkMessage = {
       id: "m1",

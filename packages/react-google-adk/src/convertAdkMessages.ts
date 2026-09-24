@@ -132,7 +132,7 @@ export const createAdkMessageConverter =
       case "ai": {
         const toolCallParts: ToolCallMessagePart[] =
           message.tool_calls?.flatMap((tc) => {
-            if (typeof tc?.name !== "string") return [];
+            if (typeof tc?.name !== "string" || tc.name.length === 0) return [];
             const approval = approvals.get(tc.id);
             return {
               type: "tool-call",
