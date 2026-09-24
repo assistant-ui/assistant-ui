@@ -418,6 +418,7 @@ export class RemoteThreadListThreadListRuntimeCore
       }
     }
     this._staleThreadIdsOnReplace = undefined;
+    this._staleThreadsAdapter = undefined;
 
     const seed: ClassifyAccumulator = {
       threadIds: [],
