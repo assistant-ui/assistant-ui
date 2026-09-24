@@ -5527,7 +5527,7 @@ describe("LocalThreadRuntimeCore message queue", () => {
 
 describe("LocalThreadRuntimeCore message queue with other runs", () => {
   const createThread = (options: {
-    clearOnCancel?: boolean;
+    clearOnCancel?: boolean | undefined;
     history?: boolean;
     historyAdapter?: ThreadHistoryAdapter;
     wait?: (message: ThreadMessage | undefined) => Promise<void>;
@@ -5712,6 +5712,67 @@ describe("LocalThreadRuntimeCore message queue with other runs", () => {
       "assistant",
     ]);
   });
+
+  it.each([
+    ["omitted", undefined],
+    ["true", true],
+  ])(
+    "stops a queued send cancelled during the initialize wait when clearOnCancel is %s",
+    async (_label, clearOnCancel) => {
+      const { thread, dispatched, send } = createThread({ clearOnCancel });
+      const initialization = createInitialization();
+      thread.__internal_setGetInitializePromise(() => initialization.promise);
+
+      send("first");
+      await flush();
+      thread.cancelRun();
+      initialization.resolve();
+      await flush();
+
+      expect(dispatched).toEqual([]);
+      expect(thread.messages.map((message) => message.role)).not.toContain(
+        "assistant",
+      );
+
+      send("second");
+      await flush();
+      expect(dispatched).toEqual(["second"]);
+    },
+  );
+
+  it.each([
+    ["omitted", undefined],
+    ["true", true],
+  ])(
+    "stops a queued send cancelled during the history load when clearOnCancel is %s",
+    async (_label, clearOnCancel) => {
+      let releaseLoad!: () => void;
+      const loaded = new Promise<void>((resolve) => (releaseLoad = resolve));
+      const { thread, dispatched, send } = createThread({
+        clearOnCancel,
+        historyAdapter: {
+          load: () => loaded.then(() => ({ messages: [] })),
+          async append() {},
+        },
+      });
+
+      thread.__internal_load();
+      send("first");
+      await flush();
+      thread.cancelRun();
+      releaseLoad();
+      await flush();
+
+      expect(dispatched).toEqual([]);
+      expect(thread.messages.map((message) => message.role)).not.toContain(
+        "assistant",
+      );
+
+      send("second");
+      await flush();
+      expect(dispatched).toEqual(["second"]);
+    },
+  );
 
   it("holds a queued send behind a run started in the tick after another run ends", async () => {
     const gate = createGate();
