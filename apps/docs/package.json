@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "pnpm generate:type-docs && pnpm generate:source-snapshot && next build && pnpm verify:repo-source-traces",
+    "build": "pnpm generate:source-snapshot && next build && pnpm verify:repo-source-traces",
     "generate:type-docs": "tsx ./scripts/generate-type-docs.mts",
     "generate:api-reference": "tsx ./scripts/generate-api-reference.mts",
     "generate:agent-skills": "tsx ./scripts/generate-agent-skills.mts",

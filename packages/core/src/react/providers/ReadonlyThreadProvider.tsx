@@ -14,14 +14,14 @@ import {
   type ThreadListItemRuntimeBinding,
 } from "../../runtime/internal";
 import { ThreadClient } from "../../store/runtime-clients/thread-runtime-client";
-import type { ThreadListItemState } from "../../runtime/api/bindings";
+import type { ThreadListItemRuntimeState } from "../../runtime/api/bindings";
 
 const READONLY_THREAD_PATH = Object.freeze({
   ref: "readonly-thread",
   threadSelector: { type: "main" as const },
 });
 
-const READONLY_THREAD_LIST_ITEM: ThreadListItemState = Object.freeze({
+const READONLY_THREAD_LIST_ITEM: ThreadListItemRuntimeState = Object.freeze({
   id: "readonly",
   remoteId: undefined,
   externalId: undefined,

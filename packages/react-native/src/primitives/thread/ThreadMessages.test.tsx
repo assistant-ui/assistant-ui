@@ -3,6 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FlatList, FlatListProps } from "react-native";
 import type { ThreadMessage } from "@assistant-ui/core";
+import type { MessageState } from "@assistant-ui/core/store";
 import { ThreadMessages, ThreadMessagesFlatList } from "./ThreadMessages";
 
 type Msg = { id: string; role: string };
@@ -12,7 +13,7 @@ const h = vi.hoisted(() => ({
     thread: { messages: [] as Msg[] },
     message: { role: "user" as string, composer: { isEditing: false } },
   },
-  itemState: { role: "user" } as { role: string },
+  itemState: { role: "user" } as { role: string; parts?: unknown[] },
   events: {} as Record<string, Set<() => void>>,
   flatListProps: null as Record<string, unknown> | null,
   scrollToOffset: vi.fn(),
@@ -303,13 +304,15 @@ describe("ThreadMessages", () => {
   describe("children mode", () => {
     it("renders via the children render prop", async () => {
       h.state.thread.messages = [{ id: "1", role: "user" }];
-      h.itemState = { role: "user" };
-      const children = vi.fn(({ message }: { message: { role: string } }) => (
-        <span data-testid="child">child:{message.role}</span>
+      h.itemState = { role: "user", parts: [] };
+      const children = vi.fn(({ message }: { message: MessageState }) => (
+        <span data-testid="child">
+          child:{message.role}:{message.parts.length}
+        </span>
       ));
       await mount({ children });
       const el = container.querySelector('[data-testid="child"]');
-      expect(el?.textContent).toBe("child:user");
+      expect(el?.textContent).toBe("child:user:0");
       expect(children).toHaveBeenCalled();
     });
   });

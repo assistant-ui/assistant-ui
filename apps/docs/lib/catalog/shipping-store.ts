@@ -23,6 +23,7 @@ const AGENT_NAMES: Record<string, string> = {
     SHIPPING_METHODS.map((entry) => [entry.id, entry.name]),
   ),
   gemini: "Gemini CLI",
+  opencode: "OpenCode",
 };
 
 /** The display name for an agent kind the CLI reported, or `undefined` for one it has no name for. */

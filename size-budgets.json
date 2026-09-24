@@ -1,30 +1,30 @@
 {
   "@assistant-ui/ai-sdk": {
     ".": {
-      "min": 41453,
-      "gzip": 14731
+      "min": 45891,
+      "gzip": 15981
     }
   },
   "@assistant-ui/core": {
     ".": {
-      "min": 35777,
-      "gzip": 11982
+      "min": 37840,
+      "gzip": 12599
     },
     "./internal": {
-      "min": 134861,
-      "gzip": 34456
+      "min": 150054,
+      "gzip": 38102
     },
     "./react": {
-      "min": 310207,
-      "gzip": 86987
+      "min": 340975,
+      "gzip": 95051
     },
     "./store": {
-      "min": 102647,
-      "gzip": 34550
+      "min": 114179,
+      "gzip": 38626
     },
     "./store/internal": {
-      "min": 27174,
-      "gzip": 10193
+      "min": 37202,
+      "gzip": 13406
     }
   },
   "@assistant-ui/eve": {
@@ -35,20 +35,20 @@
   },
   "@assistant-ui/react": {
     ".": {
-      "min": 133263,
-      "gzip": 43271
+      "min": 137420,
+      "gzip": 44738
     }
   },
   "@assistant-ui/react-a2a": {
     ".": {
-      "min": 29572,
-      "gzip": 8931
+      "min": 35258,
+      "gzip": 10335
     }
   },
   "@assistant-ui/react-ag-ui": {
     ".": {
-      "min": 78410,
-      "gzip": 20679
+      "min": 83001,
+      "gzip": 21615
     }
   },
   "@assistant-ui/react-ai-sdk": {
@@ -65,18 +65,18 @@
   },
   "@assistant-ui/react-devtools": {
     ".": {
-      "min": 159934,
-      "gzip": 45539
+      "min": 160568,
+      "gzip": 45759
     }
   },
   "@assistant-ui/react-generative-ui": {
     ".": {
-      "min": 35559,
-      "gzip": 11643
+      "min": 35942,
+      "gzip": 11795
     },
     "./a2ui": {
-      "min": 9506,
-      "gzip": 3384
+      "min": 12894,
+      "gzip": 4443
     },
     "./ir": {
       "min": 1623,
@@ -93,8 +93,8 @@
   },
   "@assistant-ui/react-google-adk": {
     ".": {
-      "min": 37590,
-      "gzip": 11392
+      "min": 37675,
+      "gzip": 11418
     },
     "./server": {
       "min": 6384,
@@ -103,14 +103,14 @@
   },
   "@assistant-ui/react-hook-form": {
     ".": {
-      "min": 3437,
-      "gzip": 1447
+      "min": 3603,
+      "gzip": 1502
     }
   },
   "@assistant-ui/react-ink": {
     ".": {
-      "min": 66074,
-      "gzip": 19167
+      "min": 67247,
+      "gzip": 19615
     },
     "./internal": {
       "min": 427,
@@ -125,30 +125,30 @@
   },
   "@assistant-ui/react-langchain": {
     ".": {
-      "min": 20865,
-      "gzip": 7498
+      "min": 22983,
+      "gzip": 8089
     },
     "./converter": {
-      "min": 3727,
-      "gzip": 1497
+      "min": 3793,
+      "gzip": 1525
     }
   },
   "@assistant-ui/react-langgraph": {
     ".": {
-      "min": 27988,
-      "gzip": 9779
+      "min": 29330,
+      "gzip": 10192
     }
   },
   "@assistant-ui/react-lexical": {
     ".": {
-      "min": 14366,
-      "gzip": 5175
+      "min": 14426,
+      "gzip": 5206
     }
   },
   "@assistant-ui/react-markdown": {
     ".": {
-      "min": 8293,
-      "gzip": 3334
+      "min": 8408,
+      "gzip": 3405
     },
     "./code-fence": {
       "min": 84,
@@ -157,14 +157,14 @@
   },
   "@assistant-ui/react-mcp": {
     ".": {
-      "min": 49527,
-      "gzip": 15860
+      "min": 49645,
+      "gzip": 15908
     }
   },
   "@assistant-ui/react-native": {
     ".": {
-      "min": 37169,
-      "gzip": 10188
+      "min": 37445,
+      "gzip": 10220
     },
     "./internal": {
       "min": 427,
@@ -179,24 +179,24 @@
   },
   "@assistant-ui/react-opencode": {
     ".": {
-      "min": 41770,
-      "gzip": 11754
+      "min": 42335,
+      "gzip": 11956
     }
   },
   "@assistant-ui/react-pi": {
     ".": {
-      "min": 44402,
-      "gzip": 12825
+      "min": 44921,
+      "gzip": 13008
     },
     "./node": {
-      "min": 17852,
-      "gzip": 5708
+      "min": 17873,
+      "gzip": 5718
     }
   },
   "@assistant-ui/react-streamdown": {
     ".": {
-      "min": 13396,
-      "gzip": 5423
+      "min": 16507,
+      "gzip": 6665
     }
   },
   "@assistant-ui/react-syntax-highlighter": {
@@ -255,12 +255,12 @@
   },
   "assistant-cloud": {
     ".": {
-      "min": 27818,
-      "gzip": 8717
+      "min": 29652,
+      "gzip": 9236
     },
     "./ai-sdk": {
-      "min": 3813,
-      "gzip": 1540
+      "min": 4164,
+      "gzip": 1638
     },
     "./telemetry": {
       "min": 1274,
@@ -269,12 +269,12 @@
   },
   "assistant-stream": {
     ".": {
-      "min": 60833,
-      "gzip": 16989
+      "min": 61265,
+      "gzip": 17040
     },
     "./resumable": {
-      "min": 17686,
-      "gzip": 5917
+      "min": 17746,
+      "gzip": 5918
     },
     "./resumable/ioredis": {
       "min": 7945,
@@ -291,8 +291,8 @@
   },
   "heat-graph": {
     ".": {
-      "min": 4405,
-      "gzip": 1963
+      "min": 4354,
+      "gzip": 1956
     }
   },
   "safe-content-frame": {

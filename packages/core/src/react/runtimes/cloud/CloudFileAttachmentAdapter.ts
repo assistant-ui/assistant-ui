@@ -7,6 +7,9 @@ import type {
 import type { ThreadUserMessagePart } from "../../../types/message";
 import type { AttachmentAdapter } from "../../../adapters/attachment";
 import { generateId } from "../../../utils/id";
+import { resolveFileMediaType } from "../../../utils/wire-media";
+
+const DEFAULT_CONTENT_TYPE = "application/octet-stream";
 
 const guessAttachmentType = (
   contentType: string,
@@ -40,11 +43,12 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
   }): AsyncGenerator<PendingAttachment, void> {
     const id = generateId();
     const type = guessAttachmentType(file.type);
+    const contentType = file.type || DEFAULT_CONTENT_TYPE;
     let attachment: PendingAttachment = {
       id,
       type,
       name: file.name,
-      contentType: file.type,
+      contentType,
       file,
       status: { type: "running", reason: "uploading", progress: 0 },
     };
@@ -66,7 +70,7 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
         method: "PUT",
         body: file,
         headers: {
-          "Content-Type": file.type,
+          "Content-Type": contentType,
         },
         mode: "cors",
         signal: controller.signal,
@@ -129,7 +133,7 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
         {
           type: "file",
           data: url,
-          mimeType: attachment.contentType ?? "",
+          mimeType: resolveFileMediaType(url, attachment.contentType),
           filename: attachment.name,
         },
       ];

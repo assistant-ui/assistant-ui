@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
 
 import { act, render, waitFor } from "@testing-library/react";
-import { type FC, StrictMode } from "react";
+import { Activity, type FC, StrictMode, useEffect } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AssistantCloud } from "assistant-cloud";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import type { ChatModelAdapter } from "../../runtime/utils/chat-model-adapter";
 import { AssistantRuntimeProvider } from "../AssistantRuntimeProvider";
 import { useLocalRuntime } from "./useLocalRuntime";
+import type { RealtimeVoiceAdapter } from "../../adapters/voice";
+import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 
 const chatModel: ChatModelAdapter = {
   run: async () => ({ content: [] }),
@@ -32,6 +34,94 @@ afterEach(() => {
 });
 
 describe("useLocalRuntime", () => {
+  const createVoiceApp = () => {
+    const disconnect = vi.fn();
+    let emitTranscript!: (item: RealtimeVoiceAdapter.TranscriptItem) => void;
+    const session: RealtimeVoiceAdapter.Session = {
+      status: { type: "running" },
+      isMuted: false,
+      disconnect,
+      mute: vi.fn(),
+      unmute: vi.fn(),
+      onStatusChange: () => () => {},
+      onTranscript: (callback) => {
+        emitTranscript = callback;
+        return () => {};
+      },
+      onModeChange: () => () => {},
+      onVolumeChange: () => () => {},
+    };
+    const capture: { runtime: AssistantRuntime | null } = { runtime: null };
+    let connected = false;
+    const App = () => {
+      const runtime = useLocalRuntime(chatModel, {
+        adapters: { voice: { connect: () => session } },
+      });
+      capture.runtime = runtime;
+      useEffect(() => {
+        if (connected) return;
+        connected = true;
+        runtime.thread.connectVoice();
+      }, [runtime]);
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <div />
+        </AssistantRuntimeProvider>
+      );
+    };
+    return {
+      App,
+      capture,
+      disconnect,
+      emitTranscript: (item: RealtimeVoiceAdapter.TranscriptItem) =>
+        emitTranscript(item),
+    };
+  };
+
+  it("keeps voice connected through StrictMode replay and disconnects on unmount", async () => {
+    const { App, disconnect } = createVoiceApp();
+
+    const view = render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    );
+    await act(async () => Promise.resolve());
+    expect(disconnect).not.toHaveBeenCalled();
+
+    view.unmount();
+    await act(async () => Promise.resolve());
+    expect(disconnect).toHaveBeenCalledOnce();
+  });
+
+  it("keeps voice and the thread through Activity hide and reveal", async () => {
+    const { App, capture, disconnect, emitTranscript } = createVoiceApp();
+    const renderApp = (mode: "visible" | "hidden") => (
+      <Activity mode={mode}>
+        <App />
+      </Activity>
+    );
+
+    const view = render(renderApp("visible"));
+    await act(async () => Promise.resolve());
+    view.rerender(renderApp("hidden"));
+    await act(async () => Promise.resolve());
+    view.rerender(renderApp("visible"));
+    await act(async () => Promise.resolve());
+
+    expect(disconnect).not.toHaveBeenCalled();
+    expect(capture.runtime!.thread.getState().voice).toBeDefined();
+
+    act(() =>
+      emitTranscript({ role: "user", text: "after reveal", isFinal: true }),
+    );
+    expect(capture.runtime!.thread.getState().messages).toHaveLength(1);
+
+    view.unmount();
+    await act(async () => Promise.resolve());
+    expect(disconnect).toHaveBeenCalledOnce();
+  });
+
   it("passes the remote id of a fresh Cloud thread to its first run", async () => {
     const cloud = {
       registerSdk: vi.fn(),

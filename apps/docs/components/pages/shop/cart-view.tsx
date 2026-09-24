@@ -191,14 +191,6 @@ export function CartView() {
             />
           </div>
         </details>
-
-        <Link
-          href="/shop"
-          className="text-muted-foreground hover:text-foreground mt-6 inline-flex items-center gap-1.5 text-sm transition-colors"
-        >
-          <ArrowLeftIcon className="size-3.5" />
-          Continue browsing
-        </Link>
       </div>
 
       <aside
@@ -217,7 +209,7 @@ export function CartView() {
             <dt className="text-muted-foreground">
               <label htmlFor="shipping-method">Shipping</label>
             </dt>
-            <dd className="flex items-center gap-3">
+            <dd>
               <Select
                 value={shipping.id}
                 onValueChange={(id) => {
@@ -228,7 +220,7 @@ export function CartView() {
                 <SelectTrigger
                   id="shipping-method"
                   size="sm"
-                  className="h-7 border-0 bg-transparent px-2 shadow-none"
+                  className="h-7 flex-row-reverse border-0 bg-transparent pr-0 pl-1 shadow-none hover:bg-transparent"
                 >
                   <SelectValue />
                 </SelectTrigger>
@@ -240,11 +232,10 @@ export function CartView() {
                   ))}
                 </SelectContent>
               </Select>
-              <span className="tabular-nums">$0.00</span>
             </dd>
           </div>
           <div className="flex justify-between gap-4 py-3">
-            <dt className="text-muted-foreground">Setup by agent</dt>
+            <dt className="text-muted-foreground">ETA</dt>
             <dd className="tabular-nums">{estimate}</dd>
           </div>
           <div className="flex justify-between gap-4 py-3 font-medium">

@@ -11,6 +11,7 @@ import {
   inputCardClassName,
   useInputActions,
 } from "@/components/pages/shop/input-shared";
+import { useWizardFormId } from "@/components/pages/shop/wizard-actions";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import type { Checkout } from "@/lib/checkout/protocol";
 import { cn } from "@/lib/utils";
@@ -39,6 +40,7 @@ export function ChoiceInputCard({
   const other = selected === OTHER;
   const current = options.find((option) => option.id === selected);
   const variants = variantsOf(current);
+  const variantLabel = input.preset === "project" ? "Framework" : "Language";
   const complete = other
     ? custom.trim() !== ""
     : current !== undefined && (variants.length === 0 || variant !== "");
@@ -73,7 +75,11 @@ export function ChoiceInputCard({
     );
 
   return (
-    <form onSubmit={submit} className={inputCardClassName}>
+    <form
+      id={useWizardFormId()}
+      onSubmit={submit}
+      className={inputCardClassName}
+    >
       <fieldset disabled={busy} className="min-w-0">
         <legend className="min-w-0 text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
           {input.prompt}
@@ -142,8 +148,14 @@ export function ChoiceInputCard({
         ) : null}
         {!other && variants.length > 1 ? (
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="text-muted-foreground text-sm">Language</span>
-            <div role="radiogroup" aria-label="Language" className="flex gap-1">
+            <span className="text-muted-foreground text-sm">
+              {variantLabel}
+            </span>
+            <div
+              role="radiogroup"
+              aria-label={variantLabel}
+              className="flex flex-wrap gap-1"
+            >
               {variants.map((entry) => (
                 <label
                   key={entry.id}
