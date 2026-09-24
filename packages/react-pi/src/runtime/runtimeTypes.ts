@@ -27,7 +27,9 @@ export type PiRuntimeOptions = ExternalStoreSharedOptions & {
   workspacePath?: string;
   /** Lists archived threads too. Not used with `cloud`, whose list keeps archived threads apart. */
   includeArchived?: boolean;
+  /** The thread to open first: a Pi thread id, or with `cloud` a cloud thread id. */
   initialThreadId?: string;
+  /** The thread to show: a Pi thread id, or with `cloud` a cloud thread id. */
   threadId?: string;
   /** Notified when the active thread's settled remote ID changes; `undefined` while still optimistic. */
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
