@@ -24,8 +24,8 @@ export type TokenUsage = {
   outputTokens?: number | undefined;
 };
 
-const DEFAULT_INPUT_MICRO_USD_PER_M = 100_000;
-const DEFAULT_OUTPUT_MICRO_USD_PER_M = 500_000;
+const DEFAULT_INPUT_MICRO_USD_PER_M = 250_000;
+const DEFAULT_OUTPUT_MICRO_USD_PER_M = 2_000_000;
 
 export function usdToMicroUsd(usd: number): number {
   return Math.round(usd * 1_000_000);
