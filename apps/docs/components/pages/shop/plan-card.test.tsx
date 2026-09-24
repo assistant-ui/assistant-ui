@@ -4,7 +4,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import { WizardHost } from "./test/wizard-host";
-import { PlanCard, PlanCards, PlanMarkdown } from "./plan-card";
+import { PlanAccordion, PlanCard, PlanMarkdown } from "./plan-card";
 
 const PLAN = `## What I found
 
@@ -30,8 +30,11 @@ const PLAN = `## What I found
 
 - Keep the thread list?`;
 
-const headings = () =>
-  screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
+const triggers = () =>
+  screen
+    .getAllByRole("button")
+    .filter((button) => button.hasAttribute("aria-expanded"))
+    .map((button) => button.textContent);
 
 describe("PlanMarkdown", () => {
   it("renders image alt text without an image element", () => {
@@ -60,16 +63,33 @@ describe("PlanMarkdown links", () => {
   });
 });
 
-describe("PlanCards", () => {
-  it("shows each section as a card with its highlights", () => {
-    const { container } = render(<PlanCards markdown={PLAN} />);
+describe("PlanAccordion", () => {
+  it("lists each section as a row with its count, and opens the steps first", () => {
+    const { container } = render(<PlanAccordion markdown={PLAN} />);
 
-    expect(headings()).toEqual([
-      "What I found",
-      "What I will install",
-      "Steps",
-      "Open questions",
+    expect(triggers()).toEqual([
+      "What I found4 items",
+      "What I will install2 items",
+      "Steps2 steps",
+      "Open questions1 question",
     ]);
+    expect(
+      [...container.querySelectorAll("ol li")].map((n) => n.textContent),
+    ).toEqual(["1Install the packages.", "2Add the chat route."]);
+    expect(container.textContent).not.toContain("Peer packages come along.");
+    expect(screen.queryByText("App")).toBeNull();
+  });
+
+  it("opens one section at a time, each item on one truncated line", () => {
+    const { container } = render(<PlanAccordion markdown={PLAN} />);
+
+    const found = screen.getByRole("button", { name: /What I found/ });
+    const steps = screen.getByRole("button", { name: /^Steps/ });
+    expect(steps.getAttribute("aria-expanded")).toBe("true");
+    fireEvent.click(found);
+    expect(found.getAttribute("aria-expanded")).toBe("true");
+    expect(steps.getAttribute("aria-expanded")).toBe("false");
+    expect(container.querySelector("ol")).toBeNull();
     expect(screen.getByText("App").parentElement?.textContent).toBe(
       "AppNext.js 15pnpm",
     );
@@ -79,70 +99,61 @@ describe("PlanCards", () => {
     expect(screen.getByText("Model").parentElement?.textContent).toBe(
       "ModelOpenAIgpt-4o",
     );
-    expect(screen.queryByText("Components")).toBeNull();
-    expect(
-      screen.getByRole("button", { name: "Project details · 1 more" }),
-    ).toBeDefined();
+    expect(screen.getByText("Components").parentElement?.textContent).toBe(
+      "Componentssrc/components",
+    );
+    for (const line of container.querySelectorAll("ul li > span")) {
+      expect(line.className).toContain("truncate");
+    }
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /What I will install/ }),
+    );
+    expect(found.getAttribute("aria-expanded")).toBe("false");
     expect(screen.getByText("The chat").parentElement?.textContent).toBe(
       "The chat@assistant-ui/react",
     );
     expect(screen.getByText("app/api/chat/route.ts")).toBeDefined();
-    expect(screen.getByText("2 steps, start to finish")).toBeDefined();
-    expect(
-      [...container.querySelectorAll("ul ol li")].map((n) => n.textContent),
-    ).toEqual(["1Install the packages.", "2Add the chat route."]);
-    expect(container.textContent).not.toContain("Peer packages come along.");
-    expect(screen.getByText("Keep the thread list?")).toBeDefined();
   });
 
-  it("caps a card at three rows and counts the rest on its details link", () => {
+  it("keeps every step in a panel that scrolls on its own", () => {
     const { container } = render(
-      <PlanCards
+      <PlanAccordion
         markdown={"## Steps\n\n1. One\n2. Two\n3. Three\n4. Four\n5. Five"}
       />,
     );
+    expect(triggers()).toEqual(["Steps5 steps"]);
     expect(
-      [...container.querySelectorAll("ul ol li")].map((n) => n.textContent),
-    ).toEqual(["1One", "2Two", "3Three"]);
+      [...container.querySelectorAll("ol li")].map((n) => n.textContent),
+    ).toEqual(["1One", "2Two", "3Three", "4Four", "5Five"]);
     expect(
-      screen.getByRole("button", { name: "Implementation details · 2 more" }),
-    ).toBeDefined();
-  });
-
-  it("expands a section's full markdown behind its details link", () => {
-    const { container } = render(<PlanCards markdown={PLAN} />);
-
-    const details = screen.getByRole("button", {
-      name: "Implementation details",
-    });
-    expect(details.getAttribute("aria-expanded")).toBe("false");
-    fireEvent.click(details);
-    expect(details.getAttribute("aria-expanded")).toBe("true");
-    expect(container.textContent).toContain("Peer packages come along.");
-    fireEvent.click(details);
-    expect(container.textContent).not.toContain("Peer packages come along.");
+      container.querySelector("ol")?.closest('[class*="overflow-y-auto"]'),
+    ).not.toBeNull();
   });
 
   it("lists the declared steps over the plan's own", () => {
     render(
-      <PlanCards
+      <PlanAccordion
         markdown={PLAN}
         steps={[
           { id: "s1", title: "Do it all", status: "pending", createdAt: 1 },
         ]}
       />,
     );
-    expect(screen.getByText("1 step, start to finish")).toBeDefined();
+    expect(screen.getByRole("button", { name: /^Steps/ }).textContent).toBe(
+      "Steps1 step",
+    );
     expect(screen.getByText("Do it all")).toBeDefined();
     expect(screen.queryByText("Add the chat route.")).toBeNull();
   });
 
-  it("keeps a plan without the expected headings as one card", () => {
-    render(<PlanCards markdown={"## Plan\n\n1. Install.\n\nThat is all."} />);
-    expect(headings()).toEqual(["The plan"]);
+  it("keeps a plan without the expected headings as one row", () => {
+    render(
+      <PlanAccordion markdown={"## Plan\n\n1. Install.\n\nThat is all."} />,
+    );
+    expect(triggers()).toEqual(["The planAs written"]);
     expect(screen.getByText("Install.")).toBeDefined();
     expect(screen.getByText("That is all.")).toBeDefined();
-    expect(screen.queryByRole("button")).toBeNull();
   });
 });
 
