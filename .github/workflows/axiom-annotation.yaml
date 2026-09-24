@@ -25,6 +25,7 @@ jobs:
       - name: Decide whether this commit ships
         id: ships
         env:
+          VERCEL_ENV: production
           VERCEL_GIT_COMMIT_REF: ${{ github.ref_name }}
           VERCEL_GIT_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
