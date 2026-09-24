@@ -29,6 +29,16 @@ describe("scheduleTask", () => {
     expect(order).toEqual(["queued inside", "queued before"]);
   });
 
+  it("keeps a large batch queued before flushTapSync for the next flush", async () => {
+    let ran = 0;
+    for (let i = 0; i < 200_000; i++) scheduleTask(() => ran++);
+    flushTapSync(() => {});
+
+    expect(ran).toBe(0);
+    await waitForNextTick();
+    expect(ran).toBe(200_000);
+  });
+
   it("runs a task scheduled by another task in the same flush", () => {
     const order: number[] = [];
     flushTapSync(() =>

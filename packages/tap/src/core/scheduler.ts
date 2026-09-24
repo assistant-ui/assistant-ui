@@ -186,7 +186,9 @@ export const flushTapSync = <T>(callback: () => T): T => {
     const stranded = flushState.schedulers;
     flushState = prev;
     if (enclosingTasks.length > 0) {
-      scheduledTasks.unshift(...enclosingTasks);
+      const queuedInside = scheduledTasks.splice(0);
+      for (const task of enclosingTasks) scheduledTasks.push(task);
+      for (const task of queuedInside) scheduledTasks.push(task);
       taskScheduler.markDirty();
     }
     if (stranded.size > 0) {
