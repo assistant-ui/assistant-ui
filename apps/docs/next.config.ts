@@ -72,12 +72,9 @@ const cspHeader = `
 `;
 
 const config: NextConfig = {
-  experimental: {
-    // Learn previews compile several complete lesson stages into the docs app.
-    // Bound build concurrency so Vercel and other constrained builders do not
-    // run out of memory while Turbopack compiles those routes in parallel.
-    cpus: 2,
-  },
+  // This app keeps a hand-written AGENTS.md, and the root one already points
+  // agents at the bundled Next.js docs, so `next dev` must not append its block.
+  agentRules: false,
   transpilePackages: ["@assistant-ui/ui", "shiki"],
   serverExternalPackages: ["just-bash"],
   skipTrailingSlashRedirect: true,

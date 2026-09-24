@@ -126,12 +126,13 @@ jobs:
               .map((file) => JSON.parse(fs.readFileSync(file, "utf8")))
               .filter((manifest) => manifest.private !== true);
 
-            for (let attempt = 1; ; attempt += 1) {
+            const deadline = Date.now() + 15 * 60_000;
+            for (;;) {
               const results = await Promise.all(unpublished.map(lookup));
               unpublished = unpublished
                 .map((manifest, index) => ({ ...manifest, result: results[index] }))
                 .filter(({ result }) => result !== "HTTP 200");
-              if (unpublished.length === 0 || attempt === 6) break;
+              if (unpublished.length === 0 || Date.now() >= deadline) break;
               await new Promise((resolve) => setTimeout(resolve, 10_000));
             }
 

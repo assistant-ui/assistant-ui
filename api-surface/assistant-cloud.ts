@@ -266,6 +266,7 @@ type AssistantCloudSpanProcessorOptions = {
 type AssistantCloudTelemetryConfig = {
   enabled?: boolean;
   events?: boolean;
+  messages?: boolean;
   release?: string;
   environment?: string;
   tags?: string[];
@@ -276,6 +277,8 @@ type AssistantCloudThreadMessageCreateBody = {
   parent_id: string | null;
   format: "aui/v0" | string;
   content: ReadonlyJSONObject;
+  external_id?: string | undefined;
+  parent_external_id?: string | undefined;
 };
 
 type AssistantCloudThreadMessageFeedbackBody = {
@@ -497,6 +500,7 @@ type CloudMessage = {
   updated_at: Date;
   format: "aui/v0" | string;
   content: ReadonlyJSONObject;
+  external_id?: string | null | undefined;
 };
 
 declare class CloudMessagePersistence {
@@ -508,6 +512,7 @@ declare class CloudMessagePersistence {
   isPersisted(messageId: string): boolean;
   getRemoteId(messageId: string): Promise<string | undefined>;
   getResolvedRemoteId(messageId: string): string | undefined;
+  record(localId: string, remoteId: string): void;
   load(threadId: string, format?: string): Promise<CloudMessage[]>;
   reset(): void;
 }

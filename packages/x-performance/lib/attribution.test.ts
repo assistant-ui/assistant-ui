@@ -8,6 +8,7 @@ import {
   benchFileOf,
   closure,
   importedPackages,
+  planBenches,
   workspaceGraph,
 } from "./attribution.mjs";
 
@@ -125,6 +126,24 @@ describe("against the real workspace", () => {
     ]);
   });
 
+  it("plans a core change as its own benches plus three controls", () => {
+    expect(planBenches(coverage, ["@assistant-ui/core"])).toEqual({
+      measured: [
+        "bench/external-message-conversion.bench.ts",
+        "bench/from-thread-message-like.bench.ts",
+        "bench/interactable-array-patches.bench.ts",
+        "bench/markdown-streaming.bench.tsx",
+        "bench/thread-scaling.bench.tsx",
+      ],
+      controls: [
+        "bench/accumulator.bench.ts",
+        "bench/data-stream.bench.ts",
+        "bench/sse-fragmentation.bench.ts",
+      ],
+      unchanged: 6,
+    });
+  });
+
   it("splits rows into measured and control by the changed dists", () => {
     const rows = [
       { id: "bench/accumulator.bench.ts > g > 100 deltas" },
@@ -181,6 +200,37 @@ describe("benchCoverage", () => {
     expect(() =>
       attributeRows([{ id: "bench/unknown.bench.ts > g > x" }], new Map(), []),
     ).toThrow(/no coverage entry for bench\/unknown\.bench\.ts/);
+  });
+});
+
+describe("planBenches", () => {
+  const coverage = new Map([
+    ["bench/a.bench.ts", new Set(["s"])],
+    ["bench/b.bench.ts", new Set(["s"])],
+    ["bench/c.bench.ts", new Set(["c", "s", "t"])],
+    ["bench/d.bench.ts", new Set(["t"])],
+    ["bench/e.bench.ts", new Set(["t"])],
+  ]);
+
+  it("runs the files on a changed dist and the first three on unchanged ones", () => {
+    expect(planBenches(coverage, ["c"])).toEqual({
+      measured: ["bench/c.bench.ts"],
+      controls: ["bench/a.bench.ts", "bench/b.bench.ts", "bench/d.bench.ts"],
+      unchanged: 4,
+    });
+  });
+
+  it("runs every file on an unchanged dist as a control with all", () => {
+    expect(planBenches(coverage, ["c"], { all: true }).controls).toEqual([
+      "bench/a.bench.ts",
+      "bench/b.bench.ts",
+      "bench/d.bench.ts",
+      "bench/e.bench.ts",
+    ]);
+  });
+
+  it("measures nothing when no measured dist changed", () => {
+    expect(planBenches(coverage, []).measured).toEqual([]);
   });
 });
 
