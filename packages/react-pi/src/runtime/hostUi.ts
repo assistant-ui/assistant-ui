@@ -69,7 +69,8 @@ export const responseForApproval = (
  * decision, `select` for one of its options (option ids are indexes), and
  * `input`/`editor` for a text answer. A request the approval cannot answer (a
  * `select` without choices, or a kind this client does not know) has none and
- * stays on the side channel. */
+ * stays on the side channel. The question kinds are projected dismissible
+ * because Pi resolves a cancelled request with `undefined`. */
 export const approvalForRequest = (
   request: PiHostUiRequest,
 ): ToolCallMessagePart["approval"] => {
@@ -82,6 +83,7 @@ export const approvalForRequest = (
         id: request.id,
         prompt: request.title,
         display: "select",
+        dismissible: true,
         options: request.options.map((label, index) => ({
           id: String(index),
           kind: `_${index}`,
@@ -90,7 +92,12 @@ export const approvalForRequest = (
       };
     case "input":
     case "editor":
-      return { id: request.id, prompt: request.title, display: "text" };
+      return {
+        id: request.id,
+        prompt: request.title,
+        display: "text",
+        dismissible: true,
+      };
   }
 };
 

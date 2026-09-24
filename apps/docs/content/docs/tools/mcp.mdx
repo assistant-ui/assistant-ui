@@ -5,6 +5,8 @@ description: Connect MCP servers as a tool catalog in your assistant-ui app.
 
 [MCP](https://modelcontextprotocol.io/) is an open protocol for exposing tools, resources, and prompts to LLMs. One MCP server can publish many tools (file system, GitHub, Slack, your own service) and any MCP-aware client can use them. The AI SDK has a built-in MCP client; this page is the wiring guide for plugging it into an assistant-ui app.
 
+<AgentSetup product="guides/mcp" />
+
 ## How it works
 
 ```mermaid
@@ -177,7 +179,7 @@ export async function POST(req: Request) {
   const aiToolkit = new AISDKToolkit({ toolkit });
 
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
     tools: await aiToolkit.tools({ frontend: tools }),
     onFinish: async () => {
@@ -220,7 +222,7 @@ export async function POST(req: Request) {
   const tools = await mcpClient.tools();
 
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
     tools,
     onFinish: async () => {
@@ -402,7 +404,7 @@ MCP tools execute on the server, so approval is a server-side tool gate, not a `
 const tools = await mcpClient.tools();
 
 const result = streamText({
-  model: openai("gpt-5.6-luna"),
+  model: openai("gpt-6-luna"),
   messages: await convertToModelMessages(messages),
   tools,
   toolApproval: {

@@ -3,7 +3,7 @@ title: ThreadListItemRuntime
 description: ThreadListItemRuntime state and actions for selecting, archiving, unarchiving, deleting, and renaming assistant-ui conversations.
 ---
 
-import { ThreadListItemRuntime, ThreadListItemState } from "@/generated/typeDocs";
+import { ThreadListItemRuntime, ThreadListItemRuntimeState, ThreadListItemState } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -18,7 +18,15 @@ import { ThreadListItemRuntime, ThreadListItemState } from "@/generated/typeDocs
 
 <ParametersTable {...ThreadListItemRuntime} />
 
+### ThreadListItemRuntimeState
+
+<ParametersTable {...ThreadListItemRuntimeState} />
+
 ### ThreadListItemState
+
+<Callout type="warn">
+<strong>Deprecated.</strong> Use `ThreadListItemRuntimeState`. From `@assistant-ui/react` 0.16, `ThreadListItemState` names the thread list item state read through `useAuiState`.
+</Callout>
 
 <ParametersTable {...ThreadListItemState} />
 {/* api-reference:end */}

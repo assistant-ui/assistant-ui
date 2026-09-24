@@ -130,4 +130,17 @@ describe("OpenCodeAttachmentAdapter", () => {
       },
     ]);
   });
+
+  it("aborts a file send via the shared core encoder", async () => {
+    const adapter = new OpenCodeAttachmentAdapter();
+    const pending = await adapter.add({
+      file: makeFile("notes.md", "text/markdown"),
+    });
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      adapter.send(pending, { signal: controller.signal }),
+    ).rejects.toBe(controller.signal.reason);
+  });
 });

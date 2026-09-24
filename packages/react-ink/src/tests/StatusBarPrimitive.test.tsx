@@ -47,9 +47,9 @@ describe("StatusBarPrimitive.Root", () => {
 describe("StatusBarPrimitive.ModelName", () => {
   it("renders the provided name", () => {
     const { lastFrame } = render(
-      <StatusBarPrimitiveModelName name="gpt-5.6-luna" />,
+      <StatusBarPrimitiveModelName name="gpt-6-luna" />,
     );
-    expect(lastFrame()).toContain("gpt-5.6-luna");
+    expect(lastFrame()).toContain("gpt-6-luna");
   });
 
   it("falls back to 'unknown'", () => {

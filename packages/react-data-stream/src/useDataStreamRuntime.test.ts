@@ -29,13 +29,17 @@ const userMessage: ThreadMessage = {
   metadata: { custom: {} },
 };
 
-const createRunOptions = (abortSignal = new AbortController().signal) =>
+const createRunOptions = (
+  abortSignal = new AbortController().signal,
+  threadId?: string,
+) =>
   ({
     messages: [],
     runConfig: {},
     abortSignal,
     context: {},
     unstable_getMessage: () => userMessage,
+    ...(threadId === undefined ? {} : { unstable_threadId: threadId }),
   }) satisfies ChatModelRunOptions;
 
 const createAdapter = (options: UseDataStreamRuntimeOptions) => {
@@ -409,6 +413,32 @@ describe("useDataStreamRuntime request errors", () => {
       });
     },
   );
+});
+
+describe("useDataStreamRuntime request body", () => {
+  it("passes the active thread ID to body callbacks", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response("failed", { status: 500 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const body = vi.fn(async ({ threadId }: { threadId?: string }) => ({
+      thread_id: threadId,
+    }));
+    const adapter = createAdapter({ api: "/api/chat", body });
+
+    await expect(
+      runOnce(adapter, createRunOptions(undefined, "remote-thread")),
+    ).rejects.toThrow("Status 500");
+
+    expect(body).toHaveBeenCalledExactlyOnceWith({
+      threadId: "remote-thread",
+    });
+    const request = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+    expect(JSON.parse(request?.body as string)).toMatchObject({
+      threadId: "remote-thread",
+      thread_id: "remote-thread",
+    });
+  });
 });
 
 describe("useDataStreamRuntime lifecycle callbacks", () => {

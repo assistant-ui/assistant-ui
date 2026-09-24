@@ -1,4 +1,4 @@
-/// <reference types="@assistant-ui/core/react" />
+/// <reference types="@assistant-ui/core/react" preserve="true" />
 
 // Re-export core types
 export type {
@@ -22,6 +22,7 @@ export type {
   ToolApprovalOptionKind,
   ToolApprovalResponse,
   ToolCallMessagePart,
+  ToolCallMessagePartStatus,
   ToolCallTiming,
   ToolModelContentPart,
   ImageMessagePart,
@@ -33,12 +34,16 @@ export type {
   // Runtime types
   AssistantRuntime,
   ThreadRuntime,
+  ThreadRuntimeState,
   MessageRuntime,
+  MessageRuntimeState,
   ThreadComposerRuntime,
   EditComposerRuntime,
   ComposerRuntime,
+  ComposerRuntimeState,
   ThreadListRuntime,
   ThreadListItemRuntime,
+  ThreadListItemRuntimeState,
   // Runtime core types
   ChatModelAdapter,
   ChatModelRunOptions,
@@ -50,6 +55,7 @@ export type {
   CompleteAttachment,
   CreateAttachment,
   AttachmentRuntime,
+  AttachmentRuntimeState,
   // Adapter types
   AttachmentAdapter,
   ThreadHistoryAdapter,
@@ -187,6 +193,7 @@ export {
   TextMessagePartProvider,
   ChainOfThoughtPartByIndexProvider,
   SuggestionByIndexProvider,
+  ReadonlyThreadProvider,
 } from "@assistant-ui/core/react";
 
 // Model context, tools & clients (inlined from model-context)
@@ -321,3 +328,85 @@ export {
   useVoiceVolume,
   useVoiceControls,
 } from "@assistant-ui/core/react";
+
+// Shared surface carried by every distribution (scripts/check-distribution-barrels.mjs)
+export type {
+  AssistantTransportProtocol,
+  EnrichedPartState,
+  GenerativeUIComponentRegistry,
+  GenerativeUIMessagePartComponent,
+  GenerativeUIMessagePartProps,
+  GenerativeUIRenderProps,
+  McpAppResourceOutput,
+  PartState,
+  QuoteMessagePartComponent,
+  QuoteMessagePartProps,
+  TitleGenerationAdapter,
+} from "@assistant-ui/core/react";
+export {
+  CloudFileAttachmentAdapter,
+  createSimpleTitleAdapter,
+  GenerativeUIRender,
+  GenerativeUIRenderError,
+  useCloudThreadListAdapter,
+  useCloudThreadListRuntime,
+} from "@assistant-ui/core/react";
+export type {
+  ComposerSendOptions,
+  ExternalThreadMessage,
+  ExternalThreadProps,
+  InMemoryThreadListProps,
+  QueueItemMethods,
+  RemoteThreadListProps,
+  TaskMethods,
+} from "@assistant-ui/core/store";
+export {
+  ExternalThread,
+  InMemoryThreadList,
+  RemoteThreadList,
+  SingleThreadList,
+} from "@assistant-ui/core/store";
+export type {
+  AddToolResultOptions,
+  AttachmentStatus,
+  ChatModelRunUpdate,
+  CreateAppendMessage,
+  CreateResumeRunConfig,
+  CreateStartRunConfig,
+  ComposerSubmission,
+  DictationAdapter,
+  DictationState,
+  EditComposerState,
+  GenerativeUIMessagePart,
+  GenerativeUINode,
+  GenerativeUISpec,
+  GenericThreadHistoryAdapter,
+  LocalRuntimeOptionsBase,
+  McpAppMetadata,
+  MessageFormatAdapter,
+  MessageFormatItem,
+  MessageFormatRepository,
+  MessageModality,
+  MessagePartRuntime,
+  MessagePartState,
+  MessagePartStatus,
+  MessagePartStreamStatus,
+  MessageStorageEntry,
+  MessageTiming,
+  PartProviderMetadata,
+  QuoteInfo,
+  SourceProviderMetadata,
+  SpeechSynthesisAdapter,
+  SubmitFeedbackOptions,
+  ThreadComposerState,
+  ThreadListItemStatus,
+  ThreadListState,
+  ThreadSuggestion,
+  ToolCallMessagePartMcpMetadata,
+  ToolExecutionStatus,
+  Unstable_DirectiveFormatter,
+  Unstable_DirectiveSegment,
+  Unstable_TriggerItem,
+  VoiceSessionState,
+} from "@assistant-ui/core";
+export { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";

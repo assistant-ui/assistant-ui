@@ -311,7 +311,7 @@ function ToolFallbackError({
       <p className="aui-tool-fallback-error-header text-muted-foreground font-semibold">
         {headerText}
       </p>
-      <p className="aui-tool-fallback-error-reason text-muted-foreground">
+      <p className="aui-tool-fallback-error-reason text-muted-foreground whitespace-pre-line">
         {errorText}
       </p>
     </div>
@@ -343,7 +343,8 @@ const approvalOptionLabel = (option: ToolApprovalOption) =>
 
 /**
  * A request that declares how it wants to be presented is asking a question,
- * not gating an action, so a refusal is not one of the answers it accepts.
+ * not gating an action, so a refusal is not one of the answers it accepts
+ * unless the request declares itself dismissible.
  */
 const isQuestion = (approval: ToolCallMessagePart["approval"]) =>
   approval?.display === "select" || approval?.display === "text";
@@ -425,7 +426,7 @@ function ToolFallbackApproval({
       approval.approved === undefined &&
       respondToApproval
     ) {
-      submit(() => respondToApproval({ approved, ...typedAnswer() }));
+      submit(() => respondToApproval({ approved, ...typedNote() }));
     } else if (interrupt) {
       submit(() => resume?.({ approved }));
     } else if (
@@ -447,17 +448,25 @@ function ToolFallbackApproval({
     submit(() =>
       respondToApproval?.(
         isKnownKind(option.kind)
-          ? { optionId: option.id, ...typedAnswer() }
-          : { optionId: option.id, approved: true, ...typedAnswer() },
+          ? { optionId: option.id, ...typedNote() }
+          : { optionId: option.id, approved: true, ...typedNote() },
       ),
     );
   };
 
-  const typedAnswer = () => (answer.trim() ? { text: answer } : {});
+  const typedNote = () => (answer.trim() ? { text: answer } : {});
 
+  // The kit does not validate an answer the request never constrained: a host
+  // that cannot record an empty one rejects it, which reopens the controls.
   const submitAnswer = () => {
-    if (locked || !answer.trim()) return;
+    if (locked) return;
     submit(() => respondToApproval?.({ text: answer }));
+  };
+
+  // A dismissal is no answer at all, so a typed draft does not travel with it.
+  const dismiss = () => {
+    if (locked) return;
+    submit(() => respondToApproval?.({ approved: false }));
   };
 
   const handleOption = (option: ToolApprovalOption) => {
@@ -474,9 +483,23 @@ function ToolFallbackApproval({
       : undefined;
 
   const question = isQuestion(approval);
+  const dismissible =
+    question && respondToApproval != null && approval?.dismissible === true;
+
+  const dismissButton = dismissible ? (
+    <Button
+      size="sm"
+      variant="outline"
+      className={pressable}
+      onClick={dismiss}
+      disabled={locked}
+    >
+      Dismiss
+    </Button>
+  ) : null;
 
   const promptText = approval?.prompt ? (
-    <p className="aui-tool-fallback-approval-prompt text-foreground">
+    <p className="aui-tool-fallback-approval-prompt text-foreground whitespace-pre-line">
       {approval.prompt}
     </p>
   ) : null;
@@ -484,7 +507,7 @@ function ToolFallbackApproval({
   const errorText = error ? (
     <p
       role="alert"
-      className="aui-tool-fallback-approval-error text-destructive text-xs"
+      className="aui-tool-fallback-approval-error text-destructive text-xs whitespace-pre-line"
     >
       {error}
     </p>
@@ -502,14 +525,17 @@ function ToolFallbackApproval({
         }
       />
       {question && (
-        <Button
-          size="sm"
-          className={pressable}
-          onClick={submitAnswer}
-          disabled={locked || !answer.trim()}
-        >
-          Send
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            className={pressable}
+            onClick={submitAnswer}
+            disabled={locked}
+          >
+            Send
+          </Button>
+          {dismissButton}
+        </div>
       )}
     </div>
   ) : null;
@@ -532,7 +558,7 @@ function ToolFallbackApproval({
           {confirmMeta?.title ?? `${approvalOptionLabel(confirming)}?`}
         </p>
         {confirmDescription && (
-          <p className="aui-tool-fallback-approval-confirm-description text-muted-foreground">
+          <p className="aui-tool-fallback-approval-confirm-description text-muted-foreground whitespace-pre-line">
             {confirmDescription}
           </p>
         )}
@@ -612,6 +638,7 @@ function ToolFallbackApproval({
               Deny
             </Button>
           )}
+          {!acceptsText && dismissButton}
         </div>
         {answerField}
         {errorText}
@@ -633,6 +660,9 @@ function ToolFallbackApproval({
       >
         {promptText}
         {answerField}
+        {!acceptsText && dismissButton && (
+          <div className="flex items-center gap-2">{dismissButton}</div>
+        )}
         {errorText}
       </div>
     );
@@ -717,7 +747,7 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
             status={status}
           />
         )}
-        {!isCancelled && <ToolFallbackResult result={result} />}
+        <ToolFallbackResult result={result} />
       </ToolFallbackContent>
     </ToolFallbackRoot>
   );

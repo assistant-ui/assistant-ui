@@ -9,6 +9,7 @@ import {
   copyMessagesById,
   createOpenCodeThreadState,
   reduceOpenCodeThreadState,
+  isOpenCodeStateRunning,
 } from "./openCodeThreadState";
 import type {
   MessageWithParts,
@@ -965,7 +966,11 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   public async revert(messageId: string) {
-    this.dispatch({ type: "run.reverting" });
+    // Reverting a finished turn leaves the session idle, so the server sends no
+    // busy-to-idle transition and the transient state would never be left.
+    if (isOpenCodeStateRunning(this.state)) {
+      this.dispatch({ type: "run.reverting" });
+    }
     try {
       await this.client.session.revert(
         {

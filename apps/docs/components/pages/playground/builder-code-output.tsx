@@ -1,32 +1,34 @@
 "use client";
 
-import { useState } from "react";
 import ShikiHighlighter from "react-shiki";
 import { CheckIcon, CopyIcon } from "lucide-react";
 
 import type { BuilderConfig } from "./types";
 import {
-  COMPOSER_RADIUS,
   FONT_SIZE_CLASS,
   MESSAGE_GAP_CLASS,
-  isLightColor,
+  generateThemeClasses,
+  generateThemeCssVars,
+  generateThreadStyleVars,
+  indent,
 } from "@/lib/builder-utils";
 import { analytics } from "@/lib/analytics";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 
 interface BuilderCodeOutputProps {
   config: BuilderConfig;
 }
 
 export function BuilderCodeOutput({ config }: BuilderCodeOutputProps) {
-  const [copied, setCopied] = useState(false);
+  const { isCopied: copied, copyToClipboard } = useCopyToClipboard({
+    copiedDuration: 2000,
+  });
 
   const componentCode = generateComponentCode(config);
 
-  const handleCopy = async () => {
+  const handleCopy = () => {
     analytics.builder.codeCopied();
-    await navigator.clipboard.writeText(componentCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    copyToClipboard(componentCode);
   };
 
   return (
@@ -67,7 +69,7 @@ export function BuilderCodeOutput({ config }: BuilderCodeOutputProps) {
   );
 }
 
-function generateComponentCode(config: BuilderConfig): string {
+export function generateComponentCode(config: BuilderConfig): string {
   const { components, styles } = config;
 
   const iconImports = generateIconImports(config);
@@ -115,17 +117,20 @@ function generateComponentCode(config: BuilderConfig): string {
 
   const fontSizeClass = FONT_SIZE_CLASS[styles.fontSize];
   const messageGapClass = MESSAGE_GAP_CLASS[styles.messageSpacing];
-  const composerRadius = COMPOSER_RADIUS[styles.borderRadius];
-  const accentColor = styles.colors.accent.light;
-  const accentForeground = isLightColor(accentColor) ? "#000000" : "#ffffff";
+  const theme = generateThemeClasses(styles);
+  const darkVars = generateThemeCssVars(styles, "dark");
+  const paletteClasses = Object.entries(generateThemeCssVars(styles, "light"))
+    .flatMap(([name, light]) => {
+      const dark = darkVars[name];
+      return dark === light
+        ? [`[${name}:${light}]`]
+        : [`[${name}:${light}]`, `dark:[${name}:${dark}]`];
+    })
+    .join(" ");
 
-  const cssVariables = `
-    "--thread-max-width": "${styles.maxWidth}",
-    "--composer-radius": "${composerRadius}",
-    "--composer-padding": "8px",
-    "--composer-bg": "color-mix(in oklab, var(--color-muted) 30%, transparent)",
-    "--accent-color": "${accentColor}",
-    "--accent-foreground": "${accentForeground}",`;
+  const cssVariables = Object.entries(generateThreadStyleVars(styles))
+    .map(([name, value]) => `\n    "${name}": "${value}",`)
+    .join("");
 
   const fontFamilyStyle =
     styles.fontFamily !== "system-ui"
@@ -138,7 +143,7 @@ export function Thread() {
 
   return (
     <ThreadPrimitive.Root
-      className="flex h-full flex-col bg-background ${fontSizeClass}"
+      className="flex h-full flex-col bg-background text-foreground ${fontSizeClass} ${paletteClasses}"
       style={{${cssVariables}${fontFamilyStyle}
       }}
     >
@@ -213,7 +218,7 @@ function ThreadSuggestions() {
   return (
     <div className="flex w-full flex-col">
       <ThreadPrimitive.Suggestion prompt="What's the weather in San Francisco?" send asChild>
-        <button type="button" className="group hover:bg-foreground/[0.03] focus-visible:ring-ring/50 flex w-full items-baseline gap-2.5 rounded-md px-2 py-2 text-start text-sm transition-colors outline-none focus-visible:ring-1 motion-reduce:transition-none">
+        <button type="button" className="group ${theme.suggestion} focus-visible:ring-ring/50 flex w-full items-baseline gap-2.5 rounded-md px-2 py-2 text-start text-sm transition-colors outline-none focus-visible:ring-1 motion-reduce:transition-none">
           <span aria-hidden className="text-muted-foreground/60 group-hover:text-foreground font-mono text-xs transition-colors motion-reduce:transition-none">{">"}</span>
           <span className="min-w-0 flex-1 truncate">
             <span className="text-foreground">What's the weather</span>{" "}
@@ -222,7 +227,7 @@ function ThreadSuggestions() {
         </button>
       </ThreadPrimitive.Suggestion>
       <ThreadPrimitive.Suggestion prompt="Explain React hooks like useState" send asChild>
-        <button type="button" className="group hover:bg-foreground/[0.03] focus-visible:ring-ring/50 flex w-full items-baseline gap-2.5 rounded-md px-2 py-2 text-start text-sm transition-colors outline-none focus-visible:ring-1 motion-reduce:transition-none">
+        <button type="button" className="group ${theme.suggestion} focus-visible:ring-ring/50 flex w-full items-baseline gap-2.5 rounded-md px-2 py-2 text-start text-sm transition-colors outline-none focus-visible:ring-1 motion-reduce:transition-none">
           <span aria-hidden className="text-muted-foreground/60 group-hover:text-foreground font-mono text-xs transition-colors motion-reduce:transition-none">{">"}</span>
           <span className="min-w-0 flex-1 truncate">
             <span className="text-foreground">Explain React hooks</span>{" "}
@@ -243,7 +248,7 @@ function Composer() {
   return (
     <ComposerPrimitive.Root className="relative flex w-full flex-col">
       <ComposerPrimitive.AttachmentDropzone asChild>
-        <div className="border-foreground/10 focus-within:border-foreground/25 flex w-full cursor-text flex-col gap-2 rounded-[var(--composer-radius)] border bg-[var(--composer-bg)] p-[var(--composer-padding)] transition-[border-color] data-[dragging=true]:border-dashed">
+        <div className="${theme.composerBorder} flex w-full cursor-text flex-col gap-2 rounded-[var(--composer-radius)] border bg-[var(--composer-bg)] p-[var(--composer-padding)] transition-[border-color] data-[dragging=true]:border-dashed">
           ${components.attachments ? "<ComposerAttachments />" : ""}
           <ComposerPrimitive.Input
             placeholder="Send a message..."
@@ -326,17 +331,67 @@ function ThreadScrollToBottom() {
     ? " fade-in slide-in-from-bottom-1 animate-in duration-150"
     : "";
 
-  const userMessageComponent = `
+  const userAttachments = components.attachments
+    ? "<UserMessageAttachments />"
+    : "";
+
+  const userMessage =
+    styles.userMessagePosition === "left"
+      ? `
+function UserMessage() {
+  return (
+    <MessagePrimitive.Root
+      className="mx-auto flex w-full max-w-[var(--thread-max-width)] gap-3 px-2${animationClass}"
+      data-role="user"
+    >
+      ${
+        components.avatar
+          ? `<div className="flex size-8 shrink-0 items-center justify-center rounded-full ${theme.userAvatar}">
+        <UserIcon className="size-4" />
+      </div>`
+          : ""
+      }
+
+      <div className="flex max-w-[80%] min-w-0 flex-col items-start gap-y-2 [&>*]:w-auto [&>*:empty]:hidden">
+        ${userAttachments}
+        <div className="relative">
+          <div className="rounded-[var(--composer-radius)] ${theme.userMessage} px-4 py-2 break-words text-foreground">
+            <MessagePrimitive.Parts />
+          </div>
+          ${
+            components.editMessage
+              ? `<div className="absolute top-1/2 right-0 translate-x-full -translate-y-1/2 pl-2">
+            <UserActionBar />
+          </div>`
+              : ""
+          }
+        </div>
+      </div>
+
+      ${components.branchPicker ? `<BranchPicker className="-mr-1 self-end" />` : ""}
+    </MessagePrimitive.Root>
+  );
+}`
+      : `
 function UserMessage() {
   return (
     <MessagePrimitive.Root
       className="mx-auto grid w-full max-w-[var(--thread-max-width)] auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2${animationClass}"
       data-role="user"
     >
-      ${components.attachments ? "<UserMessageAttachments />" : ""}
+      ${userAttachments}
+      ${
+        components.avatar
+          ? `<div className="col-start-2 flex justify-end">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-full ${theme.userAvatar}">
+          <UserIcon className="size-4" />
+        </div>
+      </div>`
+          : ""
+      }
 
       <div className="relative col-start-2 min-w-0">
-        <div className="rounded-[var(--composer-radius)] bg-muted px-4 py-2 break-words text-foreground">
+        <div className="rounded-[var(--composer-radius)] ${theme.userMessage} px-4 py-2 break-words text-foreground">
           <MessagePrimitive.Parts />
         </div>
         ${
@@ -348,10 +403,16 @@ function UserMessage() {
         }
       </div>
 
-      ${components.branchPicker ? `<BranchPicker className="col-span-full col-start-1 row-start-3 -mr-1 justify-end" />` : ""}
+      ${
+        components.branchPicker
+          ? `<BranchPicker className="col-span-full col-start-1 -mr-1 justify-end" />`
+          : ""
+      }
     </MessagePrimitive.Root>
   );
-}
+}`;
+
+  const userMessageComponent = `${userMessage}
 
 ${
   components.editMessage
@@ -397,21 +458,15 @@ ${
           }}`
       : "";
 
-  const assistantMessageComponent = `
-function AssistantMessage() {
-  return (
-    <MessagePrimitive.Root
-      className="${assistantMessageRootClass}"
-      data-role="assistant"
-    >
-      ${
-        components.avatar
-          ? `<div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
-        <BotIcon className="size-4" />
-      </div>`
-          : ""
-      }
-      <div className="break-words px-2 leading-relaxed text-foreground">
+  const assistantContentClass = [
+    "break-words",
+    theme.assistantMessage,
+    "leading-relaxed text-foreground",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const assistantBody = `<div className="${assistantContentClass}">
         <MessagePrimitive.Parts${partsComponentsStr} />
         <MessageError />${
           components.loadingIndicator !== "none"
@@ -441,19 +496,39 @@ function AssistantMessage() {
         <div className="mt-4 flex flex-wrap gap-2">
           <ThreadPrimitive.Suggestion
             prompt="Tell me more"
-            className="border-foreground/10 hover:bg-foreground/[0.03] hover:border-foreground/25 rounded-md border px-2.5 py-1 text-sm whitespace-nowrap transition-colors ease-in motion-reduce:transition-none"
+            className="${theme.followUp} rounded-md border px-2.5 py-1 text-sm whitespace-nowrap transition-colors ease-in motion-reduce:transition-none"
           >
             Tell me more
           </ThreadPrimitive.Suggestion>
           <ThreadPrimitive.Suggestion
             prompt="Can you explain differently?"
-            className="border-foreground/10 hover:bg-foreground/[0.03] hover:border-foreground/25 rounded-md border px-2.5 py-1 text-sm whitespace-nowrap transition-colors ease-in motion-reduce:transition-none"
+            className="${theme.followUp} rounded-md border px-2.5 py-1 text-sm whitespace-nowrap transition-colors ease-in motion-reduce:transition-none"
           >
             Explain differently
           </ThreadPrimitive.Suggestion>
         </div>
       </AuiIf>`
           : ""
+      }`;
+
+  const assistantMessageComponent = `
+function AssistantMessage() {
+  return (
+    <MessagePrimitive.Root
+      className="${assistantMessageRootClass}"
+      data-role="assistant"
+    >
+      ${
+        components.avatar
+          ? `<div className="flex gap-3">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-full ${theme.assistantAvatar}">
+          <BotIcon className="size-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          ${indent(assistantBody, 4)}
+        </div>
+      </div>`
+          : assistantBody
       }
     </MessagePrimitive.Root>
   );
@@ -564,7 +639,7 @@ function BranchPicker({ className, ...rest }: { className?: string }) {
 function EditComposer() {
   return (
     <MessagePrimitive.Root className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col px-2">
-      <ComposerPrimitive.Root className="border-foreground/10 focus-within:border-foreground/25 ms-auto flex w-full max-w-[85%] cursor-text flex-col rounded-[var(--composer-radius)] border bg-[var(--composer-bg)] transition-[border-color]">
+      <ComposerPrimitive.Root className="${theme.editComposerBorder} ms-auto flex w-full max-w-[85%] cursor-text flex-col rounded-[var(--composer-radius)] border bg-[var(--composer-bg)] transition-[border-color]">
         <ComposerPrimitive.Input
           className="min-h-14 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-base text-foreground outline-none"
           autoFocus

@@ -10,7 +10,7 @@ React's hook engine, reimplemented. Same hooks, same rules, no React tree requir
 1. **Hooks for state management** — use React hooks to power an external store, even outside React.
 2. **Resources** — render hooks dynamically inside React: conditionally, in a list, or from props.
 
-Documentation: [assistant-ui.com/tap](https://www.assistant-ui.com/tap)
+Documentation: [assistant-ui.com/docs/tap](https://www.assistant-ui.com/docs/tap)
 
 ## Installation
 

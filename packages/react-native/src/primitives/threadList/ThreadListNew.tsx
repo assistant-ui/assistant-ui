@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import {
+  Platform,
   Pressable,
   type PressableProps,
   type PressableStateCallbackType,
@@ -27,12 +28,14 @@ export const ThreadListNew = ({
     (s) => s.threads.newThreadId === s.threads.mainThreadId,
   );
   const { switchToNewThread } = useThreadListNew();
+  const selected = accessibilityState?.selected ?? isActive;
 
   return (
     <Pressable
       onPress={switchToNewThread}
       accessibilityRole="button"
-      accessibilityState={{ selected: isActive, ...accessibilityState }}
+      accessibilityState={{ ...accessibilityState, selected }}
+      aria-current={Platform.OS === "web" && selected ? "true" : undefined}
       {...pressableProps}
     >
       {typeof children === "function"
