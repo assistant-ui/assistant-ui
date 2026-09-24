@@ -289,7 +289,11 @@ export const fromThreadMessageLike = (
 
               default: {
                 const dataType: `data-${string}` = type;
-                const converted = convertDataPrefixedPart(dataType, part.data, part.id);
+                const converted = convertDataPrefixedPart(
+                  dataType,
+                  part.data,
+                  part.id,
+                );
                 if (converted) return converted;
                 throw new Error(
                   `Unsupported user message part type: ${dataType}`,

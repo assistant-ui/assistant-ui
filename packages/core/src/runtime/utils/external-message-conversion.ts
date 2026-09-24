@@ -290,7 +290,7 @@ export const joinExternalMessages = (
                 assistantMessage.content[existingIdx] = {
                   ...existing,
                   text: [existing.text, part.text]
-                    .filter((text) => text != null)
+                    .filter((text) => text?.trim())
                     .join("\n\n"),
                   ...mergeInnerMessages(existing, part),
                 };
