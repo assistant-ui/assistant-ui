@@ -29,7 +29,7 @@ Composable runtime and UI primitives for AI chat in React, React Native, and the
 ### Packages
 
 - Never remove or rename a shipped export of a published package, because npm consumers the repository cannot see break; re-point a moved export to its new file, and ship a behavior change as its own PR.
-- Put framework-agnostic runtime code in `@assistant-ui/core` (React-coupled code in its `./react` subpath) and platform runtimes in the react, react-native, and react-ink distributions; new runtime code goes in `packages/core/src/react`, not the `packages/react/src/legacy-runtime/` it is replacing.
+- Put framework-agnostic runtime code in `@assistant-ui/core` (React-coupled code in its `./react` subpath) and platform runtimes in the `react`, `react-native`, and `react-ink` distributions; new runtime code goes in `packages/core/src/react`, not the `packages/react/src/legacy-runtime/` it is replacing.
 - Use caret ranges for dependency specifiers, except in `examples/with-expo/package.json`, which `expo install --fix` manages, and the exact-pinned Learn course projects under `apps/docs/lib/xulux/learn/courses/`.
 
 ### Upstream majors
@@ -53,7 +53,7 @@ Composable runtime and UI primitives for AI chat in React, React Native, and the
 
 ### Shipping
 
-- Edit UI components in `packages/ui/src/components/react/assistant-ui/elements`; templates and examples alias it through tsconfig, only `templates/minimal` holds copies, and intentional divergence goes in `OVERRIDES` in `scripts/sync-templates.sh`.
+- Edit a UI component at its source under `packages/ui/src/components/`, never a template's synced copy; intentional divergence goes in `OVERRIDES` in `scripts/sync-templates.sh`.
 - List every CSS `@import` of a registry item in its `registryDependencies`, as `apps/registry/scripts/build-registry.ts` already requires for `@/` imports, or `shadcn add` lands an unresolvable import.
 - Give every PR that changes a published npm package a `patch` changeset (one changeset may name several packages); a maintainer-approved minor or major carries `<!-- caret-break: intended -->`.
 - The Semver Check job fails a PR whose shipped files change without a changeset, and `pnpm changesets:check` rejects one naming a private package.
@@ -63,7 +63,8 @@ Composable runtime and UI primitives for AI chat in React, React Native, and the
 
 ## Where things live
 
-- `packages/AGENTS.md` carries the build, dependency, and adapter rules for package code; `apps/docs`, `packages/ui`, `packages/x-buildutils`, and `python` carry their own AGENTS.md.
+- `packages/AGENTS.md` carries the build, dependency, and adapter rules for package code.
+- A nested AGENTS.md carries its directory's rules; read it before changing files there.
 - `CONTRIBUTING.md` owns changeset types and pull request scope, titles, and descriptions; read it before writing a changeset or opening a PR.
 - `packages/x-performance/README.md` owns performance measurement; read it before adding a counter contract, bench, or fixture.
 - `node_modules/next/dist/docs/`, resolved from the app's directory, holds the pinned Next.js docs; read the relevant guide before writing Next.js code, and heed its deprecation notices.
