@@ -109,8 +109,8 @@
   },
   "@assistant-ui/react-ink": {
     ".": {
-      "min": 67247,
-      "gzip": 19615
+      "min": 67453,
+      "gzip": 19683
     },
     "./internal": {
       "min": 427,
@@ -163,8 +163,8 @@
   },
   "@assistant-ui/react-native": {
     ".": {
-      "min": 37445,
-      "gzip": 10220
+      "min": 37652,
+      "gzip": 10287
     },
     "./internal": {
       "min": 427,
