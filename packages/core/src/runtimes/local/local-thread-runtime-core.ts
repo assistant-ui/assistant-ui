@@ -266,6 +266,15 @@ export class LocalThreadRuntimeCore
       this._queue?.clear();
       this.cancelRun();
       supersedeThreadRuntime(this);
+      // The draft was written under the previous scope, so sending it after
+      // the switch would append one account's content through another's
+      // adapter. Reset also invalidates a send still uploading attachments.
+      void this.composer.reset().catch((error) => {
+        console.error(
+          "[assistant-ui] Composer reset threw after the history scope changed",
+          error,
+        );
+      });
       this._suggestions = [];
       this._lastRunConfig = {};
       this.repository.clear();

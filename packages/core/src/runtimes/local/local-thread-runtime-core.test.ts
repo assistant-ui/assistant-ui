@@ -4068,6 +4068,73 @@ describe("LocalThreadRuntimeCore runs", () => {
     expect(thread.messages).toEqual([]);
   });
 
+  it("discards the composer draft when the history scope changes", async () => {
+    const appendSecond = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
+    const run = vi.fn<ChatModelAdapter["run"]>(async () => ({ content: [] }));
+    const thread = createThread(
+      { run },
+      {
+        history: {
+          scopeId: "first",
+          load: async () => ({ messages: [] }),
+          append: async () => {},
+        },
+      },
+    );
+    await thread.__internal_load();
+    thread.composer.setText("draft for the first scope");
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: { run },
+        history: {
+          scopeId: "second",
+          load: async () => ({ messages: [] }),
+          append: appendSecond,
+        },
+      },
+    });
+    await flush();
+
+    expect(thread.composer.text).toBe("");
+
+    await thread.composer.send();
+    await flush();
+
+    expect(appendSecond).not.toHaveBeenCalled();
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it("keeps the composer draft when an adapter keeps its scope", async () => {
+    const run = vi.fn<ChatModelAdapter["run"]>(async () => ({ content: [] }));
+    const thread = createThread(
+      { run },
+      {
+        history: {
+          scopeId: "first",
+          load: async () => ({ messages: [] }),
+          append: async () => {},
+        },
+      },
+    );
+    await thread.__internal_load();
+    thread.composer.setText("draft that outlives the adapter object");
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: { run },
+        history: {
+          scopeId: "first",
+          load: async () => ({ messages: [] }),
+          append: async () => {},
+        },
+      },
+    });
+    await flush();
+
+    expect(thread.composer.text).toBe("draft that outlives the adapter object");
+  });
+
   it("accepts an in-flight load when an unkeyed adapter is recreated", async () => {
     const adapter: ChatModelAdapter = {
       run: async () => ({ content: [] }),

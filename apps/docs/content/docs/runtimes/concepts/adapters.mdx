@@ -202,8 +202,8 @@ When `LocalRuntime` can switch accounts, workspaces, or another backing store,
 set `scopeId` to a stable identifier for that storage scope. Keep it unchanged
 when recreating the adapter for the same scope, and change it before loading
 another scope. A scope change stops work owned by the previous scope, clears its
-history, discards any pending result, and loads the current adapter. Adapters
-that omit `scopeId` are treated as sharing one scope.
+history and its composer draft, discards any pending result, and loads the
+current adapter. Adapters that omit `scopeId` are treated as sharing one scope.
 
 `scopeId` is currently specific to `LocalRuntime`. AI SDK, AG-UI, A2A, and other
 external-history runtimes load history once per mounted runtime, so remount
