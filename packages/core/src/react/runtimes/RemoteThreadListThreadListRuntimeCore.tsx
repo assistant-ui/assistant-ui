@@ -7,6 +7,7 @@ import {
   WritableSubscribable,
 } from "../../subscribable/subscribable";
 import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
+import { handleThreadListAction } from "../../store/runtime-clients/handle-thread-list-action";
 import { nullProtoRecord } from "../../utils/record";
 import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-state";
 import { EMPTY_THREAD_CORE } from "../../runtimes/remote-thread-list/empty-thread-core";
@@ -775,8 +776,12 @@ export class RemoteThreadListThreadListRuntimeCore
 
   private _switchToThreadFromProp(threadId: string | undefined): Promise<void> {
     return threadId !== undefined
-      ? this._startSwitchToThread(threadId, undefined, false)
-      : this._startSwitchToNewThread(false);
+      ? handleThreadListAction("switch", () =>
+          this._startSwitchToThread(threadId, undefined, false),
+        )
+      : handleThreadListAction("create", () =>
+          this._startSwitchToNewThread(false),
+        );
   }
 
   private _startSwitchToNewThread(emitThreadIdChange: boolean): Promise<void> {
