@@ -370,7 +370,6 @@ export abstract class BaseComposerRuntimeCore
       // the submission waits for its latest state.
       await Promise.all(uploads);
       if (generation !== this._sendGeneration) return;
-      this._refreshSubmissionAttachments();
     }
 
     const submission = this._submission;
@@ -482,16 +481,6 @@ export abstract class BaseComposerRuntimeCore
     if (this.queue.length > queued) this._leaveTransit(sent);
     this._notifySubscribers();
     this.settleInTransit();
-  }
-
-  private _refreshSubmissionAttachments() {
-    const submission = this._submission;
-    if (!submission) return;
-    const attachments = submission.attachments.filter(
-      (attachment) => !this._attachmentSends.isRemoved(attachment),
-    );
-    if (attachments.length === submission.attachments.length) return;
-    this._submission = { ...submission, attachments };
   }
 
   private _returnSubmissionToDraft(

@@ -1297,6 +1297,113 @@ describe("ExternalThread attachments", () => {
     expect(composer().getState().attachments).toHaveLength(0);
   });
 
+  it.each(["before", "after"])(
+    "shows an uploading attachment whose removal failed %s the send failed",
+    async (order) => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const upload = deferred();
+      const prepare = deferred();
+      const removal = deferred();
+      const send = vi.fn(async (attachment: PendingAttachment) => {
+        await prepare.promise;
+        return {
+          ...attachment,
+          status: { type: "complete" as const },
+          content: [],
+        };
+      });
+      const onNew = vi.fn();
+      const aui = renderThreadWithProps({
+        attachmentAdapter: {
+          accept: "*",
+          async *add({ file }) {
+            const attachment = {
+              id: file.name,
+              type: "file",
+              name: file.name,
+              contentType: file.type,
+              file,
+            };
+            if (file.name === "uploading.txt") {
+              yield {
+                ...attachment,
+                status: { type: "running", reason: "uploading", progress: 0 },
+              } satisfies PendingAttachment;
+              await upload.promise;
+            }
+            yield {
+              ...attachment,
+              status: { type: "requires-action", reason: "composer-send" },
+            } satisfies PendingAttachment;
+          },
+          remove: () => removal.promise,
+          send,
+        },
+        onNew,
+      });
+      const composer = () => aui().thread.composer();
+
+      await act(() =>
+        composer().addAttachment(
+          new File(["a"], "ready.txt", { type: "text/plain" }),
+        ),
+      );
+      act(() => {
+        void composer()
+          .addAttachment(
+            new File(["b"], "uploading.txt", { type: "text/plain" }),
+          )
+          .catch(() => {});
+      });
+      await waitFor(() =>
+        expect(composer().getState().attachments[1]?.status.type).toBe(
+          "running",
+        ),
+      );
+      await act(async () => {
+        composer().setText("hello");
+        composer().send();
+      });
+      let removing!: Promise<void>;
+      act(() => {
+        removing = expect(
+          composer().attachment({ id: "uploading.txt" }).remove(),
+        ).rejects.toThrow("remove failed");
+      });
+      await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+      if (order === "before")
+        await act(async () => {
+          removal.reject(new Error("remove failed"));
+          await removing;
+        });
+      await act(async () => {
+        prepare.reject(new Error("network"));
+      });
+      await waitFor(() => expect(composer().getState().text).toBe("hello"));
+      if (order === "after")
+        await act(async () => {
+          removal.reject(new Error("remove failed"));
+          await removing;
+        });
+
+      expect(onNew).not.toHaveBeenCalled();
+      expect(composer().getState().attachments).toMatchObject([
+        {
+          id: "ready.txt",
+          status: { type: "incomplete", reason: "error", message: "network" },
+        },
+        {
+          id: "uploading.txt",
+          status: {
+            type: "incomplete",
+            reason: "error",
+            message: "remove failed",
+          },
+        },
+      ]);
+    },
+  );
+
   it("routes edit-composer attachments through the adapter", async () => {
     const add = vi.fn(async ({ file }: { file: File }) => ({
       id: "att-edit",
