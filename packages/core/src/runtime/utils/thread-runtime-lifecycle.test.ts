@@ -19,6 +19,7 @@ const createRuntime = (disconnectVoice: () => void = vi.fn()) =>
     voice: { status: { type: "running" } },
     disconnectVoice,
     composer: { dictation: undefined },
+    messages: [],
     speech: undefined,
   }) as unknown as ThreadRuntimeCore;
 
@@ -129,6 +130,20 @@ describe("thread runtime lifecycle media sessions", () => {
     const { thread, dictation } = await localThread();
     thread.composer.startDictation();
     expect(thread.composer.dictation).toBeDefined();
+
+    disposeThreadRuntime(thread);
+
+    expect(dictation.session.stop).toHaveBeenCalledTimes(1);
+    expect(dictation.session.cancel).not.toHaveBeenCalled();
+  });
+
+  it("ends dictation started in an edit composer when the thread runtime is disposed", async () => {
+    const { thread, dictation } = await localThread();
+    const messageId = thread.messages[0]!.id;
+    thread.beginEdit(messageId);
+    const edit = thread.getEditComposer(messageId)!;
+    edit.startDictation();
+    expect(edit.dictation).toBeDefined();
 
     disposeThreadRuntime(thread);
 
