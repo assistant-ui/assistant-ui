@@ -2825,6 +2825,39 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     expect(updated.at(-1)?.message.status?.type).toBe("complete");
   });
 
+  it("persists an approval answer and feedback given after later turns follow the message", async () => {
+    const { history, updated } = createHistory();
+    const thread = createApprovalThreadWithHistory(history);
+
+    await thread.append(userMessage("send an email"));
+    await flush();
+    const [question, paused] = thread.messages;
+    expect(paused?.status?.type).toBe("requires-action");
+    await thread.append({
+      ...userMessage("and cc my manager"),
+      parentId: paused!.id,
+    });
+    await flush();
+    expect(thread.messages).toHaveLength(4);
+
+    thread.respondToToolApproval({ approvalId: "a1", approved: true });
+    thread.submitFeedback({ messageId: paused!.id, type: "positive" });
+    await flush();
+
+    expect(updated.map((i) => i.message.id)).toEqual([paused!.id, paused!.id]);
+    expect(updated.at(-1)).toMatchObject({
+      parentId: question!.id,
+      message: {
+        content: [
+          expect.objectContaining({
+            approval: expect.objectContaining({ id: "a1", approved: true }),
+          }),
+        ],
+        metadata: { submittedFeedback: { type: "positive" } },
+      },
+    });
+  });
+
   it("keeps the append-only behavior for adapters without update", async () => {
     const { history, appended } = createHistory({ update: false });
     const thread = createApprovalThreadWithHistory(history);
