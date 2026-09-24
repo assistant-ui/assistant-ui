@@ -11,8 +11,8 @@
       "gzip": 12599
     },
     "./internal": {
-      "min": 150054,
-      "gzip": 38102
+      "min": 150074,
+      "gzip": 38112
     },
     "./react": {
       "min": 340975,
@@ -179,8 +179,8 @@
   },
   "@assistant-ui/react-opencode": {
     ".": {
-      "min": 42335,
-      "gzip": 11956
+      "min": 42504,
+      "gzip": 11967
     }
   },
   "@assistant-ui/react-pi": {
