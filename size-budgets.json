@@ -15,8 +15,8 @@
       "gzip": 38009
     },
     "./react": {
-      "min": 340310,
-      "gzip": 94888
+      "min": 340355,
+      "gzip": 94897
     },
     "./store": {
       "min": 113898,
@@ -179,8 +179,8 @@
   },
   "@assistant-ui/react-opencode": {
     ".": {
-      "min": 41789,
-      "gzip": 11747
+      "min": 42335,
+      "gzip": 11956
     }
   },
   "@assistant-ui/react-pi": {
