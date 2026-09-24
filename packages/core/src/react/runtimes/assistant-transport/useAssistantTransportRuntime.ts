@@ -364,6 +364,7 @@ const useAssistantTransportThreadRuntime = <T>(
       ];
 
       commandQueue.reset();
+      parentIdRef.current = undefined;
 
       options.onCancel?.({
         commands: cmds,
@@ -380,6 +381,7 @@ const useAssistantTransportThreadRuntime = <T>(
       const queuedCmds = [...commandQueue.state.queued];
 
       commandQueue.reset();
+      parentIdRef.current = undefined;
 
       try {
         await options.onError?.(error as Error, {

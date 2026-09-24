@@ -1,4 +1,4 @@
-import { describe, test } from "vitest";
+import { describe, inject, test } from "vitest";
 import { createElement, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
@@ -84,7 +84,9 @@ const SIZES = [10, 100, 1000];
 describe("external-store thread: mount+unmount by message count", () => {
   for (const n of SIZES) {
     test(`${n} messages`, async ({ bench }) => {
-      await bench(`${n} messages`, () => mount(n).unmount()).run();
+      await bench(`${n} messages`, () => mount(n).unmount()).run(
+        inject("benchSampling"),
+      );
     });
   }
 });
@@ -105,7 +107,7 @@ describe("external-store thread: one token changed in the last message, by threa
           afterAll: () => host.unmount(),
         },
         () => host.tick(),
-      ).run();
+      ).run(inject("benchSampling"));
     });
   }
 });
