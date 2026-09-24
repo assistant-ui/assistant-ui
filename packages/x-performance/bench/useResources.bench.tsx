@@ -9,7 +9,7 @@
  *   pnpm exec vitest bench --run bench/useResources.bench.tsx
  */
 /* oxlint-disable react/rules-of-hooks -- fixed-count hook loops, benchmark only */
-import { describe, test } from "vitest";
+import { describe, inject, test } from "vitest";
 import { createElement, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
@@ -74,7 +74,9 @@ const VARIANTS = { "no-deps": false, deps: true } as const;
 describe(`useResources mount+unmount, ${N} children x ${K} hooks`, () => {
   for (const [name, deps] of Object.entries(VARIANTS)) {
     test(name, async ({ bench }) => {
-      await bench(name, () => make(deps).unmount()).run();
+      await bench(name, () => make(deps).unmount()).run(
+        inject("benchSampling"),
+      );
     });
   }
 });
@@ -92,7 +94,7 @@ describe(`useResources: one child dispatch, ${N} children x ${K} hooks`, () => {
           afterAll: () => host.unmount(),
         },
         () => host.flush(() => childSetters[N >> 1]!((v) => v + 1)),
-      ).run();
+      ).run(inject("benchSampling"));
     });
   }
 });
@@ -110,7 +112,7 @@ describe(`useResources: rebuild elements array, ${N} children x ${K} hooks`, () 
           afterAll: () => host.unmount(),
         },
         () => host.bumpParent(),
-      ).run();
+      ).run(inject("benchSampling"));
     });
   }
 });

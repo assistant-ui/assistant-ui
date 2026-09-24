@@ -6,18 +6,18 @@ import {
   type ReactNode,
   forwardRef,
   useEffect,
-  useMemo,
 } from "react";
-import { LexicalComposer } from "@lexical/react/LexicalComposer";
+import { LexicalExtensionComposer } from "@lexical/react/LexicalExtensionComposer";
 import { ContentEditable } from "@lexical/react/LexicalContentEditable";
-import { PlainTextPlugin } from "@lexical/react/LexicalPlainTextPlugin";
-import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
-import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import { HistoryExtension } from "@lexical/history";
+import { PlainTextExtension } from "@lexical/plain-text";
 import {
   $getSelection,
   $isRangeSelection,
   COMMAND_PRIORITY_HIGH,
+  configExtension,
+  defineExtension,
   KEY_ARROW_DOWN_COMMAND,
   KEY_ARROW_UP_COMMAND,
   KEY_BACKSPACE_COMMAND,
@@ -40,6 +40,19 @@ import { DirectivePlugin } from "./plugins/DirectivePlugin";
 import type { DirectivePluginProps } from "./plugins/DirectivePlugin";
 import { $getCollapsedRuntimeOffset } from "./runtimeOffset";
 
+const composerExtension = defineExtension({
+  name: "@assistant-ui/react-lexical",
+  namespace: "aui-lexical-composer",
+  nodes: [DirectiveNode],
+  dependencies: [
+    PlainTextExtension,
+    configExtension(HistoryExtension, { delay: 1000 }),
+  ],
+  onError: (error) => {
+    console.error("[LexicalComposerInput]", error);
+  },
+});
+
 export type LexicalComposerInputProps = Omit<
   ComponentPropsWithoutRef<"div">,
   "autoFocus" | "children"
@@ -48,7 +61,7 @@ export type LexicalComposerInputProps = Omit<
   submitMode?: "enter" | "ctrlEnter" | "none" | undefined;
   /** Whether Escape cancels editing. @default true */
   cancelOnEscape?: boolean | undefined;
-  /** Placeholder text shown when the editor is empty. */
+  /** Placeholder text shown when the editor is empty; it also names the textbox when neither `aria-label` nor `aria-labelledby` is given. */
   placeholder?: string | undefined;
   /** Focus the editor on mount. @default false */
   autoFocus?: boolean | undefined;
@@ -95,8 +108,13 @@ function KeyboardPlugin({
 
           if (submitMode === "none") return false;
 
-          const isRunning = aui.thread.getState().isRunning;
-          if (isRunning) return false;
+          const threadState = aui.thread.getState();
+          if (
+            threadState.isRunning &&
+            !threadState.capabilities.queue &&
+            threadState.voice === undefined
+          )
+            return false;
 
           let shouldSubmit = false;
           if (submitMode === "ctrlEnter") {
@@ -261,20 +279,13 @@ export const LexicalComposerInput = forwardRef<
     const resolvedFormatter =
       formatterProp ?? unstable_defaultDirectiveFormatter;
 
-    const initialConfig = useMemo(
-      () => ({
-        namespace: "aui-lexical-composer",
-        nodes: [DirectiveNode],
-        onError: (error: Error) => {
-          console.error("[LexicalComposerInput]", error);
-        },
-      }),
-      [],
-    );
-
+    // Decorator portals render from the composer's own React extension, above its children, so the chip context has to wrap the composer.
     return (
-      <LexicalComposer initialConfig={initialConfig}>
-        <DirectiveChipProvider value={directiveChip ?? null}>
+      <DirectiveChipProvider value={directiveChip ?? null}>
+        <LexicalExtensionComposer
+          extension={composerExtension}
+          contentEditable={null}
+        >
           <div
             ref={ref}
             className={
@@ -285,23 +296,24 @@ export const LexicalComposerInput = forwardRef<
             {...rest}
             style={{ overflowY: "auto", ...rest.style }}
           >
-            <PlainTextPlugin
-              contentEditable={
-                <ContentEditable
-                  className="aui-lexical-input"
-                  aria-label={ariaLabel}
-                  aria-labelledby={ariaLabelledBy}
-                  aria-describedby={ariaDescribedBy}
-                />
+            <ContentEditable
+              className="aui-lexical-input"
+              aria-label={
+                ariaLabel ?? (ariaLabelledBy ? undefined : placeholder)
               }
-              placeholder={
-                placeholder ? (
-                  <div className="aui-lexical-placeholder">{placeholder}</div>
-                ) : null
-              }
-              ErrorBoundary={LexicalErrorBoundary}
+              aria-labelledby={ariaLabelledBy}
+              aria-describedby={ariaDescribedBy}
+              {...(placeholder
+                ? {
+                    placeholder: (
+                      <div className="aui-lexical-placeholder">
+                        {placeholder}
+                      </div>
+                    ),
+                    "aria-placeholder": placeholder,
+                  }
+                : {})}
             />
-            <HistoryPlugin />
             <SyncPlugin formatter={resolvedFormatter} />
             <DirectivePlugin {...directivePluginProps} />
             <KeyboardPlugin
@@ -313,8 +325,8 @@ export const LexicalComposerInput = forwardRef<
             <EditablePlugin isDisabled={!!isDisabled} />
             {children}
           </div>
-        </DirectiveChipProvider>
-      </LexicalComposer>
+        </LexicalExtensionComposer>
+      </DirectiveChipProvider>
     );
   },
 );

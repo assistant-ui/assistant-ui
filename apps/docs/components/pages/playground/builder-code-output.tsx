@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import ShikiHighlighter from "react-shiki";
 import { CheckIcon, CopyIcon } from "lucide-react";
 
@@ -14,21 +13,22 @@ import {
   indent,
 } from "@/lib/builder-utils";
 import { analytics } from "@/lib/analytics";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 
 interface BuilderCodeOutputProps {
   config: BuilderConfig;
 }
 
 export function BuilderCodeOutput({ config }: BuilderCodeOutputProps) {
-  const [copied, setCopied] = useState(false);
+  const { isCopied: copied, copyToClipboard } = useCopyToClipboard({
+    copiedDuration: 2000,
+  });
 
   const componentCode = generateComponentCode(config);
 
-  const handleCopy = async () => {
+  const handleCopy = () => {
     analytics.builder.codeCopied();
-    await navigator.clipboard.writeText(componentCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    copyToClipboard(componentCode);
   };
 
   return (
@@ -334,8 +334,6 @@ function ThreadScrollToBottom() {
   const userAttachments = components.attachments
     ? "<UserMessageAttachments />"
     : "";
-  const branchPickerRow =
-    2 + Number(components.attachments) + Number(components.avatar);
 
   const userMessage =
     styles.userMessagePosition === "left"
@@ -407,7 +405,7 @@ function UserMessage() {
 
       ${
         components.branchPicker
-          ? `<BranchPicker className="col-span-full col-start-1 row-start-${branchPickerRow} -mr-1 justify-end" />`
+          ? `<BranchPicker className="col-span-full col-start-1 -mr-1 justify-end" />`
           : ""
       }
     </MessagePrimitive.Root>

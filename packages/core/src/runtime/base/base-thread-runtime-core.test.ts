@@ -18,6 +18,7 @@ import type {
 } from "../interfaces/thread-runtime-core";
 import { BaseThreadRuntimeCore } from "./base-thread-runtime-core";
 import { LocalRuntimeCore } from "../../runtimes/local/local-runtime-core";
+import { disposeThreadRuntime } from "../utils/thread-runtime-lifecycle";
 
 const createVoiceAdapter = ({
   sendText,
@@ -1904,6 +1905,465 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     } finally {
       thread.disconnectVoice();
     }
+  });
+
+  it("waits for history already loading before committing a final transcript", async () => {
+    const voiceAdapter = createVoiceAdapter();
+    let release!: () => void;
+    const barrier = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const history = {
+      load: vi.fn(() => barrier.then(() => ({ messages: [] }))),
+      append: vi.fn(async () => {}),
+    };
+    const runtime = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            async run() {
+              return {};
+            },
+          },
+          history,
+          voice: voiceAdapter.adapter,
+        },
+      },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    const load = thread.__internal_load();
+
+    expect(thread.isLoading).toBe(true);
+    thread.connectVoice();
+    expect(thread.voice).toBeDefined();
+
+    voiceAdapter.emitTranscript({
+      role: "user",
+      text: "Hello",
+      isFinal: true,
+    });
+    await Promise.resolve();
+    expect(history.append).not.toHaveBeenCalled();
+
+    release();
+    await load;
+    await vi.waitFor(() => {
+      expect(history.append).toHaveBeenCalledOnce();
+    });
+    expect(history.append).toHaveBeenCalledWith(
+      expect.objectContaining({ parentId: null }),
+    );
+
+    thread.disconnectVoice();
+  });
+
+  it("waits for a history load started after connection before committing a final transcript", async () => {
+    const voiceAdapter = createVoiceAdapter();
+    let release!: () => void;
+    const loadBarrier = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const persistedMessage: ThreadMessage = {
+      id: "persisted",
+      role: "user",
+      content: [{ type: "text", text: "Persisted" }],
+      metadata: { custom: {} },
+      createdAt: new Date(),
+      attachments: [],
+      status: { type: "complete", reason: "unknown" },
+    };
+    const history = {
+      load: vi.fn(() =>
+        loadBarrier.then(() => ({
+          messages: [{ parentId: null, message: persistedMessage }],
+        })),
+      ),
+      append: vi.fn(async () => {}),
+    };
+    const chatModel = {
+      async run() {
+        return {};
+      },
+    };
+    const runtime = new LocalRuntimeCore(
+      { adapters: { chatModel, voice: voiceAdapter.adapter } },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    await thread.__internal_load();
+    thread.connectVoice();
+    thread.__internal_setOptions({
+      adapters: { chatModel, history, voice: voiceAdapter.adapter },
+    });
+
+    expect(thread.isLoading).toBe(true);
+    voiceAdapter.emitTranscript({
+      role: "user",
+      text: "Hello",
+      isFinal: true,
+    });
+    await Promise.resolve();
+    expect(history.append).not.toHaveBeenCalled();
+
+    release();
+    await vi.waitFor(() => {
+      expect(history.append).toHaveBeenCalledOnce();
+    });
+    expect(history.append).toHaveBeenCalledWith(
+      expect.objectContaining({ parentId: persistedMessage.id }),
+    );
+    expect(thread.messages.map((message) => message.id)).toEqual([
+      persistedMessage.id,
+      expect.any(String),
+    ]);
+
+    thread.disconnectVoice();
+  });
+
+  it("waits for a history load started after connection before committing a typed turn", async () => {
+    const sendText = vi.fn(async () => {});
+    const voiceAdapter = createVoiceAdapter({ sendText });
+    let release!: () => void;
+    const loadBarrier = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const persistedMessage: ThreadMessage = {
+      id: "persisted",
+      role: "user",
+      content: [{ type: "text", text: "Persisted" }],
+      metadata: { custom: {} },
+      createdAt: new Date(),
+      attachments: [],
+      status: { type: "complete", reason: "unknown" },
+    };
+    const history = {
+      load: vi.fn(() =>
+        loadBarrier.then(() => ({
+          messages: [{ parentId: null, message: persistedMessage }],
+        })),
+      ),
+      append: vi.fn(async () => {}),
+    };
+    const chatModel = {
+      async run() {
+        return {};
+      },
+    };
+    const runtime = new LocalRuntimeCore(
+      { adapters: { chatModel, voice: voiceAdapter.adapter } },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    await thread.__internal_load();
+    thread.connectVoice();
+    thread.__internal_setOptions({
+      adapters: { chatModel, history, voice: voiceAdapter.adapter },
+    });
+
+    let settled = false;
+    const append = thread.append({
+      ...typedMessage(thread, "Typed"),
+    });
+    void append.finally(() => {
+      settled = true;
+    });
+    await vi.waitFor(() => {
+      expect(sendText).toHaveBeenCalledExactlyOnceWith("Typed");
+    });
+    expect(settled).toBe(false);
+    expect(history.append).not.toHaveBeenCalled();
+
+    release();
+    await append;
+
+    expect(history.append).toHaveBeenCalledWith(
+      expect.objectContaining({ parentId: persistedMessage.id }),
+    );
+    expect(thread.messages.map((message) => message.id)).toEqual([
+      persistedMessage.id,
+      expect.any(String),
+    ]);
+
+    thread.disconnectVoice();
+  });
+
+  it("notifies subscribers when a commit lands after the session ended", async () => {
+    const voiceAdapter = createVoiceAdapter();
+    let release!: () => void;
+    const loadBarrier = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const history = {
+      load: vi.fn(() => loadBarrier.then(() => ({ messages: [] }))),
+      append: vi.fn(async () => {}),
+    };
+    const chatModel = {
+      async run() {
+        return {};
+      },
+    };
+    const runtime = new LocalRuntimeCore(
+      { adapters: { chatModel, voice: voiceAdapter.adapter } },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    await thread.__internal_load();
+    thread.connectVoice();
+    thread.__internal_setOptions({
+      adapters: { chatModel, history, voice: voiceAdapter.adapter },
+    });
+
+    voiceAdapter.emitTranscript({
+      role: "user",
+      text: "Hello",
+      isFinal: true,
+    });
+    thread.disconnectVoice();
+
+    const seen: number[] = [];
+    const unsubscribe = thread.subscribe(() => {
+      seen.push(thread.messages.length);
+    });
+    release();
+    await vi.waitFor(() => {
+      expect(history.append).toHaveBeenCalledOnce();
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(thread.messages).toHaveLength(1);
+    expect(seen).toContain(1);
+
+    unsubscribe();
+  });
+
+  it("drops a deferred voice commit at detach without waiting for the load", async () => {
+    const voiceAdapter = createVoiceAdapter();
+    let release!: () => void;
+    const loadBarrier = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const history = {
+      load: vi.fn(() => loadBarrier.then(() => ({ messages: [] }))),
+      append: vi.fn(async () => {}),
+    };
+    const runtime = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            async run() {
+              return {};
+            },
+          },
+          history,
+          voice: voiceAdapter.adapter,
+        },
+      },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    const load = thread.__internal_load();
+    thread.connectVoice();
+
+    voiceAdapter.emitTranscript({
+      role: "user",
+      text: "Hello",
+      isFinal: true,
+    });
+    expect(thread.messages).toHaveLength(1);
+    thread.detach();
+
+    await vi.waitFor(() => {
+      expect(thread.messages).toEqual([]);
+    });
+    expect(thread.isLoading).toBe(true);
+
+    release();
+    await load;
+    await Promise.resolve();
+
+    expect(history.append).not.toHaveBeenCalled();
+    expect(thread.messages).toEqual([]);
+
+    thread.disconnectVoice();
+  });
+
+  it("drops a typed turn still sending when the thread detaches", async () => {
+    let finishSend!: () => void;
+    const sendText = vi.fn(
+      (_text: string) =>
+        new Promise<void>((resolve) => {
+          finishSend = resolve;
+        }),
+    );
+    const voiceAdapter = createVoiceAdapter({ sendText });
+    const history = {
+      load: vi.fn(async () => ({ messages: [] })),
+      append: vi.fn(async () => {}),
+    };
+    const runtime = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            async run() {
+              return {};
+            },
+          },
+          history,
+          voice: voiceAdapter.adapter,
+        },
+      },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    await thread.__internal_load();
+    thread.connectVoice();
+
+    const append = thread.append(typedMessage(thread, "Typed"));
+    expect(sendText).toHaveBeenCalledExactlyOnceWith("Typed");
+    thread.detach();
+    finishSend();
+
+    await expect(append).resolves.toBeUndefined();
+    expect(history.append).not.toHaveBeenCalled();
+    expect(thread.messages).toEqual([]);
+
+    thread.disconnectVoice();
+  });
+
+  it("disconnects without committing the unfinished reply when the thread is disposed", async () => {
+    const voiceAdapter = createVoiceAdapter();
+    const onTranscript = voiceAdapter.session.onTranscript;
+    let staleTranscript!: (
+      transcript: RealtimeVoiceAdapter.TranscriptItem,
+    ) => void;
+    voiceAdapter.session.onTranscript = (callback) => {
+      staleTranscript = callback;
+      return onTranscript(callback);
+    };
+    const history = {
+      load: vi.fn(async () => ({ messages: [] })),
+      append: vi.fn(async () => {}),
+    };
+    const runtime = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            async run() {
+              return {};
+            },
+          },
+          history,
+          voice: voiceAdapter.adapter,
+        },
+      },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    await thread.__internal_load();
+    thread.connectVoice();
+    voiceAdapter.emitTranscript({ role: "assistant", text: "Unfinished" });
+    expect(thread.messages).toHaveLength(1);
+
+    disposeThreadRuntime(thread);
+
+    expect(voiceAdapter.session.disconnect).toHaveBeenCalledOnce();
+    expect(thread.voice).toBeUndefined();
+    expect(thread.messages).toEqual([]);
+
+    staleTranscript({ role: "assistant", text: "Late" });
+    await Promise.resolve();
+
+    expect(thread.messages).toEqual([]);
+    expect(history.append).not.toHaveBeenCalled();
+  });
+
+  it("propagates a typed turn history rejection after the barrier", async () => {
+    const sendText = vi.fn(async () => {});
+    const voiceAdapter = createVoiceAdapter({ sendText });
+    let release!: () => void;
+    const loadBarrier = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const historyError = new Error("history append failed");
+    const history = {
+      load: vi.fn(() => loadBarrier.then(() => ({ messages: [] }))),
+      append: vi.fn(async () => {
+        throw historyError;
+      }),
+    };
+    const runtime = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            async run() {
+              return {};
+            },
+          },
+          history,
+          voice: voiceAdapter.adapter,
+        },
+      },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    const load = thread.__internal_load();
+    thread.connectVoice();
+
+    const append = thread.append(typedMessage(thread, "Typed"));
+    await vi.waitFor(() => {
+      expect(sendText).toHaveBeenCalledExactlyOnceWith("Typed");
+    });
+    release();
+    await load;
+    await expect(append).rejects.toBe(historyError);
+
+    thread.disconnectVoice();
+  });
+
+  it("reports a background transcript history rejection", async () => {
+    const voiceAdapter = createVoiceAdapter();
+    const historyError = new Error("history append failed");
+    const history = {
+      load: vi.fn(async () => ({ messages: [] })),
+      append: vi.fn(async () => {
+        throw historyError;
+      }),
+    };
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const runtime = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            async run() {
+              return {};
+            },
+          },
+          history,
+          voice: voiceAdapter.adapter,
+        },
+      },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    await thread.__internal_load();
+    thread.connectVoice();
+
+    voiceAdapter.emitTranscript({
+      role: "user",
+      text: "Hello",
+      isFinal: true,
+    });
+    await vi.waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] Voice message commit failed",
+        historyError,
+      );
+    });
+
+    thread.disconnectVoice();
   });
 
   it("rejects opening an edit while connected", async () => {

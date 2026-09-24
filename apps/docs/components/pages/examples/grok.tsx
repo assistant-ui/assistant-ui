@@ -123,19 +123,19 @@ const Composer: FC = () => {
 
 const GROK_MODELS = [
   {
-    id: "grok-4.1-fast",
+    id: "grok-4.7-fast",
     name: "Fast",
     description: "Default. Quick responses",
     Icon: Zap,
   },
   {
-    id: "grok-4.1",
-    name: "Grok 4.1",
+    id: "grok-4.7",
+    name: "Grok 4.7",
     description: "Standard reasoning",
     Icon: Moon,
   },
   {
-    id: "grok-4.1-think",
+    id: "grok-4.7-think",
     name: "Think",
     description: "Multi-step reasoning",
     Icon: Moon,

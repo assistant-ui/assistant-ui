@@ -225,7 +225,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
     tools: {
       getWeather: tool({
@@ -643,7 +643,7 @@ The runtime receives `{ approvalId, approved, optionId, text?, reason? }`, so a 
 
 ### Approval questions
 
-An approval request can ask for something other than permission. `approval.prompt` carries the question, and `approval.display` says how to present it: `"decision"` (the default) for a yes / no gate, `"select"` when the answer is one of `approval.options`, and `"text"` when the user types it. `approval.allowFreeform` accepts a typed answer alongside the options.
+An approval request can ask for something other than permission. `approval.prompt` carries the question, and `approval.display` says how to present it: `"decision"` (the default) for a yes / no gate, `"select"` when the answer is one of `approval.options`, and `"text"` when the user types it. `approval.allowFreeform` accepts a typed answer alongside the options, and `approval.dismissible` says the host records a dismissal: `{ approved: false }` with no answer.
 
 ```ts
 const approval = {
@@ -666,9 +666,9 @@ respondToApproval({ text: "staging" });
 
 The runtime records that as `{ approvalId, approved: true, text }`, because answering a question is not refusing it. A `text` response to a request that declares neither `display: "text"` nor `allowFreeform` throws, so a host never receives an answer it has nowhere to record.
 
-An answer on its own resolves only a question. On a decision the approval is the authorization, so a bare `text` throws there and the answer must accompany an explicit decision (`{ approved, text }`) or a chosen option; otherwise a typed note would authorize the call. `allowFreeform` on a decision therefore annotates the decision rather than replacing it, which is why the default `ToolFallback` shows a text field beside Allow and Deny with no separate submit. A question has no meaningful refusal, so the default `ToolFallback` renders a text field for one and omits the Deny control it adds to a decision.
+An answer on its own resolves only a question. On a decision the approval is the authorization, so a bare `text` throws there and the answer must accompany an explicit decision (`{ approved, text }`) or a chosen option; otherwise a typed note would authorize the call. `allowFreeform` on a decision therefore annotates the decision rather than replacing it, which is why the default `ToolFallback` shows a text field beside Allow and Deny with no separate submit. A question has no refusal of its own, so the default `ToolFallback` renders a text field for one and omits the Deny control it adds to a decision; a `dismissible` question gets a Dismiss control instead, which sends `{ approved: false }` and drops whatever was typed. The text field submits the answer as typed, an empty one included, because the request declared no constraint on it; a host that cannot record an empty answer rejects the response, and the controls come back with its error.
 
-Not every runtime emits these fields. The Eve runtime projects its input requests onto them. The AI SDK v7 runtime's gates are boolean by construction, and the AG-UI runtime admits only gates whose response schema it can answer with a decision, so both keep sending plain decisions and carry only a `prompt` when the gate supplies one.
+Not every runtime emits these fields. The Eve runtime projects its input requests onto `prompt`, `display`, `allowFreeform` and `options` and never marks one dismissible, because it rejects a refusal to a question. The Pi runtime projects `select`, `input` and `editor` requests as dismissible questions because Pi resolves a cancelled one with `undefined`. The AI SDK v7 runtime's gates are boolean by construction, and the AG-UI runtime admits only gates whose response schema it can answer with a decision, so both keep sending plain decisions and carry only a `prompt` when the gate supplies one.
 
 Approvals that end without a decision (a cancelled run or an expired request) are recorded by the host as `approval.resolution: "cancelled" | "expired"`, which closes the gate without recording a deny.
 
@@ -886,6 +886,20 @@ type ToolCallMessagePartProps<TArgs, TResult> = {
 
   // Optional artifact data
   artifact?: unknown;
+
+  // What the user did in this UI, kept with the tool call
+  unstable_interactions?: {
+    entries: {
+      type: "action" | "human-response";
+      occurredAt: number; // epoch milliseconds
+      payload: unknown;
+    }[];
+    omitted?: number; // earlier entries dropped to stay within the limits
+  };
+  unstable_recordInteraction?: (input: {
+    type: "action" | "human-response";
+    payload: unknown;
+  }) => Promise<void>;
 };
 ```
 
@@ -921,6 +935,36 @@ const toolkit = defineToolkit({
 ```
 
 Learn more about tool human input in the [Tools Guide](/docs/tools/defining-tools#human-tools).
+
+### Recording Interactions
+
+A tool UI can record what the user did in it, so a stored conversation keeps the answer next to the question. Call `unstable_recordInteraction` with the action the user took; the runtime stamps the time and appends it to the tool call's `unstable_interactions`, which cloud history stores with the message.
+
+```tsx
+const toolkit = defineToolkit({
+  chooseSize: {
+    type: "human",
+    description: "Ask the user to pick a size.",
+    parameters: z.object({ sizes: z.array(z.string()) }),
+    render: ({ args, addResult, unstable_recordInteraction }) => (
+      <SizePicker
+        sizes={args.sizes}
+        onPick={(size) => {
+          void unstable_recordInteraction?.({
+            type: "human-response",
+            payload: { size },
+          }).catch(() => {});
+          addResult({ size });
+        }}
+      />
+    ),
+  },
+});
+```
+
+Some interactions are recorded for you: the answer passed to `resume()` is recorded as a `human-response` once the runtime accepts it, and every action that `present` or `prompt_user` output of `@assistant-ui/react-generative-ui` dispatches to its action registry is recorded as an `action`.
+
+Recording is best effort. A payload must be plain JSON of at most 16,384 characters, and an `action` payload must be a JSON object. A tool call keeps its latest 32 entries within 65,536 characters (earlier ones are counted in `omitted`). The promise rejects when a runtime cannot record or a payload is invalid, so catch it as the example does; a failed recording never affects the user's action. The local runtime and the AI SDK, AG-UI and A2A runtimes record interactions. Runtimes built on `useExternalStoreRuntime` under a cloud thread list, such as LangGraph, LangChain and ADK, keep them on the cloud copy of the conversation, which is on unless the `AssistantCloud` client sets `telemetry: { messages: false }` or `telemetry: false`; their own messages do not carry them. A readonly thread ignores them. Interactions are never sent to the model or the agent.
 
 ## Best Practices
 

@@ -150,7 +150,7 @@ declare class AssistantCloudProjects {
 type AssistantCloudRunReport = {
   thread_id: string;
   status: "completed" | "error" | "incomplete";
-  outcome_type?: "aborted" | "content_filter" | "disconnected" | "length";
+  outcome_type?: "aborted" | "budget_denied" | "content_filter" | "disconnected" | "length" | "persistence_error" | "provider_error" | "rate_limited" | "server_error" | "timeout" | "validation_failed";
   message_id?: string;
   first_token_ms?: number;
   release?: string;
@@ -158,6 +158,7 @@ type AssistantCloudRunReport = {
   tags?: string[];
   provider?: string;
   trace_id?: string;
+  root_span_id?: string;
   error_code?: string;
   error?: string;
   total_steps?: number;
@@ -171,15 +172,24 @@ type AssistantCloudRunReport = {
     start_ms?: number;
     end_ms?: number;
     finish_reason?: string;
+    input?: string;
   }[];
   input_tokens?: number;
   output_tokens?: number;
   reasoning_tokens?: number;
   cached_input_tokens?: number;
+  cost_usd?: number;
+  cost_details?: {
+    input?: number;
+    input_cached_tokens?: number;
+    output?: number;
+    total?: number;
+  };
   model_id?: string;
   provider_type?: string;
   duration_ms?: number;
   output_text?: string;
+  attributes?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
 };
 
@@ -199,15 +209,18 @@ declare class AssistantCloudRuns {
   constructor(cloud: AssistantCloudAPI);
   __internal_getAssistantOptions(assistantId: string): {
     api: string;
+    protocol: "ui-message-stream";
     headers: () => Promise<{
       Accept: string;
       "Aui-Sdk": string;
     }>;
-    body: {
+    body: (options?: {
+      threadId?: string;
+    }) => Promise<{
       assistant_id: string;
       response_format: string;
       thread_id: string;
-    };
+    }>;
   };
   stream(body: AssistantCloudRunsStreamBody): Promise<AssistantStream>;
   report(body: AssistantCloudRunReport): Promise<{
@@ -253,6 +266,7 @@ type AssistantCloudSpanProcessorOptions = {
 type AssistantCloudTelemetryConfig = {
   enabled?: boolean;
   events?: boolean;
+  messages?: boolean;
   release?: string;
   environment?: string;
   tags?: string[];
@@ -263,6 +277,8 @@ type AssistantCloudThreadMessageCreateBody = {
   parent_id: string | null;
   format: "aui/v0" | string;
   content: ReadonlyJSONObject;
+  external_id?: string | undefined;
+  parent_external_id?: string | undefined;
 };
 
 type AssistantCloudThreadMessageFeedbackBody = {
@@ -403,6 +419,7 @@ type AssistantStreamChunk = {
   readonly artifact?: ReadonlyJSONValue;
   readonly result: ReadonlyJSONValue;
   readonly isError: boolean;
+  readonly isPreliminary?: boolean;
   readonly modelContent?: readonly ToolModelContentPart[];
   readonly messages?: ReadonlyJSONValue;
 } | {
@@ -483,6 +500,7 @@ type CloudMessage = {
   updated_at: Date;
   format: "aui/v0" | string;
   content: ReadonlyJSONObject;
+  external_id?: string | null | undefined;
 };
 
 declare class CloudMessagePersistence {
@@ -494,6 +512,7 @@ declare class CloudMessagePersistence {
   isPersisted(messageId: string): boolean;
   getRemoteId(messageId: string): Promise<string | undefined>;
   getResolvedRemoteId(messageId: string): string | undefined;
+  record(localId: string, remoteId: string): void;
   load(threadId: string, format?: string): Promise<CloudMessage[]>;
   reset(): void;
 }
@@ -527,7 +546,7 @@ type EngagementEventIds = Pick<AssistantCloudEvent, "message_id" | "run_id" | "t
 
 type EngagementIdResolver = (threadId: string, messageId: string | undefined, options: {
   awaitThread: boolean;
-}) => EngagementEventIds | Promise<EngagementEventIds>;
+}) => EngagementEventIds | undefined | Promise<EngagementEventIds | undefined>;
 
 type GeneratePresignedDownloadUrlResponse = {
   signedUrl: string;
@@ -668,11 +687,12 @@ type RunMessageTelemetry = {
 type RunReportInit = {
   threadId: string;
   status: AssistantCloudRunReport["status"];
-  outcome?: RunReportOutcome | undefined;
+  outcome?: AssistantCloudRunReport["outcome_type"] | undefined;
   errorCode?: string | undefined;
   error?: string | undefined;
   messageId?: string | undefined;
   traceId?: string | undefined;
+  rootSpanId?: string | undefined;
   modelId?: string | undefined;
   provider?: string | undefined;
   usage?: RunTelemetryUsageInit | undefined;
@@ -681,7 +701,15 @@ type RunReportInit = {
   toolCalls?: AssistantCloudRunReportToolCall[] | undefined;
   durationMs?: number | undefined;
   firstTokenMs?: number | undefined;
+  costUsd?: number | undefined;
+  costDetails?: {
+    input?: number | undefined;
+    inputCachedTokens?: number | undefined;
+    output?: number | undefined;
+    total?: number | undefined;
+  } | undefined;
   outputText?: string | undefined;
+  attributes?: Record<string, unknown> | undefined;
   metadata?: Record<string, unknown> | undefined;
   telemetry?: {
     environment?: string | undefined;
@@ -698,6 +726,7 @@ type RunReportStepInit = {
   startMs?: number | undefined;
   endMs?: number | undefined;
   finishReason?: string | undefined;
+  input?: string | undefined;
 };
 
 type RunTelemetryToolCallInit = {

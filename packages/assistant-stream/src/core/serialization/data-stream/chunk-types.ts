@@ -3,6 +3,7 @@ import type {
   ReadonlyJSONValue,
 } from "../../../utils/json/json-value";
 import type { GorpStreamOperation } from "../../gorp/types";
+import type { ToolModelContentPart } from "../../tool/tool-types";
 
 export type DataStreamChunk = {
   [K in DataStreamStreamChunkType]: {
@@ -77,6 +78,8 @@ type DataStreamStreamChunkValue = {
     // aui-extensions
     artifact?: ReadonlyJSONValue | undefined;
     isError?: boolean;
+    isPreliminary?: boolean;
+    modelContent?: readonly ToolModelContentPart[];
   };
   [DataStreamStreamChunkType.Error]: string;
   [DataStreamStreamChunkType.FinishStep]: {

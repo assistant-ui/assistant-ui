@@ -49,4 +49,62 @@ describe("fromThreadMessageLike", () => {
 
     expect(message.metadata).not.toHaveProperty("modality");
   });
+
+  it("keeps readable tool-call interactions", () => {
+    const message = fromThreadMessageLike(
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "confirm",
+            args: {},
+            unstable_interactions: {
+              entries: [
+                {
+                  type: "action",
+                  occurredAt: 10,
+                  payload: { $input: "approve" },
+                },
+              ],
+            },
+          },
+        ],
+      },
+      "assistant-id",
+      { type: "complete", reason: "unknown" },
+    );
+
+    expect(message.content[0]).toHaveProperty("unstable_interactions", {
+      entries: [
+        {
+          type: "action",
+          occurredAt: 10,
+          payload: { $input: "approve" },
+        },
+      ],
+    });
+  });
+
+  it("omits unreadable tool-call interactions", () => {
+    const message = fromThreadMessageLike(
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "confirm",
+            args: {},
+            unstable_interactions: { entries: [{ type: "unknown" }] },
+          },
+        ],
+      } as never,
+      "assistant-id",
+      { type: "complete", reason: "unknown" },
+    );
+
+    expect(message.content[0]).not.toHaveProperty("unstable_interactions");
+  });
 });

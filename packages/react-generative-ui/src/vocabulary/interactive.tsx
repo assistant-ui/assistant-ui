@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, type ReactNode } from "react";
 import { z } from "zod";
 import { GENERATED_NAME_ATTR } from "../constants";
 import type { Action } from "../ir";
@@ -31,6 +31,7 @@ type RadioGroupRenderProps = {
   name?: string;
   label?: string;
   defaultValue?: string;
+  children?: ReactNode;
   $status: GenerativeUIStatus;
   $action?: Action;
   $dispatch?: GenerativeUIDispatch;
@@ -41,6 +42,7 @@ function RadioGroupRender({
   name,
   label,
   defaultValue,
+  children,
   $action,
   $dispatch,
 }: RadioGroupRenderProps) {
@@ -68,6 +70,7 @@ function RadioGroupRender({
           </label>
         ) : null,
       )}
+      {children}
     </fieldset>
   );
 }

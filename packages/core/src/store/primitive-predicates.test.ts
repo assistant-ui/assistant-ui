@@ -8,6 +8,7 @@ import {
   composerCancelDisabled,
   composerInputDisabled,
   composerSendDisabled,
+  suggestionSendMode,
   suggestionTriggerDisabled,
 } from "./primitive-predicates";
 
@@ -198,6 +199,69 @@ describe("primitive predicates", () => {
       ),
     ).toBe(false);
   });
+
+  it("suggestionTriggerDisabled follows canSendText instead of the run while a voice session is connected", () => {
+    const thread = {
+      isDisabled: false,
+      isRunning: true,
+      capabilities: { queue: false },
+    };
+    expect(
+      suggestionTriggerDisabled(
+        state({ thread: { ...thread, voice: { canSendText: true } } }),
+        true,
+      ),
+    ).toBe(false);
+    expect(
+      suggestionTriggerDisabled(
+        state({
+          thread: {
+            ...thread,
+            isRunning: false,
+            voice: { canSendText: false },
+          },
+        }),
+        true,
+      ),
+    ).toBe(true);
+    expect(
+      suggestionTriggerDisabled(
+        state({ thread: { ...thread, voice: { canSendText: false } } }),
+        false,
+      ),
+    ).toBe(false);
+  });
+
+  it("suggestionSendMode queues only a text run with queue support", () => {
+    const idle = { isRunning: false, capabilities: { queue: false } };
+    expect(suggestionSendMode(state(idle))).toBe("now");
+    expect(suggestionSendMode(state({ ...idle, isRunning: true }))).toBe(
+      "blocked",
+    );
+    expect(
+      suggestionSendMode(
+        state({ isRunning: true, capabilities: { queue: true } }),
+      ),
+    ).toBe("queued");
+    expect(
+      suggestionSendMode(
+        state({
+          isRunning: true,
+          capabilities: { queue: true },
+          voice: { canSendText: true },
+        }),
+      ),
+    ).toBe("now");
+    expect(
+      suggestionSendMode(
+        state({
+          isRunning: false,
+          capabilities: { queue: true },
+          voice: { canSendText: false },
+        }),
+      ),
+    ).toBe("blocked");
+  });
   it("composerCancelDisabled, composerInputDisabled, and actionBarEditDisabled mirror their fields", () => {
     expect(
       composerCancelDisabled(state({ composer: { canCancel: true } })),
@@ -255,6 +319,25 @@ describe("primitive predicates", () => {
       actionBarEditDisabled(
         state({
           optional: { thread: undefined },
+          composer: { isEditing: false },
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      actionBarEditDisabled(
+        state({
+          optional: { ...editable.optional, message: { submission: {} } },
+          composer: { isEditing: false },
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      actionBarEditDisabled(
+        state({
+          optional: {
+            ...editable.optional,
+            message: { submission: undefined },
+          },
           composer: { isEditing: false },
         }),
       ),

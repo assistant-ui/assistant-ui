@@ -405,6 +405,48 @@ describe("useAssistantTransportRuntime", () => {
     expect(fetchMock.requests).toHaveLength(1);
   });
 
+  it("cancels the commands queued behind a run whose response already finished", async () => {
+    const fetchMock = installFetch();
+    let releaseResponse!: () => void;
+    const responseHeld = new Promise<void>((resolve) => {
+      releaseResponse = resolve;
+    });
+    const onResponse = vi.fn(() => responseHeld);
+    const onCancel = vi.fn();
+    let pendingCommands: readonly AssistantTransportCommand[] = [];
+    const { aui, sendCommand } = mountRuntime({
+      onResponse,
+      onCancel,
+      converter: (_state, meta) => {
+        pendingCommands = meta.pendingCommands;
+        return { messages: [], isRunning: meta.isSending };
+      },
+    });
+    await waitFor(() =>
+      expect(
+        (aui().thread.getState().extras as { sendCommand?: unknown })
+          ?.sendCommand,
+      ).toBeTypeOf("function"),
+    );
+
+    act(() => sendCommand(createMessageCommand("a")));
+    await waitFor(() => expect(onResponse).toHaveBeenCalledTimes(1));
+    act(() => fetchMock.servers[0]!.close());
+    act(() => sendCommand(createMessageCommand("b")));
+    act(() => aui().thread.cancelRun());
+    await act(async () => releaseResponse());
+
+    await waitFor(() => expect(onCancel).toHaveBeenCalledTimes(1));
+    expect(
+      onCancel.mock.calls[0]![0].commands.map(
+        (c: any) => c.message.parts[0].text,
+      ),
+    ).toEqual(["b"]);
+    await waitFor(() => expect(aui().thread.getState().isRunning).toBe(false));
+    expect(pendingCommands).toEqual([]);
+    expect(fetchMock.requests).toHaveLength(1);
+  });
+
   it("skips add-message commands with no supported parts", async () => {
     const fetchMock = installFetch();
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});

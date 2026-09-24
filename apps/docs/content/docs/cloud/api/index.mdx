@@ -95,7 +95,7 @@ Every error is JSON. Two shapes carry validation failures: a body or query that 
 | 403 | A credential on the wrong host, an unknown or expired key, an invalid token, a rule that matches no token, a route the credential may not use, anonymous access turned off, an anonymous caller claiming threads |
 | 404 | `Thread not found`, `Message not found`, `Messages not found`, `Run not found`, `Assistant not found`, `Attachment not found`, `Project not found` |
 | 405 | Any method other than `POST` on `/v1/mcp` |
-| 409 | `Message has children and cannot be updated`; `Message role cannot change` |
+| 409 | `Message role cannot change` |
 | 413, 415 | A trace export over 4 MB, or in a content type or encoding the receiver does not take |
 | 429 | `{ "error": "rate_limited" }` with `Retry-After`: anonymous sessions at 30 a minute, refreshes at 120 a minute per address, event requests at 600 a minute per user |
 | 503 | `Attachments are not configured on this deployment` |

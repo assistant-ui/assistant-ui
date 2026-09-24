@@ -72,6 +72,7 @@ type MessagePartLike = {
   state?: string;
   result?: unknown;
   isError?: boolean;
+  isPreliminary?: boolean;
   approval?: {
     approved?: boolean;
     resolution?: string;
@@ -157,7 +158,9 @@ function processToolCall(
     args: part.args ?? {},
   });
 
-  const settled = part.state === "result" || part.result !== undefined;
+  const settled =
+    !part.isPreliminary &&
+    (part.state === "result" || part.result !== undefined);
   // The in-flight message is converted on every roundtrip, so a call still awaiting a decision or an execution is live rather than failed.
   if (!settled && isAwaitingHost(part)) return false;
 

@@ -12,6 +12,7 @@ export { ThreadPrimitiveViewportFooter } from "./primitives/ThreadPrimitiveViewp
 export { ThreadPrimitiveScrollToBottom } from "./primitives/ThreadPrimitiveScrollToBottom";
 export {
   MessagePrimitiveParts,
+  type DataUIProps,
   type ToolUIProps,
 } from "./primitives/MessagePrimitiveParts";
 export { ChainOfThoughtPrimitiveParts } from "./primitives/ChainOfThoughtPrimitiveParts";

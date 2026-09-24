@@ -5,6 +5,7 @@ import {
   projectPiThreadRepository,
   type PiProjectionInput,
 } from "./messageProjection";
+import { isCompleteTranscriptMessage } from "../client/validation";
 import type {
   PiAgentMessage,
   PiAssistantMessage,
@@ -101,6 +102,21 @@ describe("messageProjection", () => {
       type: "image",
       image: "DATA:image/png;base64,abc",
     });
+  });
+
+  it("drops user content parts of a type it does not project", () => {
+    const message = {
+      role: "user",
+      content: [
+        { type: "text", text: "hello" },
+        { type: "audio", data: "abc", mimeType: "audio/wav" },
+      ],
+      timestamp: 1,
+    } as unknown as PiAgentMessage;
+    expect(isCompleteTranscriptMessage(message)).toBe(true);
+
+    const out = projectPiThreadMessages(input([message]));
+    expect(out[0]!.content).toEqual([{ type: "text", text: "hello" }]);
   });
 
   it("projects assistant text vs thinking vs tool-call distinctly with parentId", () => {
@@ -580,6 +596,7 @@ describe("messageProjection", () => {
       id: "r2",
       prompt: "Deploy where?",
       display: "select",
+      dismissible: true,
       options: [
         { id: "0", kind: "_0", label: "staging" },
         { id: "1", kind: "_1", label: "production" },
@@ -614,11 +631,13 @@ describe("messageProjection", () => {
       id: "r3",
       prompt: "Name?",
       display: "text",
+      dismissible: true,
     });
     expect(editorPart!.approval).toEqual({
       id: "r4",
       prompt: "Edit the plan",
       display: "text",
+      dismissible: true,
     });
     expect(out[0]!.status).toEqual({
       type: "requires-action",
