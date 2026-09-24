@@ -42,4 +42,26 @@ describe("generative UI surface", () => {
   it("hides itself while it has no children so its margins do not hold a gap open", () => {
     expect(rules['[data-aui="root"]:empty']!["display"]).toBe("none");
   });
+
+  it("keeps badges content-sized inside column layouts", () => {
+    expect(rules['[data-aui="badge"]']!["align-self"]).toBe("flex-start");
+  });
+
+  it("leaves explicitly aligned rows and columns in control of badges", () => {
+    expect(
+      rules[
+        '[data-aui="row"][data-aui-align="start"] > [data-aui="badge"], [data-aui="col"][data-aui-align="start"] > [data-aui="badge"]'
+      ]!["align-self"],
+    ).toBe("flex-start");
+    expect(
+      rules[
+        '[data-aui="row"][data-aui-align="center"] > [data-aui="badge"], [data-aui="col"][data-aui-align="center"] > [data-aui="badge"]'
+      ]!["align-self"],
+    ).toBe("center");
+    expect(
+      rules[
+        '[data-aui="row"][data-aui-align="end"] > [data-aui="badge"], [data-aui="col"][data-aui-align="end"] > [data-aui="badge"]'
+      ]!["align-self"],
+    ).toBe("flex-end");
+  });
 });
