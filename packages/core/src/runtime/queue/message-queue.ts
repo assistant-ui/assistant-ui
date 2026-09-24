@@ -25,6 +25,8 @@ export type MessageQueueDriver = {
 
 export type MessageQueueController = {
   readonly adapter: ExternalThreadQueueAdapter;
+  hold: () => void;
+  release: () => void;
   /** Mark a run as in flight so concurrent sends buffer; call on the rising edge. */
   notifyBusy: () => void;
   /** Advances to the next pending message; call on the run's falling edge. */
@@ -88,6 +90,7 @@ export const createMessageQueue = (
 
   let running = false;
   let paused = false;
+  let held = false;
   let dispatchTransform: (message: AppendMessage) => AppendMessage = (m) => m;
   // swallow the cancelled run's settle when steering so it does not double-advance
   let suppressIdle = 0;
@@ -133,7 +136,7 @@ export const createMessageQueue = (
   };
 
   const advance = () => {
-    if (running || paused) return;
+    if (running || paused || held) return;
     const lane: Lane = lanes.steer.length > 0 ? "steer" : "queue";
     const head = lanes[lane][0];
     if (!head) return;
@@ -334,6 +337,13 @@ export const createMessageQueue = (
 
   return {
     adapter,
+    hold: () => {
+      held = true;
+    },
+    release: () => {
+      held = false;
+      advance();
+    },
     notifyBusy: () => {
       paused = false;
       // a cancelled run's settle that is still outstanding belongs to a run

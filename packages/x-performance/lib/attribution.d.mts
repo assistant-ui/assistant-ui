@@ -12,6 +12,12 @@ export declare const benchCoverage: (
   graph: Map<string, string[]>,
 ) => Map<string, Set<string>>;
 
+export declare const planBenches: (
+  coverage: Map<string, Set<string>>,
+  changed: string[],
+  options?: { all?: boolean },
+) => { measured: string[]; controls: string[]; unchanged: number };
+
 export declare const benchFileOf: (rowId: string) => string;
 
 export declare const attributeRows: <T extends { id: string }>(

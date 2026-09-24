@@ -44,7 +44,7 @@ const extensionForMimeType = (mimeType?: string): string => {
   }
 };
 
-const dataUriToBlob = (dataUri: string): Blob => {
+const dataUriToBlob = (dataUri: string): Blob | null => {
   const commaIndex = dataUri.indexOf(",");
   const meta = commaIndex >= 0 ? dataUri.slice(0, commaIndex) : dataUri;
   const data = commaIndex >= 0 ? dataUri.slice(commaIndex + 1) : "";
@@ -52,16 +52,33 @@ const dataUriToBlob = (dataUri: string): Blob => {
     meta.match(/data:([^;]+)/i)?.[1]?.toLowerCase() ??
     "application/octet-stream";
   if (!/;base64/i.test(meta)) {
-    const text = data.replace(/(?:%[0-9A-Fa-f]{2})+/g, (seq) => {
-      try {
-        return decodeURIComponent(seq);
-      } catch {
-        return seq;
+    const parts: BlobPart[] = [];
+    let last = 0;
+    for (const match of data.matchAll(/(?:%[\da-f]{2})+/gi)) {
+      if (match.index > last) parts.push(data.slice(last, match.index));
+      const run = match[0];
+      const escaped = new Uint8Array(run.length / 3);
+      for (let index = 0; index < escaped.length; index++) {
+        escaped[index] = Number.parseInt(
+          run.slice(index * 3 + 1, index * 3 + 3),
+          16,
+        );
       }
-    });
-    return new Blob([text], { type: mime });
+      parts.push(escaped);
+      last = match.index + run.length;
+    }
+    parts.push(data.slice(last));
+    return new Blob(parts, { type: mime });
   }
-  const bytes = atob(data);
+  let bytes: string;
+  try {
+    const base64 = data.replace(/%([\da-f]{2})/gi, (_match, hex: string) =>
+      String.fromCharCode(Number.parseInt(hex, 16)),
+    );
+    bytes = atob(base64);
+  } catch {
+    return null;
+  }
   const arr = new Uint8Array(bytes.length);
   for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
   return new Blob([arr], { type: mime });
@@ -70,16 +87,30 @@ const dataUriToBlob = (dataUri: string): Blob => {
 const mimeFromImage = (image: string): string | undefined =>
   image.match(/^data:([^;,]+)/i)?.[1]?.toLowerCase();
 
+const defaultFilenameFromImage = (image: string): string => {
+  const mime = mimeFromImage(image);
+  if (mime) return `image.${extensionForMimeType(mime)}`;
+  try {
+    const path = new URL(image, document.baseURI).pathname;
+    const encodedBasename = path.split("/").pop() ?? "";
+    let basename = encodedBasename;
+    try {
+      basename = decodeURIComponent(encodedBasename);
+    } catch {}
+    if (/\.(png|jpe?g|webp|gif|svg)$/i.test(basename)) return basename;
+  } catch {}
+  return "image.png";
+};
+
 const downloadImagePart = (
   part: Pick<ImageMessagePart, "image" | "filename">,
 ): void => {
   if (typeof document === "undefined") return;
-  const ext = extensionForMimeType(mimeFromImage(part.image));
-  const filename = part.filename ?? `image.${ext}`;
+  const filename = part.filename ?? defaultFilenameFromImage(part.image);
   const isDataUri = /^data:/i.test(part.image);
-  const objectUrl = isDataUri
-    ? URL.createObjectURL(dataUriToBlob(part.image))
-    : null;
+  const blob = isDataUri ? dataUriToBlob(part.image) : null;
+  if (isDataUri && !blob) return;
+  const objectUrl = blob ? URL.createObjectURL(blob) : null;
   const href = objectUrl ?? part.image;
   const a = document.createElement("a");
   a.href = href;
@@ -104,6 +135,7 @@ const copyImagePart = async (
   const blob = /^data:/i.test(part.image)
     ? dataUriToBlob(part.image)
     : await fetch(part.image).then((r) => r.blob());
+  if (!blob) return;
   const mime = mimeFromImage(part.image) ?? blob.type ?? "image/png";
   await navigator.clipboard.write([new ClipboardItem({ [mime]: blob })]);
 };
@@ -308,7 +340,17 @@ function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
       <div
         ref={triggerRef}
         onClick={handleOpen}
-        onKeyDown={(e) => e.key === "Enter" && handleOpen()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            e.currentTarget.click();
+          } else if (e.key === " ") {
+            e.preventDefault();
+          }
+        }}
+        onKeyUp={(e) => {
+          if (e.key === " ") e.currentTarget.click();
+        }}
         role="button"
         tabIndex={0}
         className="aui-image-zoom-trigger cursor-zoom-in"

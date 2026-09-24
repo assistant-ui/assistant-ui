@@ -834,6 +834,7 @@ describe("AgUiThreadRuntimeCore branch flows", () => {
       role: "user",
       createdAt: new Date(),
       content: [{ type: "text", text: "Hello" }],
+      attachments: [],
       metadata: { custom: {} },
     };
     const assistantMessage: ThreadAssistantMessage = {

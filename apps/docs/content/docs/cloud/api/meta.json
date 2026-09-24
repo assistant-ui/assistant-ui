@@ -1,0 +1,20 @@
+{
+  "title": "REST API",
+  "description": "Every route the project API serves, with its parameters, examples and status codes.",
+  "icon": "Braces",
+  "root": true,
+  "pages": [
+    "index",
+    "auth-tokens",
+    "threads",
+    "messages",
+    "runs",
+    "events",
+    "scores",
+    "files",
+    "traces",
+    "project",
+    "users",
+    "mcp"
+  ]
+}

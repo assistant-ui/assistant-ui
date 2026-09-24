@@ -13,6 +13,6 @@ Then open `http://localhost:3000`.
 
 ## How it works
 
-- `app/api/image/route.ts` exposes a server endpoint that calls AI SDK's `generateImage` with `openai.image("gpt-image-1")` and returns an `ImageMessagePart`-shaped payload. Without `OPENAI_API_KEY` it returns a mock image so the example still runs.
+- `app/api/image/route.ts` exposes a server endpoint that calls AI SDK's `generateImage` with `openai.image("gpt-image-2")` and returns an `ImageMessagePart`-shaped payload. Without `OPENAI_API_KEY` it returns a mock image so the example still runs.
 - `app/page.tsx` POSTs the prompt to that endpoint, stores the result as an `ImageMessagePart`, and renders it with the `@assistant-ui/ui` `Image` component.
 - `Image.Actions` provides download and copy buttons plus a regenerate button wired through its `onRegenerate` callback.

@@ -22,6 +22,7 @@ type PendingAssistantSubmit = {
   dispatching: boolean;
   event: unknown;
   handlerInvoked: boolean;
+  unmounted: boolean;
   outcome: boolean | undefined;
   resolve: (outcome: boolean) => void;
   reject: (error: unknown) => void;
@@ -107,6 +108,17 @@ export const useAssistantForm = <
     pending.reject(error);
   }, []);
 
+  useEffect(
+    () => () => {
+      const pending = pendingAssistantSubmitRef.current;
+      if (!pending) return;
+
+      pending.unmounted = true;
+      pending.resolve(false);
+    },
+    [],
+  );
+
   const handleSubmit = useCallback<
     UseFormReturn<TFieldValues, TContext, TTransformedValues>["handleSubmit"]
   >(
@@ -115,13 +127,19 @@ export const useAssistantForm = <
         (...args) => {
           const pending = pendingAssistantSubmitRef.current;
           const event = args[1]?.nativeEvent ?? args[1];
-          if (pending && pending.event === event) pending.outcome = true;
+          if (pending && pending.event === event) {
+            pending.outcome = true;
+            if (pending.unmounted) return;
+          }
           return onValid(...args);
         },
         (...args) => {
           const pending = pendingAssistantSubmitRef.current;
           const event = args[1]?.nativeEvent ?? args[1];
-          if (pending && pending.event === event) pending.outcome = false;
+          if (pending && pending.event === event) {
+            pending.outcome = false;
+            if (pending.unmounted) return;
+          }
           return onInvalid?.(...args);
         },
       );
@@ -204,7 +222,7 @@ export const useAssistantForm = <
             for (const name of _names.mount) {
               const field: Field | undefined = get(_fields, name);
               if (field?._f) {
-                const fieldReference = Array.isArray(field._f.refs)
+                const fieldReference: unknown = Array.isArray(field._f.refs)
                   ? field._f.refs[0]
                   : field._f.ref;
 
@@ -243,6 +261,7 @@ export const useAssistantForm = <
                 dispatching: true,
                 event: undefined,
                 handlerInvoked: false,
+                unmounted: false,
                 outcome: undefined,
                 resolve: resolveSubmission,
                 reject: rejectSubmission,
@@ -284,9 +303,11 @@ export const useAssistantForm = <
               if (await submissionResult) return { success: true };
               return {
                 success: false,
-                message: dispatched
-                  ? "The form contains invalid fields and was not submitted."
-                  : "The form did not accept the submission.",
+                message: assistantSubmit.unmounted
+                  ? "The form is no longer available."
+                  : dispatched
+                    ? "The form contains invalid fields and was not submitted."
+                    : "The form did not accept the submission.",
               };
             }
 

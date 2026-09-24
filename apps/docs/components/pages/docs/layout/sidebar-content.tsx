@@ -17,6 +17,7 @@ import { DiscordIcon } from "@/components/icons/discord";
 import { PlatformSwitcher } from "@/components/pages/docs/platform/switcher";
 import {
   buildPlatformSections,
+  findActiveSectionId,
   findPathToNode,
   isNodeVisible,
 } from "@/components/pages/docs/platform/tree";
@@ -38,7 +39,7 @@ function SectionItem({
 
   if (item.type === "separator") {
     return (
-      <p className="text-muted-foreground/60 mt-4 mb-1 px-2 text-[10px] font-medium tracking-wider uppercase first:mt-1">
+      <p className="text-muted-foreground mt-4 mb-1 px-2 text-xs font-medium first:mt-1">
         {item.name}
       </p>
     );
@@ -67,7 +68,7 @@ function SectionItem({
             <span className="truncate">{item.name}</span>
           </Link>
         ) : (
-          <p className="text-muted-foreground/70 mt-3 mb-1 flex items-center gap-2 px-2 text-[11px] font-medium tracking-wider uppercase first:mt-1">
+          <p className="text-muted-foreground mt-3 mb-1 flex items-center gap-2 px-2 text-xs font-medium first:mt-1">
             {item.icon}
             {item.name}
           </p>
@@ -201,11 +202,10 @@ export function SidebarContent({ tree }: { tree?: PageTree.Root }) {
     return null;
   }, [allFolders, pathname]);
 
-  const activeSectionId = useMemo(() => {
-    const activeIds = new Set(activePath?.map((node) => node.$id));
-    const match = sections.find((section) => activeIds.has(section.$id));
-    return match?.$id ?? sections[0]?.$id ?? null;
-  }, [sections, activePath]);
+  const activeSectionId = useMemo(
+    () => findActiveSectionId(sections, activePath),
+    [sections, activePath],
+  );
 
   const [openSectionId, setOpenSectionId] = useState<string | null>(
     activeSectionId,

@@ -1,14 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
-import { act, createElement, useState } from "react";
+import { act, createElement, type ReactNode, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   AssistantRuntimeProvider,
   MessagePrimitive,
+  TextMessagePartProvider,
   ThreadPrimitive,
   useExternalStoreRuntime,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
-import { StreamdownTextPrimitive } from "@assistant-ui/react-streamdown";
+import {
+  StreamdownTextPrimitive,
+  type SyntaxHighlighterProps,
+  useStreamdownPreProps,
+} from "@assistant-ui/react-streamdown";
 import { createRenderCounter } from "../src/render-counter";
 
 const renderObserver = vi.hoisted(() => ({ current: () => {} }));
@@ -101,6 +106,179 @@ describe.each([
       for (let token = 1; token <= TOKENS; token++) app.append(token);
 
       expect(counter.renders("primitive") - mountRenders).toBe(TOKENS);
+    } finally {
+      app.unmount();
+    }
+  });
+});
+
+type TextProps = { text: string; isRunning: boolean };
+
+const HighlightedCode = counter.track(
+  "highlighter",
+  ({ code }: SyntaxHighlighterProps) => <pre>{code}</pre>,
+);
+
+const PrePropsHeader = () => {
+  counter.useRender("pre props consumer");
+  useStreamdownPreProps();
+  return null;
+};
+
+const mountText = (Text: (props: TextProps) => ReactNode) => {
+  const root = createRoot(document.createElement("div"));
+  return {
+    show: (text: string, isRunning: boolean) =>
+      act(() => root.render(<Text text={text} isRunning={isRunning} />)),
+    unmount: () => act(() => root.unmount()),
+  };
+};
+
+describe("Streamdown settled code blocks", () => {
+  const TOKENS = 5;
+  const fence = "```ts\nconst x = 1;\n```";
+  const tail = (tokens: number) =>
+    Array.from({ length: tokens + 1 }, (_, token) => `word${token}`).join(" ");
+  const withTail = (tokens: number) => `${fence}\n\n${tail(tokens)}`;
+
+  // Streamdown re-renders a settled block when a `components` entry changes
+  // identity, and every block once when an animated message completes. The code
+  // adapter and every `useStreamdownPreProps` consumer have to hold across both:
+  // each re-render parses a new pre node, and the language map is a fresh literal.
+  it.each([
+    {
+      name: "an inline components entry re-renders the block",
+      Text: ({ text, isRunning }: TextProps) => (
+        <TextMessagePartProvider text={text} isRunning={isRunning}>
+          <StreamdownTextPrimitive
+            components={{
+              a: ({ node: _, ...props }) => <a {...props} />,
+              CodeHeader: PrePropsHeader,
+            }}
+            componentsByLanguage={{
+              ts: { SyntaxHighlighter: HighlightedCode },
+            }}
+          />
+        </TextMessagePartProvider>
+      ),
+    },
+    {
+      name: "an animated message completes",
+      Text: ({ text, isRunning }: TextProps) => (
+        <TextMessagePartProvider text={text} isRunning={isRunning}>
+          <StreamdownTextPrimitive
+            animated
+            components={{ CodeHeader: PrePropsHeader }}
+            componentsByLanguage={{
+              ts: { SyntaxHighlighter: HighlightedCode },
+            }}
+          />
+        </TextMessagePartProvider>
+      ),
+    },
+  ])("does not re-render the settled code block when $name", ({ Text }) => {
+    counter.reset();
+    const app = mountText(Text);
+
+    try {
+      app.show(withTail(0), true);
+      expect(counter.snapshot()).toMatchObject({
+        "renders:highlighter": 1,
+        "renders:pre props consumer": 1,
+      });
+
+      counter.reset();
+      for (let token = 1; token <= TOKENS; token++) {
+        app.show(withTail(token), true);
+      }
+      app.show(withTail(TOKENS), false);
+
+      expect(counter.renders("highlighter")).toBe(0);
+      expect(counter.renders("pre props consumer")).toBe(0);
+    } finally {
+      app.unmount();
+    }
+  });
+
+  // Raw HTML can nest pre inside pre. Each level compares its own node up to
+  // the next nested pre, so an outer level, whose code child has element
+  // children and re-renders anyway, provides a new pre props value on every
+  // re-render, while the innermost level holds its value and its code adapter
+  // bails out. React 19 still schedules every PreContext consumer below a
+  // changed outer provider: its lazy context propagation collects the changed
+  // providers by walking up from each bail-out without consulting shadowing,
+  // so an unchanged nested provider in between does not stop it, and the
+  // innermost consumer re-renders once per token with the one value it has
+  // always read while the highlighter beside it does not run.
+  it("holds the innermost highlighter of nested raw pre markup", () => {
+    const DEPTH = 3;
+    const nested = (tokens: number) =>
+      `${"<pre><code>".repeat(DEPTH - 1)}<pre><code class="language-ts">const x = 1;</code></pre>${"</code></pre>".repeat(DEPTH - 1)}\n\n${tail(tokens)}`;
+    const seen = new Set<unknown>();
+    const InnermostHeader = () => {
+      counter.useRender("pre props consumer");
+      seen.add(useStreamdownPreProps());
+      return null;
+    };
+    const Text = ({ text, isRunning }: TextProps) => (
+      <TextMessagePartProvider text={text} isRunning={isRunning}>
+        <StreamdownTextPrimitive
+          mode="static"
+          componentsByLanguage={{
+            ts: {
+              SyntaxHighlighter: HighlightedCode,
+              CodeHeader: InnermostHeader,
+            },
+          }}
+        />
+      </TextMessagePartProvider>
+    );
+    counter.reset();
+    const app = mountText(Text);
+
+    try {
+      app.show(nested(0), false);
+      expect(counter.snapshot()).toMatchObject({
+        "renders:highlighter": 1,
+        "renders:pre props consumer": 1,
+      });
+
+      counter.reset();
+      for (let token = 1; token <= TOKENS; token++) {
+        app.show(nested(token), false);
+      }
+
+      expect(counter.renders("highlighter")).toBe(0);
+      expect(counter.renders("pre props consumer")).toBe(TOKENS);
+      expect(seen.size).toBe(1);
+    } finally {
+      app.unmount();
+    }
+  });
+
+  it("re-runs the highlighter once per token while the fence grows", () => {
+    const Text = ({ text, isRunning }: TextProps) => (
+      <TextMessagePartProvider text={text} isRunning={isRunning}>
+        <StreamdownTextPrimitive
+          componentsByLanguage={{ ts: { SyntaxHighlighter: HighlightedCode } }}
+        />
+      </TextMessagePartProvider>
+    );
+    counter.reset();
+    const app = mountText(Text);
+    const growing = (tokens: number) =>
+      `\`\`\`ts\nconst x = 0${Array.from({ length: tokens }, (_, token) => ` + ${token + 1}`).join("")}`;
+
+    try {
+      app.show(growing(0), true);
+      expect(counter.renders("highlighter")).toBe(1);
+
+      counter.reset();
+      for (let token = 1; token <= TOKENS; token++) {
+        app.show(growing(token), true);
+      }
+
+      expect(counter.renders("highlighter")).toBe(TOKENS);
     } finally {
       app.unmount();
     }

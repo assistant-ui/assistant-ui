@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig } from "@assistant-ui/store/client";
+import type { RealtimeVoiceAdapter } from "@assistant-ui/core";
 import { RuntimeAdapter, Suggestions } from "@assistant-ui/core/store";
 import {
   AssistantRuntimeImpl,
@@ -37,6 +38,57 @@ const mountSuggestions = (
     },
   });
   return { app, echo, aui, triggers };
+};
+
+const mountVoiceSuggestions = (
+  sendText?: RealtimeVoiceAdapter.Session["sendText"],
+) => {
+  let isRunning = false;
+  const onNew = vi.fn(async () => {});
+  const session: RealtimeVoiceAdapter.Session = {
+    status: { type: "running" },
+    isMuted: false,
+    disconnect: () => {},
+    mute: () => {},
+    unmute: () => {},
+    ...(sendText && { sendText }),
+    onStatusChange: () => () => {},
+    onTranscript: () => () => {},
+    onModeChange: () => () => {},
+    onVolumeChange: () => () => {},
+  };
+  const makeAdapter = () => ({
+    messages: [],
+    isRunning,
+    convertMessage: (message: never) => message,
+    onNew,
+    adapters: { voice: { connect: () => session } },
+  });
+  const core = new ExternalStoreRuntimeCore(makeAdapter() as never);
+  const runtime = new AssistantRuntimeImpl(core as never);
+  let aui!: AnyClient;
+  let trigger!: ReturnType<typeof suggestionTrigger>;
+  const app = mount(Host, {
+    target: document.createElement("div"),
+    props: {
+      setup: () => {
+        aui = provideAui(
+          AuiConfig({
+            threads: RuntimeAdapter(runtime),
+            suggestions: Suggestions([
+              { title: "One", label: "first", prompt: "Prompt one" },
+            ]),
+          }),
+        ) as AnyClient;
+        trigger = suggestionTrigger({ index: 0, send: true });
+      },
+    },
+  });
+  const setRunning = (value: boolean) => {
+    isRunning = value;
+    core.setAdapter(makeAdapter() as never);
+  };
+  return { app, runtime, aui, trigger, onNew, setRunning };
 };
 
 describe("suggestionTrigger", () => {
@@ -153,6 +205,40 @@ describe("suggestionTrigger", () => {
     });
     expect(aui.composer.getState().text).toBe("half-typed draft");
 
+    flushSync(() => void unmount(app));
+  });
+
+  it("sends into a voice session that takes typed text while a spoken reply is running", async () => {
+    const sendText = vi.fn<(text: string) => void>();
+    const { app, runtime, aui, trigger, onNew, setRunning } =
+      mountVoiceSuggestions(sendText);
+
+    flushTapSync(() => {
+      runtime.thread.connectVoice();
+      aui.composer.setText("half-typed draft");
+      setRunning(true);
+    });
+    expect(trigger.props.disabled).toBe(false);
+    trigger.props.onclick();
+    await vi.waitFor(() =>
+      expect(sendText).toHaveBeenCalledExactlyOnceWith("Prompt one"),
+    );
+    expect(onNew).not.toHaveBeenCalled();
+    expect(aui.composer.getState().text).toBe("");
+
+    runtime.thread.disconnectVoice();
+    flushSync(() => void unmount(app));
+  });
+
+  it("send is disabled while a voice session cannot take typed text", () => {
+    const { app, runtime, trigger, onNew } = mountVoiceSuggestions();
+
+    flushTapSync(() => runtime.thread.connectVoice());
+    expect(trigger.props.disabled).toBe(true);
+    trigger.props.onclick();
+    expect(onNew).not.toHaveBeenCalled();
+
+    runtime.thread.disconnectVoice();
     flushSync(() => void unmount(app));
   });
 

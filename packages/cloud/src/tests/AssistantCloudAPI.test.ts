@@ -89,7 +89,7 @@ describe("AssistantCloudAPI", () => {
     api.registerSdk({ name: "@assistant-ui/core", version: "0.3.18" });
     api.registerSdk({ name: "@assistant-ui/ai-sdk", version: "0.0.5" });
     api.registerSdk({ name: " ", version: "0.0.5" });
-    api.registerSdk({ name: "@assistant-ui/cloud-ai-sdk", version: " " });
+    api.registerSdk({ name: "@assistant-ui/react-langgraph", version: " " });
 
     await api.makeRawRequest("/threads", {
       headers: { "Aui-Sdk": "overridden" },

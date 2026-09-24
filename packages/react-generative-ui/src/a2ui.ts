@@ -1,5 +1,6 @@
 export { applyA2uiOperations } from "./a2ui/reducer";
 export { convertSurfaceToUISpec } from "./a2ui/convert";
+export { surfaceToOperations } from "./a2ui/snapshot";
 export type {
   A2uiCreateSurfaceOperation,
   A2uiCreateSurfaceV09Payload,
@@ -9,6 +10,7 @@ export type {
   A2uiOperation,
   A2uiOperationResult,
   A2uiState,
+  A2uiSurfaceSnapshotOperation,
   A2uiSurfaceState,
   A2uiTemplateChildren,
   A2uiUpdateComponentsOperation,

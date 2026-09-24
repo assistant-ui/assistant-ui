@@ -1,0 +1,154 @@
+---
+title: Custom thread list
+description: Compose a Cloud backed thread list around a runtime, adapter or message format of your own.
+---
+
+`useCloudThreadListRuntime` puts Assistant Cloud's thread list around a per-thread runtime hook. Use it when your runtime does not have a `cloud` option, including AG-UI and A2A, or when you need to control the backend thread lifecycle yourself.
+
+The hook gives the runtime Cloud threads and the history, attachment and feedback adapters as defaults; an adapter the wrapped runtime supplies itself is kept. A runtime built on `useExternalStoreRuntime` stores a copy of its settled messages through that history adapter, as [LangGraph, LangChain and ADK](/docs/cloud/langgraph) describes. A direct adapter is available when you need the list without the wrapper runtime.
+
+## Wrap a per-thread runtime
+
+```tsx title="app/chat/runtime-provider.tsx"
+import { useCloudThreadListRuntime } from "@assistant-ui/react";
+
+const runtime = useCloudThreadListRuntime({
+  cloud,
+  runtimeHook: useMyThreadRuntime,
+  create: async () => ({ externalId: await backend.createThread() }),
+  delete: async (cloudThreadId) => {
+    const { external_id } = await cloud.threads.get(cloudThreadId);
+    if (external_id) await backend.deleteThread(external_id);
+  },
+});
+```
+
+| Option | Default | Behavior |
+|---|---|---|
+| `cloud` | Required | The `AssistantCloud` client used for the list and the runtime adapters. |
+| `runtimeHook` | Required | A hook that returns the runtime for one selected thread. |
+| `create` | `undefined` | Runs before the Cloud thread is created. Its `externalId` is saved as the Cloud thread's `external_id`. |
+| `delete` | `undefined` | Runs before the Cloud thread is deleted. It receives the Cloud thread id, not your `externalId`; read the thread to map it, as above. |
+
+The wrapper always enables nested runtimes with `allowNesting: true`. It has no `sdk` or `onThreadIdChange` option. Use the lower-level adapter if you need an SDK identity, and use the remote-thread-list layer directly if your application needs an id change callback.
+
+## Use the adapter directly
+
+`useCloudThreadListAdapter` creates a React-stable adapter. `createCloudThreadListAdapter` creates the same adapter outside a React hook and can receive either its options or a function that returns current options.
+
+```tsx title="app/chat/use-thread-list.ts"
+import { useCloudThreadListAdapter } from "@assistant-ui/react";
+
+const adapter = useCloudThreadListAdapter({
+  cloud,
+  sdk: { name: "@acme/chat", version: "1.0.0" },
+  create: async () => ({ externalId: await backend.createThread() }),
+  delete: async (threadId) => backend.deleteThread(threadId),
+});
+```
+
+| Option | Default | Behavior |
+|---|---|---|
+| `cloud` | An anonymous client when the public Cloud base URL is available | The client used for every Cloud operation. If there is no supplied or automatic client, the adapter becomes an in-memory thread list. Its `initialize` still calls `create` and returns the local thread id as `remoteId`. |
+| `sdk` | `undefined` | A `{ name, version }` identity registered after the core identity. Every Cloud request then carries it in `Aui-Sdk`. **Settings › Telemetry** lists the integration and its SDK version. |
+| `create` | `undefined` | Resolves an optional external id before `cloud.threads.create`. |
+| `delete` | `undefined` | Runs before `cloud.threads.delete`. |
+
+The hook keeps the latest callbacks without rebuilding the adapter. Its memo key is the Cloud instance only, so changing `create` or `delete` does not replace the list, while changing `cloud` does. Keep one Cloud instance for the lifetime of the list, and create a new adapter if you replace it.
+
+### What the adapter calls
+
+| Method | Cloud call and behavior |
+|---|---|
+| `list({ after })` | Requests active and archived pages in parallel with `cloud.threads.list`, 20 threads per side. It merges both pages and returns one cursor that retains each side's cursor and exhaustion state. |
+| `initialize()` | Awaits `create`, then calls `cloud.threads.create` with the current time and the returned `external_id`. It returns the Cloud `remoteId` and the external id. |
+| `rename(threadId, title)` | Calls `cloud.threads.update(threadId, { title })`. |
+| `updateCustom(threadId, custom)` | Calls `cloud.threads.update(threadId, { metadata: custom ?? null })`. |
+| `archive(threadId)` | Calls `cloud.threads.update(threadId, { is_archived: true })`. |
+| `unarchive(threadId)` | Calls `cloud.threads.update(threadId, { is_archived: false })`. |
+| `delete(threadId)` | Awaits `delete(threadId)`, then calls `cloud.threads.delete(threadId)`. |
+| `generateTitle(threadId, messages)` | Sends text and tool-call parts to `cloud.runs.stream` with `assistant_id: "system/thread_title"`. |
+| `fetch(threadId)` | Calls `cloud.threads.get(threadId)` and maps the response to a thread-list item. |
+
+The adapter maps Cloud metadata to `custom` only when that metadata is an object. See [Threads](/docs/cloud/threads) for the stored thread fields and [Thread titles](/docs/cloud/thread-titles) for title generation.
+
+## Use AG-UI or A2A
+
+AG-UI and A2A do not create a Cloud adapter themselves. Place either per-thread runtime inside `useCloudThreadListRuntime` to give it Cloud threads, message history, attachments, feedback, engagement events and reports read from stored assistant messages.
+
+<Tabs items={["AG-UI", "A2A"]}>
+  <Tab value="AG-UI">
+
+```tsx title="app/chat/ag-ui-runtime.tsx"
+import { useCloudThreadListRuntime } from "@assistant-ui/react";
+import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
+
+const runtime = useCloudThreadListRuntime({
+  cloud,
+  runtimeHook: () => useAgUiRuntime({ agent }),
+});
+```
+
+  </Tab>
+  <Tab value="A2A">
+
+```tsx title="app/chat/a2a-runtime.tsx"
+import { useCloudThreadListRuntime } from "@assistant-ui/react";
+import { useA2ARuntime } from "@assistant-ui/react-a2a";
+
+const runtime = useCloudThreadListRuntime({
+  cloud,
+  runtimeHook: () => useA2ARuntime({ client }),
+});
+```
+
+  </Tab>
+</Tabs>
+
+Add `create` and `delete` when either protocol has a corresponding backend conversation to create or remove.
+
+## Persist another message format
+
+`ThreadHistoryAdapter.withFormat(adapter)` is the seam for a runtime whose messages are not `aui/v0`. Pass it a `MessageFormatAdapter`, then use `createFormattedPersistence` with `CloudMessagePersistence` when you need the same behavior outside the default Cloud history adapter.
+
+```ts title="app/chat/persistence.ts"
+import {
+  CloudMessagePersistence,
+  createFormattedPersistence,
+} from "assistant-cloud";
+
+const persistence = createFormattedPersistence(
+  new CloudMessagePersistence(cloud),
+  messageFormat,
+);
+```
+
+| `MessageFormatAdapter` member | Contract |
+|---|---|
+| `format` | The storage format string written with each Cloud message. |
+| `encode({ parentId, message })` | Converts a runtime item to JSON storage content. |
+| `decode({ id, parent_id, format, content })` | Converts a stored row back to a runtime item. |
+| `getId(message)` | Returns the stable local message id used for persistence and remote-id lookup. |
+
+`withFormat` returns `load`, `append`, optional `update`, optional `delete` and `reportTelemetry`. Call `reportTelemetry(items, { durationMs, stepTimestamps, message })` after the response settles to build a run report from the encoded items and the source thread message. `durationMs` supplies the run duration, `stepTimestamps` supplies `{ start_ms, end_ms }` for each step, and `message` supplies status and timing that the stored format may not carry.
+
+### What `CloudMessagePersistence` guarantees
+
+| Operation | Guarantee |
+|---|---|
+| `append` | Concurrent appends for the same local id share one request. A child awaits its parent's pending append so the child is written with the resolved remote parent id. |
+| Id map | A successful append maps the local id to the remote message id. A failed append removes its mapping. Loaded rows receive identity mappings so they are not appended again. |
+| `load` | Fetches message pages of 200, follows the `after` cursor, and stops on a short or repeated page. Formatted persistence keeps only the requested format and returns messages in chronological order. |
+| `update` | Writes through the mapped remote id. An unmapped id is skipped with a console warning. |
+| `reset` | Replaces the id map. In-flight work can settle, but cannot write into the new map. |
+
+## Troubleshooting
+
+| What you see | Why | What to do |
+|---|---|---|
+| The list resets after a render | The `cloud` instance changed, which is the adapter's memo key. | Construct one Cloud client and keep it stable for the list lifetime. |
+| Threads exist only until refresh | No Cloud client was available, so the adapter used its in-memory fallback. | Supply `cloud` or configure the public Cloud base URL. |
+| Archived threads disappear during pagination | The caller treated the adapter cursor as one Cloud thread id. | Pass the adapter's merged cursor back unchanged. |
+| A child message has the wrong parent | A custom persistence layer bypassed parent chaining. | Use `CloudMessagePersistence.append` or wait for the parent append before writing the child. |
+| A report lacks message status or timing | The stored format did not carry the source thread message. | Pass `message` and the applicable timing values to `reportTelemetry`. |
+| Telemetry does not identify the integration | No valid `sdk` identity was supplied. | Pass nonempty printable `name` and `version` values in `sdk`. |
