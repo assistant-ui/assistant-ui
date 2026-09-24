@@ -341,6 +341,7 @@ export { useMessagePartFile } from "./primitives/messagePart/useMessagePartFile"
 export { useMessagePartImage } from "./primitives/messagePart/useMessagePartImage";
 export { useMessagePartData } from "./primitives/messagePart/useMessagePartData";
 export { useThreadViewportAutoScroll } from "./primitives/thread/useThreadViewportAutoScroll";
+export { useThreadViewport } from "./context/react/ThreadViewportContext";
 export { useScrollLock } from "./primitives/reasoning/useScrollLock";
 export { useMessageQuote } from "./hooks/useMessageQuote";
 export { useMessageTiming } from "./hooks/useMessageTiming";

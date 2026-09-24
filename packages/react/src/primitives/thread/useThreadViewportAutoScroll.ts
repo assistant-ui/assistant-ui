@@ -104,14 +104,18 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     followBottomRef.current = div !== null && isViewportAtBottom(div);
   }, [autoScroll]);
 
-  const scrollToBottom = useCallback((behavior: ScrollBehavior) => {
-    const div = divRef.current;
-    if (!div) return;
+  const scrollToBottom = useCallback(
+    (behavior: ScrollBehavior) => {
+      if (threadViewportStore.getState().autoScrollPaused) return;
+      const div = divRef.current;
+      if (!div) return;
 
-    followBottomRef.current = true;
-    scrollingToBottomBehaviorRef.current = behavior;
-    div.scrollTo({ top: div.scrollHeight, behavior });
-  }, []);
+      followBottomRef.current = true;
+      scrollingToBottomBehaviorRef.current = behavior;
+      div.scrollTo({ top: div.scrollHeight, behavior });
+    },
+    [threadViewportStore],
+  );
 
   const cancelScheduledFrame = useCallback(() => {
     if (scheduledFrameRef.current === null) return;
@@ -121,14 +125,19 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
 
   const scheduleScrollToBottom = useCallback(
     (behavior: ScrollBehavior) => {
+      if (threadViewportStore.getState().autoScrollPaused) return;
       scrollingToBottomBehaviorRef.current = behavior;
       cancelScheduledFrame();
       scheduledFrameRef.current = requestAnimationFrame(() => {
         scheduledFrameRef.current = null;
+        if (threadViewportStore.getState().autoScrollPaused) {
+          scrollingToBottomBehaviorRef.current = null;
+          return;
+        }
         scrollToBottom(behavior);
       });
     },
-    [cancelScheduledFrame, scrollToBottom],
+    [cancelScheduledFrame, scrollToBottom, threadViewportStore],
   );
 
   useLayoutEffect(() => () => cancelScheduledFrame(), [cancelScheduledFrame]);
@@ -151,6 +160,14 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
 
     const isInFlightDownwardScroll =
       !newIsAtBottom && lastScrollTop.current < div.scrollTop;
+    const paused = threadViewportStore.getState().autoScrollPaused;
+    const userScrolledDown =
+      div.scrollHeight === lastScrollHeight.current &&
+      div.scrollTop > lastScrollTop.current;
+    if (paused && userScrolledDown && newIsAtBottom) {
+      threadViewportStore.getState().resumeAutoScroll();
+    }
+
     if (isInFlightDownwardScroll) {
       // no-op: a smooth scroll-to-bottom fires many midpoint scroll events
       // before landing, don't flicker isAtBottom or clear intent mid-animation
@@ -203,6 +220,13 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     }
     lastObservedScrollHeight.current = scrollHeight;
     lastObservedClientHeight.current = clientHeight;
+
+    if (threadViewportStore.getState().autoScrollPaused) {
+      scrollingToBottomBehaviorRef.current = null;
+      followBottomRef.current = false;
+      handleScroll();
+      return;
+    }
 
     const scrollBehavior = scrollingToBottomBehaviorRef.current;
     if (scrollBehavior && hasActiveTopAnchor()) {
@@ -274,11 +298,13 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   useAuiEvent("thread.runStart", () => {
     if (!scrollToBottomOnRunStart) return;
     if (threadViewportStore.getState().turnAnchor === "top") return;
+    threadViewportStore.getState().resumeAutoScroll();
     scheduleScrollToBottom("auto");
   });
 
   useAuiEvent("threads.selectionChanged", () => {
     if (!scrollToBottomOnThreadSwitch) return;
+    threadViewportStore.getState().resumeAutoScroll();
     scheduleScrollToBottom("instant");
   });
 
