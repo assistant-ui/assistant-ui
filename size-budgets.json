@@ -185,12 +185,12 @@
   },
   "@assistant-ui/react-pi": {
     ".": {
-      "min": 44783,
-      "gzip": 12943
+      "min": 44792,
+      "gzip": 12947
     },
     "./node": {
-      "min": 17852,
-      "gzip": 5708
+      "min": 17873,
+      "gzip": 5718
     }
   },
   "@assistant-ui/react-streamdown": {
