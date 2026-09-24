@@ -4921,6 +4921,9 @@ importers:
       '@opencode-ai/sdk':
         specifier: ^1.18.31
         version: 1.18.31
+      assistant-cloud:
+        specifier: '*'
+        version: link:../cloud
     devDependencies:
       '@assistant-ui/react':
         specifier: workspace:*
