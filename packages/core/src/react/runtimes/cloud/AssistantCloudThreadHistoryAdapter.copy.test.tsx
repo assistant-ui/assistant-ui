@@ -258,8 +258,8 @@ describe("Assistant Cloud backend transcript copy", () => {
     expect(warn).toHaveBeenCalledTimes(2);
   });
 
-  it.each([402, 404])(
-    "stops copying a thread the cloud refuses as a whole (%i)",
+  it.each([400, 402, 404])(
+    "stops copying a thread whose first message the cloud refuses (%i)",
     async (status) => {
       makeClient();
       const { cloud, create } = makeCloud();
@@ -277,6 +277,27 @@ describe("Assistant Cloud backend transcript copy", () => {
       expect(warn).toHaveBeenCalledOnce();
     },
   );
+
+  it("stops copying a thread the cloud reports gone after it stored earlier messages", async () => {
+    makeClient();
+    const { cloud, create } = makeCloud();
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    create
+      .mockResolvedValueOnce({ message_id: "cloud-a" })
+      .mockRejectedValueOnce(new CloudAPIError("Thread not found", 404));
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const branch = [message("a"), message("b"), message("c")];
+
+    await result.current.unstable_copy!(branch, ["a", "b", "c"]);
+    await result.current.unstable_copy!(branch, ["c"]);
+
+    expect(create.mock.calls.map(([, body]) => body.external_id)).toEqual([
+      "a",
+      "b",
+    ]);
+  });
 
   it.each([401, 403, 408, 429])(
     "stops at a message the cloud cannot take right now (%i)",

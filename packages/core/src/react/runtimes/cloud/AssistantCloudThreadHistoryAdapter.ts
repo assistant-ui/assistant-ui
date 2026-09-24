@@ -513,7 +513,11 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
           }));
         } catch (error) {
           if (!isRefusedCopy(error)) throw error;
-          if (THREAD_REFUSAL_STATUSES.has(error.status)) {
+          // A cloud that has not accepted one message of the thread, such as a server without external ids, refuses the rest too.
+          if (
+            THREAD_REFUSAL_STATUSES.has(error.status) ||
+            copied.stored.size === 0
+          ) {
             copied.closed = true;
             console.warn(
               `[assistant-ui] The cloud refused copies to thread ${remoteId}; the dashboard shows the conversation as far as it was copied.`,
@@ -1023,8 +1027,7 @@ export function extractAuiV0<T>(content: T): RunMessageTelemetry | null {
 
 export function useAssistantCloudThreadHistoryAdapter(
   cloudRef: RefObject<AssistantCloud>,
-): ThreadHistoryAdapter &
-  Pick<AssistantCloudThreadHistoryAdapter, "feedback" | "unstable_copy"> {
+): ThreadHistoryAdapter & { readonly feedback: FeedbackAdapter } {
   const aui = useAui();
   // Not useEffectEvent: history adapter methods run during render (SSR load).
   const auiRef = useRef(aui);
