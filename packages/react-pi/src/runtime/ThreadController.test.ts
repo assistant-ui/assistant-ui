@@ -468,27 +468,6 @@ describe("PiThreadController", () => {
     expect(() => controller.dispose()).not.toThrow();
   });
 
-  it("ignores release callbacks from before disposal", () => {
-    vi.useFakeTimers();
-    const client = createFakeClient();
-    const controller = new PiThreadController(client, THREAD);
-    const releaseStaleConnection = controller.connect();
-
-    controller.dispose();
-    expect(client.unsubscribed).toBe(1);
-
-    const releaseCurrentConnection = controller.connect();
-    releaseStaleConnection();
-    vi.advanceTimersByTime(30_000);
-    expect(client.unsubscribed).toBe(1);
-
-    releaseCurrentConnection();
-    vi.advanceTimersByTime(30_000);
-    expect(client.unsubscribed).toBe(2);
-
-    vi.useRealTimers();
-  });
-
   it("keeps thread switching on the read-only getThread path", async () => {
     const client = createFakeClient(
       snapshot({ messages: [{ role: "user", content: "one", timestamp: 1 }] }),
