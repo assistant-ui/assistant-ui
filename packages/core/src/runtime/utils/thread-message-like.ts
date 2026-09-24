@@ -217,11 +217,11 @@ export const fromThreadMessageLike = (
 
               default: {
                 const dataType: `data-${string}` = type;
-                return {
-                  type: "data",
-                  name: dataType.slice(5),
-                  data: part.data,
-                };
+                const converted = convertDataPrefixedPart(dataType, part.data);
+                if (converted) return converted;
+                throw new Error(
+                  `Unsupported assistant message part type: ${dataType}`,
+                );
               }
             }
           })
@@ -266,7 +266,11 @@ export const fromThreadMessageLike = (
 
             default: {
               const dataType: `data-${string}` = type;
-              return { type: "data", name: dataType.slice(5), data: part.data };
+              const converted = convertDataPrefixedPart(dataType, part.data);
+              if (converted) return converted;
+              throw new Error(
+                `Unsupported user message part type: ${dataType}`,
+              );
             }
           }
         }),
