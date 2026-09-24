@@ -297,6 +297,15 @@ export class LocalThreadRuntimeCore
 
     let hasUpdates = resetHistoryScope;
 
+    if (!options.adapters.suggestion) {
+      this._suggestionsController?.abort();
+      this._suggestionsController = null;
+      if (this._suggestions.length > 0) {
+        this._suggestions = [];
+        hasUpdates = true;
+      }
+    }
+
     const canSpeak = options.adapters?.speech !== undefined;
     if (this.capabilities.speech !== canSpeak) {
       this.capabilities.speech = canSpeak;

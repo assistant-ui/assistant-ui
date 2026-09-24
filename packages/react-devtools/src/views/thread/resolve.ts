@@ -3,10 +3,9 @@ import type { ThreadListPreview, ThreadPreview } from "./types";
 
 /**
  * Picks the thread to show for a selected conversation id, preferring a cached
- * snapshot, then the live main thread, then the single-thread runtime state.
+ * snapshot, then the live main thread.
  */
 export const resolveThreadForId = (
-  state: Record<string, unknown>,
   snapshots: Readonly<Record<string, unknown>> | undefined,
   threadId: string,
   threadList: ThreadListPreview | null,
@@ -19,8 +18,6 @@ export const resolveThreadForId = (
   if (threadList?.mainThreadId === threadId && threadList.main) {
     return threadList.main;
   }
-  const single = parseThreadPreview(state.thread);
-  if (single && threadList?.threadIds.length === 0) return single;
   return null;
 };
 

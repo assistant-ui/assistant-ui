@@ -11,12 +11,12 @@
       "gzip": 12599
     },
     "./internal": {
-      "min": 151045,
-      "gzip": 38427
+      "min": 150209,
+      "gzip": 38122
     },
     "./react": {
-      "min": 341946,
-      "gzip": 95342
+      "min": 341130,
+      "gzip": 95081
     },
     "./store": {
       "min": 114179,
@@ -65,8 +65,8 @@
   },
   "@assistant-ui/react-devtools": {
     ".": {
-      "min": 160568,
-      "gzip": 45759
+      "min": 160436,
+      "gzip": 45730
     }
   },
   "@assistant-ui/react-generative-ui": {
@@ -185,8 +185,8 @@
   },
   "@assistant-ui/react-pi": {
     ".": {
-      "min": 44921,
-      "gzip": 13008
+      "min": 45178,
+      "gzip": 13084
     },
     "./node": {
       "min": 17873,
