@@ -325,9 +325,9 @@ const serializableArtifact = (
 
 const hasLosslessJSONShape = (value: unknown): boolean => {
   if (typeof value !== "object" || value === null) return true;
-  if (typeof (value as { toJSON?: unknown }).toJSON === "function") {
-    return false;
-  }
+  // A toJSON is the value's own serializer, so whatever it emits is intended.
+  if (typeof (value as { toJSON?: unknown }).toJSON === "function") return true;
+  if (value instanceof Map || value instanceof Set) return value.size === 0;
 
   if (Array.isArray(value)) {
     if (Reflect.ownKeys(value).length !== value.length + 1) return false;
@@ -339,14 +339,11 @@ const hasLosslessJSONShape = (value: unknown): boolean => {
     return true;
   }
 
-  if (!isRecord(value)) return true;
-  const prototype = Object.getPrototypeOf(value);
-  if (prototype !== Object.prototype && prototype !== null) return false;
   return Reflect.ownKeys(value).every(
     (key) =>
       typeof key === "string" &&
       Object.getOwnPropertyDescriptor(value, key)?.enumerable === true &&
-      hasLosslessJSONShape(value[key]),
+      hasLosslessJSONShape((value as Record<string, unknown>)[key]),
   );
 };
 
@@ -428,12 +425,12 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
           };
 
         case "tool-call": {
-          if (
-            part.result !== undefined &&
-            !isPersistableJSONValue(part.result)
-          ) {
-            throw new TypeError(
-              `Tool call result for ${part.toolCallId} must be JSON-serializable`,
+          const result = isPersistableJSONValue(part.result)
+            ? part.result
+            : undefined;
+          if (part.result !== undefined && result === undefined) {
+            console.warn(
+              `tool-call result for ${part.toolCallId} holds data JSON would drop; not persisted`,
             );
           }
           const artifact = serializableArtifact(part.artifact);
@@ -452,9 +449,7 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
             ...(JSON.stringify(part.args) === part.argsText
               ? { args: part.args }
               : { argsText: part.argsText }),
-            ...(part.result !== undefined
-              ? { result: part.result as ReadonlyJSONValue }
-              : undefined),
+            ...(result !== undefined ? { result } : undefined),
             ...(artifact !== undefined ? { artifact } : undefined),
             ...(part.modelContent !== undefined
               ? { modelContent: part.modelContent }

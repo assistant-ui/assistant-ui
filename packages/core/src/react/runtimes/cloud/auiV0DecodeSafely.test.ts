@@ -505,39 +505,52 @@ describe("auiV0DecodeSafely against encoder output", () => {
     ],
   });
 
-  const lossyResultError =
-    "Tool call result for call-1 must be JSON-serializable";
-
-  it("rejects a tool result that JSON would silently empty", () => {
-    expect(() =>
-      auiV0Encode(withToolResult(new Map([["answer", 42]]))),
-    ).toThrow(lossyResultError);
-  });
-
-  it("rejects an array whose prototype serializes it differently", () => {
-    class Emptying extends Array<number> {
-      toJSON() {
-        return [];
-      }
-    }
-
-    expect(() => auiV0Encode(withToolResult(Emptying.of(42)))).toThrow(
-      lossyResultError,
-    );
-  });
-
-  it("rejects a plain object once Object.prototype gains a serializer", () => {
-    Object.defineProperty(Object.prototype, "toJSON", {
-      configurable: true,
-      value: () => null,
-    });
+  const encodedResult = (result: unknown) => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
-      expect(() => auiV0Encode(withToolResult({ answer: 42 }))).toThrow(
-        lossyResultError,
-      );
+      const encoded = auiV0Encode(withToolResult(result));
+      const part = encoded.content[0] as { result?: unknown };
+      return { result: part.result, warned: warn.mock.calls.length };
     } finally {
-      delete (Object.prototype as { toJSON?: unknown }).toJSON;
+      warn.mockRestore();
     }
+  };
+
+  it("drops a tool result JSON would silently empty and warns", () => {
+    expect(encodedResult(new Map([["answer", 42]]))).toEqual({
+      result: undefined,
+      warned: 1,
+    });
+    expect(encodedResult(new Set([1, 2]))).toEqual({
+      result: undefined,
+      warned: 1,
+    });
+  });
+
+  it("keeps tool results JSON preserves", () => {
+    class Weather {
+      tempC = 21;
+      city = "Berlin";
+    }
+    const cases: [unknown, unknown][] = [
+      [{ createdAt: new Date(0) }, { createdAt: new Date(0) }],
+      [new Weather(), new Weather()],
+      [new URL("https://x.y/"), new URL("https://x.y/")],
+      [{ nested: [{ items: new Map() }] }, { nested: [{ items: new Map() }] }],
+    ];
+    for (const [input, expected] of cases) {
+      expect(encodedResult(input)).toEqual({ result: expected, warned: 0 });
+    }
+  });
+
+  it("drops a tool result that hides data behind non-string keys", () => {
+    const symbolKeyed = { [Symbol("hidden")]: 1, shown: 2 };
+    const sparse = Object.defineProperty([1, 2], "extra", {
+      value: 3,
+      enumerable: true,
+    });
+    expect(encodedResult(symbolKeyed).warned).toBe(1);
+    expect(encodedResult(sparse).warned).toBe(1);
   });
 
   it("keeps every assistant status the encoder writes", () => {
