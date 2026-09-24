@@ -107,12 +107,15 @@ const mergeInteractionLogs = (
 type CopiedThread = {
   stored: Set<string>;
   refused: Set<string>;
+  closed: boolean;
   interactions: Map<string, Unstable_ToolInteractionLog>;
 };
 
 const RETRIED_COPY_STATUSES = new Set([401, 403, 408, 429]);
+// The thread is gone, or its end user may not write this month.
+const THREAD_REFUSAL_STATUSES = new Set([402, 404]);
 
-const isRefusedCopy = (error: unknown) =>
+const isRefusedCopy = (error: unknown): error is CloudAPIError =>
   error instanceof CloudAPIError &&
   error.status >= 400 &&
   error.status < 500 &&
@@ -415,6 +418,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         const copied: CopiedThread = {
           stored: new Set(),
           refused: new Set(),
+          closed: false,
           interactions: new Map(),
         };
         const seen = new Set<string>();
@@ -462,6 +466,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       }
       throw error;
     }
+    if (copied.closed) return;
 
     const eligible = branch.filter(
       (message) => message.id.length > 0 && message.id.length <= 255,
@@ -508,6 +513,14 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
           }));
         } catch (error) {
           if (!isRefusedCopy(error)) throw error;
+          if (THREAD_REFUSAL_STATUSES.has(error.status)) {
+            copied.closed = true;
+            console.warn(
+              `[assistant-ui] The cloud refused copies to thread ${remoteId}; the dashboard shows the conversation as far as it was copied.`,
+              error,
+            );
+            return;
+          }
           copied.refused.add(message.id);
           console.warn(
             `[assistant-ui] The cloud refused the copy of message ${message.id}; the dashboard shows the conversation without it.`,

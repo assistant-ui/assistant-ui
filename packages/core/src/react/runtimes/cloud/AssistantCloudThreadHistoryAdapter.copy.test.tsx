@@ -258,6 +258,26 @@ describe("Assistant Cloud backend transcript copy", () => {
     expect(warn).toHaveBeenCalledTimes(2);
   });
 
+  it.each([402, 404])(
+    "stops copying a thread the cloud refuses as a whole (%i)",
+    async (status) => {
+      makeClient();
+      const { cloud, create } = makeCloud();
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      create.mockRejectedValue(new CloudAPIError("Refused", status));
+      const { result } = renderHook(() =>
+        useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+      );
+      const branch = [message("a"), message("b"), message("c")];
+
+      await result.current.unstable_copy!(branch, ["a", "b", "c"]);
+      await result.current.unstable_copy!(branch, ["c"]);
+
+      expect(create).toHaveBeenCalledOnce();
+      expect(warn).toHaveBeenCalledOnce();
+    },
+  );
+
   it.each([401, 403, 408, 429])(
     "stops at a message the cloud cannot take right now (%i)",
     async (status) => {
