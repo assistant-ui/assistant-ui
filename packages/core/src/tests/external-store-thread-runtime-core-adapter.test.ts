@@ -14,7 +14,10 @@ import type {
 } from "../types/message";
 import { createMessageQueue } from "../runtime/queue/message-queue";
 import { getThreadMessageText } from "../utils/text";
-import { invalidateThreadRuntime } from "../runtime/utils/thread-runtime-lifecycle";
+import {
+  invalidateThreadRuntime,
+  supersedeThreadRuntime,
+} from "../runtime/utils/thread-runtime-lifecycle";
 import { MessageRepository } from "../runtime/utils/message-repository";
 
 const createContextProvider = (): ModelContextProvider => ({
@@ -2109,6 +2112,86 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
     core.disconnectVoice();
 
     expect(core.messages).toEqual([]);
+  });
+
+  describe("when onVoiceTranscript throws for the reply still being spoken", () => {
+    const commitError = new Error("host store rejected the transcript");
+
+    const setupSpeakingSession = () => {
+      const sessions: RealtimeVoiceAdapter.Session[] = [];
+      let transcriptCallback:
+        | ((transcript: RealtimeVoiceAdapter.TranscriptItem) => void)
+        | undefined;
+      const adapter: RealtimeVoiceAdapter = {
+        connect: () => {
+          const session: RealtimeVoiceAdapter.Session = {
+            status: { type: "running" },
+            isMuted: false,
+            disconnect: vi.fn(),
+            mute: vi.fn(),
+            unmute: vi.fn(),
+            onStatusChange: () => () => {},
+            onTranscript: (callback) => {
+              transcriptCallback = callback;
+              return () => {
+                transcriptCallback = undefined;
+              };
+            },
+            onModeChange: () => () => {},
+            onVolumeChange: () => () => {},
+          };
+          sessions.push(session);
+          return session;
+        },
+      };
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const core = new ExternalStoreThreadRuntimeCore(
+        createContextProvider(),
+        createBaseAdapter({
+          onVoiceTranscript: () => {
+            throw commitError;
+          },
+          adapters: { voice: adapter },
+        }),
+      );
+      core.connectVoice();
+      transcriptCallback?.({ role: "assistant", text: "Hel", isFinal: false });
+      return { core, sessions, consoleError };
+    };
+
+    it("still disconnects the session on hang up and reports the error", async () => {
+      const { core, sessions, consoleError } = setupSpeakingSession();
+
+      expect(() => core.disconnectVoice()).not.toThrow();
+      expect(sessions[0]!.disconnect).toHaveBeenCalledOnce();
+      expect(core.voice).toBeUndefined();
+      await Promise.resolve();
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] Voice message commit failed",
+        commitError,
+      );
+    });
+
+    it("disconnects the previous session before connecting a new one", () => {
+      const { core, sessions } = setupSpeakingSession();
+
+      core.connectVoice();
+
+      expect(sessions).toHaveLength(2);
+      expect(sessions[0]!.disconnect).toHaveBeenCalledOnce();
+      expect(sessions[1]!.disconnect).not.toHaveBeenCalled();
+    });
+
+    it("disconnects the session when the thread runtime is discarded", () => {
+      const { core, sessions } = setupSpeakingSession();
+
+      supersedeThreadRuntime(core);
+
+      expect(sessions[0]!.disconnect).toHaveBeenCalledOnce();
+      expect(core.voice).toBeUndefined();
+    });
   });
 
   it("parents a send after the session ended on the last repository message", async () => {

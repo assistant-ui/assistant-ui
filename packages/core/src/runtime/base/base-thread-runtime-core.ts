@@ -607,8 +607,8 @@ export abstract class BaseThreadRuntimeCore
 
   private _currentAssistantMsg: ThreadAssistantMessage | null = null;
 
-  private _observeVoiceCommit(commit: void | Promise<void>) {
-    void Promise.resolve(commit).catch((error) => {
+  private _observeVoiceCommit(commit: () => void | Promise<void>) {
+    void new Promise<void>((resolve) => resolve(commit())).catch((error) => {
       console.error("[assistant-ui] Voice message commit failed", error);
     });
   }
@@ -623,7 +623,7 @@ export abstract class BaseThreadRuntimeCore
       this._currentAssistantMsg = null;
 
       if (transcript.isFinal) {
-        this._observeVoiceCommit(
+        this._observeVoiceCommit(() =>
           this._commitVoiceUserMessage({
             id: generateId(),
             role: "user",
@@ -669,9 +669,8 @@ export abstract class BaseThreadRuntimeCore
       }
 
       if (transcript.isFinal) {
-        this._observeVoiceCommit(
-          this._commitVoiceMessage(this._currentAssistantMsg),
-        );
+        const message = this._currentAssistantMsg;
+        this._observeVoiceCommit(() => this._commitVoiceMessage(message));
         this._currentAssistantMsg = null;
       }
 
@@ -746,7 +745,7 @@ export abstract class BaseThreadRuntimeCore
         ...(last as ThreadAssistantMessage),
         status: { type: "complete", reason: "stop" },
       };
-      this._observeVoiceCommit(
+      this._observeVoiceCommit(() =>
         this._commitVoiceMessage(this._voiceMessages[idx]!),
       );
       this._currentAssistantMsg = null;
