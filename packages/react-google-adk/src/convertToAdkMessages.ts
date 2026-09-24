@@ -1,3 +1,4 @@
+import { isRecord } from "@assistant-ui/core/internal";
 import {
   generateId,
   getExternalStoreMessages,
@@ -95,9 +96,7 @@ export const getPendingToolCalls = (messages: AdkMessage[]) => {
     (message) => {
       if (message.type === "ai") {
         return {
-          toolCalls: (message.tool_calls ?? []).filter(
-            (toolCall) => typeof toolCall === "object" && toolCall !== null,
-          ),
+          toolCalls: (message.tool_calls ?? []).filter(isRecord),
         };
       }
       if (message.type === "tool") {
