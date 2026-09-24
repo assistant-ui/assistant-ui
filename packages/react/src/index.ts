@@ -258,6 +258,7 @@ export {
   type Unstable_InteractablesClientSchema,
   type Unstable_InteractablesConfig,
   useToolArgsStatus,
+  useComposerResume,
   type ToolArgsStatus,
 } from "@assistant-ui/core/react";
 

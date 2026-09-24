@@ -180,7 +180,11 @@ describe("useAssistantTransportRuntime", () => {
     expect(fetchMock.requests[0]?.url).toBe("https://example.com/resume");
     expect(fetchMock.requests[0]?.body["commands"]).toEqual([]);
     expect(aui().thread.getState().canResume).toBe(false);
-    await act(async () => fetchMock.servers[0]!.close());
+    act(() => fetchMock.servers[0]!.close());
+    await waitFor(() =>
+      expect(aui().thread.getState().isRunning).toBe(false),
+    );
+    expect(aui().thread.getState().canResume).toBe(true);
   });
 
   it.each([false, 0, "", null])(

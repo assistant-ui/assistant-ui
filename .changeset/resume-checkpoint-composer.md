@@ -6,5 +6,3 @@
 ---
 
 Add explicit adapter-owned `canResume` state and a `useComposerResume` hook, with a web `ComposerPrimitive.Resume` button. Unsupported adapters retain the existing send/cancel behavior.
-
-Forward checkpoint availability through shared runtime options and Assistant Transport, coordinate pending controls per thread, and clear unavailable, failed, or switched-branch AI SDK checkpoints.

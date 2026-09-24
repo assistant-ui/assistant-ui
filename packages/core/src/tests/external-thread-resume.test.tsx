@@ -6,9 +6,7 @@ import { AuiProvider, useAui } from "@assistant-ui/store";
 import { ExternalThread } from "../store/clients/external-thread";
 import { useComposerResume } from "../react/primitive-hooks/useComposerResume";
 import { ExternalStoreThreadRuntimeCore } from "../runtimes/external-store/external-store-thread-runtime-core";
-import { useExternalStoreRuntime } from "../react/runtimes/useExternalStoreRuntime";
 import type { ThreadMessage } from "../types/message";
-import { AssistantRuntimeProvider } from "../react/AssistantRuntimeProvider";
 import { getThreadRuntimeCoreIsRunning } from "../runtime/api/thread-runtime";
 
 let action!: ReturnType<typeof useComposerResume>;
@@ -70,8 +68,6 @@ describe("checkpoint resume", () => {
       duplicate = second.resume();
     });
     expect(onResume).toHaveBeenCalledOnce();
-    expect(second.isResuming).toBe(true);
-    expect(second.disabled).toBe(true);
     await act(async () => {
       await duplicate;
     });
@@ -80,8 +76,6 @@ describe("checkpoint resume", () => {
       finish();
       await pending;
     });
-    expect(first.isResuming).toBe(false);
-    expect(second.isResuming).toBe(false);
     expect(second.disabled).toBe(false);
   });
 
@@ -131,56 +125,6 @@ describe("checkpoint resume", () => {
       finish();
       await pending;
     });
-  });
-
-  it("keeps pending resume actions scoped to their original thread", async () => {
-    let finish!: () => void;
-    const first = vi.fn(
-      () =>
-        new Promise<void>((resolve) => {
-          finish = resolve;
-        }),
-    );
-    const second = vi.fn(async () => {});
-    const SwitchableApp = ({ id }: { id: string }) => {
-      const runtime = useExternalStoreRuntime<ThreadMessage>({
-        messages: [],
-        onNew: async () => {},
-        canResume: true,
-        onResume: id === "one" ? first : second,
-        adapters: {
-          threadList: {
-            threadId: id,
-            threads: ["one", "two"].map((id) => ({
-              id,
-              status: "regular" as const,
-            })),
-          },
-        },
-      });
-      return (
-        <AssistantRuntimeProvider runtime={runtime}>
-          <Capture />
-        </AssistantRuntimeProvider>
-      );
-    };
-    const { rerender } = render(<SwitchableApp id="one" />);
-    await waitFor(() => expect(action.disabled).toBe(false));
-    let pending!: Promise<void>;
-    act(() => {
-      pending = action.resume();
-    });
-    rerender(<SwitchableApp id="two" />);
-    await waitFor(() => expect(action.disabled).toBe(false));
-    await act(async () => action.resume());
-    expect(second).toHaveBeenCalledTimes(1);
-    rerender(<SwitchableApp id="one" />);
-    await waitFor(() => expect(action.disabled).toBe(true));
-    await act(async () => {
-      finish();
-      await pending;
-    });
-    expect(action.disabled).toBe(false);
   });
 
   it.each([
@@ -262,6 +206,27 @@ describe("checkpoint resume", () => {
       isRunning: true,
     });
     expect(runtime.canResume).toBe(false);
+  });
+
+  it("guards concurrent external-store resume calls on the thread runtime", async () => {
+    let finish!: () => void;
+    const onResume = vi.fn(
+      () => new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      { getModelContext: () => ({}) },
+      { messages: [], onNew: vi.fn(), onResume, canResume: true },
+    );
+    const config = { parentId: null, sourceId: null, runConfig: {} };
+    const pending = runtime.resumeRun(config);
+    expect(runtime.canResume).toBe(false);
+    const duplicate = runtime.resumeRun(config);
+    expect(onResume).toHaveBeenCalledOnce();
+    finish();
+    await Promise.all([pending, duplicate]);
+    expect(runtime.canResume).toBe(true);
   });
 
   it.each([undefined, false])(

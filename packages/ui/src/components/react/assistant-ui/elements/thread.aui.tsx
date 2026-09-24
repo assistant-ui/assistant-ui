@@ -73,6 +73,9 @@ import {
 
 export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
 
+const shouldShowComposerResume = (s: AssistantState) =>
+  !!s.thread.canResume && s.composer.type === "thread" && s.composer.isEmpty;
+
 /**
  * Optional component overrides for the thread. `AssistantMessage` and
  * `Welcome` replace whole sections; the remaining slots override how the
@@ -482,11 +485,7 @@ const ComposerAction: FC = () => {
         <AuiIf
           condition={(s) =>
             (!s.thread.isRunning || s.thread.voice !== undefined) &&
-            !(
-              s.thread.canResume &&
-              s.composer.isEmpty &&
-              s.thread.voice === undefined
-            )
+            !shouldShowComposerResume(s)
           }
         >
           <ComposerPrimitive.Send asChild>
@@ -504,12 +503,7 @@ const ComposerAction: FC = () => {
           </ComposerPrimitive.Send>
         </AuiIf>
         <AuiIf
-          condition={(s) =>
-            !!s.thread.canResume &&
-            !s.thread.isRunning &&
-            s.composer.isEmpty &&
-            s.thread.voice === undefined
-          }
+          condition={shouldShowComposerResume}
         >
           <ComposerPrimitive.Resume asChild>
             <TooltipIconButton

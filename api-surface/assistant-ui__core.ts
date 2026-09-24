@@ -6652,7 +6652,6 @@ declare const useComposerDictate: () => {
 declare const useComposerResume: () => {
   resume: () => Promise<void>;
   disabled: boolean;
-  isResuming: boolean;
 };
 
 declare const useComposerSend: () => {

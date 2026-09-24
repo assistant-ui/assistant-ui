@@ -107,10 +107,13 @@ export class ExternalStoreThreadRuntimeCore
   public get isLoading() {
     return this._store.isLoading ?? false;
   }
+  private _resumePending = false;
   public get canResume(): boolean {
     return (
       !!this._store.canResume &&
       !!this._store.onResume &&
+      !this._resumePending &&
+      !this.isDisabled &&
       !getThreadRuntimeCoreIsRunning(this) &&
       !this.isLoading &&
       !this.voice
@@ -866,8 +869,15 @@ export class ExternalStoreThreadRuntimeCore
       throw new Error("Cannot start a run while a voice session is connected");
     if (this._isVoiceMessage(config.sourceId))
       throw new Error("Voice transcript messages cannot be reloaded");
-
-    await this._store.onResume(config);
+    if (this._resumePending) return;
+    this._resumePending = true;
+    this._notifySubscribers();
+    try {
+      await this._store.onResume(config);
+    } finally {
+      this._resumePending = false;
+      this._notifySubscribers();
+    }
   }
 
   public exportExternalState(): any {

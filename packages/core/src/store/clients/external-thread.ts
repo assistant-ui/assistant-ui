@@ -1168,6 +1168,7 @@ const useExternalThread = ({
   const hasEdit = !!onEdit;
   const hasReload = !!onReload;
   const hasResume = !!onResume;
+  const resumePendingRef = useRef(false);
   const hasAttachments = !!attachmentAdapter;
   const hasFeedback = !!feedbackAdapter;
   const hasSpeech = !!speechAdapter;
@@ -1276,12 +1277,18 @@ const useExternalThread = ({
     startRun: () => {
       onStartRun?.();
     },
-    resumeRun: () => {
+    resumeRun: async () => {
       if (!onResume)
         throw new Error(
           "Runtime does not support resuming runs (onResume is not set).",
         );
-      return onResume();
+      if (resumePendingRef.current) return;
+      resumePendingRef.current = true;
+      try {
+        await onResume();
+      } finally {
+        resumePendingRef.current = false;
+      }
     },
     cancelRun: handleCancelRun,
     ...(onRefetchThread && { unstable_refetchThread: onRefetchThread }),

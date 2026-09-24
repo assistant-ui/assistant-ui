@@ -954,7 +954,7 @@ Adapters without an explicit checkpoint keep the Send/Cancel controls.
 it with `append`, `reload`, or an empty user message. Set `isRunning` while reconnecting
 and clear `canResume` when the checkpoint is consumed, expires, or the thread changes.
 A rejected callback re-enables the control for retry; report the failure through your
-adapter's normal error state. `useComposerResume` also suppresses repeated clicks
+adapter's normal error state. The runtime also suppresses repeated clicks
 across controls for the same thread while the callback is pending and preserves
 nonempty composer drafts.
 
