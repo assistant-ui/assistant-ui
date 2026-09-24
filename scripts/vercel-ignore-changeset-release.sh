@@ -19,9 +19,4 @@ case "$commit_message" in
     ;;
 esac
 
-if [ "${VERCEL_ENV:-}" != "production" ]; then
-  echo "Skipping Vercel build outside production: $commit_ref"
-  exit 0
-fi
-
 exit 1
