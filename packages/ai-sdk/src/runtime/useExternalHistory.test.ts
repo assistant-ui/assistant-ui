@@ -288,6 +288,99 @@ describe("useExternalHistory withFormat contract", () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
   });
+
+  it("loads from a replacement history adapter", async () => {
+    mocks.hasThreadListItem = true;
+    mocks.remoteId = "remote-thread";
+    const firstLoad = vi.fn().mockResolvedValue({ headId: null, messages: [] });
+    const secondLoad = vi
+      .fn()
+      .mockResolvedValue({ headId: null, messages: [] });
+    const createAdapter = (load: typeof firstLoad): ThreadHistoryAdapter => ({
+      load: vi.fn(),
+      append: vi.fn(),
+      withFormat: vi.fn().mockReturnValue({
+        load,
+        append: vi.fn().mockResolvedValue(undefined),
+      }),
+    });
+    let adapter = createAdapter(firstLoad);
+
+    const { rerender } = renderHook(() =>
+      useExternalHistory(
+        runtimeRef,
+        adapter,
+        toThreadMessages,
+        storageFormat,
+        onSetMessages,
+      ),
+    );
+
+    await waitFor(() => expect(firstLoad).toHaveBeenCalledTimes(1));
+
+    adapter = createAdapter(secondLoad);
+    rerender();
+
+    await waitFor(() => expect(secondLoad).toHaveBeenCalledTimes(1));
+  });
+
+  it("ignores a load that settles after the history adapter is replaced", async () => {
+    mocks.hasThreadListItem = true;
+    mocks.remoteId = "remote-thread";
+    let resolveFirstLoad!: (repo: MessageFormatRepository<unknown>) => void;
+    const firstLoad = vi.fn(
+      () =>
+        new Promise<MessageFormatRepository<unknown>>((resolve) => {
+          resolveFirstLoad = resolve;
+        }),
+    );
+    const secondLoad = vi
+      .fn()
+      .mockResolvedValue({ headId: null, messages: [] });
+    const createAdapter = (load: typeof secondLoad): ThreadHistoryAdapter => ({
+      load: vi.fn(),
+      append: vi.fn(),
+      withFormat: vi.fn().mockReturnValue({
+        load,
+        append: vi.fn().mockResolvedValue(undefined),
+      }),
+    });
+    let adapter = createAdapter(firstLoad);
+    const importMessages = vi.fn();
+    const staleLoadRuntimeRef = {
+      current: {
+        thread: {
+          ...noopThread,
+          import: importMessages,
+        },
+      } as unknown as AssistantRuntime,
+    };
+
+    const { rerender } = renderHook(() =>
+      useExternalHistory(
+        staleLoadRuntimeRef,
+        adapter,
+        toThreadMessages,
+        storageFormat,
+        onSetMessages,
+      ),
+    );
+
+    await waitFor(() => expect(firstLoad).toHaveBeenCalledTimes(1));
+
+    adapter = createAdapter(secondLoad);
+    rerender();
+    await waitFor(() => expect(secondLoad).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      resolveFirstLoad({
+        headId: "stale",
+        messages: [{ parentId: null, message: { id: "stale" } }],
+      });
+    });
+
+    expect(importMessages).not.toHaveBeenCalled();
+  });
 });
 
 describe("toExportedMessageRepository", () => {
