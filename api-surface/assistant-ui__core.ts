@@ -5115,29 +5115,7 @@ declare class ThreadMessageConverter {
 
 type ThreadMessageLike = {
   readonly role: "assistant" | "system" | "user";
-  readonly content: string | readonly (TextMessagePart | ReasoningMessagePart | SourceMessagePart | ImageMessagePart | FileMessagePart | DataMessagePart | GenerativeUIMessagePart | Unstable_AudioMessagePart | DataPrefixedPart | {
-    readonly type: "tool-call";
-    readonly toolCallId?: string;
-    readonly toolName: string;
-    readonly args?: ReadonlyJSONObject;
-    readonly argsText?: string;
-    readonly artifact?: any;
-    readonly modelContent?: readonly ToolModelContentPart[] | undefined;
-    readonly result?: any | undefined;
-    readonly isError?: boolean | undefined;
-    readonly isPreliminary?: boolean | undefined;
-    readonly parentId?: string | undefined;
-    readonly messages?: readonly ThreadMessage[] | undefined;
-    readonly interrupt?: {
-      type: "human";
-      payload: unknown;
-    };
-    readonly timing?: ToolCallTiming;
-    readonly mcp?: ToolCallMessagePartMcpMetadata;
-    readonly providerMetadata?: PartProviderMetadata;
-    readonly approval?: NonNullable<ToolCallMessagePart["approval"]>;
-    readonly unstable_interactions?: Unstable_ToolInteractionLog;
-  })[];
+  readonly content: string | readonly ThreadMessageLikePart[];
   readonly id?: string | undefined;
   readonly createdAt?: Date | undefined;
   readonly status?: MessageStatus | undefined;
@@ -5158,6 +5136,30 @@ type ThreadMessageLike = {
     readonly modality?: MessageModality | undefined;
     readonly custom?: Record<string, unknown> | undefined;
   } | undefined;
+};
+
+type ThreadMessageLikePart = ThreadUserMessagePart | ThreadAssistantMessagePart | DataPrefixedPart | {
+  readonly type: "tool-call";
+  readonly toolCallId?: string;
+  readonly toolName: string;
+  readonly args?: ReadonlyJSONObject;
+  readonly argsText?: string;
+  readonly artifact?: any;
+  readonly modelContent?: readonly ToolModelContentPart[] | undefined;
+  readonly result?: any | undefined;
+  readonly isError?: boolean | undefined;
+  readonly isPreliminary?: boolean | undefined;
+  readonly parentId?: string | undefined;
+  readonly messages?: readonly ThreadMessage[] | undefined;
+  readonly interrupt?: {
+    type: "human";
+    payload: unknown;
+  };
+  readonly timing?: ToolCallTiming;
+  readonly mcp?: ToolCallMessagePartMcpMetadata;
+  readonly providerMetadata?: PartProviderMetadata;
+  readonly approval?: NonNullable<ToolCallMessagePart["approval"]>;
+  readonly unstable_interactions?: Unstable_ToolInteractionLog;
 };
 
 type ThreadMeta = {
