@@ -20,7 +20,13 @@ export const resolveThreadForId = (
     return threadList.main;
   }
   const single = parseThreadPreview(state.thread);
-  if (single && threadList?.threadIds.length === 0) return single;
+  if (
+    single &&
+    threadList?.threadIds.length === 0 &&
+    threadList.archivedThreadIds.length === 0
+  ) {
+    return single;
+  }
   return null;
 };
 

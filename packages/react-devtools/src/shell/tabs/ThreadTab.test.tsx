@@ -11,6 +11,15 @@ describe("ThreadTab", () => {
           id: 1,
           logs: [],
           state: {
+            thread: {
+              messages: [
+                {
+                  id: "wrong-thread-message",
+                  role: "assistant",
+                  content: [{ type: "text", text: "Wrong conversation" }],
+                },
+              ],
+            },
             threads: {
               threadIds: [],
               archivedThreadIds: ["archived-1"],
@@ -35,5 +44,6 @@ describe("ThreadTab", () => {
     expect(html).toContain("1 archived");
     expect(html).toContain("Archived conversation");
     expect(html).toContain("Load conversation");
+    expect(html).not.toContain("Wrong conversation");
   });
 });
