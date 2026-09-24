@@ -321,6 +321,8 @@ export class RemoteThreadListThreadListRuntimeCore
       this._options !== undefined &&
       this._options.threadId !== options.threadId;
 
+    // A swap made before the replacement list landed leaves the earlier
+    // adapter recorded: the slots still on screen came from its list.
     if (adapterChanged && !this._replaceListOnNextLoad)
       this._staleThreadsAdapter = this._options.adapter;
     this._options = options;
