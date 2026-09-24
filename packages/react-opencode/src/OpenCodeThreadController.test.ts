@@ -1791,6 +1791,9 @@ describe("OpenCodeThreadController", () => {
         controller.getState().childSessionsById.ses_child?.loadState.type,
       ).toBe("ready");
     });
+    expect(Object.getPrototypeOf(controller.getState().childSessionsById)).toBe(
+      null,
+    );
 
     eventSource.emit({
       type: "message.updated",
@@ -1923,6 +1926,9 @@ describe("OpenCodeThreadController", () => {
     });
 
     expect(controller.getState().childSessionsById).toEqual({});
+    expect(Object.getPrototypeOf(controller.getState().childSessionsById)).toBe(
+      null,
+    );
     expect(eventSource.unsubscribe).toHaveBeenCalledTimes(1);
 
     unsubscribe();
