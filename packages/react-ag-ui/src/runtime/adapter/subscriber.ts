@@ -179,6 +179,7 @@ export const createAgUiSubscriber = (
       dispatch({ type: "RUN_FINISHED", runId });
     },
     onRunFailed: ({ error }) => {
+      if (runFinishedDispatched) return;
       runFinishedDispatched = true;
       onRunFailed?.(error);
       if (isAbortError(error)) {
