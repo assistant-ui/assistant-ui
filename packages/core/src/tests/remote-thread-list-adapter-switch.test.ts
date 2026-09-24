@@ -573,6 +573,66 @@ describe("RemoteThreadList adapter changes", () => {
     expect(core.archivedThreadIds).toEqual(["same"]);
   });
 
+  it("keeps the replacement's title when an old rename of the same id settles", async () => {
+    const renameRequest = deferred<void>();
+    const adapterA = makeAdapter({
+      list: async () => ({ threads: [thread("same")] }),
+      rename: vi.fn(() => renameRequest.promise),
+    });
+    const adapterB = makeAdapter({
+      list: async () => ({ threads: [{ ...thread("same"), title: "B" }] }),
+    });
+    const core = createCore(adapterA);
+
+    await core.getLoadThreadsPromise();
+    const renameTask = core.rename("same", "A");
+    await vi.waitFor(() => expect(adapterA.rename).toHaveBeenCalledOnce());
+
+    core.__internal_setOptions({
+      adapter: adapterB,
+      runtimeHook: () => ({}) as never,
+    });
+    await core.getLoadThreadsPromise();
+    expect(core.getItemById("same")?.title).toBe("B");
+
+    renameRequest.resolve();
+    await renameTask;
+
+    expect(core.getItemById("same")?.title).toBe("B");
+  });
+
+  it("keeps the replacement's custom metadata when an old update of the same id settles", async () => {
+    const updateRequest = deferred<void>();
+    const adapterA = makeAdapter({
+      list: async () => ({ threads: [thread("same")] }),
+      updateCustom: vi.fn(() => updateRequest.promise),
+    });
+    const adapterB = makeAdapter({
+      list: async () => ({
+        threads: [{ ...thread("same"), custom: { owner: "B" } }],
+      }),
+    });
+    const core = createCore(adapterA);
+
+    await core.getLoadThreadsPromise();
+    const updateTask = core.updateCustom("same", { owner: "A" });
+    await vi.waitFor(() =>
+      expect(adapterA.updateCustom).toHaveBeenCalledOnce(),
+    );
+
+    core.__internal_setOptions({
+      adapter: adapterB,
+      runtimeHook: () => ({}) as never,
+    });
+    await core.getLoadThreadsPromise();
+    expect(core.getItemById("same")?.custom).toEqual({ owner: "B" });
+
+    updateRequest.resolve();
+    await updateTask;
+
+    expect(core.getItemById("same")?.custom).toEqual({ owner: "B" });
+  });
+
   it("keeps a thread deleted before an adapter swap hidden until the replacement list lands", async () => {
     const deleteRequest = deferred<void>();
     const adapterA = makeAdapter({

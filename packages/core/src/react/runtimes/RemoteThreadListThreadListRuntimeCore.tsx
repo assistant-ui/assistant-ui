@@ -966,6 +966,8 @@ export class RemoteThreadListThreadListRuntimeCore
           return adapter.rename(remoteId, newTitle);
         },
         optimistic: (state) => {
+          if (this._isOtherAdaptersThread(state, adapter, threadIdOrRemoteId))
+            return state;
           const currentData = getThreadData(state, threadIdOrRemoteId);
           if (!currentData) return state;
 
@@ -1027,6 +1029,8 @@ export class RemoteThreadListThreadListRuntimeCore
         return adapter.updateCustom(remoteId, custom);
       },
       optimistic: (state) => {
+        if (this._isOtherAdaptersThread(state, adapter, threadIdOrRemoteId))
+          return state;
         const data = getThreadData(state, threadIdOrRemoteId);
         if (!data) return state;
 
