@@ -22,7 +22,7 @@
  *   POST   /threads/:id/thinking    → 204                   (body: { level })
  *   POST   /threads/:id/archive     → 204
  *   POST   /threads/:id/unarchive   → 204
- *   DELETE /threads/:id             → 204
+ *   DELETE /threads/:id             → 204 (also when the thread is already gone)
  *   POST   /threads/:id/host-ui     → 204                   (body: { response })
  *   GET    /threads/:id/events      → SSE of PiClientEvent (?snapshot=false skips initial snapshot)
  */

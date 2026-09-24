@@ -179,6 +179,9 @@ describe("usePiRuntime cloud", () => {
 
     const adapter = mocks.remoteAdapters.at(-1) as RemoteThreadListAdapter;
     expect(adapter).not.toBe(mocks.cloudAdapter);
+    expect(mocks.useCloudThreadListAdapter).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sdk: undefined }),
+    );
     await expect(adapter.initialize("local-thread")).resolves.toEqual({
       remoteId: "pi-thread",
       externalId: "pi-thread",

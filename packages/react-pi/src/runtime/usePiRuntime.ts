@@ -599,7 +599,7 @@ export const usePiRuntime = (options: PiRuntimeOptions): AssistantRuntime => {
 
   const cloudAdapter = useCloudThreadListAdapter({
     cloud,
-    sdk: PI_SDK,
+    sdk: cloud ? PI_SDK : undefined,
     create: async () => {
       const snapshot = await client.createThread({
         ...(options.workspacePath !== undefined
