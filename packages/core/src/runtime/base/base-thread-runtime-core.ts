@@ -492,7 +492,9 @@ export abstract class BaseThreadRuntimeCore
         error,
       );
     }
-    // A subscriber notified by the disconnect above may already have connected.
+    // A session is still installed when a subscriber notified by the disconnect
+    // connected one, or when the disconnect threw before releasing the previous
+    // session; connecting over either would leave it live with no owner.
     if (this._voiceSession !== undefined) return;
 
     let session: RealtimeVoiceAdapter.Session;
@@ -622,7 +624,9 @@ export abstract class BaseThreadRuntimeCore
     this.ensureInitialized();
 
     if (transcript.role === "user") {
+      const session = this._voiceSession;
       this._finishVoiceAssistantMessage();
+      if (this._voiceSession !== session) return;
       this._currentAssistantMsg = null;
 
       if (transcript.isFinal) {

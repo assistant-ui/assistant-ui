@@ -3052,4 +3052,34 @@ describe("BaseThreadRuntimeCore voice reconnects from a notification", () => {
     expect(liveSessions(sessions)).toHaveLength(1);
     expect(thread.voice).toBeDefined();
   });
+
+  it("drops a user transcript whose session a subscriber replaced while the reply finished", () => {
+    const { adapter, sessions } = makeAdapter();
+    const delivered: ThreadMessage[] = [];
+    const thread = new ExternalStoreThreadRuntimeCore(
+      { getModelContext: () => ({}) },
+      {
+        messages: [],
+        onNew: async () => {},
+        onVoiceTranscript: (message) => {
+          delivered.push(message);
+        },
+        adapters: { voice: adapter },
+      },
+    );
+    thread.connectVoice();
+    sessions[0]!.emitTranscript({ role: "assistant", text: "partial" });
+    let reconnect = true;
+    thread.subscribe(() => {
+      if (!reconnect) return;
+      reconnect = false;
+      thread.connectVoice();
+    });
+    sessions[0]!.emitTranscript({ role: "user", text: "hello", isFinal: true });
+
+    expect(sessions).toHaveLength(2);
+    expect(liveSessions(sessions)).toHaveLength(1);
+    expect(delivered.map((m) => m.role)).toEqual(["assistant"]);
+    expect(thread.messages).toEqual([]);
+  });
 });
