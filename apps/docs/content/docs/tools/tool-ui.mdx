@@ -951,8 +951,8 @@ const toolkit = defineToolkit({
         sizes={args.sizes}
         onPick={(size) => {
           void unstable_recordInteraction?.({
-            type: "action",
-            payload: { type: "pick_size", $input: { size } },
+            type: "human-response",
+            payload: { size },
           }).catch(() => {});
           addResult({ size });
         }}
