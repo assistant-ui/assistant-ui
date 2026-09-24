@@ -3,7 +3,6 @@ import { useAuiState } from "@assistant-ui/store";
 import {
   getPartialJsonObjectFieldState,
   getPartialJsonObjectMeta,
-  parsePartialJsonObject,
 } from "assistant-stream/utils";
 import { nullProtoRecord } from "../../utils/record";
 
@@ -21,7 +20,7 @@ export type ToolArgsStatus<
    * Whether the full arguments object is still streaming, including fields
    * that have not arrived yet. Complete means the object has finished parsing
    * or the tool-call part is no longer running; it does not imply tool success.
-   * Without parser metadata, reads argsText before falling back to the lifecycle.
+   * Without parser metadata, falls back conservatively to the lifecycle.
    */
   allPropsStatus: PropFieldStatus;
   /** Per-argument status keyed by argument name. */
@@ -65,24 +64,16 @@ export const useToolArgsStatus = <
     );
   }
 
-  const argsWithMeta = useMemo(
-    () =>
-      getPartialJsonObjectMeta(part.args)
-        ? part.args
-        : parsePartialJsonObject(part.argsText),
-    [part.args, part.argsText],
-  );
-
   return useMemo(() => {
     const statusType = part.status.type;
     const isStreaming = statusType === "running";
     const args = part.args as Record<string, unknown>;
-    const meta = argsWithMeta && getPartialJsonObjectMeta(argsWithMeta);
+    const meta = getPartialJsonObjectMeta(args);
     const propStatus = nullProtoRecord<PropFieldStatus>();
 
     for (const key of Object.keys(args)) {
-      if (argsWithMeta && meta) {
-        const fieldState = getPartialJsonObjectFieldState(argsWithMeta, [key]);
+      if (meta) {
+        const fieldState = getPartialJsonObjectFieldState(args, [key]);
         propStatus[key] =
           fieldState === "complete" || !isStreaming ? "complete" : "streaming";
       } else {
@@ -96,5 +87,5 @@ export const useToolArgsStatus = <
         meta?.state === "complete" || !isStreaming ? "complete" : "streaming",
       propStatus: propStatus as Partial<Record<keyof TArgs, PropFieldStatus>>,
     };
-  }, [part, argsWithMeta]);
+  }, [part]);
 };

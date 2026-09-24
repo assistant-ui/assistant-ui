@@ -477,6 +477,13 @@ function convertParts(
             );
           }
           metadata.toolArgsKeyOrderCache?.delete(argsKeyOrderCacheKey);
+          // The input is final even while execution keeps the part running.
+          // Attach parser metadata here rather than inferring completion from
+          // argsText in the hook: other runtimes synthesize complete JSON text
+          // from an accumulating args snapshot.
+          if (part.state === "input-available") {
+            args = parsePartialJsonObject(argsText) ?? args;
+          }
           if (
             part.state === "output-available" ||
             part.state === "output-error" ||

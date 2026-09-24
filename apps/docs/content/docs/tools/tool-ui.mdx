@@ -813,11 +813,12 @@ field received so far is complete. Once the object is complete it becomes
 `"complete"`, including while the hook's `status` remains `"running"` during tool
 execution. A field absent from `propStatus` has not arrived.
 
-The hook uses parser metadata when available and otherwise reads `argsText`.
-This includes the AI SDK's `input-available` state, where the arguments have
-finished arriving but tool execution may continue. Any non-running lifecycle
-settles argument streaming, including when the text is incomplete or invalid;
-`"complete"` does not guarantee valid arguments or a successful tool result.
+The hook uses parser metadata when available. The AI SDK marks its
+`input-available` arguments complete even while tool execution continues.
+Without parser metadata, a running part remains conservatively `"streaming"`:
+some runtimes build `argsText` from an incomplete argument snapshot. Any
+non-running lifecycle settles argument streaming. `"complete"` does not
+guarantee valid arguments or a successful tool result.
 
 ### Partial Results & Streaming
 

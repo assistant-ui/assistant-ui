@@ -1,25 +1,13 @@
-// @vitest-environment jsdom
-
-import { renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import { getPartialJsonObjectMeta } from "assistant-stream/utils";
-import type { MessagePartState } from "../../../core/src/runtime/api/message-part-runtime";
-import { toMessagePartStatus } from "../../../core/src/utils/normalizePartStatus";
-import { useToolArgsStatus } from "../../../core/src/react/model-context/useToolArgsStatus";
+import { describe, expect, it } from "vitest";
+import {
+  getPartialJsonObjectFieldState,
+  getPartialJsonObjectMeta,
+} from "assistant-stream/utils";
 import { AISDKMessageConverter } from "./convertMessage";
 
-const state = vi.hoisted(() => ({
-  part: undefined as MessagePartState | undefined,
-}));
-
-vi.mock("@assistant-ui/store", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@assistant-ui/store")>()),
-  useAuiState: (selector: (value: typeof state) => unknown) => selector(state),
-}));
-
-describe("AI SDK tool argument status", () => {
+describe("AI SDK tool argument completion", () => {
   it.each([{}, { city: "Paris", unit: "c" }])(
-    "completes arguments on input-available while execution continues for %j",
+    "marks input-available arguments complete before tool execution ends for %j",
     (input) => {
       const convert = (toolState: "input-streaming" | "input-available") => {
         const message = AISDKMessageConverter.toThreadMessages(
@@ -39,26 +27,47 @@ describe("AI SDK tool argument status", () => {
           ],
           true,
         )[0]!;
-        const part = message.content.find((part) => part.type === "tool-call")!;
-        return { ...part, status: toMessagePartStatus(message, 0, part) };
+        return message.content.find((part) => part.type === "tool-call")!;
       };
 
-      state.part = convert("input-streaming");
-      expect(getPartialJsonObjectMeta(state.part.args)?.state).toBe("partial");
-      const { result, rerender } = renderHook(() => useToolArgsStatus());
-      expect(result.current.status).toBe("running");
-      expect(result.current.allPropsStatus).toBe("streaming");
+      const streaming = convert("input-streaming");
+      expect(getPartialJsonObjectMeta(streaming.args)?.state).toBe("partial");
 
-      state.part = convert("input-available");
-      expect(state.part.args).toBe(input);
-      expect(getPartialJsonObjectMeta(state.part.args)).toBeUndefined();
-      expect(JSON.parse(state.part.argsText)).toEqual(input);
-      rerender();
-      expect(result.current.status).toBe("running");
-      expect(result.current.allPropsStatus).toBe("complete");
+      const available = convert("input-available");
+      expect(Object.fromEntries(Object.entries(available.args))).toEqual(input);
+      expect(JSON.parse(available.argsText)).toEqual(input);
+      expect(getPartialJsonObjectMeta(available.args)?.state).toBe("complete");
       for (const key of Object.keys(input)) {
-        expect(result.current.propStatus[key]).toBe("complete");
+        expect(getPartialJsonObjectFieldState(available.args, [key])).toBe(
+          "complete",
+        );
       }
     },
   );
+
+  it("keeps the streaming frontier partial until input becomes available", () => {
+    const message = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-weather",
+              toolCallId: "tc-1",
+              state: "input-streaming",
+              input: { city: "Paris", unit: "c" },
+            },
+          ],
+        },
+      ],
+      true,
+    )[0]!;
+    const part = message.content.find((item) => item.type === "tool-call")!;
+    expect(getPartialJsonObjectMeta(part.args)?.state).toBe("partial");
+    expect(getPartialJsonObjectFieldState(part.args, ["city"])).toBe(
+      "complete",
+    );
+    expect(getPartialJsonObjectFieldState(part.args, ["unit"])).toBe("partial");
+  });
 });
