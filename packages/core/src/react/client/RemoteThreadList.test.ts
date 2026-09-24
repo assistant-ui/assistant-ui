@@ -406,6 +406,27 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("notifies once when the fetch registers and twice by the time the switch lands", async () => {
+    const fetch = deferred<RemoteThreadMetadata>();
+    const adapter = makeAdapter({ fetch: vi.fn(() => fetch.promise) });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    const listener = vi.fn();
+    handle.subscribe(listener);
+
+    flushTapSync(() => aui.threads.switchToThread("t2"));
+    await Promise.resolve();
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    fetch.resolve({ status: "regular", remoteId: "t2", title: "T2" });
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t2");
+    });
+    expect(listener).toHaveBeenCalledTimes(2);
+    handle.destroy();
+  });
+
   it("merges a fetched thread into the slot that initialized under its remote id", async () => {
     const initialize = deferred<{ remoteId: string; externalId: undefined }>();
     const fetch = deferred<RemoteThreadMetadata>();
