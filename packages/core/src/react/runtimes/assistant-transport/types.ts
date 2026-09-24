@@ -170,6 +170,7 @@ export type AssistantTransportOptions<T> = {
   };
   adapters?: {
     attachments?: AttachmentAdapter | undefined;
+    /** @deprecated This runtime never reads it; pass `cloud` to keep threads in Assistant Cloud. */
     history?: ThreadHistoryAdapter | undefined;
   };
 };
