@@ -178,13 +178,8 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     return instance.runtime;
   }
 
-  public __internal_isThreadRuntimeAttaching(threadId: string) {
-    const instance = this.instances.get(threadId);
-    return (
-      instance !== undefined &&
-      (!instance.runtime ||
-        instance.publishedGeneration !== instance.generation)
-    );
+  public __internal_hasThreadRuntime(threadId: string) {
+    return this.instances.has(threadId);
   }
 
   public __internal_isThreadRunning(threadId: string) {

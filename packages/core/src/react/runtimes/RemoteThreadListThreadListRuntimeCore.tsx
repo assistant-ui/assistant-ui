@@ -675,12 +675,11 @@ export class RemoteThreadListThreadListRuntimeCore
   public getItemById(threadIdOrRemoteId: string) {
     const data = getThreadData(this._state.value, threadIdOrRemoteId);
     if (data === undefined) return undefined;
-    // A thread runtime reads its own item while it attaches, before a switch
-    // makes it main, whether or not it is listed. Item actions still use the
-    // exposed lookup.
+    // A mounted thread runtime reads its own item whenever its providers
+    // mount, whether or not it is listed. Item actions use the exposed lookup.
     if (
       this._getExposedItems().ids.has(data.id) ||
-      this._hookManager.__internal_isThreadRuntimeAttaching(data.id)
+      this._hookManager.__internal_hasThreadRuntime(data.id)
     ) {
       return data;
     }

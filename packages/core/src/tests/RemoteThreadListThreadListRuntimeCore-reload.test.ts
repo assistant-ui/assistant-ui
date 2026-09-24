@@ -8,6 +8,7 @@ import {
 } from "./remote-thread-list-test-helpers";
 import { ThreadListRuntimeImpl } from "../runtime/api/thread-list-runtime";
 import { RemoteThreadListHookInstanceManager } from "../react/runtimes/RemoteThreadListHookInstanceManager";
+import type { ThreadRuntimeCore } from "../runtime/interfaces/thread-runtime-core";
 
 describe("RemoteThreadListThreadListRuntimeCore.reload", () => {
   afterEach(() => {
@@ -371,6 +372,52 @@ describe("RemoteThreadListThreadListRuntimeCore.reload", () => {
     expect(core.mainThreadId).toBe("t2");
     expect(core.getItemById("t2")?.status).toBe("regular");
     expect(adapter.fetch).not.toHaveBeenCalled();
+  });
+
+  it("keeps the runtime and run state of a hidden thread whose runtime is live", async () => {
+    const adapter = dropsSecondThreadOnReload();
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+    const hookManager = (
+      core as unknown as { _hookManager: RemoteThreadListHookInstanceManager }
+    )._hookManager;
+    const internals = hookManager as unknown as {
+      instances: Map<string, { generation: number }>;
+      _publishThreadRuntime: (
+        id: string,
+        runtime: ThreadRuntimeCore,
+        generation: number,
+      ) => void;
+    };
+    const runtime = {
+      isRunning: true,
+      subscribe: () => () => {},
+      unstable_on: () => () => {},
+    } as unknown as ThreadRuntimeCore;
+    setStartThreadRuntime(core, async (id) => {
+      void RemoteThreadListHookInstanceManager.prototype.startThreadRuntime
+        .call(hookManager, id)
+        .catch(() => undefined);
+      internals._publishThreadRuntime(
+        id,
+        runtime,
+        internals.instances.get(id)!.generation,
+      );
+      return runtime;
+    });
+    await core.switchToThread("t2");
+    await core.switchToThread("t1");
+
+    await core.reload();
+
+    expect(Object.keys(core.threadItems)).not.toContain("t2");
+    expect(core.getThreadRuntimeCore("t2")).toBe(runtime);
+    expect(core.unstable_isThreadRunning("t2")).toBe(true);
+    expect(core.getItemById("t2")?.id).toBe("t2");
+    await expect(core.archive("t2")).rejects.toThrow(
+      'Thread "t2" not found while archiving it.',
+    );
+    expect(adapter.archive).not.toHaveBeenCalled();
   });
 
   it("still switches to a thread the reloaded list no longer returns without fetching it", async () => {
