@@ -300,11 +300,7 @@ export class AgUiThreadRuntimeCore {
       })
       .catch((error) => {
         this.logger.error?.("[agui] failed to load history", error);
-        invokeRuntimeCallback(
-          "onError",
-          this.onError,
-          error instanceof Error ? error : new Error(String(error)),
-        );
+        this.reportError(error);
       })
       .finally(() => {
         this._isLoading = false;
@@ -1041,11 +1037,7 @@ export class AgUiThreadRuntimeCore {
 
   private startResumeRun(messageId: string): void {
     void this.startRun(messageId, this.lastRunConfig).catch((error) => {
-      invokeRuntimeCallback(
-        "onError",
-        this.onError,
-        error instanceof Error ? error : new Error(String(error)),
-      );
+      this.reportError(error);
     });
   }
 

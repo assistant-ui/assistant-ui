@@ -2016,6 +2016,77 @@ describe("AGUIThreadRuntimeCore", () => {
     });
   });
 
+  it("reports an HttpAgent network failure in an automatic continuation once", async () => {
+    const http = createStreamingHttpAgent();
+    const onError = vi.fn();
+    const core = createCore(http.agent, { onError });
+    core.applyExternalMessages([
+      {
+        ...createToolCallAssistant(),
+        status: { type: "requires-action", reason: "tool-calls" },
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "present",
+            args: {},
+            argsText: "{}",
+          },
+        ],
+      },
+    ]);
+
+    core.addToolResult({
+      messageId: "assistant-1",
+      toolCallId: "call-1",
+      toolName: "present",
+      result: { ok: true },
+      isError: false,
+    });
+    await vi.waitFor(() => expect(core.isRunning()).toBe(true));
+    http.write({ type: "RUN_STARTED", threadId: "thread", runId: "run" });
+
+    const failure = new TypeError("network error");
+    http.fail(failure);
+    await vi.waitFor(() => expect(core.isRunning()).toBe(false));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(onError.mock.calls).toEqual([[failure]]);
+  });
+
+  it("reports an HttpAgent network failure in a run resumed on load once", async () => {
+    const http = createStreamingHttpAgent();
+    const onError = vi.fn();
+    const userMessage: ThreadMessage = {
+      id: "msg-1",
+      role: "user",
+      createdAt: new Date(),
+      content: [{ type: "text", text: "Hello" }],
+      attachments: [],
+      metadata: { custom: {} },
+    };
+    const core = createCore(http.agent, {
+      onError,
+      history: {
+        load: vi.fn().mockResolvedValue({
+          headId: "msg-1",
+          messages: [{ message: userMessage, parentId: null }],
+          unstable_resume: true,
+        }),
+        append: vi.fn().mockResolvedValue(undefined),
+      },
+    });
+
+    const load = core.__internal_load();
+    await vi.waitFor(() => expect(core.isRunning()).toBe(true));
+    http.write({ type: "RUN_STARTED", threadId: "thread", runId: "run" });
+    const failure = new TypeError("network error");
+    http.fail(failure);
+    await load;
+
+    expect(onError.mock.calls).toEqual([[failure]]);
+  });
+
   it("keeps the thread linear when an append supersedes a run", async () => {
     const runInputs: any[] = [];
     const agent = {
