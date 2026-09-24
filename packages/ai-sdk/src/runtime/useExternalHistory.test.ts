@@ -665,6 +665,79 @@ describe("useExternalHistory persistence", () => {
     });
   });
 
+  it("does not persist loaded messages again when the history adapter changes", async () => {
+    const innerMessage: InnerMessage = {
+      id: "inner-a",
+      role: "assistant",
+      parts: ["answer"],
+    };
+    const message = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [innerMessage],
+    );
+    const firstFormattedAdapter = {
+      load: vi.fn().mockResolvedValue({
+        headId: "inner-a",
+        messages: [{ parentId: null, message: innerMessage }],
+      }),
+      append: vi.fn().mockResolvedValue(undefined),
+      reportTelemetry: vi.fn(),
+    };
+    const secondFormattedAdapter = {
+      load: vi.fn().mockResolvedValue({ headId: null, messages: [] }),
+      append: vi.fn().mockResolvedValue(undefined),
+      reportTelemetry: vi.fn(),
+    };
+    const createAdapter = (formattedAdapter: {
+      load: typeof firstFormattedAdapter.load;
+      append: typeof firstFormattedAdapter.append;
+      reportTelemetry: typeof firstFormattedAdapter.reportTelemetry;
+    }): ThreadHistoryAdapter => ({
+      load: vi.fn(),
+      append: vi.fn(),
+      withFormat: vi.fn().mockReturnValue(formattedAdapter),
+    });
+    let historyAdapter = createAdapter(firstFormattedAdapter);
+    let messages: ThreadMessage[] = [];
+    const thread = {
+      subscribe: () => () => {},
+      getState: () => ({ isRunning: false, messages }),
+      import: vi.fn(),
+      export: vi.fn(() => ({ headId: null, messages: [] })),
+    } as unknown as AssistantRuntime["thread"];
+    const loadedRuntimeRef = {
+      current: { thread } as AssistantRuntime,
+    };
+
+    mocks.hasThreadListItem = true;
+    mocks.remoteId = "remote-thread";
+
+    const { rerender } = renderHook(() =>
+      useExternalHistory(
+        loadedRuntimeRef,
+        historyAdapter,
+        () => [message],
+        persistenceStorageFormat,
+        () => {},
+      ),
+    );
+
+    await waitFor(() =>
+      expect(firstFormattedAdapter.load).toHaveBeenCalledTimes(1),
+    );
+
+    messages = [message];
+    historyAdapter = createAdapter(secondFormattedAdapter);
+    rerender();
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(secondFormattedAdapter.load).not.toHaveBeenCalled();
+    expect(secondFormattedAdapter.append).not.toHaveBeenCalled();
+    expect(secondFormattedAdapter.reportTelemetry).not.toHaveBeenCalled();
+  });
+
   it("updates stored tool artifacts without mutating chat messages", async () => {
     const toolArtifacts = new Map<string, unknown>();
     const { append, update, runCycle } = createPersistenceHarness(true, {

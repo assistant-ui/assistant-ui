@@ -321,9 +321,6 @@ export const useExternalHistory = <TMessage>(
       activeFormatAdapterRef.current = formatAdapter;
       loadedFormatAdapterRef.current = undefined;
       adapterGenerationRef.current += 1;
-      historyIds.current.clear();
-      deferredTelemetryIds.current.clear();
-      persistedInnerMessages.current.clear();
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setHasLoaded(false);
     }
