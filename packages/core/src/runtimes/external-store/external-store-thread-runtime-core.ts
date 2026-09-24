@@ -241,7 +241,7 @@ export class ExternalStoreThreadRuntimeCore
 
   private _updateStoreSnapshot(
     store: ExternalStoreAdapter<any>,
-    driveTracker = true,
+    fromHostSnapshot = true,
   ) {
     const previousIsRunning = this._effectiveIsRunning;
     this.isDisabled = store.isDisabled ?? false;
@@ -420,7 +420,7 @@ export class ExternalStoreThreadRuntimeCore
 
       // A running refresh re-reads the host's last array, which can predate
       // the host's answer to a pending onDelete, so only a new snapshot drains.
-      if (driveTracker && this._pendingDeleteEvictions.size > 0) {
+      if (fromHostSnapshot && this._pendingDeleteEvictions.size > 0) {
         const incomingIds = new Set(messages.map((m) => m.id));
         for (const [id, calls] of this._pendingDeleteEvictions) {
           if (incomingIds.has(id)) {
@@ -496,7 +496,7 @@ export class ExternalStoreThreadRuntimeCore
       }
     }
 
-    if (driveTracker) {
+    if (fromHostSnapshot) {
       if (repositoryChanged) {
         this._runTrackerUpdate(() => this._toolInvocations?.reset());
       }

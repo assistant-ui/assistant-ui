@@ -190,6 +190,68 @@ describe("ExternalStoreThreadRuntimeCore repository instance swap", () => {
     },
   );
 
+  it.each([
+    { label: "the tool call's reply", tail: [], ids: ["u0", "a1"] },
+    {
+      label: "a placeholder after a follow-up",
+      tail: [createUserMessage("u2", "and tomorrow?")],
+      ids: ["u0", "a1", "u2"],
+    },
+  ])(
+    "derives a running $label once a client tool starts executing",
+    async ({ tail, ids }) => {
+      const repository = new MessageRepository();
+      const store = (
+        messages: readonly ThreadMessage[],
+      ): ExternalStoreAdapter<ThreadMessage> => ({
+        ...createAdapter(messages, repository),
+        convertMessage: (message: ThreadMessage) => message,
+        isRunning: false,
+        unstable_enableToolInvocations: true,
+        onAddToolResult: vi.fn(),
+      });
+      const core = new ExternalStoreThreadRuntimeCore(
+        {
+          getModelContext: () => ({
+            tools: {
+              weatherSearch: {
+                parameters: { type: "object", properties: {} },
+                execute: vi.fn(() => new Promise<never>(() => {})),
+              },
+            },
+          }),
+        },
+        store([]),
+      );
+      core.__internal_setAdapter(
+        store([
+          createUserMessage("u0"),
+          {
+            ...createAssistantMessage("a1"),
+            status: undefined,
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "tc1",
+                toolName: "weatherSearch",
+                args: {},
+                argsText: "{}",
+              },
+            ],
+          } as unknown as ThreadMessage,
+          ...tail,
+        ]),
+      );
+
+      await vi.waitFor(() => expect(core.isRunning).toBe(true));
+
+      const last = core.messages.at(-1)!;
+      expect(core.messages.slice(0, ids.length).map((m) => m.id)).toEqual(ids);
+      expect(last.role).toBe("assistant");
+      expect(last.status?.type).toBe("running");
+    },
+  );
+
   it("reconciles a same-reference messages array when only the repository swapped", () => {
     const repoA = new MessageRepository();
     const repoB = new MessageRepository();
