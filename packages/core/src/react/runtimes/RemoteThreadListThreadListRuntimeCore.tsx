@@ -89,6 +89,7 @@ export class RemoteThreadListThreadListRuntimeCore
   private _adapterGeneration = 0;
   private _replaceListOnNextLoad = false;
   private _staleThreadIdsOnReplace: ReadonlySet<string> | undefined;
+  private _staleThreadsAdapter: RemoteThreadListAdapter | undefined;
   private _switchGeneration = 0;
   private _switchTask: Promise<void> | undefined;
   private readonly _titleStates = new Map<string, ThreadTitleState>();
@@ -320,6 +321,8 @@ export class RemoteThreadListThreadListRuntimeCore
       this._options !== undefined &&
       this._options.threadId !== options.threadId;
 
+    if (adapterChanged && !this._replaceListOnNextLoad)
+      this._staleThreadsAdapter = this._options.adapter;
     this._options = options;
 
     this.providerStore.setState(this.resolveProvider(options.adapter));
@@ -358,19 +361,31 @@ export class RemoteThreadListThreadListRuntimeCore
     }
   }
 
-  // A replacement adapter can list its own thread under an id the previous
+  // A replacement adapter can list its own thread under an id an earlier
   // adapter used; until that list lands, a slot holds a thread it will drop.
+  private _isReplacementThread(
+    state: RemoteThreadState,
+    adapter: RemoteThreadListAdapter,
+    threadId: string,
+  ) {
+    if (this._options.adapter === adapter) return false;
+    const current = getThreadData(state, threadId);
+    return (
+      current !== undefined &&
+      !(
+        this._staleThreadsAdapter === adapter &&
+        this._staleThreadIdsOnReplace?.has(current.id)
+      )
+    );
+  }
+
   private _updateStatusFromAdapter(
     state: RemoteThreadState,
     adapter: RemoteThreadListAdapter,
     threadId: string,
     status: "regular" | "archived" | "deleted",
   ) {
-    if (this._options.adapter !== adapter) {
-      const current = getThreadData(state, threadId);
-      if (current && !this._staleThreadIdsOnReplace?.has(current.id))
-        return state;
-    }
+    if (this._isReplacementThread(state, adapter, threadId)) return state;
     return updateStatusReducer(state, threadId, status);
   }
 
@@ -1132,8 +1147,10 @@ export class RemoteThreadListThreadListRuntimeCore
     // The optimistic layer survives an adapter swap, so a resolved deletion has
     // dropped the slot from `threadData`, where `_replaceWithThreads` would
     // otherwise have found it to stop.
-    this._hookManager.stopThreadRuntime(data.id);
-    clearThreadTitleState(this._titleStates, data.id);
+    if (!this._isReplacementThread(this._state.value, adapter, data.id)) {
+      this._hookManager.stopThreadRuntime(data.id);
+      clearThreadTitleState(this._titleStates, data.id);
+    }
     return result;
   }
 
