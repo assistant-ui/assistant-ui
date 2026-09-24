@@ -122,7 +122,7 @@ type AssistantStreamControllerState = {
       }
     | undefined;
   contentCounter: Counter;
-  openParts: Set<{ close(): void }>;
+  openInputs: Set<() => void>;
   closeSubscriber?: () => void;
 };
 
@@ -138,7 +138,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       strict: options.strict ?? true,
       merger: createMergeStream(),
       contentCounter: new Counter(),
-      openParts: new Set(),
+      openInputs: new Set(),
     };
   }
 
@@ -158,9 +158,9 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     return this._state.merger.readable;
   }
 
-  __internal_closeOpenParts() {
-    for (const part of this._state.openParts) void part.close();
-    this._state.openParts.clear();
+  __internal_endOpenInputs() {
+    for (const end of this._state.openInputs) end();
+    this._state.openInputs.clear();
   }
 
   __internal_subscribeToClose(callback: () => void) {
@@ -186,14 +186,21 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
         await transformer.writable.abort(error).catch(() => undefined);
         throw error;
       });
-    this._state.merger.addStream(transformer.readable, pipeTask);
-    return pipeTask;
+    const cancel = this._state.merger.addStream(transformer.readable, pipeTask);
+    return { pipeTask, cancel };
+  }
+
+  private _trackOpenInput(pipeTask: Promise<void>, end: () => void) {
+    const { openInputs } = this._state;
+    openInputs.add(end);
+    const forget = () => openInputs.delete(end);
+    pipeTask.then(forget, forget);
   }
 
   private _addPart(
     part: PartInit,
     stream: AssistantStream,
-    controller?: { close(): void },
+    controller?: { __internal_truncate(): void },
   ) {
     if (this._state.append) {
       this._state.append.controller.close();
@@ -205,23 +212,21 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       part,
       path: [],
     });
-    const pipeTask = this._addTransformedStream(
+    const { pipeTask } = this._addTransformedStream(
       stream,
       new PathAppendEncoder(this._state.contentCounter.value),
     );
     if (controller) {
-      const { openParts } = this._state;
-      openParts.add(controller);
-      const forget = () => openParts.delete(controller);
-      pipeTask.then(forget, forget);
+      this._trackOpenInput(pipeTask, () => controller.__internal_truncate());
     }
   }
 
   merge(stream: AssistantStream) {
-    this._addTransformedStream(
+    const { pipeTask, cancel } = this._addTransformedStream(
       stream,
       new PathMergeEncoder(this._state.contentCounter),
     );
+    if (cancel) this._trackOpenInput(pipeTask, cancel);
   }
 
   appendText(textDelta: string) {
@@ -402,7 +407,7 @@ export function createAssistantStream(
           path: [],
           error: String(e),
         });
-        controller.__internal_closeOpenParts();
+        controller.__internal_endOpenInputs();
       } else if (!controller.__internal_isCancelled) {
         console.error(e);
       }

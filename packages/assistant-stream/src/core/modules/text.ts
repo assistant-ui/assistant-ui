@@ -16,7 +16,7 @@ type TextStreamOptions = {
   strict?: boolean | undefined;
 };
 
-class TextStreamControllerImpl implements TextStreamController {
+export class TextStreamControllerImpl implements TextStreamController {
   private _controller: ReadableStreamDefaultController<AssistantStreamChunk>;
   private _strict: boolean;
   private _isClosed = false;
@@ -62,10 +62,16 @@ class TextStreamControllerImpl implements TextStreamController {
     });
     closeIfOpen(this._controller);
   }
+
+  __internal_truncate() {
+    if (this._isClosed) return;
+    this._isClosed = true;
+    closeIfOpen(this._controller);
+  }
 }
 
 export const createTextStream = (
-  readable: UnderlyingReadable<TextStreamController>,
+  readable: UnderlyingReadable<TextStreamControllerImpl>,
   options: TextStreamOptions = {},
 ): AssistantStream => {
   return createControllerStream(
@@ -75,7 +81,8 @@ export const createTextStream = (
 };
 
 export const createTextStreamController = (options: TextStreamOptions = {}) => {
-  return createControllerStreamPair<AssistantStreamChunk, TextStreamController>(
-    (controller) => new TextStreamControllerImpl(controller, options),
-  );
+  return createControllerStreamPair<
+    AssistantStreamChunk,
+    TextStreamControllerImpl
+  >((controller) => new TextStreamControllerImpl(controller, options));
 };
