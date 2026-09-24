@@ -15,7 +15,9 @@ export const pendingToolCallGroupKey = (
   message: Extract<LangChainMessage, { type: "ai" }>,
 ): string | undefined => {
   if (message.id !== undefined) return `message:${message.id}`;
-  const firstToolCallId = message.tool_calls?.[0]?.id;
+  const firstToolCallId = message.tool_calls?.find(
+    (toolCall) => typeof toolCall === "object" && toolCall !== null,
+  )?.id;
   if (firstToolCallId !== undefined) return `tool:${firstToolCallId}`;
   return undefined;
 };

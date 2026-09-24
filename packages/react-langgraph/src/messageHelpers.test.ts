@@ -145,6 +145,20 @@ describe("getPendingToolCallGroups", () => {
       },
     ]);
   });
+
+  it("falls back to the first non-null tool call when the AI message has no id", () => {
+    const noIdMessage = {
+      type: "ai",
+      content: "",
+      tool_calls: [null, { id: "tc-1", name: "get_weather", args: {} }],
+    } as unknown as LangChainMessage;
+    expect(getPendingToolCallGroups([noIdMessage])).toEqual([
+      {
+        key: "tool:tc-1",
+        toolCalls: [{ id: "tc-1", name: "get_weather", args: {} }],
+      },
+    ]);
+  });
 });
 
 describe("getPendingToolCalls", () => {
