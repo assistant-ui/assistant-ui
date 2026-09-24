@@ -557,7 +557,8 @@ export abstract class BaseComposerRuntimeCore
   /**
    * Takes a send's content back into the draft, ahead of anything written
    * since. A composer that kept its draft only takes back the state the
-   * attachments came back in, such as the reason one failed.
+   * attachments came back in, such as the reason one failed, and leaves an
+   * attachment being removed to its removal.
    */
   private _returnToDraft(submission: ComposerSubmission) {
     if (this.detachesDraftOnSend) {
@@ -571,10 +572,14 @@ export abstract class BaseComposerRuntimeCore
       this._quote = this._quote ?? submission.quote;
     } else {
       const returned = new Map(
-        submission.attachments.map((attachment) => [attachment.id, attachment]),
+        submission.attachments
+          .filter((attachment) => !this._attachmentSends.isRemoved(attachment))
+          .map((attachment) => [attachment.id, attachment]),
       );
-      this._attachments = this._attachments.map(
-        (attachment) => returned.get(attachment.id) ?? attachment,
+      this._attachments = this._attachments.map((attachment) =>
+        this._attachmentSends.isRemoved(attachment)
+          ? attachment
+          : (returned.get(attachment.id) ?? attachment),
       );
     }
     this._notifySubscribers();

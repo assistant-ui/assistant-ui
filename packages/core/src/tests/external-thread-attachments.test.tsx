@@ -841,6 +841,66 @@ describe("ExternalThread attachments", () => {
     },
   );
 
+  it.each([
+    ["failed", "b", 2],
+    ["pending", "a", 1],
+  ] as const)(
+    "removes an edit's attachment again after its removal %s and the upload of %s failed the send",
+    async (state, failing, removals) => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const { composer, successfulUpload, failedUpload, remove } =
+        setupPartialSend("edit");
+      const removal = deferred();
+      remove.mockReturnValueOnce(removal.promise);
+      await act(async () => composer().beginEdit());
+      await act(async () => {
+        await composer().addAttachment(new File(["a"], "a"));
+        await composer().addAttachment(new File(["b"], "b"));
+        composer().send();
+      });
+      let removing!: Promise<unknown>;
+      act(() => {
+        removing = composer()
+          .attachment({ id: "a" })
+          .remove()
+          .then(
+            () => undefined,
+            (error: unknown) => error,
+          );
+      });
+      if (state === "failed")
+        await act(async () => {
+          removal.reject(new Error("remove failed"));
+          await removing;
+        });
+      await act(async () => {
+        if (failing === "a") {
+          successfulUpload.reject(new Error("upload failed"));
+          failedUpload.resolve();
+        } else {
+          successfulUpload.resolve();
+          failedUpload.reject(new Error("upload failed"));
+        }
+      });
+      await act(() => composer().attachment({ id: "a" }).remove());
+      let outcome: unknown;
+      await act(async () => {
+        if (state === "pending") removal.resolve();
+        outcome = await removing;
+      });
+
+      expect(outcome).toEqual(
+        state === "failed" ? new Error("remove failed") : undefined,
+      );
+      expect(remove).toHaveBeenCalledTimes(removals);
+      expect(
+        composer()
+          .getState()
+          .attachments.map(({ id }) => id),
+      ).toEqual(["b"]);
+    },
+  );
+
   it("removes a file added during a send when the draft is cleared", async () => {
     const upload = deferred();
     const remove = vi.fn<AttachmentAdapter["remove"]>(async () => {});

@@ -910,14 +910,21 @@ const useComposerClientResource = ({
 
   // Takes a send's content back into the draft, ahead of anything written
   // since. An edit composer kept its draft, so it only takes back the state
-  // the attachments came back in, such as the reason one failed.
+  // the attachments came back in, such as the reason one failed, and leaves
+  // an attachment being removed to its removal.
   const returnToDraft = (content: ComposerSubmission) => {
     if (type !== "thread") {
       const returned = new Map(
-        content.attachments.map((attachment) => [attachment.id, attachment]),
+        content.attachments
+          .filter((attachment) => !attachmentSends.isRemoved(attachment))
+          .map((attachment) => [attachment.id, attachment]),
       );
       setAttachments((prev) =>
-        prev.map((attachment) => returned.get(attachment.id) ?? attachment),
+        prev.map((attachment) =>
+          attachmentSends.isRemoved(attachment)
+            ? attachment
+            : (returned.get(attachment.id) ?? attachment),
+        ),
       );
       return;
     }
