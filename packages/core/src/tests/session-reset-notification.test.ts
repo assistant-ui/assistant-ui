@@ -191,6 +191,18 @@ describe("unstable_notifySessionReset", () => {
     expect(harness.thread.getBranches("a1")).toEqual(["a1"]);
   });
 
+  it("still evicts a message whose delete settled before the reset and the host republished after it", async () => {
+    const harness = externalThread();
+    Object.assign(harness.store, { onDelete: vi.fn(async () => {}) });
+    await driveExecutingTool(harness);
+
+    await harness.thread.deleteMessage("u1");
+    harness.thread.unstable_notifySessionReset();
+    harness.core.setAdapter({ ...harness.store, messages: [toolCallMessage] });
+
+    expect(harness.thread.getBranches("a1")).toEqual(["a1"]);
+  });
+
   it("throws on runtimes without a backing session", () => {
     const local = new LocalRuntimeCore(
       {
