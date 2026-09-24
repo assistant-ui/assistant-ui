@@ -470,6 +470,33 @@ describe("useAISDKRuntime tool approvals", () => {
     expect(onRespondToToolApproval).toHaveBeenCalledTimes(2);
   });
 
+  it("answers through the host past an earlier approval-requested part without an approval", async () => {
+    const onRespondToToolApproval = vi.fn(async () => {});
+    const { respond, messages } = setupPendingApproval(onRespondToToolApproval);
+    messages.unshift({
+      id: "message-0",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-legacy",
+          toolCallId: "tool-0",
+          state: "approval-requested",
+          input: {},
+        } as (typeof messages)[number]["parts"][number],
+      ],
+    });
+
+    await act(async () => {
+      await respond({ approvalId: "approval-1", approved: true });
+    });
+
+    expect(onRespondToToolApproval).toHaveBeenCalledOnce();
+    expect(onRespondToToolApproval).toHaveBeenCalledWith(
+      expect.objectContaining({ approvalId: "approval-1" }),
+      expect.objectContaining({ toolCallId: "tool-1" }),
+    );
+  });
+
   it("rejects an approval that is not waiting for a response", async () => {
     const onRespondToToolApproval = vi.fn();
     const { respond } = setupPendingApproval(onRespondToToolApproval);
