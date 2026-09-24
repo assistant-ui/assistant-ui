@@ -3521,27 +3521,34 @@ describe("useLangGraphRuntime", () => {
       expect(stream).toHaveBeenCalledTimes(1);
     });
 
-    it("reports the thread running while the edit looks up its checkpoint", async () => {
+    it("runs a message queued during the checkpoint lookup after the edit", async () => {
       const checkpoint = deferred<string | null>();
-      const stream = vi.fn((_messages: unknown, _config: unknown) =>
-        (async function* () {
+      const events: string[] = [];
+      const stream = vi.fn((_messages: unknown, _config: unknown) => {
+        const call = stream.mock.calls.length;
+        return (async function* () {
+          events.push(`start ${call}`);
           yield {
             event: "messages/complete",
-            data: [
-              {
-                type: "ai",
-                id: `a-${stream.mock.calls.length}`,
-                content: "answer",
-              },
-            ],
+            data: [{ type: "ai", id: `a-${call}`, content: "answer" }],
           };
-        })(),
+          events.push(`end ${call}`);
+        })();
+      });
+      const { result } = renderHook(() =>
+        useLangGraphRuntime({
+          stream:
+            stream as unknown as LangGraphStreamCallback<LangChainMessage>,
+          getCheckpointId: () => checkpoint.promise,
+          unstable_threadListAdapter: makeThreadListAdapter(),
+          unstable_enableMessageQueue: true,
+        }),
       );
-
-      const result = await renderWithCheckpoint(
-        stream as unknown as LangGraphStreamCallback<LangChainMessage>,
-        () => checkpoint.promise,
-      );
+      const wrapper = wrapperFactory(result.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+      await act(async () => {
+        await result.current.threads.switchToThread("lg-thread-1");
+      });
 
       await act(async () => {
         result.current.thread.append("question");
@@ -3564,13 +3571,33 @@ describe("useLangGraphRuntime", () => {
       expect(result.current.thread.getState().isRunning).toBe(true);
 
       await act(async () => {
+        auiResult.current.composer.setText("follow-up");
+        auiResult.current.composer.send();
+      });
+      expect(stream).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
         checkpoint.resolve("cp-1");
       });
+      await waitFor(() => expect(stream).toHaveBeenCalledTimes(3));
       await waitFor(() =>
         expect(result.current.thread.getState().isRunning).toBe(false),
       );
-      expect(stream).toHaveBeenCalledTimes(2);
+      expect(stream.mock.calls[1]![0]).toMatchObject([
+        { type: "human", content: "edited question" },
+      ]);
       expect(stream.mock.calls[1]![1]).toMatchObject({ checkpointId: "cp-1" });
+      expect(stream.mock.calls[2]![0]).toMatchObject([
+        { type: "human", content: "follow-up" },
+      ]);
+      expect(events).toEqual([
+        "start 1",
+        "end 1",
+        "start 2",
+        "end 2",
+        "start 3",
+        "end 3",
+      ]);
     });
   });
 });
