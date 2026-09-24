@@ -167,6 +167,21 @@ const reserveNode = (context: ConversionContext): boolean => {
   return true;
 };
 
+const childReferences = (node: Record<string, unknown>): unknown[] => {
+  const children = node["children"];
+  const references: unknown[] = Array.isArray(children) ? [...children] : [];
+  if (node["child"] !== undefined) references.push(node["child"]);
+  if (node["component"] === "Modal") {
+    references.push(node["trigger"], node["content"]);
+  }
+  if (node["component"] === "Tabs" && Array.isArray(node["tabs"])) {
+    for (const tab of node["tabs"]) {
+      references.push(isRecord(tab) ? tab["child"] : undefined);
+    }
+  }
+  return references;
+};
+
 const childrenOf = (
   node: Record<string, unknown>,
   dataSource: unknown,
@@ -174,10 +189,8 @@ const childrenOf = (
   depth: number,
   visited: Set<string>,
 ): UIElement[] => {
-  const children = node["children"];
-  if (!Array.isArray(children)) return [];
   const result: UIElement[] = [];
-  for (const childId of children) {
+  for (const childId of childReferences(node)) {
     if (typeof childId !== "string") {
       context.warnings.push(
         `Component "${String(node["id"] ?? "")}" has a malformed child reference.`,
@@ -196,29 +209,49 @@ const childrenOf = (
   return result;
 };
 
+const textLabel = (
+  node: Record<string, unknown>,
+  children: readonly UIElement[],
+  context: ConversionContext,
+): string | undefined => {
+  const references = childReferences(node);
+  const [reference] = references;
+  const [child] = children;
+  if (
+    references.length !== 1 ||
+    children.length !== 1 ||
+    typeof reference !== "string" ||
+    !child ||
+    context.surface.components.get(reference)?.["component"] !== "Text"
+  ) {
+    return undefined;
+  }
+  const text = child.$type === "Header" ? child["text"] : child["value"];
+  return typeof text === "string" ? text : undefined;
+};
+
 const mappedAction = (
   node: Record<string, unknown>,
   props: Record<string, unknown>,
-  dataSource: unknown,
   context: ConversionContext,
 ): UIElement["$action"] | undefined => {
   const action = props["action"];
+  const event =
+    isRecord(action) && isRecord(action["event"]) ? action["event"] : action;
   const actionName =
-    typeof action === "string"
-      ? action
-      : isRecord(action) && typeof action["name"] === "string"
-        ? action["name"]
+    typeof event === "string"
+      ? event
+      : isRecord(event) && typeof event["name"] === "string"
+        ? event["name"]
         : undefined;
   if (!actionName) return undefined;
-  const rawContext = isRecord(action) ? action["context"] : undefined;
-  const resolvedContext =
-    rawContext === undefined ? undefined : materialize(rawContext, dataSource);
+  const actionContext = isRecord(event) ? event["context"] : undefined;
   return {
     type: "a2ui:action",
     name: actionName,
     surfaceId: context.surfaceId,
     sourceComponentId: typeof node["id"] === "string" ? node["id"] : "",
-    ...(resolvedContext !== undefined ? { context: resolvedContext } : {}),
+    ...(actionContext !== undefined ? { context: actionContext } : {}),
   };
 };
 
@@ -240,7 +273,6 @@ const choiceOptions = (value: unknown): { label: string; value: string }[] => {
 const mappedProps = (
   node: Record<string, unknown>,
   props: Record<string, unknown>,
-  dataSource: unknown,
   context: ConversionContext,
 ): UIElement | undefined => {
   const component = node["component"];
@@ -349,7 +381,7 @@ const mappedProps = (
     const buttonStyle = props["buttonStyle"];
     const block = props["block"];
     const submit = props["submit"];
-    const action = mappedAction(node, props, dataSource, context);
+    const action = mappedAction(node, props, context);
     return {
       $type: "Button",
       ...(label !== undefined ? { label } : {}),
@@ -544,11 +576,18 @@ function convertComponent(
     }
     const props: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(node)) {
-      if (key === "id" || key === "component" || key === "children") continue;
+      if (
+        key === "id" ||
+        key === "component" ||
+        key === "children" ||
+        key === "child"
+      ) {
+        continue;
+      }
       const resolved = materialize(value, dataSource);
       if (resolved !== undefined) setOwnProperty(props, key, resolved);
     }
-    const mapped = mappedProps(node, props, dataSource, context);
+    const mapped = mappedProps(node, props, context);
     if (!mapped && SUPPORTED_COMPONENTS.has(component)) {
       context.warnings.push(
         `A2UI component "${component}" could not be mapped and was skipped.`,
@@ -580,6 +619,10 @@ function convertComponent(
     const converted = mapped ?? retained;
     if (!converted) return null;
     const children = childrenOf(node, dataSource, context, depth, visited);
+    if (mapped?.$type === "Button" && mapped["label"] === undefined) {
+      const label = textLabel(node, children, context);
+      if (label !== undefined) return { ...mapped, label };
+    }
     const listChildren =
       component === "List" && mapped?.$type === "ListView"
         ? children.map((child) => ({ $type: "ListViewItem", children: child }))

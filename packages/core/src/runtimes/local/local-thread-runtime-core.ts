@@ -1081,6 +1081,7 @@ export class LocalThreadRuntimeCore
     message: ThreadAssistantMessage,
   ): void {
     this._messageReplacements.set(previousMessage, { message });
+    this._persistMessageUpdate(message.id);
   }
 
   public addToolResult({

@@ -271,7 +271,7 @@ import { openai } from "@ai-sdk/openai";
 
 export async function POST(req: Request) {
   const { messages } = await req.json();
-  const model = openai("gpt-5.6-luna");
+  const model = openai("gpt-6-luna");
   const result = streamText({
     model,
     messages: await convertToModelMessages(messages),

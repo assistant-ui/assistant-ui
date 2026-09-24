@@ -262,8 +262,8 @@ export class MessageRepository {
       );
 
     if (existingItem) {
-      existingItem.current = message;
       this.performOp(prev, existingItem, "relink");
+      existingItem.current = message;
       this._messages.dirty();
       return;
     }
@@ -319,6 +319,13 @@ export class MessageRepository {
         "MessageRepository(deleteMessage): Replacement not found. This is likely an internal bug in assistant-ui.",
       );
 
+    for (let current = replacement; current; current = current.prev) {
+      if (current === message)
+        throw new Error(
+          "MessageRepository(deleteMessage): Replacement is the deleted message or one of its descendants. This is likely an internal bug in assistant-ui.",
+        );
+    }
+
     for (const child of message.children) {
       const childMessage = this.messages.get(child);
       if (!childMessage)
@@ -350,12 +357,12 @@ export class MessageRepository {
   }
 
   /**
-   * Evicts optimistic messages (`metadata.isOptimistic`) the head just moved
-   * away from. Since eviction runs on every head move, the only optimistic
-   * messages in the repository live on the branch the head previously pointed
-   * at — so we walk just that branch rather than the whole repository. Keeps a
-   * client→server id swap from leaving a phantom sibling, and drops off-branch
-   * placeholders.
+   * Evicts optimistic messages (`metadata.isOptimistic`) on the branch the head
+   * just moved away from. Only that branch is walked, so an optimistic message
+   * added off the head branch (such as the server-id copy that replaces a
+   * client-id placeholder before the head moves to it) is kept until a
+   * `switchToBranch` or `resetHead` moves the head off the branch it is on.
+   * Keeps a client→server id swap from leaving a phantom sibling.
    */
   private evictOffBranchOptimisticMessages(
     previousHead: RepositoryMessage | null,

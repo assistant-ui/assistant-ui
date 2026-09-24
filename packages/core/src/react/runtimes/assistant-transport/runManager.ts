@@ -49,6 +49,9 @@ export function useRunManager(config: {
       try {
         if (!disposeAborted()) {
           await onRunRef.current(ac.signal);
+          // A fully received body is not errored by abort(), so a cancelled
+          // run can still resolve.
+          if (ac.signal.aborted) throw ac.signal.reason;
         }
       } catch (error) {
         if (!disposeAborted() && !stateRef.current.disposed) {
