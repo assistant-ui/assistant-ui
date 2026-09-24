@@ -20,6 +20,10 @@ import { DataRenderers } from "./DataRenderers";
 const RESOLVED_PROMISE = Promise.resolve();
 
 export type InMemoryThreadListProps = {
+  /**
+   * Creates the selected thread resource. The list keys the returned element
+   * by `threadId`, so thread-owned state does not survive a selection change.
+   */
   thread: (threadId: string) => ResourceElement<ClientOutput<"thread">>;
   onSwitchToThread?: (threadId: string) => void;
   onSwitchToNewThread?: () => void;
@@ -181,7 +185,9 @@ const useInMemoryThreadList = (
   };
 
   // Only the main thread is mounted, so it is the only thread that can run.
-  const mainThreadClient = useClientResource(threadFactory(mainThreadId));
+  const mainThreadClient = useClientResource(
+    withKey(mainThreadId, threadFactory(mainThreadId)),
+  );
 
   const threadListItems = useClientLookup(
     threads.map((t) =>
