@@ -1,30 +1,30 @@
 {
   "@assistant-ui/ai-sdk": {
     ".": {
-      "min": 41461,
-      "gzip": 14736
+      "min": 45891,
+      "gzip": 15981
     }
   },
   "@assistant-ui/core": {
     ".": {
-      "min": 35777,
-      "gzip": 11982
+      "min": 37840,
+      "gzip": 12599
     },
     "./internal": {
-      "min": 135645,
-      "gzip": 34666
+      "min": 150054,
+      "gzip": 38102
     },
     "./react": {
-      "min": 311969,
-      "gzip": 87553
+      "min": 340975,
+      "gzip": 95051
     },
     "./store": {
-      "min": 102572,
-      "gzip": 34509
+      "min": 114179,
+      "gzip": 38626
     },
     "./store/internal": {
-      "min": 27174,
-      "gzip": 10193
+      "min": 37202,
+      "gzip": 13406
     }
   },
   "@assistant-ui/eve": {
@@ -35,20 +35,20 @@
   },
   "@assistant-ui/react": {
     ".": {
-      "min": 133692,
-      "gzip": 43403
+      "min": 137420,
+      "gzip": 44738
     }
   },
   "@assistant-ui/react-a2a": {
     ".": {
-      "min": 29868,
-      "gzip": 8971
+      "min": 35258,
+      "gzip": 10335
     }
   },
   "@assistant-ui/react-ag-ui": {
     ".": {
-      "min": 78832,
-      "gzip": 20771
+      "min": 83001,
+      "gzip": 21615
     }
   },
   "@assistant-ui/react-ai-sdk": {
@@ -65,18 +65,18 @@
   },
   "@assistant-ui/react-devtools": {
     ".": {
-      "min": 160248,
-      "gzip": 45642
+      "min": 160568,
+      "gzip": 45759
     }
   },
   "@assistant-ui/react-generative-ui": {
     ".": {
-      "min": 35559,
-      "gzip": 11643
+      "min": 35942,
+      "gzip": 11795
     },
     "./a2ui": {
-      "min": 9506,
-      "gzip": 3384
+      "min": 12894,
+      "gzip": 4443
     },
     "./ir": {
       "min": 1623,
@@ -93,8 +93,8 @@
   },
   "@assistant-ui/react-google-adk": {
     ".": {
-      "min": 37699,
-      "gzip": 11419
+      "min": 37675,
+      "gzip": 11418
     },
     "./server": {
       "min": 6384,
@@ -103,14 +103,14 @@
   },
   "@assistant-ui/react-hook-form": {
     ".": {
-      "min": 3437,
-      "gzip": 1447
+      "min": 3603,
+      "gzip": 1502
     }
   },
   "@assistant-ui/react-ink": {
     ".": {
-      "min": 66699,
-      "gzip": 19426
+      "min": 67247,
+      "gzip": 19615
     },
     "./internal": {
       "min": 427,
@@ -125,8 +125,8 @@
   },
   "@assistant-ui/react-langchain": {
     ".": {
-      "min": 22658,
-      "gzip": 8004
+      "min": 22983,
+      "gzip": 8089
     },
     "./converter": {
       "min": 3793,
@@ -135,20 +135,20 @@
   },
   "@assistant-ui/react-langgraph": {
     ".": {
-      "min": 29107,
-      "gzip": 10119
+      "min": 29330,
+      "gzip": 10192
     }
   },
   "@assistant-ui/react-lexical": {
     ".": {
-      "min": 14366,
-      "gzip": 5175
+      "min": 14426,
+      "gzip": 5206
     }
   },
   "@assistant-ui/react-markdown": {
     ".": {
-      "min": 8293,
-      "gzip": 3334
+      "min": 8408,
+      "gzip": 3405
     },
     "./code-fence": {
       "min": 84,
@@ -157,14 +157,14 @@
   },
   "@assistant-ui/react-mcp": {
     ".": {
-      "min": 49527,
-      "gzip": 15860
+      "min": 49645,
+      "gzip": 15908
     }
   },
   "@assistant-ui/react-native": {
     ".": {
-      "min": 37235,
-      "gzip": 10157
+      "min": 37445,
+      "gzip": 10220
     },
     "./internal": {
       "min": 427,
@@ -179,24 +179,24 @@
   },
   "@assistant-ui/react-opencode": {
     ".": {
-      "min": 41785,
-      "gzip": 11744
+      "min": 42335,
+      "gzip": 11956
     }
   },
   "@assistant-ui/react-pi": {
     ".": {
-      "min": 44402,
-      "gzip": 12825
+      "min": 44921,
+      "gzip": 13008
     },
     "./node": {
-      "min": 17852,
-      "gzip": 5708
+      "min": 17873,
+      "gzip": 5718
     }
   },
   "@assistant-ui/react-streamdown": {
     ".": {
-      "min": 13498,
-      "gzip": 5498
+      "min": 16507,
+      "gzip": 6665
     }
   },
   "@assistant-ui/react-syntax-highlighter": {
@@ -255,8 +255,8 @@
   },
   "assistant-cloud": {
     ".": {
-      "min": 28213,
-      "gzip": 8825
+      "min": 29652,
+      "gzip": 9236
     },
     "./ai-sdk": {
       "min": 4164,
@@ -269,8 +269,8 @@
   },
   "assistant-stream": {
     ".": {
-      "min": 60942,
-      "gzip": 17000
+      "min": 61265,
+      "gzip": 17040
     },
     "./resumable": {
       "min": 17746,

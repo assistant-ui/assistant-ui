@@ -295,6 +295,16 @@ describe("SelectionToolbarPrimitiveRoot frame cleanup", () => {
     expect(frames).toHaveLength(1);
   });
 
+  it("recovers when a context menu consumes the mouseup of a press", () => {
+    const { frames } = deferFrames();
+    render(<SelectionToolbarPrimitiveRoot />);
+
+    fireEvent.mouseDown(document, { button: 2 });
+    fireEvent.contextMenu(document);
+    fireEvent(document, new Event("selectionchange"));
+    expect(frames).toHaveLength(1);
+  });
+
   it("cancels a queued selection frame when the page scrolls", () => {
     const { frames, cancelAnimationFrame } = deferFrames();
     render(<SelectionToolbarPrimitiveRoot />);

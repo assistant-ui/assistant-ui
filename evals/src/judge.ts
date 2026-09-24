@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Verdict } from "./types.ts";
 
-const JUDGE_MODEL = process.env.JUDGE_MODEL ?? "claude-sonnet-4-6";
+const JUDGE_MODEL = process.env.JUDGE_MODEL ?? "claude-sonnet-5";
 
 const JUDGE_SYSTEM =
   "You are a strict code reviewer scoring a single criterion. " +

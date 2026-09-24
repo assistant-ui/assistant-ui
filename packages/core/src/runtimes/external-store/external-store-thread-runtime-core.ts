@@ -8,6 +8,7 @@ import type {
   RespondToToolApprovalOptions,
   StartRunConfig,
   ThreadSuggestion,
+  Unstable_RecordToolInteractionOptions,
 } from "../../runtime/interfaces/thread-runtime-core";
 
 import type {
@@ -135,15 +136,20 @@ export class ExternalStoreThreadRuntimeCore
 
   private _converter = new ThreadMessageConverter();
 
-  // Ids the host was asked to delete via onDelete. The snapshot pass evicts
-  // them from the repository once the host's array no longer carries them;
-  // an id the host kept is dropped from the set without eviction.
-  // Branch-changing mutations (edit, branch switch, reload) invalidate the
-  // set, because after them the incoming array omits off-branch ids for
-  // reasons unrelated to deletion. Plain tail sends do not clear: a tail
-  // append cannot make a visible id absent, so id-absence stays unambiguous
-  // and a delete whose confirmation races a send keeps its eviction.
-  private _pendingDeleteEvictions = new Set<string>();
+  // Ids the host was asked to delete via onDelete, mapped to the onDelete
+  // calls still pending for them. The snapshot pass evicts them from the
+  // repository once the host's array no longer carries them; an id the host
+  // still carries after every onDelete call for it settled, resolved or
+  // rejected, is dropped from the map without eviction.
+  // Branch-changing mutations (edit, branch switch) invalidate the map,
+  // because after them the incoming array omits off-branch ids for reasons
+  // unrelated to deletion. A reload invalidates only the ids after the parent
+  // it regenerates from: the host keeps the prefix up to that parent, so an
+  // id absent from it is still a deletion. Plain tail sends do not clear: a
+  // tail append cannot make a visible id absent, so id-absence stays
+  // unambiguous and a delete whose confirmation races a send keeps its
+  // eviction.
+  private _pendingDeleteEvictions = new Map<string, Set<symbol>>();
 
   // Placeholder id for the upcoming assistant message, reused across snapshot
   // passes while the same tail message awaits its response so the placeholder
@@ -412,9 +418,12 @@ export class ExternalStoreThreadRuntimeCore
 
       if (this._pendingDeleteEvictions.size > 0) {
         const incomingIds = new Set(messages.map((m) => m.id));
-        for (const id of this._pendingDeleteEvictions) {
+        for (const [id, calls] of this._pendingDeleteEvictions) {
+          if (incomingIds.has(id)) {
+            if (calls.size === 0) this._pendingDeleteEvictions.delete(id);
+            continue;
+          }
           this._pendingDeleteEvictions.delete(id);
-          if (incomingIds.has(id)) continue;
           try {
             this.repository.getMessage(id);
           } catch {
@@ -723,6 +732,11 @@ export class ExternalStoreThreadRuntimeCore
   protected override _commitVoiceMessage(
     message: ThreadMessage,
   ): void | Promise<void> {
+    const generation = captureThreadRuntimeGeneration(this);
+    if (generation.aborted) {
+      this._dropVoiceMessage(message.id, false);
+      return;
+    }
     const barrier = this._getVoiceCommitBarrier();
     if (!barrier) {
       this._store.onVoiceTranscript?.(message);
@@ -734,7 +748,6 @@ export class ExternalStoreThreadRuntimeCore
     // identity that survives those renders and moves when a host routes
     // another conversation through this runtime; a host that swaps only its
     // messages is indistinguishable from a load finishing.
-    const generation = captureThreadRuntimeGeneration(this);
     const repository = this.repository;
     return barrier.then(() => {
       if (generation.aborted || this.repository !== repository) {
@@ -756,12 +769,15 @@ export class ExternalStoreThreadRuntimeCore
       const wasVisible = this.repository
         .getMessages()
         .some((m) => m.id === messageId);
-      if (wasVisible) this._pendingDeleteEvictions.add(messageId);
+      const call = Symbol();
+      if (wasVisible) {
+        const calls = this._pendingDeleteEvictions.get(messageId) ?? new Set();
+        this._pendingDeleteEvictions.set(messageId, calls.add(call));
+      }
       try {
         await this._store.onDelete(messageId);
-      } catch (error) {
-        this._pendingDeleteEvictions.delete(messageId);
-        throw error;
+      } finally {
+        this._pendingDeleteEvictions.get(messageId)?.delete(call);
       }
       return;
     }
@@ -838,7 +854,15 @@ export class ExternalStoreThreadRuntimeCore
     if (this._isVoiceMessage(config.sourceId))
       throw new Error("Voice transcript messages cannot be reloaded");
 
-    this._pendingDeleteEvictions.clear();
+    const visible = this.repository.getMessages();
+    const kept = new Set(
+      visible
+        .slice(0, visible.findIndex((m) => m.id === config.parentId) + 1)
+        .map((m) => m.id),
+    );
+    for (const id of this._pendingDeleteEvictions.keys()) {
+      if (!kept.has(id)) this._pendingDeleteEvictions.delete(id);
+    }
 
     // Auto-abort in-flight client-side tool executions when a run reloads;
     // any results that land afterward would target a turn that no longer
@@ -1046,6 +1070,14 @@ export class ExternalStoreThreadRuntimeCore
     } catch (error) {
       return Promise.reject(error);
     }
+  }
+
+  public async unstable_recordToolInteraction(
+    options: Unstable_RecordToolInteractionOptions,
+  ): Promise<void> {
+    if (!this._store.unstable_onRecordToolInteraction)
+      throw new Error("Runtime does not support recording tool interactions.");
+    await this._store.unstable_onRecordToolInteraction(options);
   }
 
   public override reset(initialMessages?: readonly ThreadMessageLike[]) {

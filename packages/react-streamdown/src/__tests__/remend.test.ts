@@ -138,6 +138,190 @@ describe("tailBoundedRemend", () => {
   });
 
   it.each([
+    ["pre", "<pre>\na~b~c\n</pre>"],
+    ["script", "<script>\na~b~c\n</script>"],
+    ["style", "<style>\na~b~c\n</style>"],
+    ["textarea", "<textarea>\na~b~c\n</textarea>"],
+    ["comment", "<!--\na~b~c\n-->"],
+    ["processing instruction", "<?xml\na~b~c\n?>"],
+    ["declaration", "<!DOCTYPE html\na~b~c\n>"],
+    ["CDATA", "<![CDATA[\na~b~c\n]]>"],
+    ["one-line pre", "<pre>a~b~c</pre>"],
+  ])("leaves a raw HTML %s block untouched", (_, block) => {
+    const text = block + "\n\nTail";
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("keeps settled blocks fixed at every streaming prefix across HTML blocks", () => {
+    const text =
+      "Intro a~b~c\n\n<details>\n<summary>More a~b~c</summary>\n\nHidden **detail** x~y\n</details>\n\n<pre>\nx~y z~w\n\n</pre>\n\nTail a~b~c";
+    const finalBlocks = blocksOf(tailBoundedRemend(text));
+    for (let end = 1; end <= text.length; end++) {
+      const blocks = blocksOf(tailBoundedRemend(text.slice(0, end)));
+      const settled = blocks.slice(0, -1);
+      expect(settled, `prefix length ${end}`).toEqual(
+        finalBlocks.slice(0, settled.length),
+      );
+    }
+  });
+
+  it("ends a raw HTML block at any raw end tag", () => {
+    expect(tailBoundedRemend("<pre>\na~b~c\n</script>\nx~y z~w\n\nTail")).toBe(
+      "<pre>\na~b~c\n</script>\nx\\~y z\\~w\n\nTail",
+    );
+  });
+
+  it.each([
+    ["known tag", "<div>\na~b~c"],
+    ["complete unknown tag", "<custom-element>\na~b~c"],
+    ["self-closing raw tag name", "<pre/>\na~b~c"],
+    ["body line holding a bare quote marker", "<div>\n>\na~b~c"],
+  ])(
+    "protects an HTML block until its blank-line terminator: %s",
+    (_, block) => {
+      const text = block + "\n\nTail 1~2";
+      expect(tailBoundedRemend(text)).toBe(block + "\n\nTail 1\\~2");
+    },
+  );
+
+  it("protects an HTML block that is still open at the end", () => {
+    const text = "<pre>\na~b~c";
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("copies an open HTML block raw through an unterminated blank line", () => {
+    const text = "<div>\na~b~c\n ";
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("does not protect inline HTML as a block", () => {
+    expect(tailBoundedRemend("Use <pre> a~b~c\n\nTail")).toBe(
+      "Use <pre> a\\~b\\~c\n\nTail",
+    );
+  });
+
+  it("keeps fence markers inside an HTML block body raw", () => {
+    const text = "<pre>\n> ~~~\n\n> a~b~c\n</pre>\n\nTail";
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it.each([
+    ["one list marker", "- <div>\n  a~b~c"],
+    ["an ordered marker wider than three columns", "10. <pre>\n    a~b~c"],
+    ["nested list markers", "- - <pre>\n    a~b~c"],
+    ["a sibling ordered item marker", "1. Intro\n2. <pre>\n   a~b~c"],
+  ])("protects HTML opened after %s", (_, block) => {
+    expect(tailBoundedRemend(block + "\n\nTail 1~2")).toBe(
+      block + "\n\nTail 1\\~2",
+    );
+  });
+
+  it("ends a quoted HTML block with its blockquote", () => {
+    expect(tailBoundedRemend("> <div>\n> a~b~c\nx~y z~w")).toBe(
+      "> <div>\n> a~b~c\nx\\~y z\\~w",
+    );
+  });
+
+  it("ends a quoted HTML block at a blank line inside its blockquote", () => {
+    expect(tailBoundedRemend("> <div>\n> a~b~c\n>\n> x~y z~w")).toBe(
+      "> <div>\n> a~b~c\n>\n> x\\~y z\\~w",
+    );
+  });
+
+  it.each([
+    ["a blank line", "Intro\n\n<span>\na~b~c"],
+    ["a closed fence", "~~~\ncode\n~~~\n<span>\na~b~c"],
+    ["a heading", "# Title\n<span>\na~b~c"],
+    ["a thematic break", "***\n<span>\na~b~c"],
+    ["a setext underline", "Title\n---\n<span>\na~b~c"],
+    ["the start of a list item", "Intro\n- <span>\n  a~b~c"],
+    ["the start of a blockquote", "Intro\n> <span>\n> a~b~c"],
+    ["a thematic break opening a list item", "1. ---\n   <span>\n   a~b~c"],
+  ])("opens an HTML block at a lone tag line after %s", (_, block) => {
+    expect(tailBoundedRemend(block + "\n\nTail 1~2")).toBe(
+      block + "\n\nTail 1\\~2",
+    );
+  });
+
+  it.each([
+    [
+      "a lone tag line",
+      "Price range\n<br>\nfrom 5~10 to 20~30",
+      "Price range\n<br>\nfrom 5\\~10 to 20\\~30",
+    ],
+    [
+      "a quoted lone tag line",
+      "> Price range\n> <br>\n> from 5~10 to 20~30",
+      "> Price range\n> <br>\n> from 5\\~10 to 20\\~30",
+    ],
+    [
+      "an ordered item numbered other than 1",
+      "Price range\n2. <pre>\n   from 5~10 to 20~30",
+      "Price range\n2. <pre>\n   from 5\\~10 to 20\\~30",
+    ],
+  ])("escapes the paragraph %s continues", (_, text, expected) => {
+    expect(tailBoundedRemend(text + "\n\nTail")).toBe(expected + "\n\nTail");
+  });
+
+  it.each([
+    [
+      "an HTML block opened on a list item's continuation line ends with the item",
+      "- Intro\n  <pre>\nx~y **bold",
+      "- Intro\n  <pre>\nx\\~y **bold**",
+    ],
+    [
+      "a quote marker indented four columns leaves the tag line paragraph text",
+      "Intro\n    > <span>\n    > a~b **bold",
+      "Intro\n    > <span>\n    > a\\~b **bold**",
+    ],
+    [
+      "an ordered item numbered 2 nested in a list item's paragraph is paragraph text",
+      "1. Intro\n   2. <span>\n      a~b **bold",
+      "1. Intro\n   2. <span>\n      a\\~b **bold**",
+    ],
+    [
+      "a list item holding only a thematic break ends the paragraph before it",
+      "- ***\ntext\n2. <span>\n   a~b z~w\n\nTail",
+      "- ***\ntext\n2. <span>\n   a\\~b z\\~w\n\nTail",
+    ],
+    [
+      "a rule after a nested ordered marker numbered 2 is paragraph text",
+      "Intro\n- 2. ---\n  <span>\n  a~b z~w",
+      "Intro\n- 2. ---\n  <span>\n  a\\~b z\\~w",
+    ],
+    [
+      "an equals line opening a blockquote is paragraph text, not an underline",
+      "Intro\n> ===\n> <span>\n> a~b **bold",
+      "Intro\n> ===\n> <span>\n> a\\~b **bold**",
+    ],
+  ])("repairs the prose that follows when %s", (_, text, expected) => {
+    expect(tailBoundedRemend(text)).toBe(expected);
+  });
+
+  it("completes the paragraph a lone tag line continues", () => {
+    expect(
+      tailBoundedRemend(
+        'Here is the chart:\n<img src="x.png">\nRevenue is **up',
+      ),
+    ).toBe('Here is the chart:\n<img src="x.png">\nRevenue is **up**');
+  });
+
+  it.each([
+    ["lone tag line", "$$\n<br>\n$$"],
+    ["raw tag line", "$$\n<pre>\n$$"],
+  ])("reads a %s inside display math as math", (_, block) => {
+    expect(tailBoundedRemend(block + "\n\nTail a~b~c")).toBe(
+      block + "\n\nTail a\\~b\\~c",
+    );
+  });
+
+  it("does not open an HTML block in indented code", () => {
+    expect(tailBoundedRemend("    <pre>\nx~y z~w\n\nTail")).toBe(
+      "    <pre>\nx\\~y z\\~w\n\nTail",
+    );
+  });
+
+  it.each([
     ["tilde fence", "Intro\n\n~~~r\nlm(y~x)\n~~~"],
     ["display math", "Intro\n\n$$\na~b\n$$"],
     ["tilde fence with trailing newline", "Intro\n\n~~~r\nlm(y~x)\n~~~\n"],
@@ -341,13 +525,18 @@ describe("tailBoundedRemend", () => {
     expect(tailBoundedRemend(tilde)).toBe(tilde);
   });
 
-  it("keeps the boundary out of math when a quoted fence ends inside it", () => {
+  it("reads a fence marker inside display math as math", () => {
     const closed = "$$\n> ```js\n> a~b\nmore\n$$\n\nTail";
     expect(findRemendWindowStart(closed)).toBe(closed.indexOf("Tail"));
     expect(tailBoundedRemend(closed)).toBe(closed);
     const open = "$$\n> ```js\n> a~b\nmore";
     expect(findRemendWindowStart(open)).toBe(0);
     expect(blocksOf(tailBoundedRemend(open))).toEqual(blocksOf(remend(open)));
+    const unpaired = "$$\n```\nx~y\n$$\n\n20~25\n\nTail";
+    expect(findRemendWindowStart(unpaired)).toBe(unpaired.indexOf("Tail"));
+    expect(tailBoundedRemend(unpaired)).toBe(
+      "$$\n```\nx~y\n$$\n\n20\\~25\n\nTail",
+    );
   });
 
   it("reads a bare quote marker as blank only inside a blockquote", () => {
@@ -387,10 +576,123 @@ describe("tailBoundedRemend", () => {
   it("escapes prose on both sides of protected blocks", () => {
     expect(
       tailBoundedRemend(
-        "20~25\n\n~~~\nx~y\n~~~\n\n$$\na~b\n$$ and 1~2\n\n30~35\n\n- > 25\n\nTail",
+        "20~25\n\n~~~\nx~y\n~~~\n\n$$\na~b\n$$\n\n$$c~d$$ and 1~2\n\n30~35\n\n- > 25\n\nTail",
       ),
     ).toBe(
-      "20\\~25\n\n~~~\nx~y\n~~~\n\n$$\na~b\n$$ and 1\\~2\n\n30\\~35\n\n- \\> 25\n\nTail",
+      "20\\~25\n\n~~~\nx~y\n~~~\n\n$$\na~b\n$$\n\n$$c~d$$ and 1\\~2\n\n30\\~35\n\n- \\> 25\n\nTail",
+    );
+  });
+
+  it("closes display math only on a matching fence line", () => {
+    const text = "$$\na $$ b\n$$\n\nx~y\n\nTail";
+    expect(tailBoundedRemend(text)).toBe("$$\na $$ b\n$$\n\nx\\~y\n\nTail");
+  });
+
+  it.each([
+    ["a shorter fence", "$$$\na~b\n$$\n\nTail"],
+    ["a trailing-text fence", "$$\na~b\n$$ and 1~2\n\nTail"],
+    ["an escaped fence", "$$\na~b\n\\$$\n\nTail"],
+    ["a quoted fence", "$$\na~b\n> $$\n\nTail"],
+    ["a fence indented four spaces", "$$\na~b\n    $$\n\nTail"],
+  ])("keeps %s in an open display block", (_, text) => {
+    expect(findRemendWindowStart(text)).toBe(0);
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("accepts a longer matching fence with trailing whitespace", () => {
+    const text = "$$\na~b\n$$$  \n\nTail";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("ends a quoted $$ block with its blockquote", () => {
+    const text = "> $$\n> a~b\nx~y z~w\n\nTail";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe("> $$\n> a~b\nx\\~y z\\~w\n\nTail");
+    const reopened = "> $$\n> a~b\n$$\n\nx~y";
+    expect(findRemendWindowStart(reopened)).toBe(reopened.indexOf("$$\n\n"));
+    expect(tailBoundedRemend(reopened)).toBe(`${reopened}\n$$`);
+  });
+
+  it.each([
+    ["$$ block", "> $$\n> a\n\n> ~~~\n> $$\n> x~y\n> ~~~"],
+    ["fence", "> ~~~\n> a\n\n> ~~~\n> x~y\n> ~~~"],
+  ])("ends a quoted %s at a blank line outside the quote", (_, text) => {
+    expect(tailBoundedRemend(`${text}\n\nTail`)).toBe(`${text}\n\nTail`);
+  });
+
+  it.each([
+    ["$$ block", "- $$\n  > $$\n  x~y\n  $$"],
+    ["fence", "- ~~~\n  > ~~~\n  x~y\n  ~~~"],
+  ])("reads a quote marker inside an unquoted %s as body", (_, text) => {
+    expect(tailBoundedRemend(`${text}\n\nTail`)).toBe(`${text}\n\nTail`);
+  });
+
+  it.each([
+    ["$$ block", "> $$\n> a\n>> $$\n> x~y"],
+    ["tilde fence", "> ~~~\n> a\n>> ~~~\n> x~y z~w"],
+    ["backtick fence", "> ```\n> a\n>> ```\n> x~y z~w"],
+  ])("reads a deeper quote marker inside a quoted %s as body", (_, block) => {
+    const text = `${block}\n\nTail`;
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it.each([
+    [
+      "$$ block at a shallower line",
+      ">> $$\n>> a\n> x~y z~w",
+      ">> $$\n>> a\n> x\\~y z\\~w",
+    ],
+    [
+      "fence at a shallower line",
+      ">> ~~~\n>> a\n> x~y z~w",
+      ">> ~~~\n>> a\n> x\\~y z\\~w",
+    ],
+    [
+      "$$ block at a bare shallower marker",
+      ">> $$\n>> a\n>\n>> x~y z~w",
+      ">> $$\n>> a\n>\n>> x\\~y z\\~w",
+    ],
+    [
+      "fence at a bare shallower marker",
+      ">> ~~~\n>> a\n>\n>> x~y z~w",
+      ">> ~~~\n>> a\n>\n>> x\\~y z\\~w",
+    ],
+  ])("ends a nested %s", (_, text, out) => {
+    expect(tailBoundedRemend(`${text}\n\nTail`)).toBe(`${out}\n\nTail`);
+  });
+
+  it("measures a quoted list item's content column up to a deeper quote marker", () => {
+    const text = "> - ~~~\n>   > a~b c~d\n>   ~~~\n\nTail";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it.each([
+    ["three dollars opened", "$$$\na~b"],
+    ["a blockquote holds", "> $$\n> a~b"],
+    ["opened on a list marker line", "- $$\n  a~b"],
+  ])("adds no $$ to an open block that %s", (_, block) => {
+    const text = `Intro\n\n${block}`;
+    expect(findRemendWindowStart(text)).toBe(text.indexOf(block));
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it.each([
+    ["", "$$a~b$$ and 1~2", "$$a~b$$ and 1\\~2"],
+    [" after a backslash", "$$a~b\\$$ and 1~2", "$$a~b\\$$ and 1\\~2"],
+    [" below an unpaired run", "$$a$b\n$$$c~d$$$", "$$a$b\n$$$c~d$$$"],
+  ])(
+    "protects inline math that starts a line up to its closing run%s",
+    (_, text, out) => {
+      expect(tailBoundedRemend(`${text}\n\nTail`)).toBe(`${out}\n\nTail`);
+    },
+  );
+
+  it("leaves a line-start run with no pair on its line in the prose", () => {
+    expect(tailBoundedRemend("$$a$b c~d~e\n# x$$\n\nTail")).toBe(
+      "$$a$b c\\~d\\~e\n# x$$\n\nTail",
     );
   });
 

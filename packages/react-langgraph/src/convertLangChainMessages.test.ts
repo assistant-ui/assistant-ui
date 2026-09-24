@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import type { AppendMessage, CompleteAttachment } from "@assistant-ui/core";
 import { convertExternalMessages } from "@assistant-ui/core/react";
+import { getPartialJsonObjectMeta } from "assistant-stream/utils";
 import {
   convertLangChainMessages as convertLangChainMessagesImpl,
   getMessageContent,
@@ -156,17 +157,69 @@ describe("convertLangChainMessages content-less messages", () => {
       },
     };
 
-    for (const args of [cyclicArgs, accessorArgs, customSerializationArgs]) {
+    const bigintArgs = { limit: BigInt(1) };
+    class CustomToolArgs {
+      query = "docs";
+    }
+
+    for (const args of [
+      cyclicArgs,
+      accessorArgs,
+      customSerializationArgs,
+      new CustomToolArgs(),
+      bigintArgs,
+    ]) {
       const result = convertLangChainMessages({
         type: "ai",
         id: "ai-unsafe-args",
         tool_calls: [{ id: "call-1", name: "search", args }],
       } as unknown as LangChainMessage);
 
+      const toolCallPart = result.content.find(
+        (part) => part.type === "tool-call",
+      );
+      expect(Object.keys(toolCallPart?.args ?? {})).toEqual([]);
+      expect(toolCallPart?.argsText).toBe("{}");
       expect(
-        result.content.find((part) => part.type === "tool-call"),
-      ).toMatchObject({ args: {}, argsText: "{}" });
+        getPartialJsonObjectMeta(
+          toolCallPart?.args as unknown as Record<symbol, unknown>,
+        ),
+      ).toEqual({ state: "complete", partialPath: [] });
     }
+  });
+
+  it("keeps generated final args and completion metadata in sync", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-final-args",
+      status: { type: "running" },
+      tool_calls: [
+        {
+          id: "call-1",
+          name: "search",
+          args: {
+            nested: { omitted: undefined, query: "docs" },
+            score: Number.POSITIVE_INFINITY,
+          },
+        },
+      ],
+    } as unknown as LangChainMessage);
+
+    const toolCallPart = result.content.find(
+      (part) => part.type === "tool-call",
+    );
+    expect(toolCallPart?.argsText).toBe(
+      '{"nested":{"query":"docs"},"score":null}',
+    );
+    expect(toolCallPart?.args).toMatchObject({
+      nested: { query: "docs" },
+      score: null,
+    });
+    expect(
+      getPartialJsonObjectMeta(
+        toolCallPart?.args as unknown as Record<symbol, unknown>,
+      ),
+    ).toEqual({ state: "complete", partialPath: [] });
   });
 
   it("clears partial key-order state after unsafe argument tracking", () => {
@@ -374,14 +427,14 @@ describe("convertLangChainMessages metadata", () => {
       id: "ai-1",
       content: "Hi there!",
       additional_kwargs: {
-        metadata: { model: "gpt-5.6-luna", speaker_name: "Assistant" },
+        metadata: { model: "gpt-6-luna", speaker_name: "Assistant" },
       },
     });
 
     expect(result).toMatchObject({
       role: "assistant",
       metadata: {
-        custom: { model: "gpt-5.6-luna", speaker_name: "Assistant" },
+        custom: { model: "gpt-6-luna", speaker_name: "Assistant" },
       },
     });
   });
@@ -723,6 +776,47 @@ describe("convertLangChainMessages metadata", () => {
     expect(secondToolCallPart).toMatchObject({
       argsText: '{"kind":"click","target":{"x":10,"y":20}}',
     });
+  });
+
+  it.each([
+    { name: "primitive", action: "click" },
+    {
+      name: "cyclic object",
+      action: (() => {
+        const action: Record<string, unknown> = {};
+        action.self = action;
+        return action;
+      })(),
+    },
+    { name: "BigInt", action: { x: BigInt(1) } },
+  ])("normalizes a malformed computer_call $name action", ({ action }) => {
+    const toolArgsKeyOrderCache = new Map<string, Map<string, string[]>>();
+    const result = convertLangChainMessages(
+      {
+        type: "ai",
+        id: "ai-1",
+        content: [
+          {
+            type: "computer_call",
+            call_id: "call-1",
+            id: "computer-1",
+            action,
+            pending_safety_checks: [],
+            index: 0,
+          },
+        ],
+      } as unknown as LangChainMessage,
+      { toolArgsKeyOrderCache },
+    );
+
+    const toolCallPart = result.content.find(
+      (part) => part.type === "tool-call",
+    );
+    expect(toolCallPart?.args).toEqual({});
+    expect(toolCallPart?.argsText).toBe("{}");
+    if (typeof action === "object") {
+      expect(toolArgsKeyOrderCache.size).toBe(0);
+    }
   });
 
   it("synthesizes a computer_call id when call_id is empty", () => {

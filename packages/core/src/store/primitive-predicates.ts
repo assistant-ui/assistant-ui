@@ -24,6 +24,7 @@ export const composerInputDisabled = (s: AssistantState): boolean =>
 
 export const actionBarEditDisabled = (s: AssistantState): boolean =>
   s.composer.isEditing ||
+  s.optional.message?.submission !== undefined ||
   s.optional.thread?.voice !== undefined ||
   s.optional.thread?.capabilities.edit === false;
 

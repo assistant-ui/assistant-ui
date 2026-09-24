@@ -125,6 +125,29 @@ describe("auiV0DecodeSafely", () => {
     ]);
   });
 
+  it("drops malformed tool-call interactions without dropping the message", () => {
+    const item = auiV0DecodeSafely(
+      assistantRow([
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "search",
+          args: {},
+          unstable_interactions: {
+            entries: [{ type: "unknown", occurredAt: 1, payload: null }],
+          },
+        },
+        { type: "text", text: "kept" },
+      ]),
+    );
+
+    expect(item?.message.content).toHaveLength(2);
+    expect(item?.message.content[0]).not.toHaveProperty(
+      "unstable_interactions",
+    );
+    expect(item?.message.content[1]).toEqual({ type: "text", text: "kept" });
+  });
+
   it("keeps a data prefixed part the decoder can still convert", () => {
     const item = auiV0DecodeSafely(
       assistantRow([{ type: "data-weather", data: { city: "Berlin" } }]),
@@ -458,6 +481,144 @@ describe("auiV0DecodeSafely against encoder output", () => {
       content: auiV0Encode(message),
     }) as unknown as CloudMessage & { format: "aui/v0" };
 
+  const withToolResult = (result: unknown): ThreadAssistantMessage => ({
+    id: "assistant-1",
+    role: "assistant",
+    status: { type: "complete", reason: "stop" },
+    createdAt: new Date(0),
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: {},
+    },
+    content: [
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "lookup",
+        args: {},
+        argsText: "{}",
+        result,
+      },
+    ],
+  });
+
+  const encodedResult = (result: unknown) => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const encoded = auiV0Encode(withToolResult(result));
+      const part = encoded.content[0] as { result?: unknown };
+      return { result: part.result, warned: warn.mock.calls.length };
+    } finally {
+      warn.mockRestore();
+    }
+  };
+
+  it("persists the JSON form of a result JSON would empty, and warns", () => {
+    expect(encodedResult(new Map([["answer", 42]]))).toEqual({
+      result: {},
+      warned: 1,
+    });
+    expect(encodedResult(new Set([1, 2]))).toEqual({ result: {}, warned: 1 });
+  });
+
+  it("keeps the siblings of a lossy field and warns once", () => {
+    expect(
+      encodedResult({ text: "long answer", index: new Map([["a", 1]]) }),
+    ).toEqual({ result: { text: "long answer", index: {} }, warned: 1 });
+    expect(encodedResult({ a: 1, b: undefined })).toEqual({
+      result: { a: 1 },
+      warned: 1,
+    });
+    expect(encodedResult({ label: "x", score: NaN })).toEqual({
+      result: { label: "x", score: null },
+      warned: 1,
+    });
+  });
+
+  it("keeps tool results JSON preserves", () => {
+    class Weather {
+      tempC = 21;
+      city = "Berlin";
+    }
+    const cases: [unknown, unknown][] = [
+      [{ createdAt: new Date(0) }, { createdAt: "1970-01-01T00:00:00.000Z" }],
+      [new Weather(), { tempC: 21, city: "Berlin" }],
+      [new URL("https://x.y/"), "https://x.y/"],
+      [{ nested: [{ items: new Map() }] }, { nested: [{ items: {} }] }],
+    ];
+    for (const [input, expected] of cases) {
+      expect(encodedResult(input)).toEqual({ result: expected, warned: 0 });
+    }
+  });
+
+  it("warns for a result that hides data behind non-string keys", () => {
+    const symbolKeyed = { [Symbol("hidden")]: 1, shown: 2 };
+    const sparse = Object.defineProperty([1, 2], "extra", {
+      value: 3,
+      enumerable: true,
+    });
+    expect(encodedResult(symbolKeyed)).toEqual({
+      result: { shown: 2 },
+      warned: 1,
+    });
+    expect(encodedResult(sparse)).toEqual({ result: [1, 2], warned: 1 });
+  });
+
+  it("omits a result JSON cannot serialize at all, and warns", () => {
+    const circular: { self?: unknown } = {};
+    circular.self = circular;
+    expect(encodedResult(circular)).toEqual({ result: undefined, warned: 1 });
+  });
+
+  it("takes an object literal's toJSON as its serialized form", () => {
+    expect(encodedResult({ toJSON: () => "summary" })).toEqual({
+      result: "summary",
+      warned: 0,
+    });
+  });
+
+  it("cannot see data behind prototype getters, matching main", () => {
+    class Wrapper {
+      #value = 1;
+      get value() {
+        return this.#value;
+      }
+    }
+    expect(encodedResult(new Wrapper())).toEqual({ result: {}, warned: 0 });
+  });
+
+  it("warns for opaque own state JSON cannot see", () => {
+    const empty = Object.assign(new Map(), { [Symbol("hidden")]: 1 });
+    expect(encodedResult(empty)).toEqual({ result: {}, warned: 1 });
+    expect(encodedResult(/x/)).toEqual({ result: {}, warned: 1 });
+  });
+
+  it("warns when a toJSON round trip yields nothing to store", () => {
+    expect(encodedResult({ toJSON: () => undefined })).toEqual({
+      result: undefined,
+      warned: 1,
+    });
+    expect(encodedResult({ toJSON: () => 1n })).toEqual({
+      result: undefined,
+      warned: 1,
+    });
+  });
+
+  it("reports a getter that throws on its second read instead of failing", () => {
+    let reads = 0;
+    const flaky = Object.defineProperty({}, "x", {
+      enumerable: true,
+      get() {
+        if (reads++ > 0) throw new Error("second read");
+        return 1;
+      },
+    });
+    expect(encodedResult(flaky)).toEqual({ result: { x: 1 }, warned: 1 });
+  });
+
   it("keeps every assistant status the encoder writes", () => {
     const statuses: MessageStatus[] = [
       { type: "running" },
@@ -631,5 +792,82 @@ describe("auiV0DecodeSafely against encoder output", () => {
         (part) => part.type,
       ),
     ).toEqual(message.attachments[0]?.content.map((part) => part.type));
+  });
+
+  it("keeps provider metadata on file and attachment parts", () => {
+    const providerMetadata = { openai: { fileId: "file-123" } };
+    const assistant: ThreadAssistantMessage = {
+      id: "assistant-file",
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      createdAt: new Date(0),
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        {
+          type: "file",
+          data: "file-123",
+          mimeType: "application/pdf",
+          sourceType: "id",
+          providerMetadata,
+        },
+      ],
+    };
+    const user: ThreadUserMessage = {
+      id: "user-file",
+      role: "user",
+      createdAt: new Date(0),
+      metadata: { custom: {} },
+      content: [],
+      attachments: [
+        {
+          id: "attachment-1",
+          type: "file",
+          name: "report.pdf",
+          status: { type: "complete" },
+          content: [
+            {
+              type: "text",
+              text: "report",
+              providerMetadata,
+            },
+            {
+              type: "image",
+              image: "https://x.dev/preview.png",
+              providerMetadata,
+            },
+            {
+              type: "file",
+              data: "file-123",
+              mimeType: "application/pdf",
+              sourceType: "id",
+              providerMetadata,
+            },
+          ],
+        },
+      ],
+    };
+
+    expect(
+      auiV0DecodeSafely(encodedRow(assistant))?.message.content[0],
+    ).toMatchObject({
+      providerMetadata,
+    });
+    expect(auiV0DecodeSafely(encodedRow(user))?.message).toMatchObject({
+      attachments: [
+        {
+          content: [
+            { type: "text", providerMetadata },
+            { type: "image", providerMetadata },
+            { type: "file", providerMetadata },
+          ],
+        },
+      ],
+    });
   });
 });
