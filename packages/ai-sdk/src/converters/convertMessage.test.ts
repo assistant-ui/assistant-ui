@@ -1904,17 +1904,26 @@ describe("AISDKMessageConverter", () => {
         id: "s1",
         role: "system",
         parts: [
-          { type: "text", text: "be " },
-          { type: "text", text: "brief" },
+          {
+            type: "text",
+            text: "be ",
+            providerMetadata: { p1: { k: "a" }, p2: { k: "b" } },
+          },
+          { type: "text", text: "brief", providerMetadata: { p2: { k: "c" } } },
         ],
       },
       { id: "s2", role: "system", parts: [] },
     ] as any);
 
     expect(converted[0]?.content).toMatchObject([
-      { type: "text", text: "be brief" },
+      {
+        type: "text",
+        text: "be brief",
+        providerMetadata: { p1: { k: "a" }, p2: { k: "c" } },
+      },
     ]);
     expect(converted[1]?.content).toMatchObject([{ type: "text", text: "" }]);
+    expect(converted[1]?.content[0]).not.toHaveProperty("providerMetadata");
   });
 
   it("reads a user text part without text as empty text", () => {
@@ -1938,6 +1947,8 @@ describe("AISDKMessageConverter", () => {
         parts: [
           { type: "file", mediaType: "image/png" },
           { type: "file", url: "https://cdn/file.bin" },
+          { type: "reasoning-file", mediaType: "image/png" },
+          { type: "reasoning-file", url: "https://cdn/thought.bin" },
         ],
       },
     ] as any);
@@ -1947,6 +1958,11 @@ describe("AISDKMessageConverter", () => {
       {
         type: "file",
         data: "https://cdn/file.bin",
+        mimeType: "unknown/unknown",
+      },
+      {
+        type: "file",
+        data: "https://cdn/thought.bin",
         mimeType: "unknown/unknown",
       },
     ]);
