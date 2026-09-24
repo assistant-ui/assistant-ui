@@ -179,8 +179,8 @@
   },
   "@assistant-ui/react-opencode": {
     ".": {
-      "min": 42335,
-      "gzip": 11956
+      "min": 46281,
+      "gzip": 12557
     }
   },
   "@assistant-ui/react-pi": {
