@@ -169,6 +169,53 @@ describe("useExternalStoreRuntime history copy", () => {
     app.view.unmount();
   });
 
+  it("skips stores that run their own thread list", async () => {
+    const { history, unstable_copy } = historyAdapter();
+    const app = setup(history, {
+      messages: [],
+      isRunning: false,
+      adapters: { threadList: { threadId: "backend-thread" } },
+      onNew: async () => {},
+    });
+    app.update({ isRunning: true });
+    app.update({ isRunning: false, messages: [user("user-1")] });
+    await settle();
+    expect(unstable_copy).not.toHaveBeenCalled();
+    app.view.unmount();
+  });
+
+  it("rejects a pending interaction when the runtime unmounts before its copy", async () => {
+    const { history, unstable_copy } = historyAdapter();
+    const toolMessage = {
+      ...assistant("assistant-1"),
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "choose",
+          args: {},
+          argsText: "{}",
+        },
+      ],
+    } as ThreadMessage;
+    const app = setup(history, {
+      messages: [toolMessage],
+      isRunning: false,
+      onNew: async () => {},
+    });
+    const pending = app.runtime.thread
+      .getMessageById("assistant-1")
+      .getMessagePartByToolCallId("call-1").unstable_recordInteraction!({
+      type: "action",
+      payload: {},
+    });
+    for (let tick = 0; tick < 5; tick++) await Promise.resolve();
+    app.view.unmount();
+    await expect(pending).rejects.toThrow("History copy was detached.");
+    await settle();
+    expect(unstable_copy).not.toHaveBeenCalled();
+  });
+
   it("omits optimistic, fallback, running, and synthetic error messages", async () => {
     const { history, unstable_copy } = historyAdapter();
     const app = setup(history);

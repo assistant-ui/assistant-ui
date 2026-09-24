@@ -119,6 +119,9 @@ export class ExternalStoreHistoryCopy {
       offEnd();
       if (this.timer !== undefined) clearTimeout(this.timer);
       this.timer = undefined;
+      this.pending = false;
+      const detached = new Error("History copy was detached.");
+      for (const waiter of this.waiters.splice(0)) waiter.reject(detached);
       this.thread = undefined;
       this.history = undefined;
     };

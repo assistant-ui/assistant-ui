@@ -14,23 +14,23 @@ export const useExternalStoreRuntime = <T>(
 ): AssistantRuntime => {
   const { modelContext, feedback, history } = useRuntimeAdapters() ?? {};
   const [historyCopy] = useState(() => new ExternalStoreHistoryCopy());
+  const copiesHistory =
+    !!history?.unstable_copy &&
+    !store.unstable_persistsHistory &&
+    !store.adapters?.threadList;
   const adaptedStore = useMemo(() => {
     const withFeedback =
       feedback && !store.adapters?.feedback
         ? { ...store, adapters: { ...store.adapters, feedback } }
         : store;
-    if (
-      !history?.unstable_copy ||
-      store.unstable_persistsHistory ||
-      store.unstable_onRecordToolInteraction
-    ) {
+    if (!copiesHistory || store.unstable_onRecordToolInteraction) {
       return withFeedback;
     }
     return {
       ...withFeedback,
       unstable_onRecordToolInteraction: historyCopy.recordInteraction,
     };
-  }, [feedback, history, historyCopy, store]);
+  }, [copiesHistory, feedback, historyCopy, store]);
   const [runtime] = useState(() => new ExternalStoreRuntimeCore(adaptedStore));
 
   useEffect(() => {
@@ -44,12 +44,12 @@ export const useExternalStoreRuntime = <T>(
   });
 
   useEffect(() => {
-    if (!history?.unstable_copy || store.unstable_persistsHistory) return;
+    if (!copiesHistory || !history) return;
     return historyCopy.attach(
       runtime.threads.getMainThreadRuntimeCore(),
       history,
     );
-  }, [history, historyCopy, runtime, store.unstable_persistsHistory]);
+  }, [copiesHistory, history, historyCopy, runtime]);
 
   useEffect(() => {
     if (!modelContext) return undefined;
