@@ -130,6 +130,131 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     expect(composer.attachments).toEqual([]);
   });
 
+  it.each([
+    ["reset", "pending", 1],
+    ["reset", "failed", 2],
+    ["reset", "pending-then-failed", 1],
+    ["clearAttachments", "pending", 1],
+    ["clearAttachments", "failed", 2],
+    ["clearAttachments", "pending-then-failed", 1],
+  ] as const)(
+    "removes a returned attachment on %s unless its removal is in flight (%s)",
+    async (action, state, removals) => {
+      const upload = deferred();
+      const removal = deferred();
+      const remove = vi
+        .fn<AttachmentAdapter["remove"]>()
+        .mockReturnValueOnce(removal.promise)
+        .mockResolvedValue(undefined);
+      const { composer } = makeComposer(
+        makeAdapter({
+          send: async () => {
+            await upload.promise;
+            throw new Error("network");
+          },
+          remove,
+        }),
+      );
+      vi.spyOn(console, "error").mockImplementation(() => {});
+
+      composer.setText("hello");
+      await composer.addAttachment(textFile());
+      const sending = composer.send();
+      await vi.waitFor(() =>
+        expect(composer.submission?.attachments).toHaveLength(1),
+      );
+      const removing = composer.removeAttachment("att-1").then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+      upload.resolve();
+      await sending;
+      if (state === "failed") {
+        removal.reject(new Error("remove failed"));
+        await removing;
+      }
+      await composer[action]();
+      if (state === "pending") removal.resolve();
+      if (state === "pending-then-failed")
+        removal.reject(new Error("remove failed"));
+
+      expect(await removing).toEqual(
+        state === "pending" ? undefined : new Error("remove failed"),
+      );
+      expect(remove).toHaveBeenCalledTimes(removals);
+      expect(composer.attachments).toEqual([]);
+    },
+  );
+
+  it.each(["submission", "returned"] as const)(
+    "does not remove a %s attachment again while its removal is pending",
+    async (where) => {
+      const upload = deferred();
+      const removal = deferred();
+      const remove = vi.fn<AttachmentAdapter["remove"]>(() => removal.promise);
+      const { composer } = makeComposer(
+        makeAdapter({
+          send: async () => {
+            await upload.promise;
+            throw new Error("network");
+          },
+          remove,
+        }),
+      );
+      vi.spyOn(console, "error").mockImplementation(() => {});
+
+      composer.setText("hello");
+      await composer.addAttachment(textFile());
+      const sending = composer.send();
+      await vi.waitFor(() =>
+        expect(composer.submission?.attachments).toHaveLength(1),
+      );
+      const first = composer.removeAttachment("att-1");
+      if (where === "returned") {
+        upload.resolve();
+        await sending;
+      }
+      const second = composer.removeAttachment("att-1");
+      removal.resolve();
+      upload.resolve();
+      await Promise.all([first, second, sending]);
+
+      expect(remove).toHaveBeenCalledTimes(1);
+      expect(composer.attachments).toEqual([]);
+    },
+  );
+
+  it.each(["succeeds", "fails"] as const)(
+    "leaves the draft untouched when removing a file from the sending message %s",
+    async (outcome) => {
+      const upload = deferred();
+      const { composer } = makeComposer(
+        makeAdapter({
+          send: async (attachment) => {
+            await upload.promise;
+            return { ...attachment, status: { type: "complete" }, content: [] };
+          },
+          remove: async () => {
+            if (outcome === "fails") throw new Error("remove failed");
+          },
+        }),
+      );
+
+      await composer.addAttachment(textFile());
+      void composer.send();
+      await vi.waitFor(() =>
+        expect(composer.submission?.attachments).toHaveLength(1),
+      );
+      const draft = composer.attachments;
+      await composer.removeAttachment("att-1").catch(() => {});
+
+      expect(composer.submission?.attachments).toHaveLength(
+        outcome === "fails" ? 1 : 0,
+      );
+      expect(composer.attachments).toBe(draft);
+    },
+  );
+
   it.each(["before", "after"])(
     "returns an attachment whose removal failed %s the send failed to the draft",
     async (order) => {
@@ -1596,4 +1721,200 @@ describe("BaseComposerRuntimeCore.send with an upload still running in add()", (
     expect(composer.attachments).toEqual([]);
     expect(drainedAfterSend).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ["pending", 1],
+    ["pending-then-failed", 1],
+    ["failed", 2],
+    ["retried", 2],
+  ] as const)(
+    "removes a submitted attachment on reset unless its removal is in flight (%s)",
+    async (state, removals) => {
+      const upload = deferred();
+      const prepare = deferred();
+      const removal = deferred();
+      const remove = vi.fn<AttachmentAdapter["remove"]>();
+      if (state === "failed" || state === "retried")
+        remove.mockRejectedValueOnce(new Error("remove failed"));
+      remove.mockReturnValueOnce(removal.promise).mockResolvedValue(undefined);
+      const send = vi.fn(async (attachment: PendingAttachment) => {
+        await prepare.promise;
+        return {
+          ...attachment,
+          status: { type: "complete" as const },
+          content: [],
+        };
+      });
+      const { composer } = makeComposer(
+        makeAdapter({
+          async *add({ file }) {
+            const attachment = {
+              id: file.name,
+              type: "file",
+              name: file.name,
+              contentType: file.type,
+              file,
+            };
+            if (file.name === "uploading.txt") {
+              yield {
+                ...attachment,
+                status: { type: "running", reason: "uploading", progress: 0 },
+              } satisfies PendingAttachment;
+              await upload.promise;
+            }
+            yield {
+              ...attachment,
+              status: { type: "requires-action", reason: "composer-send" },
+            } satisfies PendingAttachment;
+          },
+          remove,
+          send,
+        }),
+      );
+
+      composer.setText("hello");
+      await composer.addAttachment(
+        new File(["a"], "ready.txt", { type: "text/plain" }),
+      );
+      void composer
+        .addAttachment(new File(["b"], "uploading.txt", { type: "text/plain" }))
+        .catch(() => {});
+      await vi.waitFor(() =>
+        expect(composer.attachments[1]?.status.type).toBe("running"),
+      );
+
+      void composer.send();
+      if (state === "failed" || state === "retried")
+        await expect(
+          composer.removeAttachment("uploading.txt"),
+        ).rejects.toThrow("remove failed");
+      const removing =
+        state === "failed"
+          ? undefined
+          : composer.removeAttachment("uploading.txt").then(
+              () => undefined,
+              (error: unknown) => error,
+            );
+      await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+      const resetting = composer.reset();
+      if (state === "pending-then-failed")
+        removal.reject(new Error("remove failed"));
+      else removal.resolve();
+      const [outcome] = await Promise.all([removing, resetting]);
+
+      expect(outcome).toEqual(
+        state === "pending-then-failed"
+          ? new Error("remove failed")
+          : undefined,
+      );
+      expect(composer.attachments).toEqual([]);
+      expect(
+        remove.mock.calls.filter(
+          ([attachment]) => attachment.id === "uploading.txt",
+        ),
+      ).toHaveLength(removals);
+    },
+  );
+
+  it.each(["before", "after"])(
+    "shows an uploading attachment whose removal failed %s the send failed",
+    async (order) => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const upload = deferred();
+      const prepare = deferred();
+      const removal = deferred();
+      const remove = vi
+        .fn<AttachmentAdapter["remove"]>()
+        .mockReturnValueOnce(removal.promise)
+        .mockResolvedValue(undefined);
+      const send = vi.fn(async (attachment: PendingAttachment) => {
+        await prepare.promise;
+        return {
+          ...attachment,
+          status: { type: "complete" as const },
+          content: [],
+        };
+      });
+      const { composer, append } = makeComposer(
+        makeAdapter({
+          async *add({ file }) {
+            const attachment = {
+              id: file.name,
+              type: "file",
+              name: file.name,
+              contentType: file.type,
+              file,
+            };
+            if (file.name === "uploading.txt") {
+              yield {
+                ...attachment,
+                status: { type: "running", reason: "uploading", progress: 0 },
+              } satisfies PendingAttachment;
+              await upload.promise;
+            }
+            yield {
+              ...attachment,
+              status: { type: "requires-action", reason: "composer-send" },
+            } satisfies PendingAttachment;
+          },
+          remove,
+          send,
+        }),
+      );
+
+      composer.setText("hello");
+      await composer.addAttachment(
+        new File(["a"], "ready.txt", { type: "text/plain" }),
+      );
+      void composer
+        .addAttachment(new File(["b"], "uploading.txt", { type: "text/plain" }))
+        .catch(() => {});
+      await vi.waitFor(() =>
+        expect(composer.attachments[1]?.status.type).toBe("running"),
+      );
+
+      const sending = composer.send();
+      const removing = expect(
+        composer.removeAttachment("uploading.txt"),
+      ).rejects.toThrow("remove failed");
+      await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+      if (order === "before") {
+        removal.reject(new Error("remove failed"));
+        await removing;
+      }
+      prepare.reject(new Error("network"));
+      await sending;
+      if (order === "after") {
+        removal.reject(new Error("remove failed"));
+        await removing;
+      }
+
+      expect(append).not.toHaveBeenCalled();
+      expect(composer.text).toBe("hello");
+      expect(composer.attachments).toMatchObject([
+        {
+          id: "ready.txt",
+          status: { type: "incomplete", reason: "error", message: "network" },
+        },
+        {
+          id: "uploading.txt",
+          status: {
+            type: "incomplete",
+            reason: "error",
+            message: "remove failed",
+          },
+        },
+      ]);
+      await composer.send();
+      expect(send.mock.calls.map(([attachment]) => attachment.id)).toEqual([
+        "ready.txt",
+        "ready.txt",
+        "uploading.txt",
+      ]);
+      await composer.removeAttachment("uploading.txt");
+      expect(composer.attachments.map((attachment) => attachment.id)).toEqual([
+        "ready.txt",
+      ]);
+    },
+  );
 });

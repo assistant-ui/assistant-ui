@@ -17,10 +17,13 @@ export class AttachmentSendOperations {
   private readonly removed = new WeakSet<Attachment>();
   // An attachment whose removal failed while its message was being prepared
   // is held out of that message only; the draft it returns to gets it back.
+  // Removing it again makes that removal the pending one, so it is no longer
+  // held out.
   private readonly heldOut = new WeakSet<Attachment>();
 
   markRemoved(attachment: Attachment) {
     this.removed.add(attachment);
+    this.heldOut.delete(attachment);
   }
 
   unmarkRemoved(attachment: Attachment) {
@@ -34,6 +37,10 @@ export class AttachmentSendOperations {
   holdOut(attachment: Attachment) {
     this.removed.add(attachment);
     this.heldOut.add(attachment);
+  }
+
+  isRemovalPending(attachment: Attachment) {
+    return this.removed.has(attachment) && !this.heldOut.has(attachment);
   }
 
   restore(attachment: Attachment) {

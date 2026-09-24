@@ -377,7 +377,6 @@ export abstract class BaseComposerRuntimeCore
       // the submission waits for its latest state.
       await Promise.all(uploads);
       if (generation !== this._sendGeneration) return;
-      this._refreshSubmissionAttachments();
     }
 
     const submission = this._submission;
@@ -491,16 +490,6 @@ export abstract class BaseComposerRuntimeCore
     this.settleInTransit();
   }
 
-  private _refreshSubmissionAttachments() {
-    const submission = this._submission;
-    if (!submission) return;
-    const attachments = submission.attachments.filter(
-      (attachment) => !this._attachmentSends.isRemoved(attachment),
-    );
-    if (attachments.length === submission.attachments.length) return;
-    this._submission = { ...submission, attachments };
-  }
-
   private _returnSubmissionToDraft(
     sent: readonly Attachment[],
     settled: readonly PromiseSettledResult<CompleteAttachment>[],
@@ -605,7 +594,9 @@ export abstract class BaseComposerRuntimeCore
       submission.attachments
         .filter(
           (attachment) =>
-            !isAttachmentComplete(attachment) && !drafted.has(attachment.id),
+            !isAttachmentComplete(attachment) &&
+            !drafted.has(attachment.id) &&
+            !this._attachmentSends.isRemovalPending(attachment),
         )
         .map(async (attachment) => adapter.remove(attachment)),
     );
@@ -933,6 +924,7 @@ export abstract class BaseComposerRuntimeCore
       (a) => a.id === attachmentId,
     );
     if (!submitted) throw new Error("Attachment not found");
+    if (this._attachmentSends.isRemovalPending(submitted)) return;
 
     this._cancelAttachmentAdd(attachmentId);
     this._attachmentSends.markRemoved(submitted);
@@ -954,7 +946,8 @@ export abstract class BaseComposerRuntimeCore
           (a) => a.id !== attachmentId,
         ),
       };
-    this._attachments = this._attachments.filter((a) => a !== submitted);
+    if (this._attachments.includes(submitted))
+      this._attachments = this._attachments.filter((a) => a !== submitted);
     this._notifySubscribers();
   }
 
@@ -985,9 +978,10 @@ export abstract class BaseComposerRuntimeCore
           return failed;
         }),
       };
-    this._attachments = this._attachments.map((attachment) =>
-      attachment === submitted ? fail(submitted) : attachment,
-    );
+    if (this._attachments.includes(submitted))
+      this._attachments = this._attachments.map((attachment) =>
+        attachment === submitted ? fail(submitted) : attachment,
+      );
     this._notifySubscribers();
   }
 

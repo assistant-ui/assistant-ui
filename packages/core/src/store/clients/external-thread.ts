@@ -729,6 +729,7 @@ const useComposerClientResource = ({
   // and can still be taken out of the message that is being sent.
   const handleRemoveSubmittedAttachment = useCallback(
     async (attachment: Attachment) => {
+      if (attachmentSends.isRemovalPending(attachment)) return;
       attachmentAddOperations.cancel(attachment.id);
       attachmentSends.markRemoved(attachment);
       if (!isAttachmentComplete(attachment)) {
@@ -762,9 +763,11 @@ const useComposerClientResource = ({
                 : prev,
             );
             setAttachments((prev) =>
-              prev.map((candidate) =>
-                candidate === attachment ? fail(attachment) : candidate,
-              ),
+              prev.includes(attachment)
+                ? prev.map((candidate) =>
+                    candidate === attachment ? fail(attachment) : candidate,
+                  )
+                : prev,
             );
           },
         );
@@ -779,7 +782,9 @@ const useComposerClientResource = ({
             }
           : prev,
       );
-      setAttachments((prev) => prev.filter((a) => a !== attachment));
+      setAttachments((prev) =>
+        prev.includes(attachment) ? prev.filter((a) => a !== attachment) : prev,
+      );
     },
     [
       attachmentAddOperations,
@@ -956,7 +961,11 @@ const useComposerClientResource = ({
     // An attachment the draft still holds is removed along with the draft.
     const drafted = new Set(attachmentsRef.current.map((a) => a.id));
     await removePendingAttachments(
-      current.attachments.filter((attachment) => !drafted.has(attachment.id)),
+      current.attachments.filter(
+        (attachment) =>
+          !drafted.has(attachment.id) &&
+          !attachmentSends.isRemovalPending(attachment),
+      ),
     );
   };
 
