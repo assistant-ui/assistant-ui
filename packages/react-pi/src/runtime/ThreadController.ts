@@ -334,11 +334,13 @@ export class PiThreadController implements PiThreadControllerLike {
   public dispose() {
     // React StrictMode can detach then resubscribe the same controller.
     this.clearDisconnectTimer();
-    this.unsubscribeFromEvents?.();
+    const unsubscribe = this.unsubscribeFromEvents;
     this.unsubscribeFromEvents = null;
+    this.connectionRetainers = 0;
     this.allListeners.clear();
     this.metadataListeners.clear();
     this.messageListeners.clear();
+    unsubscribe?.();
   }
 
   private ensureEventSubscription(options?: { includeSnapshot?: boolean }) {
