@@ -1,7 +1,7 @@
 # Setup wizard design decisions
 
 - The frame never resizes: every page renders in one fixed size, and only the viewport caps it.
-- Page content never scrolls; the license box scrolls internally instead. The install step list is the exception: the title and progress bar stay put while the list scrolls under a fade and follows the step in progress. The list keeps the step in progress in the middle of its area and fades the bottom `4rem`, short enough that the next step's title stays legible below the centered one; the list pads its end by half the area's height so the last step can reach the middle too.
+- Page content never scrolls; the license box scrolls internally instead. The install step list is the exception: the title and progress bar stay put while the list scrolls under a fade and follows the step in progress. The list keeps the step in progress in the middle of its area and fades the bottom `4rem`, short enough that the next step's title stays legible below the centered one; while the setup is live the list pads both ends by half the area's height, so the first and the last step can reach the middle too and the first activation does not shift the list.
 - The intro and license pages fit the frame.
 - The agent-disconnected notice is a modal that hides the content until the agent reconnects.
 - The key step shows an explicit test result before Next.
@@ -19,3 +19,4 @@
 - `border-foreground/10` is the one hairline, for borders, dividers and the progress track; `/30` is the accent bar; `border-foreground` is the active state.
 - Text: the page title is `text-lg font-semibold`; every other heading is `text-sm font-medium`; helper text is `text-muted-foreground text-sm` and metadata `text-xs`.
 - Icons are `size-4` beside content and `size-3.5` inside a line of text.
+- A step's description shows two lines at most: it is truncated in the middle to `140` characters (two lines of `text-sm` at the `546px` the description gets in the frame, minus what word wrapping loses), `line-clamp-2` caps it at any other width, and the full text is the paragraph's `title`.

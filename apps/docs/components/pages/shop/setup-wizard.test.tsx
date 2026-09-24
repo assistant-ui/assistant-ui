@@ -232,6 +232,7 @@ describe("SetupWizard", () => {
     expect(scroller.className).toContain(
       "[mask-image:linear-gradient(to_bottom,transparent,black_1.5rem,black_calc(100%_-_4rem),transparent)]",
     );
+    expect(list.className).toContain("py-[50cqh]");
     expect(scrollIntoView).toHaveBeenLastCalledWith({ block: "center" });
     expect(scrolled()).toEqual(["Step 1"]);
     expect(
