@@ -248,8 +248,10 @@ export class PiThreadController implements PiThreadControllerLike {
   private readonly metadataListeners = new Set<() => void>();
   private readonly messageListeners = new Set<() => void>();
   private connectionRetainers = 0;
+  private connectionGeneration = 0;
   private readonly optimisticUserMessages: OptimisticUserMessage[] = [];
   private unsubscribeFromEvents: (() => void) | null = null;
+  private eventSubscriptionGeneration = 0;
   private disconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private loadPromise: Promise<void> | null = null;
   private messageFlushScheduled = false;
@@ -297,11 +299,15 @@ export class PiThreadController implements PiThreadControllerLike {
   }
 
   public connect() {
+    const generation = this.connectionGeneration;
     this.connectionRetainers += 1;
     this.ensureEventSubscription({
       includeSnapshot: this.state.loadState !== "loaded",
     });
+    let released = false;
     return () => {
+      if (released || generation !== this.connectionGeneration) return;
+      released = true;
       this.connectionRetainers = Math.max(0, this.connectionRetainers - 1);
       this.maybeDisconnectFromEvents();
     };
@@ -334,26 +340,42 @@ export class PiThreadController implements PiThreadControllerLike {
   public dispose() {
     // React StrictMode can detach then resubscribe the same controller.
     this.clearDisconnectTimer();
-    const unsubscribe = this.unsubscribeFromEvents;
-    this.unsubscribeFromEvents = null;
+    this.connectionGeneration += 1;
     this.connectionRetainers = 0;
     this.allListeners.clear();
     this.metadataListeners.clear();
     this.messageListeners.clear();
-    unsubscribe?.();
+    this.disconnectFromEvents();
   }
 
   private ensureEventSubscription(options?: { includeSnapshot?: boolean }) {
     this.clearDisconnectTimer();
     if (this.unsubscribeFromEvents) return;
-    this.unsubscribeFromEvents = this.client.subscribe(
-      this.threadId,
-      (event: PiClientEvent) => {
-        if (event.threadId !== this.threadId) return;
-        this.dispatch(event);
-      },
-      options,
-    );
+    const generation = ++this.eventSubscriptionGeneration;
+    try {
+      this.unsubscribeFromEvents = this.client.subscribe(
+        this.threadId,
+        (event: PiClientEvent) => {
+          if (generation !== this.eventSubscriptionGeneration) return;
+          if (event.threadId !== this.threadId) return;
+          this.dispatch(event);
+        },
+        options,
+      );
+    } catch (error) {
+      if (generation === this.eventSubscriptionGeneration) {
+        this.eventSubscriptionGeneration += 1;
+      }
+      throw error;
+    }
+  }
+
+  private disconnectFromEvents() {
+    const unsubscribe = this.unsubscribeFromEvents;
+    if (!unsubscribe) return;
+    this.unsubscribeFromEvents = null;
+    this.eventSubscriptionGeneration += 1;
+    unsubscribe();
   }
 
   private hasConsumers(): boolean {
@@ -371,8 +393,7 @@ export class PiThreadController implements PiThreadControllerLike {
     this.disconnectTimer = setTimeout(() => {
       this.disconnectTimer = null;
       if (this.hasConsumers()) return;
-      this.unsubscribeFromEvents?.();
-      this.unsubscribeFromEvents = null;
+      this.disconnectFromEvents();
     }, 30_000);
   }
 

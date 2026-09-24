@@ -438,10 +438,14 @@ describe("PiThreadController", () => {
   it("finishes local cleanup when the event unsubscribe throws", () => {
     const cleanupError = new Error("unsubscribe failed");
     const client = createFakeClient();
+    const eventListeners: Array<(event: PiClientEvent) => void> = [];
     client.subscribe = (_threadId, listener) => {
+      const failsCleanup = eventListeners.length === 0;
+      eventListeners.push(listener);
       client.listeners.add(listener);
       return () => {
-        throw cleanupError;
+        if (failsCleanup) throw cleanupError;
+        client.listeners.delete(listener);
       };
     };
     const controller = new PiThreadController(client, THREAD);
@@ -451,9 +455,38 @@ describe("PiThreadController", () => {
 
     expect(() => controller.dispose()).toThrow(cleanupError);
 
-    client.emit(ev({ type: "agent_start" }, 1));
+    controller.subscribe(notify);
+    controller.connect();
+
+    eventListeners[0]!(ev({ type: "agent_start" }, 1));
     expect(notify).not.toHaveBeenCalled();
+    expect(controller.getState().runStatus).toBe("idle");
+
+    eventListeners[1]!(ev({ type: "agent_start" }, 1));
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(controller.getState().runStatus).toBe("running");
     expect(() => controller.dispose()).not.toThrow();
+  });
+
+  it("ignores release callbacks from before disposal", () => {
+    vi.useFakeTimers();
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    const releaseStaleConnection = controller.connect();
+
+    controller.dispose();
+    expect(client.unsubscribed).toBe(1);
+
+    const releaseCurrentConnection = controller.connect();
+    releaseStaleConnection();
+    vi.advanceTimersByTime(30_000);
+    expect(client.unsubscribed).toBe(1);
+
+    releaseCurrentConnection();
+    vi.advanceTimersByTime(30_000);
+    expect(client.unsubscribed).toBe(2);
+
+    vi.useRealTimers();
   });
 
   it("keeps thread switching on the read-only getThread path", async () => {
