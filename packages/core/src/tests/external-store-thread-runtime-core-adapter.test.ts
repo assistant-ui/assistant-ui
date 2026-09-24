@@ -2117,29 +2117,18 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
   describe("when onVoiceTranscript throws for the reply still being spoken", () => {
     const commitError = new Error("host store rejected the transcript");
 
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
     const setupSpeakingSession = () => {
+      const voiceAdapters: ReturnType<typeof createVoiceAdapter>[] = [];
       const sessions: RealtimeVoiceAdapter.Session[] = [];
-      let transcriptCallback:
-        | ((transcript: RealtimeVoiceAdapter.TranscriptItem) => void)
-        | undefined;
       const adapter: RealtimeVoiceAdapter = {
         connect: () => {
-          const session: RealtimeVoiceAdapter.Session = {
-            status: { type: "running" },
-            isMuted: false,
-            disconnect: vi.fn(),
-            mute: vi.fn(),
-            unmute: vi.fn(),
-            onStatusChange: () => () => {},
-            onTranscript: (callback) => {
-              transcriptCallback = callback;
-              return () => {
-                transcriptCallback = undefined;
-              };
-            },
-            onModeChange: () => () => {},
-            onVolumeChange: () => () => {},
-          };
+          const voiceAdapter = createVoiceAdapter();
+          voiceAdapters.push(voiceAdapter);
+          const session = voiceAdapter.adapter.connect();
           sessions.push(session);
           return session;
         },
@@ -2157,7 +2146,11 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
         }),
       );
       core.connectVoice();
-      transcriptCallback?.({ role: "assistant", text: "Hel", isFinal: false });
+      voiceAdapters[0]!.emitTranscript({
+        role: "assistant",
+        text: "Hel",
+        isFinal: false,
+      });
       return { core, sessions, consoleError };
     };
 
