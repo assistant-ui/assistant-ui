@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { MessageStatus, ThreadMessage } from "../../types/message";
+import { fromThreadMessageLike } from "./thread-message-like";
 import {
   chunkExternalMessages,
   completeExternalMessageConversion,
@@ -106,6 +107,49 @@ describe("convertExternalMessageCallback", () => {
 });
 
 describe("joinExternalMessages", () => {
+  it.each(["omitted", "replacement", "empty"] as const)(
+    "handles a tool result with %s nested messages",
+    (mode) => {
+      const nested = fromThreadMessageLike(
+        { role: "assistant", content: "Nested answer" },
+        "nested",
+        { type: "complete", reason: "stop" },
+      );
+      const replacement = fromThreadMessageLike(
+        { role: "assistant", content: "Updated answer" },
+        "updated",
+        { type: "complete", reason: "stop" },
+      );
+      const transcript = [nested];
+      const incoming = mode === "replacement" ? [replacement] : [];
+      const result = joinExternalMessages([
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "delegate",
+              toolName: "delegate",
+              args: {},
+              messages: transcript,
+            },
+          ],
+        },
+        {
+          role: "tool",
+          toolCallId: "delegate",
+          result: "done",
+          ...(mode === "omitted" ? {} : { messages: incoming }),
+        },
+      ]);
+      expect(result.content[0]).toMatchObject({
+        result: "done",
+        messages: mode === "omitted" ? transcript : incoming,
+      });
+      expect(transcript).toEqual([nested]);
+    },
+  );
+
   it("preserves strict equality for malformed numeric tool-call IDs", () => {
     const messages = [
       {

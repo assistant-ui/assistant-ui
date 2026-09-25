@@ -32,7 +32,9 @@ export const getExternalStoreMessages = <T>(
     | ThreadMessage["content"][number],
 ) => {
   const container = (
-    "messages" in input ? input.messages : input
+    "messages" in input && !("type" in input && input.type === "tool-call")
+      ? input.messages
+      : input
   ) as WithInnerMessages<T>;
   const value = container[symbolInnerMessages] || container[symbolInnerMessage];
   if (!value) return EMPTY_ARRAY;
