@@ -251,9 +251,11 @@ export class LocalThreadRuntimeCore
     const history = this._options.adapters.history;
     if (!history || !this._unwrittenMessages.delete(message.id))
       return undefined;
-    return history
-      .append({ parentId, message, runConfig: this._lastRunConfig })
-      .catch(() => {});
+    return history.append({
+      parentId,
+      message,
+      runConfig: this._lastRunConfig,
+    });
   }
 
   private _cancelPause(messageId: string | null) {
@@ -779,7 +781,13 @@ export class LocalThreadRuntimeCore
     if (history && !history.update) this._unwrittenMessages.add(id);
 
     const run = this._runLoop(parentId, message, runConfig, runCallback);
-    return settledWrite ? Promise.all([run, settledWrite]).then(() => {}) : run;
+    if (!settledWrite) return run;
+    const [runResult, settledResult] = await Promise.allSettled([
+      run,
+      settledWrite,
+    ]);
+    if (runResult.status === "rejected") throw runResult.reason;
+    if (settledResult.status === "rejected") throw settledResult.reason;
   }
 
   private async _runLoop(
@@ -1177,7 +1185,10 @@ export class LocalThreadRuntimeCore
             this.repository.addOrUpdateMessage(stored.parentId, cancelled);
             settled = true;
             if (ownsCurrentMessage) message = cancelled;
-            else void this._persistSettledPause(stored.parentId, cancelled);
+            else
+              this._persistSettledPause(stored.parentId, cancelled)?.catch(
+                () => {},
+              );
           }
         }
       }

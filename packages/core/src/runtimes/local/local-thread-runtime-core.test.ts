@@ -4062,6 +4062,52 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     expect(await reload(stored)).toEqual(thread.messages.map((m) => m.id));
   });
 
+  it("rejects a turn after a pause when the settled pause cannot be stored", async () => {
+    const failure = new Error("history unavailable");
+    let pausedId: string | undefined;
+    const thread = createApprovalThreadWithHistory({
+      async load() {
+        return { messages: [] };
+      },
+      async append(item) {
+        if (item.message.id === pausedId) throw failure;
+      },
+    });
+
+    await thread.append(userMessage("send an email"));
+    await flush();
+    pausedId = thread.messages[1]!.id;
+
+    await expect(
+      thread.append({
+        ...userMessage("and cc my manager"),
+        parentId: pausedId,
+      }),
+    ).rejects.toBe(failure);
+  });
+
+  it("rejects a run started after a pause when the settled pause cannot be stored", async () => {
+    const failure = new Error("history unavailable");
+    let pausedId: string | undefined;
+    const thread = createApprovalThreadWithHistory({
+      async load() {
+        return { messages: [] };
+      },
+      async append(item) {
+        if (item.message.id === pausedId) throw failure;
+      },
+    });
+
+    await thread.append(userMessage("send an email"));
+    await flush();
+    pausedId = thread.messages[1]!.id;
+
+    await expect(
+      thread.startRun({ parentId: pausedId, sourceId: null, runConfig: {} }),
+    ).rejects.toBe(failure);
+    expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+  });
+
   it("resolves a run started after a pause once the settled pause is stored", async () => {
     const stored: string[] = [];
     let pausedId: string | undefined;
