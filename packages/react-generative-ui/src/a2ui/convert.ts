@@ -55,8 +55,23 @@ const setOwnProperty = (
   }
 };
 
-const isValueFunctionProperty = (key: string): boolean =>
-  key !== "action" && key !== "checks";
+const FUNCTION_CALL_KEYS: ReadonlySet<string> = new Set([
+  "call",
+  "args",
+  "returnType",
+  "catalogId",
+]);
+
+const isFunctionCall = (
+  value: unknown,
+): value is {
+  readonly call: string;
+  readonly args?: Record<string, unknown>;
+} =>
+  isPlainObject(value) &&
+  typeof value["call"] === "string" &&
+  (value["args"] === undefined || isPlainObject(value["args"])) &&
+  Object.keys(value).every((key) => FUNCTION_CALL_KEYS.has(key));
 
 const isBinding = (value: unknown): value is { readonly path: string } =>
   isPlainObject(value) &&
@@ -71,20 +86,16 @@ const isTemplateChildren = (value: unknown): value is A2uiTemplateChildren =>
   typeof value["template"]["componentId"] === "string" &&
   typeof value["template"]["path"] === "string";
 
-const decodePointer = (path: string): string[] | undefined => {
+const decodePointer = (path: string): string[] => {
   if (path === "" || path === "/") return [];
-  if (!path.startsWith("/")) return undefined;
-  return path
-    .slice(1)
+  return (path.startsWith("/") ? path.slice(1) : path)
     .split("/")
     .map((segment) => segment.replaceAll("~1", "/").replaceAll("~0", "~"));
 };
 
 const resolvePointer = (source: unknown, path: string): unknown => {
-  const segments = decodePointer(path);
-  if (!segments) return undefined;
   let current = source;
-  for (const segment of segments) {
+  for (const segment of decodePointer(path)) {
     if (Array.isArray(current)) {
       if (!/^(0|[1-9]\d*)$/.test(segment)) return undefined;
       current = current[Number(segment)];
@@ -101,71 +112,62 @@ const resolvePointer = (source: unknown, path: string): unknown => {
 const bindingPath = (value: unknown): string | undefined =>
   isBinding(value) ? value.path : undefined;
 
-const lastPointerSegment = (path: string | undefined): string | undefined => {
-  if (!path) return undefined;
-  const segments = decodePointer(path);
-  return segments?.at(-1);
-};
+const lastPointerSegment = (path: string | undefined): string | undefined =>
+  path ? decodePointer(path).at(-1) : undefined;
 
 const materialize = (
   value: unknown,
   source: unknown,
   context: ConversionContext,
-  evaluateCalls = true,
-  functionDepth = 0,
+  evaluate = true,
+  depth = 0,
 ): unknown => {
   if (isBinding(value)) return resolvePointer(source, value.path);
   if (Array.isArray(value)) {
     return value
-      .map((entry) =>
-        materialize(entry, source, context, evaluateCalls, functionDepth),
-      )
+      .map((entry) => materialize(entry, source, context, evaluate, depth))
       .filter((entry) => entry !== undefined);
   }
   if (!isPlainObject(value)) return value;
-  if (evaluateCalls && Object.hasOwn(value, "call")) {
-    if (typeof value["call"] !== "string" || !isPlainObject(value["args"])) {
-      context.warnings.push("A2UI value function call is malformed.");
-      return undefined;
-    }
-    if (functionDepth >= DEPTH_CAP) {
-      context.warnings.push("A2UI value function depth cap was reached.");
-      return undefined;
-    }
-    const args = materialize(
-      value["args"],
-      source,
-      context,
-      evaluateCalls,
-      functionDepth + 1,
-    );
-    if (!isPlainObject(args)) return undefined;
-    const pathResolver = (path: string) =>
-      resolvePointer(
-        source,
-        path.startsWith("/")
-          ? path
-          : `/${path
-              .split("/")
-              .map((segment) =>
-                segment.replaceAll("~", "~0").replaceAll("/", "~1"),
-              )
-              .join("/")}`,
+  if (evaluate && isFunctionCall(value)) {
+    if (depth >= DEPTH_CAP) {
+      context.warnings.push(
+        `A2UI function nesting cap of ${DEPTH_CAP} was reached.`,
       );
-    return evaluateA2uiValueFunction(value["call"], args, {
-      resolvePath: pathResolver,
-      warn: (message) => context.warnings.push(message),
-    });
+      return undefined;
+    }
+    return evaluateA2uiValueFunction(
+      value.call,
+      materialize(value.args ?? {}, source, context, true, depth + 1) as Record<
+        string,
+        unknown
+      >,
+      {
+        resolve: (part) => materialize(part, source, context, true, depth + 1),
+        warn: (message) => context.warnings.push(message),
+      },
+    );
   }
   const result: Record<string, unknown> = {};
   for (const [key, entry] of Object.entries(value)) {
-    const resolved = materialize(
-      entry,
-      source,
-      context,
-      evaluateCalls && isValueFunctionProperty(key),
-      functionDepth,
-    );
+    // An action's functionCall runs when the button fires, so only its arguments resolve here.
+    const resolved =
+      key === "functionCall" && isFunctionCall(entry)
+        ? {
+            ...entry,
+            ...(entry.args !== undefined
+              ? {
+                  args: materialize(
+                    entry.args,
+                    source,
+                    context,
+                    evaluate,
+                    depth,
+                  ),
+                }
+              : {}),
+          }
+        : materialize(entry, source, context, evaluate, depth);
     if (resolved !== undefined) {
       setOwnProperty(result, key, resolved);
     }
@@ -672,7 +674,7 @@ function convertComponent(
         value,
         dataSource,
         context,
-        isValueFunctionProperty(key),
+        key !== "checks",
       );
       if (resolved !== undefined) setOwnProperty(props, key, resolved);
     }

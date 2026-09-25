@@ -564,22 +564,175 @@ describe("convertSurfaceToUISpec", () => {
           { $type: "Markdown" },
         ],
       },
-      warnings: ['A2UI value function "customValue" is not supported.'],
+      warnings: [
+        'A2UI function "customValue" is not supported and was skipped.',
+      ],
     });
   });
 
-  it("warns and omits malformed value function calls", () => {
+  it("warns and omits a malformed formatString template", () => {
     const surface = surfaceFrom([
       {
         id: "root",
         component: "Text",
-        text: { call: "formatString" },
+        text: { call: "formatString", args: { value: "Hi ${name" } },
       },
     ]);
 
     expect(convertSurfaceToUISpec(surface)).toEqual({
       spec: { $type: "Markdown" },
-      warnings: ["A2UI value function call is malformed."],
+      warnings: [
+        "A2UI formatString template is malformed: an interpolation is not closed.",
+      ],
+    });
+  });
+
+  it("resolves relative paths in bindings and function arguments against the current item", () => {
+    const usd = (value: number) =>
+      new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: "USD",
+      }).format(value);
+    const surface = surfaceFrom(
+      [
+        { id: "root", component: "Column", children: ["total", "rows"] },
+        {
+          id: "total",
+          component: "Text",
+          text: {
+            call: "formatCurrency",
+            args: { value: { path: "total" }, currency: "USD" },
+          },
+        },
+        {
+          id: "rows",
+          component: "Column",
+          children: { template: { componentId: "row", path: "/items" } },
+        },
+        {
+          id: "row",
+          component: "Text",
+          text: {
+            call: "formatString",
+            args: {
+              value:
+                "${name}: ${formatCurrency(value: ${price}, currency: 'USD')}",
+            },
+          },
+        },
+      ],
+      { total: 12, items: [{ name: "Tea", price: 3 }] },
+    );
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "Col",
+        children: [
+          { $type: "Markdown", value: usd(12) },
+          {
+            $type: "ListView",
+            children: [
+              {
+                $type: "ListViewItem",
+                children: { $type: "Markdown", value: `Tea: ${usd(3)}` },
+              },
+            ],
+          },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
+  it("evaluates values inside actions but leaves a functionCall for the host to run", () => {
+    const surface = surfaceFrom(
+      [
+        { id: "root", component: "Row", children: ["save", "docs"] },
+        {
+          id: "save",
+          component: "Button",
+          label: "Save",
+          action: {
+            event: {
+              name: "save",
+              context: {
+                summary: {
+                  call: "formatString",
+                  args: { value: "${/count} items" },
+                },
+              },
+            },
+          },
+        },
+        {
+          id: "docs",
+          component: "Button",
+          label: "Docs",
+          action: {
+            functionCall: {
+              call: "openUrl",
+              args: {
+                url: {
+                  call: "formatString",
+                  args: { value: "https://example.com/${/slug}" },
+                },
+              },
+            },
+          },
+        },
+      ],
+      { count: 2, slug: "a2ui" },
+    );
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "Row",
+        children: [
+          {
+            $type: "Button",
+            label: "Save",
+            $action: {
+              type: "a2ui:action",
+              name: "save",
+              surfaceId: "",
+              sourceComponentId: "save",
+              context: { summary: "2 items" },
+            },
+          },
+          {
+            $type: "Button",
+            label: "Docs",
+            $action: {
+              type: "a2ui:functionCall",
+              call: "openUrl",
+              surfaceId: "",
+              sourceComponentId: "docs",
+              args: { url: "https://example.com/a2ui" },
+            },
+          },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
+  it("keeps an object with a call key and other fields as data", () => {
+    const surface = surfaceFrom([
+      {
+        id: "root",
+        component: "ContactCard",
+        phone: { call: "+1 555 0100", label: "Office" },
+      },
+    ]);
+
+    expect(
+      convertSurfaceToUISpec(surface, { keepUnknownComponents: true }),
+    ).toEqual({
+      spec: {
+        $type: "ContactCard",
+        phone: { call: "+1 555 0100", label: "Office" },
+      },
+      warnings: [],
     });
   });
 

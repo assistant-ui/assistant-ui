@@ -1,355 +1,509 @@
-type EvaluationContext = {
-  readonly resolvePath: (path: string) => unknown;
+const MAX_TEMPLATE_LENGTH = 10_000;
+const MAX_TEMPLATE_PARTS = 1_000;
+const MAX_EXPRESSION_DEPTH = 32;
+
+export type ExpressionPart =
+  | string
+  | number
+  | boolean
+  | null
+  | { readonly path: string }
+  | { readonly call: string; readonly args: Record<string, ExpressionPart> };
+
+export type ValueFunctionContext = {
+  readonly resolve: (value: ExpressionPart) => unknown;
   readonly warn: (message: string) => void;
 };
 
-const VALUE_FUNCTION_DEPTH_CAP = 32;
+export class ExpressionSyntaxError extends Error {}
 
-const asFiniteNumber = (value: unknown): number | undefined =>
-  typeof value === "number" && Number.isFinite(value) ? value : undefined;
+const FUNCTION_NAME = /^[A-Za-z_@]\w*$/;
 
-const interpolationString = (value: unknown): string =>
-  typeof value === "string" ||
-  typeof value === "number" ||
-  typeof value === "boolean"
-    ? String(value)
-    : "";
+const isSpace = (character: string) =>
+  character === " " ||
+  character === "\t" ||
+  character === "\n" ||
+  character === "\r";
 
-const splitArguments = (value: string): string[] => {
-  const result: string[] = [];
-  let start = 0;
-  let depth = 0;
-  let quote: string | undefined;
-  for (let index = 0; index < value.length; index++) {
-    const character = value[index]!;
-    if (quote) {
-      if (character === "\\") index++;
-      else if (character === quote) quote = undefined;
-      continue;
+const isPathCharacter = (character: string) =>
+  !isSpace(character) && !"{}(),:'\"$".includes(character);
+
+const isDigit = (character: string | undefined) =>
+  character !== undefined && character >= "0" && character <= "9";
+
+class ExpressionReader {
+  private readonly text: string;
+  position: number;
+
+  constructor(text: string, position: number) {
+    this.text = text;
+    this.position = position;
+  }
+
+  expression(depth: number): ExpressionPart {
+    if (depth > MAX_EXPRESSION_DEPTH) this.fail("it nests too deeply");
+    this.skipSpace();
+    const character = this.text[this.position];
+    if (this.text.startsWith("${", this.position)) {
+      this.position += 2;
+      const value = this.expression(depth + 1);
+      this.skipSpace();
+      if (this.text[this.position] !== "}") {
+        this.fail(
+          this.position >= this.text.length
+            ? "an interpolation is not closed"
+            : "characters follow a complete expression",
+        );
+      }
+      this.position++;
+      return value;
     }
-    if (character === "'" || character === '"') quote = character;
-    else if (value.startsWith("${", index)) {
-      depth++;
-      index++;
-    } else if (character === "}" && depth > 0) depth--;
-    else if (character === "(" || character === "[") depth++;
-    else if ((character === ")" || character === "]") && depth > 0) depth--;
-    else if (character === "," && depth === 0) {
-      result.push(value.slice(start, index).trim());
-      start = index + 1;
+    if (character === "'" || character === '"') return this.string(character);
+    if (
+      isDigit(character) ||
+      (character === "-" && isDigit(this.text[this.position + 1]))
+    ) {
+      return this.number();
+    }
+    const word = this.word();
+    if (word === "") this.fail("an expression is missing");
+    const end = this.position;
+    this.skipSpace();
+    if (this.text[this.position] === "(") {
+      if (!FUNCTION_NAME.test(word)) this.fail(`"${word}" is not a function`);
+      this.position++;
+      return { call: word, args: this.arguments(depth) };
+    }
+    this.position = end;
+    if (word === "true") return true;
+    if (word === "false") return false;
+    if (word === "null") return null;
+    return { path: word };
+  }
+
+  private arguments(depth: number): Record<string, ExpressionPart> {
+    const args: Record<string, ExpressionPart> = {};
+    this.skipSpace();
+    if (this.text[this.position] === ")") {
+      this.position++;
+      return args;
+    }
+    for (;;) {
+      this.skipSpace();
+      const name = this.word();
+      if (!FUNCTION_NAME.test(name)) this.fail("an argument name is missing");
+      this.skipSpace();
+      if (this.text[this.position] !== ":") {
+        this.fail(`argument "${name}" has no colon`);
+      }
+      this.position++;
+      Object.defineProperty(args, name, {
+        value: this.expression(depth + 1),
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      });
+      this.skipSpace();
+      const separator = this.text[this.position];
+      this.position++;
+      if (separator === ")") return args;
+      if (separator !== ",") {
+        this.fail(
+          separator === undefined
+            ? "a function call is not closed"
+            : "arguments are not separated by commas",
+        );
+      }
     }
   }
-  result.push(value.slice(start).trim());
-  return result.filter(Boolean);
+
+  private string(quote: string): string {
+    let value = "";
+    this.position++;
+    for (;;) {
+      const character = this.text[this.position++];
+      if (character === undefined) this.fail("a string is not closed");
+      if (character === quote) return value;
+      if (character !== "\\") {
+        value += character;
+        continue;
+      }
+      const escaped = this.text[this.position++];
+      if (escaped === undefined) this.fail("a string is not closed");
+      value +=
+        escaped === "n"
+          ? "\n"
+          : escaped === "t"
+            ? "\t"
+            : escaped === "r"
+              ? "\r"
+              : escaped;
+    }
+  }
+
+  private number(): number {
+    const start = this.position;
+    if (this.text[this.position] === "-") this.position++;
+    while (isDigit(this.text[this.position])) this.position++;
+    if (this.text[this.position] === ".") {
+      this.position++;
+      while (isDigit(this.text[this.position])) this.position++;
+    }
+    const next = this.text[this.position];
+    if (next !== undefined && isPathCharacter(next)) {
+      this.fail("a number is malformed");
+    }
+    return Number(this.text.slice(start, this.position));
+  }
+
+  private word(): string {
+    const start = this.position;
+    while (
+      this.position < this.text.length &&
+      isPathCharacter(this.text[this.position]!)
+    ) {
+      this.position++;
+    }
+    return this.text.slice(start, this.position);
+  }
+
+  private skipSpace() {
+    while (
+      this.position < this.text.length &&
+      isSpace(this.text[this.position]!)
+    ) {
+      this.position++;
+    }
+  }
+
+  private fail(reason: string): never {
+    throw new ExpressionSyntaxError(reason);
+  }
+}
+
+export const parseExpressionTemplate = (template: string): ExpressionPart[] => {
+  if (template.length > MAX_TEMPLATE_LENGTH) {
+    throw new ExpressionSyntaxError(
+      `it is longer than ${MAX_TEMPLATE_LENGTH} characters`,
+    );
+  }
+  const parts: ExpressionPart[] = [];
+  const push = (part: ExpressionPart) => {
+    if (parts.length >= MAX_TEMPLATE_PARTS) {
+      throw new ExpressionSyntaxError(
+        `it has more than ${MAX_TEMPLATE_PARTS} parts`,
+      );
+    }
+    parts.push(part);
+  };
+  let literal = "";
+  let index = 0;
+  while (index < template.length) {
+    if (template.startsWith("\\${", index)) {
+      literal += "${";
+      index += 3;
+    } else if (template.startsWith("${", index)) {
+      if (literal) push(literal);
+      literal = "";
+      const reader = new ExpressionReader(template, index);
+      push(reader.expression(0));
+      index = reader.position;
+    } else {
+      literal += template[index];
+      index++;
+    }
+  }
+  if (literal) push(literal);
+  return parts;
 };
 
-const namedArgument = (value: string): [string, string] | undefined => {
-  let depth = 0;
-  let quote: string | undefined;
-  for (let index = 0; index < value.length; index++) {
-    const character = value[index]!;
-    if (quote) {
-      if (character === "\\") index++;
-      else if (character === quote) quote = undefined;
-      continue;
-    }
-    if (character === "'" || character === '"') quote = character;
-    else if (value.startsWith("${", index)) {
-      depth++;
-      index++;
-    } else if (character === "}" && depth > 0) depth--;
-    else if (character === "(" || character === "[") depth++;
-    else if ((character === ")" || character === "]") && depth > 0) depth--;
-    else if (character === ":" && depth === 0) {
-      const name = value.slice(0, index).trim();
-      if (!/^[A-Za-z_][\w]*$/.test(name)) return undefined;
-      return [name, value.slice(index + 1).trim()];
-    }
+const isMissing = (value: unknown) =>
+  value === undefined || value === null || value === "";
+
+const toNumber = (value: unknown): number | undefined => {
+  const number =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && value.trim() !== ""
+        ? Number(value)
+        : Number.NaN;
+  return Number.isFinite(number) ? number : undefined;
+};
+
+const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+const toDate = (value: unknown): Date | undefined => {
+  if (typeof value === "number") return new Date(value);
+  if (typeof value !== "string") return undefined;
+  const dateOnly = DATE_ONLY.exec(value);
+  if (!dateOnly) return new Date(value);
+  const date = new Date(0);
+  date.setFullYear(
+    Number(dateOnly[1]),
+    Number(dateOnly[2]) - 1,
+    Number(dateOnly[3]),
+  );
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const toText = (value: unknown): string => {
+  if (value === undefined || value === null) return "";
+  if (typeof value !== "object") return String(value);
+  try {
+    return JSON.stringify(value) ?? "";
+  } catch {
+    return "";
   }
+};
+
+const cached = <T>(cache: Map<string, T>, key: string, create: () => T): T => {
+  let value = cache.get(key);
+  if (value === undefined) {
+    value = create();
+    cache.set(key, value);
+  }
+  return value;
+};
+
+const numberFormats = new Map<string, Intl.NumberFormat>();
+const dateFormats = new Map<string, Intl.DateTimeFormat>();
+const pluralRules = new Map<string, Intl.PluralRules>();
+
+const invalidArguments = (name: string, context: ValueFunctionContext) => {
+  context.warn(`A2UI function "${name}" received invalid arguments.`);
   return undefined;
 };
 
-const matchingExpressionEnd = (value: string, start: number): number => {
-  let depth = 1;
-  let quote: string | undefined;
-  for (let index = start + 2; index < value.length; index++) {
-    const character = value[index]!;
-    if (quote) {
-      if (character === "\\") index++;
-      else if (character === quote) quote = undefined;
-      continue;
-    }
-    if (character === "'" || character === '"') quote = character;
-    else if (value.startsWith("${", index)) {
-      depth++;
-      index++;
-    } else if (character === "}" && --depth === 0) return index;
-  }
-  return -1;
-};
-
-const evaluateCall = (
+const formatAmount = (
   name: string,
   args: Record<string, unknown>,
-  context: EvaluationContext,
-  depth: number,
+  context: ValueFunctionContext,
+  currency?: string,
 ): unknown => {
-  if (depth >= VALUE_FUNCTION_DEPTH_CAP) {
-    context.warn(
-      `A2UI value function "${name}" exceeded the evaluation depth cap.`,
-    );
+  if (isMissing(args["value"])) return "";
+  const value = toNumber(args["value"]);
+  const decimals =
+    args["decimals"] === undefined ? undefined : toNumber(args["decimals"]);
+  if (
+    value === undefined ||
+    (args["decimals"] !== undefined &&
+      (decimals === undefined ||
+        !Number.isInteger(decimals) ||
+        decimals < 0 ||
+        decimals > 20))
+  ) {
+    return invalidArguments(name, context);
+  }
+  const options: Intl.NumberFormatOptions = {
+    useGrouping: args["grouping"] !== false,
+    ...(currency !== undefined ? { style: "currency", currency } : {}),
+    ...(decimals !== undefined
+      ? { minimumFractionDigits: decimals, maximumFractionDigits: decimals }
+      : {}),
+  };
+  try {
+    return cached(
+      numberFormats,
+      JSON.stringify(options),
+      () => new Intl.NumberFormat(undefined, options),
+    ).format(value);
+  } catch {
+    return invalidArguments(name, context);
+  }
+};
+
+const dateName = (
+  date: Date,
+  options: Intl.DateTimeFormatOptions,
+  type: Intl.DateTimeFormatPartTypes,
+): string | undefined => {
+  try {
+    return cached(
+      dateFormats,
+      JSON.stringify(options),
+      () => new Intl.DateTimeFormat(undefined, options),
+    )
+      .formatToParts(date)
+      .find((part) => part.type === type)?.value;
+  } catch {
     return undefined;
   }
+};
 
-  if (name === "formatString") {
-    if (typeof args["value"] !== "string") {
-      context.warn(
-        'A2UI value function "formatString" requires a string value.',
-      );
-      return undefined;
-    }
-    return interpolate(args["value"], context, depth + 1);
-  }
+const pad = (value: number, width: number) =>
+  String(value).padStart(width, "0");
 
-  if (name === "formatNumber" || name === "formatCurrency") {
-    const value = asFiniteNumber(args["value"]);
-    const decimals = args["decimals"];
-    const decimalPlaces = asFiniteNumber(decimals);
-    if (
-      value === undefined ||
-      (args["grouping"] !== undefined &&
-        typeof args["grouping"] !== "boolean") ||
-      (decimals !== undefined &&
-        (decimalPlaces === undefined ||
-          !Number.isInteger(decimalPlaces) ||
-          decimalPlaces < 0 ||
-          decimalPlaces > 20))
-    ) {
-      context.warn(`A2UI value function "${name}" has invalid arguments.`);
-      return undefined;
-    }
-    const options: Intl.NumberFormatOptions = {
-      useGrouping: args["grouping"] !== false,
-      ...(decimals !== undefined
-        ? {
-            minimumFractionDigits: decimalPlaces,
-            maximumFractionDigits: decimalPlaces,
-          }
-        : {}),
-    };
-    try {
-      if (name === "formatCurrency") {
-        if (typeof args["currency"] !== "string") {
-          context.warn(
-            'A2UI value function "formatCurrency" requires a currency code.',
+const dateField = (
+  date: Date,
+  letter: string,
+  width: number,
+): string | undefined => {
+  switch (letter) {
+    case "y":
+      return width === 2
+        ? pad(date.getFullYear() % 100, 2)
+        : pad(date.getFullYear(), width);
+    case "M":
+      return width <= 2
+        ? pad(date.getMonth() + 1, width)
+        : dateName(
+            date,
+            { month: width === 3 ? "short" : width === 4 ? "long" : "narrow" },
+            "month",
           );
-          return undefined;
-        }
-        return new Intl.NumberFormat(undefined, {
-          ...options,
-          style: "currency",
-          currency: args["currency"],
-        }).format(value);
-      }
-      return new Intl.NumberFormat(undefined, options).format(value);
-    } catch {
-      context.warn(`A2UI value function "${name}" has invalid arguments.`);
+    case "d":
+      return pad(date.getDate(), width);
+    case "E":
+      return dateName(
+        date,
+        { weekday: width <= 3 ? "short" : width === 4 ? "long" : "narrow" },
+        "weekday",
+      );
+    case "h":
+      return pad(date.getHours() % 12 || 12, width);
+    case "H":
+      return pad(date.getHours(), width);
+    case "m":
+      return pad(date.getMinutes(), width);
+    case "s":
+      return pad(date.getSeconds(), width);
+    case "a":
+      return (
+        dateName(date, { hour: "numeric", hour12: true }, "dayPeriod") ??
+        (date.getHours() < 12 ? "AM" : "PM")
+      );
+    default:
       return undefined;
-    }
   }
-
-  if (name === "formatDate") {
-    const value = args["value"];
-    if (
-      (typeof value !== "string" && typeof value !== "number") ||
-      typeof args["format"] !== "string"
-    ) {
-      context.warn('A2UI value function "formatDate" has invalid arguments.');
-      return undefined;
-    }
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-      context.warn('A2UI value function "formatDate" has invalid arguments.');
-      return undefined;
-    }
-    return formatDate(date, args["format"]);
-  }
-
-  if (name === "pluralize") {
-    const value = asFiniteNumber(args["value"]);
-    if (value === undefined || typeof args["other"] !== "string") {
-      context.warn('A2UI value function "pluralize" has invalid arguments.');
-      return undefined;
-    }
-    const category = new Intl.PluralRules().select(value);
-    const selected = args[category];
-    return typeof selected === "string" ? selected : args["other"];
-  }
-
-  if (name === "and" || name === "or") {
-    const values = args["values"];
-    if (
-      !Array.isArray(values) ||
-      !values.every((value) => typeof value === "boolean")
-    ) {
-      context.warn(`A2UI value function "${name}" requires boolean values.`);
-      return undefined;
-    }
-    return name === "and" ? values.every(Boolean) : values.some(Boolean);
-  }
-
-  if (name === "not") {
-    if (typeof args["value"] !== "boolean") {
-      context.warn('A2UI value function "not" requires a boolean value.');
-      return undefined;
-    }
-    return !args["value"];
-  }
-
-  context.warn(`A2UI value function "${name}" is not supported.`);
-  return undefined;
 };
 
-const parseExpressionValue = (
-  value: string,
-  context: EvaluationContext,
-  depth: number,
-): unknown => {
-  const expression = value.trim();
-  if (expression.startsWith("${")) {
-    const end = matchingExpressionEnd(expression, 0);
-    if (end === expression.length - 1) {
-      return evaluateExpression(expression.slice(2, end), context, depth + 1);
-    }
-  }
-  if (
-    (expression.startsWith('"') && expression.endsWith('"')) ||
-    (expression.startsWith("'") && expression.endsWith("'"))
-  ) {
-    const body = expression.slice(1, -1);
-    return body.replace(/\\([\\'"nrt])/g, (_match, escaped: string) => {
-      if (escaped === "n") return "\n";
-      if (escaped === "r") return "\r";
-      if (escaped === "t") return "\t";
-      return escaped;
-    });
-  }
-  if (expression === "true") return true;
-  if (expression === "false") return false;
-  if (expression === "null") return null;
-  if (/^-?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(expression)) {
-    return Number(expression);
-  }
-  return evaluateExpression(expression, context, depth + 1);
-};
-
-const evaluateExpression = (
-  value: string,
-  context: EvaluationContext,
-  depth: number,
-): unknown => {
-  const expression = value.trim();
-  if (expression.startsWith("${")) {
-    return parseExpressionValue(expression, context, depth + 1);
-  }
-  const open = expression.indexOf("(");
-  if (open > 0 && expression.endsWith(")")) {
-    const name = expression.slice(0, open).trim();
-    if (!/^[A-Za-z_][\w]*$/.test(name)) {
-      context.warn("A2UI formatString contains a malformed expression.");
-      return undefined;
-    }
-    const args: Record<string, unknown> = {};
-    for (const entry of splitArguments(expression.slice(open + 1, -1))) {
-      const parsed = namedArgument(entry);
-      if (!parsed) {
-        context.warn(`A2UI value function "${name}" has malformed arguments.`);
-        return undefined;
-      }
-      args[parsed[0]] = parseExpressionValue(parsed[1], context, depth + 1);
-    }
-    return evaluateCall(name, args, context, depth + 1);
-  }
-  return context.resolvePath(expression);
-};
-
-const interpolate = (
-  value: string,
-  context: EvaluationContext,
-  depth: number,
-): string => {
+const formatDatePattern = (date: Date, pattern: string): string | undefined => {
   let result = "";
-  for (let index = 0; index < value.length;) {
-    if (value.startsWith("\\${", index)) {
-      result += "${";
-      index += 3;
-      continue;
-    }
-    if (!value.startsWith("${", index)) {
-      result += value[index]!;
+  let index = 0;
+  while (index < pattern.length) {
+    const character = pattern[index]!;
+    if (character === "'") {
       index++;
-      continue;
+      if (pattern[index] === "'") {
+        result += "'";
+        index++;
+        continue;
+      }
+      while (index < pattern.length) {
+        if (pattern[index] !== "'") {
+          result += pattern[index++];
+        } else if (pattern[index + 1] === "'") {
+          result += "'";
+          index += 2;
+        } else {
+          index++;
+          break;
+        }
+      }
+    } else if (/[A-Za-z]/.test(character)) {
+      let end = index + 1;
+      while (pattern[end] === character) end++;
+      const field = dateField(date, character, end - index);
+      if (field === undefined) return undefined;
+      result += field;
+      index = end;
+    } else {
+      result += character;
+      index++;
     }
-    const end = matchingExpressionEnd(value, index);
-    if (end === -1) {
-      context.warn("A2UI formatString contains an unclosed expression.");
-      result += value.slice(index);
-      break;
-    }
-    result += interpolationString(
-      evaluateExpression(value.slice(index + 2, end), context, depth + 1),
-    );
-    index = end + 1;
   }
   return result;
 };
 
-const formatDate = (date: Date, pattern: string): string => {
-  const tokens = /yyyy|yy|MMMM|MMM|MM|M|EEEE|EEE|E|dd|d|HH|H|hh|h|mm|m|ss|s|a/g;
-  return pattern.replace(tokens, (token) => {
-    const options: Intl.DateTimeFormatOptions = {};
-    if (token.startsWith("y")) {
-      options.year = token === "yy" ? "2-digit" : "numeric";
-      const year = new Intl.DateTimeFormat(undefined, options).format(date);
-      return token === "yyyy" && Number(year) < 1000
-        ? year.padStart(4, "0")
-        : year;
+const pluralCategory = (value: number): string => {
+  try {
+    return cached(pluralRules, "", () => new Intl.PluralRules()).select(value);
+  } catch {
+    return value === 1 ? "one" : "other";
+  }
+};
+
+type ValueFunction = (
+  args: Record<string, unknown>,
+  context: ValueFunctionContext,
+) => unknown;
+
+const VALUE_FUNCTIONS: Readonly<Record<string, ValueFunction>> = {
+  formatString: (args, context) => {
+    const template = args["value"];
+    if (template === undefined || template === null) return "";
+    if (typeof template !== "string") {
+      return invalidArguments("formatString", context);
     }
-    if (token.startsWith("M")) {
-      options.month =
-        token === "MMMM"
-          ? "long"
-          : token === "MMM"
-            ? "short"
-            : token === "MM"
-              ? "2-digit"
-              : "numeric";
-    } else if (token.startsWith("E")) {
-      options.weekday = token === "EEEE" ? "long" : "short";
-    } else if (token === "a") {
-      options.hour = "numeric";
-      options.hourCycle = "h12";
-      return (
-        new Intl.DateTimeFormat(undefined, options)
-          .formatToParts(date)
-          .find((part) => part.type === "dayPeriod")?.value ?? ""
+    let parts: ExpressionPart[];
+    try {
+      parts = parseExpressionTemplate(template);
+    } catch (error) {
+      if (!(error instanceof ExpressionSyntaxError)) throw error;
+      context.warn(
+        `A2UI formatString template is malformed: ${error.message}.`,
       );
-    } else if (token.startsWith("h") || token.startsWith("H")) {
-      options.hour = token.length === 2 ? "2-digit" : "numeric";
-      options.hourCycle = token.startsWith("h") ? "h12" : "h23";
-    } else if (token.startsWith("m")) {
-      options.minute = token.length === 2 ? "2-digit" : "numeric";
-    } else if (token.startsWith("s")) {
-      options.second = token.length === 2 ? "2-digit" : "numeric";
-    } else if (token.startsWith("d")) {
-      options.day = token.length === 2 ? "2-digit" : "numeric";
+      return undefined;
     }
-    return new Intl.DateTimeFormat(undefined, options).format(date);
-  });
+    return parts
+      .map((part) =>
+        toText(
+          typeof part === "object" && part !== null
+            ? context.resolve(part)
+            : part,
+        ),
+      )
+      .join("");
+  },
+  formatNumber: (args, context) => formatAmount("formatNumber", args, context),
+  formatCurrency: (args, context) =>
+    typeof args["currency"] === "string"
+      ? formatAmount("formatCurrency", args, context, args["currency"])
+      : invalidArguments("formatCurrency", context),
+  formatDate: (args, context) => {
+    const value = args["value"];
+    if (isMissing(value)) return "";
+    const format = args["format"];
+    const date = toDate(value);
+    if (typeof format !== "string" || !date || Number.isNaN(date.getTime())) {
+      return invalidArguments("formatDate", context);
+    }
+    const formatted = formatDatePattern(date, format);
+    if (formatted !== undefined) return formatted;
+    context.warn(
+      `A2UI function "formatDate" does not support the pattern "${format}", so it returned an ISO date.`,
+    );
+    return date.toISOString();
+  },
+  pluralize: (args, context) => {
+    if (isMissing(args["value"])) return "";
+    const value = toNumber(args["value"]);
+    if (value === undefined || typeof args["other"] !== "string") {
+      return invalidArguments("pluralize", context);
+    }
+    const selected = args[pluralCategory(value)];
+    return typeof selected === "string" ? selected : args["other"];
+  },
+  and: (args, context) =>
+    Array.isArray(args["values"])
+      ? args["values"].every(Boolean)
+      : invalidArguments("and", context),
+  or: (args, context) =>
+    Array.isArray(args["values"])
+      ? args["values"].some(Boolean)
+      : invalidArguments("or", context),
+  not: (args) => (args["value"] === undefined ? undefined : !args["value"]),
 };
 
 export const evaluateA2uiValueFunction = (
   name: string,
   args: Record<string, unknown>,
-  context: EvaluationContext,
-): unknown => evaluateCall(name, args, context, 0);
+  context: ValueFunctionContext,
+): unknown => {
+  if (!Object.hasOwn(VALUE_FUNCTIONS, name)) {
+    context.warn(`A2UI function "${name}" is not supported and was skipped.`);
+    return undefined;
+  }
+  return VALUE_FUNCTIONS[name]!(args, context);
+};
