@@ -26,6 +26,19 @@ const isOption = (option: unknown): option is Option =>
   "value" in option &&
   typeof option.value === "string";
 
+const mapOptions = (
+  options: unknown,
+  render: (option: Option, key: string) => ReactNode,
+) => {
+  const occurrences = new Map<string, number>();
+  return (Array.isArray(options) ? options : []).map((option) => {
+    if (!isOption(option)) return null;
+    const occurrence = occurrences.get(option.value) ?? 0;
+    occurrences.set(option.value, occurrence + 1);
+    return render(option, JSON.stringify([option.value, occurrence]));
+  });
+};
+
 type RadioGroupRenderProps = {
   options: Option[];
   name?: string;
@@ -48,7 +61,6 @@ function RadioGroupRender({
 }: RadioGroupRenderProps) {
   const generatedName = useId();
   const fieldName = name ?? generatedName;
-  const safeOptions = Array.isArray(options) ? options : [];
   return (
     <fieldset
       key={defaultValue}
@@ -56,23 +68,21 @@ function RadioGroupRender({
       data-aui-action={actionAttr($action)}
       aria-label={label}
     >
-      {safeOptions.map((option, i) =>
-        isOption(option) ? (
-          <label key={i} data-aui="radiogroup-option">
-            <input
-              type="radio"
-              name={fieldName}
-              {...(name == null ? { [GENERATED_NAME_ATTR]: "" } : {})}
-              value={option.value}
-              defaultChecked={defaultValue === option.value}
-              onChange={(e) =>
-                fire($action, $dispatch, option.value, e.currentTarget)
-              }
-            />
-            {option.label}
-          </label>
-        ) : null,
-      )}
+      {mapOptions(options, (option, key) => (
+        <label key={key} data-aui="radiogroup-option">
+          <input
+            type="radio"
+            name={fieldName}
+            {...(name == null ? { [GENERATED_NAME_ATTR]: "" } : {})}
+            value={option.value}
+            defaultChecked={defaultValue === option.value}
+            onChange={(e) =>
+              fire($action, $dispatch, option.value, e.currentTarget)
+            }
+          />
+          {option.label}
+        </label>
+      ))}
       {children}
     </fieldset>
   );
@@ -110,7 +120,6 @@ function CheckboxGroupRender({
 }: CheckboxGroupRenderProps) {
   const generatedName = useId();
   const fieldName = name ?? generatedName;
-  const safeOptions = Array.isArray(options) ? options : [];
   const checkedValues = Array.isArray(defaultValue) ? defaultValue : [];
   return (
     <fieldset
@@ -119,29 +128,27 @@ function CheckboxGroupRender({
       data-aui-action={actionAttr($action)}
       aria-label={label}
     >
-      {safeOptions.map((option, i) =>
-        isOption(option) ? (
-          <label key={i} data-aui="checkboxgroup-option">
-            <input
-              type="checkbox"
-              name={fieldName}
-              {...{ [CHECKBOX_GROUP_ATTR]: "" }}
-              {...(name == null ? { [GENERATED_NAME_ATTR]: "" } : {})}
-              value={option.value}
-              defaultChecked={checkedValues.includes(option.value)}
-              onChange={(e) =>
-                fire(
-                  $action,
-                  $dispatch,
-                  checkedGroupValues(e.currentTarget),
-                  e.currentTarget,
-                )
-              }
-            />
-            {option.label}
-          </label>
-        ) : null,
-      )}
+      {mapOptions(options, (option, key) => (
+        <label key={key} data-aui="checkboxgroup-option">
+          <input
+            type="checkbox"
+            name={fieldName}
+            {...{ [CHECKBOX_GROUP_ATTR]: "" }}
+            {...(name == null ? { [GENERATED_NAME_ATTR]: "" } : {})}
+            value={option.value}
+            defaultChecked={checkedValues.includes(option.value)}
+            onChange={(e) =>
+              fire(
+                $action,
+                $dispatch,
+                checkedGroupValues(e.currentTarget),
+                e.currentTarget,
+              )
+            }
+          />
+          {option.label}
+        </label>
+      ))}
       {children}
     </fieldset>
   );
@@ -237,13 +244,11 @@ export const interactiveVocabulary = {
               {placeholderText}
             </option>
           ) : null}
-          {(Array.isArray(options) ? options : []).map((option, i) =>
-            isOption(option) ? (
-              <option key={i} value={option.value}>
-                {option.label}
-              </option>
-            ) : null,
-          )}
+          {mapOptions(options, (option, key) => (
+            <option key={key} value={option.value}>
+              {option.label}
+            </option>
+          ))}
           {children}
         </select>
       );
