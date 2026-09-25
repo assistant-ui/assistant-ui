@@ -180,6 +180,25 @@ describe("createAssistantStream task settlement", () => {
     );
   });
 
+  it.each(["appendText", "appendReasoning"] as const)(
+    "finishes the part %s opened when the callback throws",
+    async (method) => {
+      const chunks = await collectChunks(
+        createAssistantStream((controller) => {
+          controller[method]("partial");
+          throw new Error("provider failed");
+        }),
+      );
+
+      expect(chunks.map((c) => c.type)).toEqual([
+        "part-start",
+        "error",
+        "text-delta",
+        "part-finish",
+      ]);
+    },
+  );
+
   it("does not run a frontend tool whose call was open when the callback threw", async () => {
     const execute = vi.fn(() => "confirmed");
     const response = new Response(

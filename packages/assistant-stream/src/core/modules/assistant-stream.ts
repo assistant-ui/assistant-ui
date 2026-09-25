@@ -159,6 +159,8 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
   }
 
   __internal_endOpenInputs() {
+    this._state.append?.controller.close();
+    this._state.append = undefined;
     for (const end of this._state.openInputs) end();
     this._state.openInputs.clear();
   }
