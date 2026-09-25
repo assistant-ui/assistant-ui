@@ -59,6 +59,7 @@ import {
   type WizardNextBinding,
 } from "@/components/pages/shop/wizard-actions";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
+import { analytics } from "@/lib/analytics";
 import { getCatalogItem } from "@/lib/catalog";
 import { abandonCheckout, finishCheckout } from "@/lib/checkout/flow";
 import {
@@ -153,6 +154,7 @@ function CancelButton({
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const end = async () => {
+    analytics.setup.cancelled();
     try {
       await checkout.commands["checkout/cancel"]();
     } catch {
@@ -438,6 +440,20 @@ export function SetupWizard({
   const viewingIndex = viewing === undefined ? -1 : keys.indexOf(viewing);
   const index = viewingIndex === -1 ? liveIndex : viewingIndex;
   const page: WizardPage = trail[index]!;
+  const step = page.id;
+  useEffect(() => {
+    analytics.setup.stepViewed(step);
+  }, [shownKey, step]);
+  const previousPhase = useRef(phase);
+  useEffect(() => {
+    const previous = previousPhase.current;
+    previousPhase.current = phase;
+    if (
+      phase === "connected" &&
+      (previous === "unconnected" || previous === "waiting")
+    )
+      analytics.setup.agentConnected();
+  }, [phase]);
   const reviewing = index !== liveIndex;
   const fromCart = checkout.session.fromCart === true;
   const products = state?.products.length
@@ -446,6 +462,9 @@ export function SetupWizard({
         (slug) => getCatalogItem(slug)?.name ?? slug,
       );
   const done = state?.status === "done";
+  useEffect(() => {
+    if (done) analytics.setup.installFinished();
+  }, [done]);
   const exit = (finished: boolean) => {
     onExit?.();
     if (finished) finishCheckout();

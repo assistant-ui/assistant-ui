@@ -29,6 +29,11 @@ const { push, finishCheckout, abandonCheckout, acceptSetupLicense } =
     acceptSetupLicense: vi.fn(),
   }));
 
+vi.mock("@vercel/analytics", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vercel/analytics")>()),
+  track: vi.fn(),
+}));
+
 vi.mock("next/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
   useRouter: () => ({ push }),
@@ -103,6 +108,15 @@ const connected = (overrides: Partial<Checkout.State>): Checkout.State => ({
 });
 
 const footer = () => within(screen.getByRole("contentinfo"));
+
+const captureEvents = () => {
+  const capture = vi.fn();
+  window.posthog = { capture };
+  return (event: string) =>
+    capture.mock.calls
+      .filter(([name]) => name === event)
+      .map(([, properties]) => properties);
+};
 
 describe("SetupWizard", () => {
   it("offers a Back control that keeps the setup running in the mobile header", () => {
@@ -964,5 +978,73 @@ describe("SetupWizard messages", () => {
     expect(Number(bar().getAttribute("aria-valuenow"))).toBe(filled);
     expect(bar().getAttribute("aria-valuetext")).toBe("Waiting for the agent");
     vi.useRealTimers();
+  });
+});
+
+describe("SetupWizard analytics", () => {
+  it("tracks each step once as the live page moves on", () => {
+    const events = captureEvents();
+    const { rerender } = render(
+      <SetupWizard checkout={context(initialCheckoutState(), false)} />,
+    );
+    expect(events("setup_step_viewed")).toEqual([{ step: "welcome" }]);
+    rerender(<SetupWizard checkout={context(initialCheckoutState(), false)} />);
+    expect(events("setup_step_viewed")).toEqual([{ step: "welcome" }]);
+    rerender(
+      <SetupWizard
+        checkout={context(
+          { ...initialCheckoutState(), status: "planning" },
+          true,
+          false,
+          { introSeen: true },
+        )}
+      />,
+    );
+    expect(events("setup_step_viewed")).toEqual([
+      { step: "welcome" },
+      { step: "license" },
+    ]);
+  });
+
+  it("tracks the agent connecting once, not every render while it stays connected", () => {
+    const events = captureEvents();
+    const { rerender } = render(
+      <SetupWizard checkout={context(initialCheckoutState(), false)} />,
+    );
+    expect(events("setup_agent_connected")).toEqual([]);
+    rerender(
+      <SetupWizard checkout={context(connected({ status: "planning" }))} />,
+    );
+    rerender(
+      <SetupWizard checkout={context(connected({ status: "planning" }))} />,
+    );
+    expect(events("setup_agent_connected")).toEqual([undefined]);
+  });
+
+  it("tracks the install finishing once the session is done", () => {
+    const events = captureEvents();
+    const { rerender } = render(
+      <SetupWizard checkout={context(connected({ status: "installing" }))} />,
+    );
+    expect(events("setup_install_finished")).toEqual([]);
+    rerender(
+      <SetupWizard checkout={context(connected({ status: "done" }), false)} />,
+    );
+    rerender(
+      <SetupWizard checkout={context(connected({ status: "done" }), false)} />,
+    );
+    expect(events("setup_install_finished")).toEqual([undefined]);
+  });
+
+  it("tracks a cancellation only once End setup is confirmed", async () => {
+    const events = captureEvents();
+    render(
+      <SetupWizard checkout={context(connected({ status: "planning" }))} />,
+    );
+    fireEvent.click(footer().getByRole("button", { name: "Cancel" }));
+    expect(events("setup_cancelled")).toEqual([]);
+    fireEvent.click(await screen.findByRole("button", { name: "End setup" }));
+    await waitFor(() => expect(abandonCheckout).toHaveBeenCalled());
+    expect(events("setup_cancelled")).toEqual([undefined]);
   });
 });
