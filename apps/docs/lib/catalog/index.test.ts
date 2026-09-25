@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CATALOG,
   estimateAgentMinutes,
@@ -23,7 +23,39 @@ const importSpecifierPattern =
 const promptModulePattern =
   /(?:^|\/)(?:agent-prompts|build-install-prompt)(?:\.|$)|\.agent(?:\.|$)/;
 
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.resetModules();
+});
+
 describe("catalog registry", () => {
+  it("keeps only the main installer when the shop is closed", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SHOP_ENABLED", "");
+    vi.stubEnv("NODE_ENV", "production");
+    vi.resetModules();
+    const closed = await import("./index");
+    expect(closed.CATALOG.map((product) => product.slug)).toEqual([
+      "assistant-ui",
+    ]);
+    expect(closed.CATALOG_ITEMS.map((item) => item.slug)).toEqual([
+      "react-app",
+      "assistant-ui",
+    ]);
+    expect(
+      closed
+        .resolveProducts([
+          "cloud",
+          "agent-tools",
+          "guides/mcp",
+          "elements/thread-list",
+          "assistant-ui",
+        ])
+        .map((product) => product.slug),
+    ).toEqual(["assistant-ui"]);
+    expect(closed.isCartSlug("cloud")).toBe(false);
+    expect(closed.getProduct("cloud")).toBeUndefined();
+  });
+
   it("has unique slugs that match their route form", () => {
     const slugs = CATALOG.map((product) => product.slug);
     expect(new Set(slugs).size).toBe(slugs.length);

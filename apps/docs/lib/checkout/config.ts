@@ -9,3 +9,9 @@ export const CHECKOUT_BASE_URL: string | null =
   (process.env.NODE_ENV === "development" ? "http://localhost:8791" : null);
 
 export const checkoutEnabled = CHECKOUT_BASE_URL !== null;
+
+/** The shop, the cart and every product beyond the main installer. Development has them; production opts in. */
+export const shopEnabled =
+  checkoutEnabled &&
+  (process.env.NODE_ENV === "development" ||
+    Boolean(process.env.NEXT_PUBLIC_SHOP_ENABLED?.trim()));

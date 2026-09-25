@@ -30,6 +30,7 @@ const loadStore = async () => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   vi.resetModules();
 });
 
@@ -51,6 +52,17 @@ describe("cart store", () => {
     values.set(storageKey, JSON.stringify(["cloud", "gone", "cloud"]));
     const store = await loadStore();
     expect(store.getCart()).toEqual(["cloud"]);
+  });
+
+  it("drops every stored product when the shop is closed", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SHOP_ENABLED", "");
+    vi.stubEnv("NODE_ENV", "production");
+    const values = setupStorage();
+    values.set(storageKey, JSON.stringify(["cloud", "elements/thread-list"]));
+    const store = await loadStore();
+    expect(store.getCart()).toEqual([]);
+    store.addToCart("cloud");
+    expect(store.getCart()).toEqual([]);
   });
 
   it("removes the storage entry when the cart empties", async () => {
