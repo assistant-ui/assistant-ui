@@ -74,7 +74,7 @@ The adapter maps Cloud metadata to `custom` only when that metadata is an object
 
 ## Use AG-UI or A2A
 
-AG-UI and A2A do not create a Cloud adapter themselves. Place either per-thread runtime inside `useCloudThreadListRuntime` to give it Cloud threads, message history, attachments, feedback, engagement events and reports read from stored assistant messages.
+AG-UI and A2A do not create a Cloud adapter themselves. Place either per-thread runtime inside `useCloudThreadListRuntime` to give it Cloud threads, message history, attachments, feedback, engagement events and reports read from stored assistant messages. AG-UI stores its final agent state in `metadata.unstable_state`, activity values as `agui-activity/<type>` data parts, and A2UI `present` calls with `artifact.a2ui`. A2A stores the same A2UI calls and its artifacts in `metadata.custom.a2a.artifacts`, without bytes from inline files. See [Stored message formats](/docs/cloud/formats).
 
 <Tabs items={["AG-UI", "A2A"]}>
   <Tab value="AG-UI">
