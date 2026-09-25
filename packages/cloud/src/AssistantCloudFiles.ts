@@ -1,9 +1,21 @@
 import type { AssistantCloudAPI } from "./AssistantCloudAPI";
 import {
+  readCloudArray,
   readCloudBoolean,
   readCloudRecord,
   readCloudString,
 } from "./cloudResponse";
+
+type PdfToImagesRequestBody = {
+  file_blob?: string | undefined;
+  file_url?: string | undefined;
+};
+
+type PdfToImagesResponse = {
+  success: boolean;
+  urls: string[];
+  message: string;
+};
 
 type GeneratePresignedUploadUrlRequestBody = {
   filename: string;
@@ -28,6 +40,36 @@ export class AssistantCloudFiles {
 
   constructor(cloud: AssistantCloudAPI) {
     this.cloud = cloud;
+  }
+
+  /**
+   * @deprecated Assistant Cloud has no PDF conversion endpoint, so this request always rejects with a `CloudAPIError` whose `status` is 404.
+   */
+  public async pdfToImages(
+    body: PdfToImagesRequestBody,
+  ): Promise<PdfToImagesResponse> {
+    const response = readCloudRecord(
+      await this.cloud.makeRequest("/files/pdf-to-images", {
+        method: "POST",
+        body,
+      }),
+      "PDF conversion response",
+    );
+
+    return {
+      success: readCloudBoolean(
+        response.success,
+        "PDF conversion response.success",
+      ),
+      urls: readCloudArray(response.urls, "PDF conversion response.urls").map(
+        (url, index) =>
+          readCloudString(url, `PDF conversion response.urls[${index}]`),
+      ),
+      message: readCloudString(
+        response.message,
+        "PDF conversion response.message",
+      ),
+    };
   }
 
   public async generatePresignedUploadUrl(

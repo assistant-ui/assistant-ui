@@ -9,6 +9,36 @@ const createCloudFiles = () => {
 };
 
 describe("AssistantCloudFiles responses", () => {
+  it("decodes PDF conversion responses", async () => {
+    const { files, makeRequest } = createCloudFiles();
+    makeRequest.mockResolvedValue({
+      success: true,
+      urls: ["https://example.com/page-1.png"],
+      message: "converted",
+    });
+
+    await expect(
+      files.pdfToImages({ file_url: "https://example.com/file.pdf" }),
+    ).resolves.toEqual({
+      success: true,
+      urls: ["https://example.com/page-1.png"],
+      message: "converted",
+    });
+  });
+
+  it("rejects malformed PDF conversion responses", async () => {
+    const { files, makeRequest } = createCloudFiles();
+    makeRequest.mockResolvedValue({
+      success: true,
+      urls: [42],
+      message: "converted",
+    });
+
+    await expect(files.pdfToImages({ file_blob: "data" })).rejects.toThrow(
+      'Invalid Assistant Cloud response for "PDF conversion response.urls[0]": expected a string',
+    );
+  });
+
   it("decodes presigned upload responses", async () => {
     const { files, makeRequest } = createCloudFiles();
     makeRequest.mockResolvedValue({
