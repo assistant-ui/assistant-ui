@@ -6,6 +6,7 @@ import {
 import { copyBounded } from "../convert/copyBounded";
 import { isElement } from "../convert/isElement";
 import { takeRun } from "../convert/takeRun";
+import { hasFieldReference, resolveFieldReferences } from "../fieldReferences";
 import {
   normalizeSpec,
   type NormalizedUIElement,
@@ -161,7 +162,17 @@ const buttonElement = (
   component: string,
   context: ConversionContext,
 ): SlackButtonElement => {
-  const serializedValue = actionValue(action);
+  let payload = action;
+  if (hasFieldReference(action)) {
+    warn(
+      context,
+      "dropped",
+      component,
+      "field references were dropped from value because Slack sends no other control's value with a button click.",
+    );
+    payload = resolveFieldReferences(action, {});
+  }
+  const serializedValue = actionValue(payload);
   let value = serializedValue;
   if (value !== undefined && value.length > BUTTON_VALUE_CAP) {
     warn(
@@ -275,10 +286,18 @@ const toActionElement = (
         "placeholder",
         context,
       );
+      const defaultValue = props["defaultValue"];
+      const initialOption =
+        typeof defaultValue === "string"
+          ? options.find((option) => option.value === defaultValue)
+          : undefined;
       return {
         type: "static_select",
         action_id: asActionId(action, "Select", context),
         options,
+        ...(initialOption !== undefined
+          ? { initial_option: initialOption }
+          : {}),
         ...(placeholder ? { placeholder: plainText(placeholder) } : {}),
       };
     }
@@ -1175,6 +1194,7 @@ const convertElement = (
         "placeholder",
         context,
       );
+      const defaultValue = props["defaultValue"];
       return [
         {
           type: "input",
@@ -1183,6 +1203,9 @@ const convertElement = (
             type: "plain_text_input",
             action_id: asActionId(element.action, "Input", context),
             ...(props["multiline"] === true ? { multiline: true } : {}),
+            ...(typeof defaultValue === "string" && defaultValue
+              ? { initial_value: defaultValue }
+              : {}),
             ...(placeholder ? { placeholder: plainText(placeholder) } : {}),
           },
         },

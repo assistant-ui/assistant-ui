@@ -23,6 +23,26 @@ describe("decodeSubmitData", () => {
     });
   });
 
+  it("resolves $field references in the payload from same-card inputs", () => {
+    const value = {
+      aui: {
+        type: "save",
+        payload: {
+          note: { $field: "note" },
+          form: { plan: [{ $field: "plan" }], missing: { $field: "gone" } },
+        },
+      },
+      note: "Ship it",
+      plan: "pro",
+    };
+    expect(decodeSubmitData(value)).toEqual({
+      type: "save",
+      note: "Ship it",
+      form: { plan: ["pro"] },
+      $input: { note: "Ship it", plan: "pro" },
+    });
+  });
+
   it("omits $input when there are no other top-level keys", () => {
     expect(decodeSubmitData({ aui: { type: "approve" } })).toEqual({
       type: "approve",

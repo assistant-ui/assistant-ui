@@ -465,11 +465,15 @@ export function convertElement(
       const name = asString(props["name"]);
       const placeholder = asString(props["placeholder"]);
       const label = asString(props["label"]);
+      const defaultValue = props["defaultValue"];
       const input: TeamsCardElement = {
         type: "Input.ChoiceSet",
         id: reservedSafeId(name || "select", "Select", context),
         style: "compact",
         choices: choicesFrom(props["options"], "Select", context),
+        ...(typeof defaultValue === "string" && defaultValue
+          ? { value: defaultValue }
+          : {}),
         ...(placeholder ? { placeholder } : {}),
         ...(label ? { label } : {}),
       };
@@ -528,11 +532,15 @@ export function convertElement(
       const name = asString(props["name"]);
       const label = asString(props["label"]);
       const placeholder = asString(props["placeholder"]);
+      const defaultValue = props["defaultValue"];
       const input: TeamsCardElement = {
         type: "Input.Text",
         id: reservedSafeId(name || "input", "Input", context),
         ...(label ? { label } : {}),
         ...(placeholder ? { placeholder } : {}),
+        ...(typeof defaultValue === "string" && defaultValue
+          ? { value: defaultValue }
+          : {}),
         ...(props["multiline"] === true ? { isMultiline: true } : {}),
       };
       return withCompanionSubmit(element, input, context);

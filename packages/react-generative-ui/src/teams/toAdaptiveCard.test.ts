@@ -481,6 +481,24 @@ describe("toAdaptiveCard", () => {
       expect((card.body[0] as TeamsInputChoiceSet).id).toBe("select");
     });
 
+    it("sets value from a non-empty defaultValue", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Select",
+        defaultValue: "blue",
+        options: [{ label: "Blue", value: "blue" }],
+      });
+      expect((card.body[0] as TeamsInputChoiceSet).value).toBe("blue");
+    });
+
+    it("omits value when defaultValue is empty", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Select",
+        defaultValue: "",
+        options: [{ label: "Blue", value: "blue" }],
+      });
+      expect((card.body[0] as TeamsInputChoiceSet).value).toBeUndefined();
+    });
+
     it("does not dispatch a prop array through Symbol.species", () => {
       let dispatches = 0;
       const injected = Array.from(
@@ -674,6 +692,24 @@ describe("toAdaptiveCard", () => {
         multiline: true,
       });
       expect((card.body[0] as TeamsInputText).isMultiline).toBe(true);
+    });
+
+    it("sets value from a non-empty defaultValue", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Input",
+        name: "notes",
+        defaultValue: "Draft reply",
+      });
+      expect((card.body[0] as TeamsInputText).value).toBe("Draft reply");
+    });
+
+    it("omits value when defaultValue is empty", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Input",
+        name: "notes",
+        defaultValue: "",
+      });
+      expect((card.body[0] as TeamsInputText).value).toBeUndefined();
     });
 
     it("emits no ActionSet when $action is absent", () => {

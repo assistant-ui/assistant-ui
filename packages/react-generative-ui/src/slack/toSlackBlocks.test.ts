@@ -335,6 +335,28 @@ describe("toSlackBlocks", () => {
       });
     });
 
+    it("drops $field references from value and warns", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Button",
+        label: "Save",
+        $action: {
+          type: "save",
+          note: { $field: "note" },
+          form: { id: 7, plan: [{ $field: "plan" }] },
+        },
+      });
+      expect((blocks[0] as SlackActionsBlock).elements[0]).toMatchObject({
+        action_id: "save",
+        value: JSON.stringify({ form: { id: 7, plan: [] } }),
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Button",
+        detail:
+          "field references were dropped from value because Slack sends no other control's value with a button click.",
+      });
+    });
+
     it(`omits value instead of truncating and warns when the serialized action payload exceeds ${BUTTON_VALUE_CAP} characters`, () => {
       const { blocks, warnings } = toSlackBlocks({
         $type: "Button",
@@ -393,6 +415,51 @@ describe("toSlackBlocks", () => {
           },
         ],
       });
+    });
+
+    it("sets initial_option from a matching defaultValue", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Select",
+        defaultValue: "b",
+        options: [
+          { label: "Alpha", value: "a" },
+          { label: "Beta", value: "b" },
+        ],
+      });
+      expect(
+        (
+          (blocks[0] as SlackActionsBlock)
+            .elements[0] as SlackStaticSelectElement
+        ).initial_option,
+      ).toEqual({ text: { type: "plain_text", text: "Beta" }, value: "b" });
+    });
+
+    it("sets initial_option from a matching empty defaultValue", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Select",
+        defaultValue: "",
+        options: [{ label: "No preference", value: "" }],
+      });
+      expect(
+        (
+          (blocks[0] as SlackActionsBlock)
+            .elements[0] as SlackStaticSelectElement
+        ).initial_option,
+      ).toEqual({
+        text: { type: "plain_text", text: "No preference" },
+        value: "",
+      });
+    });
+
+    it("omits initial_option when defaultValue has no matching option", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Select",
+        defaultValue: "missing",
+        options: [{ label: "Alpha", value: "a" }],
+      });
+      expect((blocks[0] as SlackActionsBlock).elements[0]).not.toHaveProperty(
+        "initial_option",
+      );
     });
 
     it(`clamps options past ${SELECT_OPTION_CAP} entries and warns`, () => {
@@ -508,6 +575,28 @@ describe("toSlackBlocks", () => {
       });
       expect((blocks[0] as SlackInputBlock).element).not.toHaveProperty(
         "multiline",
+      );
+    });
+
+    it("sets initial_value from a non-empty defaultValue", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Input",
+        label: "Notes",
+        defaultValue: "Draft reply",
+      });
+      expect((blocks[0] as SlackInputBlock).element.initial_value).toBe(
+        "Draft reply",
+      );
+    });
+
+    it("omits initial_value when defaultValue is empty", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Input",
+        label: "Notes",
+        defaultValue: "",
+      });
+      expect((blocks[0] as SlackInputBlock).element).not.toHaveProperty(
+        "initial_value",
       );
     });
 

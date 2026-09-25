@@ -1,3 +1,4 @@
+import { resolveFieldReferences } from "../fieldReferences";
 import type { Action } from "../ir";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -9,6 +10,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
  * the resume action under. Adaptive Cards fold every other same-card input's
  * value into the same submit object keyed by its `id`, so every top-level key
  * besides `aui` is collected into `$input` (omitted when there are none).
+ * Each `{ "$field": name }` reference inside the payload resolves to the
+ * same-card input value with that id, as the string Adaptive Cards submitted,
+ * and a reference with no such input is dropped.
  * `aui` is reserved for the envelope: `toAdaptiveCard` renames any input
  * whose id would collide to an unused id derived from it before encoding, so
  * a same-card input value can never land on this key. `$input` and `type`
@@ -47,7 +51,10 @@ export function decodeSubmitData(value: unknown): Action | undefined {
       inputEntries.length > 0 ? Object.fromEntries(inputEntries) : undefined;
 
     return {
-      ...Object.fromEntries(payloadEntries),
+      ...(resolveFieldReferences(
+        Object.fromEntries(payloadEntries),
+        input ?? {},
+      ) as Record<string, unknown>),
       type,
       ...(input !== undefined ? { $input: input } : {}),
     };
