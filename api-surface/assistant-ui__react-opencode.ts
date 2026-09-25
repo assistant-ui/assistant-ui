@@ -1826,6 +1826,7 @@ type RuntimeCapabilities = {
   readonly attachments: boolean;
   readonly feedback: boolean;
   readonly queue: boolean;
+  readonly answerToolCall: boolean;
 };
 
 declare const STREAM_RECONNECTED_EVENT_TYPE = "stream.reconnected";
