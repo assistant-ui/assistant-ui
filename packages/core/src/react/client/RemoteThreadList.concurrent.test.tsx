@@ -243,6 +243,73 @@ describe("RemoteThreadList concurrent rendering", () => {
     unsubscribe();
   });
 
+  it("exposes the switched main thread to descendant layout effects", async () => {
+    const adapter = makeAdapter();
+    adapter.list = vi.fn(async () => ({
+      threads: [
+        {
+          status: "regular" as const,
+          remoteId: "thread-1",
+          title: "Thread 1",
+        },
+        {
+          status: "regular" as const,
+          remoteId: "thread-2",
+          title: "Thread 2",
+        },
+      ],
+    }));
+    const clientRef = createRef<AssistantClient>();
+    const refetchThread = vi.fn();
+
+    const ReloadOnSelection = () => {
+      const aui = useAui();
+      const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
+      useLayoutEffect(() => {
+        if (mainThreadId === "thread-2") {
+          void aui.threads.reloadMainThread();
+        }
+      }, [aui, mainThreadId]);
+      return null;
+    };
+    const App = () => (
+      <AuiProvider
+        ref={clientRef as never}
+        config={AuiConfig({
+          threads: RemoteThreadList({
+            adapter,
+            thread: (id) =>
+              withKey(
+                id,
+                IdentifiedThread({
+                  id,
+                  onRender: () => {},
+                  onRefetch: refetchThread,
+                }),
+              ) as never,
+          }),
+        })}
+      >
+        <ReloadOnSelection />
+      </AuiProvider>
+    );
+
+    render(<App />);
+    const client = clientRef.current!;
+    await act(async () => {
+      await client.threads.getLoadThreadsPromise();
+      await client.threads.switchToThread("thread-1");
+    });
+    refetchThread.mockClear();
+
+    await act(async () => {
+      await client.threads.switchToThread("thread-2");
+    });
+
+    await waitFor(() => expect(refetchThread).toHaveBeenCalledWith("thread-2"));
+    expect(refetchThread).not.toHaveBeenCalledWith("thread-1");
+  });
+
   it("keeps the main thread facade scoped to the committed factory", async () => {
     const adapter = makeAdapter();
     const clientRef = createRef<AssistantClient>();

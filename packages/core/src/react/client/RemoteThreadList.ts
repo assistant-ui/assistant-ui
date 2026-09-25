@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useInsertionEffect,
   useMemo,
   useRef,
   useState,
@@ -291,7 +292,7 @@ const useMainThreadFacade = (
   current: ClientOutput<"thread">,
 ): ClientOutput<"thread"> => {
   const currentRef = useRef(current);
-  useEffect(() => {
+  useInsertionEffect(() => {
     currentRef.current = current;
   }, [current]);
   const [facade] = useState(
