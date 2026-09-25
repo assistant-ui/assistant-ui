@@ -41,7 +41,9 @@ class MessagePart(BaseModel):
 
 class UserMessage(BaseModel):
     """A user message."""
+
     role: str = Field(default="user", description="Message role")
+    id: str | None = Field(None, description="Client message ID")
     parts: list[MessagePart] = Field(..., description="Message parts")
 
 
@@ -527,7 +529,9 @@ async def chat_endpoint(request: ChatRequest):
                     if part.type == "text" and part.text
                 ]
                 if text_parts:
-                    input_messages.append(HumanMessage(content=" ".join(text_parts)))
+                    input_messages.append(
+                        HumanMessage(content=" ".join(text_parts), id=command.message.id)
+                    )
             elif command.type == "add-tool-result":
                 # Handle tool results
                 input_messages.append(ToolMessage(

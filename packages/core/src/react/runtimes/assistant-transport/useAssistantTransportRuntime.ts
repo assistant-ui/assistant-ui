@@ -21,6 +21,7 @@ import type {
   AssistantTransportOptions,
   AddMessageCommand,
   AddToolResultCommand,
+  UserMessage,
   UserMessagePart,
   QueuedCommand,
   AssistantTransportCommand,
@@ -39,6 +40,10 @@ import { useRemoteThreadListRuntime } from "../useRemoteThreadListRuntime";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import type { UserExternalState } from "../../../types/augmentations";
 import { useCloudThreadListAdapter } from "../cloud/useCloudThreadListAdapter";
+import { generateId } from "../../../utils/id";
+
+const ensureUserMessageId = (message: UserMessage): UserMessage =>
+  message.id ? message : { ...message, id: generateId() };
 
 const convertAppendMessageToCommand = (
   message: AppendMessage,
@@ -63,10 +68,10 @@ const convertAppendMessageToCommand = (
 
   return {
     type: "add-message",
-    message: {
+    message: ensureUserMessageId({
       role: "user",
       parts,
-    },
+    }),
     parentId: message.parentId,
     sourceId: message.sourceId,
   };
@@ -434,6 +439,13 @@ const useAssistantTransportThreadRuntime = <T>(
     extras: {
       [symbolAssistantTransportExtras]: true,
       sendCommand: (command: AssistantTransportCommand) => {
+        if (command.type === "add-message" && command.message.role === "user") {
+          commandQueue.enqueue({
+            ...command,
+            message: ensureUserMessageId(command.message),
+          });
+          return;
+        }
         commandQueue.enqueue(command);
       },
       state: agentStateRef.current as UserExternalState,

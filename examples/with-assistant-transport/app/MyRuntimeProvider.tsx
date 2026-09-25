@@ -37,6 +37,9 @@ const converter = (
         return [
           {
             type: "human" as const,
+            ...(c.message.role === "user" && c.message.id
+              ? { id: c.message.id }
+              : {}),
             content: [
               {
                 type: "text" as const,

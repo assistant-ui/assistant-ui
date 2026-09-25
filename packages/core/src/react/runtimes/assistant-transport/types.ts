@@ -26,6 +26,7 @@ export type UserMessagePart = TextPart | ImagePart;
 
 export type UserMessage = {
   readonly role: "user";
+  readonly id?: string;
   readonly parts: readonly UserMessagePart[];
 };
 
