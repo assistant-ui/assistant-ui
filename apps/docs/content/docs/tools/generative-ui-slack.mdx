@@ -121,17 +121,17 @@ A node's `$action` is split across two Block Kit fields. `$action.type` becomes 
 becomes a button with `action_id: "approve_order"` and `value: "{\"orderId\":\"48213\"}"`.
 
 <Callout type="warn">
-Only buttons carry `value`. `Select`, `Input`, `DatePicker`, `Checkbox`, `RadioGroup`, and `CheckboxGroup` emit `action_id` alone, so any extra keys on their `$action` are dropped. Keep those controls' actions to a bare `type`, or put the payload on a button that submits alongside them.
+Only buttons carry `value`. `Select`, `Input`, `DatePicker`, `Checkbox`, `RadioGroup`, and `CheckboxGroup` emit `action_id` alone, so any extra keys on their `$action` are dropped. Keep those controls' actions to a bare `type`, or put the payload on a button that submits alongside them. A `{ "$field": name }` reference in a button payload resolves from the current `state.values` when the decoder receives it. Named controls carry their field names in their block IDs; controls sharing an `actions` block use a per-element mapping. Slack limits block IDs to 255 characters, so a mapping that exceeds that limit is omitted with a `dropped` warning.
 </Callout>
 
 ### Inbound
 
-Slack posts interactions to your request URL as a [`block_actions` payload](https://docs.slack.dev/reference/interaction-payloads/block_actions-payload). `decodeBlockAction` takes one entry from its `actions` array and rebuilds the action your tree dispatched, with the user's runtime selection under `$input`:
+Slack posts interactions to your request URL as a [`block_actions` payload](https://docs.slack.dev/reference/interaction-payloads/block_actions-payload). `decodeBlockAction` takes one entry from its `actions` array and the payload's `state.values`, then rebuilds the action your tree dispatched. The clicked element's runtime selection remains under `$input`; `{ "$field": name }` references elsewhere in its action payload resolve from named controls in that state:
 
 ```ts
 import { decodeBlockAction } from "@assistant-ui/react-generative-ui/slack";
 
-const action = decodeBlockAction(payload.actions[0]);
+const action = decodeBlockAction(payload.actions[0], payload.state?.values);
 // { type: "approve_order", orderId: "48213", $input: "…" }
 ```
 

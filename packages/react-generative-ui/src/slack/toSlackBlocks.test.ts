@@ -480,6 +480,34 @@ describe("toSlackBlocks", () => {
   });
 
   describe("Input", () => {
+    it("carries a named control in its block_id", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Input",
+        name: "email",
+        label: "Email",
+      });
+      expect(blocks[0]).toMatchObject({
+        type: "input",
+        block_id: `aui:0:${JSON.stringify([["action", "email"]])}`,
+      });
+      expect(warnings).toEqual([]);
+    });
+
+    it("warns when a name cannot fit in Slack's block_id limit", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Input",
+        name: "n".repeat(250),
+        label: "Name",
+      });
+      expect(blocks[0]).not.toHaveProperty("block_id");
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Input",
+        detail:
+          "name could not be mapped because its Slack block_id exceeded 255 characters.",
+      });
+    });
+
     it("wraps a plain_text_input element, passing multiline through", () => {
       const { blocks } = toSlackBlocks({
         $type: "Input",
@@ -595,6 +623,7 @@ describe("toSlackBlocks", () => {
       });
       expect(blocks[0]).toEqual({
         type: "actions",
+        block_id: `aui:0:${JSON.stringify([["toggle", "agree"]])}`,
         elements: [
           {
             type: "checkboxes",
@@ -2152,6 +2181,7 @@ describe("toSlackBlocks", () => {
       expect(blocks).toEqual([
         {
           type: "input",
+          block_id: `aui:0:${JSON.stringify([["action", "name"]])}`,
           label: { type: "plain_text", text: "Name" },
           element: { type: "plain_text_input", action_id: "action" },
         },
@@ -2167,6 +2197,105 @@ describe("toSlackBlocks", () => {
           ],
         },
       ]);
+    });
+
+    it("maps named controls per element when they share an actions block", () => {
+      const { blocks, warnings } = toSlackBlocks([
+        {
+          $type: "Select",
+          name: "plan",
+          options: [{ label: "Pro", value: "pro" }],
+          $action: { type: "choose_plan" },
+        },
+        {
+          $type: "CheckboxGroup",
+          name: "tags",
+          options: [{ label: "News", value: "news" }],
+          $action: { type: "choose_tags" },
+        },
+        {
+          $type: "Button",
+          label: "Save",
+          $action: {
+            type: "save",
+            plan: { $field: "plan" },
+            tags: { $field: "tags" },
+          },
+        },
+      ]);
+      expect(blocks[0]).toMatchObject({
+        type: "actions",
+        block_id: `aui:0:${JSON.stringify([
+          ["choose_plan", "plan"],
+          ["choose_tags", "tags"],
+        ])}`,
+      });
+      expect(warnings).toEqual([]);
+    });
+
+    it("starts a new actions block when repeated action ids need distinct field mappings", () => {
+      const { blocks } = toSlackBlocks([
+        {
+          $type: "Select",
+          name: "first",
+          options: [{ label: "One", value: "one" }],
+          $action: { type: "choose" },
+        },
+        {
+          $type: "Select",
+          name: "second",
+          options: [{ label: "Two", value: "two" }],
+          $action: { type: "choose" },
+        },
+      ]);
+      expect(blocks).toHaveLength(2);
+      expect(blocks[0]).toMatchObject({
+        type: "actions",
+        block_id: `aui:0:${JSON.stringify([["choose", "first"]])}`,
+      });
+      expect(blocks[1]).toMatchObject({
+        type: "actions",
+        block_id: `aui:1:${JSON.stringify([["choose", "second"]])}`,
+      });
+    });
+
+    it("keeps unnamed controls with repeated action ids in their existing block", () => {
+      const { blocks } = toSlackBlocks([
+        {
+          $type: "Button",
+          label: "First",
+          $action: { type: "choose" },
+        },
+        {
+          $type: "Button",
+          label: "Second",
+          $action: { type: "choose" },
+        },
+      ]);
+      expect(blocks).toHaveLength(1);
+      expect(blocks[0]).not.toHaveProperty("block_id");
+      expect((blocks[0] as SlackActionsBlock).elements).toHaveLength(2);
+    });
+
+    it("splits grouped fields when their mapping would exceed Slack's block_id limit", () => {
+      const { blocks, warnings } = toSlackBlocks([
+        {
+          $type: "Select",
+          name: "a".repeat(120),
+          options: [{ label: "A", value: "a" }],
+          $action: { type: "choose_a" },
+        },
+        {
+          $type: "Select",
+          name: "b".repeat(120),
+          options: [{ label: "B", value: "b" }],
+          $action: { type: "choose_b" },
+        },
+      ]);
+      expect(blocks).toHaveLength(2);
+      expect(blocks[0]).toHaveProperty("block_id");
+      expect(blocks[1]).toHaveProperty("block_id");
+      expect(warnings).toEqual([]);
     });
   });
 

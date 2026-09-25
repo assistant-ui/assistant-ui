@@ -19,6 +19,8 @@ import { FromSlackBlocksResult, SlackBlocksResult, SlackConversionWarning, ToSla
 Decodes one structural entry from a Slack `block_actions` payload.
 `$input` is reserved for the runtime selection: a `$input` key inside the
 button's JSON `value` payload is dropped rather than spread into the result.
+`stateValues` is the companion `state.values` object used to resolve named
+control values referenced by `{ "$field": name }` in the action payload.
 
 <ParametersTable {...decodeBlockAction} />
 

@@ -112,12 +112,14 @@ export interface SlackDividerBlock {
 /** A Slack actions block. */
 export interface SlackActionsBlock {
   readonly type: "actions";
+  readonly block_id?: string;
   readonly elements: readonly SlackActionElement[];
 }
 
 /** A Slack input block. */
 export interface SlackInputBlock {
   readonly type: "input";
+  readonly block_id?: string;
   readonly label: SlackPlainText;
   readonly element: SlackPlainTextInputElement;
 }

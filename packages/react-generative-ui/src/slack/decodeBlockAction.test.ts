@@ -14,6 +14,70 @@ describe("decodeBlockAction", () => {
     });
   });
 
+  it("resolves nested field references from named plain-text input state", () => {
+    const blockId = `aui:0:${JSON.stringify([["note", "note"]])}`;
+    expect(
+      decodeBlockAction(
+        {
+          action_id: "save",
+          value: JSON.stringify({ context: { note: { $field: "note" } } }),
+        },
+        {
+          [blockId]: {
+            note: { type: "plain_text_input", value: "edited" },
+          },
+        },
+      ),
+    ).toEqual({ type: "save", context: { note: "edited" } });
+  });
+
+  it("maps each action in a shared block and preserves empty checkbox selections", () => {
+    const blockId = `aui:1:${JSON.stringify([
+      ["choose_plan", "plan"],
+      ["choose_tags", "tags"],
+      ["choose_date", "date"],
+      ["choose_size", "size"],
+    ])}`;
+    expect(
+      decodeBlockAction(
+        {
+          action_id: "submit",
+          value: JSON.stringify({
+            context: {
+              plan: { $field: "plan" },
+              tags: { $field: "tags" },
+              date: { $field: "date" },
+              size: { $field: "size" },
+              missing: { $field: "missing" },
+            },
+          }),
+        },
+        {
+          [blockId]: {
+            choose_plan: {
+              type: "static_select",
+              selected_option: { value: "pro" },
+            },
+            choose_tags: { type: "checkboxes", selected_options: [] },
+            choose_date: { type: "datepicker", selected_date: "2026-09-25" },
+            choose_size: {
+              type: "radio_buttons",
+              selected_option: { value: "small" },
+            },
+          },
+        },
+      ),
+    ).toEqual({
+      type: "submit",
+      context: {
+        plan: "pro",
+        tags: [],
+        date: "2026-09-25",
+        size: "small",
+      },
+    });
+  });
+
   it("decodes a static_select action, reading $input from selected_option.value", () => {
     const action = {
       action_id: "choose_color",
