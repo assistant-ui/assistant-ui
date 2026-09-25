@@ -353,6 +353,86 @@ describe("LocalThreadRuntimeCore history persistence", () => {
     expect(appendHistory.mock.calls.at(-1)?.[0].message).toEqual(assistant);
   });
 
+  it("loads the valid history branch while a followed run is still open", async () => {
+    const stored: ExportedMessageRepositoryItem[] = [];
+    let releaseTeardown!: () => void;
+    const teardown = new Promise<void>((resolve) => {
+      releaseTeardown = resolve;
+    });
+    const history: ThreadHistoryAdapter = {
+      async load() {
+        return {
+          headId: stored.at(-1)?.message.id ?? null,
+          messages: [...stored],
+        };
+      },
+      async append(item) {
+        stored.push(item);
+      },
+    };
+    const thread = createThread(
+      {
+        async *run() {
+          yield {
+            content: [{ type: "text", text: "done" }],
+            status: { type: "complete", reason: "stop" },
+          } satisfies ChatModelRunResult;
+          await teardown;
+        },
+      },
+      { history },
+    );
+
+    await thread.__internal_load();
+    const running = thread.append(userMessage("question"));
+    let parentId: string | undefined;
+    try {
+      await vi.waitFor(() =>
+        expect(thread.messages.at(-1)).toMatchObject({
+          role: "assistant",
+          content: [{ type: "text", text: "done" }],
+          status: { type: "complete", reason: "stop" },
+        }),
+      );
+      parentId = thread.messages.at(-1)!.id;
+      await thread.append({
+        ...userMessage("follow-up"),
+        parentId,
+        startRun: false,
+      });
+      await thread.append({
+        ...userMessage("nested follow-up"),
+        parentId: thread.messages.at(-1)!.id,
+        startRun: false,
+      });
+
+      expect(stored.map((item) => item.message.role)).toEqual([
+        "user",
+        "user",
+        "user",
+      ]);
+
+      const reloaded = createThread(
+        {
+          async run() {
+            return { content: [] };
+          },
+        },
+        { history },
+      );
+      await reloaded.__internal_load();
+
+      expect(reloaded.messages.map((message) => message.id)).toEqual([
+        stored[0]!.message.id,
+      ]);
+    } finally {
+      releaseTeardown();
+      await running;
+    }
+
+    expect(stored.at(-1)?.message.id).toBe(parentId);
+  });
+
   it.each(["feedback", "tool result"])(
     "keeps streaming when %s arrives first and the other writer follows",
     async (first) => {
