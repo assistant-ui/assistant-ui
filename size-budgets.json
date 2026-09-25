@@ -71,24 +71,24 @@
   },
   "@assistant-ui/react-generative-ui": {
     ".": {
-      "min": 37218,
-      "gzip": 12010
+      "min": 38512,
+      "gzip": 12351
     },
     "./a2ui": {
-      "min": 20779,
-      "gzip": 7125
+      "min": 22345,
+      "gzip": 7658
     },
     "./ir": {
       "min": 1623,
       "gzip": 885
     },
     "./slack": {
-      "min": 23522,
-      "gzip": 7519
+      "min": 24718,
+      "gzip": 7893
     },
     "./teams": {
-      "min": 12848,
-      "gzip": 4648
+      "min": 13506,
+      "gzip": 4845
     }
   },
   "@assistant-ui/react-google-adk": {
