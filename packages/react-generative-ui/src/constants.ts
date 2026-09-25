@@ -10,3 +10,5 @@
 export const TYPE_KEY = "$type";
 
 export const GENERATED_NAME_ATTR = "data-aui-generated-name";
+
+export const CHECKBOX_GROUP_ATTR = "data-aui-checkbox-group";

@@ -6,7 +6,7 @@ import { collectFormValuesFromEvent } from "./collectFormValues";
 export const formVocabulary = {
   Form: {
     description:
-      "Wraps named child controls (Select/Input/Checkbox/RadioGroup/DatePicker with a `name`). Carries `$action`; on submit it fires with every named control's value, keyed by `name`.",
+      "Wraps named child controls (Select/Input/Checkbox/RadioGroup/CheckboxGroup/DatePicker with a `name`). Carries `$action`; on submit it fires with every named control's value, keyed by `name`.",
     properties: z.object({
       gap: z
         .number()

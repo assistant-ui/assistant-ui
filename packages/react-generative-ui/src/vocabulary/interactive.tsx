@@ -1,6 +1,6 @@
 import { useId, type ReactNode } from "react";
 import { z } from "zod";
-import { GENERATED_NAME_ATTR } from "../constants";
+import { CHECKBOX_GROUP_ATTR, GENERATED_NAME_ATTR } from "../constants";
 import type { Action } from "../ir";
 import { BUTTON_STYLES } from "../ir";
 import type {
@@ -65,6 +65,69 @@ function RadioGroupRender({
               value={option.value}
               defaultChecked={defaultValue === option.value}
               onChange={() => fire($action, $dispatch, option.value)}
+            />
+            {option.label}
+          </label>
+        ) : null,
+      )}
+      {children}
+    </fieldset>
+  );
+}
+
+type CheckboxGroupRenderProps = {
+  options: Option[];
+  name?: string;
+  label?: string;
+  defaultValue?: string[];
+  children?: ReactNode;
+  $status: GenerativeUIStatus;
+  $action?: Action;
+  $dispatch?: GenerativeUIDispatch;
+};
+
+const checkedGroupValues = (input: HTMLInputElement): string[] =>
+  Array.from(
+    input
+      .closest("fieldset")
+      ?.querySelectorAll<HTMLInputElement>(
+        `:scope > label > input[${CHECKBOX_GROUP_ATTR}]:checked`,
+      ) ?? [],
+    (checkbox) => checkbox.value,
+  );
+
+function CheckboxGroupRender({
+  options,
+  name,
+  label,
+  defaultValue,
+  children,
+  $action,
+  $dispatch,
+}: CheckboxGroupRenderProps) {
+  const generatedName = useId();
+  const fieldName = name ?? generatedName;
+  const safeOptions = Array.isArray(options) ? options : [];
+  const checkedValues = Array.isArray(defaultValue) ? defaultValue : [];
+  return (
+    <fieldset
+      data-aui="checkboxgroup"
+      data-aui-action={actionAttr($action)}
+      aria-label={label}
+    >
+      {safeOptions.map((option, i) =>
+        isOption(option) ? (
+          <label key={i} data-aui="checkboxgroup-option">
+            <input
+              type="checkbox"
+              name={fieldName}
+              {...{ [CHECKBOX_GROUP_ATTR]: "" }}
+              {...(name == null ? { [GENERATED_NAME_ATTR]: "" } : {})}
+              value={option.value}
+              defaultChecked={checkedValues.includes(option.value)}
+              onChange={(e) =>
+                fire($action, $dispatch, checkedGroupValues(e.currentTarget))
+              }
             />
             {option.label}
           </label>
@@ -289,5 +352,19 @@ export const interactiveVocabulary = {
       defaultValue: z.string().optional().describe("Initially selected value."),
     }),
     render: RadioGroupRender,
+  },
+  CheckboxGroup: {
+    description:
+      "A group of checkbox options where any number can be checked. Carries `$action` describing the on-change behavior.",
+    properties: z.object({
+      options: z.array(optionSchema).describe("Selectable options."),
+      name: z.string().optional().describe("Field name used inside a Form."),
+      label: z.string().optional().describe("Accessible name for the group."),
+      defaultValue: z
+        .array(z.string())
+        .optional()
+        .describe("Initially checked values."),
+    }),
+    render: CheckboxGroupRender,
   },
 } satisfies GenerativeUILibrary;

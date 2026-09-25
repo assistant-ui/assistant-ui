@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { GENERATED_NAME_ATTR } from "../constants";
+import { CHECKBOX_GROUP_ATTR, GENERATED_NAME_ATTR } from "../constants";
 import { renderGenerativeUI } from "../renderGenerativeUI";
 import { interactiveVocabulary } from "./interactive";
 import { defaultGenerativeUILibrary } from "./index";
@@ -316,6 +316,54 @@ describe("interactiveVocabulary", () => {
     expect(() => render({ $type: "RadioGroup" })).not.toThrow();
     expect(render({ $type: "RadioGroup" })).toBe(
       '<fieldset data-aui="radiogroup"></fieldset>',
+    );
+  });
+
+  it("CheckboxGroup renders one named checkbox per option and checks each defaultValue", () => {
+    const html = render({
+      $type: "CheckboxGroup",
+      name: "toppings",
+      label: "Toppings",
+      defaultValue: ["olives"],
+      options: [
+        { label: "Basil", value: "basil" },
+        null,
+        { label: "Olives", value: "olives" },
+      ],
+    });
+    const inputs = html.match(/<input[^>]*>/g) ?? [];
+    expect(html).toMatch(
+      /^<fieldset data-aui="checkboxgroup" aria-label="Toppings">.*Basil<\/label>.*Olives<\/label><\/fieldset>$/,
+    );
+    expect(inputs).toHaveLength(2);
+    for (const input of inputs) {
+      expect(input).toContain('type="checkbox"');
+      expect(input).toContain('name="toppings"');
+      expect(input).toContain(`${CHECKBOX_GROUP_ATTR}=""`);
+    }
+    expect(inputs.filter((input) => input.includes('checked=""'))).toEqual([
+      expect.stringContaining('value="olives"'),
+    ]);
+  });
+
+  it("CheckboxGroup falls back to a generated shared name when name is omitted", () => {
+    const html = render({
+      $type: "CheckboxGroup",
+      options: [
+        { label: "Basil", value: "basil" },
+        { label: "Olives", value: "olives" },
+      ],
+    });
+    const names = [...html.matchAll(/ name="([^"]*)"/g)].map((m) => m[1]);
+    expect(names.length).toBe(2);
+    expect(names[0]).toBeTruthy();
+    expect(names[0]).toBe(names[1]);
+    expect(html.split(`${GENERATED_NAME_ATTR}=""`).length - 1).toBe(2);
+  });
+
+  it("CheckboxGroup with missing options renders an empty fieldset without throwing", () => {
+    expect(render({ $type: "CheckboxGroup" })).toBe(
+      '<fieldset data-aui="checkboxgroup"></fieldset>',
     );
   });
 });
