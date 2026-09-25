@@ -153,6 +153,16 @@ function CancelButton({
   const fromCart = checkout.session.fromCart === true;
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (!(event.target instanceof Element)) return;
+      if (event.target.closest('[role="dialog"]') !== null) return;
+      setOpen(true);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
   const end = async () => {
     analytics.setup.cancelled();
     try {

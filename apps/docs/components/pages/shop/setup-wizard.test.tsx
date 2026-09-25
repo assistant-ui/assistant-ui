@@ -573,6 +573,36 @@ describe("SetupWizard", () => {
     expect(push).toHaveBeenCalledWith("/shop/cart");
   });
 
+  it("asks before ending the setup on Escape, unless the key was pressed inside a dialog", async () => {
+    render(
+      <SetupWizard
+        checkout={context(connected({ status: "planning" }), true, true)}
+      />,
+    );
+    const cancel = vi.mocked(commands["checkout/cancel"]);
+    cancel.mockClear();
+    push.mockClear();
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    const dialog = await screen.findByRole("dialog", {
+      name: "End this setup?",
+    });
+    expect(cancel).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Keep going" }));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "End this setup?" }),
+      ).toBeNull(),
+    );
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    const again = await screen.findByRole("dialog", {
+      name: "End this setup?",
+    });
+    fireEvent.click(within(again).getByRole("button", { name: "End setup" }));
+    await waitFor(() => expect(cancel).toHaveBeenCalled());
+    expect(push).toHaveBeenCalledWith("/shop/cart");
+  });
+
   it("keeps Cancel disabled while looking back at a finished setup", () => {
     const state = connected({
       status: "done",

@@ -29,9 +29,6 @@ const app = () =>
   render(
     <SetupNavigationProvider>
       <SetupBackdropButton />
-      <div role="dialog">
-        <button>Inside dialog</button>
-      </div>
     </SetupNavigationProvider>,
   );
 beforeEach(() => {
@@ -49,19 +46,16 @@ describe("SetupBackdropButton", () => {
     expect(navigation.replace).toHaveBeenCalledWith("/shop");
   });
 
-  it("leaves on Escape unless the key was pressed inside a dialog", () => {
+  it("does not leave on Escape", () => {
     app();
-    fireEvent.keyDown(screen.getByText("Inside dialog"), { key: "Escape" });
-    expect(navigation.replace).not.toHaveBeenCalled();
     fireEvent.keyDown(document.body, { key: "Escape" });
-    expect(navigation.replace).toHaveBeenCalledWith("/shop");
+    expect(navigation.replace).not.toHaveBeenCalled();
+    expect(navigation.back).not.toHaveBeenCalled();
   });
 
   it("renders nothing without a session", () => {
     store.session = null;
     app();
     expect(screen.queryByRole("button", { name: /Back/ })).toBeNull();
-    fireEvent.keyDown(document.body, { key: "Escape" });
-    expect(navigation.replace).not.toHaveBeenCalled();
   });
 });
