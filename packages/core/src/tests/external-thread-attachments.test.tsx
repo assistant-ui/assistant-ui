@@ -1633,6 +1633,65 @@ describe("cancelled edit sessions", () => {
     expect(remove).toHaveBeenCalledTimes(1);
   });
 
+  it("removes an edit's attachment once when the edit is cancelled while its removal is pending", async () => {
+    let finish!: () => void;
+    const remove = vi
+      .fn(async () => {})
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((r) => {
+            finish = r;
+          }),
+      );
+    const aui = renderThreadWithProps({
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          content: [{ type: "text", text: "hi" }],
+          createdAt: new Date(0),
+          metadata: { custom: {} },
+        } as unknown as ExternalThreadMessage,
+      ],
+      onEdit: () => {},
+      attachmentAdapter: {
+        accept: "*",
+        add: async ({ file }: { file: File }) => ({
+          id: "pending-1",
+          type: "document",
+          name: file.name,
+          contentType: file.type,
+          file,
+          status: { type: "running", reason: "uploading", progress: 0 },
+        }),
+        send: async () => ({}) as never,
+        remove,
+      },
+    });
+    const composer = () => aui().thread.message({ id: "u1" }).composer();
+    await act(async () => {
+      composer().beginEdit();
+    });
+    await act(() =>
+      composer().addAttachment(
+        new File(["data"], "notes.txt", { type: "text/plain" }),
+      ),
+    );
+    let removing!: Promise<void>;
+    act(() => {
+      removing = composer().attachment({ id: "pending-1" }).remove();
+    });
+    await act(async () => {
+      composer().cancel();
+    });
+    await act(async () => {
+      finish();
+      await removing;
+    });
+
+    expect(remove).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps the thread composer's in-flight add across a run cancel", async () => {
     let resolveAdd!: (attachment: PendingAttachment) => void;
     const aui = renderThreadWithProps({
