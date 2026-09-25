@@ -52,7 +52,7 @@ const createSizeRegistry = (
 export type ThreadViewportState = {
   readonly isAtBottom: boolean;
   readonly autoScrollPaused: boolean;
-  readonly pauseAutoScroll: () => void;
+  readonly pauseAutoScroll: () => Unsubscribe;
   readonly resumeAutoScroll: () => void;
   readonly scrollToBottom: (config?: {
     behavior?: ScrollBehavior | undefined;
@@ -186,12 +186,28 @@ export const makeThreadViewportStore = (
     };
   };
 
+  const pauseHolders = new Set<symbol>();
+
   const store = create<ThreadViewportState>(() => ({
     isAtBottom: true,
     autoScrollPaused: options.autoScrollPaused ?? false,
-    pauseAutoScroll: () => store.setState({ autoScrollPaused: true }),
-    resumeAutoScroll: () => store.setState({ autoScrollPaused: false }),
+    pauseAutoScroll: () => {
+      const id = Symbol();
+      pauseHolders.add(id);
+      store.setState({ autoScrollPaused: true });
+      return () => {
+        pauseHolders.delete(id);
+        if (pauseHolders.size === 0) {
+          store.setState({ autoScrollPaused: false });
+        }
+      };
+    },
+    resumeAutoScroll: () => {
+      pauseHolders.clear();
+      store.setState({ autoScrollPaused: false });
+    },
     scrollToBottom: ({ behavior = "auto" } = {}) => {
+      pauseHolders.clear();
       store.setState({ autoScrollPaused: false });
       notifyEventListeners(
         scrollToBottomListeners,
