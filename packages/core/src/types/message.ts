@@ -325,7 +325,7 @@ export type ToolCallMessagePart<
     readonly optionId?: string;
     /** The free-form answer recorded at resolution, when one was given. */
     readonly text?: string;
-    /** Terminal non-decision state: the request was cancelled or expired without a user decision. Set by the host. */
+    /** Terminal non-decision state: the request was cancelled or expired without a user decision. Set by the host, or by `LocalRuntime` once a later turn follows the message. */
     readonly resolution?: "cancelled" | "expired";
   };
   /** Parent message-part ID when this part belongs to a nested structure. */
