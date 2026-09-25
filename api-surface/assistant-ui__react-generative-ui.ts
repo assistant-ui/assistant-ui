@@ -18,6 +18,9 @@ type A2uiCreateSurfaceOperation = {
   readonly version: "v0.9";
   readonly createSurface: A2uiCreateSurfaceV09Payload;
 } | {
+  readonly version: "v0.9.1";
+  readonly createSurface: A2uiCreateSurfaceV09Payload;
+} | {
   readonly version: "v1.0";
   readonly createSurface: A2uiCreateSurfaceV10Payload;
 };
@@ -103,7 +106,7 @@ interface A2uiUpdateDataModelPayload {
   readonly data?: unknown;
 }
 
-type A2uiVersion = "v0.9" | "v1.0";
+type A2uiVersion = "v0.9" | "v0.9.1" | "v1.0";
 
 declare const ALERT_TONES: readonly [
   "info",
