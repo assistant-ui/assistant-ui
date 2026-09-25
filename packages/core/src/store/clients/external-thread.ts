@@ -1609,6 +1609,8 @@ const useExternalThread = ({
   const hasAttachments = !!attachmentAdapter;
   const hasFeedback = !!feedbackAdapter;
   const hasSpeech = !!speechAdapter;
+  const hasAnswerToolCall =
+    !!onAddToolResult || !!onResumeToolCall || !!onRespondToToolApproval;
   const state = useMemo(() => {
     const messageStates =
       pendingClients.state.length === 0
@@ -1635,6 +1637,7 @@ const useExternalThread = ({
         unstable_copy: false,
         dictation: false,
         queue: hasQueue,
+        answerToolCall: hasAnswerToolCall,
       },
       messages: messageStates,
       tasks,
@@ -1659,6 +1662,7 @@ const useExternalThread = ({
     hasAttachments,
     hasFeedback,
     hasSpeech,
+    hasAnswerToolCall,
     speech,
     messageClients.state,
     pendingClients.state,

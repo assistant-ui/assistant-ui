@@ -226,6 +226,7 @@ export abstract class InertThreadRuntimeCore
     attachments: false,
     feedback: false,
     queue: false,
+    answerToolCall: false,
   } as const;
 
   isDisabled = false;

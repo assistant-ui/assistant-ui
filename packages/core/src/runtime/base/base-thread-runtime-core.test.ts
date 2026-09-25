@@ -135,6 +135,7 @@ class TestRuntime extends BaseThreadRuntimeCore {
       attachments: false,
       feedback: false,
       queue: false,
+      answerToolCall: false,
     };
   }
 

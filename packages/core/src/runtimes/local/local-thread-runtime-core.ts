@@ -171,6 +171,7 @@ export class LocalThreadRuntimeCore
     attachments: false,
     feedback: false,
     queue: false,
+    answerToolCall: true,
   };
 
   private abortController: AbortController | null = null;
