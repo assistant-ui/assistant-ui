@@ -79,6 +79,7 @@ export function Chat() {
 | LangGraph / LangChain                  | `@assistant-ui/react-langgraph`, `@assistant-ui/react-langchain` |
 | AG-UI / A2A protocols                  | `@assistant-ui/react-ag-ui`, `@assistant-ui/react-a2a`           |
 | Google ADK / OpenCode                  | `@assistant-ui/react-google-adk`, `@assistant-ui/react-opencode` |
+| Durable Flue agents                    | `@assistant-ui/react-flue`                                      |
 | Custom data-stream backend             | `@assistant-ui/react-data-stream`                                |
 | Managed thread history, telemetry, and file storage | `assistant-cloud`                                       |
 
