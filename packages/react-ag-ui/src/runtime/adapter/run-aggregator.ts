@@ -855,17 +855,25 @@ export class RunAggregator {
       this.hiddenSignatures.delete(id);
       this.hiddenSignatureAnchors.delete(id);
     }
+    const hiddenBlockIds = Array.from(this.hiddenBlockAnchors)
+      .filter(([, anchor]) => anchor >= cut)
+      .map(([id]) => id);
+    const hiddenAnonymous =
+      this.hiddenAnonymousAnchor !== undefined &&
+      this.hiddenAnonymousAnchor >= cut;
+    const activeCarried =
+      (this.hiddenActiveReasoning === "identified" &&
+        hiddenBlockIds.length > 0) ||
+      (this.hiddenActiveReasoning === "anonymous" && hiddenAnonymous);
     return {
       parts,
       activeKey: this.activeReasoningKeyByScope.get(ROOT_SCOPE),
       hiddenSignatures,
-      hiddenBlockIds: Array.from(this.hiddenBlockAnchors)
-        .filter(([, anchor]) => anchor >= cut)
-        .map(([id]) => id),
-      hiddenAnonymous:
-        this.hiddenAnonymousAnchor !== undefined &&
-        this.hiddenAnonymousAnchor >= cut,
-      hiddenActiveReasoning: this.hiddenActiveReasoning,
+      hiddenBlockIds,
+      hiddenAnonymous,
+      hiddenActiveReasoning: activeCarried
+        ? this.hiddenActiveReasoning
+        : ("none" as const),
     };
   }
 
