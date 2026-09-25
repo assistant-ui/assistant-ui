@@ -199,11 +199,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     pipeTask.then(forget, forget);
   }
 
-  private _addPart(
-    part: PartInit,
-    stream: AssistantStream,
-    controller?: { __internal_truncate(): void },
-  ) {
+  private _addPart(part: PartInit, stream: AssistantStream, end?: () => void) {
     if (this._state.append) {
       this._state.append.controller.close();
       this._state.append = undefined;
@@ -218,9 +214,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       stream,
       new PathAppendEncoder(this._state.contentCounter.value),
     );
-    if (controller) {
-      this._trackOpenInput(pipeTask, () => controller.__internal_truncate());
-    }
+    if (end) this._trackOpenInput(pipeTask, end);
   }
 
   merge(stream: AssistantStream) {
@@ -270,10 +264,8 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     const [stream, controller] = createTextStreamController({
       strict: this._state.strict,
     });
-    this._addPart(
-      this._withParentIdOption({ type: "text" }),
-      stream,
-      controller,
+    this._addPart(this._withParentIdOption({ type: "text" }), stream, () =>
+      controller.close(),
     );
     return controller;
   }
@@ -285,7 +277,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     this._addPart(
       this._withParentIdOption({ type: "reasoning", ...options }),
       stream,
-      controller,
+      () => controller.close(),
     );
     return controller;
   }
@@ -308,7 +300,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
         ...(this._parentId && { parentId: this._parentId }),
       },
       stream,
-      controller,
+      () => controller.__internal_truncate(),
     );
 
     if (opt.argsText !== undefined) {

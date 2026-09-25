@@ -159,10 +159,11 @@ describe("raw chunk ordering", () => {
 });
 
 describe("createAssistantStream task settlement", () => {
-  it("ends parts left open when the callback throws without finishing them", async () => {
+  it("finishes open text and reasoning parts and cuts off open tool calls when the callback throws", async () => {
     const chunks = await collectChunks(
       createAssistantStream(async (controller) => {
         controller.addTextPart().append("partial");
+        controller.addReasoningPart().append("thinking");
         controller.addToolCallPart({ toolCallId: "t1", toolName: "search" });
         throw new Error("provider failed");
       }),
@@ -174,7 +175,9 @@ describe("createAssistantStream task settlement", () => {
       path: [0],
       textDelta: "partial",
     });
-    expect(chunks.map((c) => c.type)).not.toContain("part-finish");
+    expect(
+      chunks.filter((c) => c.type === "part-finish").map((c) => c.path),
+    ).toEqual([[0], [1]]);
     expect(chunks.map((c) => c.type)).not.toContain(
       "tool-call-args-text-finish",
     );
@@ -239,7 +242,7 @@ describe("createAssistantStream task settlement", () => {
       reason: "error",
     });
     expect(message?.parts).toMatchObject([
-      { type: "text", text: "partial" },
+      { type: "text", text: "partial", status: { type: "complete" } },
       { toolCallId: "t1", state: "partial-call" },
       { toolCallId: "t2", state: "partial-call", argsText: '{"orderId":' },
     ]);
