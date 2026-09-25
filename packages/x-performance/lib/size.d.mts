@@ -8,29 +8,18 @@ export type SizeMeasurement = {
   gzip: number;
 };
 
-export type SizeBudget = SizeMeasurement;
-
-export type SizeStatus = "new" | "over" | "under" | "ok";
-
 export type SizeRow = {
-  package: string;
-  subpath: string;
-  min: number | null;
-  gzip: number | null;
-  budget: SizeBudget | null;
-  status:
-    | SizeStatus
-    | "skipped (not built)"
-    | "stale"
-    | `${Extract<SizeStatus, "over" | "under">} (kept: unchanged vs origin/main)`;
+  entry: string;
+  base: number | null;
+  head: number | null;
+  delta: number;
+  status: "same" | "moved" | "new" | "removed";
 };
 
-export type CheckSizesOptions = {
-  repoRoot: string;
-  budgetsPath: string;
-  update?: boolean;
-  updateAll?: boolean;
-  json?: string | undefined;
+export type CompareSizesOptions = {
+  root: string;
+  ref: string;
+  report?: string | undefined;
 };
 
 export declare const SIZE_IGNORE: Set<string>;
@@ -43,13 +32,18 @@ export declare const listEntries: (
   pkgDir: string,
 ) => SizeEntry[];
 export declare const measureEntry: (file: string) => Promise<SizeMeasurement>;
-export declare const budgetStatus: (
-  budget: SizeBudget | undefined,
-  actual: SizeMeasurement,
-) => SizeStatus;
-export declare const changedPackageNames: (
-  repoRoot: string,
-) => Set<string> | null;
-export declare const checkSizes: (
-  options: CheckSizesOptions,
-) => Promise<boolean>;
+export declare const measurePackages: (
+  root: string,
+  names: readonly string[],
+) => Promise<Map<string, SizeMeasurement>>;
+export declare const diffSizes: (
+  base: ReadonlyMap<string, SizeMeasurement>,
+  head: ReadonlyMap<string, SizeMeasurement>,
+) => SizeRow[];
+export declare const renderSizeReport: (
+  rows: readonly SizeRow[],
+  labels: { base: string; head: string },
+) => string;
+export declare const compareSizes: (
+  options: CompareSizesOptions,
+) => Promise<void>;
