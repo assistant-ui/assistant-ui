@@ -71,12 +71,12 @@
   },
   "@assistant-ui/react-generative-ui": {
     ".": {
-      "min": 38512,
-      "gzip": 12351
+      "min": 38627,
+      "gzip": 12375
     },
     "./a2ui": {
-      "min": 22345,
-      "gzip": 7658
+      "min": 22391,
+      "gzip": 7676
     },
     "./ir": {
       "min": 1623,
