@@ -903,7 +903,14 @@ function convertComponent(
         context,
         key !== "checks",
         0,
-        key === "action",
+        key === "action" &&
+          component === "Button" &&
+          isRecord(value) &&
+          isRecord(
+            isRecord(value["event"])
+              ? value["event"]["context"]
+              : value["context"],
+          ),
       );
       if (resolved !== undefined) setOwnProperty(props, key, resolved);
     }
