@@ -114,7 +114,7 @@ createActionRegistry({
 });
 ```
 
-Inputs are two-way bound. A `context` entry or `functionCall` argument bound to an input's path carries what the user entered when the button is clicked, not the value the agent sent, and one bound to an object that contains input paths carries that object with those fields replaced. The converter writes each such value as a [`$field` reference](/docs/tools/generative-ui#actions) that the renderer resolves when the action fires, with the value the agent sent as its fallback, so a custom component that dispatches the action itself sends that value instead. A single choice `ChoicePicker` bound to a list sends a one item list, matching the string list the spec binds it to.
+An action reads what the user entered: a `context` entry or `functionCall` argument bound to an input's path carries the input's value when the button is clicked, not the value the agent sent, and one bound to an object that contains input paths carries that object with those fields replaced. The converter writes each such value as a [`$field` reference](/docs/tools/generative-ui#actions) that the renderer resolves when the action fires, with the value the agent sent as its fallback, so a custom component that dispatches the action itself sends that value instead. A single choice `ChoicePicker` bound to a list sends a one item list, matching the string list the spec binds it to.
 
 The middleware turns the action into a synthetic `log_a2ui_event` tool-call pair that is never declared in `input.tools`; a backend that validates tool calls against the declared tool list will reject it.
 
