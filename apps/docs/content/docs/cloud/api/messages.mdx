@@ -80,7 +80,7 @@ curl https://backend.assistant-api.com/v1/threads/thread_0qzof3jPoDwr7K3agyJN3D4
 | `400` | `{ "error": "Parent message with external_id not found in thread" }` | `parent_external_id` does not identify a message in this thread. |
 | `402` | `{ "error": "plan_limit_reached", "plan": …, "period_end": …, "cap": … }` | A new end user sends a `user` message after the project's active user cap. |
 | `404` | `{ "error": "Thread not found" }` | The thread is not in the caller's workspace. |
-| `404` | `{ "error": "Project not found" }` | The project no longer exists. |
+| `404` | Plain text: `Project not found` | The project no longer exists. |
 | `409` | `{ "error": "Message role cannot change" }` | An `external_id` repeat changes the stored message role. |
 | `401` or `403` | An authentication error. | The caller was not accepted. See [Conventions](/docs/cloud/api). |
 

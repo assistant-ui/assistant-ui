@@ -69,7 +69,7 @@ Each `sampling_calls` item may have `model_id` of up to 255 characters, the four
 
 The service combines `metadata`, unknown top level keys, and `attributes` in that order. Later `attributes` values win. The resulting attributes JSON must be at most 16,384 bytes. Unknown top level keys are kept as attributes instead of being rejected, so a newer SDK can send fields an older project does not yet recognize.
 
-The route rejects invalid input with the validation response shape `{ "success": false, "error": "…" }`. It also returns `{ "error": "message_id must belong to thread_id" }` when the message is not in the named thread, and `{ "error": "Thread not found" }` when the thread is not visible to the caller.
+The route rejects invalid input with the validation response shape `{ "success": false, "error": { "name": "ZodError", "message": "<failed checks as a JSON string>" } }`. It also returns plain text `message_id must belong to thread_id` when the message is not in the named thread, and plain text `Thread not found` when the thread is not visible to the caller.
 
 ## How the SDK builds a report
 
@@ -174,7 +174,7 @@ const cloud = new AssistantCloud({
 });
 ```
 
-Every request also sends `Aui-Sdk`. It begins with `assistant-cloud/<version>`, followed by registered integration identities in registration order. The cloud records at most 8 header tokens, names of at most 214 characters, and versions of at most 64 characters.
+Every request also sends `Aui-Sdk`. It begins with `assistant-cloud/<version>`, followed by registered integration identities in registration order. The client accepts any printable name and version token. The cloud reads only the first 8 space separated tokens and records unique lowercase npm style names with strict SemVer versions, discarding duplicates. Recorded names are at most 214 characters and versions are at most 64 characters.
 
 ![Settings › Telemetry on the demo project](../images/settings-telemetry.webp)
 

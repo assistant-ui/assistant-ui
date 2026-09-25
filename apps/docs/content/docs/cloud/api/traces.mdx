@@ -3,7 +3,7 @@ title: Traces
 description: Receive OTLP traces and map GenAI spans into runs, steps and tool calls.
 ---
 
-The traces endpoint receives OTLP/HTTP exports from server side instrumentation and turns GenAI spans into runs. It accepts an API key on `https://backend.assistant-api.com`; `Aui-Workspace-Id` is optional on this route, unlike the other API key routes, and the general host and credential rules are in [Conventions](/docs/cloud/api).
+The traces endpoint receives OTLP/HTTP exports from server side instrumentation and turns GenAI spans into runs. It accepts an API key on `https://backend.assistant-api.com`; `Aui-Workspace-Id` is optional on this route, unlike the other API key routes. The general host and credential rules are in [Conventions](/docs/cloud/api), and shared errors are in [Errors](/docs/cloud/api#errors).
 
 ## Export traces
 
@@ -25,8 +25,8 @@ curl https://backend.assistant-api.com/v1/traces \
 | `Aui-User-Id` | header | no | Defaults to `__SYSTEM__`. |
 | `Content-Type` | header | yes | `application/json`, `application/x-protobuf` or `application/protobuf`. |
 | `Content-Encoding` | header | no | `gzip`, `deflate` or `identity`. |
-| `Content-Length` | header | no | A declared body larger than 4,194,304 bytes is refused. The streamed body is also counted against the same cap. |
-| Request body | OTLP export | yes | At most 4,194,304 bytes, or 4 MB. |
+| `Content-Length` | header | no | A declared body larger than 4,194,304 bytes is refused. A gzip or deflate body is decompressed before streamed content is counted against the same cap. |
+| Request body | OTLP export | yes | At most 4,194,304 bytes, or 4 MB, after gzip or deflate decompression. |
 
 ```json title="Request"
 {
@@ -54,8 +54,8 @@ When all spans are accepted, the response is `{}`. When spans are rejected, `par
 | `200` | `{}` | Every span was accepted. |
 | `200` | `{ "partialSuccess": { "rejectedSpans": n, "errorMessage": "..." } }` | One or more spans were rejected while the export was processed. |
 | `400` | `{ "error": "<parser message>" }` | The OTLP body is malformed. The parser message is returned in `error`. |
-| `401` | `{ "error": "..." }` | `Authorization` is missing. |
-| `403` | `{ "error": "This endpoint requires an API key" }` | The caller supplied a JWT instead of an API key. |
+| `401` | Plain text: `Authorization header is missing` | `Authorization` is missing. |
+| `403` | Plain text: `This endpoint requires an API key` | The caller supplied a JWT instead of an API key. |
 | `413` | `{ "error": "Export exceeds the 4 MB limit" }` | The declared or streamed body is over 4 MB. |
 | `415` | `{ "error": "Send application/json or application/x-protobuf" }` | `Content-Type` is not supported. |
 | `415` | `{ "error": "Unsupported content encoding <enc>" }` | `Content-Encoding` is not `gzip`, `deflate` or `identity`. |
@@ -105,6 +105,6 @@ The run id is deterministic: `run_<sha256(projectId+traceId+rootSpanId) first 24
 
 ### Re export and client reports
 
-Re exporting a trace keeps the client owned `source`, `created_by`, `created_at`, `thread_id`, `assistant_id`, `message_id`, `tags`, `environment`, `release` and `first_token_ms`, as well as `aborted` and `disconnected` outcomes. Existing attributes whose key starts with `client.` always win. A client report with the same trace id merges into the existing run under these rules; the full field mapping is in [Traces](/docs/cloud/traces).
+Re exporting a trace keeps the client owned `source`, `created_by`, `created_at`, `thread_id`, `assistant_id`, `message_id`, `tags`, `environment` and `release`, as well as `aborted` and `disconnected` outcomes. An exported `first_token_ms` replaces the client value, and a re export keeps the existing `error_code`. Existing attributes whose key starts with `client.` always win. A client report with the same trace id merges into the existing run under these rules; the full field mapping is in [Traces](/docs/cloud/traces).
 
 The route inserts runs and spans in a transaction, records the thread run on the first insert that has a thread, recomputes `span_index`, assigns parents and step types, and updates the daily rollup. A transaction failure for one run rejects that run's spans and adds its message to `partialSuccess`; other runs in the export continue. Re exporting is idempotent for the deterministic run and span keys, and spans are indexed by start time, then relative start time and id.
