@@ -17,13 +17,13 @@ Three options. Choose based on what you want to own.
 
 | Path | Runtime | Who owns thread metadata | Best for |
 | --- | --- | --- | --- |
-| AssistantCloud | LocalRuntime and adapters built on it | assistant-cloud | You want it managed; auth, sync, persistence handled |
+| AssistantCloud | LocalRuntime and runtime adapters that accept `cloud` | assistant-cloud | You want it managed; auth, sync, persistence handled |
 | RemoteThreadListRuntime | LocalRuntime and adapters built on it | Your database | You have your own backend and want full control |
 | ExternalStoreThreadListAdapter | ExternalStoreRuntime only | Your store | You keep state in redux, zustand, etc. |
 
 ## AssistantCloud
 
-`AssistantCloud` is the managed multi-thread service. Pass an instance to `useLocalRuntime` (or any adapter built on it) and threads, persistence, sync, and titles are handled for you.
+`AssistantCloud` is the managed multi-thread service. Pass an instance to `useLocalRuntime` or a runtime adapter that accepts `cloud`, and threads, persistence, sync, and titles are handled for you.
 
 ```tsx
 import { useLocalRuntime } from "@assistant-ui/react";
@@ -43,6 +43,10 @@ Framework adapters take `cloud` directly. `AISDKThreads({ cloud })` is the store
 const runtime = useChatRuntime({ cloud });
 const threads = AISDKThreads({ cloud });
 const runtime = useLangGraphRuntime({ cloud /* stream, load, ... */ });
+const runtime = useStreamRuntime({ cloud /* LangGraph server options */ });
+const runtime = useOpenCodeRuntime({ cloud /* OpenCode options */ });
+const runtime = usePiRuntime({ cloud /* Pi options */ });
+const runtime = useAssistantTransportRuntime({ cloud /* transport options */ });
 const runtime = useAdkRuntime({ cloud, stream });
 ```
 
