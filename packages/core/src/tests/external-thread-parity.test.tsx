@@ -390,6 +390,20 @@ describe("ExternalThread composer", () => {
     expect(aui().thread.composer().getState().canCancel).toBe(false);
   });
 
+  it("reports answerToolCall once a tool answer handler is set", () => {
+    const { aui, rerender } = renderThread({ messages: [] });
+    expect(aui().thread.getState().capabilities.answerToolCall).toBe(false);
+
+    for (const handler of [
+      { onAddToolResult: vi.fn() },
+      { onResumeToolCall: vi.fn() },
+      { onRespondToToolApproval: vi.fn() },
+    ]) {
+      rerender({ messages: [], ...handler });
+      expect(aui().thread.getState().capabilities.answerToolCall).toBe(true);
+    }
+  });
+
   it("routes edit-composer sends to onEdit with sourceId, bypassing the queue", async () => {
     const onEdit = vi.fn();
     const enqueue = vi.fn();

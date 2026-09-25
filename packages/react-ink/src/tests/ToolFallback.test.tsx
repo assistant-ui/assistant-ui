@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render } from "ink-testing-library";
+import { ReadonlyThreadProvider } from "@assistant-ui/core/react";
 import { ToolFallback } from "../primitives/toolCall/ToolFallback";
 
 type InputHandler = (input: string, key: { return?: boolean }) => void;
@@ -181,6 +182,34 @@ describe("ToolFallback", () => {
     expect(frame).toContain("Waiting for approval");
     expect(frame).not.toContain("Allow");
     expect(frame).not.toContain("Deny");
+  });
+
+  it("shows the pending prompt without approval controls in a readonly thread", async () => {
+    const respondToApproval = vi.fn();
+    const frame = await renderFrame(
+      <ReadonlyThreadProvider messages={[]}>
+        <ToolFallback
+          type="tool-call"
+          toolCallId="tool-call-1"
+          toolName="search"
+          args={{}}
+          argsText="{}"
+          status={{ type: "requires-action", reason: "interrupt" }}
+          approval={{
+            id: "approval-1",
+            display: "decision",
+            prompt: "Deploy to production?",
+          }}
+          respondToApproval={respondToApproval}
+        />
+      </ReadonlyThreadProvider>,
+    );
+
+    expect(frame).toContain("Deploy to production?");
+    expect(frame).toContain("Waiting for approval");
+    expect(frame).not.toContain("Allow");
+    expect(frame).not.toContain("Deny");
+    expect(respondToApproval).not.toHaveBeenCalled();
   });
 
   it("waits when a decision response is not available", async () => {

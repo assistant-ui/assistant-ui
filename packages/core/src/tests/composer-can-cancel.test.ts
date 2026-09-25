@@ -25,6 +25,7 @@ const DEFAULT_CAPABILITIES: RuntimeCapabilities = {
   attachments: false,
   feedback: false,
   queue: false,
+  answerToolCall: false,
 };
 
 const makeRuntimeStub = (

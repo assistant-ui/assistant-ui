@@ -15,7 +15,8 @@ const usage = `usage:
                                                 trace each fixture against <git-ref>'s package sources, both sides plus screenshots
   aui-perf report --out <file.md> [--bench <json>] [--trace <json>]
                                                 assemble the PR comment from lane outputs
-  aui-perf size [--update [--all]] [--json <file>]  bundle every published entry with rolldown and check it against size-budgets.json; --update records every entry of the packages changed vs origin/main, --all every entry
+  aui-perf size [--ref <git-ref>] [--report <file.md>]
+                                                build the published packages changed since the merge base with <git-ref> (default origin/main) on both sides, bundle each entry with rolldown, and report the gzip delta; --report is written only when an entry changed
   aui-perf history append --dir <dir> [--from <recording.json>]
   aui-perf history render --dir <dir> [--out <file.md>]
                                                 keep and render the nightly wall-time record
@@ -63,7 +64,6 @@ const lanes = {
 };
 const dir = resolved(takeValue("--dir"));
 const from = resolved(takeValue("--from"));
-const update = takeFlag("--update");
 const all = takeFlag("--all");
 
 if (cmd === "record") record(rest[0], runs);
@@ -79,16 +79,16 @@ else if (cmd === "report" && out) {
   const { assembleReport } = await import("../lib/report.mjs");
   assembleReport({ out, ...lanes });
   console.error(`comment -> ${out}`);
-} else if (cmd === "size") {
-  const { checkSizes } = await import("../lib/size.mjs");
-  const ok = await checkSizes({
-    repoRoot: repoRoot(),
-    budgetsPath: resolve(repoRoot(), "size-budgets.json"),
-    update,
-    updateAll: all,
-    json: outputs.json,
+} else if (
+  cmd === "size" &&
+  (rest.length === 0 || (rest.length === 2 && rest[0] === "--ref"))
+) {
+  const { compareSizes } = await import("../lib/size.mjs");
+  await compareSizes({
+    root: repoRoot(),
+    ref: rest[1] ?? "origin/main",
+    report: outputs.report,
   });
-  process.exit(ok ? 0 : 1);
 } else if (cmd === "history" && rest[0] === "append" && dir) {
   const { appendHistory } = await import("../lib/history.mjs");
   const recording = JSON.parse(

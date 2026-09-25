@@ -380,6 +380,7 @@ function ToolFallbackApproval({
   }) {
   const [submitted, setSubmitted] = useState(false);
   const voiceActive = useAuiState((s) => s.thread.voice !== undefined);
+  const canAnswer = useAuiState((s) => s.thread.capabilities.answerToolCall);
   const locked = submitted || voiceActive;
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [answer, setAnswer] = useState("");
@@ -392,6 +393,28 @@ function ToolFallbackApproval({
     return null;
 
   if (!offersInterruptAction(status, approval, interrupt)) return null;
+
+  const promptText = approval?.prompt ? (
+    <p className="aui-tool-fallback-approval-prompt text-foreground whitespace-pre-line">
+      {approval.prompt}
+    </p>
+  ) : null;
+
+  if (!canAnswer)
+    return (
+      promptText && (
+        <div
+          data-slot="tool-fallback-approval"
+          className={cn(
+            "aui-tool-fallback-approval flex flex-col gap-2 pt-1",
+            className,
+          )}
+          {...props}
+        >
+          {promptText}
+        </div>
+      )
+    );
 
   // A declared option list is a host constraint: the kit never adds an
   // approval path beyond it, and preserves a refusal path only where the
@@ -496,12 +519,6 @@ function ToolFallbackApproval({
     >
       Dismiss
     </Button>
-  ) : null;
-
-  const promptText = approval?.prompt ? (
-    <p className="aui-tool-fallback-approval-prompt text-foreground whitespace-pre-line">
-      {approval.prompt}
-    </p>
   ) : null;
 
   const errorText = error ? (

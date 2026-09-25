@@ -3,11 +3,13 @@ import {
   existsSync,
   readFileSync,
   readdirSync,
-  realpathSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
 import { gzipSync } from "node:zlib";
+import { ensureRefWorktree } from "./ref-worktree.mjs";
+import { envStamp, git } from "./suite.mjs";
 
 export const SIZE_IGNORE = new Set([
   "assistant-ui",
@@ -20,6 +22,8 @@ export const SIZE_IGNORE = new Set([
   "@assistant-ui/vite",
   "@assistant-ui/agent-launcher",
 ]);
+
+const REPORT_MARKER = "<!-- aui-size-report -->";
 
 const isJavaScript = (file) =>
   file.endsWith(".js") || file.endsWith(".mjs") || file.endsWith(".cjs");
@@ -88,239 +92,177 @@ export const measureEntry = async (file) => {
   }
 };
 
-export const budgetStatus = (budget, actual) => {
-  if (!Number.isFinite(budget?.gzip)) return "new";
-  const tolerance = Math.max(Math.round(budget.gzip * 0.02), 256);
-  if (actual.gzip > budget.gzip + tolerance) return "over";
-  if (actual.gzip < budget.gzip - tolerance) return "under";
-  return "ok";
-};
-
-/**
- * Names of the packages whose files differ from the merge base with
- * origin/main, committed or not. Every entry is externalized to bare imports
- * when measured, so only a package's own files can move its size — this is the
- * set whose local dists an update may trust. Returns null when the set cannot
- * be determined (repoRoot is not the root of a git work tree, or there is no
- * origin/main), in which case every package is treated as changed.
- */
-export const changedPackageNames = (repoRoot) => {
-  const git = (...args) =>
-    execFileSync("git", args, {
-      cwd: repoRoot,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-      maxBuffer: 64 * 1024 * 1024,
-    });
-  let files;
-  try {
-    // Paths arrive relative to the work tree's root, so a repoRoot nested in
-    // some other work tree would match none of them and read as an empty set,
-    // which withholds every entry instead of falling back.
-    if (
-      realpathSync(git("rev-parse", "--show-toplevel").trim()) !==
-      realpathSync(repoRoot)
-    )
-      return null;
-    const base = git("merge-base", "HEAD", "origin/main").trim();
-    files = [
-      ...git("diff", "--name-only", "--no-renames", "-z", base, "--").split(
-        "\0",
-      ),
-      ...git("status", "--porcelain", "--no-renames", "-z")
-        .split("\0")
-        .map((line) => line.slice(3)),
-    ];
-  } catch {
-    return null;
-  }
-  const names = new Set();
-  for (const file of files) {
-    const match = /^packages\/([^/]+)\//.exec(file);
-    if (!match) continue;
-    const manifestPath = join(repoRoot, "packages", match[1], "package.json");
-    if (!existsSync(manifestPath)) continue;
-    const name = JSON.parse(readFileSync(manifestPath, "utf8")).name;
-    if (typeof name === "string") names.add(name);
-  }
-  return names;
-};
-
-const readBudgets = (budgetsPath) =>
-  existsSync(budgetsPath) ? JSON.parse(readFileSync(budgetsPath, "utf8")) : {};
-
-const cloneBudgets = (budgets) =>
-  Object.fromEntries(
-    Object.entries(budgets).map(([name, entries]) => [name, { ...entries }]),
-  );
-
-const sortBudgets = (budgets) =>
-  Object.fromEntries(
-    Object.keys(budgets)
-      .sort()
-      .filter((name) => Object.keys(budgets[name]).length)
-      .map((name) => [
-        name,
-        Object.fromEntries(
-          Object.keys(budgets[name])
-            .sort()
-            .map((subpath) => [subpath, budgets[name][subpath]]),
-        ),
-      ]),
-  );
-
-const budgetCount = (budgets) =>
-  Object.values(budgets).reduce(
-    (count, entries) => count + Object.keys(entries).length,
-    0,
-  );
-
-const percentDelta = (budget, actual) => {
-  const delta = ((actual.gzip - budget.gzip) / budget.gzip) * 100;
-  return `${delta >= 0 ? "+" : ""}${delta.toFixed(1)}%`;
-};
-
-const tableRow = (row) => ({
-  entry: `${row.package} ${row.subpath}`,
-  "gzip budget": row.budget?.gzip ?? "",
-  gzip: row.gzip ?? "",
-  delta:
-    row.budget && row.gzip !== undefined ? percentDelta(row.budget, row) : "",
-  status: row.status,
-});
-
-export const checkSizes = async ({
-  repoRoot,
-  budgetsPath,
-  update = false,
-  updateAll = false,
-  json,
-}) => {
-  const budgets = readBudgets(budgetsPath);
-  const nextBudgets = cloneBudgets(budgets);
-  // A dist a PR never touched is often older than the merge base or built by
-  // a different toolchain, so re-recording it would land a stale value that
-  // surfaces as an unexplained `over` on the next PR that really touches the
-  // package. An update trusts only dists of packages changed vs origin/main.
-  const changed = update && !updateAll ? changedPackageNames(repoRoot) : null;
-  const recordable = (name) => changed === null || changed.has(name);
-  let keptEntries = 0;
-  const declaredEntries = new Map();
-  const rows = [];
-  const measured = new Set();
-  const packageDirs = readdirSync(join(repoRoot, "packages"), {
+const publishedPackages = (root) => {
+  const packages = new Map();
+  for (const directory of readdirSync(join(root, "packages"), {
     withFileTypes: true,
-  })
-    .filter((entry) => entry.isDirectory())
-    .sort((a, b) => a.name.localeCompare(b.name));
-
-  for (const directory of packageDirs) {
-    const pkgDir = join(repoRoot, "packages", directory.name);
+  })) {
+    const pkgDir = join(root, "packages", directory.name);
     const manifestPath = join(pkgDir, "package.json");
-    if (!existsSync(manifestPath)) continue;
+    if (!directory.isDirectory() || !existsSync(manifestPath)) continue;
     const pkg = JSON.parse(readFileSync(manifestPath, "utf8"));
-    if (typeof pkg.name !== "string") continue;
-    const entries = listEntries(pkg, pkgDir);
-    declaredEntries.set(
-      pkg.name,
-      new Set(entries.map((entry) => entry.subpath)),
+    if (
+      typeof pkg.name !== "string" ||
+      pkg.private === true ||
+      SIZE_IGNORE.has(pkg.name)
+    )
+      continue;
+    packages.set(pkg.name, listEntries(pkg, pkgDir));
+  }
+  return packages;
+};
+
+export const measurePackages = async (root, names) => {
+  const packages = publishedPackages(root);
+  const sizes = new Map();
+  for (const name of names) {
+    for (const { subpath, file } of packages.get(name) ?? []) {
+      if (!existsSync(file))
+        throw new Error(`${name} ${subpath} was not built: ${file} is missing`);
+      sizes.set(`${name} ${subpath}`, await measureEntry(file));
+    }
+  }
+  return sizes;
+};
+
+export const diffSizes = (base, head) =>
+  [...new Set([...base.keys(), ...head.keys()])]
+    .map((entry) => {
+      const before = base.get(entry)?.gzip ?? null;
+      const after = head.get(entry)?.gzip ?? null;
+      const delta = (after ?? 0) - (before ?? 0);
+      const status =
+        before === null
+          ? "new"
+          : after === null
+            ? "removed"
+            : delta === 0
+              ? "same"
+              : "moved";
+      return { entry, base: before, head: after, delta, status };
+    })
+    .sort(
+      (a, b) =>
+        Math.abs(b.delta) - Math.abs(a.delta) || a.entry.localeCompare(b.entry),
     );
 
-    if (pkg.private === true || SIZE_IGNORE.has(pkg.name)) continue;
-    for (const entry of entries) {
-      const budget = budgets[pkg.name]?.[entry.subpath];
-      if (!existsSync(entry.file)) {
-        rows.push({
-          package: pkg.name,
-          subpath: entry.subpath,
-          min: null,
-          gzip: null,
-          budget: budget ?? null,
-          status: "skipped (not built)",
-        });
-        continue;
-      }
+const bytes = (value) => `${value.toLocaleString("en-US")} B`;
 
-      const actual = await measureEntry(entry.file);
-      const status = budgetStatus(budget, actual);
-      // Withholding a `new` entry would leave the check red with no run able
-      // to clear it, so only a move away from a recorded budget is withheld.
-      const claimed = status === "new" || recordable(pkg.name);
-      const drifted = status === "over" || status === "under";
-      const kept = update && drifted && !claimed;
-      rows.push({
-        package: pkg.name,
-        subpath: entry.subpath,
-        ...actual,
-        budget: budget ?? null,
-        status: kept ? `${status} (kept: unchanged vs origin/main)` : status,
-      });
-      measured.add(`${pkg.name}\u0000${entry.subpath}`);
-      if (claimed) {
-        nextBudgets[pkg.name] ??= {};
-        nextBudgets[pkg.name][entry.subpath] = actual;
-      }
-      if (kept) keptEntries += 1;
-    }
-  }
+const change = (row) => {
+  if (row.status !== "moved") return row.status;
+  const sign = row.delta > 0 ? "+" : "-";
+  const percent = ((Math.abs(row.delta) / row.base) * 100).toFixed(1);
+  return `${sign}${bytes(Math.abs(row.delta))} (${sign}${percent}%)`;
+};
 
-  for (const [name, entries] of Object.entries(budgets)) {
-    for (const [subpath, budget] of Object.entries(entries)) {
-      if (measured.has(`${name}\u0000${subpath}`)) continue;
-      if (declaredEntries.get(name)?.has(subpath)) continue;
-      rows.push({
-        package: name,
-        subpath,
-        min: null,
-        gzip: null,
-        budget,
-        status: "stale",
-      });
-      delete nextBudgets[name][subpath];
-    }
-  }
+const tally = (rows) => {
+  const changed = rows.filter((row) => row.status !== "same").length;
+  return `${changed} of ${rows.length} measured ${rows.length === 1 ? "entry" : "entries"} changed`;
+};
 
-  console.table(rows.map(tableRow));
+export const renderSizeReport = (rows, { base, head }) =>
+  [
+    REPORT_MARKER,
+    `**Bundle size** of \`${head}\` against \`${base}\`: ${tally(rows)}.`,
+    "",
+    "| Entry | Base | Head | Change |",
+    "| --- | ---: | ---: | ---: |",
+    ...rows
+      .filter((row) => row.status !== "same")
+      .map(
+        (row) =>
+          `| \`${row.entry}\` | ${row.base === null ? "" : bytes(row.base)} | ${row.head === null ? "" : bytes(row.head)} | ${change(row)} |`,
+      ),
+    "",
+    "Gzip bytes of each published entry of the packages this change builds, minified by rolldown with every bare import external.",
+    "",
+  ].join("\n");
 
-  if (json) {
-    writeFileSync(
-      json,
-      `${JSON.stringify(
-        {
-          schema: "aui-perf/size@1",
-          generatedAt: new Date().toISOString(),
-          rows,
-        },
-        null,
-        2,
-      )}\n`,
-    );
-  }
+const turbo = (root, args, stdout = "pipe") =>
+  execFileSync(join(root, "node_modules", ".bin", "turbo"), args, {
+    cwd: root,
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+    stdio: ["ignore", stdout, "inherit"],
+  });
 
-  if (update) {
-    const sortedBudgets = sortBudgets(nextBudgets);
-    writeFileSync(budgetsPath, `${JSON.stringify(sortedBudgets, null, 2)}\n`);
-    console.log(`wrote ${budgetCount(sortedBudgets)} size budget entries`);
-    if (!updateAll && changed === null) {
-      console.log(
-        "could not determine the packages changed vs origin/main, so every entry was re-recorded; check that this is a git work tree with an origin/main",
-      );
-    }
-    if (keptEntries > 0) {
-      console.log(
-        `kept ${keptEntries} drifted entr${keptEntries === 1 ? "y" : "ies"} of packages unchanged vs origin/main (their local dists are not this branch's claim); run pnpm size:update:all to re-record them`,
-      );
-    }
-    return true;
-  }
+// Dependents are selected because every package devDepends on x-buildutils, which is how a build tool change reaches every entry.
+const affectedPackages = (root, base) =>
+  JSON.parse(
+    turbo(root, ["run", "build", `--filter=...[${base}]`, "--dry=json"]),
+  ).packages;
 
-  const hasFailure = rows.some((row) =>
-    ["new", "over", "under", "stale"].includes(row.status),
+const build = (root, names) => {
+  turbo(
+    root,
+    [
+      "run",
+      "build",
+      "--ui=stream",
+      "--output-logs=errors-only",
+      ...names.map((name) => `--filter=${name}`),
+    ],
+    2,
   );
-  if (hasFailure) {
-    console.log(
-      "size budgets need updating: run pnpm size:update after building the changed packages, or let autofix.ci record every entry from its own build of the pull request. A local run keeps the entries of packages unchanged vs origin/main, so a re-baseline on main needs pnpm size:update:all instead.",
-    );
+};
+
+export const compareSizes = async ({ root, ref, report }) => {
+  if (report) rmSync(report, { force: true });
+  const base = git(["merge-base", "HEAD", ref], root);
+  if (base === "unknown")
+    throw new Error(`cannot resolve the merge base of HEAD and ${ref}`);
+  const { sha, dirty } = envStamp(root);
+  // Measured against its first parent, a pull request's merge commit stands for the branch it merges, whose head is the commit a reader can find on the PR.
+  const merged =
+    git(["rev-parse", "HEAD^1"], root) === base
+      ? git(["rev-parse", "--short", "HEAD^2"], root)
+      : "unknown";
+  const head = merged === "unknown" ? sha : merged;
+  const labels = {
+    base: git(["rev-parse", "--short", base], root),
+    head: dirty ? `${head}, dirty` : head,
+  };
+  const onHead = publishedPackages(root);
+  const names = affectedPackages(root, base).filter((name) => onHead.has(name));
+  // A deleted or newly private package is invisible to turbo here, so a changed manifest is what sends the run to the base to report it as removed.
+  const manifests = git(
+    ["diff", "--name-only", base, "--", "packages/*/package.json"],
+    root,
+  );
+  if (names.length === 0 && manifests === "") {
+    console.log(`no published package changed against ${labels.base}`);
+    return;
   }
-  return !hasFailure;
+
+  if (names.length > 0) build(root, names);
+  const { wt } = ensureRefWorktree(base, { build: false });
+  execFileSync("pnpm", ["install"], {
+    cwd: wt,
+    stdio: ["ignore", 2, "inherit"],
+    env: { ...process.env, CI: "true" },
+  });
+  const baseNames = [...publishedPackages(wt).keys()].filter(
+    (name) => names.includes(name) || !onHead.has(name),
+  );
+  if (baseNames.length > 0) build(wt, baseNames);
+
+  const rows = diffSizes(
+    await measurePackages(wt, baseNames),
+    await measurePackages(root, names),
+  );
+  const changed = rows.filter((row) => row.status !== "same");
+  if (changed.length > 0)
+    console.table(
+      changed.map((row) => ({
+        entry: row.entry,
+        base: row.base ?? "",
+        head: row.head ?? "",
+        change: change(row),
+      })),
+    );
+  console.log(
+    `bundle size of ${labels.head} against ${labels.base}: ${tally(rows)}`,
+  );
+  if (report && changed.length > 0)
+    writeFileSync(report, renderSizeReport(rows, labels));
 };
