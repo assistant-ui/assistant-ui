@@ -1,5 +1,9 @@
 import type { FormEvent } from "react";
-import { CHECKBOX_GROUP_ATTR, GENERATED_NAME_ATTR } from "../constants";
+import {
+  CHECKBOX_GROUP_ATTR,
+  FIELD_NAME_ATTR,
+  GENERATED_NAME_ATTR,
+} from "../constants";
 
 /**
  * The subset of `HTMLInputElement`/`HTMLSelectElement`/`HTMLTextAreaElement` that {@link collectFormValues} reads. A structural type rather than the DOM interfaces themselves, so a plain object can stand in for a form control in tests.
@@ -11,6 +15,7 @@ export type FormControlElementLike = {
   readonly checked?: boolean;
   readonly disabled: boolean;
   readonly hasAttribute: (name: string) => boolean;
+  readonly getAttribute?: ((name: string) => string | null) | undefined;
   readonly matches?: ((selector: string) => boolean) | undefined;
 };
 
@@ -23,7 +28,8 @@ export function collectFormValues(
   const values: Record<string, unknown> = Object.create(null);
 
   for (const element of Array.from(elements)) {
-    const { name, disabled } = element;
+    const { disabled } = element;
+    const name = element.getAttribute?.(FIELD_NAME_ATTR) ?? element.name;
     if (
       !name ||
       disabled ||

@@ -1,6 +1,10 @@
 import { useId, type ReactNode } from "react";
 import { z } from "zod";
-import { CHECKBOX_GROUP_ATTR, GENERATED_NAME_ATTR } from "../constants";
+import {
+  CHECKBOX_GROUP_ATTR,
+  FIELD_NAME_ATTR,
+  GENERATED_NAME_ATTR,
+} from "../constants";
 import type { Action } from "../ir";
 import { BUTTON_STYLES } from "../ir";
 import type {
@@ -46,8 +50,7 @@ function RadioGroupRender({
   $action,
   $dispatch,
 }: RadioGroupRenderProps) {
-  const generatedName = useId();
-  const fieldName = name ?? generatedName;
+  const groupName = useId();
   const safeOptions = Array.isArray(options) ? options : [];
   return (
     <fieldset
@@ -61,7 +64,8 @@ function RadioGroupRender({
           <label key={i} data-aui="radiogroup-option">
             <input
               type="radio"
-              name={fieldName}
+              name={groupName}
+              {...{ [FIELD_NAME_ATTR]: name }}
               {...(name == null ? { [GENERATED_NAME_ATTR]: "" } : {})}
               value={option.value}
               defaultChecked={defaultValue === option.value}

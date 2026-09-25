@@ -52,6 +52,78 @@ const mount = async (
   return container;
 };
 
+describe("RadioGroup", () => {
+  it("keeps same-named groups in separate roots independent and resolves their field values", async () => {
+    const save = vi.fn();
+    const registry = createActionRegistry({ save });
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    const card = (id: string) => ({
+      $type: "Col",
+      children: [
+        { $type: "RadioGroup", name: "choice", options: toppings },
+        {
+          $type: "Button",
+          label: "Save",
+          $action: { type: "save", id, choice: { $field: "choice" } },
+        },
+      ],
+    });
+    await act(async () => {
+      root!.render(
+        <>
+          {view(card("first"), registry.dispatch)}
+          {view(card("second"), registry.dispatch)}
+        </>,
+      );
+    });
+    const inputs = container.querySelectorAll("input");
+    const [firstSave, secondSave] = container.querySelectorAll("button");
+
+    await act(async () => inputs[0]!.click());
+    await act(async () => inputs[4]!.click());
+    await act(async () => firstSave!.click());
+    await act(async () => secondSave!.click());
+
+    expect(save.mock.calls.map(([{ payload }]) => payload)).toEqual([
+      { type: "save", id: "first", choice: "basil" },
+      { type: "save", id: "second", choice: "olives" },
+    ]);
+    expect(inputs[0]!.checked).toBe(true);
+    expect(inputs[4]!.checked).toBe(true);
+
+    await act(async () => inputs[2]!.click());
+    expect(inputs[0]!.checked).toBe(false);
+    expect(inputs[2]!.checked).toBe(true);
+    expect(inputs[4]!.checked).toBe(true);
+  });
+
+  it("submits logical field names and omits unnamed groups", async () => {
+    const save = vi.fn();
+    const container = await mount(
+      {
+        $type: "Form",
+        $action: { type: "save" },
+        children: [
+          { $type: "RadioGroup", name: "choice", options: toppings },
+          { $type: "RadioGroup", options: toppings },
+          { $type: "Button", label: "Save", submit: true },
+        ],
+      },
+      { save },
+    );
+    const inputs = container.querySelectorAll("input");
+    await act(async () => inputs[0]!.click());
+    await act(async () => inputs[4]!.click());
+    await act(async () => container.querySelector("button")!.click());
+
+    expect(save).toHaveBeenCalledWith({
+      payload: { type: "save", $input: { choice: "basil" } },
+    });
+  });
+});
+
 describe("CheckboxGroup", () => {
   it("dispatches its checked option values in option order on every change", async () => {
     const pick = vi.fn();
