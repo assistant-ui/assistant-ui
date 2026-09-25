@@ -21,6 +21,35 @@ const prompts = (items: readonly { prompt: string }[]) =>
   items.map((i) => i.prompt);
 
 describe("createMessageQueue", () => {
+  it.each(["steer", "move"])(
+    "queues a reentrant %s until the reserved run settles",
+    (mode) => {
+      const run = vi.fn();
+      const cancel = vi.fn();
+      const queue = createMessageQueue({ run, cancel });
+      const first = msg("first");
+      const second = msg("second");
+      queue.hold();
+      queue.adapter.enqueue(first);
+      if (mode === "move") queue.adapter.enqueue(second);
+      let steered = false;
+      queue.subscribe(() => {
+        if (steered) return;
+        steered = true;
+        if (mode === "steer") queue.adapter.steer!(second);
+        else queue.adapter.move!(queue.adapter.items[0]!.id, { lane: "steer" });
+      });
+      queue.release();
+      expect(cancel).not.toHaveBeenCalled();
+      expect(run).toHaveBeenCalledExactlyOnceWith(first, { steer: false });
+      expect(prompts(queue.adapter.steerItems!)).toEqual(["second"]);
+      queue.notifyIdle();
+      expect(run).toHaveBeenNthCalledWith(2, second, { steer: false });
+      queue.notifyIdle();
+      expect(run).toHaveBeenCalledTimes(2);
+    },
+  );
+
   it("keeps messages enqueued by a removal subscriber behind the pending run", () => {
     const run = vi.fn();
     const queue = createMessageQueue({ run });
