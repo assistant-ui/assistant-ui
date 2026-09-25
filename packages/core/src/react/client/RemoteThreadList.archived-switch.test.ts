@@ -132,6 +132,7 @@ describe("RemoteThreadList switch to an archived thread", () => {
         for (let i = 0; i < offset; i++) await Promise.resolve();
         await handle.getClient().threads.item({ id: "t1" })[operation]();
 
+        expect(selection.whenActed).not.toHaveLength(0);
         expect({ offset, selected: selection.whenActed[0] }).not.toEqual({
           offset,
           selected: "t1",
