@@ -11,13 +11,13 @@ export const actionAttr = (a: Action | undefined): string | undefined =>
 
 const fieldValues = (source: Element): Record<string, unknown> => {
   const scope = source.closest('form[data-aui], [data-aui="root"]');
-  return scope
-    ? collectFormValues(
-        scope.querySelectorAll(
-          "input, select, textarea",
-        ) as unknown as ArrayLike<FormControlElementLike>,
-      )
-    : {};
+  if (!scope) return {};
+  const root = scope.closest('[data-aui="root"]');
+  return collectFormValues(
+    Array.from(scope.querySelectorAll("input, select, textarea")).filter(
+      (control) => control.closest('[data-aui="root"]') === root,
+    ) as unknown as ArrayLike<FormControlElementLike>,
+  );
 };
 
 /**

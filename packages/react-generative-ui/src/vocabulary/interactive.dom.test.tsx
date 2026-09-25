@@ -213,6 +213,34 @@ describe("$field references", () => {
       { type: "save", fields: ["Final"], size: "l", note: "Ship it" },
     ]);
   });
+  it("never read a control inside a nested generative UI root", async () => {
+    const save = vi.fn();
+    const container = await mount(
+      {
+        $type: "Col",
+        children: [
+          { $type: "Input", name: "note", defaultValue: "outer" },
+          {
+            $type: "Button",
+            label: "Save",
+            $action: { type: "save", note: { $field: "note" } },
+          },
+        ],
+      },
+      { save },
+    );
+    const nested = document.createElement("div");
+    nested.setAttribute("data-aui", "root");
+    nested.innerHTML = '<input name="note" value="inner">';
+    container.querySelector('[data-aui="root"]')!.append(nested);
+
+    await act(async () => container.querySelector("button")!.click());
+
+    expect(save).toHaveBeenCalledWith({
+      payload: { type: "save", note: "outer" },
+    });
+  });
+
   it("never read a host form around the generative UI root", async () => {
     const save = vi.fn();
     const hostForm = document.createElement("form");
