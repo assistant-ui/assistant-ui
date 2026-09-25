@@ -86,7 +86,7 @@ export type ThreadHistoryAdapter = {
   ): AsyncGenerator<ChatModelRunResult, void, unknown>;
   append(item: ExportedMessageRepositoryItem): Promise<void>;
   /**
-   * Rewrites a previously appended message in place, keyed by its message id. Adapters that implement this let a runtime persist a run paused for tool approval, finalize the same message once the run resumes, and record a tool result that arrives after the message settled, which can be a message later turns follow. An update may arrive for an id whose earlier write failed; treat it as an upsert keyed on the message id rather than assuming the entry exists.
+   * Rewrites a previously appended message in place, keyed by its message id. Adapters that implement this let a runtime persist a run paused for tool approval, finalize the same message once the run resumes, and record a tool result that arrives after the message settled, which can be a message later turns follow. Without it, a paused run is appended only once it ends, for example when a later turn cancels it. An update may arrive for an id whose earlier write failed; treat it as an upsert keyed on the message id rather than assuming the entry exists.
    */
   update?(item: ExportedMessageRepositoryItem): Promise<void>;
   delete?(items: ExportedMessageRepositoryItem[]): Promise<void>;
