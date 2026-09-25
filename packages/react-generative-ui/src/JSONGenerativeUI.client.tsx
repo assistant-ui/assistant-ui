@@ -13,6 +13,7 @@ import {
 import { type ActionRegistry } from "./actionRegistry";
 import { renderGenerativeUI } from "./renderGenerativeUI";
 import type { GenerativeUILibrary, GenerativeUIStatus } from "./types";
+import { A2uiPresentRenderer } from "./a2ui/PresentRenderer";
 
 /** Maps a tool-call part status to the generative-UI streaming status. Only a
  * `complete` call has fully-arrived args; `running` and `incomplete`
@@ -57,6 +58,7 @@ export class JSONGenerativeUI {
       addResult,
       result,
       toolCallId,
+      artifact,
       unstable_recordInteraction,
     }: ToolCallMessagePartProps<Record<string, unknown>, any>,
     completesPrompt = false,
@@ -95,14 +97,32 @@ export class JSONGenerativeUI {
         }
       : undefined;
 
-    return (
-      <div data-aui="root">
-        {renderGenerativeUI(args, this.library, {
+    const artifactValue =
+      artifact !== null && typeof artifact === "object"
+        ? (artifact as Record<string, unknown>)["a2ui"]
+        : undefined;
+    const surfaceId =
+      typeof toolCallId === "string" && toolCallId.startsWith("a2ui:")
+        ? toolCallId.slice("a2ui:".length)
+        : undefined;
+    const content =
+      surfaceId && Array.isArray(artifactValue) ? (
+        <A2uiPresentRenderer
+          surfaceId={surfaceId}
+          operations={artifactValue}
+          fallback={args}
+          library={this.library}
+          status={uiStatus(status)}
+          {...(dispatch ? { dispatch } : {})}
+        />
+      ) : (
+        renderGenerativeUI(args, this.library, {
           status: uiStatus(status),
           ...(dispatch ? { dispatch } : {}),
-        })}
-      </div>
-    );
+        })
+      );
+
+    return <div data-aui="root">{content}</div>;
   };
 
   present(options?: PresentToolOptions): PresentTool {

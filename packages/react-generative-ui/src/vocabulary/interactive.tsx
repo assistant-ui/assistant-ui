@@ -30,6 +30,7 @@ type RadioGroupRenderProps = {
   options: Option[];
   name?: string;
   label?: string;
+  value?: string;
   defaultValue?: string;
   children?: ReactNode;
   $status: GenerativeUIStatus;
@@ -41,6 +42,7 @@ function RadioGroupRender({
   options,
   name,
   label,
+  value,
   defaultValue,
   children,
   $action,
@@ -63,7 +65,10 @@ function RadioGroupRender({
               name={fieldName}
               {...(name == null ? { [GENERATED_NAME_ATTR]: "" } : {})}
               value={option.value}
-              defaultChecked={defaultValue === option.value}
+              checked={value === undefined ? undefined : value === option.value}
+              defaultChecked={
+                value === undefined && defaultValue === option.value
+              }
               onChange={() => fire($action, $dispatch, option.value)}
             />
             {option.label}
@@ -79,6 +84,7 @@ type CheckboxGroupRenderProps = {
   options: Option[];
   name?: string;
   label?: string;
+  value?: string[];
   defaultValue?: string[];
   children?: ReactNode;
   $status: GenerativeUIStatus;
@@ -100,6 +106,7 @@ function CheckboxGroupRender({
   options,
   name,
   label,
+  value,
   defaultValue,
   children,
   $action,
@@ -108,7 +115,11 @@ function CheckboxGroupRender({
   const generatedName = useId();
   const fieldName = name ?? generatedName;
   const safeOptions = Array.isArray(options) ? options : [];
-  const checkedValues = Array.isArray(defaultValue) ? defaultValue : [];
+  const checkedValues = Array.isArray(value)
+    ? value
+    : Array.isArray(defaultValue)
+      ? defaultValue
+      : [];
   return (
     <fieldset
       data-aui="checkboxgroup"
@@ -124,7 +135,14 @@ function CheckboxGroupRender({
               {...{ [CHECKBOX_GROUP_ATTR]: "" }}
               {...(name == null ? { [GENERATED_NAME_ATTR]: "" } : {})}
               value={option.value}
-              defaultChecked={checkedValues.includes(option.value)}
+              checked={
+                value === undefined
+                  ? undefined
+                  : checkedValues.includes(option.value)
+              }
+              defaultChecked={
+                value === undefined && checkedValues.includes(option.value)
+              }
               onChange={(e) =>
                 fire($action, $dispatch, checkedGroupValues(e.currentTarget))
               }
@@ -194,23 +212,28 @@ export const interactiveVocabulary = {
         .describe("Accessible label for the control."),
       name: z.string().optional().describe("Field name used inside a Form."),
     }),
-    render: ({
-      options,
-      placeholder,
-      label,
-      name,
-      $action,
-      $dispatch,
-      children,
-    }) => {
+    render: (props) => {
+      const {
+        options,
+        placeholder,
+        label,
+        name,
+        $action,
+        $dispatch,
+        children,
+      } = props;
       const placeholderText = toTextContent(placeholder);
+      const isA2uiBinding = $action?.type === "a2ui:binding";
+      const boundValue = (props as Record<string, unknown>)["value"];
       return (
         <select
           data-aui="select"
           data-aui-action={actionAttr($action)}
           name={name}
           aria-label={label}
-          defaultValue=""
+          {...(isA2uiBinding
+            ? { value: typeof boundValue === "string" ? boundValue : "" }
+            : { defaultValue: "" })}
           onChange={(e) => fire($action, $dispatch, e.currentTarget.value)}
         >
           {placeholderText ? (
@@ -245,8 +268,13 @@ export const interactiveVocabulary = {
         .describe("Accessible label for the control."),
       name: z.string().optional().describe("Field name used inside a Form."),
     }),
-    render: ({ placeholder, multiline, label, name, $action, $dispatch }) => {
+    render: (props) => {
+      const { placeholder, multiline, label, name, $action, $dispatch } = props;
       const submit = (v: string) => fire($action, $dispatch, v);
+      const isA2uiBinding = $action?.type === "a2ui:binding";
+      const boundValue = (props as Record<string, unknown>)["value"];
+      const value =
+        isA2uiBinding && typeof boundValue === "string" ? boundValue : "";
       return multiline ? (
         <textarea
           data-aui="input"
@@ -255,6 +283,12 @@ export const interactiveVocabulary = {
           name={name}
           aria-label={label}
           placeholder={placeholder}
+          {...(isA2uiBinding ? { value } : {})}
+          onChange={
+            isA2uiBinding
+              ? (e) => fire($action, $dispatch, e.currentTarget.value)
+              : undefined
+          }
           onKeyDown={(e) => {
             if (
               e.key !== "Enter" ||
@@ -279,6 +313,12 @@ export const interactiveVocabulary = {
           name={name}
           aria-label={label}
           placeholder={placeholder}
+          {...(isA2uiBinding ? { value } : {})}
+          onChange={
+            isA2uiBinding
+              ? (e) => fire($action, $dispatch, e.currentTarget.value)
+              : undefined
+          }
           onKeyDown={(e) => {
             if (
               e.key === "Enter" &&
@@ -304,19 +344,25 @@ export const interactiveVocabulary = {
         .describe("Accessible label for the control."),
       name: z.string().optional().describe("Field name used inside a Form."),
     }),
-    render: ({ value, min, max, label, name, $action, $dispatch }) => (
-      <input
-        type="date"
-        data-aui="datepicker"
-        data-aui-action={actionAttr($action)}
-        name={name}
-        aria-label={label}
-        defaultValue={value}
-        min={min}
-        max={max}
-        onChange={(e) => fire($action, $dispatch, e.currentTarget.value)}
-      />
-    ),
+    render: (props) => {
+      const { value, min, max, label, name, $action, $dispatch } = props;
+      const isA2uiBinding = $action?.type === "a2ui:binding";
+      return (
+        <input
+          type="date"
+          data-aui="datepicker"
+          data-aui-action={actionAttr($action)}
+          name={name}
+          aria-label={label}
+          {...(isA2uiBinding
+            ? { value: value ?? "" }
+            : { defaultValue: value })}
+          min={min}
+          max={max}
+          onChange={(e) => fire($action, $dispatch, e.currentTarget.value)}
+        />
+      );
+    },
   },
   Checkbox: {
     description:
@@ -329,18 +375,25 @@ export const interactiveVocabulary = {
         .optional()
         .describe("Whether the checkbox starts checked."),
     }),
-    render: ({ label, name, defaultChecked, $action, $dispatch }) => (
-      <label data-aui="checkbox">
-        <input
-          type="checkbox"
-          data-aui-action={actionAttr($action)}
-          name={name}
-          defaultChecked={defaultChecked}
-          onChange={(e) => fire($action, $dispatch, e.currentTarget.checked)}
-        />
-        <span data-aui="checkbox-label">{toTextContent(label)}</span>
-      </label>
-    ),
+    render: (props) => {
+      const { label, name, defaultChecked, $action, $dispatch } = props;
+      const isA2uiBinding = $action?.type === "a2ui:binding";
+      const boundChecked = (props as Record<string, unknown>)["checked"];
+      return (
+        <label data-aui="checkbox">
+          <input
+            type="checkbox"
+            data-aui-action={actionAttr($action)}
+            name={name}
+            {...(isA2uiBinding
+              ? { checked: boundChecked === true }
+              : { defaultChecked })}
+            onChange={(e) => fire($action, $dispatch, e.currentTarget.checked)}
+          />
+          <span data-aui="checkbox-label">{toTextContent(label)}</span>
+        </label>
+      );
+    },
   },
   RadioGroup: {
     description:
