@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import {
   mkdirSync,
   mkdtempSync,
@@ -9,28 +8,45 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  budgetStatus,
-  changedPackageNames,
-  checkSizes,
+  diffSizes,
   listEntries,
   measureEntry,
+  measurePackages,
+  renderSizeReport,
 } from "./size.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 
-// The fixtures are isolated from the developer's own git configuration: an
-// inherited commit.gpgsign or core.hooksPath would otherwise prompt or run
-// repository hooks from inside the suite.
-const gitEnv = {
-  ...process.env,
-  GIT_CONFIG_GLOBAL: "/dev/null",
-  GIT_CONFIG_SYSTEM: "/dev/null",
-  GIT_AUTHOR_NAME: "t",
-  GIT_AUTHOR_EMAIL: "t@t",
-  GIT_COMMITTER_NAME: "t",
-  GIT_COMMITTER_EMAIL: "t@t",
+const distFile = (subpath: string) =>
+  `${subpath === "." ? "index" : subpath.slice(2)}.js`;
+
+const writePackage = (
+  root: string,
+  name: string,
+  files: Record<string, string>,
+  options?: { private?: boolean },
+) => {
+  const dir = join(root, "packages", name);
+  mkdirSync(join(dir, "dist"), { recursive: true });
+  writeFileSync(
+    join(dir, "package.json"),
+    JSON.stringify({
+      name: `@aui-test/${name}`,
+      ...(options?.private ? { private: true } : {}),
+      exports: Object.fromEntries(
+        Object.keys(files).map((subpath) => [
+          subpath,
+          `./dist/${distFile(subpath)}`,
+        ]),
+      ),
+    }),
+  );
+  for (const [subpath, code] of Object.entries(files)) {
+    if (code) writeFileSync(join(dir, "dist", distFile(subpath)), code);
+  }
+  return dir;
 };
 
 describe("listEntries", () => {
@@ -74,53 +90,6 @@ describe("listEntries", () => {
   });
 });
 
-describe("budgetStatus", () => {
-  it("uses the 256 byte tolerance floor at its edges", () => {
-    const budget = { min: 1_000, gzip: 1_000 };
-    expect(budgetStatus(budget, { min: 0, gzip: 1_256 })).toBe("ok");
-    expect(budgetStatus(budget, { min: 0, gzip: 1_257 })).toBe("over");
-    expect(budgetStatus(budget, { min: 0, gzip: 744 })).toBe("ok");
-    expect(budgetStatus(budget, { min: 0, gzip: 743 })).toBe("under");
-  });
-
-  it("uses a two percent tolerance for large budgets", () => {
-    const budget = { min: 20_000, gzip: 20_000 };
-    expect(budgetStatus(budget, { min: 0, gzip: 20_400 })).toBe("ok");
-    expect(budgetStatus(budget, { min: 0, gzip: 20_401 })).toBe("over");
-    expect(budgetStatus(budget, { min: 0, gzip: 19_600 })).toBe("ok");
-    expect(budgetStatus(budget, { min: 0, gzip: 19_599 })).toBe("under");
-  });
-
-  it("reports entries without a budget or a numeric gzip as new", () => {
-    expect(budgetStatus(undefined, { min: 1, gzip: 1 })).toBe("new");
-    expect(budgetStatus(JSON.parse('{"min":100}'), { min: 1, gzip: 1 })).toBe(
-      "new",
-    );
-  });
-});
-
-describe("changedPackageNames", () => {
-  it("falls back when the root is not a work tree root", () => {
-    const outer = mkdtempSync(join(tmpdir(), "aui-size-outer-"));
-    const git = (...args: string[]) =>
-      execFileSync("git", args, { cwd: outer, encoding: "utf8", env: gitEnv });
-    try {
-      git("init", "--quiet");
-      git("commit", "--allow-empty", "-qm", "base");
-      git("update-ref", "refs/remotes/origin/main", "HEAD");
-      // The outer repository resolves a merge base, so without the work tree
-      // root check the nested root reads as an empty set rather than null.
-      const nested = join(outer, "nested");
-      mkdirSync(join(nested, "packages"), { recursive: true });
-
-      expect(changedPackageNames(nested)).toBeNull();
-      expect(changedPackageNames(outer)).toEqual(new Set());
-    } finally {
-      rmSync(outer, { recursive: true, force: true });
-    }
-  });
-});
-
 describe("measureEntry", () => {
   it("measures the built tap root entry deterministically", async () => {
     const tapDir = resolve(repoRoot, "packages/tap");
@@ -142,182 +111,157 @@ describe("measureEntry", () => {
   });
 });
 
-describe("checkSizes", () => {
-  const distFile = (subpath: string) =>
-    `${subpath === "." ? "index" : subpath.slice(2)}.js`;
-
-  const writePackage = (
-    root: string,
-    name: string,
-    files: Record<string, string>,
-  ) => {
-    const dir = join(root, "packages", name);
-    mkdirSync(join(dir, "dist"), { recursive: true });
-    writeFileSync(
-      join(dir, "package.json"),
-      JSON.stringify({
-        name: `@aui-test/${name}`,
-        exports: Object.fromEntries(
-          Object.keys(files).map((subpath) => [
-            subpath,
-            `./dist/${distFile(subpath)}`,
-          ]),
-        ),
-      }),
-    );
-    for (const [subpath, code] of Object.entries(files)) {
-      if (code) writeFileSync(join(dir, "dist", distFile(subpath)), code);
-    }
-    return dir;
-  };
-
-  const silenced = async <T>(run: () => Promise<T>) => {
-    const table = vi.spyOn(console, "table").mockImplementation(() => {});
-    const log = vi.spyOn(console, "log").mockImplementation(() => {});
-    try {
-      return await run();
-    } finally {
-      table.mockRestore();
-      log.mockRestore();
-    }
-  };
-
-  it("records every built entry, keeps unbuilt ones and prunes stale ones", async () => {
+describe("measurePackages", () => {
+  it("measures the requested public package entries", async () => {
     const root = mkdtempSync(join(tmpdir(), "aui-size-"));
     try {
-      const settled = writePackage(root, "settled", {
-        ".": "export const settled = 1;\n",
-        "./unbuilt": "",
+      const one = writePackage(root, "one", {
+        ".": "export const one = 1;\n",
+        "./extra": "export const extra = 2;\n",
       });
-      const moved = writePackage(root, "moved", {
-        ".": "export const moved = 2;\n",
-        "./added": "export const added = 3;\n",
-      });
-      const settledActual = await measureEntry(join(settled, "dist/index.js"));
-      const budgetsPath = join(root, "size-budgets.json");
-      writeFileSync(
-        budgetsPath,
-        JSON.stringify({
-          "@aui-test/settled": {
-            ".": { min: settledActual.min + 10, gzip: settledActual.gzip + 10 },
-            "./unbuilt": { min: 5, gzip: 5 },
-          },
-          "@aui-test/moved": {
-            ".": { min: 2_000, gzip: 1_000 },
-            "./gone": { min: 1, gzip: 1 },
-          },
-          "@aui-test/removed": { ".": { min: 1, gzip: 1 } },
-        }),
+      writePackage(
+        root,
+        "private",
+        { ".": "export const privateEntry = 3;\n" },
+        { private: true },
       );
 
       expect(
-        await silenced(() => checkSizes({ repoRoot: root, budgetsPath })),
-      ).toBe(false);
-      expect(
-        await silenced(() =>
-          checkSizes({ repoRoot: root, budgetsPath, update: true }),
-        ),
-      ).toBe(true);
-
-      const written = readFileSync(budgetsPath, "utf8");
-      expect(JSON.parse(written)).toEqual({
-        "@aui-test/moved": {
-          ".": await measureEntry(join(moved, "dist/index.js")),
-          "./added": await measureEntry(join(moved, "dist/added.js")),
-        },
-        "@aui-test/settled": {
-          ".": settledActual,
-          "./unbuilt": { min: 5, gzip: 5 },
-        },
-      });
-      expect(
-        await silenced(() => checkSizes({ repoRoot: root, budgetsPath })),
-      ).toBe(true);
-      expect(
-        await silenced(() =>
-          checkSizes({ repoRoot: root, budgetsPath, update: true }),
-        ),
-      ).toBe(true);
-      expect(readFileSync(budgetsPath, "utf8")).toBe(written);
+        await measurePackages(root, [
+          "@aui-test/one",
+          "@aui-test/missing",
+          "@aui-test/private",
+        ]),
+      ).toEqual(
+        new Map([
+          ["@aui-test/one .", await measureEntry(join(one, "dist/index.js"))],
+          [
+            "@aui-test/one ./extra",
+            await measureEntry(join(one, "dist/extra.js")),
+          ],
+        ]),
+      );
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
   });
 
-  it("records only packages changed vs origin/main, plus new entries", async () => {
-    const root = mkdtempSync(join(tmpdir(), "aui-size-git-"));
-    const budgetsPath = join(root, "size-budgets.json");
-    const git = (...args: string[]) =>
-      execFileSync("git", args, { cwd: root, encoding: "utf8", env: gitEnv });
-    const read = () => JSON.parse(readFileSync(budgetsPath, "utf8"));
-    const update = (updateAll = false) =>
-      silenced(() =>
-        checkSizes({ repoRoot: root, budgetsPath, update: true, updateAll }),
-      );
+  it("rejects an exported entry that was not built", async () => {
+    const root = mkdtempSync(join(tmpdir(), "aui-size-"));
     try {
-      const touched = writePackage(root, "touched", {
-        ".": "export const touched = 1;\n",
-      });
-      const dirty = writePackage(root, "dirty", {
-        ".": "export const dirty = 3;\n",
-      });
-      const stale = writePackage(root, "stale", {
-        ".": "export const stale = 2;\n",
-      });
-      const settled = writePackage(root, "settled", {
-        ".": "export const settled = 5;\n",
-      });
-      const fresh = writePackage(root, "fresh", {
-        ".": "export const fresh = 4;\n",
-      });
-      const touchedActual = await measureEntry(join(touched, "dist/index.js"));
-      const staleActual = await measureEntry(join(stale, "dist/index.js"));
-      const settledActual = await measureEntry(join(settled, "dist/index.js"));
-      const nearby = ({ min, gzip }: { min: number; gzip: number }) => ({
-        min: min + 10,
-        gzip: gzip + 10,
-      });
-      const staleBudget = { min: 5_000, gzip: 5_000 };
-      writeFileSync(
-        budgetsPath,
-        JSON.stringify({
-          "@aui-test/touched": { ".": nearby(touchedActual) },
-          "@aui-test/dirty": { ".": { min: 7_000, gzip: 7_000 } },
-          "@aui-test/stale": { ".": staleBudget },
-          "@aui-test/settled": { ".": nearby(settledActual) },
-        }),
-      );
+      writePackage(root, "missing", { ".": "" });
 
-      git("init", "--quiet");
-      git("commit", "--allow-empty", "-qm", "base");
-      git("add", "-A");
-      git("commit", "-qm", "all");
-      git("update-ref", "refs/remotes/origin/main", "HEAD");
-      // touched changes through a commit (the merge-base diff path), dirty
-      // through an untracked file (the porcelain path).
-      writeFileSync(join(touched, "src.ts"), "changed\n");
-      git("add", "-A");
-      git("commit", "-qm", "touch");
-      writeFileSync(join(dirty, "untracked.ts"), "changed\n");
-
-      expect(await update()).toBe(true);
-      expect(read()).toEqual({
-        "@aui-test/dirty": {
-          ".": await measureEntry(join(dirty, "dist/index.js")),
-        },
-        "@aui-test/fresh": {
-          ".": await measureEntry(join(fresh, "dist/index.js")),
-        },
-        "@aui-test/settled": { ".": nearby(settledActual) },
-        "@aui-test/stale": { ".": staleBudget },
-        "@aui-test/touched": { ".": touchedActual },
-      });
-
-      expect(await update(true)).toBe(true);
-      expect(read()["@aui-test/stale"]["."]).toEqual(staleActual);
-      expect(read()["@aui-test/settled"]["."]).toEqual(settledActual);
+      await expect(
+        measurePackages(root, ["@aui-test/missing"]),
+      ).rejects.toThrow("@aui-test/missing . was not built");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+});
+
+describe("diffSizes", () => {
+  it("classifies and orders gzip changes", () => {
+    const base = new Map([
+      ["@aui-test/same .", { min: 10, gzip: 100 }],
+      ["@aui-test/moved-b .", { min: 20, gzip: 200 }],
+      ["@aui-test/moved-a .", { min: 30, gzip: 100 }],
+      ["@aui-test/removed .", { min: 40, gzip: 70 }],
+    ]);
+    const head = new Map([
+      ["@aui-test/same .", { min: 999, gzip: 100 }],
+      ["@aui-test/moved-b .", { min: 21, gzip: 160 }],
+      ["@aui-test/moved-a .", { min: 31, gzip: 140 }],
+      ["@aui-test/new .", { min: 50, gzip: 100 }],
+    ]);
+
+    expect(diffSizes(base, head)).toEqual([
+      {
+        entry: "@aui-test/new .",
+        base: null,
+        head: 100,
+        delta: 100,
+        status: "new",
+      },
+      {
+        entry: "@aui-test/removed .",
+        base: 70,
+        head: null,
+        delta: -70,
+        status: "removed",
+      },
+      {
+        entry: "@aui-test/moved-a .",
+        base: 100,
+        head: 140,
+        delta: 40,
+        status: "moved",
+      },
+      {
+        entry: "@aui-test/moved-b .",
+        base: 200,
+        head: 160,
+        delta: -40,
+        status: "moved",
+      },
+      {
+        entry: "@aui-test/same .",
+        base: 100,
+        head: 100,
+        delta: 0,
+        status: "same",
+      },
+    ]);
+  });
+});
+
+describe("renderSizeReport", () => {
+  it("renders changed entries with byte and percentage changes", () => {
+    const rows = diffSizes(
+      new Map([
+        ["@aui-test/grown .", { min: 100_000, gzip: 95_215 }],
+        ["@aui-test/shrunk .", { min: 50_000, gzip: 47_000 }],
+        ["@aui-test/removed .", { min: 3_000, gzip: 2_468 }],
+        ["@aui-test/same .", { min: 1, gzip: 1 }],
+      ]),
+      new Map([
+        ["@aui-test/grown .", { min: 101_000, gzip: 95_927 }],
+        ["@aui-test/shrunk .", { min: 49_000, gzip: 46_940 }],
+        ["@aui-test/new .", { min: 2_000, gzip: 1_234 }],
+        ["@aui-test/same .", { min: 2, gzip: 1 }],
+      ]),
+    );
+
+    expect(renderSizeReport(rows, { base: "abc1234", head: "def5678" }))
+      .toBe(`<!-- aui-size-report -->
+**Bundle size** of \`def5678\` against \`abc1234\`: 4 of 5 measured entries changed.
+
+| Entry | Base | Head | Change |
+| --- | ---: | ---: | ---: |
+| \`@aui-test/removed .\` | 2,468 B |  | removed |
+| \`@aui-test/new .\` |  | 1,234 B | new |
+| \`@aui-test/grown .\` | 95,215 B | 95,927 B | +712 B (+0.7%) |
+| \`@aui-test/shrunk .\` | 47,000 B | 46,940 B | -60 B (-0.1%) |
+
+Gzip bytes of each published entry of the packages this change builds, minified by rolldown with every bare import external.
+`);
+  });
+
+  it("uses the singular entry label for one measured entry", () => {
+    const rows = diffSizes(
+      new Map([["@aui-test/one .", { min: 10, gzip: 10 }]]),
+      new Map([["@aui-test/one .", { min: 11, gzip: 11 }]]),
+    );
+
+    expect(renderSizeReport(rows, { base: "abc1234", head: "def5678" }))
+      .toBe(`<!-- aui-size-report -->
+**Bundle size** of \`def5678\` against \`abc1234\`: 1 of 1 measured entry changed.
+
+| Entry | Base | Head | Change |
+| --- | ---: | ---: | ---: |
+| \`@aui-test/one .\` | 10 B | 11 B | +1 B (+10.0%) |
+
+Gzip bytes of each published entry of the packages this change builds, minified by rolldown with every bare import external.
+`);
   });
 });
