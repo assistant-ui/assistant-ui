@@ -1495,12 +1495,18 @@ type OpenCodeStateEvent = {
   type: "permission.asked";
   request: OpenCodePermissionRequest;
 } | {
+  type: "permissions.reconciled";
+  pending: Readonly<Record<string, OpenCodePermissionRequest>>;
+} | {
   type: "permission.replied";
   permissionId: string;
   reply: OpenCodePermissionResponse;
 } | {
   type: "question.asked";
   request: OpenCodeQuestionRequest;
+} | {
+  type: "questions.reconciled";
+  pending: Readonly<Record<string, OpenCodeQuestionRequest>>;
 } | {
   type: "question.replied";
   questionId: string;
