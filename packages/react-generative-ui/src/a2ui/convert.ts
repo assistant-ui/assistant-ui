@@ -120,7 +120,7 @@ const bindingPath = (value: unknown): string | undefined =>
 type Scope = { readonly data: unknown; readonly path: string };
 
 const pointerIn = (scope: Scope, path: string): string =>
-  scope.path +
+  (path.startsWith("/") ? "" : scope.path) +
   decodePointer(path)
     .map((segment) => `/${segment.replaceAll("~", "~0").replaceAll("/", "~1")}`)
     .join("");
@@ -213,7 +213,12 @@ function materialize(
   depth = 0,
   positional = false,
 ): unknown {
-  if (isBinding(value)) return resolvePointer(source, value.path);
+  if (isBinding(value)) {
+    return resolvePointer(
+      value.path.startsWith("/") ? context.surface.dataModel : source,
+      value.path,
+    );
+  }
   if (Array.isArray(value)) {
     const entries = value.map((entry) =>
       materialize(entry, source, context, evaluate, depth, positional),
@@ -767,7 +772,11 @@ const convertTemplate = (
     retained ?? {
       $type: horizontalList ? "Row" : "ListView",
     };
-  const list = resolvePointer(scope.data, templateChildren.template.path);
+  const list = materialize(
+    { path: templateChildren.template.path },
+    scope.data,
+    context,
+  );
   const listPointer = pointerIn(scope, templateChildren.template.path);
   if (!Array.isArray(list)) {
     context.warnings.push(
