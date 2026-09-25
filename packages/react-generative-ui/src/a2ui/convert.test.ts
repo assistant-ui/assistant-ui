@@ -1359,7 +1359,7 @@ describe("convertSurfaceToUISpec", () => {
         {
           id: "root",
           component: "Column",
-          children: ["far", "next", "row", "send"],
+          children: ["far", "next", "row", "cleared", "send"],
         },
         {
           id: "far",
@@ -1373,18 +1373,27 @@ describe("convertSurfaceToUISpec", () => {
         },
         { id: "row", component: "TextField", value: { path: "/rows/0/name" } },
         {
+          id: "cleared",
+          component: "TextField",
+          value: { path: "/cleared/0/name" },
+        },
+        {
           id: "send",
           component: "Button",
           label: "Send",
           action: {
             event: {
               name: "send",
-              context: { items: { path: "/items" }, rows: { path: "/rows" } },
+              context: {
+                items: { path: "/items" },
+                rows: { path: "/rows" },
+                cleared: { path: "/cleared" },
+              },
             },
           },
         },
       ],
-      { items: [] },
+      { items: [], cleared: null },
     );
 
     expect(convertSurfaceToUISpec(surface).spec?.["children"]).toContainEqual({
@@ -1398,6 +1407,7 @@ describe("convertSurfaceToUISpec", () => {
         context: {
           items: [{ name: { $field: "/items/0/name" } }],
           rows: [{ name: { $field: "/rows/0/name" } }],
+          cleared: [{ name: { $field: "/cleared/0/name" } }],
         },
       },
     });

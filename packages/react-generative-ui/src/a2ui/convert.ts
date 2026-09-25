@@ -134,7 +134,7 @@ const setIn = (
   if (head === undefined) return leaf;
   if (
     /^(0|[1-9]\d*)$/.test(head) &&
-    (Array.isArray(value) || value === undefined)
+    (Array.isArray(value) || value === undefined || value === null)
   ) {
     const list = Array.isArray(value) ? value : [];
     const index = Number(head);
