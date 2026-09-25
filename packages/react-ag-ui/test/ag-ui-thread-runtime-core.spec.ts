@@ -8210,18 +8210,20 @@ describe("AGUIThreadRuntimeCore", () => {
 
     await core.append(createAppendMessage());
 
-    const opaqueOf = (id: string) => {
-      const message = core
-        .getMessages()
-        .find((m) => m.id === id) as ThreadAssistantMessage;
-      return (message.metadata.custom.agui as any).opaqueReasoning;
-    };
-    expect(opaqueOf("assistant-1")).toEqual([
-      { id: "r-1", encryptedValue: "sig-1" },
+    const messageOf = (id: string) =>
+      core.getMessages().find((m) => m.id === id) as ThreadAssistantMessage;
+    expect(messageOf("assistant-1").content.map((part) => part.type)).toEqual([
+      "tool-call",
     ]);
-    expect(opaqueOf("assistant-2")).toEqual([
-      { id: "r-2", encryptedValue: "sig-2" },
+    expect(
+      (messageOf("assistant-1").metadata.custom.agui as any).opaqueReasoning,
+    ).toEqual([{ id: "r-1", encryptedValue: "sig-1" }]);
+    expect(messageOf("assistant-2").content.map((part) => part.type)).toEqual([
+      "text",
     ]);
+    expect(
+      (messageOf("assistant-2").metadata.custom.agui as any).opaqueReasoning,
+    ).toEqual([{ id: "r-2", encryptedValue: "sig-2" }]);
   });
 
   it("signs reasoning that arrived on the legacy thinking channel", async () => {
