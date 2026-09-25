@@ -20,6 +20,7 @@ import { useAui } from "@assistant-ui/store";
 import {
   useRef,
   useEffect,
+  useLayoutEffect,
   useState,
   type RefObject,
   useCallback,
@@ -278,7 +279,6 @@ export const useExternalHistory = <TMessage>(
   toolApprovalResponses?: Map<string, RespondToToolApprovalOptions>,
   onToolApprovalResponsesRestored?: () => void,
 ) => {
-  const loadedRef = useRef(false);
   const [itemEpoch, setItemEpoch] = useState(0);
 
   const aui = useAui();
@@ -311,14 +311,33 @@ export const useExternalHistory = <TMessage>(
     return historyAdapter.withFormat<TMessage, any>(storageFormatAdapter);
   }, [historyAdapter, storageFormatAdapter]);
 
+  const activeFormatAdapterRef = useRef(formatAdapter);
+  const loadedFormatAdapterRef = useRef<typeof formatAdapter>(undefined);
+  const adapterGenerationRef = useRef(0);
+  const resetLoadingOnLoadRef = useRef(false);
+
   const isLoading = formatAdapter != null && !hasLoaded;
 
+  useLayoutEffect(() => {
+    if (activeFormatAdapterRef.current !== formatAdapter) {
+      resetLoadingOnLoadRef.current ||=
+        activeFormatAdapterRef.current !== undefined;
+      activeFormatAdapterRef.current = formatAdapter;
+      loadedFormatAdapterRef.current = undefined;
+      adapterGenerationRef.current += 1;
+    }
+  }, [formatAdapter]);
+
   useEffect(() => {
-    if (!formatAdapter || loadedRef.current) return undefined;
+    if (!formatAdapter || loadedFormatAdapterRef.current === formatAdapter)
+      return undefined;
+
+    const adapterGeneration = adapterGenerationRef.current;
 
     const loadHistory = async () => {
       try {
         const repo = await formatAdapter.load();
+        if (adapterGeneration !== adapterGenerationRef.current) return;
         toolArtifacts?.clear();
         toolInteractions?.clear();
         toolApprovalResponses?.clear();
@@ -369,9 +388,12 @@ export const useExternalHistory = <TMessage>(
           }
         }
       } catch (error) {
+        if (adapterGeneration !== adapterGenerationRef.current) return;
         console.error("Failed to load message history:", error);
       } finally {
-        setHasLoaded(true);
+        if (adapterGeneration === adapterGenerationRef.current) {
+          setHasLoaded(true);
+        }
       }
     };
 
@@ -392,12 +414,21 @@ export const useExternalHistory = <TMessage>(
 
     const threadState = runtimeRef.current.thread.getState();
     if (threadState.isRunning || threadState.messages.length > 0) {
-      loadedRef.current = true;
+      loadedFormatAdapterRef.current = formatAdapter;
+      resetLoadingOnLoadRef.current = false;
       setHasLoaded(true);
       return undefined;
     }
 
-    loadedRef.current = true;
+    loadedFormatAdapterRef.current = formatAdapter;
+    const resetLoading = resetLoadingOnLoadRef.current;
+    resetLoadingOnLoadRef.current = false;
+    if (resetLoading) {
+      // Mark this adapter as started before updating state because tap
+      // resources can synchronously rerun an effect when its state changes.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setHasLoaded(false);
+    }
     void loadHistory();
     return undefined;
   }, [
