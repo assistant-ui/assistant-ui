@@ -222,6 +222,80 @@ describe("RadioGroup", () => {
   });
 });
 
+describe("option identity", () => {
+  it.each(["CheckboxGroup", "RadioGroup", "Select"])(
+    "%s preserves the submitted choice when options move or their labels change",
+    async (type) => {
+      const save = vi.fn();
+      const registry = createActionRegistry({ save });
+      const form = (options: typeof toppings) => ({
+        $type: "Form",
+        $action: { type: "save" },
+        children: [
+          { $type: type, name: "choice", options },
+          { $type: "Button", label: "Save", submit: true },
+        ],
+      });
+      const container = await mount(form(toppings), { save });
+      if (type === "Select") {
+        container.querySelector("select")!.value = "olives";
+      } else {
+        await act(async () => container.querySelectorAll("input")[1]!.click());
+      }
+      await act(async () => container.querySelector("button")!.click());
+
+      await act(async () => {
+        root!.render(
+          view(
+            form([
+              { label: "Pepper", value: "pepper" },
+              ...[...toppings].reverse().map((option) => ({
+                ...option,
+                label: option.label.toUpperCase(),
+              })),
+            ]),
+            registry.dispatch,
+          ),
+        );
+      });
+      await act(async () => container.querySelector("button")!.click());
+
+      const payload = {
+        type: "save",
+        $input: { choice: type === "CheckboxGroup" ? ["olives"] : "olives" },
+      };
+      expect(save.mock.calls.map(([call]) => call.payload)).toEqual([
+        payload,
+        payload,
+      ]);
+    },
+  );
+
+  it.each(["CheckboxGroup", "RadioGroup", "Select"])(
+    "%s retains duplicate-valued options without duplicate React keys",
+    async (type) => {
+      const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        const container = await mount(
+          {
+            $type: type,
+            options: [
+              { label: "First", value: "same" },
+              { label: "Second", value: "same" },
+              { label: "Third", value: "same:1" },
+            ],
+          },
+          {},
+        );
+        expect(container.querySelectorAll("input, option")).toHaveLength(3);
+        expect(errors).not.toHaveBeenCalled();
+      } finally {
+        errors.mockRestore();
+      }
+    },
+  );
+});
+
 describe("CheckboxGroup", () => {
   it("dispatches its checked option values in option order on every change", async () => {
     const pick = vi.fn();

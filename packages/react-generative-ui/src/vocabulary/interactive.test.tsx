@@ -54,7 +54,7 @@ describe("interactiveVocabulary", () => {
     expect(html).toContain('aria-label="Choose"');
   });
 
-  it("Select keys options by index so duplicate values do not collide", () => {
+  it("Select renders every option when values are duplicated", () => {
     const html = render({
       $type: "Select",
       options: [
