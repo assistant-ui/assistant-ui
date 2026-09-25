@@ -54,6 +54,48 @@ const mount = async (
 };
 
 describe("RadioGroup", () => {
+  it.each(["Form", "Card"])(
+    "keeps repeated logical names mutually exclusive inside a %s form",
+    async ($type) => {
+      const save = vi.fn();
+      const container = await mount(
+        {
+          $type,
+          ...($type === "Form"
+            ? { $action: { type: "save" } }
+            : {
+                asForm: true,
+                confirm: { label: "Save", $action: { type: "save" } },
+              }),
+          children: [
+            { $type: "RadioGroup", name: "choice", options: toppings },
+            {
+              $type: "Card",
+              children: {
+                $type: "RadioGroup",
+                name: "choice",
+                options: toppings,
+              },
+            },
+            ...($type === "Form"
+              ? [{ $type: "Button", label: "Save", submit: true }]
+              : []),
+          ],
+        },
+        { save },
+      );
+      const inputs = container.querySelectorAll("input");
+      await act(async () => inputs[4]!.click());
+      await act(async () => inputs[0]!.click());
+      await act(async () => container.querySelector("button")!.click());
+
+      expect(inputs[4]!.checked).toBe(false);
+      expect(save).toHaveBeenCalledWith({
+        payload: { type: "save", $input: { choice: "basil" } },
+      });
+    },
+  );
+
   it("preserves independent selections across separately rendered and hydrated roots", async () => {
     const save = vi.fn();
     const registry = createActionRegistry({ save });
