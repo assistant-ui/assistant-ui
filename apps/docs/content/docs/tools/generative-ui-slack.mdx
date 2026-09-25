@@ -121,7 +121,7 @@ A node's `$action` is split across two Block Kit fields. `$action.type` becomes 
 becomes a button with `action_id: "approve_order"` and `value: "{\"orderId\":\"48213\"}"`.
 
 <Callout type="warn">
-Only buttons carry `value`. `Select`, `Input`, `DatePicker`, `Checkbox`, `RadioGroup`, and `CheckboxGroup` emit `action_id` alone, so any extra keys on their `$action` are dropped. Keep those controls' actions to a bare `type`, or put the payload on a button that submits alongside them. A `{ "$field": name }` reference in a button's payload is dropped with a `dropped` warning, because a button click carries no other control's value.
+Only buttons carry `value`. `Select`, `Input`, `DatePicker`, `Checkbox`, `RadioGroup`, and `CheckboxGroup` emit `action_id` alone, so any extra keys on their `$action` are dropped. Keep those controls' actions to a bare `type`, or put the payload on a button that submits alongside them. A `{ "$field": name }` reference in a button's payload becomes its `fallback`, or is dropped when it has none, with a `fallback` warning, because a button click carries no other control's value.
 </Callout>
 
 ### Inbound
