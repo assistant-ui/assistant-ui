@@ -30,8 +30,7 @@ const MODES: {
   {
     value: "agent",
     title: "Coding agent",
-    detail:
-      "Your agent reads the project, asks what it needs, and installs while you watch.",
+    detail: "Your agent reads the project and installs assistant-ui for you.",
     icon: BotIcon,
     recommended: true,
   },
@@ -74,11 +73,13 @@ export function StartSetupDialog({
   return (
     <Dialog open={open} onOpenChange={setOpenAndReset}>
       <DialogTrigger render={<Button />}>{children}</DialogTrigger>
-      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 motion-reduce:animate-none sm:max-w-[34rem]">
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 motion-reduce:animate-none sm:max-w-[40rem]">
         <DialogHeader className="px-6 pt-7 pb-6 sm:px-8 sm:pt-8">
-          <p className="text-muted-foreground mb-3 font-mono text-xs">
-            assistant-ui
-          </p>
+          <span
+            role="img"
+            aria-label="assistant-ui"
+            className="bg-foreground/45 mb-4 block h-[18px] w-[108px] [mask-image:url(/brand/logotype.svg)] [mask-size:contain] [mask-position:left_center] [mask-repeat:no-repeat]"
+          />
           <DialogTitle className={cn(typeSection, "max-w-[22ch] pr-5")}>
             How do you want to set up assistant-ui?
           </DialogTitle>
@@ -126,7 +127,7 @@ export function StartSetupDialog({
                       </span>
                     ) : null}
                   </span>
-                  <span className="text-muted-foreground mt-1.5 block text-sm leading-relaxed">
+                  <span className="text-muted-foreground mt-1.5 block text-sm leading-relaxed sm:whitespace-nowrap">
                     {option.detail}
                   </span>
                 </span>
