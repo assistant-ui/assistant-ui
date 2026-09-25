@@ -87,4 +87,19 @@ describe("TrustedBy", () => {
     expect(widthEnvelope(outgoing[0]!)).toEqual(widthEnvelope(incoming[0]!));
     expect([...outgoing[0]!.classList]).toContain("mx-auto");
   });
+
+  it("lets each logo preserve its intrinsic aspect ratio", () => {
+    const { container } = render(<TrustedBy />);
+    const images = Array.from(container.querySelectorAll("img"));
+
+    expect(images.length).toBeGreaterThan(0);
+    for (const image of images) {
+      expect(image.dataset.nimg).toBe("fill");
+      expect(image.hasAttribute("width")).toBe(false);
+      expect(image.hasAttribute("height")).toBe(false);
+      expect([...(image.parentElement?.classList ?? [])]).toEqual(
+        expect.arrayContaining(["relative", "h-6", "w-full"]),
+      );
+    }
+  });
 });

@@ -221,16 +221,16 @@ function LogoMark({
   onSettle?: (() => void) | undefined;
 }) {
   return (
-    <>
+    <span className="relative block h-6 w-full">
       <Image
         src={logo.src}
         alt={logo.alt}
-        width={120}
-        height={24}
+        fill
+        sizes="144px"
         onLoad={onSettle}
         onError={onSettle}
         className={cn(
-          "h-6 w-auto max-w-full object-contain opacity-40 transition-opacity duration-150 ease-out hover:opacity-100",
+          "object-contain opacity-40 transition-opacity duration-150 ease-out hover:opacity-100",
           logo.darkSrc
             ? "dark:hidden"
             : logo.invert === false
@@ -242,14 +242,14 @@ function LogoMark({
         <Image
           src={logo.darkSrc}
           alt=""
-          width={120}
-          height={24}
+          fill
+          sizes="144px"
           onLoad={onSettle}
           onError={onSettle}
-          className="hidden h-6 w-auto max-w-full object-contain opacity-40 transition-opacity duration-150 ease-out hover:opacity-100 dark:block"
+          className="hidden object-contain opacity-40 transition-opacity duration-150 ease-out hover:opacity-100 dark:block"
         />
       ) : null}
-    </>
+    </span>
   );
 }
 
