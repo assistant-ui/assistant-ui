@@ -53,6 +53,7 @@ const adapter = useCloudThreadListAdapter({
 | `sdk` | `undefined` | A `{ name, version }` identity registered after the core identity. Every Cloud request then carries it in `Aui-Sdk`. **Settings › Telemetry** lists the integration and its SDK version. |
 | `create` | `undefined` | Resolves an optional external id before `cloud.threads.create`. It receives the thread list item's `id`. |
 | `delete` | `undefined` | Runs before `cloud.threads.delete`. |
+| `upsert` | `undefined` | Creates with `upsert`, so a create retried after a lost response reuses the Cloud thread that already has the returned external id. Set it when that id names exactly one conversation. |
 
 The hook keeps the latest callbacks without rebuilding the adapter. Its memo key is the Cloud instance only, so changing `create` or `delete` does not replace the list, while changing `cloud` does. Keep one Cloud instance for the lifetime of the list, and create a new adapter if you replace it.
 

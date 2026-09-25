@@ -64,6 +64,31 @@ describe("createCloudThreadListAdapter", () => {
     });
   });
 
+  it("creates with upsert only when asked and an external id exists", async () => {
+    const cloud = makeCloud();
+    const create = vi.fn(async (threadId: string) => ({
+      externalId: threadId === "local-2" ? undefined : `session-${threadId}`,
+    }));
+    const adapter = createCloudThreadListAdapter({
+      cloud,
+      create,
+      upsert: true,
+    });
+
+    await adapter.initialize("local-1");
+    await adapter.initialize("local-2");
+
+    expect(cloud.threads.create).toHaveBeenNthCalledWith(1, {
+      last_message_at: expect.any(Date),
+      external_id: "session-local-1",
+      upsert: true,
+    });
+    expect(cloud.threads.create).toHaveBeenNthCalledWith(2, {
+      last_message_at: expect.any(Date),
+      external_id: undefined,
+    });
+  });
+
   it("maps the cloud api and reads callbacks through the getter", async () => {
     const cloud = makeCloud();
     const options: {

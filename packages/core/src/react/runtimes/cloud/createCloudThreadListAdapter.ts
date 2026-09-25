@@ -23,6 +23,8 @@ export type CloudThreadListAdapterOptions = {
   /** Returns the external id for a new cloud thread, which is created once this resolves; `threadId` is the `id` of the thread list item being saved. */
   create?: ((threadId: string) => Promise<ThreadData>) | undefined;
   delete?: ((threadId: string) => Promise<void>) | undefined;
+  /** Creates each cloud thread with `upsert`, so a retried create reuses the thread that already has the external id `create` returned; set it when that id names exactly one conversation. */
+  upsert?: boolean | undefined;
 };
 
 const toCustom = (value: unknown): Record<string, unknown> | undefined =>
@@ -186,6 +188,9 @@ export const createCloudThreadListAdapter = (
       const { thread_id: remoteId } = await cloud.threads.create({
         last_message_at: new Date(),
         external_id,
+        ...(external_id !== undefined && getOptions().upsert
+          ? { upsert: true }
+          : {}),
       });
 
       return { externalId: external_id, remoteId: remoteId };

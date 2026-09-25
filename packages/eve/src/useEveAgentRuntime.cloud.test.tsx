@@ -215,6 +215,7 @@ describe("useEveAgentRuntime with cloud", () => {
       expect(cloud.threads.create).toHaveBeenCalledExactlyOnceWith({
         last_message_at: expect.any(Date),
         external_id: "session-1",
+        upsert: true,
       }),
     );
     await waitFor(() =>
@@ -250,6 +251,7 @@ describe("useEveAgentRuntime with cloud", () => {
       expect(cloud.threads.create).toHaveBeenCalledExactlyOnceWith({
         last_message_at: expect.any(Date),
         external_id: "session-2",
+        upsert: true,
       }),
     );
   });
@@ -294,8 +296,35 @@ describe("useEveAgentRuntime with cloud", () => {
       expect(cloud.threads.create).toHaveBeenCalledExactlyOnceWith({
         last_message_at: expect.any(Date),
         external_id: "session-3",
+        upsert: true,
       }),
     );
+  });
+
+  it("retries a lost save with the same session and upsert, so the cloud answers the thread it already stored", async () => {
+    const cloud = makeCloud();
+    cloud.threads.create.mockRejectedValueOnce(new Error("response lost"));
+    const app = setup({ cloud });
+    await settle();
+    const agent = lastAgent();
+    agent.send.mockImplementation(async () => {
+      agent.options.onSessionChange?.(createdSession("session-1"));
+    });
+
+    act(() => app.runtime().thread.append("hi"));
+    await waitFor(() => expect(cloud.threads.create).toHaveBeenCalledOnce());
+    await settle();
+    expect(app.runtime().threads.mainItem.getState().status).toBe("new");
+
+    act(() => app.runtime().thread.append("again"));
+    await waitFor(() => expect(cloud.threads.create).toHaveBeenCalledTimes(2));
+    for (const [body] of cloud.threads.create.mock.calls) {
+      expect(body).toEqual({
+        last_message_at: expect.any(Date),
+        external_id: "session-1",
+        upsert: true,
+      });
+    }
   });
 
   it("opens a listed thread on the session its external id names and replays it", async () => {

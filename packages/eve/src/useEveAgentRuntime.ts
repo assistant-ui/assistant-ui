@@ -631,6 +631,7 @@ const useEveCloudRuntime = (
   const adapter = useCloudThreadListAdapter({
     cloud,
     sdk: EVE_SDK,
+    upsert: true,
     create: async (threadId) => ({ externalId: await sessions.wait(threadId) }),
   });
   return useRemoteThreadListRuntime({
