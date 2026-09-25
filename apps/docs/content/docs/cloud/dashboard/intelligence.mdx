@@ -45,11 +45,11 @@ A rate that stands out from the page's own mean is shown in its outcome's color,
 
 ### Tasks, questions, and judged outcomes
 
-**Tasks** groups repeated requests. Its consistency reading is **Consistent**, **Mixed**, or **Inconsistent**. Open a task to inspect it in the current range. The **Tasks** table carries a **Thumbs down rate** that opens Threads with `task` set and `feedback=negative`.
+**Tasks** groups repeated requests. Its consistency reading is **Consistent**, **Mixed**, or **Inconsistent**. Open a task to inspect it in the current range. The **Tasks** table carries a **Thumbs down rate** that opens Threads with `task` set and `feedback=negative`. **View all** on Topics opens `/intelligence/topics`, and **View all** on Tasks opens `/intelligence/tasks`.
 
 **Unanswered questions** lists the questions identified by the classifier, with the selected range still in effect. **Sentiment by topic** compares the topic groups, while the judged mix below it separates **Sentiment**, **Resolution**, and **Languages**. Sentiment is positive, neutral, or negative. Resolution separates resolved and unresolved conversations. Languages is the language mix reported by analysis.
 
-**Evaluator verdicts** shows the evaluator results alongside the analysis. Any judged section that has not received a result reads **Not judged yet** and explains **After the next analysis run.**
+**Evaluator verdicts** shows the evaluator results alongside the analysis. With no evaluator rules, it reads **No evaluators yet** and offers **Configure evaluators**. A configured rule with no results reads **No verdicts yet**.
 
 ## Follow a figure to the conversations
 
@@ -102,4 +102,4 @@ Before the first completed analysis, the page reads: **No analysis yet. The anal
 |---|---|---|
 | A topic is missing | The conversation may be classified as junk, or the configured topic ceiling folded new conversations into Other. | Check the conversation in Threads with the Junk filter, then review the classifier settings. |
 | A topic has no trend | The table has no Trend reading for that topic. | Compare the topic after later analysis runs. |
-| Evaluator verdicts are empty | The section has not been judged yet. | Read the **After the next analysis run** state, then inspect the analysis-run ledger. |
+| Evaluator verdicts are empty | The project has no evaluator rules, or a configured rule has no verdicts. | Select **Configure evaluators** to add a rule. A configured rule without results reads **No verdicts yet**. |

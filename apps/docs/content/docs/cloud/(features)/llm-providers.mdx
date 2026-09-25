@@ -17,6 +17,10 @@ A provider can supply a model for [thread titles](/docs/cloud/thread-titles), [I
 | [Assistants](/docs/cloud/assistants) | Each assistant is bound to a provider and its model configuration. |
 | Harness voice | A harness can hold a voice provider reference. |
 
+## Provider list and pages
+
+The **LLM Providers** list shows **Provider**, **Type**, **ID**, **Models**, **Updated** and **Actions**. A provider page shows its copyable ID and type, the configured **Models** list, and Details for Type, Provider key, Base URL, Models and Credential fields. Its **Edit** action opens the configuration page, which lets you save or cancel changes.
+
 ## Configure a provider
 
 ![LLM providers on the demo project](../images/llm-providers.webp)
@@ -89,7 +93,7 @@ Provider creation, updates, and deletion enter the audit log as `provider.create
 
 ## Costs and limits
 
-The provider key is the catalog identity that the cloud uses for model discovery and pricing. Set it to the preset's catalog key when you need catalog pricing and a catalog fallback. The models pinned on a provider are offered whether or not the provider answers.
+The provider key is the catalog identity that the cloud uses for model discovery and pricing. The chosen preset supplies it when the provider is created. The models pinned on a provider are offered whether or not the provider answers.
 
 You cannot delete a provider while an assistant still uses it. The dashboard refuses the delete with `This provider is currently in use by one or more assistants. Please update or delete the assistants using this provider first.` Update or remove those assistants before deleting the provider.
 
