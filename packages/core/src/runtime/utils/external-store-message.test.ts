@@ -43,6 +43,14 @@ describe("getExternalStoreMessages", () => {
     expect(getExternalStoreMessages({ messages })).toBe(sources);
   });
 
+  it("reads thread containers with an additional type discriminator", () => {
+    const messages: ThreadMessage[] = [nested];
+    const sources = [{ id: "thread-source" }];
+    bindExternalStoreMessage(messages, sources);
+    const container = { type: "thread", messages };
+    expect(getExternalStoreMessages(container)).toBe(sources);
+  });
+
   it("does not substitute transcript sources for an unbound tool part", () => {
     const messages: ThreadMessage[] = [nested];
     bindExternalStoreMessage(messages, [{ id: "nested-source" }]);
