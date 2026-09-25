@@ -914,6 +914,9 @@ const useLangGraphRuntimeImpl = (
           const { base, transcripts } = splitTranscriptTail(truncated);
           const editMessage = toLangGraphUserMessage(msg);
           stageAttachments(editMessage.id, msg.attachments);
+          const shownMessages = [...truncated, editMessage];
+          langGraphMessagesRef.current = shownMessages;
+          setMessages(shownMessages);
           return handleSendMessage(
             [...transcripts, editMessage],
             { runConfig: msg.runConfig },

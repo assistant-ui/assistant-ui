@@ -3467,7 +3467,7 @@ describe("useLangGraphRuntime", () => {
 
     it("stops an edit that is still looking up its checkpoint", async () => {
       const checkpoint = deferred<string | null>();
-      const stream = vi.fn(() =>
+      const stream = vi.fn((_messages: unknown, _config: unknown) =>
         (async function* () {
           yield {
             event: "messages/complete",
@@ -3519,6 +3519,75 @@ describe("useLangGraphRuntime", () => {
         checkpoint.resolve("cp-1");
       });
       expect(stream).toHaveBeenCalledTimes(1);
+      expect(textsOf(result.current)).toEqual(["edited question"]);
+
+      await act(async () => {
+        result.current.thread.append("next");
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      expect(stream).toHaveBeenCalledTimes(2);
+      expect(stream.mock.calls[1]![0]).toMatchObject([
+        { type: "human", content: "next" },
+      ]);
+      expect(stream.mock.calls[1]![1]).not.toHaveProperty("checkpointId");
+      expect(textsOf(result.current)).toEqual([
+        "edited question",
+        "next",
+        "answer",
+      ]);
+    });
+
+    it("shows the edited message once while its checkpoint is looked up and after it is sent", async () => {
+      const checkpoint = deferred<string | null>();
+      const stream = vi.fn((_messages: unknown, _config: unknown) => {
+        const call = stream.mock.calls.length;
+        return (async function* () {
+          yield {
+            event: "messages/complete",
+            data: [{ type: "ai", id: `a-${call}`, content: `answer ${call}` }],
+          };
+        })();
+      });
+      const result = await renderWithCheckpoint(
+        stream as unknown as LangGraphStreamCallback<LangChainMessage>,
+        () => checkpoint.promise,
+      );
+      await act(async () => {
+        result.current.thread.append("question");
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      const original = result.current.thread
+        .getState()
+        .messages.find((m) => m.role === "user")!;
+
+      await act(async () => {
+        result.current.thread.append({
+          role: "user",
+          parentId: null,
+          sourceId: original.id,
+          content: [{ type: "text", text: "edited question" }],
+        });
+      });
+      const shown = result.current.thread
+        .getState()
+        .messages.filter((m) => m.role === "user");
+      expect(shown.map(getThreadMessageText)).toEqual(["edited question"]);
+
+      await act(async () => {
+        checkpoint.resolve("cp-1");
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      expect(stream.mock.calls[1]![0]).toMatchObject([
+        { type: "human", id: shown[0]!.id, content: "edited question" },
+      ]);
+      expect(stream.mock.calls[1]![1]).toMatchObject({ checkpointId: "cp-1" });
+      expect(textsOf(result.current)).toEqual(["edited question", "answer 2"]);
     });
 
     it("runs a message queued during the checkpoint lookup after the edit", async () => {
