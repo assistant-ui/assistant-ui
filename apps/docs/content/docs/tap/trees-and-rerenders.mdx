@@ -102,7 +102,9 @@ A tap scheduler batches multiple state changes before rendering its root.
 
 ### flushTapSync
 
-`flushTapSync` lets you flush pending tap scheduler updates synchronously.
+`flushTapSync` runs a callback and synchronously flushes the tap scheduler
+updates it schedules. Updates scheduled before the call wait for the next
+scheduled flush.
 
 ```ts
 import { flushTapSync } from "@assistant-ui/tap";

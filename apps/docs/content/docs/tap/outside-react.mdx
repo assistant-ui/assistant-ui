@@ -61,8 +61,10 @@ maximum-update-depth error.
 
 ### flushTapSync
 
-`flushTapSync` flushes pending tap-scheduled updates synchronously, so the
-new state is readable immediately after.
+`flushTapSync` runs a callback and synchronously flushes the tap updates that
+callback schedules, so the new state is readable immediately after. Updates
+scheduled before the call are not part of that flush; they commit on the next
+scheduled flush.
 
 ```ts
 import { flushTapSync } from "@assistant-ui/tap";
