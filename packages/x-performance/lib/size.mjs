@@ -212,9 +212,15 @@ export const compareSizes = async ({ root, ref, report }) => {
   if (base === "unknown")
     throw new Error(`cannot resolve the merge base of HEAD and ${ref}`);
   const { sha, dirty } = envStamp(root);
+  // Measured against its first parent, a pull request's merge commit stands for the branch it merges, whose head is the commit a reader can find on the PR.
+  const merged =
+    git(["rev-parse", "HEAD^1"], root) === base
+      ? git(["rev-parse", "--short", "HEAD^2"], root)
+      : "unknown";
+  const head = merged === "unknown" ? sha : merged;
   const labels = {
     base: git(["rev-parse", "--short", base], root),
-    head: dirty ? `${sha}, dirty` : sha,
+    head: dirty ? `${head}, dirty` : head,
   };
   const onHead = publishedPackages(root);
   const names = affectedPackages(root, base).filter((name) => onHead.has(name));
@@ -254,7 +260,9 @@ export const compareSizes = async ({ root, ref, report }) => {
         change: change(row),
       })),
     );
-  console.log(`${tally(rows)} against ${labels.base}`);
+  console.log(
+    `bundle size of ${labels.head} against ${labels.base}: ${tally(rows)}`,
+  );
   if (report && changed.length > 0)
     writeFileSync(report, renderSizeReport(rows, labels));
 };
