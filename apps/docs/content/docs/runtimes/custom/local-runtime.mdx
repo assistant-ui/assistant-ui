@@ -601,6 +601,8 @@ A tool call with a pending approval pauses the run, whether or not the tool is l
 
 Once every pending approval on the message is decided and every listed human tool has a result, the runtime invokes your adapter again. Read the decisions from `unstable_getMessage().content`, perform the approved actions, and return the follow-up response. A tool call that carries an approval is owned by the gate: it does not additionally require a result, even when its name is listed in `unstable_humanToolNames`.
 
+If the user sends another message instead of answering, the pause ends, because a run only resumes from the last message. Each open approval records `approval.resolution: "cancelled"`, the paused message settles as `incomplete` with reason `cancelled`, and a result added to it later is stored without invoking your adapter again. The next run still receives those calls without results, so answer each one before the history reaches a provider; `toGenericMessages` from `assistant-stream` reports them as not completed.
+
 ## Resuming a run
 
 `resumeRun` reconnects to an in-progress assistant run. Useful for page refresh, network reconnect, tab backgrounding, or thread switching when the backend is still generating.
