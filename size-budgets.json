@@ -269,8 +269,8 @@
   },
   "assistant-stream": {
     ".": {
-      "min": 61265,
-      "gzip": 17040
+      "min": 61638,
+      "gzip": 17135
     },
     "./resumable": {
       "min": 17746,
@@ -285,8 +285,8 @@
       "gzip": 2910
     },
     "./utils": {
-      "min": 15755,
-      "gzip": 4953
+      "min": 16128,
+      "gzip": 5063
     }
   },
   "heat-graph": {
