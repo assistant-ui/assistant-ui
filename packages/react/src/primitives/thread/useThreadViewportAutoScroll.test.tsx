@@ -947,13 +947,13 @@ describe("useThreadViewportAutoScroll", () => {
       );
     });
 
-    const scrollToSpy = vi.spyOn(HTMLElement.prototype, "scrollTo");
-    scrollToSpy.mockClear();
-
     act(() => {
       fireEvent.click(screen.getByTestId("pause-auto-scroll"));
     });
     expect(screen.getByTestId("auto-scroll-paused").textContent).toBe("true");
+
+    const scrollToSpy = vi.spyOn(HTMLElement.prototype, "scrollTo");
+    scrollToSpy.mockClear();
 
     viewportMeasurementOffset += 200;
     act(notifyResizeObservers);
@@ -1165,5 +1165,51 @@ describe("useThreadViewportAutoScroll", () => {
     });
     expect(screen.getByTestId("outer-paused").textContent).toBe("false");
     expect(screen.getByTestId("auto-scroll-paused").textContent).toBe("false");
+  });
+
+  it("keeps autoScrollPaused true until every holder releases, or until explicit resume", async () => {
+    let store!: ReturnType<typeof useThreadViewportStore>;
+    const Probe: FC = () => {
+      store = useThreadViewportStore();
+      const paused = useThreadViewport((s) => s.autoScrollPaused);
+      return <output data-testid="paused-state">{String(paused)}</output>;
+    };
+
+    render(
+      <SyncRuntimeProvider>
+        <Probe />
+      </SyncRuntimeProvider>,
+    );
+
+    expect(screen.getByTestId("paused-state").textContent).toBe("false");
+
+    let release1!: () => void;
+    let release2!: () => void;
+
+    act(() => {
+      release1 = store!.getState().pauseAutoScroll();
+      release2 = store!.getState().pauseAutoScroll();
+    });
+    expect(screen.getByTestId("paused-state").textContent).toBe("true");
+
+    act(() => {
+      release1();
+    });
+    expect(screen.getByTestId("paused-state").textContent).toBe("true");
+
+    act(() => {
+      release2();
+    });
+    expect(screen.getByTestId("paused-state").textContent).toBe("false");
+
+    act(() => {
+      release1 = store!.getState().pauseAutoScroll();
+    });
+    expect(screen.getByTestId("paused-state").textContent).toBe("true");
+
+    act(() => {
+      store!.getState().resumeAutoScroll();
+    });
+    expect(screen.getByTestId("paused-state").textContent).toBe("false");
   });
 });

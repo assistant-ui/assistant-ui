@@ -45,13 +45,13 @@ const useThreadViewportStoreValue = (options: ThreadViewportStoreOptions) => {
       const isAtBottomChanged = outerState.isAtBottom !== state.isAtBottom;
       const pausedChanged =
         outerState.autoScrollPaused !== state.autoScrollPaused;
-      if (isAtBottomChanged || pausedChanged) {
-        writableStore(outerViewport).setState({
-          ...(isAtBottomChanged ? { isAtBottom: state.isAtBottom } : {}),
-          ...(pausedChanged
-            ? { autoScrollPaused: state.autoScrollPaused }
-            : {}),
-        });
+      if (pausedChanged && !state.autoScrollPaused) {
+        outerState.resumeAutoScroll();
+      } else if (pausedChanged && state.autoScrollPaused) {
+        writableStore(outerViewport).setState({ autoScrollPaused: true });
+      }
+      if (isAtBottomChanged) {
+        writableStore(outerViewport).setState({ isAtBottom: state.isAtBottom });
       }
     });
   }, [store, outerViewport]);
@@ -59,8 +59,13 @@ const useThreadViewportStoreValue = (options: ThreadViewportStoreOptions) => {
   useEffect(() => {
     if (!outerViewport) return;
     return outerViewport.subscribe((state) => {
-      if (store.getState().autoScrollPaused !== state.autoScrollPaused) {
-        store.setState({ autoScrollPaused: state.autoScrollPaused });
+      const innerState = store.getState();
+      if (innerState.autoScrollPaused !== state.autoScrollPaused) {
+        if (!state.autoScrollPaused) {
+          innerState.resumeAutoScroll();
+        } else {
+          store.setState({ autoScrollPaused: true });
+        }
       }
     });
   }, [store, outerViewport]);
