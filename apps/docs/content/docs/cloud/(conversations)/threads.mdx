@@ -26,7 +26,7 @@ Within either request, the cloud orders threads by `last_message_at` and then id
 | `cloud` | The automatic anonymous cloud client when available | An `AssistantCloud` client | Backs the remote list. Without a client, the adapter uses an in memory thread list. |
 | `sdk` | None | An SDK identity | Registers the identity after the core SDK identity. |
 | `create` | None | An async callback returning `{ externalId }` | Runs before remote initialization. Its result is sent as the new thread's `external_id`. |
-| `upsert` | `false` | A boolean | Set to `true` when each stable `externalId` identifies one conversation; retries reuse the workspace's existing thread. Requires Assistant Cloud API v0.2.0 or later. |
+| `upsert` | `false` | A boolean | Set to `true` when each stable `externalId` identifies one conversation; retries reuse the workspace's existing thread. Requires a Cloud API version that supports `upsert`; older self-hosted servers may reject the field. |
 | `delete` | None | An async callback that receives the cloud thread id | Runs and settles before the cloud thread is deleted. |
 
 ![Threads on the demo project](../images/threads.webp)
