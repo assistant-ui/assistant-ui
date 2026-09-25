@@ -151,6 +151,15 @@ describe("slotState", () => {
     });
   });
 
+  it("settles when a pending logo becomes current again", () => {
+    const midFade = { current: b, previous: a, entered: false };
+    expect(slotState(midFade, a, { hidden: false, changed: false })).toEqual({
+      current: a,
+      previous: null,
+      entered: true,
+    });
+  });
+
   it("adopts the logo outright while the layout is not painting the slot", () => {
     expect(slotState(settled, b, { hidden: true, changed: false })).toEqual({
       current: b,

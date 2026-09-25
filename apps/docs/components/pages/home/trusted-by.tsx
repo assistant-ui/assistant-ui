@@ -202,6 +202,9 @@ export function slotState(
   if (layout.hidden || layout.changed) {
     return { current: logo, previous: null, entered: true };
   }
+  if (logo.alt === state.previous?.alt) {
+    return { current: logo, previous: null, entered: true };
+  }
   if (logo.alt === state.current.alt) return state;
   return {
     current: logo,
@@ -225,6 +228,7 @@ function LogoMark({
         width={120}
         height={24}
         onLoad={onSettle}
+        onError={onSettle}
         className={cn(
           "h-6 w-auto max-w-full object-contain opacity-40 transition-opacity duration-150 ease-out hover:opacity-100",
           logo.darkSrc
@@ -241,6 +245,7 @@ function LogoMark({
           width={120}
           height={24}
           onLoad={onSettle}
+          onError={onSettle}
           className="hidden h-6 w-auto max-w-full object-contain opacity-40 transition-opacity duration-150 ease-out hover:opacity-100 dark:block"
         />
       ) : null}
@@ -263,10 +268,8 @@ function LogoSlot({
   const [wasWide, setWasWide] = useState(wide);
   const mark = useRef<HTMLAnchorElement>(null);
 
-  // Readiness only counts rendered images: the theme-hidden half of a light/dark
-  // pair is display:none, and a lazy image in that state never loads. Nothing
-  // reports failure either, because the only caller is a rendered image's own
-  // onLoad, so a logo that fails to load simply never becomes ready.
+  // Readiness only counts rendered images because the theme-hidden half of a
+  // light/dark pair is display:none and never loads.
   const settle = () => {
     for (const image of mark.current?.querySelectorAll("img") ?? []) {
       if (getComputedStyle(image).display === "none") continue;
@@ -335,16 +338,33 @@ function LogoSlot({
 }
 
 export function TrustedBy() {
+  const root = useRef<HTMLDivElement>(null);
   const [shown, setShown] = useState<readonly Logo[]>(() =>
     LOGOS.slice(0, SLOTS),
   );
   const [hovered, setHovered] = useState(false);
   const [pageHidden, setPageHidden] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
+  const [nearViewport, setNearViewport] = useState(false);
   const [wide, setWide] = useState(true);
   const order = useRef<number[]>([]);
-  const frozen = reduceMotion || hovered || pageHidden;
+  const frozen = reduceMotion || hovered || pageHidden || !nearViewport;
   const slots = wide ? ALL_SLOTS : MOBILE_SLOTS;
+
+  useEffect(() => {
+    const element = root.current;
+    if (!element || typeof IntersectionObserver === "undefined") {
+      setNearViewport(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setNearViewport(entry?.isIntersecting ?? false),
+      { rootMargin: "200px 0px" },
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -384,6 +404,7 @@ export function TrustedBy() {
 
   return (
     <div
+      ref={root}
       className="flex flex-col gap-8"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
