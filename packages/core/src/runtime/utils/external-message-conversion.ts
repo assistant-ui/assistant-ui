@@ -176,7 +176,7 @@ export const joinExternalMessages = (
           result: output.result,
           artifact: output.artifact,
           isError: output.isError,
-          messages: output.messages,
+          messages: output.messages ?? toolCall.messages,
         };
       }
     } else {

@@ -1,4 +1,5 @@
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
+import { getPartialJsonObjectMeta } from "assistant-stream/utils";
 import type { ReactNode } from "react";
 import { buildPresentParameters } from "./buildPresentParameters";
 import {
@@ -14,12 +15,16 @@ import { type ActionRegistry } from "./actionRegistry";
 import { renderGenerativeUI } from "./renderGenerativeUI";
 import type { GenerativeUILibrary, GenerativeUIStatus } from "./types";
 
-/** Maps a tool-call part status to the generative-UI streaming status. Only a
- * `complete` call has fully-arrived args; `running` and `incomplete`
- * (aborted/errored, so args may be partial) both render as `"streaming"` so a
- * non-streaming component is never handed partial props. */
-function uiStatus(status: { type: string }): GenerativeUIStatus {
-  return status.type === "complete" ? "done" : "streaming";
+// A cancelled argument stream can leave a tool waiting with partial arguments.
+function uiStatus(
+  status: { type: string },
+  args: Record<string, unknown>,
+): GenerativeUIStatus {
+  return status.type === "complete" ||
+    (status.type === "requires-action" &&
+      getPartialJsonObjectMeta(args)?.state !== "partial")
+    ? "done"
+    : "streaming";
 }
 
 /**
@@ -98,7 +103,7 @@ export class JSONGenerativeUI {
     return (
       <div data-aui="root">
         {renderGenerativeUI(args, this.library, {
-          status: uiStatus(status),
+          status: uiStatus(status, args),
           ...(dispatch ? { dispatch } : {}),
         })}
       </div>

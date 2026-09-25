@@ -77,6 +77,82 @@ describe("convertSurfaceToUISpec", () => {
     });
   });
 
+  it("keeps absolute bindings rooted while resolving relative template bindings locally", () => {
+    const surface = surfaceFrom(
+      [
+        {
+          id: "root",
+          component: "List",
+          children: { template: { componentId: "row", path: "/items" } },
+        },
+        {
+          id: "row",
+          component: "Row",
+          children: ["absolute", "relative", "send", "nested"],
+        },
+        {
+          id: "absolute",
+          component: "TextField",
+          value: { path: "/currency" },
+        },
+        { id: "relative", component: "TextField", value: { path: "currency" } },
+        {
+          id: "send",
+          component: "Button",
+          label: "Send",
+          action: {
+            event: {
+              name: "send",
+              context: {
+                absolute: { path: "/currency" },
+                relative: { path: "currency" },
+              },
+            },
+          },
+        },
+        {
+          id: "nested",
+          component: "List",
+          children: { template: { componentId: "label", path: "/labels" } },
+        },
+        { id: "label", component: "Text", text: { path: "name" } },
+      ],
+      {
+        currency: "USD",
+        labels: [{ name: "Root label" }],
+        items: [{ currency: "EUR", labels: [{ name: "Wrong label" }] }],
+      },
+    );
+
+    const result = convertSurfaceToUISpec(surface);
+    expect(result.warnings).toEqual([]);
+    expect(result.spec).toMatchObject({
+      children: [
+        {
+          children: {
+            children: [
+              { $type: "Input", name: "/currency", defaultValue: "USD" },
+              {
+                $type: "Input",
+                name: "/items/0/currency",
+                defaultValue: "EUR",
+              },
+              {
+                $action: {
+                  context: {
+                    absolute: { $field: "/currency", fallback: "USD" },
+                    relative: { $field: "/items/0/currency", fallback: "EUR" },
+                  },
+                },
+              },
+              { children: [{ children: { value: "Root label" } }] },
+            ],
+          },
+        },
+      ],
+    });
+  });
+
   it("replays a surface with bindings, templates, and custom components", () => {
     const initial = applyA2uiOperations(new Map(), [
       {
@@ -103,7 +179,7 @@ describe("convertSurfaceToUISpec", () => {
             {
               id: "item",
               component: "Text",
-              text: { path: "/name" },
+              text: { path: "name" },
             },
             {
               id: "custom",
@@ -947,7 +1023,7 @@ describe("convertSurfaceToUISpec", () => {
         {
           id: "item",
           component: "Text",
-          text: { path: "/name" },
+          text: { path: "name" },
         },
       ],
       { items: [{ name: "one" }, { name: "two" }] },
@@ -983,7 +1059,7 @@ describe("convertSurfaceToUISpec", () => {
             template: { componentId: "item", path: "/items" },
           },
         },
-        { id: "item", component: "Text", text: { path: "/label" } },
+        { id: "item", component: "Text", text: { path: "label" } },
       ],
       { items: [{ label: "One" }, { label: "Two" }] },
     );
@@ -1919,7 +1995,7 @@ describe("convertSurfaceToUISpec", () => {
             template: { componentId: "item", path: "/items" },
           },
         },
-        { id: "item", component: "Text", text: { path: "/label" } },
+        { id: "item", component: "Text", text: { path: "label" } },
       ],
       { items: [{ label: "One" }] },
     );
@@ -1952,7 +2028,7 @@ describe("convertSurfaceToUISpec", () => {
             template: { componentId: "item", path: "/items" },
           },
         },
-        { id: "item", component: "Text", text: { path: "/label" } },
+        { id: "item", component: "Text", text: { path: "label" } },
       ],
       { items: [{ label: "One" }] },
     );
@@ -1982,7 +2058,7 @@ describe("convertSurfaceToUISpec", () => {
             template: { componentId: "item", path: "/items" },
           },
         },
-        { id: "item", component: "Text", text: { path: "/label" } },
+        { id: "item", component: "Text", text: { path: "label" } },
       ],
       { title: "Tasks", items: [{ label: "One" }, { label: "Two" }] },
     );
