@@ -5523,4 +5523,32 @@ describe("LocalThreadRuntimeCore message queue", () => {
     expect(dispatched).toEqual(["first", "second", "implicit", "bulk"]);
     await releaseRun();
   });
+
+  it("runs a send made from a thread subscriber after the queued send it saw start", async () => {
+    const { thread, dispatched, releaseRun } = createQueuedThread();
+    const appendToTail = (text: string) =>
+      void thread.append({
+        ...userMessage(text),
+        parentId: thread.messages.at(-1)?.id ?? null,
+      });
+    appendToTail("first");
+    await flush();
+    appendToTail("second");
+    await flush();
+
+    let armed = true;
+    thread.subscribe(() => {
+      const queued =
+        thread.getQueueItems().length + thread.getSteerQueueItems().length;
+      if (!armed || queued !== 0) return;
+      armed = false;
+      appendToTail("follow-up");
+    });
+    await releaseRun();
+    expect(dispatched).toEqual(["first", "second"]);
+
+    await releaseRun();
+    expect(dispatched).toEqual(["first", "second", "follow-up"]);
+    await releaseRun();
+  });
 });

@@ -91,6 +91,8 @@ export const createMessageQueue = (
   let running = false;
   let paused = false;
   let held = false;
+  // the popped head is in neither a lane nor a run until driver.run, so a send made during that notification must wait
+  let advancing = false;
   let dispatchTransform: (message: AppendMessage) => AppendMessage = (m) => m;
   // swallow the cancelled run's settle when steering so it does not double-advance
   let suppressIdle = 0;
@@ -136,13 +138,15 @@ export const createMessageQueue = (
   };
 
   const advance = () => {
-    if (running || paused || held) return;
+    if (running || advancing || paused || held) return;
     const lane: Lane = lanes.steer.length > 0 ? "steer" : "queue";
     const head = lanes[lane][0];
     if (!head) return;
     const message = messages.get(head.id);
     messages.delete(head.id);
+    advancing = true;
     setLanes({ ...lanes, [lane]: lanes[lane].slice(1) });
+    advancing = false;
     if (!message) return;
     const dispatch = { id: head.id, item: head, message };
     running = true;
