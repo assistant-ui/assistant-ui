@@ -263,12 +263,25 @@ describe("convertSurfaceToUISpec", () => {
           label: "Email",
           placeholder: "you@example.com",
           name: "email",
+          value: "ada@example.com",
+          $action: {
+            type: "a2ui:binding",
+            surfaceId: "main",
+            sourceComponentId: "field",
+            path: "/form/email",
+          },
         },
         {
           $type: "Checkbox",
           label: "Accepted",
           name: "accepted",
-          defaultChecked: true,
+          checked: true,
+          $action: {
+            type: "a2ui:binding",
+            surfaceId: "main",
+            sourceComponentId: "checkbox",
+            path: "/form/accepted",
+          },
         },
       ],
     });
@@ -392,6 +405,57 @@ describe("convertSurfaceToUISpec", () => {
         ],
       },
       warnings: [],
+    });
+  });
+
+  it("maps relative template input bindings back to their data model paths", () => {
+    const { state } = applyA2uiOperations(new Map(), [
+      { version: "v0.9", createSurface: { surfaceId: "template" } },
+      {
+        version: "v0.9",
+        updateComponents: {
+          surfaceId: "template",
+          components: [
+            { id: "root", component: "Column", children: ["people"] },
+            {
+              id: "people",
+              component: "List",
+              children: {
+                template: { componentId: "person", path: "/people" },
+              },
+            },
+            {
+              id: "person",
+              component: "TextField",
+              text: { path: "name" },
+            },
+          ],
+        },
+      },
+      {
+        version: "v0.9",
+        updateDataModel: {
+          surfaceId: "template",
+          path: "/",
+          value: { people: [{ name: "Ada" }] },
+        },
+      },
+    ]);
+
+    const result = convertSurfaceToUISpec(state.get("template")!);
+    const root = result.spec as UIElement;
+    const list = (root.children as UIElement[])[0]!;
+    const listItem = (list.children as UIElement[])[0]!;
+
+    expect(listItem.children).toMatchObject({
+      $type: "Input",
+      value: "Ada",
+      $action: {
+        type: "a2ui:binding",
+        surfaceId: "template",
+        sourceComponentId: "person",
+        path: "/people/0/name",
+      },
     });
   });
 

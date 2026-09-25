@@ -10,6 +10,9 @@ import { defineGenerativeComponents } from "./defineGenerativeComponents";
 import { createActionRegistry, type ActionRegistry } from "./actionRegistry";
 import type { GenerativeUIDispatch, GenerativeUILibrary } from "./types";
 import { defaultGenerativeUILibrary } from "./vocabulary";
+import { convertSurfaceToUISpec } from "./a2ui/convert";
+import { applyA2uiOperations } from "./a2ui/reducer";
+import { surfaceToOperations } from "./a2ui/snapshot";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -365,6 +368,134 @@ describe("JSONGenerativeUI — client build", () => {
       expect(addResult).toHaveBeenCalledWith({ submitted: true });
     } finally {
       await act(async () => root.unmount());
+    }
+  });
+
+  it("keeps A2UI bindings live while rendering a present surface", async () => {
+    const handler = vi.fn();
+    const ui = new ClientGenUI({
+      library: defaultGenerativeUILibrary,
+      actions: createActionRegistry({ "a2ui:action": handler }),
+    });
+    const { state } = applyA2uiOperations(new Map(), [
+      {
+        version: "v1.0",
+        createSurface: {
+          surfaceId: "s",
+          components: [
+            {
+              id: "root",
+              component: "Column",
+              children: ["first", "second", "preview", "derived", "submit"],
+            },
+            { id: "first", component: "TextField", text: { path: "/name" } },
+            { id: "second", component: "TextField", text: { path: "/name" } },
+            { id: "preview", component: "Text", text: { path: "/name" } },
+            {
+              id: "derived",
+              component: "Text",
+              text: {
+                call: "formatString",
+                args: { value: "Hello ${/name}" },
+              },
+            },
+            {
+              id: "submit",
+              component: "Button",
+              label: "Submit",
+              action: { name: "submit", context: { name: { path: "/name" } } },
+            },
+          ],
+          dataModel: { name: "Initial" },
+        },
+      },
+    ]);
+    const surface = state.get("s")!;
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+
+    try {
+      await act(async () => {
+        root.render(
+          (ui.present() as any).render({
+            args: convertSurfaceToUISpec(surface).spec,
+            status: { type: "complete" },
+            toolCallId: "a2ui:s",
+            toolName: "present",
+            argsText: "",
+            artifact: { a2ui: surfaceToOperations(surface) },
+          }),
+        );
+      });
+
+      const fields =
+        container.querySelectorAll<HTMLInputElement>('[data-aui="input"]');
+      expect([...fields].map((field) => field.value)).toEqual([
+        "Initial",
+        "Initial",
+      ]);
+
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(
+          HTMLInputElement.prototype,
+          "value",
+        )!.set!.call(fields[0]!, "Edited");
+        fields[0]!.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+
+      expect([...fields].map((field) => field.value)).toEqual([
+        "Edited",
+        "Edited",
+      ]);
+      expect(
+        container.querySelector('[data-aui="markdown"]')?.textContent,
+      ).toBe("Edited");
+      expect(
+        container.querySelectorAll('[data-aui="markdown"]')[1]?.textContent,
+      ).toBe("Hello Edited");
+
+      await act(async () => container.querySelector("button")!.click());
+
+      expect(handler).toHaveBeenCalledWith({
+        payload: {
+          type: "a2ui:action",
+          name: "submit",
+          surfaceId: "s",
+          sourceComponentId: "submit",
+          context: { name: "Edited" },
+        },
+      });
+
+      const remoteSurface = applyA2uiOperations(state, [
+        {
+          version: "v0.9",
+          updateDataModel: {
+            surfaceId: "s",
+            path: "/name",
+            contents: "Remote",
+          },
+        },
+      ]).state.get("s")!;
+      await act(async () => {
+        root.render(
+          (ui.present() as any).render({
+            args: convertSurfaceToUISpec(remoteSurface).spec,
+            status: { type: "complete" },
+            toolCallId: "a2ui:s",
+            toolName: "present",
+            argsText: "",
+            artifact: { a2ui: surfaceToOperations(remoteSurface) },
+          }),
+        );
+      });
+      expect([...fields].map((field) => field.value)).toEqual([
+        "Remote",
+        "Remote",
+      ]);
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
     }
   });
 });

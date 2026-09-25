@@ -1,6 +1,7 @@
 import { ICON_NAMES, type UIElement } from "../ir";
 import {
   A2UI_SURFACE_ID,
+  A2UI_BINDING_ACTION_TYPE,
   type A2uiSurfaceState,
   type A2uiTemplateChildren,
 } from "./types";
@@ -95,6 +96,27 @@ const decodePointer = (path: string): string[] => {
   return (path.startsWith("/") ? path.slice(1) : path)
     .split("/")
     .map((segment) => segment.replaceAll("~1", "/").replaceAll("~0", "~"));
+};
+
+const encodePointer = (segments: readonly string[]): string =>
+  segments.length === 0
+    ? "/"
+    : `/${segments.map((segment) => segment.replaceAll("~", "~0").replaceAll("/", "~1")).join("/")}`;
+
+const bindingAction = (
+  node: Record<string, unknown>,
+  binding: unknown,
+  context: ConversionContext,
+  dataPath: readonly string[],
+): UIElement["$action"] | undefined => {
+  const path = bindingPath(binding);
+  if (path === undefined || !context.surfaceId) return undefined;
+  return {
+    type: A2UI_BINDING_ACTION_TYPE,
+    surfaceId: context.surfaceId,
+    sourceComponentId: typeof node["id"] === "string" ? node["id"] : "",
+    path: encodePointer([...dataPath, ...decodePointer(path)]),
+  };
 };
 
 const resolvePointer = (source: unknown, path: string): unknown => {
@@ -296,6 +318,7 @@ const childReferences = (node: Record<string, unknown>): unknown[] => {
 const childrenOf = (
   node: Record<string, unknown>,
   dataSource: unknown,
+  dataPath: readonly string[],
   context: ConversionContext,
   depth: number,
   visited: Set<string>,
@@ -311,6 +334,7 @@ const childrenOf = (
     const child = convertComponent(
       childId,
       dataSource,
+      dataPath,
       context,
       depth + 1,
       visited,
@@ -404,6 +428,7 @@ const mappedProps = (
   node: Record<string, unknown>,
   props: Record<string, unknown>,
   context: ConversionContext,
+  dataPath: readonly string[],
 ): UIElement | undefined => {
   const component = node["component"];
 
@@ -534,9 +559,11 @@ const mappedProps = (
   const binding = firstDefined(node, ["text", "value", "binding"]);
   const name = lastPointerSegment(bindingPath(binding));
   const label = stringProp(props, ["label"]);
+  const inputAction = bindingAction(node, binding, context, dataPath);
 
   if (component === "TextField") {
     const placeholder = stringProp(props, ["placeholder"]);
+    const value = firstDefined(props, ["text", "value", "binding"]);
     const multiline =
       typeof props["multiline"] === "boolean"
         ? props["multiline"]
@@ -550,6 +577,12 @@ const mappedProps = (
       ...(multiline !== undefined ? { multiline } : {}),
       ...(label !== undefined ? { label } : {}),
       ...(name !== undefined ? { name } : {}),
+      ...(inputAction
+        ? {
+            value: typeof value === "string" ? value : "",
+            $action: inputAction,
+          }
+        : {}),
     };
   }
 
@@ -559,7 +592,15 @@ const mappedProps = (
       $type: "Checkbox",
       ...(label !== undefined ? { label } : {}),
       ...(name !== undefined ? { name } : {}),
-      ...(typeof defaultChecked === "boolean" ? { defaultChecked } : {}),
+      ...(inputAction
+        ? {
+            checked:
+              typeof defaultChecked === "boolean" ? defaultChecked : false,
+            $action: inputAction,
+          }
+        : typeof defaultChecked === "boolean"
+          ? { defaultChecked }
+          : {}),
     };
   }
 
@@ -578,7 +619,11 @@ const mappedProps = (
         options,
         ...(label !== undefined ? { label } : {}),
         ...(name !== undefined ? { name } : {}),
-        ...(selected.length > 0 ? { defaultValue: selected } : {}),
+        ...(inputAction
+          ? { value: selected, $action: inputAction }
+          : selected.length > 0
+            ? { defaultValue: selected }
+            : {}),
       };
     }
     if (props["displayStyle"] === "chips") {
@@ -589,6 +634,9 @@ const mappedProps = (
         ...(placeholder !== undefined ? { placeholder } : {}),
         ...(label !== undefined ? { label } : {}),
         ...(name !== undefined ? { name } : {}),
+        ...(inputAction
+          ? { value: selected[0] ?? "", $action: inputAction }
+          : {}),
       };
     }
     const [defaultValue] = selected;
@@ -597,7 +645,11 @@ const mappedProps = (
       options,
       ...(label !== undefined ? { label } : {}),
       ...(name !== undefined ? { name } : {}),
-      ...(defaultValue !== undefined ? { defaultValue } : {}),
+      ...(inputAction
+        ? { value: defaultValue ?? "", $action: inputAction }
+        : defaultValue !== undefined
+          ? { defaultValue }
+          : {}),
     };
   }
 
@@ -607,7 +659,8 @@ const mappedProps = (
     const max = stringProp(props, ["max"]);
     return {
       $type: "DatePicker",
-      ...(value !== undefined ? { value } : {}),
+      ...(inputAction ? { value: value ?? "", $action: inputAction } : {}),
+      ...(!inputAction && value !== undefined ? { value } : {}),
       ...(min !== undefined ? { min } : {}),
       ...(max !== undefined ? { max } : {}),
       ...(label !== undefined ? { label } : {}),
@@ -622,6 +675,7 @@ const convertTemplate = (
   node: Record<string, unknown>,
   templateChildren: A2uiTemplateChildren,
   dataSource: unknown,
+  dataPath: readonly string[],
   context: ConversionContext,
   depth: number,
   visited: Set<string>,
@@ -656,6 +710,11 @@ const convertTemplate = (
     const child = convertComponent(
       templateChildren.template.componentId,
       list[index],
+      [
+        ...dataPath,
+        ...decodePointer(templateChildren.template.path),
+        String(index),
+      ],
       context,
       depth + 1,
       visited,
@@ -675,6 +734,7 @@ const convertTemplate = (
 function convertComponent(
   componentId: string,
   dataSource: unknown,
+  dataPath: readonly string[],
   context: ConversionContext,
   depth: number,
   visited: Set<string>,
@@ -735,7 +795,7 @@ function convertComponent(
       );
       if (resolved !== undefined) setOwnProperty(props, key, resolved);
     }
-    const mapped = mappedProps(node, props, context);
+    const mapped = mappedProps(node, props, context, dataPath);
     if (!mapped && SUPPORTED_COMPONENTS.has(component)) {
       context.warnings.push(
         `A2UI component "${component}" could not be mapped and was skipped.`,
@@ -756,6 +816,7 @@ function convertComponent(
         node,
         templateChildren,
         dataSource,
+        dataPath,
         context,
         depth,
         visited,
@@ -766,7 +827,14 @@ function convertComponent(
     if (!reserveNode(context)) return null;
     const converted = mapped ?? retained;
     if (!converted) return null;
-    const children = childrenOf(node, dataSource, context, depth, visited);
+    const children = childrenOf(
+      node,
+      dataSource,
+      dataPath,
+      context,
+      depth,
+      visited,
+    );
     if (mapped?.$type === "Button" && mapped["label"] === undefined) {
       const label = textLabel(node, children, context);
       if (label !== undefined) return { ...mapped, label };
@@ -816,6 +884,7 @@ export function convertSurfaceToUISpec(
     const spec = convertComponent(
       "root",
       surface.dataModel,
+      [],
       context,
       0,
       new Set(),
