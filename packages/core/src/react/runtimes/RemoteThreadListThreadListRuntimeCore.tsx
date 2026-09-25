@@ -1017,7 +1017,8 @@ export class RemoteThreadListThreadListRuntimeCore
   }
 
   // A switch can land on the thread before the caller resumes, so callers
-  // repeat this until the thread is still not main in their own continuation.
+  // that act on the thread afterwards repeat this until it is still not main
+  // in their own continuation.
   private async _ensureThreadIsNotMain(threadId: string) {
     if (threadId === this.newThreadId)
       throw new Error("Cannot ensure new thread is not main");

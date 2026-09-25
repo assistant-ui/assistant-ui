@@ -869,6 +869,9 @@ const useRemoteThreadList = (
     [assignMainThreadId, notifyRemoteId, session, startSwitch, store],
   );
 
+  // A switch can land on the thread before the caller resumes, so callers
+  // that act on the thread afterwards repeat this until it is still not main
+  // in their own continuation.
   const ensureNotMain = useCallback(
     async (threadId: string) => {
       if (threadId === store.value.newThreadId) {
@@ -1094,7 +1097,9 @@ const useRemoteThreadList = (
       if (data.status !== "regular") {
         throw threadStatusError(threadIdOrRemoteId, data.status, "be archived");
       }
-      await ensureNotMain(data.id);
+      do {
+        await ensureNotMain(data.id);
+      } while (isSameThread(store.value, data.id, session.mainThreadId));
       requireAdapterGeneration(adapterGeneration);
       return store.optimisticUpdate({
         execute: async () => {
@@ -1150,7 +1155,9 @@ const useRemoteThreadList = (
       if (data.status !== "regular" && data.status !== "archived") {
         throw threadStatusError(threadIdOrRemoteId, data.status, "be deleted");
       }
-      await ensureNotMain(data.id);
+      do {
+        await ensureNotMain(data.id);
+      } while (isSameThread(store.value, data.id, session.mainThreadId));
       requireAdapterGeneration(adapterGeneration);
       const result = await store.optimisticUpdate({
         execute: async () => {
@@ -1239,10 +1246,12 @@ const useRemoteThreadList = (
 
   const detach = useCallback(
     async (threadId: string) => {
-      await ensureNotMain(threadId);
+      do {
+        await ensureNotMain(threadId);
+      } while (isSameThread(store.value, threadId, session.mainThreadId));
       setStartedIds((prev) => prev.filter((id) => id !== threadId));
     },
-    [ensureNotMain],
+    [ensureNotMain, session, store],
   );
 
   const { mainThreadClient, itemOrder, threadListItems } =
