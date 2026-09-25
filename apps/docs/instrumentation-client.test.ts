@@ -17,16 +17,19 @@ const stubBrowser = ({
   consent,
   gpc = false,
   required = false,
+  pathname = "/",
 }: {
   consent?: "granted" | "denied";
   gpc?: boolean;
   required?: boolean;
+  pathname?: string;
 } = {}) => {
   const store = new Map<string, string>();
   if (consent) store.set("aui-consent", consent);
   const target = new EventTarget();
 
   const win = {
+    location: new URL(pathname, "https://www.assistant-ui.com"),
     localStorage: {
       getItem: (key: string) => store.get(key) ?? null,
       setItem: (key: string, value: string) => void store.set(key, value),
@@ -38,6 +41,7 @@ const stubBrowser = ({
   };
 
   vi.stubGlobal("window", win);
+  vi.stubGlobal("location", win.location);
   vi.stubGlobal("navigator", { globalPrivacyControl: gpc });
   vi.stubGlobal(
     "fetch",
@@ -93,6 +97,19 @@ describe("client analytics bootstrap", () => {
     choose(target, "granted");
 
     expect(mocks.init).not.toHaveBeenCalled();
+  });
+
+  it("never starts on the conversation renderer", async () => {
+    const { target } = stubBrowser({
+      consent: "granted",
+      pathname: "/renderer",
+    });
+
+    await boot();
+    choose(target, "granted");
+
+    expect(mocks.init).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("opts out of an already-running posthog on a decline", async () => {
