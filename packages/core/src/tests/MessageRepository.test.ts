@@ -637,6 +637,71 @@ describe("MessageRepository", () => {
         repository.import(exported);
       }).toThrow(/Parent message not found/);
     });
+
+    it("imports a message listed before its parent", () => {
+      repository.import({
+        messages: [
+          {
+            message: createTestMessage({ id: "child-id" }),
+            parentId: "parent-id",
+          },
+          { message: createTestMessage({ id: "parent-id" }), parentId: null },
+        ],
+      });
+
+      expect(repository.headId).toBe("child-id");
+      expect(repository.getMessages().map((m) => m.id)).toEqual([
+        "parent-id",
+        "child-id",
+      ]);
+    });
+
+    it("keeps the listed order for a message whose parent the repository holds", () => {
+      repository.addOrUpdateMessage(null, createTestMessage({ id: "p" }));
+      const newer = createTestMessage({
+        id: "c",
+        content: [{ type: "text", text: "newer" }],
+      });
+
+      repository.import({
+        headId: "c",
+        messages: [
+          { message: createTestMessage({ id: "c" }), parentId: "p" },
+          { message: newer, parentId: null },
+          { message: createTestMessage({ id: "p" }), parentId: null },
+        ],
+      });
+
+      expect(repository.getMessages()).toEqual([newer]);
+    });
+
+    it("heads a history stored out of order at its latest message", () => {
+      repository.import({
+        messages: [
+          { message: createTestMessage({ id: "question" }), parentId: null },
+          {
+            message: createTestMessage({ id: "follow-up" }),
+            parentId: "paused",
+          },
+          {
+            message: createTestMessage({ id: "answer" }),
+            parentId: "follow-up",
+          },
+          {
+            message: createTestMessage({ id: "paused" }),
+            parentId: "question",
+          },
+        ],
+      });
+
+      expect(repository.headId).toBe("answer");
+      expect(repository.getMessages().map((m) => m.id)).toEqual([
+        "question",
+        "paused",
+        "follow-up",
+        "answer",
+      ]);
+    });
   });
 
   describe("ExportedMessageRepository utility", () => {
