@@ -773,6 +773,7 @@ interface SlackInputBlock {
   readonly type: "input";
   readonly label: SlackPlainText;
   readonly element: SlackPlainTextInputElement;
+  readonly dispatch_action?: boolean;
 }
 
 interface SlackMarkdownBlock {
@@ -798,6 +799,9 @@ interface SlackPlainText {
 interface SlackPlainTextInputElement {
   readonly type: "plain_text_input";
   readonly action_id: string;
+  readonly dispatch_action_config?: {
+    readonly trigger_actions_on?: readonly ("on_character_entered" | "on_enter_pressed")[];
+  };
   readonly multiline?: boolean;
   readonly initial_value?: string;
   readonly placeholder?: SlackPlainText;
