@@ -202,7 +202,7 @@ export function slotState(
   if (layout.hidden || layout.changed) {
     return { current: logo, previous: null, entered: true };
   }
-  if (logo.alt === state.previous?.alt) {
+  if (!state.entered && logo.alt === state.previous?.alt) {
     return { current: logo, previous: null, entered: true };
   }
   if (logo.alt === state.current.alt) return state;
