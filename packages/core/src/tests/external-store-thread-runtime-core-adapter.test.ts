@@ -106,6 +106,7 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
     expect(bare.capabilities.cancel).toBe(false);
     expect(bare.capabilities.switchToBranch).toBe(false);
     expect(bare.capabilities.unstable_copy).toBe(true);
+    expect(bare.capabilities.answerToolCall).toBe(false);
 
     const full = new ExternalStoreThreadRuntimeCore(
       contextProvider,
@@ -122,6 +123,20 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
     expect(full.capabilities.cancel).toBe(true);
     expect(full.capabilities.switchToBranch).toBe(true);
     expect(full.capabilities.unstable_copy).toBe(false);
+  });
+
+  it("reports answerToolCall when any tool answer handler is set", () => {
+    for (const handler of [
+      { onAddToolResult: vi.fn() },
+      { onResumeToolCall: vi.fn() },
+      { onRespondToToolApproval: vi.fn(async () => {}) },
+    ]) {
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter(handler),
+      );
+      expect(core.capabilities.answerToolCall).toBe(true);
+    }
   });
 
   describe("append", () => {

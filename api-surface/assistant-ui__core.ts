@@ -2392,6 +2392,7 @@ declare abstract class InertThreadRuntimeCore extends BaseSubscribable implement
     readonly attachments: false;
     readonly feedback: false;
     readonly queue: false;
+    readonly answerToolCall: false;
   };
   isDisabled: boolean;
   isSendDisabled: boolean;
@@ -2587,6 +2588,7 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
     attachments: boolean;
     feedback: boolean;
     queue: boolean;
+    answerToolCall: boolean;
   };
   readonly isDisabled = false;
   readonly isSendDisabled = false;
@@ -4236,6 +4238,7 @@ type RuntimeCapabilities = {
   readonly attachments: boolean;
   readonly feedback: boolean;
   readonly queue: boolean;
+  readonly answerToolCall: boolean;
 };
 
 type RuntimeExtras<T extends object> = {
