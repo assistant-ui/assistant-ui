@@ -87,8 +87,8 @@
       "gzip": 7519
     },
     "./teams": {
-      "min": 12845,
-      "gzip": 4647
+      "min": 12848,
+      "gzip": 4648
     }
   },
   "@assistant-ui/react-google-adk": {
