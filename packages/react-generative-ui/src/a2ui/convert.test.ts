@@ -1225,13 +1225,13 @@ describe("convertSurfaceToUISpec", () => {
         surfaceId: "",
         sourceComponentId: "send",
         context: {
-          name: { $field: "/form/name" },
+          name: { $field: "/form/name", fallback: "Ada" },
           form: {
-            name: { $field: "/form/name" },
-            plan: [{ $field: "/form/plan" }],
-            size: { $field: "/form/size" },
-            agree: { $field: "/form/agree" },
-            start: { $field: "/form/start" },
+            name: { $field: "/form/name", fallback: "Ada" },
+            plan: [{ $field: "/form/plan", fallback: "pro" }],
+            size: { $field: "/form/size", fallback: "m" },
+            agree: { $field: "/form/agree", fallback: false },
+            start: { $field: "/form/start", fallback: "2026-01-02" },
             due: "2025-12-15T17:00:00Z",
             id: 7,
           },
@@ -1317,7 +1317,10 @@ describe("convertSurfaceToUISpec", () => {
               name: "remove",
               surfaceId: "",
               sourceComponentId: "remove",
-              context: { qty: { $field: `/items/${index}/qty` }, sku },
+              context: {
+                qty: { $field: `/items/${index}/qty`, fallback: Number(qty) },
+                sku,
+              },
             },
           },
         ],
@@ -1341,8 +1344,8 @@ describe("convertSurfaceToUISpec", () => {
               sourceComponentId: "order",
               context: {
                 items: [
-                  { sku: "a", qty: { $field: "/items/0/qty" } },
-                  { sku: "b", qty: { $field: "/items/1/qty" } },
+                  { sku: "a", qty: { $field: "/items/0/qty", fallback: 1 } },
+                  { sku: "b", qty: { $field: "/items/1/qty", fallback: 2 } },
                 ],
               },
             },

@@ -308,6 +308,8 @@ type ConversionContext = {
   readonly keepUnknownComponents: boolean;
 };
 
+const BOUND_KEYS = ["text", "value", "binding"] as const;
+
 const INPUT_COMPONENTS: ReadonlySet<string> = new Set([
   "TextField",
   "CheckBox",
@@ -326,7 +328,8 @@ const recordBindings = (
 ) => {
   const component = node["component"];
   const name = mapped["name"];
-  const value = props["value"];
+  const boundKey = BOUND_KEYS.find((key) => node[key] !== undefined);
+  const value = boundKey === undefined ? undefined : props[boundKey];
   // A date input cannot show a time, so its binding keeps the value the agent sent.
   const holdsValue =
     component !== "DateTimeInput" ||
@@ -338,13 +341,19 @@ const recordBindings = (
     typeof name === "string" &&
     holdsValue
   ) {
-    const field = { $field: name };
+    const field = (fallback: unknown) =>
+      fallback === undefined ? { $field: name } : { $field: name, fallback };
     // A single-choice picker collects one string, while the spec binds it to a string list.
     const listValued =
       component === "ChoicePicker" &&
       mapped.$type !== "CheckboxGroup" &&
       typeof value !== "string";
-    context.inputFields.set(name, listValued ? [field] : field);
+    context.inputFields.set(
+      name,
+      listValued
+        ? [field(Array.isArray(value) ? value[0] : undefined)]
+        : field(value),
+    );
   }
   const action = mapped.$action;
   const raw = node["action"];
@@ -644,7 +653,7 @@ const mappedProps = (
     };
   }
 
-  const bound = bindingPath(firstDefined(node, ["text", "value", "binding"]));
+  const bound = bindingPath(firstDefined(node, BOUND_KEYS));
   const name = bound === undefined ? undefined : pointerIn(scope, bound);
   const label = stringProp(props, ["label"]);
 

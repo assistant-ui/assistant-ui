@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { convertSurfaceToUISpec } from "../a2ui/convert";
 import { applyA2uiOperations } from "../a2ui/reducer";
 import { createActionRegistry, type ActionHandler } from "../actionRegistry";
-import type { GenerativeUIDispatch } from "../types";
+import type { GenerativeUIDispatch, GenerativeUILibrary } from "../types";
 import { renderGenerativeUI } from "../renderGenerativeUI";
 import { defaultGenerativeUILibrary } from "./index";
 
@@ -394,6 +394,98 @@ describe("A2UI two-way binding", () => {
         context: {
           name: "Grace",
           form: { name: "Grace", plan: ["pro"], id: 7 },
+        },
+      },
+    });
+  });
+
+  it("sends the agent's values when an overridden Button dispatches $action itself", async () => {
+    const { state } = applyA2uiOperations(new Map(), [
+      { version: "v0.9", createSurface: { surfaceId: "s" } },
+      {
+        version: "v0.9",
+        updateComponents: {
+          surfaceId: "s",
+          components: [
+            { id: "root", component: "Column", children: ["email", "send"] },
+            {
+              id: "email",
+              component: "TextField",
+              value: { path: "/form/email" },
+            },
+            {
+              id: "send",
+              component: "Button",
+              label: "Send",
+              action: {
+                event: {
+                  name: "send",
+                  context: {
+                    email: { path: "/form/email" },
+                    form: { path: "/form" },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      },
+      {
+        version: "v0.9",
+        updateDataModel: {
+          surfaceId: "s",
+          path: "/",
+          value: { form: { email: "old@example.com" } },
+        },
+      },
+    ]);
+    const button = defaultGenerativeUILibrary.Button!;
+    const library: GenerativeUILibrary = {
+      ...defaultGenerativeUILibrary,
+      Button: {
+        properties: button.properties,
+        description: button.description,
+        render: ({ label, $action, $dispatch }) => (
+          <button
+            type="button"
+            onClick={() => ($action ? $dispatch?.($action) : undefined)}
+          >
+            {label}
+          </button>
+        ),
+      },
+    };
+    const send = vi.fn();
+    const registry = createActionRegistry({ "a2ui:action": send });
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => {
+      root!.render(
+        <div data-aui="root">
+          {renderGenerativeUI(
+            convertSurfaceToUISpec(state.get("s")!).spec,
+            library,
+            { status: "done", dispatch: registry.dispatch },
+          )}
+        </div>,
+      );
+    });
+
+    container.querySelector<HTMLInputElement>(
+      'input[data-aui="input"]',
+    )!.value = "new@example.com";
+    await act(async () => container.querySelector("button")!.click());
+
+    expect(send).toHaveBeenCalledWith({
+      payload: {
+        type: "a2ui:action",
+        name: "send",
+        surfaceId: "s",
+        sourceComponentId: "send",
+        context: {
+          email: "old@example.com",
+          form: { email: "old@example.com" },
         },
       },
     });
