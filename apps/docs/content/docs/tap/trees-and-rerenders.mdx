@@ -103,7 +103,8 @@ A tap scheduler batches multiple state changes before rendering its root.
 ### flushTapSync
 
 `flushTapSync` runs a callback and synchronously flushes the tap scheduler
-updates it schedules. Updates scheduled before the call wait for the next
+updates it schedules. An update scheduled before the call commits in that flush
+only if the callback also updates the same root; otherwise it waits for the next
 scheduled flush.
 
 ```ts

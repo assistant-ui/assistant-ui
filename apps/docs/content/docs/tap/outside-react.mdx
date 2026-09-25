@@ -62,9 +62,9 @@ maximum-update-depth error.
 ### flushTapSync
 
 `flushTapSync` runs a callback and synchronously flushes the tap updates that
-callback schedules, so the new state is readable immediately after. Updates
-scheduled before the call are not part of that flush; they commit on the next
-scheduled flush.
+callback schedules, so the new state is readable immediately after. An update
+scheduled before the call commits in that flush only if the callback also
+updates the same root; otherwise it commits on the next scheduled flush.
 
 ```ts
 import { flushTapSync } from "@assistant-ui/tap";
