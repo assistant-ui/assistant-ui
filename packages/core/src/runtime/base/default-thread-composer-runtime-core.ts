@@ -1,4 +1,4 @@
-import type { AppendMessage } from "../../types/message";
+import type { AppendMessage, MessageRole } from "../../types/message";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { DictationAdapter } from "../../adapters/speech";
 import type {
@@ -22,17 +22,34 @@ export class DefaultThreadComposerRuntimeCore
   implements ThreadComposerRuntimeCore
 {
   public get canCancel() {
-    return isCancelable(this.runtime);
+    return this.isSubmitting || isCancelable(this.runtime);
   }
 
   public get canSend() {
-    if (this.isEmpty || this.runtime.isSendDisabled || this._isSending)
+    if (this.isEmpty || this.runtime.isSendDisabled || this.isSubmitting)
       return false;
     const voice = this.runtime.voice;
     if (!voice) return true;
     return (
       voice.canSendText && this.role === "user" && this.attachments.length === 0
     );
+  }
+
+  public override cancel() {
+    if (!this.isSubmitting) {
+      super.cancel();
+      return;
+    }
+    // Stopping takes a send still being prepared back into the draft and
+    // still stops a run that is going, so the one control never loses either.
+    this.cancelSubmission();
+    if (isCancelable(this.runtime)) super.cancel();
+  }
+
+  protected override threadMessageIds(role: MessageRole) {
+    return this.runtime.messages
+      .filter((message) => message.role === role)
+      .map((message) => message.id);
   }
 
   private _queueCache:
@@ -108,6 +125,7 @@ export class DefaultThreadComposerRuntimeCore
     let lastVoiceInput = this.runtime.voice?.canSendText;
     let lastQueue = this.queue;
     return this.runtime.subscribe(() => {
+      this.settleInTransit();
       let changed = false;
       const nextCanCancel = this.canCancel;
       if (lastCanCancel !== nextCanCancel) {

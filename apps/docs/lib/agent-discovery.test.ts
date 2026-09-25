@@ -210,7 +210,6 @@ describe("agent discovery", () => {
             data: {
               title: "First",
               description: "Start here.",
-              lastModified: new Date("2026-08-01T10:00:00.000Z"),
             },
           },
         ],
@@ -219,7 +218,7 @@ describe("agent discovery", () => {
 
     expect(sitemap).toContain(`# assistant-ui documentation sitemap`);
     expect(sitemap).toContain(
-      `- [First](${BASE_URL}/docs/first)\n  Markdown: ${BASE_URL}/docs/first.md\n  Description: Start here.\n  Last updated: 2026-08-01`,
+      `- [First](${BASE_URL}/docs/first)\n  Markdown: ${BASE_URL}/docs/first.md\n  Description: Start here.\n\n`,
     );
     expect(sitemap.indexOf("[First]")).toBeLessThan(sitemap.indexOf("[Last]"));
   });

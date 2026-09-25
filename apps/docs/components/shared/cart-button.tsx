@@ -39,6 +39,7 @@ const checkoutLabel = (checkout: CheckoutContextValue) => {
   if (status === "done") return "Installed";
   if (status === "cancelled") return "Cancelled";
   if (checkout.degraded) return "Reconnecting";
+  if (checkout.state.completion !== undefined) return "Agent finished";
   if (checkout.planPending) return "Review the plan";
   if (checkout.openInputs.length > 0) return "Needs your input";
   if (

@@ -1,4 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { mkdtempSync, writeFileSync, rmSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createRequire } from "node:module";
 
 const mocks = vi.hoisted(() => ({
   runSpawnCapture: vi.fn(),
@@ -13,6 +17,63 @@ import { transform } from "./transform";
 import { SpawnExitError } from "./run-spawn";
 
 describe("transform", () => {
+  it.each(["parse", "transform"])(
+    "rejects real jscodeshift %s failures",
+    async (kind) => {
+      const directory = mkdtempSync(join(tmpdir(), "aui-transform-errors-"));
+      onTestFinished(() => rmSync(directory, { recursive: true, force: true }));
+      const file = join(directory, "app.tsx");
+      const source =
+        kind === "parse"
+          ? 'import "@assistant-ui/react"; const broken = ;'
+          : 'import "@assistant-ui/react"; const value = 1;';
+      writeFileSync(file, source);
+      const codemod = join(directory, "transform.cjs");
+      writeFileSync(
+        codemod,
+        kind === "parse"
+          ? "module.exports = (file, api) => api.jscodeshift(file.source).toSource();"
+          : 'module.exports = () => { throw new Error("fixture transform failure"); };',
+      );
+      const actual =
+        await vi.importActual<typeof import("./run-spawn")>("./run-spawn");
+      const require = createRequire(import.meta.url);
+      mocks.runSpawnCapture.mockImplementationOnce(
+        (_command: string, args: string[]) => {
+          const runnerArgs = args.slice(1);
+          runnerArgs[runnerArgs.indexOf("-t") + 1] = codemod;
+          return actual.runSpawnCapture(process.execPath, [
+            require.resolve("jscodeshift/bin/jscodeshift.js"),
+            ...runnerArgs,
+            "--run-in-band",
+          ]);
+        },
+      );
+
+      const failure = transform(
+        "v0-12/assistant-api-to-aui",
+        directory,
+        {},
+        {
+          logStatus: false,
+          relevantFiles: [file],
+        },
+      );
+      await expect(failure).rejects.toBeInstanceOf(SpawnExitError);
+      await expect(failure).rejects.toThrow(
+        "Codemod 'v0-12/assistant-api-to-aui' failed",
+      );
+      await expect(failure).rejects.toThrow(
+        kind === "parse" ? "Transformation error" : "fixture transform failure",
+      );
+      await expect(failure).rejects.toMatchObject({
+        stdout: expect.stringContaining("Transformation error"),
+      });
+      expect(readFileSync(file, "utf8")).toBe(source);
+    },
+    15_000,
+  );
+
   it("runs codemods asynchronously and reports progress", async () => {
     mocks.runSpawnCapture.mockResolvedValue({
       code: 0,
@@ -62,7 +123,14 @@ describe("transform", () => {
     );
 
     await expect(failure).rejects.toBeInstanceOf(SpawnExitError);
+    await expect(failure).rejects.toThrow(
+      "Codemod 'v0-8/ui-package-split' failed",
+    );
     await expect(failure).rejects.toThrow("SyntaxError: Broken input");
+    await expect(failure).rejects.toMatchObject({
+      stdout: "Processing file app.tsx\n",
+      stderr: "SyntaxError: Broken input\n",
+    });
     expect(onProgress).not.toHaveBeenCalled();
   });
 

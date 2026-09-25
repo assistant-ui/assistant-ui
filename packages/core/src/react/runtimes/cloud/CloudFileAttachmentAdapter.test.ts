@@ -81,6 +81,31 @@ describe("CloudFileAttachmentAdapter", () => {
     });
   });
 
+  it("uses a binary MIME type when the browser cannot identify a file", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", fetchMock);
+    const adapter = new CloudFileAttachmentAdapter(makeCloud());
+    const file = new File(["hello"], "unknown.bin");
+    const attachments: PendingAttachment[] = [];
+
+    for await (const attachment of adapter.add({ file })) {
+      attachments.push(attachment);
+    }
+
+    expect(attachments[0]?.contentType).toBe("application/octet-stream");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://storage.example/upload",
+      expect.objectContaining({
+        headers: { "Content-Type": "application/octet-stream" },
+      }),
+    );
+    const sent = await adapter.send(attachments.at(-1)!);
+    expect(sent.content[0]).toMatchObject({
+      type: "file",
+      mimeType: "application/octet-stream",
+    });
+  });
+
   it("marks the attachment incomplete when the upload returns an HTTP error", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.stubGlobal(

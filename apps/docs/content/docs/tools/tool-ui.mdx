@@ -225,7 +225,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
     tools: {
       getWeather: tool({
@@ -886,6 +886,20 @@ type ToolCallMessagePartProps<TArgs, TResult> = {
 
   // Optional artifact data
   artifact?: unknown;
+
+  // What the user did in this UI, kept with the tool call
+  unstable_interactions?: {
+    entries: {
+      type: "action" | "human-response";
+      occurredAt: number; // epoch milliseconds
+      payload: unknown;
+    }[];
+    omitted?: number; // earlier entries dropped to stay within the limits
+  };
+  unstable_recordInteraction?: (input: {
+    type: "action" | "human-response";
+    payload: unknown;
+  }) => Promise<void>;
 };
 ```
 
@@ -921,6 +935,36 @@ const toolkit = defineToolkit({
 ```
 
 Learn more about tool human input in the [Tools Guide](/docs/tools/defining-tools#human-tools).
+
+### Recording Interactions
+
+A tool UI can record what the user did in it, so a stored conversation keeps the answer next to the question. Call `unstable_recordInteraction` with the action the user took; the runtime stamps the time and appends it to the tool call's `unstable_interactions`, which cloud history stores with the message.
+
+```tsx
+const toolkit = defineToolkit({
+  chooseSize: {
+    type: "human",
+    description: "Ask the user to pick a size.",
+    parameters: z.object({ sizes: z.array(z.string()) }),
+    render: ({ args, addResult, unstable_recordInteraction }) => (
+      <SizePicker
+        sizes={args.sizes}
+        onPick={(size) => {
+          void unstable_recordInteraction?.({
+            type: "human-response",
+            payload: { size },
+          }).catch(() => {});
+          addResult({ size });
+        }}
+      />
+    ),
+  },
+});
+```
+
+Some interactions are recorded for you: the answer passed to `resume()` is recorded as a `human-response` once the runtime accepts it, and every action that `present` or `prompt_user` output of `@assistant-ui/react-generative-ui` dispatches to its action registry is recorded as an `action`.
+
+Recording is best effort. A payload must be plain JSON of at most 16,384 characters, and an `action` payload must be a JSON object. A tool call keeps its latest 32 entries within 65,536 characters (earlier ones are counted in `omitted`). The promise rejects when a runtime cannot record or a payload is invalid, so catch it as the example does; a failed recording never affects the user's action. The local runtime and the AI SDK, AG-UI and A2A runtimes record interactions. Runtimes built on `useExternalStoreRuntime` under a cloud thread list, such as LangGraph, LangChain and ADK, keep them on the cloud copy of the conversation, which is on unless the `AssistantCloud` client sets `telemetry: { messages: false }` or `telemetry: false`; their own messages do not carry them. A readonly thread ignores them. Interactions are never sent to the model or the agent.
 
 ## Best Practices
 

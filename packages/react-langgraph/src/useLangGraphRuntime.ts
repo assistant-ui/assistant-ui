@@ -12,13 +12,17 @@ import type {
   UIMessage,
   UseLangGraphRuntimeOptions,
 } from "./types";
-import { groupUIMessagesByParent } from "@assistant-ui/react-langchain/converter";
+import {
+  getMessageModality,
+  groupUIMessagesByParent,
+} from "@assistant-ui/react-langchain/converter";
 import {
   pickExternalStoreSharedOptions,
   createMessageQueue,
   type MessageQueueController,
   type AppendMessage,
   type CompleteAttachment,
+  type ThreadMessage,
   generateId,
 } from "@assistant-ui/core";
 import type { ToolExecutionStatus } from "@assistant-ui/core";
@@ -27,6 +31,7 @@ import {
   createAbortableThreadLoad,
   createCloudThreadListAdapterCreateFallback,
   createToolCallCancellationStub,
+  getThreadMessageText,
 } from "@assistant-ui/core/internal";
 import {
   type DataMessagePartComponent,
@@ -75,7 +80,27 @@ const toLangGraphUserMessage = (
   content: getMessageContent(msg),
 });
 
-const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
+const toLangGraphTranscriptMessage = (message: ThreadMessage) => {
+  const fields = {
+    id: message.id,
+    content: getThreadMessageText(message),
+    ...(message.metadata.modality && {
+      additional_kwargs: { modality: message.metadata.modality },
+    }),
+  };
+  return message.role === "assistant"
+    ? { ...fields, type: "ai" as const }
+    : { ...fields, type: "human" as const };
+};
+
+const isSpokenMessage = (message: LangChainMessage) =>
+  (message.type === "human" || message.type === "ai") &&
+  getMessageModality(message.additional_kwargs) !== undefined;
+
+const useLangGraphRuntimeImpl = (
+  options: UseLangGraphRuntimeOptions,
+  loadRef: { current: UseLangGraphRuntimeOptions["load"] },
+) => {
   const {
     autoCancelPendingToolCalls,
     adapters: { attachments, dictation, feedback, speech, voice } = {},
@@ -390,6 +415,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   // Runs on a thread never overlap: a send arriving while a run is still
   // draining (e.g. a frontend tool result resuming the graph) waits for it to
   // settle. isRunning flips atomically with the final reconcile via onComplete.
+  const unsentTranscriptIdsRef = useRef(new Set<string>());
   const runQueueRef = useRef<SerialRunQueue<{
     messages: LangChainMessage[];
     config: LangGraphSendMessageConfig;
@@ -403,14 +429,27 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           break;
         }
       }
+      const carriedTranscriptIds = messages.flatMap((message) =>
+        message.id !== undefined &&
+        unsentTranscriptIdsRef.current.delete(message.id)
+          ? [message.id]
+          : [],
+      );
       runErrorBalanceRef.current = 0;
-      return sendMessageRef.current(messages, config, () => {
-        if (runErrorBalanceRef.current > 0) {
-          pendingResumeRef.current.clear();
-          runQueueRef.current!.drop();
-        }
-        onComplete();
-      });
+      return sendMessageRef
+        .current(messages, config, () => {
+          if (runErrorBalanceRef.current > 0) {
+            pendingResumeRef.current.clear();
+            runQueueRef.current!.drop();
+          }
+          onComplete();
+        })
+        .catch((error: unknown) => {
+          for (const id of carriedTranscriptIds) {
+            unsentTranscriptIdsRef.current.add(id);
+          }
+          throw error;
+        });
     },
     onRunningChange: setIsRunning,
   });
@@ -474,6 +513,40 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     setOptimisticState(resolved);
   };
 
+  const appendVoiceTranscript = (message: ThreadMessage) => {
+    const transcript = toLangGraphTranscriptMessage(message);
+    unsentTranscriptIdsRef.current.add(transcript.id);
+    const nextMessages = [...langGraphMessagesRef.current, transcript];
+    langGraphMessagesRef.current = nextMessages;
+    setMessages(nextMessages);
+  };
+
+  const getUnsentTranscripts = () => {
+    const unsent = unsentTranscriptIdsRef.current;
+    if (unsent.size === 0) return [];
+    return langGraphMessagesRef.current.filter(
+      (message) => message.id !== undefined && unsent.has(message.id),
+    );
+  };
+
+  // A transcript reaches the graph in the same input as the message after it, so
+  // no checkpoint ends at one; a fork starts before the trailing transcripts.
+  const splitTranscriptTail = (history: readonly LangChainMessage[]) => {
+    const unsent = unsentTranscriptIdsRef.current;
+    let start = history.length;
+    while (start > 0) {
+      const message = history[start - 1]!;
+      const isUnsent = message.id !== undefined && unsent.has(message.id);
+      if (!isUnsent && !isSpokenMessage(message)) break;
+      start--;
+    }
+    const kept = new Set(history.map((message) => message.id));
+    for (const id of unsent) {
+      if (!kept.has(id)) unsent.delete(id);
+    }
+    return { base: history.slice(0, start), transcripts: history.slice(start) };
+  };
+
   const runUserMessage = async (msg: AppendMessage) => {
     // A new turn abandons any half-collected parallel tool batch and any
     // queued resume; the cancellations below answer the dangling tool calls.
@@ -493,9 +566,10 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
 
     const humanMessage = toLangGraphUserMessage(msg);
     stageAttachments(humanMessage.id, msg.attachments);
-    return handleSendMessage([...cancellations, humanMessage], {
-      runConfig: msg.runConfig,
-    });
+    return handleSendMessage(
+      [...cancellations, ...getUnsentTranscripts(), humanMessage],
+      { runConfig: msg.runConfig },
+    );
   };
 
   const stagedMessagesRef = useRef(
@@ -517,6 +591,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     for (const message of langGraphMessagesRef.current) {
       if (message.id && stagedMessagesRef.current.has(message.id)) {
         staged.push(stagedMessagesRef.current.get(message.id)!.message);
+      } else if (message.id && unsentTranscriptIdsRef.current.has(message.id)) {
+        staged.push(message);
       }
       if (message.id === parentId) break;
     }
@@ -601,11 +677,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     uiMessagesRef.current = uiMessages;
   }, [uiMessages]);
 
-  const loadRef = useRef(load);
-  useEffect(() => {
-    loadRef.current = load;
-  });
-
   const threadListItem =
     aui.threadListItem.source !== null ? aui.threadListItem : undefined;
 
@@ -667,6 +738,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     },
     [
       threadListItem,
+      loadRef,
       loadController,
       setValues,
       reconcileMessages,
@@ -717,6 +789,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       }
       await runUserMessage(msg);
     },
+    onVoiceTranscript: appendVoiceTranscript,
     ...(queueController && { queue: queueController.adapter }),
     onAddToolResult: async ({
       toolCallId,
@@ -814,12 +887,13 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
             return;
           }
           const externalId = aui.threadListItem.getState().externalId;
+          const { base, transcripts } = splitTranscriptTail(truncated);
           const checkpointId = externalId
-            ? await getCheckpointId(externalId, truncated)
+            ? await getCheckpointId(externalId, base)
             : null;
           const editMessage = toLangGraphUserMessage(msg);
           stageAttachments(editMessage.id, msg.attachments);
-          return handleSendMessage([editMessage], {
+          return handleSendMessage([...transcripts, editMessage], {
             runConfig: msg.runConfig,
             ...(checkpointId && { checkpointId }),
           });
@@ -858,10 +932,11 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
             interruptRunConfigRef.current = undefined;
             setInterrupt(undefined);
             const externalId = aui.threadListItem.getState().externalId;
+            const { base, transcripts } = splitTranscriptTail(truncated);
             const checkpointId = externalId
-              ? await getCheckpointId(externalId, truncated)
+              ? await getCheckpointId(externalId, base)
               : null;
-            return handleSendMessage([], {
+            return handleSendMessage(transcripts, {
               runConfig: config.runConfig,
               ...(checkpointId && { checkpointId }),
             });
@@ -890,6 +965,10 @@ export const useLangGraphRuntime = ({
   ...options
 }: UseLangGraphRuntimeOptions) => {
   const aui = useAui();
+  const loadRef = useRef(options.load);
+  useInsertionEffect(() => {
+    loadRef.current = options.load;
+  }, [options.load]);
   const cloudAdapter = useCloudThreadListAdapter({
     sdk: LANGGRAPH_SDK,
     cloud,
@@ -904,7 +983,7 @@ export const useLangGraphRuntime = ({
 
   return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
-      return useLangGraphRuntimeImpl(options);
+      return useLangGraphRuntimeImpl(options, loadRef);
     },
     adapter,
     allowNesting: true,

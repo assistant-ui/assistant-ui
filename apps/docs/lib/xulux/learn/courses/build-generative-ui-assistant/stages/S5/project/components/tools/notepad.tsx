@@ -2,7 +2,8 @@
 
 import type { Unstable_InteractableToolRenderProps } from "@assistant-ui/react";
 import { Check, Copy, RotateCcw, SquarePen } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 
 type Note = { title: string; content: string };
 
@@ -13,7 +14,9 @@ export function Notepad({
   streaming,
 }: Unstable_InteractableToolRenderProps<Note>) {
   const bodyRef = useRef<HTMLDivElement>(null);
-  const [copied, setCopied] = useState(false);
+  const { isCopied: copied, copyToClipboard } = useCopyToClipboard({
+    copiedDuration: 1200,
+  });
   const historical = version && !version.isLatest;
   const note = historical ? version.state : state;
 
@@ -50,11 +53,7 @@ export function Notepad({
           )}
         <button
           aria-label="Copy note"
-          onClick={() => {
-            void navigator.clipboard?.writeText(note.content);
-            setCopied(true);
-            window.setTimeout(() => setCopied(false), 1200);
-          }}
+          onClick={() => copyToClipboard(note.content)}
           className="rounded-md p-2 hover:bg-[var(--background)]"
         >
           {copied ? <Check className="size-4" /> : <Copy className="size-4" />}

@@ -8,7 +8,6 @@ import {
 import { rehypeCodeDefaultOptions } from "fumadocs-core/mdx-plugins";
 import { transformerMetaHighlight } from "@shikijs/transformers";
 import { z } from "zod";
-import lastModified from "fumadocs-mdx/plugins/last-modified";
 import type { ShikiTransformer } from "shiki";
 import { remarkMermaid } from "./lib/remark-mermaid";
 
@@ -107,7 +106,6 @@ export const careers = defineCollections({
 });
 
 export default defineConfig({
-  plugins: [lastModified()],
   mdxOptions: {
     remarkPlugins: [remarkMermaid],
     rehypeCodeOptions: {

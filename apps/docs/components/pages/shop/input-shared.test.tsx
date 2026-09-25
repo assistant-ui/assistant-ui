@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
-import { InputHelp } from "./input-shared";
+import { useState } from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { InputHelp, NoteField } from "./input-shared";
 
 afterEach(cleanup);
 
@@ -44,5 +45,34 @@ describe("InputHelp", () => {
     );
     expect(container.querySelector("a")).toBeNull();
     expect(container.textContent).toContain("Choose carefully.");
+  });
+});
+
+describe("NoteField", () => {
+  function Form({ onSubmit }: { onSubmit: () => void }) {
+    const [note, setNote] = useState("");
+    return (
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSubmit();
+        }}
+      >
+        <NoteField value={note} onChange={setNote} />
+      </form>
+    );
+  }
+
+  it("submits on Shift+Enter and keeps plain Enter for new lines", () => {
+    const onSubmit = vi.fn();
+    render(<Form onSubmit={onSubmit} />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Add a note for your agent" }),
+    );
+    const note = screen.getByLabelText("Note for your agent");
+    fireEvent.keyDown(note, { key: "Enter" });
+    expect(onSubmit).not.toHaveBeenCalled();
+    fireEvent.keyDown(note, { key: "Enter", shiftKey: true });
+    expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 });
