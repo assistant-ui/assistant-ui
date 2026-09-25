@@ -117,6 +117,8 @@ The endpoint receives POST requests with this payload:
 }
 ```
 
+User `add-message` commands include a client-generated `message.id`. Preserve it when creating the backend message so the optimistic message is reconciled with the settled message and Assistant Cloud can copy it.
+
 <Callout type="warn">
 The previous wire shape spread `callSettings` and `config` fields at the top level (e.g. `body.modelName`). Both formats are sent for compatibility, but the top-level fields are deprecated. Read from the nested objects.
 </Callout>
@@ -219,7 +221,9 @@ async def chat_endpoint(request: ChatRequest):
                     if p.type == "text" and p.text
                 ]
                 if text_parts:
-                    input_messages.append(HumanMessage(content=" ".join(text_parts)))
+                    input_messages.append(
+                        HumanMessage(content=" ".join(text_parts), id=command.message.id)
+                    )
 
         async for namespace, event_type, chunk in graph.astream(
             {"messages": input_messages},
@@ -492,7 +496,7 @@ const runtime = useAssistantTransportRuntime({
 ```ts
 {
   type: "add-message",
-  message: { role: "user", parts: [...] },
+  message: { role: "user", id: "client-message-id", parts: [...] },
   parentId: "msg-3",   // insert after this message
   sourceId: "msg-4",   // ID of the message being replaced (null for new)
 }

@@ -33,6 +33,49 @@ def test_should_call_tools_routes_only_frontend_calls_to_client() -> None:
     assert main.should_call_tools(mixed_state) == "tools"
 
 
+@pytest.mark.asyncio
+async def test_chat_endpoint_preserves_client_message_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class Controller:
+        state: dict[str, object] | None = None
+
+    def fake_create_run(run_callback, state=None):
+        captured["run_callback"] = run_callback
+        return object()
+
+    class EmptyGraph:
+        async def astream(self, *_args, **_kwargs):
+            if False:
+                yield None
+
+    monkeypatch.setattr(main, "create_run", fake_create_run)
+    monkeypatch.setattr(main, "AssistantTransportResponse", lambda stream: stream)
+    monkeypatch.setattr(main, "graph", EmptyGraph())
+
+    request = main.ChatRequest(
+        commands=[
+            main.AddMessageCommand(
+                message=main.UserMessage(
+                    id="client-message-1",
+                    parts=[main.MessagePart(type="text", text="question")],
+                )
+            )
+        ],
+        state={},
+    )
+
+    await main.chat_endpoint(request)
+    controller = Controller()
+    await captured["run_callback"](controller)
+    captured["messages"] = controller.state["messages"]
+
+    assert captured["messages"][0]["id"] == "client-message-1"
+    assert main.UserMessage(parts=[main.MessagePart(type="text", text="legacy request")]).id is None
+
+
 def test_should_call_tools_routes_unknown_calls_to_error_handling() -> None:
     state = {"messages": [message_with_calls(tool_call("unknown-1", "missing_tool"))]}
 

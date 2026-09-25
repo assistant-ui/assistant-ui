@@ -77,6 +77,7 @@ Request body:
       "type": "add-message",
       "message": {
         "role": "user",
+        "id": "client-message-id",
         "parts": [
           {
             "type": "text",
@@ -122,7 +123,7 @@ def add_messages_delta(state, writes):
     return result
 ```
 
-This keeps the assistant-ui API unchanged. The frontend still uses `useAssistantTransportRuntime`; the backend still accepts normal AssistantTransport `add-message` and `add-tool-result` commands; and the response uses the canonical assistant-transport encoding. The only required API adjustment is inside the LangGraph state definition: a delta-backed channel reducer receives `(state, writes)` where `writes` is a batch, not the old pairwise `(state, update)` reducer shape.
+The frontend still uses `useAssistantTransportRuntime`; the backend still accepts normal AssistantTransport `add-message` and `add-tool-result` commands; and the response uses the canonical assistant-transport encoding. The optional `message.id` is preserved as the LangGraph `HumanMessage` ID when present. The LangGraph state uses a delta-backed channel reducer that receives `(state, writes)` where `writes` is a batch, not the old pairwise `(state, update)` reducer shape.
 
 Postgres works through LangGraph's async checkpointer path:
 

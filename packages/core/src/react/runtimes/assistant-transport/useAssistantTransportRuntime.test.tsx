@@ -28,6 +28,7 @@ const createMessageCommand = (text: string): AssistantTransportCommand => ({
   type: "add-message",
   message: {
     role: "user",
+    id: `test-${text}`,
     parts: [{ type: "text", text }],
   },
   parentId: null,
@@ -265,6 +266,81 @@ describe("useAssistantTransportRuntime", () => {
     );
 
     act(() => fetchMock.servers[0]!.close());
+    await waitFor(() => expect(aui().thread.getState().isRunning).toBe(false));
+  });
+
+  it("uses one client id for the outbound and optimistic user message", async () => {
+    const fetchMock = installPendingFetch();
+    let optimisticMessageId: string | undefined;
+    const { aui } = mountRuntime({
+      converter: (_state, meta) => {
+        for (const command of meta.pendingCommands) {
+          if (
+            command.type === "add-message" &&
+            command.message.role === "user"
+          ) {
+            optimisticMessageId = command.message.id;
+          }
+        }
+        return { messages: [], isRunning: meta.isSending };
+      },
+    });
+    await waitFor(() =>
+      expect(
+        (aui().thread.getState().extras as { sendCommand?: unknown })
+          ?.sendCommand,
+      ).toBeTypeOf("function"),
+    );
+
+    act(() =>
+      aui().thread.append({
+        role: "user",
+        content: [{ type: "text", text: "question" }],
+      }),
+    );
+
+    await waitFor(() => expect(fetchMock.requests).toHaveLength(1));
+    const outboundMessage = fetchMock.requests[0]!.body.commands[0]!.message;
+    expect(outboundMessage.id).toBeTypeOf("string");
+    expect(outboundMessage.id).not.toBe("");
+    expect(optimisticMessageId).toBe(outboundMessage.id);
+
+    await act(async () => {
+      fetchMock.pending[0]!.resolve(new Response("", { status: 200 }));
+    });
+    await waitFor(() => expect(aui().thread.getState().isRunning).toBe(false));
+  });
+
+  it("adds a client id to manually queued user messages", async () => {
+    const fetchMock = installPendingFetch();
+    const { aui, sendCommand } = mountRuntime();
+    await waitFor(() =>
+      expect(
+        (aui().thread.getState().extras as { sendCommand?: unknown })
+          ?.sendCommand,
+      ).toBeTypeOf("function"),
+    );
+
+    act(() =>
+      sendCommand({
+        type: "add-message",
+        message: {
+          role: "user",
+          parts: [{ type: "text", text: "question" }],
+        },
+        parentId: null,
+        sourceId: null,
+      }),
+    );
+
+    await waitFor(() => expect(fetchMock.requests).toHaveLength(1));
+    expect(fetchMock.requests[0]!.body.commands[0]!.message.id).toBeTypeOf(
+      "string",
+    );
+
+    await act(async () => {
+      fetchMock.pending[0]!.resolve(new Response("", { status: 200 }));
+    });
     await waitFor(() => expect(aui().thread.getState().isRunning).toBe(false));
   });
 
