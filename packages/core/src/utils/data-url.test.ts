@@ -6,6 +6,24 @@ import {
 } from "./data-url";
 
 describe("parseDataUrl", () => {
+  it.each([
+    "data:;base64,aGk=",
+    "data:;charset=utf-8;base64,aGk=",
+    "DATA:;BASE64,aGk=",
+  ])("defaults an omitted media type to text/plain for %s", (value) => {
+    expect(parseDataUrl(value)).toEqual({
+      mimeType: "text/plain",
+      data: "aGk=",
+    });
+  });
+
+  it("allows an empty payload with an omitted media type", () => {
+    expect(parseDataUrl("data:;base64,")).toEqual({
+      mimeType: "text/plain",
+      data: "",
+    });
+  });
+
   it("parses a base64 data URL", () => {
     expect(parseDataUrl("data:image/png;base64,aGVsbG8=")).toEqual({
       mimeType: "image/png",
@@ -78,6 +96,15 @@ describe("httpUrlPattern", () => {
 });
 
 describe("resolveFilePartSource", () => {
+  it("extracts bytes from a data URL with the default media type", () => {
+    expect(
+      resolveFilePartSource({
+        data: "data:;base64,SGk=",
+        mimeType: "application/octet-stream",
+      }),
+    ).toEqual({ kind: "data", data: "SGk=", mimeType: "text/plain" });
+  });
+
   it("uses an explicit url source type for opaque values", () => {
     expect(
       resolveFilePartSource({
