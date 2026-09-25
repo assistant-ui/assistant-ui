@@ -157,7 +157,7 @@ describe("RemoteThreadList concurrent rendering", () => {
     expect(adapterB.rename).not.toHaveBeenCalled();
   });
 
-  it("does not render the previous thread during an ordinary switch", async () => {
+  it("exposes the selected thread during render, layout effects, and selection events", async () => {
     const adapter = makeAdapter();
     adapter.list = vi.fn(async () => ({
       threads: [
@@ -175,6 +175,8 @@ describe("RemoteThreadList concurrent rendering", () => {
     }));
     const clientRef = createRef<AssistantClient>();
     const renders: string[] = [];
+    const layoutReads: string[] = [];
+    const refetchThread = vi.fn();
     const selectionToolIds: string[] = [];
 
     const Observer = () => {
@@ -186,6 +188,10 @@ describe("RemoteThreadList concurrent rendering", () => {
         | string
         | undefined;
       renders.push(`${stateId}:${imperativeId}`);
+      useLayoutEffect(() => {
+        layoutReads.push(`${stateId}:${aui.thread.getState().messages[0]?.id}`);
+        if (stateId === "thread-2") void aui.threads.reloadMainThread();
+      }, [aui, stateId]);
       return null;
     };
     const App = () => (
@@ -200,7 +206,7 @@ describe("RemoteThreadList concurrent rendering", () => {
                 IdentifiedThread({
                   id,
                   onRender: () => {},
-                  onRefetch: () => {},
+                  onRefetch: refetchThread,
                 }),
               ) as never,
           }),
@@ -233,12 +239,15 @@ describe("RemoteThreadList concurrent rendering", () => {
     );
 
     renders.length = 0;
+    layoutReads.length = 0;
     await act(async () => {
       await client.threads.switchToThread("thread-2");
     });
     await waitFor(() => expect(renders).toContain("thread-2:thread-2"));
 
     expect(renders).not.toContain("thread-2:thread-1");
+    expect(layoutReads).toEqual(["thread-2:thread-2"]);
+    expect(refetchThread).toHaveBeenCalledExactlyOnceWith("thread-2");
     expect(selectionToolIds).toEqual(["thread-2"]);
     unsubscribe();
   });
