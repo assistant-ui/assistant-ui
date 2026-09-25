@@ -64,9 +64,9 @@ function toJSX(
   if (typeof type !== "string") return "";
 
   const attrs =
-    formatAttr("key", $key) +
+    formatAttr("key", $key, escape) +
     Object.entries(props)
-      .map(([key, value]) => formatAttr(key, value))
+      .map(([key, value]) => formatAttr(key, value, escape))
       .join("");
 
   if (!pretty) {
@@ -140,13 +140,11 @@ function formatChildText(value: string, escape: boolean): string {
 }
 
 /** Formats one prop as a JSX attribute (`id="x"`, `count={3}`, `open`, …). */
-function formatAttr(key: string, value: unknown): string {
+function formatAttr(key: string, value: unknown, escape: boolean): string {
   if (value === undefined) return "";
   if (value === true) return ` ${key}`;
   if (typeof value === "string") {
-    // Plain double-quoted form when safe; expression form when a quote or
-    // newline would break the attribute.
-    return /["\n]/.test(value)
+    return /["\n]/.test(value) || (escape && value.includes("&"))
       ? ` ${key}={${JSON.stringify(value)}}`
       : ` ${key}="${value}"`;
   }
