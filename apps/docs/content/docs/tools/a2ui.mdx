@@ -125,6 +125,6 @@ The converter maps the A2UI basic catalog onto the default generative UI vocabul
 ## Limitations
 
 - The upstream middleware currently emits v0.9 operation payloads; the renderer accepts v0.9 and v1.0 shapes.
-- The renderer keeps no data model of its own. User input reaches only the action values bound to it, so other components bound to the same path, and values computed by a function call such as `formatString`, keep what they were when the surface was converted. An agent update replaces what the user entered only when it changes the bound value.
+- The renderer keeps no data model of its own. User input reaches only the action values bound to it, so other components bound to the same path, and values computed by a function call such as `formatString`, keep what they were when the surface was converted. An agent update replaces what the user entered only when it changes the bound value, and two inputs bound to the same path do not mirror each other, so an action value bound to that path carries both values as a list.
 - `sendDataModel` is not implemented, so an action never carries the whole data model; bind the fields it needs in its `context`.
 - `DateTimeInput` renders a date only picker, so a value with a time renders empty and action values bound to it keep what the agent sent.
