@@ -3503,14 +3503,6 @@ type ThreadListItemGenerateTitleOptions = {
   automatic?: boolean;
 };
 
-declare namespace ThreadListItemPrimitiveTitle {
-  type Props = {
-    fallback?: ReactNode;
-  };
-}
-
-declare const ThreadListItemPrimitiveTitle: FC<ThreadListItemPrimitiveTitle.Props>;
-
 declare const ThreadListItemRoot: (_param44: ThreadListItemRootProps) => import("react").JSX.Element;
 
 type ThreadListItemRootProps = ViewProps & {
@@ -3612,6 +3604,12 @@ type ThreadListItemState = {
 type ThreadListItemStateBinding = SubscribableWithState<ThreadListItemRuntimeState, ThreadListItemRuntimePath>;
 
 type ThreadListItemStatus = "archived" | "deleted" | "new" | "regular";
+
+declare const ThreadListItemTitle: FC<ThreadListItemTitleProps>;
+
+type ThreadListItemTitleProps = Omit<TextProps, "children"> & {
+  fallback?: ReactNode;
+};
 
 declare const ThreadListItemTrigger: (_param45: ThreadListItemTriggerProps) => import("react").JSX.Element;
 
@@ -4898,7 +4896,7 @@ declare namespace suggestion_d_exports {
 }
 
 declare namespace threadListItem_d_exports {
-  export { ThreadListItemArchive as Archive, ThreadListItemArchiveProps as ArchiveProps, ThreadListItemDelete as Delete, ThreadListItemDeleteProps as DeleteProps, ThreadListItemRoot as Root, ThreadListItemRootProps as RootProps, ThreadListItemPrimitiveTitle as Title, ThreadListItemTrigger as Trigger, ThreadListItemTriggerProps as TriggerProps, ThreadListItemUnarchive as Unarchive, ThreadListItemUnarchiveProps as UnarchiveProps };
+  export { ThreadListItemArchive as Archive, ThreadListItemArchiveProps as ArchiveProps, ThreadListItemDelete as Delete, ThreadListItemDeleteProps as DeleteProps, ThreadListItemRoot as Root, ThreadListItemRootProps as RootProps, ThreadListItemTitle as Title, ThreadListItemTitleProps as TitleProps, ThreadListItemTrigger as Trigger, ThreadListItemTriggerProps as TriggerProps, ThreadListItemUnarchive as Unarchive, ThreadListItemUnarchiveProps as UnarchiveProps };
 }
 
 declare namespace threadList_d_exports {
