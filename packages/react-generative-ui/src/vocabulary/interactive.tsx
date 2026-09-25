@@ -51,6 +51,7 @@ function RadioGroupRender({
   const safeOptions = Array.isArray(options) ? options : [];
   return (
     <fieldset
+      key={defaultValue}
       data-aui="radiogroup"
       data-aui-action={actionAttr($action)}
       aria-label={label}
@@ -64,7 +65,9 @@ function RadioGroupRender({
               {...(name == null ? { [GENERATED_NAME_ATTR]: "" } : {})}
               value={option.value}
               defaultChecked={defaultValue === option.value}
-              onChange={() => fire($action, $dispatch, option.value)}
+              onChange={(e) =>
+                fire($action, $dispatch, option.value, e.currentTarget)
+              }
             />
             {option.label}
           </label>
@@ -111,6 +114,7 @@ function CheckboxGroupRender({
   const checkedValues = Array.isArray(defaultValue) ? defaultValue : [];
   return (
     <fieldset
+      key={JSON.stringify(checkedValues)}
       data-aui="checkboxgroup"
       data-aui-action={actionAttr($action)}
       aria-label={label}
@@ -126,7 +130,12 @@ function CheckboxGroupRender({
               value={option.value}
               defaultChecked={checkedValues.includes(option.value)}
               onChange={(e) =>
-                fire($action, $dispatch, checkedGroupValues(e.currentTarget))
+                fire(
+                  $action,
+                  $dispatch,
+                  checkedGroupValues(e.currentTarget),
+                  e.currentTarget,
+                )
               }
             />
             {option.label}
@@ -172,7 +181,11 @@ export const interactiveVocabulary = {
         data-aui-block={block || undefined}
         data-aui-submit={submit || undefined}
         data-aui-action={actionAttr($action)}
-        onClick={submit ? undefined : () => fire($action, $dispatch)}
+        onClick={
+          submit
+            ? undefined
+            : (e) => fire($action, $dispatch, undefined, e.currentTarget)
+        }
       >
         {toTextContent(label)}
         {children}
@@ -193,25 +206,31 @@ export const interactiveVocabulary = {
         .optional()
         .describe("Accessible label for the control."),
       name: z.string().optional().describe("Field name used inside a Form."),
+      defaultValue: z.string().optional().describe("Initially selected value."),
     }),
     render: ({
       options,
       placeholder,
       label,
       name,
+      defaultValue,
       $action,
       $dispatch,
       children,
     }) => {
       const placeholderText = toTextContent(placeholder);
+      const initialValue = typeof defaultValue === "string" ? defaultValue : "";
       return (
         <select
+          key={initialValue}
           data-aui="select"
           data-aui-action={actionAttr($action)}
           name={name}
           aria-label={label}
-          defaultValue=""
-          onChange={(e) => fire($action, $dispatch, e.currentTarget.value)}
+          defaultValue={initialValue}
+          onChange={(e) =>
+            fire($action, $dispatch, e.currentTarget.value, e.currentTarget)
+          }
         >
           {placeholderText ? (
             <option value="" disabled>
@@ -244,17 +263,29 @@ export const interactiveVocabulary = {
         .optional()
         .describe("Accessible label for the control."),
       name: z.string().optional().describe("Field name used inside a Form."),
+      defaultValue: z.string().optional().describe("Initial text."),
     }),
-    render: ({ placeholder, multiline, label, name, $action, $dispatch }) => {
-      const submit = (v: string) => fire($action, $dispatch, v);
+    render: ({
+      placeholder,
+      multiline,
+      label,
+      name,
+      defaultValue,
+      $action,
+      $dispatch,
+    }) => {
+      const submit = (control: HTMLInputElement | HTMLTextAreaElement) =>
+        fire($action, $dispatch, control.value, control);
       return multiline ? (
         <textarea
+          key={defaultValue}
           data-aui="input"
           data-aui-multiline
           data-aui-action={actionAttr($action)}
           name={name}
           aria-label={label}
           placeholder={placeholder}
+          defaultValue={defaultValue}
           onKeyDown={(e) => {
             if (
               e.key !== "Enter" ||
@@ -268,24 +299,26 @@ export const interactiveVocabulary = {
                 e.currentTarget.form,
               );
             } else {
-              submit(e.currentTarget.value);
+              submit(e.currentTarget);
             }
           }}
         />
       ) : (
         <input
+          key={defaultValue}
           data-aui="input"
           data-aui-action={actionAttr($action)}
           name={name}
           aria-label={label}
           placeholder={placeholder}
+          defaultValue={defaultValue}
           onKeyDown={(e) => {
             if (
               e.key === "Enter" &&
               !e.nativeEvent.isComposing &&
               !e.currentTarget.form
             )
-              submit(e.currentTarget.value);
+              submit(e.currentTarget);
           }}
         />
       );
@@ -306,6 +339,7 @@ export const interactiveVocabulary = {
     }),
     render: ({ value, min, max, label, name, $action, $dispatch }) => (
       <input
+        key={value}
         type="date"
         data-aui="datepicker"
         data-aui-action={actionAttr($action)}
@@ -314,7 +348,9 @@ export const interactiveVocabulary = {
         defaultValue={value}
         min={min}
         max={max}
-        onChange={(e) => fire($action, $dispatch, e.currentTarget.value)}
+        onChange={(e) =>
+          fire($action, $dispatch, e.currentTarget.value, e.currentTarget)
+        }
       />
     ),
   },
@@ -332,11 +368,14 @@ export const interactiveVocabulary = {
     render: ({ label, name, defaultChecked, $action, $dispatch }) => (
       <label data-aui="checkbox">
         <input
+          key={String(defaultChecked)}
           type="checkbox"
           data-aui-action={actionAttr($action)}
           name={name}
           defaultChecked={defaultChecked}
-          onChange={(e) => fire($action, $dispatch, e.currentTarget.checked)}
+          onChange={(e) =>
+            fire($action, $dispatch, e.currentTarget.checked, e.currentTarget)
+          }
         />
         <span data-aui="checkbox-label">{toTextContent(label)}</span>
       </label>
