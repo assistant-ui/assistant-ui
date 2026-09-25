@@ -87,7 +87,7 @@ describe("ThreadRuntime.append with an external store", () => {
   });
 });
 
-describe("ThreadRuntime run entry points when the runtime rejects", () => {
+describe("ThreadRuntime.append when the send rejects", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -97,17 +97,9 @@ describe("ThreadRuntime run entry points when the runtime rejects", () => {
       throw error;
     });
 
-  const threadWith = (callbacks: {
-    onNew?: ReturnType<typeof rejectingWith>;
-    onReload?: ReturnType<typeof rejectingWith>;
-    onResume?: ReturnType<typeof rejectingWith>;
-  }) =>
+  const threadWith = (callbacks: { onNew: ReturnType<typeof rejectingWith> }) =>
     new AssistantRuntimeImpl(
-      new ExternalStoreRuntimeCore({
-        messages: [],
-        onNew: async () => {},
-        ...callbacks,
-      }),
+      new ExternalStoreRuntimeCore({ messages: [], ...callbacks }),
     ).thread;
 
   const settle = async (callback: ReturnType<typeof rejectingWith>) => {
@@ -141,37 +133,6 @@ describe("ThreadRuntime run entry points when the runtime rejects", () => {
 
     expect(consoleError).not.toHaveBeenCalled();
   });
-
-  it.each([
-    {
-      entry: "startRun",
-      label: "Run start",
-      run: (onReload: ReturnType<typeof rejectingWith>) =>
-        threadWith({ onReload }).startRun({ parentId: null }),
-    },
-    {
-      entry: "resumeRun",
-      label: "Run resume",
-      run: (onResume: ReturnType<typeof rejectingWith>) =>
-        threadWith({ onResume }).resumeRun({ parentId: null }),
-    },
-  ])(
-    "logs a failed $entry and still rejects for a caller that awaits it",
-    async ({ label, run }) => {
-      const consoleError = silenceConsoleError();
-      const error = new Error("network down");
-      const callback = rejectingWith(error);
-
-      const task = Promise.resolve(run(callback));
-      await settle(callback);
-
-      expect(consoleError).toHaveBeenCalledExactlyOnceWith(
-        `[assistant-ui] ${label} failed`,
-        error,
-      );
-      await expect(task).rejects.toBe(error);
-    },
-  );
 });
 
 describe("ThreadRuntime state subscriptions", () => {

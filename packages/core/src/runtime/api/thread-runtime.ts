@@ -464,17 +464,11 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
   }
 
   public startRun(config: CreateStartRunConfig) {
-    return reportRunFailure(
-      "Run start",
-      this._threadBinding.getState().startRun(toStartRunConfig(config)),
-    );
+    return this._threadBinding.getState().startRun(toStartRunConfig(config));
   }
 
   public resumeRun(config: CreateResumeRunConfig) {
-    return reportRunFailure(
-      "Run resume",
-      this._threadBinding.getState().resumeRun(toResumeRunConfig(config)),
-    );
+    return this._threadBinding.getState().resumeRun(toResumeRunConfig(config));
   }
 
   public exportExternalState() {
