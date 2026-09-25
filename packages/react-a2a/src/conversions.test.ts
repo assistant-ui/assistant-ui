@@ -441,6 +441,19 @@ describe("isInterruptedTaskState", () => {
 });
 
 describe("contentPartsToA2AParts", () => {
+  it.each(["application/pdf", ""])(
+    "unwraps a media-less data URL while retaining the adapter's %j MIME fallback",
+    (mimeType) => {
+      expect(
+        contentPartsToA2AParts([
+          { type: "file", data: "data:;base64,SGVsbG8=", mimeType },
+        ]),
+      ).toEqual([
+        { raw: "SGVsbG8=", mediaType: mimeType || "application/octet-stream" },
+      ]);
+    },
+  );
+
   it("converts text parts", () => {
     const result = contentPartsToA2AParts([{ type: "text", text: "hi" }]);
     expect(result).toEqual([{ text: "hi" }]);
@@ -489,6 +502,14 @@ describe("contentPartsToA2AParts", () => {
       { type: "image", image: "data:image/png;base64,aGVsbG8=" },
     ]);
     expect(result).toEqual([{ raw: "aGVsbG8=", mediaType: "image/png" }]);
+  });
+
+  it("sniffs media-less image data URLs before sending their raw bytes", () => {
+    expect(
+      contentPartsToA2AParts([
+        { type: "image", image: "data:;base64,iVBORw0KGgo=" },
+      ]),
+    ).toEqual([{ raw: "iVBORw0KGgo=", mediaType: "image/png" }]);
   });
 
   it("propagates image filenames", () => {

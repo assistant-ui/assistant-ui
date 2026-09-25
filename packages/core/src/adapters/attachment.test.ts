@@ -7,6 +7,8 @@ import {
   SimpleImageAttachmentAdapter,
   SimpleTextAttachmentAdapter,
 } from "./attachment";
+import { resolveFilePartSource } from "../utils/data-url";
+import { resolveFileMediaType } from "../utils/wire-media";
 
 const originalFileReader = globalThis.FileReader;
 const originalBuffer = globalThis.Buffer;
@@ -56,6 +58,43 @@ describe("getFileDataURL", () => {
     expect(await getFileDataURL(file)).toBe(
       `data:application/octet-stream;base64,${originalBuffer.from("hello").toString("base64")}`,
     );
+  });
+
+  it("resolves media-less browser data URLs like the Node fallback", async () => {
+    class FakeFileReader {
+      result: string | null = null;
+      onload: (() => void) | null = null;
+      onerror: ((error: unknown) => void) | null = null;
+      readAsDataURL(file: File) {
+        file
+          .arrayBuffer()
+          .then((buffer) => {
+            this.result = `data:${file.type};base64,${originalBuffer.from(buffer).toString("base64")}`;
+            this.onload?.();
+          })
+          .catch((error) => this.onerror?.(error));
+      }
+    }
+
+    const file = new File(["hello"], "a.bin", { type: "" });
+    globalThis.FileReader = FakeFileReader as unknown as typeof FileReader;
+    const browserDataUrl = await getFileDataURL(file);
+
+    globalThis.FileReader = undefined as unknown as typeof FileReader;
+    const nodeDataUrl = await getFileDataURL(file);
+
+    expect(browserDataUrl).toBe(
+      `data:;base64,${originalBuffer.from("hello").toString("base64")}`,
+    );
+    expect(nodeDataUrl).toBe(
+      `data:application/octet-stream;base64,${originalBuffer.from("hello").toString("base64")}`,
+    );
+    expect(resolveFileMediaType(browserDataUrl, "")).toBe(
+      resolveFileMediaType(nodeDataUrl, ""),
+    );
+    expect(
+      resolveFilePartSource({ data: browserDataUrl, mimeType: "" }),
+    ).toEqual(resolveFilePartSource({ data: nodeDataUrl, mimeType: "" }));
   });
 
   it("falls back to chunked btoa when neither FileReader nor Buffer exist", async () => {

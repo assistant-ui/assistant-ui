@@ -8,6 +8,7 @@ import type {
 import {
   parseDataUrl,
   resolveFilePartSource,
+  resolveImageMediaType,
 } from "@assistant-ui/core/internal";
 import type { A2AMessage, A2APart, A2ATaskState } from "./types";
 
@@ -175,7 +176,7 @@ export function contentPartsToA2AParts(
           if (parsed) {
             return {
               raw: parsed.data,
-              mediaType: parsed.mimeType,
+              mediaType: resolveImageMediaType(part.image, fallbackMimeType),
               ...(part.filename && { filename: part.filename }),
             };
           }

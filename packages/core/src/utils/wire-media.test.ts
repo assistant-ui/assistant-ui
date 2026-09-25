@@ -46,6 +46,10 @@ describe("resolveImageMediaType", () => {
     expect(resolveImageMediaType(JPEG)).toBe("image/jpeg");
   });
 
+  it("sniffs image bytes when a data URL omits its media type", () => {
+    expect(resolveImageMediaType(`data:;base64,${JPEG}`)).toBe("image/jpeg");
+  });
+
   it("floors to image/png when there are no bytes to read", () => {
     expect(resolveImageMediaType("https://cdn.example.com/photo")).toBe(
       "image/png",
@@ -73,6 +77,25 @@ describe("resolveFileMediaType", () => {
     );
   });
 
+  it.each(["data:;base64,QUJD", "data:;charset=utf-8;base64,QUJD"])(
+    "uses the binary default for media-less base64 %s",
+    (data) => {
+      expect(resolveFileMediaType(data, "")).toBe("application/octet-stream");
+    },
+  );
+
+  it("uses the text default for media-less non-base64 data", () => {
+    expect(resolveFileMediaType("data:;charset=utf-8,hello", "")).toBe(
+      "text/plain",
+    );
+  });
+
+  it("prefers the supplied type over the data URL default", () => {
+    expect(resolveFileMediaType("data:;base64,QUJD", "application/pdf")).toBe(
+      "application/pdf",
+    );
+  });
+
   it("floors to application/octet-stream", () => {
     expect(resolveFileMediaType("QUJD", "")).toBe("application/octet-stream");
   });
@@ -88,6 +111,37 @@ describe("toMediaWireUrl", () => {
     expect(
       toMediaWireUrl("data:application/octet-stream;base64,QUJD", "image/jpeg"),
     ).toBe("data:image/jpeg;base64,QUJD");
+  });
+
+  it.each(["data:;base64,QUJD", "data:;charset=utf-8;base64,"])(
+    "stamps the binary default onto media-less base64 %s",
+    (payload) => {
+      expect(toMediaWireUrl(payload, "application/octet-stream")).toBe(
+        `data:application/octet-stream;base64,${payload.split(",")[1]}`,
+      );
+    },
+  );
+
+  it.each([
+    ["data:,hello", "data:text/plain,hello"],
+    ["data:;charset=utf-8,hello", "data:text/plain;charset=utf-8,hello"],
+  ])("stamps a media-less percent-encoded URL %s", (payload, expected) => {
+    expect(toMediaWireUrl(payload, "text/plain")).toBe(expected);
+  });
+
+  it.each(["data:;base64,QUJD", "data:;charset=utf-8;base64,"])(
+    "rebuilds %s when the wire type disagrees with the binary default",
+    (payload) => {
+      expect(toMediaWireUrl(payload, "text/plain")).toBe(
+        `data:text/plain;base64,${payload.split(",")[1]}`,
+      );
+    },
+  );
+
+  it("uses the supplied wire type when a base64 envelope omits one", () => {
+    expect(toMediaWireUrl("data:;base64,QUJD", "application/pdf")).toBe(
+      "data:application/pdf;base64,QUJD",
+    );
   });
 
   it("wraps a bare base64 payload", () => {
