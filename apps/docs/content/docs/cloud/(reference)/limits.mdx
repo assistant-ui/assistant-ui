@@ -35,7 +35,7 @@ A limited request answers `429 { "error": "rate_limited" }` with a `Retry-After`
 | Run `output_text`, tool arguments, tool results, and step input | 50,000 characters each |
 | Token counts | Whole numbers from 0 to 100,000,000 |
 | Event batch | 1 to 50 events |
-| Event `props` | At most 1,024 UTF-16 code units in `JSON.stringify(props)`. Keys are 1 to 64 characters and string values are at most 256 characters. |
+| Event `props` | At most 1,024 UTF-16 code units in `JSON.stringify(props)` on the endpoint; `cloud.events.track` leaves `props` out when that JSON is over 1,024 bytes of UTF-8. Keys are 1 to 64 characters and string values are at most 256 characters. |
 | Event `value` | Whole number from 0 to 2,147,483,647 |
 | Event IDs | `thread_id`, `message_id`, and `run_id` are each 1 to 48 characters. |
 | Score `name` and `comment` | 1 to 64 and 1 to 2,000 characters. The name uses letters, digits, `.`, `_`, and `-`. |

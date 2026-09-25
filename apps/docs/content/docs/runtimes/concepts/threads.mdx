@@ -17,13 +17,13 @@ Three options. Choose based on what you want to own.
 
 | Path | Runtime | Who owns thread metadata | Best for |
 | --- | --- | --- | --- |
-| AssistantCloud | LocalRuntime and runtime adapters that accept `cloud` | assistant-cloud | You want it managed; auth, sync, persistence handled |
+| AssistantCloud | LocalRuntime and runtime adapters that accept `cloud` | assistant-cloud | You want the thread list managed; auth and sync handled |
 | RemoteThreadListRuntime | LocalRuntime and adapters built on it | Your database | You have your own backend and want full control |
 | ExternalStoreThreadListAdapter | ExternalStoreRuntime only | Your store | You keep state in redux, zustand, etc. |
 
 ## AssistantCloud
 
-`AssistantCloud` is the managed multi-thread service. Pass an instance to `useLocalRuntime` or a runtime adapter that accepts `cloud`, and threads, persistence, sync, and titles are handled for you.
+`AssistantCloud` is the managed multi-thread service. Pass an instance to `useLocalRuntime` or a runtime adapter that accepts `cloud`, and the thread list, sync and titles are handled for you. Where messages are stored depends on the runtime: `useLocalRuntime`, the AI SDK runtime and the AG-UI and A2A runtimes store and load them in the cloud, while LangGraph, LangChain, ADK and other runtimes whose backend keeps the transcript load it from that backend and store a copy in the cloud for the dashboard, as [Runtimes](/docs/cloud/runtimes) lists.
 
 ```tsx
 import { useLocalRuntime } from "@assistant-ui/react";

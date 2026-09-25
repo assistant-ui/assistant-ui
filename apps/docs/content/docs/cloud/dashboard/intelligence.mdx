@@ -102,4 +102,4 @@ Before the first completed analysis, the page reads: **No analysis yet. The anal
 |---|---|---|
 | A topic is missing | The conversation may be classified as junk, or the configured topic ceiling folded new conversations into Other. | Check the conversation in Threads with the Junk filter, then review the classifier settings. |
 | A topic has no trend | The table has no Trend reading for that topic. | Compare the topic after later analysis runs. |
-| Evaluator verdicts are empty | The project has no evaluator rules, or a configured rule has no verdicts. | Select **Configure evaluators** to add a rule. A configured rule without results reads **No verdicts yet**. |
+| Evaluator verdicts are empty | The project has no evaluator rules, or a configured rule has no verdicts in the last 28 days. | With **No evaluators yet**, select **Configure evaluators** to add a rule. A rule that reads **No verdicts yet** is judged only on the new conversations it samples: check in **Settings › Evaluators** that it is enabled and that its sampling rate lets conversations through, then wait for new conversations. |
