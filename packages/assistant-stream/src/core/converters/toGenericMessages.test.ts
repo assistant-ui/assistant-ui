@@ -1261,6 +1261,38 @@ describe("toGenericMessages", () => {
       ]);
     });
 
+    it("keeps a pending approval in the last message when a null entry trails it", () => {
+      const result = toGenericMessages([
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call_123",
+              toolName: "get_weather",
+              args: { city: "London" },
+              approval: { id: "ap_1" },
+            },
+          ],
+        },
+        null,
+      ] as never);
+
+      expect(result).toEqual([
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call_123",
+              toolName: "get_weather",
+              args: { city: "London" },
+            },
+          ],
+        },
+      ]);
+    });
+
     it("converts a full conversation", () => {
       const result = toGenericMessages([
         {

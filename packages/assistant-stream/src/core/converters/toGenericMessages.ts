@@ -291,9 +291,9 @@ export function toGenericMessages(
   messages: readonly ThreadMessageLike[],
 ): GenericMessage[] {
   const result: GenericMessage[] = [];
+  const present = messages.filter(Boolean);
 
-  for (const [index, message] of messages.entries()) {
-    if (!message) continue;
+  for (const [index, message] of present.entries()) {
     switch (message.role) {
       case "system":
         convertSystemMessage(message, result);
@@ -302,7 +302,7 @@ export function toGenericMessages(
         convertUserMessage(message, result);
         break;
       case "assistant":
-        convertAssistantMessage(message, result, index === messages.length - 1);
+        convertAssistantMessage(message, result, index === present.length - 1);
         break;
     }
   }
