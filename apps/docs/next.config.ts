@@ -51,6 +51,12 @@ const faviconRewrites = faviconVariant
     ]
   : [];
 
+// The SDK packages resolve to their sources through tsconfig paths, so no
+// package build stamps their version; a deployment reports its commit instead.
+const sdkVersion = process.env.VERCEL_GIT_COMMIT_SHA
+  ? `0.0.0+${process.env.VERCEL_GIT_COMMIT_SHA.slice(0, 7)}`
+  : undefined;
+
 // Chrome applies form-action to the redirects that follow a submit, and the
 // sign-out form lands on the accounts end-session endpoint.
 const authOrigin = process.env.NEXT_PUBLIC_AUTH_URL ?? "";
@@ -78,6 +84,9 @@ const config: NextConfig = {
   // This app keeps a hand-written AGENTS.md, and the root one already points
   // agents at the bundled Next.js docs, so `next dev` must not append its block.
   agentRules: false,
+  compiler: {
+    define: sdkVersion ? { __AUI_PACKAGE_VERSION__: sdkVersion } : {},
+  },
   transpilePackages: ["@assistant-ui/ui", "shiki"],
   serverExternalPackages: ["just-bash"],
   skipTrailingSlashRedirect: true,
