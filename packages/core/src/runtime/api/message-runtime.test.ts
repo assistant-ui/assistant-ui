@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CompleteAttachment } from "../../types/attachment";
 import type {
   ThreadAssistantMessage,
@@ -12,6 +12,8 @@ import {
 } from "./message-runtime";
 import { toMessagePartStatus } from "../../utils/normalizePartStatus";
 import { convertExternalMessageChunk } from "../utils/external-message-conversion";
+import { ExternalStoreRuntimeCore } from "../../runtimes/external-store/external-store-runtime-core";
+import { AssistantRuntimeImpl } from "./assistant-runtime";
 
 const messagePath = {
   ref: "threads.main.messages[0]",
@@ -453,6 +455,48 @@ describe("MessageRuntimeImpl paths", () => {
     );
     expect(runtime.getAttachmentByIndex(0).path.ref).toBe(
       "threads.main.messages[0].attachments[0]",
+    );
+  });
+});
+
+describe("MessageRuntimeImpl.reload when the runtime rejects", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("logs a failed reload instead of leaving an unhandled rejection", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const error = new Error("network down");
+    const onReload = vi.fn(async () => {
+      throw error;
+    });
+    const thread = new AssistantRuntimeImpl(
+      new ExternalStoreRuntimeCore({
+        messages: [
+          {
+            id: "question",
+            role: "user",
+            content: [{ type: "text", text: "hi" }],
+            createdAt: new Date(0),
+            attachments: [],
+            metadata: { custom: {} },
+          },
+          { ...message, id: "answer", attachments: [] },
+        ],
+        onNew: async () => {},
+        onReload,
+      }),
+    ).thread;
+
+    thread.getMessageById("answer").reload();
+    await vi.waitFor(() => expect(onReload).toHaveBeenCalledOnce());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(consoleError).toHaveBeenCalledExactlyOnceWith(
+      "[assistant-ui] Message reload failed",
+      error,
     );
   });
 });
