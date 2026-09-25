@@ -254,6 +254,38 @@ describe("MessageRepository export with an optimistic head", () => {
     expect(restored.getBranches("b1")).toEqual(["b1", "b2"]);
   });
 
+  it("follows the selected optimistic chain to its persisted descendant before a later sibling", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, assistantMessage("u"));
+    repository.addOrUpdateMessage("u", assistantMessage("o1", true));
+    repository.addOrUpdateMessage("o1", assistantMessage("d"));
+    repository.addOrUpdateMessage("o1", assistantMessage("o2", true));
+    repository.switchToBranch("o2");
+    repository.addOrUpdateMessage("u", assistantMessage("s"));
+    expect(repository.headId).toBe("o2");
+
+    expect(repository.export().headId).toBe("d");
+    const restored = roundTrip(repository);
+    expect(restored.getMessages().map((m) => m.id)).toEqual(["u", "d"]);
+    expect(restored.getBranches("d")).toEqual(["d", "s"]);
+  });
+
+  it("follows the selected persisted child below an optimistic message, not its last child", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, assistantMessage("a"));
+    repository.addOrUpdateMessage("a", assistantMessage("o", true));
+    repository.addOrUpdateMessage("o", assistantMessage("b"));
+    repository.addOrUpdateMessage("o", assistantMessage("c"));
+    repository.addOrUpdateMessage("b", assistantMessage("p", true));
+    repository.addOrUpdateMessage(null, assistantMessage("p", true));
+    expect(repository.headId).toBe("p");
+
+    expect(repository.export().headId).toBe("b");
+    const restored = roundTrip(repository);
+    expect(restored.getMessages().map((m) => m.id)).toEqual(["a", "b"]);
+    expect(restored.getBranches("b")).toEqual(["b", "c"]);
+  });
+
   it("exports the persisted ancestor when nothing persisted lies below it", () => {
     const repository = new MessageRepository();
     repository.addOrUpdateMessage(null, assistantMessage("u"));

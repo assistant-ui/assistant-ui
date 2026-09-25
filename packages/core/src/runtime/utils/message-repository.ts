@@ -546,24 +546,24 @@ export class MessageRepository {
     if (head === this.head) return head?.current.id ?? null;
 
     for (;;) {
-      const parent: RepositoryParent = head ?? this.root;
-      const next =
-        parent.next && !parent.next.current.metadata?.isOptimistic
-          ? parent.next
-          : this.lastExportedChild(parent);
+      const next = this.exportedChild(head ?? this.root);
       if (!next) return head?.current.id ?? null;
       head = next;
     }
   }
 
-  private lastExportedChild(
-    parent: RepositoryParent,
-  ): RepositoryMessage | null {
+  private exportedChild(parent: RepositoryParent): RepositoryMessage | null {
+    const selected = parent.next;
+    if (selected) {
+      if (!selected.current.metadata?.isOptimistic) return selected;
+      const descendant = this.exportedChild(selected);
+      if (descendant) return descendant;
+    }
     for (let i = parent.children.length - 1; i >= 0; i--) {
       const child = this.messages.get(parent.children[i]!);
-      if (!child) continue;
+      if (!child || child === selected) continue;
       if (!child.current.metadata?.isOptimistic) return child;
-      const descendant = this.lastExportedChild(child);
+      const descendant = this.exportedChild(child);
       if (descendant) return descendant;
     }
     return null;
