@@ -299,7 +299,8 @@ export class ExternalStoreThreadRuntimeCore
       answerToolCall:
         this._store.onAddToolResult !== undefined ||
         this._store.onResumeToolCall !== undefined ||
-        this._store.onRespondToToolApproval !== undefined,
+        this._store.onRespondToToolApproval !== undefined ||
+        this._store.unstable_enableToolInvocations === true,
     };
     if (!shallowEqual(this._capabilities, newCapabilities)) {
       this._capabilities = newCapabilities;

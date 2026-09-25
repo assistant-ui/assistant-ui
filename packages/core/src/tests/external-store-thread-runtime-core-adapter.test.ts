@@ -1005,6 +1005,7 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
         }),
       );
 
+      expect(core.capabilities.answerToolCall).toBe(true);
       core.resumeToolCall({ toolCallId: "tc1", payload: true });
 
       expect(setToolStatuses).toHaveBeenLastCalledWith({});
