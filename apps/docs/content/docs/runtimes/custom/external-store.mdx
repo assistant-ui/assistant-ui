@@ -962,8 +962,12 @@ The same opt-in fields are available on `ExternalThread`, `useAISDKRuntime`, and
 `useChatRuntime`. Merely providing `onResume` does not advertise a resumable checkpoint.
 `useAssistantTransportRuntime` accepts `canResume` with its existing `resumeApi`;
 the flag must come from the backend's checkpoint state for the current thread.
-With a resumable `AssistantChatTransport`, `useChatRuntime` derives availability
-from the thread's stored stream ID and reconnects using the AI SDK's `resumeStream`.
+With a resumable `AssistantChatTransport`, `useChatRuntime` reconnects on
+mount using the AI SDK's `resumeStream`. To show the manual Resume control,
+opt in with `canResume: true` only if the resumed stream's `start` chunk repeats
+the interrupted assistant message ID. A stored stream ID alone is insufficient:
+streams without `start.messageId` can append a second answer instead of
+continuing the partial one.
 A missing or expired stream clears that checkpoint; reconnect failures also invoke
 `onResumeError`, while stopping an active response preserves its checkpoint.
 Switching branches clears the stored checkpoint before notifying the application,

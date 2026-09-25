@@ -1859,7 +1859,7 @@ type ExternalStoreMessageConverterAdapter<T> = {
   convertMessage: ExternalStoreMessageConverter<T>;
 };
 
-type ExternalStoreSharedOptions = Pick<ExternalStoreAdapter, "canResume" | "isDisabled" | "isSendDisabled" | "suggestions" | "unstable_capabilities">;
+type ExternalStoreSharedOptions = Pick<ExternalStoreAdapter, "isDisabled" | "isSendDisabled" | "suggestions" | "unstable_capabilities">;
 
 type ExternalStoreThreadData<TState extends "archived" | "regular"> = {
   status: TState;
@@ -4480,7 +4480,7 @@ type ThreadRuntimeState = {
   readonly isDisabled: boolean;
   readonly isLoading: boolean;
   readonly isRunning: boolean;
-  readonly canResume?: boolean;
+  readonly canResume: boolean;
   readonly capabilities: RuntimeCapabilities;
   readonly messages: readonly ThreadMessage[];
   readonly state: ReadonlyJSONValue;
@@ -4495,7 +4495,7 @@ type ThreadState = {
   readonly isDisabled: boolean;
   readonly isLoading: boolean;
   readonly isRunning: boolean;
-  readonly canResume?: boolean;
+  readonly canResume: boolean;
   readonly capabilities: RuntimeCapabilities;
   readonly messages: readonly MessageState[];
   readonly tasks: readonly TaskState[];

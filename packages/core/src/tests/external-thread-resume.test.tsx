@@ -67,15 +67,21 @@ describe("checkpoint resume", () => {
       pending = first.resume();
       duplicate = second.resume();
     });
-    expect(onResume).toHaveBeenCalledOnce();
-    await act(async () => {
-      await duplicate;
+    await waitFor(() => expect(onResume).toHaveBeenCalledOnce());
+    expect(first.disabled).toBe(true);
+    expect(second.disabled).toBe(true);
+    let duplicateSettled = false;
+    void duplicate.then(() => {
+      duplicateSettled = true;
     });
+    await Promise.resolve();
+    expect(duplicateSettled).toBe(false);
     expect(onResume).toHaveBeenCalledOnce();
     await act(async () => {
       finish();
-      await pending;
+      await Promise.all([pending, duplicate]);
     });
+    expect(duplicateSettled).toBe(true);
     expect(second.disabled).toBe(false);
   });
 
@@ -159,15 +165,22 @@ describe("checkpoint resume", () => {
     act(() => {
       pending = action.resume();
     });
-    await act(async () => {
-      await action.resume();
-    });
+    const duplicate = action.resume();
+    await waitFor(() => expect(action.disabled).toBe(true));
     expect(onResume).toHaveBeenCalledTimes(1);
     expect(onNew).not.toHaveBeenCalled();
-    await act(async () => {
-      reject(new Error("resume failed"));
-      await expect(pending).rejects.toThrow("resume failed");
-    });
+    const outcomes = Promise.allSettled([pending, duplicate]);
+    await act(async () => reject(new Error("resume failed")));
+    expect(await outcomes).toEqual([
+      expect.objectContaining({
+        status: "rejected",
+        reason: expect.objectContaining({ message: "resume failed" }),
+      }),
+      expect.objectContaining({
+        status: "rejected",
+        reason: expect.objectContaining({ message: "resume failed" }),
+      }),
+    ]);
     expect(action.disabled).toBe(false);
   });
 
@@ -211,9 +224,10 @@ describe("checkpoint resume", () => {
   it("guards concurrent external-store resume calls on the thread runtime", async () => {
     let finish!: () => void;
     const onResume = vi.fn(
-      () => new Promise<void>((resolve) => {
-        finish = resolve;
-      }),
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
     );
     const runtime = new ExternalStoreThreadRuntimeCore(
       { getModelContext: () => ({}) },
@@ -223,9 +237,33 @@ describe("checkpoint resume", () => {
     const pending = runtime.resumeRun(config);
     expect(runtime.canResume).toBe(false);
     const duplicate = runtime.resumeRun(config);
+    await Promise.resolve();
     expect(onResume).toHaveBeenCalledOnce();
     finish();
     await Promise.all([pending, duplicate]);
+    expect(runtime.canResume).toBe(true);
+  });
+
+  it("shares a failed external-store resume with concurrent callers", async () => {
+    let fail!: (error: Error) => void;
+    const onResume = vi.fn(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          fail = reject;
+        }),
+    );
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      { getModelContext: () => ({}) },
+      { messages: [], onNew: vi.fn(), onResume, canResume: true },
+    );
+    const config = { parentId: null, sourceId: null, runConfig: {} };
+    const pending = runtime.resumeRun(config);
+    const duplicate = runtime.resumeRun(config);
+    await Promise.resolve();
+    expect(onResume).toHaveBeenCalledOnce();
+    fail(new Error("reconnect failed"));
+    await expect(pending).rejects.toThrow("reconnect failed");
+    await expect(duplicate).rejects.toThrow("reconnect failed");
     expect(runtime.canResume).toBe(true);
   });
 

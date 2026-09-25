@@ -1,22 +1,22 @@
 {
   "@assistant-ui/ai-sdk": {
     ".": {
-      "min": 46335,
-      "gzip": 16133
+      "min": 46341,
+      "gzip": 16138
     }
   },
   "@assistant-ui/core": {
     ".": {
-      "min": 37862,
-      "gzip": 12609
+      "min": 37840,
+      "gzip": 12599
     },
     "./internal": {
-      "min": 150386,
-      "gzip": 38188
+      "min": 150450,
+      "gzip": 38204
     },
     "./react": {
-      "min": 341906,
-      "gzip": 95309
+      "min": 341929,
+      "gzip": 95313
     },
     "./store": {
       "min": 110503,
@@ -29,8 +29,8 @@
   },
   "@assistant-ui/eve": {
     ".": {
-      "min": 12364,
-      "gzip": 4635
+      "min": 12348,
+      "gzip": 4622
     }
   },
   "@assistant-ui/react": {

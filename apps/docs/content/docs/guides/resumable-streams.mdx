@@ -138,14 +138,16 @@ The default finish detector scans the SSE body for the AI SDK `"type":"finish"` 
 ### Stop and resume in the composer
 
 With the resumable transport above, pressing **Stop generating** retains the
-stream ID. While the composer is empty and the thread is idle, the canonical
-`Thread` offers **Resume generating**. This reconnects through
-`chat.resumeStream()` and continues the existing assistant response without
-sending another user message. When the server emits `finish`, storage is cleared
-and the composer returns to Send.
+stream ID. Automatic reconnect after a reload still uses `chat.resumeStream()`.
+For a manual **Resume generating** control, pass `canResume: true` only when
+the server guarantees the resumed stream's `start.messageId` matches the
+interrupted assistant message. Some AI SDK responses omit that ID; replaying
+one of those streams after Stop can append a second answer instead of
+continuing the partial one. In that case, leave manual Resume disabled. When
+the server emits `finish`, storage is cleared.
 
-Typing a new draft keeps Send available. A transport without resumable storage
-does not expose Resume automatically. Custom adapters can opt in with
+Typing a new draft keeps Send available. Resumable storage alone does not
+expose manual Resume. Custom adapters can opt in with
 `canResume` and `onResume`; they own checkpoint expiry and error state. A
 cancelled run without a retained checkpoint cannot be resumed. Custom composer
 layouts can use `ComposerPrimitive.Resume` or the headless `useComposerResume`

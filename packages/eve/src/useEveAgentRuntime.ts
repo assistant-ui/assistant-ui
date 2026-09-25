@@ -153,7 +153,6 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     adapters,
     isDisabled: _isDisabled,
     isSendDisabled: _isSendDisabled,
-    canResume: _canResume,
     suggestions: _suggestions,
     unstable_capabilities: _unstable_capabilities,
     ...agentOptions

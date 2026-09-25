@@ -181,9 +181,7 @@ describe("useAssistantTransportRuntime", () => {
     expect(fetchMock.requests[0]?.body["commands"]).toEqual([]);
     expect(aui().thread.getState().canResume).toBe(false);
     act(() => fetchMock.servers[0]!.close());
-    await waitFor(() =>
-      expect(aui().thread.getState().isRunning).toBe(false),
-    );
+    await waitFor(() => expect(aui().thread.getState().isRunning).toBe(false));
     expect(aui().thread.getState().canResume).toBe(true);
   });
 

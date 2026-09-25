@@ -1611,7 +1611,8 @@ const useExternalThread = ({
   const hasEdit = !!onEdit;
   const hasReload = !!onReload;
   const hasResume = !!onResume;
-  const resumePendingRef = useRef(false);
+  const resumePendingRef = useRef<Promise<void> | null>(null);
+  const [resumePending, setResumePending] = useState(false);
   const hasAttachments = !!attachmentAdapter;
   const hasFeedback = !!feedbackAdapter;
   const hasSpeech = !!speechAdapter;
@@ -1626,7 +1627,8 @@ const useExternalThread = ({
       isDisabled: false,
       isLoading,
       isRunning,
-      canResume: canResume && hasResume && !isRunning && !isLoading,
+      canResume:
+        canResume && hasResume && !isRunning && !isLoading && !resumePending,
       capabilities: {
         edit: hasEdit,
         delete: false,
@@ -1656,6 +1658,7 @@ const useExternalThread = ({
     isRunning,
     isLoading,
     canResume,
+    resumePending,
     hasResume,
     threadState,
     extras,
@@ -1723,18 +1726,21 @@ const useExternalThread = ({
     startRun: () => {
       onStartRun?.();
     },
-    resumeRun: async () => {
+    resumeRun: () => {
       if (!onResume)
         throw new Error(
           "Runtime does not support resuming runs (onResume is not set).",
         );
-      if (resumePendingRef.current) return;
-      resumePendingRef.current = true;
-      try {
-        await onResume();
-      } finally {
-        resumePendingRef.current = false;
-      }
+      if (resumePendingRef.current) return resumePendingRef.current;
+      const pending = Promise.resolve()
+        .then(onResume)
+        .finally(() => {
+          resumePendingRef.current = null;
+          setResumePending(false);
+        });
+      resumePendingRef.current = pending;
+      setResumePending(true);
+      return pending;
     },
     cancelRun: handleCancelRun,
     ...(onRefetchThread && { unstable_refetchThread: onRefetchThread }),

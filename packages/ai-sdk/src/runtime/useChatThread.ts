@@ -352,7 +352,13 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
       : resumableStorage
         ? { onResume: resumeStream }
         : {}),
-    canResume: canResume ?? (!!pendingStreamId && !isChatRunning),
+    // A stored stream ID does not prove a replay will keep the original
+    // assistant message ID. Some AI SDK streams omit start.messageId, in which
+    // case resumeStream appends a second message after the stopped partial one.
+    // Only the host can opt in when it knows its stream preserves that ID.
+    canResume: onResume
+      ? !!canResume
+      : !!canResume && !!pendingStreamId && !isChatRunning,
     ...(onResumeToolCall && { onResumeToolCall }),
     ...(onRespondToToolApproval && { onRespondToToolApproval }),
     ...(joinStrategy && { joinStrategy }),

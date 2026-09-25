@@ -96,6 +96,7 @@ describe("useChatThread", () => {
     const handle = createAssistantClient(
       AuiConfig({
         threads: Host({
+          canResume: true,
           transport: new AssistantChatTransport({
             fetch,
             resumable: { storage, resumeApi: (id) => `/api/resume/${id}` },
@@ -230,6 +231,7 @@ describe("useChatThread", () => {
       const handle = createAssistantClient(
         AuiConfig({
           threads: Host({
+            canResume: true,
             transport: new AssistantChatTransport({
               fetch,
               resumable: { storage, resumeApi: (id) => `/api/resume/${id}` },
@@ -302,6 +304,69 @@ describe("useChatThread", () => {
     },
   );
 
+  it("does not advertise manual resume when the stream omits start.messageId", async () => {
+    const storage = createResumableSessionStorage({
+      key: "resume-without-message-id",
+    });
+    storage.clear();
+    let initial!: ReadableStreamDefaultController<Uint8Array>;
+    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
+      new Response(
+        new ReadableStream({ start: (controller) => (initial = controller) }),
+        {
+          headers: {
+            "content-type": "text/event-stream",
+            [RESUMABLE_STREAM_ID_HEADER]: "stream-1",
+          },
+        },
+      ),
+    );
+    const Host = createHost({});
+    const handle = createAssistantClient(
+      AuiConfig({
+        threads: Host({
+          transport: new AssistantChatTransport({
+            fetch,
+            resumable: { storage, resumeApi: (id) => `/api/resume/${id}` },
+          }),
+        }),
+      }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+
+    try {
+      flushTapSync(() => aui.composer.setText("continue this response"));
+      flushTapSync(() => aui.composer.send());
+      for (const chunk of [
+        { type: "start" },
+        { type: "text-start", id: "text" },
+        { type: "text-delta", id: "text", delta: "Partial" },
+      ] satisfies UIMessageChunk[]) {
+        initial.enqueue(
+          new TextEncoder().encode(`data: ${JSON.stringify(chunk)}\n\n`),
+        );
+      }
+      await vi.waitFor(() =>
+        expect(aui.thread.getState().messages.at(-1)?.parts[0]).toMatchObject({
+          type: "text",
+          text: "Partial",
+        }),
+      );
+      flushTapSync(() => aui.thread.cancelRun());
+      await vi.waitFor(() =>
+        expect(aui.thread.getState().isRunning).toBe(false),
+      );
+      expect(storage.getStreamId("main")).toBe("stream-1");
+      expect(aui.thread.getState().canResume).toBe(false);
+      await nextTask();
+      expect(fetch).toHaveBeenCalledOnce();
+    } finally {
+      handle.destroy();
+      storage.clear();
+    }
+  });
+
   it("resumes a stopped response without sending another message and consumes its checkpoint on finish", async () => {
     const storage = createResumableSessionStorage({ key: "composer-resume" });
     storage.clear();
@@ -341,7 +406,7 @@ describe("useChatThread", () => {
     };
     const Host = createHost({});
     const handle = createAssistantClient(
-      AuiConfig({ threads: Host({ transport }) }),
+      AuiConfig({ threads: Host({ transport, canResume: true }) }),
     );
     handle.subscribe(() => {});
     const aui = handle.getClient();
