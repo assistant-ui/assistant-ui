@@ -110,11 +110,18 @@ describe("renderGenerativeUI", () => {
   });
 
   it("renders nothing for an unknown component", () => {
-    const html = renderToStaticMarkup(
-      <>{renderGenerativeUI({ $type: "Missing" }, library)}</>,
-    );
+    const rendered = renderGenerativeUI({ $type: "Missing" }, library);
+    expect(rendered).toBeNull();
+    const html = renderToStaticMarkup(<>{rendered}</>);
     expect(html).toBe("");
   });
+
+  it.each(["plain", 42, null])(
+    "preserves a primitive root result: %j",
+    (value) => {
+      expect(renderGenerativeUI(value, library)).toBe(value);
+    },
+  );
 
   it.each(["toString", "constructor"])(
     "treats inherited %s as an unknown component",
