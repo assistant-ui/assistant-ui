@@ -101,7 +101,7 @@ Unless a row says otherwise, a data response can throw `CloudAPIError` for an HT
 |---|---|---|---|
 | `cloud.threads.list` | `(query?: { is_archived?: boolean; limit?: number; after?: string }) => Promise<{ threads: CloudThread[] }>` | `GET /threads` | Both. |
 | `cloud.threads.get` | `(threadId: string) => Promise<CloudThread>` | `GET /threads/{threadId}` | Both. |
-| `cloud.threads.create` | `(body: { last_message_at: Date; title?: string; metadata?: unknown; external_id?: string }) => Promise<{ thread_id: string }>` | `POST /threads` | Both. |
+| `cloud.threads.create` | `(body: { last_message_at: Date; title?: string; metadata?: unknown; external_id?: string; upsert?: boolean }) => Promise<{ thread_id: string }>` | `POST /threads` | Both. |
 | `cloud.threads.update` | `(threadId: string, body: { title?: string; last_message_at?: Date; metadata?: unknown; is_archived?: boolean }) => Promise<void>` | `PUT /threads/{threadId}` | `CloudAPIError`. |
 | `cloud.threads.claim` | `(body: { refresh_token: string }) => Promise<{ moved: number }>` | `POST /threads/claim` | Both. |
 | `cloud.threads.delete` | `(threadId: string) => Promise<void>` | `DELETE /threads/{threadId}` | `CloudAPIError`. |
@@ -116,6 +116,7 @@ Unless a row says otherwise, a data response can throw `CloudAPIError` for an HT
 const { thread_id } = await cloud.threads.create({
   last_message_at: new Date(),
   external_id: "order-1042",
+  upsert: true,
 });
 await cloud.threads.messages.create(thread_id, {
   parent_id: null,

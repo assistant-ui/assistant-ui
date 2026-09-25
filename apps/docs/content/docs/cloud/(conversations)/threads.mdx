@@ -98,7 +98,7 @@ curl "https://backend.assistant-api.com/v1/threads?external_id=crm:conversation:
   -H "Aui-Workspace-Id: workspace_123"
 ```
 
-Create through the REST API with `upsert: true` and an `external_id` when one application conversation must map to one cloud thread. The cloud serializes that creation per workspace and external id, so concurrent creates answer the same row. If duplicates already exist, it answers the oldest matching thread. The client method `cloud.threads.create` does not expose `upsert`, so use the [Threads API reference](/docs/cloud/api/threads) for this idempotent creation path.
+Create with `upsert: true` and an `external_id`, through `cloud.threads.create` or the REST API, when one application conversation must map to one cloud thread. The cloud serializes that creation per workspace and external id, so concurrent creates answer the same row. If duplicates already exist, it answers the oldest matching thread. The [Threads API reference](/docs/cloud/api/threads) lists the responses of this idempotent creation path.
 
 ### Store only flat custom metadata
 
