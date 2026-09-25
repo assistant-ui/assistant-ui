@@ -116,8 +116,51 @@ const resolvePointer = (source: unknown, path: string): unknown => {
 const bindingPath = (value: unknown): string | undefined =>
   isBinding(value) ? value.path : undefined;
 
-const lastPointerSegment = (path: string | undefined): string | undefined =>
-  path ? decodePointer(path).at(-1) : undefined;
+type Scope = { readonly data: unknown; readonly path: string };
+
+const pointerIn = (scope: Scope, path: string): string =>
+  scope.path +
+  decodePointer(path)
+    .map((segment) => `/${segment.replaceAll("~", "~0").replaceAll("/", "~1")}`)
+    .join("");
+
+const setIn = (
+  value: unknown,
+  segments: readonly string[],
+  leaf: unknown,
+): unknown => {
+  const [head, ...rest] = segments;
+  if (head === undefined) return leaf;
+  if (Array.isArray(value) && /^(0|[1-9]\d*)$/.test(head)) {
+    const index = Number(head);
+    if (index > value.length) return value;
+    const copy = [...value];
+    copy[index] = setIn(copy[index], rest, leaf);
+    return copy;
+  }
+  const copy: Record<string, unknown> = isRecord(value) ? { ...value } : {};
+  setOwnProperty(
+    copy,
+    head,
+    setIn(Object.hasOwn(copy, head) ? copy[head] : undefined, rest, leaf),
+  );
+  return copy;
+};
+
+const withFieldReferences = (
+  value: unknown,
+  pointer: string,
+  fields: ReadonlyMap<string, unknown>,
+): unknown => {
+  if (fields.has(pointer)) return fields.get(pointer);
+  let result = value;
+  for (const [name, field] of fields) {
+    if (name.startsWith(`${pointer}/`)) {
+      result = setIn(result, decodePointer(name.slice(pointer.length)), field);
+    }
+  }
+  return result;
+};
 
 const materializeEntries = (
   value: Record<string, unknown>,
@@ -249,7 +292,75 @@ type ConversionContext = {
   evaluationBudgetWarned: boolean;
   functionDepthWarned: boolean;
   readonly templates: Map<string, ExpressionPart[] | null>;
+  readonly inputFields: Map<string, unknown>;
+  readonly boundActionEntries: {
+    readonly target: Record<string, unknown>;
+    readonly key: string;
+    readonly pointer: string;
+  }[];
   readonly keepUnknownComponents: boolean;
+};
+
+const INPUT_COMPONENTS: ReadonlySet<string> = new Set([
+  "TextField",
+  "CheckBox",
+  "ChoicePicker",
+  "DateTimeInput",
+]);
+
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+const recordBindings = (
+  node: Record<string, unknown>,
+  props: Record<string, unknown>,
+  mapped: UIElement,
+  scope: Scope,
+  context: ConversionContext,
+) => {
+  const component = node["component"];
+  const name = mapped["name"];
+  const value = props["value"];
+  // A date input cannot show a time, so its binding keeps the value the agent sent.
+  const holdsValue =
+    component !== "DateTimeInput" ||
+    typeof value !== "string" ||
+    value === "" ||
+    DATE_PATTERN.test(value);
+  if (
+    INPUT_COMPONENTS.has(String(component)) &&
+    typeof name === "string" &&
+    holdsValue
+  ) {
+    const field = { $field: name };
+    // A single-choice picker collects one string, while the spec binds it to a string list.
+    const listValued =
+      component === "ChoicePicker" &&
+      mapped.$type !== "CheckboxGroup" &&
+      typeof value !== "string";
+    context.inputFields.set(name, listValued ? [field] : field);
+  }
+  const action = mapped.$action;
+  const raw = node["action"];
+  if (!action || !isRecord(raw)) return;
+  const functionCall = action.type === "a2ui:functionCall";
+  const rawEntries = functionCall
+    ? isRecord(raw["functionCall"])
+      ? raw["functionCall"]["args"]
+      : undefined
+    : isRecord(raw["event"])
+      ? raw["event"]["context"]
+      : raw["context"];
+  const target = functionCall ? action["args"] : action["context"];
+  if (!isRecord(rawEntries) || !isRecord(target)) return;
+  for (const [key, entry] of Object.entries(rawEntries)) {
+    if (isBinding(entry)) {
+      context.boundActionEntries.push({
+        target,
+        key,
+        pointer: pointerIn(scope, entry.path),
+      });
+    }
+  }
 };
 
 const spendEvaluation = (context: ConversionContext): boolean => {
@@ -295,7 +406,7 @@ const childReferences = (node: Record<string, unknown>): unknown[] => {
 
 const childrenOf = (
   node: Record<string, unknown>,
-  dataSource: unknown,
+  scope: Scope,
   context: ConversionContext,
   depth: number,
   visited: Set<string>,
@@ -308,13 +419,7 @@ const childrenOf = (
       );
       continue;
     }
-    const child = convertComponent(
-      childId,
-      dataSource,
-      context,
-      depth + 1,
-      visited,
-    );
+    const child = convertComponent(childId, scope, context, depth + 1, visited);
     if (child) result.push(child);
   }
   return result;
@@ -404,6 +509,7 @@ const mappedProps = (
   node: Record<string, unknown>,
   props: Record<string, unknown>,
   context: ConversionContext,
+  scope: Scope,
 ): UIElement | undefined => {
   const component = node["component"];
 
@@ -531,8 +637,8 @@ const mappedProps = (
     };
   }
 
-  const binding = firstDefined(node, ["text", "value", "binding"]);
-  const name = lastPointerSegment(bindingPath(binding));
+  const bound = bindingPath(firstDefined(node, ["text", "value", "binding"]));
+  const name = bound === undefined ? undefined : pointerIn(scope, bound);
   const label = stringProp(props, ["label"]);
 
   if (component === "TextField") {
@@ -544,12 +650,20 @@ const mappedProps = (
             props["textFieldType"] === "longText"
           ? true
           : undefined;
+    const initial = firstDefined(props, ["value", "text"]);
+    const defaultValue =
+      typeof initial === "string"
+        ? initial
+        : typeof initial === "number" && Number.isFinite(initial)
+          ? String(initial)
+          : undefined;
     return {
       $type: "Input",
       ...(placeholder !== undefined ? { placeholder } : {}),
       ...(multiline !== undefined ? { multiline } : {}),
       ...(label !== undefined ? { label } : {}),
       ...(name !== undefined ? { name } : {}),
+      ...(defaultValue !== undefined ? { defaultValue } : {}),
     };
   }
 
@@ -581,6 +695,7 @@ const mappedProps = (
         ...(selected.length > 0 ? { defaultValue: selected } : {}),
       };
     }
+    const [defaultValue] = selected;
     if (props["displayStyle"] === "chips") {
       const placeholder = stringProp(props, ["placeholder"]);
       return {
@@ -589,9 +704,9 @@ const mappedProps = (
         ...(placeholder !== undefined ? { placeholder } : {}),
         ...(label !== undefined ? { label } : {}),
         ...(name !== undefined ? { name } : {}),
+        ...(defaultValue !== undefined ? { defaultValue } : {}),
       };
     }
-    const [defaultValue] = selected;
     return {
       $type: "RadioGroup",
       options,
@@ -621,7 +736,7 @@ const mappedProps = (
 const convertTemplate = (
   node: Record<string, unknown>,
   templateChildren: A2uiTemplateChildren,
-  dataSource: unknown,
+  scope: Scope,
   context: ConversionContext,
   depth: number,
   visited: Set<string>,
@@ -631,12 +746,13 @@ const convertTemplate = (
   if (!reserveNode(context)) return null;
   const horizontalList =
     node["component"] === "List" &&
-    materialize(node["direction"], dataSource, context) === "horizontal";
+    materialize(node["direction"], scope.data, context) === "horizontal";
   const container = mappedContainer ??
     retained ?? {
       $type: horizontalList ? "Row" : "ListView",
     };
-  const list = resolvePointer(dataSource, templateChildren.template.path);
+  const list = resolvePointer(scope.data, templateChildren.template.path);
+  const listPointer = pointerIn(scope, templateChildren.template.path);
   if (!Array.isArray(list)) {
     context.warnings.push(
       `Template on component "${String(node["id"] ?? "")}" did not resolve to a list.`,
@@ -655,7 +771,7 @@ const convertTemplate = (
     if (!retained && !horizontalList && !reserveNode(context)) break;
     const child = convertComponent(
       templateChildren.template.componentId,
-      list[index],
+      { data: list[index], path: `${listPointer}/${index}` },
       context,
       depth + 1,
       visited,
@@ -674,7 +790,7 @@ const convertTemplate = (
 
 function convertComponent(
   componentId: string,
-  dataSource: unknown,
+  scope: Scope,
   context: ConversionContext,
   depth: number,
   visited: Set<string>,
@@ -729,13 +845,13 @@ function convertComponent(
       }
       const resolved = materialize(
         value,
-        dataSource,
+        scope.data,
         context,
         key !== "checks",
       );
       if (resolved !== undefined) setOwnProperty(props, key, resolved);
     }
-    const mapped = mappedProps(node, props, context);
+    const mapped = mappedProps(node, props, context, scope);
     if (!mapped && SUPPORTED_COMPONENTS.has(component)) {
       context.warnings.push(
         `A2UI component "${component}" could not be mapped and was skipped.`,
@@ -755,7 +871,7 @@ function convertComponent(
       return convertTemplate(
         node,
         templateChildren,
-        dataSource,
+        scope,
         context,
         depth,
         visited,
@@ -766,7 +882,8 @@ function convertComponent(
     if (!reserveNode(context)) return null;
     const converted = mapped ?? retained;
     if (!converted) return null;
-    const children = childrenOf(node, dataSource, context, depth, visited);
+    recordBindings(node, props, converted, scope, context);
+    const children = childrenOf(node, scope, context, depth, visited);
     if (mapped?.$type === "Button" && mapped["label"] === undefined) {
       const label = textLabel(node, children, context);
       if (label !== undefined) return { ...mapped, label };
@@ -810,16 +927,26 @@ export function convertSurfaceToUISpec(
     evaluationBudgetWarned: false,
     functionDepthWarned: false,
     templates: new Map(),
+    inputFields: new Map(),
+    boundActionEntries: [],
     keepUnknownComponents: options.keepUnknownComponents === true,
   };
   try {
     const spec = convertComponent(
       "root",
-      surface.dataModel,
+      { data: surface.dataModel, path: "" },
       context,
       0,
       new Set(),
     );
+    for (const { target, key, pointer } of context.boundActionEntries) {
+      const value = withFieldReferences(
+        target[key],
+        pointer,
+        context.inputFields,
+      );
+      if (value !== undefined) setOwnProperty(target, key, value);
+    }
     return { spec, warnings };
   } catch {
     warnings.push("A2UI surface conversion encountered malformed input.");

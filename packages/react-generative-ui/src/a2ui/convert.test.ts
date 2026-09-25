@@ -262,12 +262,13 @@ describe("convertSurfaceToUISpec", () => {
           $type: "Input",
           label: "Email",
           placeholder: "you@example.com",
-          name: "email",
+          name: "/form/email",
+          defaultValue: "ada@example.com",
         },
         {
           $type: "Checkbox",
           label: "Accepted",
-          name: "accepted",
+          name: "/form/accepted",
           defaultChecked: true,
         },
       ],
@@ -368,7 +369,7 @@ describe("convertSurfaceToUISpec", () => {
               { label: "Standard", value: "standard" },
             ],
             label: "Delivery",
-            name: "delivery",
+            name: "/form/delivery",
             defaultValue: ["express"],
           },
           {
@@ -378,7 +379,7 @@ describe("convertSurfaceToUISpec", () => {
               { label: "Pro", value: "pro" },
             ],
             label: "Plan",
-            name: "plan",
+            name: "/form/plan",
             defaultValue: "pro",
           },
           {
@@ -387,7 +388,7 @@ describe("convertSurfaceToUISpec", () => {
             min: "2026-01-01",
             max: "2026-12-31",
             label: "Start date",
-            name: "startDate",
+            name: "/form/startDate",
           },
         ],
       },
@@ -434,7 +435,7 @@ describe("convertSurfaceToUISpec", () => {
               { label: "Free", value: "free" },
               { label: "Pro", value: "pro" },
             ],
-            name: "plan",
+            name: "/plan",
             defaultValue: "pro",
           },
           {
@@ -444,7 +445,7 @@ describe("convertSurfaceToUISpec", () => {
               { label: "Olives", value: "olives" },
               { label: "Onion", value: "onion" },
             ],
-            name: "toppings",
+            name: "/toppings",
             defaultValue: ["basil", "onion"],
           },
         ],
@@ -453,7 +454,7 @@ describe("convertSurfaceToUISpec", () => {
     });
   });
 
-  it("does not pass a ChoicePicker value to Select without an initial-value prop", () => {
+  it("passes a chips ChoicePicker value to Select as its initial value", () => {
     const result = convertSurfaceToUISpec(
       surfaceFrom([
         {
@@ -470,6 +471,7 @@ describe("convertSurfaceToUISpec", () => {
       spec: {
         $type: "Select",
         options: [{ label: "Express", value: "express" }],
+        defaultValue: "express",
       },
       warnings: [],
     });
@@ -1137,6 +1139,322 @@ describe("convertSurfaceToUISpec", () => {
     });
   });
 
+  it("points action context bound to an input at that input, so it resolves when the action fires", () => {
+    const surface = surfaceFrom(
+      [
+        {
+          id: "root",
+          component: "Column",
+          children: ["name", "plan", "size", "agree", "start", "due", "send"],
+        },
+        {
+          id: "name",
+          component: "TextField",
+          label: "Name",
+          value: { path: "/form/name" },
+        },
+        {
+          id: "plan",
+          component: "ChoicePicker",
+          options: [{ label: "Pro", value: "pro" }],
+          value: { path: "/form/plan" },
+        },
+        {
+          id: "size",
+          component: "ChoicePicker",
+          displayStyle: "chips",
+          options: [{ label: "Medium", value: "m" }],
+          value: { path: "/form/size" },
+        },
+        {
+          id: "agree",
+          component: "CheckBox",
+          label: "Agree",
+          value: { path: "/form/agree" },
+        },
+        {
+          id: "start",
+          component: "DateTimeInput",
+          value: { path: "/form/start" },
+        },
+        {
+          id: "due",
+          component: "DateTimeInput",
+          value: { path: "/form/due" },
+        },
+        {
+          id: "send",
+          component: "Button",
+          label: "Send",
+          action: {
+            event: {
+              name: "send",
+              context: {
+                name: { path: "/form/name" },
+                form: { path: "/form" },
+                owner: { path: "/owner" },
+                literal: "kept",
+              },
+            },
+          },
+        },
+      ],
+      {
+        form: {
+          name: "Ada",
+          plan: ["pro"],
+          size: "m",
+          agree: false,
+          start: "2026-01-02",
+          due: "2025-12-15T17:00:00Z",
+          id: 7,
+        },
+        owner: "u1",
+      },
+    );
+
+    const { spec, warnings } = convertSurfaceToUISpec(surface);
+
+    expect(warnings).toEqual([]);
+    expect(spec?.["children"]).toContainEqual({
+      $type: "Button",
+      label: "Send",
+      $action: {
+        type: "a2ui:action",
+        name: "send",
+        surfaceId: "",
+        sourceComponentId: "send",
+        context: {
+          name: { $field: "/form/name" },
+          form: {
+            name: { $field: "/form/name" },
+            plan: [{ $field: "/form/plan" }],
+            size: { $field: "/form/size" },
+            agree: { $field: "/form/agree" },
+            start: { $field: "/form/start" },
+            due: "2025-12-15T17:00:00Z",
+            id: 7,
+          },
+          owner: "u1",
+          literal: "kept",
+        },
+      },
+    });
+    expect(surface.dataModel).toEqual({
+      form: {
+        name: "Ada",
+        plan: ["pro"],
+        size: "m",
+        agree: false,
+        start: "2026-01-02",
+        due: "2025-12-15T17:00:00Z",
+        id: 7,
+      },
+      owner: "u1",
+    });
+  });
+
+  it("names an input inside a template item by the item's path", () => {
+    const surface = surfaceFrom(
+      [
+        { id: "root", component: "Column", children: ["lines", "order"] },
+        {
+          id: "lines",
+          component: "List",
+          children: { template: { componentId: "line", path: "/items" } },
+        },
+        { id: "line", component: "Row", children: ["qty", "remove"] },
+        {
+          id: "qty",
+          component: "TextField",
+          label: "Quantity",
+          value: { path: "qty" },
+        },
+        {
+          id: "remove",
+          component: "Button",
+          label: "Remove",
+          action: {
+            event: {
+              name: "remove",
+              context: { qty: { path: "qty" }, sku: { path: "sku" } },
+            },
+          },
+        },
+        {
+          id: "order",
+          component: "Button",
+          label: "Order",
+          action: {
+            event: { name: "order", context: { items: { path: "/items" } } },
+          },
+        },
+      ],
+      {
+        items: [
+          { sku: "a", qty: 1 },
+          { sku: "b", qty: 2 },
+        ],
+      },
+    );
+
+    const line = (index: number, sku: string, qty: string) => ({
+      $type: "ListViewItem",
+      children: {
+        $type: "Row",
+        children: [
+          {
+            $type: "Input",
+            label: "Quantity",
+            name: `/items/${index}/qty`,
+            defaultValue: qty,
+          },
+          {
+            $type: "Button",
+            label: "Remove",
+            $action: {
+              type: "a2ui:action",
+              name: "remove",
+              surfaceId: "",
+              sourceComponentId: "remove",
+              context: { qty: { $field: `/items/${index}/qty` }, sku },
+            },
+          },
+        ],
+      },
+    });
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "Col",
+        children: [
+          {
+            $type: "ListView",
+            children: [line(0, "a", "1"), line(1, "b", "2")],
+          },
+          {
+            $type: "Button",
+            label: "Order",
+            $action: {
+              type: "a2ui:action",
+              name: "order",
+              surfaceId: "",
+              sourceComponentId: "order",
+              context: {
+                items: [
+                  { sku: "a", qty: { $field: "/items/0/qty" } },
+                  { sku: "b", qty: { $field: "/items/1/qty" } },
+                ],
+              },
+            },
+          },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
+  it("places a field reference in a bound list only at an existing index or the next one", () => {
+    const surface = surfaceFrom(
+      [
+        { id: "root", component: "Column", children: ["far", "next", "send"] },
+        {
+          id: "far",
+          component: "TextField",
+          value: { path: "/items/999999999/name" },
+        },
+        {
+          id: "next",
+          component: "TextField",
+          value: { path: "/items/0/name" },
+        },
+        {
+          id: "send",
+          component: "Button",
+          label: "Send",
+          action: {
+            event: { name: "send", context: { items: { path: "/items" } } },
+          },
+        },
+      ],
+      { items: [] },
+    );
+
+    expect(convertSurfaceToUISpec(surface).spec?.["children"]).toContainEqual({
+      $type: "Button",
+      label: "Send",
+      $action: {
+        type: "a2ui:action",
+        name: "send",
+        surfaceId: "",
+        sourceComponentId: "send",
+        context: { items: [{ name: { $field: "/items/0/name" } }] },
+      },
+    });
+  });
+
+  it("points function call arguments and paths the data model does not hold yet at their inputs", () => {
+    const surface = surfaceFrom([
+      { id: "root", component: "Column", children: ["link", "open", "save"] },
+      {
+        id: "link",
+        component: "TextField",
+        label: "Link",
+        value: { path: "/draft/link" },
+      },
+      {
+        id: "open",
+        component: "Button",
+        label: "Open",
+        action: {
+          functionCall: {
+            call: "openUrl",
+            args: { url: { path: "/draft/link" } },
+          },
+        },
+      },
+      {
+        id: "save",
+        component: "Button",
+        label: "Save",
+        action: {
+          event: { name: "save", context: { draft: { path: "/draft" } } },
+        },
+      },
+    ]);
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "Col",
+        children: [
+          { $type: "Input", label: "Link", name: "/draft/link" },
+          {
+            $type: "Button",
+            label: "Open",
+            $action: {
+              type: "a2ui:functionCall",
+              call: "openUrl",
+              surfaceId: "",
+              sourceComponentId: "open",
+              args: { url: { $field: "/draft/link" } },
+            },
+          },
+          {
+            $type: "Button",
+            label: "Save",
+            $action: {
+              type: "a2ui:action",
+              name: "save",
+              surfaceId: "",
+              sourceComponentId: "save",
+              context: { draft: { link: { $field: "/draft/link" } } },
+            },
+          },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
   it("maps button and text field variants", () => {
     const surface = surfaceFrom(
       [
@@ -1186,8 +1504,14 @@ describe("convertSurfaceToUISpec", () => {
           { $type: "Button", label: "Skip", buttonStyle: "ghost" },
           { $type: "Button", label: "Back" },
           { $type: "Button", label: "Delete", buttonStyle: "danger" },
-          { $type: "Input", multiline: true, label: "Notes", name: "notes" },
-          { $type: "Input", label: "Code", name: "code" },
+          {
+            $type: "Input",
+            multiline: true,
+            label: "Notes",
+            name: "/notes",
+            defaultValue: "",
+          },
+          { $type: "Input", label: "Code", name: "/code", defaultValue: "" },
         ],
       },
       warnings: [],
