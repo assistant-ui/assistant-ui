@@ -1177,6 +1177,7 @@ export class LocalThreadRuntimeCore
       const history = this._options.adapters.history;
       const ownsCurrentMessage = syncOwnedMessage();
       let settled = false;
+      let written: Promise<void> | undefined;
       if (holdsMessage && this._followedDuringRun.delete(message.id)) {
         const stored = this.getMessageById(message.id);
         if (stored?.message.role === "assistant") {
@@ -1186,9 +1187,7 @@ export class LocalThreadRuntimeCore
             settled = true;
             if (ownsCurrentMessage) message = cancelled;
             else
-              this._persistSettledPause(stored.parentId, cancelled)?.catch(
-                () => {},
-              );
+              written = this._persistSettledPause(stored.parentId, cancelled);
           }
         }
       }
@@ -1206,7 +1205,6 @@ export class LocalThreadRuntimeCore
 
       // Pauses are written only for adapters that can rewrite the entry later;
       // an append-only adapter would strand a half-finished run in history.
-      let written: Promise<void> | undefined;
       if (
         ownsCurrentMessage &&
         (isTerminal || (isPausing && history?.update))

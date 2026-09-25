@@ -4328,6 +4328,59 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     });
   });
 
+  it("rejects the run of a pause it lost when the settled pause cannot be stored", async () => {
+    const failure = new Error("history unavailable");
+    let pausedId: string | undefined;
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const thread = createThread(
+      {
+        async *run() {
+          yield {
+            content: [
+              toolCallPart("send_email"),
+              toolCallPart("deploy", { id: "a1" }),
+            ],
+            status: { type: "requires-action", reason: "tool-calls" },
+          };
+          await released;
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          async append(item) {
+            if (item.message.id === pausedId) throw failure;
+          },
+        },
+      },
+    );
+
+    const first = thread.append(userMessage("send an email and deploy"));
+    await flush();
+    pausedId = thread.messages[1]!.id;
+    thread.addToolResult({
+      messageId: pausedId,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result: "sent",
+      isError: false,
+    });
+    void thread.append({
+      ...userMessage("skip the deploy"),
+      parentId: pausedId,
+      startRun: false,
+    });
+    await flush();
+    release();
+
+    await expect(first).rejects.toBe(failure);
+  });
+
   it("rewrites a pause its run lost to a tool result once a later turn follows it", async () => {
     const { history, appended, updated } = createHistory();
     let release!: () => void;
