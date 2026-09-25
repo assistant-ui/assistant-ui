@@ -61,6 +61,10 @@ describe("createCloudThreadListAdapter", () => {
       remoteId: "remote-1",
       externalId: undefined,
     });
+    expect(cloud.threads.create).toHaveBeenCalledWith({
+      last_message_at: expect.any(Date),
+      external_id: undefined,
+    });
 
     await adapter.rename("remote-1", "Renamed");
     expect(cloud.threads.update).toHaveBeenCalledWith("remote-1", {
@@ -93,6 +97,90 @@ describe("createCloudThreadListAdapter", () => {
 
     expect(cloud.registerSdk).toHaveBeenNthCalledWith(1, CORE_SDK);
     expect(cloud.registerSdk).toHaveBeenNthCalledWith(2, sdk);
+  });
+
+  it("reuses a cloud thread after a committed create loses its response", async () => {
+    const stored: Array<{ id: string; externalId: string | undefined }> = [];
+    let nextId = 0;
+    let loseFirstResponse = true;
+    const cloud = {
+      threads: {
+        create: vi.fn(
+          async (body: { external_id?: string; upsert?: boolean }) => {
+            const existing = stored.find(
+              (thread) => thread.externalId === body.external_id,
+            );
+            if (body.upsert && existing) return { thread_id: existing.id };
+            const thread = {
+              id: `remote-${++nextId}`,
+              externalId: body.external_id,
+            };
+            stored.push(thread);
+            if (loseFirstResponse) {
+              loseFirstResponse = false;
+              throw new Error("response lost after commit");
+            }
+            return { thread_id: thread.id };
+          },
+        ),
+      },
+    } as unknown as AssistantCloud;
+    const adapter = createCloudThreadListAdapter({
+      cloud,
+      upsert: true,
+      create: async () => ({ externalId: "session-1" }),
+    });
+
+    await expect(adapter.initialize("local-1")).rejects.toThrow(
+      "response lost after commit",
+    );
+    await expect(adapter.initialize("local-1")).resolves.toEqual({
+      remoteId: "remote-1",
+      externalId: "session-1",
+    });
+
+    expect(stored).toEqual([{ id: "remote-1", externalId: "session-1" }]);
+    expect(cloud.threads.create).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ external_id: "session-1", upsert: true }),
+    );
+    expect(cloud.threads.create).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ external_id: "session-1", upsert: true }),
+    );
+  });
+
+  it("omits upsert when no external id is available", async () => {
+    const cloud = makeCloud();
+    const adapter = createCloudThreadListAdapter({ cloud, upsert: true });
+
+    await adapter.initialize("local-1");
+
+    expect(cloud.threads.create).toHaveBeenCalledWith({
+      last_message_at: expect.any(Date),
+      external_id: undefined,
+    });
+  });
+
+  it("leaves repeated external ids non-idempotent by default", async () => {
+    const cloud = makeCloud();
+    const adapter = createCloudThreadListAdapter({
+      cloud,
+      create: async () => ({ externalId: "session-1" }),
+    });
+
+    await adapter.initialize("local-1");
+    await adapter.initialize("local-2");
+
+    expect(cloud.threads.create).toHaveBeenCalledTimes(2);
+    expect(cloud.threads.create).toHaveBeenNthCalledWith(1, {
+      last_message_at: expect.any(Date),
+      external_id: "session-1",
+    });
+    expect(cloud.threads.create).toHaveBeenNthCalledWith(2, {
+      last_message_at: expect.any(Date),
+      external_id: "session-1",
+    });
   });
 
   it("registers only core without a calling integration identity", () => {
