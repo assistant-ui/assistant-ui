@@ -4,6 +4,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { z } from "zod";
+import { parsePartialJsonObject } from "assistant-stream/utils";
 import { JSONGenerativeUI as ClientGenUI } from "./JSONGenerativeUI.client";
 import { JSONGenerativeUI as ServerGenUI } from "./JSONGenerativeUI.server";
 import { defineGenerativeComponents } from "./defineGenerativeComponents";
@@ -128,6 +129,22 @@ describe("JSONGenerativeUI — client build", () => {
       ).toBe('<div data-aui="root"></div>');
     },
   );
+
+  it("holds back a pending prompt whose cancelled argument stream is partial", () => {
+    const args = parsePartialJsonObject('{"$type":"Button","label":"Ans');
+    expect(
+      renderTool(ui.promptUser(), args, {
+        status: { type: "requires-action", reason: "tool-calls" },
+      }),
+    ).toBe('<div data-aui="root"></div>');
+    expect(
+      renderTool(
+        ui.promptUser(),
+        parsePartialJsonObject('{"$type":"Button","label":"Answer"}'),
+        { status: { type: "requires-action", reason: "tool-calls" } },
+      ),
+    ).toContain("<button>Answer</button>");
+  });
 
   it("records actions before dispatching them without waiting for recording", () => {
     const recording = vi.fn(() => new Promise<void>(() => {}));
