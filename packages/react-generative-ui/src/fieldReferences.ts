@@ -5,13 +5,13 @@ const MAX_DEPTH = 64;
 
 const isFieldReference = (
   value: unknown,
-): value is { readonly $field: string } =>
+): value is { readonly $field: string; readonly fallback?: unknown } =>
   isRecord(value) &&
-  Object.keys(value).length === 1 &&
-  typeof value["$field"] === "string";
+  typeof value["$field"] === "string" &&
+  Object.keys(value).every((key) => key === "$field" || key === "fallback");
 
 /**
- * Whether `value` contains a `{ "$field": name }` reference within 64 levels.
+ * Whether `value` contains a `{ "$field": name }` or `{ "$field": name, "fallback": value }` reference within 64 levels.
  */
 export const hasFieldReference = (value: unknown): boolean => {
   const seen = new Set<object>();
@@ -32,7 +32,7 @@ export const hasFieldReference = (value: unknown): boolean => {
 };
 
 /**
- * Replaces each `{ "$field": name }` reference inside `value` with the own property `name` of `fields`. A reference that resolves to `undefined` is dropped from its object or array, and a cyclic reference or anything nested deeper than 64 levels is kept as is.
+ * Replaces each `{ "$field": name }` reference inside `value` with the own property `name` of `fields`, or with the reference's own `fallback` when that is `undefined`. A reference that still resolves to `undefined` is dropped from its object or array, and a cyclic reference or anything nested deeper than 64 levels is kept as is.
  */
 export const resolveFieldReferences = (
   value: unknown,
@@ -41,9 +41,11 @@ export const resolveFieldReferences = (
   const ancestors = new Set<object>();
   const resolve = (entry: unknown, depth: number): unknown => {
     if (isFieldReference(entry)) {
-      return Object.hasOwn(fields, entry.$field)
+      const current = Object.hasOwn(fields, entry.$field)
         ? fields[entry.$field]
         : undefined;
+      if (current !== undefined) return current;
+      return Object.hasOwn(entry, "fallback") ? entry.fallback : undefined;
     }
     if (
       typeof entry !== "object" ||

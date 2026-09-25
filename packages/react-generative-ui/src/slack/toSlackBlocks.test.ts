@@ -335,25 +335,29 @@ describe("toSlackBlocks", () => {
       });
     });
 
-    it("drops $field references from value and warns", () => {
+    it("turns $field references in value into their fallback and warns", () => {
       const { blocks, warnings } = toSlackBlocks({
         $type: "Button",
         label: "Save",
         $action: {
           type: "save",
           note: { $field: "note" },
-          form: { id: 7, plan: [{ $field: "plan" }] },
+          form: {
+            id: 7,
+            name: { $field: "name", fallback: "Ada" },
+            plan: [{ $field: "plan" }],
+          },
         },
       });
       expect((blocks[0] as SlackActionsBlock).elements[0]).toMatchObject({
         action_id: "save",
-        value: JSON.stringify({ form: { id: 7, plan: [] } }),
+        value: JSON.stringify({ form: { id: 7, name: "Ada", plan: [] } }),
       });
       expect(warnings).toContainEqual({
-        code: "dropped",
+        code: "fallback",
         component: "Button",
         detail:
-          "field references were dropped from value because Slack sends no other control's value with a button click.",
+          "field references in value became their fallback, or were dropped without one, because Slack sends no other control's value with a button click.",
       });
     });
 

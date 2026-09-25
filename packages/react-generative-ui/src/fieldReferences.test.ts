@@ -28,6 +28,26 @@ describe("field references", () => {
     });
   });
 
+  it("fall back to the reference's own fallback, and read only $field and fallback as a reference", () => {
+    expect(
+      resolveFieldReferences(
+        {
+          filled: { $field: "note", fallback: "old" },
+          missing: { $field: "gone", fallback: "kept" },
+          empty: { $field: "gone" },
+          list: [{ $field: "gone", fallback: 0 }],
+          data: { $field: "note", fallback: "old", extra: true },
+        },
+        { note: "new" },
+      ),
+    ).toEqual({
+      filled: "new",
+      missing: "kept",
+      list: [0],
+      data: { $field: "note", fallback: "old", extra: true },
+    });
+  });
+
   it("terminate on a cyclic value and keep the cycle", () => {
     const cyclic: Record<string, unknown> = { note: { $field: "note" } };
     cyclic["self"] = cyclic;

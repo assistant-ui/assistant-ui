@@ -21,7 +21,7 @@ const fieldValues = (source: Element): Record<string, unknown> => {
 };
 
 /**
- * Fires `$action` through `$dispatch` when both are present, merging a runtime value into the payload under the reserved `$input` key (not `value`) so the user's input never clobbers a model-supplied `value` field. Each `{ "$field": name }` inside `$action` first resolves to the current value of the control with that `name` in the vocabulary form or generative UI root nearest to `source`, collected the way a `Form` collects it; a reference with no such control, or whose control holds no value, is dropped. No-op when no registry is wired. The returned promise from an async handler is caught and re-thrown on a microtask so rejections surface rather than going unhandled.
+ * Fires `$action` through `$dispatch` when both are present, merging a runtime value into the payload under the reserved `$input` key (not `value`) so the user's input never clobbers a model-supplied `value` field. Each `{ "$field": name }` inside `$action` first resolves to the current value of the control with that `name` in the vocabulary form or generative UI root nearest to `source`, collected the way a `Form` collects it; a reference whose control is missing or holds no value resolves to its `fallback`, or is dropped without one. No-op when no registry is wired. The returned promise from an async handler is caught and re-thrown on a microtask so rejections surface rather than going unhandled.
  */
 export const fire = (
   $action: Action | undefined,

@@ -166,9 +166,9 @@ const buttonElement = (
   if (hasFieldReference(action)) {
     warn(
       context,
-      "dropped",
+      "fallback",
       component,
-      "field references were dropped from value because Slack sends no other control's value with a button click.",
+      "field references in value became their fallback, or were dropped without one, because Slack sends no other control's value with a button click.",
     );
     payload = resolveFieldReferences(action, {});
   }

@@ -23,13 +23,14 @@ describe("decodeSubmitData", () => {
     });
   });
 
-  it("resolves $field references in the payload from same-card inputs", () => {
+  it("resolves $field references in the payload from same-card inputs, else their fallback", () => {
     const value = {
       aui: {
         type: "save",
         payload: {
           note: { $field: "note" },
           form: { plan: [{ $field: "plan" }], missing: { $field: "gone" } },
+          renamed: { $field: "aui", fallback: "kept" },
         },
       },
       note: "Ship it",
@@ -39,6 +40,7 @@ describe("decodeSubmitData", () => {
       type: "save",
       note: "Ship it",
       form: { plan: ["pro"] },
+      renamed: "kept",
       $input: { note: "Ship it", plan: "pro" },
     });
   });

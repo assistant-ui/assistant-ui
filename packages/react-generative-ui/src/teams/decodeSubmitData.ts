@@ -12,7 +12,8 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
  * besides `aui` is collected into `$input` (omitted when there are none).
  * Each `{ "$field": name }` reference inside the payload resolves to the
  * same-card input value with that id, as the string Adaptive Cards submitted,
- * and a reference with no such input is dropped.
+ * and a reference with no such input resolves to its `fallback`, or is dropped
+ * without one.
  * `aui` is reserved for the envelope: `toAdaptiveCard` renames any input
  * whose id would collide to an unused id derived from it before encoding, so
  * a same-card input value can never land on this key. `$input` and `type`

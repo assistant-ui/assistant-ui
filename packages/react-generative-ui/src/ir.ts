@@ -85,7 +85,7 @@ export const ICON_NAMES = [
 export type IconName = (typeof ICON_NAMES)[number];
 
 /**
- * Behavior payload carried by an interactive node. `type` is resolved by the host's action registry, not the renderer; keeping behavior as data keeps the tree serializable, so the same node renders on web while converters may bind the type to a native action id on other platforms. A `{ "$field": name }` value anywhere in the payload refers to the current value of the control with that `name`, resolved when the action fires.
+ * Behavior payload carried by an interactive node. `type` is resolved by the host's action registry, not the renderer; keeping behavior as data keeps the tree serializable, so the same node renders on web while converters may bind the type to a native action id on other platforms. A `{ "$field": name }` value anywhere in the payload refers to the current value of the control with that `name`, resolved when the action fires, and `{ "$field": name, "fallback": value }` resolves to `fallback` when no control holds a value.
  */
 export interface Action {
   readonly type: string;
