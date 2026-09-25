@@ -28,6 +28,7 @@ const runtime = useCloudThreadListRuntime({
 | `cloud` | Required | The `AssistantCloud` client used for the list and the runtime adapters. |
 | `runtimeHook` | Required | A hook that returns the runtime for one selected thread. |
 | `create` | `undefined` | Runs before the Cloud thread is created. Its `externalId` is saved as the Cloud thread's `external_id`. |
+| `upsert` | `false` | Set to `true` when each stable external id identifies one conversation; retries reuse the workspace's existing thread. Requires a Cloud API version that supports `upsert`; older self-hosted servers may reject the field. |
 | `delete` | `undefined` | Runs before the Cloud thread is deleted. It receives the Cloud thread id, not your `externalId`; read the thread to map it, as above. |
 
 The wrapper always enables nested runtimes with `allowNesting: true`. It has no `sdk` or `onThreadIdChange` option. Use the lower-level adapter if you need an SDK identity, and use the remote-thread-list layer directly if your application needs an id change callback.
@@ -52,6 +53,7 @@ const adapter = useCloudThreadListAdapter({
 | `cloud` | An anonymous client when the public Cloud base URL is available | The client used for every Cloud operation. If there is no supplied or automatic client, the adapter becomes an in-memory thread list. Its `initialize` still calls `create` and returns the local thread id as `remoteId`. |
 | `sdk` | `undefined` | A `{ name, version }` identity registered after the core identity. Every Cloud request then carries it in `Aui-Sdk`. **Settings › Telemetry** lists the integration and its SDK version. |
 | `create` | `undefined` | Resolves an optional external id before `cloud.threads.create`. |
+| `upsert` | `false` | Set to `true` when each stable external id identifies one conversation; retries reuse the workspace's existing thread. Requires a Cloud API version that supports `upsert`; older self-hosted servers may reject the field. |
 | `delete` | `undefined` | Runs before `cloud.threads.delete`. |
 
 The hook keeps the latest callbacks without rebuilding the adapter. Its memo key is the Cloud instance only, so changing `create` or `delete` does not replace the list, while changing `cloud` does. Keep one Cloud instance for the lifetime of the list, and create a new adapter if you replace it.

@@ -19,6 +19,7 @@ type ThreadData = {
 export type CloudThreadListAdapterOptions = {
   cloud?: AssistantCloud | undefined;
   sdk?: SdkIdentity | undefined;
+  upsert?: boolean | undefined;
 
   create?: (() => Promise<ThreadData>) | undefined;
   delete?: ((threadId: string) => Promise<void>) | undefined;
@@ -185,6 +186,7 @@ export const createCloudThreadListAdapter = (
       const { thread_id: remoteId } = await cloud.threads.create({
         last_message_at: new Date(),
         external_id,
+        ...(getOptions().upsert && external_id ? { upsert: true } : {}),
       });
 
       return { externalId: external_id, remoteId: remoteId };

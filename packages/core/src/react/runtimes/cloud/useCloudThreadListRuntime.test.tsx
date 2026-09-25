@@ -38,6 +38,7 @@ describe("useCloudThreadListRuntime", () => {
         runtimeHook,
         create,
         delete: del,
+        upsert: true,
       }),
     );
 
@@ -45,6 +46,7 @@ describe("useCloudThreadListRuntime", () => {
       cloud,
       create,
       delete: del,
+      upsert: true,
     });
     expect(mocks.useRemoteThreadListRuntime).toHaveBeenCalledWith({
       runtimeHook,
