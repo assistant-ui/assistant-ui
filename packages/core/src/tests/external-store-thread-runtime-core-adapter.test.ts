@@ -615,6 +615,34 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       expect(core.messages.at(-1)?.metadata.isOptimistic).toBe(true);
     });
 
+    it("keeps the placeholder of a reload under the stopped tail that started before the resync flushes", async () => {
+      const messages = [createUserMessage("u1")];
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages,
+          isRunning: true,
+          onCancel: vi.fn(),
+          onReload: vi.fn(async () => {}),
+        }),
+      );
+
+      core.cancelRun();
+      await core.startRun({ parentId: "u1", sourceId: null, runConfig: {} });
+      core.__internal_setAdapter(
+        createBaseAdapter({
+          messages: [...messages],
+          isRunning: true,
+          onCancel: vi.fn(),
+          onReload: vi.fn(async () => {}),
+        }),
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(core.messages.map((m) => m.role)).toEqual(["user", "assistant"]);
+      expect(core.messages.at(-1)?.metadata.isOptimistic).toBe(true);
+    });
+
     it("does not write a stopped message back while the composer holds it", async () => {
       let finishTool!: () => void;
       const execute = vi.fn(

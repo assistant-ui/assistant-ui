@@ -162,6 +162,8 @@ export class ExternalStoreThreadRuntimeCore
   // to setMessages, whichever is newer.
   private _storeMessages: readonly ThreadMessage[] = [];
 
+  private _runStarts = 0;
+
   private _store!: ExternalStoreAdapter<any>;
 
   private _getInitializePromise?: () => Promise<unknown> | undefined;
@@ -866,6 +868,7 @@ export class ExternalStoreThreadRuntimeCore
     if (this._isVoiceMessage(config.sourceId))
       throw new Error("Voice transcript messages cannot be reloaded");
 
+    this._runStarts++;
     const visible = this.repository.getMessages();
     const kept = new Set(
       visible
@@ -892,6 +895,7 @@ export class ExternalStoreThreadRuntimeCore
     if (this._isVoiceMessage(config.sourceId))
       throw new Error("Voice transcript messages cannot be reloaded");
 
+    this._runStarts++;
     await this._store.onResume(config);
   }
 
@@ -951,6 +955,7 @@ export class ExternalStoreThreadRuntimeCore
     const messages = this.repository.getMessages();
     const previousMessage = messages[messages.length - 1];
     const cancelledTailId = previousMessage?.id ?? null;
+    const runStartsAtCancel = this._runStarts;
     const trailingUserLeaf =
       this._store.setMessages !== undefined &&
       previousMessage?.role === "user" &&
@@ -994,11 +999,14 @@ export class ExternalStoreThreadRuntimeCore
     setTimeout(() => {
       if (generation.aborted) return;
 
-      // A placeholder under a message other than the cancelled tail belongs
-      // to a run that started after the cancel, so the rollback leaves it.
+      // A placeholder under a message other than the cancelled tail, or one
+      // following a reload or resume issued after the cancel, belongs to a
+      // run that started after the cancel, so the rollback leaves it.
       const startedSinceCancel =
         this._getEffectiveIsRunning(this._store) &&
-        (this.repository.getMessages().at(-2)?.id ?? null) !== cancelledTailId;
+        (this._runStarts !== runStartsAtCancel ||
+          (this.repository.getMessages().at(-2)?.id ?? null) !==
+            cancelledTailId);
       if (!startedSinceCancel) this.dropEmptyOptimisticHead();
       if (movedLeaf) {
         const current = this.repository.getMessages();
