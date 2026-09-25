@@ -551,7 +551,7 @@ export class LocalThreadRuntimeCore
       }
       const parentId = this.repository.headId;
       this.repository.addOrUpdateMessage(parentId, message);
-      this._cancelPause(parentId);
+      const settledWrite = this._cancelPause(parentId);
       this.repository.resetHead(message.id);
       const historyWrite = this._options.adapters.history?.append({
         parentId,
@@ -563,7 +563,9 @@ export class LocalThreadRuntimeCore
       // clears the side list before the barrier resolves.
       this._dropVoiceMessage(message.id, false);
       if (notify) this._notifySubscribers();
-      return historyWrite;
+      return settledWrite
+        ? Promise.all([settledWrite, historyWrite]).then(() => {})
+        : historyWrite;
     };
     const barrier = this._getVoiceCommitBarrier();
     return barrier ? barrier.then(() => commit(true)) : commit(false);
