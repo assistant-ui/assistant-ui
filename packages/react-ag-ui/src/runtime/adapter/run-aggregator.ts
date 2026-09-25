@@ -814,8 +814,43 @@ export class RunAggregator {
     ) {
       return;
     }
+    const carried = this.takeTrailingReasoning();
+    if (carried.length > 0) this.emit();
     this.resetMessageParts();
     this.onTextMessageStart(messageId);
+    for (const part of carried) {
+      this.partOrder.push({ kind: "reasoning", key: part.key });
+      this.reasoningParts.set(part.key, part.buffer);
+      if (part.signature !== undefined)
+        this.reasoningSignatures.set(part.key, part.signature);
+      if (part.signatureId !== undefined)
+        this.reasoningSignatureIds.set(part.key, part.signatureId);
+      if (part.reasoningId !== undefined)
+        this.reasoningMessageIds.set(part.key, part.reasoningId);
+    }
+  }
+
+  private takeTrailingReasoning() {
+    const carried: {
+      key: string;
+      buffer: string;
+      signature: string | undefined;
+      signatureId: string | undefined;
+      reasoningId: string | undefined;
+    }[] = [];
+    let last = this.partOrder.at(-1);
+    while (last?.kind === "reasoning" && last.subagentRunId === undefined) {
+      this.partOrder.pop();
+      carried.unshift({
+        key: last.key,
+        buffer: this.reasoningParts.get(last.key) ?? "",
+        signature: this.reasoningSignatures.get(last.key),
+        signatureId: this.reasoningSignatureIds.get(last.key),
+        reasoningId: this.reasoningMessageIds.get(last.key),
+      });
+      last = this.partOrder.at(-1);
+    }
+    return carried;
   }
 
   private generateTextKey(): string {

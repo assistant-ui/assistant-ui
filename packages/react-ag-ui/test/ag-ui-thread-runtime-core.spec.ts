@@ -8014,6 +8014,71 @@ describe("AGUIThreadRuntimeCore", () => {
     });
   });
 
+  it("keeps reasoning that streams before a new text message on that message", async () => {
+    const reason = (subscriber: any, messageId: string, delta: string) => {
+      subscriber.onReasoningMessageStartEvent?.({
+        event: { type: "REASONING_MESSAGE_START", messageId },
+      });
+      subscriber.onReasoningMessageContentEvent?.({
+        event: { type: "REASONING_MESSAGE_CONTENT", messageId, delta },
+      });
+      subscriber.onReasoningMessageEndEvent?.({
+        event: { type: "REASONING_MESSAGE_END", messageId },
+      });
+    };
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      reason(subscriber, "r-1", "plan the call");
+      subscriber.onToolCallStartEvent?.({
+        event: {
+          type: "TOOL_CALL_START",
+          toolCallId: "call-1",
+          toolCallName: "lookup",
+          parentMessageId: "assistant-1",
+        },
+      });
+      subscriber.onToolCallEndEvent?.({
+        event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+      });
+      subscriber.onToolCallResultEvent?.({
+        event: {
+          type: "TOOL_CALL_RESULT",
+          toolCallId: "call-1",
+          messageId: "tool-1",
+          content: "ok",
+        },
+      });
+      reason(subscriber, "r-2", "write the answer");
+      subscriber.onTextMessageStartEvent?.({
+        event: { type: "TEXT_MESSAGE_START", messageId: "assistant-2" },
+      });
+      subscriber.onTextMessageContentEvent?.({
+        event: {
+          type: "TEXT_MESSAGE_CONTENT",
+          messageId: "assistant-2",
+          delta: "Done.",
+        },
+      });
+      subscriber.onTextMessageEndEvent?.({
+        event: { type: "TEXT_MESSAGE_END", messageId: "assistant-2" },
+      });
+      notifyRunFinished(subscriber, "run-1");
+      notifyRunFinalized(subscriber);
+    });
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+
+    await core.append(createAppendMessage());
+
+    const reasoningOf = (id: string) =>
+      core
+        .getMessages()
+        .find((message) => message.id === id)
+        ?.content.flatMap((part) =>
+          part.type === "reasoning" ? [part.text] : [],
+        );
+    expect(reasoningOf("assistant-1")).toEqual(["plan the call"]);
+    expect(reasoningOf("assistant-2")).toEqual(["write the answer"]);
+  });
+
   it("signs reasoning that arrived on the legacy thinking channel", async () => {
     const runInputs: any[] = [];
     const runAgent = vi.fn(async (input, subscriber) => {
