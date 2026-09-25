@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ThreadMessage } from "../../types/message";
+import type { MessageStatus, ThreadMessage } from "../../types/message";
 import {
   chunkExternalMessages,
   completeExternalMessageConversion,
@@ -10,6 +10,58 @@ import {
   type ExternalMessageConverterCallbackResult,
   type ExternalMessageConverterMessage,
 } from "./external-message-conversion";
+
+describe("joined assistant status", () => {
+  it.each([
+    { status: { type: "running" }, isRunning: true },
+    { status: { type: "complete", reason: "stop" }, isRunning: false },
+    {
+      status: { type: "incomplete", reason: "error", error: "failed" },
+      isRunning: false,
+    },
+    { status: undefined, isRunning: true },
+  ] satisfies { status: MessageStatus | undefined; isRunning: boolean }[])(
+    "uses the tail status $status with isRunning=$isRunning",
+    ({ status, isRunning }) => {
+      const result = convertExternalMessageChunk(
+        {
+          inputs: [],
+          outputs: [
+            {
+              id: "first",
+              role: "assistant",
+              content: "First step",
+              status: { type: "complete", reason: "unknown" },
+            },
+            { id: "second", role: "assistant", content: "Next step", status },
+          ],
+        },
+        0,
+        1,
+        isRunning,
+        undefined,
+      );
+      expect(result.status).toMatchObject(status ?? { type: "running" });
+      expect(result.id).toBe("first");
+      expect(result.content).toMatchObject([
+        { type: "text", text: "First step" },
+        { type: "text", text: "Next step" },
+      ]);
+    },
+  );
+
+  it("takes a running status from a tail whose content has not arrived yet", () => {
+    const result = joinExternalMessages([
+      {
+        role: "assistant",
+        content: "First step",
+        status: { type: "complete", reason: "stop" },
+      },
+      { role: "assistant", content: [], status: { type: "running" } },
+    ]);
+    expect(result.status).toEqual({ type: "running" });
+  });
+});
 
 describe("completeExternalMessageConversion", () => {
   it.each([false, 0, ""])(

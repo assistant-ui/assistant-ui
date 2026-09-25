@@ -197,10 +197,10 @@ export const joinExternalMessages = (
             content,
           };
         case "assistant":
+          assistantMessage.status = output.status;
           if (assistantMessage.content.length === 0) {
             assistantMessage.id = output.id;
             assistantMessage.createdAt ??= output.createdAt;
-            assistantMessage.status ??= output.status;
 
             if (output.attachments) {
               assistantMessage.attachments = [
