@@ -232,6 +232,56 @@ describe("$field references", () => {
 
     expect(save).toHaveBeenCalledWith({ payload: { type: "save" } });
   });
+  it("read nothing outside a vocabulary form when the tree has no generative UI root", async () => {
+    const save = vi.fn();
+    const registry = createActionRegistry({ save });
+    const hostForm = document.createElement("form");
+    hostForm.innerHTML = '<input name="secret" value="host">';
+    const inHost = document.createElement("div");
+    const standalone = document.createElement("div");
+    hostForm.append(inHost);
+    document.body.append(hostForm, standalone);
+    const roots = [createRoot(inHost), createRoot(standalone)];
+    await act(async () => {
+      roots[0]!.render(
+        renderGenerativeUI(
+          {
+            $type: "Button",
+            label: "Save",
+            $action: { type: "save", secret: { $field: "secret" } },
+          },
+          defaultGenerativeUILibrary,
+          { status: "done", dispatch: registry.dispatch },
+        ),
+      );
+      roots[1]!.render(
+        renderGenerativeUI(
+          {
+            $type: "Form",
+            children: [
+              { $type: "Input", name: "note", defaultValue: "kept" },
+              {
+                $type: "Button",
+                label: "Save note",
+                $action: { type: "save", note: { $field: "note" } },
+              },
+            ],
+          },
+          defaultGenerativeUILibrary,
+          { status: "done", dispatch: registry.dispatch },
+        ),
+      );
+    });
+
+    await act(async () => inHost.querySelector("button")!.click());
+    await act(async () => standalone.querySelector("button")!.click());
+    await act(async () => roots.forEach((r) => r.unmount()));
+
+    expect(save.mock.calls.map(([{ payload }]) => payload)).toEqual([
+      { type: "save" },
+      { type: "save", note: "kept" },
+    ]);
+  });
 });
 
 describe("A2UI two-way binding", () => {
