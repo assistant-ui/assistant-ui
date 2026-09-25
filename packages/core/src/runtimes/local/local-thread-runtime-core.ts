@@ -249,8 +249,27 @@ export class LocalThreadRuntimeCore
 
     const previousHistory = this._options?.adapters.history;
     this._options = options;
+    if (!options.adapters.voice && this.voice) {
+      try {
+        this.disconnectVoice();
+      } catch (error) {
+        console.error(
+          "[assistant-ui] Voice cleanup threw after the adapter changed",
+          error,
+        );
+      }
+    }
 
     let hasUpdates = false;
+
+    if (!options.adapters.suggestion) {
+      this._suggestionsController?.abort();
+      this._suggestionsController = null;
+      if (this._suggestions.length > 0) {
+        this._suggestions = [];
+        hasUpdates = true;
+      }
+    }
 
     const canSpeak = options.adapters?.speech !== undefined;
     if (this.capabilities.speech !== canSpeak) {

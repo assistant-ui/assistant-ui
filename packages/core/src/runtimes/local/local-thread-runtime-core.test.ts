@@ -19,6 +19,7 @@ import {
 import type { ThreadMessageLike } from "../../runtime/utils/thread-message-like";
 import type { ThreadSuggestion } from "../../runtime/interfaces/thread-runtime-core";
 import { isMessageNotSentError } from "../../types/error";
+import { createVoiceSession } from "../../adapters/voice";
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 10));
 
@@ -31,6 +32,7 @@ const createThread = (
   options?: {
     suggestion?: LocalRuntimeOptionsBase["adapters"]["suggestion"];
     history?: LocalRuntimeOptionsBase["adapters"]["history"];
+    voice?: LocalRuntimeOptionsBase["adapters"]["voice"];
     maxSteps?: number;
   },
 ) => {
@@ -43,6 +45,9 @@ const createThread = (
         }),
         ...(options?.history !== undefined && {
           history: options.history,
+        }),
+        ...(options?.voice !== undefined && {
+          voice: options.voice,
         }),
       },
       unstable_humanToolNames: ["send_email"],
@@ -97,6 +102,102 @@ const createApprovalThread = (firstResult: ChatModelRunResult) => {
 };
 
 describe("LocalThreadRuntimeCore events", () => {
+  it("disconnects an active voice session when its adapter is removed", async () => {
+    const disconnect = vi.fn();
+    const chatModel: ChatModelAdapter = {
+      async run() {
+        return { content: [] };
+      },
+    };
+    const thread = createThread(chatModel, {
+      voice: {
+        connect: (options) =>
+          createVoiceSession(options, async () => ({
+            disconnect,
+            mute: vi.fn(),
+            unmute: vi.fn(),
+          })),
+      },
+    });
+
+    thread.connectVoice();
+    await flush();
+    expect(thread.voice).toBeDefined();
+
+    thread.__internal_setOptions({ adapters: { chatModel } });
+
+    expect(disconnect).toHaveBeenCalledOnce();
+    expect(thread.voice).toBeUndefined();
+  });
+
+  it("installs replacement adapters before disconnecting voice", async () => {
+    const previousChatModel: ChatModelAdapter = {
+      async run() {
+        return { content: [] };
+      },
+    };
+    const replacementChatModel: ChatModelAdapter = {
+      async run() {
+        return { content: [] };
+      },
+    };
+    let thread: ReturnType<typeof createThread>;
+    let chatModelAtDisconnect: ChatModelAdapter | undefined;
+    const disconnect = vi.fn(() => {
+      chatModelAtDisconnect = thread.adapters.chatModel;
+    });
+    thread = createThread(previousChatModel, {
+      voice: {
+        connect: (options) =>
+          createVoiceSession(options, async () => ({
+            disconnect,
+            mute: vi.fn(),
+            unmute: vi.fn(),
+          })),
+      },
+    });
+
+    thread.connectVoice();
+    await flush();
+    thread.__internal_setOptions({
+      adapters: { chatModel: replacementChatModel },
+    });
+
+    expect(disconnect).toHaveBeenCalledOnce();
+    expect(chatModelAtDisconnect).toBe(replacementChatModel);
+  });
+
+  it("keeps voice connected when the adapter object is recreated", async () => {
+    const disconnect = vi.fn();
+    const chatModel: ChatModelAdapter = {
+      async run() {
+        return { content: [] };
+      },
+    };
+    const thread = createThread(chatModel, {
+      voice: {
+        connect: (options) =>
+          createVoiceSession(options, async () => ({
+            disconnect,
+            mute: vi.fn(),
+            unmute: vi.fn(),
+          })),
+      },
+    });
+
+    thread.connectVoice();
+    await flush();
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel,
+        voice: { connect: vi.fn() },
+      },
+    });
+
+    expect(disconnect).not.toHaveBeenCalled();
+    expect(thread.voice).toBeDefined();
+  });
+
   it("isolates runEnd listener errors", async () => {
     const listenerError = new Error("telemetry failed");
     const consoleError = vi
@@ -2603,6 +2704,83 @@ describe("LocalThreadRuntimeCore cancellation", () => {
 });
 
 describe("LocalThreadRuntimeCore suggestions", () => {
+  it("clears existing suggestions when the adapter is removed", async () => {
+    const chatModel: ChatModelAdapter = {
+      async run() {
+        return { content: [{ type: "text", text: "hello" }] };
+      },
+    };
+    const generate = vi.fn().mockResolvedValue([{ prompt: "follow up" }]);
+    const thread = createThread(chatModel, { suggestion: { generate } });
+
+    await thread.append(userMessage("hi"));
+    await flush();
+    expect(thread.suggestions).toEqual([{ prompt: "follow up" }]);
+
+    thread.__internal_setOptions({ adapters: { chatModel } });
+
+    expect(thread.suggestions).toEqual([]);
+  });
+
+  it("aborts pending suggestions when the adapter is removed", async () => {
+    let resolveSuggestions!: (value: readonly ThreadSuggestion[]) => void;
+    const suggestionsDeferred = new Promise<readonly ThreadSuggestion[]>(
+      (resolve) => {
+        resolveSuggestions = resolve;
+      },
+    );
+    const chatModel: ChatModelAdapter = {
+      async run() {
+        return { content: [{ type: "text", text: "hello" }] };
+      },
+    };
+    const generate = vi.fn().mockReturnValue(suggestionsDeferred);
+    const thread = createThread(chatModel, { suggestion: { generate } });
+
+    await thread.append(userMessage("hi"));
+    await flush();
+
+    const signal = generate.mock.calls[0]![0].signal as AbortSignal;
+    thread.__internal_setOptions({ adapters: { chatModel } });
+
+    expect(signal.aborted).toBe(true);
+    resolveSuggestions([{ prompt: "stale" }]);
+    await flush();
+    expect(thread.suggestions).toEqual([]);
+  });
+
+  it("keeps pending suggestions when the adapter object is recreated", async () => {
+    let resolveSuggestions!: (value: readonly ThreadSuggestion[]) => void;
+    const suggestionsDeferred = new Promise<readonly ThreadSuggestion[]>(
+      (resolve) => {
+        resolveSuggestions = resolve;
+      },
+    );
+    const chatModel: ChatModelAdapter = {
+      async run() {
+        return { content: [{ type: "text", text: "hello" }] };
+      },
+    };
+    const generate = vi.fn().mockReturnValue(suggestionsDeferred);
+    const thread = createThread(chatModel, { suggestion: { generate } });
+
+    await thread.append(userMessage("hi"));
+    await flush();
+
+    const signal = generate.mock.calls[0]![0].signal as AbortSignal;
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel,
+        suggestion: { generate },
+      },
+    });
+
+    expect(signal.aborted).toBe(false);
+    resolveSuggestions([{ prompt: "follow up" }]);
+    await flush();
+    expect(thread.suggestions).toEqual([{ prompt: "follow up" }]);
+  });
+
   it("ignores suggestion generation from a superseded run", async () => {
     let releaseFirst!: () => void;
     let releaseSecond!: () => void;
