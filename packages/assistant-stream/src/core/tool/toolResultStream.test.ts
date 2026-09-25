@@ -1584,4 +1584,45 @@ describe("unstable_runPendingTools", () => {
       },
     );
   });
+
+  it("propagates asynchronous streamCall failures through the stream", async () => {
+    const streamCallError = new Error("stream callback failed");
+    const inputStream = new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        controller.enqueue({
+          type: "part-start",
+          path: [],
+          part: {
+            type: "tool-call",
+            toolCallId: "tc-stream-call",
+            toolName: "broken",
+          },
+        });
+        controller.close();
+      },
+    });
+
+    const unhandledRejections = await captureUnhandledRejections(async () => {
+      await expect(
+        inputStream
+          .pipeThrough(
+            unstable_toolResultStream(
+              {
+                broken: {
+                  parameters: { type: "object", properties: {} },
+                  streamCall: async () => {
+                    throw streamCallError;
+                  },
+                },
+              },
+              new AbortController().signal,
+              async () => {},
+            ),
+          )
+          .pipeTo(new WritableStream<AssistantStreamChunk>()),
+      ).rejects.toThrow(streamCallError);
+    });
+
+    expect(unhandledRejections).toEqual([]);
+  });
 });

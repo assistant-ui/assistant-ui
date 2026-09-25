@@ -930,13 +930,13 @@ type ToolResultStreamOptions = {
   onExecutionEnd?: (toolCallId: string, toolName: string) => void;
 };
 
-type ToolStreamCallFunction<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = (reader: ToolCallReader<TArgs, TResult>, context: ToolExecutionContext) => void;
+type ToolStreamCallFunction<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = (reader: ToolCallReader<TArgs, TResult>, context: ToolExecutionContext) => void | Promise<void>;
 
 type ToolStreamCallback = <TArgs extends ReadonlyJSONObject = ReadonlyJSONObject, TResult extends ReadonlyJSONValue = ReadonlyJSONValue>(toolCall: {
   reader: ToolCallReader<TArgs, TResult>;
   toolCallId: string;
   toolName: string;
-}) => void;
+}) => void | Promise<void>;
 
 type ToolWithoutType<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = (Omit<FrontendTool<TArgs, TResult>, "type"> | Omit<BackendTool<TArgs, TResult>, "type"> | Omit<HumanTool<TArgs, TResult>, "type"> | Omit<ProviderTool<TArgs, TResult>, "type">) & {
   type?: undefined;
