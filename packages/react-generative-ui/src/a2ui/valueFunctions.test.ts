@@ -92,6 +92,17 @@ describe("parseExpressionTemplate", () => {
       parseExpressionTemplate(`${"${".repeat(40)}1${"}".repeat(40)}`),
     ).toThrow(ExpressionSyntaxError);
   });
+
+  it("accepts an empty interpolation, a trailing argument comma, and any whitespace", () => {
+    expect(joinLiterals(parseExpressionTemplate("a${}b"))).toEqual(["ab"]);
+    expect(parseExpressionTemplate("${add(a: 1, )}")).toEqual([
+      { call: "add", args: { a: 1 } },
+    ]);
+    expect(parseExpressionTemplate("${ /x }")).toEqual([{ path: "/x" }]);
+    expect(() => parseExpressionTemplate("${add(a: 1 x)}")).toThrow(
+      ExpressionSyntaxError,
+    );
+  });
 });
 
 const evaluate = (
@@ -106,6 +117,7 @@ const evaluate = (
         ? data[part.path]
         : undefined,
     warn: (message) => warnings.push(message),
+    templates: new Map(),
   });
   return { value, warnings };
 };
@@ -197,13 +209,16 @@ describe("evaluateA2uiValueFunction", () => {
     expect(format("h 'o''clock'")).toBe("2 o'clock");
   });
 
-  it("reads a date-only value as a local calendar date", () => {
+  it("reads a date-only value as a local calendar date and rejects one out of range", () => {
     expect(
       evaluate("formatDate", {
         value: "2026-01-16",
         format: "yyyy-MM-dd HH:mm",
       }).value,
     ).toBe("2026-01-16 00:00");
+    expect(
+      evaluate("formatDate", { value: "2026-02-30", format: "d" }).warnings,
+    ).toEqual(['A2UI function "formatDate" received invalid arguments.']);
   });
 
   it("falls back to an ISO date for an unsupported pattern and warns on an invalid date", () => {
@@ -242,7 +257,7 @@ describe("evaluateA2uiValueFunction", () => {
     expect(evaluate("and", { values: [true, ""] }).value).toBe(false);
     expect(evaluate("or", { values: [false, "x"] }).value).toBe(true);
     expect(evaluate("not", { value: 0 }).value).toBe(true);
-    expect(evaluate("not", { value: undefined }).value).toBeUndefined();
+    expect(evaluate("not", { value: undefined }).value).toBe(true);
   });
 
   it("warns instead of evaluating a function it does not support", () => {

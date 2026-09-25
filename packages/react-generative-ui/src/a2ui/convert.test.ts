@@ -716,6 +716,92 @@ describe("convertSurfaceToUISpec", () => {
     });
   });
 
+  it("reads a function's arguments entry by entry, even when they look like a binding or a call", () => {
+    const surface = surfaceFrom([
+      { id: "root", component: "Column", children: ["bound", "nested", "ok"] },
+      {
+        id: "bound",
+        component: "Text",
+        text: { call: "formatNumber", args: { path: "/missing" } },
+      },
+      {
+        id: "nested",
+        component: "Text",
+        text: {
+          call: "formatString",
+          args: { value: "${formatNumber(call: 'x')}" },
+        },
+      },
+      { id: "ok", component: "Text", text: "still here" },
+    ]);
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "Col",
+        children: [
+          { $type: "Markdown", value: "" },
+          { $type: "Markdown", value: "" },
+          { $type: "Markdown", value: "still here" },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
+  it("keeps a missing operand in and and or instead of dropping it", () => {
+    const operands = [{ path: "/agreed" }, { path: "/verified" }];
+    const surface = surfaceFrom(
+      [
+        { id: "root", component: "Column", children: ["all", "any"] },
+        {
+          id: "all",
+          component: "CheckBox",
+          label: "All",
+          value: { call: "and", args: { values: operands } },
+        },
+        {
+          id: "any",
+          component: "CheckBox",
+          label: "Any",
+          value: { call: "or", args: { values: operands } },
+        },
+      ],
+      { verified: true },
+    );
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "Col",
+        children: [
+          { $type: "Checkbox", label: "All", defaultChecked: false },
+          { $type: "Checkbox", label: "Any", defaultChecked: true },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
+  it("stops evaluating functions once the evaluation budget is spent", () => {
+    const surface = surfaceFrom(
+      [
+        {
+          id: "root",
+          component: "Text",
+          text: { call: "formatString", args: { value: { path: "/t" } } },
+        },
+      ],
+      { t: "${formatString(value: /t)}".repeat(380) },
+    );
+
+    const result = convertSurfaceToUISpec(surface);
+
+    expect(result.spec).toEqual({ $type: "Markdown", value: "" });
+    expect(result.warnings).toEqual([
+      "A2UI function nesting cap of 32 was reached.",
+      "A2UI function evaluation budget of 20000 was reached.",
+    ]);
+  });
+
   it("keeps an object with a call key and other fields as data", () => {
     const surface = surfaceFrom([
       {

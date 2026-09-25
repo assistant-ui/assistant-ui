@@ -4,11 +4,15 @@ import {
   type A2uiSurfaceState,
   type A2uiTemplateChildren,
 } from "./types";
-import { evaluateA2uiValueFunction } from "./valueFunctions";
+import {
+  evaluateA2uiValueFunction,
+  type ExpressionPart,
+} from "./valueFunctions";
 
 const DEPTH_CAP = 32;
 const TEMPLATE_ITEM_CAP = 100;
 const NODE_BUDGET = 5000;
+const EVALUATION_BUDGET = 20_000;
 
 const SUPPORTED_COMPONENTS = new Set([
   "Text",
@@ -115,39 +119,14 @@ const bindingPath = (value: unknown): string | undefined =>
 const lastPointerSegment = (path: string | undefined): string | undefined =>
   path ? decodePointer(path).at(-1) : undefined;
 
-const materialize = (
-  value: unknown,
+const materializeEntries = (
+  value: Record<string, unknown>,
   source: unknown,
   context: ConversionContext,
-  evaluate = true,
-  depth = 0,
-): unknown => {
-  if (isBinding(value)) return resolvePointer(source, value.path);
-  if (Array.isArray(value)) {
-    return value
-      .map((entry) => materialize(entry, source, context, evaluate, depth))
-      .filter((entry) => entry !== undefined);
-  }
-  if (!isPlainObject(value)) return value;
-  if (evaluate && isFunctionCall(value)) {
-    if (depth >= DEPTH_CAP) {
-      context.warnings.push(
-        `A2UI function nesting cap of ${DEPTH_CAP} was reached.`,
-      );
-      return undefined;
-    }
-    return evaluateA2uiValueFunction(
-      value.call,
-      materialize(value.args ?? {}, source, context, true, depth + 1) as Record<
-        string,
-        unknown
-      >,
-      {
-        resolve: (part) => materialize(part, source, context, true, depth + 1),
-        warn: (message) => context.warnings.push(message),
-      },
-    );
-  }
+  evaluate: boolean,
+  depth: number,
+  positional = false,
+): Record<string, unknown> => {
   const result: Record<string, unknown> = {};
   for (const [key, entry] of Object.entries(value)) {
     // An action's functionCall runs when the button fires, so only its arguments resolve here.
@@ -157,23 +136,83 @@ const materialize = (
             ...entry,
             ...(entry.args !== undefined
               ? {
-                  args: materialize(
+                  args: materializeEntries(
                     entry.args,
                     source,
                     context,
                     evaluate,
                     depth,
+                    true,
                   ),
                 }
               : {}),
           }
-        : materialize(entry, source, context, evaluate, depth);
+        : materialize(entry, source, context, evaluate, depth, positional);
     if (resolved !== undefined) {
       setOwnProperty(result, key, resolved);
     }
   }
   return result;
 };
+
+function materialize(
+  value: unknown,
+  source: unknown,
+  context: ConversionContext,
+  evaluate = true,
+  depth = 0,
+  positional = false,
+): unknown {
+  if (isBinding(value)) return resolvePointer(source, value.path);
+  if (Array.isArray(value)) {
+    const entries = value.map((entry) =>
+      materialize(entry, source, context, evaluate, depth, positional),
+    );
+    return positional
+      ? entries
+      : entries.filter((entry) => entry !== undefined);
+  }
+  if (!isPlainObject(value)) return value;
+  if (!evaluate || !isFunctionCall(value)) {
+    return materializeEntries(
+      value,
+      source,
+      context,
+      evaluate,
+      depth,
+      positional,
+    );
+  }
+  if (!spendEvaluation(context)) return undefined;
+  if (depth >= DEPTH_CAP) {
+    if (!context.functionDepthWarned) {
+      context.warnings.push(
+        `A2UI function nesting cap of ${DEPTH_CAP} was reached.`,
+      );
+      context.functionDepthWarned = true;
+    }
+    return undefined;
+  }
+  return evaluateA2uiValueFunction(
+    value.call,
+    materializeEntries(
+      value.args ?? {},
+      source,
+      context,
+      true,
+      depth + 1,
+      true,
+    ),
+    {
+      resolve: (part) =>
+        spendEvaluation(context)
+          ? materialize(part, source, context, true, depth + 1)
+          : undefined,
+      warn: (message) => context.warnings.push(message),
+      templates: context.templates,
+    },
+  );
+}
 
 const firstDefined = (
   props: Record<string, unknown>,
@@ -206,7 +245,25 @@ type ConversionContext = {
   depthWarned: boolean;
   budgetWarned: boolean;
   templateCapWarned: boolean;
+  evaluations: number;
+  evaluationBudgetWarned: boolean;
+  functionDepthWarned: boolean;
+  readonly templates: Map<string, ExpressionPart[] | null>;
   readonly keepUnknownComponents: boolean;
+};
+
+const spendEvaluation = (context: ConversionContext): boolean => {
+  if (context.evaluations < EVALUATION_BUDGET) {
+    context.evaluations++;
+    return true;
+  }
+  if (!context.evaluationBudgetWarned) {
+    context.warnings.push(
+      `A2UI function evaluation budget of ${EVALUATION_BUDGET} was reached.`,
+    );
+    context.evaluationBudgetWarned = true;
+  }
+  return false;
 };
 
 const reserveNode = (context: ConversionContext): boolean => {
@@ -749,6 +806,10 @@ export function convertSurfaceToUISpec(
     depthWarned: false,
     budgetWarned: false,
     templateCapWarned: false,
+    evaluations: 0,
+    evaluationBudgetWarned: false,
+    functionDepthWarned: false,
+    templates: new Map(),
     keepUnknownComponents: options.keepUnknownComponents === true,
   };
   try {

@@ -13,17 +13,14 @@ export type ExpressionPart =
 export type ValueFunctionContext = {
   readonly resolve: (value: ExpressionPart) => unknown;
   readonly warn: (message: string) => void;
+  readonly templates: Map<string, ExpressionPart[] | null>;
 };
 
 export class ExpressionSyntaxError extends Error {}
 
 const FUNCTION_NAME = /^[A-Za-z_@]\w*$/;
 
-const isSpace = (character: string) =>
-  character === " " ||
-  character === "\t" ||
-  character === "\n" ||
-  character === "\r";
+const isSpace = (character: string) => /\s/.test(character);
 
 const isPathCharacter = (character: string) =>
   !isSpace(character) && !"{}(),:'\"$".includes(character);
@@ -46,6 +43,11 @@ class ExpressionReader {
     const character = this.text[this.position];
     if (this.text.startsWith("${", this.position)) {
       this.position += 2;
+      this.skipSpace();
+      if (this.text[this.position] === "}") {
+        this.position++;
+        return "";
+      }
       const value = this.expression(depth + 1);
       this.skipSpace();
       if (this.text[this.position] !== "}") {
@@ -104,8 +106,7 @@ class ExpressionReader {
         writable: true,
       });
       this.skipSpace();
-      const separator = this.text[this.position];
-      this.position++;
+      const separator = this.text[this.position++];
       if (separator === ")") return args;
       if (separator !== ",") {
         this.fail(
@@ -113,6 +114,11 @@ class ExpressionReader {
             ? "a function call is not closed"
             : "arguments are not separated by commas",
         );
+      }
+      this.skipSpace();
+      if (this.text[this.position] === ")") {
+        this.position++;
+        return args;
       }
     }
   }
@@ -237,14 +243,17 @@ const toDate = (value: unknown): Date | undefined => {
   if (typeof value !== "string") return undefined;
   const dateOnly = DATE_ONLY.exec(value);
   if (!dateOnly) return new Date(value);
+  const [year, month, day] = dateOnly.slice(1).map(Number) as [
+    number,
+    number,
+    number,
+  ];
   const date = new Date(0);
-  date.setFullYear(
-    Number(dateOnly[1]),
-    Number(dateOnly[2]) - 1,
-    Number(dateOnly[3]),
-  );
+  date.setFullYear(year, month - 1, day);
   date.setHours(0, 0, 0, 0);
-  return date;
+  return date.getMonth() === month - 1 && date.getDate() === day
+    ? date
+    : undefined;
 };
 
 const toText = (value: unknown): string => {
@@ -261,6 +270,7 @@ const cached = <T>(cache: Map<string, T>, key: string, create: () => T): T => {
   let value = cache.get(key);
   if (value === undefined) {
     value = create();
+    if (cache.size >= 64) cache.clear();
     cache.set(key, value);
   }
   return value;
@@ -436,16 +446,20 @@ const VALUE_FUNCTIONS: Readonly<Record<string, ValueFunction>> = {
     if (typeof template !== "string") {
       return invalidArguments("formatString", context);
     }
-    let parts: ExpressionPart[];
-    try {
-      parts = parseExpressionTemplate(template);
-    } catch (error) {
-      if (!(error instanceof ExpressionSyntaxError)) throw error;
-      context.warn(
-        `A2UI formatString template is malformed: ${error.message}.`,
-      );
-      return undefined;
+    let parts = context.templates.get(template);
+    if (parts === undefined) {
+      try {
+        parts = parseExpressionTemplate(template);
+      } catch (error) {
+        if (!(error instanceof ExpressionSyntaxError)) throw error;
+        context.warn(
+          `A2UI formatString template is malformed: ${error.message}.`,
+        );
+        parts = null;
+      }
+      context.templates.set(template, parts);
     }
+    if (parts === null) return undefined;
     return parts
       .map((part) =>
         toText(
@@ -493,7 +507,7 @@ const VALUE_FUNCTIONS: Readonly<Record<string, ValueFunction>> = {
     Array.isArray(args["values"])
       ? args["values"].some(Boolean)
       : invalidArguments("or", context),
-  not: (args) => (args["value"] === undefined ? undefined : !args["value"]),
+  not: (args) => !args["value"],
 };
 
 export const evaluateA2uiValueFunction = (
