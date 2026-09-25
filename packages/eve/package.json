@@ -35,7 +35,8 @@
   },
   "dependencies": {
     "@assistant-ui/core": "^0.3.21",
-    "@assistant-ui/store": "^0.3.15"
+    "@assistant-ui/store": "^0.3.15",
+    "assistant-cloud": "*"
   },
   "peerDependencies": {
     "@types/react": "*",

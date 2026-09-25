@@ -15,8 +15,8 @@
       "gzip": 38122
     },
     "./react": {
-      "min": 341465,
-      "gzip": 95215
+      "min": 341467,
+      "gzip": 95212
     },
     "./store": {
       "min": 114179,
@@ -29,8 +29,8 @@
   },
   "@assistant-ui/eve": {
     ".": {
-      "min": 12348,
-      "gzip": 4622
+      "min": 14455,
+      "gzip": 5452
     }
   },
   "@assistant-ui/react": {

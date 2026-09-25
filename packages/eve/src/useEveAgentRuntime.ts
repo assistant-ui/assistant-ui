@@ -24,9 +24,13 @@ import {
   type ToolExecutionStatus,
 } from "@assistant-ui/core";
 import {
+  useCloudThreadListAdapter,
   useExternalStoreRuntime,
+  useRemoteThreadListRuntime,
   useRuntimeAdapters,
 } from "@assistant-ui/core/react";
+import { useAui } from "@assistant-ui/store";
+import type { AssistantCloud } from "assistant-cloud";
 import {
   useEveAgent,
   type EveMessageData,
@@ -43,7 +47,12 @@ import {
   collectTurnTimestamps,
   createTurnTimestampCache,
 } from "./deriveCreatedAt";
+import {
+  createEveCloudSessions,
+  type EveCloudSessions,
+} from "./eveCloudSessions";
 import { eveExtras } from "./eveExtras";
+import { EVE_SDK } from "./sdkIdentity";
 
 const USER_STAGED_STATUS = {
   type: "complete",
@@ -125,10 +134,9 @@ const toEveSendOptions = (
     ? { clientContext: runConfig.custom as EveClientContext }
     : undefined;
 
-export type UseEveAgentRuntimeOptions = Omit<
-  UseEveAgentOptions<EveMessageData>,
-  "reducer"
-> &
+type EveAgentOptions = Omit<UseEveAgentOptions<EveMessageData>, "reducer">;
+
+export type UseEveAgentRuntimeOptions = EveAgentOptions &
   ExternalStoreSharedOptions & {
     readonly adapters?:
       | {
@@ -139,18 +147,44 @@ export type UseEveAgentRuntimeOptions = Omit<
           readonly feedback?: FeedbackAdapter | undefined;
         }
       | undefined;
+    /**
+     * Backs the thread list with Assistant Cloud. Each cloud thread keeps one Eve session as its external id, saved once the thread's first turn creates the session, and opening a thread resumes it, so `session`, `initialSession`, `initialEvents`, and `resume` are not used. Pass it from the first render: adding or removing it needs a remount.
+     */
+    readonly cloud?: AssistantCloud | undefined;
   };
 
-/**
- * Connects Eve's `useEveAgent` hook to assistant-ui's runtime contract.
- *
- * The runtime renders Eve messages, forwards new user messages to the Eve
- * session, supports cancellation, and maps Eve input requests to assistant-ui
- * tool approval UI.
- */
-export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
+type EveCloudThread = {
+  readonly sessions: EveCloudSessions;
+  readonly id: string;
+  readonly isNew: boolean;
+  readonly sessionId: string | undefined;
+};
+
+const withCloudThreadSession = (
+  {
+    initialEvents: _initialEvents,
+    initialSession: _initialSession,
+    resume: _resume,
+    session: _session,
+    ...options
+  }: EveAgentOptions,
+  sessionId: string | undefined,
+): EveAgentOptions =>
+  sessionId === undefined
+    ? options
+    : {
+        ...options,
+        initialSession: { sessionId, streamIndex: 0 },
+        resume: true,
+      };
+
+const useEveThreadRuntime = (
+  options: UseEveAgentRuntimeOptions,
+  cloudSessions: EveCloudSessions | undefined,
+) => {
   const {
     adapters,
+    cloud: _cloud,
     isDisabled: _isDisabled,
     isSendDisabled: _isSendDisabled,
     suggestions: _suggestions,
@@ -162,10 +196,33 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     ? true
     : never;
 
+  const aui = useAui();
+  const [cloudThread] = useState((): EveCloudThread | undefined => {
+    if (!cloudSessions) return undefined;
+    const { id, status, externalId } = aui.threadListItem.getState();
+    return {
+      sessions: cloudSessions,
+      id,
+      isNew: status === "new",
+      sessionId: externalId,
+    };
+  });
+  const [resumesOnMount] = useState(() =>
+    cloudThread
+      ? cloudThread.sessionId !== undefined
+      : agentOptions.resume === true,
+  );
+  const isSessionless =
+    cloudThread !== undefined &&
+    !cloudThread.isNew &&
+    cloudThread.sessionId === undefined;
+
   const { onError, onEvent, onFinish, onSessionChange } = agentOptions;
   const lastFinishStatusRef = useRef<UseEveAgentStatus | null>(null);
   const agent = useEveAgent({
-    ...agentOptions,
+    ...(cloudThread
+      ? withCloudThreadSession(agentOptions, cloudThread.sessionId)
+      : agentOptions),
     ...(onError
       ? {
           onError: (error) =>
@@ -182,17 +239,34 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
       lastFinishStatusRef.current = snapshot.status;
       invokeEveLifecycleCallback("onFinish", onFinish, snapshot);
     },
-    ...(onSessionChange
+    ...(onSessionChange || cloudThread?.isNew
       ? {
-          onSessionChange: (session) =>
+          onSessionChange: (session) => {
+            if (cloudThread?.isNew && session === undefined) {
+              cloudThread.sessions.reject(
+                cloudThread.id,
+                new Error("The eve turn ended before it created a session."),
+              );
+            } else if (cloudThread?.isNew && session !== undefined) {
+              cloudThread.sessions.resolve(cloudThread.id, session.sessionId);
+              // A first message staged without a run leaves the thread unsaved, so the run that creates the session saves it.
+              if (aui.threadListItem.getState().status === "new")
+                aui.threadListItem.initialize().catch(() => {});
+            }
             invokeEveLifecycleCallback(
               "onSessionChange",
               onSessionChange,
               session,
-            ),
+            );
+          },
         }
       : {}),
   });
+  if (cloudThread && !("resume" in agent)) {
+    throw new Error(
+      "useEveAgentRuntime needs eve 0.44.1 or later for `cloud`, because opening a cloud thread resumes its session.",
+    );
+  }
   const runtimeAdapters = useRuntimeAdapters();
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
@@ -279,19 +353,22 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     null,
   );
 
-  const enqueueSend = (
-    dispatch: () => Promise<void>,
-    epochRef: { current: number } = sendEpochRef,
-  ) => {
-    const epoch = epochRef.current;
-    const next = sendChainRef.current.then(() => {
-      if (!isMountedRef.current) throw sendAbandonedError;
-      if (epoch !== epochRef.current) throw sendCancelledError;
-      return dispatch();
-    });
-    sendChainRef.current = next.catch(() => {});
-    return next;
-  };
+  const enqueueSend = useCallback(
+    (
+      dispatch: () => Promise<void>,
+      epochRef: { current: number } = sendEpochRef,
+    ) => {
+      const epoch = epochRef.current;
+      const next = sendChainRef.current.then(() => {
+        if (!isMountedRef.current) throw sendAbandonedError;
+        if (epoch !== epochRef.current) throw sendCancelledError;
+        return dispatch();
+      });
+      sendChainRef.current = next.catch(() => {});
+      return next;
+    },
+    [],
+  );
 
   // The store outlives the component (useEveAgent holds it in a ref with no
   // cleanup), so queued sends must not fire server turns after unmount. The
@@ -304,6 +381,34 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
       sendEpochRef.current += 1;
     };
   }, []);
+
+  // A replay rides the send chain because `resume()` rejects during a turn and upstream refuses sends while it runs; the reset counter keeps a cancel from dropping a refetch, and the hook's own replay on mount joins this one since upstream shares concurrent `resume()` calls.
+  const enqueueResume = useCallback(
+    () =>
+      enqueueSend(async () => {
+        const live = agentRef.current;
+        if (live.session === undefined || !("resume" in live)) return;
+        await live.resume();
+      }, resetEpochRef),
+    [enqueueSend],
+  );
+
+  useEffect(() => {
+    if (!resumesOnMount) return;
+    // StrictMode's second setup queues the replay again, so only the setup that survives queues it.
+    let active = true;
+    queueMicrotask(() => {
+      if (active) enqueueResume().catch(() => {});
+    });
+    return () => {
+      active = false;
+    };
+  }, [enqueueResume, resumesOnMount]);
+
+  useEffect(() => {
+    if (!cloudThread?.isNew) return;
+    return () => cloudThread.sessions.release(cloudThread.id);
+  }, [cloudThread]);
 
   useEffect(() => {
     if (stagedInputsRef.current.size === 0) return;
@@ -347,6 +452,11 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   };
 
   const reset = useCallback(() => {
+    // A cloud thread keeps the session its external id names, so a fresh session starts a new thread and leaves this one in the list.
+    if (cloudThread) {
+      aui.threads.switchToNewThread();
+      return;
+    }
     runtimeRef.current?.thread.unstable_notifySessionReset();
     // Sends parked behind an active turn captured the pre-reset epoch, so the
     // epoch has to advance before the session is torn down or they dispatch
@@ -359,7 +469,7 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     stagedInputsRef.current.clear();
     setToolStatuses({});
     agent.reset();
-  }, [agent]);
+  }, [agent, aui, cloudThread]);
 
   const extras = useMemo(
     () =>
@@ -376,6 +486,7 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     ...pickExternalStoreSharedOptions(options),
     messages,
     isRunning: providerIsRunning,
+    isLoading: agent.status === "resuming",
     extras,
     unstable_enableToolInvocations: true,
     setToolStatuses,
@@ -387,7 +498,17 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
       feedback: adapters?.feedback,
     },
     onNew: async (message) => {
+      if (isSessionless)
+        throw new MessageNotSentError(
+          "This thread has no eve session to send to.",
+        );
       if (!(message.startRun ?? message.role === "user")) {
+        // Saving a new cloud thread waits for its first session, which a staged message never creates.
+        if (cloudThread?.isNew)
+          cloudThread.sessions.reject(
+            cloudThread.id,
+            new Error("The thread's first message was staged without a run."),
+          );
         stageUserMessage(message);
         return;
       }
@@ -474,20 +595,7 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     ...("resume" in agent
       ? {
           onRefetchThread: () =>
-            // `resume()` rejects during a turn, so the replay rides the send
-            // chain like every other dispatch and runs once the turn parks; a
-            // cancel of that turn does not drop it, or the caller would be told
-            // the thread was refetched when it was not. Upstream shares one
-            // replay across concurrent `resume()` calls, so a refetch
-            // dispatched while `resume: true` is replaying on mount joins that
-            // read instead of taking a fresh one. The session is read at
-            // dispatch time because nothing durable exists before the first
-            // send lands.
-            enqueueSend(async () => {
-              const live = agentRef.current;
-              if (live.session === undefined) return;
-              await live.resume();
-            }, resetEpochRef).catch((error) => {
+            enqueueResume().catch((error) => {
               if (isDroppedSend(error)) return;
               throw error;
             }),
@@ -513,4 +621,39 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   runtimeRef.current = runtime;
 
   return runtime;
+};
+
+const useEveCloudRuntime = (
+  cloud: AssistantCloud,
+  options: UseEveAgentRuntimeOptions,
+) => {
+  const [sessions] = useState(createEveCloudSessions);
+  const adapter = useCloudThreadListAdapter({
+    cloud,
+    sdk: EVE_SDK,
+    create: async (threadId) => ({ externalId: await sessions.wait(threadId) }),
+  });
+  return useRemoteThreadListRuntime({
+    adapter,
+    allowNesting: true,
+    runtimeHook: function RuntimeHook() {
+      return useEveThreadRuntime(options, sessions);
+    },
+  });
+};
+
+/**
+ * Connects Eve's `useEveAgent` hook to assistant-ui's runtime contract.
+ *
+ * The runtime renders Eve messages, forwards new user messages to the Eve
+ * session, supports cancellation, and maps Eve input requests to assistant-ui
+ * tool approval UI.
+ */
+export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
+  if (!options.cloud) {
+    // oxlint-disable-next-line react-hooks/rules-of-hooks -- `cloud` stays set or unset for the runtime's lifetime, so every render takes the same branch
+    return useEveThreadRuntime(options, undefined);
+  }
+  // oxlint-disable-next-line react-hooks/rules-of-hooks -- `cloud` stays set or unset for the runtime's lifetime, so every render takes the same branch
+  return useEveCloudRuntime(options.cloud, options);
 };
