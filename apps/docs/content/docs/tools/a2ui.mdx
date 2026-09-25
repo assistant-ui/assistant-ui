@@ -105,6 +105,7 @@ createActionRegistry({
   "a2ui:functionCall": ({ payload }) => {
     const args = payload["args"] as { url?: unknown } | undefined;
     if (payload["call"] !== "openUrl" || typeof args?.url !== "string") return;
+    if (!URL.canParse(args.url, window.location.href)) return;
     const url = new URL(args.url, window.location.href);
     if (url.protocol === "https:" || url.protocol === "http:") {
       window.open(url, "_blank", "noopener,noreferrer");
