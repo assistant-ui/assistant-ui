@@ -558,6 +558,70 @@ describe("toAdaptiveCard", () => {
     });
   });
 
+  describe("CheckboxGroup", () => {
+    it("renders an expanded multi-select Input.ChoiceSet with the default values joined by commas", () => {
+      const { card } = toAdaptiveCard({
+        $type: "CheckboxGroup",
+        name: "toppings",
+        label: "Toppings",
+        defaultValue: ["basil", 7, "onion"],
+        options: [
+          { label: "Basil", value: "basil" },
+          { label: "Olives", value: "olives" },
+          { label: "Onion", value: "onion" },
+        ],
+      });
+      expect(card.body).toEqual([
+        {
+          type: "Input.ChoiceSet",
+          id: "toppings",
+          style: "expanded",
+          isMultiSelect: true,
+          choices: [
+            { title: "Basil", value: "basil" },
+            { title: "Olives", value: "olives" },
+            { title: "Onion", value: "onion" },
+          ],
+          value: "basil,onion",
+          label: "Toppings",
+        },
+      ]);
+    });
+
+    it("falls back to the checkboxgroup id and appends a companion submit for an action", () => {
+      const { card, warnings } = toAdaptiveCard({
+        $type: "CheckboxGroup",
+        options: [{ label: "Basil", value: "basil" }],
+        $action: { type: "pick" },
+      });
+      expect(card.body).toEqual([
+        {
+          type: "Input.ChoiceSet",
+          id: "checkboxgroup",
+          style: "expanded",
+          isMultiSelect: true,
+          choices: [{ title: "Basil", value: "basil" }],
+        },
+        {
+          type: "ActionSet",
+          actions: [
+            {
+              type: "Action.Submit",
+              title: "Submit",
+              data: { aui: { type: "pick" } },
+            },
+          ],
+        },
+      ]);
+      expect(warnings).toContainEqual({
+        code: "fallback",
+        component: "CheckboxGroup",
+        detail:
+          "Teams inputs cannot dispatch on change; a companion submit action was appended.",
+      });
+    });
+  });
+
   describe("Checkbox", () => {
     it("renders an Input.Toggle with true/false values", () => {
       const { card } = toAdaptiveCard({
@@ -663,6 +727,7 @@ describe("toAdaptiveCard", () => {
       ["Input", { $type: "Input", name: "aui" }],
       ["Select", { $type: "Select", name: "aui", options: [] }],
       ["RadioGroup", { $type: "RadioGroup", name: "aui", options: [] }],
+      ["CheckboxGroup", { $type: "CheckboxGroup", name: "aui", options: [] }],
       ["Checkbox", { $type: "Checkbox", name: "aui", label: "Agree" }],
       ["DatePicker", { $type: "DatePicker", name: "aui" }],
     ] as const)(

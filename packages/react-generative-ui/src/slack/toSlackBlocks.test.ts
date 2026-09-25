@@ -10,6 +10,7 @@ import {
   CARD_SUBTEXT_CAP,
   CARD_TITLE_CAP,
   CAROUSEL_CARD_CAP,
+  CHECKBOX_OPTION_CAP,
   CONTEXT_ELEMENT_CAP,
   CONTEXT_TEXT_CAP,
   DATA_TABLE_CHAR_BUDGET,
@@ -718,6 +719,89 @@ describe("toSlackBlocks", () => {
     });
   });
 
+  describe("CheckboxGroup", () => {
+    const options = [
+      { label: "Small", value: "s" },
+      { label: "Large", value: "l" },
+    ];
+
+    it("emits a multi-option checkboxes element", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "CheckboxGroup",
+        options,
+        $action: { type: "sizes" },
+      });
+      expect(blocks[0]).toEqual({
+        type: "actions",
+        elements: [
+          {
+            type: "checkboxes",
+            action_id: "sizes",
+            options: [
+              { text: { type: "plain_text", text: "Small" }, value: "s" },
+              { text: { type: "plain_text", text: "Large" }, value: "l" },
+            ],
+          },
+        ],
+      });
+    });
+
+    it("sets initial_options from matching defaultValue entries", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "CheckboxGroup",
+        options,
+        defaultValue: ["l", "missing"],
+        $action: { type: "sizes" },
+      });
+      expect(
+        ((blocks[0] as SlackActionsBlock).elements[0] as SlackCheckboxesElement)
+          .initial_options,
+      ).toEqual([{ text: { type: "plain_text", text: "Large" }, value: "l" }]);
+
+      const { blocks: withoutInitialOptions } = toSlackBlocks({
+        $type: "CheckboxGroup",
+        options,
+        defaultValue: ["missing"],
+        $action: { type: "sizes" },
+      });
+      expect(
+        (withoutInitialOptions[0] as SlackActionsBlock).elements[0],
+      ).not.toHaveProperty("initial_options");
+    });
+
+    it("names CheckboxGroup when malformed options are dropped", () => {
+      const { warnings } = toSlackBlocks({
+        $type: "CheckboxGroup",
+        options: [{ label: "ok", value: "a" }, { label: "bad" }],
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "CheckboxGroup",
+        detail: "1 option was dropped for want of a string label and value.",
+      });
+    });
+
+    it(`clamps options past ${CHECKBOX_OPTION_CAP} entries and warns`, () => {
+      const manyOptions = Array.from(
+        { length: CHECKBOX_OPTION_CAP + 3 },
+        (_, i) => ({ label: `L${i}`, value: `v${i}` }),
+      );
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "CheckboxGroup",
+        options: manyOptions,
+        $action: { type: "sizes" },
+      });
+      const element = (blocks[0] as SlackActionsBlock)
+        .elements[0] as SlackCheckboxesElement;
+      expect(element.options).toHaveLength(CHECKBOX_OPTION_CAP);
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "CheckboxGroup",
+        detail: `options were clamped to ${CHECKBOX_OPTION_CAP} entries.`,
+      });
+    });
+  });
+
   describe("interactive grouping", () => {
     it("groups consecutive interactive siblings into one actions block, split by a non-interactive sibling", () => {
       const root = [
@@ -727,6 +811,11 @@ describe("toSlackBlocks", () => {
           options: [{ label: "X", value: "x" }],
           $action: { type: "b" },
         },
+        {
+          $type: "CheckboxGroup",
+          options: [{ label: "Y", value: "y" }],
+          $action: { type: "checkbox" },
+        },
         { $type: "Text", value: "gap" },
         { $type: "Button", label: "C", $action: { type: "c" } },
       ];
@@ -734,7 +823,11 @@ describe("toSlackBlocks", () => {
       expect(blocks).toHaveLength(3);
       expect(blocks[0]).toMatchObject({
         type: "actions",
-        elements: [{ type: "button" }, { type: "static_select" }],
+        elements: [
+          { type: "button" },
+          { type: "static_select" },
+          { type: "checkboxes" },
+        ],
       });
       expect(blocks[1]).toMatchObject({ type: "section" });
       expect(blocks[2]).toMatchObject({

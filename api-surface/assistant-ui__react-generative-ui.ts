@@ -982,6 +982,7 @@ interface TeamsInputChoiceSet {
   readonly type: "Input.ChoiceSet";
   readonly id: string;
   readonly style: "compact" | "expanded";
+  readonly isMultiSelect?: true;
   readonly choices: readonly TeamsInputChoice[];
   readonly placeholder?: string;
   readonly label?: string;

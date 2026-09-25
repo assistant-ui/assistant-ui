@@ -22,6 +22,7 @@ import {
   CARD_TITLE_CAP,
   CAROUSEL_CARD_CAP,
   CAROUSEL_CARD_MIN,
+  CHECKBOX_OPTION_CAP,
   CONTEXT_ELEMENT_CAP,
   CONTEXT_TEXT_CAP,
   DATA_TABLE_CHAR_BUDGET,
@@ -75,6 +76,7 @@ const INTERACTIVE_TYPES = new Set([
   "Select",
   "DatePicker",
   "Checkbox",
+  "CheckboxGroup",
   "RadioGroup",
 ]);
 
@@ -316,6 +318,46 @@ const toActionElement = (
         options: [option],
         ...(props["defaultChecked"] === true
           ? { initial_options: [option] }
+          : {}),
+      };
+    }
+    case "CheckboxGroup": {
+      const rawOptions = Array.isArray(props["options"])
+        ? props["options"]
+        : [];
+      const { items: takenOptions, truncated } = copyBounded(
+        rawOptions,
+        CHECKBOX_OPTION_CAP,
+      );
+      if (truncated) {
+        warn(
+          context,
+          "clamped",
+          "CheckboxGroup",
+          `options were clamped to ${CHECKBOX_OPTION_CAP} entries.`,
+        );
+      }
+      const options = takenOptions
+        .map((option) => optionFrom(option, "CheckboxGroup", context))
+        .filter((option): option is SlackOption => option !== undefined);
+      warnDroppedOptions(
+        options.length,
+        takenOptions.length,
+        "CheckboxGroup",
+        context,
+      );
+      const defaultValue = Array.isArray(props["defaultValue"])
+        ? props["defaultValue"]
+        : [];
+      const initialOptions = options.filter((option) =>
+        defaultValue.includes(option.value),
+      );
+      return {
+        type: "checkboxes",
+        action_id: asActionId(action, "CheckboxGroup", context),
+        options,
+        ...(initialOptions.length > 0
+          ? { initial_options: initialOptions }
           : {}),
       };
     }
@@ -1115,6 +1157,7 @@ const convertElement = (
     case "Select":
     case "DatePicker":
     case "Checkbox":
+    case "CheckboxGroup":
     case "RadioGroup":
       return convertActions([element], context);
     case "Input": {

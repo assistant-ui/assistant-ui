@@ -4,6 +4,7 @@ import {
   ACTIONS_ELEMENT_CAP,
   CARD_ACTIONS_CAP,
   CAROUSEL_CARD_CAP,
+  CHECKBOX_OPTION_CAP,
   CONTEXT_ELEMENT_CAP,
   DATA_TABLE_COLUMN_CAP,
   DATA_TABLE_ROW_CAP,
@@ -250,6 +251,40 @@ const checkboxFrom = (element: Record<string, unknown>): UIElement => {
   };
 };
 
+const checkboxGroupFrom = (
+  element: Record<string, unknown>,
+  warnings: SlackConversionWarning[],
+): UIElement => {
+  const options = boundedArray(
+    element["options"],
+    CHECKBOX_OPTION_CAP,
+    warnings,
+    "CheckboxGroup",
+    `options were clamped to ${CHECKBOX_OPTION_CAP} entries.`,
+  )
+    .map(optionFrom)
+    .filter(isDefined);
+  const defaultValue = clampArray(
+    element["initial_options"],
+    CHECKBOX_OPTION_CAP,
+  ).items.flatMap((initialOption) => {
+    const value =
+      isRecord(initialOption) && typeof initialOption["value"] === "string"
+        ? initialOption["value"]
+        : undefined;
+    return value !== undefined &&
+      options.some((option) => option.value === value)
+      ? [value]
+      : [];
+  });
+  return {
+    $type: "CheckboxGroup",
+    options,
+    ...(defaultValue.length > 0 ? { defaultValue } : {}),
+    $action: decodeAction(element["action_id"], element["value"]),
+  };
+};
+
 const radioGroupFrom = (
   element: Record<string, unknown>,
   warnings: SlackConversionWarning[],
@@ -287,7 +322,10 @@ const actionElementFrom = (
       case "datepicker":
         return datePickerFrom(element);
       case "checkboxes":
-        return checkboxFrom(element);
+        return Array.isArray(element["options"]) &&
+          element["options"].length > 1
+          ? checkboxGroupFrom(element, warnings)
+          : checkboxFrom(element);
       case "radio_buttons":
         return radioGroupFrom(element, warnings);
     }

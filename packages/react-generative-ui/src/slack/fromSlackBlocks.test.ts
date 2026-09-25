@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { UIElement } from "../ir";
-import { INBOUND_BLOCK_CAP, SELECT_OPTION_CAP } from "./constants";
+import {
+  CHECKBOX_OPTION_CAP,
+  INBOUND_BLOCK_CAP,
+  SELECT_OPTION_CAP,
+} from "./constants";
 import { fromSlackBlocks } from "./fromSlackBlocks";
 import { toSlackBlocks } from "./toSlackBlocks";
 import type { ToSlackBlocksOptions } from "./types";
@@ -392,6 +396,68 @@ describe("fromSlackBlocks", () => {
         },
       ]);
       expect(unchecked[0]).not.toHaveProperty("defaultChecked");
+    });
+
+    it("inverts multi-option checkboxes into CheckboxGroup with matching initial options", () => {
+      const { nodes } = fromSlackBlocks([
+        {
+          type: "actions",
+          elements: [
+            {
+              type: "checkboxes",
+              action_id: "sizes",
+              value: '{"source":"picker"}',
+              options: [
+                { text: { type: "plain_text", text: "Small" }, value: "s" },
+                { text: { type: "plain_text", text: "Large" }, value: "l" },
+              ],
+              initial_options: [
+                { text: { type: "plain_text", text: "Large" }, value: "l" },
+                {
+                  text: { type: "plain_text", text: "Missing" },
+                  value: "missing",
+                },
+              ],
+            },
+          ],
+        },
+      ]);
+      expect(nodes).toEqual([
+        {
+          $type: "CheckboxGroup",
+          options: [
+            { label: "Small", value: "s" },
+            { label: "Large", value: "l" },
+          ],
+          defaultValue: ["l"],
+          $action: { type: "sizes", source: "picker" },
+        },
+      ]);
+    });
+
+    it("drops malformed CheckboxGroup options", () => {
+      const { nodes } = fromSlackBlocks([
+        {
+          type: "actions",
+          elements: [
+            {
+              type: "checkboxes",
+              action_id: "sizes",
+              options: [
+                { text: { type: "plain_text", text: "Small" }, value: "s" },
+                { text: { type: "plain_text", text: "Missing value" } },
+              ],
+            },
+          ],
+        },
+      ]);
+      expect(nodes).toEqual([
+        {
+          $type: "CheckboxGroup",
+          options: [{ label: "Small", value: "s" }],
+          $action: { type: "sizes" },
+        },
+      ]);
     });
 
     it("inverts radio_buttons, reading defaultValue from initial_option and omitting it when absent", () => {
@@ -899,6 +965,29 @@ describe("fromSlackBlocks", () => {
         ],
       },
       {
+        name: "CheckboxGroup with defaultValue",
+        tree: {
+          $type: "CheckboxGroup",
+          options: [
+            { label: "Small", value: "s" },
+            { label: "Large", value: "l" },
+          ],
+          defaultValue: ["s", "l"],
+          $action: { type: "sizes" },
+        },
+        expected: [
+          {
+            $type: "CheckboxGroup",
+            options: [
+              { label: "Small", value: "s" },
+              { label: "Large", value: "l" },
+            ],
+            defaultValue: ["s", "l"],
+            $action: { type: "sizes" },
+          },
+        ],
+      },
+      {
         name: "Input",
         tree: {
           $type: "Input",
@@ -1063,7 +1152,7 @@ describe("fromSlackBlocks", () => {
 });
 
 describe("fromSlackBlocks checkbox and radio caps", () => {
-  it("marks defaultChecked only when the first option is initially selected", () => {
+  it("marks defaultChecked only when its single option is initially selected", () => {
     const base = {
       type: "actions",
       elements: [
@@ -1072,7 +1161,6 @@ describe("fromSlackBlocks checkbox and radio caps", () => {
           action_id: "toggle",
           options: [
             { text: { type: "plain_text", text: "First" }, value: "first" },
-            { text: { type: "plain_text", text: "Second" }, value: "second" },
           ],
           initial_options: [
             { text: { type: "plain_text", text: "Second" }, value: "second" },
@@ -1116,6 +1204,41 @@ describe("fromSlackBlocks checkbox and radio caps", () => {
       warnings.some(
         (warning) =>
           warning.component === "RadioGroup" && warning.code === "clamped",
+      ),
+    ).toBe(true);
+  });
+
+  it("clamps inbound CheckboxGroup options to the checkbox cap", () => {
+    const { nodes, warnings } = fromSlackBlocks([
+      {
+        type: "actions",
+        elements: [
+          {
+            type: "checkboxes",
+            action_id: "sizes",
+            options: Array.from(
+              { length: CHECKBOX_OPTION_CAP + 3 },
+              (_, i) => ({
+                text: { type: "plain_text", text: `O${i}` },
+                value: `v${i}`,
+              }),
+            ),
+          },
+        ],
+      },
+    ]);
+    const checkboxGroup = nodes[0];
+    if (
+      checkboxGroup?.$type !== "CheckboxGroup" ||
+      !Array.isArray(checkboxGroup.options)
+    ) {
+      throw new Error("Expected a CheckboxGroup with options.");
+    }
+    expect(checkboxGroup.options).toHaveLength(CHECKBOX_OPTION_CAP);
+    expect(
+      warnings.some(
+        (warning) =>
+          warning.component === "CheckboxGroup" && warning.code === "clamped",
       ),
     ).toBe(true);
   });
