@@ -1,21 +1,61 @@
 import {
+  chmodSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
+  compareSizes,
   diffSizes,
   listEntries,
   measureEntry,
   measurePackages,
   renderSizeReport,
 } from "./size.mjs";
+
+const sizeMocks = vi.hoisted(() => ({
+  git: new Map<string, string>(),
+  stamp: undefined as { sha: string; dirty: boolean } | undefined,
+  refRoot: undefined as string | undefined,
+  ensureRefWorktreeCalls: 0,
+}));
+
+vi.mock("./suite.mjs", async (importOriginal) => {
+  const original = await importOriginal<typeof import("./suite.mjs")>();
+  return {
+    ...original,
+    git: (args: string[], cwd?: string) => {
+      const key = args.join(" ");
+      return sizeMocks.git.has(key)
+        ? (sizeMocks.git.get(key) ?? "")
+        : original.git(args, cwd);
+    },
+    envStamp: (root?: string) =>
+      sizeMocks.stamp
+        ? { ...original.envStamp(), ...sizeMocks.stamp }
+        : original.envStamp(root),
+  };
+});
+
+vi.mock("./ref-worktree.mjs", async (importOriginal) => {
+  const original = await importOriginal<typeof import("./ref-worktree.mjs")>();
+  return {
+    ...original,
+    ensureRefWorktree: (ref: string, options?: { build?: boolean }) => {
+      if (!sizeMocks.refRoot) return original.ensureRefWorktree(ref, options);
+      sizeMocks.ensureRefWorktreeCalls += 1;
+      return { wt: sizeMocks.refRoot, sha: "base123", marker: "" };
+    },
+  };
+});
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -47,6 +87,76 @@ const writePackage = (
     if (code) writeFileSync(join(dir, "dist", distFile(subpath)), code);
   }
   return dir;
+};
+
+const resetSizeMocks = () => {
+  sizeMocks.git.clear();
+  sizeMocks.stamp = undefined;
+  sizeMocks.refRoot = undefined;
+  sizeMocks.ensureRefWorktreeCalls = 0;
+};
+
+const writeExecutable = (file: string, source: string) => {
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, source);
+  chmodSync(file, 0o755);
+};
+
+const writeToolStubs = (
+  roots: string[],
+  packages: string[],
+  log: string,
+  bin: string,
+) => {
+  const turbo = `#!/usr/bin/env node
+const { appendFileSync } = require("node:fs");
+const args = process.argv.slice(2);
+if (args.includes("--dry=json")) {
+  process.stdout.write(${JSON.stringify(JSON.stringify({ packages }))});
+} else {
+  appendFileSync(${JSON.stringify(log)}, JSON.stringify({ tool: "turbo", cwd: process.cwd(), args }) + "\\n");
+}
+`;
+  for (const root of roots)
+    writeExecutable(join(root, "node_modules", ".bin", "turbo"), turbo);
+  writeExecutable(
+    join(bin, "pnpm"),
+    `#!/usr/bin/env node
+const { appendFileSync } = require("node:fs");
+const args = process.argv.slice(2);
+appendFileSync(${JSON.stringify(log)}, JSON.stringify({ tool: "pnpm", cwd: process.cwd(), args, CI: process.env.CI }) + "\\n");
+`,
+  );
+};
+
+const readToolLog = (log: string) =>
+  existsSync(log)
+    ? readFileSync(log, "utf8")
+        .trim()
+        .split("\n")
+        .filter(Boolean)
+        .map(
+          (line) =>
+            JSON.parse(line) as {
+              tool: "turbo" | "pnpm";
+              cwd: string;
+              args: string[];
+              CI?: string;
+            },
+        )
+    : [];
+
+const silenceConsole = () => {
+  const log = vi.spyOn(console, "log").mockImplementation(() => {});
+  const table = vi.spyOn(console, "table").mockImplementation(() => {});
+  return {
+    log,
+    table,
+    restore: () => {
+      log.mockRestore();
+      table.mockRestore();
+    },
+  };
 };
 
 describe("listEntries", () => {
@@ -263,5 +373,209 @@ Gzip bytes of each published entry of the packages this change builds, minified 
 
 Gzip bytes of each published entry of the packages this change builds, minified by rolldown with every bare import external.
 `);
+  });
+});
+
+describe("compareSizes", () => {
+  it("measures a merge checkout and reports removed base packages", async () => {
+    resetSizeMocks();
+    const consoleOutput = silenceConsole();
+    const head = realpathSync(mkdtempSync(join(tmpdir(), "aui-size-")));
+    const baseRoot = realpathSync(mkdtempSync(join(tmpdir(), "aui-size-")));
+    const bin = mkdtempSync(join(tmpdir(), "aui-size-bin-"));
+    const log = join(head, "tool-log.jsonl");
+    const report = join(head, "size.md");
+    const base = "0123456789abcdef0123456789abcdef01234567";
+    try {
+      writePackage(head, "kept", {
+        ".": 'export const kept = "the longer bundle payload makes this entry larger";\n',
+      });
+      writePackage(head, "same", { ".": "export const same = 1;\n" });
+      writePackage(
+        head,
+        "gone",
+        { ".": "export const gone = 1;\n" },
+        { private: true },
+      );
+      writePackage(baseRoot, "kept", { ".": "export const kept = 1;\n" });
+      writePackage(baseRoot, "same", { ".": "export const same = 1;\n" });
+      writePackage(baseRoot, "gone", { ".": "export const gone = 1;\n" });
+      writeToolStubs(
+        [head, baseRoot],
+        ["//", "@aui-test/kept", "@aui-test/same", "@aui-test/gone"],
+        log,
+        bin,
+      );
+      sizeMocks.git.set("merge-base HEAD HEAD^1", base);
+      sizeMocks.git.set("rev-parse HEAD^1", base);
+      sizeMocks.git.set("rev-parse --short HEAD^2", "prhead1");
+      sizeMocks.git.set(`rev-parse --short ${base}`, "base123");
+      sizeMocks.git.set(
+        `diff --name-only ${base} -- packages/*/package.json`,
+        "packages/gone/package.json",
+      );
+      sizeMocks.stamp = { sha: "head123", dirty: false };
+      sizeMocks.refRoot = baseRoot;
+      vi.stubEnv("PATH", `${bin}${delimiter}${process.env["PATH"] ?? ""}`);
+
+      await compareSizes({ root: head, ref: "HEAD^1", report });
+
+      const tools = readToolLog(log);
+      const builds = tools
+        .filter(
+          (tool) =>
+            tool.tool === "turbo" &&
+            tool.args[0] === "run" &&
+            tool.args[1] === "build",
+        )
+        .map(({ cwd, args }) => ({
+          cwd,
+          filters: args.filter((arg) => arg.startsWith("--filter=")),
+        }));
+      expect(sizeMocks.ensureRefWorktreeCalls).toBe(1);
+      expect(builds).toHaveLength(2);
+      expect(builds[0]).toEqual({
+        cwd: head,
+        filters: ["--filter=@aui-test/kept", "--filter=@aui-test/same"],
+      });
+      expect(
+        tools
+          .filter((tool) => tool.tool === "pnpm")
+          .map(({ cwd, args, CI }) => ({ cwd, args, CI })),
+      ).toEqual([{ cwd: baseRoot, args: ["install"], CI: "true" }]);
+      expect(builds[1]?.cwd).toBe(baseRoot);
+      expect([...(builds[1]?.filters ?? [])].sort()).toEqual([
+        "--filter=@aui-test/gone",
+        "--filter=@aui-test/kept",
+        "--filter=@aui-test/same",
+      ]);
+      expect(existsSync(report)).toBe(true);
+      const contents = readFileSync(report, "utf8");
+      expect(contents.split("\n")[1]).toBe(
+        "**Bundle size** of `prhead1` against `base123`: 2 of 3 measured entries changed.",
+      );
+      const goneRow = contents
+        .split("\n")
+        .find((row) => row.includes("@aui-test/gone ."));
+      const keptRow = contents
+        .split("\n")
+        .find((row) => row.includes("@aui-test/kept ."));
+      if (!goneRow || !keptRow)
+        throw new Error("The size report is incomplete");
+      expect(goneRow).toContain("| removed |");
+      expect(keptRow).toMatch(/\| \+[\d,]+ B \(\+[\d.]+%\) \|$/);
+      expect(contents).not.toContain("@aui-test/same .");
+    } finally {
+      vi.unstubAllEnvs();
+      rmSync(head, { recursive: true, force: true });
+      rmSync(baseRoot, { recursive: true, force: true });
+      rmSync(bin, { recursive: true, force: true });
+      consoleOutput.restore();
+    }
+  });
+
+  it("skips the base checkout when no published package changed", async () => {
+    resetSizeMocks();
+    const consoleOutput = silenceConsole();
+    const head = realpathSync(mkdtempSync(join(tmpdir(), "aui-size-")));
+    const baseRoot = realpathSync(mkdtempSync(join(tmpdir(), "aui-size-")));
+    const bin = mkdtempSync(join(tmpdir(), "aui-size-bin-"));
+    const log = join(head, "tool-log.jsonl");
+    const report = join(head, "size.md");
+    const base = "0123456789abcdef0123456789abcdef01234567";
+    try {
+      writePackage(
+        head,
+        "private",
+        { ".": "export const privateEntry = 1;\n" },
+        { private: true },
+      );
+      writePackage(
+        baseRoot,
+        "private",
+        { ".": "export const privateEntry = 1;\n" },
+        { private: true },
+      );
+      writeFileSync(report, "stale report");
+      writeToolStubs([head, baseRoot], ["//", "@aui-test/private"], log, bin);
+      sizeMocks.git.set("merge-base HEAD HEAD^1", base);
+      sizeMocks.git.set("rev-parse HEAD^1", "head-parent");
+      sizeMocks.git.set(`rev-parse --short ${base}`, "base123");
+      sizeMocks.git.set(
+        `diff --name-only ${base} -- packages/*/package.json`,
+        "",
+      );
+      sizeMocks.stamp = { sha: "head123", dirty: false };
+      sizeMocks.refRoot = baseRoot;
+      vi.stubEnv("PATH", `${bin}${delimiter}${process.env["PATH"] ?? ""}`);
+
+      await compareSizes({ root: head, ref: "HEAD^1", report });
+
+      const tools = readToolLog(log);
+      expect(sizeMocks.ensureRefWorktreeCalls).toBe(0);
+      expect(tools.filter((tool) => tool.tool === "pnpm")).toEqual([]);
+      expect(
+        tools.filter(
+          (tool) =>
+            tool.tool === "turbo" &&
+            tool.args[0] === "run" &&
+            tool.args[1] === "build",
+        ),
+      ).toEqual([]);
+      expect(existsSync(report)).toBe(false);
+      expect(consoleOutput.log).toHaveBeenCalledWith(
+        "no published package changed against base123",
+      );
+    } finally {
+      vi.unstubAllEnvs();
+      rmSync(head, { recursive: true, force: true });
+      rmSync(baseRoot, { recursive: true, force: true });
+      rmSync(bin, { recursive: true, force: true });
+      consoleOutput.restore();
+    }
+  });
+
+  it("leaves no report for an unchanged plain checkout", async () => {
+    resetSizeMocks();
+    const consoleOutput = silenceConsole();
+    const head = realpathSync(mkdtempSync(join(tmpdir(), "aui-size-")));
+    const baseRoot = realpathSync(mkdtempSync(join(tmpdir(), "aui-size-")));
+    const bin = mkdtempSync(join(tmpdir(), "aui-size-bin-"));
+    const log = join(head, "tool-log.jsonl");
+    const report = join(head, "size.md");
+    const base = "0123456789abcdef0123456789abcdef01234567";
+    try {
+      writePackage(head, "same", { ".": "export const same = 1;\n" });
+      writePackage(baseRoot, "same", {
+        ".": "export const same = 1;\n",
+      });
+      writeFileSync(report, "stale report");
+      writeToolStubs([head, baseRoot], ["//", "@aui-test/same"], log, bin);
+      sizeMocks.git.set("merge-base HEAD HEAD^1", base);
+      sizeMocks.git.set("rev-parse HEAD^1", "head-parent");
+      sizeMocks.git.set(`rev-parse --short ${base}`, "base123");
+      sizeMocks.git.set(
+        `diff --name-only ${base} -- packages/*/package.json`,
+        "",
+      );
+      sizeMocks.stamp = { sha: "head123", dirty: true };
+      sizeMocks.refRoot = baseRoot;
+      vi.stubEnv("PATH", `${bin}${delimiter}${process.env["PATH"] ?? ""}`);
+
+      await compareSizes({ root: head, ref: "HEAD^1", report });
+
+      expect(existsSync(report)).toBe(false);
+      expect(consoleOutput.log).toHaveBeenCalledWith(
+        expect.stringMatching(
+          /^bundle size of head123, dirty against base123: 0 of/,
+        ),
+      );
+    } finally {
+      vi.unstubAllEnvs();
+      rmSync(head, { recursive: true, force: true });
+      rmSync(baseRoot, { recursive: true, force: true });
+      rmSync(bin, { recursive: true, force: true });
+      consoleOutput.restore();
+    }
   });
 });
