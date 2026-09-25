@@ -131,6 +131,7 @@ export type ThreadViewportState = {
 };
 
 export type ThreadViewportStoreOptions = {
+  autoScrollPaused?: boolean | undefined;
   turnAnchor?: "top" | "bottom" | undefined;
   topAnchorMessageClamp?:
     | {
@@ -187,10 +188,11 @@ export const makeThreadViewportStore = (
 
   const store = create<ThreadViewportState>(() => ({
     isAtBottom: true,
-    autoScrollPaused: false,
+    autoScrollPaused: options.autoScrollPaused ?? false,
     pauseAutoScroll: () => store.setState({ autoScrollPaused: true }),
     resumeAutoScroll: () => store.setState({ autoScrollPaused: false }),
     scrollToBottom: ({ behavior = "auto" } = {}) => {
+      store.setState({ autoScrollPaused: false });
       notifyEventListeners(
         scrollToBottomListeners,
         () => ({ behavior }),
