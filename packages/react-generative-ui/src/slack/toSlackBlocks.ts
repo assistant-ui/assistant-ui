@@ -70,6 +70,7 @@ type ConversionContext = {
   markdownCharacters: number;
   markdownExhausted: boolean;
   dataTableCharacters: number;
+  inForm: boolean;
 };
 
 const INTERACTIVE_TYPES = new Set([
@@ -1196,6 +1197,8 @@ const convertElement = (
       );
       const defaultValue = props["defaultValue"];
       const dispatchAction =
+        !context.inForm &&
+        props["multiline"] !== true &&
         typeof element.action?.type === "string" &&
         element.action.type.length > 0;
       return [
@@ -1326,9 +1329,17 @@ const convertElement = (
       return convertListView(element, context, depth);
     case "ListViewItem":
       return [convertListItem(element, context, depth)];
-    case "Form":
+    case "Form": {
+      const wasInForm = context.inForm;
+      let children: SlackBlock[];
+      context.inForm = true;
+      try {
+        children = convertSequence(element.children, context, depth + 1);
+      } finally {
+        context.inForm = wasInForm;
+      }
       return [
-        ...convertSequence(element.children, context, depth + 1),
+        ...children,
         {
           type: "actions",
           elements: [
@@ -1336,6 +1347,7 @@ const convertElement = (
           ],
         },
       ];
+    }
     default:
       warn(
         context,
@@ -1420,6 +1432,7 @@ export function toSlackBlocks(
     markdownCharacters: 0,
     markdownExhausted: false,
     dataTableCharacters: 0,
+    inForm: false,
   };
   try {
     const bounded = boundSpec(node, (reason) =>

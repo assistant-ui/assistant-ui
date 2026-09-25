@@ -126,7 +126,7 @@ Only buttons carry `value`. `Select`, `Input`, `DatePicker`, `Checkbox`, `RadioG
 
 ### Inbound
 
-An `Input` with a non-empty `$action.type` enables `block_actions` on its containing input block and configures `on_enter_pressed`, so Slack sends its typed text when the user presses Enter. This applies to single-line and multiline inputs; Slack's Enter trigger differs from the browser vocabulary's Ctrl/Cmd+Enter shortcut for multiline inputs. Inputs without an actionable type remain passive and can still be collected by a modal's `view_submission` handler.
+A single-line `Input` outside a `Form`, with a non-empty `$action.type`, enables `block_actions` on its containing input block and configures `on_enter_pressed`, so Slack sends its typed text when the user presses Enter. Inputs inside a `Form` remain passive rather than firing their own action. Multiline inputs also remain passive: Slack's dispatch configuration does not expose the browser vocabulary's Ctrl/Cmd+Enter shortcut. A modal's `view_submission` handler can collect passive input values, including inputs without an actionable type.
 
 Slack posts interactions to your request URL as a [`block_actions` payload](https://docs.slack.dev/reference/interaction-payloads/block_actions-payload). `decodeBlockAction` takes one entry from its `actions` array and rebuilds the action your tree dispatched, with the user's runtime selection under `$input`:
 

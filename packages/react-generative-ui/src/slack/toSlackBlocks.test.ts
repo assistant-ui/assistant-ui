@@ -551,8 +551,8 @@ describe("toSlackBlocks", () => {
   });
 
   describe("Input", () => {
-    it.each([false, true])(
-      "enables Enter actions for an actionable input (multiline: %s)",
+    it.each([undefined, false])(
+      "enables Enter actions for an actionable single-line input (multiline: %s)",
       (multiline) => {
         const { blocks, warnings } = toSlackBlocks(
           {
@@ -592,6 +592,43 @@ describe("toSlackBlocks", () => {
       },
     );
 
+    it("keeps form inputs passive without disabling subsequent standalone inputs", () => {
+      const input = {
+        $type: "Input",
+        label: "Notes",
+        $action: { type: "notes" },
+      };
+      const { blocks } = toSlackBlocks(
+        {
+          $type: "Col",
+          children: [
+            {
+              $type: "Form",
+              $action: { type: "save" },
+              children: { $type: "Col", children: input },
+            },
+            input,
+          ],
+        },
+        { surface: "modal" },
+      );
+      const inputs = blocks.filter((block) => block.type === "input");
+
+      expect(inputs).toHaveLength(2);
+      expect(inputs[0]).not.toHaveProperty("dispatch_action");
+      expect(inputs[0]!.element).not.toHaveProperty("dispatch_action_config");
+      expect(inputs[1]).toMatchObject({
+        dispatch_action: true,
+        element: {
+          dispatch_action_config: { trigger_actions_on: ["on_enter_pressed"] },
+        },
+      });
+      expect(blocks[1]).toMatchObject({
+        type: "actions",
+        elements: [{ action_id: "save" }],
+      });
+    });
+
     it("wraps a plain_text_input element, passing multiline through", () => {
       const { blocks } = toSlackBlocks({
         $type: "Input",
@@ -603,11 +640,9 @@ describe("toSlackBlocks", () => {
       expect(blocks[0]).toEqual({
         type: "input",
         label: { type: "plain_text", text: "Notes" },
-        dispatch_action: true,
         element: {
           type: "plain_text_input",
           action_id: "notes",
-          dispatch_action_config: { trigger_actions_on: ["on_enter_pressed"] },
           multiline: true,
           placeholder: { type: "plain_text", text: "Type here" },
         },
