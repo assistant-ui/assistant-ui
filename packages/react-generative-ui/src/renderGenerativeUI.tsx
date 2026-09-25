@@ -1,3 +1,4 @@
+import { RadioGroupScope } from "./RadioGroupScope";
 import { getPartialJsonObjectMeta } from "assistant-stream/utils";
 import { Fragment, type ReactNode } from "react";
 import { hasFieldReference, resolveFieldReferences } from "./fieldReferences";
@@ -34,10 +35,14 @@ export function renderGenerativeUI(
   // string has not finished streaming.
   const meta = getPartialJsonObjectMeta(node as Record<symbol, unknown>);
   const partialPath = meta?.state === "partial" ? meta.partialPath : undefined;
-  return renderNode(
-    normalizeUINode(node, partialPath),
-    library,
-    withFieldFallbacks(context),
+  return (
+    <RadioGroupScope>
+      {renderNode(
+        normalizeUINode(node, partialPath),
+        library,
+        withFieldFallbacks(context),
+      )}
+    </RadioGroupScope>
   );
 }
 

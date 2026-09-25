@@ -5,7 +5,6 @@ import { ALIGNS, JUSTIFIES } from "../ir";
 import { fire } from "./dispatch";
 import { collectFormValuesFromEvent } from "./collectFormValues";
 import { toTextContent } from "./toTextContent";
-import { getNativeFormContext } from "./NativeFormContext";
 
 const toCssLength = (value: string | number): string =>
   typeof value === "number" ? `${value}px` : value;
@@ -66,7 +65,6 @@ export const layoutVocabulary = {
       $dispatch,
       children,
     }) => {
-      const NativeFormContext = getNativeFormContext();
       const Root = asForm ? "form" : "section";
       const cardTitle = toTextContent(title);
       const footer =
@@ -136,13 +134,7 @@ export const layoutVocabulary = {
           {cardTitle ? (
             <header data-aui="card-title">{cardTitle}</header>
           ) : null}
-          {asForm ? (
-            <NativeFormContext.Provider value={true}>
-              {children}
-            </NativeFormContext.Provider>
-          ) : (
-            children
-          )}
+          {children}
           {footer}
         </Root>
       );

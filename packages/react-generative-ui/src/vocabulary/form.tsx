@@ -2,7 +2,6 @@ import { z } from "zod";
 import type { GenerativeUILibrary } from "../types";
 import { actionAttr, fire } from "./dispatch";
 import { collectFormValuesFromEvent } from "./collectFormValues";
-import { getNativeFormContext } from "./NativeFormContext";
 
 export const formVocabulary = {
   Form: {
@@ -18,28 +17,23 @@ export const formVocabulary = {
           "Gap between children in 4px units. 0 to 8 is the supported range.",
         ),
     }),
-    render: ({ gap, $action, $dispatch, children }) => {
-      const NativeFormContext = getNativeFormContext();
-      return (
-        <form
-          data-aui="form"
-          data-aui-gap={gap}
-          data-aui-action={actionAttr($action)}
-          onSubmit={(event) => {
-            event.preventDefault();
-            fire(
-              $action,
-              $dispatch,
-              collectFormValuesFromEvent(event),
-              event.currentTarget,
-            );
-          }}
-        >
-          <NativeFormContext.Provider value={true}>
-            {children}
-          </NativeFormContext.Provider>
-        </form>
-      );
-    },
+    render: ({ gap, $action, $dispatch, children }) => (
+      <form
+        data-aui="form"
+        data-aui-gap={gap}
+        data-aui-action={actionAttr($action)}
+        onSubmit={(event) => {
+          event.preventDefault();
+          fire(
+            $action,
+            $dispatch,
+            collectFormValuesFromEvent(event),
+            event.currentTarget,
+          );
+        }}
+      >
+        {children}
+      </form>
+    ),
   },
 } satisfies GenerativeUILibrary;

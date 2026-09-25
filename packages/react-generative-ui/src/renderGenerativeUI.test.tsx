@@ -77,8 +77,10 @@ describe("renderGenerativeUI", () => {
       library,
     );
 
-    expect(Array.isArray(out)).toBe(true);
-    const elements = out as ReactElement[];
+    expect(isValidElement(out)).toBe(true);
+    const elements = (out as ReactElement<{ children: ReactElement[] }>).props
+      .children;
+    expect(Array.isArray(elements)).toBe(true);
     expect(elements.every(isValidElement)).toBe(true);
     expect(elements.map((element) => element.key)).toEqual([
       "model:1:Text",

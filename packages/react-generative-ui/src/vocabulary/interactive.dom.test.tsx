@@ -54,6 +54,34 @@ const mount = async (
 };
 
 describe("RadioGroup", () => {
+  it("keeps repeated logical fields exclusive within one root without a form", async () => {
+    const save = vi.fn();
+    const container = await mount(
+      {
+        $type: "Col",
+        children: [
+          { $type: "RadioGroup", name: "choice", options: toppings },
+          { $type: "RadioGroup", name: "choice", options: toppings },
+          {
+            $type: "Button",
+            label: "Save",
+            $action: { type: "save", choice: { $field: "choice" } },
+          },
+        ],
+      },
+      { save },
+    );
+    const inputs = container.querySelectorAll("input");
+    await act(async () => inputs[4]!.click());
+    await act(async () => inputs[0]!.click());
+    await act(async () => container.querySelector("button")!.click());
+
+    expect(inputs[4]!.checked).toBe(false);
+    expect(save).toHaveBeenCalledWith({
+      payload: { type: "save", choice: "basil" },
+    });
+  });
+
   it.each(["Form", "Card"])(
     "keeps repeated logical names mutually exclusive inside a %s form",
     async ($type) => {

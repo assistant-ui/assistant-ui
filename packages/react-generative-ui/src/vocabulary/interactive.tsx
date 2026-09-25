@@ -14,7 +14,7 @@ import type {
 } from "../types";
 import { actionAttr, fire } from "./dispatch";
 import { toTextContent } from "./toTextContent";
-import { useNativeForm } from "./NativeFormContext";
+import { useRadioGroupName } from "../RadioGroupScope";
 
 const optionSchema = z.object({
   label: z.string(),
@@ -64,9 +64,7 @@ function RadioGroupRender({
   $action,
   $dispatch,
 }: RadioGroupRenderProps) {
-  const generatedName = useId();
-  const inForm = useNativeForm();
-  const groupName = inForm ? (name ?? generatedName) : generatedName;
+  const groupName = useRadioGroupName(name);
   return (
     <fieldset
       key={defaultValue}
