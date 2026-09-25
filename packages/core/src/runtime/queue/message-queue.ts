@@ -141,11 +141,11 @@ export const createMessageQueue = (
     const head = lanes[lane][0];
     if (!head) return;
     const message = messages.get(head.id);
+    if (!message) return;
+    running = true;
     messages.delete(head.id);
     setLanes({ ...lanes, [lane]: lanes[lane].slice(1) });
-    if (!message) return;
     const dispatch = { id: head.id, item: head, message };
-    running = true;
     const busyEdgesBeforeRun = busyEdges;
     try {
       driver.run(dispatchTransform(message), { steer: false });

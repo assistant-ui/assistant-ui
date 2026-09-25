@@ -21,6 +21,29 @@ const prompts = (items: readonly { prompt: string }[]) =>
   items.map((i) => i.prompt);
 
 describe("createMessageQueue", () => {
+  it("keeps messages enqueued by a removal subscriber behind the pending run", () => {
+    const run = vi.fn();
+    const queue = createMessageQueue({ run });
+    const first = msg("first");
+    const second = msg("second");
+    queue.hold();
+    queue.adapter.enqueue(first);
+    let enqueued = false;
+    queue.subscribe(() => {
+      if (!enqueued && queue.adapter.items.length === 0) {
+        enqueued = true;
+        queue.adapter.enqueue(second);
+      }
+    });
+    queue.release();
+    expect(run).toHaveBeenCalledExactlyOnceWith(first, { steer: false });
+    expect(prompts(queue.adapter.items)).toEqual(["second"]);
+    queue.notifyIdle();
+    expect(run).toHaveBeenNthCalledWith(2, second, { steer: false });
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(queue.adapter.items).toEqual([]);
+  });
+
   it("runs immediately when idle and holds while running", () => {
     const run = vi.fn();
     const { adapter, notifyIdle } = createMessageQueue({ run });
