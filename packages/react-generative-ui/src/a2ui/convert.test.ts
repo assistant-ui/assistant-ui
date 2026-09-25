@@ -305,7 +305,6 @@ describe("convertSurfaceToUISpec", () => {
           id: "select",
           component: "ChoicePicker",
           label: "Delivery",
-          placeholder: "Choose delivery",
           variant: "multipleSelection",
           value: { path: "/form/delivery" },
           options: [
@@ -363,14 +362,14 @@ describe("convertSurfaceToUISpec", () => {
             children: [{ $type: "Markdown", value: "Horizontal item" }],
           },
           {
-            $type: "Select",
+            $type: "CheckboxGroup",
             options: [
               { label: "Express", value: "express" },
               { label: "Standard", value: "standard" },
             ],
-            placeholder: "Choose delivery",
             label: "Delivery",
             name: "delivery",
+            defaultValue: ["express"],
           },
           {
             $type: "RadioGroup",
@@ -396,13 +395,72 @@ describe("convertSurfaceToUISpec", () => {
     });
   });
 
+  it("maps an omitted ChoicePicker variant as mutuallyExclusive and multiple selection chips as a CheckboxGroup", () => {
+    const surface = surfaceFrom(
+      [
+        { id: "root", component: "Column", children: ["plan", "toppings"] },
+        {
+          id: "plan",
+          component: "ChoicePicker",
+          options: [
+            { label: "Free", value: "free" },
+            { label: "Pro", value: "pro" },
+          ],
+          value: { path: "/plan" },
+        },
+        {
+          id: "toppings",
+          component: "ChoicePicker",
+          variant: "multipleSelection",
+          displayStyle: "chips",
+          options: [
+            { label: "Basil", value: "basil" },
+            { label: "Olives", value: "olives" },
+            { label: "Onion", value: "onion" },
+          ],
+          value: { path: "/toppings" },
+        },
+      ],
+      { plan: ["pro"], toppings: ["basil", "onion"] },
+    );
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "Col",
+        children: [
+          {
+            $type: "RadioGroup",
+            options: [
+              { label: "Free", value: "free" },
+              { label: "Pro", value: "pro" },
+            ],
+            name: "plan",
+            defaultValue: "pro",
+          },
+          {
+            $type: "CheckboxGroup",
+            options: [
+              { label: "Basil", value: "basil" },
+              { label: "Olives", value: "olives" },
+              { label: "Onion", value: "onion" },
+            ],
+            name: "toppings",
+            defaultValue: ["basil", "onion"],
+          },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
   it("does not pass a ChoicePicker value to Select without an initial-value prop", () => {
     const result = convertSurfaceToUISpec(
       surfaceFrom([
         {
           id: "root",
           component: "ChoicePicker",
-          value: "express",
+          displayStyle: "chips",
+          value: ["express"],
           options: [{ label: "Express", value: "express" }],
         },
       ]),
@@ -785,6 +843,54 @@ describe("convertSurfaceToUISpec", () => {
         ],
       },
       warnings: [],
+    });
+  });
+
+  it("maps function call actions and warns about an action it cannot read", () => {
+    const surface = surfaceFrom(
+      [
+        { id: "root", component: "Column", children: ["docs", "broken"] },
+        {
+          id: "docs",
+          component: "Button",
+          child: "docs-text",
+          action: {
+            functionCall: {
+              call: "openUrl",
+              args: { url: { path: "/docsUrl" } },
+            },
+          },
+        },
+        { id: "docs-text", component: "Text", text: "Docs" },
+        {
+          id: "broken",
+          component: "Button",
+          label: "Broken",
+          action: { functionCall: { args: { url: "https://a2ui.org" } } },
+        },
+      ],
+      { docsUrl: "https://a2ui.org" },
+    );
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "Col",
+        children: [
+          {
+            $type: "Button",
+            label: "Docs",
+            $action: {
+              type: "a2ui:functionCall",
+              call: "openUrl",
+              surfaceId: "",
+              sourceComponentId: "docs",
+              args: { url: "https://a2ui.org" },
+            },
+          },
+          { $type: "Button", label: "Broken" },
+        ],
+      },
+      warnings: ['Component "broken" has a malformed action.'],
     });
   });
 

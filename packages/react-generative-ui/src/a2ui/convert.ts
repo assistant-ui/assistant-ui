@@ -236,6 +236,11 @@ const mappedAction = (
   context: ConversionContext,
 ): UIElement["$action"] | undefined => {
   const action = props["action"];
+  if (action === undefined) return undefined;
+  const source = {
+    surfaceId: context.surfaceId,
+    sourceComponentId: typeof node["id"] === "string" ? node["id"] : "",
+  };
   const event =
     isRecord(action) && isRecord(action["event"]) ? action["event"] : action;
   const actionName =
@@ -244,15 +249,29 @@ const mappedAction = (
       : isRecord(event) && typeof event["name"] === "string"
         ? event["name"]
         : undefined;
-  if (!actionName) return undefined;
-  const actionContext = isRecord(event) ? event["context"] : undefined;
-  return {
-    type: "a2ui:action",
-    name: actionName,
-    surfaceId: context.surfaceId,
-    sourceComponentId: typeof node["id"] === "string" ? node["id"] : "",
-    ...(actionContext !== undefined ? { context: actionContext } : {}),
-  };
+  if (actionName) {
+    const actionContext = isRecord(event) ? event["context"] : undefined;
+    return {
+      type: "a2ui:action",
+      name: actionName,
+      ...source,
+      ...(actionContext !== undefined ? { context: actionContext } : {}),
+    };
+  }
+  const functionCall = isRecord(action) ? action["functionCall"] : undefined;
+  if (isRecord(functionCall) && typeof functionCall["call"] === "string") {
+    const args = functionCall["args"];
+    return {
+      type: "a2ui:functionCall",
+      call: functionCall["call"],
+      ...source,
+      ...(isRecord(args) ? { args } : {}),
+    };
+  }
+  context.warnings.push(
+    `Component "${String(node["id"] ?? "")}" has a malformed action.`,
+  );
+  return undefined;
 };
 
 const choiceOptions = (value: unknown): { label: string; value: string }[] => {
@@ -436,35 +455,38 @@ const mappedProps = (
   if (component === "ChoicePicker") {
     const options = choiceOptions(props["options"]);
     const value = props["value"];
-    const defaultValue =
+    const selected =
       typeof value === "string"
-        ? value
-        : Array.isArray(value) && typeof value[0] === "string"
-          ? value[0]
-          : undefined;
-    const radioStyle =
-      props["variant"] === "radio" ||
-      props["variant"] === "single" ||
-      props["variant"] === "singleSelection" ||
-      props["displayStyle"] === "radio" ||
-      (props["variant"] === "mutuallyExclusive" &&
-        props["displayStyle"] !== "chips");
-    if (radioStyle) {
+        ? [value]
+        : Array.isArray(value)
+          ? value.filter((entry): entry is string => typeof entry === "string")
+          : [];
+    if (props["variant"] === "multipleSelection") {
       return {
-        $type: "RadioGroup",
+        $type: "CheckboxGroup",
         options,
         ...(label !== undefined ? { label } : {}),
         ...(name !== undefined ? { name } : {}),
-        ...(defaultValue !== undefined ? { defaultValue } : {}),
+        ...(selected.length > 0 ? { defaultValue: selected } : {}),
       };
     }
-    const placeholder = stringProp(props, ["placeholder"]);
+    if (props["displayStyle"] === "chips") {
+      const placeholder = stringProp(props, ["placeholder"]);
+      return {
+        $type: "Select",
+        options,
+        ...(placeholder !== undefined ? { placeholder } : {}),
+        ...(label !== undefined ? { label } : {}),
+        ...(name !== undefined ? { name } : {}),
+      };
+    }
+    const [defaultValue] = selected;
     return {
-      $type: "Select",
+      $type: "RadioGroup",
       options,
-      ...(placeholder !== undefined ? { placeholder } : {}),
       ...(label !== undefined ? { label } : {}),
       ...(name !== undefined ? { name } : {}),
+      ...(defaultValue !== undefined ? { defaultValue } : {}),
     };
   }
 
