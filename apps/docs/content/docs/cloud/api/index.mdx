@@ -85,7 +85,7 @@ Ids are a prefix and 24 characters: `thread_0…`, `msg_0…`, `run_0…`, `scor
 
 ## Errors
 
-Branch on the status code, not the body: the body is a message for people, and its format depends on the route. A body or query that fails the route's schema answers 400 with `{ "success": false, "error": { "name": "ZodError", "message": "<the failed checks, as a JSON string>" } }`. The 402 and 429 bodies below are JSON, and an unexpected failure answers 500 with `{ "error": "Internal Server Error" }`. Every other error carries its message either as `{ "error": "<message>" }` or as plain text, such as `Thread not found` from the run routes; each route's page shows which. `/v1/mcp` differs: it answers `405` and a transport failure with an empty body, and `406` with a JSON-RPC error, as [MCP](/docs/cloud/api/mcp) lists.
+Branch on the status code, not the body: the body is a message for people, and its format depends on the route. A body or query that fails the route's schema answers 400 with `{ "success": false, "error": { "name": "ZodError", "message": "<the failed checks, as a JSON string>" } }`. The 402 and 429 bodies below are JSON, and an unexpected failure answers 500 with `{ "error": "Internal Server Error" }`. Every other error carries its message either as `{ "error": "<message>" }` or as plain text, such as `Thread not found` from the run routes; each route's page shows which. `/v1/mcp` differs: it answers `405` and a transport failure (`500`) with an empty body, and `406` with a JSON-RPC error, as [MCP](/docs/cloud/api/mcp) lists.
 
 | Status | When |
 |---|---|

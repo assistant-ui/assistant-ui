@@ -257,7 +257,7 @@ Follow the [Ink setup](/docs/ink).
 | --- | --- | --- |
 | `cloud` | `AssistantCloud` | Optional. Uses Assistant Cloud for the thread list and a copy of settled messages for the dashboard. |
 | `create` | `() => Promise<{ externalId: string \| undefined }>` | Optional. Creates a thread in your backend. |
-| `delete` | `(threadId: string) => Promise<void>` | Optional. Called before the thread list deletes a thread, with the cloud thread id when `cloud` is set; read that thread's `external_id` to delete the backend thread, as [LangGraph](/docs/cloud/langgraph) shows. |
+| `delete` | `(threadId: string) => Promise<void>` | Optional. When Cloud owns the thread list, called before a thread is deleted and given its Cloud thread id; read that thread's `external_id` to delete the backend thread, as [LangGraph](/docs/cloud/langgraph) shows. |
 | `onThreadIdChange` | `(threadId: string \| undefined) => void` | Optional. Called when the active thread's canonical ID changes. |
 | `unstable_threadListAdapter` | `RemoteThreadListAdapter` | Optional. Replaces the Cloud thread list adapter. |
 | `adapters` | `{ attachments?, speech?, feedback? }` | Optional. Attachment, speech, and feedback adapters. |
