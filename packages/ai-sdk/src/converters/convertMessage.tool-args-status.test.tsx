@@ -3,7 +3,10 @@ import {
   getPartialJsonObjectFieldState,
   getPartialJsonObjectMeta,
 } from "assistant-stream/utils";
-import { AISDKMessageConverter } from "./convertMessage";
+import {
+  AISDKMessageConverter,
+  type AISDKMessageConverterMetadata,
+} from "./convertMessage";
 
 describe("AI SDK tool argument completion", () => {
   it.each([{}, { city: "Paris", unit: "c" }])(
@@ -69,5 +72,73 @@ describe("AI SDK tool argument completion", () => {
       "complete",
     );
     expect(getPartialJsonObjectFieldState(part.args, ["unit"])).toBe("partial");
+  });
+
+  it.each([
+    {
+      state: "approval-responded",
+      approval: { id: "approval-1", approved: true },
+    },
+    {
+      state: "output-available",
+      output: { progress: 50 },
+      preliminary: true,
+    },
+  ])("marks settled $state input complete while the part runs", (tool) => {
+    const message = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-weather",
+              toolCallId: "tc-1",
+              input: { city: "Paris" },
+              ...tool,
+            },
+          ],
+        },
+      ] as any,
+      true,
+    )[0]!;
+    const part = message.content.find((item) => item.type === "tool-call")!;
+    expect(message.status?.type).toBe("running");
+    expect(getPartialJsonObjectMeta(part.args)?.state).toBe("complete");
+    expect(getPartialJsonObjectFieldState(part.args, ["city"])).toBe(
+      "complete",
+    );
+  });
+
+  it("reuses parsed arguments when the settled input object is unchanged", () => {
+    const input = { city: "Paris" };
+    const metadata: AISDKMessageConverterMetadata = {
+      toolArgsTextCache: new WeakMap(),
+    };
+    const convert = () =>
+      AISDKMessageConverter.toThreadMessages(
+        [
+          {
+            id: "a1",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-weather",
+                toolCallId: "tc-1",
+                state: "input-available",
+                input,
+              },
+            ],
+          },
+        ],
+        true,
+        metadata,
+      )[0]!.content.find((part) => part.type === "tool-call")!;
+
+    const first = convert();
+    const second = convert();
+    expect(first.args).toBe(second.args);
+    expect(first.argsText).toBe(second.argsText);
+    expect(getPartialJsonObjectMeta(second.args)?.state).toBe("complete");
   });
 });
