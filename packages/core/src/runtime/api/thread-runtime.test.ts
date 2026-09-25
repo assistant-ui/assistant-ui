@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { LocalRuntimeCore } from "../../runtimes/local/local-runtime-core";
 import { ExternalStoreRuntimeCore } from "../../runtimes/external-store/external-store-runtime-core";
@@ -88,45 +88,50 @@ describe("ThreadRuntime.append with an external store", () => {
 });
 
 describe("ThreadRuntime.append when the send rejects", () => {
-  const threadWithFailingSend = (error: unknown) => {
-    const core = new ExternalStoreRuntimeCore({
-      messages: [],
-      onNew: async () => {
-        throw error;
-      },
-    });
-    return new AssistantRuntimeImpl(core).thread;
-  };
-
-  const send = (thread: ReturnType<typeof threadWithFailingSend>) =>
-    thread.append({ content: [{ type: "text", text: "hi" }] });
-
-  it("logs a failed send instead of leaving an unhandled rejection", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-    const error = new Error("network down");
-
-    send(threadWithFailingSend(error));
-
-    await vi.waitFor(() =>
-      expect(consoleError).toHaveBeenCalledExactlyOnceWith(
-        "[assistant-ui] Message append failed",
-        error,
-      ),
-    );
-    consoleError.mockRestore();
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
-  it("stays silent for an undispatched send, which the composer owns", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+  const rejectingWith = (error: unknown) =>
+    vi.fn(async () => {
+      throw error;
+    });
 
-    send(threadWithFailingSend(new MessageNotSentError()));
+  const threadWith = (callbacks: { onNew: ReturnType<typeof rejectingWith> }) =>
+    new AssistantRuntimeImpl(
+      new ExternalStoreRuntimeCore({ messages: [], ...callbacks }),
+    ).thread;
 
-    await vi.waitFor(() => expect(consoleError).not.toHaveBeenCalled());
-    consoleError.mockRestore();
+  const settle = async (callback: ReturnType<typeof rejectingWith>) => {
+    await vi.waitFor(() => expect(callback).toHaveBeenCalledOnce());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  };
+
+  const silenceConsoleError = () =>
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+  it("logs a failed append instead of leaving an unhandled rejection", async () => {
+    const consoleError = silenceConsoleError();
+    const error = new Error("network down");
+    const onNew = rejectingWith(error);
+
+    threadWith({ onNew }).append({ content: [{ type: "text", text: "hi" }] });
+    await settle(onNew);
+
+    expect(consoleError).toHaveBeenCalledExactlyOnceWith(
+      "[assistant-ui] Message append failed",
+      error,
+    );
+  });
+
+  it("stays silent for an undispatched append, which the composer owns", async () => {
+    const consoleError = silenceConsoleError();
+    const onNew = rejectingWith(new MessageNotSentError());
+
+    threadWith({ onNew }).append({ content: [{ type: "text", text: "hi" }] });
+    await settle(onNew);
+
+    expect(consoleError).not.toHaveBeenCalled();
   });
 });
 
