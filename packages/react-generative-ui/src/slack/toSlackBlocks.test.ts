@@ -551,6 +551,47 @@ describe("toSlackBlocks", () => {
   });
 
   describe("Input", () => {
+    it.each([false, true])(
+      "enables Enter actions for an actionable input (multiline: %s)",
+      (multiline) => {
+        const { blocks, warnings } = toSlackBlocks(
+          {
+            $type: "Input",
+            label: "Notes",
+            multiline,
+            $action: { type: "save_note" },
+          },
+          { surface: "modal" },
+        );
+
+        expect(warnings).toEqual([]);
+        expect(blocks[0]).toMatchObject({
+          type: "input",
+          dispatch_action: true,
+          element: {
+            action_id: "save_note",
+            dispatch_action_config: {
+              trigger_actions_on: ["on_enter_pressed"],
+            },
+          },
+        });
+      },
+    );
+
+    it.each([undefined, null, {}, { type: "" }, { type: 42 }])(
+      "keeps an input without an actionable type passive: %j",
+      ($action) => {
+        const { blocks } = toSlackBlocks(
+          { $type: "Input", label: "Notes", $action },
+          { surface: "modal" },
+        );
+        expect(blocks[0]).not.toHaveProperty("dispatch_action");
+        expect((blocks[0] as SlackInputBlock).element).not.toHaveProperty(
+          "dispatch_action_config",
+        );
+      },
+    );
+
     it("wraps a plain_text_input element, passing multiline through", () => {
       const { blocks } = toSlackBlocks({
         $type: "Input",
@@ -562,9 +603,11 @@ describe("toSlackBlocks", () => {
       expect(blocks[0]).toEqual({
         type: "input",
         label: { type: "plain_text", text: "Notes" },
+        dispatch_action: true,
         element: {
           type: "plain_text_input",
           action_id: "notes",
+          dispatch_action_config: { trigger_actions_on: ["on_enter_pressed"] },
           multiline: true,
           placeholder: { type: "plain_text", text: "Type here" },
         },

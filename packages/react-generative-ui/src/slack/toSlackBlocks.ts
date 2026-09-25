@@ -1195,13 +1195,24 @@ const convertElement = (
         context,
       );
       const defaultValue = props["defaultValue"];
+      const dispatchAction =
+        typeof element.action?.type === "string" &&
+        element.action.type.length > 0;
       return [
         {
           type: "input",
           label: plainText(label),
+          ...(dispatchAction ? { dispatch_action: true } : {}),
           element: {
             type: "plain_text_input",
             action_id: asActionId(element.action, "Input", context),
+            ...(dispatchAction
+              ? {
+                  dispatch_action_config: {
+                    trigger_actions_on: ["on_enter_pressed" as const],
+                  },
+                }
+              : {}),
             ...(props["multiline"] === true ? { multiline: true } : {}),
             ...(typeof defaultValue === "string" && defaultValue
               ? { initial_value: defaultValue }
