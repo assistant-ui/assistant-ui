@@ -442,6 +442,7 @@ export class LocalThreadRuntimeCore
         },
       });
       if (this.voice) this._queue.hold();
+      if (this._activeRun) this._queue.notifyBusy();
       this._queue.subscribe(() => this._notifySubscribers());
     } else if (!canQueue && this._queue) {
       this._queue = null;

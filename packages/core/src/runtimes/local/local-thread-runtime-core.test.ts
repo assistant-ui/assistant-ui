@@ -5531,33 +5531,35 @@ describe("LocalThreadRuntimeCore message queue with other runs", () => {
     history?: boolean;
     historyAdapter?: ThreadHistoryAdapter;
     wait?: (message: ThreadMessage | undefined) => Promise<void>;
+    queue?: boolean;
   }) => {
     const dispatched: string[] = [];
-    const core = new LocalRuntimeCore(
-      {
-        adapters: {
-          chatModel: {
-            async run(runOptions) {
-              const last = runOptions.messages.at(-1);
-              dispatched.push(
-                last?.content
-                  .filter((part) => part.type === "text")
-                  .map((part) => (part as { text: string }).text)
-                  .join("") ?? "",
-              );
-              await options.wait?.(last);
-              return { content: [{ type: "text", text: "ok" }] };
-            },
+    const runtimeOptions: LocalRuntimeOptionsBase = {
+      adapters: {
+        chatModel: {
+          async run(runOptions) {
+            const last = runOptions.messages.at(-1);
+            dispatched.push(
+              last?.content
+                .filter((part) => part.type === "text")
+                .map((part) => (part as { text: string }).text)
+                .join("") ?? "",
+            );
+            await options.wait?.(last);
+            return { content: [{ type: "text", text: "ok" }] };
           },
-          ...(options.historyAdapter !== undefined && {
-            history: options.historyAdapter,
-          }),
         },
-        unstable_enableMessageQueue: true,
-        ...(options.clearOnCancel !== undefined && {
-          unstable_queueClearOnCancel: options.clearOnCancel,
+        ...(options.historyAdapter !== undefined && {
+          history: options.historyAdapter,
         }),
       },
+      unstable_enableMessageQueue: options.queue ?? true,
+      ...(options.clearOnCancel !== undefined && {
+        unstable_queueClearOnCancel: options.clearOnCancel,
+      }),
+    };
+    const core = new LocalRuntimeCore(
+      runtimeOptions,
       options.history
         ? [
             { id: "u0", role: "user", content: "hi" },
@@ -5566,12 +5568,18 @@ describe("LocalThreadRuntimeCore message queue with other runs", () => {
         : undefined,
     );
     const thread = core.threads.getMainThreadRuntimeCore();
-    const send = (text: string) =>
+    const send = (text: string, steer?: boolean) =>
       void thread.append({
         ...userMessage(text),
         parentId: thread.messages.at(-1)?.id ?? null,
+        ...(steer !== undefined && { steer }),
       });
-    return { thread, dispatched, send };
+    const enableQueue = () =>
+      thread.__internal_setOptions({
+        ...runtimeOptions,
+        unstable_enableMessageQueue: true,
+      });
+    return { thread, dispatched, send, enableQueue };
   };
 
   const createGate = () => {
@@ -5886,5 +5894,79 @@ describe("LocalThreadRuntimeCore message queue with other runs", () => {
     await flush();
     expect(dispatched).toEqual(["first", "hi", "second"]);
     for (const release of pending) release();
+  });
+
+  it("sends a later queued send after a steer that waits on the initialize promise", async () => {
+    const pending: (() => void)[] = [];
+    const { thread, dispatched, send } = createThread({
+      wait: () => new Promise<void>((r) => pending.push(r)),
+    });
+
+    send("first");
+    await flush();
+    const initialization = createInitialization();
+    thread.__internal_setGetInitializePromise(() => initialization.promise);
+    send("steered", true);
+    send("later", false);
+    await flush();
+    pending.shift()!();
+    await flush();
+    expect(dispatched).toEqual(["first"]);
+
+    initialization.resolve();
+    await flush();
+    expect(dispatched).toEqual(["first", "steered"]);
+
+    pending.shift()!();
+    await flush();
+    expect(dispatched).toEqual(["first", "steered", "later"]);
+    pending.shift()!();
+  });
+
+  it("holds a send behind a run that was active when the queue was enabled", async () => {
+    const pending: (() => void)[] = [];
+    const { dispatched, send, enableQueue } = createThread({
+      queue: false,
+      wait: () => new Promise<void>((r) => pending.push(r)),
+    });
+
+    send("first");
+    await flush();
+    enableQueue();
+    send("second");
+    await flush();
+    expect(dispatched).toEqual(["first"]);
+
+    pending.shift()!();
+    await flush();
+    expect(dispatched).toEqual(["first", "second"]);
+    pending.shift()!();
+  });
+
+  it("sends one at a time after cancelling a run that was active when the queue was enabled", async () => {
+    const pending: (() => void)[] = [];
+    const { thread, dispatched, send, enableQueue } = createThread({
+      queue: false,
+      clearOnCancel: false,
+      wait: () => new Promise<void>((r) => pending.push(r)),
+    });
+
+    send("first");
+    await flush();
+    enableQueue();
+    thread.cancelRun();
+    send("second");
+    send("third");
+    await flush();
+    expect(dispatched).toEqual(["first"]);
+
+    pending.shift()!();
+    await flush();
+    expect(dispatched).toEqual(["first", "second"]);
+
+    pending.shift()!();
+    await flush();
+    expect(dispatched).toEqual(["first", "second", "third"]);
+    pending.shift()!();
   });
 });
