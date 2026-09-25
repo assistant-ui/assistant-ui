@@ -3811,6 +3811,9 @@ importers:
       secure-json-parse:
         specifier: ^4.1.0
         version: 4.1.0
+      streamfold:
+        specifier: ^0.1.9
+        version: 0.1.9
     devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
@@ -5566,6 +5569,9 @@ importers:
       rolldown:
         specifier: ^1.2.8
         version: 1.2.8
+      streamfold:
+        specifier: ^0.1.9
+        version: 0.1.9
       vitest:
         specifier: ^5.0.1
         version: 5.0.1(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.5.1)(@vitest/coverage-v8@5.0.1)(@vitest/ui@5.0.1)(jsdom@30.0.1)(vite@8.3.0(@types/node@26.5.1))
@@ -19561,6 +19567,10 @@ packages:
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
       react-dom: ^18.0.0 || ^19.0.0
+
+  streamfold@0.1.9:
+    resolution: {integrity: sha512-cwIPSApHCrc2sbEgUL9tlE86AeP57YB49mCtqRT5w+tby4eB1C0FzVuRQE/csyetjilSUK1pSjwZxgdZqpyvSw==}
+    engines: {node: '>=20'}
 
   streamx@2.28.1:
     resolution: {integrity: sha512-zEzXb0s5Cds7tqMH6rhZ05lcJydCWiQPEwiNngVqzsxCc962vLY4Uw+mW7od8kDH258k2Uz/JrOkdIAAhSh9VA==}
@@ -37916,6 +37926,8 @@ snapshots:
       unist-util-visit-parents: 6.0.2
     transitivePeerDependencies:
       - supports-color
+
+  streamfold@0.1.9: {}
 
   streamx@2.28.1:
     dependencies:
