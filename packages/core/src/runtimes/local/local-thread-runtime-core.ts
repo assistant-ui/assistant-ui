@@ -83,15 +83,50 @@ const withLocalPauseReason = (message: ThreadMessage): ThreadMessage => {
   };
 };
 
+// A run resumes by restarting from its message, which drops every turn after
+// it, so a message that a later turn follows can never resume: its open
+// approvals are cancelled and its run settles as cancelled.
+const withCancelledPause = (
+  message: ThreadAssistantMessage,
+): ThreadAssistantMessage => {
+  let cancelled = false;
+  const content = message.content.map((part): ThreadAssistantMessagePart => {
+    if (
+      part.type !== "tool-call" ||
+      part.approval === undefined ||
+      part.approval.approved !== undefined ||
+      part.approval.resolution !== undefined
+    )
+      return part;
+    cancelled = true;
+    return { ...part, approval: { ...part.approval, resolution: "cancelled" } };
+  });
+  const open =
+    message.status.type === "running" ||
+    message.status.type === "requires-action";
+  if (!cancelled && !open) return message;
+  return {
+    ...message,
+    content,
+    status: open ? { type: "incomplete", reason: "cancelled" } : message.status,
+  };
+};
+
 const withLocalPauseReasons = (
   data: ExportedMessageRepository,
-): ExportedMessageRepository => ({
-  ...data,
-  messages: data.messages.map((item) => ({
-    ...item,
-    message: withLocalPauseReason(item.message),
-  })),
-});
+): ExportedMessageRepository => {
+  const followed = new Set(data.messages.map((item) => item.parentId));
+  return {
+    ...data,
+    messages: data.messages.map((item) => ({
+      ...item,
+      message:
+        item.message.role === "assistant" && followed.has(item.message.id)
+          ? withCancelledPause(item.message)
+          : withLocalPauseReason(item.message),
+    })),
+  };
+};
 
 const withoutToolInteractions = (message: ThreadMessage): ThreadMessage => {
   if (message.role !== "assistant") return message;
@@ -195,6 +230,48 @@ export class LocalThreadRuntimeCore
     const update = history.update.bind(history);
     const item = { parentId, message, runConfig: this._lastRunConfig };
     this._chainHistoryWrite(message.id, () => update(item)).catch(() => {});
+  }
+
+  // A message whose roundtrip is in flight belongs to that run, even after it
+  // yields a pause, so the run settles it when the roundtrip ends. `import`
+  // replaces every message both refer to, so it clears them.
+  private _roundtripsInFlight = new Map<string, AbortController>();
+  private _followedDuringRun = new Set<string>();
+
+  private _cancelPause(messageId: string | null) {
+    if (messageId === null) return;
+    let entry: { parentId: string | null; message: ThreadMessage };
+    try {
+      entry = this.repository.getMessage(messageId);
+    } catch {
+      return;
+    }
+    if (entry.message.role !== "assistant") return;
+    if (this._roundtripsInFlight.has(messageId)) {
+      this._followedDuringRun.add(messageId);
+      return;
+    }
+    const message = withCancelledPause(entry.message);
+    if (message === entry.message) return;
+    this.repository.addOrUpdateMessage(entry.parentId, message);
+    this._persistMessageUpdate(messageId);
+  }
+
+  // A message that a later turn follows never resumes, since a roundtrip
+  // restarts from it and would drop that turn. The resume starts from the
+  // stored entry, which a subscriber may have replaced while it was notified.
+  private _resumeIfReady(messageId: string) {
+    const stored = this.getMessageById(messageId);
+    if (
+      stored?.message.role !== "assistant" ||
+      this.repository.hasChildren(messageId) ||
+      !shouldContinue(stored.message, this._options.unstable_humanToolNames)
+    )
+      return false;
+    this._runLoop(stored.parentId, stored.message, this._lastRunConfig).catch(
+      () => {},
+    );
+    return true;
   }
 
   public readonly isDisabled = false;
@@ -456,6 +533,7 @@ export class LocalThreadRuntimeCore
       }
       const parentId = this.repository.headId;
       this.repository.addOrUpdateMessage(parentId, message);
+      this._cancelPause(parentId);
       this.repository.resetHead(message.id);
       const historyWrite = this._options.adapters.history?.append({
         parentId,
@@ -566,6 +644,7 @@ export class LocalThreadRuntimeCore
     } catch (error) {
       this._rollbackAppend(newMessage.id);
       if (generation.aborted) return;
+      if (message.parentId !== null) this._resumeIfReady(message.parentId);
       const notSent = new MessageNotSentError();
       notSent.cause = error;
       throw notSent;
@@ -574,6 +653,7 @@ export class LocalThreadRuntimeCore
       this._rollbackAppend(newMessage.id);
       return;
     }
+    this._cancelPause(message.parentId);
     const historyWrite = this._options.adapters.history?.append({
       parentId: message.parentId,
       message: newMessage,
@@ -630,6 +710,8 @@ export class LocalThreadRuntimeCore
   }
 
   public override import(data: ExportedMessageRepository) {
+    this._roundtripsInFlight.clear();
+    this._followedDuringRun.clear();
     super.import(withLocalPauseReasons(data));
   }
 
@@ -650,6 +732,8 @@ export class LocalThreadRuntimeCore
       throw new Error("Cannot start a run while a voice session is connected");
     if (this._isVoiceMessage(sourceId))
       throw new Error("Voice transcript messages cannot be reloaded");
+
+    this._cancelPause(parentId);
 
     // add assistant message
     const id = generateId();
@@ -717,7 +801,10 @@ export class LocalThreadRuntimeCore
           replacement = this._messageReplacements.get(message);
         }
         if (this.getMessageById(message.id)?.message !== message) break;
-      } while (shouldContinue(message, this._options.unstable_humanToolNames));
+      } while (
+        shouldContinue(message, this._options.unstable_humanToolNames) &&
+        !this.repository.hasChildren(message.id)
+      );
     } finally {
       this._notifyEventSubscribers("runEnd", {});
       // the settle belongs to this run only while it is still the active run
@@ -765,7 +852,16 @@ export class LocalThreadRuntimeCore
     runCallback?: ChatModelAdapter["run"],
   ) {
     const messages = parentId ? this.repository.getMessages(parentId) : [];
-    const modelMessages = messages.map(withoutToolInteractions);
+    // A message here that is running or whose roundtrip is still in flight
+    // belongs to the run this roundtrip aborts.
+    const modelMessages = messages.map((m) =>
+      withoutToolInteractions(
+        m.role === "assistant" &&
+          (m.status.type === "running" || this._roundtripsInFlight.has(m.id))
+          ? withCancelledPause(m)
+          : m,
+      ),
+    );
 
     // abort existing run
     this.abortController?.abort();
@@ -931,6 +1027,7 @@ export class LocalThreadRuntimeCore
 
     const maxSteps = this._options.maxSteps ?? 2;
 
+    this._roundtripsInFlight.set(message.id, abortController);
     try {
       const steps = message.metadata?.steps?.length ?? 0;
       if (steps >= maxSteps) {
@@ -1036,9 +1133,27 @@ export class LocalThreadRuntimeCore
       if (this.abortController === abortController) {
         this.abortController = null;
       }
+      // A roundtrip replaced by a resume of the same message leaves it, and any
+      // follow-up recorded meanwhile, to the roundtrip that replaced it.
+      const holdsMessage =
+        this._roundtripsInFlight.get(message.id) === abortController;
+      if (holdsMessage) this._roundtripsInFlight.delete(message.id);
 
       const history = this._options.adapters.history;
       const ownsCurrentMessage = syncOwnedMessage();
+      let settled = false;
+      if (holdsMessage && this._followedDuringRun.delete(message.id)) {
+        const stored = this.getMessageById(message.id);
+        if (stored?.message.role === "assistant") {
+          const cancelled = withCancelledPause(stored.message);
+          if (cancelled !== stored.message) {
+            this.repository.addOrUpdateMessage(stored.parentId, cancelled);
+            settled = true;
+            if (ownsCurrentMessage) message = cancelled;
+            else this._persistMessageUpdate(message.id);
+          }
+        }
+      }
       const item = {
         parentId,
         message,
@@ -1053,6 +1168,7 @@ export class LocalThreadRuntimeCore
 
       // Pauses are written only for adapters that can rewrite the entry later;
       // an append-only adapter would strand a half-finished run in history.
+      let written: Promise<void> | undefined;
       if (
         ownsCurrentMessage &&
         (isTerminal || (isPausing && history?.update))
@@ -1062,9 +1178,13 @@ export class LocalThreadRuntimeCore
             ? history.update.bind(history)
             : history?.append.bind(history);
         if (write) {
-          await this._chainHistoryWrite(message.id, () => write(item));
+          written = this._chainHistoryWrite(message.id, () => write(item));
         }
       }
+      // Notified after the write is queued, so a change a subscriber makes in
+      // response is written after it.
+      if (settled) this._notifySubscribers();
+      if (written) await written;
     }
     return message;
   }
@@ -1160,20 +1280,9 @@ export class LocalThreadRuntimeCore
     this._notifySubscribers();
     if (!added) return;
 
-    // A subscriber may replace the message while it is notified, so the resume starts from the stored entry.
-    const stored = this.getMessageById(messageId);
     // a result may arrive mid-run or on a non-head message; the resume
     // intentionally aborts any in-flight run, unlike respondToToolApproval
-    if (
-      stored?.message.role === "assistant" &&
-      shouldContinue(stored.message, this._options.unstable_humanToolNames)
-    ) {
-      this._runLoop(stored.parentId, stored.message, this._lastRunConfig).catch(
-        () => {},
-      );
-    } else {
-      this._persistMessageUpdate(messageId);
-    }
+    if (!this._resumeIfReady(messageId)) this._persistMessageUpdate(messageId);
   }
 
   public resumeToolCall(_options: ResumeToolCallOptions) {
@@ -1269,6 +1378,11 @@ export class LocalThreadRuntimeCore
     if (message.status?.type !== "requires-action")
       throw new Error(
         "Tried to respond to a tool approval on a message whose status is not requires-action",
+      );
+
+    if (this.repository.hasChildren(message.id))
+      throw new Error(
+        "Tried to respond to a tool approval on a message that later messages follow",
       );
 
     const target = message.content.find(

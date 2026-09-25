@@ -4,10 +4,15 @@ import {
   type A2uiSurfaceState,
   type A2uiTemplateChildren,
 } from "./types";
+import {
+  evaluateA2uiValueFunction,
+  type ExpressionPart,
+} from "./valueFunctions";
 
 const DEPTH_CAP = 32;
 const TEMPLATE_ITEM_CAP = 100;
 const NODE_BUDGET = 5000;
+const EVALUATION_BUDGET = 20_000;
 
 const SUPPORTED_COMPONENTS = new Set([
   "Text",
@@ -54,6 +59,24 @@ const setOwnProperty = (
   }
 };
 
+const FUNCTION_CALL_KEYS: ReadonlySet<string> = new Set([
+  "call",
+  "args",
+  "returnType",
+  "catalogId",
+]);
+
+const isFunctionCall = (
+  value: unknown,
+): value is {
+  readonly call: string;
+  readonly args?: Record<string, unknown>;
+} =>
+  isPlainObject(value) &&
+  typeof value["call"] === "string" &&
+  (value["args"] === undefined || isPlainObject(value["args"])) &&
+  Object.keys(value).every((key) => FUNCTION_CALL_KEYS.has(key));
+
 const isBinding = (value: unknown): value is { readonly path: string } =>
   isPlainObject(value) &&
   Object.keys(value).length === 1 &&
@@ -67,20 +90,16 @@ const isTemplateChildren = (value: unknown): value is A2uiTemplateChildren =>
   typeof value["template"]["componentId"] === "string" &&
   typeof value["template"]["path"] === "string";
 
-const decodePointer = (path: string): string[] | undefined => {
+const decodePointer = (path: string): string[] => {
   if (path === "" || path === "/") return [];
-  if (!path.startsWith("/")) return undefined;
-  return path
-    .slice(1)
+  return (path.startsWith("/") ? path.slice(1) : path)
     .split("/")
     .map((segment) => segment.replaceAll("~1", "/").replaceAll("~0", "~"));
 };
 
 const resolvePointer = (source: unknown, path: string): unknown => {
-  const segments = decodePointer(path);
-  if (!segments) return undefined;
   let current = source;
-  for (const segment of segments) {
+  for (const segment of decodePointer(path)) {
     if (Array.isArray(current)) {
       if (!/^(0|[1-9]\d*)$/.test(segment)) return undefined;
       current = current[Number(segment)];
@@ -97,29 +116,103 @@ const resolvePointer = (source: unknown, path: string): unknown => {
 const bindingPath = (value: unknown): string | undefined =>
   isBinding(value) ? value.path : undefined;
 
-const lastPointerSegment = (path: string | undefined): string | undefined => {
-  if (!path) return undefined;
-  const segments = decodePointer(path);
-  return segments?.at(-1);
-};
+const lastPointerSegment = (path: string | undefined): string | undefined =>
+  path ? decodePointer(path).at(-1) : undefined;
 
-const materialize = (value: unknown, source: unknown): unknown => {
-  if (isBinding(value)) return resolvePointer(source, value.path);
-  if (Array.isArray(value)) {
-    return value
-      .map((entry) => materialize(entry, source))
-      .filter((entry) => entry !== undefined);
-  }
-  if (!isPlainObject(value)) return value;
+const materializeEntries = (
+  value: Record<string, unknown>,
+  source: unknown,
+  context: ConversionContext,
+  evaluate: boolean,
+  depth: number,
+  positional = false,
+): Record<string, unknown> => {
   const result: Record<string, unknown> = {};
   for (const [key, entry] of Object.entries(value)) {
-    const resolved = materialize(entry, source);
+    // An action's functionCall runs when the button fires, so only its arguments resolve here.
+    const resolved =
+      key === "functionCall" && isFunctionCall(entry)
+        ? {
+            ...entry,
+            ...(entry.args !== undefined
+              ? {
+                  args: materializeEntries(
+                    entry.args,
+                    source,
+                    context,
+                    evaluate,
+                    depth,
+                    true,
+                  ),
+                }
+              : {}),
+          }
+        : materialize(entry, source, context, evaluate, depth, positional);
     if (resolved !== undefined) {
       setOwnProperty(result, key, resolved);
     }
   }
   return result;
 };
+
+function materialize(
+  value: unknown,
+  source: unknown,
+  context: ConversionContext,
+  evaluate = true,
+  depth = 0,
+  positional = false,
+): unknown {
+  if (isBinding(value)) return resolvePointer(source, value.path);
+  if (Array.isArray(value)) {
+    const entries = value.map((entry) =>
+      materialize(entry, source, context, evaluate, depth, positional),
+    );
+    return positional
+      ? entries
+      : entries.filter((entry) => entry !== undefined);
+  }
+  if (!isPlainObject(value)) return value;
+  if (!evaluate || !isFunctionCall(value)) {
+    return materializeEntries(
+      value,
+      source,
+      context,
+      evaluate,
+      depth,
+      positional,
+    );
+  }
+  if (!spendEvaluation(context)) return undefined;
+  if (depth >= DEPTH_CAP) {
+    if (!context.functionDepthWarned) {
+      context.warnings.push(
+        `A2UI function nesting cap of ${DEPTH_CAP} was reached.`,
+      );
+      context.functionDepthWarned = true;
+    }
+    return undefined;
+  }
+  return evaluateA2uiValueFunction(
+    value.call,
+    materializeEntries(
+      value.args ?? {},
+      source,
+      context,
+      true,
+      depth + 1,
+      true,
+    ),
+    {
+      resolve: (part) =>
+        spendEvaluation(context)
+          ? materialize(part, source, context, true, depth + 1)
+          : undefined,
+      warn: (message) => context.warnings.push(message),
+      templates: context.templates,
+    },
+  );
+}
 
 const firstDefined = (
   props: Record<string, unknown>,
@@ -152,7 +245,25 @@ type ConversionContext = {
   depthWarned: boolean;
   budgetWarned: boolean;
   templateCapWarned: boolean;
+  evaluations: number;
+  evaluationBudgetWarned: boolean;
+  functionDepthWarned: boolean;
+  readonly templates: Map<string, ExpressionPart[] | null>;
   readonly keepUnknownComponents: boolean;
+};
+
+const spendEvaluation = (context: ConversionContext): boolean => {
+  if (context.evaluations < EVALUATION_BUDGET) {
+    context.evaluations++;
+    return true;
+  }
+  if (!context.evaluationBudgetWarned) {
+    context.warnings.push(
+      `A2UI function evaluation budget of ${EVALUATION_BUDGET} was reached.`,
+    );
+    context.evaluationBudgetWarned = true;
+  }
+  return false;
 };
 
 const reserveNode = (context: ConversionContext): boolean => {
@@ -520,7 +631,7 @@ const convertTemplate = (
   if (!reserveNode(context)) return null;
   const horizontalList =
     node["component"] === "List" &&
-    materialize(node["direction"], dataSource) === "horizontal";
+    materialize(node["direction"], dataSource, context) === "horizontal";
   const container = mappedContainer ??
     retained ?? {
       $type: horizontalList ? "Row" : "ListView",
@@ -616,7 +727,12 @@ function convertComponent(
       ) {
         continue;
       }
-      const resolved = materialize(value, dataSource);
+      const resolved = materialize(
+        value,
+        dataSource,
+        context,
+        key !== "checks",
+      );
       if (resolved !== undefined) setOwnProperty(props, key, resolved);
     }
     const mapped = mappedProps(node, props, context);
@@ -690,6 +806,10 @@ export function convertSurfaceToUISpec(
     depthWarned: false,
     budgetWarned: false,
     templateCapWarned: false,
+    evaluations: 0,
+    evaluationBudgetWarned: false,
+    functionDepthWarned: false,
+    templates: new Map(),
     keepUnknownComponents: options.keepUnknownComponents === true,
   };
   try {
