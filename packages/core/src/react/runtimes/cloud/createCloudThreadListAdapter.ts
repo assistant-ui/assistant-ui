@@ -20,7 +20,8 @@ export type CloudThreadListAdapterOptions = {
   cloud?: AssistantCloud | undefined;
   sdk?: SdkIdentity | undefined;
 
-  create?: (() => Promise<ThreadData>) | undefined;
+  /** Returns the external id for a new cloud thread, which is created once this resolves; `threadId` is the `id` of the thread list item being saved. */
+  create?: ((threadId: string) => Promise<ThreadData>) | undefined;
   delete?: ((threadId: string) => Promise<void>) | undefined;
 };
 
@@ -112,7 +113,7 @@ export const createCloudThreadListAdapter = (
   if (!cloud) {
     const inMemory = new InMemoryThreadListAdapter();
     inMemory.initialize = async (threadId: string) => {
-      const result = await getOptions().create?.();
+      const result = await getOptions().create?.(threadId);
       return { remoteId: threadId, externalId: result?.externalId };
     };
     return inMemory;
@@ -178,8 +179,8 @@ export const createCloudThreadListAdapter = (
       };
     },
 
-    initialize: async () => {
-      const createTask = getOptions().create?.() ?? Promise.resolve();
+    initialize: async (threadId) => {
+      const createTask = getOptions().create?.(threadId) ?? Promise.resolve();
       const t = await createTask;
       const external_id = t ? t.externalId : undefined;
       const { thread_id: remoteId } = await cloud.threads.create({
