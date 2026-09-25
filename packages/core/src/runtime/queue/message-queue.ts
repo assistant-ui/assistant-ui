@@ -89,6 +89,7 @@ export const createMessageQueue = (
   const subscribers = new Set<() => void>();
 
   let running = false;
+  let dispatchPending = false;
   let paused = false;
   let held = false;
   let dispatchTransform: (message: AppendMessage) => AppendMessage = (m) => m;
@@ -141,11 +142,13 @@ export const createMessageQueue = (
     const head = lanes[lane][0];
     if (!head) return;
     const message = messages.get(head.id);
-    messages.delete(head.id);
-    setLanes({ ...lanes, [lane]: lanes[lane].slice(1) });
     if (!message) return;
-    const dispatch = { id: head.id, item: head, message };
     running = true;
+    messages.delete(head.id);
+    dispatchPending = true;
+    setLanes({ ...lanes, [lane]: lanes[lane].slice(1) });
+    dispatchPending = false;
+    const dispatch = { id: head.id, item: head, message };
     const busyEdgesBeforeRun = busyEdges;
     try {
       driver.run(dispatchTransform(message), { steer: false });
@@ -214,7 +217,7 @@ export const createMessageQueue = (
   };
 
   const steer = (message: AppendMessage) => {
-    if (running && driver.cancel) {
+    if (running && !dispatchPending && driver.cancel) {
       const id = generateId();
       interrupt({ id, item: toItem(id, message), message });
       return;
@@ -273,6 +276,7 @@ export const createMessageQueue = (
       toLane === "steer" &&
       fromLane !== "steer" &&
       running &&
+      !dispatchPending &&
       driver.cancel
     ) {
       const message = messages.get(queueItemId)!;
