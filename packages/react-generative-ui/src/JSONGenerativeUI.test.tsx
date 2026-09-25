@@ -116,6 +116,19 @@ describe("JSONGenerativeUI — client build", () => {
     expect(html).toContain("<button>ok</button>");
   });
 
+  it.each(["running", "incomplete"])(
+    "holds prompt controls back for %s arguments",
+    (type) => {
+      expect(
+        renderTool(
+          ui.promptUser(),
+          { $type: "Button", label: "Answer" },
+          { status: { type } },
+        ),
+      ).toBe('<div data-aui="root"></div>');
+    },
+  );
+
   it("records actions before dispatching them without waiting for recording", () => {
     const recording = vi.fn(() => new Promise<void>(() => {}));
     const handler = vi.fn(() => "accepted");
@@ -303,70 +316,76 @@ describe("JSONGenerativeUI — client build", () => {
     expect(addResult).not.toHaveBeenCalled();
   });
 
-  it("completes prompt_user form submissions with named field values", async () => {
-    const addResult = vi.fn();
-    const handler = vi.fn(() => ({ submitted: true }));
-    const ui = new ClientGenUI({
-      library: defaultGenerativeUILibrary,
-      actions: createActionRegistry({ submit: handler }),
-    });
-    const container = document.createElement("div");
-    const root = createRoot(container);
-
-    try {
-      await act(async () => {
-        root.render(
-          (ui.promptUser() as any).render({
-            args: {
-              $type: "Form",
-              $action: { type: "submit" },
-              children: [
-                { $type: "Input", name: "email" },
-                { $type: "Checkbox", name: "updates", label: "Updates" },
-              ],
-            },
-            status: { type: "complete" },
-            toolCallId: "prompt-form",
-            toolName: "prompt_user",
-            argsText: "",
-            addResult,
-          }),
-        );
+  it.each(["complete", "requires-action"])(
+    "completes %s prompt_user form submissions with named field values",
+    async (type) => {
+      const addResult = vi.fn();
+      const handler = vi.fn(() => ({ submitted: true }));
+      const ui = new ClientGenUI({
+        library: defaultGenerativeUILibrary,
+        actions: createActionRegistry({ submit: handler }),
       });
+      const container = document.createElement("div");
+      const root = createRoot(container);
 
-      const form = container.querySelector("form");
-      const email = container.querySelector<HTMLInputElement>(
-        'input[name="email"]',
-      );
-      const updates = container.querySelector<HTMLInputElement>(
-        'input[name="updates"]',
-      );
-      if (!form || !email || !updates) {
-        throw new Error("Expected the prompt form fields to render.");
+      try {
+        await act(async () => {
+          root.render(
+            (ui.promptUser() as any).render({
+              args: {
+                $type: "Form",
+                $action: { type: "submit" },
+                children: [
+                  { $type: "Input", name: "email" },
+                  { $type: "Checkbox", name: "updates", label: "Updates" },
+                ],
+              },
+              status: {
+                type,
+                ...(type === "requires-action" ? { reason: "tool-calls" } : {}),
+              },
+              toolCallId: "prompt-form",
+              toolName: "prompt_user",
+              argsText: "",
+              addResult,
+            }),
+          );
+        });
+
+        const form = container.querySelector("form");
+        const email = container.querySelector<HTMLInputElement>(
+          'input[name="email"]',
+        );
+        const updates = container.querySelector<HTMLInputElement>(
+          'input[name="updates"]',
+        );
+        if (!form || !email || !updates) {
+          throw new Error("Expected the prompt form fields to render.");
+        }
+
+        email.value = "ada@example.com";
+        updates.checked = true;
+        let submitted = true;
+        await act(async () => {
+          submitted = form.dispatchEvent(
+            new Event("submit", { bubbles: true, cancelable: true }),
+          );
+          await Promise.resolve();
+        });
+
+        expect(submitted).toBe(false);
+        expect(handler).toHaveBeenCalledWith({
+          payload: {
+            type: "submit",
+            $input: { email: "ada@example.com", updates: true },
+          },
+        });
+        expect(addResult).toHaveBeenCalledWith({ submitted: true });
+      } finally {
+        await act(async () => root.unmount());
       }
-
-      email.value = "ada@example.com";
-      updates.checked = true;
-      let submitted = true;
-      await act(async () => {
-        submitted = form.dispatchEvent(
-          new Event("submit", { bubbles: true, cancelable: true }),
-        );
-        await Promise.resolve();
-      });
-
-      expect(submitted).toBe(false);
-      expect(handler).toHaveBeenCalledWith({
-        payload: {
-          type: "submit",
-          $input: { email: "ada@example.com", updates: true },
-        },
-      });
-      expect(addResult).toHaveBeenCalledWith({ submitted: true });
-    } finally {
-      await act(async () => root.unmount());
-    }
-  });
+    },
+  );
 });
 
 describe("JSONGenerativeUI — server build", () => {
