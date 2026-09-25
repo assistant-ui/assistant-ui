@@ -1,6 +1,6 @@
 export const A2UI_SURFACE_ID = Symbol("a2uiSurfaceId");
 
-export type A2uiVersion = "v0.9" | "v1.0";
+export type A2uiVersion = "v0.9" | "v0.9.1" | "v1.0";
 
 export interface A2uiTemplateChildren {
   readonly template: {
@@ -51,6 +51,10 @@ export interface A2uiDeleteSurfacePayload {
 export type A2uiCreateSurfaceOperation =
   | {
       readonly version: "v0.9";
+      readonly createSurface: A2uiCreateSurfaceV09Payload;
+    }
+  | {
+      readonly version: "v0.9.1";
       readonly createSurface: A2uiCreateSurfaceV09Payload;
     }
   | {
