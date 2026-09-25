@@ -21,7 +21,15 @@ const useThreadViewportStoreValue = (options: ThreadViewportStoreOptions) => {
   const outerViewport = useThreadViewportStore({ optional: true });
   // Viewport options are initial configuration. Keeping them non-reactive avoids
   // fanout through every message in long threads when anchoring config changes.
-  const [store] = useState(() => makeThreadViewportStore(options));
+  const [store] = useState(() =>
+    makeThreadViewportStore({
+      ...options,
+      autoScrollPaused:
+        options.autoScrollPaused ??
+        outerViewport?.getState().autoScrollPaused ??
+        false,
+    }),
+  );
 
   // Forward scrollToBottom from outer viewport to inner viewport
   useEffect(() => {
@@ -33,8 +41,31 @@ const useThreadViewportStoreValue = (options: ThreadViewportStoreOptions) => {
   useEffect(() => {
     if (!outerViewport) return;
     return store.subscribe((state) => {
-      if (outerViewport.getState().isAtBottom !== state.isAtBottom) {
+      const outerState = outerViewport.getState();
+      const isAtBottomChanged = outerState.isAtBottom !== state.isAtBottom;
+      const pausedChanged =
+        outerState.autoScrollPaused !== state.autoScrollPaused;
+      if (pausedChanged && !state.autoScrollPaused) {
+        outerState.resumeAutoScroll();
+      } else if (pausedChanged && state.autoScrollPaused) {
+        writableStore(outerViewport).setState({ autoScrollPaused: true });
+      }
+      if (isAtBottomChanged) {
         writableStore(outerViewport).setState({ isAtBottom: state.isAtBottom });
+      }
+    });
+  }, [store, outerViewport]);
+
+  useEffect(() => {
+    if (!outerViewport) return;
+    return outerViewport.subscribe((state) => {
+      const innerState = store.getState();
+      if (innerState.autoScrollPaused !== state.autoScrollPaused) {
+        if (!state.autoScrollPaused) {
+          innerState.resumeAutoScroll();
+        } else {
+          store.setState({ autoScrollPaused: true });
+        }
       }
     });
   }, [store, outerViewport]);

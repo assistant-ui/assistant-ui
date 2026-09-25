@@ -5393,6 +5393,9 @@ type ThreadViewportProviderProps = PropsWithChildren<{
 
 type ThreadViewportState = {
   readonly isAtBottom: boolean;
+  readonly autoScrollPaused: boolean;
+  readonly pauseAutoScroll: () => Unsubscribe;
+  readonly resumeAutoScroll: () => void;
   readonly scrollToBottom: (config?: {
     behavior?: ScrollBehavior | undefined;
   }) => void;
@@ -5436,6 +5439,7 @@ type ThreadViewportState = {
 };
 
 type ThreadViewportStoreOptions = {
+  autoScrollPaused?: boolean | undefined;
   turnAnchor?: "top" | "bottom" | undefined;
   topAnchorMessageClamp?: {
     tallerThan?: string | undefined;
