@@ -25,7 +25,7 @@ export const resolveFilePartSource = (part: {
   return {
     kind: "data",
     data: parsed?.data ?? part.data,
-    mimeType: parsed?.mimeType ?? part.mimeType,
+    mimeType: (parsed && dataUrlMediaType(part.data)) ?? part.mimeType,
   };
 };
 

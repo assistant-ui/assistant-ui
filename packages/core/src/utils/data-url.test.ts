@@ -96,14 +96,17 @@ describe("httpUrlPattern", () => {
 });
 
 describe("resolveFilePartSource", () => {
-  it("extracts bytes from a data URL with the default media type", () => {
-    expect(
-      resolveFilePartSource({
-        data: "data:;base64,SGk=",
-        mimeType: "application/octet-stream",
-      }),
-    ).toEqual({ kind: "data", data: "SGk=", mimeType: "text/plain" });
-  });
+  it.each(["application/octet-stream", "image/png", "audio/wav", "text/plain"])(
+    "extracts bytes while retaining the declared %s type when the URL omits it",
+    (mimeType) => {
+      expect(
+        resolveFilePartSource({
+          data: "data:;base64,SGk=",
+          mimeType,
+        }),
+      ).toEqual({ kind: "data", data: "SGk=", mimeType });
+    },
+  );
 
   it("uses an explicit url source type for opaque values", () => {
     expect(
