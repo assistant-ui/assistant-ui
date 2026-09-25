@@ -165,6 +165,9 @@ jobs:
     name: Build Changed Packages
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
@@ -207,9 +210,6 @@ jobs:
       - name: Check distribution barrels
         run: pnpm run distributions:check
 
-      - name: Check bundle size budgets
-        run: pnpm size:check
-
       - name: Check built declarations
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
@@ -229,6 +229,35 @@ jobs:
 
       - name: Test API surface generator
         run: pnpm run api-surface:test
+
+      # The pull_request checkout is the merge commit, so HEAD^1 is the base it merges into.
+      - name: Measure bundle sizes against the base
+        if: github.event_name == 'pull_request'
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+        run: |
+          set -euo pipefail
+          node packages/x-performance/bin/aui-perf.mjs size --ref HEAD^1 --report "$RUNNER_TEMP/size.md"
+          if [ -f "$RUNNER_TEMP/size.md" ]; then cat "$RUNNER_TEMP/size.md" >> "$GITHUB_STEP_SUMMARY"; fi
+
+      - name: Post the size report as a sticky PR comment
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPORT_MARKER: "<!-- aui-size-report -->"
+        run: |
+          set -euo pipefail
+          existing=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$REPORT_MARKER\"))) | .id" | sed -n '1p')
+          if [ -f "$RUNNER_TEMP/size.md" ] && [ -n "$existing" ]; then
+            gh api "repos/$REPO/issues/comments/$existing" --method PATCH -F body=@"$RUNNER_TEMP/size.md"
+          elif [ -f "$RUNNER_TEMP/size.md" ]; then
+            gh api "repos/$REPO/issues/$PR_NUMBER/comments" --method POST -F body=@"$RUNNER_TEMP/size.md"
+          elif [ -n "$existing" ]; then
+            gh api "repos/$REPO/issues/comments/$existing" --method DELETE
+          fi
 
   build-apps:
     name: Build Changed Apps
