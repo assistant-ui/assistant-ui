@@ -96,7 +96,6 @@ declare class AssistantCloudEvents {
 declare class AssistantCloudFiles {
   #private;
   constructor(cloud: AssistantCloudAPI);
-  pdfToImages(body: PdfToImagesRequestBody): Promise<PdfToImagesResponse>;
   generatePresignedUploadUrl(body: GeneratePresignedUploadUrlRequestBody): Promise<GeneratePresignedUploadUrlResponse>;
   generatePresignedDownloadUrl(body: {
     key: string;
@@ -652,17 +651,6 @@ type PartInit = {
   readonly name: string;
   readonly data: ReadonlyJSONValue;
   readonly parentId?: string;
-};
-
-type PdfToImagesRequestBody = {
-  file_blob?: string | undefined;
-  file_url?: string | undefined;
-};
-
-type PdfToImagesResponse = {
-  success: boolean;
-  urls: string[];
-  message: string;
 };
 
 type ReadonlyJSONArray = readonly ReadonlyJSONValue[];
