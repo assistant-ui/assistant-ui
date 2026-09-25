@@ -345,6 +345,10 @@ export class MessageRepository {
     this._messages.dirty();
   }
 
+  hasChildren(messageId: string) {
+    return (this.messages.get(messageId)?.children.length ?? 0) > 0;
+  }
+
   getBranches(messageId: string) {
     const message = this.messages.get(messageId);
     if (!message)
