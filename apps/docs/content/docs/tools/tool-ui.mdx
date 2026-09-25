@@ -420,6 +420,12 @@ function ProductPage({ productId, productName }) {
 
 ## Interactive Tool UIs
 
+`s.thread.capabilities.answerToolCall` reports whether the thread can take an answer at all. It is `false` in a readonly thread, such as a sub-agent transcript or a conversation rendered through `ReadonlyThreadProvider`, where `addResult`, `resume`, and `respondToApproval` do nothing, and on an external store that has nothing to answer with: no `onAddToolResult`, `onResumeToolCall`, or `onRespondToToolApproval`, and no tool execution of its own. Render the request without its controls when it is `false`, as the kit's tool fallback does:
+
+```tsx
+const canAnswer = useAuiState((s) => s.thread.capabilities.answerToolCall);
+```
+
 ### User Input Collection
 
 Create tools that collect user input during execution:

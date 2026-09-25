@@ -14,7 +14,7 @@ Key behaviors:
 
 - **Scope inheritance** — Parent toolkit renderers are available in sub-agent messages. A `Tools({ toolkit })` registration at the top level works inside sub-agent conversations too.
 - **Recursive** — Sub-agent messages can contain tool calls that themselves have nested messages. Just use `MessagePartPrimitive.Messages` again.
-- **Read-only** — Sub-agent messages are rendered in a readonly context. No editing, branching, or composing.
+- **Read-only** — Sub-agent messages are rendered in a readonly context. No editing, branching, composing, or answering tool calls: `s.thread.capabilities.answerToolCall` is `false` there.
 
 <Callout type="info">
   This renders a sub-agent's **messages**. To visualize a sub-agent's **execution trace** instead (timing, span hierarchy, waterfalls), see [react-o11y](/docs/utilities/react-o11y), which renders observability spans as collapsible trees and timelines.
@@ -287,7 +287,7 @@ function SubConversation({
 }
 ```
 
-`ReadonlyThreadProvider` inherits the parent's tool UI registrations and model context through scope inheritance.
+`ReadonlyThreadProvider` inherits the parent's tool UI registrations and model context through scope inheritance. A tool UI rendered inside it reads `s.thread.capabilities.answerToolCall` as `false`, because `addResult`, `resume`, and `respondToApproval` do nothing in a readonly thread; show the request without its controls there.
 
 ## Related
 

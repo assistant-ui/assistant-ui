@@ -208,7 +208,7 @@ Each handler enables a specific UI feature.
 | `onReload` | Regenerate button |
 | `onCancel` | Cancel button while generating |
 | `onRefetchThread` | `threads.reloadMainThread()` refetching the open thread in place |
-| `onAddToolResult` | Client-side tool result handoff |
+| `onAddToolResult` | Client-side tool result handoff. Any of `onAddToolResult`, `onResumeToolCall`, and `onRespondToToolApproval` turns on `s.thread.capabilities.answerToolCall`, which the tool fallback's answer controls need |
 | `onVoiceTranscript` | Persist finalized voice transcripts. Convert the `ThreadMessage` to the host message type when one is used and retain its id. A transcript that finalizes while `isLoading` is true arrives once loading ends, and is not delivered at all when the conversation changed while it waited, which is recognized by a new `unstable_messageRepositoryInstance`. |
 | `queue` | Queueing messages sent while a run is in progress |
 
