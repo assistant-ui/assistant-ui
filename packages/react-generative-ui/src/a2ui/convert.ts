@@ -8,6 +8,7 @@ import {
   evaluateA2uiValueFunction,
   type ExpressionPart,
 } from "./valueFunctions";
+import { MAX_AUTO_VIVIFY_ARRAY_INDEX } from "./reducer";
 
 const DEPTH_CAP = 32;
 const TEMPLATE_ITEM_CAP = 100;
@@ -131,10 +132,16 @@ const setIn = (
 ): unknown => {
   const [head, ...rest] = segments;
   if (head === undefined) return leaf;
-  if (Array.isArray(value) && /^(0|[1-9]\d*)$/.test(head)) {
+  if (
+    /^(0|[1-9]\d*)$/.test(head) &&
+    (Array.isArray(value) || value === undefined)
+  ) {
+    const list = Array.isArray(value) ? value : [];
     const index = Number(head);
-    if (index > value.length) return value;
-    const copy = [...value];
+    if (index >= list.length && index > MAX_AUTO_VIVIFY_ARRAY_INDEX) {
+      return value;
+    }
+    const copy = [...list];
     copy[index] = setIn(copy[index], rest, leaf);
     return copy;
   }

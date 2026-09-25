@@ -1353,10 +1353,14 @@ describe("convertSurfaceToUISpec", () => {
     });
   });
 
-  it("places a field reference in a bound list only at an existing index or the next one", () => {
+  it("grows a bound list for a field reference the way the data model grows", () => {
     const surface = surfaceFrom(
       [
-        { id: "root", component: "Column", children: ["far", "next", "send"] },
+        {
+          id: "root",
+          component: "Column",
+          children: ["far", "next", "row", "send"],
+        },
         {
           id: "far",
           component: "TextField",
@@ -1367,12 +1371,16 @@ describe("convertSurfaceToUISpec", () => {
           component: "TextField",
           value: { path: "/items/0/name" },
         },
+        { id: "row", component: "TextField", value: { path: "/rows/0/name" } },
         {
           id: "send",
           component: "Button",
           label: "Send",
           action: {
-            event: { name: "send", context: { items: { path: "/items" } } },
+            event: {
+              name: "send",
+              context: { items: { path: "/items" }, rows: { path: "/rows" } },
+            },
           },
         },
       ],
@@ -1387,7 +1395,10 @@ describe("convertSurfaceToUISpec", () => {
         name: "send",
         surfaceId: "",
         sourceComponentId: "send",
-        context: { items: [{ name: { $field: "/items/0/name" } }] },
+        context: {
+          items: [{ name: { $field: "/items/0/name" } }],
+          rows: [{ name: { $field: "/rows/0/name" } }],
+        },
       },
     });
   });
