@@ -20,6 +20,7 @@ describe("A2UI action bindings", () => {
         passengers: [{ name: { path: "/name" } }, { path: "/name" }],
         missing: [{ path: "/new" }, "fixed"],
         literal: { name: "Ada" },
+        unresolved: ["before", { path: "/unbound" }, "after"],
       };
       const nodes = [
         { id: "root", component: "Column", children: ["name", "new", "send"] },
@@ -69,6 +70,7 @@ describe("A2UI action bindings", () => {
           passengers: [{ name: "Grace" }, "Grace"],
           missing: ["New value", "fixed"],
           literal: { name: "Ada" },
+          unresolved: ["before", "after"],
         });
       } finally {
         await act(async () => root.unmount());

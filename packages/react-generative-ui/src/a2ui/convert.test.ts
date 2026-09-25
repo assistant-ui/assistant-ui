@@ -19,6 +19,30 @@ const surfaceFrom = (
 });
 
 describe("convertSurfaceToUISpec", () => {
+  it("compacts missing non-input event values after resolving nested bindings", () => {
+    const surface = surfaceFrom(
+      [
+        {
+          id: "root",
+          component: "Button",
+          label: "Send",
+          action: {
+            event: {
+              name: "send",
+              context: {
+                ids: [{ path: "/a" }, { path: "/missing" }, { path: "/b" }],
+              },
+            },
+          },
+        },
+      ],
+      { a: "A", b: "B" },
+    );
+    expect(convertSurfaceToUISpec(surface).spec?.$action?.["context"]).toEqual({
+      ids: ["A", "B"],
+    });
+  });
+
   it("replays a surface with bindings, templates, and custom components", () => {
     const initial = applyA2uiOperations(new Map(), [
       {
