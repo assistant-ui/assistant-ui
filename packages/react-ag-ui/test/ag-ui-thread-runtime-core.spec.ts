@@ -8079,6 +8079,151 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(reasoningOf("assistant-2")).toEqual(["write the answer"]);
   });
 
+  it("keeps a carried anonymous reasoning block apart from later ones", async () => {
+    const think = (subscriber: any, delta: string) => {
+      subscriber.onThinkingStartEvent?.({ event: { type: "THINKING_START" } });
+      subscriber.onThinkingTextMessageContentEvent?.({
+        event: { type: "THINKING_TEXT_MESSAGE_CONTENT", delta },
+      });
+      subscriber.onThinkingEndEvent?.({ event: { type: "THINKING_END" } });
+    };
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onToolCallStartEvent?.({
+        event: {
+          type: "TOOL_CALL_START",
+          toolCallId: "call-1",
+          toolCallName: "lookup",
+          parentMessageId: "assistant-1",
+        },
+      });
+      subscriber.onToolCallEndEvent?.({
+        event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+      });
+      subscriber.onToolCallResultEvent?.({
+        event: {
+          type: "TOOL_CALL_RESULT",
+          toolCallId: "call-1",
+          messageId: "tool-1",
+          content: "ok",
+        },
+      });
+      think(subscriber, "before the answer");
+      subscriber.onTextMessageStartEvent?.({
+        event: { type: "TEXT_MESSAGE_START", messageId: "assistant-2" },
+      });
+      subscriber.onTextMessageContentEvent?.({
+        event: {
+          type: "TEXT_MESSAGE_CONTENT",
+          messageId: "assistant-2",
+          delta: "Done.",
+        },
+      });
+      think(subscriber, "after the answer");
+      notifyRunFinished(subscriber, "run-1");
+      notifyRunFinalized(subscriber);
+    });
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+
+    await core.append(createAppendMessage());
+
+    const answer = core
+      .getMessages()
+      .find((message) => message.id === "assistant-2")!;
+    expect(
+      answer.content.map((part) =>
+        part.type === "reasoning" || part.type === "text"
+          ? `${part.type}:${part.text}`
+          : part.type,
+      ),
+    ).toEqual([
+      "reasoning:before the answer",
+      "text:Done.",
+      "reasoning:after the answer",
+    ]);
+  });
+
+  it("keeps a hidden reasoning signature on the text message that follows it", async () => {
+    const reason = (subscriber: any, messageId: string, signature: string) => {
+      subscriber.onReasoningMessageStartEvent?.({
+        event: { type: "REASONING_MESSAGE_START", messageId },
+      });
+      subscriber.onReasoningMessageContentEvent?.({
+        event: {
+          type: "REASONING_MESSAGE_CONTENT",
+          messageId,
+          delta: "hidden",
+        },
+      });
+      subscriber.onReasoningMessageEndEvent?.({
+        event: { type: "REASONING_MESSAGE_END", messageId },
+      });
+      subscriber.onReasoningEncryptedValueEvent?.({
+        event: {
+          type: "REASONING_ENCRYPTED_VALUE",
+          subtype: "message",
+          entityId: messageId,
+          encryptedValue: signature,
+        },
+      });
+    };
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      reason(subscriber, "r-1", "sig-1");
+      subscriber.onToolCallStartEvent?.({
+        event: {
+          type: "TOOL_CALL_START",
+          toolCallId: "call-1",
+          toolCallName: "lookup",
+          parentMessageId: "assistant-1",
+        },
+      });
+      subscriber.onToolCallEndEvent?.({
+        event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+      });
+      subscriber.onToolCallResultEvent?.({
+        event: {
+          type: "TOOL_CALL_RESULT",
+          toolCallId: "call-1",
+          messageId: "tool-1",
+          content: "ok",
+        },
+      });
+      reason(subscriber, "r-2", "sig-2");
+      subscriber.onTextMessageStartEvent?.({
+        event: { type: "TEXT_MESSAGE_START", messageId: "assistant-2" },
+      });
+      subscriber.onTextMessageContentEvent?.({
+        event: {
+          type: "TEXT_MESSAGE_CONTENT",
+          messageId: "assistant-2",
+          delta: "Done.",
+        },
+      });
+      notifyRunFinished(subscriber, "run-1");
+      notifyRunFinalized(subscriber);
+    });
+    const core = new AgUiThreadRuntimeCore({
+      agent: { runAgent } as unknown as HttpAgent,
+      logger: noopLogger,
+      showThinking: false,
+      notifyUpdate: () => {},
+    });
+
+    await core.append(createAppendMessage());
+
+    const opaqueOf = (id: string) => {
+      const message = core
+        .getMessages()
+        .find((m) => m.id === id) as ThreadAssistantMessage;
+      return (message.metadata.custom.agui as any).opaqueReasoning;
+    };
+    expect(opaqueOf("assistant-1")).toEqual([
+      { id: "r-1", encryptedValue: "sig-1" },
+    ]);
+    expect(opaqueOf("assistant-2")).toEqual([
+      { id: "r-2", encryptedValue: "sig-2" },
+    ]);
+  });
+
   it("signs reasoning that arrived on the legacy thinking channel", async () => {
     const runInputs: any[] = [];
     const runAgent = vi.fn(async (input, subscriber) => {

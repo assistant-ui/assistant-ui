@@ -815,10 +815,64 @@ export class RunAggregator {
       return;
     }
     const carried = this.takeTrailingReasoning();
-    if (carried.length > 0) this.emit();
+    if (carried.parts.length > 0 || carried.hiddenSignatures.length > 0) {
+      this.emit();
+    }
+    const reasoningPartCounter = this.reasoningPartCounter;
     this.resetMessageParts();
     this.onTextMessageStart(messageId);
-    for (const part of carried) {
+    this.reasoningPartCounter = reasoningPartCounter;
+    this.restoreReasoning(carried);
+  }
+
+  private takeTrailingReasoning() {
+    const parts: {
+      key: string;
+      buffer: string;
+      signature: string | undefined;
+      signatureId: string | undefined;
+      reasoningId: string | undefined;
+      anonymous: boolean;
+    }[] = [];
+    let last = this.partOrder.at(-1);
+    while (last?.kind === "reasoning" && last.subagentRunId === undefined) {
+      this.partOrder.pop();
+      parts.unshift({
+        key: last.key,
+        buffer: this.reasoningParts.get(last.key) ?? "",
+        signature: this.reasoningSignatures.get(last.key),
+        signatureId: this.reasoningSignatureIds.get(last.key),
+        reasoningId: this.reasoningMessageIds.get(last.key),
+        anonymous: this.anonymousReasoningKeys.has(last.key),
+      });
+      last = this.partOrder.at(-1);
+    }
+    const cut = this.partOrder.length;
+    const hiddenSignatures = Array.from(this.hiddenSignatures).filter(
+      ([id]) => this.hiddenSignatureAnchors.get(id)! >= cut,
+    );
+    for (const [id] of hiddenSignatures) {
+      this.hiddenSignatures.delete(id);
+      this.hiddenSignatureAnchors.delete(id);
+    }
+    return {
+      parts,
+      activeKey: this.activeReasoningKeyByScope.get(ROOT_SCOPE),
+      hiddenSignatures,
+      hiddenBlockIds: Array.from(this.hiddenBlockAnchors)
+        .filter(([, anchor]) => anchor >= cut)
+        .map(([id]) => id),
+      hiddenAnonymous:
+        this.hiddenAnonymousAnchor !== undefined &&
+        this.hiddenAnonymousAnchor >= cut,
+      hiddenActiveReasoning: this.hiddenActiveReasoning,
+    };
+  }
+
+  private restoreReasoning(
+    carried: ReturnType<RunAggregator["takeTrailingReasoning"]>,
+  ): void {
+    for (const part of carried.parts) {
       this.partOrder.push({ kind: "reasoning", key: part.key });
       this.reasoningParts.set(part.key, part.buffer);
       if (part.signature !== undefined)
@@ -827,30 +881,24 @@ export class RunAggregator {
         this.reasoningSignatureIds.set(part.key, part.signatureId);
       if (part.reasoningId !== undefined)
         this.reasoningMessageIds.set(part.key, part.reasoningId);
+      if (part.anonymous) this.anonymousReasoningKeys.add(part.key);
     }
-  }
-
-  private takeTrailingReasoning() {
-    const carried: {
-      key: string;
-      buffer: string;
-      signature: string | undefined;
-      signatureId: string | undefined;
-      reasoningId: string | undefined;
-    }[] = [];
-    let last = this.partOrder.at(-1);
-    while (last?.kind === "reasoning" && last.subagentRunId === undefined) {
-      this.partOrder.pop();
-      carried.unshift({
-        key: last.key,
-        buffer: this.reasoningParts.get(last.key) ?? "",
-        signature: this.reasoningSignatures.get(last.key),
-        signatureId: this.reasoningSignatureIds.get(last.key),
-        reasoningId: this.reasoningMessageIds.get(last.key),
-      });
-      last = this.partOrder.at(-1);
+    if (
+      carried.activeKey !== undefined &&
+      this.reasoningParts.has(carried.activeKey)
+    ) {
+      this.activeReasoningKeyByScope.set(ROOT_SCOPE, carried.activeKey);
     }
-    return carried;
+    for (const [id, encryptedValue] of carried.hiddenSignatures) {
+      this.hiddenSignatures.set(id, encryptedValue);
+      this.hiddenSignatureAnchors.set(id, 0);
+    }
+    for (const id of carried.hiddenBlockIds) {
+      this.hiddenReasoningIds.add(id);
+      this.hiddenBlockAnchors.set(id, 0);
+    }
+    if (carried.hiddenAnonymous) this.hiddenAnonymousAnchor = 0;
+    this.hiddenActiveReasoning = carried.hiddenActiveReasoning;
   }
 
   private generateTextKey(): string {
