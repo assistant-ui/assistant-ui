@@ -4,6 +4,7 @@ import {
   type A2uiSurfaceState,
   type A2uiTemplateChildren,
 } from "./types";
+import { evaluateA2uiValueFunction } from "./valueFunctions";
 
 const DEPTH_CAP = 32;
 const TEMPLATE_ITEM_CAP = 100;
@@ -54,6 +55,9 @@ const setOwnProperty = (
   }
 };
 
+const isValueFunctionProperty = (key: string): boolean =>
+  key !== "action" && key !== "checks";
+
 const isBinding = (value: unknown): value is { readonly path: string } =>
   isPlainObject(value) &&
   Object.keys(value).length === 1 &&
@@ -103,17 +107,65 @@ const lastPointerSegment = (path: string | undefined): string | undefined => {
   return segments?.at(-1);
 };
 
-const materialize = (value: unknown, source: unknown): unknown => {
+const materialize = (
+  value: unknown,
+  source: unknown,
+  context: ConversionContext,
+  evaluateCalls = true,
+  functionDepth = 0,
+): unknown => {
   if (isBinding(value)) return resolvePointer(source, value.path);
   if (Array.isArray(value)) {
     return value
-      .map((entry) => materialize(entry, source))
+      .map((entry) =>
+        materialize(entry, source, context, evaluateCalls, functionDepth),
+      )
       .filter((entry) => entry !== undefined);
   }
   if (!isPlainObject(value)) return value;
+  if (evaluateCalls && Object.hasOwn(value, "call")) {
+    if (typeof value["call"] !== "string" || !isPlainObject(value["args"])) {
+      context.warnings.push("A2UI value function call is malformed.");
+      return undefined;
+    }
+    if (functionDepth >= DEPTH_CAP) {
+      context.warnings.push("A2UI value function depth cap was reached.");
+      return undefined;
+    }
+    const args = materialize(
+      value["args"],
+      source,
+      context,
+      evaluateCalls,
+      functionDepth + 1,
+    );
+    if (!isPlainObject(args)) return undefined;
+    const pathResolver = (path: string) =>
+      resolvePointer(
+        source,
+        path.startsWith("/")
+          ? path
+          : `/${path
+              .split("/")
+              .map((segment) =>
+                segment.replaceAll("~", "~0").replaceAll("/", "~1"),
+              )
+              .join("/")}`,
+      );
+    return evaluateA2uiValueFunction(value["call"], args, {
+      resolvePath: pathResolver,
+      warn: (message) => context.warnings.push(message),
+    });
+  }
   const result: Record<string, unknown> = {};
   for (const [key, entry] of Object.entries(value)) {
-    const resolved = materialize(entry, source);
+    const resolved = materialize(
+      entry,
+      source,
+      context,
+      evaluateCalls && isValueFunctionProperty(key),
+      functionDepth,
+    );
     if (resolved !== undefined) {
       setOwnProperty(result, key, resolved);
     }
@@ -520,7 +572,7 @@ const convertTemplate = (
   if (!reserveNode(context)) return null;
   const horizontalList =
     node["component"] === "List" &&
-    materialize(node["direction"], dataSource) === "horizontal";
+    materialize(node["direction"], dataSource, context) === "horizontal";
   const container = mappedContainer ??
     retained ?? {
       $type: horizontalList ? "Row" : "ListView",
@@ -616,7 +668,12 @@ function convertComponent(
       ) {
         continue;
       }
-      const resolved = materialize(value, dataSource);
+      const resolved = materialize(
+        value,
+        dataSource,
+        context,
+        isValueFunctionProperty(key),
+      );
       if (resolved !== undefined) setOwnProperty(props, key, resolved);
     }
     const mapped = mappedProps(node, props, context);
