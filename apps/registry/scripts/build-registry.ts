@@ -1,4 +1,4 @@
-import { existsSync, promises as fs, readFileSync } from "node:fs";
+import { existsSync, promises as fs, readdirSync, readFileSync } from "node:fs";
 import * as path from "node:path";
 import { pathToFileURL } from "node:url";
 import * as ts from "typescript";
@@ -50,6 +50,7 @@ const PROJECT_PACKAGE_IMPORTS = new Set([
   "vue",
 ]);
 const NATIVE_PROJECT_PACKAGE_IMPORTS = new Set(["react", "react-native"]);
+const WORKSPACE_PACKAGES_ROOT = "../../packages";
 
 type RegistryFile = NonNullable<RegistryItem["files"]>[number];
 type RegistryBuildItem = Omit<
@@ -1030,6 +1031,58 @@ export function createBaseRegistryItem(item: RegistryItem): RegistryBuildItem {
   };
 }
 
+/**
+ * Maps every workspace package name to its version, or to null when the
+ * package is private and therefore never installed from npm.
+ */
+export function readWorkspacePackageVersions(
+  root = path.join(process.cwd(), WORKSPACE_PACKAGES_ROOT),
+) {
+  const versions = new Map<string, string | null>();
+  for (const dir of readdirSync(root)) {
+    const packageJsonPath = path.join(root, dir, "package.json");
+    if (!existsSync(packageJsonPath)) continue;
+    const pkg = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
+      name: string;
+      version: string;
+      private?: boolean;
+    };
+    versions.set(pkg.name, pkg.private ? null : pkg.version);
+  }
+  return versions;
+}
+
+/**
+ * Pins each dependency on a published workspace package to the caret range of
+ * the version the item was built from, so a consumer's install resolves at
+ * least the release whose API the emitted source uses; a package manager's
+ * release-age gate would otherwise pick the previous release for a bare name.
+ */
+export function pinWorkspaceDependencies<
+  T extends Pick<RegistryItem, "dependencies" | "devDependencies">,
+>(item: T, versions: Map<string, string | null>): T {
+  const pin = (dependency: string) => {
+    const version = versions.get(dependency);
+    if (version === undefined) {
+      if (dependency.startsWith("@assistant-ui/")) {
+        throw new Error(
+          `Dependency "${dependency}" is not a workspace package; a registry item may only depend on an @assistant-ui package this repository publishes`,
+        );
+      }
+      return dependency;
+    }
+    return version === null ? dependency : `${dependency}@^${version}`;
+  };
+
+  return {
+    ...item,
+    ...(item.dependencies ? { dependencies: item.dependencies.map(pin) } : {}),
+    ...(item.devDependencies
+      ? { devDependencies: item.devDependencies.map(pin) }
+      : {}),
+  };
+}
+
 function getPackageName(specifier: string) {
   if (specifier.startsWith("@")) {
     return specifier.split("/").slice(0, 2).join("/");
@@ -1557,21 +1610,37 @@ export async function buildRegistry(
   validateVueFlavorContent(vueBuilt);
   if (nativeBuilt) validateNativeFlavorContent(nativeBuilt);
 
-  const payloads = radixBuilt.map((built) => built.payload);
-  const basePayloads = baseBuilt.map((built) => built.payload);
-  const vuePayloads = vueBuilt.map((built) => built.payload);
-  const nativePayloads = nativeBuilt?.map((built) => built.payload);
-  validateRegistryInstallMetadata(payloads, radixUsageExemptions);
-  validateRegistryInstallMetadata(basePayloads, baseUsageExemptions);
-  validateRegistryInstallMetadata(vuePayloads, vueUsageExemptions);
-  if (nativePayloads) {
-    const utilsPayload = payloads.find((payload) => payload.name === "utils");
+  const unpinnedPayloads = radixBuilt.map((built) => built.payload);
+  const unpinnedBasePayloads = baseBuilt.map((built) => built.payload);
+  const unpinnedVuePayloads = vueBuilt.map((built) => built.payload);
+  const unpinnedNativePayloads = nativeBuilt?.map((built) => built.payload);
+  validateRegistryInstallMetadata(unpinnedPayloads, radixUsageExemptions);
+  validateRegistryInstallMetadata(unpinnedBasePayloads, baseUsageExemptions);
+  validateRegistryInstallMetadata(unpinnedVuePayloads, vueUsageExemptions);
+  if (unpinnedNativePayloads) {
+    const utilsPayload = unpinnedPayloads.find(
+      (payload) => payload.name === "utils",
+    );
     validateRegistryInstallMetadata(
-      utilsPayload ? [...nativePayloads, utilsPayload] : nativePayloads,
+      utilsPayload
+        ? [...unpinnedNativePayloads, utilsPayload]
+        : unpinnedNativePayloads,
       nativeUsageExemptions,
       NATIVE_PROJECT_PACKAGE_IMPORTS,
     );
   }
+
+  const workspaceVersions = readWorkspacePackageVersions();
+  const pinAll = <
+    T extends Pick<RegistryItem, "dependencies" | "devDependencies">,
+  >(
+    items: T[],
+  ) => items.map((item) => pinWorkspaceDependencies(item, workspaceVersions));
+  const payloads = pinAll(unpinnedPayloads);
+  const basePayloads = pinAll(unpinnedBasePayloads);
+  const vuePayloads = pinAll(unpinnedVuePayloads);
+  const nativePayloads =
+    unpinnedNativePayloads && pinAll(unpinnedNativePayloads);
 
   await fs.mkdir(REGISTRY_PATH, { recursive: true });
   await fs.mkdir(BASE_REGISTRY_PATH, { recursive: true });
@@ -1619,7 +1688,7 @@ export async function buildRegistry(
     $schema: "https://ui.shadcn.com/schema/registry.json",
     name: "assistant-ui",
     homepage: "https://assistant-ui.com",
-    items: radixRegistry.map(stripRegistryDependencyUsageExemptions),
+    items: pinAll(radixRegistry.map(stripRegistryDependencyUsageExemptions)),
   };
 
   await fs.writeFile(
@@ -1633,7 +1702,7 @@ export async function buildRegistry(
     JSON.stringify(
       {
         ...registryIndex,
-        items: baseRegistry.map(stripRegistryDependencyUsageExemptions),
+        items: pinAll(baseRegistry.map(stripRegistryDependencyUsageExemptions)),
       },
       null,
       2,
@@ -1646,7 +1715,7 @@ export async function buildRegistry(
     JSON.stringify(
       {
         ...registryIndex,
-        items: vueRegistry.map(stripRegistryDependencyUsageExemptions),
+        items: pinAll(vueRegistry.map(stripRegistryDependencyUsageExemptions)),
       },
       null,
       2,
@@ -1660,7 +1729,9 @@ export async function buildRegistry(
       JSON.stringify(
         {
           ...registryIndex,
-          items: nativeRegistry.map(stripRegistryDependencyUsageExemptions),
+          items: pinAll(
+            nativeRegistry.map(stripRegistryDependencyUsageExemptions),
+          ),
         },
         null,
         2,
