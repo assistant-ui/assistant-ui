@@ -35,7 +35,7 @@ import type {
 import type { ThreadListItemRuntimeState } from "./bindings";
 import type { AppendMessage, ThreadMessage } from "../../types/message";
 import type { Unsubscribe } from "../../types/unsubscribe";
-import { isMessageNotSentError } from "../../types/error";
+import { reportRunFailure } from "../../utils/report-run-failure";
 import type { RunConfig } from "../../types/message";
 import { EventSubscriptionSubject } from "../../subscribable/subscribable";
 import { symbolInnerMessage } from "../utils/external-store-message";
@@ -441,21 +441,14 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
   }
 
   public append(message: CreateAppendMessage) {
-    const task = this._threadBinding
-      .getState()
-      .append(
-        toAppendMessage(this._threadBinding.getState().messages, message),
-      );
-    // An undispatched send is reported to the composer, so it is a control
-    // signal rather than a failure to surface. Every other rejection is
-    // logged: `append` returns void, so a rethrow here lands in a derived
-    // promise nothing holds and surfaces as an unhandled rejection rather
-    // than reaching the host. The runtime adapter has already reported the
-    // same failure through its own error channel.
-    void Promise.resolve(task).catch((error) => {
-      if (isMessageNotSentError(error)) return;
-      console.error("[assistant-ui] Message append failed", error);
-    });
+    reportRunFailure(
+      "Message append",
+      this._threadBinding
+        .getState()
+        .append(
+          toAppendMessage(this._threadBinding.getState().messages, message),
+        ),
+    );
   }
 
   public deleteMessage(messageId: string) {
@@ -471,11 +464,17 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
   }
 
   public startRun(config: CreateStartRunConfig) {
-    return this._threadBinding.getState().startRun(toStartRunConfig(config));
+    return reportRunFailure(
+      "Run start",
+      this._threadBinding.getState().startRun(toStartRunConfig(config)),
+    );
   }
 
   public resumeRun(config: CreateResumeRunConfig) {
-    return this._threadBinding.getState().resumeRun(toResumeRunConfig(config));
+    return reportRunFailure(
+      "Run resume",
+      this._threadBinding.getState().resumeRun(toResumeRunConfig(config)),
+    );
   }
 
   public exportExternalState() {
