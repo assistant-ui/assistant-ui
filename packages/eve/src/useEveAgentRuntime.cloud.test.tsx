@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, render, waitFor } from "@testing-library/react";
+import { act, render, renderHook, waitFor } from "@testing-library/react";
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import type { AssistantRuntime } from "@assistant-ui/core";
 import type { AssistantCloud } from "assistant-cloud";
@@ -474,6 +474,33 @@ describe("useEveAgentRuntime with cloud", () => {
     );
     consoleError.mockRestore();
   });
+});
+
+describe("useEveAgentRuntime switching cloud after mount", () => {
+  it.each([
+    ["adding", {}, { cloud: makeCloud() }],
+    ["removing", { cloud: makeCloud() }, {}],
+  ] as const)(
+    "names the remount when %s cloud",
+    (
+      _,
+      initialProps: UseEveAgentRuntimeOptions,
+      nextProps: UseEveAgentRuntimeOptions,
+    ) => {
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const { rerender } = renderHook(
+        (props: UseEveAgentRuntimeOptions) => useEveAgentRuntime(props),
+        { initialProps },
+      );
+
+      expect(() => rerender(nextProps)).toThrow(
+        "useEveAgentRuntime cannot add or remove `cloud` after it mounts",
+      );
+      consoleError.mockRestore();
+    },
+  );
 });
 
 describe("useEveAgentRuntime without cloud", () => {

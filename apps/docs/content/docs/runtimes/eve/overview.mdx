@@ -104,7 +104,7 @@ standard thread intentionally leaves unmatched data parts unrendered.
 
 Without `cloud`, the runtime runs a single Eve session. Persist `useEveSession()` and pass it back as `initialSession` with `resume: true` to pick the conversation up after a reload.
 
-Pass `cloud` to back a thread list with [Assistant Cloud](/docs/cloud) instead. `cloud` is the only switch: `NEXT_PUBLIC_ASSISTANT_BASE_URL` alone keeps the single session. Pass it from the first render, since adding or removing it needs a remount, and use eve 0.44.1 or later, which can resume a session.
+Pass `cloud` to back a thread list with [Assistant Cloud](/docs/cloud) instead. `cloud` is the only switch: `NEXT_PUBLIC_ASSISTANT_BASE_URL` alone keeps the single session. Pass it from the first render, since adding or removing it later throws (remount the runtime, for example with a `key`, to switch), and use eve 0.44.1 or later, which can resume a session.
 
 ```tsx
 const runtime = useEveAgentRuntime({ cloud });

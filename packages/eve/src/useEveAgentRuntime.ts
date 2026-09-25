@@ -148,7 +148,7 @@ export type UseEveAgentRuntimeOptions = EveAgentOptions &
         }
       | undefined;
     /**
-     * Backs the thread list with Assistant Cloud. Each cloud thread keeps one Eve session as its external id, saved once the thread's first turn creates the session, and opening a thread resumes it, so `session`, `initialSession`, `initialEvents`, and `resume` are not used. Pass it from the first render: adding or removing it needs a remount.
+     * Backs the thread list with Assistant Cloud. Each cloud thread keeps one Eve session as its external id, saved once the thread's first turn creates the session, and opening a thread resumes it, so `session`, `initialSession`, `initialEvents`, and `resume` are not used. Pass it from the first render: adding or removing it later throws, so remount the runtime, for example with a `key`, to switch.
      */
     readonly cloud?: AssistantCloud | undefined;
   };
@@ -650,6 +650,12 @@ const useEveCloudRuntime = (
  * tool approval UI.
  */
 export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
+  const [hasCloud] = useState(options.cloud !== undefined);
+  if ((options.cloud !== undefined) !== hasCloud) {
+    throw new Error(
+      "useEveAgentRuntime cannot add or remove `cloud` after it mounts; remount it, for example with a `key`, to switch.",
+    );
+  }
   if (!options.cloud) {
     // oxlint-disable-next-line react-hooks/rules-of-hooks -- `cloud` stays set or unset for the runtime's lifetime, so every render takes the same branch
     return useEveThreadRuntime(options, undefined);
