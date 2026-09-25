@@ -265,6 +265,31 @@ const generative = new JSONGenerativeUI({
 
 `Select`, `Input`, `DatePicker`, `Checkbox`, `RadioGroup`, and `CheckboxGroup` add the user's value as `$input` when they fire the action; a `CheckboxGroup`'s value is the array of its checked options' values. `Form`, and a `Card` with `asForm` set, add an object keyed by each control's `name` instead. On a `Card` there is no card-level `$action`: the collected object is dispatched through `confirm.$action`, while `cancel.$action` always fires without `$input`. Unknown action types are ignored and warn in development.
 
+Any value inside `$action` can be a `{ "$field": name }` reference instead, which resolves to a control's current value when the action fires. It reads the control with that `name` in the nearest enclosing `Form`, or else anywhere in the same `JSONGenerativeUI` render, collected the way a `Form` collects it, and a reference that finds no value is dropped. A tree rendered with `renderGenerativeUI` directly resolves references only inside a form or an element marked `data-aui="root"`. `Input` and `Select` take a `defaultValue`, so a button can send an edited value without a form:
+
+```json
+{
+  "$type": "Col",
+  "children": [
+    {
+      "$type": "Input",
+      "name": "note",
+      "label": "Delivery note",
+      "defaultValue": "Leave at the door"
+    },
+    {
+      "$type": "Button",
+      "label": "Save",
+      "$action": { "type": "save_note", "note": { "$field": "note" } }
+    }
+  ]
+}
+```
+
+On Teams, `decodeSubmitData` resolves these references from the card's inputs; on Slack, a button click carries no other control's value, so the converter drops them with a warning.
+
+A control resets to its initial value (`defaultValue`, `defaultChecked`, or a `DatePicker`'s `value`) whenever a re-render changes that value, and otherwise keeps what the user entered.
+
 Each dispatched action, including its `$input`, is recorded on the tool call on a best-effort basis. Recording depends on the runtime and the interaction log's limits, and it never delays or prevents dispatch. When the UI is registered through `promptUser()`, a handler's non-`undefined` return value becomes the `prompt_user` tool result only when that call has no result yet. Whether the run then continues depends on the runtime, including how it treats human tools. `present` actions never create a tool result.
 
 Without a registry, the tree still renders and model-emitted actions degrade to a no-op.

@@ -128,7 +128,7 @@ const action = decodeSubmitData(context.activity.value);
 // { type: "approve_order", orderId: "48213", $input: { quantity: "2" } }
 ```
 
-`$input` here is an **object keyed by input id**, which differs from Slack, where a single control's `$input` is a bare value. It is omitted when the card had no inputs. The function returns `undefined` for a payload without a well-formed `aui` envelope and never throws; `type` always comes from the envelope, and a `$input` key smuggled into the payload is stripped.
+`$input` here is an **object keyed by input id**, which differs from Slack, where a single control's `$input` is a bare value. It is omitted when the card had no inputs. A `{ "$field": name }` reference in the payload resolves to the input with that id, as the string Adaptive Cards submitted, and a reference with no such input is dropped. The function returns `undefined` for a payload without a well-formed `aui` envelope and never throws; `type` always comes from the envelope, and a `$input` key smuggled into the payload is stripped.
 
 The converter emits `Action.Submit`. Teams also offers [`Action.Execute`](https://learn.microsoft.com/en-us/adaptive-cards/authoring-cards/universal-action-model) from schema 1.4, which lets a bot return a replacement card in the invoke response; reaching for that means constructing the action yourself.
 
