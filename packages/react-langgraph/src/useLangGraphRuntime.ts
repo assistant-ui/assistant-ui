@@ -239,6 +239,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
             runIdByMessageIdRef.current.set(message.id, runId);
         }
         for (const toolCall of message.tool_calls ?? []) {
+          if (typeof toolCall !== "object" || toolCall === null) continue;
           const isNewTool = !toolOwnership.has(toolCall.id);
           if (isNewTool) toolOwnership.set(toolCall.id, owner);
           if (runId && isNewTool)
@@ -261,6 +262,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
         owner = messageOwnership.get(message.id);
       }
       for (const toolCall of message.tool_calls ?? []) {
+        if (typeof toolCall !== "object" || toolCall === null) continue;
         if (!toolOwnership.has(toolCall.id))
           toolOwnership.set(toolCall.id, owner);
       }
@@ -275,8 +277,10 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       if (message.id) survivingMessageIds.add(message.id);
       if (message.type !== "ai") continue;
       if (message.id) messageIds.add(message.id);
-      for (const toolCall of message.tool_calls ?? [])
+      for (const toolCall of message.tool_calls ?? []) {
+        if (typeof toolCall !== "object" || toolCall === null) continue;
         toolCallIds.add(toolCall.id);
+      }
     }
     for (const id of runConfigByMessageIdRef.current.keys()) {
       if (!messageIds.has(id)) runConfigByMessageIdRef.current.delete(id);
@@ -313,7 +317,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       if (toolOwnership.has(toolCallId)) return toolOwnership.get(toolCallId);
       for (const message of history) {
         if (message.type !== "ai") continue;
-        if (message.tool_calls?.some((toolCall) => toolCall.id === toolCallId))
+        if (message.tool_calls?.some((toolCall) => toolCall?.id === toolCallId))
           return runConfigByMessageIdRef.current.get(message.id ?? "");
       }
       return undefined;
@@ -810,6 +814,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           if (runId) return `run:${runId}`;
         }
         for (const toolCall of message.tool_calls ?? []) {
+          if (typeof toolCall !== "object" || toolCall === null) continue;
           const runId = runIdByToolCallIdRef.current.get(toolCall.id);
           if (runId) return `run:${runId}`;
         }

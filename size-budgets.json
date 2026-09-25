@@ -135,8 +135,8 @@
   },
   "@assistant-ui/react-langgraph": {
     ".": {
-      "min": 29330,
-      "gzip": 10192
+      "min": 29532,
+      "gzip": 10244
     }
   },
   "@assistant-ui/react-lexical": {
