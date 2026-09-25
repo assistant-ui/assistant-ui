@@ -651,6 +651,20 @@ const isEmptyCard = (card: SlackCardBlock): boolean =>
   card.body === undefined &&
   (card.actions === undefined || card.actions.length === 0);
 
+const convertFormChildren = (
+  element: NormalizedUIElement,
+  context: ConversionContext,
+  depth: number,
+): SlackBlock[] => {
+  const wasInForm = context.inForm;
+  context.inForm = true;
+  try {
+    return convertSequence(element.children, context, depth + 1);
+  } finally {
+    context.inForm = wasInForm;
+  }
+};
+
 const convertCard = (
   element: NormalizedUIElement,
   context: ConversionContext,
@@ -671,7 +685,9 @@ const convertCard = (
       ...(titleText
         ? [{ type: "header" as const, text: plainText(titleText) }]
         : []),
-      ...convertSequence(element.children, context, depth + 1),
+      ...(element.props["asForm"] === true
+        ? convertFormChildren(element, context, depth)
+        : convertSequence(element.children, context, depth + 1)),
       ...(buttons.length > 0
         ? [{ type: "actions" as const, elements: buttons }]
         : []),
@@ -1329,17 +1345,9 @@ const convertElement = (
       return convertListView(element, context, depth);
     case "ListViewItem":
       return [convertListItem(element, context, depth)];
-    case "Form": {
-      const wasInForm = context.inForm;
-      let children: SlackBlock[];
-      context.inForm = true;
-      try {
-        children = convertSequence(element.children, context, depth + 1);
-      } finally {
-        context.inForm = wasInForm;
-      }
+    case "Form":
       return [
-        ...children,
+        ...convertFormChildren(element, context, depth),
         {
           type: "actions",
           elements: [
@@ -1347,7 +1355,6 @@ const convertElement = (
           ],
         },
       ];
-    }
     default:
       warn(
         context,

@@ -592,42 +592,52 @@ describe("toSlackBlocks", () => {
       },
     );
 
-    it("keeps form inputs passive without disabling subsequent standalone inputs", () => {
-      const input = {
-        $type: "Input",
-        label: "Notes",
-        $action: { type: "notes" },
-      };
-      const { blocks } = toSlackBlocks(
-        {
-          $type: "Col",
-          children: [
-            {
-              $type: "Form",
-              $action: { type: "save" },
-              children: { $type: "Col", children: input },
-            },
-            input,
-          ],
-        },
-        { surface: "modal" },
-      );
-      const inputs = blocks.filter((block) => block.type === "input");
+    it.each(["Form", "Card"])(
+      "keeps %s inputs passive without disabling subsequent standalone inputs",
+      ($type) => {
+        const input = {
+          $type: "Input",
+          label: "Notes",
+          $action: { type: "notes" },
+        };
+        const { blocks } = toSlackBlocks(
+          {
+            $type: "Col",
+            children: [
+              {
+                $type,
+                ...($type === "Form"
+                  ? { $action: { type: "save" } }
+                  : {
+                      asForm: true,
+                      confirm: { label: "Save", $action: { type: "save" } },
+                    }),
+                children: { $type: "Col", children: input },
+              },
+              input,
+            ],
+          },
+          { surface: "modal" },
+        );
+        const inputs = blocks.filter((block) => block.type === "input");
 
-      expect(inputs).toHaveLength(2);
-      expect(inputs[0]).not.toHaveProperty("dispatch_action");
-      expect(inputs[0]!.element).not.toHaveProperty("dispatch_action_config");
-      expect(inputs[1]).toMatchObject({
-        dispatch_action: true,
-        element: {
-          dispatch_action_config: { trigger_actions_on: ["on_enter_pressed"] },
-        },
-      });
-      expect(blocks[1]).toMatchObject({
-        type: "actions",
-        elements: [{ action_id: "save" }],
-      });
-    });
+        expect(inputs).toHaveLength(2);
+        expect(inputs[0]).not.toHaveProperty("dispatch_action");
+        expect(inputs[0]!.element).not.toHaveProperty("dispatch_action_config");
+        expect(inputs[1]).toMatchObject({
+          dispatch_action: true,
+          element: {
+            dispatch_action_config: {
+              trigger_actions_on: ["on_enter_pressed"],
+            },
+          },
+        });
+        expect(blocks[1]).toMatchObject({
+          type: "actions",
+          elements: [{ action_id: "save" }],
+        });
+      },
+    );
 
     it("wraps a plain_text_input element, passing multiline through", () => {
       const { blocks } = toSlackBlocks({
