@@ -693,6 +693,7 @@ const useComposerClientResource = ({
 
   const handleRemoveAttachment = useCallback(
     async (attachment: Attachment) => {
+      if (attachmentSends.isRemoved(attachment)) return;
       attachmentAddOperations.cancel(attachment.id);
       attachmentSends.markRemoved(attachment);
       if (!isAttachmentComplete(attachment)) {
@@ -816,6 +817,9 @@ const useComposerClientResource = ({
     );
   };
 
+  const draftUploadsToRemove = (draft: readonly Attachment[]) =>
+    draft.filter((attachment) => !attachmentSends.isRemoved(attachment));
+
   const upsertAttachment = (attachment: Attachment) => {
     const current = submissionRef.current;
     if (current?.attachments.some((a) => a.id === attachment.id)) {
@@ -906,14 +910,21 @@ const useComposerClientResource = ({
 
   // Takes a send's content back into the draft, ahead of anything written
   // since. An edit composer kept its draft, so it only takes back the state
-  // the attachments came back in, such as the reason one failed.
+  // the attachments came back in, such as the reason one failed, and leaves
+  // an attachment being removed to its removal.
   const returnToDraft = (content: ComposerSubmission) => {
     if (type !== "thread") {
       const returned = new Map(
-        content.attachments.map((attachment) => [attachment.id, attachment]),
+        content.attachments
+          .filter((attachment) => !attachmentSends.isRemoved(attachment))
+          .map((attachment) => [attachment.id, attachment]),
       );
       setAttachments((prev) =>
-        prev.map((attachment) => returned.get(attachment.id) ?? attachment),
+        prev.map((attachment) =>
+          attachmentSends.isRemoved(attachment)
+            ? attachment
+            : (returned.get(attachment.id) ?? attachment),
+        ),
       );
       return;
     }
@@ -1163,12 +1174,14 @@ const useComposerClientResource = ({
     clearAttachments: async () => {
       attachmentAddOperations.cancelAll();
       const removed = attachmentsRef.current;
+      // Taken before the marks below, which would read as pending removals.
+      const pending = draftUploadsToRemove(removed);
       if (submissionRef.current) {
         for (const attachment of removed)
           attachmentSends.markRemoved(attachment);
       }
       setAttachments([]);
-      await removePendingAttachments(removed);
+      await removePendingAttachments(pending);
     },
     attachment: (selector) => {
       if ("id" in selector) {
@@ -1194,7 +1207,10 @@ const useComposerClientResource = ({
       setRunConfig({});
       setAttachments([]);
       setQuote(undefined);
-      await Promise.all([removePendingAttachments(removed), discarded]);
+      await Promise.all([
+        removePendingAttachments(draftUploadsToRemove(removed)),
+        discarded,
+      ]);
     },
     send: (opts?: ComposerSendOptions) => {
       // An attachment whose removal is still awaiting the adapter is excluded
@@ -1257,9 +1273,11 @@ const useComposerClientResource = ({
         void discardSubmission();
         const removed = attachmentsRef.current;
         setAttachments([]);
-        removePendingAttachments(removed).catch((error) => {
-          console.error("Failed to remove cancelled edit attachments", error);
-        });
+        removePendingAttachments(draftUploadsToRemove(removed)).catch(
+          (error) => {
+            console.error("Failed to remove cancelled edit attachments", error);
+          },
+        );
       }
       onCancel?.();
       if (type === "edit") setIsEditing(false);

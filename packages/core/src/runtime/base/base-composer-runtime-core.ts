@@ -249,10 +249,15 @@ export abstract class BaseComposerRuntimeCore
     this._notifySubscribers();
   }
 
-  private async _onClearAttachments() {
+  private _draftUploadsToRemove() {
+    return this._attachments.filter(
+      (a) => !isAttachmentComplete(a) && !this._attachmentSends.isRemoved(a),
+    );
+  }
+
+  private async _onClearAttachments(pending: readonly Attachment[]) {
     const adapter = this.getAttachmentAdapter();
     if (adapter) {
-      const pending = this._attachments.filter((a) => !isAttachmentComplete(a));
       await Promise.all(pending.map(async (a) => adapter.remove(a)));
     }
   }
@@ -282,18 +287,20 @@ export abstract class BaseComposerRuntimeCore
     this._runConfig = {};
     this._quote = undefined;
 
-    const task = this._onClearAttachments();
+    const task = this._onClearAttachments(this._draftUploadsToRemove());
     this._emptyTextAndAttachments();
     await Promise.all([task, discarded]);
   }
 
   public async clearAttachments() {
     this._cancelAllAttachmentAdds();
+    // Taken before the marks below, which would read as pending removals.
+    const pending = this._draftUploadsToRemove();
     if (this.isSubmitting) {
       for (const attachment of this._attachments)
         this._attachmentSends.markRemoved(attachment);
     }
-    const task = this._onClearAttachments();
+    const task = this._onClearAttachments(pending);
     this.setAttachments([]);
 
     await task;
@@ -550,7 +557,8 @@ export abstract class BaseComposerRuntimeCore
   /**
    * Takes a send's content back into the draft, ahead of anything written
    * since. A composer that kept its draft only takes back the state the
-   * attachments came back in, such as the reason one failed.
+   * attachments came back in, such as the reason one failed, and leaves an
+   * attachment being removed to its removal.
    */
   private _returnToDraft(submission: ComposerSubmission) {
     if (this.detachesDraftOnSend) {
@@ -564,10 +572,14 @@ export abstract class BaseComposerRuntimeCore
       this._quote = this._quote ?? submission.quote;
     } else {
       const returned = new Map(
-        submission.attachments.map((attachment) => [attachment.id, attachment]),
+        submission.attachments
+          .filter((attachment) => !this._attachmentSends.isRemoved(attachment))
+          .map((attachment) => [attachment.id, attachment]),
       );
-      this._attachments = this._attachments.map(
-        (attachment) => returned.get(attachment.id) ?? attachment,
+      this._attachments = this._attachments.map((attachment) =>
+        this._attachmentSends.isRemoved(attachment)
+          ? attachment
+          : (returned.get(attachment.id) ?? attachment),
       );
     }
     this._notifySubscribers();
@@ -878,6 +890,7 @@ export abstract class BaseComposerRuntimeCore
       return;
     }
     const attachment = this._attachments[index]!;
+    if (this._attachmentSends.isRemoved(attachment)) return;
 
     this._cancelAttachmentAdd(attachmentId);
 

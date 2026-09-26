@@ -507,4 +507,60 @@ describe("DefaultEditComposerRuntimeCore sending attachments", () => {
       message: "upload failed",
     });
   });
+
+  it.each([
+    ["failed", "b", 2],
+    ["pending", "a", 1],
+  ] as const)(
+    "removes an attachment again after its removal %s and the upload of %s failed the send",
+    async (state, failing, removals) => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const upload = Promise.withResolvers<void>();
+      const removal = Promise.withResolvers<void>();
+      const remove = vi
+        .fn<AttachmentAdapter["remove"]>()
+        .mockReturnValueOnce(removal.promise)
+        .mockResolvedValue(undefined);
+      const composer = makeEditComposer(
+        attachmentAdapter({
+          add: async ({ file }) => ({
+            id: file.name,
+            type: "file",
+            name: file.name,
+            contentType: file.type,
+            file,
+            status: { type: "requires-action", reason: "composer-send" },
+          }),
+          send: async (attachment) => {
+            await upload.promise;
+            if (attachment.id === failing) throw new Error("upload failed");
+            return { ...attachment, status: { type: "complete" }, content: [] };
+          },
+          remove,
+        }),
+      );
+
+      await composer.addAttachment(new File(["a"], "a"));
+      await composer.addAttachment(new File(["b"], "b"));
+      const sending = composer.send();
+      const removing = composer.removeAttachment("a").then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+      if (state === "failed") {
+        removal.reject(new Error("remove failed"));
+        await removing;
+      }
+      upload.resolve();
+      await sending;
+      await composer.removeAttachment("a");
+      if (state === "pending") removal.resolve();
+
+      expect(await removing).toEqual(
+        state === "failed" ? new Error("remove failed") : undefined,
+      );
+      expect(remove).toHaveBeenCalledTimes(removals);
+      expect(composer.attachments.map(({ id }) => id)).toEqual(["b"]);
+    },
+  );
 });
