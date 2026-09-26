@@ -155,17 +155,20 @@ type FeedbackAdapter = {
   submit: (feedback: {
     type: "positive" | "negative";
     message: ThreadMessage;
+    comment?: string;
   }) => Promise<void>;
 };
 ```
 
+`comment` is set when the caller passes one to `submitFeedback({ type, comment })`, which a form such as FeedbackDialog passes after a thumbs down. The runtime trims it and omits an empty one.
+
 ```ts
 const feedbackAdapter: FeedbackAdapter = {
-  async submit({ type, message }) {
+  async submit({ type, message, comment }) {
     await fetch("/api/feedback", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messageId: message.id, rating: type }),
+      body: JSON.stringify({ messageId: message.id, rating: type, comment }),
     });
   },
 };
@@ -186,6 +189,10 @@ type ThreadHistoryAdapter = {
     parentId: string | null;
     message: ThreadMessage;
   }) => Promise<void>;
+  update?: (item: {
+    parentId: string | null;
+    message: ThreadMessage;
+  }) => Promise<void>;
   resume?: (input: {
     messages: ThreadMessage[];
   }) => Promise<ReadableStream | undefined>;
@@ -193,7 +200,7 @@ type ThreadHistoryAdapter = {
 };
 ```
 
-`load` runs when a thread opens. `append` runs after each message completes.
+`load` runs when a thread opens. `append` runs after each message completes. `update` rewrites a stored message in place, which lets the runtime store a run paused for tool approval and a tool result that arrives after its message settled; without it, a paused run is stored only once it ends, for example when a later turn cancels it.
 
 <Callout type="info">
 `ai-sdk` requires `withFormat` so messages round-trip as AI SDK `UIMessage` objects. An adapter without `withFormat` throws at runtime in the AI SDK path. See the [AI SDK history docs](/docs/runtimes/ai-sdk/v7) for the full pattern.

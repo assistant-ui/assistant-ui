@@ -16,6 +16,7 @@ import {
 import type {
   ComposerRuntimeEventCallback,
   ComposerRuntimeEventType,
+  ComposerSubmission,
   DictationState,
   EditComposerRuntimeCore,
   SendOptions,
@@ -30,7 +31,7 @@ import type { ComposerRuntimePath } from "./paths";
 
 import {
   type AttachmentRuntime,
-  type AttachmentState,
+  type AttachmentRuntimeState,
   EditComposerAttachmentRuntimeImpl,
   ThreadComposerAttachmentRuntimeImpl,
 } from "./attachment-runtime";
@@ -73,6 +74,19 @@ type BaseComposerState = {
 
   /** Messages waiting to be processed. Empty unless the `queue` capability is set. */
   readonly queue: readonly QueueItemState[];
+
+  /**
+   * The message this composer sent while its attachments are prepared.
+   * Undefined once the runtime has taken it.
+   */
+  readonly submission?: ComposerSubmission | undefined;
+
+  /**
+   * Messages this composer handed to the runtime that the thread does not
+   * show yet, oldest first. The thread keeps rendering each one until the
+   * runtime shows the message it became.
+   */
+  readonly inTransit?: readonly ComposerSubmission[] | undefined;
 };
 
 export type ThreadComposerState = BaseComposerState & {
@@ -85,7 +99,12 @@ export type EditComposerState = BaseComposerState & {
   readonly sourceId: string | null;
 };
 
-export type ComposerState = ThreadComposerState | EditComposerState;
+export type ComposerRuntimeState = ThreadComposerState | EditComposerState;
+
+/**
+ * @deprecated Use `ComposerRuntimeState`. From `@assistant-ui/react` 0.16, `ComposerState` names the composer state read through `useAuiState`.
+ */
+export type ComposerState = ComposerRuntimeState;
 
 const EMPTY_ARRAY = Object.freeze([]);
 const EMPTY_OBJECT = Object.freeze({});
@@ -108,6 +127,8 @@ const getThreadComposerState = (
     dictation: runtime?.dictation,
     quote: runtime?.quote,
     queue: runtime?.queue ?? EMPTY_ARRAY,
+    submission: runtime?.submission,
+    inTransit: runtime?.inTransit ?? EMPTY_ARRAY,
 
     value: runtime?.text ?? "",
   });
@@ -132,6 +153,8 @@ const getEditComposerState = (
     dictation: runtime?.dictation,
     quote: runtime?.quote,
     queue: runtime?.queue ?? EMPTY_ARRAY,
+    submission: runtime?.submission,
+    inTransit: runtime?.inTransit ?? EMPTY_ARRAY,
 
     parentId: runtime?.parentId ?? null,
     sourceId: runtime?.sourceId ?? null,
@@ -147,7 +170,7 @@ export type ComposerRuntime = {
   /**
    * Get the current state of the composer. Includes any data that has been added to the composer.
    */
-  getState(): ComposerState;
+  getState(): ComposerRuntimeState;
 
   /**
    * Add an attachment to the composer. Accepts either a standard File object
@@ -287,7 +310,7 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
     this.unstable_on = this.unstable_on.bind(this);
   }
 
-  public abstract getState(): ComposerState;
+  public abstract getState(): ComposerRuntimeState;
 
   public setText(text: string) {
     const core = this._core.getState();
@@ -464,7 +487,7 @@ export class ThreadComposerRuntimeImpl
           return {
             ...attachment,
             source: "thread-composer",
-          } satisfies AttachmentState & { source: "thread-composer" };
+          } satisfies AttachmentRuntimeState & { source: "thread-composer" };
         },
         subscribe: (callback) => this._core.subscribe(callback),
       }),
@@ -552,7 +575,7 @@ export class EditComposerRuntimeImpl
           return {
             ...attachment,
             source: "edit-composer",
-          } satisfies AttachmentState & { source: "edit-composer" };
+          } satisfies AttachmentRuntimeState & { source: "edit-composer" };
         },
         subscribe: (callback) => this._core.subscribe(callback),
       }),

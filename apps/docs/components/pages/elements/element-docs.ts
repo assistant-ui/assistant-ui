@@ -4641,7 +4641,7 @@ const matches = useMentionMatches(value, people);
           {
             name: "label",
             type: "string",
-            description: "Optional eyebrow above the working.",
+            description: "Optional label above the working.",
           },
           {
             name: "steps",
@@ -4685,7 +4685,7 @@ const matches = useMentionMatches(value, people);
   "spec-sheet": {
     usage: `import { SpecSheet } from "@/components/assistant-ui/elements/spec-sheet";
 
-<SpecSheet title="Opus 5" subtitle="claude-opus-5" rows={rows} visibleCount={6} />`,
+<SpecSheet title="Opus 5.5" subtitle="claude-opus-5-5" rows={rows} visibleCount={6} />`,
     props: [
       {
         component: "SpecSheet",

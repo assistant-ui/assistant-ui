@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { cleanup, render, renderHook, screen } from "@testing-library/react";
 import { createElement } from "react";
+import { CodeAdapterContext } from "../adapters/code-adapter";
 import { useAdaptedComponents } from "../adapters/components-adapter";
 import type { StreamdownTextComponents } from "../types";
 
@@ -10,8 +11,8 @@ describe("useAdaptedComponents", () => {
   describe("basic behavior", () => {
     it("returns PreOverride when no components provided", () => {
       const { result } = renderHook(() => useAdaptedComponents({}));
-      expect(result.current).toHaveProperty("pre");
-      expect(result.current).not.toHaveProperty("code");
+      expect(result.current.components).toHaveProperty("pre");
+      expect(result.current.components).not.toHaveProperty("code");
     });
 
     it("includes user HTML components", () => {
@@ -21,8 +22,8 @@ describe("useAdaptedComponents", () => {
           components: { div: MockDiv },
         }),
       );
-      expect(result.current?.div).toBe(MockDiv);
-      expect(result.current).toHaveProperty("pre");
+      expect(result.current.components.div).toBe(MockDiv);
+      expect(result.current.components).toHaveProperty("pre");
     });
 
     it("excludes SyntaxHighlighter and CodeHeader from direct pass-through", () => {
@@ -37,8 +38,8 @@ describe("useAdaptedComponents", () => {
         }),
       );
       // These should be used to create code adapter, not passed directly
-      expect(result.current).toHaveProperty("code");
-      expect(result.current).toHaveProperty("pre");
+      expect(result.current.components).toHaveProperty("code");
+      expect(result.current.components).toHaveProperty("pre");
     });
   });
 
@@ -48,7 +49,7 @@ describe("useAdaptedComponents", () => {
       const { result } = renderHook(() =>
         useAdaptedComponents({ components: { code: Code } }),
       );
-      expect(result.current.code).toBe(Code);
+      expect(result.current.components.code).toBe(Code);
     });
 
     it("replaces user code with the adapter when SyntaxHighlighter is set", () => {
@@ -59,8 +60,8 @@ describe("useAdaptedComponents", () => {
           components: { code: Code, SyntaxHighlighter: MockSyntax } as never,
         }),
       );
-      expect(result.current.code).not.toBe(Code);
-      expect(result.current.pre).toBeDefined();
+      expect(result.current.components.code).not.toBe(Code);
+      expect(result.current.components.pre).toBeDefined();
     });
 
     it("never hands user pre or code to streamdown directly", () => {
@@ -68,7 +69,7 @@ describe("useAdaptedComponents", () => {
       const { result } = renderHook(() =>
         useAdaptedComponents({ components: { pre: Pre } }),
       );
-      expect(result.current.pre).not.toBe(Pre);
+      expect(result.current.components.pre).not.toBe(Pre);
     });
   });
 
@@ -86,9 +87,9 @@ describe("useAdaptedComponents", () => {
         ({ components }) => useAdaptedComponents({ components }),
         { initialProps: { components: { pre: Pre } } },
       );
-      const first = result.current.pre;
+      const first = result.current.components.pre;
       rerender({ components: { pre: Pre } });
-      expect(result.current.pre).toBe(first);
+      expect(result.current.components.pre).toBe(first);
     });
 
     it("keeps the same pre component when the user pre is an inline arrow", () => {
@@ -100,9 +101,9 @@ describe("useAdaptedComponents", () => {
           }),
         { initialProps: { tick: 0 } },
       );
-      const first = result.current.pre;
+      const first = result.current.components.pre;
       rerender({ tick: 1 });
-      expect(result.current.pre).toBe(first);
+      expect(result.current.components.pre).toBe(first);
     });
 
     it("renders a raw pre through the fallback after the pre changes", () => {
@@ -119,7 +120,9 @@ describe("useAdaptedComponents", () => {
       rerender({ components: { pre: PreB } });
       render(
         createElement(
-          result.current.pre as React.ComponentType<Record<string, unknown>>,
+          result.current.components.pre as React.ComponentType<
+            Record<string, unknown>
+          >,
           { node: rawPreNode },
           "raw",
         ),
@@ -136,9 +139,9 @@ describe("useAdaptedComponents", () => {
         ({ components }) => useAdaptedComponents({ components }),
         { initialProps: { components: { pre: Pre, code: Code } } },
       );
-      const first = result.current.code;
+      const first = result.current.components.code;
       rerender({ components: { pre: Pre, code: Code } });
-      expect(result.current.code).toBe(first);
+      expect(result.current.components.code).toBe(first);
     });
 
     it("keeps the same code component when the user pre and code are inline arrows", () => {
@@ -153,9 +156,9 @@ describe("useAdaptedComponents", () => {
           }),
         { initialProps: { tick: 0 } },
       );
-      const first = result.current.code;
+      const first = result.current.components.code;
       rerender({ tick: 1 });
-      expect(result.current.code).toBe(first);
+      expect(result.current.components.code).toBe(first);
     });
 
     it("keeps the same code component when componentsByLanguage is a fresh object", () => {
@@ -167,9 +170,101 @@ describe("useAdaptedComponents", () => {
           initialProps: { componentsByLanguage: { ts: { SyntaxHighlighter } } },
         },
       );
-      const first = result.current.code;
+      const first = result.current.components.code;
       rerender({ componentsByLanguage: { ts: { SyntaxHighlighter } } });
-      expect(result.current.code).toBe(first);
+      expect(result.current.components.code).toBe(first);
+    });
+
+    it("keeps the code component and rotates the adapter when SyntaxHighlighter changes", () => {
+      const First = () => null;
+      const Second = () => null;
+      const { result, rerender } = renderHook(
+        ({ SyntaxHighlighter }) =>
+          useAdaptedComponents({ components: { SyntaxHighlighter } }),
+        { initialProps: { SyntaxHighlighter: First } },
+      );
+      const first = result.current;
+
+      rerender({ SyntaxHighlighter: Second });
+
+      expect(result.current.components.code).toBe(first.components.code);
+      expect(result.current.codeAdapter).not.toBe(first.codeAdapter);
+      expect(result.current.codeAdapter.SyntaxHighlighter).toBe(Second);
+    });
+
+    it("keeps the code component and rotates the adapter when CodeHeader changes", () => {
+      const First = () => null;
+      const Second = () => null;
+      const { result, rerender } = renderHook(
+        ({ CodeHeader }) =>
+          useAdaptedComponents({ components: { CodeHeader } }),
+        { initialProps: { CodeHeader: First } },
+      );
+      const first = result.current;
+
+      rerender({ CodeHeader: Second });
+
+      expect(result.current.components.code).toBe(first.components.code);
+      expect(result.current.codeAdapter).not.toBe(first.codeAdapter);
+      expect(result.current.codeAdapter.CodeHeader).toBe(Second);
+    });
+
+    it("keeps the code component and rotates the adapter when a language entry changes", () => {
+      const First = () => null;
+      const Second = () => null;
+      const { result, rerender } = renderHook(
+        ({ SyntaxHighlighter }) =>
+          useAdaptedComponents({
+            componentsByLanguage: { ts: { SyntaxHighlighter } },
+          }),
+        { initialProps: { SyntaxHighlighter: First } },
+      );
+      const first = result.current;
+
+      rerender({ SyntaxHighlighter: Second });
+
+      expect(result.current.components.code).toBe(first.components.code);
+      expect(result.current.codeAdapter).not.toBe(first.codeAdapter);
+      expect(
+        result.current.codeAdapter.componentsByLanguage?.["ts"]
+          ?.SyntaxHighlighter,
+      ).toBe(Second);
+    });
+
+    it("keeps the adapter when componentsByLanguage is a fresh but equal object", () => {
+      const SyntaxHighlighter = () => null;
+      const { result, rerender } = renderHook(
+        ({ componentsByLanguage }) =>
+          useAdaptedComponents({ componentsByLanguage }),
+        {
+          initialProps: {
+            componentsByLanguage: { ts: { SyntaxHighlighter } },
+          },
+        },
+      );
+      const first = result.current.codeAdapter;
+
+      rerender({ componentsByLanguage: { ts: { SyntaxHighlighter } } });
+
+      expect(result.current.codeAdapter).toBe(first);
+    });
+
+    it("keeps the adapter when the user pre and code are inline arrows", () => {
+      const SyntaxHighlighter = () => null;
+      const { result, rerender } = renderHook(
+        () =>
+          useAdaptedComponents({
+            components: {
+              SyntaxHighlighter,
+              pre: ({ node: _, ...p }: any) => <pre {...p} />,
+              code: ({ node: _, ...p }: any) => <code {...p} />,
+            },
+          }),
+        { initialProps: { tick: 0 } },
+      );
+      const first = result.current.codeAdapter;
+      rerender({ tick: 1 });
+      expect(result.current.codeAdapter).toBe(first);
     });
   });
 
@@ -181,7 +276,7 @@ describe("useAdaptedComponents", () => {
           components: { SyntaxHighlighter: MockSyntax },
         }),
       );
-      expect(result.current).toHaveProperty("code");
+      expect(result.current.components).toHaveProperty("code");
     });
 
     it("the resolved code component renders as JSX without throwing", () => {
@@ -195,7 +290,7 @@ describe("useAdaptedComponents", () => {
           components: { SyntaxHighlighter: MockSyntax } as never,
         }),
       );
-      const CodeComponent = result.current?.code;
+      const CodeComponent = result.current.components.code;
       expect(CodeComponent).toBeDefined();
 
       // Render via createElement — the path streamdown + react-markdown take.
@@ -203,12 +298,16 @@ describe("useAdaptedComponents", () => {
       // render failure here surfaces the TypeError directly.
       render(
         createElement(
-          CodeComponent as React.ComponentType<Record<string, unknown>>,
-          {
-            className: "language-ts",
-            "data-block": "true",
-          },
-          "const x = 1;",
+          CodeAdapterContext.Provider,
+          { value: result.current.codeAdapter },
+          createElement(
+            CodeComponent as React.ComponentType<Record<string, unknown>>,
+            {
+              className: "language-ts",
+              "data-block": "true",
+            },
+            "const x = 1;",
+          ),
         ),
       );
 
@@ -224,7 +323,7 @@ describe("useAdaptedComponents", () => {
           components: { CodeHeader: MockHeader },
         }),
       );
-      expect(result.current).toHaveProperty("code");
+      expect(result.current.components).toHaveProperty("code");
     });
   });
 
@@ -238,7 +337,7 @@ describe("useAdaptedComponents", () => {
           },
         }),
       );
-      expect(result.current).toHaveProperty("code");
+      expect(result.current.components).toHaveProperty("code");
     });
 
     it("handles multiple language overrides", () => {
@@ -252,7 +351,7 @@ describe("useAdaptedComponents", () => {
           },
         }),
       );
-      expect(result.current).toHaveProperty("code");
+      expect(result.current.components).toHaveProperty("code");
     });
 
     it("handles empty componentsByLanguage", () => {
@@ -262,7 +361,7 @@ describe("useAdaptedComponents", () => {
         }),
       );
       // Empty componentsByLanguage should not create code adapter
-      expect(result.current).not.toHaveProperty("code");
+      expect(result.current.components).not.toHaveProperty("code");
     });
   });
 
@@ -274,9 +373,9 @@ describe("useAdaptedComponents", () => {
         { initialProps: { comps: components } },
       );
 
-      const firstResult = result.current;
+      const firstResult = result.current.components;
       rerender({ comps: components });
-      expect(result.current).toBe(firstResult);
+      expect(result.current.components).toBe(firstResult);
     });
 
     it("returns new reference when components change", () => {
@@ -289,9 +388,9 @@ describe("useAdaptedComponents", () => {
         },
       );
 
-      const firstResult = result.current;
+      const firstResult = result.current.components;
       rerender({ comps: { span: vi.fn(() => null) } });
-      expect(result.current).not.toBe(firstResult);
+      expect(result.current.components).not.toBe(firstResult);
     });
   });
 
@@ -315,9 +414,9 @@ describe("useAdaptedComponents", () => {
         }),
       );
 
-      expect(result.current?.div).toBe(MockDiv);
-      expect(result.current).toHaveProperty("code");
-      expect(result.current).toHaveProperty("pre");
+      expect(result.current.components.div).toBe(MockDiv);
+      expect(result.current.components).toHaveProperty("code");
+      expect(result.current.components).toHaveProperty("pre");
     });
   });
 });

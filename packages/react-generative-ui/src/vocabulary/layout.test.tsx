@@ -287,8 +287,9 @@ describe("layoutVocabulary Card asForm/confirm/cancel dispatch", () => {
       $dispatch: registry.dispatch,
     }) as ReactElement;
     const { confirmBtn } = getFooterButtons(out);
-    const onClick = (confirmBtn!.props as { onClick: () => void }).onClick;
-    onClick();
+    const onClick = (confirmBtn!.props as { onClick: (e: object) => void })
+      .onClick;
+    onClick({ currentTarget: {} });
     expect(handler).toHaveBeenCalledWith({ payload: { type: "save" } });
   });
 
@@ -314,8 +315,9 @@ describe("layoutVocabulary Card asForm/confirm/cancel dispatch", () => {
       $dispatch: registry.dispatch,
     }) as ReactElement;
     const { cancelBtn } = getFooterButtons(out);
-    const onClick = (cancelBtn!.props as { onClick: () => void }).onClick;
-    onClick();
+    const onClick = (cancelBtn!.props as { onClick: (e: object) => void })
+      .onClick;
+    onClick({ currentTarget: {} });
     expect(handler).toHaveBeenCalledWith({ payload: { type: "dismiss" } });
   });
 });

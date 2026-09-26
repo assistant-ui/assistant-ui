@@ -2,7 +2,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { PassThrough } from "node:stream";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import * as p from "@clack/prompts";
 import type { CANCEL_SYMBOL } from "@clack/prompts";
 import {
   create,
@@ -12,15 +14,21 @@ import {
   resolveScaffoldSelector,
   resolveProjectDirectoryGuidance,
   PROJECT_METADATA,
+  projectNamePromptOptions,
 } from "../../src/commands/create";
 import type * as createProject from "../../src/lib/create-project";
 import { logger } from "../../src/lib/utils/logger";
 
 const mocks = vi.hoisted(() => ({
   downloadProject: vi.fn<typeof createProject.downloadProject>(),
+  downloadTemplate: vi.fn(),
   resolveLatestReleaseRef:
     vi.fn<typeof createProject.resolveLatestReleaseRef>(),
   scaffoldProject: vi.fn<typeof createProject.scaffoldProject>(),
+}));
+
+vi.mock("giget", () => ({
+  downloadTemplate: mocks.downloadTemplate,
 }));
 
 vi.mock("../../src/lib/create-project", async (importOriginal) => ({
@@ -173,6 +181,90 @@ describe("create failure cleanup", () => {
     await expectCreateToFail();
 
     expect(entriesAtRetry).toEqual([]);
+  });
+
+  it("cleans pending downloads before re-raising a signal", async () => {
+    const previousSignalListeners = new Set(process.rawListeners("SIGINT"));
+    let finishDownload!: () => void;
+    let stagingDir: string | undefined;
+    let rejectScaffold: ((error: Error) => void) | undefined;
+    const downloadBlocked = new Promise<void>((resolve) => {
+      finishDownload = resolve;
+    });
+    mocks.downloadTemplate.mockImplementationOnce(
+      async (_source: string, options?: { dir?: string }) => {
+        stagingDir = options?.dir;
+        if (!stagingDir) throw new Error("missing staging directory");
+        fs.writeFileSync(path.join(stagingDir, "partial.txt"), "partial");
+        await downloadBlocked;
+        return {};
+      },
+    );
+    mocks.scaffoldProject.mockImplementationOnce(
+      () =>
+        new Promise<never>((_resolve, reject) => {
+          rejectScaffold = reject;
+        }),
+    );
+    const exit = vi.spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("process.exit");
+    });
+    const kill = vi.spyOn(process, "kill").mockImplementation(() => {
+      expect(stagingDir).toBeDefined();
+      expect(fs.existsSync(stagingDir!)).toBe(false);
+      expect(fs.existsSync(target)).toBe(false);
+      return true;
+    });
+    let run: Promise<unknown> | undefined;
+    let pendingDownload: Promise<void> | undefined;
+    try {
+      const actualCreateProject = await vi.importActual<typeof createProject>(
+        "../../src/lib/create-project",
+      );
+      pendingDownload = actualCreateProject.downloadProject(
+        "templates/default",
+        target,
+      );
+      const downloadResult = pendingDownload.then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+      await vi.waitFor(() => expect(stagingDir).toBeDefined());
+
+      run = create.parseAsync(
+        [target, "--template", "minimal", "--skip-install", "--no-skills"],
+        { from: "user" },
+      );
+      await vi.waitFor(() => expect(mocks.scaffoldProject).toHaveBeenCalled());
+
+      const signalListener = process
+        .rawListeners("SIGINT")
+        .find((listener) => !previousSignalListeners.has(listener));
+      expect(signalListener).toBeDefined();
+      signalListener?.call(process, "SIGINT");
+
+      expect(kill).toHaveBeenCalledWith(process.pid, "SIGINT");
+
+      rejectScaffold?.(new Error("scaffold failed"));
+      await expect(run).rejects.toThrow("process.exit");
+      finishDownload();
+      const downloadError = await downloadResult;
+      expect(downloadError).toBeInstanceOf(Error);
+      expect((downloadError as Error).message).toContain(
+        "Download was interrupted",
+      );
+      expect(fs.existsSync(target)).toBe(false);
+    } finally {
+      rejectScaffold?.(new Error("test cleanup"));
+      finishDownload();
+      await Promise.allSettled(
+        [run, pendingDownload].filter(
+          (promise): promise is Promise<unknown> => promise !== undefined,
+        ),
+      );
+      exit.mockRestore();
+      kill.mockRestore();
+    }
   });
 });
 
@@ -486,6 +578,78 @@ describe("resolveCreateProjectDirectory", () => {
         stdinIsTTY: false,
       }),
     ).toBe("custom-app");
+  });
+});
+
+describe("projectNamePromptOptions", () => {
+  // Drives the real clack prompt with the shipped options, because the defect
+  // this covers lives in the order clack runs validate and finalize, not in
+  // either piece on its own.
+  const runPrompt = (keystrokes: string) => {
+    const input = new PassThrough() as PassThrough & {
+      isTTY: boolean;
+      setRawMode: () => void;
+    };
+    input.isTTY = true;
+    input.setRawMode = () => {};
+    const output = new PassThrough() as PassThrough & { isTTY: boolean };
+    output.isTTY = true;
+    let rendered = "";
+    output.on("data", (chunk: Buffer) => {
+      rendered += chunk.toString();
+    });
+
+    let settled = false;
+    const markSettled = () => {
+      settled = true;
+    };
+    const pending = p
+      .text({ ...projectNamePromptOptions, input, output })
+      .then((value) => {
+        markSettled();
+        return value;
+      }, markSettled);
+    // PassThrough buffers until clack attaches its reader, so the keystrokes
+    // need no delay to land.
+    input.write(keystrokes);
+
+    return {
+      pending,
+      rendered: () => rendered,
+      settled: () => settled,
+      dispose: () => input.end(),
+    };
+  };
+
+  it("accepts the default when the prompt is submitted untouched", async () => {
+    const prompt = runPrompt("\r");
+
+    try {
+      await expect(prompt.pending).resolves.toBe("my-aui-app");
+    } finally {
+      prompt.dispose();
+    }
+  });
+
+  it("still rejects a whitespace-only name", async () => {
+    const prompt = runPrompt("   \r");
+
+    try {
+      await vi.waitFor(() => {
+        expect(prompt.rendered()).toContain("Project name cannot be empty");
+      });
+      expect(prompt.settled()).toBe(false);
+    } finally {
+      prompt.dispose();
+    }
+  });
+
+  it.each([
+    { name: "   ", message: "Project name cannot be empty" },
+    { name: ".", message: "Project name cannot be . or .." },
+    { name: "a/b", message: "Project name cannot contain path separators" },
+  ])("still rejects $name", ({ name, message }) => {
+    expect(projectNamePromptOptions.validate(name)).toBe(message);
   });
 });
 

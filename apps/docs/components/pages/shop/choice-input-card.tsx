@@ -1,0 +1,208 @@
+"use client";
+
+import { useState, type FormEvent } from "react";
+import { PencilLineIcon } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  ChoiceIcon,
+  InputHelp,
+  NoteField,
+  SubmitRow,
+  inputCardClassName,
+  useInputActions,
+} from "@/components/pages/shop/input-shared";
+import { useWizardFormId } from "@/components/pages/shop/wizard-actions";
+import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
+import { inputPrompt, type Checkout } from "@/lib/checkout/protocol";
+import { cn } from "@/lib/utils";
+
+const OTHER = "\0other";
+
+const variantsOf = (option: Checkout.ChoiceOption | undefined) =>
+  option?.variants ?? [];
+
+export function ChoiceInputCard({
+  input,
+  checkout,
+}: {
+  input: Checkout.Input;
+  checkout: CheckoutContextValue;
+}) {
+  const options = input.options ?? [];
+  const [picked, setPicked] = useState(
+    input.default === undefined ? [] : [input.default],
+  );
+  const [variant, setVariant] = useState(
+    variantsOf(options.find((option) => option.id === input.default))[0]?.id ??
+      "",
+  );
+  const [custom, setCustom] = useState("");
+  const [note, setNote] = useState("");
+  const { busy, answer, dismiss } = useInputActions(input, checkout);
+  const other = picked.includes(OTHER);
+  const current = input.multiple
+    ? undefined
+    : options.find((option) => option.id === picked[0]);
+  const variants = variantsOf(current);
+  const variantLabel = input.preset === "project" ? "Framework" : "Language";
+  const ownTextReady = !other || custom.trim() !== "";
+  const complete = input.multiple
+    ? picked.length > 0 && ownTextReady
+    : other
+      ? ownTextReady
+      : current !== undefined && (variants.length === 0 || variant !== "");
+  const locked = options.length === 1;
+
+  const select = (id: string) => {
+    if (!input.multiple) setPicked([id]);
+    else if (picked.includes(id))
+      setPicked(picked.filter((entry) => entry !== id));
+    else setPicked([...picked, id]);
+  };
+
+  const choose = (option: Checkout.ChoiceOption) => {
+    select(option.id);
+    setVariant(variantsOf(option)[0]?.id ?? "");
+  };
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (!complete) return;
+    const ownText = other ? [custom.trim()] : [];
+    if (input.multiple) {
+      const chosen = options
+        .filter((option) => picked.includes(option.id))
+        .map((option) => option.id);
+      void answer(JSON.stringify([...chosen, ...ownText]), note);
+      return;
+    }
+    void answer(
+      current === undefined
+        ? custom.trim()
+        : variants.length > 0
+          ? `${current.id}:${variant}`
+          : current.id,
+      note,
+    );
+  };
+
+  const pickType = input.multiple ? "checkbox" : "radio";
+
+  const tileClassName = (active: boolean) =>
+    cn(
+      "has-focus-visible:ring-ring flex min-w-0 cursor-pointer gap-3 rounded-lg border p-3 [overflow-wrap:anywhere] transition-colors has-focus-visible:ring-2",
+      active
+        ? "border-foreground bg-muted"
+        : "border-foreground/10 hover:border-foreground/30",
+    );
+
+  return (
+    <form
+      id={useWizardFormId()}
+      onSubmit={submit}
+      className={inputCardClassName}
+    >
+      <fieldset disabled={busy} className="flex min-w-0 flex-col gap-3">
+        <legend className="sr-only">{inputPrompt(input)}</legend>
+        <div className="flex flex-col gap-2">
+          {options.map((option) => {
+            const active = picked.includes(option.id);
+            return (
+              <label key={option.id} className={tileClassName(active)}>
+                <input
+                  type={pickType}
+                  name={input.id}
+                  value={option.id}
+                  checked={active}
+                  onChange={() => choose(option)}
+                  className="sr-only"
+                />
+                {option.icon ? (
+                  <ChoiceIcon icon={option.icon} className="size-4 shrink-0" />
+                ) : null}
+                <span className="min-w-0 [overflow-wrap:anywhere]">
+                  <span className="block text-sm font-medium">
+                    {option.label}
+                  </span>
+                  {option.description ? (
+                    <span className="text-muted-foreground mt-0.5 block text-xs leading-snug [overflow-wrap:anywhere]">
+                      {option.description}
+                    </span>
+                  ) : null}
+                </span>
+              </label>
+            );
+          })}
+          <label className={tileClassName(other)}>
+            <input
+              type={pickType}
+              name={input.id}
+              value={OTHER}
+              checked={other}
+              onChange={() => select(OTHER)}
+              className="sr-only"
+            />
+            <PencilLineIcon className="text-muted-foreground size-4 shrink-0" />
+            <span className="min-w-0 [overflow-wrap:anywhere]">
+              <span className="block text-sm font-medium">Something else</span>
+              <span className="text-muted-foreground mt-0.5 block text-xs leading-snug">
+                Tell your agent in your own words
+              </span>
+            </span>
+          </label>
+        </div>
+        {other ? (
+          <Input
+            value={custom}
+            onChange={(event) => setCustom(event.target.value)}
+            placeholder="What should it use instead?"
+            aria-label="Your own answer"
+            autoFocus
+          />
+        ) : null}
+        {!other && variants.length > 1 ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-muted-foreground text-sm">
+              {variantLabel}
+            </span>
+            <div
+              role="radiogroup"
+              aria-label={variantLabel}
+              className="flex flex-wrap gap-2"
+            >
+              {variants.map((entry) => (
+                <label
+                  key={entry.id}
+                  className={cn(
+                    "has-focus-visible:ring-ring min-w-0 cursor-pointer rounded-md border px-2.5 py-1 text-sm [overflow-wrap:anywhere] transition-colors has-focus-visible:ring-2",
+                    entry.id === variant
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-foreground/10 hover:border-foreground/30",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name={`${input.id}-variant`}
+                    value={entry.id}
+                    checked={entry.id === variant}
+                    onChange={() => setVariant(entry.id)}
+                    className="sr-only"
+                  />
+                  {entry.label}
+                </label>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        <NoteField value={note} onChange={setNote} />
+      </fieldset>
+      {input.help && !locked ? <InputHelp help={input.help} /> : null}
+      <SubmitRow
+        input={input}
+        busy={busy}
+        disabled={!complete}
+        onDismiss={dismiss}
+      />
+    </form>
+  );
+}

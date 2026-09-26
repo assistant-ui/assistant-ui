@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { ThreadMessage } from "../../types/message";
-import { ExportedMessageRepository } from "./message-repository";
+import {
+  ExportedMessageRepository,
+  MessageRepository,
+} from "./message-repository";
 
 const nestedRunningAssistant: ThreadMessage = {
   id: "nested-assistant",
@@ -45,5 +48,125 @@ describe("ExportedMessageRepository", () => {
         reason: "tool-calls",
       });
     }
+  });
+});
+
+const message = (id: string, text = id): ThreadMessage => ({
+  id,
+  createdAt: new Date(0),
+  role: "user",
+  content: [{ type: "text", text }],
+  attachments: [],
+  metadata: { custom: {} },
+});
+
+const snapshot = (repository: MessageRepository) => ({
+  headId: repository.headId,
+  visible: repository.getMessages(),
+  exported: repository.export(),
+});
+
+describe("MessageRepository rejected operations", () => {
+  it("keeps the old content when an update is rejected as a cycle", () => {
+    const repository = new MessageRepository();
+    const original = message("a");
+    repository.addOrUpdateMessage(null, original);
+    const before = snapshot(repository);
+
+    expect(() =>
+      repository.addOrUpdateMessage("a", message("a", "edited")),
+    ).toThrow(/same id already exists in the parent tree/);
+
+    expect(snapshot(repository)).toEqual(before);
+    expect(repository.getMessage("a").message).toBe(original);
+  });
+
+  it("moves no child when the replacement is a descendant of the deleted message", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, message("a"));
+    repository.addOrUpdateMessage("a", message("b"));
+    repository.addOrUpdateMessage("a", message("c"));
+    repository.addOrUpdateMessage("c", message("d"));
+    const before = snapshot(repository);
+
+    expect(() => repository.deleteMessage("a", "c")).toThrow(
+      /Replacement is the deleted message or one of its descendants/,
+    );
+    expect(snapshot(repository)).toEqual(before);
+
+    expect(() => repository.deleteMessage("a", "d")).toThrow(
+      /Replacement is the deleted message or one of its descendants/,
+    );
+    expect(snapshot(repository)).toEqual(before);
+    expect(repository.getMessage("b").parentId).toBe("a");
+    expect(repository.getBranches("b")).toEqual(["b", "c"]);
+  });
+
+  it("rejects a message as its own replacement instead of leaving the head on it", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, message("a"));
+    const before = snapshot(repository);
+
+    expect(() => repository.deleteMessage("a", "a")).toThrow(
+      /Replacement is the deleted message or one of its descendants/,
+    );
+
+    expect(snapshot(repository)).toEqual(before);
+    expect(repository.getMessage("a").message.id).toBe("a");
+  });
+});
+
+describe("MessageRepository import order", () => {
+  it("imports a message listed before its parent", () => {
+    const repository = new MessageRepository();
+    repository.import({
+      messages: [
+        { message: message("child"), parentId: "parent" },
+        { message: message("parent"), parentId: null },
+      ],
+    });
+
+    expect(repository.headId).toBe("child");
+    expect(repository.getMessages().map((m) => m.id)).toEqual([
+      "parent",
+      "child",
+    ]);
+  });
+
+  it("keeps the listed order for a message whose parent the repository holds", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, message("p"));
+    const newer = message("c", "newer");
+
+    repository.import({
+      headId: "c",
+      messages: [
+        { message: message("c"), parentId: "p" },
+        { message: newer, parentId: null },
+        { message: message("p"), parentId: null },
+      ],
+    });
+
+    expect(repository.getMessages()).toEqual([newer]);
+  });
+
+  it("heads a history stored out of order at its latest message", () => {
+    const repository = new MessageRepository();
+    repository.import({
+      messages: [
+        { message: message("question"), parentId: null },
+        { message: message("follow-up"), parentId: "paused" },
+        { message: message("answer"), parentId: "follow-up" },
+        { message: message("paused"), parentId: "question" },
+      ],
+    });
+
+    expect(repository.headId).toBe("answer");
+    expect(repository.getMessages().map((m) => m.id)).toEqual([
+      "question",
+      "paused",
+      "follow-up",
+      "answer",
+    ]);
   });
 });

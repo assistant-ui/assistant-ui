@@ -1,5 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
-import { isValidElement, type ReactElement, type ReactNode } from "react";
+import {
+  Children,
+  isValidElement,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { interactiveVocabulary } from "./interactive";
 import { createActionRegistry } from "../actionRegistry";
@@ -27,6 +32,15 @@ function renderWithHooks(render: () => ReactNode): ReactElement {
   return captured!;
 }
 
+const getRadioOptions = (out: ReactElement) =>
+  Children.toArray((out.props as { children: ReactNode }).children)
+    .filter(isValidElement)
+    .filter(
+      (child) =>
+        (child.props as { "data-aui"?: string })["data-aui"] ===
+        "radiogroup-option",
+    ) as ReactElement[];
+
 describe("interactiveVocabulary $action dispatch", () => {
   it("Button render attaches an onClick that fires $dispatch with the $action payload", () => {
     const handler = vi.fn();
@@ -38,9 +52,10 @@ describe("interactiveVocabulary $action dispatch", () => {
       $dispatch: registry.dispatch,
     } as ButtonRenderProps) as ReactNode;
     expect(isValidElement(out)).toBe(true);
-    const onClick = (out as { props: { onClick: () => void } }).props.onClick;
+    const onClick = (out as { props: { onClick: (e: object) => void } }).props
+      .onClick;
     expect(typeof onClick).toBe("function");
-    onClick();
+    onClick({ currentTarget: {} });
     expect(handler).toHaveBeenCalledWith({
       payload: { type: "purchase", itemId: "sku-1" },
     });
@@ -52,9 +67,10 @@ describe("interactiveVocabulary $action dispatch", () => {
       $status: "done",
       $action: { type: "purchase", itemId: "sku-1" },
     } as ButtonRenderProps) as ReactNode;
-    const onClick = (out as { props: { onClick: () => void } }).props.onClick;
+    const onClick = (out as { props: { onClick: (e: object) => void } }).props
+      .onClick;
     expect(typeof onClick).toBe("function");
-    expect(() => onClick()).not.toThrow();
+    expect(() => onClick({ currentTarget: {} })).not.toThrow();
   });
 
   it("Button onClick is a no-op when $action is absent", () => {
@@ -65,7 +81,9 @@ describe("interactiveVocabulary $action dispatch", () => {
       $status: "done",
       $dispatch: registry.dispatch,
     } as ButtonRenderProps) as ReactNode;
-    (out as { props: { onClick: () => void } }).props.onClick();
+    (out as { props: { onClick: (e: object) => void } }).props.onClick({
+      currentTarget: {},
+    });
     expect(handler).not.toHaveBeenCalled();
   });
 
@@ -260,8 +278,9 @@ describe("interactiveVocabulary $action dispatch", () => {
       $action: { type: "purchase" },
       $dispatch: registry.dispatch,
     } as ButtonRenderProps) as ReactNode;
-    const onClick = (out as { props: { onClick: () => void } }).props.onClick;
-    onClick();
+    const onClick = (out as { props: { onClick: (e: object) => void } }).props
+      .onClick;
+    onClick({ currentTarget: {} });
     expect(handler).toHaveBeenCalledWith({ payload: { type: "purchase" } });
   });
 
@@ -319,11 +338,12 @@ describe("interactiveVocabulary $action dispatch", () => {
         ],
       }),
     );
-    const options = (out.props as { children: ReactElement[] }).children;
+    const options = getRadioOptions(out);
     const secondRadio = (options[1]!.props as { children: ReactElement[] })
       .children[0] as ReactElement;
-    const onChange = (secondRadio.props as { onChange: () => void }).onChange;
-    onChange();
+    const onChange = (secondRadio.props as { onChange: (e: object) => void })
+      .onChange;
+    onChange({ currentTarget: {} });
     expect(handler).toHaveBeenCalledWith({
       payload: { type: "pick", $input: "lg" },
     });
@@ -339,7 +359,7 @@ describe("interactiveVocabulary $action dispatch", () => {
         ],
       }),
     );
-    const options = (out.props as { children: ReactElement[] }).children;
+    const options = getRadioOptions(out);
     const firstRadio = (options[0]!.props as { children: ReactElement[] })
       .children[0] as ReactElement;
     const secondRadio = (options[1]!.props as { children: ReactElement[] })

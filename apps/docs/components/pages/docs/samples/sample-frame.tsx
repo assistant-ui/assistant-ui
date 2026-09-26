@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CheckIcon, CodeIcon, CopyIcon, XIcon } from "lucide-react";
 import ShikiHighlighter from "react-shiki";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { cn } from "@/lib/utils";
 
 type SampleFrameProps = {
@@ -13,16 +14,16 @@ type SampleFrameProps = {
 
 export function SampleFrame({ code, children, className }: SampleFrameProps) {
   const [showCode, setShowCode] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const { isCopied: copied, copyToClipboard } = useCopyToClipboard({
+    copiedDuration: 2000,
+  });
 
   const ToggleIcon = showCode ? XIcon : CodeIcon;
   const buttonLabel = showCode ? "Hide Code" : "View Code";
 
-  const handleCopy = async () => {
+  const handleCopy = () => {
     if (!code) return;
-    await navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    copyToClipboard(code);
   };
 
   return (

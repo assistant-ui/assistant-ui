@@ -1,4 +1,4 @@
-/// <reference types="@assistant-ui/core/react" />
+/// <reference types="@assistant-ui/core/react" preserve="true" />
 
 export { useAISDKRuntime } from "./runtime/useAISDKRuntime";
 export { useChatRuntime } from "./runtime/useChatRuntime";

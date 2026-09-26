@@ -9,11 +9,15 @@ import {
   isConsentRequired,
   subscribeToConsent,
 } from "./lib/consent";
+import { RENDERER_PATH } from "./lib/renderer";
 import { setUmamiTrackingEnabled } from "./lib/umami-sampling";
 
 const apiKey = process.env.NEXT_PUBLIC_POSTHOG_API_KEY;
 
-if (typeof window !== "undefined") {
+if (
+  typeof window !== "undefined" &&
+  window.location.pathname !== RENDERER_PATH
+) {
   let started = false;
   const start = () => {
     if (!apiKey || started || hasGlobalPrivacyControl()) return;

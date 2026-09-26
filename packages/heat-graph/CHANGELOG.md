@@ -1,5 +1,17 @@
 # heat-graph
 
+## 0.0.21
+
+### Patch Changes
+
+- [#7927](https://github.com/assistant-ui/assistant-ui/pull/7927) [`e8477bf`](https://github.com/assistant-ui/assistant-ui/commit/e8477bf27101bfc2aca1da6b7c9fce4003c509c2) - fix(heat-graph): keep the last day of the range in a midnight-DST timezone ([@Kinfe123](https://github.com/Kinfe123))
+
+## 0.0.20
+
+### Patch Changes
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.19
 
 ### Patch Changes

@@ -34,7 +34,7 @@ const cloud = new AssistantCloud({
 | JWT | `baseUrl: string`, `authToken: () => Promise<string \| null>` | None | Sends the callback result as a bearer token. |
 | API key | `apiKey: string`, `userId: string`, `workspaceId: string`, `baseUrl?: string` | Backend URL | Sends an API key as a bearer token with `Aui-User-Id` and `Aui-Workspace-Id`. |
 | Anonymous | `baseUrl: string`, `anonymous: true` | None | Creates and refreshes an anonymous session in browser storage. |
-| Shared | `telemetry?: boolean \| AssistantCloudTelemetryConfig` | Enabled | Controls run reports and engagement events. |
+| Shared | `telemetry?: boolean \| AssistantCloudTelemetryConfig` | Enabled | Controls run reports, engagement events, and copies of external-store transcripts. |
 
 The client chooses an arm in this order: `authToken`, then `apiKey`, then `anonymous`. Any other configuration throws `Invalid configuration: Must provide authToken, apiKey, or anonymous configuration`. Base URL normalization removes one trailing `/`.
 
@@ -42,8 +42,9 @@ The client chooses an arm in this order: `authToken`, then `apiKey`, then `anony
 
 | Field | Default | Effect |
 |---|---|---|
-| `enabled` | `true` | `false` prevents run reports and events. `true` and an omitted option are equivalent. |
+| `enabled` | `true` | `false` prevents run reports, events, and copies of external-store transcripts. `true` and an omitted option are equivalent. |
 | `events` | `true` when telemetry is enabled | `false` keeps run reports and prevents engagement events. |
+| `messages` | `true` when telemetry is enabled | `false` keeps run reports and events but stops copies of external-store transcripts. Tool interactions then reject. |
 | `release` | Omitted | Added to every run report. |
 | `environment` | Omitted | Added to every run report. |
 | `tags` | Omitted | Trimmed, limited to 64 characters, deduplicated, and limited to 20 entries. An empty result is omitted. |
@@ -61,11 +62,11 @@ An anonymous client shares an in flight token request for the same storage and b
 
 ## Identify the SDK and send requests
 
-`registerSdk({ name, version })` trims both strings and ignores an identity when either contains a nonprintable token character. It registers each `name/version` once, preserving the first insertion order. Every request carries `Aui-Sdk`, beginning with `assistant-cloud/<version>` and followed by registered identities separated by spaces.
+`registerSdk({ name, version })` trims both strings and ignores an identity when either contains a nonprintable token character. It accepts every remaining printable token and registers each `name/version` once, preserving the first insertion order. Every request carries `Aui-Sdk`, beginning with `assistant-cloud/<version>` and followed by registered identities separated by spaces. The server reads only the first eight space-separated tokens and records unique entries only when their names use lowercase npm style names and their versions use strict SemVer.
 
 The client adds `/v1` to every namespace route, serializes object bodies as JSON, and always sets `Content-Type: application/json`. The caller can set `Accept`, but cannot replace the content type or `Aui-Sdk`. Query strings use `URLSearchParams`: `true` becomes `true`, numbers become strings, and `false` is dropped. Only event delivery uses `keepalive`.
 
-There is no client retry policy. `CloudRunReporter` is the one exception to deduplication: it releases a report key after a `CloudAPIError` with status `429`, so a later observation can send that report. A `204`, `content-length: 0`, or blank response body resolves as `undefined`.
+Most client requests have no retry policy. Scheduled and 20-event event flushes retry a failed send after 250 milliseconds and then 1,000 milliseconds. `CloudRunReporter` is the one exception to deduplication: it releases a report key after a `CloudAPIError` with status `429`, so a later observation can send that report. A `204`, `content-length: 0`, or blank response body resolves as `undefined`.
 
 ## Handle errors
 
@@ -100,21 +101,22 @@ Unless a row says otherwise, a data response can throw `CloudAPIError` for an HT
 |---|---|---|---|
 | `cloud.threads.list` | `(query?: { is_archived?: boolean; limit?: number; after?: string }) => Promise<{ threads: CloudThread[] }>` | `GET /threads` | Both. |
 | `cloud.threads.get` | `(threadId: string) => Promise<CloudThread>` | `GET /threads/{threadId}` | Both. |
-| `cloud.threads.create` | `(body: { last_message_at: Date; title?: string; metadata?: unknown; external_id?: string }) => Promise<{ thread_id: string }>` | `POST /threads` | Both. |
+| `cloud.threads.create` | `(body: { last_message_at: Date; title?: string; metadata?: unknown; external_id?: string; upsert?: boolean }) => Promise<{ thread_id: string }>` | `POST /threads` | Both. |
 | `cloud.threads.update` | `(threadId: string, body: { title?: string; last_message_at?: Date; metadata?: unknown; is_archived?: boolean }) => Promise<void>` | `PUT /threads/{threadId}` | `CloudAPIError`. |
 | `cloud.threads.claim` | `(body: { refresh_token: string }) => Promise<{ moved: number }>` | `POST /threads/claim` | Both. |
 | `cloud.threads.delete` | `(threadId: string) => Promise<void>` | `DELETE /threads/{threadId}` | `CloudAPIError`. |
 | `cloud.threads.messages.list` | `(threadId: string, query?: { format?: string; limit?: number; after?: string }) => Promise<{ messages: CloudMessage[] }>` | `GET /threads/{threadId}/messages` | Both. |
-| `cloud.threads.messages.create` | `(threadId: string, body: { parent_id: string \| null; format: "aui/v0" \| string; content: ReadonlyJSONObject }) => Promise<{ message_id: string }>` | `POST /threads/{threadId}/messages` | Both. |
+| `cloud.threads.messages.create` | `(threadId: string, body: { parent_id: string \| null; format: "aui/v0" \| string; content: ReadonlyJSONObject; external_id?: string; parent_external_id?: string }) => Promise<{ message_id: string }>` | `POST /threads/{threadId}/messages` | Both. |
 | `cloud.threads.messages.update` | `(threadId: string, messageId: string, body: { content: ReadonlyJSONObject }) => Promise<void>` | `PUT /threads/{threadId}/messages/{messageId}` | `CloudAPIError`. |
-| `cloud.threads.messages.feedback` | `(threadId: string, messageId: string, body: { type: "positive" \| "negative" }) => Promise<{ feedback_id: string; type: "positive" \| "negative" }>` | `POST /threads/{threadId}/messages/{messageId}/feedback` | Both. |
+| `cloud.threads.messages.feedback` | `(threadId: string, messageId: string, body: { type: "positive" \| "negative"; comment?: string }) => Promise<{ feedback_id: string; type: "positive" \| "negative"; comment?: string \| null }>` | `POST /threads/{threadId}/messages/{messageId}/feedback` | Both. |
 
-`CloudThread` has `id`, `project_id`, `workspace_id`, `created_at`, `updated_at`, `title`, `last_message_at`, `is_archived`, `external_id`, and `metadata`. The client converts a null thread title to `""` and reads workspace and project IDs from the response. `CloudMessage` has `id`, `parent_id`, `height`, `created_at`, `updated_at`, `format`, and `content`.
+`CloudThread` has `id`, `project_id`, `workspace_id`, `created_at`, `updated_at`, `title`, `last_message_at`, `is_archived`, `external_id`, and `metadata`. The client converts a null thread title to `""` and reads workspace and project IDs from the response. `CloudMessage` has `id`, `parent_id`, `height`, `created_at`, `updated_at`, `format`, `content`, and `external_id`.
 
 ```ts title="Threads and messages"
 const { thread_id } = await cloud.threads.create({
   last_message_at: new Date(),
   external_id: "order-1042",
+  upsert: true,
 });
 await cloud.threads.messages.create(thread_id, {
   parent_id: null,
@@ -138,7 +140,7 @@ console.log(messages);
 await cloud.runs.report({
   thread_id: "thread_0qzof3jPoDwr7K3agyJN3D4U",
   status: "completed",
-  model_id: "gpt-5.6-luna",
+  model_id: "gpt-6-luna",
   provider: "openai",
   input_tokens: 128,
   output_tokens: 96,
@@ -187,7 +189,7 @@ await cloud.scores.create({
 | `cloud.projects.threads.list` | `(query?: { is_archived?: boolean; limit?: number; after?: string }) => Promise<{ threads: CloudThread[] }>` | `GET /projects/threads` | Both. |
 | `cloud.projects.threads.messages.list` | `(threadId: string, query?: { format?: string; limit?: number; after?: string }) => Promise<{ messages: CloudMessage[] }>` | `GET /projects/threads/{threadId}/messages` | Both. |
 
-`track` does nothing when events are disabled. Otherwise it normalizes an event, flushes at 20 buffered events, and otherwise waits 2,000 milliseconds. `pagehide`, a hidden document, and `dispose()` also flush. Each request contains at most 50 events, uses `keepalive`, and failures are ignored. Empty or overlength IDs are dropped, and invalid or oversize props are dropped as a whole. The project namespace is read only.
+`track` does nothing when events are disabled. Otherwise it normalizes an event, flushes at 20 buffered events, and otherwise waits 2,000 milliseconds. Failed scheduled and 20-event flushes retry after 250 milliseconds and then 1,000 milliseconds. `pagehide`, a hidden document, and `dispose()` make one best-effort flush and end a pending retry. Each request contains at most 50 events and uses `keepalive`. Setting `cloud.telemetry.enabled` or `cloud.telemetry.events` to `false` at runtime drops buffered events and cancels pending retries. Empty or overlength IDs are dropped, and invalid or oversize props are dropped as a whole. The project namespace is read only.
 
 ```ts title="Events"
 cloud.events.track({
@@ -253,7 +255,7 @@ const reporter = new CloudRunReporter(cloud);
 await reporter.report({
   threadId: "thread_0qzof3jPoDwr7K3agyJN3D4U",
   status: "completed",
-  modelId: "gpt-5.6-luna",
+  modelId: "gpt-6-luna",
   provider: "openai",
   usage: { inputTokens: 128, outputTokens: 96 },
   durationMs: 1420,

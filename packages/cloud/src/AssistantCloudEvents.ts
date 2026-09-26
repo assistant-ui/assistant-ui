@@ -30,11 +30,23 @@ export type AssistantCloudEvent = {
 const FLUSH_SIZE = 20;
 const MAX_BATCH_SIZE = 50;
 const FLUSH_DELAY_MS = 2_000;
+const RETRY_DELAYS_MS = [250, 1_000] as const;
+const pendingClearers = new WeakMap<AssistantCloudEvents, () => void>();
+
+export const clearPendingAssistantCloudEvents = (
+  events: AssistantCloudEvents,
+): void => {
+  pendingClearers.get(events)?.();
+};
 
 export class AssistantCloudEvents {
   private buffer: AssistantCloudEvent[] = [];
   private timer: ReturnType<typeof setTimeout> | undefined;
   private flushing: Promise<void> | undefined;
+  private retryTimer: ReturnType<typeof setTimeout> | undefined;
+  private resolveRetryDelay: (() => void) | undefined;
+  private bestEffortRequested = false;
+  private generation = 0;
 
   private readonly cloud: AssistantCloudAPI;
   private readonly isEnabled: () => boolean;
@@ -44,6 +56,7 @@ export class AssistantCloudEvents {
   constructor(cloud: AssistantCloudAPI, isEnabled: () => boolean) {
     this.cloud = cloud;
     this.isEnabled = isEnabled;
+    pendingClearers.set(this, () => this.clearPending());
   }
 
   public track(event: AssistantCloudEvent): void {
@@ -52,7 +65,7 @@ export class AssistantCloudEvents {
     this.listen();
     this.buffer.push(normalizeEvent(event));
     if (this.buffer.length >= FLUSH_SIZE) {
-      void this.flush();
+      void this.flush(true);
       return;
     }
 
@@ -68,55 +81,70 @@ export class AssistantCloudEvents {
       return;
     }
     this.listening = true;
-    window.addEventListener("pagehide", this.flush);
+    window.addEventListener("pagehide", this.flushBestEffort);
     document.addEventListener("visibilitychange", this.onVisibilityChange);
   }
 
   private unlisten(): void {
     if (!this.listening) return;
     this.listening = false;
-    window.removeEventListener("pagehide", this.flush);
+    window.removeEventListener("pagehide", this.flushBestEffort);
     document.removeEventListener("visibilitychange", this.onVisibilityChange);
   }
 
   public dispose(): void {
     this.unlisten();
     this.clearFlushTimer();
-    void this.flush();
+    void this.flushBestEffort();
+  }
+
+  private clearPending(): void {
+    this.generation++;
+    this.buffer = [];
+    this.clearFlushTimer();
+    this.interruptRetryDelay();
+    this.unlisten();
   }
 
   private onVisibilityChange = () => {
     if (document.visibilityState === "hidden") {
-      void this.flush();
+      void this.flushBestEffort();
     }
   };
 
-  private flush = async (): Promise<void> => {
+  private flushBestEffort = () => {
+    if (this.flushing) {
+      this.bestEffortRequested = true;
+      this.interruptRetryDelay();
+    }
+    return this.flush(false);
+  };
+
+  private flush = async (retryFailures: boolean): Promise<void> => {
     if (!this.isEnabled()) {
-      this.buffer = [];
-      this.clearFlushTimer();
-      this.unlisten();
+      this.clearPending();
       return;
     }
     if (this.flushing) return this.flushing;
 
     this.clearFlushTimer();
-    const task = this.flushPending();
+    const task = this.flushPending(retryFailures);
     this.flushing = task;
     void task.then(() => {
       if (this.flushing !== task) return;
       this.flushing = undefined;
+      this.bestEffortRequested = false;
       if (this.buffer.length === 0) {
         this.clearFlushTimer();
         this.unlisten();
       } else {
-        void this.flush();
+        void this.flush(true);
       }
     });
     return task;
   };
 
-  private async flushPending(): Promise<void> {
+  private async flushPending(retryFailures: boolean): Promise<void> {
     while (this.buffer.length > 0) {
       if (!this.isEnabled()) {
         this.buffer = [];
@@ -124,21 +152,54 @@ export class AssistantCloudEvents {
       }
 
       const events = this.buffer.splice(0, MAX_BATCH_SIZE);
-      try {
-        await this.cloud.makeRequest("/events", {
-          method: "POST",
-          body: { events },
-          keepalive: true,
-        });
-      } catch {}
+      const generation = this.generation;
+      for (let attempt = 0; ; attempt++) {
+        try {
+          await this.cloud.makeRequest("/events", {
+            method: "POST",
+            body: { events },
+            keepalive: true,
+          });
+          if (generation !== this.generation) return;
+          break;
+        } catch {
+          if (generation !== this.generation) return;
+          const delay =
+            retryFailures && !this.bestEffortRequested
+              ? RETRY_DELAYS_MS[attempt]
+              : undefined;
+          if (delay === undefined) break;
+          await this.waitForRetry(delay);
+          if (generation !== this.generation) return;
+          if (!this.isEnabled()) return this.clearPending();
+          if (this.bestEffortRequested) break;
+        }
+      }
     }
+  }
+
+  private waitForRetry(delay: number): Promise<void> {
+    return new Promise((resolve) => {
+      const finish = () => {
+        this.retryTimer = undefined;
+        this.resolveRetryDelay = undefined;
+        resolve();
+      };
+      this.resolveRetryDelay = finish;
+      this.retryTimer = setTimeout(finish, delay);
+    });
+  }
+
+  private interruptRetryDelay(): void {
+    if (this.retryTimer !== undefined) clearTimeout(this.retryTimer);
+    this.resolveRetryDelay?.();
   }
 
   private scheduleFlush() {
     if (this.timer !== undefined) return;
     this.timer = setTimeout(() => {
       this.timer = undefined;
-      void this.flush();
+      void this.flush(true);
     }, FLUSH_DELAY_MS);
   }
 
@@ -176,6 +237,7 @@ const normalizeProps = (
     entries.some(
       ([, value]) =>
         (typeof value === "string" && value.length > 256) ||
+        (typeof value === "number" && !Number.isFinite(value)) ||
         (typeof value !== "string" &&
           typeof value !== "number" &&
           typeof value !== "boolean"),

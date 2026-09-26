@@ -1,10 +1,20 @@
-import { describe, it, expect } from "vitest";
+/** @vitest-environment jsdom */
+import { describe, it, expect, vi } from "vitest";
+import { act } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { z } from "zod";
+import { parsePartialJsonObject } from "assistant-stream/utils";
 import { JSONGenerativeUI as ClientGenUI } from "./JSONGenerativeUI.client";
 import { JSONGenerativeUI as ServerGenUI } from "./JSONGenerativeUI.server";
 import { defineGenerativeComponents } from "./defineGenerativeComponents";
-import type { GenerativeUILibrary } from "./types";
+import { createActionRegistry, type ActionRegistry } from "./actionRegistry";
+import type { GenerativeUIDispatch, GenerativeUILibrary } from "./types";
+import { defaultGenerativeUILibrary } from "./vocabulary";
+
+(
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
 
 const library: GenerativeUILibrary = {
   Card: {
@@ -21,10 +31,43 @@ const library: GenerativeUILibrary = {
   },
 };
 
-const renderTool = (tool: any, args: unknown) =>
+const renderTool = (
+  tool: any,
+  args: unknown,
+  props: Record<string, unknown> = {},
+) =>
   renderToStaticMarkup(
-    <>{tool.render({ args, status: { type: "complete" } })}</>,
+    <>{tool.render({ args, status: { type: "complete" }, ...props })}</>,
   );
+
+const captureActionDispatch = (
+  toolType: "present" | "promptUser",
+  actions: ActionRegistry | undefined,
+  props: Record<string, unknown> = {},
+): GenerativeUIDispatch => {
+  let dispatch: GenerativeUIDispatch | undefined;
+  const ui = new ClientGenUI({
+    library: {
+      Action: {
+        description: "An action target.",
+        properties: z.object({}),
+        render: ({ $dispatch }: any) => {
+          dispatch = $dispatch;
+          return null;
+        },
+      },
+    },
+    ...(actions ? { actions } : {}),
+  });
+
+  renderTool(
+    toolType === "present" ? ui.present() : ui.promptUser(),
+    { $type: "Action", $action: { type: "answer" } },
+    props,
+  );
+  if (!dispatch) throw new Error("Expected an action dispatch.");
+  return dispatch;
+};
 
 describe("JSONGenerativeUI — client build", () => {
   const ui = new ClientGenUI({ library });
@@ -73,6 +116,293 @@ describe("JSONGenerativeUI — client build", () => {
     const html = renderTool(tool, { $type: "Button", label: "ok" });
     expect(html).toContain("<button>ok</button>");
   });
+
+  it.each(["running", "incomplete"])(
+    "holds prompt controls back for %s arguments",
+    (type) => {
+      expect(
+        renderTool(
+          ui.promptUser(),
+          { $type: "Button", label: "Answer" },
+          { status: { type } },
+        ),
+      ).toBe('<div data-aui="root"></div>');
+    },
+  );
+
+  it("holds back a pending prompt whose cancelled argument stream is partial", () => {
+    const args = parsePartialJsonObject('{"$type":"Button","label":"Ans');
+    expect(
+      renderTool(ui.promptUser(), args, {
+        status: { type: "requires-action", reason: "tool-calls" },
+      }),
+    ).toBe('<div data-aui="root"></div>');
+    expect(
+      renderTool(
+        ui.promptUser(),
+        parsePartialJsonObject('{"$type":"Button","label":"Answer"}'),
+        { status: { type: "requires-action", reason: "tool-calls" } },
+      ),
+    ).toContain("<button>Answer</button>");
+  });
+
+  it("records actions before dispatching them without waiting for recording", () => {
+    const recording = vi.fn(() => new Promise<void>(() => {}));
+    const handler = vi.fn(() => "accepted");
+    const dispatch = captureActionDispatch(
+      "present",
+      createActionRegistry({ answer: handler }),
+      { unstable_recordInteraction: recording },
+    );
+    const action = { type: "answer", $input: { choice: "yes" } };
+
+    expect(dispatch(action)).toBe("accepted");
+    expect(recording).toHaveBeenCalledWith({
+      type: "action",
+      payload: action,
+    });
+    expect(handler).toHaveBeenCalledWith({ payload: action });
+    expect(recording.mock.invocationCallOrder[0]).toBeLessThan(
+      handler.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it("keeps dispatch intact when action recording rejects", async () => {
+    const recording = vi.fn(() => Promise.reject(new Error("unavailable")));
+    const handler = vi.fn(() => "accepted");
+    const dispatch = captureActionDispatch(
+      "present",
+      createActionRegistry({ answer: handler }),
+      { unstable_recordInteraction: recording },
+    );
+    const action = { type: "answer" };
+
+    expect(dispatch(action)).toBe("accepted");
+    await Promise.resolve();
+    expect(handler).toHaveBeenCalledWith({ payload: action });
+  });
+
+  it("keeps dispatch intact when action recording is unavailable", () => {
+    const handler = vi.fn(() => "accepted");
+    const dispatch = captureActionDispatch(
+      "present",
+      createActionRegistry({ answer: handler }),
+    );
+    const action = { type: "answer" };
+
+    expect(dispatch(action)).toBe("accepted");
+    expect(handler).toHaveBeenCalledWith({ payload: action });
+  });
+
+  it("does not record actions when no registry is configured", () => {
+    const recording = vi.fn(() => Promise.resolve());
+    let dispatch: GenerativeUIDispatch | undefined;
+    const ui = new ClientGenUI({
+      library: {
+        Action: {
+          description: "An action target.",
+          properties: z.object({}),
+          render: ({ $dispatch }: any) => {
+            dispatch = $dispatch;
+            return null;
+          },
+        },
+      },
+    });
+
+    renderTool(
+      ui.present(),
+      { $type: "Action", $action: { type: "answer" } },
+      { unstable_recordInteraction: recording },
+    );
+
+    expect(dispatch).toBeUndefined();
+    expect(recording).not.toHaveBeenCalled();
+  });
+
+  it("completes prompt_user with a synchronous action result", async () => {
+    const addResult = vi.fn();
+    const dispatch = captureActionDispatch(
+      "promptUser",
+      createActionRegistry({ answer: () => ({ choice: "yes" }) }),
+      { addResult },
+    );
+
+    expect(dispatch({ type: "answer" })).toEqual({ choice: "yes" });
+    await Promise.resolve();
+    expect(addResult).toHaveBeenCalledWith({ choice: "yes" });
+  });
+
+  it("completes prompt_user with an asynchronous action result", async () => {
+    const addResult = vi.fn();
+    const response = Promise.resolve({ choice: "yes" });
+    const dispatch = captureActionDispatch(
+      "promptUser",
+      createActionRegistry({ answer: () => response }),
+      { addResult },
+    );
+
+    expect(dispatch({ type: "answer" })).toBe(response);
+    await response;
+    await Promise.resolve();
+    expect(addResult).toHaveBeenCalledWith({ choice: "yes" });
+  });
+
+  it("completes prompt_user once when delayed action results overlap", async () => {
+    const addResult = vi.fn();
+    let resolveFirst!: (response: { choice: string }) => void;
+    let resolveSecond!: (response: { choice: string }) => void;
+    const first = new Promise<{ choice: string }>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const second = new Promise<{ choice: string }>((resolve) => {
+      resolveSecond = resolve;
+    });
+    const responses = [first, second];
+    const dispatch = captureActionDispatch(
+      "promptUser",
+      createActionRegistry({ answer: () => responses.shift() }),
+      { addResult },
+    );
+
+    const firstAction = dispatch({ type: "answer", choice: "first" });
+    const secondAction = dispatch({ type: "answer", choice: "second" });
+    resolveFirst({ choice: "first" });
+    await firstAction;
+    await Promise.resolve();
+    resolveSecond({ choice: "second" });
+    await secondAction;
+    await Promise.resolve();
+
+    expect(addResult).toHaveBeenCalledTimes(1);
+    expect(addResult).toHaveBeenCalledWith({ choice: "first" });
+  });
+
+  it("does not complete prompt_user when the action result is undefined", async () => {
+    const addResult = vi.fn();
+    const dispatch = captureActionDispatch(
+      "promptUser",
+      createActionRegistry({ answer: () => undefined }),
+      { addResult },
+    );
+
+    expect(dispatch({ type: "answer" })).toBeUndefined();
+    await Promise.resolve();
+    expect(addResult).not.toHaveBeenCalled();
+  });
+
+  it("does not complete prompt_user when the action handler rejects", async () => {
+    const addResult = vi.fn();
+    const response = Promise.reject(new Error("rejected"));
+    const dispatch = captureActionDispatch(
+      "promptUser",
+      createActionRegistry({ answer: () => response }),
+      { addResult },
+    );
+
+    await expect(Promise.resolve(dispatch({ type: "answer" }))).rejects.toThrow(
+      "rejected",
+    );
+    await Promise.resolve();
+    expect(addResult).not.toHaveBeenCalled();
+  });
+
+  it("does not complete prompt_user when the tool call already has a result", async () => {
+    const addResult = vi.fn();
+    const dispatch = captureActionDispatch(
+      "promptUser",
+      createActionRegistry({ answer: () => ({ choice: "new" }) }),
+      { addResult, result: { choice: "existing" } },
+    );
+
+    dispatch({ type: "answer" });
+    await Promise.resolve();
+    expect(addResult).not.toHaveBeenCalled();
+  });
+
+  it("never completes present from an action result", async () => {
+    const addResult = vi.fn();
+    const dispatch = captureActionDispatch(
+      "present",
+      createActionRegistry({ answer: () => ({ choice: "yes" }) }),
+      { addResult },
+    );
+
+    dispatch({ type: "answer" });
+    await Promise.resolve();
+    expect(addResult).not.toHaveBeenCalled();
+  });
+
+  it.each(["complete", "requires-action"])(
+    "completes %s prompt_user form submissions with named field values",
+    async (type) => {
+      const addResult = vi.fn();
+      const handler = vi.fn(() => ({ submitted: true }));
+      const ui = new ClientGenUI({
+        library: defaultGenerativeUILibrary,
+        actions: createActionRegistry({ submit: handler }),
+      });
+      const container = document.createElement("div");
+      const root = createRoot(container);
+
+      try {
+        await act(async () => {
+          root.render(
+            (ui.promptUser() as any).render({
+              args: {
+                $type: "Form",
+                $action: { type: "submit" },
+                children: [
+                  { $type: "Input", name: "email" },
+                  { $type: "Checkbox", name: "updates", label: "Updates" },
+                ],
+              },
+              status: {
+                type,
+                ...(type === "requires-action" ? { reason: "tool-calls" } : {}),
+              },
+              toolCallId: "prompt-form",
+              toolName: "prompt_user",
+              argsText: "",
+              addResult,
+            }),
+          );
+        });
+
+        const form = container.querySelector("form");
+        const email = container.querySelector<HTMLInputElement>(
+          'input[name="email"]',
+        );
+        const updates = container.querySelector<HTMLInputElement>(
+          'input[name="updates"]',
+        );
+        if (!form || !email || !updates) {
+          throw new Error("Expected the prompt form fields to render.");
+        }
+
+        email.value = "ada@example.com";
+        updates.checked = true;
+        let submitted = true;
+        await act(async () => {
+          submitted = form.dispatchEvent(
+            new Event("submit", { bubbles: true, cancelable: true }),
+          );
+          await Promise.resolve();
+        });
+
+        expect(submitted).toBe(false);
+        expect(handler).toHaveBeenCalledWith({
+          payload: {
+            type: "submit",
+            $input: { email: "ada@example.com", updates: true },
+          },
+        });
+        expect(addResult).toHaveBeenCalledWith({ submitted: true });
+      } finally {
+        await act(async () => root.unmount());
+      }
+    },
+  );
 });
 
 describe("JSONGenerativeUI — server build", () => {

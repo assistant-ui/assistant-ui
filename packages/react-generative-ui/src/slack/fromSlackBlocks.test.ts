@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { UIElement } from "../ir";
-import { INBOUND_BLOCK_CAP, SELECT_OPTION_CAP } from "./constants";
+import {
+  CHECKBOX_OPTION_CAP,
+  INBOUND_BLOCK_CAP,
+  SELECT_OPTION_CAP,
+} from "./constants";
 import { fromSlackBlocks } from "./fromSlackBlocks";
 import { toSlackBlocks } from "./toSlackBlocks";
 import type { ToSlackBlocksOptions } from "./types";
@@ -319,6 +323,54 @@ describe("fromSlackBlocks", () => {
       ]);
     });
 
+    it("reads defaultValue from a matching static_select initial_option", () => {
+      const { nodes } = fromSlackBlocks([
+        {
+          type: "actions",
+          elements: [
+            {
+              type: "static_select",
+              action_id: "pick",
+              options: [
+                { text: { type: "plain_text", text: "Alpha" }, value: "a" },
+                { text: { type: "plain_text", text: "Beta" }, value: "b" },
+              ],
+              initial_option: {
+                text: { type: "plain_text", text: "Beta" },
+                value: "b",
+              },
+            },
+          ],
+        },
+      ]);
+      expect(nodes[0]).toMatchObject({
+        $type: "Select",
+        defaultValue: "b",
+      });
+    });
+
+    it("omits defaultValue when static_select initial_option is not an option", () => {
+      const { nodes } = fromSlackBlocks([
+        {
+          type: "actions",
+          elements: [
+            {
+              type: "static_select",
+              action_id: "pick",
+              options: [
+                { text: { type: "plain_text", text: "Alpha" }, value: "a" },
+              ],
+              initial_option: {
+                text: { type: "plain_text", text: "Missing" },
+                value: "missing",
+              },
+            },
+          ],
+        },
+      ]);
+      expect(nodes[0]).not.toHaveProperty("defaultValue");
+    });
+
     it("inverts a datepicker, reading value from initial_date and omitting it when absent", () => {
       const { nodes: withDate } = fromSlackBlocks([
         {
@@ -392,6 +444,68 @@ describe("fromSlackBlocks", () => {
         },
       ]);
       expect(unchecked[0]).not.toHaveProperty("defaultChecked");
+    });
+
+    it("inverts multi-option checkboxes into CheckboxGroup with matching initial options", () => {
+      const { nodes } = fromSlackBlocks([
+        {
+          type: "actions",
+          elements: [
+            {
+              type: "checkboxes",
+              action_id: "sizes",
+              value: '{"source":"picker"}',
+              options: [
+                { text: { type: "plain_text", text: "Small" }, value: "s" },
+                { text: { type: "plain_text", text: "Large" }, value: "l" },
+              ],
+              initial_options: [
+                { text: { type: "plain_text", text: "Large" }, value: "l" },
+                {
+                  text: { type: "plain_text", text: "Missing" },
+                  value: "missing",
+                },
+              ],
+            },
+          ],
+        },
+      ]);
+      expect(nodes).toEqual([
+        {
+          $type: "CheckboxGroup",
+          options: [
+            { label: "Small", value: "s" },
+            { label: "Large", value: "l" },
+          ],
+          defaultValue: ["l"],
+          $action: { type: "sizes", source: "picker" },
+        },
+      ]);
+    });
+
+    it("drops malformed CheckboxGroup options", () => {
+      const { nodes } = fromSlackBlocks([
+        {
+          type: "actions",
+          elements: [
+            {
+              type: "checkboxes",
+              action_id: "sizes",
+              options: [
+                { text: { type: "plain_text", text: "Small" }, value: "s" },
+                { text: { type: "plain_text", text: "Missing value" } },
+              ],
+            },
+          ],
+        },
+      ]);
+      expect(nodes).toEqual([
+        {
+          $type: "CheckboxGroup",
+          options: [{ label: "Small", value: "s" }],
+          $action: { type: "sizes" },
+        },
+      ]);
     });
 
     it("inverts radio_buttons, reading defaultValue from initial_option and omitting it when absent", () => {
@@ -502,6 +616,33 @@ describe("fromSlackBlocks", () => {
         },
       ]);
       expect(nodes[0]).not.toHaveProperty("multiline");
+    });
+
+    it("reads defaultValue from a string initial_value, including empty text", () => {
+      const withText = fromSlackBlocks([
+        {
+          type: "input",
+          label: { type: "plain_text", text: "Notes" },
+          element: {
+            type: "plain_text_input",
+            action_id: "notes",
+            initial_value: "Draft reply",
+          },
+        },
+      ]);
+      const withEmptyText = fromSlackBlocks([
+        {
+          type: "input",
+          label: { type: "plain_text", text: "Notes" },
+          element: {
+            type: "plain_text_input",
+            action_id: "notes",
+            initial_value: "",
+          },
+        },
+      ]);
+      expect(withText.nodes[0]).toMatchObject({ defaultValue: "Draft reply" });
+      expect(withEmptyText.nodes[0]).toMatchObject({ defaultValue: "" });
     });
 
     it("drops an input block wrapping an unrecognized element", () => {
@@ -765,6 +906,27 @@ describe("fromSlackBlocks", () => {
   });
 
   describe("round trip", () => {
+    it("keeps Input and Select defaultValue props", () => {
+      const tree = [
+        {
+          $type: "Input",
+          label: "Notes",
+          defaultValue: "Draft reply",
+          $action: { type: "notes" },
+        },
+        {
+          $type: "Select",
+          options: [
+            { label: "Alpha", value: "a" },
+            { label: "Beta", value: "b" },
+          ],
+          defaultValue: "b",
+          $action: { type: "pick" },
+        },
+      ];
+      expect(fromSlackBlocks(toSlackBlocks(tree).blocks).nodes).toEqual(tree);
+    });
+
     const fixtures: readonly {
       readonly name: string;
       readonly tree: unknown;
@@ -895,6 +1057,29 @@ describe("fromSlackBlocks", () => {
             ],
             defaultValue: "l",
             $action: { type: "size" },
+          },
+        ],
+      },
+      {
+        name: "CheckboxGroup with defaultValue",
+        tree: {
+          $type: "CheckboxGroup",
+          options: [
+            { label: "Small", value: "s" },
+            { label: "Large", value: "l" },
+          ],
+          defaultValue: ["s", "l"],
+          $action: { type: "sizes" },
+        },
+        expected: [
+          {
+            $type: "CheckboxGroup",
+            options: [
+              { label: "Small", value: "s" },
+              { label: "Large", value: "l" },
+            ],
+            defaultValue: ["s", "l"],
+            $action: { type: "sizes" },
           },
         ],
       },
@@ -1063,7 +1248,7 @@ describe("fromSlackBlocks", () => {
 });
 
 describe("fromSlackBlocks checkbox and radio caps", () => {
-  it("marks defaultChecked only when the first option is initially selected", () => {
+  it("marks defaultChecked only when its single option is initially selected", () => {
     const base = {
       type: "actions",
       elements: [
@@ -1072,7 +1257,6 @@ describe("fromSlackBlocks checkbox and radio caps", () => {
           action_id: "toggle",
           options: [
             { text: { type: "plain_text", text: "First" }, value: "first" },
-            { text: { type: "plain_text", text: "Second" }, value: "second" },
           ],
           initial_options: [
             { text: { type: "plain_text", text: "Second" }, value: "second" },
@@ -1116,6 +1300,41 @@ describe("fromSlackBlocks checkbox and radio caps", () => {
       warnings.some(
         (warning) =>
           warning.component === "RadioGroup" && warning.code === "clamped",
+      ),
+    ).toBe(true);
+  });
+
+  it("clamps inbound CheckboxGroup options to the checkbox cap", () => {
+    const { nodes, warnings } = fromSlackBlocks([
+      {
+        type: "actions",
+        elements: [
+          {
+            type: "checkboxes",
+            action_id: "sizes",
+            options: Array.from(
+              { length: CHECKBOX_OPTION_CAP + 3 },
+              (_, i) => ({
+                text: { type: "plain_text", text: `O${i}` },
+                value: `v${i}`,
+              }),
+            ),
+          },
+        ],
+      },
+    ]);
+    const checkboxGroup = nodes[0];
+    if (
+      checkboxGroup?.$type !== "CheckboxGroup" ||
+      !Array.isArray(checkboxGroup.options)
+    ) {
+      throw new Error("Expected a CheckboxGroup with options.");
+    }
+    expect(checkboxGroup.options).toHaveLength(CHECKBOX_OPTION_CAP);
+    expect(
+      warnings.some(
+        (warning) =>
+          warning.component === "CheckboxGroup" && warning.code === "clamped",
       ),
     ).toBe(true);
   });

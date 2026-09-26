@@ -1,6 +1,9 @@
 import { useCallback } from "react";
 import { useAui, useAuiState } from "@assistant-ui/store";
-import { suggestionTriggerDisabled } from "../../store/primitive-predicates";
+import {
+  suggestionSendMode,
+  suggestionTriggerDisabled,
+} from "../../store/primitive-predicates";
 
 export type UseSuggestionTriggerOptions = {
   prompt: string;
@@ -21,15 +24,15 @@ export const useSuggestionTrigger = ({
 
   const trigger = useCallback(() => {
     if (resolvedSend) {
-      const { isRunning, capabilities } = aui.thread.getState();
-      if (isRunning && !capabilities.queue) return;
+      const mode = suggestionSendMode(aui.thread.getState());
+      if (mode === "blocked") return;
 
       aui.thread.append({
         content: [{ type: "text", text: prompt }],
         runConfig: aui.composer.getState().runConfig,
       });
       // A queued send must not clear the draft the user is still composing.
-      if (clearComposer && !isRunning) {
+      if (clearComposer && mode === "now") {
         aui.composer.setText("");
       }
     } else {

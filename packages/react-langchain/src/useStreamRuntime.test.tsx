@@ -1015,6 +1015,8 @@ describe("useStreamRuntime subagent transcripts", () => {
           status: "running",
           parentId: null,
           depth: 1,
+          startedAt: new Date(1_000),
+          completedAt: null,
         },
       ],
     ]);
@@ -1070,6 +1072,106 @@ describe("useStreamRuntime subagent transcripts", () => {
     expect(nestedTranscript()).toBe(rendered);
   });
 
+  it("keeps messages and transcripts across equal copies of the UI state", async () => {
+    const stream = createMockStream([
+      message("human-1", "human", "delegate"),
+      {
+        id: "root-ai",
+        _getType: () => "ai",
+        content: "",
+        tool_calls: [{ id: "task-one", name: "task", args: {} }],
+      },
+    ]);
+    const transcript = [message("nested-ai", "ai", "nested answer")];
+    stream.subagents = new Map([
+      [
+        "task-one",
+        {
+          id: "task-one",
+          namespace: ["tools:task-one"],
+          status: "running",
+          parentId: null,
+          depth: 1,
+          startedAt: new Date(1_000),
+          completedAt: null,
+        },
+      ],
+    ]);
+    stream[streamController]!.registry.acquire.mockReturnValue({
+      store: { getSnapshot: () => transcript, subscribe: () => () => {} },
+      release: vi.fn(),
+    });
+    const uiState = (points: number[]) => [
+      {
+        type: "ui",
+        id: "ui-root",
+        name: "chart",
+        props: { points },
+        metadata: { message_id: "root-ai" },
+      },
+      {
+        type: "ui",
+        id: "ui-nested",
+        name: "chart",
+        props: { points },
+        metadata: { message_id: "nested-ai" },
+      },
+    ];
+    stream.values = { ui: uiState([1, 2]) };
+    const { auiResult, rerender } = renderAui(stream);
+    const nestedTranscript = () => {
+      const { messages } = auiResult.current.thread.getState();
+      for (const threadMessage of messages) {
+        for (const part of threadMessage.content) {
+          if (part.type === "tool-call" && part.toolCallId === "task-one")
+            return part.messages;
+        }
+      }
+      return undefined;
+    };
+
+    await waitFor(() =>
+      expect(nestedTranscript()?.[0]?.content).toMatchObject([
+        { type: "text", text: "nested answer" },
+        { type: "data", name: "chart", data: { points: [1, 2] } },
+      ]),
+    );
+    const [human, ai] = auiResult.current.thread.getState().messages;
+    expect(ai?.content).toMatchObject([
+      { type: "tool-call", toolCallId: "task-one" },
+      { type: "data", name: "chart", data: { points: [1, 2] } },
+    ]);
+    const rendered = nestedTranscript();
+
+    for (let i = 0; i < 3; i++) {
+      stream.values = { ui: uiState([1, 2]) };
+      await act(async () => {
+        rerender();
+      });
+    }
+
+    const messages = auiResult.current.thread.getState().messages;
+    expect(messages[0]).toBe(human);
+    expect(messages[1]).toBe(ai);
+    expect(nestedTranscript()).toBe(rendered);
+
+    stream.values = { ui: uiState([1, 2, 3]) };
+    await act(async () => {
+      rerender();
+    });
+
+    expect(
+      auiResult.current.thread.getState().messages[1]?.content,
+    ).toMatchObject([
+      { type: "tool-call", toolCallId: "task-one" },
+      { type: "data", name: "chart", data: { points: [1, 2, 3] } },
+    ]);
+    expect(nestedTranscript()?.[0]?.content).toMatchObject([
+      { type: "text", text: "nested answer" },
+      { type: "data", name: "chart", data: { points: [1, 2, 3] } },
+    ]);
+  });
+
   it("keeps messages and transcripts when custom events carry no UI update", async () => {
     const stream = createMockStream([
       message("human-1", "human", "delegate"),
@@ -1090,6 +1192,8 @@ describe("useStreamRuntime subagent transcripts", () => {
           status: "running",
           parentId: null,
           depth: 1,
+          startedAt: new Date(1_000),
+          completedAt: null,
         },
       ],
     ]);

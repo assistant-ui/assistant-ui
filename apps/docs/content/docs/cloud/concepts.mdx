@@ -32,7 +32,7 @@ An id is 1 to 255 characters with no whitespace or control characters. The user 
 
 A **thread** is one conversation: a title, `last_message_at`, an archived flag, an `external_id` you may set, up to 16 short metadata strings, and counters the cloud keeps (its run count and whether a user ever copied, stopped, regenerated or edited in it). Threads are listed per workspace, newest activity first.
 
-A **message** is a node in the thread's tree. `parent_id` names the message it follows, so an edit or a regeneration starts a new branch under the same parent, and the cloud computes each message's `height` from its parent. `format` names the shape of `content`: `aui/v0` is what the local runtime stores, `ai-sdk/v6` what the AI SDK runtime stores, and a read may ask for a conversion between them. Stored through the REST API, a message may also carry an `external_id` of yours, which makes storing it idempotent; the client methods do not send one. [Threads](/docs/cloud/threads) and [Messages](/docs/cloud/messages) go through both objects field by field.
+A **message** is a node in the thread's tree. `parent_id` names the message it follows, so an edit or a regeneration starts a new branch under the same parent, and the cloud computes each message's `height` from its parent. `format` names the shape of `content`: `aui/v0` is what the local runtime stores, `ai-sdk/v6` what the AI SDK runtime stores, and a read may ask for a conversion between them. A message may also carry an `external_id` of yours, which makes storing it idempotent; `cloud.threads.messages.create` accepts one, and runtimes whose backend keeps the transcript use their backend's message ids for it. [Threads](/docs/cloud/threads) and [Messages](/docs/cloud/messages) go through both objects field by field.
 
 ## Runs and spans
 
@@ -64,4 +64,4 @@ What the AI SDK runtime sends for the first turn of a new conversation, in order
 | The run is reported | `POST /v1/runs` | Stores the run and rolls up the day's figures |
 | The user acts | `POST /v1/events` in batches | Stores the events and the day's rollup |
 
-The local runtime follows the same sequence with `aui/v0` messages. LangGraph, LangChain and ADK skip the two message requests and the run report, because their backend keeps the transcript. A server with an API key makes the same calls itself, minus the token routes. [Which runtime](/docs/cloud/runtimes) lists what each integration stores and reports.
+The local runtime follows the same sequence with `aui/v0` messages. When `cloud` is passed, LangGraph, LangChain and ADK copy their settled messages after a run; their backend remains the transcript source and they do not send browser run reports. `telemetry: { messages: false }` keeps those copies out. A server with an API key makes the same calls itself, minus the token routes. [Which runtime](/docs/cloud/runtimes) lists what each integration stores and reports.

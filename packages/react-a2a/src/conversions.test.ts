@@ -3,6 +3,7 @@ import {
   a2aPartToContent,
   a2aPartsToContent,
   a2aMessageToContent,
+  isA2uiDataPart,
   taskStateToMessageStatus,
   contentPartsToA2AParts,
   isTerminalTaskState,
@@ -154,6 +155,82 @@ describe("a2aPartToContent", () => {
   it("returns empty text for empty part", () => {
     const part: A2APart = {};
     expect(a2aPartToContent(part)).toEqual({ type: "text", text: "" });
+  });
+});
+
+describe("A2UI data parts", () => {
+  it.each([
+    [
+      "media type",
+      {
+        mediaType: "application/vnd.A2UI+json",
+        data: { value: "from media type" },
+      },
+    ],
+    [
+      "metadata",
+      {
+        metadata: { mimeType: "application/a2ui+json" },
+        data: { value: "from metadata" },
+      },
+    ],
+    [
+      "metadata media type",
+      {
+        metadata: { mediaType: "application/a2ui+json" },
+        data: { value: "from metadata media type" },
+      },
+    ],
+    [
+      "operation shape",
+      {
+        data: {
+          version: "v0.9",
+          createSurface: { surfaceId: "surface" },
+        },
+      },
+    ],
+    [
+      "operation array",
+      {
+        data: [
+          {
+            version: "v0.9",
+            createSurface: { surfaceId: "surface" },
+          },
+          {
+            version: "v0.9",
+            deleteSurface: { surfaceId: "surface" },
+          },
+        ],
+      },
+    ],
+  ] as const)("detects A2UI by %s", (_source, part) => {
+    expect(isA2uiDataPart(part)).toBe(true);
+    expect(a2aPartsToContent([part])).toEqual([]);
+  });
+
+  it("does not detect an operation array containing a non-operation", () => {
+    const part = {
+      data: [
+        {
+          version: "v0.9",
+          createSurface: { surfaceId: "surface" },
+        },
+        { value: "not an operation" },
+      ],
+    };
+
+    expect(isA2uiDataPart(part)).toBe(false);
+  });
+
+  it("keeps ordinary data parts as JSON text", () => {
+    expect(a2aPartsToContent([{ data: { value: "plain" } }])).toEqual([
+      {
+        type: "text",
+        text: '{\n  "value": "plain"\n}',
+      },
+    ]);
   });
 });
 
@@ -689,5 +766,44 @@ describe("threadMessageToA2AMessage", () => {
     expect(result.parts).toEqual([]);
     expect(result.contextId).toBeUndefined();
     expect(result.taskId).toBeUndefined();
+  });
+
+  it("keeps tool interactions out of outbound messages", () => {
+    const result = threadMessageToA2AMessage({
+      ...userMessage,
+      role: "user",
+      attachments: [],
+      content: [
+        { type: "text", text: "hello" },
+        {
+          type: "file",
+          data: "ZmlsZQ==",
+          mimeType: "text/plain",
+          filename: "file.txt",
+        },
+        {
+          type: "tool-call",
+          toolCallId: "tool-1",
+          toolName: "present",
+          args: {},
+          argsText: "{}",
+          result: {},
+          unstable_interactions: {
+            entries: [
+              {
+                type: "action",
+                occurredAt: 1_700_000_000_000,
+                payload: { value: "selected" },
+              },
+            ],
+          },
+        },
+      ],
+    } as any);
+
+    expect(result.parts).toEqual([
+      { text: "hello" },
+      { raw: "ZmlsZQ==", mediaType: "text/plain", filename: "file.txt" },
+    ]);
   });
 });

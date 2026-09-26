@@ -9,7 +9,7 @@ Assistant Cloud stores a format name with every message. The format preserves th
 
 | Format | Writer | Stored shape |
 |---|---|---|
-| `aui/v0` | The assistant-ui cloud history adapter. | An assistant-ui thread message with `content`, attachments, status, and metadata. |
+| `aui/v0` | The assistant-ui cloud history adapter and external-store runtime copies. | An assistant-ui thread message with `content`, attachments, status, and metadata. |
 | `ai-sdk/v6` | The `aiSDKV6FormatAdapter`. | An AI SDK UI message without its message `id`. |
 | `ai-sdk/v5` | Older AI SDK message writers. | The older AI SDK message row, retained as a readable format. |
 
@@ -33,13 +33,13 @@ Assistant Cloud stores a format name with every message. The format preserves th
 
 | Type | Fields |
 |---|---|
-| `text` | `text`, optional `parentId`. |
+| `text` | `text`, optional `providerMetadata` and `parentId`. |
 | `reasoning` | `text`, optional `unstable_summary`, `providerMetadata`, and `parentId`. |
 | `source` with `sourceType: "url"` | `id`, `url`, optional `title`, `providerMetadata`, and `parentId`. |
 | `source` with `sourceType: "document"` | `id`, `title`, `mediaType`, optional `filename`, `providerMetadata`, and `parentId`. |
-| `tool-call` | `toolCallId`, `toolName`, one of `args` or `argsText`, and optional `result`, `isError`, `interrupt`, `timing`, `mcp`, `approval`, `parentId`, and nested `messages`. |
-| `image` | `image`. |
-| `file` | `data`, `mimeType`, optional `filename`, `sourceType`, and `parentId`. |
+| `tool-call` | `toolCallId`, `toolName`, one of `args` or `argsText`, and optional `result`, `artifact`, `modelContent`, `providerMetadata`, `isPreliminary`, `isError`, `interrupt`, `timing`, `mcp`, `approval`, `parentId`, nested `messages`, and `unstable_interactions`. |
+| `image` | `image`, optional `filename` and `providerMetadata`. |
+| `file` | `data`, `mimeType`, optional `filename`, `sourceType`, `providerMetadata`, and `parentId`. |
 | `data` | `name`, `data`. |
 | `audio` | `audio: { data, format }`, where format is `mp3` or `wav`. |
 | `generative-ui` | `spec`, optional `id` and `parentId`. |
@@ -49,9 +49,9 @@ Assistant Cloud stores a format name with every message. The format preserves th
 | Item | Fields |
 |---|---|
 | Attachment wrapper | `id`, `type`, `name`, optional `contentType`, `status`, and `content`. |
-| Attachment `text` | `text`, optional `parentId`. |
-| Attachment `image` | `image`, optional `filename`. |
-| Attachment `file` | `data`, `mimeType`, optional `filename`, `sourceType`, and `parentId`. |
+| Attachment `text` | `text`, optional `providerMetadata` and `parentId`. |
+| Attachment `image` | `image`, optional `filename` and `providerMetadata`. |
+| Attachment `file` | `data`, `mimeType`, optional `filename`, `sourceType`, `providerMetadata`, and `parentId`. |
 | Attachment `audio` | `audio: { data, format }`, where format is `mp3` or `wav`. |
 | Attachment `data` | `name`, `data`. |
 | `metadata.unstable_state` | Optional JSON value. |
@@ -64,19 +64,23 @@ Assistant Cloud stores a format name with every message. The format preserves th
 
 The encoder drops the top level `id` and `createdAt`, because the server supplies those values. It rewrites a `running` status as `{ type: "incomplete", reason: "cancelled" }`.
 
-Attachments are stored only on a `user` message and only when that message has attachments. A tool call stores `args` when `JSON.stringify(args)` equals `argsText`; otherwise it stores `argsText`. A non JSON tool result or data value is still written after a warning. Nested tool messages keep their own ID and ISO `createdAt`.
+Attachments are stored only on a `user` message and only when that message has attachments. A tool call stores `args` when `JSON.stringify(args)` equals `argsText`; otherwise it stores `argsText`. A tool result that cannot serialize as JSON is omitted, and one that loses data is stored as its JSON form. A non JSON `artifact` is dropped. A non JSON data value is written after a warning. Nested tool messages keep their own ID and ISO `createdAt`.
+
+Runtimes that keep their transcript in their own backend, including LangGraph, LangChain, ADK, and custom external stores, copy eligible messages as `aui/v0`. Each copy has `parent_id: null`, uses the runtime message ID as `external_id`, and uses the preceding copied message ID as `parent_external_id`. Empty IDs and IDs longer than 255 characters are skipped.
+
+AG-UI stores the final agent state in `metadata.unstable_state` and activity in data parts named `agui-activity/<type>`. AG-UI and A2A store A2UI surfaces as `present` tool calls whose `artifact.a2ui` carries the operations. A2A stores task artifacts in `metadata.custom.a2a.artifacts` without inline file bytes.
 
 An unsupported message part throws `Message part type not supported by aui/v0: <type>`. An unsupported attachment part throws `Attachment part type not supported by aui/v0: <type>`.
 
 ### Decode a message
 
-The decoder injects the server message ID and `created_at`, and exposes the stored `parent_id` as `parentId`. A nested tool message without an ID receives one synthesized from the containing message ID, tool call ID, and its indexes. A message with no status decodes as `{ type: "complete", reason: "unknown" }`.
+The decoder injects the server message ID and `created_at`, and exposes the stored `parent_id` as `parentId`. The history adapter decodes leniently. It drops unreadable parts and nested messages, then skips unreadable or orphaned rows. A nested tool message without an ID receives one synthesized from the containing message ID, tool call ID, and its indexes. A message with no status decodes as `{ type: "complete", reason: "unknown" }`.
 
 ## The `ai-sdk/v6` shape
 
 `ai-sdk/v6` stores a UI message without its `id`. On read, the adapter adds the server message ID and the server parent ID as `parentId`.
 
-Its telemetry reader examines assistant messages only. It opens a step for each `step-start` part, concatenates text parts into output text, and reads a tool's arguments from `input` or `args` and its result from `output` or `result`. A `tool-<name>` part is a frontend tool, while a `dynamic-tool` part with `toolName` is an MCP tool. Tool calls mark their step as `tool-calls`, and sampling calls are attached by tool call ID from `metadata.samplingCalls`.
+Its telemetry reader examines assistant messages only. It opens a step for each `step-start` part, concatenates text parts into output text, and reads a tool's arguments from `input` or `args` and its result from `output` or `result`. A `tool-<name>` part is a frontend tool, while a `dynamic-tool` part with `toolName` is an MCP tool. Tool calls mark their step as `tool-calls`, and sampling calls are attached by tool call ID from `metadata.samplingCalls`. Tool artifacts, interactions, and approval responses use `metadata.__aui_toolArtifacts`, `metadata.__aui_toolInteractions`, and `metadata.__aui_toolApprovalResponses`.
 
 Usage comes from `metadata.usage`, or from the sum of `metadata.steps[].usage` when that is absent. The reader sums usage across assistant messages and reads the model ID from message metadata. It reports `completed` when any text or tool call exists, and `incomplete` otherwise.
 
@@ -84,7 +88,9 @@ Usage comes from `metadata.usage`, or from the sum of `metadata.steps[].usage` w
 
 `ai-sdk/v5` is the older AI SDK row with `role` and `parts`. It remains readable and can be converted to `ai-sdk/v6`. Its tool parts carry `toolCallId`, `toolName`, `state`, `input`, optional `output`, and optional `errorText`.
 
-When converted from `aui/v0`, a tool call has `output-available` whenever `result` is present, `output-error` when `isError` is true, and `input-available` otherwise. Any `result` other than `undefined` counts as present, including `false`, `0`, an empty string and `null`. During a v5 to v6 conversion, `output-error` becomes an error result and tries to parse `errorText` as JSON.
+When converted from `aui/v0`, a tool call has `output-error` when `isError` is true, `output-available` when `result` is present, and `input-available` otherwise. `isError` wins when both are present. Any `result` other than `undefined` counts as present, including `false`, `0`, an empty string and `null`. During a v5 to v6 conversion, `output-error` becomes an error result and tries to parse `errorText` as JSON.
+
+During a server conversion from `aui/v0`, tool `artifact` and `unstable_interactions` move to the corresponding `__aui_toolArtifacts` and `__aui_toolInteractions` metadata keys. A v6 row spreads `metadata.custom` into its metadata. Generative UI becomes a `data-generative-ui` part, images and audio become `file` parts, and unknown parts become `data-<type>` parts.
 
 ## Read a compatible format
 

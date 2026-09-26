@@ -9,7 +9,7 @@ A shared conversation is somebody else's finished thread, handed to you to read:
 
 <RuntimeMode>
 
-`ReadonlyThreadProvider` wraps children in a thread whose mutations all throw: sending, canceling, editing, branching. The normal thread primitives render it exactly like any other thread, just inert.
+`ReadonlyThreadProvider` wraps children in a read-only thread. It reports itself disabled, so a composer inside renders disabled; thread mutations are ignored, and composer text, sending, adding attachments, and setting a quote have no effect. The normal thread primitives render it exactly like any other thread.
 
 <Steps>
   <Step>
@@ -35,7 +35,7 @@ export function SharedThread({ messages }: { messages: readonly ThreadMessage[] 
 }
 ```
 
-Every capability on this thread, `edit`, `delete`, `reload`, `cancel`, and the rest, reports `false`, so composer input, regenerate, and branch controls that check `s.thread.capabilities` disable themselves without any extra work on your part.
+Every capability on this thread, `edit`, `delete`, `reload`, `cancel`, `answerToolCall`, and the rest, reports `false`, so composer input, regenerate, and branch controls that check `s.thread.capabilities` disable themselves and the tool fallback drops its approval controls while keeping the prompt, with no extra work on your part.
 
   </Step>
   <Step>
@@ -160,7 +160,7 @@ Passing an empty `turns` array renders the header and footer with nothing betwee
 
 | Part | Renders | Notes |
 |------|---------|-------|
-| `ReadonlyThreadProvider` | children | Wraps `children` in a thread scope built from `messages`. Every mutation on it throws. |
+| `ReadonlyThreadProvider` | children | Wraps `children` in a disabled thread scope built from `messages`. Thread mutations and composer text, send, addAttachment, and setQuote calls have no effect. |
 | `ThreadPrimitive.Viewport` / `.Messages` | `div` / children | Render the same as on any other thread. |
 
 ### Thread state and capabilities
@@ -169,7 +169,7 @@ Passing an empty `turns` array renders the header and footer with nothing betwee
 |----------|------|-------------|
 | `s.thread.messages` | `readonly MessageState[]` | The `messages` prop, as rendered messages. |
 | `s.thread.isEmpty` | `boolean` | `true` when `messages` is empty. |
-| `s.thread.capabilities` | `RuntimeCapabilities` | Every flag (`edit`, `delete`, `reload`, `cancel`, `attachments`, and the rest) is `false`. |
+| `s.thread.capabilities` | `RuntimeCapabilities` | Every flag (`edit`, `delete`, `reload`, `cancel`, `attachments`, `answerToolCall`, and the rest) is `false`. |
 
 </RuntimeMode>
 

@@ -9,6 +9,7 @@ const h = vi.hoisted(() => ({
   addToolResult: vi.fn(),
   resumeToolCall: vi.fn(),
   respondToToolApproval: vi.fn(),
+  unstable_recordInteraction: vi.fn(),
   state: {
     message: {
       content: [] as AnyPart[],
@@ -17,7 +18,10 @@ const h = vi.hoisted(() => ({
       },
     },
     tools: { toolUIs: {} as Record<string, unknown> },
-    dataRenderers: { renderers: {} as Record<string, unknown> },
+    dataRenderers: {
+      renderers: {} as Record<string, unknown>,
+      fallbacks: [] as unknown[],
+    },
   },
 }));
 
@@ -28,6 +32,8 @@ vi.mock("@assistant-ui/store", () => {
       resumeToolCall: (...args: unknown[]) => h.resumeToolCall(index, ...args),
       respondToToolApproval: (...args: unknown[]) =>
         h.respondToToolApproval(index, ...args),
+      unstable_recordInteraction: (...args: unknown[]) =>
+        h.unstable_recordInteraction(index, ...args),
     }),
   });
   const aui = { message };
@@ -47,9 +53,11 @@ describe("MessageContent", () => {
     h.addToolResult.mockReset();
     h.resumeToolCall.mockReset();
     h.respondToToolApproval.mockReset();
+    h.unstable_recordInteraction.mockReset();
     h.state.message.content = [];
     h.state.tools.toolUIs = {};
     h.state.dataRenderers.renderers = {};
+    h.state.dataRenderers.fallbacks = [];
 
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -152,6 +160,10 @@ describe("MessageContent", () => {
         (props.addResult as () => void)();
         (props.resume as () => void)();
         (props.respondToApproval as () => void)();
+        (props.unstable_recordInteraction as (input: unknown) => void)({
+          type: "action",
+          payload: { choice: "retry" },
+        });
         return <span data-testid="tool">tool:{String(props.toolName)}</span>;
       });
       h.state.tools.toolUIs = { search: [{ render: ToolRender }] };
@@ -163,6 +175,10 @@ describe("MessageContent", () => {
       expect(h.addToolResult).toHaveBeenCalledWith(0);
       expect(h.resumeToolCall).toHaveBeenCalledWith(0);
       expect(h.respondToToolApproval).toHaveBeenCalledWith(0);
+      expect(h.unstable_recordInteraction).toHaveBeenCalledWith(0, {
+        type: "action",
+        payload: { choice: "retry" },
+      });
     });
 
     it("picks the first registration when multiple are registered", async () => {
@@ -218,7 +234,7 @@ describe("MessageContent", () => {
       const DataRender = vi.fn((props: Record<string, unknown>) => (
         <span data-testid="data">data:{String(props.name)}</span>
       ));
-      h.state.dataRenderers.renderers = { chart: DataRender };
+      h.state.dataRenderers.renderers = { chart: [DataRender] };
 
       await mount();
 
@@ -251,6 +267,51 @@ describe("MessageContent", () => {
       expect(el?.textContent).toBe("fallback:chart:0");
     });
 
+    it("uses dataRenderers.fallbacks[0] before renderData when no named renderer matches", async () => {
+      h.state.message.content = [{ type: "data", name: "chart", data: {} }];
+      const DataFallback = vi.fn((props: Record<string, unknown>) => (
+        <span data-testid="gfallback">global:{String(props.name)}</span>
+      ));
+      h.state.dataRenderers.fallbacks = [DataFallback];
+      const renderData = vi.fn(({ part, index }): ReactElement => (
+        <span data-testid="dfallback">
+          fallback:{String(part.name)}:{index}
+        </span>
+      ));
+      await mount({ renderData });
+
+      expect(
+        container.querySelector('[data-testid="gfallback"]')?.textContent,
+      ).toBe("global:chart");
+      expect(DataFallback.mock.calls[0]?.[0]).toEqual({
+        type: "data",
+        name: "chart",
+        data: {},
+      });
+      expect(renderData).not.toHaveBeenCalled();
+    });
+
+    it("prefers a named data renderer over dataRenderers.fallbacks", async () => {
+      h.state.message.content = [{ type: "data", name: "chart", data: {} }];
+      const DataRender = vi.fn((props: Record<string, unknown>) => (
+        <span data-testid="data">data:{String(props.name)}</span>
+      ));
+      const DataFallback = vi.fn(() => (
+        <span data-testid="gfallback">global-fallback</span>
+      ));
+      h.state.dataRenderers.renderers = { chart: [DataRender] };
+      h.state.dataRenderers.fallbacks = [DataFallback];
+      await mount({
+        renderData: () => <span data-testid="dfallback">render prop</span>,
+      });
+
+      expect(container.querySelector('[data-testid="data"]')?.textContent).toBe(
+        "data:chart",
+      );
+      expect(DataFallback).not.toHaveBeenCalled();
+      expect(container.querySelector('[data-testid="dfallback"]')).toBeNull();
+    });
+
     it("renders null when no data renderer is registered and no fallback is given", async () => {
       h.state.message.content = [{ type: "data", name: "chart", data: {} }];
       await mount();
@@ -268,7 +329,7 @@ describe("MessageContent", () => {
       t: [{ render: () => <span>[tool]</span> }],
     };
     h.state.dataRenderers.renderers = {
-      d: () => <span>[data]</span>,
+      d: [() => <span>[data]</span>],
     };
     await mount();
 

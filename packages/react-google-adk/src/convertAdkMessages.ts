@@ -27,14 +27,25 @@ const contentToParts = (
 ): ContentPart[] => {
   if (typeof content === "string")
     return [{ type: "text" as const, text: content }];
+  if (!Array.isArray(content)) return [];
 
-  return (content as AdkMessageContentPart[])
+  return content
+    .filter(
+      (part): part is AdkMessageContentPart =>
+        typeof part === "object" && part !== null,
+    )
     .map((part): ContentPart | null => {
       switch (part.type) {
         case "text":
-          return { type: "text", text: part.text };
+          return {
+            type: "text",
+            text: typeof part.text === "string" ? part.text : "",
+          };
         case "reasoning":
-          return { type: "reasoning", text: part.text };
+          return {
+            type: "reasoning",
+            text: typeof part.text === "string" ? part.text : "",
+          };
         case "image":
           return {
             type: "image",
@@ -77,6 +88,11 @@ const contentToParts = (
             type: "data",
             name: "code_execution_result",
             data: { output: part.output, outcome: part.outcome },
+          };
+        case "activity":
+          return {
+            type: "text",
+            text: typeof part.message === "string" ? part.message : "",
           };
         default:
           return null;
@@ -132,10 +148,11 @@ export const createAdkMessageConverter =
 
       case "tool": {
         // A confirmation reply ADK could not read leaves its gate undecided.
-        // Any result settles the tool call in core, so the reply is dropped
-        // here to keep the gate requiring action and answerable again. Only a
-        // reply to the confirmation itself is dropped: the gated call carries
-        // the same approval, and its own result is the agent's real output.
+        // The reply is not the agent's output, so it is dropped rather than
+        // shown as the call's result while the gate waits to be answered again.
+        // Only a reply to the confirmation itself is dropped: the gated call
+        // carries the same approval, and its own result is the agent's real
+        // output.
         const approval = approvals.get(message.tool_call_id);
         if (
           message.name === ADK_REQUEST_CONFIRMATION &&

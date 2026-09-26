@@ -13,6 +13,8 @@ export const useEveError = () => eveExtras.use((e) => e.error, undefined);
  * Read the current Eve session cursor from the runtime extras. Persist it to
  * resume the session later via `initialSession`. `undefined` when no session
  * exists yet or outside an Eve runtime.
+ *
+ * With `cloud`, each cloud thread already keeps its session, so there is nothing to persist.
  */
 export const useEveSession = (): EveRuntimeExtras["session"] | undefined =>
   eveExtras.use((e) => e.session, undefined);
@@ -29,6 +31,8 @@ export const useEveEvents = (): EveRuntimeExtras["events"] =>
  * recreates the owned session, and clears events and projected data. Pending
  * staged messages and tool execution state are discarded. Safe to render
  * outside an Eve runtime; invoking the returned function there throws.
+ *
+ * With `cloud`, it starts a new thread instead, leaving the current thread and its session in the list.
  */
 export const useEveReset = () => {
   const aui = useAui();

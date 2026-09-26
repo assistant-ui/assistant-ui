@@ -157,6 +157,7 @@ type AssistantStreamChunk = {
   readonly artifact?: ReadonlyJSONValue;
   readonly result: ReadonlyJSONValue;
   readonly isError: boolean;
+  readonly isPreliminary?: boolean;
   readonly modelContent?: readonly ToolModelContentPart[];
   readonly messages?: ReadonlyJSONValue;
 } | {
@@ -475,6 +476,7 @@ type MessagePartLike = {
   state?: string;
   result?: unknown;
   isError?: boolean;
+  isPreliminary?: boolean;
   approval?: {
     approved?: boolean;
     resolution?: string;
@@ -715,7 +717,7 @@ interface ResumableStreamStore {
   acquire(streamId: string, options?: ResumableStreamAcquireOptions): Promise<ResumableStreamRole>;
   acquireLease?(streamId: string, options?: ResumableStreamAcquireOptions): Promise<ResumableStreamAcquisition>;
   append(streamId: string, chunk: Uint8Array, lease?: ResumableStreamLease): Promise<void>;
-  finalize(streamId: string, status: "done" | "error", error?: string, lease?: ResumableStreamLease): Promise<void>;
+  finalize(streamId: string, status: "done" | "error", error?: string, lease?: ResumableStreamLease): Promise<boolean | void>;
   read(streamId: string, cursor: string, signal: AbortSignal): AsyncIterable<ResumableStreamEntry>;
   status(streamId: string): Promise<ResumableStreamStatus>;
   delete(streamId: string): Promise<void>;
@@ -789,6 +791,9 @@ type ThreadMessageLike = {
   role: "assistant" | "system" | "user";
   content: readonly MessagePartLike[];
   attachments?: readonly AttachmentLike[];
+  status?: {
+    type: string;
+  };
 };
 
 type ToAISDKContentOptions = {
@@ -814,7 +819,7 @@ interface ToolCallArgsReader<TArgs extends Record<string, unknown>> {
   forEach<PathT extends TypePath<TArgs>>(...fieldPath: PathT): NonNullable<TypeAtPath<TArgs, PathT>> extends Array<infer U> ? AsyncIterableStream<U> : never;
 }
 
-type ToolCallPart = ToolCallPartWithoutResult | ToolCallPartWithResult;
+type ToolCallPart = ToolCallPartWithoutResult | ToolCallPartWithPreliminaryResult | ToolCallPartWithResult;
 
 type ToolCallPartBase = {
   type: "tool-call";
@@ -839,9 +844,19 @@ type ToolCallPartInit = {
   response?: ToolResponseLike<ReadonlyJSONValue>;
 };
 
+type ToolCallPartWithPreliminaryResult = ToolCallPartBase & {
+  state: "call" | "partial-call";
+  result: ReadonlyJSONValue;
+  isPreliminary: true;
+  artifact?: ReadonlyJSONValue;
+  modelContent?: readonly ToolModelContentPart[];
+  isError?: boolean;
+};
+
 type ToolCallPartWithResult = ToolCallPartBase & {
   state: "result";
   result: ReadonlyJSONValue;
+  isPreliminary?: undefined;
   artifact?: ReadonlyJSONValue;
   modelContent?: readonly ToolModelContentPart[];
   isError?: boolean;
@@ -851,6 +866,7 @@ type ToolCallPartWithoutResult = ToolCallPartBase & {
   state: "call" | "partial-call";
   result?: undefined;
   modelContent?: undefined;
+  isPreliminary?: undefined;
 };
 
 interface ToolCallReader<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> {
@@ -946,6 +962,7 @@ declare class ToolResponse<TResult> {
   readonly artifact?: ReadonlyJSONValue;
   readonly result: TResult;
   readonly isError: boolean;
+  readonly isPreliminary?: boolean;
   readonly modelContent?: readonly ToolModelContentPart[];
   readonly messages?: ReadonlyJSONValue;
   constructor(options: ToolResponseLike<TResult>);
@@ -957,6 +974,7 @@ type ToolResponseLike<TResult> = {
   result: TResult;
   artifact?: ReadonlyJSONValue | undefined;
   isError?: boolean | undefined;
+  isPreliminary?: boolean | undefined;
   modelContent?: readonly ToolModelContentPart[] | undefined;
   messages?: ReadonlyJSONValue | undefined;
 };
@@ -1050,6 +1068,7 @@ type UIMessageStreamChunk = {
   toolCallId: string;
   result: ReadonlyJSONValue;
   isError?: boolean;
+  isPreliminary?: boolean;
   messages?: ReadonlyJSONValue;
 } | {
   type: "start-step";

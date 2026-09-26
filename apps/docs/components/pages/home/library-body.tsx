@@ -8,12 +8,7 @@ import {
 import { TESTIMONIALS } from "@/components/pages/home/testimonials/data";
 import { TrustedBy } from "@/components/pages/home/trusted-by";
 import { Button } from "@/components/ui/button";
-import {
-  typeDeck,
-  typeEyebrow,
-  typePackage,
-  typeSection,
-} from "@/components/shared/type";
+import { typeDeck, typePackage, typeSection } from "@/components/shared/type";
 import { analytics } from "@/lib/analytics";
 import Link from "next/link";
 
@@ -45,7 +40,6 @@ export function LibraryBody({
         className="flex scroll-mt-20 flex-col gap-8"
       >
         <div className="flex max-w-[40rem] flex-col gap-3">
-          <p className={typeEyebrow}>What you install</p>
           <h2 id="what-you-install-heading" className={typePackage}>
             @assistant-ui/react
           </h2>
@@ -85,7 +79,6 @@ export function LibraryBody({
 
       <section className="border-foreground/10 grid gap-6 border-t pt-10 md:grid-cols-[minmax(0,20rem)_1fr] md:gap-12">
         <div className="flex flex-col gap-2.5">
-          <p className={typeEyebrow}>Get started</p>
           <h2 className={typeSection}>Start in the docs.</h2>
           <p className="text-muted-foreground max-w-[36ch] text-[14px] leading-relaxed">
             The command scaffolds a working thread. The docs take it from there.

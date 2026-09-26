@@ -1,3 +1,5 @@
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
+import { getPartialJsonObjectMeta } from "assistant-stream/utils";
 import type { ReactNode } from "react";
 import { buildPresentParameters } from "./buildPresentParameters";
 import {
@@ -13,12 +15,16 @@ import { type ActionRegistry } from "./actionRegistry";
 import { renderGenerativeUI } from "./renderGenerativeUI";
 import type { GenerativeUILibrary, GenerativeUIStatus } from "./types";
 
-/** Maps a tool-call part status to the generative-UI streaming status. Only a
- * `complete` call has fully-arrived args; `running` and `incomplete`
- * (aborted/errored, so args may be partial) both render as `"streaming"` so a
- * non-streaming component is never handed partial props. */
-function uiStatus(status: { type: string }): GenerativeUIStatus {
-  return status.type === "complete" ? "done" : "streaming";
+// A cancelled argument stream can leave a tool waiting with partial arguments.
+function uiStatus(
+  status: { type: string },
+  args: Record<string, unknown>,
+): GenerativeUIStatus {
+  return status.type === "complete" ||
+    (status.type === "requires-action" &&
+      getPartialJsonObjectMeta(args)?.state !== "partial")
+    ? "done"
+    : "streaming";
 }
 
 /**
@@ -36,6 +42,7 @@ export class JSONGenerativeUI {
   private readonly library: GenerativeUILibrary;
   private readonly parameters: PresentParameters;
   private readonly actions: ActionRegistry | undefined;
+  private readonly completedPromptToolCallIds = new Set<string>();
 
   constructor(options: JSONGenerativeUIOptions) {
     this.library = options.library;
@@ -48,20 +55,60 @@ export class JSONGenerativeUI {
    * between top-level blocks, which the host's message container does not
    * provide, and stays out of the way while it has nothing to show.
    */
-  private readonly render = ({
-    args,
-    status,
-  }: {
-    args: unknown;
-    status: { type: string };
-  }): ReactNode => (
-    <div data-aui="root">
-      {renderGenerativeUI(args, this.library, {
-        status: uiStatus(status),
-        ...(this.actions ? { dispatch: this.actions.dispatch } : {}),
-      })}
-    </div>
-  );
+  private readonly render = (
+    {
+      args,
+      status,
+      addResult,
+      result,
+      toolCallId,
+      unstable_recordInteraction,
+    }: ToolCallMessagePartProps<Record<string, unknown>, any>,
+    completesPrompt = false,
+  ): ReactNode => {
+    const actions = this.actions;
+    const dispatch = actions
+      ? (action: Parameters<ActionRegistry["dispatch"]>[0]) => {
+          if (unstable_recordInteraction) {
+            try {
+              void unstable_recordInteraction({
+                type: "action",
+                payload: action,
+              }).catch(() => {});
+            } catch {}
+          }
+
+          const actionResult = actions.dispatch(action);
+          if (
+            completesPrompt &&
+            actionResult !== undefined &&
+            result === undefined
+          ) {
+            void Promise.resolve(actionResult)
+              .then((response) => {
+                if (
+                  response !== undefined &&
+                  !this.completedPromptToolCallIds.has(toolCallId)
+                ) {
+                  this.completedPromptToolCallIds.add(toolCallId);
+                  addResult(response);
+                }
+              })
+              .catch(() => {});
+          }
+          return actionResult;
+        }
+      : undefined;
+
+    return (
+      <div data-aui="root">
+        {renderGenerativeUI(args, this.library, {
+          status: uiStatus(status, args),
+          ...(dispatch ? { dispatch } : {}),
+        })}
+      </div>
+    );
+  };
 
   present(options?: PresentToolOptions): PresentTool {
     return {
@@ -76,7 +123,7 @@ export class JSONGenerativeUI {
     return {
       ...promptUserToolBase(this.parameters),
       unstable_backendDefault: { parameters: true },
-      render: this.render,
+      render: (props) => this.render(props, true),
     };
   }
 }

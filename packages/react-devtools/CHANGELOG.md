@@ -1,5 +1,19 @@
 # @assistant-ui/react-devtools
 
+## 1.2.21
+
+### Patch Changes
+
+- [#7894](https://github.com/assistant-ui/assistant-ui/pull/7894) [`7574f09`](https://github.com/assistant-ui/assistant-ui/commit/7574f09d5eb47d832c1ef8edc502e8300aba6e23) - fix(react-devtools): show an Error's name, message and stack instead of an empty object ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7808](https://github.com/assistant-ui/assistant-ui/pull/7808) [`9182c0c`](https://github.com/assistant-ui/assistant-ui/commit/9182c0ce1684a96861a46687f5fb89762844e310) - fix: preserve snapshots for prototype-named thread ids ([@Kinfe123](https://github.com/Kinfe123))
+
+## 1.2.20
+
+### Patch Changes
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 1.2.19
 
 ### Patch Changes

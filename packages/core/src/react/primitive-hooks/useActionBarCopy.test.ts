@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => {
     setIsCopied,
     state: {
       message: {
+        id: "message-1",
         role: "assistant",
         status: { type: "complete", reason: "stop" },
         parts: [{ type: "text", text: "Hello" }],
@@ -47,6 +48,7 @@ afterEach(() => {
   cleanup();
   vi.useRealTimers();
   mocks.currentAui = mocks.aui;
+  mocks.state.message.id = "message-1";
 });
 
 describe("useActionBarCopy", () => {
@@ -159,6 +161,27 @@ describe("useActionBarCopy", () => {
 
     expect(mocks.setIsCopied).not.toHaveBeenCalled();
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("ignores clipboard success after the scope moves to another message", async () => {
+    let resolveCopy: (() => void) | undefined;
+    const copyToClipboard = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveCopy = resolve;
+        }),
+    );
+    const { result, rerender } = renderHook(() =>
+      useActionBarCopy({ copyToClipboard }),
+    );
+
+    result.current.copy();
+    mocks.state.message.id = "message-2";
+    rerender();
+    resolveCopy?.();
+    await Promise.resolve();
+
+    expect(mocks.setIsCopied).not.toHaveBeenCalledWith(true);
   });
 
   it("resets feedback for the previous message scope", async () => {

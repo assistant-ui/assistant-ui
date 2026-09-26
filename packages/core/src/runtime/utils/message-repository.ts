@@ -89,6 +89,43 @@ const findHead = (
   return "current" in current ? current : null;
 };
 
+// A history may store a message before its parent, for example one that
+// commits appends concurrently, so such a message is added after its parent.
+const withParentsFirst = (
+  messages: ExportedMessageRepository["messages"],
+  isStored: (id: string) => boolean,
+) => {
+  const listed = new Set(messages.map((item) => item.message.id));
+  const added = new Set<string>();
+  const waiting = new Map<string, ExportedMessageRepository["messages"]>();
+  const ordered: ExportedMessageRepository["messages"] = [];
+  for (const item of messages) {
+    const { parentId } = item;
+    if (
+      parentId !== null &&
+      listed.has(parentId) &&
+      !added.has(parentId) &&
+      !isStored(parentId)
+    ) {
+      const children = waiting.get(parentId);
+      if (children) children.push(item);
+      else waiting.set(parentId, [item]);
+      continue;
+    }
+    for (let i = ordered.push(item) - 1; i < ordered.length; i++) {
+      const { id } = ordered[i]!.message;
+      if (added.has(id)) continue;
+      added.add(id);
+      const children = waiting.get(id);
+      if (!children) continue;
+      waiting.delete(id);
+      ordered.push(...children);
+    }
+  }
+  for (const children of waiting.values()) ordered.push(...children);
+  return ordered;
+};
+
 class CachedValue<T> {
   private _value: T | null = null;
 
@@ -262,8 +299,8 @@ export class MessageRepository {
       );
 
     if (existingItem) {
-      existingItem.current = message;
       this.performOp(prev, existingItem, "relink");
+      existingItem.current = message;
       this._messages.dirty();
       return;
     }
@@ -319,6 +356,13 @@ export class MessageRepository {
         "MessageRepository(deleteMessage): Replacement not found. This is likely an internal bug in assistant-ui.",
       );
 
+    for (let current = replacement; current; current = current.prev) {
+      if (current === message)
+        throw new Error(
+          "MessageRepository(deleteMessage): Replacement is the deleted message or one of its descendants. This is likely an internal bug in assistant-ui.",
+        );
+    }
+
     for (const child of message.children) {
       const childMessage = this.messages.get(child);
       if (!childMessage)
@@ -338,6 +382,10 @@ export class MessageRepository {
     this._messages.dirty();
   }
 
+  hasChildren(messageId: string) {
+    return (this.messages.get(messageId)?.children.length ?? 0) > 0;
+  }
+
   getBranches(messageId: string) {
     const message = this.messages.get(messageId);
     if (!message)
@@ -350,12 +398,12 @@ export class MessageRepository {
   }
 
   /**
-   * Evicts optimistic messages (`metadata.isOptimistic`) the head just moved
-   * away from. Since eviction runs on every head move, the only optimistic
-   * messages in the repository live on the branch the head previously pointed
-   * at — so we walk just that branch rather than the whole repository. Keeps a
-   * client→server id swap from leaving a phantom sibling, and drops off-branch
-   * placeholders.
+   * Evicts optimistic messages (`metadata.isOptimistic`) on the branch the head
+   * just moved away from. Only that branch is walked, so an optimistic message
+   * added off the head branch (such as the server-id copy that replaces a
+   * client-id placeholder before the head moves to it) is kept until a
+   * `switchToBranch` or `resetHead` moves the head off the branch it is on.
+   * Keeps a client→server id swap from leaving a phantom sibling.
    */
   private evictOffBranchOptimisticMessages(
     previousHead: RepositoryMessage | null,
@@ -460,8 +508,8 @@ export class MessageRepository {
     // Optimistic messages are ephemeral and never persisted. A persisted child
     // of an optimistic node is re-parented onto its nearest persisted ancestor
     // so the exported tree never references a skipped id.
-    // Import and external-state conversion require parents before children, so
-    // the tree is walked in pre-order rather than iterated in insertion order.
+    // External-state conversion requires parents before children, so the tree
+    // is walked in pre-order rather than iterated in insertion order.
     const pending = [...this.root.children].reverse();
     while (pending.length > 0) {
       const message = this.messages.get(pending.pop()!);
@@ -487,10 +535,11 @@ export class MessageRepository {
   }
 
   import({ headId, messages }: ExportedMessageRepository) {
-    for (const { message, parentId } of messages) {
+    const ordered = withParentsFirst(messages, (id) => this.messages.has(id));
+    for (const { message, parentId } of ordered) {
       this.addOrUpdateMessage(parentId, message);
     }
 
-    this.resetHead(headId ?? messages.at(-1)?.message.id ?? null);
+    this.resetHead(headId ?? ordered.at(-1)?.message.id ?? null);
   }
 }

@@ -250,11 +250,11 @@ export class PiThreadController implements PiThreadControllerLike {
   private connectionRetainers = 0;
   private readonly optimisticUserMessages: OptimisticUserMessage[] = [];
   private unsubscribeFromEvents: (() => void) | null = null;
+  private eventSubscriptionGeneration = 0;
   private disconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private loadPromise: Promise<void> | null = null;
   private messageFlushScheduled = false;
-  /** Synthetic seq for snapshots produced locally (via `getThread`), kept below
-   * the supervisor's live seqs so they never suppress real events. */
+  /** Fallback sequence for snapshots without a supervisor-provided sequence. */
   private readonly localSnapshotSeq = 0;
 
   private readonly client: PiClient;
@@ -335,24 +335,33 @@ export class PiThreadController implements PiThreadControllerLike {
   public dispose() {
     // React StrictMode can detach then resubscribe the same controller.
     this.clearDisconnectTimer();
-    this.unsubscribeFromEvents?.();
-    this.unsubscribeFromEvents = null;
     this.allListeners.clear();
     this.metadataListeners.clear();
     this.messageListeners.clear();
+    this.disconnectFromEvents();
   }
 
   private ensureEventSubscription(options?: { includeSnapshot?: boolean }) {
     this.clearDisconnectTimer();
     if (this.unsubscribeFromEvents) return;
+    const generation = ++this.eventSubscriptionGeneration;
     this.unsubscribeFromEvents = this.client.subscribe(
       this.threadId,
       (event: PiClientEvent) => {
+        if (generation !== this.eventSubscriptionGeneration) return;
         if (event.threadId !== this.threadId) return;
         this.dispatch(event);
       },
       options,
     );
+  }
+
+  private disconnectFromEvents() {
+    const unsubscribe = this.unsubscribeFromEvents;
+    if (!unsubscribe) return;
+    this.unsubscribeFromEvents = null;
+    this.eventSubscriptionGeneration += 1;
+    unsubscribe();
   }
 
   private hasConsumers(): boolean {
@@ -370,8 +379,7 @@ export class PiThreadController implements PiThreadControllerLike {
     this.disconnectTimer = setTimeout(() => {
       this.disconnectTimer = null;
       if (this.hasConsumers()) return;
-      this.unsubscribeFromEvents?.();
-      this.unsubscribeFromEvents = null;
+      this.disconnectFromEvents();
     }, 30_000);
   }
 
@@ -385,12 +393,13 @@ export class PiThreadController implements PiThreadControllerLike {
     if (this.loadPromise && !force) return this.loadPromise;
 
     this.setState({ ...this.state, loadState: "loading" });
+    const sequenceAtStart = this.state.lastSeq;
 
     const request = this.client
       .getThread(this.threadId)
       .then((snapshot: PiThreadSnapshot) => {
         if (this.loadPromise !== request) return;
-        this.applySnapshot(snapshot);
+        this.applySnapshot(snapshot, sequenceAtStart);
       })
       .catch((error: unknown) => {
         if (this.loadPromise !== request) throw error;
@@ -610,12 +619,28 @@ export class PiThreadController implements PiThreadControllerLike {
     }
   }
 
-  private applySnapshot(snapshot: PiThreadSnapshot) {
+  private applySnapshot(snapshot: PiThreadSnapshot, sequenceAtStart: number) {
+    const currentSequence = this.state.lastSeq;
+    // Live records stamp snapshots at handle time, so an uncontested snapshot
+    // behind the request-start watermark belongs to a rebuilt record.
+    const sequenceResetWhileLoading = currentSequence < sequenceAtStart;
+    const responseWasOvertaken =
+      snapshot.seq !== undefined &&
+      currentSequence > sequenceAtStart &&
+      snapshot.seq < currentSequence;
+
+    if (sequenceResetWhileLoading || responseWasOvertaken) {
+      if (this.state.loadState !== "loaded") {
+        this.setState({ ...this.state, loadState: "loaded" });
+      }
+      return;
+    }
+
     this.dispatch({
       type: "snapshot",
       snapshot,
       threadId: this.threadId,
-      seq: this.localSnapshotSeq,
+      seq: snapshot.seq ?? this.localSnapshotSeq,
     });
   }
 

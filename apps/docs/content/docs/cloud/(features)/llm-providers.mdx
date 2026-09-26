@@ -3,7 +3,7 @@ title: LLM providers
 description: Connect the model accounts that Assistant Cloud features use for generation, analysis, and evaluation.
 ---
 
-An LLM provider is a named connection to a model account. It holds the credentials and model catalog that Assistant Cloud needs when a feature calls a model, while keeping the credential values out of the dashboard.
+An LLM provider is a named connection to a model account. It holds the credentials and the Models list that Assistant Cloud needs when a feature calls a model, while keeping the credential values out of the dashboard.
 
 A provider can supply a model for [thread titles](/docs/cloud/thread-titles), [Intelligence](/docs/cloud/intelligence), [Evaluators](/docs/cloud/evaluators), [Assistants](/docs/cloud/assistants), or a harness voice configuration. Each feature records the provider and model it uses, so its runs can be attributed to that model account.
 
@@ -11,11 +11,15 @@ A provider can supply a model for [thread titles](/docs/cloud/thread-titles), [I
 
 | Feature | How it uses a provider |
 |---|---|
-| [Thread titles](/docs/cloud/thread-titles) | Uses the selected provider and model to name conversations. When no title model is saved, the first model in the provider's stored list is selected. |
+| [Thread titles](/docs/cloud/thread-titles) | Uses the selected provider and model to name conversations. When no title model is saved, the first model on the provider's list is used. |
 | [Intelligence](/docs/cloud/intelligence) | Uses the provider and model chosen in **Settings › Intelligence** to classify conversations. |
 | [Evaluators](/docs/cloud/evaluators) | A rule can name a provider and model for its verdicts. |
 | [Assistants](/docs/cloud/assistants) | Each assistant is bound to a provider and its model configuration. |
 | Harness voice | A harness can hold a voice provider reference. |
+
+## Provider list and pages
+
+The **LLM Providers** list shows **Provider**, **Type**, **ID**, **Models**, **Updated** and **Actions**. A provider page shows its copyable ID and type, the configured **Models** list, and Details for Type, Provider key, Base URL, Models and Credential fields. Its **Edit** action opens the configuration page, which lets you save or cancel changes.
 
 ## Configure a provider
 
@@ -44,14 +48,15 @@ Choose a preset when it matches your model account. The form renders one credent
 | Base URL | It must be a valid public HTTPS URL. OpenAI compatible providers require one and the form shows `Base URL is required for OpenAI Compatible providers` when it is missing. |
 | Primary secret on create | A provider type that declares a primary secret requires that field when you create it. The custom OpenAI compatible form keeps `API_KEY` optional. |
 | Credentials on update | Leave a credential empty to keep its current value. The dashboard does not return stored credential values. |
-| Type or base URL changes | Send new credentials in the same save. Otherwise the save is refused with `Changing provider type or base URL requires new credentials in the same request`. A routing change replaces the credential map. Other credential updates merge with it. |
-| Available models | The comma separated `Available models` field appears only for OpenAI compatible providers. Those are the models this provider declares by hand. |
+| Type, base URL or endpoint changes | A change of type or base URL, or a new value for a credential the endpoint is built from (`AZURE_RESOURCE_NAME`, `AWS_REGION`, or a `${VAR}` named in the base URL), needs the provider's secrets in the same save and replaces the stored credential map. Otherwise the save is refused with `Changing provider type, base URL, or endpoint credentials requires new credentials in the same request`. Other credential updates merge with what is stored. |
+| Azure resource name and AWS region | `AZURE_RESOURCE_NAME` and `AWS_REGION` become part of the host a key is sent to, so each must be a single hostname label: letters, digits and hyphens, up to 63 characters. Any other value is refused with `AZURE_RESOURCE_NAME is not a valid Azure resource name` or `AWS_REGION is not a valid AWS region`, on create, on update and when the form loads models. |
+| Models | Every provider type has a **Models** list, and its first entry is the default: the model used wherever the provider is chosen without a model, on Thread titles and Intelligence. Opening the field or pressing **Load models** asks the provider for its models with the credentials in the form; a saved provider is asked with its stored credentials when none are entered and its type and base URL are unchanged. Pick from that list or type any id the provider serves, then Enter. |
 
 The URL check rejects private hosts. It applies when the provider is created and when its base URL changes, before the cloud stores the connection.
 
 ## How model discovery works
 
-The dashboard asks the provider for models, then shows the live result when possible. Every outbound request is checked as a public URL, has a five second timeout, and returns `null` rather than an error if the provider call fails.
+Four model fields are a free text id with the provider's own list as suggestions: the **Models** list on the provider form, the Model row on **Settings › Thread titles** and **Settings › Intelligence**, and the Model field of an assistant. An evaluator's Model ID field takes any id too, but suggests only the ids on its provider's Models list. The dashboard asks the provider for its models over a public HTTPS URL with the provider's credentials and gives up after ten seconds. A saved provider's answer is kept in server memory, keyed by the provider and its last update, so an edited provider is asked again: a list is reused for up to an hour, a failure for at most a minute. A provider that is not saved yet is asked with the credentials entered in its form.
 
 | Provider type | Model listing request |
 |---|---|
@@ -63,7 +68,22 @@ The dashboard asks the provider for models, then shows the live result when poss
 | Amazon Bedrock | `https://bedrock.{AWS_REGION}.amazonaws.com/foundation-models`, signed with AWS credentials. The list keeps only models with `TEXT` output and `ON_DEMAND` inference. When no region is supplied, it uses `us-east-1`. |
 | OpenAI compatible | `{base URL or preset URL}/models`. |
 
-The cloud caches a provider's live result for five minutes. The cache is keyed by provider and invalidated when that provider changes. If the live list is unavailable, it falls back to the catalog for the provider key, then to an empty list. Stored compatible-provider models are unioned into the result and the response reports `source: "provider"` or `source: "catalog"` so the dashboard can say where the list came from.
+When the provider does not answer, the field says why and the catalog's models for the provider key stand in, so the response reports `source: "provider"` or `source: "catalog"` and, for a catalog answer, the reason:
+
+| Reason | What it means |
+|---|---|
+| `no_list` | There is no address to ask: an OpenAI compatible provider whose form has neither a base URL yet nor a preset URL. |
+| `credentials` | There is no key to ask with. The stored credentials cannot be read, or the form changed the type or base URL without entering credentials. |
+| `blocked` | The address is not a public HTTPS URL, or the Azure resource name or AWS region is not a hostname label. |
+| `timeout` | No answer within ten seconds. |
+| `unreachable` | The request failed before an answer arrived. |
+| `rejected` | The provider answered 401 or 403; it refused the key. |
+| `failed` | The provider answered another HTTP error. |
+| `empty` | The provider answered with no model, or with a body that is not JSON. |
+
+### How the list is ranked
+
+The ids are grouped by what the shared model catalog, the one that also prices runs, knows about each. **Pinned on this provider** holds the provider's own Models list, ahead of everything else. **Suggested** holds the listed models whose output is text alone and that can do what the feature needs: `tool_call` for thread titles and assistants, `structured_output` for Intelligence, judged by tool calling when the catalog does not say. **Other models** holds the ids the catalog does not know, since a provider serves ids no catalog lists, and the deprecated models that qualify; a catalog model that cannot do the job is left out. A dated snapshot such as `gpt-4o-2024-08-06` is left out when its alias `gpt-4o` is listed too. Within a group, model families sort alphabetically with the newest version first. An id that matches nothing in the list is used as typed.
 
 ## Credential storage and audit history
 
@@ -73,7 +93,7 @@ Provider creation, updates, and deletion enter the audit log as `provider.create
 
 ## Costs and limits
 
-The provider key is the catalog identity that the cloud uses for model discovery and pricing. Set it to the preset's catalog key when you need catalog pricing and a catalog fallback. A compatible provider's hand declared models remain available even when the live list is unavailable.
+The provider key is the catalog identity that the cloud uses for model discovery and pricing. The chosen preset supplies it when the provider is created. The models pinned on a provider are offered whether or not the provider answers.
 
 You cannot delete a provider while an assistant still uses it. The dashboard refuses the delete with `This provider is currently in use by one or more assistants. Please update or delete the assistants using this provider first.` Update or remove those assistants before deleting the provider.
 
@@ -81,7 +101,8 @@ You cannot delete a provider while an assistant still uses it. The dashboard ref
 
 | What you see | Why | What to do |
 |---|---|---|
-| The model list is empty | The live listing failed, and the provider key has no catalog fallback or the compatible provider has no declared models. | Check the credentials and provider URL, then add comma separated models for a compatible provider when it cannot list models itself. |
-| `The provider does not list that model` when saving Thread titles | The selected title model is not in the chosen provider's stored model list. | Choose a listed model or update the provider's model list. |
+| The model field offers no list | The provider did not answer, the catalog has no models for the provider key and the provider's Models list is empty. The note under the list says why: `The provider refused the key (HTTP 401)`, `The provider took too long to list its models`, and so on. | Fix what the note names and load the models again, or type the id: any id the provider serves is accepted. |
+| `Choose a model for this provider` when saving Thread titles or Intelligence | The feature is on, the Model field is empty and the chosen provider's Models list is empty, so there is no default to fall back to. | Type or pick a model, or add one to the provider's Models list. |
+| `AZURE_RESOURCE_NAME is not a valid Azure resource name` or `AWS_REGION is not a valid AWS region` | The value would become part of the host the key is sent to and is not a single hostname label. | Enter the resource name alone, `my-resource` rather than `my-resource.openai.azure.com`, or the region alone, such as `us-east-1`. |
 | A private URL is refused | Provider URLs must be public HTTPS URLs. | Use a public HTTPS endpoint for the provider. |
 | Thread title runs report provider errors | The title feature uses the provider credentials and selected model for its model call. | Verify the provider credentials, the model list, and the model account's access to that model. |

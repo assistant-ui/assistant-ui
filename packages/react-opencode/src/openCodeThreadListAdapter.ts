@@ -21,6 +21,19 @@ const mapThreadMetadata = (session: {
   title: session.title,
 });
 
+export const createOpenCodeSession = async (
+  client: ReturnType<typeof createOpencodeClient>,
+) => {
+  const response = await client.session.create({}, OPEN_CODE_REQUEST_OPTIONS);
+  if (!response.data?.id) {
+    throw new Error("Failed to create OpenCode session");
+  }
+  return {
+    remoteId: response.data.id,
+    externalId: response.data.id,
+  };
+};
+
 export const createOpenCodeThreadListAdapter = (
   client: ReturnType<typeof createOpencodeClient>,
 ) => ({
@@ -80,16 +93,7 @@ export const createOpenCodeThreadListAdapter = (
       OPEN_CODE_REQUEST_OPTIONS,
     );
   },
-  initialize: async () => {
-    const response = await client.session.create({}, OPEN_CODE_REQUEST_OPTIONS);
-    if (!response.data?.id) {
-      throw new Error("Failed to create OpenCode session");
-    }
-    return {
-      remoteId: response.data.id,
-      externalId: response.data.id,
-    };
-  },
+  initialize: () => createOpenCodeSession(client),
   generateTitle: async (remoteId: string) => {
     await client.session.summarize(
       {

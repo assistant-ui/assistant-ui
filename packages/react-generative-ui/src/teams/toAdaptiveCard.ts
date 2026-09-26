@@ -465,11 +465,15 @@ export function convertElement(
       const name = asString(props["name"]);
       const placeholder = asString(props["placeholder"]);
       const label = asString(props["label"]);
+      const defaultValue = props["defaultValue"];
       const input: TeamsCardElement = {
         type: "Input.ChoiceSet",
         id: reservedSafeId(name || "select", "Select", context),
         style: "compact",
         choices: choicesFrom(props["options"], "Select", context),
+        ...(typeof defaultValue === "string" && defaultValue
+          ? { value: defaultValue }
+          : {}),
         ...(placeholder ? { placeholder } : {}),
         ...(label ? { label } : {}),
       };
@@ -491,6 +495,26 @@ export function convertElement(
       };
       return withCompanionSubmit(element, input, context);
     }
+    case "CheckboxGroup": {
+      const name = asString(props["name"]);
+      const label = asString(props["label"]);
+      const checked = Array.isArray(props["defaultValue"])
+        ? props["defaultValue"].filter(
+            (value): value is string =>
+              typeof value === "string" && value !== "",
+          )
+        : [];
+      const input: TeamsCardElement = {
+        type: "Input.ChoiceSet",
+        id: reservedSafeId(name || "checkboxgroup", "CheckboxGroup", context),
+        style: "expanded",
+        isMultiSelect: true,
+        choices: choicesFrom(props["options"], "CheckboxGroup", context),
+        ...(checked.length > 0 ? { value: checked.join(",") } : {}),
+        ...(label ? { label } : {}),
+      };
+      return withCompanionSubmit(element, input, context);
+    }
     case "Checkbox": {
       const name = asString(props["name"]);
       const label = asString(props["label"]);
@@ -508,11 +532,15 @@ export function convertElement(
       const name = asString(props["name"]);
       const label = asString(props["label"]);
       const placeholder = asString(props["placeholder"]);
+      const defaultValue = props["defaultValue"];
       const input: TeamsCardElement = {
         type: "Input.Text",
         id: reservedSafeId(name || "input", "Input", context),
         ...(label ? { label } : {}),
         ...(placeholder ? { placeholder } : {}),
+        ...(typeof defaultValue === "string" && defaultValue
+          ? { value: defaultValue }
+          : {}),
         ...(props["multiline"] === true ? { isMultiline: true } : {}),
       };
       return withCompanionSubmit(element, input, context);
@@ -785,10 +813,11 @@ export function convertRootToCard(
  * Converts a generative-ui tree into a Microsoft Teams Adaptive Card and
  * non-fatal conversion warnings. Sizes, weights, and colors map to Adaptive
  * Card's semantic enums rather than raw values. An Input/Select/RadioGroup/
- * Checkbox/DatePicker whose id would be the reserved {@link RESERVED_INPUT_ID}
- * is renamed with a warning (see `decodeSubmitData`). Never throws: an
- * unknown `$type` is skipped with a "dropped" warning, and a malformed input
- * resolves to an empty card plus a "dropped" warning instead of throwing.
+ * CheckboxGroup/Checkbox/DatePicker whose id would be the reserved
+ * {@link RESERVED_INPUT_ID} is renamed with a warning (see `decodeSubmitData`).
+ * Never throws: an unknown `$type` is skipped with a "dropped" warning, and a
+ * malformed input resolves to an empty card plus a "dropped" warning instead
+ * of throwing.
  */
 export function toAdaptiveCard(
   node: unknown,
