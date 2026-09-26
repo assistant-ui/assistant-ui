@@ -1,5 +1,4 @@
-import * as ai from "ai";
-import { jsonSchema, type Tool, type ToolSet } from "ai";
+import { gateway, jsonSchema, type Tool, type ToolSet } from "ai";
 import type { ToolJSONSchema } from "../core/tool/schema-utils";
 import { unwrapModelContentEnvelope } from "./modelContentEnvelope";
 import {
@@ -8,13 +7,13 @@ import {
   type TaggedAISDKContent,
 } from "./toolOutputConversion";
 
-// ai@7 (provider spec v4) added the tagged `file` tool-result part together
-// with `uploadFile`; ai@6 only accepts the base64 `file-data` part. `ai`
-// exports no version, so the shape is keyed off that export. A named import
-// would fail to link under ai@6, and an `in` check defeats tree-shaking, so it
-// is a static property read on the namespace.
+// ai@7 speaks provider spec v4, whose tool-result content adds the tagged
+// `file` part; ai@6 only accepts the base64 `file-data` part. `ai` exports no
+// version, so the re-exported gateway provider's spec version stands in: an
+// export only ai@7 has fails webpack and Turbopack builds under ai@6, and a
+// computed or `in` read keeps all of `ai` in the bundle.
 const supportsTaggedFileData =
-  (ai as { uploadFile?: unknown }).uploadFile !== undefined;
+  (gateway.specificationVersion as string) === "v4";
 
 type ToolModelOutput = Awaited<ReturnType<NonNullable<Tool["toModelOutput"]>>>;
 type InstalledTaggedFilePart = Extract<
