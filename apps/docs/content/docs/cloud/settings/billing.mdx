@@ -3,7 +3,7 @@ title: Billing and usage
 description: Read the current plan, active user allowance and usage projection, then break the billing period down by day, model and user.
 ---
 
-**Billing** explains the plan's current period, active user allowance and projected use. **Usage** shows the period's activity and cost by day, model and user. Owners and admins can manage billing; every member can read project pages.
+**Billing** explains the plan's current period, active user allowance and projected use. **Usage** shows the period's activity and cost by day, model and user. Owners and admins can use **Upgrade** and **Open Stripe portal**. Every member can read project pages and open the pricing dialog from a plan badge.
 
 ## Billing
 
@@ -37,9 +37,9 @@ The feature rows are **Intelligence**, **Evaluators**, **Export** and **Harnesse
 
 ## Change a plan or payment method
 
-**Upgrade** opens the pricing dialog when the organization has no active subscription. Choosing Pro opens the payment link. Choosing Startup or Enterprise books a call. The only plan change made inside the product is a downgrade to Free.
+**Upgrade**, shown to owners and admins when the organization has no active subscription, opens the pricing dialog. Choosing Pro opens the payment link. Choosing Startup or Enterprise books a call. The only plan change made inside the product is a downgrade to Free.
 
-With an active subscription, the action is **Open Stripe portal**. The portal manages the subscription and is the place to cancel it. Owners and admins can see these actions and use the portal. Other members can read Billing but cannot manage payment or plan changes.
+With an active subscription, the action is **Open Stripe portal**. The portal manages the subscription and is the place to cancel it. Only owners and admins can see the Billing header actions and use the portal. Every member can open the pricing dialog from a plan badge in **What the plan includes**. In the dialog, **Free** changes the project to Free, **Pro** opens the payment link, and **Startup** or **Enterprise** opens a call booking page.
 
 ### Free plan banner
 
@@ -49,9 +49,9 @@ The free plan banner in the sidebar reads `{active} of {limit} active users this
 
 ![Billing › Usage on the demo project](../images/billing-usage.webp)
 
-Usage opens to the current month. **This billing period** says: `Active users are counted per UTC calendar month against the plan, whatever the range above.` It includes the active user meter and the **What the plan includes** section from Billing.
+Usage opens to the current month. **This billing period** says: `Active users are counted per UTC calendar month against the plan, whatever the range above.` Its **Active users** chart shows cumulative users, a dashed **On pace** line, and included and cap lines. The range presets are **This billing period** and **This month**. It includes the **What the plan includes** section from Billing.
 
-The page has tiles for **Active users**, **Runs**, **Tokens** and **Cost**. Its charts are **Runs**, **Tokens**, **Cost**, **Cost by model, vs previous period** and **Cost concentration**. **Cloud features** separates **Thread titles on your plan** from **Thread titles on your key**. **By user** lists users with sortable **User**, **Runs**, **Tokens** and **Cost** columns.
+The page has tiles for **Active users**, **Runs**, **Tokens** and **Cost**. Its charts are **Runs**, **Tokens**, **Cost**, **Cost by model, vs previous period** and **Cost concentration**. **Cloud features** separates **Thread titles on your plan** from **Thread titles on your key**. **By user** lists **User**, **Share**, **Runs**, **Tokens** and **Cost**. **User**, **Runs**, **Tokens** and **Cost** sort.
 
 ## Plan enforcement
 
@@ -72,6 +72,6 @@ See [Users and workspaces](/docs/cloud/users-and-workspaces) for how the cloud i
 
 | What you see | Why | What to do |
 |---|---|---|
-| Upgrade is not shown. | Only owners and admins manage billing. An active subscription shows the portal action instead of Upgrade. | Ask an owner or admin to manage the plan, or use **Open Stripe portal** for an active subscription. |
+| **Upgrade** is not shown. | An active subscription shows **Open Stripe portal** instead. Only owners and admins see either Billing header action. | Ask an owner or admin to manage the plan through **Upgrade** or **Open Stripe portal**. |
 | Active users differs from the Users page. | Billing counts each end user once in the UTC calendar month after a message, rather than reading a user list. | Use the Billing meter for the plan allowance and the Users page to inspect individual users. |
 | A title count stopped growing. | Thread titles on the plan and on your key are separate readings. A plan title cap stops titles paid by the plan for the rest of the month. | Check both Cloud features rows and the plan's title allowance. |

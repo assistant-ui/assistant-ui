@@ -18,7 +18,7 @@ import {
 
 const returnKey = "aui-setup-return-to";
 const hintKey = "aui-setup-resume-hint";
-const SetupNavigationContext = createContext({
+export const SetupNavigationContext = createContext({
   enterSetup: () => {},
   leaveSetup: () => {},
   resumeHint: false,

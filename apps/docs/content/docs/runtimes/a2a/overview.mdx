@@ -42,7 +42,7 @@ When you use a history adapter, the assistant message keeps the task data needed
 }
 ```
 
-A task paused for `input_required` or `auth_required` writes its assistant question to history. If that message later settles, adapters with `history.update` receive the finalized version; append-only adapters keep their single stored message.
+The Assistant Cloud history adapter has `update`, so a task paused for `input_required` or `auth_required` writes its assistant question to history. Other history adapters record the question only when they expose `update`; an append-only adapter stores only the settled assistant message.
 
 ## Install
 

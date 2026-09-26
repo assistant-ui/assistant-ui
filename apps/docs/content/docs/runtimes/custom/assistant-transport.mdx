@@ -765,8 +765,8 @@ Custom commands follow the same lifecycle as built-in ones; check for them in `o
 | Adapter | Supported via |
 | --- | --- |
 | Attachments | `adapters.attachments` |
-| threadList | Via [thread list adapter](/docs/runtimes/concepts/threads) |
-| Assistant Cloud | `cloud`, or `NEXT_PUBLIC_ASSISTANT_BASE_URL` without it: the cloud backs the thread list, every request's `threadId` is the cloud thread id, feedback is stored, and settled messages are copied for the dashboard |
+| threadList | Built-in remote adapter. It uses Assistant Cloud with `cloud` or `NEXT_PUBLIC_ASSISTANT_BASE_URL`, otherwise an in-memory list. |
+| Assistant Cloud | `cloud`, or `NEXT_PUBLIC_ASSISTANT_BASE_URL` without it: the cloud backs the thread list, every request's `threadId` is the cloud thread id, feedback is stored, and settled messages with stable IDs are copied for the dashboard. The `add-message` command has no message ID, and the LangGraph backend above creates user `HumanMessage` values without IDs, so that setup copies only assistant messages. |
 
 With Assistant Cloud the thread list persists across sessions, but a reopened thread starts from `initialState`: the runtime reads back neither the cloud copy nor your backend's state, so a past conversation shows only once your backend sends state for that thread id, which arrives with every request.
 

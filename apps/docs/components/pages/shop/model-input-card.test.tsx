@@ -23,6 +23,7 @@ vi.mock("@/lib/checkout/providers", async (importOriginal) => ({
 }));
 
 import { ModelInputCard } from "./model-input-card";
+import { WizardHost } from "./test/wizard-host";
 
 afterEach(() => {
   cleanup();
@@ -63,23 +64,33 @@ const checkout = (): CheckoutContextValue => ({
 });
 
 const toKeyStep = () =>
-  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  fireEvent.click(screen.getByRole("button", { name: "Next" }));
+
+const untilNextEnabled = () =>
+  waitFor(() =>
+    expect(screen.getByRole("button", { name: "Next" })).toHaveProperty(
+      "disabled",
+      false,
+    ),
+  );
 
 describe("ModelInputCard", () => {
   it("offers OpenAI, Anthropic and Other before asking for anything else", async () => {
     render(
-      <ModelInputCard
-        input={{
-          ...input,
-          options: [
-            { id: "openai", label: "OpenAI" },
-            { id: "anthropic", label: "Anthropic" },
-            { id: "google", label: "Google" },
-            { id: "groq", label: "Groq" },
-          ],
-        }}
-        checkout={checkout()}
-      />,
+      <WizardHost>
+        <ModelInputCard
+          input={{
+            ...input,
+            options: [
+              { id: "openai", label: "OpenAI" },
+              { id: "anthropic", label: "Anthropic" },
+              { id: "google", label: "Google" },
+              { id: "groq", label: "Groq" },
+            ],
+          }}
+          checkout={checkout()}
+        />
+      </WizardHost>,
     );
     expect(
       screen
@@ -94,22 +105,59 @@ describe("ModelInputCard", () => {
     ).toContain("Google");
   });
 
+  it("suggests the first model the key can use when the default is not on it", async () => {
+    testProviderKey.mockResolvedValueOnce({
+      status: "ok",
+      models: ["gpt-7-nano", "gpt-7"],
+    });
+    render(
+      <WizardHost>
+        <ModelInputCard input={input} checkout={checkout()} />
+      </WizardHost>,
+    );
+    toKeyStep();
+    fireEvent.change(screen.getByLabelText("API key"), {
+      target: { value: "openai-key" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Test key" }));
+    await screen.findByText(/The key works/);
+    await untilNextEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByLabelText("Model")).toHaveProperty(
+      "placeholder",
+      "gpt-7-nano",
+    );
+  });
+
   it("moves to the model once the key tests fine and answers with the secret", async () => {
-    testProviderKey.mockResolvedValueOnce({ status: "ok", models: ["gpt-5"] });
+    testProviderKey.mockResolvedValueOnce({
+      status: "ok",
+      models: ["gpt-5", "gpt-5-mini"],
+    });
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal("fetch", fetchMock);
     const context = checkout();
-    render(<ModelInputCard input={input} checkout={context} />);
+    render(
+      <WizardHost>
+        <ModelInputCard input={input} checkout={context} />
+      </WizardHost>,
+    );
     toKeyStep();
     expect(screen.getByText(/Never sent in plaintext/)).toBeDefined();
     fireEvent.change(screen.getByLabelText("API key"), {
       target: { value: "openai-key" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Test key" }));
-    fireEvent.change(await screen.findByLabelText("Model"), {
+    expect((await screen.findByRole("status")).textContent).toBe(
+      "The key works. 2 models available.",
+    );
+    expect(screen.queryByLabelText("Model")).toBeNull();
+    await untilNextEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    fireEvent.change(screen.getByLabelText("Model"), {
       target: { value: "gpt-5" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
     await waitFor(() =>
       expect(context.commands["checkout/answer"]).toHaveBeenCalledWith({
         inputId: "model",
@@ -123,9 +171,32 @@ describe("ModelInputCard", () => {
     vi.unstubAllGlobals();
   });
 
+  it("keeps Next disabled until Enter in the key field tests the key", async () => {
+    testProviderKey.mockResolvedValueOnce({ status: "ok", models: [] });
+    render(
+      <WizardHost>
+        <ModelInputCard input={input} checkout={checkout()} />
+      </WizardHost>,
+    );
+    toKeyStep();
+    const next = screen.getByRole("button", { name: "Next" });
+    const key = screen.getByLabelText("API key");
+    fireEvent.change(key, { target: { value: "openai-key" } });
+    expect(next).toHaveProperty("disabled", true);
+    fireEvent.keyDown(key, { key: "Enter" });
+    await screen.findByText("The key works.");
+    await untilNextEnabled();
+    fireEvent.change(key, { target: { value: "other-key" } });
+    expect(next).toHaveProperty("disabled", true);
+  });
+
   it("lets a failed test be overridden", async () => {
     testProviderKey.mockResolvedValueOnce({ status: "unauthorized" });
-    render(<ModelInputCard input={input} checkout={checkout()} />);
+    render(
+      <WizardHost>
+        <ModelInputCard input={input} checkout={checkout()} />
+      </WizardHost>,
+    );
     toKeyStep();
     expect(
       screen.queryByRole("button", { name: "Continue anyway" }),
@@ -144,7 +215,11 @@ describe("ModelInputCard", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     const context = checkout();
-    render(<ModelInputCard input={input} checkout={context} />);
+    render(
+      <WizardHost>
+        <ModelInputCard input={input} checkout={context} />
+      </WizardHost>,
+    );
     toKeyStep();
     fireEvent.click(
       screen.getByRole("button", { name: "Skip, I’ll add it myself" }),
@@ -152,7 +227,7 @@ describe("ModelInputCard", () => {
     fireEvent.change(screen.getByLabelText("Model"), {
       target: { value: "gpt-5" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
     await waitFor(() =>
       expect(context.commands["checkout/answer"]).toHaveBeenCalled(),
     );
@@ -166,7 +241,11 @@ describe("ModelInputCard", () => {
       resolve = done;
     });
     testProviderKey.mockReturnValueOnce(pending);
-    render(<ModelInputCard input={input} checkout={checkout()} />);
+    render(
+      <WizardHost>
+        <ModelInputCard input={input} checkout={checkout()} />
+      </WizardHost>,
+    );
     toKeyStep();
     fireEvent.change(screen.getByLabelText("API key"), {
       target: { value: "openai-key" },
@@ -179,13 +258,17 @@ describe("ModelInputCard", () => {
     await act(async () => {
       await pending;
     });
-    expect(screen.queryByText("The key works.")).toBeNull();
+    expect(screen.queryByRole("status")).toBeNull();
     expect(screen.queryByLabelText("Model")).toBeNull();
   });
 
   it("clears the key and its test when the provider changes", async () => {
     testProviderKey.mockResolvedValueOnce({ status: "unauthorized" });
-    render(<ModelInputCard input={input} checkout={checkout()} />);
+    render(
+      <WizardHost>
+        <ModelInputCard input={input} checkout={checkout()} />
+      </WizardHost>,
+    );
     toKeyStep();
     fireEvent.change(screen.getByLabelText("API key"), {
       target: { value: "openai-key" },

@@ -61,6 +61,7 @@ type SlackConversionWarning = {
 | `Button` | `button` element inside an `actions` block | `primary` and `danger` styles survive; other styles are dropped |
 | `Select` | `static_select` element | An option without a string label and value is dropped with a warning |
 | `RadioGroup` | `radio_buttons` element | An option without a string label and value is dropped with a warning |
+| `CheckboxGroup` | `checkboxes` element | An option without a string label and value is dropped with a warning; Slack allows 10 options |
 | `Checkbox` | `checkboxes` element with a single option | |
 | `DatePicker` | `datepicker` element | `min` and `max` are dropped; a non-`YYYY-MM-DD` value is dropped with a warning |
 | `Input` | Its own `input` block | Not grouped into an `actions` block |
@@ -80,7 +81,7 @@ Presentation props the converter does not map are dropped silently, without a wa
 
 Anything else in the card, including a second image, a `Fact`, or a loose `Button`, makes the card fall back to a header plus the children rendered inline plus an actions block, and reports a `fallback` warning. A card carrying none of an image, title, body, or actions is dropped outright.
 
-Inside a `Carousel` that fallback is unavailable, so an over-full card is reshaped to title and body text instead, with a `fallback` warning. Text carried in a `text`, `value`, `label`, `title`, or `description` prop survives the reshape at any depth, which covers a `Caption`'s text and a `Button`'s label. An image, a `Table`, a `Chart`, and any control do not, since none of them is text, and those are reported separately as `dropped` so the two facts stay distinguishable. A control here is a `Button`, `Select`, `DatePicker`, `Checkbox`, `RadioGroup`, `Input`, or `Form`, plus a `ListViewItem` or a nested `Card` footer that carries an action. An `$action` on a layout node such as `Box`, `Col`, or `Row` does not count, because those render no control on the clean path either.
+Inside a `Carousel` that fallback is unavailable, so an over-full card is reshaped to title and body text instead, with a `fallback` warning. Text carried in a `text`, `value`, `label`, `title`, or `description` prop survives the reshape at any depth, which covers a `Caption`'s text and a `Button`'s label. An image, a `Table`, a `Chart`, and any control do not, since none of them is text, and those are reported separately as `dropped` so the two facts stay distinguishable. A control here is a `Button`, `Select`, `DatePicker`, `Checkbox`, `RadioGroup`, `CheckboxGroup`, `Input`, or `Form`, plus a `ListViewItem` or a nested `Card` footer that carries an action. An `$action` on a layout node such as `Box`, `Col`, or `Row` does not count, because those render no control on the clean path either.
 
 ## Limits
 
@@ -120,7 +121,7 @@ A node's `$action` is split across two Block Kit fields. `$action.type` becomes 
 becomes a button with `action_id: "approve_order"` and `value: "{\"orderId\":\"48213\"}"`.
 
 <Callout type="warn">
-Only buttons carry `value`. `Select`, `Input`, `DatePicker`, `Checkbox`, and `RadioGroup` emit `action_id` alone, so any extra keys on their `$action` are dropped. Keep those controls' actions to a bare `type`, or put the payload on a button that submits alongside them.
+Only buttons carry `value`. `Select`, `Input`, `DatePicker`, `Checkbox`, `RadioGroup`, and `CheckboxGroup` emit `action_id` alone, so any extra keys on their `$action` are dropped. Keep those controls' actions to a bare `type`, or put the payload on a button that submits alongside them. A `{ "$field": name }` reference in a button's payload becomes its `fallback`, or is dropped when it has none, with a `fallback` warning, because a button click carries no other control's value.
 </Callout>
 
 ### Inbound
@@ -150,7 +151,7 @@ What lands in `$input` depends on the element:
 
 `fromSlackBlocks` is the inverse direction, mapping a Block Kit payload into vocabulary nodes and returning `{ nodes, warnings }`. It accepts a bare array or a `{ blocks }` wrapper.
 
-The round trip is faithful on the plain building blocks (text, images, facts, controls, tables, simple cards) and documented-lossy elsewhere: context elements all return as `Caption`, so the `Badge` distinction is gone, button styles beyond `primary` and `danger` are dropped, an alert's title and description come back merged into the description, and card layouts flatten to the fields the `card` block carries. Card footers are re-derived from button style, with the primary-styled button becoming `confirm`; when style cannot decide it, position does, and that emits a `fallback` warning.
+The round trip is faithful on the plain building blocks (text, images, facts, controls, tables, simple cards) and documented-lossy elsewhere: context elements all return as `Caption`, so the `Badge` distinction is gone, a `CheckboxGroup` with a single option returns as a `Checkbox`, button styles beyond `primary` and `danger` are dropped, an alert's title and description come back merged into the description, and card layouts flatten to the fields the `card` block carries. Card footers are re-derived from button style, with the primary-styled button becoming `confirm`; when style cannot decide it, position does, and that emits a `fallback` warning.
 
 ## Before interactions work
 

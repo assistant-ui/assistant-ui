@@ -115,3 +115,58 @@ describe("MessageRepository rejected operations", () => {
     expect(repository.getMessage("a").message.id).toBe("a");
   });
 });
+
+describe("MessageRepository import order", () => {
+  it("imports a message listed before its parent", () => {
+    const repository = new MessageRepository();
+    repository.import({
+      messages: [
+        { message: message("child"), parentId: "parent" },
+        { message: message("parent"), parentId: null },
+      ],
+    });
+
+    expect(repository.headId).toBe("child");
+    expect(repository.getMessages().map((m) => m.id)).toEqual([
+      "parent",
+      "child",
+    ]);
+  });
+
+  it("keeps the listed order for a message whose parent the repository holds", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, message("p"));
+    const newer = message("c", "newer");
+
+    repository.import({
+      headId: "c",
+      messages: [
+        { message: message("c"), parentId: "p" },
+        { message: newer, parentId: null },
+        { message: message("p"), parentId: null },
+      ],
+    });
+
+    expect(repository.getMessages()).toEqual([newer]);
+  });
+
+  it("heads a history stored out of order at its latest message", () => {
+    const repository = new MessageRepository();
+    repository.import({
+      messages: [
+        { message: message("question"), parentId: null },
+        { message: message("follow-up"), parentId: "paused" },
+        { message: message("answer"), parentId: "follow-up" },
+        { message: message("paused"), parentId: "question" },
+      ],
+    });
+
+    expect(repository.headId).toBe("answer");
+    expect(repository.getMessages().map((m) => m.id)).toEqual([
+      "question",
+      "paused",
+      "follow-up",
+      "answer",
+    ]);
+  });
+});

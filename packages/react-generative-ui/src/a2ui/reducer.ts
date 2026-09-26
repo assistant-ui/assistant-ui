@@ -12,7 +12,7 @@ const OPERATION_KEYS = new Set([
   "deleteSurface",
 ]);
 // This defensive ceiling is well above the renderer's displayed-item limit.
-const MAX_AUTO_VIVIFY_ARRAY_INDEX = 10_000;
+export const MAX_AUTO_VIVIFY_ARRAY_INDEX = 10_000;
 const INVALID_POINTER = Symbol("invalidPointer");
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>

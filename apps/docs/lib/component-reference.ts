@@ -34,6 +34,7 @@ export const COMPONENT_CATEGORIES: readonly ComponentCategory[] = [
       "DatePicker",
       "Checkbox",
       "RadioGroup",
+      "CheckboxGroup",
       "Form",
     ],
   },
@@ -357,6 +358,18 @@ export const COMPONENT_EXAMPLES: Record<string, UISpec> = {
       { label: "Bar", value: "bar" },
     ],
     $action: { type: "set_seating" },
+  },
+  CheckboxGroup: {
+    $type: "CheckboxGroup",
+    name: "dietary",
+    label: "Dietary needs",
+    defaultValue: ["vegetarian"],
+    options: [
+      { label: "Vegetarian", value: "vegetarian" },
+      { label: "Gluten-free", value: "gluten_free" },
+      { label: "Nut allergy", value: "nut_allergy" },
+    ],
+    $action: { type: "set_dietary_needs" },
   },
   Form: {
     $type: "Form",

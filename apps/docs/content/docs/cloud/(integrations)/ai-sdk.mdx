@@ -329,6 +329,7 @@ Telemetry is configured on the `AssistantCloud` client, not on `useChatRuntime`.
 |---|---|---|
 | `enabled` | `true` | `false` prevents both run reports and engagement events. |
 | `events` | `true` when telemetry is enabled | `false` keeps run reports but drops engagement events. |
+| `messages` | `true` when telemetry is enabled | Has no effect on this runtime, which persists its own messages. |
 | `release` | Unset | Adds the value to every run report. |
 | `environment` | Unset | Adds the value to every run report. |
 | `tags` | Unset | Trims and de-duplicates values, limits each to 64 characters and keeps at most 20. |
@@ -336,9 +337,9 @@ Telemetry is configured on the `AssistantCloud` client, not on `useChatRuntime`.
 
 ## Persist and report a run
 
-The history adapter stores the AI SDK representation as `ai-sdk/v6`. It omits the local message id while writing, restores the server id while reading and preserves the stored parent link. Loading happens once for a thread, then waits for a remote id when one is not available yet.
+The history adapter stores the AI SDK representation as `ai-sdk/v6`. It omits the local message id while writing, restores the server id while reading and preserves the stored parent link. It stores tool artifacts, recorded interactions and approval answers in `__aui_toolArtifacts`, `__aui_toolInteractions` and `__aui_toolApprovalResponses`. Loading happens once for a thread, then waits for a remote id when one is not available yet.
 
-After a run settles, the external-history layer waits one macrotask before it writes. That debounce absorbs short-lived agentic step changes. It appends each new inner message with its parent chain, and updates an already stored message only when its encoded content changed and the run has a measured duration. Writes are serialized, so a later write follows the pending one.
+After a run settles, the external-history layer waits one macrotask before it writes. That debounce absorbs short-lived agentic step changes. It appends each new inner message with its parent chain, and updates an already stored message only when its encoded content changed, the run has a measured duration and the history adapter supports `update`. Tool artifacts, recorded interactions and approval answers update the stored message as soon as they are available. A message paused for approval is stored early when the history adapter supports `update`. Writes are serialized, so a later write follows the pending one.
 
 The same settling pass reports each assistant message once it is terminal. The runtime measures the duration from the run start to its last boundary, captures time to first token from streaming timing, and records step boundaries as new tool calls appear. It sends step timestamps when more than one boundary was observed.
 

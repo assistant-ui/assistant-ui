@@ -39,6 +39,8 @@ export type RuntimeCapabilities = {
   readonly attachments: boolean;
   readonly feedback: boolean;
   readonly queue: boolean;
+  /** Whether the thread can answer a waiting tool call by adding its result, resuming it, or responding to its approval. */
+  readonly answerToolCall: boolean;
 };
 
 export type AddToolResultOptions = {

@@ -57,9 +57,11 @@ The outcome buckets are the ones the [Overview chart](/docs/cloud/dashboard/over
 
 Open a row to reach the run page. Its **Details** rail has **Outcome**, **Source**, **Thread**, **User**, **Message**, **Assistant**, **Environment**, **Release**, **Service**, **Agent**, **Started**, **Finished**, **First token**, **Steps** and **Trace id**. Thread and trace ids are copyable, and the thread id links to its conversation when the run has one.
 
-**Usage** lists the token rows, **Cost** and **Duration**. **Attributes** is the run's attributes ledger. **Scores** shows **Recorded** and **Sources**.
+The main tabs are **Trace**, **Conversation**, **Scores**, and **Raw**. **Conversation** shows the user and assistant turn. When a run has no thread, it shows the conversation read from the trace as the model saw it at the last step. **Scores** is a table with an **Annotate** action for runs attached to a thread. **Raw** shows the run as JSON.
 
-The trace waterfall gives every stored span a row. Select a span to open its rail, which shows **Kind**, **Tool**, **Source**, **Model**, **Step**, **Finish reason**, **Tool call id**, **Offset**, **Duration**, **Status**, **Status code**, **Error type**, **Started**, **Ended**, **Input tokens**, **Output tokens** and **Cost**. A null span cost reads *Not priced*. The rail also renders **Arguments** and **Prompt** from the span's recorded input and output.
+**Usage** is a share bar for **Fresh input**, **Cached input**, **Output**, and **Reasoning**, followed by **Cost**, **Duration**, and, when a run has more than one generation, one row for each step. **Attributes** is the run's attributes ledger.
+
+The trace waterfall gives every stored span a row. Select a span to open its rail, which has **Input**, **Output**, **Details**, and **Raw** tabs. When they contain OpenTelemetry messages, **Input** and **Output** show them by role. **Input** offers **Show N earlier messages** when earlier messages are hidden. A tool input that contains a generative UI tree is drawn as generative UI. **Details** shows **Kind**, **Tool**, **Source**, **Model**, **Step**, **Finish reason**, **Tool call id**, **Offset**, **Duration**, **Status**, **Status code**, **Error type**, **Started**, **Ended**, **Input tokens**, **Output tokens** and **Cost**. A missing or zero span cost reads *Not priced*. **Raw** shows the span as JSON. In the waterfall, Up and Down select a span, Right and Left expand and collapse it, and Esc clears the selection.
 
 Set a **Trace link template** in [Settings › Telemetry](/docs/cloud/settings/telemetry) with `{trace_id}` where the trace id belongs. A run with a trace id makes its **Trace id** row an external link using that template.
 
@@ -70,7 +72,7 @@ Set a **Trace link template** in [Settings › Telemetry](/docs/cloud/settings/t
 | A run is under *No model reported*. | The report carried no model id. The browser cannot see which model answered unless the route tells it. | Return the model id from the `messageMetadata` callback in an AI SDK route; see [Run reports](/docs/cloud/run-reports). Runs executed by a server assistant already carry it. |
 | A run has no thread. | The run came from an exported trace whose `gen_ai.conversation.id` did not resolve to a thread, or from a report without a thread. | Set `gen_ai.conversation.id` to the cloud thread id on the server span, or send `thread_id` in the report; see [Traces](/docs/cloud/traces). |
 | A run has no spans. | A report can omit `steps`, and the trace view has no stored spans to draw. | Send the report's steps or export the server trace for that response. |
-| Cost reads *Unpriced*. | The run has no recorded `cost_usd` and its model has no matching catalog price or project price override. | Add a matching price override in [Model prices](/docs/cloud/settings/model-prices), or include cost in the run report. |
+| Cost reads `—`. | The run has no recorded `cost_usd` and its model has no matching catalog price or project price override. | Add a matching price override in [Model prices](/docs/cloud/settings/model-prices), or include cost in the run report. |
 
 The *No model reported* row is fixed on the route, not in the dashboard. The browser stream carries no model or usage, so the route returns them in the message metadata the runtime stores and reports:
 

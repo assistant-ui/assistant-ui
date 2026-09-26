@@ -4,7 +4,6 @@ import { useId, useRef, useState, type FormEvent } from "react";
 import {
   CheckIcon,
   ExternalLinkIcon,
-  LoaderCircleIcon,
   LockIcon,
   OctagonAlertIcon,
 } from "lucide-react";
@@ -22,7 +21,7 @@ import {
   InputHelp,
   InputLinks,
   NoteField,
-  SubmitRow,
+  fieldClassName,
   inputCardClassName,
   inputLinkClassName,
   useInputActions,
@@ -32,7 +31,7 @@ import {
   useWizardNext,
 } from "@/components/pages/shop/wizard-actions";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
-import type { Checkout } from "@/lib/checkout/protocol";
+import { inputPrompt, type Checkout } from "@/lib/checkout/protocol";
 import {
   REASONING_EFFORTS,
   getModelProvider,
@@ -54,7 +53,6 @@ const TEST_COPY: Record<KeyTest["status"], string> = {
 const FEATURED_PROVIDERS = ["openai", "anthropic"];
 
 type Step = "provider" | "key" | "model";
-const STEPS: readonly Step[] = ["provider", "key", "model"];
 
 export function ModelInputCard({
   input,
@@ -94,7 +92,12 @@ export function ModelInputCard({
   const option = options.find((entry) => entry.id === providerId);
   const otherChosen = others.some((entry) => entry.id === providerId);
   const models = test.status === "ok" ? test.models : [];
-  const chosenModel = model.trim() || provider?.defaultModel || "";
+  const suggestedModel =
+    provider?.defaultModel !== undefined &&
+    (models.length === 0 || models.includes(provider.defaultModel))
+      ? provider.defaultModel
+      : models[0];
+  const chosenModel = model.trim() || suggestedModel || "";
   const tested = test.status !== "idle" && test.status !== "testing";
 
   const chooseProvider = (id: string | null) => {
@@ -121,7 +124,6 @@ export function ModelInputCard({
       return;
     }
     setTest(result);
-    if (result.status === "ok") setStep("model");
   };
 
   const submit = (event: FormEvent) => {
@@ -131,7 +133,7 @@ export function ModelInputCard({
       return;
     }
     if (step === "key") {
-      void runTest();
+      if (test.status === "ok") setStep("model");
       return;
     }
     if (!provider || chosenModel === "") return;
@@ -148,13 +150,13 @@ export function ModelInputCard({
   };
 
   const testing = test.status === "testing";
-  const wizard = useWizardNext(
+  useWizardNext(
     step === "provider"
       ? { label: "Next", disabled: busy || !provider, submit: true }
       : step === "key"
         ? {
-            label: "Test key",
-            disabled: busy || apiKey.trim() === "" || testing,
+            label: "Next",
+            disabled: busy || test.status !== "ok",
             submit: true,
             back: () => {
               if (!busy) setStep("provider");
@@ -172,9 +174,9 @@ export function ModelInputCard({
 
   const tileClassName = (active: boolean) =>
     cn(
-      "has-focus-visible:ring-ring flex min-w-0 cursor-pointer items-center gap-2 rounded-lg border p-3 text-sm font-medium transition-colors has-focus-visible:ring-2",
+      "has-focus-visible:ring-ring flex min-w-0 cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm font-medium transition-colors has-focus-visible:ring-2",
       active
-        ? "border-foreground bg-foreground/[0.04]"
+        ? "border-foreground bg-muted"
         : "border-foreground/10 hover:border-foreground/30",
     );
 
@@ -184,21 +186,20 @@ export function ModelInputCard({
       onSubmit={submit}
       className={inputCardClassName}
     >
-      <fieldset disabled={busy} className="flex min-w-0 flex-col gap-4">
-        <legend className="max-w-full text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
-          {input.prompt}
-        </legend>
-        <p className="text-muted-foreground text-sm tabular-nums">
-          Step {STEPS.indexOf(step) + 1} of {STEPS.length}
-          {step !== "provider" && option ? ` · ${option.label}` : ""}
-          {step === "model"
-            ? keySkipped
-              ? " · no key"
-              : test.status === "ok"
-                ? " · key tested"
-                : " · key not verified"
-            : ""}
-        </p>
+      <fieldset disabled={busy} className="flex min-w-0 flex-col gap-3">
+        <legend className="sr-only">{inputPrompt(input)}</legend>
+        {step !== "provider" && option && (
+          <p className="text-muted-foreground text-sm">
+            {option.label}
+            {step === "model"
+              ? keySkipped
+                ? " · no key"
+                : test.status === "ok"
+                  ? " · key tested"
+                  : " · key not verified"
+              : ""}
+          </p>
+        )}
 
         {step === "provider" ? (
           <div className="flex flex-col gap-3">
@@ -271,24 +272,42 @@ export function ModelInputCard({
         ) : null}
 
         {step === "key" && provider ? (
-          <div className="flex flex-col gap-2 text-sm">
+          <div className={fieldClassName}>
             <label htmlFor={`${listId}-key`} className="text-muted-foreground">
               API key
             </label>
-            <Input
-              id={`${listId}-key`}
-              type="password"
-              autoComplete="off"
-              spellCheck={false}
-              value={apiKey}
-              onChange={(event) => {
-                apiKeyRef.current = event.target.value;
-                setApiKey(event.target.value);
-                if (test.status !== "idle") setTest({ status: "idle" });
-              }}
-              placeholder={provider.envKey}
-              className="font-mono"
-            />
+            <div className="flex gap-2">
+              <Input
+                id={`${listId}-key`}
+                type="password"
+                autoFocus
+                autoComplete="off"
+                spellCheck={false}
+                value={apiKey}
+                onChange={(event) => {
+                  apiKeyRef.current = event.target.value;
+                  setApiKey(event.target.value);
+                  if (test.status !== "idle") setTest({ status: "idle" });
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter" || event.nativeEvent.isComposing)
+                    return;
+                  event.preventDefault();
+                  if (test.status === "ok") setStep("model");
+                  else void runTest();
+                }}
+                placeholder={provider.envKey}
+                className="font-mono"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy || apiKey.trim() === "" || testing}
+                onClick={() => void runTest()}
+              >
+                {testing ? "Testing…" : "Test key"}
+              </Button>
+            </div>
             {tested ? (
               <p
                 role="status"
@@ -307,6 +326,9 @@ export function ModelInputCard({
                   <OctagonAlertIcon className="mt-0.5 size-3.5 shrink-0" />
                 )}
                 {TEST_COPY[test.status]}
+                {test.status === "ok" && test.models.length > 0
+                  ? ` ${test.models.length} ${test.models.length === 1 ? "model" : "models"} available.`
+                  : ""}
               </p>
             ) : (
               <p className="text-muted-foreground">
@@ -315,10 +337,10 @@ export function ModelInputCard({
                   href={provider.keys.href}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-foreground inline-flex items-center gap-1 underline underline-offset-4"
+                  className="text-foreground inline-flex items-center gap-1.5 underline underline-offset-4"
                 >
                   Get a key
-                  <ExternalLinkIcon className="size-3" />
+                  <ExternalLinkIcon className="size-3.5" />
                 </a>
               </p>
             )}
@@ -337,11 +359,11 @@ export function ModelInputCard({
           <>
             <div
               className={cn(
-                "grid gap-4",
+                "grid gap-3",
                 provider.reasoning && "sm:grid-cols-[minmax(0,1fr)_10rem]",
               )}
             >
-              <div className="flex flex-col gap-1.5 text-sm">
+              <div className={fieldClassName}>
                 <label
                   htmlFor={`${listId}-model`}
                   className="text-muted-foreground"
@@ -351,16 +373,12 @@ export function ModelInputCard({
                 <Input
                   id={`${listId}-model`}
                   list={models.length > 0 ? `${listId}-models` : undefined}
+                  autoFocus
                   autoComplete="off"
                   spellCheck={false}
                   value={model}
                   onChange={(event) => setModel(event.target.value)}
-                  placeholder={
-                    provider.defaultModel ??
-                    (models.length > 0
-                      ? "Pick or type a model"
-                      : "Type a model id")
-                  }
+                  placeholder={suggestedModel ?? "Type a model id"}
                   className="font-mono"
                 />
                 {models.length > 0 ? (
@@ -377,7 +395,7 @@ export function ModelInputCard({
                 ) : null}
               </div>
               {provider.reasoning ? (
-                <label className="flex flex-col gap-1.5 text-sm">
+                <label className={fieldClassName}>
                   <span className="text-muted-foreground">Reasoning</span>
                   <Select
                     value={effort}
@@ -412,96 +430,31 @@ export function ModelInputCard({
         <InputHelp help={input.help} />
       ) : null}
 
-      {wizard ? (
-        step === "key" ? (
-          <InputLinks input={input} busy={busy} onDismiss={dismiss}>
-            {tested && test.status !== "ok" ? (
-              <button
-                type="button"
-                onClick={() => setStep("model")}
-                className={inputLinkClassName}
-              >
-                Continue anyway
-              </button>
-            ) : null}
+      {step === "key" ? (
+        <InputLinks input={input} busy={busy} onDismiss={dismiss}>
+          {tested && test.status !== "ok" ? (
             <button
               type="button"
-              onClick={() => {
-                setKeySkipped(true);
-                setStep("model");
-              }}
+              onClick={() => setStep("model")}
               className={inputLinkClassName}
             >
-              Skip, I’ll add it myself
+              Continue anyway
             </button>
-          </InputLinks>
-        ) : step === "model" ? (
-          <InputLinks input={input} busy={busy} onDismiss={dismiss} />
-        ) : null
-      ) : step === "model" ? (
-        <div className="flex items-end gap-2">
-          <SubmitRow
-            input={input}
-            busy={busy}
-            disabled={chosenModel === ""}
-            onDismiss={dismiss}
-          />
-          <Button
+          ) : null}
+          <button
             type="button"
-            variant="ghost"
-            disabled={busy}
-            onClick={() => setStep("key")}
+            onClick={() => {
+              setKeySkipped(true);
+              setStep("model");
+            }}
+            className={inputLinkClassName}
           >
-            Back
-          </Button>
-        </div>
-      ) : (
-        <div className="mt-4 flex flex-wrap gap-2">
-          {step === "provider" ? (
-            <Button type="submit" disabled={!provider}>
-              Continue
-            </Button>
-          ) : (
-            <>
-              <Button type="submit" disabled={apiKey.trim() === "" || testing}>
-                {testing ? (
-                  <LoaderCircleIcon
-                    data-icon="inline-start"
-                    className="animate-spin"
-                  />
-                ) : null}
-                Test key
-              </Button>
-              {tested && test.status !== "ok" ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setStep("model")}
-                >
-                  Continue anyway
-                </Button>
-              ) : null}
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  setKeySkipped(true);
-                  setStep("model");
-                }}
-              >
-                Skip, I’ll add it myself
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setStep("provider")}
-              >
-                Back
-              </Button>
-            </>
-          )}
-        </div>
-      )}
+            Skip, I’ll add it myself
+          </button>
+        </InputLinks>
+      ) : step === "model" ? (
+        <InputLinks input={input} busy={busy} onDismiss={dismiss} />
+      ) : null}
     </form>
   );
 }

@@ -40,6 +40,19 @@ describe("convertAdkMessage - human messages", () => {
     });
   });
 
+  it("preserves activity messages as visible text", () => {
+    const msg: AdkMessage = {
+      id: "m1",
+      type: "human",
+      content: [{ type: "activity", message: "Working on it" }],
+    };
+
+    expect(convertAdkMessage(msg, {})).toMatchObject({
+      role: "user",
+      content: [{ type: "text", text: "Working on it" }],
+    });
+  });
+
   it("restores a file_url part as a file part stamped with sourceType url", () => {
     const msg: AdkMessage = {
       id: "m1",

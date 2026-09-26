@@ -66,6 +66,7 @@ type TeamsConversionWarning = {
 | `Button` | `Action.Submit` inside an `ActionSet` | Consecutive buttons merge into one set; `buttonStyle` is dropped, since Teams [ignores action styling](https://learn.microsoft.com/en-us/microsoftteams/platform/task-modules-and-cards/cards/cards-reference) |
 | `Select` | `Input.ChoiceSet`, compact | An option without a string value is dropped with a warning |
 | `RadioGroup` | `Input.ChoiceSet`, expanded | An option without a string value is dropped with a warning |
+| `CheckboxGroup` | `Input.ChoiceSet`, expanded, with `isMultiSelect` | Its value is the checked values joined by commas, so a value that contains a comma cannot be told apart |
 | `Checkbox` | `Input.Toggle` | Its value is the string `"true"` or `"false"` |
 | `Input` | `Input.Text` | |
 | `DatePicker` | `Input.Date` | `value`, `min`, and `max` are kept only in `YYYY-MM-DD` form, otherwise dropped silently |
@@ -96,7 +97,7 @@ Two consolidations also apply, both run-based rather than global: consecutive `F
 
 Adaptive Cards merges every input's current value into one submit object keyed by the input's `id`, which has two consequences worth knowing.
 
-**Ids come from `name`.** Each control's `id` is its `name` prop, falling back to a per-type default (`"select"`, `"radiogroup"`, `"input"`, `"datepicker"`). `Checkbox` is the exception: it falls back to its `label` first and only then to `"checkbox"`, so an unnamed checkbox keys the submit object by its visible label. Two controls that share a name on the same card would collide, so the converter renames the later one and warns. The key `aui` is reserved for the action envelope; a control named `aui` is renamed too.
+**Ids come from `name`.** Each control's `id` is its `name` prop, falling back to a per-type default (`"select"`, `"radiogroup"`, `"checkboxgroup"`, `"input"`, `"datepicker"`). `Checkbox` is the exception: it falls back to its `label` first and only then to `"checkbox"`, so an unnamed checkbox keys the submit object by its visible label. Two controls that share a name on the same card would collide, so the converter renames the later one and warns. The key `aui` is reserved for the action envelope; a control named `aui` is renamed too.
 
 **There is no change event.** Adaptive Cards has no way to dispatch when a control's value changes, so a standalone control carrying `$action` gets a companion "Submit" `ActionSet` appended, plus a `fallback` warning. Five such controls produce five separate submit buttons. The idiomatic shape is to put `$action` on a `Form` or a `Card` footer and leave the controls actionless, which yields one submit for the whole card.
 
@@ -127,7 +128,7 @@ const action = decodeSubmitData(context.activity.value);
 // { type: "approve_order", orderId: "48213", $input: { quantity: "2" } }
 ```
 
-`$input` here is an **object keyed by input id**, which differs from Slack, where a single control's `$input` is a bare value. It is omitted when the card had no inputs. The function returns `undefined` for a payload without a well-formed `aui` envelope and never throws; `type` always comes from the envelope, and a `$input` key smuggled into the payload is stripped.
+`$input` here is an **object keyed by input id**, which differs from Slack, where a single control's `$input` is a bare value. It is omitted when the card had no inputs. A `{ "$field": name }` reference in the payload resolves to the input with that id, as the string Adaptive Cards submitted, and a reference with no such input resolves to its `fallback`, or is dropped when it has none. The function returns `undefined` for a payload without a well-formed `aui` envelope and never throws; `type` always comes from the envelope, and a `$input` key smuggled into the payload is stripped.
 
 The converter emits `Action.Submit`. Teams also offers [`Action.Execute`](https://learn.microsoft.com/en-us/adaptive-cards/authoring-cards/universal-action-model) from schema 1.4, which lets a bot return a replacement card in the invoke response; reaching for that means constructing the action yourself.
 

@@ -11,6 +11,7 @@ import {
   AuiConfig,
   defineToolkit,
   Tools,
+  useAuiState,
   useExternalStoreRuntime,
   type ThreadMessage,
   type ThreadMessageLike,
@@ -62,7 +63,7 @@ const task = (
     messages: readonly ThreadMessage[];
     result?: unknown;
     isError?: boolean;
-    approval?: { id: string };
+    approval?: { id: string; prompt?: string };
   },
 ) => ({
   type: "tool-call" as const,
@@ -144,6 +145,7 @@ function TestThread({
     convertMessage: (message) => message,
     isRunning: false,
     onNew: async () => {},
+    onAddToolResult: () => {},
   });
 
   return (
@@ -280,7 +282,7 @@ describe("TaskGroup", () => {
     ).toBeGreaterThan(0);
   });
 
-  it("renders a call waiting inside a transcript without controls", () => {
+  it("renders a call waiting inside a transcript with its prompt and without controls", () => {
     render(
       <TestThread
         messages={[
@@ -296,8 +298,22 @@ describe("TaskGroup", () => {
                     [
                       task("gated", "Tag the release", {
                         messages: [],
-                        approval: { id: "nested-approval" },
+                        approval: {
+                          id: "nested-approval",
+                          prompt: "Tag v1.2.0?",
+                        },
                       }),
+                      {
+                        type: "tool-call",
+                        toolCallId: "deploy",
+                        toolName: "deploy",
+                        args: {},
+                        argsText: "{}",
+                        approval: {
+                          id: "deploy-approval",
+                          prompt: "Deploy to production?",
+                        },
+                      },
                       {
                         type: "tool-call",
                         toolCallId: "lookup",
@@ -330,8 +346,13 @@ describe("TaskGroup", () => {
 
     const nested = within(outer)
       .getByText("Tag the release")
-      .closest('[data-slot="task-card"]');
-    expect(nested?.getAttribute("data-state")).toBe("waiting");
+      .closest<HTMLElement>('[data-slot="task-card"]')!;
+    expect(nested.getAttribute("data-state")).toBe("waiting");
+    const nestedActions = nested.querySelector<HTMLElement>(
+      '[data-slot="task-card-actions"]',
+    )!;
+    expect(nestedActions.textContent).toBe("Tag v1.2.0?");
+    expect(within(outer).getByText("Deploy to production?")).toBeTruthy();
     expect(
       within(outer).getByRole("button", { name: "Used tool: lookup" }),
     ).toBeTruthy();
@@ -339,8 +360,61 @@ describe("TaskGroup", () => {
       within(outer).getByRole("button", { name: "Used tool: confirm" }),
     ).toBeTruthy();
     expect(
-      within(outer).queryAllByRole("button", { name: "Allow" }),
+      within(outer).queryAllByRole("button", { name: /^(Allow|Deny)$/ }),
     ).toHaveLength(0);
+  });
+
+  it("tells a tool UI inside the transcript that the thread cannot answer", () => {
+    const CanAnswer = () => (
+      <span>{`can answer: ${useAuiState((s) => s.thread.capabilities.answerToolCall)}`}</span>
+    );
+    const config = AuiConfig({
+      tools: Tools({
+        toolkit: defineToolkit({
+          lookup: { type: "backend", render: CanAnswer },
+        }),
+      }),
+    });
+    const lookup = (id: string) => ({
+      type: "tool-call" as const,
+      toolCallId: id,
+      toolName: "lookup",
+      args: {},
+      argsText: "{}",
+      result: "found",
+    });
+
+    render(
+      <TestThread
+        config={config}
+        messages={[
+          { role: "user", content: "Look into it" },
+          {
+            role: "assistant",
+            content: [
+              lookup("outer-lookup"),
+              task("outer", "Coordinate the release", {
+                messages: [
+                  nestedUser("outer-user", "Go"),
+                  nestedAssistant("outer-assistant", [lookup("inner-lookup")], {
+                    type: "complete",
+                    reason: "stop",
+                  }),
+                ],
+                result: "handed back",
+              }),
+            ],
+          },
+        ]}
+      />,
+    );
+
+    const outer = cards()[0]!;
+    fireEvent.click(within(outer).getByRole("button", { expanded: false }));
+
+    expect(within(outer).getByText("can answer: false")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "1 tool call" }));
+    expect(screen.getByText("can answer: true")).toBeTruthy();
   });
 
   it("shows the error text of a failed lane and reads a cancelled call as cancelled", () => {

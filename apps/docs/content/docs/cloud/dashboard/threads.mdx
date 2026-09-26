@@ -17,7 +17,7 @@ The table has **Title**, **Topic**, **User**, **Tokens**, **Cost** and **Updated
 
 ## Filter by conversation and behaviour
 
-The filter bar shows a facet only when it has options in the selected range. Its values describe the threads in that range, archived ones included.
+The filter bar always shows **Feedback**, **Review**, **Satisfaction**, **Signal**, and **Ended on the user's message**. Other facets appear only when they have options in the selected range. Its values describe the threads in that range, archived ones included.
 
 | Facet | Values and reading |
 |---|---|
@@ -27,6 +27,7 @@ The filter bar shows a facet only when it has options in the selected range. Its
 | **Feedback** | `feedback=negative`, `feedback=positive` or `feedback=any`. |
 | **Review** | `review=unreviewed`, `review=reviewed`, `review=good`, `review=needs_work` or `review=unclear`. |
 | **Signal** | A multiselect of the 12 interaction and analysis signals below. |
+| **Environment** | Run environments, selecting threads with a run in that environment. |
 | **Sentiment** | `positive`, `neutral` or `negative`. |
 | **Resolved** | Resolved or unresolved analysis results. |
 | **Language** | The 12 most common analysed languages. |
@@ -80,16 +81,16 @@ The top tiles are **Messages**, **Runs**, **Cost** and **Tokens**. The main colu
 |---|---|
 | **Conversation** main column | The rendered transcript. End user thumbs and their comments appear under the message they were given on. |
 | **Details** tab | The details ledger, Satisfaction, and Analysis. Analysis includes Topic, Task, Phrasing, Sentiment, Resolved, Language, Turns, Repeats, Unanswered question, and Classified. |
-| **Turns** tab | One row per question with the run that answered it. Open a row for its spans. |
+| **Turns** tab | One row per question with the run that answered it. Open a run row to see its spans and **Annotate** action. |
 | **Activity** tab | The engagement events for the thread. |
 | **Review** tab | The verdict form and other reviewers' reviews. |
 | **Raw** tab | The stored messages as JSON. |
 
 The right rail has five tabs: **Details**, **Turns**, **Activity**, **Review** and **Raw**. It opens on **Details**; a thread opened from the **Review** view or from a list filtered by review state opens on **Review** instead. On the **Review** tab a person on the team records a verdict for the whole conversation: **Good**, **Needs work** or **Unclear**. They can add an optional note, then choose **Save** or **Save and next**. `g`, `n` and `u` choose the verdict. `Mod+Enter` saves and moves on. `j` and `k` move to the next and previous thread.
 
-**Previous** and **Next** are in the header of every thread and follow the list the thread was opened from, including that list's filters and sort. Each reviewer has one review per thread and can change it. Other reviewers' reviews are listed below the form.
+The header includes **Back to threads**, and **Exit review** while a review walk is active. **Previous** and **Next** follow the list the thread was opened from, including that list's filters and sort. The counter reads **N of M** outside review and **N left of M** in review. Each reviewer has one review per thread and can change it. The **Save** control reads **Update** once the viewer has a review. Other reviewers' reviews are listed below the form.
 
-The **Details** tab has **External id**, when the thread has one and with a copy control, then **Title**, which reads how the thread got its name or why it has none, then **Created**, **Last message** and **Runs**. **Environment** and **Release** show the distinct values across the thread's runs and link to [Runs](/docs/cloud/dashboard/runs) filtered to that value. **Tags** are badges that link to [Runs](/docs/cloud/dashboard/runs) filtered to the tag. The **Metadata** ledger lists the thread metadata and reads *No metadata* when there is none.
+The **Details** tab has **External id**, when the thread has one and with a copy control, then **Title**, which reads how the thread got its name or why it has none, then **Created**, **Last message** and **Runs**. **Environment** and **Release** show the distinct values across the thread's runs and link to [Runs](/docs/cloud/dashboard/runs) filtered to that value. **Tags** are badges that link to [Runs](/docs/cloud/dashboard/runs) filtered to the tag. The **Metadata** ledger appears only when the thread has metadata.
 
 | Title row | Meaning |
 |---|---|
@@ -101,14 +102,15 @@ The **Details** tab has **External id**, when the thread has one and with a copy
 | *Waiting for the hourly sweep* | No attempt yet; the sweep picks the thread up. |
 | *No user text to title* | The thread has no user message with text; a message that holds only a file is not title input. |
 | *Titles are off for this project*, *Paused by the plan cap* | The feature is off, or the gateway allowance is used up; see [Thread titles](/docs/cloud/thread-titles). |
+| *No model configured for titles* | The project has no configured title model. |
 
-**Export as Markdown** downloads the transcript as a Markdown file.
+**Export as Markdown** appears on each assistant message and downloads only that message as `message-<timestamp>.md`.
 
 ## Troubleshooting
 
 | What you see | Why | What to do |
 |---|---|---|
 | A thread is missing from the list. | The active range, search and selected facets limit its rows. | Clear the list filters and choose a range that includes the conversation. |
-| A facet is missing from the bar. | The page renders a facet only when it has options in the selected range. | Widen the range or remove the filters that leave that facet with no options. |
+| A facet is missing from the bar. | It is not one of the facets shown in every range, and it has no options in the selected range. | Widen the range or remove the filters that leave that facet with no options. |
 | Satisfaction reads *No signal*. | The thread has no thumbs rating and neither a copy or second run nor a stop, regeneration or edit. Its stored satisfaction value is `none`. | Read the **Activity** and **Turns** tabs to see the events and runs behind the rule. |
-| Analysis reads *Not analysed*. | No [Intelligence](/docs/cloud/intelligence) pass has classified the thread: analysis is off, the thread is newer than the last pass, or it was stored as junk. | Check **Settings › Intelligence** and its runs ledger, or queue **Run now**. |
+| Analysis reads *Not analysed yet*. | No [Intelligence](/docs/cloud/intelligence) pass has classified the thread: analysis is off, the thread is newer than the last pass, or it was stored as junk. | Check **Settings › Intelligence** and its runs ledger, or queue **Run now**. |

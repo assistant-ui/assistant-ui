@@ -15,6 +15,7 @@ const EXPECTED_KEYS = [
   "DatePicker",
   "Checkbox",
   "RadioGroup",
+  "CheckboxGroup",
   "Form",
   "Card",
   "Col",

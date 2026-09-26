@@ -25,8 +25,9 @@ Within either request, the cloud orders threads by `last_message_at` and then id
 |---|---|---|---|
 | `cloud` | The automatic anonymous cloud client when available | An `AssistantCloud` client | Backs the remote list. Without a client, the adapter uses an in memory thread list. |
 | `sdk` | None | An SDK identity | Registers the identity after the core SDK identity. |
-| `create` | None | An async callback returning `{ externalId }` | Runs before remote initialization. Its result is sent as the new thread's `external_id`. |
+| `create` | None | An async callback that receives the thread list item's `id` and returns `{ externalId }` | Runs before remote initialization. Its result is sent as the new thread's `external_id`. |
 | `delete` | None | An async callback that receives the cloud thread id | Runs and settles before the cloud thread is deleted. |
+| `upsert` | None | A boolean | Creates with `upsert`, so a create retried after a lost response reuses the thread that already has the returned external id instead of storing a second one. |
 
 ![Threads on the demo project](../images/threads.webp)
 
@@ -98,7 +99,7 @@ curl "https://backend.assistant-api.com/v1/threads?external_id=crm:conversation:
   -H "Aui-Workspace-Id: workspace_123"
 ```
 
-Create through the REST API with `upsert: true` and an `external_id` when one application conversation must map to one cloud thread. The cloud serializes that creation per workspace and external id, so concurrent creates answer the same row. If duplicates already exist, it answers the oldest matching thread. The client method `cloud.threads.create` does not expose `upsert`, so use the [Threads API reference](/docs/cloud/api/threads) for this idempotent creation path.
+Create with `upsert: true` and an `external_id`, through `cloud.threads.create` or the REST API, when one application conversation must map to one cloud thread. The cloud serializes that creation per workspace and external id, so concurrent creates answer the same row. If duplicates already exist, it answers the oldest matching thread. The [Threads API reference](/docs/cloud/api/threads) lists the responses of this idempotent creation path.
 
 ### Store only flat custom metadata
 
@@ -122,7 +123,7 @@ Deleting a thread removes its messages and the thread row in one transaction. It
 
 | What you see | Why | What to do |
 |---|---|---|
-| One conversation appears twice | `external_id` is not unique on an ordinary create, or the application returned a different external id for the same conversation. | Return one stable external id. When creation must be idempotent, create through the Threads API with `upsert: true`. |
+| One conversation appears twice | `external_id` is not unique on an ordinary create, or the application returned a different external id for the same conversation. | Return one stable external id. When creation must be idempotent, pass `upsert: true` to the thread list adapter, or create through the Threads API with `upsert: true`. |
 | An archived thread is missing from a custom list | A cloud list request has one archive state. `is_archived: false` never returns archived rows. | Request `is_archived: true`, or use the cloud thread list adapter, which loads both states in parallel. |
 | A thread has no messages after switching runtimes | A thread id can be shared, but each runtime persists and loads its own message format. The local runtime loads `aui/v0`; the AI SDK runtime loads its converted `ai-sdk/v6` history. | Keep the same runtime for a thread, or use a supported read conversion described in [Messages](/docs/cloud/messages). |
 | Deleting a thread leaves runs in the dashboard | Thread deletion intentionally removes messages and the thread only. Runs, spans and scores are separate records. | Use the retention policy for eventual removal, and expect historical run and usage views to keep those records until then. |

@@ -100,6 +100,18 @@ export const AuthorizationUI = makeAssistantDataUI<EveAuthorizationData>({
 Mount `<AuthorizationUI />` inside the `AssistantRuntimeProvider` tree. The
 standard thread intentionally leaves unmatched data parts unrendered.
 
+## Store threads in Assistant Cloud
+
+Without `cloud`, the runtime runs a single Eve session. Persist `useEveSession()` and pass it back as `initialSession` with `resume: true` to pick the conversation up after a reload.
+
+Pass `cloud` to back a thread list with [Assistant Cloud](/docs/cloud) instead. `cloud` is the only switch: `NEXT_PUBLIC_ASSISTANT_BASE_URL` alone keeps the single session. Pass it from the first render, since adding or removing it later throws (remount the runtime, for example with a `key`, to switch), and use eve 0.44.1 or later, which can resume a session.
+
+```tsx
+const runtime = useEveAgentRuntime({ cloud });
+```
+
+Each cloud thread keeps one Eve session, stored as its external id. Eve assigns a session id only once a thread's first turn is accepted, so a new thread is saved to the cloud at that point; until then, a first message staged without a run, or a first turn that fails before Eve creates the session, leaves the thread unsaved. The save uses `upsert`, so a save retried after a lost response reuses the thread that already has the session. Opening a thread resumes its session: the thread reports loading while the replay runs, and a message sent meanwhile waits for it. `session`, `initialSession`, `initialEvents` and `resume` are not used with `cloud`, and `useEveReset()` starts a new thread, leaving the current thread and its session in the list. A cloud thread that no Eve runtime created has no session: it opens empty, and sending in it keeps the draft in the composer. Renaming, archiving and deleting change the cloud thread only, since Eve has no call to delete a session. The runtime copies each settled turn to the cloud, so the dashboard shows the conversation.
+
 ## Requirements
 
 - Node.js 24 or higher.

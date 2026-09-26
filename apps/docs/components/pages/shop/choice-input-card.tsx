@@ -13,7 +13,7 @@ import {
 } from "@/components/pages/shop/input-shared";
 import { useWizardFormId } from "@/components/pages/shop/wizard-actions";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
-import type { Checkout } from "@/lib/checkout/protocol";
+import { inputPrompt, type Checkout } from "@/lib/checkout/protocol";
 import { cn } from "@/lib/utils";
 
 const OTHER = "\0other";
@@ -29,7 +29,9 @@ export function ChoiceInputCard({
   checkout: CheckoutContextValue;
 }) {
   const options = input.options ?? [];
-  const [selected, setSelected] = useState(input.default ?? "");
+  const [picked, setPicked] = useState(
+    input.default === undefined ? [] : [input.default],
+  );
   const [variant, setVariant] = useState(
     variantsOf(options.find((option) => option.id === input.default))[0]?.id ??
       "",
@@ -37,41 +39,61 @@ export function ChoiceInputCard({
   const [custom, setCustom] = useState("");
   const [note, setNote] = useState("");
   const { busy, answer, dismiss } = useInputActions(input, checkout);
-  const other = selected === OTHER;
-  const current = options.find((option) => option.id === selected);
+  const other = picked.includes(OTHER);
+  const current = input.multiple
+    ? undefined
+    : options.find((option) => option.id === picked[0]);
   const variants = variantsOf(current);
   const variantLabel = input.preset === "project" ? "Framework" : "Language";
-  const complete = other
-    ? custom.trim() !== ""
-    : current !== undefined && (variants.length === 0 || variant !== "");
+  const ownTextReady = !other || custom.trim() !== "";
+  const complete = input.multiple
+    ? picked.length > 0 && ownTextReady
+    : other
+      ? ownTextReady
+      : current !== undefined && (variants.length === 0 || variant !== "");
   const locked = options.length === 1;
-  const compact = options.length > 3;
+
+  const select = (id: string) => {
+    if (!input.multiple) setPicked([id]);
+    else if (picked.includes(id))
+      setPicked(picked.filter((entry) => entry !== id));
+    else setPicked([...picked, id]);
+  };
 
   const choose = (option: Checkout.ChoiceOption) => {
-    setSelected(option.id);
+    select(option.id);
     setVariant(variantsOf(option)[0]?.id ?? "");
   };
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!complete) return;
+    const ownText = other ? [custom.trim()] : [];
+    if (input.multiple) {
+      const chosen = options
+        .filter((option) => picked.includes(option.id))
+        .map((option) => option.id);
+      void answer(JSON.stringify([...chosen, ...ownText]), note);
+      return;
+    }
     void answer(
-      other
+      current === undefined
         ? custom.trim()
         : variants.length > 0
-          ? `${selected}:${variant}`
-          : selected,
+          ? `${current.id}:${variant}`
+          : current.id,
       note,
     );
   };
+
+  const pickType = input.multiple ? "checkbox" : "radio";
 
   const tileClassName = (active: boolean) =>
     cn(
       "has-focus-visible:ring-ring flex min-w-0 cursor-pointer gap-3 rounded-lg border p-3 [overflow-wrap:anywhere] transition-colors has-focus-visible:ring-2",
       active
-        ? "border-foreground bg-foreground/[0.04]"
+        ? "border-foreground bg-muted"
         : "border-foreground/10 hover:border-foreground/30",
-      compact && "flex-col items-start gap-2",
     );
 
   return (
@@ -80,22 +102,15 @@ export function ChoiceInputCard({
       onSubmit={submit}
       className={inputCardClassName}
     >
-      <fieldset disabled={busy} className="min-w-0">
-        <legend className="min-w-0 text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
-          {input.prompt}
-        </legend>
-        <div
-          className={cn(
-            "mt-3 grid gap-2",
-            compact ? "grid-cols-2 sm:grid-cols-4" : "sm:grid-cols-2",
-          )}
-        >
+      <fieldset disabled={busy} className="flex min-w-0 flex-col gap-3">
+        <legend className="sr-only">{inputPrompt(input)}</legend>
+        <div className="flex flex-col gap-2">
           {options.map((option) => {
-            const active = option.id === selected;
+            const active = picked.includes(option.id);
             return (
               <label key={option.id} className={tileClassName(active)}>
                 <input
-                  type="radio"
+                  type={pickType}
                   name={input.id}
                   value={option.id}
                   checked={active}
@@ -103,7 +118,7 @@ export function ChoiceInputCard({
                   className="sr-only"
                 />
                 {option.icon ? (
-                  <ChoiceIcon icon={option.icon} className="size-5 shrink-0" />
+                  <ChoiceIcon icon={option.icon} className="size-4 shrink-0" />
                 ) : null}
                 <span className="min-w-0 [overflow-wrap:anywhere]">
                   <span className="block text-sm font-medium">
@@ -120,14 +135,14 @@ export function ChoiceInputCard({
           })}
           <label className={tileClassName(other)}>
             <input
-              type="radio"
+              type={pickType}
               name={input.id}
               value={OTHER}
               checked={other}
-              onChange={() => setSelected(OTHER)}
+              onChange={() => select(OTHER)}
               className="sr-only"
             />
-            <PencilLineIcon className="text-muted-foreground size-5 shrink-0" />
+            <PencilLineIcon className="text-muted-foreground size-4 shrink-0" />
             <span className="min-w-0 [overflow-wrap:anywhere]">
               <span className="block text-sm font-medium">Something else</span>
               <span className="text-muted-foreground mt-0.5 block text-xs leading-snug">
@@ -143,18 +158,17 @@ export function ChoiceInputCard({
             placeholder="What should it use instead?"
             aria-label="Your own answer"
             autoFocus
-            className="mt-3"
           />
         ) : null}
         {!other && variants.length > 1 ? (
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-muted-foreground text-sm">
               {variantLabel}
             </span>
             <div
               role="radiogroup"
               aria-label={variantLabel}
-              className="flex flex-wrap gap-1"
+              className="flex flex-wrap gap-2"
             >
               {variants.map((entry) => (
                 <label
@@ -180,16 +194,13 @@ export function ChoiceInputCard({
             </div>
           </div>
         ) : null}
-        <div className="mt-3">
-          <NoteField value={note} onChange={setNote} />
-        </div>
+        <NoteField value={note} onChange={setNote} />
       </fieldset>
       {input.help && !locked ? <InputHelp help={input.help} /> : null}
       <SubmitRow
         input={input}
         busy={busy}
         disabled={!complete}
-        label={locked && !other ? "Confirm" : "Send"}
         onDismiss={dismiss}
       />
     </form>

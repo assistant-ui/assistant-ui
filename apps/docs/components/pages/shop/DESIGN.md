@@ -1,0 +1,22 @@
+# Setup wizard design decisions
+
+- The frame never resizes: every page renders in one fixed size, and only the viewport caps it.
+- Page content never scrolls; the license box scrolls internally instead. The install step list is the exception: the title and progress bar stay put while the list scrolls under a fade and follows the step in progress. The list keeps the step in progress in the middle of its area and fades the bottom `4rem`, short enough that the next step's title stays legible below the centered one; while the setup is live the list pads both ends by half the area's height, so the first and the last step can reach the middle too and the first activation does not shift the list.
+- The intro and license pages fit the frame.
+- The agent-disconnected notice is a modal that hides the content until the agent reconnects.
+- The key step shows an explicit test result before Next.
+- Back keeps the session running; Cancel is the only way to end it.
+- The finished page lists the products the session installed behind a disclosure that reads "See what was added in this session.", collapsed by default and kept to one line: one row per product with its catalog glyph, its name and its packages as muted metadata on the same line, in two columns once the body is `@lg` wide, so the list never scrolls. The install page keeps its step list and shows no disclosure.
+- The mobile header replaces the desktop sidebar.
+- The messages sheet is full screen below `sm` and resizable above.
+- The exploring bar is a seeded simulation of a familiar installer bar: it creeps, stalls for a few seconds, jumps a little, never runs backwards or fills past 92%, holds while the agent is away, and resumes where it was when the page comes back.
+- Dark mode uses the plain page background behind the frame.
+- Motion: a row that appears unfolds from zero height (`animate-unfold`, a grid track growing from `0fr`) while its content fades in and rises `2` (`animate-in fade-in slide-in-from-bottom-2`), over `300ms` ease-out and keyed so a rerender never replays it; a row that leaves folds back (`animate-fold`) while its content fades out, and stays mounted, `aria-hidden`, until the animation has run. The row the agent is still writing turns its dashed ring once every `3s`, slower than the active step's spinner. Every animation is `motion-safe:`.
+- Spacing scale: `gap-1.5` between an icon and its text (the Button's own gap), `2` between rows, chips and a label and its control, `3` between the fields of one card, `4` between the sections of a page, `6` between the title and the body. Sections stack with `gap`, not margins.
+- Page padding is `px-5 sm:px-6` on every horizontal band of the frame (content, notice, footer).
+- The plan review is an accordion, one row per section the agent wrote (What I found, What I will install, Steps), a row for anything under another heading so nothing is lost, and Open questions last; one row is open at a time and Steps opens first. A row header is one line, the title left and a muted count right (`4 items`, `3 steps`); the open panel lists items on one truncated line each, with the section's leftover prose muted underneath, and caps itself at `max-h-28`, scrolling internally under a `1rem` bottom fade when it holds more. The page never scrolls in any accordion state: below the accordion the note box is always visible, two rows with its label read out only; a note sends a change request, an empty one installs. The row above the accordion keeps the earlier-revisions toggle left and the revision label right.
+- Surfaces: a filled card is `bg-muted rounded-lg p-4`; a selectable row or tile is `rounded-lg border p-3`, resting on `border-foreground/10`, `border-foreground/30` on hover and `border-foreground bg-muted` when chosen.
+- `border-foreground/10` is the one hairline, for borders, dividers and the progress track; `/30` is the accent bar; `border-foreground` is the active state.
+- Text: the page title is `text-lg font-semibold`; every other heading is `text-sm font-medium`; helper text is `text-muted-foreground text-sm` and metadata `text-xs`.
+- Icons are `size-4` beside content and `size-3.5` inside a line of text.
+- A step's description shows two lines at most: it is truncated in the middle to `140` characters (two lines of `text-sm` at the `546px` the description gets in the frame, minus what word wrapping loses), `line-clamp-2` caps it at any other width, and the full text is the paragraph's `title`.

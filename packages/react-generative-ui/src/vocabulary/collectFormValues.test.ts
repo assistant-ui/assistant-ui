@@ -5,7 +5,7 @@ import {
   collectFormValues,
   type FormControlElementLike,
 } from "./collectFormValues";
-import { GENERATED_NAME_ATTR } from "../constants";
+import { CHECKBOX_GROUP_ATTR, GENERATED_NAME_ATTR } from "../constants";
 
 const el = (
   partial: Partial<FormControlElementLike>,
@@ -49,6 +49,27 @@ describe("collectFormValues", () => {
     ]);
     expect("size" in values).toBe(true);
     expect(values.size).toBeUndefined();
+  });
+
+  it("resolves a checkbox group to its checked values in document order", () => {
+    const option = (value: string, checked: boolean) =>
+      el({
+        name: "toppings",
+        type: "checkbox",
+        value,
+        checked,
+        hasAttribute: (name) => name === CHECKBOX_GROUP_ATTR,
+      });
+    expect(
+      collectFormValues([
+        option("basil", true),
+        option("olives", false),
+        option("onion", true),
+      ]),
+    ).toEqual({ toppings: ["basil", "onion"] });
+    expect(collectFormValues([option("basil", false)])).toEqual({
+      toppings: [],
+    });
   });
 
   it("resolves select/input/textarea/date controls to their string value", () => {

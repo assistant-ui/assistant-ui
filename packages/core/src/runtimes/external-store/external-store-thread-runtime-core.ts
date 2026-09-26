@@ -96,6 +96,7 @@ export class ExternalStoreThreadRuntimeCore
     attachments: false,
     feedback: false,
     queue: false,
+    answerToolCall: false,
   };
 
   public get capabilities() {
@@ -309,6 +310,11 @@ export class ExternalStoreThreadRuntimeCore
       attachments: !!this._store.adapters?.attachments,
       feedback: !!this._store.adapters?.feedback,
       queue: this._store.queue !== undefined,
+      answerToolCall:
+        this._store.onAddToolResult !== undefined ||
+        this._store.onResumeToolCall !== undefined ||
+        this._store.onRespondToToolApproval !== undefined ||
+        this._store.unstable_enableToolInvocations === true,
     };
     if (!shallowEqual(this._capabilities, newCapabilities)) {
       this._capabilities = newCapabilities;

@@ -163,7 +163,7 @@ const runtime = useAdkRuntime({
 
 ### Cloud persistence
 
-For persistent thread history via assistant-cloud, pass a `cloud` instance:
+Pass a `cloud` instance to use Assistant Cloud for the thread list and a dashboard copy of settled messages. Thread history loads through the `load` function from the ADK session, not from Assistant Cloud:
 
 ```ts
 const runtime = useAdkRuntime({
