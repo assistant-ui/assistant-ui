@@ -14,6 +14,61 @@ import { ThreadRenameInput } from "./thread-rename-input";
 afterEach(cleanup);
 
 describe("thread rename", () => {
+  it.each([false, true])(
+    "keeps a newer title when the original draft is restored (edited: %s)",
+    async (edited) => {
+      const onRename = vi.fn();
+      const onDone = vi.fn();
+      const { rerender } = render(
+        <ThreadRenameInput
+          title="First title"
+          onRename={onRename}
+          onDone={onDone}
+        />,
+      );
+      const input = screen.getByRole("textbox");
+      if (edited) {
+        fireEvent.change(input, { target: { value: "Temporary edit" } });
+        fireEvent.change(input, { target: { value: "First title" } });
+      }
+      rerender(
+        <ThreadRenameInput
+          title="New remote title"
+          onRename={onRename}
+          onDone={onDone}
+        />,
+      );
+      fireEvent.blur(input, { relatedTarget: null });
+      await waitFor(() => expect(onDone).toHaveBeenCalledWith(false));
+      expect(onRename).not.toHaveBeenCalled();
+    },
+  );
+
+  it("saves an edited draft after a background title update", async () => {
+    const onRename = vi.fn();
+    const onDone = vi.fn();
+    const { rerender } = render(
+      <ThreadRenameInput
+        title="First title"
+        onRename={onRename}
+        onDone={onDone}
+      />,
+    );
+    const input = screen.getByRole("textbox");
+    fireEvent.change(input, { target: { value: "My title" } });
+    rerender(
+      <ThreadRenameInput
+        title="Generated title"
+        onRename={onRename}
+        onDone={onDone}
+      />,
+    );
+    fireEvent.submit(input.closest("form")!);
+    await waitFor(() =>
+      expect(onRename).toHaveBeenCalledExactlyOnceWith("My title"),
+    );
+  });
+
   it("selects the existing name, saves a trimmed title once, and waits for completion", async () => {
     let finish!: () => void;
     const onRename = vi.fn(

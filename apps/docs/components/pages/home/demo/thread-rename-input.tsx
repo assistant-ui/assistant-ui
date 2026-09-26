@@ -14,6 +14,7 @@ export function ThreadRenameInput({
   onDone: (restoreFocus: boolean) => void;
 }) {
   const [value, setValue] = useState(title);
+  const initialTitleRef = useRef(title);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -27,7 +28,7 @@ export function ThreadRenameInput({
   const commit = async (restoreFocus: boolean) => {
     if (settledRef.current) return;
     const next = value.trim();
-    if (!next || next === title) {
+    if (!next || next === title || next === initialTitleRef.current.trim()) {
       settledRef.current = true;
       onDone(restoreFocus);
       return;
