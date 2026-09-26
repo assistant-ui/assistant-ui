@@ -486,7 +486,11 @@ export type PiHostUiResponse =
 export type PiClientEventBody =
   | { type: "snapshot"; snapshot: PiThreadSnapshot }
   | { type: "agent_start" }
-  | { type: "agent_end"; willRetry?: boolean }
+  | {
+      type: "agent_end";
+      willRetry?: boolean;
+      cancelledBeforeStart?: boolean;
+    }
   | { type: "agent_settled" }
   | { type: "turn_start"; turnIndex: number }
   | { type: "turn_end"; turnIndex: number }
