@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { convertExternalMessages } from "@assistant-ui/core/react";
 import { convertAdkMessage } from "./convertAdkMessages";
 import type { AdkMessage } from "./types";
 
@@ -25,6 +26,47 @@ describe("convertAdkMessage - human messages", () => {
         content: [],
       });
     }
+  });
+
+  it("skips media parts without their data, url, or mime type", () => {
+    const msg = {
+      id: "m1",
+      type: "human",
+      content: [
+        { type: "image", mimeType: "image/png" },
+        { type: "image", data: "iVBORw0KGgo=" },
+        { type: "image_url" },
+        { type: "file", mimeType: "application/pdf" },
+        { type: "file", data: "QUJD" },
+        { type: "file_url", mimeType: "application/pdf" },
+        { type: "text", text: "Hello" },
+      ],
+    } as AdkMessage;
+    expect(convertAdkMessage(msg, {})).toMatchObject({
+      role: "user",
+      content: [{ type: "text", text: "Hello" }],
+    });
+  });
+
+  it("skips a reasoning part on a human message", () => {
+    const messages = convertExternalMessages<AdkMessage>(
+      [
+        {
+          id: "m1",
+          type: "human",
+          content: [
+            { type: "reasoning", text: "thinking" },
+            { type: "text", text: "Hello" },
+          ],
+        } satisfies AdkMessage,
+      ],
+      (message) => convertAdkMessage(message, {}),
+      false,
+      {},
+    );
+    expect(messages).toMatchObject([
+      { role: "user", content: [{ type: "text", text: "Hello" }] },
+    ]);
   });
 
   it("converts a human message with text content parts", () => {
@@ -354,6 +396,76 @@ describe("convertAdkMessage - ai messages", () => {
     });
   });
 
+  it("skips null entries in tool_calls", () => {
+    const msg = {
+      id: "m1",
+      type: "ai",
+      content: [],
+      tool_calls: [null, { id: "tc-1", name: "search", args: {} }],
+    } as unknown as AdkMessage;
+    expect(convertAdkMessage(msg, {})).toMatchObject({
+      content: [{ type: "tool-call", toolCallId: "tc-1", toolName: "search" }],
+    });
+  });
+
+  it("skips a tool call without a name, so its named result does not break the thread", () => {
+    const messages = convertExternalMessages<AdkMessage>(
+      [
+        {
+          id: "m1",
+          type: "ai",
+          content: "Checking",
+          tool_calls: [{ id: "tc-1", args: {} }],
+        } as unknown as AdkMessage,
+        {
+          id: "m2",
+          type: "tool",
+          tool_call_id: "tc-1",
+          name: "search",
+          content: "{}",
+        },
+      ],
+      (message) => convertAdkMessage(message, {}),
+      false,
+      {},
+    );
+    expect(messages).toMatchObject([
+      { role: "assistant", content: [{ type: "text", text: "Checking" }] },
+    ]);
+  });
+
+  it.each([
+    ["an empty", ""],
+    ["a non-string", 42],
+  ])(
+    "skips a tool call with %s name, so its named result does not break the thread",
+    (_, name) => {
+      const messages = convertExternalMessages<AdkMessage>(
+        [
+          {
+            id: "m1",
+            type: "ai",
+            content: "Checking",
+            tool_calls: [{ id: "tc-1", name, args: {} }],
+          } as AdkMessage,
+          {
+            id: "m2",
+            type: "tool",
+            tool_call_id: "tc-1",
+            name: "search",
+            content: "{}",
+          },
+        ],
+        (message) => convertAdkMessage(message, {}),
+        false,
+        {},
+      );
+      expect(messages).toMatchObject([
+        { role: "assistant", content: [{ type: "text", text: "Checking" }] },
+      ]);
+    },
+  );
+
   it("includes status when present", () => {
     const msg: AdkMessage = {
       id: "m1",
@@ -425,5 +537,22 @@ describe("convertAdkMessage - tool messages", () => {
     };
     const result = convertAdkMessage(msg, {});
     expect(result).toMatchObject({ isError: true });
+  });
+});
+
+describe("convertAdkMessage - unknown messages", () => {
+  it("skips a message without a type", () => {
+    const messages = convertExternalMessages<AdkMessage>(
+      [
+        { id: "m1", type: "human", content: "Hello" },
+        { id: "m2", content: "no type" } as unknown as AdkMessage,
+      ],
+      (message) => convertAdkMessage(message, {}),
+      false,
+      {},
+    );
+    expect(messages).toMatchObject([
+      { role: "user", content: [{ type: "text", text: "Hello" }] },
+    ]);
   });
 });
