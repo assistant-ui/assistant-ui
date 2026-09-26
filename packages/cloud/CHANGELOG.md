@@ -1,5 +1,15 @@
 # assistant-cloud
 
+## 0.2.4
+
+### Patch Changes
+
+- [#8406](https://github.com/assistant-ui/assistant-ui/pull/8406) [`cec9fd4`](https://github.com/assistant-ui/assistant-ui/commit/cec9fd4bf1d17aeff969f5ff57e4c5b34ea3ea61) - fix: mark `files.pdfToImages` deprecated, since Assistant Cloud has no `/v1/files/pdf-to-images` route and every call answers 404 ([@okisdev](https://github.com/okisdev))
+
+- [#8405](https://github.com/assistant-ui/assistant-ui/pull/8405) [`f0a0488`](https://github.com/assistant-ui/assistant-ui/commit/f0a0488b859f946c75aea6a11b601ea0d57db6a9) - fix: `threads.create` accepts `upsert`, so a server can create or find the thread for an `external_id` without a cast ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`b1a3211`](https://github.com/assistant-ui/assistant-ui/commit/b1a32114e94dbe60decea1590b9f4acb011fc721)]:
+  - assistant-stream@0.3.46
+
 ## 0.2.3
 
 ### Patch Changes

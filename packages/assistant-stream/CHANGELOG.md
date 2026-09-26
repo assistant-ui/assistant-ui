@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.3.46
+
+### Patch Changes
+
+- [#8415](https://github.com/assistant-ui/assistant-ui/pull/8415) [`b1a3211`](https://github.com/assistant-ui/assistant-ui/commit/b1a32114e94dbe60decea1590b9f4acb011fc721) - fix: a message sent while a local run is paused ends the pause instead of stranding it: open approvals record `resolution: "cancelled"`, the paused message settles as cancelled, and a result added to it later no longer resumes the run and drops the turns after it; `toGenericMessages` closes out the calls of an earlier or settled message as not completed ([@okisdev](https://github.com/okisdev))
+
 ## 0.3.45
 
 ### Patch Changes
