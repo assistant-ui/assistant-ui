@@ -541,6 +541,12 @@ export abstract class BaseThreadRuntimeCore
             this._finishVoiceAssistantMessage();
             this._voiceSession = undefined;
             this.voice = undefined;
+            this._voiceVolume = 0;
+            notifyEventListeners(
+              this._voiceVolumeSubscribers,
+              undefined,
+              "Voice volume",
+            );
             this._onVoiceDisconnected();
           } else {
             this.voice = this._toVoiceSessionState(
