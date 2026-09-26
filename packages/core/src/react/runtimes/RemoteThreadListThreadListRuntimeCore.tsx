@@ -764,10 +764,21 @@ export class RemoteThreadListThreadListRuntimeCore
         if (current?.id !== data.id) return;
       }
     }
-    this._mainThreadId = current.id;
+    this._setMainThreadId(current.id);
 
     this._notifySubscribers();
     this._notifyThreadIdChange(emitThreadIdChange);
+  }
+
+  // A thread can be detached while a switch or initialize is about to select
+  // it, so selecting a thread starts its runtime if it is not running.
+  private _setMainThreadId(threadId: string) {
+    this._mainThreadId = threadId;
+    if (this._hookManager.getThreadRuntimeCore(threadId)) return;
+    void this._hookManager.startThreadRuntime(threadId).then(
+      () => this._notifySubscribers(),
+      () => undefined,
+    );
   }
 
   public switchToNewThread(): Promise<void> {
@@ -847,7 +858,7 @@ export class RemoteThreadListThreadListRuntimeCore
         );
         removedMappingId = reconciliation.removedMappingId;
         if (removedMappingId === this._mainThreadId) {
-          this._mainThreadId = reconciliation.survivorMappingId;
+          this._setMainThreadId(reconciliation.survivorMappingId);
         }
         return reconciliation.state;
       },
