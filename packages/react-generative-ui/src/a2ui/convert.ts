@@ -170,6 +170,24 @@ const withFieldReferences = (
   return result;
 };
 
+const compactArrays = (value: unknown, depth = 0): unknown => {
+  if (depth >= DEPTH_CAP) return value;
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => compactArrays(entry, depth + 1))
+      .filter((entry) => entry !== undefined);
+  }
+  if (isPlainObject(value)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [
+        key,
+        compactArrays(entry, depth + 1),
+      ]),
+    );
+  }
+  return value;
+};
+
 const materializeEntries = (
   value: Record<string, unknown>,
   source: unknown,
@@ -306,9 +324,11 @@ type ConversionContext = {
   functionDepthWarned: boolean;
   readonly templates: Map<string, ExpressionPart[] | null>;
   readonly inputFields: Map<string, unknown>;
+  readonly actionContexts: Set<Record<string, unknown>>;
   readonly boundActionEntries: {
     readonly target: Record<string, unknown>;
     readonly key: string;
+    readonly path: string;
     readonly pointer: string;
   }[];
   readonly keepUnknownComponents: boolean;
@@ -404,14 +424,32 @@ const recordBindings = (
       : raw["context"];
   const target = functionCall ? action["args"] : action["context"];
   if (!isRecord(rawEntries) || !isRecord(target)) return;
-  for (const [key, entry] of Object.entries(rawEntries)) {
+  if (!functionCall) context.actionContexts.add(target);
+  const visit = (entry: unknown, key: string, path: string, depth: number) => {
+    if (depth >= DEPTH_CAP) return;
     if (isBinding(entry)) {
       context.boundActionEntries.push({
         target,
         key,
+        path,
         pointer: pointerIn(scope, entry.path),
       });
+    } else if (
+      Array.isArray(entry) ||
+      (isPlainObject(entry) && !isFunctionCall(entry))
+    ) {
+      for (const [childKey, child] of Object.entries(entry)) {
+        visit(
+          child,
+          key,
+          `${path}/${childKey.replaceAll("~", "~0").replaceAll("/", "~1")}`,
+          depth + 1,
+        );
+      }
     }
+  };
+  for (const [key, entry] of Object.entries(rawEntries)) {
+    visit(entry, key, "", 0);
   }
 };
 
@@ -921,6 +959,15 @@ function convertComponent(
         scope.data,
         context,
         key !== "checks",
+        0,
+        key === "action" &&
+          component === "Button" &&
+          isRecord(value) &&
+          isRecord(
+            isRecord(value["event"])
+              ? value["event"]["context"]
+              : value["context"],
+          ),
       );
       if (resolved !== undefined) setOwnProperty(props, key, resolved);
     }
@@ -1001,6 +1048,7 @@ export function convertSurfaceToUISpec(
     functionDepthWarned: false,
     templates: new Map(),
     inputFields: new Map(),
+    actionContexts: new Set(),
     boundActionEntries: [],
     keepUnknownComponents: options.keepUnknownComponents === true,
   };
@@ -1012,13 +1060,23 @@ export function convertSurfaceToUISpec(
       0,
       new Set(),
     );
-    for (const { target, key, pointer } of context.boundActionEntries) {
+    for (const { target, key, path, pointer } of context.boundActionEntries) {
       const value = withFieldReferences(
-        target[key],
+        resolvePointer(target[key], path),
         pointer,
         context.inputFields,
       );
-      if (value !== undefined) setOwnProperty(target, key, value);
+      if (value !== undefined)
+        setOwnProperty(
+          target,
+          key,
+          setIn(target[key], decodePointer(path), value),
+        );
+    }
+    for (const target of context.actionContexts) {
+      for (const [key, value] of Object.entries(target)) {
+        setOwnProperty(target, key, compactArrays(value));
+      }
     }
     return { spec, warnings };
   } catch {

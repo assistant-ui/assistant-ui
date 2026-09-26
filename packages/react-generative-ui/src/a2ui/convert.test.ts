@@ -19,6 +19,64 @@ const surfaceFrom = (
 });
 
 describe("convertSurfaceToUISpec", () => {
+  it("preserves compaction in retained custom actions and non-record contexts", () => {
+    const ids = [{ path: "/a" }, { path: "/missing" }, { path: "/b" }];
+    const custom = convertSurfaceToUISpec(
+      surfaceFrom(
+        [
+          {
+            id: "root",
+            component: "ReturnPanel",
+            action: { event: { name: "go", context: { ids } } },
+          },
+        ],
+        { a: "A", b: "B" },
+      ),
+      { keepUnknownComponents: true },
+    );
+    expect(custom.spec).toMatchObject({
+      action: { event: { context: { ids: ["A", "B"] } } },
+    });
+    const button = convertSurfaceToUISpec(
+      surfaceFrom(
+        [
+          {
+            id: "root",
+            component: "Button",
+            label: "Go",
+            action: { event: { name: "go", context: ids } },
+          },
+        ],
+        { a: "A", b: "B" },
+      ),
+    );
+    expect(button.spec?.$action?.["context"]).toEqual(["A", "B"]);
+  });
+
+  it("compacts missing non-input event values after resolving nested bindings", () => {
+    const surface = surfaceFrom(
+      [
+        {
+          id: "root",
+          component: "Button",
+          label: "Send",
+          action: {
+            event: {
+              name: "send",
+              context: {
+                ids: [{ path: "/a" }, { path: "/missing" }, { path: "/b" }],
+              },
+            },
+          },
+        },
+      ],
+      { a: "A", b: "B" },
+    );
+    expect(convertSurfaceToUISpec(surface).spec?.$action?.["context"]).toEqual({
+      ids: ["A", "B"],
+    });
+  });
+
   it("keeps absolute bindings rooted while resolving relative template bindings locally", () => {
     const surface = surfaceFrom(
       [
