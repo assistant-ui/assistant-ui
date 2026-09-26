@@ -1,4 +1,4 @@
-import { createContext, useContext } from "react";
+import { Activity, createContext, useContext } from "react";
 import { Box, Text } from "ink";
 import {
   AuiIf,
@@ -93,16 +93,17 @@ export const Thread = ({
 
         <Box borderStyle="round" borderColor="gray" paddingX={1}>
           <Text color="gray">{"> "}</Text>
-          {isComposing ? (
+          <Activity mode={isComposing ? "visible" : "hidden"}>
             <ComposerPrimitive.Input
               submitOnEnter
               multiLine
               placeholder="Type a message... (Enter to send)"
               autoFocus
             />
-          ) : (
+          </Activity>
+          {!isComposing ? (
             <Text dimColor>Press Esc to return to your message</Text>
-          )}
+          ) : null}
         </Box>
       </ThreadPrimitive.Root>
     </ThreadWidthContext.Provider>
