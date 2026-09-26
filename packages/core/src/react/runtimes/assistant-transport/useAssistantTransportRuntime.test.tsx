@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, render, waitFor } from "@testing-library/react";
-import type { FC } from "react";
+import { Suspense, useState, type FC } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAui } from "@assistant-ui/store";
 import { ToolResponse } from "assistant-stream";
@@ -10,6 +10,7 @@ import {
   useAssistantTransportRuntime,
   useAssistantTransportSendCommand,
 } from "./useAssistantTransportRuntime";
+import { REPLAY_CONTENT_LENGTH_HEADER } from "./replayBoundaryStream";
 import type {
   AssistantTransportCommand,
   AssistantTransportOptions,
@@ -786,5 +787,86 @@ describe("useAssistantTransportRuntime", () => {
       (aui().thread.getState().extras as { state: unknown }).state,
     ).toEqual({ message: "Wrong" });
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("ends a resumed run on cancelRun while its replay waits for a suspended render", async () => {
+    const fetchMock = vi.fn(async (_url: string, init: RequestInit) => {
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          init.signal!.addEventListener("abort", () =>
+            controller.error(init.signal!.reason),
+          );
+        },
+      });
+      return new Response(stream, {
+        headers: { [REPLAY_CONTENT_LENGTH_HEADER]: "10" },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    let released = false;
+    let releaseSuspense!: () => void;
+    const suspense = new Promise<void>((resolve) => {
+      releaseSuspense = () => {
+        released = true;
+        resolve();
+      };
+    });
+    let suspend!: () => void;
+    const Suspender: FC = () => {
+      const [suspended, setSuspended] = useState(false);
+      suspend = () => setSuspended(true);
+      if (!suspended) return null;
+      if (!released) throw suspense;
+      return <span data-testid="resumed" />;
+    };
+    const captured: { aui?: ReturnType<typeof useAui> } = {};
+    const Capture: FC = () => {
+      captured.aui = useAui();
+      return null;
+    };
+    const onCancel = vi.fn();
+    const App: FC = () => {
+      const runtime = useAssistantTransportRuntime({
+        initialState: {},
+        api: "https://example.com/api",
+        resumeApi: "https://example.com/resume",
+        headers: {},
+        converter,
+        onCancel,
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <Capture />
+          <Suspender />
+        </AssistantRuntimeProvider>
+      );
+    };
+    const { findByTestId } = render(
+      <Suspense fallback={null}>
+        <App />
+      </Suspense>,
+    );
+    const aui = () => captured.aui!;
+    await waitFor(() =>
+      expect(
+        (aui().thread.getState().extras as { sendCommand?: unknown })
+          ?.sendCommand,
+      ).toBeTypeOf("function"),
+    );
+
+    act(() => suspend());
+    act(() => {
+      void aui().thread.resumeRun({ parentId: null });
+    });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await act(async () => {});
+    act(() => aui().thread.cancelRun());
+
+    await waitFor(() => expect(onCancel).toHaveBeenCalledTimes(1));
+    expect(aui().thread.getState().isRunning).toBe(false);
+
+    await act(async () => releaseSuspense());
+    await findByTestId("resumed");
+    expect(aui().thread.getState().isRunning).toBe(false);
   });
 });
