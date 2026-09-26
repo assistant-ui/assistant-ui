@@ -1,5 +1,49 @@
 # @assistant-ui/react-generative-ui
 
+## 0.0.22
+
+### Patch Changes
+
+- [#8445](https://github.com/assistant-ui/assistant-ui/pull/8445) [`3e45d71`](https://github.com/assistant-ui/assistant-ui/commit/3e45d711a301fc35e31fb34f8b5c93d93ac343d1) - fix: resolve absolute A2UI bindings from the surface root inside templates. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8407](https://github.com/assistant-ui/assistant-ui/pull/8407) [`0038ffd`](https://github.com/assistant-ui/assistant-ui/commit/0038ffd8cd04fb4df03b9623963ed68179a92db1) - fix: the A2UI converter maps a `ChoicePicker` without a `variant` to `RadioGroup` like the spec default `mutuallyExclusive`, maps `multipleSelection` to `CheckboxGroup` with every selected value, and turns a `functionCall` button action into an `a2ui:functionCall` `$action`; an action it cannot read now warns ([@okisdev](https://github.com/okisdev))
+
+- [#8470](https://github.com/assistant-ui/assistant-ui/pull/8470) [`87e76e0`](https://github.com/assistant-ui/assistant-ui/commit/87e76e0070f1437c7f14f89bb43454e16efe0605) - feat: map a2ui sliders onto the slider vocabulary ([@okisdev](https://github.com/okisdev))
+
+- [#8421](https://github.com/assistant-ui/assistant-ui/pull/8421) [`a83a270`](https://github.com/assistant-ui/assistant-ui/commit/a83a27025e432f72e5a508cd3949b5a98177441f) - fix: A2UI inputs show their bound value and are named by the full binding pointer, and a button's `context` or `functionCall` args bound to an input send what the user entered; `$action` values accept `{ "$field": name }` references resolved when the action fires, falling back to an optional `fallback` (the value the agent sent, for converted surfaces) where no control can be read, such as on Slack or in a component that dispatches `$action` itself, while `decodeSubmitData` resolves them from a Teams card's inputs; `Input` and `Select` take a `defaultValue` that the Slack and Teams converters map, and a control resets when a re-render changes its initial value ([@okisdev](https://github.com/okisdev))
+
+- [#8377](https://github.com/assistant-ui/assistant-ui/pull/8377) [`286fef7`](https://github.com/assistant-ui/assistant-ui/commit/286fef701f3e0204d840df9819ecfecf61273867) - fix: the A2UI converter maps a spec `Button` variant (`primary` to the `primary` button style, `borderless` to `ghost`) and a `TextField` `longText` variant (a multiline `Input`); an explicit `buttonStyle` still wins ([@okisdev](https://github.com/okisdev))
+
+- [#8407](https://github.com/assistant-ui/assistant-ui/pull/8407) [`0038ffd`](https://github.com/assistant-ui/assistant-ui/commit/0038ffd8cd04fb4df03b9623963ed68179a92db1) - feat: add a `CheckboxGroup` vocabulary component for picking any number of options; its `$input` is the array of checked values, a `Form` collects it the same way, Slack renders it as `checkboxes`, and Teams as a multi-select `Input.ChoiceSet` ([@okisdev](https://github.com/okisdev))
+
+- [#8412](https://github.com/assistant-ui/assistant-ui/pull/8412) [`a4e177f`](https://github.com/assistant-ui/assistant-ui/commit/a4e177f2875800e395e779478baf4794086e5393) - fix: the A2UI converter evaluates function call values (`formatString` with its `${...}` expressions, `formatNumber`, `formatCurrency`, `formatDate`, `pluralize`, `and`, `or`, `not`), including inside an action's `context` and a `functionCall`'s `args`, and resolves relative binding paths against the current template item; any other function in a value is skipped with a warning ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#8470](https://github.com/assistant-ui/assistant-ui/pull/8470) [`87e76e0`](https://github.com/assistant-ui/assistant-ui/commit/87e76e0070f1437c7f14f89bb43454e16efe0605) - feat: answered prompt_user controls lock and restore submitted form values after a reload. ([@okisdev](https://github.com/okisdev))
+
+- [#8470](https://github.com/assistant-ui/assistant-ui/pull/8470) [`87e76e0`](https://github.com/assistant-ui/assistant-ui/commit/87e76e0070f1437c7f14f89bb43454e16efe0605) - feat: add carousel paging controls ([@okisdev](https://github.com/okisdev))
+
+- [#8470](https://github.com/assistant-ui/assistant-ui/pull/8470) [`87e76e0`](https://github.com/assistant-ui/assistant-ui/commit/87e76e0070f1437c7f14f89bb43454e16efe0605) - feat: support negative chart values, tooltips, and series colors ([@okisdev](https://github.com/okisdev))
+
+- [#8444](https://github.com/assistant-ui/assistant-ui/pull/8444) [`877d3da`](https://github.com/assistant-ui/assistant-ui/commit/877d3da94c2421402bdec7e17ec17aa2d0eba487) - fix: render prompt controls while a tool is waiting for user input. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8474](https://github.com/assistant-ui/assistant-ui/pull/8474) [`2980caf`](https://github.com/assistant-ui/assistant-ui/commit/2980cafdf4f894995daa77c34f3db09e74205ff7) - fix: keep the vocabulary importable from react server components ([@okisdev](https://github.com/okisdev))
+
+- [#8470](https://github.com/assistant-ui/assistant-ui/pull/8470) [`87e76e0`](https://github.com/assistant-ui/assistant-ui/commit/87e76e0070f1437c7f14f89bb43454e16efe0605) - feat: add sliders, checkbox switches, and option descriptions to generative UI. ([@okisdev](https://github.com/okisdev))
+
+- [#8470](https://github.com/assistant-ui/assistant-ui/pull/8470) [`87e76e0`](https://github.com/assistant-ui/assistant-ui/commit/87e76e0070f1437c7f14f89bb43454e16efe0605) - feat: format generative ui tables and fact deltas ([@okisdev](https://github.com/okisdev))
+
+- [#8470](https://github.com/assistant-ui/assistant-ui/pull/8470) [`87e76e0`](https://github.com/assistant-ui/assistant-ui/commit/87e76e0070f1437c7f14f89bb43454e16efe0605) - feat: add an undo window to generative UI buttons ([@okisdev](https://github.com/okisdev))
+
+- [#8434](https://github.com/assistant-ui/assistant-ui/pull/8434) [`45f340d`](https://github.com/assistant-ui/assistant-ui/commit/45f340ddc3e837f9e3df958adfa56e12d74c3bcb) - fix: isolate radio selections across generated cards while preserving logical field names in form submissions and action references. ([@Kinfe123](https://github.com/Kinfe123))
+  
+  Rendered component trees and arrays returned by `renderGenerativeUI` now sit inside a context provider. Null and primitive results retain their original shape.
+
+- [#8435](https://github.com/assistant-ui/assistant-ui/pull/8435) [`17ccd3e`](https://github.com/assistant-ui/assistant-ui/commit/17ccd3eec4dd1bcb997657866399288f5f6314d3) - fix: preserve radio, checkbox, and select choices when options reorder or new options are inserted. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8436](https://github.com/assistant-ui/assistant-ui/pull/8436) [`2fce8c6`](https://github.com/assistant-ui/assistant-ui/commit/2fce8c61b41c901511cb98e056552703c4d40ce8) - fix: preserve JSON object text in Slack plain-text input actions instead of decoding it as button metadata. ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`b1a3211`](https://github.com/assistant-ui/assistant-ui/commit/b1a32114e94dbe60decea1590b9f4acb011fc721)]:
+  - assistant-stream@0.3.46
+
 ## 0.0.21
 
 ### Patch Changes

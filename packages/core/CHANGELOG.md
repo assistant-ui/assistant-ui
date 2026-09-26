@@ -1,5 +1,37 @@
 # @assistant-ui/core
 
+## 0.3.22
+
+### Patch Changes
+
+- [#8416](https://github.com/assistant-ui/assistant-ui/pull/8416) [`f77dbea`](https://github.com/assistant-ui/assistant-ui/commit/f77dbeafd3b0dfb4aaf7c440ec35a0e46f39014d) - feat: `RuntimeCapabilities.answerToolCall` reports whether a thread can answer a waiting tool call by adding its result, resuming it, or responding to its approval. a readonly thread reports `false`, a local thread `true`, and an external store `true` once it sets `onAddToolResult`, `onResumeToolCall`, or `onRespondToToolApproval`, or runs tools itself through `unstable_enableToolInvocations`; the react-ink `ToolFallback` shows a pending approval's prompt without its Allow and Deny controls where it is `false` ([@okisdev](https://github.com/okisdev))
+
+- [#8431](https://github.com/assistant-ui/assistant-ui/pull/8431) [`98f3dbd`](https://github.com/assistant-ui/assistant-ui/commit/98f3dbd5133e6679e96f65a1b1ee6268eecf8469) - fix: a history adapter without `update` now stores a paused run once a later turn cancels it, and importing a thread accepts a message listed before its parent, so a turn sent after a pause reloads instead of failing with `Parent message not found` ([@okisdev](https://github.com/okisdev))
+
+- [#8378](https://github.com/assistant-ui/assistant-ui/pull/8378) [`f054d07`](https://github.com/assistant-ui/assistant-ui/commit/f054d07e8ad26a5fdc339d61b946a813ec6400b4) - fix: cancel pending suggestions when their adapter is removed ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8415](https://github.com/assistant-ui/assistant-ui/pull/8415) [`b1a3211`](https://github.com/assistant-ui/assistant-ui/commit/b1a32114e94dbe60decea1590b9f4acb011fc721) - fix: a message sent while a local run is paused ends the pause instead of stranding it: open approvals record `resolution: "cancelled"`, the paused message settles as cancelled, and a result added to it later no longer resumes the run and drops the turns after it; `toGenericMessages` closes out the calls of an earlier or settled message as not completed ([@okisdev](https://github.com/okisdev))
+
+- [#8418](https://github.com/assistant-ui/assistant-ui/pull/8418) [`bb6122a`](https://github.com/assistant-ui/assistant-ui/commit/bb6122a3419f3161ba24139605b6058485d513e7) - feat: the cloud thread list's `create` receives the id of the thread being saved, so a runtime whose backend assigns its id on the first turn can wait for that turn, and `upsert: true` makes a retried create reuse the thread that already has the returned external id ([@okisdev](https://github.com/okisdev))
+
+- [#8448](https://github.com/assistant-ui/assistant-ui/pull/8448) [`c978a22`](https://github.com/assistant-ui/assistant-ui/commit/c978a22899fe4bca2f8a899c967cc771c468d772) - fix: refresh original source messages when a converter reuses its output for new inputs. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8453](https://github.com/assistant-ui/assistant-ui/pull/8453) [`038cd9f`](https://github.com/assistant-ui/assistant-ui/commit/038cd9f82b418afe9e6d0080648738f78586fbca) - fix: extract base64 data from URLs that omit the media type, preserving explicit file-type hints and defaulting standalone parsing to text/plain. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8451](https://github.com/assistant-ui/assistant-ui/pull/8451) [`5df393f`](https://github.com/assistant-ui/assistant-ui/commit/5df393f0bbd84cd2a73731d60d2e973d991cbd27) - fix: derive joined assistant message status from its latest assistant segment. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8450](https://github.com/assistant-ui/assistant-ui/pull/8450) [`9eba158`](https://github.com/assistant-ui/assistant-ui/commit/9eba158fb89f90ea04f8d5ab50521b4995a57f9a) - fix: read a tool part's original messages when it contains a nested conversation. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8449](https://github.com/assistant-ui/assistant-ui/pull/8449) [`e72ac92`](https://github.com/assistant-ui/assistant-ui/commit/e72ac92e97194a40829406c64105b65a04425667) - fix: preserve a tool call's nested conversation when its result omits a replacement transcript. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8452](https://github.com/assistant-ui/assistant-ui/pull/8452) [`1e9493f`](https://github.com/assistant-ui/assistant-ui/commit/1e9493f6d2c09fe29f191a50aa51d82ec81dc925) - fix: reserve a queued run before notifying subscribers so reentrant enqueues preserve FIFO order. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8387](https://github.com/assistant-ui/assistant-ui/pull/8387) [`1b49876`](https://github.com/assistant-ui/assistant-ui/commit/1b4987679015b542ccd20460a6d8b6b3f55841a8) - fix: keep copy feedback scoped to the message that was copied ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8379](https://github.com/assistant-ui/assistant-ui/pull/8379) [`2b6597a`](https://github.com/assistant-ui/assistant-ui/commit/2b6597aa15f5b43978a287f9bb5f90547eca7110) - fix: disconnect active voice sessions when their adapter is removed ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`b1a3211`](https://github.com/assistant-ui/assistant-ui/commit/b1a32114e94dbe60decea1590b9f4acb011fc721)]:
+  - assistant-stream@0.3.46
+
 ## 0.3.21
 
 ### Patch Changes

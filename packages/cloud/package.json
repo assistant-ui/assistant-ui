@@ -1,6 +1,6 @@
 {
   "name": "assistant-cloud",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Cloud integration for assistant-ui",
   "keywords": [
     "assistant",
@@ -44,7 +44,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "assistant-stream": "^0.3.45"
+    "assistant-stream": "^0.3.46"
   },
   "peerDependencies": {
     "@opentelemetry/api": "^1.9.0",
