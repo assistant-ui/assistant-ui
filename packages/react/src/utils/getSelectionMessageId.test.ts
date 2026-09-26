@@ -73,6 +73,102 @@ describe("getSelectionMessageId", () => {
     expect(getSelectionMessageId(selection)).toBe("message-1");
   });
 
+  it.each([
+    { footer: "", separator: "", prefix: "<span></span>" },
+    { footer: "", separator: "\n  ", prefix: "" },
+    {
+      footer: '<div class="footer"><button><svg></svg></button></div>',
+      separator: "",
+      prefix: "",
+    },
+    {
+      footer: "<div><span></span></div>",
+      separator: "\n",
+      prefix: "<span></span>\n",
+    },
+  ])(
+    "skips empty chrome and whitespace at the end: %j",
+    ({ footer, separator, prefix }) => {
+      document.body.innerHTML = `<div data-message-id="message-1"><p id="first" data-aui-quote-selectable>first text</p>${footer}</div>${separator}<div data-message-id="message-2">${prefix}<p id="second">second text</p></div>`;
+      const first = textNode("#first");
+      const second = textNode("#second");
+      const selection = selectText(first);
+      for (const backward of [false, true]) {
+        selection.setBaseAndExtent(
+          backward ? second : first,
+          backward ? 0 : 1,
+          backward ? first : second,
+          backward ? 1 : 0,
+        );
+        const endpoints = [
+          selection.anchorNode,
+          selection.anchorOffset,
+          selection.focusNode,
+          selection.focusOffset,
+        ];
+        const text = selection.toString();
+        expect(getSelectionMessageId(selection)).toBe("message-1");
+        expect(selection.toString()).toBe(text);
+        expect([
+          selection.anchorNode,
+          selection.anchorOffset,
+          selection.focusNode,
+          selection.focusOffset,
+        ]).toEqual(endpoints);
+      }
+    },
+  );
+
+  it.each([
+    { footer: "<footer>footer text</footer>", prefix: "" },
+    { footer: "", prefix: "<header>next message header</header>" },
+    {
+      footer: '<div data-aui-quote-selectable="false"><span></span>\n</div>',
+      prefix: "",
+    },
+    {
+      footer: "",
+      prefix: '<div data-aui-quote-selectable="false"><span></span>\n</div>',
+    },
+  ])(
+    "does not trim selected content or exclusions: %j",
+    ({ footer, prefix }) => {
+      document.body.innerHTML = `<div data-message-id="message-1"><p id="first" data-aui-quote-selectable>first text</p>${footer}</div>\n<div data-message-id="message-2">${prefix}<p id="second">second text</p></div>`;
+      const selection = selectText(textNode("#first"));
+      selection.getRangeAt(0).setEnd(textNode("#second"), 0);
+      expect(getSelectionMessageId(selection)).toBeNull();
+    },
+  );
+
+  it("does not normalize past the selection start", () => {
+    document.body.innerHTML =
+      '<div data-message-id="message-1"><p id="first">first text</p><span></span></div><div data-message-id="message-2"><p id="second">second text</p></div>';
+    const first = textNode("#first");
+    const selection = selectText(first);
+    selection.setBaseAndExtent(first, first.length, textNode("#second"), 0);
+    expect(getSelectionMessageId(selection)).toBeNull();
+  });
+
+  it.each(["<span>\n </span>", "<span></span>"])(
+    "preserves inherited exclusions after a nested opt-in: %s",
+    (suffix) => {
+      document.body.innerHTML = `<div data-message-id="message-1"><div data-aui-quote-selectable="false"><p id="first" data-aui-quote-selectable>first text</p>${suffix}</div></div><div data-message-id="message-2"><p id="second">second text</p></div>`;
+      const first = textNode("#first");
+      const second = textNode("#second");
+      const selection = selectText(first);
+      expect(getSelectionMessageId(selection)).toBe("message-1");
+      for (const backward of [false, true]) {
+        selection.setBaseAndExtent(
+          backward ? second : first,
+          0,
+          backward ? first : second,
+          0,
+        );
+        expect(getSelectionMessageId(selection)).toBeNull();
+      }
+    },
+  );
+
   it("rejects even one selected character in the next message", () => {
     document.body.innerHTML =
       '<div data-message-id="message-1"><p id="first">first text</p></div><div data-message-id="message-2"><p id="second">second text</p></div>';

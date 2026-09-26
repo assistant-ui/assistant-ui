@@ -46,20 +46,25 @@ const findQuoteMarker = (
 const normalizeRangeEnd = (range: Range): Range => {
   if (range.endOffset !== 0 || range.collapsed) return range;
 
-  let node = range.endContainer;
-  while (node !== range.commonAncestorContainer) {
-    if (node.previousSibling) {
-      let end = node.previousSibling;
-      while (end.lastChild) end = end.lastChild;
-      const offset =
-        end instanceof CharacterData ? end.length : end.childNodes.length;
-      if (range.comparePoint(end, offset) < 0) return range;
-      const normalized = range.cloneRange();
-      normalized.setEnd(end, offset);
-      return normalized;
-    }
-    if (!node.parentNode) return range;
-    node = node.parentNode;
+  const walker = range.endContainer.ownerDocument?.createTreeWalker(
+    range.commonAncestorContainer,
+    NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT,
+  );
+  if (!walker) return range;
+  walker.currentNode = range.endContainer;
+
+  while (walker.previousNode()) {
+    const node = walker.currentNode;
+    const offset = node instanceof Text ? node.length : node.childNodes.length;
+    if (range.comparePoint(node, offset) < 0) return range;
+    const element = node instanceof Element ? node : node.parentElement;
+    const marker = element?.closest(QUOTE_SELECTABLE_SELECTOR);
+    if (marker && isExcluded(marker)) return range;
+    if (!(node instanceof Text) || !node.data.trim()) continue;
+
+    const normalized = range.cloneRange();
+    normalized.setEnd(node, offset);
+    return normalized.collapsed ? range : normalized;
   }
   return range;
 };
