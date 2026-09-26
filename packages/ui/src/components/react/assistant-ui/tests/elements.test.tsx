@@ -13,23 +13,30 @@ import { CommandPalette } from "../elements/command-palette";
 import { ComputerUse } from "../elements/computer-use";
 import { ContextBreakdown } from "../elements/context-breakdown";
 import { CostMeter } from "../elements/cost-meter";
+import { DataTable } from "../elements/data-table";
 import { DocumentReference } from "../elements/document-reference";
 import { FeedbackDialog } from "../elements/feedback-dialog";
 import { File } from "../elements/file";
 import { FileTree } from "../elements/file-tree";
 import { FlowGraph } from "../elements/flow-graph";
+import { GeoMap } from "../elements/geo-map";
 import { JobProgress } from "../elements/job-progress";
 import { LauncherBubble } from "../elements/launcher-bubble";
+import { LinkPreview } from "../elements/link-preview";
 import { GenerationLoader } from "../elements/loading-state";
+import { ImageGallery } from "../elements/image-gallery";
 import { MapAnswer } from "../elements/map-answer";
 import { MathBlock } from "../elements/math-block";
 import { McpServerPanel } from "../elements/mcp-server-panel";
+import { AudioPlayer } from "../elements/media-player";
 import { MessagePair } from "../elements/message-pair";
 import { MobileComposer } from "../elements/mobile-composer";
 import { ModelPicker } from "../elements/model-picker";
 import { Onboarding } from "../elements/onboarding";
+import { OptionList } from "../elements/option-list";
 import { PermissionGrant } from "../elements/permission-grant";
 import { PromptLibrary } from "../elements/prompt-library";
+import { QuestionFlow } from "../elements/question-flow";
 import { QuotaBanner } from "../elements/quota-banner";
 import { ReadAloud } from "../elements/read-aloud";
 import { ReasoningEffort } from "../elements/reasoning-effort";
@@ -147,6 +154,31 @@ const CASES: Record<string, Case> = {
       }))}
     />
   ),
+  "data-table": (n, items) => (
+    <DataTable
+      caption="Rows"
+      columns={[
+        { key: "name", label: "Name", priority: "primary" },
+        {
+          key: "count",
+          label: "Count",
+          format: { kind: "number", decimals: n },
+        },
+        {
+          key: "share",
+          label: "Share",
+          format: { kind: "percent", decimals: n },
+        },
+      ]}
+      rows={list(items, (i) => ({
+        id: `r${i}`,
+        name: `Row ${i}`,
+        count: i * n,
+        share: i / 10,
+      }))}
+      rowKey="id"
+    />
+  ),
   "document-reference": (n, items) => (
     <DocumentReference
       title="Spec"
@@ -190,6 +222,26 @@ const CASES: Record<string, Case> = {
       visibleCount={n}
     />
   ),
+  "geo-map": (_n, items) => (
+    <GeoMap
+      places={list(items, (i) => ({
+        id: `p${i}`,
+        lat: 1.29 + i / 1000,
+        lng: 103.77 + i / 1000,
+        label: `Place ${i}`,
+      }))}
+    />
+  ),
+  "image-gallery": (n, items) => (
+    <ImageGallery
+      images={list(items, (i) => ({
+        id: `image-${i}`,
+        src: `https://example.com/${i}.png`,
+        alt: `Image ${i}`,
+      }))}
+      maxVisible={n}
+    />
+  ),
   "job-progress": (n, items) => (
     <JobProgress
       title="Indexing"
@@ -197,6 +249,14 @@ const CASES: Record<string, Case> = {
       stageIndex={n}
       stageProgress={n}
       eta="2m"
+    />
+  ),
+  "link-preview": () => (
+    <LinkPreview
+      href="https://example.com/guide"
+      title={"t".repeat(200)}
+      description={"d".repeat(400)}
+      siteName="Example"
     />
   ),
   "map-answer": (_n, items) => (
@@ -229,6 +289,13 @@ const CASES: Record<string, Case> = {
       onToggle={() => undefined}
     />
   ),
+  "media-player": () => (
+    <AudioPlayer
+      src="https://example.com/briefing.mp3"
+      title={"t".repeat(200)}
+      durationMs={64_000}
+    />
+  ),
   "message-pair": (n, items) => (
     <MessagePair
       userMessage="hi"
@@ -247,6 +314,17 @@ const CASES: Record<string, Case> = {
       index={n}
     />
   ),
+  "option-list": (n, items) => (
+    <OptionList
+      aria-label="Pick"
+      options={list(items, (i) => ({ id: `o${i}`, label: `Option ${i}` }))}
+      selectionMode="multiple"
+      defaultValue={["o0", "o1"]}
+      minSelections={n}
+      maxSelections={n}
+      onConfirm={() => {}}
+    />
+  ),
   "prompt-library": (_n, items) => (
     <PromptLibrary
       prompts={list(items, (i) => ({
@@ -257,6 +335,25 @@ const CASES: Record<string, Case> = {
       }))}
       query={"q".repeat(200)}
       selectedId="p0"
+    />
+  ),
+  "question-flow": (n, items) => (
+    <QuestionFlow
+      aria-label="Questions"
+      steps={[
+        {
+          id: "checks",
+          question: "Which checks should run?",
+          selectionMode: "multiple",
+          minSelections: n,
+          maxSelections: n,
+          options: list(items, (i) => ({
+            id: `check-${i}`,
+            label: `Check ${i}`,
+          })),
+        },
+      ]}
+      onComplete={() => {}}
     />
   ),
   "quota-banner": (n) => (
@@ -400,6 +497,16 @@ const CASES: Record<string, Case> = {
       visibleCount={n}
     />
   ),
+  "todo-list": (n, items) => (
+    <TodoList
+      items={list(items, (i) => ({
+        id: `t${i}`,
+        text: `Todo ${i}`,
+        status: i === 0 ? ("active" as const) : ("pending" as const),
+      }))}
+      maxVisible={n}
+    />
+  ),
   "tool-timeline": (n, items) => (
     <ToolTimeline
       steps={list(items, (i) => ({
@@ -475,10 +582,13 @@ const COUNT_SHAPED = new Set([
   "cost-meter",
   "file-tree",
   "flow-graph",
+  "image-gallery",
   "job-progress",
   "math-block",
   "message-pair",
   "onboarding",
+  "option-list",
+  "question-flow",
   "reasoning-panel",
   "retrieval-chunks",
   "score-breakdown",
@@ -487,6 +597,7 @@ const COUNT_SHAPED = new Set([
   "streaming-text",
   "terminal-block",
   "timeline",
+  "todo-list",
   "tool-timeline",
   "trace-waterfall",
   "voice-conversation",

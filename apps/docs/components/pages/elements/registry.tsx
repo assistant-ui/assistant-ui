@@ -30,18 +30,32 @@ import { ToolCallDemo } from "@/components/demo/elements/tool-call";
 import { ToolTimelineDemo } from "@/components/demo/elements/tool-timeline";
 import {
   TerminalBlockDemo,
+  TerminalBlockFailedDemo,
   TerminalBlockInkDemo,
 } from "@/components/demo/elements/terminal-block";
 import { CodeDiffDemo } from "@/components/demo/elements/code-diff";
 import { WebSearchDemo } from "@/components/demo/elements/web-search";
 import { SourcesDemo } from "@/components/demo/elements/sources";
 import { InlineCitationDemo } from "@/components/demo/elements/inline-citation";
+import {
+  LinkPreviewCompactDemo,
+  LinkPreviewDemo,
+} from "@/components/demo/elements/link-preview";
 import { ImageGenerationDemo } from "@/components/demo/elements/image-generation";
+import { ImageGalleryDemo } from "@/components/demo/elements/image-gallery";
 import { AgentPlanDemo } from "@/components/demo/elements/agent-plan";
 import { SubagentListDemo } from "@/components/demo/elements/subagent-list";
 import { AgentStatusDemo } from "@/components/demo/elements/agent-status";
 import { TaskCardDemo } from "@/components/demo/elements/task-card";
-import { ApprovalCardDemo } from "@/components/demo/elements/approval-card";
+import {
+  ApprovalCardDemo,
+  ApprovalCardDestructiveDemo,
+} from "@/components/demo/elements/approval-card";
+import {
+  OptionListDemo,
+  OptionListMultipleDemo,
+} from "@/components/demo/elements/option-list";
+import { QuestionFlowDemo } from "@/components/demo/elements/question-flow";
 import { ArtifactCardDemo } from "@/components/demo/elements/artifact-card";
 import { ComposerDemo } from "@/components/demo/elements/composer";
 import { ComposerSlashDemo } from "@/components/demo/elements/composer-slash";
@@ -66,6 +80,10 @@ import {
   ChartDemo,
   ChartLineDemo,
 } from "@/components/demo/elements/chart";
+import {
+  AudioPlayerDemo,
+  VideoPlayerDemo,
+} from "@/components/demo/elements/media-player";
 import { TraceWaterfallDemo } from "@/components/demo/elements/trace-waterfall";
 import { CanvasSplitDemo } from "@/components/demo/elements/canvas-split";
 import { VoiceConversationDemo } from "@/components/demo/elements/voice-conversation";
@@ -100,6 +118,7 @@ import { DocumentReferenceDemo } from "@/components/demo/elements/document-refer
 import { MemoryChipsDemo } from "@/components/demo/elements/memory-chips";
 import { ResearchReportDemo } from "@/components/demo/elements/research-report";
 import { MapAnswerDemo } from "@/components/demo/elements/map-answer";
+import { GeoMapDemo } from "@/components/demo/elements/geo-map";
 import { MathBlockDemo } from "@/components/demo/elements/math-block";
 import { SpecSheetDemo } from "@/components/demo/elements/spec-sheet";
 import { ComparisonCardDemo } from "@/components/demo/elements/comparison-card";
@@ -150,6 +169,7 @@ import {
   AuiThreadListDemo,
   AuiThreadListSidebarDemo,
   AuiToolFallbackDemo,
+  AuiToolFallbackReceiptDemo,
   AuiToolGroupDemo,
   AuiTooltipIconButtonDemo,
   AuiVoiceDemo,
@@ -425,6 +445,11 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         variants: [
           { key: "paper", label: "Paper", Component: TerminalBlockDemo },
           { key: "ink", label: "Ink", Component: TerminalBlockInkDemo },
+          {
+            key: "failed",
+            label: "Failed",
+            Component: TerminalBlockFailedDemo,
+          },
         ],
       },
       {
@@ -529,12 +554,37 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         Component: InlineCitationDemo,
       },
       {
+        slug: "link-preview",
+        title: "Link preview",
+        description:
+          "A returned URL unfurled into a card with enough context to decide whether to open it.",
+        file: "link-preview.tsx",
+        Component: LinkPreviewDemo,
+        variants: [
+          { key: "card", label: "Card", Component: LinkPreviewDemo },
+          {
+            key: "compact",
+            label: "Compact",
+            Component: LinkPreviewCompactDemo,
+          },
+        ],
+      },
+      {
         slug: "image-generation",
         title: "Image generation",
         description:
           "A dot grid holds the frame while the image resolves out of a blur.",
         file: "image-generation.tsx",
         Component: ImageGenerationDemo,
+      },
+      {
+        slug: "image-gallery",
+        replay: false,
+        title: "Image gallery",
+        description:
+          "A compact grid of returned images that opens each one in a shared lightbox.",
+        file: "image-gallery.tsx",
+        Component: ImageGalleryDemo,
       },
       {
         slug: "retrieval-chunks",
@@ -578,6 +628,15 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         file: "map-answer.tsx",
         Component: MapAnswerDemo,
       },
+      {
+        slug: "geo-map",
+        replay: false,
+        title: "Geo map",
+        description:
+          "Places and routes on a real tiled map, with an accessible list of every place.",
+        file: "geo-map.tsx",
+        Component: GeoMapDemo,
+      },
     ],
   },
   {
@@ -588,7 +647,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         slug: "data-table",
         title: "Data table",
         description:
-          "A small comparison table the model can answer with directly.",
+          "A tool's rows and columns with formatting, sorting, and a card layout in narrow columns.",
         file: "data-table.tsx",
         Component: DataTableDemo,
       },
@@ -611,6 +670,19 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
           { key: "area", label: "Area", Component: ChartDemo },
           { key: "line", label: "Line", Component: ChartLineDemo },
           { key: "bars", label: "Bars", Component: ChartBarsDemo },
+        ],
+      },
+      {
+        slug: "media-player",
+        replay: false,
+        title: "Media player",
+        description:
+          "Audio and video a tool returned, played inline without leaving the thread.",
+        file: "media-player.tsx",
+        Component: AudioPlayerDemo,
+        variants: [
+          { key: "audio", label: "Audio", Component: AudioPlayerDemo },
+          { key: "video", label: "Video", Component: VideoPlayerDemo },
         ],
       },
       {
@@ -748,6 +820,40 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
           "Human in the loop: the agent asks before it runs anything with side effects.",
         file: "approval-card.tsx",
         Component: ApprovalCardDemo,
+        variants: [
+          { key: "command", label: "Command", Component: ApprovalCardDemo },
+          {
+            key: "destructive",
+            label: "Destructive",
+            Component: ApprovalCardDestructiveDemo,
+          },
+        ],
+      },
+      {
+        slug: "option-list",
+        replay: false,
+        title: "Option list",
+        description:
+          "The agent asks a question with a few answers; the pick returns to it and stays as a receipt.",
+        file: "option-list.tsx",
+        Component: OptionListDemo,
+        variants: [
+          { key: "single", label: "Single", Component: OptionListDemo },
+          {
+            key: "multiple",
+            label: "Multiple",
+            Component: OptionListMultipleDemo,
+          },
+        ],
+      },
+      {
+        slug: "question-flow",
+        replay: false,
+        title: "Question flow",
+        description:
+          "A few short questions asked one at a time, answered together and kept as a receipt.",
+        file: "question-flow.tsx",
+        Component: QuestionFlowDemo,
       },
       {
         slug: "recommendation-card",
@@ -1309,6 +1415,14 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         registryName: "tool-fallback",
         connection: "AUI",
         Component: AuiToolFallbackDemo,
+        variants: [
+          { key: "runtime", label: "Runtime", Component: AuiToolFallbackDemo },
+          {
+            key: "receipt",
+            label: "Receipt",
+            Component: AuiToolFallbackReceiptDemo,
+          },
+        ],
       },
       {
         slug: "tool-group",
