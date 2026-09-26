@@ -1609,3 +1609,58 @@ describe("Interactables persistence load", () => {
     expect(stateOf(root, "n1")).toEqual({ v: 2 });
   });
 });
+
+describe("Interactables setState on an unregistered id", () => {
+  it("restores the stored value and keeps it in the next save when setState ran before registration", async () => {
+    const save = vi.fn();
+    let resolveLoad!: (v: Unstable_InteractablePersistedState) => void;
+    const load = () =>
+      new Promise<Unstable_InteractablePersistedState>((r) => {
+        resolveLoad = r;
+      });
+    root = mount({ persistence: { save, load } });
+    await flushMicrotasks();
+
+    root.getValue().setState("prefs", () => ({ v: 1 }));
+    resolveLoad({
+      prefs: { name: "note", state: { v: 42 } },
+      other: { name: "note", state: { v: 7 } },
+    });
+    await flushMicrotasks();
+    root.getValue().register(reg("prefs"));
+    expect(stateOf(root, "prefs")).toEqual({ v: 42 });
+    root.getValue().register(reg("other"));
+
+    root.getValue().setState("other", () => ({ v: 8 }));
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(save).toHaveBeenCalled();
+    expect(save.mock.calls.at(-1)![0].prefs).toEqual({
+      name: "note",
+      state: { v: 42 },
+    });
+  });
+
+  it("does not drop the stored value from the first save after the load", async () => {
+    const save = vi.fn();
+    root = mount();
+    await flushMicrotasks();
+    root.getValue().register(reg("other"));
+    root.getValue().setState("prefs", () => ({ v: 1 }));
+    expect(stateOf(root, "prefs")).toBeUndefined();
+
+    root.getValue().setPersistenceAdapter({
+      save,
+      load: async () => ({ prefs: { name: "note", state: { v: 42 } } }),
+    });
+    await flushMicrotasks();
+    root.getValue().setState("other", () => ({ v: 2 }));
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(save.mock.calls[0]![0]).toEqual({
+      prefs: { name: "note", state: { v: 42 } },
+      other: { name: "note", state: { v: 2 } },
+    });
+  });
+});
