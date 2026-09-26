@@ -28,6 +28,7 @@ import {
 } from "@assistant-ui/core";
 import { stableStringifyToolArgs } from "@assistant-ui/core/internal";
 import {
+  markPartialJsonObjectComplete,
   parsePartialJsonObject,
   type ReadonlyJSONObject,
 } from "assistant-stream/utils";
@@ -483,7 +484,12 @@ function convertParts(
             // Other runtimes can synthesize complete JSON text from an
             // accumulating snapshot, so only this converter supplies the
             // completion signal it knows from the AI SDK part state.
-            args = parsePartialJsonObject(argsText) ?? args;
+            // The safe parser rejects prototype-named JSON keys. The SDK has
+            // already finalized this input, so preserve its own data fields
+            // and mark a copy complete without relaxing parser safeguards.
+            args =
+              parsePartialJsonObject(argsText) ??
+              markPartialJsonObjectComplete(args);
             metadata.toolArgsTextCache?.set(
               inputArgs,
               frozen.set(argsKeyOrderCacheKey, { argsText, args }),

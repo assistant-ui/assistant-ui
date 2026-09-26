@@ -141,4 +141,43 @@ describe("AI SDK tool argument completion", () => {
     expect(first.argsText).toBe(second.argsText);
     expect(getPartialJsonObjectMeta(second.args)?.state).toBe("complete");
   });
+
+  it.each([
+    '{"__proto__":{"polluted":true}}',
+    '{"constructor":{"prototype":{"polluted":true}}}',
+  ])(
+    "marks settled prototype-named input complete while the tool runs: %s",
+    (json) => {
+      const input = JSON.parse(json);
+      const message = AISDKMessageConverter.toThreadMessages(
+        [
+          {
+            id: "a1",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-weather",
+                toolCallId: "tc-1",
+                state: "input-available",
+                input,
+              },
+            ],
+          },
+        ],
+        true,
+      )[0]!;
+      const part = message.content.find((item) => item.type === "tool-call")!;
+
+      expect(message.status?.type).toBe("running");
+      expect(part.args).not.toBe(input);
+      expect(Object.entries(part.args)).toEqual(Object.entries(input));
+      expect(Object.getPrototypeOf(part.args)).toBe(Object.prototype);
+      expect(Object.prototype).not.toHaveProperty("polluted");
+      expect(JSON.parse(part.argsText)).toEqual(input);
+      expect(getPartialJsonObjectMeta(part.args)?.state).toBe("complete");
+      expect(
+        getPartialJsonObjectFieldState(part.args, [Object.keys(input)[0]!]),
+      ).toBe("complete");
+    },
+  );
 });

@@ -3,7 +3,10 @@
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { parsePartialJsonObject } from "assistant-stream/utils";
+import {
+  markPartialJsonObjectComplete,
+  parsePartialJsonObject,
+} from "assistant-stream/utils";
 
 const state = vi.hoisted(() => ({
   part: {
@@ -112,5 +115,18 @@ describe("useToolArgsStatus", () => {
 
     expect(Object.hasOwn(result.current.propStatus, "__proto__")).toBe(true);
     expect(result.current.propStatus.__proto__).toBe("complete");
+  });
+
+  it("reports finalized prototype-named arguments complete while the tool runs", () => {
+    state.part.args = markPartialJsonObjectComplete(
+      JSON.parse('{"__proto__":{"polluted":true}}'),
+    );
+    const { result } = renderHook(() => useToolArgsStatus());
+
+    expect(result.current.status).toBe("running");
+    expect(result.current.allPropsStatus).toBe("complete");
+    expect(Object.hasOwn(result.current.propStatus, "__proto__")).toBe(true);
+    expect(result.current.propStatus.__proto__).toBe("complete");
+    expect(Object.prototype).not.toHaveProperty("polluted");
   });
 });
