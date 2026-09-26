@@ -94,13 +94,13 @@ export function StartSetupDialog({
             confirm();
           }}
         >
-          <fieldset className="grid min-h-0 gap-2 overflow-y-auto px-6 pb-7 sm:px-8">
+          <fieldset className="grid min-h-0 gap-2 overflow-y-auto px-6 pb-6 sm:px-8 sm:pb-7">
             <legend className="sr-only">Setup method</legend>
             {MODES.map((option) => (
               <label
                 key={option.value}
                 className={cn(
-                  "has-focus-visible:ring-ring relative flex cursor-pointer items-start gap-4 rounded-xl border p-4 transition-colors duration-150 has-focus-visible:ring-2 motion-reduce:transition-none sm:p-5",
+                  "has-focus-visible:ring-ring relative grid cursor-pointer grid-cols-[1.25rem_minmax(0,1fr)_1.25rem] items-start gap-x-3 gap-y-2 rounded-xl border p-3 transition-colors duration-150 has-focus-visible:ring-2 motion-reduce:transition-none sm:flex sm:gap-4 sm:p-5",
                   mode === option.value
                     ? "border-foreground/60 bg-foreground/[0.04]"
                     : "border-foreground/10 hover:bg-foreground/[0.025]",
@@ -118,8 +118,8 @@ export function StartSetupDialog({
                   aria-hidden
                   className="text-muted-foreground mt-0.5 size-5 shrink-0"
                 />
-                <span className="min-w-0 flex-1">
-                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] font-medium">
+                <span className="contents sm:block sm:min-w-0 sm:flex-1">
+                  <span className="col-start-2 col-end-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] font-medium">
                     {option.title}
                     {option.recommended ? (
                       <span className="text-muted-foreground text-xs font-normal">
@@ -127,14 +127,14 @@ export function StartSetupDialog({
                       </span>
                     ) : null}
                   </span>
-                  <span className="text-muted-foreground mt-1.5 block text-sm leading-relaxed sm:whitespace-nowrap">
+                  <span className="text-muted-foreground col-span-full block text-sm leading-relaxed sm:mt-1.5 sm:whitespace-nowrap">
                     {option.detail}
                   </span>
                 </span>
                 <span
                   aria-hidden
                   className={cn(
-                    "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full",
+                    "absolute top-3 right-3 flex size-5 shrink-0 items-center justify-center rounded-full sm:static sm:mt-0.5",
                     mode === option.value
                       ? "bg-foreground text-background"
                       : "border-foreground/20 border",
