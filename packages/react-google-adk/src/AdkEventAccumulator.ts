@@ -603,6 +603,7 @@ export class AdkEventAccumulator {
     for (const msg of this.messagesMap.values()) {
       if (msg.type !== "ai") continue;
       for (const call of msg.tool_calls ?? []) {
+        if (!isRecord(call)) continue;
         if (call.name === name && !calls.has(call.id)) calls.set(call.id, call);
       }
     }

@@ -226,6 +226,25 @@ describe("projectAdkToolApprovals", () => {
     expect(approvals.size).toBe(0);
     expect(key).toBe("");
   });
+
+  it("skips a null tool_calls entry", () => {
+    const { approvals } = projectAdkToolApprovals([
+      {
+        id: "ai-1",
+        type: "ai",
+        content: [],
+        tool_calls: [
+          null,
+          {
+            id: CONFIRMATION_CALL,
+            name: "adk_request_confirmation",
+            args: { originalFunctionCall: { id: GATED_CALL } },
+          },
+        ],
+      } as unknown as AdkMessage,
+    ]);
+    expect([...approvals.keys()]).toEqual([CONFIRMATION_CALL, GATED_CALL]);
+  });
 });
 
 describe("toAdkToolConfirmationReply", () => {
