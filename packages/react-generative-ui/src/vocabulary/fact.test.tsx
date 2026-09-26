@@ -60,6 +60,17 @@ describe("factVocabulary", () => {
     ).toContain('data-aui-trend="down" data-aui-tone="bad">↓ 3%</span>');
   });
 
+  it("Fact infers a zero delta as flat", () => {
+    expect(
+      render({
+        $type: "Fact",
+        label: "Revenue",
+        value: "$12.4k",
+        delta: "+0.0%",
+      }),
+    ).toContain('data-aui-trend="flat" data-aui-tone="neutral">→ +0.0%</span>');
+  });
+
   it("Fact lets trend override the delta sign and renders flat deltas neutrally", () => {
     expect(
       render({

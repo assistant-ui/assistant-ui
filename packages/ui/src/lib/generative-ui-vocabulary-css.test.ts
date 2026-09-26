@@ -71,9 +71,12 @@ describe("generative UI surface", () => {
   });
 
   it("places compact carousel controls after the slides", () => {
+    const frame = '[data-aui="carousel-frame"]';
     const controls = '[data-aui="carousel-controls"]';
     const buttons = '[data-aui="carousel-prev"], [data-aui="carousel-next"]';
     const keys = Object.keys(generativeUiVocabularyCss);
+    expect(rules[frame]).toMatchObject({ "min-width": "0" });
+    expect(keys.indexOf(frame)).toBe(keys.indexOf('[data-aui="carousel"]') - 1);
     expect(keys.indexOf(controls)).toBe(
       keys.indexOf('[data-aui="carousel-slide"]') + 1,
     );

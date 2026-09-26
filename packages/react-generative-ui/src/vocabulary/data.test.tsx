@@ -115,10 +115,11 @@ describe("dataVocabulary", () => {
         Array.from(container.querySelectorAll("tbody tr")).map(
           (row) => row.querySelector("td")?.textContent,
         );
-      expect(headers[0]?.getAttribute("aria-sort")).toBe("none");
-      expect(headers[1]?.getAttribute("aria-sort")).toBe("none");
+      expect(headers[0]?.hasAttribute("aria-sort")).toBe(false);
+      expect(headers[1]?.hasAttribute("aria-sort")).toBe(false);
 
       await act(async () => scoreButton?.click());
+      expect(headers[0]?.hasAttribute("aria-sort")).toBe(false);
       expect(headers[1]?.getAttribute("aria-sort")).toBe("ascending");
       expect(scoreButton?.textContent).toBe("Score↑");
       expect(rowNames()).toEqual(["Item 1", "Item 10", "Item 2"]);
@@ -129,7 +130,7 @@ describe("dataVocabulary", () => {
       expect(rowNames()).toEqual(["Item 2", "Item 10", "Item 1"]);
 
       await act(async () => scoreButton?.click());
-      expect(headers[1]?.getAttribute("aria-sort")).toBe("none");
+      expect(headers[1]?.hasAttribute("aria-sort")).toBe(false);
       expect(scoreButton?.textContent).toBe("Score");
       expect(rowNames()).toEqual(["Item 10", "Item 2", "Item 1"]);
 

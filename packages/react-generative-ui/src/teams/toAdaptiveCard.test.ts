@@ -202,17 +202,18 @@ describe("toAdaptiveCard", () => {
       expect((card.body[0] as TeamsFactSet).facts).toHaveLength(5);
     });
 
-    it("appends a fact delta to the value text", () => {
+    it("appends a directional fact delta to the value text", () => {
       const { card } = toAdaptiveCard({
         $type: "Fact",
         label: "Revenue",
         value: "$12.4k",
-        delta: "+8%",
+        delta: "8%",
+        trend: "down",
       });
       expect(card.body).toEqual([
         {
           type: "FactSet",
-          facts: [{ title: "Revenue", value: "$12.4k (+8%)" }],
+          facts: [{ title: "Revenue", value: "$12.4k (↓ 8%)" }],
         },
       ]);
     });

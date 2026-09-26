@@ -12,7 +12,11 @@ import {
   type NormalizedUIElement,
   type NormalizedUINode,
 } from "../ir";
-import { formatValue } from "../vocabulary/formatValue";
+import {
+  factTrend,
+  formatFactDelta,
+  formatValue,
+} from "../vocabulary/formatValue";
 import {
   ACTION_ID_CAP,
   ACTIONS_ELEMENT_CAP,
@@ -465,10 +469,14 @@ const convertFacts = (
     const label = asString(fact.props["label"]);
     const value = asString(fact.props["value"]);
     const delta = fact.props["delta"];
+    const deltaText =
+      typeof delta === "string"
+        ? formatFactDelta(delta, factTrend(delta, fact.props["trend"]))
+        : undefined;
     return {
       type: "mrkdwn" as const,
       text: clampText(
-        `*${label}*\n${typeof delta === "string" ? `${value} (${delta})` : value}`,
+        `*${label}*\n${deltaText === undefined ? value : `${value} (${deltaText})`}`,
         FACT_FIELD_TEXT_CAP,
         "Fact",
         "field",
@@ -1238,7 +1246,9 @@ const convertElement = (
             ...(defaultValue !== undefined
               ? { initial_value: defaultValue }
               : {}),
-            ...(step !== undefined && !Number.isInteger(step)
+            ...([step, min, max, defaultValue].some(
+              (value) => value !== undefined && !Number.isInteger(value),
+            )
               ? { is_decimal_allowed: true }
               : {}),
           },

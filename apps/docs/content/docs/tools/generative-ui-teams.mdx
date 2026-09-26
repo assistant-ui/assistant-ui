@@ -56,7 +56,7 @@ type TeamsConversionWarning = {
 | `Markdown` | `TextBlock`, passed through verbatim | Teams renders [a markdown subset](https://learn.microsoft.com/en-us/microsoftteams/platform/task-modules-and-cards/cards/cards-format); headings, tables, images, and blockquotes render literally |
 | `Caption`, `Badge` | Small subtle `TextBlock` | The two become identical output |
 | `Image` | `Image` | A numeric `size` is dropped with a warning; `round` is dropped silently |
-| `Fact` | `FactSet` | Consecutive facts merge into one set; `delta` appends in parentheses |
+| `Fact` | `FactSet` | Consecutive facts merge into one set; `delta` appends as the browser's directional chip in parentheses |
 | `Table` | Native `Table` with the first row as headers | Column formats produce the same formatted text as the browser; sorting and alignment are browser-only; requires schema 1.5, so it will not render on Teams mobile; a column without a string label keeps its position with an empty header and warns |
 | `Card` | `Container`, with the title as a leading heading | Footer buttons become an `ActionSet` beside the container, not inside it |
 | `Alert` | `Container` with a semantic style (`accent`, `good`, `warning`, `attention`) | Title and description become two text blocks |

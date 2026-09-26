@@ -9,6 +9,8 @@ const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const ISO_DATE_PATTERN =
   /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/;
 
+type FactTrend = "up" | "down" | "flat";
+
 const toRawText = (value: unknown): string =>
   typeof value === "string" ||
   typeof value === "number" ||
@@ -32,6 +34,22 @@ const fractionDigits = (decimals: unknown): number | undefined => {
   return Math.min(20, Math.max(0, Math.trunc(decimals)));
 };
 
+const isCalendarDate = (value: string): boolean => {
+  const [year, month, day] = value.slice(0, 10).split("-").map(Number);
+  if (year === undefined || month === undefined || day === undefined) {
+    return false;
+  }
+  const daysInMonth =
+    month === 2
+      ? year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
+        ? 29
+        : 28
+      : [4, 6, 9, 11].includes(month)
+        ? 30
+        : 31;
+  return month >= 1 && month <= 12 && day >= 1 && day <= daysInMonth;
+};
+
 const dateFromValue = (value: unknown): Date | undefined => {
   if (typeof value === "number") {
     const date = new Date(value);
@@ -40,8 +58,28 @@ const dateFromValue = (value: unknown): Date | undefined => {
   if (typeof value !== "string" || !ISO_DATE_PATTERN.test(value)) {
     return undefined;
   }
+  if (!isCalendarDate(value)) return undefined;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? undefined : date;
+};
+
+export const factTrend = (delta: unknown, trend: unknown): FactTrend => {
+  if (trend === "down" || trend === "flat" || trend === "up") return trend;
+  if (typeof delta === "string" && /\d/.test(delta) && !/[1-9]/.test(delta)) {
+    return "flat";
+  }
+  return typeof delta === "string" && /^[-\u2212]/.test(delta) ? "down" : "up";
+};
+
+export const formatFactDelta = (delta: string, trend: FactTrend): string => {
+  const arrow = trend === "up" ? "↑" : trend === "down" ? "↓" : "→";
+  const text =
+    trend === "up"
+      ? delta.replace(/^\+/, "")
+      : trend === "down"
+        ? delta.replace(/^[-\u2212]/, "")
+        : delta;
+  return `${arrow} ${text}`;
 };
 
 export const isNumericTableFormat = (format: unknown): boolean =>

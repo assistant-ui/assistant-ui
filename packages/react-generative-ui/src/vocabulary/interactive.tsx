@@ -445,7 +445,7 @@ function SliderControl({
   const [value, setValue] = useState(initialValue);
   const pointerActive = useRef(false);
   const keyboardActive = useRef(false);
-  const lastCommitted = useRef<number | undefined>(undefined);
+  const lastCommitted = useRef(initialValue);
   const currentValue = (input: HTMLInputElement) =>
     clamp(Number(input.value), min, max);
   const commit = (input: HTMLInputElement) => {
@@ -570,6 +570,8 @@ function ButtonRender({
   $dispatch,
 }: ButtonRenderProps) {
   const [remaining, setRemaining] = useState<number | undefined>(undefined);
+  const labelText = String(toTextContent(label) ?? "");
+  const undoLabel = labelText.trim();
   const pendingAction = useRef<
     | {
         $action: Action;
@@ -611,7 +613,13 @@ function ButtonRender({
       data-aui-submit={submit || undefined}
       data-aui-state={remaining === undefined ? undefined : "pending"}
       data-aui-action={actionAttr($action)}
-      aria-label={remaining === undefined ? undefined : "Undo"}
+      aria-label={
+        remaining === undefined
+          ? undefined
+          : undoLabel
+            ? `Undo ${undoLabel}`
+            : "Undo"
+      }
       onClick={
         submit
           ? undefined
@@ -642,14 +650,14 @@ function ButtonRender({
     >
       {remaining === undefined ? (
         <>
-          {toTextContent(label)}
+          {labelText}
           {children}
         </>
       ) : (
         <>
           Undo <span data-aui="button-countdown">{remaining}</span>
           <span data-aui="button-undo-status" role="status">
-            {toTextContent(label)} in {UNDO_WINDOW_SECONDS} seconds
+            {labelText} in {UNDO_WINDOW_SECONDS} seconds
           </span>
         </>
       )}

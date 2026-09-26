@@ -11,7 +11,11 @@ import {
   type NormalizedUIElement,
   type NormalizedUINode,
 } from "../ir";
-import { formatValue } from "../vocabulary/formatValue";
+import {
+  factTrend,
+  formatFactDelta,
+  formatValue,
+} from "../vocabulary/formatValue";
 import {
   CHOICE_OPTION_CAP,
   PAYLOAD_SOFT_CAP,
@@ -220,9 +224,13 @@ function convertFacts(facts: readonly NormalizedUIElement[]): TeamsCardElement {
   const set: TeamsFact[] = facts.map((fact) => {
     const value = asString(fact.props["value"]);
     const delta = fact.props["delta"];
+    const deltaText =
+      typeof delta === "string"
+        ? formatFactDelta(delta, factTrend(delta, fact.props["trend"]))
+        : undefined;
     return {
       title: asString(fact.props["label"]),
-      value: typeof delta === "string" ? `${value} (${delta})` : value,
+      value: deltaText === undefined ? value : `${value} (${deltaText})`,
     };
   });
   return { type: "FactSet", facts: set };

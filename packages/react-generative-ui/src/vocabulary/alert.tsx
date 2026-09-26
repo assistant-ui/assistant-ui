@@ -1,6 +1,5 @@
 import {
   Children,
-  Fragment,
   useEffect,
   useId,
   useRef,
@@ -66,13 +65,16 @@ function CarouselRender({ label, children }: CarouselRenderProps) {
         ? undefined
         : new ResizeObserver(measure);
     resizeObserver?.observe(carousel);
+    carousel
+      .querySelectorAll(':scope > [data-aui="carousel-slide"]')
+      .forEach((slide) => resizeObserver?.observe(slide));
 
     return () => {
       carousel.removeEventListener("scroll", measure);
       window.removeEventListener("resize", measure);
       resizeObserver?.disconnect();
     };
-  }, []);
+  }, [n]);
 
   const move = (direction: "previous" | "next") => {
     const carousel = carouselRef.current;
@@ -103,7 +105,7 @@ function CarouselRender({ label, children }: CarouselRenderProps) {
   };
 
   return (
-    <Fragment>
+    <div data-aui="carousel-frame">
       <div
         ref={carouselRef}
         id={carouselId}
@@ -173,7 +175,7 @@ function CarouselRender({ label, children }: CarouselRenderProps) {
           </button>
         </div>
       ) : null}
-    </Fragment>
+    </div>
   );
 }
 

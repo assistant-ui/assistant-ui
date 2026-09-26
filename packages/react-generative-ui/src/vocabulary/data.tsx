@@ -113,7 +113,7 @@ function TableView({ columns, rows, children, sort, onSort }: TableViewProps) {
                   key={i}
                   data-aui="table-col"
                   data-aui-align={tableAlignment(column)}
-                  aria-sort={onSort ? (direction ?? "none") : undefined}
+                  aria-sort={direction}
                 >
                   {onSort ? (
                     <button

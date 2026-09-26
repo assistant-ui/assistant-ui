@@ -32,12 +32,12 @@ const carousel = {
   ],
 };
 
-const mountCarousel = async () => {
+const mountCarousel = async (node: unknown = carousel) => {
   const container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
   await act(async () => {
-    root!.render(renderGenerativeUI(carousel, defaultGenerativeUILibrary));
+    root!.render(renderGenerativeUI(node, defaultGenerativeUILibrary));
   });
   const track = container.querySelector<HTMLDivElement>(
     '[data-aui="carousel"]',
@@ -244,6 +244,15 @@ describe("alertVocabulary", () => {
     expect(html).not.toContain("11 of 10");
   });
 
+  it("Carousel server markup keeps the track inside an always-present frame", () => {
+    const html = renderToStaticMarkup(
+      <>{renderGenerativeUI(carousel, defaultGenerativeUILibrary)}</>,
+    );
+    expect(html).toMatch(
+      /<div data-aui="carousel-frame"><div id="[^"]+" data-aui="carousel"/,
+    );
+  });
+
   it("Carousel does not render controls when its slides fit", async () => {
     const { container, track } = await mountCarousel();
     setCarouselLayout(track, {
@@ -278,6 +287,64 @@ describe("alertVocabulary", () => {
     expect(next!.disabled).toBe(false);
     expect(previous!.getAttribute("aria-controls")).toBe(track.id);
     expect(next!.getAttribute("aria-controls")).toBe(track.id);
+  });
+
+  it("Carousel remeasures streamed slides and observes each slide", async () => {
+    const originalResizeObserver = globalThis.ResizeObserver;
+    class TestResizeObserver {
+      static instances: TestResizeObserver[] = [];
+      readonly observed = new Set<Element>();
+
+      constructor() {
+        TestResizeObserver.instances.push(this);
+      }
+
+      observe(element: Element) {
+        this.observed.add(element);
+      }
+
+      disconnect() {}
+    }
+    globalThis.ResizeObserver =
+      TestResizeObserver as unknown as typeof ResizeObserver;
+
+    try {
+      const { container, track } = await mountCarousel({
+        $type: "Carousel",
+        children: [{ $type: "Card", title: "One" }],
+      });
+      setCarouselLayout(track, {
+        scrollWidth: 600,
+        clientWidth: 300,
+        scrollLeft: 0,
+      });
+      await act(async () => {
+        root!.render(
+          renderGenerativeUI(
+            {
+              $type: "Carousel",
+              children: [
+                { $type: "Card", title: "One" },
+                { $type: "Card", title: "Two" },
+                { $type: "Card", title: "Three" },
+              ],
+            },
+            defaultGenerativeUILibrary,
+          ),
+        );
+      });
+
+      expect(
+        container.querySelector('[data-aui="carousel-controls"]'),
+      ).not.toBeNull();
+      const observer = TestResizeObserver.instances.at(-1);
+      expect([...observer!.observed]).toEqual([
+        track,
+        ...track.querySelectorAll('[data-aui="carousel-slide"]'),
+      ]);
+    } finally {
+      globalThis.ResizeObserver = originalResizeObserver;
+    }
   });
 
   it("Carousel moves to the next slide start", async () => {

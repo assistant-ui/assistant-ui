@@ -1,18 +1,7 @@
 import { z } from "zod";
 import type { GenerativeUILibrary } from "../types";
+import { factTrend, formatFactDelta } from "./formatValue";
 import { toTextContent } from "./toTextContent";
-
-const factTrend = (delta: unknown, trend: unknown): "up" | "down" | "flat" => {
-  if (trend === "down" || trend === "flat" || trend === "up") return trend;
-  return typeof delta === "string" && /^[-\u2212]/.test(delta) ? "down" : "up";
-};
-
-const unsignedDelta = (delta: string, trend: "up" | "down" | "flat") =>
-  trend === "up"
-    ? delta.replace(/^\+/, "")
-    : trend === "down"
-      ? delta.replace(/^[-\u2212]/, "")
-      : delta;
 
 const factTone = (
   trend: "up" | "down" | "flat",
@@ -41,7 +30,6 @@ export const factVocabulary = {
     render: ({ label, value, delta, trend, upIsGood, children }) => {
       const direction = factTrend(delta, trend);
       const tone = factTone(direction, upIsGood);
-      const arrow = direction === "up" ? "↑" : direction === "down" ? "↓" : "→";
 
       return (
         <dl data-aui="fact">
@@ -54,7 +42,7 @@ export const factVocabulary = {
                 data-aui-trend={direction}
                 data-aui-tone={tone}
               >
-                {arrow} {unsignedDelta(delta, direction)}
+                {formatFactDelta(delta, direction)}
               </span>
             ) : null}
             {children}

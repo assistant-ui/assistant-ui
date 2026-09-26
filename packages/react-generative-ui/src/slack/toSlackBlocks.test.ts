@@ -173,15 +173,16 @@ describe("toSlackBlocks", () => {
       expect(warnings).toEqual([]);
     });
 
-    it("appends a fact delta to the value text", () => {
+    it("appends a directional fact delta to the value text", () => {
       const { blocks } = toSlackBlocks({
         $type: "Fact",
         label: "Revenue",
         value: "$12.4k",
-        delta: "+8%",
+        delta: "8%",
+        trend: "down",
       });
       expect((blocks[0] as SlackSectionBlock).fields?.[0]?.text).toBe(
-        "*Revenue*\n$12.4k (+8%)",
+        "*Revenue*\n$12.4k (↓ 8%)",
       );
     });
 
@@ -716,6 +717,22 @@ describe("toSlackBlocks", () => {
           },
         },
       ]);
+    });
+
+    it.each([
+      ["minimum", { min: 0.5, max: 2, step: 1 }],
+      ["maximum", { min: 0, max: 2.5 }],
+      ["default value", { min: 0, max: 2, step: 1, defaultValue: 0.5 }],
+    ])("allows decimals when the %s is fractional", (_property, values) => {
+      const { blocks } = toSlackBlocks({
+        $type: "Slider",
+        label: "Quantity",
+        ...values,
+      });
+
+      expect(blocks[0]).toMatchObject({
+        element: { type: "number_input", is_decimal_allowed: true },
+      });
     });
 
     it("uses the same input block when nested in a Form", () => {

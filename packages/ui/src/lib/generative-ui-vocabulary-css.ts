@@ -700,6 +700,9 @@ export const generativeUiVocabularyCss: CssRuleset = {
     "--aui-series-color": "color-mix(in oklab, white 50%, transparent)",
   },
 
+  '[data-aui="carousel-frame"]': {
+    "min-width": "0",
+  },
   '[data-aui="carousel"]': {
     display: "flex",
     "overflow-x": "auto",

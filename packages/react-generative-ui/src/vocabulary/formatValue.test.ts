@@ -1,11 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { formatValue } from "./formatValue";
+import { factTrend, formatValue } from "./formatValue";
 
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
 describe("formatValue", () => {
+  it.each(["0", "0%", "+0.0%", "−0", "$0"])(
+    "infers %s as a flat fact delta",
+    (delta) => {
+      expect(factTrend(delta, undefined)).toBe("flat");
+    },
+  );
+
   it("formats numbers, currency, percentages, and dates", () => {
     expect(formatValue(1234.567, { kind: "number", decimals: 2 })).toBe(
       "1,234.57",
@@ -32,6 +39,13 @@ describe("formatValue", () => {
     );
 
     expect(formatValue("2026-09-26", { kind: "date" })).toBe("Sep 26, 2026");
+  });
+
+  it("keeps impossible ISO calendar dates as raw text", () => {
+    expect(formatValue("2024-02-30", { kind: "date" })).toBe("2024-02-30");
+    expect(formatValue("2023-02-29", { kind: "date" })).toBe("2023-02-29");
+    expect(formatValue("2024-04-31", { kind: "date" })).toBe("2024-04-31");
+    expect(formatValue("2024-02-29", { kind: "date" })).toBe("Feb 29, 2024");
   });
 
   it("clamps decimal precision", () => {

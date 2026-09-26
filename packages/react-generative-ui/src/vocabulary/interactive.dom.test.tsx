@@ -443,6 +443,7 @@ describe("Button undo window", () => {
 
     expect(button.dataset.auiState).toBe("pending");
     expect(button.textContent).toContain("Undo 5");
+    expect(button.getAttribute("aria-label")).toBe("Undo Purchase");
     expect(container.querySelector('[role="status"]')?.textContent).toBe(
       "Purchase in 5 seconds",
     );
@@ -464,6 +465,25 @@ describe("Button undo window", () => {
     expect(purchase).toHaveBeenCalledWith({ payload: { type: "purchase" } });
     expect(button.dataset.auiState).toBeUndefined();
     expect(button.textContent).toBe("Purchase");
+  });
+
+  it("keeps the generic undo label when its text label is empty", async () => {
+    vi.useFakeTimers();
+    const remove = vi.fn();
+    const container = await mount(
+      {
+        $type: "Button",
+        label: "",
+        undoable: true,
+        $action: { type: "remove" },
+      },
+      { remove },
+    );
+    const button = container.querySelector<HTMLButtonElement>("button")!;
+
+    await act(async () => button.click());
+
+    expect(button.getAttribute("aria-label")).toBe("Undo");
   });
 
   it("cancels when clicked again", async () => {
@@ -641,6 +661,30 @@ describe("Slider", () => {
     expect(setVolume).toHaveBeenCalledWith({
       payload: { type: "set_volume", $input: 7 },
     });
+  });
+
+  it("does not dispatch when a pointer interaction keeps the initial value", async () => {
+    const setVolume = vi.fn();
+    const container = await mount(
+      {
+        $type: "Slider",
+        min: 0,
+        max: 10,
+        defaultValue: 4,
+        $action: { type: "set_volume" },
+      },
+      { set_volume: setVolume },
+    );
+    const slider = container.querySelector<HTMLInputElement>(
+      '[data-aui="slider"]',
+    )!;
+
+    await act(async () => {
+      slider.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      slider.dispatchEvent(new Event("pointerup", { bubbles: true }));
+    });
+
+    expect(setVolume).not.toHaveBeenCalled();
   });
 
   it("collects as a number in a Form", async () => {
