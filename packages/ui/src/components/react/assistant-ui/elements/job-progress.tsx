@@ -112,18 +112,17 @@ export function JobProgress({
           : outcome?.status === "cancelled"
             ? "bg-foreground/20"
             : undefined;
+  const progressPercent = outcome?.status === "success" ? 100 : overall;
 
   return (
     <div
       data-slot="job-progress"
       data-state={state}
-      aria-busy={running || undefined}
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-3 rounded-2xl p-4",
         className,
       )}
-
       {...props}
     >
       <div className="flex items-center gap-2.5">
@@ -167,7 +166,7 @@ export function JobProgress({
         aria-label={`${title} progress`}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-valuenow={announced(outcome ? 100 : overall)}
+        aria-valuenow={announced(progressPercent)}
         className="bg-foreground/[0.06] h-1 w-full overflow-hidden rounded-full"
       >
         <span
@@ -176,7 +175,7 @@ export function JobProgress({
             outcomeBar ??
               (finished ? "bg-emerald-500" : "bg-blue-500 dark:bg-blue-400"),
           )}
-          style={{ width: `${outcome ? 100 : overall}%` }}
+          style={{ width: `${progressPercent}%` }}
         />
       </span>
 

@@ -97,7 +97,7 @@ The model receives the result only after the last answer lands. See [Tool UI](/d
 
 <StandaloneMode>
 
-Standalone, hold the completed answers in your own state and pass them to `choice` to replace the flow with its receipt.
+Standalone, a fulfilled `onComplete` settles the flow into its receipt. Hold completed answers in your own state and pass them to `choice` when your application needs to supply or override that receipt.
 
 <Steps>
   <Step>
@@ -148,7 +148,7 @@ export function ProjectUpdateQuestions() {
 
 ### Complete asynchronously
 
-Return a promise when the answers need to reach a server first. The final option locks while it is pending, and a rejection keeps the question open with the error message:
+Return a promise when the answers need to reach a server first. The final option and Back lock while it is pending. A fulfilled completion becomes a receipt even without `choice`; a supplied `choice` takes precedence. A rejection keeps the question open with the error message:
 
 ```tsx
 <QuestionFlow
@@ -181,7 +181,7 @@ Return a promise when the answers need to reach a server first. The final option
 
 An open flow has one paper card, a counter, a progress bar, and the current step's OptionList. A single selection advances immediately. A multiple selection uses Next until the final step, which uses Submit by default. Back preserves prior answers and returns focus to the next step's first enabled option. Without `onComplete`, every step is a display-only OptionList with no header controls.
 
-When `choice` is set, the card is a receipt. It has one row for each answered step, with the question above its selected labels, and no controls.
+After `onComplete` resolves, the card is a receipt. `choice`, when set, takes precedence over the internally confirmed answers. A receipt has one row for each answered step, with the question above its selected labels, and no controls.
 
 ## Examples
 
@@ -233,9 +233,9 @@ Use `completeLabel` when the final action has a more specific name. It only repl
 |------|------|---------|-------------|
 | `steps` | `QuestionFlowStep[]` | required | `{ id, question, description?, options, selectionMode?, minSelections?, maxSelections? }` in flow order. |
 | `defaultValue` | `Record<string, string[]>` | | Answers used when a step first opens. Unknown option ids are ignored by OptionList. |
-| `onComplete` | `(answers) => void \| Promise<void>` | | Receives every answer at the final step. Without it, the flow is display only. |
+| `onComplete` | `(answers) => void \| Promise<void>` | | Receives every answer at the final step. A fulfilled completion becomes a receipt; without it, the flow is display only. |
 | `completeLabel` | `string` | `"Submit"` | Label for the final multiple-selection action. |
-| `choice` | `Record<string, string[]>` | | Completed answers. When set, the root becomes a receipt. |
+| `choice` | `Record<string, string[]>` | | Completed answers. When set, they take precedence and the root becomes a receipt. |
 | `className` | `string` | | Merged onto the root. |
 
 All other `div` props are forwarded to the root.

@@ -43,6 +43,33 @@ describe("OptionList", () => {
     expect(screen.getByRole("group").getAttribute("aria-busy")).toBe("true");
   });
 
+  it("settles a confirmed pick into a receipt without a choice prop", async () => {
+    let resolve: (() => void) | undefined;
+    const onConfirm = vi.fn(
+      () =>
+        new Promise<void>((done) => {
+          resolve = done;
+        }),
+    );
+    render(<OptionList options={OPTIONS} onConfirm={onConfirm} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Keep all/ }));
+    expect(screen.getByRole("group").getAttribute("aria-busy")).toBe("true");
+
+    await act(async () => {
+      resolve?.();
+    });
+
+    expect(screen.getByText("Keep all")).toBeTruthy();
+    expect(screen.queryAllByRole("button")).toHaveLength(0);
+    expect(
+      screen
+        .getByText("Keep all")
+        .closest("[data-slot]")
+        ?.getAttribute("data-state"),
+    ).toBe("receipt");
+  });
+
   it("reopens with the error when the answer is refused", async () => {
     const onConfirm = vi
       .fn<(ids: string[]) => Promise<void>>()

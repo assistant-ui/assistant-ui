@@ -59,6 +59,25 @@ describe("Sources", () => {
     expect(screen.getByText("Ada Lovelace · Sep 2025")).toBeTruthy();
   });
 
+  it("falls back to en-US when Intl rejects the locale", () => {
+    render(
+      <Sources
+        sources={[
+          {
+            domain: "example.com",
+            title: "Dated source",
+            publishedAt: "2025-09-16",
+          },
+        ]}
+        open
+        onOpenChange={() => {}}
+        locale="en_US"
+      />,
+    );
+
+    expect(screen.getByText("Sep 2025")).toBeTruthy();
+  });
+
   it("stacks no more than three domain initials in its trigger", () => {
     const { container } = renderSources([
       { domain: "first.example", title: "First" },

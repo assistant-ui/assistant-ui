@@ -1,9 +1,12 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { parseAnsi, TerminalBlock } from "./terminal-block";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 describe("TerminalBlock", () => {
   it("labels successful and failed completions with their state", () => {
@@ -125,6 +128,24 @@ describe("TerminalBlock", () => {
     );
     expect(screen.getByRole("button", { name: "Copy output" })).toBeTruthy();
   });
+
+  it("copies the visible text instead of the raw ANSI escapes", () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+
+    render(
+      <TerminalBlock
+        command="run"
+        lines={["\u001b[31mred\u001b[0m line"]}
+        visibleCount={1}
+        done
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy output" }));
+
+    expect(writeText).toHaveBeenCalledWith("red line");
+  });
 });
 
 describe("parseAnsi", () => {
@@ -140,5 +161,14 @@ describe("parseAnsi", () => {
     expect(parseAnsi("\u001b[2Kready\u001b]0;title\u0007\u001b[2Dnow")).toEqual(
       [{ text: "readynow", color: undefined, bold: false, dim: false }],
     );
+  });
+
+  it("consumes extended color parameters instead of misreading them as plain codes", () => {
+    expect(parseAnsi("\u001b[38;2;255;100;50mtruecolor")).toEqual([
+      { text: "truecolor", color: undefined, bold: false, dim: false },
+    ]);
+    expect(parseAnsi("\u001b[48;5;34mindexed")).toEqual([
+      { text: "indexed", color: undefined, bold: false, dim: false },
+    ]);
   });
 });

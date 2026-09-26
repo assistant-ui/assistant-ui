@@ -1,13 +1,12 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import {
-  afterAll,
-  afterEach,
-  beforeAll,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ImageGallery, type GalleryImage } from "./image-gallery";
 
@@ -20,24 +19,6 @@ const images: readonly GalleryImage[] = Array.from(
     caption: `Caption ${index + 1}`,
   }),
 );
-
-const showModal = HTMLDialogElement.prototype.showModal;
-const close = HTMLDialogElement.prototype.close;
-
-beforeAll(() => {
-  HTMLDialogElement.prototype.showModal = function showModal() {
-    this.setAttribute("open", "");
-  };
-  HTMLDialogElement.prototype.close = function close() {
-    this.removeAttribute("open");
-    this.dispatchEvent(new Event("close"));
-  };
-});
-
-afterAll(() => {
-  HTMLDialogElement.prototype.showModal = showModal;
-  HTMLDialogElement.prototype.close = close;
-});
 
 afterEach(cleanup);
 
@@ -69,7 +50,22 @@ describe("ImageGallery", () => {
     expect(screen.getByText("3 / 8")).toBeTruthy();
   });
 
-  it("navigates with arrow keys and buttons and disables navigation at the ends", () => {
+  it("opens the lightbox with the clicked image and closes on Close", async () => {
+    render(<ImageGallery images={images} />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open image: Image 1" }),
+    );
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByAltText("Image 1")).toBeTruthy();
+    expect(screen.getByText("1 / 8")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("navigates with arrow keys and buttons and disables navigation at the ends", async () => {
     render(<ImageGallery images={images} maxVisible={8} />);
 
     fireEvent.click(
@@ -81,35 +77,43 @@ describe("ImageGallery", () => {
 
     fireEvent.click(next);
     expect(screen.getByText("2 / 8")).toBeTruthy();
-    fireEvent.keyDown(document, { key: "ArrowLeft" });
+    fireEvent.keyDown(next, { key: "ArrowLeft" });
     expect(screen.getByText("1 / 8")).toBeTruthy();
+
+    // The dialog is modal, so the background grid is inert; close it before
+    // opening a different tile, as a real pointer user would have to.
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 
     fireEvent.click(
       screen.getByRole("button", { name: "Open image: Image 8" }),
     );
-    expect(
-      screen
-        .getByRole("button", { name: "Next image" })
-        .getAttribute("disabled"),
-    ).toBe("");
-    fireEvent.keyDown(document, { key: "ArrowLeft" });
+    const last = screen.getByRole("button", { name: "Next image" });
+    expect(last.getAttribute("disabled")).toBe("");
+    fireEvent.keyDown(screen.getByRole("button", { name: "Close" }), {
+      key: "ArrowLeft",
+    });
     expect(screen.getByText("7 / 8")).toBeTruthy();
   });
 
-  it("returns focus to the tile after Escape or close", () => {
+  it("returns focus to the tile after Escape or Close", async () => {
     render(<ImageGallery images={images} />);
     const tile = screen.getByRole("button", { name: "Open image: Image 1" });
 
     fireEvent.click(tile);
-    fireEvent(
-      screen.getByRole("dialog"),
-      new Event("cancel", { cancelable: true }),
-    );
-    expect(document.activeElement).toBe(tile);
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(document.activeElement).toBe(tile);
+    });
 
     fireEvent.click(tile);
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
-    expect(document.activeElement).toBe(tile);
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(document.activeElement).toBe(tile);
+    });
   });
 
   it("does not link an unsafe image source", () => {

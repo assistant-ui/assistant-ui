@@ -83,4 +83,17 @@ describe("LinkPreview", () => {
       container.querySelector('[data-slot="link-preview-image"]'),
     ).toBeNull();
   });
+
+  it("treats an empty title like a missing one", () => {
+    render(<LinkPreview href="https://www.example.com/guide" title="" />);
+
+    expect(screen.getAllByText("example.com")).toHaveLength(2);
+  });
+
+  it("never shows a rejected href as the label", () => {
+    render(<LinkPreview href="javascript:alert(1)" />);
+
+    expect(screen.queryByText("javascript:alert(1)")).toBeNull();
+    expect(screen.getByText("Untitled link")).toBeTruthy();
+  });
 });

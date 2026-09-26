@@ -145,7 +145,7 @@ const SourcesImpl: SourceMessagePartComponent = (part) => {
   if (part.sourceType === "url" && part.url) {
     const href = safeHref(part.url);
     const domain = hostOf(part.url);
-    const displayTitle = part.title || domain;
+    const displayTitle = part.title || domain || part.url;
     const content = (
       <>
         <SourceIcon url={part.url} />

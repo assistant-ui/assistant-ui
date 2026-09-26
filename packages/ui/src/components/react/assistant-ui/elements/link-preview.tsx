@@ -36,7 +36,7 @@ export function LinkPreview({
   const safeUrl = safeHref(href);
   const host = hostOf(href);
   const site = siteName ?? host;
-  const label = title ?? host ?? href;
+  const label = title || host || safeUrl || "Untitled link";
   const hasImage = image !== undefined && image !== "" && failedImage !== image;
   const hasFavicon =
     favicon !== undefined && favicon !== "" && failedFavicon !== favicon;

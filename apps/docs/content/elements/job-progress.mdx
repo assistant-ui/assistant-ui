@@ -128,7 +128,7 @@ export function CiJob() {
 />
 ```
 
-An outcome fills the bar and removes cancellation even if the reported stage is short of the end. Use it for failure, cancellation, and partial work. A fully finished job can still omit `outcome` and use `stageIndex={stages.length}` as before.
+An outcome always removes cancellation, even if the reported stage is short of the end, but only a `success` outcome fills the bar; `partial`, `failed`, and `cancelled` keep it at the progress the job actually reached. Use it for failure, cancellation, and partial work. A fully finished job can still omit `outcome` and use `stageIndex={stages.length}` as before.
 
   </Step>
 </Steps>
@@ -158,9 +158,9 @@ An outcome fills the bar and removes cancellation even if the reported stage is 
 </div>
 ```
 
-`stageIndex` is floored and clamped into `0 to stages.length`. Reaching `stages.length` means the job finished successfully when no `outcome` is present. `stageProgress` is clamped into `0 to 1` and contributes only the current stage's weighted share. A current stage description appears below the labels. The root is `aria-busy` while running, and its hidden status region announces each current stage and final outcome.
+`stageIndex` is floored and clamped into `0 to stages.length`. Reaching `stages.length` means the job finished successfully when no `outcome` is present. `stageProgress` is clamped into `0 to 1` and contributes only the current stage's weighted share. A current stage description appears below the labels. A hidden status region announces each current stage and final outcome.
 
-An outcome wins over numeric progress. `success` uses a green check and `done`; `partial` uses amber, `failed` uses red, and `cancelled` uses a muted circle slash. Each receipt fills the bar to 100 percent. When `elapsedMs` is present on a finished job or receipt, the terminal word becomes a semantic `<time>` such as `1m 12s`.
+An outcome wins over numeric progress. `success` uses a green check and `done`; `partial` uses amber, `failed` uses red, and `cancelled` uses a muted circle slash. A `success` outcome fills the bar to 100 percent; `partial`, `failed`, and `cancelled` keep the bar and `aria-valuenow` at the progress the job actually reached. When `elapsedMs` is present on a finished job or receipt, the terminal word becomes a semantic `<time>` such as `1m 12s`.
 
 ## Examples
 

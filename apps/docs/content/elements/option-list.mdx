@@ -90,7 +90,7 @@ A human tool has no executor on either side, so the model only sees its answer a
 
 <StandaloneMode>
 
-Standalone, you own the answer: `onConfirm` receives the pick and `choice` shows it back.
+Standalone, `onConfirm` receives the pick and a fulfilled confirmation settles into a receipt. `choice` lets your application supply the receipt and takes precedence when it is set.
 
 <Steps>
   <Step>
@@ -128,7 +128,7 @@ export function Duplicates() {
 
 ### Commit asynchronously
 
-Return a promise from `onConfirm` when the answer has to reach a server first. The list locks while it is pending, and a rejection reopens it with the error message, because the answer never landed:
+Return a promise from `onConfirm` when the answer has to reach a server first. The list locks while it is pending, then shows its receipt when the promise resolves even without `choice`. A supplied `choice` still takes precedence. A rejection reopens the list with the error message, because the answer never landed:
 
 ```tsx
 <OptionList
@@ -155,7 +155,7 @@ Return a promise from `onConfirm` when the answer has to reach a server first. T
 </div>
 ```
 
-The list has three shapes. Without `onConfirm` it only displays its options. With `onConfirm` a single pick commits on the spot, and a multiple selection toggles checkboxes and commits on the confirm button. With `choice` it is a receipt: only the chosen options remain, each marked selected, and nothing takes input. An empty `choice` reads "Nothing selected".
+The list has three shapes. Without `onConfirm` it only displays its options. With `onConfirm` a single pick commits on the spot, and a multiple selection toggles checkboxes and commits on the confirm button. A fulfilled confirmation becomes a receipt. `choice` supplies and takes precedence over that receipt: only the chosen options remain, each marked selected, and nothing takes input. An empty `choice` reads "Nothing selected".
 
 Disabled options stay visible but never commit. In multiple mode, once `maxSelections` options are checked the remaining ones are unavailable until one is unchecked, and the confirm button stays unavailable until at least `minSelections` are checked.
 
@@ -210,9 +210,9 @@ See [Tool UI](/docs/tools/tool-ui) for the full render-prop surface.
 | `defaultValue` | `string[]` | | Ids a multiple selection starts with. Unknown ids are ignored. |
 | `minSelections` | `number` | `1` | The fewest options a multiple selection confirms with. |
 | `maxSelections` | `number` | `options.length` | The most options a multiple selection may hold. |
-| `onConfirm` | `(ids: string[]) => void \| Promise<void>` | | Commits the answer. Without it the list only displays its options. |
+| `onConfirm` | `(ids: string[]) => void \| Promise<void>` | | Commits the answer. A fulfilled confirmation becomes a receipt; without it the list only displays its options. |
 | `confirmLabel` | `string` | `"Confirm"` | The confirm button's label in multiple mode. |
-| `choice` | `string[]` | | The committed answer. When set, the list renders as a receipt. |
+| `choice` | `string[]` | | The committed answer. When set, it takes precedence and the list renders as a receipt. |
 | `className` | `string` | | Merged onto the root. |
 
 All other `div` props, including `aria-label`, are forwarded to the root.

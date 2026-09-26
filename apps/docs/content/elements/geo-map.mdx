@@ -5,6 +5,8 @@ description: "Real coordinates become a tiled map, route lines, and an accessibl
 
 GeoMap gives a tool result a real geographic frame. It loads Leaflet only in the browser, keeps the location list available to keyboard and screen reader users, and leaves MapAnswer as the dependency free schematic option when coordinates are not the answer.
 
+GeoMap imports `leaflet/dist/leaflet.css` itself; a Pages Router app imports that stylesheet in `pages/_app` instead.
+
 ## Getting started
 
 <RuntimeMode>
@@ -128,7 +130,7 @@ Without `tileUrl`, the map draws the public OpenStreetMap tiles in the page's in
 />
 ```
 
-The public OpenStreetMap tile servers are meant for light use under the [OpenStreetMap tile usage policy](https://operations.osmfoundation.org/policies/tiles/), which rules out an app sending all of its traffic there. For production, set `tileUrl` to a provider you have an account with, and keep its attribution visible.
+The public OpenStreetMap tile servers are meant for light use under the [OpenStreetMap tile usage policy](https://operations.osmfoundation.org/policies/tiles/), which rules out an app sending all of its traffic there. For production, set `tileUrl` to a provider you have an account with, and keep its attribution visible. Both props are application configuration: Leaflet renders `attribution` as HTML, so never fill either one from tool or model output.
 
 ### Control the selection
 
@@ -174,7 +176,7 @@ Register the renderer on a toolkit entry's `render` field. See [Tool UI](/docs/t
 | `onSelect` | `(id: string) => void` | | Called from a marker or list button. |
 | `theme` | `"light" \| "dark" \| "auto"` | `"auto"` | How the default tiles are inked. Auto follows the document's `dark` class and the system preference. |
 | `tileUrl` | `string` | OpenStreetMap | A tile URL template for your provider, shown as the provider draws it. |
-| `attribution` | `string` | | Replaces the default tile attribution. |
+| `attribution` | `string` | | Replaces the default tile attribution. Rendered as HTML, so pass trusted text only. |
 | `height` | `number` | `260` | Map height in pixels. |
 | `className` | `string` | | Merged onto the root. |
 

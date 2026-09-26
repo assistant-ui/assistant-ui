@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const leaflet = vi.hoisted(() => ({
   divIcon: vi.fn(),
   latLngBounds: vi.fn(),
+  layerGroup: vi.fn(),
   map: vi.fn(),
   marker: vi.fn(),
   polyline: vi.fn(),
@@ -44,9 +45,16 @@ let mapInstance: {
   remove: ReturnType<typeof vi.fn>;
   setView: ReturnType<typeof vi.fn>;
 };
+let contentLayers: {
+  addTo: ReturnType<typeof vi.fn>;
+  remove: ReturnType<typeof vi.fn>;
+}[];
+let markerInstances: { setIcon: ReturnType<typeof vi.fn> }[];
 
 beforeEach(() => {
   vi.clearAllMocks();
+  contentLayers = [];
+  markerInstances = [];
   mapInstance = {
     fitBounds: vi.fn(),
     panTo: vi.fn(),
@@ -56,6 +64,12 @@ beforeEach(() => {
   leaflet.map.mockReturnValue(mapInstance);
   leaflet.latLngBounds.mockReturnValue({});
   leaflet.divIcon.mockReturnValue({});
+  leaflet.layerGroup.mockImplementation(() => {
+    const layer = { addTo: vi.fn(), remove: vi.fn() };
+    layer.addTo.mockReturnValue(layer);
+    contentLayers.push(layer);
+    return layer;
+  });
   leaflet.tileLayer.mockImplementation(() => {
     const layer = { addTo: vi.fn() };
     layer.addTo.mockReturnValue(layer);
@@ -70,6 +84,7 @@ beforeEach(() => {
     const marker = { addTo: vi.fn(), on: vi.fn(), setIcon: vi.fn() };
     marker.addTo.mockReturnValue(marker);
     marker.on.mockReturnValue(marker);
+    markerInstances.push(marker);
     return marker;
   });
 });
@@ -160,6 +175,74 @@ describe("GeoMap", () => {
     });
     expect(container.querySelector('[role="region"]')?.className).not.toContain(
       "grayscale",
+    );
+  });
+
+  it("keeps the map for equal-content place and route arrays", async () => {
+    const routes = [
+      {
+        id: "walk",
+        points: [
+          [1.2966, 103.7764],
+          [1.2974, 103.776],
+        ] as const,
+      },
+    ];
+    const { rerender } = render(<GeoMap places={PLACES} routes={routes} />);
+
+    await waitFor(() => expect(leaflet.layerGroup).toHaveBeenCalledTimes(1));
+    const calls = {
+      divIcon: leaflet.divIcon.mock.calls.length,
+      layerGroup: leaflet.layerGroup.mock.calls.length,
+      marker: leaflet.marker.mock.calls.length,
+      polyline: leaflet.polyline.mock.calls.length,
+      tileLayer: leaflet.tileLayer.mock.calls.length,
+    };
+
+    rerender(
+      <GeoMap
+        places={PLACES.map((place) => ({ ...place }))}
+        routes={routes.map((route) => ({
+          ...route,
+          points: route.points.map(([lat, lng]) => [lat, lng] as const),
+        }))}
+      />,
+    );
+
+    expect(leaflet.map).toHaveBeenCalledTimes(1);
+    expect(mapInstance.remove).not.toHaveBeenCalled();
+    expect(leaflet.divIcon).toHaveBeenCalledTimes(calls.divIcon);
+    expect(leaflet.layerGroup).toHaveBeenCalledTimes(calls.layerGroup);
+    expect(leaflet.marker).toHaveBeenCalledTimes(calls.marker);
+    expect(leaflet.polyline).toHaveBeenCalledTimes(calls.polyline);
+    expect(leaflet.tileLayer).toHaveBeenCalledTimes(calls.tileLayer);
+  });
+
+  it("rebuilds markers when place coordinates change without recreating the map", async () => {
+    const { rerender } = render(<GeoMap places={PLACES} />);
+
+    await waitFor(() => expect(leaflet.marker).toHaveBeenCalledTimes(2));
+    const initialLayer = contentLayers[0]!;
+
+    rerender(
+      <GeoMap
+        places={PLACES.map((place) =>
+          place.id === "library" ? { ...place, lat: 1.2968 } : place,
+        )}
+      />,
+    );
+
+    await waitFor(() => expect(leaflet.marker).toHaveBeenCalledTimes(4));
+    expect(leaflet.map).toHaveBeenCalledTimes(1);
+    expect(mapInstance.remove).not.toHaveBeenCalled();
+    expect(initialLayer.remove).toHaveBeenCalledOnce();
+
+    const museumMarker = markerInstances[3]!;
+    const iconCalls = museumMarker.setIcon.mock.calls.length;
+    fireEvent.click(screen.getByRole("button", { name: /Museum/ }));
+
+    await waitFor(() =>
+      expect(museumMarker.setIcon).toHaveBeenCalledTimes(iconCalls + 1),
     );
   });
 

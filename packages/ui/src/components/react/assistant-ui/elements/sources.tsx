@@ -33,10 +33,15 @@ const formatPublishedAt = (publishedAt: string | undefined, locale: string) => {
   if (!publishedAt) return undefined;
   const date = new Date(publishedAt);
   if (Number.isNaN(date.valueOf())) return undefined;
-  return new Intl.DateTimeFormat(locale, {
+  const options: Intl.DateTimeFormatOptions = {
     month: "short",
     year: "numeric",
-  }).format(date);
+  };
+  try {
+    return new Intl.DateTimeFormat(locale, options).format(date);
+  } catch {
+    return new Intl.DateTimeFormat("en-US", options).format(date);
+  }
 };
 
 export function Sources({

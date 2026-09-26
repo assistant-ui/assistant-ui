@@ -48,10 +48,12 @@ type ElementRegistryEntry = {
   description: string;
   file: string;
   dependencies?: string[];
+  devDependencies?: string[];
   usesCollapsible?: boolean;
   usesElements?: string[];
   usesHooks?: string[];
   usesSurfaces?: boolean;
+  usesUi?: string[];
 };
 
 const createElementRegistryItem = (
@@ -79,8 +81,10 @@ const createElementRegistryItem = (
       (name) => `https://r.assistant-ui.com/${name}.json`,
     ),
     ...(entry.usesCollapsible ? ["collapsible"] : []),
+    ...(entry.usesUi ?? []),
   ],
   ...(entry.dependencies ? { dependencies: entry.dependencies } : {}),
+  ...(entry.devDependencies ? { devDependencies: entry.devDependencies } : {}),
 });
 
 const elementsRegistryItems: RegistryItem[] = [
@@ -317,6 +321,7 @@ const elementsRegistryItems: RegistryItem[] = [
     file: "image-gallery.tsx",
     dependencies: ["lucide-react"],
     usesElements: ["href", "range"],
+    usesUi: ["dialog"],
   }),
   createElementRegistryItem({
     slug: "data-table",
@@ -810,6 +815,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "Places and routes on a real tiled map, with an accessible list of every place.",
     file: "geo-map.tsx",
     dependencies: ["leaflet"],
+    devDependencies: ["@types/leaflet"],
   }),
   createElementRegistryItem({
     slug: "math-block",

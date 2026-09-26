@@ -81,7 +81,7 @@ describe("QuestionFlow", () => {
     expect(screen.getByText("When should it go out?")).toBeTruthy();
   });
 
-  it("completes with every answer and locks its final option while pending", () => {
+  it("completes with every answer and shows a receipt after pending", async () => {
     let resolve: (() => void) | undefined;
     const onComplete = vi.fn(
       () =>
@@ -101,8 +101,24 @@ describe("QuestionFlow", () => {
       schedule: ["today"],
     });
     expect(screen.getByRole("group").getAttribute("aria-busy")).toBe("true");
+    expect(
+      screen.getByRole("button", { name: "Back" }).getAttribute("disabled"),
+    ).toBe("");
 
-    act(() => resolve?.());
+    await act(async () => {
+      resolve?.();
+    });
+
+    expect(
+      screen
+        .getByText("Today")
+        .closest('[data-slot="question-flow"]')
+        ?.getAttribute("data-state"),
+    ).toBe("receipt");
+    expect(screen.getByText("The whole team")).toBeTruthy();
+    expect(screen.getByText("Unit tests")).toBeTruthy();
+    expect(screen.getByText("Today")).toBeTruthy();
+    expect(screen.queryAllByRole("button")).toHaveLength(0);
   });
 
   it("reopens the final question with the completion error", async () => {
@@ -119,6 +135,9 @@ describe("QuestionFlow", () => {
       "The update could not be scheduled",
     );
     expect(screen.getByRole("group").getAttribute("aria-busy")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Back" }).getAttribute("disabled"),
+    ).toBeNull();
   });
 
   it("renders supplied answers as a receipt", () => {

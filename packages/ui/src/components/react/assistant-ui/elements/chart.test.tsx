@@ -38,6 +38,21 @@ describe("Chart delta", () => {
     expect(delta("-12ms").className).toContain("text-emerald-600");
   });
 
+  it("infers a zero delta as flat", () => {
+    render(
+      <Chart
+        label="Errors"
+        value="0"
+        delta="+0.0%"
+        points={[0, 0]}
+        visibleCount={2}
+      />,
+    );
+
+    expect(delta("+0.0%").getAttribute("data-trend")).toBe("flat");
+    expect(delta("+0.0%").className).toContain("text-foreground/45");
+  });
+
   it("takes an explicit trend over the sign, and keeps a flat one neutral", () => {
     const view = render(
       <Chart

@@ -70,22 +70,13 @@ describe("ApprovalCard", () => {
     );
   });
 
-  it("denies on Escape only while a request has a denial handler", () => {
+  it("never denies on Escape, even with a request open and a denial handler present", () => {
     const onDeny = vi.fn();
-    const { rerender } = render(
-      <ApprovalCard {...cardProps} onDeny={onDeny} />,
-    );
+    render(<ApprovalCard {...cardProps} onDeny={onDeny} />);
 
     fireEvent.keyDown(screen.getByRole("group"), { key: "Escape" });
-    expect(onDeny).toHaveBeenCalledOnce();
 
-    rerender(<ApprovalCard {...cardProps} state="running" onDeny={onDeny} />);
-    fireEvent.keyDown(screen.getByRole("group"), { key: "Escape" });
-    expect(onDeny).toHaveBeenCalledOnce();
-
-    rerender(<ApprovalCard {...cardProps} onDeny={undefined} />);
-    fireEvent.keyDown(screen.getByRole("group"), { key: "Escape" });
-    expect(onDeny).toHaveBeenCalledOnce();
+    expect(onDeny).not.toHaveBeenCalled();
   });
 
   it("announces receipt text and allows it to be overridden", () => {

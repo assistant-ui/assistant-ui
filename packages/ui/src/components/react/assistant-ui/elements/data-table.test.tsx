@@ -1,3 +1,6 @@
+import { act } from "react";
+import { hydrateRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -103,6 +106,11 @@ describe("DataTable", () => {
     expect(
       screen.getAllByRole("link", { name: /Read more.*opens in a new tab/ }),
     ).toHaveLength(2);
+    expect(
+      screen
+        .getAllByRole("link", { name: /Read more.*opens in a new tab/ })
+        .every((link) => link.getAttribute("rel") === "noopener noreferrer"),
+    ).toBe(true);
     expect(screen.getAllByText("ready")).toHaveLength(2);
     expect(screen.getAllByText("+1")).toHaveLength(2);
   });
@@ -121,9 +129,19 @@ describe("DataTable", () => {
     const button = screen.getByRole("button", { name: "Sort by Name" });
     const header = screen.getByRole("columnheader", { name: "Name" });
 
-    expect(header.getAttribute("aria-sort")).toBe("none");
+    expect(header.getAttribute("aria-sort")).toBeNull();
+    expect(
+      screen
+        .getByRole("columnheader", { name: "Score" })
+        .getAttribute("aria-sort"),
+    ).toBeNull();
     fireEvent.click(button);
     expect(header.getAttribute("aria-sort")).toBe("ascending");
+    expect(
+      screen
+        .getByRole("columnheader", { name: "Score" })
+        .getAttribute("aria-sort"),
+    ).toBeNull();
     expect(button.textContent).toBe("Name↑");
     expect(tableRows(container)).toEqual(["Alpha1", "Bravo2", "Charlie3"]);
     expect(screen.getByText("Sorted by Name, ascending")).toBeTruthy();
@@ -134,7 +152,7 @@ describe("DataTable", () => {
     expect(tableRows(container)).toEqual(["Charlie3", "Bravo2", "Alpha1"]);
 
     fireEvent.click(button);
-    expect(header.getAttribute("aria-sort")).toBe("none");
+    expect(header.getAttribute("aria-sort")).toBeNull();
     expect(button.textContent).toBe("Name");
     expect(tableRows(container)).toEqual(["Charlie3", "Alpha1", "Bravo2"]);
   });
@@ -150,7 +168,7 @@ describe("DataTable", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Sort by Name, asc" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sort by Name" }));
 
     expect(onSortChange).toHaveBeenCalledWith({
       key: "name",
@@ -198,6 +216,7 @@ describe("DataTable", () => {
 
     expect(screen.getAllByRole("status")).toHaveLength(2);
     expect(screen.getAllByText("Nothing found")).toHaveLength(2);
+    expect(screen.getByRole("cell", { name: "Nothing found" })).toBeTruthy();
   });
 
   it("renders the caption and compact card markup", () => {
@@ -264,6 +283,72 @@ describe("DataTable", () => {
     );
 
     expect(screen.getAllByText("Sep 26, 2026").length).toBeGreaterThan(0);
+  });
+
+  it("keeps impossible ISO calendar dates as raw text", () => {
+    render(
+      <DataTable
+        columns={[
+          { key: "impossible", label: "Impossible", format: { kind: "date" } },
+          { key: "leapDay", label: "Leap day", format: { kind: "date" } },
+        ]}
+        rows={[{ impossible: "2024-02-30", leapDay: "2024-02-29" }]}
+        locale="en-US"
+      />,
+    );
+
+    expect(screen.getAllByText("2024-02-30")).toHaveLength(2);
+    expect(screen.getAllByText("Feb 29, 2024")).toHaveLength(2);
+  });
+
+  it("suppresses relative-date hydration warnings without a reference time", async () => {
+    const container = document.createElement("div");
+    let root: Root | undefined;
+    const onRecoverableError = vi.fn();
+    const now = vi.spyOn(Date, "now");
+    const date = "2024-01-02T00:00:00.000Z";
+    document.body.appendChild(container);
+
+    try {
+      now.mockReturnValue(Date.parse("2024-01-02T00:00:00.000Z"));
+      container.innerHTML = renderToString(
+        <DataTable
+          columns={[
+            {
+              key: "updated",
+              label: "Updated",
+              format: { kind: "date", style: "relative" },
+            },
+          ]}
+          rows={[{ updated: date }]}
+        />,
+      );
+
+      now.mockReturnValue(Date.parse("2024-01-05T00:00:00.000Z"));
+      await act(async () => {
+        root = hydrateRoot(
+          container,
+          <DataTable
+            columns={[
+              {
+                key: "updated",
+                label: "Updated",
+                format: { kind: "date", style: "relative" },
+              },
+            ]}
+            rows={[{ updated: date }]}
+          />,
+          { onRecoverableError },
+        );
+      });
+
+      expect(onRecoverableError).not.toHaveBeenCalled();
+    } finally {
+      await act(async () => {
+        root?.unmount();
+      });
+      container.remove();
+    }
   });
 
   it("announces a sort only after the user sorts", () => {

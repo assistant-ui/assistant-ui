@@ -66,7 +66,13 @@ export function Chart({
   const lastIndex = shown.length - 1;
   const direction =
     trend ??
-    (delta === undefined ? undefined : /^\s*[-−–]/.test(delta) ? "down" : "up");
+    (delta === undefined
+      ? undefined
+      : /\d/.test(delta) && !/[1-9]/.test(delta)
+        ? "flat"
+        : /^\s*[-−–]/.test(delta)
+          ? "down"
+          : "up");
   const good =
     direction === "up" || direction === "down"
       ? (direction === "up") === upIsGood

@@ -116,4 +116,19 @@ describe("Sources", () => {
       screen.getByRole("link", { name: "Safe source" }).getAttribute("href"),
     ).toBe("https://example.com/reference");
   });
+
+  it("falls back to the raw url text when no title or domain can be shown", () => {
+    render(
+      <Sources
+        type="source"
+        sourceType="url"
+        id="bare"
+        url="example.com/report"
+        title=""
+        status={{ type: "complete" }}
+      />,
+    );
+
+    expect(screen.getByText("example.com/report")).toBeTruthy();
+  });
 });

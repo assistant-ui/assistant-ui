@@ -51,6 +51,10 @@ export function QuestionFlow({
     }
     return initial;
   });
+  const [confirmedAnswers, setConfirmedAnswers] = useState<
+    Record<string, string[]> | undefined
+  >();
+  const [isCompleting, setIsCompleting] = useState(false);
   const questionPrefix = useId();
   const optionListRef = useRef<HTMLDivElement>(null);
   const currentIndex = Math.min(stepIndex, Math.max(0, steps.length - 1));
@@ -73,7 +77,9 @@ export function QuestionFlow({
     className,
   );
 
-  if (choice !== undefined) {
+  const completedChoice = choice ?? confirmedAnswers;
+
+  if (completedChoice !== undefined) {
     return (
       <div
         {...props}
@@ -82,7 +88,7 @@ export function QuestionFlow({
         className={cn(root, "gap-3")}
       >
         {steps.flatMap((step) => {
-          const selected = choice[step.id];
+          const selected = completedChoice[step.id];
           if (!selected?.length) return [];
           const labels = step.options
             .filter((option) => selected.includes(option.id))
@@ -162,9 +168,22 @@ export function QuestionFlow({
       setStepIndex(currentIndex + 1);
       return;
     }
-    return Promise.resolve(onComplete(nextAnswers)).then(() => {
-      setAnswers(nextAnswers);
-    });
+    setIsCompleting(true);
+    try {
+      return Promise.resolve(onComplete(nextAnswers)).then(
+        () => {
+          setAnswers(nextAnswers);
+          setConfirmedAnswers(nextAnswers);
+        },
+        (error) => {
+          setIsCompleting(false);
+          throw error;
+        },
+      );
+    } catch (error) {
+      setIsCompleting(false);
+      return Promise.reject(error);
+    }
   };
 
   return (
@@ -181,8 +200,13 @@ export function QuestionFlow({
         {currentIndex > 0 ? (
           <button
             type="button"
+            disabled={isCompleting}
             onClick={() => setStepIndex(currentIndex - 1)}
-            className={cn(ghostButton, "h-7 px-2.5 text-xs font-medium")}
+            className={cn(
+              ghostButton,
+              "h-7 px-2.5 text-xs font-medium",
+              isCompleting && "cursor-default opacity-40",
+            )}
           >
             Back
           </button>

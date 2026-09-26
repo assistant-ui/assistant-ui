@@ -55,9 +55,13 @@ const findStringEnd = (line: string, start: number, bell: boolean) => {
 };
 
 const applySgr = (value: string, state: Omit<AnsiSegment, "text">) => {
-  for (const part of value.split(";")) {
+  const parts = value.split(";");
+  for (let index = 0; index < parts.length; index += 1) {
+    const part = parts[index];
     const code = part === "" ? 0 : Number(part);
-    if (code === 0) {
+    if (code === 38 || code === 48) {
+      index += parts[index + 1] === "2" ? 4 : parts[index + 1] === "5" ? 2 : 1;
+    } else if (code === 0) {
       state.color = undefined;
       state.bold = false;
       state.dim = false;
@@ -198,6 +202,11 @@ const formatDuration = (durationMs: number) => {
   return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
 };
 
+const plainText = (line: string) =>
+  parseAnsi(line)
+    .map((segment) => segment.text)
+    .join("");
+
 export function TerminalBlock({
   command,
   lines,
@@ -332,7 +341,9 @@ export function TerminalBlock({
                 type="button"
                 aria-label="Copy output"
                 onClick={() =>
-                  copyToClipboard(output.map(({ line }) => line).join("\n"))
+                  copyToClipboard(
+                    output.map(({ line }) => plainText(line)).join("\n"),
+                  )
                 }
                 className={cn(
                   ghostButton,

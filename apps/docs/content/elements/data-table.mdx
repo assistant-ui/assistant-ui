@@ -111,7 +111,7 @@ export function ModelComparison() {
 
 The root is a container. At `@md` the semantic table is visible; below it, each row becomes a card with the primary column as its title and the remaining fields in a definition list. Both layouts are rendered so CSS can choose without changing the data or its sort order.
 
-The table has one hairline below its headers. Rows use a quiet hover fill instead of dividers. A supplied caption is visually hidden and gives the table a screen-reader name. Each sortable header cycles ascending, descending, then unsorted, and announces the new order in a polite live region.
+The table has one hairline below its headers. Rows use a quiet hover fill instead of dividers. A supplied caption is visually hidden and gives the table a screen-reader name. Each sortable header cycles ascending, descending, then unsorted, and announces the new order in a polite live region. Only the sorted header carries `aria-sort`, and each sort button is named after its column, such as `Sort by Latency`.
 
 ## Examples
 
@@ -135,7 +135,9 @@ The table has one hairline below its headers. Rows use a quiet hover fill instea
 />
 ```
 
-Use `basis: "unit"` when a percentage arrives as `12` rather than `0.12`. A `link` format reads its href from the cell or `hrefKey`, and only links allowed by `safeHref` become anchors.
+Use `basis: "unit"` when a percentage arrives as `12` rather than `0.12`. A `link` format reads its href from the cell or `hrefKey`, and only links allowed by `safeHref` become anchors. External links open with `noopener noreferrer`.
+
+Relative dates use the current render time when `relativeTo` is absent, with hydration-safe text. Pass `relativeTo` when a shared reference time matters. Date strings must name a real calendar date; impossible values stay as their raw text.
 
 ### Own the sorting
 
@@ -191,7 +193,7 @@ Set one column to `priority: "primary"` to make it the card title. If no column 
 | `onSortChange` | `(sort) => void` | | Called as a header cycles through sort states. |
 | `locale` | `string` | `"en-US"` | Formatting and collator locale. |
 | `emptyMessage` | `string` | `"No rows"` | Message in an empty table or card list. |
-| `relativeTo` | `number` | render time | Epoch milliseconds for relative dates. |
+| `relativeTo` | `number` | current render time | Epoch milliseconds for relative dates. Provide one for a shared reference time. |
 | `className` | `string` | | Extra classes merged onto the root. |
 
 </StandaloneMode>
@@ -234,7 +236,7 @@ Set one column to `priority: "primary"` to make it the card title. If no column 
 |------|-------|-------------|
 | `text` | string, number, boolean, list | Plain text. |
 | `number`, `currency`, `percent`, `delta` | number | Locale-aware numeric values. |
-| `date` | ISO string | Date, date-time, or relative date. |
+| `date` | valid ISO calendar string | Date, date-time, or relative date. Impossible calendar dates stay as raw text. |
 | `boolean` | boolean | Configurable true and false labels. |
 | `link` | string | Safe URL from the value or `hrefKey`. |
 | `badge`, `list` | string or list | Tone chip or limited list of chips. |

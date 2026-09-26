@@ -78,6 +78,7 @@ export function OptionList({
     (defaultValue ?? []).filter((id) => options.some((o) => o.id === id)),
   );
   const [pending, setPending] = useState<readonly string[] | null>(null);
+  const [confirmed, setConfirmed] = useState<readonly string[] | undefined>();
   const [error, setError] = useState<string | null>(null);
 
   const root = cn(
@@ -86,8 +87,12 @@ export function OptionList({
     className,
   );
 
-  if (choice !== undefined) {
-    const chosen = options.filter((option) => choice.includes(option.id));
+  const confirmedChoice = choice ?? confirmed;
+
+  if (confirmedChoice !== undefined) {
+    const chosen = options.filter((option) =>
+      confirmedChoice.includes(option.id),
+    );
     return (
       <div
         data-slot="option-list"
@@ -145,6 +150,7 @@ export function OptionList({
     void (async () => {
       try {
         await onConfirm(ids);
+        setConfirmed(ids);
       } catch (commitError) {
         setPending(null);
         setError(

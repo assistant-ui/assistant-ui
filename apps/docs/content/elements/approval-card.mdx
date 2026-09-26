@@ -163,7 +163,7 @@ async function run() {
 </div>
 ```
 
-The title labels the card for assistive technology, and `description` becomes its accessible description when present. While the card is requesting a decision, Escape calls `onDeny` when a denial callback exists. The footer becomes a live status receipt once the state changes to `"running"`, `"done"`, or `"denied"`.
+The title labels the card for assistive technology, and `description` becomes its accessible description when present. The footer becomes a live status receipt once the state changes to `"running"`, `"done"`, or `"denied"`.
 
 ## Examples
 
@@ -270,7 +270,7 @@ onDeny={() => {
 | `statusLabel` | `string \| undefined` | state-specific copy | Replaces the receipt text for any non-request state. |
 | `onAllowOnce` | `() => void` | | Renders the primary request action and fires when it is selected. |
 | `onAlwaysAllow` | `() => void` | | Renders the persistent request action and fires when it is selected. |
-| `onDeny` | `() => void` | | Renders the refusal action and fires when it is selected. Escape also fires it while requesting. |
+| `onDeny` | `() => void` | | Renders the refusal action and fires when it is selected. |
 | `className` | `string` | | Merged onto the root. |
 
 All other `div` props are forwarded to the root.

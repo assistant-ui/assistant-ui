@@ -129,31 +129,43 @@ export function GeoMap({
   const leafletRef = useRef<LeafletModule | null>(null);
   const markersRef = useRef(new Map<string, LeafletMarker>());
   const [mapReady, setMapReady] = useState(false);
-  const validPlaces = useMemo(
-    () => places.filter((place) => isCoordinate(place.lat, place.lng)),
-    [places],
-  );
-  const routePoints = useMemo(
-    () =>
-      routes?.flatMap((route) =>
-        route.points
-          .filter(([lat, lng]) => isCoordinate(lat, lng))
-          .map(([lat, lng]) => [lat, lng] as Coordinate),
-      ) ?? [],
-    [routes],
-  );
-  const validRoutes = useMemo(
-    () =>
+  const mapContent = useMemo(() => {
+    const validPlaces = places.filter((place) =>
+      isCoordinate(place.lat, place.lng),
+    );
+    const routePoints: Coordinate[] = [];
+    const validRoutes =
       routes
-        ?.map((route) => ({
-          ...route,
-          points: route.points
+        ?.map((route) => {
+          const points = route.points
             .filter(([lat, lng]) => isCoordinate(lat, lng))
-            .map(([lat, lng]) => [lat, lng] as Coordinate),
-        }))
-        .filter((route) => route.points.length > 1) ?? [],
-    [routes],
-  );
+            .map(([lat, lng]) => [lat, lng] as Coordinate);
+          routePoints.push(...points);
+          return { ...route, points };
+        })
+        .filter((route) => route.points.length > 1) ?? [];
+
+    return {
+      signature: JSON.stringify([
+        places.map((place) => [
+          place.id,
+          place.lat,
+          place.lng,
+          place.label,
+          place.description,
+        ]),
+        routes?.map((route) => [route.id, route.points]) ?? [],
+      ]),
+      validPlaces,
+      routePoints,
+      validRoutes,
+    };
+  }, [places, routes]);
+  const { signature: contentSignature, validPlaces } = mapContent;
+  const mapContentRef = useRef(mapContent);
+  mapContentRef.current = mapContent;
+  const resolvedTileUrl = tileUrl ?? DEFAULT_TILE_URL;
+  const resolvedAttribution = attribution ?? DEFAULT_ATTRIBUTION;
   const [uncontrolledSelectedId, setUncontrolledSelectedId] = useState<
     string | undefined
   >(() => validPlaces[0]?.id);
@@ -178,22 +190,12 @@ export function GeoMap({
   selectPlaceRef.current = selectPlace;
 
   useEffect(() => {
-    const leaflet = leafletRef.current;
-    if (!leaflet) return;
-
-    for (const place of validPlaces) {
-      markersRef.current
-        .get(place.id)
-        ?.setIcon(markerIcon(leaflet, place.id === activeId));
-    }
-  }, [activeId, validPlaces]);
-
-  useEffect(() => {
     const container = containerRef.current;
     if (!container) return undefined;
 
     let cancelled = false;
     let map: LeafletMap | null = null;
+    setMapReady(false);
     void (async () => {
       const leaflet = await import("leaflet");
       if (cancelled) return;
@@ -201,56 +203,78 @@ export function GeoMap({
       leafletRef.current = leaflet;
       map = leaflet.map(container, { keyboard: true });
       mapRef.current = map;
-      const points: Coordinate[] = [
-        ...validPlaces.map((place) => [place.lat, place.lng] as Coordinate),
-        ...routePoints,
-      ];
-
-      const [first] = points;
-      if (points.length === 1 && first) {
-        map.setView(first, 13);
-      } else if (points.length > 1) {
-        map.fitBounds(leaflet.latLngBounds(points), { padding: [24, 24] });
-      } else {
-        map.setView([0, 0], 2);
-      }
 
       leaflet
-        .tileLayer(tileUrl ?? DEFAULT_TILE_URL, {
-          attribution: attribution ?? DEFAULT_ATTRIBUTION,
+        .tileLayer(resolvedTileUrl, {
+          attribution: resolvedAttribution,
         })
         .addTo(map);
-
-      for (const route of validRoutes) {
-        leaflet
-          .polyline(route.points, {
-            className: "stroke-foreground/70",
-            weight: 2,
-          })
-          .addTo(map);
-      }
-
-      for (const place of validPlaces) {
-        const marker = leaflet
-          .marker([place.lat, place.lng], {
-            icon: markerIcon(leaflet, place.id === activeIdRef.current),
-            title: place.label,
-          })
-          .addTo(map)
-          .on("click", () => selectPlaceRef.current(place));
-        markersRef.current.set(place.id, marker);
-      }
-
       setMapReady(true);
     })();
 
     return () => {
       cancelled = true;
-      markersRef.current.clear();
       if (mapRef.current === map) mapRef.current = null;
       map?.remove();
     };
-  }, [attribution, routePoints, tileUrl, validPlaces, validRoutes]);
+  }, [resolvedAttribution, resolvedTileUrl]);
+
+  useEffect(() => {
+    const leaflet = leafletRef.current;
+    const map = mapRef.current;
+    if (!leaflet || !map || !mapReady) return;
+
+    const { routePoints, validPlaces, validRoutes } = mapContentRef.current;
+    const layer = leaflet.layerGroup().addTo(map);
+    const points: Coordinate[] = [
+      ...validPlaces.map((place) => [place.lat, place.lng] as Coordinate),
+      ...routePoints,
+    ];
+    const [first] = points;
+    if (points.length === 1 && first) {
+      map.setView(first, 13);
+    } else if (points.length > 1) {
+      map.fitBounds(leaflet.latLngBounds(points), { padding: [24, 24] });
+    } else {
+      map.setView([0, 0], 2);
+    }
+
+    for (const route of validRoutes) {
+      leaflet
+        .polyline(route.points, {
+          className: "stroke-foreground/70",
+          weight: 2,
+        })
+        .addTo(layer);
+    }
+
+    for (const place of validPlaces) {
+      const marker = leaflet
+        .marker([place.lat, place.lng], {
+          icon: markerIcon(leaflet, place.id === activeIdRef.current),
+          title: place.label,
+        })
+        .addTo(layer)
+        .on("click", () => selectPlaceRef.current(place));
+      markersRef.current.set(place.id, marker);
+    }
+
+    return () => {
+      markersRef.current.clear();
+      layer.remove();
+    };
+  }, [contentSignature, mapReady]);
+
+  useEffect(() => {
+    const leaflet = leafletRef.current;
+    if (!leaflet) return;
+
+    for (const place of mapContentRef.current.validPlaces) {
+      markersRef.current
+        .get(place.id)
+        ?.setIcon(markerIcon(leaflet, place.id === activeId));
+    }
+  }, [activeId, contentSignature]);
 
   return (
     <div

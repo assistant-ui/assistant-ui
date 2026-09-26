@@ -5,7 +5,6 @@ import {
   ChevronRightIcon,
   ExternalLinkIcon,
   ImageOffIcon,
-  XIcon,
 } from "lucide-react";
 import {
   useCallback,
@@ -14,10 +13,11 @@ import {
   useState,
   type ComponentProps,
 } from "react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { safeHref } from "../utils/href";
 import { clamp } from "../utils/range";
-import { field, floating, ghostButton, mono } from "./surfaces";
+import { field, ghostButton, mono } from "./surfaces";
 
 export interface GalleryImage {
   id: string;
@@ -49,7 +49,6 @@ export function ImageGallery({
   const [failedImages, setFailedImages] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const index =
     activeIndex === null
@@ -61,19 +60,13 @@ export function ImageGallery({
   const visibleImages = images.slice(0, visibleCount);
 
   const close = useCallback(() => {
-    const dialog = dialogRef.current;
-    if (dialog?.open) dialog.close();
     setActiveIndex(null);
     triggerRef.current?.focus();
   }, []);
 
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog || activeImage === undefined) return;
-    if (!dialog.open) dialog.showModal();
+    if (activeImage === undefined) return;
 
-    const previousOverflow = document.documentElement.style.overflow;
-    document.documentElement.style.overflow = "hidden";
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "ArrowLeft" && index > 0) {
         event.preventDefault();
@@ -83,12 +76,10 @@ export function ImageGallery({
         setActiveIndex(index + 1);
       }
     };
-    document.addEventListener("keydown", onKeyDown);
+    // The dialog stops keydown propagation, so only a capture listener sees the arrows.
+    document.addEventListener("keydown", onKeyDown, true);
 
-    return () => {
-      document.documentElement.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", onKeyDown);
-    };
+    return () => document.removeEventListener("keydown", onKeyDown, true);
   }, [activeImage, images.length, index]);
 
   const open = (nextIndex: number, trigger: HTMLButtonElement) => {
@@ -154,33 +145,16 @@ export function ImageGallery({
         })}
       </div>
       {activeImage ? (
-        <dialog
-          ref={dialogRef}
-          aria-label={`Image ${index + 1} of ${images.length}`}
-          className="backdrop:bg-foreground/65 fixed inset-0 flex h-dvh max-h-none w-dvw max-w-none items-center justify-center border-0 bg-transparent p-4"
-          onCancel={(event) => {
-            event.preventDefault();
-            close();
+        <Dialog
+          open
+          onOpenChange={(nextOpen: boolean) => {
+            if (!nextOpen) close();
           }}
-          onClick={(event) => {
-            if (event.target === event.currentTarget) close();
-          }}
-          onClose={close}
         >
-          <div
-            className={cn(
-              floating,
-              "fade-in animate-in relative flex w-full max-w-4xl flex-col gap-3 rounded-xl p-3 shadow-lg duration-150 motion-reduce:animate-none",
-            )}
-          >
-            <button
-              type="button"
-              aria-label="Close"
-              onClick={close}
-              className={cn(ghostButton, "absolute end-2 top-2 z-10 size-8")}
-            >
-              <XIcon aria-hidden className="size-4" />
-            </button>
+          <DialogContent className="gap-3 p-3 duration-150 motion-reduce:animate-none sm:max-w-4xl">
+            <DialogTitle className="sr-only">
+              Image {index + 1} of {images.length}
+            </DialogTitle>
             <div className="flex min-h-0 items-center justify-center px-10">
               {failedImages.has(keyForImage(activeImage)) ? (
                 <div className="text-foreground/35 flex h-[min(75vh,32rem)] w-full items-center justify-center">
@@ -254,8 +228,8 @@ export function ImageGallery({
                 <ChevronRightIcon aria-hidden className="size-4" />
               </button>
             </div>
-          </div>
-        </dialog>
+          </DialogContent>
+        </Dialog>
       ) : null}
     </div>
   );

@@ -30,7 +30,6 @@ export function ApprovalCard({
   denyLabel = "Deny",
   statusLabel,
   className,
-  onKeyDown,
   ...props
 }: Omit<
   ComponentProps<"div">,
@@ -78,17 +77,6 @@ export function ApprovalCard({
       data-slot="approval-card"
       aria-labelledby={titleId}
       aria-describedby={description ? descriptionId : undefined}
-      onKeyDown={(event) => {
-        onKeyDown?.(event);
-        if (
-          !event.defaultPrevented &&
-          event.key === "Escape" &&
-          state === "request" &&
-          onDeny
-        ) {
-          onDeny();
-        }
-      }}
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-3.5 rounded-[20px] p-4",

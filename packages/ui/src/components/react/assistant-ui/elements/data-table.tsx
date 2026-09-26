@@ -96,11 +96,30 @@ const isEmpty = (value: DataTableValue) =>
 const textValue = (value: Exclude<DataTableValue, null | undefined>) =>
   Array.isArray(value) ? value.join(", ") : String(value);
 
+const isCalendarDate = (value: string) => {
+  const [year, month, day] = value.slice(0, 10).split("-").map(Number);
+  if (year === undefined || month === undefined || day === undefined) {
+    return false;
+  }
+  if (month < 1 || month > 12 || day < 1) return false;
+  const daysInMonth =
+    month === 2
+      ? year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
+        ? 29
+        : 28
+      : [4, 6, 9, 11].includes(month)
+        ? 30
+        : 31;
+  return day <= daysInMonth;
+};
+
 const asDate = (value: DataTableValue) => {
   const timestamp =
     typeof value === "number"
       ? value
-      : typeof value === "string" && ISO_DATE.test(value)
+      : typeof value === "string" &&
+          ISO_DATE.test(value) &&
+          isCalendarDate(value)
         ? Date.parse(value)
         : Number.NaN;
   return Number.isNaN(timestamp) ? undefined : new Date(timestamp);
@@ -171,11 +190,13 @@ function Value({
   row,
   locale,
   relativeTo,
+  suppressRelativeHydrationWarning,
 }: {
   column: DataTableColumn;
   row: DataTableRow;
   locale: string;
   relativeTo: number;
+  suppressRelativeHydrationWarning: boolean;
 }) {
   const value = row[column.key];
   if (isEmpty(value)) return <EmptyValue />;
@@ -269,7 +290,16 @@ function Value({
                 },
           ).format(date),
     );
-    return <span title={date.toISOString()}>{content}</span>;
+    return (
+      <span
+        title={date.toISOString()}
+        {...(style === "relative" && suppressRelativeHydrationWarning
+          ? { suppressHydrationWarning: true }
+          : {})}
+      >
+        {content}
+      </span>
+    );
   }
 
   if (format.kind === "boolean") {
@@ -290,7 +320,7 @@ function Value({
       <a
         href={href}
         target="_blank"
-        rel="noopener"
+        rel="noopener noreferrer"
         className="underline underline-offset-2"
       >
         {textValue(value)}
@@ -488,13 +518,12 @@ export function DataTable({
                 <th
                   key={column.key}
                   scope="col"
-                  aria-sort={
-                    direction === "asc"
-                      ? "ascending"
-                      : direction === "desc"
-                        ? "descending"
-                        : "none"
-                  }
+                  {...(direction
+                    ? {
+                        "aria-sort":
+                          direction === "asc" ? "ascending" : "descending",
+                      }
+                    : {})}
                   style={column.width ? { width: column.width } : undefined}
                   className={cn(
                     mono,
@@ -509,7 +538,7 @@ export function DataTable({
                     <button
                       type="button"
                       onClick={() => changeSort(column)}
-                      aria-label={`Sort by ${column.label}${direction ? `, ${direction}` : ""}`}
+                      aria-label={`Sort by ${column.label}`}
                       className="focus-visible:ring-foreground/20 -mx-1 rounded px-1 outline-none focus-visible:ring-1"
                     >
                       {column.label}
@@ -532,10 +561,9 @@ export function DataTable({
             <tr>
               <td
                 colSpan={Math.max(columns.length, 1)}
-                role="status"
                 className="text-foreground/45 px-4 py-6 text-center text-[13px]"
               >
-                {emptyMessage}
+                <span role="status">{emptyMessage}</span>
               </td>
             </tr>
           ) : (
@@ -551,6 +579,9 @@ export function DataTable({
                       row={row}
                       locale={locale}
                       relativeTo={relativeTime}
+                      suppressRelativeHydrationWarning={
+                        relativeTo === undefined
+                      }
                     />
                   </td>
                 ))}
@@ -581,6 +612,7 @@ export function DataTable({
                     row={row}
                     locale={locale}
                     relativeTo={relativeTime}
+                    suppressRelativeHydrationWarning={relativeTo === undefined}
                   />
                 </div>
               ) : null}
@@ -602,6 +634,9 @@ export function DataTable({
                             row={row}
                             locale={locale}
                             relativeTo={relativeTime}
+                            suppressRelativeHydrationWarning={
+                              relativeTo === undefined
+                            }
                           />
                         </dd>
                       </div>

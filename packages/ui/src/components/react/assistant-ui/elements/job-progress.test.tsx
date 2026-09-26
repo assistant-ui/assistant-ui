@@ -81,4 +81,50 @@ describe("JobProgress", () => {
       "Current stage: Install",
     );
   });
+
+  it("keeps the reached progress on a non-success outcome, and fills to 100 only on success", () => {
+    const stages: readonly JobStage[] = [
+      { name: "Clone", weight: 1 },
+      { name: "Install", weight: 1 },
+    ];
+    const { container, rerender } = render(
+      <JobProgress
+        title="Verify the fix"
+        stages={stages}
+        stageIndex={1}
+        stageProgress={0.5}
+        eta="2m"
+        outcome={{ status: "failed" }}
+      />,
+    );
+    const bar = container.querySelector('[role="progressbar"]')!;
+    const fill = bar.firstElementChild as HTMLElement;
+
+    expect(bar.getAttribute("aria-valuenow")).toBe("75");
+    expect(fill.style.width).toBe("75%");
+
+    rerender(
+      <JobProgress
+        title="Verify the fix"
+        stages={stages}
+        stageIndex={1}
+        stageProgress={0.5}
+        eta="2m"
+        outcome={{ status: "success" }}
+      />,
+    );
+
+    expect(bar.getAttribute("aria-valuenow")).toBe("100");
+    expect(fill.style.width).toBe("100%");
+  });
+
+  it("does not mark the root aria-busy while running", () => {
+    const { container } = render(<JobProgress {...props} />);
+
+    expect(
+      container
+        .querySelector('[data-slot="job-progress"]')
+        ?.hasAttribute("aria-busy"),
+    ).toBe(false);
+  });
 });
