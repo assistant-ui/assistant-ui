@@ -2,17 +2,15 @@
 
 import { useCallback } from "react";
 import { useAui } from "@assistant-ui/store";
-import { useComposerCancel } from "@assistant-ui/core/react";
 import { useThreadRootElementRef } from "../thread/ThreadRootElementContext";
 import { COMPOSER_INPUT_SELECTOR } from "./composerInputSelector";
 
 const COMPOSER_SELECTOR = "[data-aui-composer-type]";
 const THREAD_SELECTOR = "[data-aui-thread-root]";
 
-export const useComposerCancelWithFocus = () => {
+export const useComposerCancelWithFocus = (cancel: () => void) => {
   const aui = useAui();
   const threadRootRef = useThreadRootElementRef();
-  const { disabled, cancel } = useComposerCancel();
 
   const cancelWithFocus = useCallback(
     (source: HTMLElement | null) => {
@@ -58,5 +56,5 @@ export const useComposerCancelWithFocus = () => {
     [aui, cancel, threadRootRef],
   );
 
-  return { disabled, cancel: cancelWithFocus };
+  return cancelWithFocus;
 };

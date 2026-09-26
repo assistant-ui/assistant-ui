@@ -6,12 +6,15 @@ import {
   createActionButton,
 } from "../../utils/createActionButton";
 import type { MouseEvent } from "react";
+import { useComposerCancel as useComposerCancelBehavior } from "@assistant-ui/core/react";
 import { useComposerCancelWithFocus } from "./useComposerCancelWithFocus";
 
 const useComposerCancel = () => {
-  const { disabled, cancel } = useComposerCancelWithFocus();
+  const { disabled, cancel } = useComposerCancelBehavior();
+  const cancelWithFocus = useComposerCancelWithFocus(cancel);
   if (disabled) return null;
-  return (event: MouseEvent<HTMLButtonElement>) => cancel(event.currentTarget);
+  return (event: MouseEvent<HTMLButtonElement>) =>
+    cancelWithFocus(event.detail === 0 ? event.currentTarget : null);
 };
 
 export namespace ComposerPrimitiveCancel {
@@ -28,6 +31,8 @@ export namespace ComposerPrimitiveCancel {
  *
  * This component automatically handles the cancel functionality and is disabled
  * when canceling is not available.
+ * Keyboard activation after editing returns focus to the main thread composer
+ * when available, unless a handler has moved focus elsewhere.
  *
  * @example
  * ```tsx

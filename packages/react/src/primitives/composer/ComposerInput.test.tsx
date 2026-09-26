@@ -38,7 +38,7 @@ let pluginRegistry: { getPlugins: () => (typeof plugin)[] } | null = null;
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
-vi.mock("@assistant-ui/store", async (importOriginal) => {
+vi.mock("@assistant-ui/store", () => {
   const aui = {
     composer: {
       setText: (text: string) => setText(text),
@@ -57,15 +57,13 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
     thread: typeof threadState;
   }) => T;
   return {
-    ...(await importOriginal<typeof import("@assistant-ui/store")>()),
     useAui: () => aui,
     useAuiState: <T,>(selector: Selector<T>) =>
       selector({ composer: composerState, thread: threadState }),
   };
 });
 
-vi.mock("@assistant-ui/tap", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@assistant-ui/tap")>()),
+vi.mock("@assistant-ui/tap", () => ({
   flushTapSync: (fn: () => void) => fn(),
 }));
 

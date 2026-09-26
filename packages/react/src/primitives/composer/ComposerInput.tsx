@@ -50,6 +50,8 @@ export namespace ComposerPrimitiveInput {
     render?: ReactElement | undefined;
     /**
      * Whether to cancel message composition when Escape is pressed.
+     * After cancelling an edit, focus returns to the main thread composer when
+     * available, unless a handler has moved focus elsewhere.
      * @default true
      */
     cancelOnEscape?: boolean | undefined;
@@ -192,7 +194,9 @@ export const ComposerPrimitiveInput = forwardRef<
     const value = useComposerInputValue();
     const isDisabled = useComposerInputDisabled(disabledProp);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const { cancel } = useComposerCancelWithFocus();
+    const cancel = useComposerCancelWithFocus(
+      useCallback(() => aui.composer.cancel(), [aui]),
+    );
     const ref = useComposedRefs(forwardedRef, textareaRef);
     // suppress text/cursor broadcasts during IME composition
     const compositionRef = useRef(false);

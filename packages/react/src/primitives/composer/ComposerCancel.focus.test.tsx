@@ -6,7 +6,6 @@ import {
   AssistantRuntimeProvider,
   useExternalStoreRuntime,
 } from "@assistant-ui/core/react";
-import * as coreReact from "@assistant-ui/core/react";
 import type { ThreadMessageLike } from "@assistant-ui/core";
 import { ComposerPrimitiveRoot } from "./ComposerRoot";
 import { ComposerPrimitiveInput } from "./ComposerInput";
@@ -17,6 +16,18 @@ import { ThreadPrimitiveMessages } from "../thread/ThreadMessages";
 import { ActionBarPrimitiveEdit } from "../actionBar/ActionBarEdit";
 
 const messages = [{ id: "user-message", text: "Original message" }];
+const { cancelOverride } = vi.hoisted(() => ({ cancelOverride: vi.fn() }));
+vi.mock("@assistant-ui/core/react", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("@assistant-ui/core/react")>();
+  return {
+    ...original,
+    useComposerCancel: () => {
+      const behavior = original.useComposerCancel();
+      return cancelOverride() ?? behavior;
+    },
+  };
+});
 const convertMessage = (
   message: (typeof messages)[number],
 ): ThreadMessageLike => ({
@@ -110,7 +121,10 @@ const setup = ({
   return { input, cancel: screen.getByRole("button", { name: "Cancel edit" }) };
 };
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  cancelOverride.mockReset();
+});
 
 describe("edit composer cancellation focus", () => {
   it.each(["Escape", "Cancel"])(
@@ -217,26 +231,40 @@ describe("edit composer cancellation focus", () => {
     const cancel = vi.fn(() => {
       throw error;
     });
-    vi.spyOn(coreReact, "useComposerCancel").mockReturnValue({
+    cancelOverride.mockReturnValue({
       disabled: false,
       cancel,
     });
-    const { input } = setup();
+    const { cancel: button } = setup();
+    act(() => button.focus());
     const onError = (event: ErrorEvent) => {
       if (event.error === error) event.preventDefault();
     };
     window.addEventListener("error", onError);
     try {
-      fireEvent.keyDown(input, { key: "Escape" });
+      fireEvent.click(button);
       expect(cancel).toHaveBeenCalledOnce();
-      expect(screen.getByRole("textbox", { name: "Edit composer" })).toBe(
-        input,
-      );
-      expect(document.activeElement).toBe(input);
+      expect(
+        screen.queryByRole("textbox", { name: "Edit composer" }),
+      ).not.toBeNull();
+      expect(document.activeElement).toBe(button);
     } finally {
       window.removeEventListener("error", onError);
     }
   });
+
+  it.each(["input", "button"])(
+    "does not restore focus after pointer cancellation with focus on the %s",
+    (source) => {
+      const { input, cancel } = setup();
+      act(() => (source === "input" ? input : cancel).focus());
+      fireEvent.click(cancel, { detail: 1 });
+      expect(
+        screen.queryByRole("textbox", { name: "Edit composer" }),
+      ).toBeNull();
+      expect(document.activeElement).toBe(document.body);
+    },
+  );
 
   it("does not move focus when cancelling a running thread", () => {
     const onCancel = vi.fn(async () => {});
