@@ -145,7 +145,7 @@ function wrapFetchWithResumable(
     const id = res.headers.get(RESUMABLE_STREAM_ID_HEADER);
     if (id) resumable.storage.setStreamId(id, threadId);
     if (
-      res.status === 204 &&
+      (res.status === 204 || res.status === 404) &&
       reconnectingStreamId &&
       resumable.storage.getStreamId(threadId) === reconnectingStreamId
     ) {

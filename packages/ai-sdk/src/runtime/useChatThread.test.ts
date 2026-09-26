@@ -285,11 +285,12 @@ describe("useChatThread", () => {
           expect(onResumeError).toHaveBeenCalledWith(resumeError);
           expect(onError).toHaveBeenLastCalledWith(resumeError);
         }
+        const keepsCheckpoint = result === "aborted" || result === "network";
         await vi.waitFor(() =>
-          expect(aui.thread.getState().canResume).toBe(result === "aborted"),
+          expect(aui.thread.getState().canResume).toBe(keepsCheckpoint),
         );
         expect(storage.getStreamId("main")).toBe(
-          result === "aborted" ? "stream-1" : null,
+          keepsCheckpoint ? "stream-1" : null,
         );
         expect(fetch).toHaveBeenCalledTimes(2);
         expect(onResumeError).toHaveBeenCalledTimes(isResumeError ? 1 : 0);
@@ -297,6 +298,12 @@ describe("useChatThread", () => {
           (interruption === "failed" ? 1 : 0) + (isResumeError ? 1 : 0),
         );
         expect(aui.thread.getState().messages).toHaveLength(2);
+        if (result === "network") {
+          fetch.mockResolvedValueOnce(new Response(null, { status: 204 }));
+          await aui.thread.resumeRun({ parentId: "answer" });
+          expect(fetch).toHaveBeenCalledTimes(3);
+          expect(storage.getStreamId("main")).toBeNull();
+        }
       } finally {
         handle.destroy();
         storage.clear();

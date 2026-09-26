@@ -324,10 +324,6 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
           "[assistant-ui] resumable: onResumeError callback failed",
           callbackError,
         );
-      } finally {
-        if (resumableStorage?.getStreamId(id) === streamId) {
-          resumableStorage.clear(id);
-        }
       }
       throw error;
     }
