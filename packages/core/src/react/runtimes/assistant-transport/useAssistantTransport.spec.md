@@ -16,6 +16,7 @@ Command Scheduling
   - If no run is in progress: start a run immediately and flush commands to the server.
 - A follow-up run that finds an empty queue is a no-op: no request is sent and no error is surfaced.
 - A resume run sends no commands; commands enqueued while it is pending or active are flushed in a follow-up run after it settles.
+- With no client tool executing, `thread.append` enqueues its message before a command sent later in the same tick. While a client tool executes, appending a message that starts a run first aborts that tool and waits for it to settle, so a command sent meanwhile goes out ahead of the message.
 
 Thread Identity
 
