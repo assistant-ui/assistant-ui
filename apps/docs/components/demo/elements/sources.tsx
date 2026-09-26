@@ -8,20 +8,22 @@ import {
 
 const SOURCES: Source[] = [
   {
-    domain: "assistant-ui.com",
-    title: "Runtime drafts API",
+    title: "Draft restore",
+    url: "https://www.assistant-ui.com/elements/draft-restore",
+    snippet:
+      "Come back to a thread and the sentence you never sent is still waiting.",
+    author: "assistant-ui",
   },
   {
-    domain: "react.dev",
-    title: "You might not need an effect",
+    title: "You Might Not Need an Effect",
+    url: "https://react.dev/learn/you-might-not-need-an-effect",
+    snippet: "Effects are an escape hatch from the React paradigm.",
   },
   {
-    domain: "patterns.dev",
-    title: "Optimistic UI updates",
-  },
-  {
-    domain: "github.com",
-    title: "assistant-ui #5321 draft restore",
+    title:
+      "core: InMemoryThreadList carries one thread's composer into the next",
+    url: "https://github.com/assistant-ui/assistant-ui/issues/8046",
+    publishedAt: "2026-09-23",
   },
 ];
 

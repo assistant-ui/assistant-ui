@@ -8,24 +8,48 @@ import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 
 const REVISIONS: readonly (readonly TodoItem[])[] = [
   [
-    { id: "read", text: "Read the failing test", status: "active" },
+    {
+      id: "read",
+      text: "Read the failing test",
+      description: "Trace the converter's current behavior.",
+      status: "active",
+    },
     { id: "fix", text: "Fix the converter", status: "pending" },
+    { id: "scope", text: "Rewrite the fixture", status: "cancelled" },
     { id: "verify", text: "Re-run the suite", status: "pending" },
   ],
   [
-    { id: "read", text: "Read the failing test", status: "done" },
+    {
+      id: "read",
+      text: "Read the failing test",
+      description: "Trace the converter's current behavior.",
+      status: "done",
+    },
     { id: "fix", text: "Fix the converter", status: "active" },
+    { id: "scope", text: "Rewrite the fixture", status: "cancelled" },
     { id: "verify", text: "Re-run the suite", status: "pending" },
   ],
   [
-    { id: "read", text: "Read the failing test", status: "done" },
+    {
+      id: "read",
+      text: "Read the failing test",
+      description: "Trace the converter's current behavior.",
+      status: "done",
+    },
     { id: "fix", text: "Fix the converter", status: "done" },
+    { id: "scope", text: "Rewrite the fixture", status: "cancelled" },
     { id: "guard", text: "Add a guard for empty parts", status: "active" },
     { id: "verify", text: "Re-run the suite", status: "pending" },
   ],
   [
-    { id: "read", text: "Read the failing test", status: "done" },
+    {
+      id: "read",
+      text: "Read the failing test",
+      description: "Trace the converter's current behavior.",
+      status: "done",
+    },
     { id: "fix", text: "Fix the converter", status: "done" },
+    { id: "scope", text: "Rewrite the fixture", status: "cancelled" },
     { id: "guard", text: "Add a guard for empty parts", status: "done" },
     { id: "verify", text: "Re-run the suite", status: "done" },
   ],

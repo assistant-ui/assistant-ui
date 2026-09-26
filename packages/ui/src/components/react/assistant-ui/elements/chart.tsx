@@ -25,6 +25,8 @@ export function Chart({
   points,
   visibleCount,
   variant = "area",
+  trend,
+  upIsGood = true,
   className,
   ...props
 }: Omit<
@@ -36,13 +38,19 @@ export function Chart({
   | "points"
   | "visibleCount"
   | "variant"
+  | "trend"
+  | "upIsGood"
 > & {
   label: string;
   value: string;
-  delta?: string;
+  delta?: string | undefined;
   points: readonly number[];
   visibleCount: number;
-  variant?: ChartVariant;
+  variant?: ChartVariant | undefined;
+  /** The direction `delta` moved in. Without it, a leading minus sign reads as down. */
+  trend?: "up" | "down" | "flat" | undefined;
+  /** Whether a rise is good news, as for revenue, or bad news, as for latency. */
+  upIsGood?: boolean | undefined;
 }) {
   const shown = take(points, clamp(visibleCount, 1, points.length));
   const y = scale(points);
@@ -56,8 +64,13 @@ export function Chart({
     ? `M ${PAD},${H - PAD} ${coords.map((c) => `L ${c.x},${c.y}`).join(" ")} L ${last.x},${H - PAD} Z`
     : "";
   const lastIndex = shown.length - 1;
-  const falling = delta !== undefined && /^\s*[-−–]/.test(delta);
-  const rising = delta !== undefined && !falling;
+  const direction =
+    trend ??
+    (delta === undefined ? undefined : /^\s*[-−–]/.test(delta) ? "down" : "up");
+  const good =
+    direction === "up" || direction === "down"
+      ? (direction === "up") === upIsGood
+      : undefined;
 
   return (
     <div
@@ -74,12 +87,15 @@ export function Chart({
         <span className={cn(mono, "text-foreground/35")}>{label}</span>
         {delta !== undefined && (
           <span
+            data-trend={direction}
             className={cn(
               mono,
               "tabular-nums",
-              rising
-                ? "text-emerald-600 dark:text-emerald-400"
-                : "text-red-600 dark:text-red-400",
+              good === undefined
+                ? "text-foreground/45"
+                : good
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-red-600 dark:text-red-400",
             )}
           >
             {delta}

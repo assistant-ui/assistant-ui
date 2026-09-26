@@ -1,21 +1,15 @@
 ---
 title: "Sources"
-description: "Runtime sources with favicon links for URLs and file badges for documents."
+description: "Safe runtime citation chips and static source cards with linked reference details."
 ---
 
-import { PreviewCode } from "@/components/pages/docs/preview-code.server";
-import { SourcesFaviconFallbackSample } from "@/components/pages/docs/samples/sources/favicon-fallback";
-
-Sources renders one citation from a message: a `url` source as a small link with a favicon and title, or a `document` source as a badge with a document icon. With a runtime it renders straight from a message's source part; standalone you hand it the part yourself. It comes in two designs: the runtime variant renders an inline link or badge next to the message text, and the static source-cards variant collapses every citation into one pill that expands into a grid of scannable cards (see [The source-cards design](#the-source-cards-design)).
+Sources has two lanes. The runtime binding renders each message source as a compact chip. The static element collects citations behind one Sources pill and reveals linked cards with snippets and publication details.
 
 ## Getting started
 
 <RuntimeMode>
 
-<Steps>
-  <Step>
-
-### Render sources from a message
+### Register the message source renderer
 
 Register `Sources` as the `Source` renderer on `MessagePrimitive.Parts`. Every source part in the message routes through it automatically.
 
@@ -32,51 +26,56 @@ function AssistantMessage() {
 }
 ```
 
-A `url` part becomes a link, a `document` part becomes a badge, and any other shape renders nothing.
-
-  </Step>
-</Steps>
+A safe `url` part becomes a link, a `document` part becomes a badge, and any other shape renders nothing.
 
 </RuntimeMode>
 
 <StandaloneMode>
 
-Standalone, `Sources` is a plain function of one part object: no context, no runtime.
-
-<Steps>
-  <Step>
-
-### Render a source directly
+### Render source cards
 
 ```tsx title="app/answer.tsx"
-import { Sources } from "@/components/assistant-ui/elements/sources.aui";
+"use client";
 
-export function Citation() {
+import { useState } from "react";
+import { Sources, type Source } from "@/components/assistant-ui/elements/sources";
+
+const sources: Source[] = [
+  {
+    title: "You might not need an effect",
+    url: "https://react.dev/learn/you-might-not-need-an-effect",
+    snippet: "Derive values during render before reaching for an Effect.",
+    author: "React Team",
+    publishedAt: "2024-10-01",
+  },
+];
+
+export function Citations() {
+  const [open, setOpen] = useState(false);
+
   return (
     <Sources
-      type="source"
-      sourceType="url"
-      id="src-1"
-      url="https://example.com/article"
-      title="Example Article"
-      status={{ type: "complete" }}
+      sources={sources}
+      open={open}
+      onOpenChange={setOpen}
     />
   );
 }
 ```
 
-`status` is part of the type but unused by the renderer; pass `{ type: "complete" }` to satisfy it.
-
-  </Step>
-</Steps>
+The static element is controlled. `open` and `onOpenChange` belong to the caller.
 
 </StandaloneMode>
 
 ## Anatomy
 
+<RuntimeMode>
+
+### Runtime source chip
+
 ```tsx
 {/* sourceType: "url" */}
-<a data-slot="source" href={url}>
+<a data-slot="source" href={safeHref(url)}>
   <img data-slot="source-icon" />
   <span data-slot="source-title">{title ?? domain}</span>
 </a>
@@ -88,72 +87,86 @@ export function Citation() {
 </span>
 ```
 
-The favicon requests `https://icons.duckduckgo.com/ip3/<domain>.ico` by default; when that image fails to load, the icon falls back to a single letter drawn from the domain. The link's visible title is `title` when the source provides one, otherwise the bare domain with `www.` stripped. A `document` source never links anywhere and always shows its `title`. A `url` source with an empty `url`, or any other `sourceType`, renders nothing.
+The favicon requests `https://icons.duckduckgo.com/ip3/<domain>.ico` by default. When that image fails to load, the icon falls back to the domain initial. The visible title is `title` when present, otherwise the host with `www.` removed. A `document` source never links. An unsafe URL renders as plain text, never as an `href`.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### Static source card
+
+```tsx
+<a data-slot="source-card" href={safeHref(source.url)}>
+  <span>{domain}</span>
+  <span>{source.title}</span>
+  <span>{source.snippet}</span>
+  <span>{source.author} · {formatPublishedAt(source.publishedAt, locale)}</span>
+</a>
+```
+
+The trigger begins with up to three overlapping domain initials, then its Sources label and full count. A card derives its domain from `url` when `domain` is omitted. Without a supplied or derived domain, the domain row is omitted. An unsafe URL renders as a plain text card.
+
+</StandaloneMode>
 
 ## Examples
 
-### Custom favicon and variant
+<RuntimeMode>
 
-`Sources` itself takes only the part; to override the favicon lookup or restyle the link, compose the exported sub-parts into your own renderer and register that instead:
+### Custom favicon
+
+Compose the exported sub-parts when the default favicon service is not appropriate. Keep the safe URL check before providing an `href`:
 
 ```tsx
-import { Sources } from "@/components/assistant-ui/elements/sources.aui";
-import type { ComponentProps } from "react";
+import { safeHref } from "@/components/assistant-ui/utils/href";
+import { Source, SourceIcon, SourceTitle } from "@/components/assistant-ui/elements/sources.aui";
 
-function CustomSource(part: ComponentProps<typeof Sources>) {
-  if (part.sourceType !== "url" || !part.url) return null;
+function CustomSource({ url, title }: { url: string; title: string }) {
+  const href = safeHref(url);
+  if (!href) return <span>{title}</span>;
+
   return (
-    <Sources.Root href={part.url} variant="secondary">
-      <Sources.Icon
-        url={part.url}
+    <Source href={href} variant="secondary">
+      <SourceIcon
+        url={url}
         faviconUrl={(domain) => `https://logo.clearbit.com/${domain}`}
       />
-      <Sources.Title>{part.title}</Sources.Title>
-    </Sources.Root>
+      <SourceTitle>{title}</SourceTitle>
+    </Source>
   );
 }
 ```
 
-Use `CustomSource` in place of `Sources` in `MessagePrimitive.Parts`, or call it directly with a hand-built part.
 
-### Favicon fallback
+</RuntimeMode>
+<StandaloneMode>
 
-When the favicon fails to load, `Sources.Icon` falls back to the domain's first letter. The demo points `faviconUrl` at a path that does not resolve:
+### Linked reference details
 
-<PreviewCode file="components/pages/docs/samples/sources/favicon-fallback" name="SourcesFaviconFallback">
-  <SourcesFaviconFallbackSample />
-</PreviewCode>
+Linked cards carry the excerpt a reader needs to judge a citation before opening it. `publishedAt` accepts an ISO date string and renders as a localized month and year.
 
-### Variants and sizes
+```tsx
+const sources = [
+  {
+    title: "Runtime drafts API",
+    url: "https://www.assistant-ui.com/docs/runtimes",
+    snippet: "Keep a draft while the thread runtime streams and reconnects.",
+    author: "assistant-ui",
+    publishedAt: "2025-09-16",
+  },
+];
+```
 
-`Sources.Root` carries the styling. Pass `variant` and `size` when you compose your own renderer as above. The Variants demo in the rail shows each variant.
-
-| Variant | Description |
-|---------|-------------|
-| `outline` | Border, transparent background (default) |
-| `secondary` | Solid secondary background |
-| `muted` | Muted background |
-| `ghost` | No background until hovered |
-| `info` | Blue tint |
-| `warning` | Amber tint |
-| `success` | Emerald tint |
-| `destructive` | Red tint |
-
-| Size | Description |
-|------|-------------|
-| `sm` | Compact padding |
-| `default` | Standard padding |
-| `lg` | Larger padding and text |
+</StandaloneMode>
 
 ## API reference
 
 <RuntimeMode>
 
-### Sources
+### Runtime bindings
 
 | Export | Renders | Notes |
 |--------|---------|-------|
-| `Sources` | `a` or badge | The `Source` message-part renderer. Pass to `MessagePrimitive.Parts` as `components.Source`. |
+| `Sources` | `a`, text chip, or badge | The `Source` message-part renderer. Pass to `MessagePrimitive.Parts` as `components.Source`. |
 | `Sources.Root` | `a` | The link for a `url` source. Accepts `variant`, `size`, `href`, and other anchor props. |
 | `Sources.Icon` | `img` or fallback `span` | Favicon for a `url` source. Accepts `url` and an optional `faviconUrl` resolver. |
 | `Sources.Title` | `span` | Truncated title or domain text, shared by both source shapes. |
@@ -164,7 +177,7 @@ When the favicon fails to load, `Sources.Icon` falls back to the domain's first 
 |-------|------|-------------|
 | `sourceType` | `"url" \| "document"` | Which shape to render. |
 | `id` | `string` | Source identifier. |
-| `url` | `string` | Link target. Required and read when `sourceType` is `"url"`. |
+| `url` | `string` | Link target for `"url"`. Unsafe values render as text. |
 | `title` | `string` | Optional for `"url"` (falls back to the domain); required for `"document"`. |
 | `mediaType` | `string` | Required when `sourceType` is `"document"`. Not read by `Sources`. |
 | `filename` | `string` | Optional, `"document"` only. Not read by `Sources`. |
@@ -173,105 +186,25 @@ When the favicon fails to load, `Sources.Icon` falls back to the domain's first 
 
 <StandaloneMode>
 
-### Sources props
+### Static card props
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `type` | `"source"` | Required by the part type. |
-| `sourceType` | `"url" \| "document"` | Which shape to render. |
-| `id` | `string` | Source identifier. Required by the type; not read by the renderer. |
-| `url` | `string` | Link target, for `sourceType: "url"`. |
-| `title` | `string` | Shown title. Optional for `"url"`, required for `"document"`. |
-| `mediaType` | `string` | Required by the type for `"document"`; not read by the renderer. |
-| `filename` | `string` | Optional, `"document"` only; not read by the renderer. |
-| `status` | `MessagePartStatus` | Required by the type; not read by the renderer. |
+| `sources` | `readonly Source[]` | Citation cards revealed by the pill. |
+| `open` | `boolean` | Whether the card grid is expanded. |
+| `onOpenChange` | `(open: boolean) => void` | Receives the expanded state. |
+| `locale` | `string \| undefined` | `"en-US"` | Locale for `publishedAt` month and year. |
+| `className` | `string \| undefined` | Extra classes merged onto the root. |
 
-`Sources.Root`, `Sources.Icon`, and `Sources.Title` are exported for building a custom renderer, as shown in [Custom favicon and variant](#custom-favicon-and-variant).
+### Source fields
 
-</StandaloneMode>
-
-## The source-cards design
-
-The Static variant in the rail is a second design for the same citations: instead of an inline link or badge next to the message text, it collapses every citation into one pill that expands into a grid of cards, each with a domain avatar, the domain, and the title. It is a single props-driven component with no runtime dependency:
-
-```sh
-npx shadcn@latest add "@assistant-ui/elements-sources"
-```
-
-<RuntimeMode>
-
-Nothing on the runtime collects a message's sources into one place: they arrive as individual `source` parts, so a selector gathers them into the shape this component expects.
-
-```tsx title="components/assistant-ui/elements/message-sources.tsx"
-"use client";
-
-import { useMemo, useState } from "react";
-import { useAuiState } from "@assistant-ui/react";
-import { Sources, type Source } from "@/components/assistant-ui/elements/sources";
-
-function extractDomain(url: string) {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return url;
-  }
-}
-
-export function MessageSources() {
-  const parts = useAuiState((s) => s.message.parts);
-  const [open, setOpen] = useState(false);
-
-  const sources = useMemo<Source[]>(
-    () =>
-      parts.flatMap((part) => {
-        if (part.type !== "source" || part.sourceType !== "url") return [];
-        const domain = extractDomain(part.url);
-        return [{ domain, title: part.title ?? domain }];
-      }),
-    [parts],
-  );
-
-  if (sources.length === 0) return null;
-  return <Sources sources={sources} open={open} onOpenChange={setOpen} />;
-}
-```
-
-`parts` is read once and memoized before filtering, since `useAuiState` re-renders on every store update when its selector itself returns a new array. `MessageSources` must render inside a message scope, placed after `MessagePrimitive.Parts` in the assistant message.
-
-</RuntimeMode>
-
-<StandaloneMode>
-
-Standalone, the element is fully controlled: you hold the source list and whether the panel is open.
-
-```tsx title="app/answer.tsx"
-"use client";
-
-import { useState } from "react";
-import { Sources, type Source } from "@/components/assistant-ui/elements/sources";
-
-const SOURCES: Source[] = [
-  { domain: "assistant-ui.com", title: "Runtime drafts API" },
-  { domain: "react.dev", title: "You might not need an effect" },
-];
-
-export function Citations() {
-  const [open, setOpen] = useState(false);
-  return <Sources sources={SOURCES} open={open} onOpenChange={setOpen} />;
-}
-```
+| Field | Type | Description |
+|-------|------|-------------|
+| `title` | `string` | Card title. |
+| `domain` | `string \| undefined` | Optional visible domain. Falls back to the safe URL host. |
+| `url` | `string \| undefined` | Optional link target. Unsafe values leave the card as plain text. |
+| `snippet` | `string \| undefined` | Optional two-line excerpt. |
+| `author` | `string \| undefined` | Optional meta-line author. |
+| `publishedAt` | `string \| undefined` | Optional ISO date. Invalid dates are omitted. |
 
 </StandaloneMode>
-
-Nothing inside the element opens or closes the panel: `open` and `onOpenChange` do. The trigger's count always reads `sources.length`, whether the panel is open or not; an empty `sources` array leaves the trigger reading "0" and the panel opens onto an empty grid.
-
-### The Sources component
-
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `sources` | `readonly Source[]` | required | The full source list. |
-| `open` | `boolean` | required | Whether the card grid is expanded. |
-| `onOpenChange` | `(open: boolean) => void` | required | Called when the trigger is clicked. |
-| `className` | `string` | | Merged onto the root. |
-
-`Source` is `{ domain: string; title: string }`. Unlike most elements in this catalog, this `Sources` does not spread extra props onto its root: only the four props above reach it.

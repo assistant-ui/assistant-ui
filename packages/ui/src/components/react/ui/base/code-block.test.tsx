@@ -165,3 +165,102 @@ describe.each(flavors)(
     });
   },
 );
+
+describe.each(flavors)("CodeBlock collapse (%s)", (_flavor, CodeBlock) => {
+  const code = "const first = 1;\nconst second = 2;\nconst third = 3;";
+  const CodeLines = ({ code }: { code: string }) => (
+    <pre>
+      <code>
+        {code.split("\n").map((line, index, lines) => (
+          <span className="line" key={line}>
+            {line}
+            {index < lines.length - 1 && "\n"}
+          </span>
+        ))}
+      </code>
+    </pre>
+  );
+
+  beforeEach(() => {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(
+      new DOMRect(0, 0, 0, 20),
+    );
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("only offers collapse when the code exceeds the limit", () => {
+    const { rerender } = render(
+      <CodeBlock maxCollapsedLines={2}>
+        <CodeLines code={"const first = 1;\nconst second = 2;"} />
+      </CodeBlock>,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: /Show all .* lines/ }),
+    ).toBeNull();
+    expect(screen.getByRole("region", { name: "Code" }).style.maxHeight).toBe(
+      "",
+    );
+
+    rerender(
+      <CodeBlock maxCollapsedLines={2}>
+        <CodeLines code={code} />
+      </CodeBlock>,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Show all 3 lines" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Code" }).style.maxHeight).toBe(
+      "40px",
+    );
+  });
+
+  it("expands and collapses with an accessible toggle", () => {
+    render(
+      <CodeBlock maxCollapsedLines={2}>
+        <CodeLines code={code} />
+      </CodeBlock>,
+    );
+
+    const toggle = screen.getByRole("button", { name: "Show all 3 lines" });
+    const viewport = screen.getByRole("region", { name: "Code" });
+
+    expect(toggle.getAttribute("aria-controls")).toBe(viewport.id);
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+
+    act(() => {
+      toggle.click();
+    });
+
+    expect(screen.getByRole("button", { name: "Show less" })).toBeTruthy();
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+
+    act(() => {
+      toggle.click();
+    });
+
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(
+      screen.getByRole("button", { name: "Show all 3 lines" }),
+    ).toBeTruthy();
+  });
+
+  it("copies the full code while collapsed", async () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    stubClipboard(writeText);
+
+    render(
+      <CodeBlock maxCollapsedLines={2}>
+        <CodeLines code={code} />
+      </CodeBlock>,
+    );
+
+    await clickCopy();
+
+    expect(writeText).toHaveBeenCalledWith(code);
+  });
+});

@@ -84,6 +84,20 @@ The default is `{ dark: "github-dark-default", light: "github-light-default" }`.
 
 `delay` (default `150`) is how long, in milliseconds, `useShikiHighlighter` waits after the code last changed before tokenizing. The default absorbs the last few characters a smooth text reveal drains in after the underlying part has already settled.
 
+### Highlight specific lines
+
+Pass one-based line numbers to add the `highlighted` class to each matching Shiki line. When the result sits in the kit's `CodeBlock`, that class receives its existing highlighted-row treatment.
+
+```tsx
+<SyntaxHighlighter
+  code={code}
+  highlightLines={[2, 5]}
+  language="tsx"
+/>
+```
+
+Lines are marked after Shiki resolves. While `streaming` is true the plain fallback remains unmarked.
+
 ### Restyle the container
 
 Both lanes take `className` on the root; the rendered `<pre>` picks up border, background, and padding from the fixed `aui-shiki-base` selectors.
@@ -114,6 +128,7 @@ Every other prop below is forwarded unchanged. `node` and `components` (react-ma
 | `language` | `ShikiHighlighterProps["language"]` | required | Passed to `useShikiHighlighter`. |
 | `theme` | `ShikiHighlighterProps["theme"]` | `{ dark: "github-dark-default", light: "github-light-default" }` | A single theme name or a `{ light, dark, ... }` map. |
 | `streaming` | `boolean` | `false` | Skips tokenization and renders the plain code while `true`. |
+| `highlightLines` | `readonly number[]` | | One-based lines to mark with the `highlighted` class after Shiki resolves. |
 | `delay` | `number` | `150` | Milliseconds `useShikiHighlighter` waits after `code` last changed before tokenizing. |
 | `className` | `string` | | Merged onto the root. |
 

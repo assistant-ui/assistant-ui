@@ -3,7 +3,7 @@ title: "Agent plan"
 description: "A checklist the agent works through, with progress you can glance."
 ---
 
-A checklist with a header count, a progress bar, and each step marked done, active, or still ahead. With a runtime the plan comes from a tool call the model drives; standalone you hold the step list and the active index yourself.
+A checklist with a title, header count, accessible progress bar, and each step marked done, active, or still ahead. With a runtime the plan comes from a tool call the model drives; standalone you hold the step list and the active index yourself.
 
 ## Getting started
 
@@ -16,7 +16,7 @@ A plan like this is a natural shape for a tool call: the model calls a tool with
 
 ### Render the tool call
 
-Register a toolkit entry whose `render` maps the call straight onto `AgentPlan`. Both fields come from `args`, so the card needs nothing beyond what the model already sent.
+Register a toolkit entry whose `render` maps the call straight onto `AgentPlan`. The title, step list, and active index come from `args`, so the card needs nothing beyond what the model already sent.
 
 ```tsx title="app/toolkit.tsx"
 "use client";
@@ -28,7 +28,11 @@ export const toolkit = defineToolkit({
   update_plan: {
     type: "backend",
     render: ({ args }) => (
-      <AgentPlan steps={args.steps} activeIndex={args.activeIndex} />
+      <AgentPlan
+        title={args.title}
+        steps={args.steps}
+        activeIndex={args.activeIndex}
+      />
     ),
   },
 });
@@ -79,16 +83,20 @@ import { useState } from "react";
 import { AgentPlan } from "@/components/assistant-ui/elements/agent-plan";
 
 const STEPS = [
-  "Read existing composer state",
-  "Design the draft store",
-  "Wire runtime persistence",
-  "Add regression tests",
-  "Update the docs",
+  { id: "read", label: "Read existing composer state" },
+  {
+    id: "design",
+    label: "Design the draft store",
+    description: "Keep pending changes local until they are ready.",
+  },
+  { id: "wire", label: "Wire runtime persistence" },
+  { id: "test", label: "Add regression tests" },
+  { id: "docs", label: "Update the docs" },
 ];
 
 export function Plan() {
   const [activeIndex, setActiveIndex] = useState(0);
-  return <AgentPlan steps={STEPS} activeIndex={activeIndex} />;
+  return <AgentPlan title="Composer draft" steps={STEPS} activeIndex={activeIndex} />;
 }
 ```
 
@@ -115,29 +123,41 @@ Once `activeIndex` reaches `steps.length`, every step renders as done and the he
 ```tsx
 <div data-slot="agent-plan">
   <div>
-    <span>Plan</span>
+    <span>{/* title */}</span>
     <span>{/* n of m */}</span>
   </div>
-  <div>{/* progress bar */}</div>
+  <div role="progressbar">{/* accessible progress */}</div>
   <ul>
     <li>
       <span>{/* check, spinner, or dot */}</span>
-      <span>{/* step text */}</span>
+      <span>{/* step label, active description, and screen-reader status */}</span>
     </li>
   </ul>
 </div>
 ```
 
-`activeIndex` is clamped into `0…steps.length` before anything is drawn from it, so an out-of-range value never breaks the layout: a value at or past `steps.length` marks every step done, and `NaN` falls back to `0`. A step is done when its index is before the clamped active index or every step is already done, active when it sits exactly at that index, and otherwise still ahead. With an empty `steps` array the header reads `0 of 0`, the bar sits at 0%, and the list renders nothing.
+`activeIndex` is clamped into `0…steps.length` before anything is drawn from it, so an out-of-range value never breaks the layout: a value at or past `steps.length` marks every step done, and `NaN` falls back to `0`. A step is done when its index is before the clamped active index or every step is already done, active when it sits exactly at that index, and otherwise still ahead. Object steps may add a stable `id` and a `description`; only the active step shows its description. Every row includes screen-reader status text, while the progress bar announces both percentage and the completed-step count. With an empty `steps` array the header reads `0 of 0`, the bar sits at 0%, and the list renders nothing.
 
 ## Examples
 
-### Restyle the plan
+### Add detail to the active step
 
-Both lanes take `className` on the root. The counter and the icon column share `mono` and `foreground` opacity tokens from `surfaces.tsx`, so a single palette change carries to every element built on those tokens.
+Object steps use `id` for stable keys, `label` for the visible row, and an optional `description` beneath the active label. A custom title names both the heading and the progress bar for screen readers.
 
 ```tsx
-<AgentPlan className="max-w-md gap-4" steps={steps} activeIndex={activeIndex} />
+<AgentPlan
+  title="Release checklist"
+  steps={[
+    { id: "review", label: "Review the release notes" },
+    {
+      id: "publish",
+      label: "Publish the package",
+      description: "Wait for the release job to finish.",
+    },
+    { id: "announce", label: "Share the release" },
+  ]}
+  activeIndex={1}
+/>
 ```
 
 ### Restarting a plan
@@ -148,7 +168,7 @@ A plan that needs to restart is just another `update_plan` call with `activeInde
 
 ```tsx
 render: ({ args }) => (
-  <AgentPlan steps={args.steps} activeIndex={args.activeIndex} />
+  <AgentPlan title={args.title} steps={args.steps} activeIndex={args.activeIndex} />
 ),
 ```
 
@@ -172,7 +192,8 @@ function restart() {
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `args.steps` | `string[]` | The plan's steps, in order. |
+| `args.title` | `string \| undefined` | Optional title for the card and its progress bar. |
+| `args.steps` | `(string \| AgentPlanStep)[]` | The plan's steps, in order. |
 | `args.activeIndex` | `number` | Index of the step currently in progress. |
 
 </RuntimeMode>
@@ -183,9 +204,12 @@ function restart() {
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `steps` | `readonly string[]` | required | The plan's steps, in order. |
+| `title` | `string` | `"Plan"` | Title for the card and its progress bar. |
+| `steps` | `readonly (string \| AgentPlanStep)[]` | required | The plan's steps, in order. Strings render as labels. |
 | `activeIndex` | `number` | required | Index of the step in progress. Out-of-range values clamp; `NaN` falls back to `0`. |
 | `className` | `string` | | Merged onto the root. |
+
+`AgentPlanStep` is `{ id?: string; label: string; description?: string }`. Its `id` is the row key when present, and its description appears only while that step is in progress.
 
 All other `div` props are forwarded to the root.
 

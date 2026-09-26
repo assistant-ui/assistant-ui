@@ -1,11 +1,13 @@
 "use client";
 
-import { type ComponentProps, useMemo } from "react";
+import { type ComponentProps, useId, useMemo, useState } from "react";
 import type { SyntaxHighlighterProps } from "@assistant-ui/react-markdown";
 import { cva, type VariantProps } from "class-variance-authority";
 import { diffLines } from "diff";
+import { CheckIcon, CopyIcon } from "lucide-react";
 import parseDiff from "parse-diff";
 
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { cn } from "@/lib/utils";
 
 type DiffLineType = "add" | "del" | "normal";
@@ -13,14 +15,20 @@ type DiffLineType = "add" | "del" | "normal";
 interface ParsedLine {
   type: DiffLineType;
   content: string;
-  oldLineNumber?: number;
-  newLineNumber?: number;
+  oldLineNumber?: number | undefined;
+  newLineNumber?: number | undefined;
+}
+
+interface ParsedHunk {
+  header: string;
+  lines: ParsedLine[];
 }
 
 interface ParsedFile {
   oldName?: string | undefined;
   newName?: string | undefined;
   lines: ParsedLine[];
+  hunks: ParsedHunk[];
   additions: number;
   deletions: number;
 }
@@ -33,41 +41,45 @@ interface SplitLinePair {
 function parsePatch(patch: string): ParsedFile[] {
   const files = parseDiff(patch);
   return files.map((file) => {
-    const lines: ParsedLine[] = [];
-    let additions = 0;
-    let deletions = 0;
-    for (const chunk of file.chunks) {
-      let oldLine = chunk.oldStart;
-      let newLine = chunk.newStart;
+    const hunks = file.chunks.map((chunk) => {
+      const lines: ParsedLine[] = [];
       for (const change of chunk.changes) {
         if (change.type === "add") {
-          additions++;
           lines.push({
             type: "add",
             content: change.content.slice(1),
-            newLineNumber: newLine++,
+            newLineNumber: change.ln,
           });
         } else if (change.type === "del") {
-          deletions++;
           lines.push({
             type: "del",
             content: change.content.slice(1),
-            oldLineNumber: oldLine++,
+            oldLineNumber: change.ln,
           });
         } else {
           lines.push({
             type: "normal",
             content: change.content.slice(1),
-            oldLineNumber: oldLine++,
-            newLineNumber: newLine++,
+            oldLineNumber: change.ln1,
+            newLineNumber: change.ln2,
           });
         }
       }
+      return { header: chunk.content, lines };
+    });
+
+    const lines = hunks.flatMap((hunk) => hunk.lines);
+    let additions = 0;
+    let deletions = 0;
+    for (const line of lines) {
+      if (line.type === "add") additions++;
+      if (line.type === "del") deletions++;
     }
     return {
       oldName: file.from,
       newName: file.to,
       lines,
+      hunks,
       additions,
       deletions,
     };
@@ -77,7 +89,12 @@ function parsePatch(patch: string): ParsedFile[] {
 function computeDiff(
   oldContent: string,
   newContent: string,
-): { lines: ParsedLine[]; additions: number; deletions: number } {
+): {
+  lines: ParsedLine[];
+  hunks: ParsedHunk[];
+  additions: number;
+  deletions: number;
+} {
   const changes = diffLines(oldContent, newContent);
   const lines: ParsedLine[] = [];
   let oldLine = 1;
@@ -104,7 +121,42 @@ function computeDiff(
       }
     }
   }
-  return { lines, additions, deletions };
+  const oldLines = lines.filter((line) => line.type !== "add").length;
+  const newLines = lines.filter((line) => line.type !== "del").length;
+  const oldStart = oldLines === 0 ? 0 : 1;
+  const newStart = newLines === 0 ? 0 : 1;
+
+  return {
+    lines,
+    hunks: [
+      {
+        header: `@@ -${oldStart},${oldLines} +${newStart},${newLines} @@`,
+        lines,
+      },
+    ],
+    additions,
+    deletions,
+  };
+}
+
+function formatDiffLine(line: ParsedLine): string {
+  const indicator = line.type === "add" ? "+" : line.type === "del" ? "-" : " ";
+  return `${indicator}${line.content}`;
+}
+
+function formatDiffFileName(name: string | undefined, prefix: "a" | "b") {
+  return name === "/dev/null" ? name : `${prefix}/${name ?? "file"}`;
+}
+
+function formatUnifiedDiff(file: ParsedFile): string {
+  return [
+    `--- ${formatDiffFileName(file.oldName, "a")}`,
+    `+++ ${formatDiffFileName(file.newName, "b")}`,
+    ...file.hunks.flatMap((hunk) => [
+      hunk.header,
+      ...hunk.lines.map(formatDiffLine),
+    ]),
+  ].join("\n");
 }
 
 function pairLinesForSplit(lines: ParsedLine[]): SplitLinePair[] {
@@ -194,7 +246,7 @@ const diffLineTextVariants = cva("", {
   },
 });
 
-function getFileExtension(filename?: string): string {
+function getFileExtension(filename?: string | undefined): string {
   const ext = filename?.split(".").pop()?.toLowerCase();
   if (!ext) return "";
   return ext.toUpperCase();
@@ -251,10 +303,12 @@ function DiffViewerContent({ className, ...props }: ComponentProps<"div">) {
 interface DiffViewerHeaderProps extends ComponentProps<"div"> {
   oldName?: string | undefined;
   newName?: string | undefined;
-  additions?: number;
-  deletions?: number;
-  showIcon?: boolean;
-  showStats?: boolean;
+  additions?: number | undefined;
+  deletions?: number | undefined;
+  showIcon?: boolean | undefined;
+  showStats?: boolean | undefined;
+  copyText?: string | undefined;
+  copyable?: boolean | undefined;
 }
 
 function DiffViewerHeader({
@@ -264,9 +318,15 @@ function DiffViewerHeader({
   deletions = 0,
   showIcon = false,
   showStats = true,
+  copyText,
+  copyable = true,
   className,
   ...props
 }: DiffViewerHeaderProps) {
+  const { isCopied, copyToClipboard } = useCopyToClipboard({
+    copiedDuration: 1500,
+  });
+
   if (!oldName && !newName) return null;
 
   const displayName = newName || oldName;
@@ -295,13 +355,27 @@ function DiffViewerHeader({
       {showStats && (additions > 0 || deletions > 0) && (
         <DiffViewerStats additions={additions} deletions={deletions} />
       )}
+      {copyable && copyText && (
+        <button
+          type="button"
+          aria-label={`Copy diff of ${displayName}`}
+          onClick={() => copyToClipboard(copyText)}
+          className="text-muted-foreground hover:text-foreground grid size-6 shrink-0 place-items-center rounded-sm transition-colors motion-reduce:transition-none"
+        >
+          {isCopied ? (
+            <CheckIcon className="size-3.5" />
+          ) : (
+            <CopyIcon className="size-3.5" />
+          )}
+        </button>
+      )}
     </div>
   );
 }
 
 interface DiffViewerLineProps extends ComponentProps<"div"> {
   line: ParsedLine;
-  showLineNumbers?: boolean;
+  showLineNumbers?: boolean | undefined;
 }
 
 function DiffViewerLine({
@@ -352,7 +426,7 @@ function DiffViewerLine({
 
 interface DiffViewerSplitLineProps extends ComponentProps<"div"> {
   pair: SplitLinePair;
-  showLineNumbers?: boolean;
+  showLineNumbers?: boolean | undefined;
 }
 
 function DiffViewerSplitLine({
@@ -423,16 +497,100 @@ function DiffViewerSplitLine({
   );
 }
 
+interface DiffViewerFileContentProps {
+  file: ParsedFile;
+  splitLinePairs: SplitLinePair[];
+  viewMode: "split" | "unified";
+  showLineNumbers: boolean;
+  showIcon: boolean;
+  showStats: boolean;
+  copyable: boolean;
+  maxCollapsedLines: number | undefined;
+}
+
+function DiffViewerFileContent({
+  file,
+  splitLinePairs,
+  viewMode,
+  showLineNumbers,
+  showIcon,
+  showStats,
+  copyable,
+  maxCollapsedLines,
+}: DiffViewerFileContentProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const contentId = useId();
+  const renderedLineCount =
+    viewMode === "split" ? splitLinePairs.length : file.lines.length;
+  const isCollapsible =
+    maxCollapsedLines !== undefined &&
+    maxCollapsedLines >= 0 &&
+    renderedLineCount > maxCollapsedLines;
+  const isCollapsed = isCollapsible && !isExpanded;
+  const visibleLineCount = isCollapsed ? maxCollapsedLines : renderedLineCount;
+
+  return (
+    <DiffViewerFile className="border-foreground/10 [contain-intrinsic-size:auto_240px] [content-visibility:auto] not-first:border-t">
+      <DiffViewerHeader
+        oldName={file.oldName}
+        newName={file.newName}
+        additions={file.additions}
+        deletions={file.deletions}
+        showIcon={showIcon}
+        showStats={showStats}
+        copyText={formatUnifiedDiff(file)}
+        copyable={copyable}
+      />
+      <DiffViewerContent id={contentId} className="py-2">
+        {viewMode === "split"
+          ? splitLinePairs
+              .slice(0, visibleLineCount)
+              .map((pair, pairIndex) => (
+                <DiffViewerSplitLine
+                  key={pairIndex}
+                  pair={pair}
+                  showLineNumbers={showLineNumbers}
+                />
+              ))
+          : file.lines
+              .slice(0, visibleLineCount)
+              .map((line, lineIndex) => (
+                <DiffViewerLine
+                  key={lineIndex}
+                  line={line}
+                  showLineNumbers={showLineNumbers}
+                />
+              ))}
+      </DiffViewerContent>
+      {isCollapsible && (
+        <div className="border-foreground/10 flex border-t px-3.5 py-1.5">
+          <button
+            type="button"
+            aria-expanded={!isCollapsed}
+            aria-controls={contentId}
+            onClick={() => setIsExpanded((expanded) => !expanded)}
+            className="text-muted-foreground hover:text-foreground text-[11px] font-medium transition-colors motion-reduce:transition-none"
+          >
+            {isCollapsed ? `Show all ${renderedLineCount} lines` : "Show less"}
+          </button>
+        </div>
+      )}
+    </DiffViewerFile>
+  );
+}
+
 export type DiffViewerProps = Partial<SyntaxHighlighterProps> &
   VariantProps<typeof diffViewerVariants> & {
-    patch?: string;
-    oldFile?: { content: string; name?: string };
-    newFile?: { content: string; name?: string };
-    viewMode?: "split" | "unified";
-    showLineNumbers?: boolean;
-    showIcon?: boolean;
-    showStats?: boolean;
-    className?: string;
+    patch?: string | undefined;
+    oldFile?: { content: string; name?: string | undefined } | undefined;
+    newFile?: { content: string; name?: string | undefined } | undefined;
+    viewMode?: "split" | "unified" | undefined;
+    showLineNumbers?: boolean | undefined;
+    showIcon?: boolean | undefined;
+    showStats?: boolean | undefined;
+    copyable?: boolean | undefined;
+    maxCollapsedLines?: number | undefined;
+    className?: string | undefined;
   };
 
 function DiffViewer({
@@ -444,6 +602,8 @@ function DiffViewer({
   showLineNumbers = true,
   showIcon = false,
   showStats = true,
+  copyable = true,
+  maxCollapsedLines,
   variant,
   size,
   className,
@@ -459,7 +619,7 @@ function DiffViewer({
       return parsePatch(diffPatch);
     }
     if (oldContent !== undefined && newContent !== undefined) {
-      const { lines, additions, deletions } = computeDiff(
+      const { lines, hunks, additions, deletions } = computeDiff(
         oldContent,
         newContent,
       );
@@ -468,6 +628,7 @@ function DiffViewer({
           oldName,
           newName,
           lines,
+          hunks,
           additions,
           deletions,
         },
@@ -504,37 +665,17 @@ function DiffViewer({
       className={cn(diffViewerVariants({ variant, size }), className)}
     >
       {parsedFiles.map((file, fileIndex) => (
-        <div
+        <DiffViewerFileContent
           key={fileIndex}
-          data-slot="diff-viewer-file"
-          className="border-foreground/10 [contain-intrinsic-size:auto_240px] [content-visibility:auto] not-first:border-t"
-        >
-          <DiffViewerHeader
-            oldName={file.oldName}
-            newName={file.newName}
-            additions={file.additions}
-            deletions={file.deletions}
-            showIcon={showIcon}
-            showStats={showStats}
-          />
-          <div data-slot="diff-viewer-content" className="overflow-x-auto py-2">
-            {viewMode === "split"
-              ? (splitLinePairs[fileIndex] ?? []).map((pair, pairIndex) => (
-                  <DiffViewerSplitLine
-                    key={pairIndex}
-                    pair={pair}
-                    showLineNumbers={showLineNumbers}
-                  />
-                ))
-              : file.lines.map((line, lineIndex) => (
-                  <DiffViewerLine
-                    key={lineIndex}
-                    line={line}
-                    showLineNumbers={showLineNumbers}
-                  />
-                ))}
-          </div>
-        </div>
+          file={file}
+          splitLinePairs={splitLinePairs[fileIndex] ?? []}
+          viewMode={viewMode}
+          showLineNumbers={showLineNumbers}
+          showIcon={showIcon}
+          showStats={showStats}
+          copyable={copyable}
+          maxCollapsedLines={maxCollapsedLines}
+        />
       ))}
     </div>
   );

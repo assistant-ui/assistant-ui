@@ -147,7 +147,7 @@ useEffect(() => {
 </div>
 ```
 
-`visibleCount` clamps to `1…points.length`, so the chart always draws at least one point and never overruns the array. In the `line` and `area` variants only the last visible point gets a filled dot; in `bars` only the last visible bar is tinted, the rest read as muted. `delta`'s color follows its own leading character: a minus sign or an en or em dash reads as falling and tints red, anything else reads as rising and tints green; omit `delta` to hide it entirely.
+`visibleCount` clamps to `1…points.length`, so the chart always draws at least one point and never overruns the array. In the `line` and `area` variants only the last visible point gets a filled dot; in `bars` only the last visible bar is tinted, the rest read as muted. `delta` is colored by whether the move is good news. Its direction comes from `trend`, or, without one, from its own leading character: a minus sign or an en or em dash reads as down, anything else as up. A rise tints green and a fall red unless `upIsGood` is `false`, as for latency or cost, which flips the two; a `"flat"` trend stays neutral. Omit `delta` to hide it entirely.
 
 ## Examples
 
@@ -163,6 +163,15 @@ useEffect(() => {
 
 ```tsx
 <Chart variant="bars" /* ... */ />
+```
+
+### Good and bad directions
+
+For a metric where lower is better, pass `upIsGood={false}` so a drop reads green. Pass `trend` when the delta text carries no sign, or to mark it flat:
+
+```tsx
+<Chart label="p50 latency" value="180ms" delta="-12ms" upIsGood={false} /* ... */ />
+<Chart label="Errors" value="0" delta="no change" trend="flat" /* ... */ />
 ```
 
 ### Restyle the chart
@@ -201,7 +210,9 @@ Register the renderer on a toolkit entry's `render` field and attach the toolkit
 |------|------|---------|-------------|
 | `label` | `string` | required | Caption above the value. |
 | `value` | `string` | required | The headline number, already formatted. |
-| `delta` | `string` | | Optional change indicator. A leading `-`, `−`, or `–` reads as falling; anything else reads as rising. |
+| `delta` | `string` | | Optional change indicator, shown as given. |
+| `trend` | `"up" \| "down" \| "flat"` | from `delta` | The direction `delta` moved in. Without it, a leading `-`, `−`, or `–` reads as down and anything else as up. |
+| `upIsGood` | `boolean` | `true` | Whether a rise is good news. `false` colors a fall green and a rise red. |
 | `points` | `readonly number[]` | required | The full series. |
 | `visibleCount` | `number` | required | How many points from the start of `points` to draw. Clamped to `1…points.length`. |
 | `variant` | `"area" \| "line" \| "bars"` | `"area"` | How the series draws. |

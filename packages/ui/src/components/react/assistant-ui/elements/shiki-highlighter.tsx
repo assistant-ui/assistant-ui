@@ -1,6 +1,6 @@
 "use client";
 
-import type { FC } from "react";
+import { useMemo, type FC } from "react";
 import { useShikiHighlighter, type ShikiHighlighterProps } from "react-shiki";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +13,7 @@ export type SyntaxHighlighterProps = Omit<
 > & {
   theme?: ShikiHighlighterProps["theme"];
   code: string;
+  highlightLines?: readonly number[] | undefined;
   /** Skips tokenization and renders the plain code while `true`. */
   streaming?: boolean;
 };
@@ -25,6 +26,22 @@ const PlainCode: FC<{ code: string }> = ({ code }) => (
     <code>{code}</code>
   </pre>
 );
+
+const createHighlightedLinesTransformer = (
+  highlightLines: readonly number[],
+): NonNullable<ShikiHighlighterProps["transformers"]>[number] => {
+  const highlightedLines = new Set(highlightLines);
+
+  return {
+    name: "assistant-ui:highlight-lines",
+    line(node, line) {
+      if (highlightedLines.has(line)) {
+        this.addClassToHast(node, "highlighted");
+      }
+      return node;
+    },
+  };
+};
 
 const HighlightedCode: FC<{
   code: string;
@@ -57,9 +74,24 @@ export const SyntaxHighlighter: FC<SyntaxHighlighterProps> = ({
   showLanguage: _showLanguage,
   delay = 150, // the part settles before smooth streaming finishes draining, so code keeps changing for a few frames
   streaming = false,
+  highlightLines,
   ...options
 }) => {
   const trimmed = code.trim();
+  const highlightKey = highlightLines?.join(",") ?? "";
+  const callerTransformers = options.transformers;
+  const transformers = useMemo(
+    () =>
+      highlightKey
+        ? [
+            ...(callerTransformers ?? []),
+            createHighlightedLinesTransformer(
+              highlightKey.split(",").map(Number),
+            ),
+          ]
+        : callerTransformers,
+    [highlightKey, callerTransformers],
+  );
 
   return (
     <div
@@ -77,7 +109,11 @@ export const SyntaxHighlighter: FC<SyntaxHighlighterProps> = ({
           code={trimmed}
           language={language}
           theme={theme}
-          options={{ ...options, delay }}
+          options={
+            transformers
+              ? { ...options, delay, transformers }
+              : { ...options, delay }
+          }
         />
       )}
     </div>

@@ -36,3 +36,21 @@ export function TerminalBlockDemo() {
 export function TerminalBlockInkDemo() {
   return <TerminalBlockStory variant="ink" />;
 }
+
+export function TerminalBlockFailedDemo() {
+  return (
+    <TerminalBlock
+      cwd="~/assistant-ui"
+      command="pnpm build"
+      lines={[
+        "\u001b[1mBuilding package\u001b[0m",
+        "\u001b[2mChecking entrypoints\u001b[0m",
+      ]}
+      stderr={["Error: missing export from ./runtime"]}
+      visibleCount={3}
+      done
+      exitCode={1}
+      durationMs={1200}
+    />
+  );
+}

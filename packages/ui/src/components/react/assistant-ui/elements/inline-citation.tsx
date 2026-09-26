@@ -4,31 +4,60 @@ import type { ComponentProps } from "react";
 import { PreviewCard } from "@base-ui/react/preview-card";
 import { cn } from "@/lib/utils";
 import { floating, mono } from "./surfaces";
+import { hostOf, safeHref } from "../utils/href";
 
 export interface Source {
-  domain: string;
+  domain?: string | undefined;
   title: string;
   snippet: string;
+  url?: string | undefined;
+  publishedAt?: string | undefined;
 }
 
-interface CitationProps {
+export interface CitationProps extends Omit<
+  ComponentProps<"button">,
+  "aria-label" | "children" | "className" | "type"
+> {
   index: number;
   source: Source;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  open?: boolean | undefined;
+  onOpenChange?: ((open: boolean) => void) | undefined;
+  className?: string | undefined;
 }
 
-function Citation({ index, source, open, onOpenChange }: CitationProps) {
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  year: "numeric",
+});
+
+function formatPublishedAt(publishedAt: string | undefined) {
+  if (publishedAt === undefined) return undefined;
+  const date = new Date(publishedAt);
+  return Number.isNaN(date.getTime()) ? undefined : dateFormatter.format(date);
+}
+
+export function Citation({
+  index,
+  source,
+  open,
+  onOpenChange,
+  className,
+  ...props
+}: CitationProps) {
+  const domain = source.domain ?? hostOf(source.url);
+  const href = safeHref(source.url);
+  const publishedAt = formatPublishedAt(source.publishedAt);
+  const hasMetadata = domain !== undefined || publishedAt !== undefined;
+
   return (
     <PreviewCard.Root open={open} onOpenChange={onOpenChange}>
       <PreviewCard.Trigger
         delay={0}
-        render={<button type="button" />}
+        render={<button type="button" {...props} />}
+        aria-label={`Source ${index + 1}: ${source.title}`}
         className={cn(
-          "mx-0.5 inline-flex h-4 min-w-4 translate-y-[-2px] cursor-default items-center justify-center rounded-[5px] px-1 align-middle font-mono text-[10px] font-medium tabular-nums transition-colors",
-          open
-            ? "bg-foreground text-background"
-            : "bg-foreground/[0.06] text-foreground/45 hover:text-foreground/90",
+          "bg-foreground/[0.06] text-foreground/45 hover:text-foreground/90 data-[popup-open]:bg-foreground data-[popup-open]:text-background ms-0.5 inline-flex h-4 min-w-4 translate-y-[-2px] cursor-default items-center justify-center rounded-[5px] px-1 align-middle font-mono text-[10px] font-medium tabular-nums transition-colors motion-reduce:transition-none",
+          className,
         )}
       >
         {index + 1}
@@ -44,20 +73,47 @@ function Citation({ index, source, open, onOpenChange }: CitationProps) {
               "data-[ending-style]:scale-[0.97] data-[ending-style]:opacity-0",
             )}
           >
-            <div className="flex items-center gap-1.5">
-              <span className="bg-foreground/[0.06] text-foreground/45 flex size-4 items-center justify-center rounded text-[9px] font-medium">
-                {source.domain[0]?.toUpperCase()}
-              </span>
-              <span className={cn(mono, "text-foreground/40")}>
-                {source.domain}
-              </span>
-            </div>
-            <p className="mt-2 text-[13px] leading-snug font-medium">
+            {hasMetadata ? (
+              <div className="flex items-center gap-1.5">
+                {domain ? (
+                  <>
+                    <span className="bg-foreground/[0.06] text-foreground/45 flex size-4 items-center justify-center rounded text-[9px] font-medium">
+                      {domain[0]?.toUpperCase()}
+                    </span>
+                    <span className={cn(mono, "text-foreground/40")}>
+                      {domain}
+                    </span>
+                  </>
+                ) : null}
+                {publishedAt ? (
+                  <span className={cn(mono, "text-foreground/35")}>
+                    {publishedAt}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+            <p
+              className={cn(
+                "text-[13px] leading-snug font-medium",
+                hasMetadata && "mt-2",
+              )}
+            >
               {source.title}
             </p>
             <p className="text-foreground/50 mt-1 text-[13px] leading-relaxed">
               {source.snippet}
             </p>
+            {href ? (
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-foreground/55 hover:text-foreground mt-3 inline-flex text-xs underline-offset-2 transition-colors hover:underline motion-reduce:transition-none"
+              >
+                Open source{" "}
+                <span className="sr-only">(opens in a new tab)</span>
+              </a>
+            ) : null}
           </PreviewCard.Popup>
         </PreviewCard.Positioner>
       </PreviewCard.Portal>
@@ -65,19 +121,10 @@ function Citation({ index, source, open, onOpenChange }: CitationProps) {
   );
 }
 
-export interface InlineCitationProps extends Omit<
-  ComponentProps<"p">,
-  "children"
-> {
-  sources: Source[];
-  openIndex: number | null;
-  onOpenIndexChange: (index: number | null) => void;
-}
+export interface InlineCitationProps extends ComponentProps<"p"> {}
 
 export function InlineCitation({
-  sources,
-  openIndex,
-  onOpenIndexChange,
+  children,
   className,
   ...props
 }: InlineCitationProps) {
@@ -88,29 +135,9 @@ export function InlineCitation({
         "text-foreground/90 max-w-sm text-sm leading-relaxed",
         className,
       )}
-
       {...props}
     >
-      Optimistic updates keep the thread responsive while the server confirms
-      the write
-      {sources[0] && (
-        <Citation
-          index={0}
-          source={sources[0]}
-          open={openIndex === 0}
-          onOpenChange={(open) => onOpenIndexChange(open ? 0 : null)}
-        />
-      )}
-      . The store already exposes a consistent snapshot for every subscriber
-      {sources[1] && (
-        <Citation
-          index={1}
-          source={sources[1]}
-          open={openIndex === 1}
-          onOpenChange={(open) => onOpenIndexChange(open ? 1 : null)}
-        />
-      )}
-      , so no extra reconciliation pass is needed.
+      {children}
     </p>
   );
 }
