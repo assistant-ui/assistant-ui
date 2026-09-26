@@ -5,6 +5,7 @@ import {
   createCore,
   deferred,
   makeAdapter,
+  setStartThreadRuntime,
 } from "../../tests/remote-thread-list-test-helpers";
 
 describe("RemoteThreadListThreadListRuntimeCore switch/delete ordering", () => {
@@ -271,4 +272,49 @@ describe("RemoteThreadListThreadListRuntimeCore switch/delete ordering", () => {
     expect(adapter.unarchive).toHaveBeenCalledWith("thread-b");
     expect(core.mainThreadId).toBe("thread-b");
   });
+
+  it.each(["detach", "archive", "delete"] as const)(
+    "does not select a thread that %s is called on in the tick its switch attaches",
+    async (operation) => {
+      const adapter = makeAdapter({
+        list: vi.fn(async () => ({
+          threads: [
+            {
+              status: "regular" as const,
+              remoteId: "thread-b",
+              externalId: "thread-b",
+            },
+          ],
+        })),
+      });
+      const core = createCore(adapter);
+      await core.getLoadThreadsPromise();
+      const initialMainThreadId = core.mainThreadId;
+      const stopThreadRuntime = vi.spyOn(
+        (
+          core as unknown as {
+            _hookManager: { stopThreadRuntime: (id: string) => void };
+          }
+        )._hookManager,
+        "stopThreadRuntime",
+      );
+      const attach = deferred<unknown>();
+      setStartThreadRuntime(core, (id) =>
+        id === "thread-b" ? attach.promise : Promise.resolve({}),
+      );
+
+      const switchToB = core.switchToThread("thread-b");
+      attach.resolve({});
+      const operating = core[operation]("thread-b");
+      await switchToB;
+      await operating;
+
+      expect(core.mainThreadId).toBe(initialMainThreadId);
+      if (operation === "detach") {
+        expect(stopThreadRuntime).toHaveBeenCalledWith("thread-b");
+      } else {
+        expect(adapter[operation]).toHaveBeenCalledWith("thread-b");
+      }
+    },
+  );
 });
