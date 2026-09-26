@@ -83,6 +83,24 @@ describe("generativeUIToJSX", () => {
 });
 
 describe("generativeUIToJSX with escape: true", () => {
+  it.each([false, true])(
+    "preserves literal entities in string props and keys with pretty=%s",
+    (pretty) => {
+      expect(
+        generativeUIToJSX(
+          { $type: "Text", $key: "&#65;", value: "&amp; &#65; &#x41;" },
+          { escape: true, pretty },
+        ),
+      ).toBe('<Text key={"&#65;"} value={"&amp; &#65; &#x41;"} />');
+    },
+  );
+
+  it("keeps entity spelling in the default display form", () => {
+    expect(generativeUIToJSX({ $type: "Text", value: "&amp; &#65;" })).toBe(
+      '<Text value="&amp; &#65;" />',
+    );
+  });
+
   it("escapes a string child containing HTML-like tags", () => {
     expect(
       generativeUIToJSX(
