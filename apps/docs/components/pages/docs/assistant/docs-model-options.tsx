@@ -9,9 +9,9 @@ export function docsModelOptions() {
       <Image
         src={model.icon}
         alt={model.name}
-        width={16}
-        height={16}
-        className="size-4"
+        width={14}
+        height={14}
+        className="size-3.5"
       />
     ),
     ...(model.disabled ? { disabled: true as const } : undefined),

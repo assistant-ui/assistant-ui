@@ -35,7 +35,7 @@ export function SharedThread({ messages }: { messages: readonly ThreadMessage[] 
 }
 ```
 
-Every capability on this thread, `edit`, `delete`, `reload`, `cancel`, and the rest, reports `false`, so composer input, regenerate, and branch controls that check `s.thread.capabilities` disable themselves without any extra work on your part.
+Every capability on this thread, `edit`, `delete`, `reload`, `cancel`, `answerToolCall`, and the rest, reports `false`, so composer input, regenerate, and branch controls that check `s.thread.capabilities` disable themselves and the tool fallback drops its approval controls while keeping the prompt, with no extra work on your part.
 
   </Step>
   <Step>
@@ -169,7 +169,7 @@ Passing an empty `turns` array renders the header and footer with nothing betwee
 |----------|------|-------------|
 | `s.thread.messages` | `readonly MessageState[]` | The `messages` prop, as rendered messages. |
 | `s.thread.isEmpty` | `boolean` | `true` when `messages` is empty. |
-| `s.thread.capabilities` | `RuntimeCapabilities` | Every flag (`edit`, `delete`, `reload`, `cancel`, `attachments`, and the rest) is `false`. |
+| `s.thread.capabilities` | `RuntimeCapabilities` | Every flag (`edit`, `delete`, `reload`, `cancel`, `attachments`, `answerToolCall`, and the rest) is `false`. |
 
 </RuntimeMode>
 

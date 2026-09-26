@@ -40,7 +40,7 @@ export namespace Checkout {
     id: string;
     label: string;
     description?: string;
-    /** A key the browser maps to a brand mark; unknown keys render without one. */
+    /** A name from OPTION_ICONS, or the key of a brand mark on a preset option; unknown keys render without one. */
     icon?: string;
     /** A second pick under this option, such as the language of a framework. */
     variants?: ChoiceVariant[];
@@ -62,8 +62,9 @@ export namespace Checkout {
 
   /**
    * A choice answer is an option id, `<option>:<variant>` when the option has
-   * variants, or the user's own text when none of the options fit. A model
-   * answer is a JSON-encoded ModelAnswer whose provider is one of the options.
+   * variants, or the user's own text when none of the options fit; a multiple
+   * choice answers a JSON array of those. A model answer is a JSON-encoded
+   * ModelAnswer whose provider is one of the options.
    */
   export type Input = {
     phase: Status;
@@ -74,6 +75,8 @@ export namespace Checkout {
     prompt: string;
     placeholder?: string;
     options?: ChoiceOption[];
+    /** The user may pick any number of options; the answer is a JSON array. */
+    multiple?: true;
     /** The slug a product input proposes. */
     product?: string;
     default?: string;
@@ -133,6 +136,8 @@ export namespace Checkout {
 
   export type State = {
     version: 2;
+    /** The id the browser gave the current checkout; a create with another id replaces it on the same link. */
+    id: string | null;
     status: Status;
     completion?: Completion;
     createdAt: number | null;
@@ -163,6 +168,7 @@ export namespace Checkout {
     prompt: string;
     placeholder?: string;
     options?: ChoiceOption[];
+    multiple?: true;
     product?: string;
     default?: string;
     help?: InputHelp;
@@ -175,6 +181,7 @@ export namespace Checkout {
 
   export type Commands = {
     "checkout/create": (params: {
+      id: string;
       products: ProductSeed[];
       instructions?: string;
     }) => void;
@@ -245,6 +252,7 @@ export const AGENT_HEARTBEAT_MS = 5_000;
 
 export const initialCheckoutState = (): Checkout.State => ({
   version: 2,
+  id: null,
   status: "waiting",
   createdAt: null,
   products: [],
@@ -270,16 +278,25 @@ export const isAgentPresent = (state: Checkout.State, now = Date.now()) =>
 export const isClosed = (state: Checkout.State) =>
   state.status === "done" || state.status === "cancelled";
 
+/** The question as shown to the user; an agent that sent none still gets a line to answer under. */
+export const inputPrompt = (input: Checkout.Input) =>
+  input.prompt.trim() || "Your agent needs an answer.";
+
 /** True while the agent's proposal to close waits for the user. */
 export const finishProposed = (state: Checkout.State) =>
   !isClosed(state) && state.completion !== undefined;
 
-/** True when the user messaged the agent after it last proposed to close. */
+/** True while a message the user sent after the agent proposed to close still waits for the agent. */
 export const followedUpSinceProposal = (state: Checkout.State) => {
   const proposedAt = state.completion?.proposedAt;
   return (
     proposedAt !== undefined &&
-    state.log.some((entry) => entry.role === "user" && entry.at > proposedAt)
+    state.log.some(
+      (entry) =>
+        entry.role === "user" &&
+        entry.at > proposedAt &&
+        entry.acknowledgedAt === undefined,
+    )
   );
 };
 
@@ -307,6 +324,44 @@ export const parsePreviewUrl = (value: string | undefined) => {
 export const openInputs = (state: Checkout.State) =>
   state.inputs.filter((input) => input.status === "open");
 
+/** True if an input, a plan review or a finish proposal was waiting for the user at `at`. */
+export const awaitingUserAt = (state: Checkout.State, at: number) =>
+  state.inputs.some(
+    (input) =>
+      input.createdAt <= at &&
+      (input.answeredAt === undefined
+        ? input.status === "open"
+        : input.answeredAt > at),
+  ) ||
+  state.plans.some(
+    (plan) =>
+      plan.submittedAt <= at &&
+      (plan.decidedAt === undefined
+        ? plan.status === "proposed"
+        : plan.decidedAt > at),
+  ) ||
+  (state.completion !== undefined && state.completion.proposedAt <= at);
+
+/**
+ * The agent's lines in `entries` after `readAt` that deserve the user's eye:
+ * a reply to the user's last message, or a line posted while nothing else was
+ * waiting for the user.
+ */
+export const unreadAgentEntries = (
+  state: Checkout.State | undefined,
+  entries: readonly Checkout.LogEntry[],
+  readAt: number,
+) =>
+  state === undefined
+    ? []
+    : entries.filter(
+        (entry, index) =>
+          entry.role === "agent" &&
+          entry.at > readAt &&
+          (entries[index - 1]?.role === "user" ||
+            !awaitingUserAt(state, entry.at)),
+      );
+
 /** The current plan revision, or `undefined` before the agent proposed one. */
 export const currentPlan = (state: Checkout.State): Checkout.Plan | undefined =>
   state.plans.at(-1);
@@ -315,20 +370,83 @@ export const currentPlan = (state: Checkout.State): Checkout.Plan | undefined =>
 export const planNeedsReview = (state: Checkout.State) =>
   !isClosed(state) && currentPlan(state)?.status === "proposed";
 
+/** The icons an agent can put on its own options, by name. */
+export const OPTION_ICONS = [
+  "code",
+  "terminal",
+  "braces",
+  "git-branch",
+  "package",
+  "database",
+  "server",
+  "cloud",
+  "globe",
+  "monitor",
+  "smartphone",
+  "key",
+  "lock",
+  "shield",
+  "brain",
+  "sparkles",
+  "bot",
+  "workflow",
+  "file",
+  "folder",
+  "book",
+  "table",
+  "image",
+  "video",
+  "mic",
+  "speech",
+  "paperclip",
+  "message",
+  "mail",
+  "bell",
+  "calendar",
+  "clock",
+  "user",
+  "users",
+  "settings",
+  "wrench",
+  "plug",
+  "link",
+  "palette",
+  "search",
+  "zap",
+  "check",
+  "question",
+] as const;
+
+export type OptionIcon = (typeof OPTION_ICONS)[number];
+
+export const isOptionIcon = (value: string): value is OptionIcon =>
+  (OPTION_ICONS as readonly string[]).includes(value);
+
 export const parseChoiceAnswer = (answer: string) => {
   const [option = "", variant] = answer.split(":", 2);
   return { option, ...(variant !== undefined && { variant }) };
 };
 
-/**
- * "option" when `answer` names one of the input's options (with a variant
- * when the option has them), "custom" for the user's own text, "invalid"
- * for an option named without its variant or with an unknown one.
- */
-export const classifyChoiceAnswer = (
+/** The entries of a multiple choice answer, or `undefined` when the text is not a JSON array of strings. */
+export const parseMultipleAnswer = (answer: string): string[] | undefined => {
+  let value: unknown;
+  try {
+    value = JSON.parse(answer);
+  } catch {
+    return undefined;
+  }
+  return Array.isArray(value) &&
+    value.every((entry) => typeof entry === "string")
+    ? value
+    : undefined;
+};
+
+type ChoiceAnswerKind = "option" | "custom" | "invalid";
+
+const classifyChoiceEntry = (
   input: Checkout.Input,
   answer: string,
-): "option" | "custom" | "invalid" => {
+): ChoiceAnswerKind => {
   const { option, variant } = parseChoiceAnswer(answer);
   const match = input.options?.find((candidate) => candidate.id === option);
   if (!match) return answer.trim() === "" ? "invalid" : "custom";
@@ -338,6 +456,25 @@ export const classifyChoiceAnswer = (
   return match.variants.some((candidate) => candidate.id === variant)
     ? "option"
     : "invalid";
+};
+
+/**
+ * "option" when `answer` names one of the input's options (with a variant
+ * when the option has them), "custom" for the user's own text, "invalid"
+ * for an option named without its variant or with an unknown one. A
+ * multiple choice is classified entry by entry: "invalid" when any entry is
+ * or the array is empty, "custom" when any entry is the user's own text.
+ */
+export const classifyChoiceAnswer = (
+  input: Checkout.Input,
+  answer: string,
+): ChoiceAnswerKind => {
+  if (!input.multiple) return classifyChoiceEntry(input, answer);
+  const entries = parseMultipleAnswer(answer);
+  if (!entries || entries.length === 0) return "invalid";
+  const kinds = entries.map((entry) => classifyChoiceEntry(input, entry));
+  if (kinds.includes("invalid")) return "invalid";
+  return kinds.includes("custom") ? "custom" : "option";
 };
 
 const REASONING_EFFORTS = new Set(["low", "medium", "high"]);
@@ -387,3 +524,7 @@ export const stepProgress = (state: Checkout.State) => ({
     (step) => step.status === "done" || step.status === "skipped",
   ).length,
 });
+
+/** True once a step has left pending, which is when the agent stops adding steps and starts running them. */
+export const stepsFinalized = (state: Checkout.State) =>
+  state.steps.some((step) => step.status !== "pending");

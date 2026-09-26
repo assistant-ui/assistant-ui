@@ -209,25 +209,26 @@ export const generativeUiVocabularyCss: CssRuleset = {
     gap: "0.5rem",
     cursor: "pointer",
   },
-  '[data-aui="radiogroup-option"]': {
+  '[data-aui="radiogroup-option"], [data-aui="checkboxgroup-option"]': {
     display: "flex",
     "align-items": "center",
     gap: "0.5rem",
     cursor: "pointer",
   },
-  '[data-aui="checkbox"] input, [data-aui="radiogroup-option"] input': {
-    "accent-color": "var(--primary)",
-    width: "1rem",
-    height: "1rem",
-    margin: "0",
-    cursor: "pointer",
-  },
-  '[data-aui="checkbox"] input:focus-visible, [data-aui="radiogroup-option"] input:focus-visible':
+  '[data-aui="checkbox"] input, [data-aui="radiogroup-option"] input, [data-aui="checkboxgroup-option"] input':
+    {
+      "accent-color": "var(--primary)",
+      width: "1rem",
+      height: "1rem",
+      margin: "0",
+      cursor: "pointer",
+    },
+  '[data-aui="checkbox"] input:focus-visible, [data-aui="radiogroup-option"] input:focus-visible, [data-aui="checkboxgroup-option"] input:focus-visible':
     {
       outline: "2px solid var(--ring)",
       "outline-offset": "2px",
     },
-  '[data-aui="radiogroup"]': {
+  '[data-aui="radiogroup"], [data-aui="checkboxgroup"]': {
     border: "none",
     margin: "0",
     padding: "0",
@@ -786,7 +787,7 @@ export const generativeUiElementsThemeCss: CssRuleset = {
       color: inkFill(90),
     },
 
-  [`${T} [data-aui="checkbox"] input, ${T} [data-aui="radiogroup-option"] input`]:
+  [`${T} [data-aui="checkbox"] input, ${T} [data-aui="radiogroup-option"] input, ${T} [data-aui="checkboxgroup-option"] input`]:
     {
       "accent-color": "var(--foreground)",
     },

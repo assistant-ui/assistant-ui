@@ -14,6 +14,7 @@ const stubs = vi.hoisted(() => ({
   useScrollLock: () => () => {},
   useToolCallElapsed: () => undefined,
   voice: { active: false },
+  capabilities: { answerToolCall: true },
 }));
 
 vi.mock("@assistant-ui/react", async (importOriginal) => ({
@@ -21,7 +22,12 @@ vi.mock("@assistant-ui/react", async (importOriginal) => ({
   useScrollLock: stubs.useScrollLock,
   useToolCallElapsed: stubs.useToolCallElapsed,
   useAuiState: (selector: (state: unknown) => unknown) =>
-    selector({ thread: { voice: stubs.voice.active ? {} : undefined } }),
+    selector({
+      thread: {
+        voice: stubs.voice.active ? {} : undefined,
+        capabilities: stubs.capabilities,
+      },
+    }),
 }));
 
 const pendingApproval = { id: "req_1" };
@@ -147,6 +153,46 @@ describe("ToolFallback", () => {
       expect(respondToApproval).not.toHaveBeenCalled();
     } finally {
       stubs.voice.active = false;
+    }
+  });
+
+  it("shows the prompt without controls when the thread cannot answer", () => {
+    const respondToApproval = vi.fn();
+    stubs.capabilities.answerToolCall = false;
+    try {
+      const view = renderTool({
+        approval: {
+          id: "approval-1",
+          prompt: "Deploy to production?",
+          options: [
+            { id: "once", kind: "allow-once" },
+            { id: "reject", kind: "reject-once" },
+          ],
+        },
+        respondToApproval,
+      });
+      const approval = view.container.querySelector(
+        '[data-slot="tool-fallback-approval"]',
+      );
+      expect(approval?.textContent).toBe("Deploy to production?");
+      expect(approval?.querySelector("button, textarea")).toBeNull();
+    } finally {
+      stubs.capabilities.answerToolCall = true;
+    }
+  });
+
+  it("renders nothing for a waiting call without a prompt when the thread cannot answer", () => {
+    stubs.capabilities.answerToolCall = false;
+    try {
+      const view = renderTool({
+        interrupt: { type: "human", payload: {} },
+        resume: vi.fn(),
+      });
+      expect(
+        view.container.querySelector('[data-slot="tool-fallback-approval"]'),
+      ).toBeNull();
+    } finally {
+      stubs.capabilities.answerToolCall = true;
     }
   });
 

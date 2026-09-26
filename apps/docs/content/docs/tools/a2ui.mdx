@@ -1,12 +1,12 @@
 ---
 title: A2UI over AG-UI
-description: Render A2UI surfaces from AG-UI activity snapshots as generative UI, using the community a2ui-surface convention.
+description: Render A2UI surfaces from AG-UI activity snapshots or A2A messages, task snapshots, and artifacts as generative UI.
 platforms: ["react"]
 ---
 
 [A2UI](https://a2ui.org/) is a declarative generative UI protocol: the agent streams surface operations (create a surface, upsert components, update a data model) and the host renders them from a pre-approved component catalog, with no code over the wire. The AG-UI ecosystem carries A2UI as `ACTIVITY_SNAPSHOT` events with `activityType: "a2ui-surface"` and the operations under `content.a2ui_operations`; this is the convention emitted by [`@ag-ui/a2ui-middleware`](https://github.com/ag-ui-protocol/ag-ui/tree/main/middlewares/a2ui-middleware).
 
-`useAgUiRuntime` consumes these snapshots natively. Each surface becomes one tool-call part with `toolCallId` `a2ui:<surfaceId>` and `toolName` `"present"`, whose args are the converted generative UI spec, so surfaces render through the same path as the [`present` frontend tool](/docs/tools/generative-ui). Snapshots with any other `activityType` are ignored, and the MCP Apps activity path is unaffected.
+`useAgUiRuntime` consumes these snapshots natively. The A2A runtime produces the same surfaces from agent messages, task snapshots, and artifacts. Each surface becomes one tool-call part with `toolCallId` `a2ui:<surfaceId>` and `toolName` `"present"`, whose args are the converted generative UI spec, so surfaces render through the same path as the [`present` frontend tool](/docs/tools/generative-ui). Snapshots with any other `activityType` are ignored, and the MCP Apps activity path is unaffected.
 
 ## Wire contract
 
@@ -42,6 +42,7 @@ A backend paints or updates a surface by emitting an activity snapshot on the AG
 
 - A snapshot with `replace: true` (the schema default) rebuilds that `messageId`'s surface state from the operations it carries. `replace: false` means the snapshot is ignored when that `messageId` has already been seen, matching the AG-UI event spec. The middleware always emits `replace: true`.
 - Surfaces are keyed by the `surfaceId` inside the operations, not by `messageId`. Multiple snapshots that share a `messageId` update their surfaces in place, and the synthesized part keeps its `toolCallId`, so the rendered surface updates without duplicating parts.
+- Each synthesized surface stores its replayable operations in `artifact.a2ui`, so it replays from history and in the Assistant Cloud dashboard.
 - Component trees use the A2UI adjacency-list model: nodes reference their children by id (`children` for a list, `child` for a single component), the root node has id `root`, and props of shape `{ "path": "/x/y" }` are JSON Pointer bindings resolved against the surface data model. Both v0.9 and v1.0 operation payloads are accepted, including the v1.0 inline `components` and `dataModel` on `createSurface`.
 - Lifecycle snapshots that carry a `status` (such as `"building"`) but no `a2ui_operations` are tolerated and produce no part until operations arrive. A `deleteSurface` operation removes the surface's part.
 - The `a2ui:` tool-call id prefix is reserved for synthesized surface parts: they are client-side render artifacts and are excluded from the history sent back to the agent, so genuine agent tool calls must not use ids starting with `a2ui:`.
@@ -96,12 +97,34 @@ function useA2uiToolkit() {
 
 Sending an action triggers a run with no new user message, and the agent receives it as `forwardedProps.a2uiAction.userAction`, the convention `@ag-ui/a2ui-middleware` consumes. The action rides exactly one run; the `type` field is stripped and a `timestamp` is added when absent.
 
+A `Button` whose action is a `functionCall` runs on the client and never reaches the agent. It dispatches type `"a2ui:functionCall"` with the function's `call` name, its resolved `args`, `surfaceId`, and `sourceComponentId`, so register a handler for each function you support. The basic catalog's only function with a side effect is `openUrl`; the agent chose its URL, so check the protocol before opening it:
+
+```tsx
+createActionRegistry({
+  "a2ui:action": ({ payload }) => sendA2uiAction(payload),
+  "a2ui:functionCall": ({ payload }) => {
+    const args = payload["args"] as { url?: unknown } | undefined;
+    if (payload["call"] !== "openUrl" || typeof args?.url !== "string") return;
+    if (!URL.canParse(args.url, window.location.href)) return;
+    const url = new URL(args.url, window.location.href);
+    if (url.protocol === "https:" || url.protocol === "http:") {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  },
+});
+```
+
+An action reads what the user entered: a `context` entry or `functionCall` argument bound to an input's path carries the input's value when the button is clicked, not the value the agent sent, and one bound to an object that contains input paths carries that object with those fields replaced. The converter writes each such value as a [`$field` reference](/docs/tools/generative-ui#actions) that the renderer resolves when the action fires, with the value the agent sent as its fallback, so a custom component that dispatches the action itself sends that value instead. A single choice `ChoicePicker` bound to a list sends a one item list, matching the string list the spec binds it to.
+
 The middleware turns the action into a synthetic `log_a2ui_event` tool-call pair that is never declared in `input.tools`; a backend that validates tool calls against the declared tool list will reject it.
 
 ## Component mapping
 
-The converter maps the A2UI basic catalog onto the default generative UI vocabulary: `Text` becomes `Markdown` (`h1` to `h6` variants become `Header`, `caption` becomes `Caption`), `Column` becomes `Col`, `List` becomes `ListView` with `ListViewItem` children (or `Row` when horizontal), `TextField` becomes `Input` (the control name is derived from the last segment of its binding path), `CheckBox` becomes `Checkbox`, `ChoicePicker` becomes `Select` or `RadioGroup`, and `DateTimeInput` becomes `DatePicker`. `Icon` maps when its name is in the default vocabulary. `Image`, `Row`, `Card`, `Divider`, and `Button` map one to one. A `child` reference converts like a one element `children`. A node with template children expands into a `ListView` over the bound list. A `Button` takes its label from a child `Text`, and any other child, such as an `Icon`, renders inside the button. `Button` actions, written as `{ "event": { "name", "context" } }` or as a bare `{ "name", "context" }`, become `$action` objects with type `"a2ui:action"` carrying the action name, `surfaceId`, `sourceComponentId`, and the resolved `context`, which is how your action registry receives them. Unknown components and operations are skipped with a debug warning by default. Pass `{ keepUnknownComponents: true }` as the second argument to `convertSurfaceToUISpec` to retain unmapped components as resolved `$type` nodes for a viewer that provides them; a retained `Modal` keeps its `trigger` and `content`, and a retained `Tabs` keeps each tab's `child`, as its children in that order. A reference the converter cannot follow is dropped with a warning, so those children line up with the references only when the conversion reports no warnings. `surfaceToOperations(surface, surfaceId?)` produces JSON-serializable v0.9 operations for storing and replaying a reduced surface. Pass `surfaceId` when the surface was not created by the reducer; otherwise it uses the reducer's stored id. Conversion is bounded (depth 32, 100 template items, 5000 nodes) so a malformed stream cannot hang the client.
+The converter maps the A2UI basic catalog onto the default generative UI vocabulary: `Text` becomes `Markdown` (`h1` to `h6` variants become `Header`, `caption` becomes `Caption`), `Column` becomes `Col`, `List` becomes `ListView` with `ListViewItem` children (or `Row` when horizontal), `TextField` becomes `Input` (a `longText` variant makes it multiline), `CheckBox` becomes `Checkbox`, `ChoicePicker` becomes `RadioGroup` (`CheckboxGroup` for its `multipleSelection` variant, and `Select` for a single choice shown as `chips`), and `DateTimeInput` becomes `DatePicker`. `Icon` maps when its name is in the default vocabulary. `Image`, `Row`, `Card`, `Divider`, and `Button` map one to one. A `child` reference converts like a one element `children`. A node with template children expands into a `ListView` over the bound list. Bound values resolve against the data model, and a relative path resolves against the current template item. An input shows its bound value, including a later update from the agent, and is named by the full JSON Pointer of its binding, such as `/form/email`, or `/items/0/qty` inside a template item. Function call values (`formatString` with its `${...}` expressions, `formatNumber`, `formatCurrency`, `formatDate`, `pluralize`, `and`, `or`, and `not`) are evaluated during conversion in the browser's locale and time zone, including inside an action's `context` and a `functionCall`'s `args`; any other function in a value is skipped with a warning. A `Button` takes its label from a child `Text`, and any other child, such as an `Icon`, renders inside the button; its `primary` and `borderless` variants become the `primary` and `ghost` button styles. `Button` actions, written as `{ "event": { "name", "context" } }` or as a bare `{ "name", "context" }`, become `$action` objects with type `"a2ui:action"` carrying the action name, `surfaceId`, `sourceComponentId`, and the resolved `context`, which is how your action registry receives them. A `{ "functionCall": { "call", "args" } }` action becomes type `"a2ui:functionCall"` instead, as described under [Actions](#actions), and an action the converter cannot read is dropped with a warning. Unknown components and operations are skipped with a debug warning by default. Pass `{ keepUnknownComponents: true }` as the second argument to `convertSurfaceToUISpec` to retain unmapped components as resolved `$type` nodes for a viewer that provides them; a retained `Modal` keeps its `trigger` and `content`, and a retained `Tabs` keeps each tab's `child`, as its children in that order. A reference the converter cannot follow is dropped with a warning, so those children line up with the references only when the conversion reports no warnings. `surfaceToOperations`, exported from `@assistant-ui/react-generative-ui/a2ui`, produces JSON-serializable v0.9 operations for storing and replaying a reduced surface. Pass `surfaceId` when the surface was not created by the reducer; otherwise it uses the reducer's stored id. Conversion is bounded (depth 32, 100 template items, 5000 nodes) so a malformed stream cannot hang the client.
 
 ## Limitations
 
 - The upstream middleware currently emits v0.9 operation payloads; the renderer accepts v0.9 and v1.0 shapes.
+- The renderer keeps no data model of its own. User input reaches only the action values bound to it, so other components bound to the same path, and values computed by a function call such as `formatString`, keep what they were when the surface was converted. An agent update replaces what the user entered only when it changes the bound value, and two inputs bound to the same path do not mirror each other, so an action value bound to that path carries both values as a list.
+- `sendDataModel` is not implemented, so an action never carries the whole data model; bind the fields it needs in its `context`.
+- `DateTimeInput` renders a date only picker, so a value with a time renders empty and action values bound to it keep what the agent sent.

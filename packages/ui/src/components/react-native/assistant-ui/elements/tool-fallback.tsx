@@ -2,6 +2,7 @@ import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 import {
   toolApprovalAcceptsText,
+  useAuiState,
   type ToolApprovalOption,
   type ToolCallMessagePart,
   type ToolCallMessagePartComponent,
@@ -110,6 +111,9 @@ export const ToolFallbackApproval: FC<
   className,
 }) => {
   const hydrated = useHydrated();
+  const canAnswer = useAuiState(
+    (s) => s.optional.thread?.capabilities.answerToolCall !== false,
+  );
   const [submitted, setSubmitted] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [answer, setAnswer] = useState("");
@@ -123,6 +127,19 @@ export const ToolFallbackApproval: FC<
     return null;
 
   if (!offersInterruptAction(status, approval, interrupt)) return null;
+
+  const promptText = approval?.prompt ? (
+    <Text className="aui-tool-fallback-approval-prompt text-foreground text-sm">
+      {approval.prompt}
+    </Text>
+  ) : null;
+
+  if (!canAnswer)
+    return promptText ? (
+      <View className={cn("aui-tool-fallback-approval gap-2", className)}>
+        {promptText}
+      </View>
+    ) : null;
 
   // A declared option list is a host constraint: the kit never adds an
   // approval path beyond it, and keeps a refusal path only for an action.
@@ -227,12 +244,6 @@ export const ToolFallbackApproval: FC<
         {argsText}
       </Text>
     </View>
-  ) : null;
-
-  const promptText = approval?.prompt ? (
-    <Text className="aui-tool-fallback-approval-prompt text-foreground text-sm">
-      {approval.prompt}
-    </Text>
   ) : null;
 
   const errorText = error ? (

@@ -32,7 +32,7 @@ The runtime also remembers when each run starts and ends. That timing supplies t
 
 ## Delivery, validation, and storage
 
-`cloud.events.track` adds a normalized event to a local buffer and returns immediately. The client flushes as soon as 20 events are waiting, after a two second debounce, when the page is hidden, when document visibility becomes hidden, and when you call `dispose()`. A request carries at most 50 events and uses `keepalive: true`; `dispose()` removes the listeners, clears its timer, and flushes the buffer. Delivery never blocks the interface. A failed request is swallowed and its batch is dropped.
+`cloud.events.track` adds a normalized event to a local buffer and returns immediately. The client flushes as soon as 20 events are waiting, after a two second debounce, when the page is hidden, when document visibility becomes hidden, and when you call `dispose()`. A request carries at most 50 events and uses `keepalive: true`; `dispose()` removes the listeners, clears its timer, and flushes the buffer. Delivery never blocks the interface. A failed scheduled or 20-event flush retries after 250 milliseconds and then 1,000 milliseconds. A page-exit, hidden-page, or `dispose()` flush sends once and ends a pending retry.
 
 Before buffering, the client applies these limits.
 
@@ -82,7 +82,7 @@ The signal filter on [Threads](/docs/cloud/dashboard/threads) uses these values.
 
 ### What the Engagement page shows
 
-[Engagement](/docs/cloud/dashboard/engagement) answers what people do around responses. It opens with the **Feedback** block, then shows **Answered**, **Continued**, **Stopped**, **Regenerated**, **Copied**, and **Came back**. It then shows the conversation funnel, the satisfaction split, interaction mix, reactions and satisfaction over time, results by model and topic, and an hour by weekday heatmap. **Features used** groups attachment use, suggestion impressions and clicks, branching, tool approvals and rejections, read aloud, voice input, thread switching, errors shown, and attachment failures.
+[Engagement](/docs/cloud/dashboard/engagement) answers what people do around responses. It opens with the **Answered**, **Continued**, **Stopped**, **Regenerated**, **Copied**, and **Came back** tiles, then shows the **Feedback** block. It then shows the conversation funnel, the satisfaction split, interaction mix, reactions and satisfaction over time, results by model and topic, and an hour by weekday heatmap. **Features used** groups attachment use, suggestion impressions and clicks, branching, tool approvals and rejections, read aloud, voice input, thread switching, errors shown, and attachment failures.
 
 ## From your code
 
@@ -125,6 +125,6 @@ const cloud = new AssistantCloud({
 |---|---|---|
 | No new events | Telemetry is off, or `telemetry.events` is `false`. | Enable telemetry, or remove the events override. |
 | An interaction is absent from the dashboard | The event named an unknown or unowned thread, so the server silently dropped it. | Send the cloud thread id for the current user. |
-| The last interaction is missing after navigation | The pending batch failed while the page was leaving. Failed batches are dropped. | Let the page hide or visibility flush complete, or call `cloud.events.dispose()` when your client is torn down. |
+| The last interaction is missing after navigation | The flush made when the page hides or unloads was not delivered; it is sent once and never retried. | Let the scheduled flush run before navigating away. |
 | Satisfaction has no signal | The thread has no thumbs rating and none of the positive or negative behaviour facts in the satisfaction rule. | A thumbs up or a copy or second run supplies a positive fact; a thumbs down or a stop, regeneration, or edit supplies a negative fact. |
 | The Satisfaction column lacks negative readings | The events client has not reported stops, regenerations, or edits. | Use the assistant-ui cloud client that emits those events. |

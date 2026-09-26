@@ -10,6 +10,7 @@ import {
   CARD_SUBTEXT_CAP,
   CARD_TITLE_CAP,
   CAROUSEL_CARD_CAP,
+  CHECKBOX_OPTION_CAP,
   CONTEXT_ELEMENT_CAP,
   CONTEXT_TEXT_CAP,
   DATA_TABLE_CHAR_BUDGET,
@@ -334,6 +335,32 @@ describe("toSlackBlocks", () => {
       });
     });
 
+    it("turns $field references in value into their fallback and warns", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Button",
+        label: "Save",
+        $action: {
+          type: "save",
+          note: { $field: "note" },
+          form: {
+            id: 7,
+            name: { $field: "name", fallback: "Ada" },
+            plan: [{ $field: "plan" }],
+          },
+        },
+      });
+      expect((blocks[0] as SlackActionsBlock).elements[0]).toMatchObject({
+        action_id: "save",
+        value: JSON.stringify({ form: { id: 7, name: "Ada", plan: [] } }),
+      });
+      expect(warnings).toContainEqual({
+        code: "fallback",
+        component: "Button",
+        detail:
+          "field references in value became their fallback, or were dropped without one, because Slack sends no other control's value with a button click.",
+      });
+    });
+
     it(`omits value instead of truncating and warns when the serialized action payload exceeds ${BUTTON_VALUE_CAP} characters`, () => {
       const { blocks, warnings } = toSlackBlocks({
         $type: "Button",
@@ -392,6 +419,51 @@ describe("toSlackBlocks", () => {
           },
         ],
       });
+    });
+
+    it("sets initial_option from a matching defaultValue", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Select",
+        defaultValue: "b",
+        options: [
+          { label: "Alpha", value: "a" },
+          { label: "Beta", value: "b" },
+        ],
+      });
+      expect(
+        (
+          (blocks[0] as SlackActionsBlock)
+            .elements[0] as SlackStaticSelectElement
+        ).initial_option,
+      ).toEqual({ text: { type: "plain_text", text: "Beta" }, value: "b" });
+    });
+
+    it("sets initial_option from a matching empty defaultValue", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Select",
+        defaultValue: "",
+        options: [{ label: "No preference", value: "" }],
+      });
+      expect(
+        (
+          (blocks[0] as SlackActionsBlock)
+            .elements[0] as SlackStaticSelectElement
+        ).initial_option,
+      ).toEqual({
+        text: { type: "plain_text", text: "No preference" },
+        value: "",
+      });
+    });
+
+    it("omits initial_option when defaultValue has no matching option", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Select",
+        defaultValue: "missing",
+        options: [{ label: "Alpha", value: "a" }],
+      });
+      expect((blocks[0] as SlackActionsBlock).elements[0]).not.toHaveProperty(
+        "initial_option",
+      );
     });
 
     it(`clamps options past ${SELECT_OPTION_CAP} entries and warns`, () => {
@@ -507,6 +579,28 @@ describe("toSlackBlocks", () => {
       });
       expect((blocks[0] as SlackInputBlock).element).not.toHaveProperty(
         "multiline",
+      );
+    });
+
+    it("sets initial_value from a non-empty defaultValue", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Input",
+        label: "Notes",
+        defaultValue: "Draft reply",
+      });
+      expect((blocks[0] as SlackInputBlock).element.initial_value).toBe(
+        "Draft reply",
+      );
+    });
+
+    it("omits initial_value when defaultValue is empty", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Input",
+        label: "Notes",
+        defaultValue: "",
+      });
+      expect((blocks[0] as SlackInputBlock).element).not.toHaveProperty(
+        "initial_value",
       );
     });
 
@@ -718,6 +812,89 @@ describe("toSlackBlocks", () => {
     });
   });
 
+  describe("CheckboxGroup", () => {
+    const options = [
+      { label: "Small", value: "s" },
+      { label: "Large", value: "l" },
+    ];
+
+    it("emits a multi-option checkboxes element", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "CheckboxGroup",
+        options,
+        $action: { type: "sizes" },
+      });
+      expect(blocks[0]).toEqual({
+        type: "actions",
+        elements: [
+          {
+            type: "checkboxes",
+            action_id: "sizes",
+            options: [
+              { text: { type: "plain_text", text: "Small" }, value: "s" },
+              { text: { type: "plain_text", text: "Large" }, value: "l" },
+            ],
+          },
+        ],
+      });
+    });
+
+    it("sets initial_options from matching defaultValue entries", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "CheckboxGroup",
+        options,
+        defaultValue: ["l", "missing"],
+        $action: { type: "sizes" },
+      });
+      expect(
+        ((blocks[0] as SlackActionsBlock).elements[0] as SlackCheckboxesElement)
+          .initial_options,
+      ).toEqual([{ text: { type: "plain_text", text: "Large" }, value: "l" }]);
+
+      const { blocks: withoutInitialOptions } = toSlackBlocks({
+        $type: "CheckboxGroup",
+        options,
+        defaultValue: ["missing"],
+        $action: { type: "sizes" },
+      });
+      expect(
+        (withoutInitialOptions[0] as SlackActionsBlock).elements[0],
+      ).not.toHaveProperty("initial_options");
+    });
+
+    it("names CheckboxGroup when malformed options are dropped", () => {
+      const { warnings } = toSlackBlocks({
+        $type: "CheckboxGroup",
+        options: [{ label: "ok", value: "a" }, { label: "bad" }],
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "CheckboxGroup",
+        detail: "1 option was dropped for want of a string label and value.",
+      });
+    });
+
+    it(`clamps options past ${CHECKBOX_OPTION_CAP} entries and warns`, () => {
+      const manyOptions = Array.from(
+        { length: CHECKBOX_OPTION_CAP + 3 },
+        (_, i) => ({ label: `L${i}`, value: `v${i}` }),
+      );
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "CheckboxGroup",
+        options: manyOptions,
+        $action: { type: "sizes" },
+      });
+      const element = (blocks[0] as SlackActionsBlock)
+        .elements[0] as SlackCheckboxesElement;
+      expect(element.options).toHaveLength(CHECKBOX_OPTION_CAP);
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "CheckboxGroup",
+        detail: `options were clamped to ${CHECKBOX_OPTION_CAP} entries.`,
+      });
+    });
+  });
+
   describe("interactive grouping", () => {
     it("groups consecutive interactive siblings into one actions block, split by a non-interactive sibling", () => {
       const root = [
@@ -727,6 +904,11 @@ describe("toSlackBlocks", () => {
           options: [{ label: "X", value: "x" }],
           $action: { type: "b" },
         },
+        {
+          $type: "CheckboxGroup",
+          options: [{ label: "Y", value: "y" }],
+          $action: { type: "checkbox" },
+        },
         { $type: "Text", value: "gap" },
         { $type: "Button", label: "C", $action: { type: "c" } },
       ];
@@ -734,7 +916,11 @@ describe("toSlackBlocks", () => {
       expect(blocks).toHaveLength(3);
       expect(blocks[0]).toMatchObject({
         type: "actions",
-        elements: [{ type: "button" }, { type: "static_select" }],
+        elements: [
+          { type: "button" },
+          { type: "static_select" },
+          { type: "checkboxes" },
+        ],
       });
       expect(blocks[1]).toMatchObject({ type: "section" });
       expect(blocks[2]).toMatchObject({

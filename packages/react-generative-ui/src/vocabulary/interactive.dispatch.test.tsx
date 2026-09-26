@@ -52,9 +52,10 @@ describe("interactiveVocabulary $action dispatch", () => {
       $dispatch: registry.dispatch,
     } as ButtonRenderProps) as ReactNode;
     expect(isValidElement(out)).toBe(true);
-    const onClick = (out as { props: { onClick: () => void } }).props.onClick;
+    const onClick = (out as { props: { onClick: (e: object) => void } }).props
+      .onClick;
     expect(typeof onClick).toBe("function");
-    onClick();
+    onClick({ currentTarget: {} });
     expect(handler).toHaveBeenCalledWith({
       payload: { type: "purchase", itemId: "sku-1" },
     });
@@ -66,9 +67,10 @@ describe("interactiveVocabulary $action dispatch", () => {
       $status: "done",
       $action: { type: "purchase", itemId: "sku-1" },
     } as ButtonRenderProps) as ReactNode;
-    const onClick = (out as { props: { onClick: () => void } }).props.onClick;
+    const onClick = (out as { props: { onClick: (e: object) => void } }).props
+      .onClick;
     expect(typeof onClick).toBe("function");
-    expect(() => onClick()).not.toThrow();
+    expect(() => onClick({ currentTarget: {} })).not.toThrow();
   });
 
   it("Button onClick is a no-op when $action is absent", () => {
@@ -79,7 +81,9 @@ describe("interactiveVocabulary $action dispatch", () => {
       $status: "done",
       $dispatch: registry.dispatch,
     } as ButtonRenderProps) as ReactNode;
-    (out as { props: { onClick: () => void } }).props.onClick();
+    (out as { props: { onClick: (e: object) => void } }).props.onClick({
+      currentTarget: {},
+    });
     expect(handler).not.toHaveBeenCalled();
   });
 
@@ -274,8 +278,9 @@ describe("interactiveVocabulary $action dispatch", () => {
       $action: { type: "purchase" },
       $dispatch: registry.dispatch,
     } as ButtonRenderProps) as ReactNode;
-    const onClick = (out as { props: { onClick: () => void } }).props.onClick;
-    onClick();
+    const onClick = (out as { props: { onClick: (e: object) => void } }).props
+      .onClick;
+    onClick({ currentTarget: {} });
     expect(handler).toHaveBeenCalledWith({ payload: { type: "purchase" } });
   });
 
@@ -336,8 +341,9 @@ describe("interactiveVocabulary $action dispatch", () => {
     const options = getRadioOptions(out);
     const secondRadio = (options[1]!.props as { children: ReactElement[] })
       .children[0] as ReactElement;
-    const onChange = (secondRadio.props as { onChange: () => void }).onChange;
-    onChange();
+    const onChange = (secondRadio.props as { onChange: (e: object) => void })
+      .onChange;
+    onChange({ currentTarget: {} });
     expect(handler).toHaveBeenCalledWith({
       payload: { type: "pick", $input: "lg" },
     });

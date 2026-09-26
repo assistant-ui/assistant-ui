@@ -75,7 +75,15 @@ export const layoutVocabulary = {
                 type={asForm ? "submit" : "button"}
                 data-aui="card-confirm"
                 onClick={
-                  asForm ? undefined : () => fire(confirm.$action, $dispatch)
+                  asForm
+                    ? undefined
+                    : (e) =>
+                        fire(
+                          confirm.$action,
+                          $dispatch,
+                          undefined,
+                          e.currentTarget,
+                        )
                 }
               >
                 {toTextContent(confirm.label)}
@@ -85,7 +93,9 @@ export const layoutVocabulary = {
               <button
                 type="button"
                 data-aui="card-cancel"
-                onClick={() => fire(cancel.$action, $dispatch)}
+                onClick={(e) =>
+                  fire(cancel.$action, $dispatch, undefined, e.currentTarget)
+                }
               >
                 {toTextContent(cancel.label)}
               </button>
@@ -115,6 +125,7 @@ export const layoutVocabulary = {
                     confirm?.$action,
                     $dispatch,
                     collectFormValuesFromEvent(event),
+                    event.currentTarget,
                   );
                 }
               : undefined

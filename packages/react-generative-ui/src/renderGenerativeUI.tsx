@@ -1,7 +1,10 @@
+import { RadioGroupScope } from "./RadioGroupScope";
 import { getPartialJsonObjectMeta } from "assistant-stream/utils";
 import { Fragment, type ReactNode } from "react";
+import { hasFieldReference, resolveFieldReferences } from "./fieldReferences";
 import {
   normalizeUINode,
+  type Action,
   type NormalizedUIElement,
   type NormalizedUINode,
 } from "./ir";
@@ -32,8 +35,34 @@ export function renderGenerativeUI(
   // string has not finished streaming.
   const meta = getPartialJsonObjectMeta(node as Record<symbol, unknown>);
   const partialPath = meta?.state === "partial" ? meta.partialPath : undefined;
-  return renderNode(normalizeUINode(node, partialPath), library, context);
+  const rendered = renderNode(
+    normalizeUINode(node, partialPath),
+    library,
+    withFieldFallbacks(context),
+  );
+  return rendered !== null && typeof rendered === "object" ? (
+    <RadioGroupScope>{rendered}</RadioGroupScope>
+  ) : (
+    rendered
+  );
 }
+
+// A component that dispatches `$action` itself reads no control, so each `$field` reference left in it becomes its fallback.
+const withFieldFallbacks = (
+  context: GenerativeUIRenderContext,
+): GenerativeUIRenderContext => {
+  const { dispatch } = context;
+  if (dispatch === undefined) return context;
+  return {
+    ...context,
+    dispatch: (action) =>
+      dispatch(
+        hasFieldReference(action)
+          ? (resolveFieldReferences(action, {}) as Action)
+          : action,
+      ),
+  };
+};
 
 function renderNode(
   node: NormalizedUINode,

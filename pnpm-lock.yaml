@@ -4005,6 +4005,9 @@ importers:
       '@assistant-ui/store':
         specifier: ^0.3.15
         version: link:../store
+      assistant-cloud:
+        specifier: '*'
+        version: link:../cloud
     devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*

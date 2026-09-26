@@ -135,6 +135,7 @@ class TestRuntime extends BaseThreadRuntimeCore {
       attachments: false,
       feedback: false,
       queue: false,
+      answerToolCall: false,
     };
   }
 
@@ -1378,6 +1379,78 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
         message: typed,
       });
       expect(run).not.toHaveBeenCalled();
+    } finally {
+      thread.disconnectVoice();
+    }
+  });
+
+  it("resolves a typed voice turn after a paused branch once the settled pause is stored", async () => {
+    let runs = 0;
+    let pausedId: string | undefined;
+    let releasePause: (() => void) | undefined;
+    const voiceAdapter = createVoiceAdapter({ sendText: async () => {} });
+    const runtime = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            run: async () =>
+              ++runs === 1
+                ? {
+                    content: [
+                      {
+                        type: "tool-call",
+                        toolCallId: "call-deploy",
+                        toolName: "deploy",
+                        args: {},
+                        argsText: "{}",
+                        approval: { id: "a1" },
+                      },
+                    ],
+                    status: { type: "requires-action", reason: "tool-calls" },
+                  }
+                : { content: [{ type: "text", text: "done" }] },
+          },
+          history: {
+            load: async () => ({ messages: [] }),
+            append: async (item) => {
+              if (item.message.id !== pausedId) return;
+              await new Promise<void>((resolve) => {
+                releasePause = resolve;
+              });
+            },
+          },
+          voice: voiceAdapter.adapter,
+        },
+      },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    await thread.__internal_load();
+    await thread.append(typedMessage(thread, "deploy the app"));
+    const [question, paused] = thread.messages;
+    await thread.startRun({
+      parentId: question!.id,
+      sourceId: paused!.id,
+      runConfig: {},
+    });
+    thread.connectVoice();
+    thread.switchToBranch(paused!.id);
+    pausedId = paused!.id;
+
+    try {
+      let sent = false;
+      const typed = thread.append(typedMessage(thread)).then(() => {
+        sent = true;
+      });
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(thread.messages[1]).toMatchObject({
+        id: paused!.id,
+        status: { type: "incomplete", reason: "cancelled" },
+      });
+      expect(sent).toBe(false);
+      releasePause?.();
+      await typed;
     } finally {
       thread.disconnectVoice();
     }

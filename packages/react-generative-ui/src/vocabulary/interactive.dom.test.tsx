@@ -1,0 +1,905 @@
+// @vitest-environment jsdom
+
+import { act } from "react";
+import { createRoot, hydrateRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { convertSurfaceToUISpec } from "../a2ui/convert";
+import { applyA2uiOperations } from "../a2ui/reducer";
+import { createActionRegistry, type ActionHandler } from "../actionRegistry";
+import type { GenerativeUIDispatch, GenerativeUILibrary } from "../types";
+import { renderGenerativeUI } from "../renderGenerativeUI";
+import { defaultGenerativeUILibrary } from "./index";
+
+(
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
+
+const toppings = [
+  { label: "Basil", value: "basil" },
+  { label: "Olives", value: "olives" },
+  { label: "Onion", value: "onion" },
+];
+
+let root: Root | undefined;
+
+afterEach(async () => {
+  await act(async () => root?.unmount());
+  root = undefined;
+  document.body.innerHTML = "";
+});
+
+const view = (node: unknown, dispatch?: GenerativeUIDispatch) => (
+  <div data-aui="root">
+    {renderGenerativeUI(node, defaultGenerativeUILibrary, {
+      status: "done",
+      ...(dispatch ? { dispatch } : {}),
+    })}
+  </div>
+);
+
+const mount = async (
+  node: unknown,
+  handlers: Readonly<Record<string, ActionHandler>>,
+  parent: HTMLElement = document.body,
+) => {
+  const container = document.createElement("div");
+  parent.append(container);
+  const registry = createActionRegistry(handlers);
+  root = createRoot(container);
+  await act(async () => {
+    root!.render(view(node, registry.dispatch));
+  });
+  return container;
+};
+
+describe("RadioGroup", () => {
+  it("keeps repeated logical fields exclusive within one root without a form", async () => {
+    const save = vi.fn();
+    const container = await mount(
+      {
+        $type: "Col",
+        children: [
+          { $type: "RadioGroup", name: "choice", options: toppings },
+          { $type: "RadioGroup", name: "choice", options: toppings },
+          {
+            $type: "Button",
+            label: "Save",
+            $action: { type: "save", choice: { $field: "choice" } },
+          },
+        ],
+      },
+      { save },
+    );
+    const inputs = container.querySelectorAll("input");
+    await act(async () => inputs[4]!.click());
+    await act(async () => inputs[0]!.click());
+    await act(async () => container.querySelector("button")!.click());
+
+    expect(inputs[4]!.checked).toBe(false);
+    expect(save).toHaveBeenCalledWith({
+      payload: { type: "save", choice: "basil" },
+    });
+  });
+
+  it.each(["Form", "Card"])(
+    "keeps repeated logical names mutually exclusive inside a %s form",
+    async ($type) => {
+      const save = vi.fn();
+      const container = await mount(
+        {
+          $type,
+          ...($type === "Form"
+            ? { $action: { type: "save" } }
+            : {
+                asForm: true,
+                confirm: { label: "Save", $action: { type: "save" } },
+              }),
+          children: [
+            { $type: "RadioGroup", name: "choice", options: toppings },
+            {
+              $type: "Card",
+              children: {
+                $type: "RadioGroup",
+                name: "choice",
+                options: toppings,
+              },
+            },
+            ...($type === "Form"
+              ? [{ $type: "Button", label: "Save", submit: true }]
+              : []),
+          ],
+        },
+        { save },
+      );
+      const inputs = container.querySelectorAll("input");
+      await act(async () => inputs[4]!.click());
+      await act(async () => inputs[0]!.click());
+      await act(async () => container.querySelector("button")!.click());
+
+      expect(inputs[4]!.checked).toBe(false);
+      expect(save).toHaveBeenCalledWith({
+        payload: { type: "save", $input: { choice: "basil" } },
+      });
+    },
+  );
+
+  it("preserves independent selections across separately rendered and hydrated roots", async () => {
+    const save = vi.fn();
+    const registry = createActionRegistry({ save });
+    const tree = view(
+      {
+        $type: "Col",
+        children: [
+          { $type: "RadioGroup", name: "choice", options: toppings },
+          {
+            $type: "Button",
+            label: "Save",
+            $action: { type: "save", choice: { $field: "choice" } },
+          },
+        ],
+      },
+      registry.dispatch,
+    );
+    const containers = ["first-", "second-"].map((identifierPrefix) => {
+      const container = document.createElement("div");
+      container.innerHTML = renderToString(tree, { identifierPrefix });
+      document.body.append(container);
+      return { container, identifierPrefix };
+    });
+    const hydratedRoots: Root[] = [];
+    const onRecoverableError = vi.fn();
+    try {
+      await act(async () => {
+        for (const { container, identifierPrefix } of containers) {
+          hydratedRoots.push(
+            hydrateRoot(container, tree, {
+              identifierPrefix,
+              onRecoverableError,
+            }),
+          );
+        }
+      });
+      for (const [index, { container }] of containers.entries()) {
+        await act(async () =>
+          container.querySelectorAll("input")[index]!.click(),
+        );
+      }
+      for (const { container } of containers) {
+        await act(async () => container.querySelector("button")!.click());
+      }
+
+      expect(save.mock.calls.map(([{ payload }]) => payload)).toEqual([
+        { type: "save", choice: "basil" },
+        { type: "save", choice: "olives" },
+      ]);
+      expect(onRecoverableError).not.toHaveBeenCalled();
+    } finally {
+      await act(async () => hydratedRoots.forEach((item) => item.unmount()));
+    }
+  });
+
+  it("keeps same-named groups in separate roots independent and resolves their field values", async () => {
+    const save = vi.fn();
+    const registry = createActionRegistry({ save });
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    const card = (id: string) => ({
+      $type: "Col",
+      children: [
+        { $type: "RadioGroup", name: "choice", options: toppings },
+        {
+          $type: "Button",
+          label: "Save",
+          $action: { type: "save", id, choice: { $field: "choice" } },
+        },
+      ],
+    });
+    await act(async () => {
+      root!.render(
+        <>
+          {view(card("first"), registry.dispatch)}
+          {view(card("second"), registry.dispatch)}
+        </>,
+      );
+    });
+    const inputs = container.querySelectorAll("input");
+    const [firstSave, secondSave] = container.querySelectorAll("button");
+
+    await act(async () => inputs[0]!.click());
+    await act(async () => inputs[4]!.click());
+    await act(async () => firstSave!.click());
+    await act(async () => secondSave!.click());
+
+    expect(save.mock.calls.map(([{ payload }]) => payload)).toEqual([
+      { type: "save", id: "first", choice: "basil" },
+      { type: "save", id: "second", choice: "olives" },
+    ]);
+    expect(inputs[0]!.checked).toBe(true);
+    expect(inputs[4]!.checked).toBe(true);
+
+    await act(async () => inputs[2]!.click());
+    expect(inputs[0]!.checked).toBe(false);
+    expect(inputs[2]!.checked).toBe(true);
+    expect(inputs[4]!.checked).toBe(true);
+  });
+
+  it("submits logical field names and omits unnamed groups", async () => {
+    const save = vi.fn();
+    const container = await mount(
+      {
+        $type: "Form",
+        $action: { type: "save" },
+        children: [
+          { $type: "RadioGroup", name: "choice", options: toppings },
+          { $type: "RadioGroup", options: toppings },
+          { $type: "Button", label: "Save", submit: true },
+        ],
+      },
+      { save },
+    );
+    const inputs = container.querySelectorAll("input");
+    await act(async () => inputs[0]!.click());
+    await act(async () => inputs[4]!.click());
+    await act(async () => container.querySelector("button")!.click());
+
+    expect(save).toHaveBeenCalledWith({
+      payload: { type: "save", $input: { choice: "basil" } },
+    });
+  });
+});
+
+describe("option identity", () => {
+  it.each(["CheckboxGroup", "RadioGroup", "Select"])(
+    "%s preserves the submitted choice when options move or their labels change",
+    async (type) => {
+      const save = vi.fn();
+      const registry = createActionRegistry({ save });
+      const form = (options: typeof toppings) => ({
+        $type: "Form",
+        $action: { type: "save" },
+        children: [
+          { $type: type, name: "choice", options },
+          { $type: "Button", label: "Save", submit: true },
+        ],
+      });
+      const container = await mount(form(toppings), { save });
+      if (type === "Select") {
+        container.querySelector("select")!.value = "olives";
+      } else {
+        await act(async () => container.querySelectorAll("input")[1]!.click());
+      }
+      await act(async () => container.querySelector("button")!.click());
+
+      await act(async () => {
+        root!.render(
+          view(
+            form([
+              { label: "Pepper", value: "pepper" },
+              ...[...toppings].reverse().map((option) => ({
+                ...option,
+                label: option.label.toUpperCase(),
+              })),
+            ]),
+            registry.dispatch,
+          ),
+        );
+      });
+      await act(async () => container.querySelector("button")!.click());
+
+      const payload = {
+        type: "save",
+        $input: { choice: type === "CheckboxGroup" ? ["olives"] : "olives" },
+      };
+      expect(save.mock.calls.map(([call]) => call.payload)).toEqual([
+        payload,
+        payload,
+      ]);
+    },
+  );
+
+  it.each(["CheckboxGroup", "RadioGroup", "Select"])(
+    "%s retains duplicate-valued options without duplicate React keys",
+    async (type) => {
+      const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        const container = await mount(
+          {
+            $type: type,
+            options: [
+              { label: "First", value: "same" },
+              { label: "Second", value: "same" },
+              { label: "Third", value: "same:1" },
+            ],
+          },
+          {},
+        );
+        expect(container.querySelectorAll("input, option")).toHaveLength(3);
+        expect(errors).not.toHaveBeenCalled();
+      } finally {
+        errors.mockRestore();
+      }
+    },
+  );
+});
+
+describe("CheckboxGroup", () => {
+  it("dispatches its checked option values in option order on every change", async () => {
+    const pick = vi.fn();
+    const container = await mount(
+      {
+        $type: "CheckboxGroup",
+        options: toppings,
+        defaultValue: ["onion"],
+        $action: { type: "pick" },
+        children: { $type: "Checkbox", label: "Extra cheese" },
+      },
+      { pick },
+    );
+    const [basil, , onion, cheese] = container.querySelectorAll("input");
+
+    await act(async () => basil!.click());
+    await act(async () => cheese!.click());
+    await act(async () => onion!.click());
+
+    expect(pick.mock.calls.map(([{ payload }]) => payload)).toEqual([
+      { type: "pick", $input: ["basil", "onion"] },
+      { type: "pick", $input: ["basil"] },
+    ]);
+  });
+
+  it("renders a converted A2UI multipleSelection ChoicePicker with its bound values checked", async () => {
+    const { state } = applyA2uiOperations(new Map(), [
+      { version: "v0.9", createSurface: { surfaceId: "s" } },
+      {
+        version: "v0.9",
+        updateComponents: {
+          surfaceId: "s",
+          components: [
+            {
+              id: "root",
+              component: "ChoicePicker",
+              variant: "multipleSelection",
+              options: toppings,
+              value: { path: "/picked" },
+            },
+          ],
+        },
+      },
+      {
+        version: "v0.9",
+        updateDataModel: {
+          surfaceId: "s",
+          path: "/",
+          value: { picked: ["basil", "onion"] },
+        },
+      },
+    ]);
+    const container = await mount(
+      convertSurfaceToUISpec(state.get("s")!).spec,
+      {},
+    );
+
+    expect(
+      [...container.querySelectorAll("input")].map((input) => input.checked),
+    ).toEqual([true, false, true]);
+  });
+
+  it("submits each group in a Form as its checked values keyed by name", async () => {
+    const submit = vi.fn();
+    const container = await mount(
+      {
+        $type: "Form",
+        $action: { type: "submit" },
+        children: [
+          {
+            $type: "CheckboxGroup",
+            name: "toppings",
+            options: toppings,
+            defaultValue: ["olives"],
+          },
+          {
+            $type: "CheckboxGroup",
+            name: "sides",
+            options: [{ label: "Fries", value: "fries" }],
+          },
+          { $type: "Button", label: "Order", submit: true },
+        ],
+      },
+      { submit },
+    );
+
+    await act(async () => container.querySelector("input")!.click());
+    await act(async () => container.querySelector("button")!.click());
+
+    expect(submit).toHaveBeenCalledWith({
+      payload: {
+        type: "submit",
+        $input: { toppings: ["basil", "olives"], sides: [] },
+      },
+    });
+  });
+});
+
+describe("$field references", () => {
+  it("resolve from the enclosing form, or else the generative UI root, at the moment the action fires", async () => {
+    const save = vi.fn();
+    const container = await mount(
+      {
+        $type: "Col",
+        children: [
+          { $type: "Input", name: "title", defaultValue: "Draft" },
+          {
+            $type: "Select",
+            name: "size",
+            options: [
+              { label: "Medium", value: "m" },
+              { label: "Large", value: "l" },
+            ],
+            defaultValue: "l",
+          },
+          {
+            $type: "Form",
+            $action: { type: "submit" },
+            children: [
+              { $type: "Input", name: "note" },
+              {
+                $type: "Button",
+                label: "Save note",
+                $action: {
+                  type: "save",
+                  note: { $field: "note" },
+                  title: { $field: "title" },
+                },
+              },
+            ],
+          },
+          {
+            $type: "Button",
+            label: "Save",
+            $action: {
+              type: "save",
+              fields: [{ $field: "title" }, { $field: "missing" }],
+              size: { $field: "size" },
+              note: { $field: "note" },
+              missing: { $field: "missing" },
+            },
+          },
+        ],
+      },
+      { save },
+    );
+    const [title, note] = container.querySelectorAll("input");
+    const [saveNote, saveAll] = container.querySelectorAll("button");
+
+    expect(title!.value).toBe("Draft");
+    expect(container.querySelector("select")!.value).toBe("l");
+    title!.value = "Final";
+    note!.value = "Ship it";
+    await act(async () => saveNote!.click());
+    await act(async () => saveAll!.click());
+
+    expect(save.mock.calls.map(([{ payload }]) => payload)).toEqual([
+      { type: "save", note: "Ship it" },
+      { type: "save", fields: ["Final"], size: "l", note: "Ship it" },
+    ]);
+  });
+  it("never read a control inside a nested generative UI root", async () => {
+    const save = vi.fn();
+    const container = await mount(
+      {
+        $type: "Col",
+        children: [
+          { $type: "Input", name: "note", defaultValue: "outer" },
+          {
+            $type: "Button",
+            label: "Save",
+            $action: { type: "save", note: { $field: "note" } },
+          },
+        ],
+      },
+      { save },
+    );
+    const nested = document.createElement("div");
+    nested.setAttribute("data-aui", "root");
+    nested.innerHTML = '<input name="note" value="inner">';
+    container.querySelector('[data-aui="root"]')!.append(nested);
+
+    await act(async () => container.querySelector("button")!.click());
+
+    expect(save).toHaveBeenCalledWith({
+      payload: { type: "save", note: "outer" },
+    });
+  });
+
+  it("never read a host form around the generative UI root", async () => {
+    const save = vi.fn();
+    const hostForm = document.createElement("form");
+    hostForm.innerHTML = '<input name="secret" value="host">';
+    document.body.append(hostForm);
+    const container = await mount(
+      {
+        $type: "Button",
+        label: "Save",
+        $action: { type: "save", secret: { $field: "secret" } },
+      },
+      { save },
+      hostForm,
+    );
+
+    await act(async () => container.querySelector("button")!.click());
+
+    expect(save).toHaveBeenCalledWith({ payload: { type: "save" } });
+  });
+  it("read nothing outside a vocabulary form when the tree has no generative UI root", async () => {
+    const save = vi.fn();
+    const registry = createActionRegistry({ save });
+    const hostForm = document.createElement("form");
+    hostForm.innerHTML = '<input name="secret" value="host">';
+    const inHost = document.createElement("div");
+    const standalone = document.createElement("div");
+    hostForm.append(inHost);
+    document.body.append(hostForm, standalone);
+    const roots = [createRoot(inHost), createRoot(standalone)];
+    await act(async () => {
+      roots[0]!.render(
+        renderGenerativeUI(
+          {
+            $type: "Button",
+            label: "Save",
+            $action: { type: "save", secret: { $field: "secret" } },
+          },
+          defaultGenerativeUILibrary,
+          { status: "done", dispatch: registry.dispatch },
+        ),
+      );
+      roots[1]!.render(
+        renderGenerativeUI(
+          {
+            $type: "Form",
+            children: [
+              { $type: "Input", name: "note", defaultValue: "kept" },
+              {
+                $type: "Button",
+                label: "Save note",
+                $action: { type: "save", note: { $field: "note" } },
+              },
+            ],
+          },
+          defaultGenerativeUILibrary,
+          { status: "done", dispatch: registry.dispatch },
+        ),
+      );
+    });
+
+    await act(async () => inHost.querySelector("button")!.click());
+    await act(async () => standalone.querySelector("button")!.click());
+    await act(async () => roots.forEach((r) => r.unmount()));
+
+    expect(save.mock.calls.map(([{ payload }]) => payload)).toEqual([
+      { type: "save" },
+      { type: "save", note: "kept" },
+    ]);
+  });
+});
+
+describe("A2UI two-way binding", () => {
+  it("renders bound input values and sends the values the user entered as the action context", async () => {
+    const { state } = applyA2uiOperations(new Map(), [
+      { version: "v0.9", createSurface: { surfaceId: "s" } },
+      {
+        version: "v0.9",
+        updateComponents: {
+          surfaceId: "s",
+          components: [
+            {
+              id: "root",
+              component: "Column",
+              children: ["name", "plan", "send"],
+            },
+            {
+              id: "name",
+              component: "TextField",
+              label: "Name",
+              value: { path: "/form/name" },
+            },
+            {
+              id: "plan",
+              component: "ChoicePicker",
+              options: [
+                { label: "Free", value: "free" },
+                { label: "Pro", value: "pro" },
+              ],
+              value: { path: "/form/plan" },
+            },
+            {
+              id: "send",
+              component: "Button",
+              label: "Send",
+              action: {
+                event: {
+                  name: "send",
+                  context: {
+                    name: { path: "/form/name" },
+                    form: { path: "/form" },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      },
+      {
+        version: "v0.9",
+        updateDataModel: {
+          surfaceId: "s",
+          path: "/",
+          value: { form: { name: "Ada", plan: ["free"], id: 7 } },
+        },
+      },
+    ]);
+    const send = vi.fn();
+    const container = await mount(
+      convertSurfaceToUISpec(state.get("s")!).spec,
+      { "a2ui:action": send },
+    );
+    const name = container.querySelector<HTMLInputElement>(
+      'input[data-aui="input"]',
+    )!;
+    const [free, pro] = container.querySelectorAll<HTMLInputElement>(
+      'input[type="radio"]',
+    );
+
+    expect(name.value).toBe("Ada");
+    expect(free!.checked).toBe(true);
+    name.value = "Grace";
+    await act(async () => pro!.click());
+    await act(async () => container.querySelector("button")!.click());
+
+    expect(send).toHaveBeenCalledWith({
+      payload: {
+        type: "a2ui:action",
+        name: "send",
+        surfaceId: "s",
+        sourceComponentId: "send",
+        context: {
+          name: "Grace",
+          form: { name: "Grace", plan: ["pro"], id: 7 },
+        },
+      },
+    });
+  });
+
+  it("sends the agent's values when an overridden Button dispatches $action itself", async () => {
+    const { state } = applyA2uiOperations(new Map(), [
+      { version: "v0.9", createSurface: { surfaceId: "s" } },
+      {
+        version: "v0.9",
+        updateComponents: {
+          surfaceId: "s",
+          components: [
+            { id: "root", component: "Column", children: ["email", "send"] },
+            {
+              id: "email",
+              component: "TextField",
+              value: { path: "/form/email" },
+            },
+            {
+              id: "send",
+              component: "Button",
+              label: "Send",
+              action: {
+                event: {
+                  name: "send",
+                  context: {
+                    email: { path: "/form/email" },
+                    form: { path: "/form" },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      },
+      {
+        version: "v0.9",
+        updateDataModel: {
+          surfaceId: "s",
+          path: "/",
+          value: { form: { email: "old@example.com" } },
+        },
+      },
+    ]);
+    const button = defaultGenerativeUILibrary.Button!;
+    const library: GenerativeUILibrary = {
+      ...defaultGenerativeUILibrary,
+      Button: {
+        properties: button.properties,
+        description: button.description,
+        render: ({ label, $action, $dispatch }) => (
+          <button
+            type="button"
+            onClick={() => ($action ? $dispatch?.($action) : undefined)}
+          >
+            {label}
+          </button>
+        ),
+      },
+    };
+    const send = vi.fn();
+    const registry = createActionRegistry({ "a2ui:action": send });
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => {
+      root!.render(
+        <div data-aui="root">
+          {renderGenerativeUI(
+            convertSurfaceToUISpec(state.get("s")!).spec,
+            library,
+            { status: "done", dispatch: registry.dispatch },
+          )}
+        </div>,
+      );
+    });
+
+    container.querySelector<HTMLInputElement>(
+      'input[data-aui="input"]',
+    )!.value = "new@example.com";
+    await act(async () => container.querySelector("button")!.click());
+
+    expect(send).toHaveBeenCalledWith({
+      payload: {
+        type: "a2ui:action",
+        name: "send",
+        surfaceId: "s",
+        sourceComponentId: "send",
+        context: {
+          email: "old@example.com",
+          form: { email: "old@example.com" },
+        },
+      },
+    });
+  });
+
+  it("keeps what the user entered until the agent updates the bound value", async () => {
+    const options = [
+      { label: "Free", value: "free" },
+      { label: "Pro", value: "pro" },
+      { label: "Team", value: "team" },
+    ];
+    const surface = (data: Record<string, unknown>) =>
+      convertSurfaceToUISpec(
+        applyA2uiOperations(new Map(), [
+          { version: "v0.9", createSurface: { surfaceId: "s" } },
+          {
+            version: "v0.9",
+            updateComponents: {
+              surfaceId: "s",
+              components: [
+                {
+                  id: "root",
+                  component: "Column",
+                  children: ["name", "agree", "plan", "size", "extras", "day"],
+                },
+                {
+                  id: "name",
+                  component: "TextField",
+                  value: { path: "/name" },
+                },
+                {
+                  id: "agree",
+                  component: "CheckBox",
+                  value: { path: "/agree" },
+                },
+                {
+                  id: "plan",
+                  component: "ChoicePicker",
+                  options,
+                  value: { path: "/plan" },
+                },
+                {
+                  id: "size",
+                  component: "ChoicePicker",
+                  displayStyle: "chips",
+                  options,
+                  value: { path: "/size" },
+                },
+                {
+                  id: "extras",
+                  component: "ChoicePicker",
+                  variant: "multipleSelection",
+                  options,
+                  value: { path: "/extras" },
+                },
+                {
+                  id: "day",
+                  component: "DateTimeInput",
+                  value: { path: "/day" },
+                },
+              ],
+            },
+          },
+          {
+            version: "v0.9",
+            updateDataModel: { surfaceId: "s", path: "/", value: data },
+          },
+        ]).state.get("s")!,
+      ).spec;
+    const initial = {
+      name: "Ada",
+      agree: false,
+      plan: ["free"],
+      size: ["free"],
+      extras: [],
+      day: "2026-01-02",
+    };
+    const container = await mount(surface(initial), {});
+    const read = () => ({
+      name: container.querySelector<HTMLInputElement>(
+        'input[data-aui="input"]',
+      )!.value,
+      agree: container.querySelector<HTMLInputElement>(
+        'label[data-aui="checkbox"] input',
+      )!.checked,
+      plan: container.querySelector<HTMLInputElement>(
+        'input[type="radio"]:checked',
+      )?.value,
+      size: container.querySelector("select")!.value,
+      extras: [
+        ...container.querySelectorAll<HTMLInputElement>(
+          'fieldset[data-aui="checkboxgroup"] input:checked',
+        ),
+      ].map((input) => input.value),
+      day: container.querySelector<HTMLInputElement>('input[type="date"]')!
+        .value,
+    });
+    const edited = {
+      name: "Grace",
+      agree: false,
+      plan: "pro",
+      size: "pro",
+      extras: ["pro"],
+      day: "2026-03-04",
+    };
+    container.querySelector<HTMLInputElement>(
+      'input[data-aui="input"]',
+    )!.value = edited.name;
+    container.querySelectorAll<HTMLInputElement>(
+      'input[type="radio"]',
+    )[1]!.checked = true;
+    container.querySelector("select")!.value = edited.size;
+    container.querySelectorAll<HTMLInputElement>(
+      'fieldset[data-aui="checkboxgroup"] input',
+    )[1]!.checked = true;
+    container.querySelector<HTMLInputElement>('input[type="date"]')!.value =
+      edited.day;
+
+    await act(async () => root!.render(view(surface(initial))));
+    expect(read()).toEqual(edited);
+
+    await act(async () =>
+      root!.render(
+        view(
+          surface({
+            name: "Hopper",
+            agree: true,
+            plan: ["team"],
+            size: ["team"],
+            extras: ["team"],
+            day: "2026-05-06",
+          }),
+        ),
+      ),
+    );
+    expect(read()).toEqual({
+      name: "Hopper",
+      agree: true,
+      plan: "team",
+      size: "team",
+      extras: ["team"],
+      day: "2026-05-06",
+    });
+  });
+});

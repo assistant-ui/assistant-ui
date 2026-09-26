@@ -31,7 +31,7 @@ A rule name becomes fixed once it has verdicts. Renaming it is refused with `An 
 
 Deleting a rule deletes the scores it authored with `source: "evaluator"` in the same transaction, then removes the rule. This removes its verdict history rather than leaving scores that no longer have a rule.
 
-The evaluator list counts verdicts from the last 28 days. Its summaries are grouped by the rule's data type:
+**Evaluator verdicts** in [Intelligence](/docs/cloud/intelligence) summarizes verdicts from the last 28 days. Its summaries are grouped by the rule's data type:
 
 | Data type | Summary |
 |---|---|
@@ -53,4 +53,4 @@ Evaluators are available on Pro, Startup, and Enterprise plans. A project withou
 | A categorical rule will not save | It has no category, or two categories are the same after trimming. | Add 1 to 10 distinct category labels. |
 | A provider or model field is refused | Provider and model must be selected together. | Select both fields, or leave both empty. |
 | A new rule is refused | The project already has 20 evaluator rules. | Delete an unused rule, understanding that its evaluator verdicts are deleted with it. |
-| The summary is lower than expected | The list counts verdicts from the last 28 days, and the sampling rate selects only part of new conversations. | Check the rule's sampling rate and use the Intelligence, thread, or run score views to inspect the matching verdicts. |
+| The summary is lower than expected | **Evaluator verdicts** counts verdicts from the last 28 days, and the sampling rate selects only part of new conversations. | Check the rule's sampling rate and use the Intelligence, thread, or run score views to inspect the matching verdicts. |

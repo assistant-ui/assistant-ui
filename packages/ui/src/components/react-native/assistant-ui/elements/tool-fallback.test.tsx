@@ -1,6 +1,9 @@
 import { act, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import type { ToolCallMessagePartProps } from "@assistant-ui/react-native";
+import {
+  ReadonlyThreadProvider,
+  type ToolCallMessagePartProps,
+} from "@assistant-ui/react-native";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({ announce: vi.fn() }));
@@ -154,6 +157,61 @@ describe("ToolFallback", () => {
   it("does not offer a fabricated result for an unprojected interrupt", async () => {
     await renderTool();
 
+    expect(buttonNames()).toEqual([]);
+  });
+
+  it("shows the prompt without controls when the thread cannot answer", async () => {
+    await show(
+      <ReadonlyThreadProvider messages={[]}>
+        <ToolFallback
+          {...({
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "search",
+            args: {},
+            argsText: '{"query":"docs"}',
+            status: { type: "requires-action", reason: "interrupt" },
+            approval: {
+              id: "approval-1",
+              prompt: "Deploy to production?",
+              options: [
+                { id: "once", kind: "allow-once" },
+                { id: "reject", kind: "reject-once" },
+              ],
+            },
+            addResult: vi.fn(),
+            resume: vi.fn(),
+            respondToApproval: vi.fn(async () => {}),
+          } as ToolCallMessagePartProps)}
+        />
+      </ReadonlyThreadProvider>,
+    );
+
+    expect(container.textContent).toContain("Deploy to production?");
+    expect(buttonNames()).toEqual([]);
+  });
+
+  it("renders no approval view for an interrupt without a prompt when the thread cannot answer", async () => {
+    await show(
+      <ReadonlyThreadProvider messages={[]}>
+        <ToolFallback
+          {...({
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "search",
+            args: {},
+            argsText: '{"query":"docs"}',
+            status: { type: "requires-action", reason: "interrupt" },
+            interrupt: { type: "human", payload: {} },
+            addResult: vi.fn(),
+            resume: vi.fn(),
+            respondToApproval: vi.fn(async () => {}),
+          } as ToolCallMessagePartProps)}
+        />
+      </ReadonlyThreadProvider>,
+    );
+
+    expect(container.querySelector(".aui-tool-fallback-approval")).toBeNull();
     expect(buttonNames()).toEqual([]);
   });
 

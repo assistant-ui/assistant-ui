@@ -1,11 +1,32 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import {
+  useState,
+  type ComponentType,
+  type FormEvent,
+  type ReactNode,
+  type SVGProps,
+} from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { ChevronDownIcon } from "lucide-react";
+import {
+  BotIcon,
+  ChevronDownIcon,
+  CircleHelpIcon,
+  CpuIcon,
+  FileIcon,
+  InfoIcon,
+  LayoutGridIcon,
+  MessageSquareIcon,
+  PackageIcon,
+} from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import {
   Collapsible,
   CollapsibleContent,
@@ -18,6 +39,11 @@ import {
   submitOnModifiedEnter,
 } from "@/components/pages/shop/input-shared";
 import type { Checkout } from "@/lib/checkout/protocol";
+import {
+  parsePlan,
+  type PlanFact,
+  type PlanSection,
+} from "@/lib/checkout/plan-sections";
 import {
   useWizardFormId,
   useWizardNext,
@@ -103,7 +129,7 @@ const components: Components = {
     </td>
   ),
   blockquote: ({ children }) => (
-    <blockquote className="border-foreground/20 text-muted-foreground my-2 border-l-2 ps-3">
+    <blockquote className="border-foreground/30 text-muted-foreground my-2 border-l-2 ps-3">
       {children}
     </blockquote>
   ),
@@ -120,8 +146,230 @@ export function PlanMarkdown({ markdown }: { markdown: string }) {
   );
 }
 
+const inlineComponents: Components = {
+  ...components,
+  p: ({ children }) => <>{children}</>,
+};
+
+function PlanInline({ markdown }: { markdown: string }) {
+  return (
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={inlineComponents}>
+      {markdown}
+    </ReactMarkdown>
+  );
+}
+
+type Icon = ComponentType<SVGProps<SVGSVGElement>>;
+
+type Row = { icon: Icon; label?: string; value: string; sub?: string };
+
+function Rows({ rows }: { rows: Row[] }) {
+  return (
+    <ul role="list" className="flex flex-col gap-2 text-sm">
+      {rows.map((row, index) => (
+        <li key={index} className="flex min-w-0 gap-1.5">
+          <row.icon className="text-muted-foreground mt-0.5 size-4 shrink-0" />
+          <span className="min-w-0 truncate">
+            {row.label ? (
+              <span className="me-2 font-medium">{row.label}</span>
+            ) : null}
+            <span className={cn(row.label && "text-muted-foreground")}>
+              <PlanInline markdown={row.value} />
+            </span>
+            {row.sub ? (
+              <span className="text-muted-foreground ms-2">
+                <PlanInline markdown={row.sub} />
+              </span>
+            ) : null}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+const foundRows = (facts: PlanFact[]): Row[] => {
+  const left = [...facts];
+  const take = (test: RegExp, exclude?: RegExp) => {
+    const index = left.findIndex(
+      (fact) => test.test(fact.label) && !exclude?.test(fact.label),
+    );
+    return index === -1 ? undefined : left.splice(index, 1)[0];
+  };
+  const app = take(/\b(app|framework|stack)\b/i, /agent/i);
+  const appSub = app && take(/package manager|language/i);
+  const agent = take(/agent/i);
+  const provider = take(/provider/i);
+  const model = take(/\bmodel\b/i);
+  const rows: Row[] = [];
+  if (app) {
+    rows.push({
+      icon: LayoutGridIcon,
+      label: "App",
+      value: app.value,
+      ...(appSub && { sub: appSub.value }),
+    });
+  }
+  if (agent) rows.push({ icon: BotIcon, label: "Agent", value: agent.value });
+  if (provider || model) {
+    rows.push({
+      icon: CpuIcon,
+      label: "Model",
+      value: (provider ?? model)!.value,
+      ...(provider && model && { sub: model.value }),
+    });
+  }
+  return [...rows, ...left.map((fact) => ({ icon: InfoIcon, ...fact }))];
+};
+
+const installIcon = (text: string): Icon => {
+  if (/chat|thread|assistant|ui\b/i.test(text)) return MessageSquareIcon;
+  if (/agent|model|provider|llm/i.test(text)) return BotIcon;
+  if (/\.[a-z]{1,4}`?(\s|$)|^`?(app|src|pages|components)\//i.test(text)) {
+    return FileIcon;
+  }
+  return PackageIcon;
+};
+
+const installRows = (section: PlanSection): Row[] => [
+  ...section.facts.map((fact) => ({ ...fact, icon: installIcon(fact.label) })),
+  ...section.items.map((item) => ({
+    value: item.text,
+    icon: installIcon(item.text),
+  })),
+];
+
+function Steps({ titles }: { titles: string[] }) {
+  return (
+    <ol role="list" className="flex flex-col gap-2 text-sm">
+      {titles.map((title, index) => (
+        <li key={index} className="flex min-w-0 gap-3">
+          <span className="text-muted-foreground w-4 shrink-0 text-right font-mono text-xs leading-5">
+            {index + 1}
+          </span>
+          <span className="min-w-0 truncate">
+            <PlanInline markdown={title} />
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
+
+type Section = { id: string; title: string; eyebrow: string; body: ReactNode };
+
+/** The plan as accordion rows, one per section the agent wrote, with one row open at a time. */
+export function PlanAccordion({
+  markdown,
+  steps = [],
+}: {
+  markdown: string;
+  steps?: readonly Checkout.Step[] | undefined;
+}) {
+  const plan = parsePlan(markdown);
+  const stepTitles =
+    steps.length > 0
+      ? steps.map((step) => step.title)
+      : (plan.steps?.items.map((item) => item.text) ?? []);
+  const sections: Section[] = [];
+  const listed = (section: PlanSection, list: ReactNode, listed: number) =>
+    listed > 0 ? (
+      <div className="flex flex-col gap-2">
+        {list}
+        {section.rest ? (
+          <div className="text-muted-foreground">
+            <PlanMarkdown markdown={section.rest} />
+          </div>
+        ) : null}
+      </div>
+    ) : (
+      <PlanMarkdown markdown={section.markdown} />
+    );
+  if (plan.found) {
+    const rows = foundRows(plan.found.facts);
+    sections.push({
+      id: "found",
+      title: "What I found",
+      eyebrow: count(rows.length, "item"),
+      body: listed(plan.found, <Rows rows={rows} />, rows.length),
+    });
+  }
+  if (plan.install) {
+    const rows = installRows(plan.install);
+    sections.push({
+      id: "install",
+      title: "What I will install",
+      eyebrow: count(rows.length, "item"),
+      body: listed(plan.install, <Rows rows={rows} />, rows.length),
+    });
+  }
+  if (plan.steps || stepTitles.length > 0) {
+    const section = plan.steps ?? {
+      heading: "Steps",
+      markdown: "",
+      facts: [],
+      items: [],
+      rest: "",
+    };
+    sections.push({
+      id: "steps",
+      title: "Steps",
+      eyebrow:
+        stepTitles.length > 0 ? count(stepTitles.length, "step") : "As written",
+      body: listed(section, <Steps titles={stepTitles} />, stepTitles.length),
+    });
+  }
+  if (plan.other) {
+    sections.push({
+      id: "other",
+      title: sections.length > 0 ? "Also in the plan" : "The plan",
+      eyebrow: "As written",
+      body: <PlanMarkdown markdown={plan.other} />,
+    });
+  }
+  if (plan.questions) {
+    const rows = plan.questions.items.map((item) => ({
+      icon: CircleHelpIcon,
+      value: item.text,
+    }));
+    sections.push({
+      id: "questions",
+      title: "Open questions",
+      eyebrow: count(rows.length, "question"),
+      body: listed(plan.questions, <Rows rows={rows} />, rows.length),
+    });
+  }
+  const first =
+    sections.find((section) => section.id === "steps") ?? sections[0];
+  return (
+    <Accordion
+      defaultValue={first ? [first.id] : []}
+      className="border-foreground/10 rounded-lg border"
+    >
+      {sections.map((section) => (
+        <AccordionItem
+          key={section.id}
+          value={section.id}
+          className="border-foreground/10"
+        >
+          <AccordionTrigger className="items-center gap-3 px-3 py-2.5 hover:no-underline [&>svg]:translate-y-0">
+            <span className="min-w-0 flex-1 truncate">{section.title}</span>
+            <span className="text-muted-foreground text-xs font-normal">
+              {section.eyebrow}
+            </span>
+          </AccordionTrigger>
+          <AccordionContent className="max-h-28 overflow-y-auto [mask-image:linear-gradient(to_bottom,black_calc(100%_-_1rem),transparent)] px-3 pb-4">
+            {section.body}
+          </AccordionContent>
+        </AccordionItem>
+      ))}
+    </Accordion>
+  );
+}
+
 function PlanDecisionForm({ checkout }: { checkout: CheckoutContextValue }) {
-  const [revising, setRevising] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [busy, setBusy] = useState(false);
   const decide = async (decision: Checkout.PlanDecision) => {
@@ -135,13 +383,10 @@ function PlanDecisionForm({ checkout }: { checkout: CheckoutContextValue }) {
     }
   };
   const formId = useWizardFormId();
-  const wizard = useWizardNext(
+  const revising = feedback.trim() !== "";
+  useWizardNext(
     revising
-      ? {
-          label: "Send",
-          disabled: busy || feedback.trim() === "",
-          submit: true,
-        }
+      ? { label: "Send", disabled: busy, submit: true }
       : {
           label: "Install",
           disabled: busy,
@@ -150,82 +395,24 @@ function PlanDecisionForm({ checkout }: { checkout: CheckoutContextValue }) {
   );
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (feedback.trim() === "") return;
+    if (!revising) return;
     void decide({ decision: "revise", feedback: feedback.trim() });
   };
-  if (!revising) {
-    if (wizard) {
-      return (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => setRevising(true)}
-          className="text-muted-foreground hover:text-foreground mt-4 self-start text-sm underline-offset-4 hover:underline disabled:opacity-50"
-        >
-          Request changes…
-        </button>
-      );
-    }
-    return (
-      <div className="border-foreground/10 mt-4 flex flex-wrap gap-2 border-t pt-4">
-        <Button
-          disabled={busy}
-          onClick={() => void decide({ decision: "approve" })}
-        >
-          Approve and install
-        </Button>
-        <Button
-          variant="outline"
-          disabled={busy}
-          onClick={() => setRevising(true)}
-        >
-          Request changes
-        </Button>
-      </div>
-    );
-  }
   return (
-    <form
-      id={formId}
-      onSubmit={submit}
-      className="border-foreground/10 mt-4 flex flex-col gap-3 border-t pt-4"
-    >
-      <label className="flex flex-col gap-1.5 text-sm">
-        <span className="text-muted-foreground">What should change?</span>
-        <Textarea
-          value={feedback}
-          onChange={(event) => setFeedback(event.target.value)}
-          onKeyDown={submitOnModifiedEnter}
-          placeholder="Use Anthropic instead, and skip the thread list for now."
-          rows={3}
-          autoFocus
-          disabled={busy}
-        />
+    <form id={formId} onSubmit={submit}>
+      <label htmlFor={`${formId}-feedback`} className="sr-only">
+        What should I account for before I start?
       </label>
-      {wizard ? (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => setRevising(false)}
-          className="text-muted-foreground hover:text-foreground self-start text-sm underline-offset-4 hover:underline disabled:opacity-50"
-        >
-          Keep the plan as proposed
-        </button>
-      ) : (
-        <div className="flex flex-wrap gap-2">
-          <Button type="submit" disabled={busy || feedback.trim() === ""}>
-            Send feedback
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={busy}
-            onClick={() => setRevising(false)}
-          >
-            Back
-          </Button>
-        </div>
-      )}
+      <Textarea
+        id={`${formId}-feedback`}
+        value={feedback}
+        onChange={(event) => setFeedback(event.target.value)}
+        onKeyDown={submitOnModifiedEnter}
+        placeholder="Add a note, or leave it empty to install as proposed."
+        rows={2}
+        disabled={busy}
+        className="bg-background"
+      />
     </form>
   );
 }
@@ -233,14 +420,14 @@ function PlanDecisionForm({ checkout }: { checkout: CheckoutContextValue }) {
 function RevisionSummary({ plan }: { plan: Checkout.Plan }) {
   return (
     <Collapsible className="border-foreground/10 rounded-lg border">
-      <CollapsibleTrigger className="group flex w-full items-center gap-2 px-3 py-2 text-left text-sm">
+      <CollapsibleTrigger className="group flex w-full items-center gap-2 p-3 text-left text-sm">
         <span className="font-medium">Revision {plan.revision}</span>
         <span className="text-muted-foreground min-w-0 flex-1 truncate">
           {plan.feedback ? `You asked: ${plan.feedback}` : "Superseded"}
         </span>
         <ChevronDownIcon className="text-muted-foreground size-3.5 shrink-0 transition-transform group-data-[panel-open]:rotate-180" />
       </CollapsibleTrigger>
-      <CollapsibleContent className="border-foreground/10 border-t px-3 py-3">
+      <CollapsibleContent className="border-foreground/10 border-t p-3">
         <PlanMarkdown markdown={plan.markdown} />
       </CollapsibleContent>
     </Collapsible>
@@ -249,10 +436,12 @@ function RevisionSummary({ plan }: { plan: Checkout.Plan }) {
 
 export function PlanCard({
   plans,
+  steps,
   checkout,
   closed,
 }: {
   plans: readonly Checkout.Plan[];
+  steps?: readonly Checkout.Step[];
   checkout: CheckoutContextValue;
   closed: boolean;
 }) {
@@ -263,50 +452,47 @@ export function PlanCard({
   const proposed = current.status === "proposed" && !closed;
   const collapsed = current.status === "approved" && !showApproved;
 
+  const label = `${
+    current.status === "approved"
+      ? "Approved plan"
+      : current.status === "changes-requested"
+        ? "Plan under revision"
+        : earlier.length > 0
+          ? "Revised plan"
+          : "Proposed plan"
+  } · Revision ${current.revision}`;
+  const header = (
+    <div className="flex items-center justify-between gap-3">
+      {earlier.length > 0 ? (
+        <CollapsibleTrigger className="text-muted-foreground hover:text-foreground group flex items-center gap-1.5 text-xs">
+          {earlier.length === 1
+            ? "1 earlier revision"
+            : `${earlier.length} earlier revisions`}
+          <ChevronDownIcon className="size-3.5 transition-transform group-data-[panel-open]:rotate-180" />
+        </CollapsibleTrigger>
+      ) : null}
+      <p className="text-muted-foreground ml-auto text-xs">{label}</p>
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-3">
       {earlier.length > 0 ? (
-        <Collapsible>
-          <CollapsibleTrigger className="text-muted-foreground hover:text-foreground group flex items-center gap-1 text-sm">
-            {earlier.length === 1
-              ? "1 earlier revision"
-              : `${earlier.length} earlier revisions`}
-            <ChevronDownIcon className="size-3.5 transition-transform group-data-[panel-open]:rotate-180" />
-          </CollapsibleTrigger>
-          <CollapsibleContent className="mt-2 flex flex-col gap-2">
+        <Collapsible className="flex flex-col gap-3">
+          {header}
+          <CollapsibleContent className="flex flex-col gap-2">
             {earlier.map((plan) => (
               <RevisionSummary key={plan.revision} plan={plan} />
             ))}
           </CollapsibleContent>
         </Collapsible>
-      ) : null}
+      ) : (
+        header
+      )}
 
-      <div
-        className={cn(
-          "min-w-0 border-l-2 py-1 pl-4",
-          proposed
-            ? "border-blue-500 dark:border-blue-400"
-            : current.status === "approved"
-              ? "border-emerald-500 dark:border-emerald-400"
-              : "border-foreground/15",
-        )}
-      >
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <p className="text-[0.9375rem] font-medium">
-            {current.status === "approved"
-              ? "Approved plan"
-              : current.status === "changes-requested"
-                ? "Plan under revision"
-                : earlier.length > 0
-                  ? `Revised plan`
-                  : "Proposed plan"}
-          </p>
-          <p className="text-muted-foreground text-xs">
-            Revision {current.revision}
-          </p>
-        </div>
+      <div className="flex min-w-0 flex-col gap-3">
         {current.status === "changes-requested" && current.feedback ? (
-          <p className="text-muted-foreground mt-1 text-sm">
+          <p className="text-muted-foreground text-sm">
             You asked: {current.feedback}
           </p>
         ) : null}
@@ -315,7 +501,7 @@ export function PlanCard({
             type="button"
             aria-expanded={showApproved}
             onClick={() => setShowApproved((shown) => !shown)}
-            className="text-muted-foreground hover:text-foreground mt-2 flex items-center gap-1 text-sm"
+            className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-sm"
           >
             {showApproved ? "Hide the plan" : "Show the plan"}
             <ChevronDownIcon
@@ -327,9 +513,7 @@ export function PlanCard({
           </button>
         ) : null}
         {collapsed ? null : (
-          <div className="mt-3">
-            <PlanMarkdown markdown={current.markdown} />
-          </div>
+          <PlanAccordion markdown={current.markdown} steps={steps} />
         )}
         {proposed ? <PlanDecisionForm checkout={checkout} /> : null}
       </div>

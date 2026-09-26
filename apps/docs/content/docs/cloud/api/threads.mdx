@@ -227,8 +227,8 @@ curl https://backend.assistant-api.com/v1/threads/claim \
 | Status | Body | When |
 |---|---|---|
 | `200` | `{ "moved": n }` | The threads moved. `0` when the anonymous identity had no workspace, or when the caller is that identity's own workspace. |
-| `403` | `{ "error": "Anonymous sessions cannot claim threads" }` | The caller is an anonymous identity. |
-| `403` | `{ "error": "Invalid refresh token format" }` | The token does not start with `refresh_0`. |
-| `403` | `{ "error": "Invalid refresh token" }` | No live anonymous token of this project matches. |
+| `403` | Plain text: `Anonymous sessions cannot claim threads` | The caller is an anonymous identity. |
+| `403` | Plain text: `Invalid refresh token format` | The token does not start with `refresh_0`. |
+| `403` | Plain text: `Invalid refresh token` | No live anonymous token of this project matches. |
 
 The moved threads keep their ids and messages; only their workspace changes, and the anonymous identity's own workspace is left empty.

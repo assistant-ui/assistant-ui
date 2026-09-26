@@ -6,6 +6,7 @@ import {
 import { copyBounded } from "../convert/copyBounded";
 import { isElement } from "../convert/isElement";
 import { takeRun } from "../convert/takeRun";
+import { hasFieldReference, resolveFieldReferences } from "../fieldReferences";
 import {
   normalizeSpec,
   type NormalizedUIElement,
@@ -22,6 +23,7 @@ import {
   CARD_TITLE_CAP,
   CAROUSEL_CARD_CAP,
   CAROUSEL_CARD_MIN,
+  CHECKBOX_OPTION_CAP,
   CONTEXT_ELEMENT_CAP,
   CONTEXT_TEXT_CAP,
   DATA_TABLE_CHAR_BUDGET,
@@ -75,6 +77,7 @@ const INTERACTIVE_TYPES = new Set([
   "Select",
   "DatePicker",
   "Checkbox",
+  "CheckboxGroup",
   "RadioGroup",
 ]);
 
@@ -159,7 +162,17 @@ const buttonElement = (
   component: string,
   context: ConversionContext,
 ): SlackButtonElement => {
-  const serializedValue = actionValue(action);
+  let payload = action;
+  if (hasFieldReference(action)) {
+    warn(
+      context,
+      "fallback",
+      component,
+      "field references in value became their fallback, or were dropped without one, because Slack sends no other control's value with a button click.",
+    );
+    payload = resolveFieldReferences(action, {});
+  }
+  const serializedValue = actionValue(payload);
   let value = serializedValue;
   if (value !== undefined && value.length > BUTTON_VALUE_CAP) {
     warn(
@@ -273,10 +286,18 @@ const toActionElement = (
         "placeholder",
         context,
       );
+      const defaultValue = props["defaultValue"];
+      const initialOption =
+        typeof defaultValue === "string"
+          ? options.find((option) => option.value === defaultValue)
+          : undefined;
       return {
         type: "static_select",
         action_id: asActionId(action, "Select", context),
         options,
+        ...(initialOption !== undefined
+          ? { initial_option: initialOption }
+          : {}),
         ...(placeholder ? { placeholder: plainText(placeholder) } : {}),
       };
     }
@@ -316,6 +337,46 @@ const toActionElement = (
         options: [option],
         ...(props["defaultChecked"] === true
           ? { initial_options: [option] }
+          : {}),
+      };
+    }
+    case "CheckboxGroup": {
+      const rawOptions = Array.isArray(props["options"])
+        ? props["options"]
+        : [];
+      const { items: takenOptions, truncated } = copyBounded(
+        rawOptions,
+        CHECKBOX_OPTION_CAP,
+      );
+      if (truncated) {
+        warn(
+          context,
+          "clamped",
+          "CheckboxGroup",
+          `options were clamped to ${CHECKBOX_OPTION_CAP} entries.`,
+        );
+      }
+      const options = takenOptions
+        .map((option) => optionFrom(option, "CheckboxGroup", context))
+        .filter((option): option is SlackOption => option !== undefined);
+      warnDroppedOptions(
+        options.length,
+        takenOptions.length,
+        "CheckboxGroup",
+        context,
+      );
+      const defaultValue = Array.isArray(props["defaultValue"])
+        ? props["defaultValue"]
+        : [];
+      const initialOptions = options.filter((option) =>
+        defaultValue.includes(option.value),
+      );
+      return {
+        type: "checkboxes",
+        action_id: asActionId(action, "CheckboxGroup", context),
+        options,
+        ...(initialOptions.length > 0
+          ? { initial_options: initialOptions }
           : {}),
       };
     }
@@ -1115,6 +1176,7 @@ const convertElement = (
     case "Select":
     case "DatePicker":
     case "Checkbox":
+    case "CheckboxGroup":
     case "RadioGroup":
       return convertActions([element], context);
     case "Input": {
@@ -1132,6 +1194,7 @@ const convertElement = (
         "placeholder",
         context,
       );
+      const defaultValue = props["defaultValue"];
       return [
         {
           type: "input",
@@ -1140,6 +1203,9 @@ const convertElement = (
             type: "plain_text_input",
             action_id: asActionId(element.action, "Input", context),
             ...(props["multiline"] === true ? { multiline: true } : {}),
+            ...(typeof defaultValue === "string" && defaultValue
+              ? { initial_value: defaultValue }
+              : {}),
             ...(placeholder ? { placeholder: plainText(placeholder) } : {}),
           },
         },

@@ -6,6 +6,7 @@ import {
   API_CATALOG_LINK_HEADER,
 } from "./lib/agent-discovery-routes";
 import { isWebMcpEnabled } from "./lib/feature-flags";
+import { RENDERER_ALLOWED_ORIGINS, RENDERER_PATH } from "./lib/renderer";
 import { LEGACY_TAP_DOCS_REDIRECTS } from "./lib/legacy-tap-docs";
 import {
   docsMarkdownAcceptRewrites,
@@ -50,13 +51,21 @@ const faviconRewrites = faviconVariant
     ]
   : [];
 
+// The SDK packages resolve to their sources through tsconfig paths, so no
+// package build stamps their version; a deployment reports its commit instead.
+const sdkVersion = process.env.VERCEL_GIT_COMMIT_SHA
+  ? `0.0.0+${process.env.VERCEL_GIT_COMMIT_SHA.slice(0, 7)}`
+  : undefined;
+
 // Chrome applies form-action to the redirects that follow a submit, and the
 // sign-out form lands on the accounts end-session endpoint.
 const authOrigin = process.env.NEXT_PUBLIC_AUTH_URL ?? "";
 
 // The playground AI Builder renders same-origin preview routes inside an iframe.
-// Keep frame ancestors self-only so external sites still cannot embed docs pages.
-const cspHeader = `
+// Keep frame ancestors self-only so external sites still cannot embed docs pages;
+// only the conversation renderer also admits the Assistant Cloud dashboard.
+const csp = (frameAncestors: string) =>
+  `
     default-src 'self';
     connect-src *;
     frame-src * blob:;
@@ -67,14 +76,17 @@ const cspHeader = `
     object-src 'none';
     base-uri 'self';
     form-action 'self' ${authOrigin};
-    frame-ancestors 'self';
+    frame-ancestors ${frameAncestors};
     upgrade-insecure-requests;
-`;
+`.replace(/\n/g, "");
 
 const config: NextConfig = {
   // This app keeps a hand-written AGENTS.md, and the root one already points
   // agents at the bundled Next.js docs, so `next dev` must not append its block.
   agentRules: false,
+  compiler: {
+    define: sdkVersion ? { __AUI_PACKAGE_VERSION__: sdkVersion } : {},
+  },
   transpilePackages: ["@assistant-ui/ui", "shiki"],
   serverExternalPackages: ["just-bash"],
   skipTrailingSlashRedirect: true,
@@ -96,7 +108,16 @@ const config: NextConfig = {
       headers: [
         {
           key: "Content-Security-Policy",
-          value: cspHeader.replace(/\n/g, ""),
+          value: csp("'self'"),
+        },
+      ],
+    },
+    {
+      source: RENDERER_PATH,
+      headers: [
+        {
+          key: "Content-Security-Policy",
+          value: csp(["'self'", ...RENDERER_ALLOWED_ORIGINS].join(" ")),
         },
       ],
     },

@@ -1,3 +1,4 @@
+import type { WizardPageId } from "@/components/pages/shop/setup-wizard-page";
 import type { LearnCourseStartSource } from "@/lib/xulux/learn/types";
 import type { WebMcpToolName } from "@/lib/webmcp-tools";
 
@@ -66,6 +67,17 @@ export const analytics = {
   shop: {
     cartToggled: (product: string, added: boolean) =>
       trackEvent("shop_cart_toggled", { product, added }),
+  },
+
+  setup: {
+    stepViewed: (step: WizardPageId) =>
+      trackEvent("setup_step_viewed", { step }),
+
+    agentConnected: () => trackEvent("setup_agent_connected"),
+
+    installFinished: () => trackEvent("setup_install_finished"),
+
+    cancelled: () => trackEvent("setup_cancelled"),
   },
 
   search: {
