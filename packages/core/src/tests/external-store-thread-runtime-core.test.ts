@@ -1338,6 +1338,78 @@ describe("ExternalStoreThreadRuntimeCore - deleteMessage via setMessages", () =>
     );
   });
 
+  it("evicts a deleted message when a frontend tool settles before the host's next snapshot", async () => {
+    let current = [
+      message("u1", "user", "one"),
+      message("a1", "assistant", "two"),
+      message("u2", "user", "three"),
+    ];
+    let finishTool!: () => void;
+    const contextProvider: ModelContextProvider = {
+      getModelContext: () => ({
+        tools: {
+          send_email: {
+            parameters: { type: "object", properties: {} },
+            execute: () =>
+              new Promise((resolve) => {
+                finishTool = () => resolve("sent");
+              }),
+          },
+        },
+      }),
+    };
+    const onDelete = vi.fn(async (id: string) => {
+      current = current.filter((m) => m.id !== id);
+    });
+    const store = () =>
+      makeStore({
+        messages: current,
+        onDelete,
+        onAddToolResult: vi.fn(),
+        isRunning: false,
+        unstable_enableToolInvocations: true,
+      });
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      contextProvider,
+      store(),
+    );
+    current = [
+      ...current,
+      {
+        id: "a2",
+        role: "assistant",
+        createdAt: new Date(0),
+        status: { type: "requires-action", reason: "tool-calls" },
+        metadata: {
+          unstable_state: null,
+          unstable_annotations: [],
+          unstable_data: [],
+          steps: [],
+          custom: {},
+        },
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "tool-1",
+            toolName: "send_email",
+            args: {},
+            argsText: "{}",
+          },
+        ],
+      } as unknown as import("../types/message").ThreadMessage,
+    ];
+    runtime.__internal_setAdapter(store());
+    await vi.waitFor(() => expect(runtime.isRunning).toBe(true));
+
+    await runtime.deleteMessage("u1");
+    finishTool();
+    await vi.waitFor(() => expect(runtime.isRunning).toBe(false));
+    runtime.__internal_setAdapter(store());
+
+    expect(runtime.messages.map((m) => m.id)).toEqual(["a1", "u2", "a2"]);
+    expect(runtime.getBranches("a1")).toEqual(["a1"]);
+  });
+
   it("keeps an off-branch sibling the host declined to delete", async () => {
     let current = [
       message("u1", "user", "hi"),

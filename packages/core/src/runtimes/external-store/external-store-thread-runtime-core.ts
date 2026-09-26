@@ -422,7 +422,12 @@ export class ExternalStoreThreadRuntimeCore
         this.repository.addOrUpdateMessage(parent?.id ?? null, message);
       }
 
-      if (this._pendingDeleteEvictions.size > 0) {
+      // A pass over the host's previous array, such as a client tool's
+      // running refresh, can predate the host's answer to onDelete.
+      if (
+        this._pendingDeleteEvictions.size > 0 &&
+        oldStore?.messages !== store.messages
+      ) {
         const incomingIds = new Set(messages.map((m) => m.id));
         for (const [id, calls] of this._pendingDeleteEvictions) {
           if (incomingIds.has(id)) {
