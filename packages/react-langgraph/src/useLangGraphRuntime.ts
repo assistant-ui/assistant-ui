@@ -556,12 +556,14 @@ const useLangGraphRuntimeImpl = (
     runQueue.drop();
     const cancellations =
       autoCancelPendingToolCalls !== false
-        ? getPendingToolCalls(messages).map(
-            (t) =>
-              createToolCallCancellationStub(t) satisfies LangChainMessage & {
-                type: "tool";
-              },
-          )
+        ? getPendingToolCalls(messages)
+            .filter((t) => t.id)
+            .map(
+              (t) =>
+                createToolCallCancellationStub(t) satisfies LangChainMessage & {
+                  type: "tool";
+                },
+            )
         : [];
 
     const humanMessage = toLangGraphUserMessage(msg);

@@ -573,7 +573,10 @@ const useStreamThreadRuntime = (
         autoCancelPendingToolCalls !== false
           ? getPendingToolCalls(
               streamRef.current.messages as readonly LangChainBaseMessage[],
-            ).map(createToolCallCancellationStub)
+            )
+              // LangChain rejects a tool message without a tool_call_id.
+              .filter((toolCall) => toolCall.id)
+              .map(createToolCallCancellationStub)
           : [];
       // A null threadId is not a no-op for the SDK: it rebinds the controller
       // away from its self-created thread and forces a fresh one, so the
