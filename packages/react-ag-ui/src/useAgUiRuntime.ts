@@ -171,6 +171,14 @@ export function useAgUiRuntime(
   // refusal would lose the message instead of keeping it visible.
   const queueBusy = isRunning || core.getPendingInterrupts() !== null;
   useEffect(() => {
+    if (options.isSendDisabled === true) {
+      queueController?.hold();
+    } else {
+      queueController?.release();
+    }
+  }, [options.isSendDisabled, queueController]);
+
+  useEffect(() => {
     if (queueBusy) {
       busyEdgesRef.current++;
       queueController?.notifyBusy();
