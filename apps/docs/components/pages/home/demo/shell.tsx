@@ -12,6 +12,7 @@ import {
 import { useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { ThreadRenameInput } from "./thread-rename-input";
+import { useDemoThreadListGroups } from "./thread-list-groups";
 import {
   threadCommands,
   getThreadShortcut,
@@ -47,6 +48,7 @@ export function DemoShell({
   const rootRef = useRef<HTMLDivElement>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const aui = useAui();
+  const { orderedThreadIds } = useDemoThreadListGroups();
   const [renaming, setRenaming] = useState<{
     id: string;
     title: string;
@@ -92,14 +94,14 @@ export function DemoShell({
           return aui.threads.switchToNewThread();
         }
         if (command === "previous" || command === "next") {
-          const index = state.threadIds.indexOf(state.mainThreadId);
+          const index = orderedThreadIds.indexOf(state.mainThreadId);
           const next =
             index < 0
               ? command === "next"
                 ? 0
-                : state.threadIds.length - 1
+                : orderedThreadIds.length - 1
               : index + (command === "next" ? 1 : -1);
-          const id = state.threadIds[next];
+          const id = orderedThreadIds[next];
           if (id) {
             setMobileSidebarOpen(false);
             setView("thread");

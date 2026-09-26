@@ -32,19 +32,20 @@ export function ThreadShell({
   }, [stdout]);
 
   const ids = archived ? state.archivedThreadIds : state.threadIds;
-  const items = state.threadItems
-    .filter(
-      (item) =>
-        ids.includes(item.id) &&
-        (item.title ?? "New chat")
-          .toLowerCase()
-          .includes(query.trim().toLowerCase()),
-    )
-    .sort(
-      (a, b) =>
-        Number(b.custom?.pinned === "true") -
-        Number(a.custom?.pinned === "true"),
-    );
+  const orderedItems = [...state.threadItems].sort(
+    (a, b) =>
+      Number(b.custom?.pinned === "true") - Number(a.custom?.pinned === "true"),
+  );
+  const orderedThreadIds = orderedItems
+    .filter((item) => state.threadIds.includes(item.id))
+    .map((item) => item.id);
+  const items = orderedItems.filter(
+    (item) =>
+      ids.includes(item.id) &&
+      (item.title ?? "New chat")
+        .toLowerCase()
+        .includes(query.trim().toLowerCase()),
+  );
   const selectedIndex = Math.max(
     0,
     items.findIndex((item) => item.id === selectedId),
@@ -83,14 +84,14 @@ export function ThreadShell({
   };
 
   const switchRelative = (direction: number) => {
-    const index = state.threadIds.indexOf(state.mainThreadId);
+    const index = orderedThreadIds.indexOf(state.mainThreadId);
     const next =
       index < 0
         ? direction > 0
           ? 0
-          : state.threadIds.length - 1
+          : orderedThreadIds.length - 1
         : index + direction;
-    const id = state.threadIds[next];
+    const id = orderedThreadIds[next];
     if (id)
       void run(
         () => aui.threads.switchToThread(id),

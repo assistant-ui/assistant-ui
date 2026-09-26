@@ -81,6 +81,28 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("terminal thread controls", () => {
+  it.each([
+    { main: "one", key: "\x1b[1;3A", target: "two" },
+    { main: "two", key: "\x1b[1;3B", target: "one" },
+  ])(
+    "navigates from $main to $target in pinned order",
+    async ({ main, key, target }) => {
+      mocks.state.threadItems[1]!.custom = { pinned: "true" };
+      mocks.state.mainThreadId = main;
+      try {
+        const { press, lastFrame } = await create();
+        expect(lastFrame()!.indexOf("Second thread")).toBeLessThan(
+          lastFrame()!.indexOf("First thread"),
+        );
+        await press(key);
+        expect(mocks.switchToThread).toHaveBeenCalledWith(target);
+      } finally {
+        mocks.state.threadItems[1]!.custom = {};
+        mocks.state.mainThreadId = "one";
+      }
+    },
+  );
+
   it("switches between the sidebar and composer after a narrow resize", async () => {
     const { stdout, press, lastFrame } = await create();
     expect(lastFrame()).toContain("First thread");
