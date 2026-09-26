@@ -44,25 +44,6 @@ vi.mock("lucide-react-native", async () => {
 vi.mock("react-native", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react-native")>();
   const React = await import("react");
-  const Pressable = ({
-    accessibilityLabel,
-    accessibilityRole,
-    accessibilityState,
-    children,
-    className,
-    onPress,
-  }: any) =>
-    React.createElement(
-      "button",
-      {
-        "aria-expanded": String(accessibilityState?.expanded),
-        "aria-label": accessibilityLabel,
-        className,
-        onClick: onPress,
-        role: accessibilityRole,
-      },
-      children,
-    );
   const ScrollView = React.forwardRef(function ScrollView(props: any, ref) {
     h.scrollProps = props;
     React.useImperativeHandle(ref, () => ({ scrollToEnd: h.scrollToEnd }));
@@ -75,7 +56,7 @@ vi.mock("react-native", async (importOriginal) => {
   const Text = ({ children, className, ...props }: any) =>
     React.createElement("span", { ...props, className }, children);
 
-  return { ...actual, Pressable, ScrollView, Text };
+  return { ...actual, ScrollView, Text };
 });
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
@@ -118,11 +99,12 @@ describe("Reasoning", () => {
     textProps: Partial<React.ComponentProps<typeof ReasoningText>> = {},
     duration = 3,
     children: ReactNode = <Text>Live reasoning</Text>,
+    active = true,
   ) => {
     await act(async () => {
       root.render(
         <ReasoningRoot {...props}>
-          <ReasoningTrigger active duration={duration} />
+          <ReasoningTrigger active={active} duration={duration} />
           <ReasoningContent>
             <ReasoningText {...textProps}>{children}</ReasoningText>
           </ReasoningContent>
@@ -177,6 +159,10 @@ describe("Reasoning", () => {
     expect(trigger().textContent).toContain("Reasoning (3s)");
     expect(trigger().getAttribute("role")).toBe("button");
     expect(trigger().getAttribute("aria-expanded")).toBe("true");
+    expect(trigger().getAttribute("aria-busy")).toBe("true");
+
+    await render({ defaultOpen: true }, {}, 3, undefined, false);
+    expect(trigger().getAttribute("aria-busy")).toBe("false");
   });
 
   it("omits a zero-second duration", async () => {

@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { type FC, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Platform, Pressable, Text, View } from "react-native";
 import { paper } from "./surfaces";
 
 export interface ConversationMapEntry {
@@ -74,7 +74,9 @@ export const ConversationMap: FC<ConversationMapProps> = ({
               accessibilityRole="button"
               accessibilityLabel={entry.title}
               accessibilityHint={entry.preview}
-              aria-selected={current}
+              {...(Platform.OS === "web"
+                ? { "aria-current": current ? "true" : undefined }
+                : { "aria-selected": current })}
               hitSlop={tickHitSlop}
               delayLongPress={200}
               onPress={onSelect ? () => onSelect(entry.id) : undefined}
