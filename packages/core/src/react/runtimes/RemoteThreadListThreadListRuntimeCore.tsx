@@ -881,17 +881,21 @@ export class RemoteThreadListThreadListRuntimeCore
     // would make the payload race-dependent; the title reads settled
     // messages only, matching the trigger's readiness gate.
     const messages = runtimeCore.messages.filter(isTitleSourceMessage);
+    const isRemoved = () =>
+      getThreadData(this._state.baseValue, data.id) === undefined;
     await runThreadTitleGeneration({
       states: this._titleStates,
       threadId: data.id,
       automatic: options?.automatic === true,
       generate: async (onTitle) => {
+        if (isRemoved()) return;
         const stream = await adapter.generateTitle(remoteId, messages);
         this._requireAdapterGeneration(adapterGeneration);
         await applyTitleStream(stream, onTitle);
       },
       rename: async (title) => {
         this._requireAdapterGeneration(adapterGeneration);
+        if (isRemoved()) return;
         await adapter.rename(remoteId, title);
       },
       applyTitle: async (title) => {
