@@ -22,8 +22,8 @@ import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-st
 import {
   classifyThreads,
   createEmptyRemoteThreadState,
-  createThreadMappingId,
   getThreadData,
+  mergeFetchedThread,
   normalizeCursor,
   reconcileInitializedThread,
   promoteNewThreadReducer,
@@ -753,56 +753,17 @@ const useRemoteThreadList = (
       startSwitch(async (generation) => {
         let data = getThreadData(store.value, threadIdOrRemoteId);
         if (!data) {
-          const remoteMetadata =
-            await session.adapter.fetch(threadIdOrRemoteId);
-          if (generation !== session.switchGeneration) return;
-          const state = store.value;
-          const mappingId = createThreadMappingId(remoteMetadata.remoteId);
-          const wasInTarget =
-            remoteMetadata.status === "regular"
-              ? state.threadIds.includes(remoteMetadata.remoteId)
-              : state.archivedThreadIds.includes(remoteMetadata.remoteId);
-          const threadIdsWithoutRemote = state.threadIds.filter(
-            (id) => id !== remoteMetadata.remoteId,
-          );
-          const archivedThreadIdsWithoutRemote = state.archivedThreadIds.filter(
-            (id) => id !== remoteMetadata.remoteId,
-          );
-          store.update({
-            ...state,
-            threadIds:
-              remoteMetadata.status === "regular"
-                ? wasInTarget
-                  ? state.threadIds
-                  : [...threadIdsWithoutRemote, remoteMetadata.remoteId]
-                : threadIdsWithoutRemote,
-            archivedThreadIds:
-              remoteMetadata.status === "archived"
-                ? wasInTarget
-                  ? state.archivedThreadIds
-                  : [...archivedThreadIdsWithoutRemote, remoteMetadata.remoteId]
-                : archivedThreadIdsWithoutRemote,
-            threadIdMap: {
-              ...state.threadIdMap,
-              [remoteMetadata.remoteId]: mappingId,
-            },
-            threadData: {
-              ...state.threadData,
-              [mappingId]: {
-                id: mappingId,
-                initializeTask: Promise.resolve({
-                  remoteId: remoteMetadata.remoteId,
-                  externalId: remoteMetadata.externalId,
-                }),
-                remoteId: remoteMetadata.remoteId,
-                externalId: remoteMetadata.externalId,
-                status: remoteMetadata.status,
-                title: remoteMetadata.title,
-                lastMessageAt: remoteMetadata.lastMessageAt,
-                custom: remoteMetadata.custom,
-              },
-            },
+          const currentAdapter = session.adapter;
+          // Merging as an optimistic transform replays operations that
+          // completed while fetch() was in flight over the fetched snapshot.
+          await store.optimisticUpdate({
+            execute: () => currentAdapter.fetch(threadIdOrRemoteId),
+            then: (state, remoteMetadata) =>
+              generation === session.switchGeneration
+                ? mergeFetchedThread(state, remoteMetadata)
+                : state,
           });
+          if (generation !== session.switchGeneration) return;
           data = getThreadData(store.value, threadIdOrRemoteId);
         }
         if (!data) {

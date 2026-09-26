@@ -21,6 +21,7 @@ import {
   createEmptyRemoteThreadState,
   createThreadMappingId,
   getThreadData,
+  mergeFetchedThread,
   normalizeCursor,
   reconcileInitializedThread,
   promoteNewThreadReducer,
@@ -663,73 +664,17 @@ export class RemoteThreadListThreadListRuntimeCore
     let data = this.getItemById(threadIdOrRemoteId);
 
     if (!data) {
-      const remoteMetadata =
-        await this._options.adapter.fetch(threadIdOrRemoteId);
-      if (generation !== this._switchGeneration) return;
-
-      const state = this._state.value;
-      const mappingId = createThreadMappingId(remoteMetadata.remoteId);
-
-      const newThreadData = {
-        ...state.threadData,
-        [mappingId]: {
-          id: mappingId,
-          initializeTask: Promise.resolve({
-            remoteId: remoteMetadata.remoteId,
-            externalId: remoteMetadata.externalId,
-          }),
-          remoteId: remoteMetadata.remoteId,
-          externalId: remoteMetadata.externalId,
-          status: remoteMetadata.status,
-          title: remoteMetadata.title,
-          lastMessageAt: remoteMetadata.lastMessageAt,
-          custom: remoteMetadata.custom,
-        } as RemoteThreadData,
-      };
-
-      const newThreadIdMap = {
-        ...state.threadIdMap,
-        [remoteMetadata.remoteId]: mappingId,
-      };
-
-      // A concurrent `list()` may already have placed this thread; keep that
-      // position and only merge metadata. A genuinely absent thread stays
-      // appended: it may live on an unloaded page, and a prepend would pin it
-      // above newer threads permanently. Filtering both arrays first still
-      // prevents duplication or a wrong-status entry from `list()`.
-      const remoteId = remoteMetadata.remoteId;
-      const wasInTarget =
-        remoteMetadata.status === "regular"
-          ? state.threadIds.includes(remoteId)
-          : state.archivedThreadIds.includes(remoteId);
-
-      const threadIdsWithoutRemote = state.threadIds.filter(
-        (id) => id !== remoteId,
-      );
-      const archivedThreadIdsWithoutRemote = state.archivedThreadIds.filter(
-        (id) => id !== remoteId,
-      );
-
-      const newThreadIds =
-        remoteMetadata.status === "regular"
-          ? wasInTarget
-            ? state.threadIds
-            : [...threadIdsWithoutRemote, remoteId]
-          : threadIdsWithoutRemote;
-      const newArchivedThreadIds =
-        remoteMetadata.status === "archived"
-          ? wasInTarget
-            ? state.archivedThreadIds
-            : [...archivedThreadIdsWithoutRemote, remoteId]
-          : archivedThreadIdsWithoutRemote;
-
-      this._state.update({
-        ...state,
-        threadIds: newThreadIds,
-        archivedThreadIds: newArchivedThreadIds,
-        threadIdMap: newThreadIdMap,
-        threadData: newThreadData,
+      const adapter = this._options.adapter;
+      // Merging as an optimistic transform replays operations that completed
+      // while fetch() was in flight over the fetched, possibly older, snapshot.
+      await this._state.optimisticUpdate({
+        execute: () => adapter.fetch(threadIdOrRemoteId),
+        then: (state, remoteMetadata) =>
+          generation === this._switchGeneration
+            ? mergeFetchedThread(state, remoteMetadata)
+            : state,
       });
+      if (generation !== this._switchGeneration) return;
 
       data = this.getItemById(threadIdOrRemoteId);
     }

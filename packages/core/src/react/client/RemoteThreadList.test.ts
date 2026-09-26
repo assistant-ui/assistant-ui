@@ -373,6 +373,96 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("rolls back an archive that fails after a fetched thread was merged", async () => {
+    const archive = deferred<void>();
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ status: "regular" as const, remoteId: "t1" }],
+      })),
+      archive: vi.fn(() => archive.promise),
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toEqual(["t1"]);
+    });
+
+    const archiving = aui.threads.item({ id: "t1" }).archive();
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().archivedThreadIds).toEqual(["t1"]);
+    });
+    flushTapSync(() => aui.threads.switchToThread("t2"));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t2");
+    });
+
+    archive.reject(new Error("archive failed"));
+    await expect(archiving).rejects.toThrow("archive failed");
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toEqual(["t1", "t2"]);
+      expect(aui.threads.getState().archivedThreadIds).toEqual([]);
+    });
+    handle.destroy();
+  });
+
+  it("notifies once when the fetch registers and twice by the time the switch lands", async () => {
+    const fetch = deferred<RemoteThreadMetadata>();
+    const adapter = makeAdapter({ fetch: vi.fn(() => fetch.promise) });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    const listener = vi.fn();
+    handle.subscribe(listener);
+
+    flushTapSync(() => aui.threads.switchToThread("t2"));
+    await Promise.resolve();
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    fetch.resolve({ status: "regular", remoteId: "t2", title: "T2" });
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t2");
+    });
+    expect(listener).toHaveBeenCalledTimes(2);
+    handle.destroy();
+  });
+
+  it("merges a fetched thread into the slot that initialized under its remote id", async () => {
+    const initialize = deferred<{ remoteId: string; externalId: undefined }>();
+    const fetch = deferred<RemoteThreadMetadata>();
+    const adapter = makeAdapter({
+      initialize: vi.fn(() => initialize.promise),
+      fetch: vi.fn(() => fetch.promise),
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    const localId = aui.threads.getState().mainThreadId;
+    const initialization = aui.threads.item("main").initialize();
+    await vi.waitFor(() => {
+      expect(aui.threads.item("main").getState().status).toBe("regular");
+    });
+    flushTapSync(() => aui.threads.switchToThread("remote-1"));
+
+    initialize.resolve({ remoteId: "remote-1", externalId: undefined });
+    await initialization;
+    fetch.resolve({
+      status: "regular",
+      remoteId: "remote-1",
+      title: "Fetched",
+    });
+
+    await vi.waitFor(() => {
+      expect(aui.threads.item({ id: "remote-1" }).getState().title).toBe(
+        "Fetched",
+      );
+    });
+    const state = aui.threads.getState();
+    expect(state.threadIds).toEqual([localId]);
+    expect(state.mainThreadId).toBe(localId);
+    handle.destroy();
+  });
+
   it("renames and deletes through the adapter", async () => {
     const adapter = makeAdapter({
       list: vi.fn(async () => ({
