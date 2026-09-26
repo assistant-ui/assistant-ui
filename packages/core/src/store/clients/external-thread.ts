@@ -1094,12 +1094,12 @@ const useComposerClientResource = ({
         ? []
         : [result.value],
     );
-    dispatchMessage(
-      submissionRef.current ?? current,
-      finalAttachments,
-      context,
-      true,
-    );
+    const submitted = submissionRef.current ?? current;
+    if (!submitted.text.trim() && finalAttachments.length === 0) {
+      endSubmission();
+      return;
+    }
+    dispatchMessage(submitted, finalAttachments, context, true);
   };
 
   return {
