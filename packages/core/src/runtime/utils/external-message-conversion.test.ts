@@ -247,6 +247,36 @@ describe("joinExternalMessages", () => {
     expect(result.content[0]).not.toHaveProperty("result");
     expect(result.content[1]).not.toHaveProperty("result");
   });
+
+  it.each([undefined, "", "  "])(
+    "joins reasoning parts that share a parentId when one has text %j",
+    (text) => {
+      const messages = [
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "reasoning",
+              unstable_summary: "Planning",
+              text,
+              parentId: "r",
+            },
+            { type: "reasoning", text: "step 1", parentId: "r" },
+            {
+              type: "reasoning",
+              unstable_summary: "Checking",
+              text,
+              parentId: "r",
+            },
+          ],
+        },
+      ] as unknown as ExternalMessageConverterMessage[];
+
+      expect(joinExternalMessages(messages).content).toEqual([
+        expect.objectContaining({ type: "reasoning", text: "step 1" }),
+      ]);
+    },
+  );
 });
 
 describe("chunkExternalMessages", () => {
