@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import * as React from "react";
 import { z } from "zod";
 import {
   CHECKBOX_GROUP_ATTR,
@@ -39,7 +39,7 @@ const isOption = (option: unknown): option is Option =>
 
 const mapOptions = (
   options: unknown,
-  render: (option: Option, key: string) => ReactNode,
+  render: (option: Option, key: string) => React.ReactNode,
 ) => {
   const occurrences = new Map<string, number>();
   return (Array.isArray(options) ? options : []).map((option) => {
@@ -55,7 +55,7 @@ type RadioGroupRenderProps = {
   name?: string;
   label?: string;
   defaultValue?: string;
-  children?: ReactNode;
+  children?: React.ReactNode;
   $status: GenerativeUIStatus;
   $action?: Action;
   $dispatch?: GenerativeUIDispatch;
@@ -114,7 +114,7 @@ type CheckboxGroupRenderProps = {
   name?: string;
   label?: string;
   defaultValue?: string[];
-  children?: ReactNode;
+  children?: React.ReactNode;
   $status: GenerativeUIStatus;
   $action?: Action;
   $dispatch?: GenerativeUIDispatch;
@@ -139,7 +139,7 @@ function CheckboxGroupRender({
   $action,
   $dispatch,
 }: CheckboxGroupRenderProps) {
-  const generatedName = useId();
+  const generatedName = React.useId();
   const fieldName = name ?? generatedName;
   const answeredValue = useAnsweredValue(name);
   const checkedValues =
@@ -195,7 +195,7 @@ type SelectRenderProps = {
   label?: string;
   name?: string;
   defaultValue?: string;
-  children?: ReactNode;
+  children?: React.ReactNode;
   $status: GenerativeUIStatus;
   $action?: Action;
   $dispatch?: GenerativeUIDispatch;
@@ -442,10 +442,10 @@ function SliderControl({
   $action,
   $dispatch,
 }: SliderControlProps) {
-  const [value, setValue] = useState(initialValue);
-  const pointerActive = useRef(false);
-  const keyboardActive = useRef(false);
-  const lastCommitted = useRef(initialValue);
+  const [value, setValue] = React.useState(initialValue);
+  const pointerActive = React.useRef(false);
+  const keyboardActive = React.useRef(false);
+  const lastCommitted = React.useRef(initialValue);
   const currentValue = (input: HTMLInputElement) =>
     clamp(Number(input.value), min, max);
   const commit = (input: HTMLInputElement) => {
@@ -553,7 +553,7 @@ type ButtonRenderProps = {
   block?: boolean;
   submit?: boolean;
   undoable?: boolean;
-  children?: ReactNode;
+  children?: React.ReactNode;
   $status: GenerativeUIStatus;
   $action?: Action;
   $dispatch?: GenerativeUIDispatch;
@@ -569,10 +569,12 @@ function ButtonRender({
   $action,
   $dispatch,
 }: ButtonRenderProps) {
-  const [remaining, setRemaining] = useState<number | undefined>(undefined);
+  const [remaining, setRemaining] = React.useState<number | undefined>(
+    undefined,
+  );
   const labelText = String(toTextContent(label) ?? "");
   const undoLabel = labelText.trim();
-  const pendingAction = useRef<
+  const pendingAction = React.useRef<
     | {
         $action: Action;
         $dispatch: GenerativeUIDispatch;
@@ -583,7 +585,7 @@ function ButtonRender({
   const canUndo =
     undoable && !submit && $action !== undefined && $dispatch !== undefined;
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (remaining === undefined) return;
     const timer = setTimeout(() => {
       if (remaining > 1) {

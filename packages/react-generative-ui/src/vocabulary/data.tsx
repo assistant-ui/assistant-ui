@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import * as React from "react";
 import { z } from "zod";
 import type { GenerativeUILibrary } from "../types";
 import { formatValue, isNumericTableFormat } from "./formatValue";
@@ -73,7 +73,7 @@ const compareTableCells = (left: unknown, right: unknown): number => {
 type TableViewProps = {
   columns: unknown;
   rows: unknown;
-  children: ReactNode;
+  children: React.ReactNode;
   sort?: TableSort | undefined;
   onSort?: ((column: number) => void) | undefined;
 };
@@ -164,7 +164,7 @@ function TableView({ columns, rows, children, sort, onSort }: TableViewProps) {
 }
 
 function SortableTable(props: Omit<TableViewProps, "sort" | "onSort">) {
-  const [sort, setSort] = useState<TableSort | undefined>();
+  const [sort, setSort] = React.useState<TableSort | undefined>();
   return (
     <TableView
       {...props}

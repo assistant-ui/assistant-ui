@@ -1,11 +1,4 @@
-import {
-  Children,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import * as React from "react";
 import { z } from "zod";
 import type { GenerativeUILibrary } from "../types";
 import { ALERT_TONES } from "../ir";
@@ -15,7 +8,7 @@ const MAX_CARDS = 10;
 
 type CarouselRenderProps = {
   label?: string;
-  children?: ReactNode;
+  children?: React.ReactNode;
 };
 
 type CarouselMeasurement = {
@@ -25,15 +18,15 @@ type CarouselMeasurement = {
 };
 
 function CarouselRender({ label, children }: CarouselRenderProps) {
-  const carouselId = useId();
-  const carouselRef = useRef<HTMLDivElement>(null);
-  const [measurement, setMeasurement] = useState<
+  const carouselId = React.useId();
+  const carouselRef = React.useRef<HTMLDivElement>(null);
+  const [measurement, setMeasurement] = React.useState<
     CarouselMeasurement | undefined
   >(undefined);
-  const cards = Children.toArray(children).slice(0, MAX_CARDS);
+  const cards = React.Children.toArray(children).slice(0, MAX_CARDS);
   const n = cards.length;
 
-  useEffect(() => {
+  React.useEffect(() => {
     const carousel = carouselRef.current;
     if (!carousel) return;
 
