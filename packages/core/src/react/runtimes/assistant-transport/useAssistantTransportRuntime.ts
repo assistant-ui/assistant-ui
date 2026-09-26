@@ -32,6 +32,7 @@ import {
   useReplayRenderWait,
 } from "./replayBoundaryStream";
 import { useRunManager } from "./runManager";
+import { abortable } from "./abortable";
 import { useConvertedState } from "./useConvertedState";
 import type { ToolExecutionStatus } from "../../../runtimes/tool-invocations/ToolInvocationTracker";
 import { createRequestHeaders } from "../../../runtimes/assistant-transport/utils";
@@ -101,17 +102,6 @@ const readResumeState = async <T>(
 
   return { runId: value.runId, state: value.state as T };
 };
-
-// Rejects as soon as the signal aborts; a started operation keeps running.
-const abortable = <T>(signal: AbortSignal, start: () => Promise<T>) =>
-  new Promise<T>((resolve, reject) => {
-    const onAbort = () => reject(signal.reason);
-    if (signal.aborted) return onAbort();
-    signal.addEventListener("abort", onAbort, { once: true });
-    void start()
-      .then(resolve, reject)
-      .finally(() => signal.removeEventListener("abort", onAbort));
-  });
 
 const symbolAssistantTransportExtras = Symbol("assistant-transport-extras");
 type AssistantTransportExtras = {

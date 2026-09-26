@@ -159,6 +159,11 @@ export type AssistantTransportOptions<T> = {
    *
    * When an error occurs, queued commands are automatically cancelled after `onError` settles.
    * In this case, the `error` parameter contains the error that caused the cancellation.
+   *
+   * A cancel while `onError` is still pending ends the run without waiting for it, so one
+   * failed run can call `onCancel` twice: first without `error`, for the commands queued
+   * since the failure, then with `error`, for the commands queued before it, once `onError`
+   * settles. The second call can arrive after a later run has started.
    */
   onCancel?: (params: {
     commands: AssistantTransportCommand[];
