@@ -219,6 +219,62 @@ describe.each(flavors)("CodeBlock collapse (%s)", (_flavor, CodeBlock) => {
     );
   });
 
+  it("ignores a trailing newline when counting unhighlighted code", () => {
+    render(
+      <CodeBlock maxCollapsedLines={2}>
+        <pre>
+          <code>{"const first = 1;\nconst second = 2;\n"}</code>
+        </pre>
+      </CodeBlock>,
+    );
+
+    expect(screen.queryByRole("button", { name: /Show all/ })).toBeNull();
+  });
+
+  it("remeasures when a highlighter adds rendered lines", async () => {
+    const { container } = render(
+      <CodeBlock maxCollapsedLines={2}>
+        <pre>
+          <code>loading</code>
+        </pre>
+      </CodeBlock>,
+    );
+    const code = container.querySelector("code")!;
+
+    await act(async () => {
+      code.innerHTML =
+        '<span class="line">const first = 1;</span><span class="line">const second = 2;</span><span class="line">const third = 3;</span>';
+      await Promise.resolve();
+    });
+
+    expect(
+      screen.getByRole("button", { name: "Show all 3 lines" }),
+    ).toBeTruthy();
+  });
+
+  it("remeasures when a highlighter replaces the pre element", async () => {
+    const { container } = render(
+      <CodeBlock maxCollapsedLines={2}>
+        <pre>
+          <code>loading</code>
+        </pre>
+      </CodeBlock>,
+    );
+    const pre = container.querySelector("pre")!;
+    const replacement = document.createElement("pre");
+    replacement.innerHTML =
+      '<code><span class="line">const first = 1;</span><span class="line">const second = 2;</span><span class="line">const third = 3;</span></code>';
+
+    await act(async () => {
+      pre.replaceWith(replacement);
+      await Promise.resolve();
+    });
+
+    expect(
+      screen.getByRole("button", { name: "Show all 3 lines" }),
+    ).toBeTruthy();
+  });
+
   it("expands and collapses with an accessible toggle", () => {
     render(
       <CodeBlock maxCollapsedLines={2}>
@@ -262,5 +318,19 @@ describe.each(flavors)("CodeBlock collapse (%s)", (_flavor, CodeBlock) => {
     await clickCopy();
 
     expect(writeText).toHaveBeenCalledWith(code);
+  });
+
+  it("keeps the collapse fade outside the scrolling region", () => {
+    const { container } = render(
+      <CodeBlock maxCollapsedLines={2}>
+        <CodeLines code={code} />
+      </CodeBlock>,
+    );
+
+    const region = screen.getByRole("region", { name: "Code" });
+    const fade = container.querySelector('[aria-hidden="true"]');
+
+    expect(fade).toBeTruthy();
+    expect(region.contains(fade)).toBe(false);
   });
 });

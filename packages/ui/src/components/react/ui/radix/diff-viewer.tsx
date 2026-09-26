@@ -10,7 +10,7 @@ import parseDiff from "parse-diff";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { cn } from "@/lib/utils";
 
-type DiffLineType = "add" | "del" | "normal";
+type DiffLineType = "add" | "del" | "normal" | "marker";
 
 interface ParsedLine {
   type: DiffLineType;
@@ -44,7 +44,9 @@ function parsePatch(patch: string): ParsedFile[] {
     const hunks = file.chunks.map((chunk) => {
       const lines: ParsedLine[] = [];
       for (const change of chunk.changes) {
-        if (change.type === "add") {
+        if (change.content.startsWith("\\")) {
+          lines.push({ type: "marker", content: change.content });
+        } else if (change.type === "add") {
           lines.push({
             type: "add",
             content: change.content.slice(1),
@@ -140,6 +142,7 @@ function computeDiff(
 }
 
 function formatDiffLine(line: ParsedLine): string {
+  if (line.type === "marker") return line.content;
   const indicator = line.type === "add" ? "+" : line.type === "del" ? "-" : " ";
   return `${indicator}${line.content}`;
 }
@@ -224,6 +227,7 @@ const diffLineVariants = cva("flex", {
       add: "bg-[var(--diff-add-bg,var(--_diff-add-bg))] shadow-[inset_2px_0_0_var(--diff-add-rule,var(--color-green-500))] [--_diff-add-bg:color-mix(in_oklab,var(--color-green-500)_8%,transparent)] dark:[--_diff-add-bg:color-mix(in_oklab,var(--color-green-500)_15%,transparent)]",
       del: "bg-[var(--diff-del-bg,var(--_diff-del-bg))] shadow-[inset_2px_0_0_var(--diff-del-rule,var(--color-red-500))] [--_diff-del-bg:color-mix(in_oklab,var(--color-red-500)_8%,transparent)] dark:[--_diff-del-bg:color-mix(in_oklab,var(--color-red-500)_15%,transparent)]",
       normal: "",
+      marker: "",
       empty: "",
     },
   },
@@ -238,6 +242,7 @@ const diffLineTextVariants = cva("", {
       add: "text-[var(--diff-add-text,var(--color-green-600))] dark:text-[var(--diff-add-text-dark,var(--color-green-400))]",
       del: "text-[var(--diff-del-text,var(--color-red-600))] dark:text-[var(--diff-del-text-dark,var(--color-red-400))]",
       normal: "",
+      marker: "",
       empty: "",
     },
   },
@@ -384,7 +389,14 @@ function DiffViewerLine({
   className,
   ...props
 }: DiffViewerLineProps) {
-  const indicator = line.type === "add" ? "+" : line.type === "del" ? "-" : " ";
+  const indicator =
+    line.type === "add"
+      ? "+"
+      : line.type === "del"
+        ? "-"
+        : line.type === "marker"
+          ? ""
+          : " ";
 
   return (
     <div
@@ -398,11 +410,13 @@ function DiffViewerLine({
           data-slot="diff-viewer-line-number"
           className="text-muted-foreground/40 w-10 shrink-0 px-2 text-end tabular-nums select-none"
         >
-          {line.type === "del"
-            ? line.oldLineNumber
-            : line.type === "add"
-              ? line.newLineNumber
-              : line.oldLineNumber}
+          {line.type === "marker"
+            ? ""
+            : line.type === "del"
+              ? line.oldLineNumber
+              : line.type === "add"
+                ? line.newLineNumber
+                : line.oldLineNumber}
         </span>
       )}
       <span
@@ -462,7 +476,13 @@ function DiffViewerSplitLine({
             diffLineTextVariants({ type: left?.type ?? "empty" }),
           )}
         >
-          {left ? (left.type === "del" ? "-" : " ") : ""}
+          {left
+            ? left.type === "del"
+              ? "-"
+              : left.type === "marker"
+                ? ""
+                : " "
+            : ""}
         </span>
         <span className="flex-1 pe-3.5 break-all whitespace-pre-wrap">
           {left?.content ?? ""}
@@ -487,7 +507,13 @@ function DiffViewerSplitLine({
             diffLineTextVariants({ type: right?.type ?? "empty" }),
           )}
         >
-          {right ? (right.type === "add" ? "+" : " ") : ""}
+          {right
+            ? right.type === "add"
+              ? "+"
+              : right.type === "marker"
+                ? ""
+                : " "
+            : ""}
         </span>
         <span className="flex-1 pe-3.5 break-all whitespace-pre-wrap">
           {right?.content ?? ""}

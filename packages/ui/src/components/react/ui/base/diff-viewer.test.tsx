@@ -35,6 +35,17 @@ const MULTI_FILE_PATCH = [
   "+updated third",
 ].join("\n");
 
+const NO_NEWLINE_PATCH = [
+  "diff --git a/src/example.ts b/src/example.ts",
+  "--- a/src/example.ts",
+  "+++ b/src/example.ts",
+  "@@ -1 +1 @@",
+  "-first",
+  "\\ No newline at end of file",
+  "+updated",
+  "\\ No newline at end of file",
+].join("\n");
+
 const writeText = vi.fn<(text: string) => Promise<void>>();
 
 beforeEach(() => {
@@ -69,6 +80,39 @@ describe("DiffViewer", () => {
         " first",
         "-second",
         "+updated",
+      ].join("\n"),
+    );
+  });
+
+  it("preserves no-newline markers without counting or prefixing them", async () => {
+    render(<DiffViewer patch={NO_NEWLINE_PATCH} />);
+
+    expect(screen.getByText("+1")).toBeTruthy();
+    expect(screen.getByText("−1")).toBeTruthy();
+    expect(
+      document.querySelectorAll(
+        '[data-slot="diff-viewer-line"][data-type="marker"]',
+      ),
+    ).toHaveLength(2);
+
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: "Copy diff of src/example.ts",
+        }),
+      );
+      await Promise.resolve();
+    });
+
+    expect(writeText).toHaveBeenCalledWith(
+      [
+        "--- a/src/example.ts",
+        "+++ b/src/example.ts",
+        "@@ -1 +1 @@",
+        "-first",
+        "\\ No newline at end of file",
+        "+updated",
+        "\\ No newline at end of file",
       ].join("\n"),
     );
   });
