@@ -3379,4 +3379,294 @@ describe("useLangGraphRuntime", () => {
       expect(streamMock).toHaveBeenCalledTimes(2);
     });
   });
+
+  describe("edit while a run is active", () => {
+    const renderWithCheckpoint = async (
+      stream: LangGraphStreamCallback<LangChainMessage>,
+      getCheckpointId: () => Promise<string | null>,
+    ) => {
+      const { result } = renderHook(() =>
+        useLangGraphRuntime({
+          stream,
+          getCheckpointId,
+          unstable_threadListAdapter: makeThreadListAdapter(),
+        }),
+      );
+      const wrapper = wrapperFactory(result.current);
+      renderHook(() => useAuiState((s) => s.thread.isRunning), { wrapper });
+      await act(async () => {
+        await result.current.threads.switchToThread("lg-thread-1");
+      });
+      return result;
+    };
+
+    it("starts the edit from the truncated thread", async () => {
+      const releaseStale = deferred<void>();
+      const checkpoint = deferred<string | null>();
+      let calls = 0;
+      const stream = vi.fn(() => {
+        const call = calls++;
+        return (async function* () {
+          if (call === 0) {
+            yield {
+              event: "messages/complete",
+              data: [{ type: "ai", id: "stale-1", content: "stale partial" }],
+            };
+            await releaseStale.promise;
+            yield {
+              event: "messages/complete",
+              data: [{ type: "ai", id: "stale-2", content: "stale late" }],
+            };
+            return;
+          }
+          yield {
+            event: "messages/complete",
+            data: [{ type: "ai", id: "fresh", content: "fresh answer" }],
+          };
+        })();
+      });
+      const result = await renderWithCheckpoint(
+        stream as unknown as LangGraphStreamCallback<LangChainMessage>,
+        () => checkpoint.promise,
+      );
+
+      await act(async () => {
+        result.current.thread.append("original question");
+      });
+      await waitFor(() =>
+        expect(textsOf(result.current)).toContain("stale partial"),
+      );
+      const original = result.current.thread
+        .getState()
+        .messages.find((m) => m.role === "user")!;
+
+      await act(async () => {
+        result.current.thread.append({
+          role: "user",
+          parentId: null,
+          sourceId: original.id,
+          content: [{ type: "text", text: "edited question" }],
+        });
+      });
+      await act(async () => {
+        releaseStale.resolve();
+        checkpoint.resolve("cp-1");
+      });
+      await waitFor(() =>
+        expect(textsOf(result.current)).toContain("fresh answer"),
+      );
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+
+      expect(textsOf(result.current)).toEqual([
+        "edited question",
+        "fresh answer",
+      ]);
+    });
+
+    it("stops an edit that is still looking up its checkpoint", async () => {
+      const checkpoint = deferred<string | null>();
+      const stream = vi.fn((_messages: unknown, _config: unknown) =>
+        (async function* () {
+          yield {
+            event: "messages/complete",
+            data: [{ type: "ai", id: "answer", content: "answer" }],
+          };
+        })(),
+      );
+      const { result } = renderHook(() =>
+        useLangGraphRuntime({
+          stream:
+            stream as unknown as LangGraphStreamCallback<LangChainMessage>,
+          getCheckpointId: () => checkpoint.promise,
+          unstable_threadListAdapter: makeThreadListAdapter(),
+          unstable_allowCancellation: true,
+        }),
+      );
+      const wrapper = wrapperFactory(result.current);
+      renderHook(() => useAuiState((s) => s.thread.isRunning), { wrapper });
+      await act(async () => {
+        await result.current.threads.switchToThread("lg-thread-1");
+      });
+      await act(async () => {
+        result.current.thread.append("question");
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      const original = result.current.thread
+        .getState()
+        .messages.find((m) => m.role === "user")!;
+
+      await act(async () => {
+        result.current.thread.append({
+          role: "user",
+          parentId: null,
+          sourceId: original.id,
+          content: [{ type: "text", text: "edited question" }],
+        });
+      });
+      expect(result.current.thread.getState().isRunning).toBe(true);
+
+      await act(async () => {
+        result.current.thread.cancelRun();
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      await act(async () => {
+        checkpoint.resolve("cp-1");
+      });
+      expect(stream).toHaveBeenCalledTimes(1);
+      expect(textsOf(result.current)).toEqual(["edited question"]);
+
+      await act(async () => {
+        result.current.thread.append("next");
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      expect(stream).toHaveBeenCalledTimes(2);
+      expect(stream.mock.calls[1]![0]).toMatchObject([
+        { type: "human", content: "next" },
+      ]);
+      expect(stream.mock.calls[1]![1]).not.toHaveProperty("checkpointId");
+      expect(textsOf(result.current)).toEqual([
+        "edited question",
+        "next",
+        "answer",
+      ]);
+    });
+
+    it("shows the edited message once while its checkpoint is looked up and after it is sent", async () => {
+      const checkpoint = deferred<string | null>();
+      const stream = vi.fn((_messages: unknown, _config: unknown) => {
+        const call = stream.mock.calls.length;
+        return (async function* () {
+          yield {
+            event: "messages/complete",
+            data: [{ type: "ai", id: `a-${call}`, content: `answer ${call}` }],
+          };
+        })();
+      });
+      const result = await renderWithCheckpoint(
+        stream as unknown as LangGraphStreamCallback<LangChainMessage>,
+        () => checkpoint.promise,
+      );
+      await act(async () => {
+        result.current.thread.append("question");
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      const original = result.current.thread
+        .getState()
+        .messages.find((m) => m.role === "user")!;
+
+      await act(async () => {
+        result.current.thread.append({
+          role: "user",
+          parentId: null,
+          sourceId: original.id,
+          content: [{ type: "text", text: "edited question" }],
+        });
+      });
+      const shown = result.current.thread
+        .getState()
+        .messages.filter((m) => m.role === "user");
+      expect(shown.map(getThreadMessageText)).toEqual(["edited question"]);
+
+      await act(async () => {
+        checkpoint.resolve("cp-1");
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      expect(stream.mock.calls[1]![0]).toMatchObject([
+        { type: "human", id: shown[0]!.id, content: "edited question" },
+      ]);
+      expect(stream.mock.calls[1]![1]).toMatchObject({ checkpointId: "cp-1" });
+      expect(textsOf(result.current)).toEqual(["edited question", "answer 2"]);
+    });
+
+    it("runs a message queued during the checkpoint lookup after the edit", async () => {
+      const checkpoint = deferred<string | null>();
+      const events: string[] = [];
+      const stream = vi.fn((_messages: unknown, _config: unknown) => {
+        const call = stream.mock.calls.length;
+        return (async function* () {
+          events.push(`start ${call}`);
+          yield {
+            event: "messages/complete",
+            data: [{ type: "ai", id: `a-${call}`, content: "answer" }],
+          };
+          events.push(`end ${call}`);
+        })();
+      });
+      const { result } = renderHook(() =>
+        useLangGraphRuntime({
+          stream:
+            stream as unknown as LangGraphStreamCallback<LangChainMessage>,
+          getCheckpointId: () => checkpoint.promise,
+          unstable_threadListAdapter: makeThreadListAdapter(),
+          unstable_enableMessageQueue: true,
+        }),
+      );
+      const wrapper = wrapperFactory(result.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+      await act(async () => {
+        await result.current.threads.switchToThread("lg-thread-1");
+      });
+
+      await act(async () => {
+        result.current.thread.append("question");
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      const original = result.current.thread
+        .getState()
+        .messages.find((m) => m.role === "user")!;
+
+      await act(async () => {
+        result.current.thread.append({
+          role: "user",
+          parentId: null,
+          sourceId: original.id,
+          content: [{ type: "text", text: "edited question" }],
+        });
+      });
+      expect(result.current.thread.getState().isRunning).toBe(true);
+
+      await act(async () => {
+        auiResult.current.composer.setText("follow-up");
+        auiResult.current.composer.send();
+      });
+      expect(stream).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        checkpoint.resolve("cp-1");
+      });
+      await waitFor(() => expect(stream).toHaveBeenCalledTimes(3));
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      expect(stream.mock.calls[1]![0]).toMatchObject([
+        { type: "human", content: "edited question" },
+      ]);
+      expect(stream.mock.calls[1]![1]).toMatchObject({ checkpointId: "cp-1" });
+      expect(stream.mock.calls[2]![0]).toMatchObject([
+        { type: "human", content: "follow-up" },
+      ]);
+      expect(events).toEqual([
+        "start 1",
+        "end 1",
+        "start 2",
+        "end 2",
+        "start 3",
+        "end 3",
+      ]);
+    });
+  });
 });

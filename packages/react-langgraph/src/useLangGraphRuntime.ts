@@ -419,9 +419,11 @@ const useLangGraphRuntimeImpl = (
   const runQueueRef = useRef<SerialRunQueue<{
     messages: LangChainMessage[];
     config: LangGraphSendMessageConfig;
+    lookupCheckpoint?: (() => Promise<string | null>) | undefined;
   }> | null>(null);
+  const checkpointLookupRef = useRef<AbortController | null>(null);
   runQueueRef.current ??= createSerialRunQueue({
-    run: ({ messages, config }, onComplete) => {
+    run: ({ messages, config, lookupCheckpoint }, onComplete) => {
       currentRunIdRef.current = String(++nextRunIdRef.current);
       for (const [groupKey, batch] of pendingResumeRef.current) {
         if (batch === messages) {
@@ -435,21 +437,42 @@ const useLangGraphRuntimeImpl = (
           ? [message.id]
           : [],
       );
+      const restoreTranscripts = () => {
+        for (const id of carriedTranscriptIds) {
+          unsentTranscriptIdsRef.current.add(id);
+        }
+      };
       runErrorBalanceRef.current = 0;
-      return sendMessageRef
-        .current(messages, config, () => {
+      const send = (resolved: LangGraphSendMessageConfig) =>
+        sendMessageRef.current(messages, resolved, () => {
           if (runErrorBalanceRef.current > 0) {
             pendingResumeRef.current.clear();
             runQueueRef.current!.drop();
           }
           onComplete();
-        })
-        .catch((error: unknown) => {
-          for (const id of carriedTranscriptIds) {
-            unsentTranscriptIdsRef.current.add(id);
-          }
-          throw error;
         });
+      let task: Promise<void>;
+      if (lookupCheckpoint) {
+        const lookup = new AbortController();
+        checkpointLookupRef.current = lookup;
+        task = new Promise<string | null>((resolve, reject) => {
+          lookup.signal.addEventListener("abort", () => resolve(null), {
+            once: true,
+          });
+          lookupCheckpoint().then(resolve, reject);
+        }).then((checkpointId) => {
+          if (checkpointLookupRef.current === lookup)
+            checkpointLookupRef.current = null;
+          if (lookup.signal.aborted) return restoreTranscripts();
+          return send(checkpointId ? { ...config, checkpointId } : config);
+        });
+      } else {
+        task = send(config);
+      }
+      return task.catch((error: unknown) => {
+        restoreTranscripts();
+        throw error;
+      });
     },
     onRunningChange: setIsRunning,
   });
@@ -459,6 +482,7 @@ const useLangGraphRuntimeImpl = (
     pendingResumeRef.current.clear();
     runQueue.drop();
     queueRef.current?.clear();
+    checkpointLookupRef.current?.abort();
     cancel();
   }, [runQueue, cancel]);
 
@@ -470,6 +494,7 @@ const useLangGraphRuntimeImpl = (
   const handleSendMessage = (
     outgoing: LangChainMessage[],
     config: LangGraphSendMessageConfig,
+    lookupCheckpoint?: () => Promise<string | null>,
   ) => {
     // Only a refetch: its landing snapshot would erase the message just sent.
     loadController.abort("reload");
@@ -487,6 +512,7 @@ const useLangGraphRuntimeImpl = (
     return runQueue.enqueue({
       messages: outgoing,
       config: state ? { ...resolvedConfig, state } : resolvedConfig,
+      lookupCheckpoint,
     });
   };
 
@@ -859,9 +885,7 @@ const useLangGraphRuntimeImpl = (
     onEdit: getCheckpointId
       ? async (msg) => {
           toolResultBufferRef.current.clear();
-          pendingResumeRef.current.clear();
-          runQueue.drop();
-          queueRef.current?.clear();
+          cancelActiveRun();
           const truncated = truncateLangChainMessages(
             threadMessagesRef.current,
             msg.parentId,
@@ -888,15 +912,16 @@ const useLangGraphRuntimeImpl = (
           }
           const externalId = aui.threadListItem.getState().externalId;
           const { base, transcripts } = splitTranscriptTail(truncated);
-          const checkpointId = externalId
-            ? await getCheckpointId(externalId, base)
-            : null;
           const editMessage = toLangGraphUserMessage(msg);
           stageAttachments(editMessage.id, msg.attachments);
-          return handleSendMessage([...transcripts, editMessage], {
-            runConfig: msg.runConfig,
-            ...(checkpointId && { checkpointId }),
-          });
+          const shownMessages = [...truncated, editMessage];
+          langGraphMessagesRef.current = shownMessages;
+          setMessages(shownMessages);
+          return handleSendMessage(
+            [...transcripts, editMessage],
+            { runConfig: msg.runConfig },
+            externalId ? () => getCheckpointId(externalId, base) : undefined,
+          );
         }
       : undefined,
     ...(getCheckpointId || hasStagedMessages
@@ -918,8 +943,7 @@ const useLangGraphRuntimeImpl = (
               throw new Error("Runtime does not support reloading messages.");
 
             toolResultBufferRef.current.clear();
-            pendingResumeRef.current.clear();
-            runQueue.drop();
+            cancelActiveRun();
             const truncated = truncateLangChainMessages(
               threadMessagesRef.current,
               parentId,
@@ -933,13 +957,11 @@ const useLangGraphRuntimeImpl = (
             setInterrupt(undefined);
             const externalId = aui.threadListItem.getState().externalId;
             const { base, transcripts } = splitTranscriptTail(truncated);
-            const checkpointId = externalId
-              ? await getCheckpointId(externalId, base)
-              : null;
-            return handleSendMessage(transcripts, {
-              runConfig: config.runConfig,
-              ...(checkpointId && { checkpointId }),
-            });
+            return handleSendMessage(
+              transcripts,
+              { runConfig: config.runConfig },
+              externalId ? () => getCheckpointId(externalId, base) : undefined,
+            );
           },
         }
       : {}),
