@@ -109,6 +109,7 @@ const makeRunningRuntime = () => {
       listeners.add(callback);
       return () => listeners.delete(callback);
     },
+    composer: { dictation: undefined },
   } as unknown as ThreadRuntimeCore & { isRunning: boolean };
 
   return {

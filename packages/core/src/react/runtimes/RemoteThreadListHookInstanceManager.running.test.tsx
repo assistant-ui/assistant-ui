@@ -35,6 +35,7 @@ const makeRuntime = (
       }
       return () => listeners.delete(callback);
     },
+    composer: { dictation: undefined },
   } as unknown as ThreadRuntimeCore & {
     isRunning: boolean | undefined;
     messages: readonly ThreadMessage[];
