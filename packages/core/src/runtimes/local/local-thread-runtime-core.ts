@@ -128,6 +128,47 @@ const withLocalPauseReasons = (
   };
 };
 
+const dropHistoryItemsWithMissingParents = (
+  data: ExportedMessageRepository,
+  existingMessageIds: ReadonlySet<string>,
+): ExportedMessageRepository => {
+  const reachableIds = new Set(existingMessageIds);
+  const acceptedItems = new Set<
+    ExportedMessageRepository["messages"][number]
+  >();
+  let pending = data.messages;
+
+  while (pending.length > 0) {
+    const unresolved: typeof pending = [];
+    let madeProgress = false;
+
+    for (const item of pending) {
+      if (item.parentId && !reachableIds.has(item.parentId)) {
+        unresolved.push(item);
+        continue;
+      }
+
+      reachableIds.add(item.message.id);
+      acceptedItems.add(item);
+      madeProgress = true;
+    }
+
+    if (!madeProgress) break;
+    pending = unresolved;
+  }
+
+  const messages = data.messages.filter((item) => acceptedItems.has(item));
+  const headId = data.headId;
+
+  return {
+    ...data,
+    ...(headId != null && !reachableIds.has(headId)
+      ? { headId: messages.at(-1)?.message.id ?? null }
+      : {}),
+    messages,
+  };
+};
+
 const withoutToolInteractions = (message: ThreadMessage): ThreadMessage => {
   if (message.role !== "assistant") return message;
   let hasInteractions = false;
@@ -476,8 +517,15 @@ export class LocalThreadRuntimeCore
     this._loadPromise = promise
       .then((repo) => {
         if (!repo) return;
-        this.repository.import(withLocalPauseReasons(repo));
-        if (repo.messages.length > 0) {
+        const existingMessageIds = new Set(
+          this.repository.export().messages.map(({ message }) => message.id),
+        );
+        const loadableRepo = dropHistoryItemsWithMissingParents(
+          repo,
+          existingMessageIds,
+        );
+        this.repository.import(withLocalPauseReasons(loadableRepo));
+        if (loadableRepo.messages.length > 0) {
           this.ensureInitialized();
         }
         this._notifySubscribers();
