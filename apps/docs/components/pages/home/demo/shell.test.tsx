@@ -14,8 +14,20 @@ const mocks = vi.hoisted(() => ({
     mainThreadId: "one",
     threadIds: ["one", "two"],
     threadItems: [
-      { id: "one", title: "First thread", status: "regular" },
-      { id: "two", title: "Second thread", status: "regular" },
+      {
+        id: "one",
+        title: "First thread",
+        status: "regular",
+        custom: {} as Record<string, unknown>,
+        lastMessageAt: undefined as Date | undefined,
+      },
+      {
+        id: "two",
+        title: "Second thread",
+        status: "regular",
+        custom: {} as Record<string, unknown>,
+        lastMessageAt: undefined as Date | undefined,
+      },
     ],
   },
   switchToThread: vi.fn(),
@@ -72,6 +84,33 @@ const create = () => {
 };
 
 describe("demo thread controls", () => {
+  it.each(["pinned", "activity"])(
+    "navigates in the sidebar's %s order",
+    async (order) => {
+      const first = mocks.state.threadItems[0]!;
+      const second = mocks.state.threadItems[1]!;
+      if (order === "pinned") second.custom = { pinned: "true" };
+      else {
+        first.lastMessageAt = new Date("2020-01-01");
+        second.lastMessageAt = new Date("2020-01-02");
+      }
+      try {
+        create();
+        fireEvent.keyDown(screen.getByRole("textbox"), {
+          key: "ArrowUp",
+          altKey: true,
+        });
+        await waitFor(() =>
+          expect(mocks.switchToThread).toHaveBeenCalledWith("two"),
+        );
+      } finally {
+        second.custom = {};
+        first.lastMessageAt = undefined;
+        second.lastMessageAt = undefined;
+      }
+    },
+  );
+
   it("switches to the adjacent thread from the composer", async () => {
     const { onViewChange } = create();
     fireEvent.keyDown(screen.getByRole("textbox"), {

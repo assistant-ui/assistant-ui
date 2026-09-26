@@ -3,10 +3,8 @@
 import { ThreadListPrimitive, useAui, useAuiState } from "@assistant-ui/react";
 import { ChevronDownIcon, PlusIcon } from "lucide-react";
 import { Fragment, useMemo, useState, type ReactNode } from "react";
-import {
-  ThreadListSearch,
-  useThreadListGroups,
-} from "@/components/assistant-ui/elements/thread-list.aui";
+import { ThreadListSearch } from "@/components/assistant-ui/elements/thread-list.aui";
+import { useDemoThreadListGroups } from "./thread-list-groups";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { SidebarAccount } from "./account";
@@ -126,29 +124,8 @@ function ThreadList({ search }: { search: string }): ReactNode {
 }
 
 function ThreadGroups({ search }: { search: string }): ReactNode {
-  const { threadIds, filteredIndices, groups } = useThreadListGroups(search);
-  const threadItems = useAuiState((s) => s.threads.threadItems);
-
-  const { pinned, sections } = useMemo(() => {
-    const pinnedSet = new Set(
-      threadItems
-        .filter((item) => item.custom?.pinned === "true")
-        .map((item) => item.id),
-    );
-    const isPinned = (index: number) => pinnedSet.has(threadIds[index]!);
-    const pinned = (
-      groups ? groups.flatMap((group) => group.indices) : filteredIndices
-    ).filter(isPinned);
-    const sections = (
-      groups ?? [{ label: "Threads", indices: filteredIndices }]
-    )
-      .map((group) => ({
-        label: group.label,
-        indices: group.indices.filter((index) => !isPinned(index)),
-      }))
-      .filter((group) => group.indices.length > 0);
-    return { pinned, sections };
-  }, [filteredIndices, groups, threadIds, threadItems]);
+  const { threadIds, filteredIndices, pinned, sections } =
+    useDemoThreadListGroups(search);
 
   if (search.trim() && filteredIndices.length === 0) {
     return (
