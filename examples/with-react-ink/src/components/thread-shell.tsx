@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Activity, useEffect, useRef, useState, type ReactNode } from "react";
 import { Box, Text, useInput, useStdout } from "ink";
 import { TextInput, useAui, useAuiState } from "@assistant-ui/react-ink";
 
@@ -318,11 +318,11 @@ export function ThreadShell({
             ) : null}
           </Box>
         ) : null}
-        {wide || mode === "chat" ? (
+        <Activity mode={wide || mode === "chat" ? "visible" : "hidden"}>
           <Box width={width} flexDirection="column" flexGrow={1}>
             {children({ isComposing: mode === "chat", width })}
           </Box>
-        ) : null}
+        </Activity>
       </Box>
       {error ? <Text color="red">{error}</Text> : null}
       <Box marginTop={1}>
