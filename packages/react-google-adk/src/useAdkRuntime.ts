@@ -170,6 +170,10 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     isRunningRef.current = effectiveIsRunning;
   }, [effectiveIsRunning]);
   const runGenerationRef = useRef(0);
+  const reloadLookupRef = useRef<{
+    generation: number;
+    beforeReload: AdkThreadSnapshot;
+  } | null>(null);
 
   const runExclusive = async (
     run: (isCurrent: () => boolean) => Promise<void>,
@@ -322,6 +326,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
               messagesRef.current !== messagesAtLoadStart)
           )
             return;
+          reloadLookupRef.current = null;
           applySnapshot(snapshot);
         },
         onSettled: () => {
@@ -441,6 +446,17 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
               throw new Error("Runtime does not support reloading messages.");
 
             stopRun();
+            const beforeReload: AdkThreadSnapshot = {
+              messages: adkMessagesRef.current,
+              longRunningToolIds,
+              toolConfirmations,
+              authRequests,
+              escalated,
+              messageMetadata,
+              stateDelta,
+              artifactDelta,
+              agentInfo,
+            };
             const truncated = truncateAdkMessages(
               threadMessagesRef.current,
               parentId,
@@ -448,9 +464,20 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
             replaceMessages(truncated);
             const externalId = aui.threadListItem.getState().externalId;
             return runExclusive(async (isCurrent) => {
-              const checkpointId = externalId
-                ? await getCheckpointId(externalId, truncated)
-                : null;
+              const lookup = {
+                generation: runGenerationRef.current,
+                beforeReload,
+              };
+              reloadLookupRef.current = lookup;
+              let checkpointId: string | null;
+              try {
+                checkpointId = externalId
+                  ? await getCheckpointId(externalId, truncated)
+                  : null;
+              } finally {
+                if (reloadLookupRef.current === lookup)
+                  reloadLookupRef.current = null;
+              }
               if (!isCurrent()) return;
               await sendMessage([], {
                 runConfig: config.runConfig,
@@ -493,7 +520,19 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
         {},
       );
     },
-    onCancel: unstable_allowCancellation ? async () => stopRun() : undefined,
+    onCancel: unstable_allowCancellation
+      ? async () => {
+          const lookup = reloadLookupRef.current;
+          const beforeReload =
+            lookup?.generation === runGenerationRef.current
+              ? lookup.beforeReload
+              : undefined;
+          stopRun();
+          // A reload stopped before it sent leaves the ADK session holding the
+          // turn it removed, so the thread shows that turn again.
+          if (beforeReload) applySnapshot(beforeReload);
+        }
+      : undefined,
     ...(load !== undefined && {
       onRefetchThread: () => runLoad("reload"),
     }),

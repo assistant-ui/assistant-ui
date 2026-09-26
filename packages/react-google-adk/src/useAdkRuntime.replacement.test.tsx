@@ -9,7 +9,7 @@ import type {
   RemoteThreadListAdapter,
 } from "@assistant-ui/core";
 import { useAdkRuntime } from "./useAdkRuntime";
-import type { AdkEvent } from "./types";
+import type { AdkEvent, AdkThreadSnapshot } from "./types";
 import { settleOutsideAct } from "./tests/settleOutsideAct";
 
 const makeThreadListAdapter = (): RemoteThreadListAdapter => ({
@@ -145,6 +145,7 @@ describe("useAdkRuntime replacement runs", () => {
     stream: (...args: never[]) => AsyncGenerator<AdkEvent>,
     getCheckpointId: () => Promise<string | null>,
     allowCancellation = false,
+    load?: () => Promise<AdkThreadSnapshot>,
   ) => {
     const capture: { runtime: AssistantRuntime | null } = { runtime: null };
     const Inner: FC = () => {
@@ -153,6 +154,7 @@ describe("useAdkRuntime replacement runs", () => {
         sessionAdapter: makeThreadListAdapter(),
         getCheckpointId,
         unstable_allowCancellation: allowCancellation,
+        ...(load ? { load } : {}),
       });
       capture.runtime = runtime;
       return (
@@ -426,6 +428,276 @@ describe("useAdkRuntime replacement runs", () => {
         .getState()
         .messages.map((m) => (m.content[0] as { text: string }).text),
     ).toEqual(["edited question"]);
+  });
+
+  const reloadAndStop = async () => {
+    const checkpoint = deferred();
+    let calls = 0;
+    const stream = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
+      const call = calls++;
+      yield {
+        id: `answer-${call}`,
+        invocationId: `run-${call}`,
+        author: "agent",
+        content: { role: "model", parts: [{ text: `answer ${call}` }] },
+      };
+    });
+    const getCheckpointId = vi.fn(async () => {
+      await checkpoint.promise;
+      return "cp-1";
+    });
+    const runtime = await mountWithCheckpoint(stream, getCheckpointId, true);
+
+    await act(async () => {
+      runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "question" }],
+      });
+    });
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+    const answer = runtime.thread.getState().messages[1]!;
+
+    await act(async () => {
+      runtime.thread.getMessageById(answer.id).reload();
+    });
+    expect(JSON.stringify(runtime.thread.getState().messages)).not.toContain(
+      "answer 0",
+    );
+    expect(runtime.thread.getState().isRunning).toBe(true);
+
+    await act(async () => {
+      runtime.thread.cancelRun();
+    });
+    return { runtime, stream, checkpoint, getCheckpointId };
+  };
+
+  const texts = (runtime: AssistantRuntime) =>
+    runtime.thread
+      .getState()
+      .messages.map((m) => (m.content[0] as { text: string }).text);
+
+  it("restores the thread when a reload is stopped while it looks up its checkpoint", async () => {
+    const { runtime, stream, checkpoint } = await reloadAndStop();
+
+    expect(runtime.thread.getState().isRunning).toBe(false);
+    expect(texts(runtime)).toEqual(["question", "answer 0"]);
+
+    await act(async () => {
+      checkpoint.resolve();
+    });
+    expect(stream).toHaveBeenCalledTimes(1);
+    expect(texts(runtime)).toEqual(["question", "answer 0"]);
+  });
+
+  it("sends the next message after a stopped reload without a checkpoint", async () => {
+    const { runtime, stream, checkpoint, getCheckpointId } =
+      await reloadAndStop();
+
+    await act(async () => {
+      runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "follow-up" }],
+      });
+    });
+    await act(async () => {
+      checkpoint.resolve();
+    });
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+
+    expect(stream).toHaveBeenCalledTimes(2);
+    const [, followUpConfig] = stream.mock.calls[1] as unknown as [
+      unknown,
+      object,
+    ];
+    expect(followUpConfig).not.toHaveProperty("checkpointId");
+    expect(getCheckpointId).toHaveBeenCalledTimes(1);
+    expect(texts(runtime)).toEqual([
+      "question",
+      "answer 0",
+      "follow-up",
+      "answer 1",
+    ]);
+  });
+
+  it("keeps a message sent during a reload's checkpoint lookup when Stop follows", async () => {
+    const checkpoint = deferred();
+    const followUpGate = deferred();
+    let calls = 0;
+    const stream = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
+      const call = calls++;
+      if (call === 1) await followUpGate.promise;
+      yield {
+        id: `answer-${call}`,
+        invocationId: `run-${call}`,
+        author: "agent",
+        content: { role: "model", parts: [{ text: `answer ${call}` }] },
+      };
+    });
+    const runtime = await mountWithCheckpoint(
+      stream,
+      async () => {
+        await checkpoint.promise;
+        return "cp-1";
+      },
+      true,
+    );
+
+    await act(async () => {
+      runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "question" }],
+      });
+    });
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+    const answer = runtime.thread.getState().messages[1]!;
+
+    await act(async () => {
+      runtime.thread.getMessageById(answer.id).reload();
+    });
+    await act(async () => {
+      runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "follow-up" }],
+      });
+    });
+    await waitFor(() => expect(stream).toHaveBeenCalledTimes(2));
+    await act(async () => {
+      runtime.thread.cancelRun();
+    });
+    await act(async () => {
+      followUpGate.resolve();
+      checkpoint.resolve();
+    });
+
+    expect(stream).toHaveBeenCalledTimes(2);
+    const messages = JSON.stringify(runtime.thread.getState().messages);
+    expect(messages).toContain("follow-up");
+    expect(messages).not.toContain("answer 0");
+  });
+
+  it("keeps an edit made while a reload looks up its checkpoint", async () => {
+    const lookups = [deferred(), deferred()];
+    const waiting = [...lookups];
+    const stream = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
+      yield {
+        id: "answer",
+        invocationId: "run",
+        author: "agent",
+        content: { role: "model", parts: [{ text: "answer 0" }] },
+      };
+    });
+    const runtime = await mountWithCheckpoint(
+      stream,
+      async () => {
+        await waiting.shift()!.promise;
+        return "cp-1";
+      },
+      true,
+    );
+
+    await act(async () => {
+      runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "question" }],
+      });
+    });
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+    const [original, answer] = runtime.thread.getState().messages;
+
+    await act(async () => {
+      runtime.thread.getMessageById(answer!.id).reload();
+    });
+    await act(async () => {
+      runtime.thread.append({
+        role: "user",
+        parentId: null,
+        sourceId: original!.id,
+        content: [{ type: "text", text: "edited question" }],
+      });
+    });
+    await act(async () => {
+      runtime.thread.cancelRun();
+    });
+    await act(async () => {
+      lookups[0]!.resolve();
+      lookups[1]!.resolve();
+    });
+
+    expect(stream).toHaveBeenCalledTimes(1);
+    expect(texts(runtime)).toEqual(["edited question"]);
+  });
+
+  it("keeps a history load that lands while a reload looks up its checkpoint when Stop follows", async () => {
+    const checkpoint = deferred();
+    const loaded = deferred();
+    const stream = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
+      yield {
+        id: "answer",
+        invocationId: "run",
+        author: "agent",
+        content: { role: "model", parts: [{ text: "answer 0" }] },
+      };
+    });
+    const runtime = await mountWithCheckpoint(
+      stream,
+      async () => {
+        await checkpoint.promise;
+        return "cp-1";
+      },
+      true,
+      async () => {
+        await loaded.promise;
+        return {
+          messages: [
+            {
+              id: "h-1",
+              type: "ai",
+              content: [{ type: "text", text: "loaded" }],
+            },
+          ],
+        };
+      },
+    );
+
+    await act(async () => {
+      runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "question" }],
+      });
+    });
+    await waitFor(() =>
+      expect(JSON.stringify(runtime.thread.getState().messages)).toContain(
+        "answer 0",
+      ),
+    );
+    const answer = runtime.thread
+      .getState()
+      .messages.find((m) => JSON.stringify(m).includes("answer 0"))!;
+
+    await act(async () => {
+      runtime.thread.getMessageById(answer.id).reload();
+    });
+    await act(async () => {
+      loaded.resolve();
+    });
+    await waitFor(() => expect(texts(runtime)).toEqual(["loaded"]));
+    await act(async () => {
+      runtime.thread.cancelRun();
+    });
+    await act(async () => {
+      checkpoint.resolve();
+    });
+
+    expect(stream).toHaveBeenCalledTimes(1);
+    expect(texts(runtime)).toEqual(["loaded"]);
   });
 
   it("sends a message sent while an edit looks up its checkpoint instead of the edit", async () => {
