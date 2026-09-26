@@ -492,6 +492,10 @@ export abstract class BaseThreadRuntimeCore
         error,
       );
     }
+    // A session is still installed when a subscriber notified by the disconnect
+    // connected one, or when the disconnect threw before releasing the previous
+    // session; connecting over either would leave it live with no owner.
+    if (this._voiceSession !== undefined) return;
 
     let session: RealtimeVoiceAdapter.Session;
     try {
@@ -538,7 +542,8 @@ export abstract class BaseThreadRuntimeCore
         session.onStatusChange((status) => {
           if (this._voiceSession !== session) return;
           if (status.type === "ended") {
-            this._finishVoiceAssistantMessage();
+            this._finishVoiceAssistantMessage(false);
+            if (this._voiceSession !== session) return;
             this._voiceSession = undefined;
             this.voice = undefined;
             this._onVoiceDisconnected();
@@ -619,7 +624,9 @@ export abstract class BaseThreadRuntimeCore
     this.ensureInitialized();
 
     if (transcript.role === "user") {
+      const session = this._voiceSession;
       this._finishVoiceAssistantMessage();
+      if (this._voiceSession !== session) return;
       this._currentAssistantMsg = null;
 
       if (transcript.isFinal) {
@@ -727,6 +734,10 @@ export abstract class BaseThreadRuntimeCore
         "The voice session ended before the typed message was recorded",
       );
     this._finishVoiceAssistantMessage(false);
+    if (this._voiceSession !== session)
+      throw new MessageNotSentError(
+        "The voice session ended before the typed message was recorded",
+      );
     this._currentAssistantMsg = null;
     await this._commitVoiceUserMessage({
       id: generateId(),

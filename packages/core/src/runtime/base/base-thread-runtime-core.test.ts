@@ -18,6 +18,7 @@ import type {
 } from "../interfaces/thread-runtime-core";
 import { BaseThreadRuntimeCore } from "./base-thread-runtime-core";
 import { LocalRuntimeCore } from "../../runtimes/local/local-runtime-core";
+import { ExternalStoreThreadRuntimeCore } from "../../runtimes/external-store/external-store-thread-runtime-core";
 import { disposeThreadRuntime } from "../utils/thread-runtime-lifecycle";
 
 const createVoiceAdapter = ({
@@ -2906,5 +2907,263 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     } finally {
       runtime.disconnectVoice();
     }
+  });
+});
+
+describe("BaseThreadRuntimeCore voice reconnects from a notification", () => {
+  type Fake = {
+    session: RealtimeVoiceAdapter.Session;
+    emitStatus: (s: RealtimeVoiceAdapter.Status) => void;
+    emitTranscript: (t: RealtimeVoiceAdapter.TranscriptItem) => void;
+  };
+
+  const makeAdapter = () => {
+    const sessions: Fake[] = [];
+    const adapter: RealtimeVoiceAdapter = {
+      connect: () => {
+        const status = new Set<(s: RealtimeVoiceAdapter.Status) => void>();
+        const transcript = new Set<
+          (t: RealtimeVoiceAdapter.TranscriptItem) => void
+        >();
+        const add =
+          <T>(set: Set<T>) =>
+          (cb: T) => {
+            set.add(cb);
+            return () => set.delete(cb);
+          };
+        const session: RealtimeVoiceAdapter.Session = {
+          status: { type: "running" },
+          isMuted: false,
+          disconnect: vi.fn(),
+          mute: vi.fn(),
+          unmute: vi.fn(),
+          onStatusChange: add(status),
+          onTranscript: add(transcript),
+          onModeChange: () => () => {},
+          onVolumeChange: () => () => {},
+          sendText: async () => {},
+        };
+        sessions.push({
+          session,
+          emitStatus: (s) => {
+            session.status = s;
+            for (const cb of [...status]) cb(s);
+          },
+          emitTranscript: (t) => {
+            for (const cb of [...transcript]) cb(t);
+          },
+        });
+        return session;
+      },
+    };
+    return { adapter, sessions };
+  };
+
+  const makeThread = async (adapter: RealtimeVoiceAdapter) => {
+    const runtime = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            async run() {
+              return {};
+            },
+          },
+          voice: adapter,
+        },
+      },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    await thread.__internal_load();
+    return thread;
+  };
+
+  const liveSessions = (sessions: Fake[]) =>
+    sessions.filter(
+      (f) =>
+        vi.mocked(f.session.disconnect).mock.calls.length === 0 &&
+        f.session.status.type !== "ended",
+    );
+
+  it("leaves one live session when a subscriber connects while connectVoice disconnects", async () => {
+    const { adapter, sessions } = makeAdapter();
+    const thread = await makeThread(adapter);
+    // e.g. keep-alive logic: reconnect whenever the thread shows no voice session
+    let wanted = false;
+    let reconnected = false;
+    thread.subscribe(() => {
+      if (wanted && !reconnected && thread.voice === undefined) {
+        reconnected = true;
+        thread.connectVoice();
+      }
+    });
+    wanted = true;
+    thread.connectVoice();
+
+    expect(liveSessions(sessions)).toHaveLength(1);
+    expect(thread.voice).toBeDefined();
+  });
+
+  it("keeps a session a subscriber connects when the previous one ends", async () => {
+    const { adapter, sessions } = makeAdapter();
+    const thread = await makeThread(adapter);
+    thread.connectVoice();
+    let wanted = true;
+    thread.subscribe(() => {
+      if (
+        wanted &&
+        sessions[0]!.session.status.type === "ended" &&
+        sessions.length === 1
+      ) {
+        wanted = false;
+        thread.connectVoice();
+      }
+    });
+    sessions[0]!.emitTranscript({ role: "assistant", text: "partial" });
+    sessions[0]!.emitStatus({ type: "ended", reason: "finished" });
+
+    expect(sessions).toHaveLength(2);
+    expect(liveSessions(sessions)).toHaveLength(1);
+    expect(thread.voice).toBeDefined();
+  });
+
+  it("keeps a session the transcript callback connects when the previous one ends", () => {
+    const { adapter, sessions } = makeAdapter();
+    let reconnect = false;
+    const thread: ExternalStoreThreadRuntimeCore =
+      new ExternalStoreThreadRuntimeCore(
+        { getModelContext: () => ({}) },
+        {
+          messages: [],
+          onNew: async () => {},
+          onVoiceTranscript: () => {
+            if (!reconnect) return;
+            reconnect = false;
+            thread.connectVoice();
+          },
+          adapters: { voice: adapter },
+        },
+      );
+    thread.connectVoice();
+    sessions[0]!.emitTranscript({ role: "assistant", text: "partial" });
+    reconnect = true;
+    sessions[0]!.emitStatus({ type: "ended", reason: "finished" });
+
+    expect(sessions).toHaveLength(2);
+    expect(liveSessions(sessions)).toHaveLength(1);
+    expect(thread.voice).toBeDefined();
+  });
+
+  it("drops a user transcript whose session a subscriber replaced while the reply finished", () => {
+    const { adapter, sessions } = makeAdapter();
+    const delivered: ThreadMessage[] = [];
+    const thread = new ExternalStoreThreadRuntimeCore(
+      { getModelContext: () => ({}) },
+      {
+        messages: [],
+        onNew: async () => {},
+        onVoiceTranscript: (message) => {
+          delivered.push(message);
+        },
+        adapters: { voice: adapter },
+      },
+    );
+    thread.connectVoice();
+    sessions[0]!.emitTranscript({ role: "assistant", text: "partial" });
+    let reconnect = true;
+    thread.subscribe(() => {
+      if (!reconnect) return;
+      reconnect = false;
+      thread.connectVoice();
+    });
+    sessions[0]!.emitTranscript({ role: "user", text: "hello", isFinal: true });
+
+    expect(sessions).toHaveLength(2);
+    expect(liveSessions(sessions)).toHaveLength(1);
+    expect(delivered.map((m) => m.role)).toEqual(["assistant"]);
+    expect(thread.messages).toEqual([]);
+  });
+
+  it("keeps the previous session when finishing its reply throws during connectVoice", () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const { adapter, sessions } = makeAdapter();
+    const transcriptError = new Error("transcript failed");
+    let fail = false;
+    const thread = new ExternalStoreThreadRuntimeCore(
+      { getModelContext: () => ({}) },
+      {
+        messages: [],
+        onNew: async () => {},
+        onVoiceTranscript: () => {
+          if (fail) throw transcriptError;
+        },
+        adapters: { voice: adapter },
+      },
+    );
+    thread.connectVoice();
+    sessions[0]!.emitTranscript({ role: "assistant", text: "partial" });
+    fail = true;
+
+    expect(() => thread.connectVoice()).not.toThrow();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] Voice cleanup threw before reconnect",
+      transcriptError,
+    );
+    expect(sessions).toHaveLength(1);
+    expect(liveSessions(sessions)).toHaveLength(1);
+    expect(thread.voice).toBeDefined();
+
+    sessions[0]!.emitStatus({ type: "ended", reason: "finished" });
+
+    expect(thread.voice).toBeUndefined();
+  });
+
+  it("rejects a typed message whose session the transcript callback replaced while the reply finished", async () => {
+    const { adapter, sessions } = makeAdapter();
+    const delivered: ThreadMessage[] = [];
+    let reconnect = false;
+    const thread: ExternalStoreThreadRuntimeCore =
+      new ExternalStoreThreadRuntimeCore(
+        { getModelContext: () => ({}) },
+        {
+          messages: [],
+          onNew: async () => {},
+          onVoiceTranscript: (message) => {
+            delivered.push(message);
+            if (!reconnect) return;
+            reconnect = false;
+            thread.connectVoice();
+          },
+          adapters: { voice: adapter },
+        },
+      );
+    thread.connectVoice();
+    sessions[0]!.emitTranscript({ role: "assistant", text: "partial" });
+    reconnect = true;
+
+    const rejection = await thread
+      .append({
+        parentId: thread.messages.at(-1)?.id ?? null,
+        sourceId: null,
+        role: "user",
+        content: [{ type: "text", text: "typed" }],
+        attachments: [],
+        metadata: { custom: {} },
+        createdAt: new Date(),
+        runConfig: {},
+      })
+      .then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+
+    expect(isMessageNotSentError(rejection)).toBe(true);
+    expect(sessions).toHaveLength(2);
+    expect(liveSessions(sessions)).toHaveLength(1);
+    expect(thread.voice).toBeDefined();
+    expect(delivered.map((m) => m.role)).toEqual(["assistant"]);
+    expect(thread.messages).toEqual([]);
   });
 });
