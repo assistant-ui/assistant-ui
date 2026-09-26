@@ -101,6 +101,7 @@ export function Header() {
               size="sm"
               nativeButton={false}
               data-header-cloud=""
+              className="max-[340px]:hidden"
               render={
                 <a href={CLOUD_URL} target="_blank" rel="noopener noreferrer" />
               }
