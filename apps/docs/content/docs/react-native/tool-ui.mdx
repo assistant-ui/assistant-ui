@@ -13,7 +13,7 @@ Install the timeline element alongside the thread when the fallback should show 
 npx assistant-ui@latest add elements-tool-timeline
 ```
 
-The fallback receives the whole tool call part. Pass it through the thread's `components` prop. The installed fallback also answers approval gates, interrupts and approval questions, and a replacement takes that job over, so this one renders `ToolFallbackApproval` from the installed fallback while a call waits. Keep the replacement in its own file: `components/assistant-ui/elements/tool-fallback.tsx` is the installed fallback, which the bound task card imports.
+The fallback receives the whole tool call part. Pass it through the thread's `components` prop. The installed fallback also answers approval gates, interrupts and approval questions, and a replacement takes that job over, so this one renders `ToolFallbackApproval` from the installed fallback while a call waits, and again once its approval settles, when the same component shows a receipt of the decision. Keep the replacement in its own file: `components/assistant-ui/elements/tool-fallback.tsx` is the installed fallback, which the bound task card imports.
 
 ```tsx title="components/timeline-tool-fallback.tsx"
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react-native";
@@ -27,6 +27,9 @@ export const TimelineToolFallback: ToolCallMessagePartComponent = (part) => {
   const [open, setOpen] = useState(false);
   const streaming = part.status.type === "running";
   const waiting = part.status.type === "requires-action";
+  const settled =
+    part.approval?.approved !== undefined ||
+    part.approval?.resolution !== undefined;
 
   return (
     <View className="gap-2">
@@ -46,7 +49,7 @@ export const TimelineToolFallback: ToolCallMessagePartComponent = (part) => {
         activeLabel={`Running ${part.toolName}`}
         stats={[]}
       />
-      {waiting && <ToolFallbackApproval {...part} />}
+      {(waiting || settled) && <ToolFallbackApproval {...part} />}
     </View>
   );
 };
