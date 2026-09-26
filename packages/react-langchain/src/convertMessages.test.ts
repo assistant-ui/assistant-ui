@@ -1182,6 +1182,70 @@ describe("convertLangChainBaseMessage malformed messages", () => {
     }
   });
 
+  it("skips a null tool call entry and keeps the rest", () => {
+    const result = convertLangChainBaseMessage(
+      {
+        ...aiMessage([]),
+        tool_calls: [null, { id: "call-1", name: "lookup", args: {} }],
+      } as unknown as LangChainBaseMessage,
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "lookup",
+        args: {},
+        argsText: "{}",
+      },
+    ]);
+  });
+
+  it("skips a tool call without a name so its named result does not throw", () => {
+    const messages = convertExternalMessages(
+      [
+        {
+          ...aiMessage([]),
+          tool_calls: [{ id: "call-1", args: {} }],
+        } as unknown as LangChainBaseMessage,
+        {
+          _getType: () => "tool",
+          id: "msg-tool",
+          name: "search",
+          tool_call_id: "call-1",
+          content: "3 results",
+        } as LangChainBaseMessage,
+      ],
+      (message) => convertLangChainBaseMessage(message, {}),
+      false,
+      {},
+    );
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0]!.content).toEqual([]);
+  });
+
+  it("keeps a tool call whose name is empty", () => {
+    const result = convertLangChainBaseMessage(
+      {
+        ...aiMessage([]),
+        tool_calls: [{ id: "call-1", name: "", args: {} }],
+      },
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "",
+        args: {},
+        argsText: "{}",
+      },
+    ]);
+  });
+
   it("converts a system message with null content to empty text", () => {
     const result = convertLangChainBaseMessage(
       { _getType: () => "system", id: "msg-4", content: null },
@@ -1280,6 +1344,26 @@ describe("convertLangChainBaseMessage malformed messages", () => {
     try {
       convertLangChainBaseMessage(humanMessage(true), {});
       expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("warns once in development about a skipped tool call without a name", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const message = {
+        ...aiMessage([]),
+        tool_calls: [null, { id: "call-1", args: {} }],
+      } as unknown as LangChainBaseMessage;
+      convertLangChainBaseMessage(message, {});
+      convertLangChainBaseMessage(message, {});
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(
+        "Skipping a tool call without a name; its result is not shown either",
+      );
     } finally {
       warn.mockRestore();
       vi.unstubAllEnvs();
