@@ -55,7 +55,7 @@ Standalone, there's nothing to fall back to: `ToolFallback` exists specifically 
 <div> {/* ToolFallbackRoot, a Collapsible */}
   <button aria-expanded={/* open */}>
     {/* status icon: spinner / check / X-circle / alert */}
-    <span>{/* "Used tool: <name>" or "Cancelled tool: <name>" */}</span>
+    <span>{/* "Running tool: <name>", "Waiting on tool: <name>", "Failed tool: <name>", "Cancelled tool: <name>", or "Used tool: <name>" */}</span>
     <span>{/* elapsed duration, while known */}</span>
     {/* chevron, rotates open */}
   </button>
