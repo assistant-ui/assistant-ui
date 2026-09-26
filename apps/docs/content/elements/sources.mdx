@@ -192,7 +192,7 @@ When the favicon fails to load, `Sources.Icon` falls back to the domain's first 
 
 ## The source-cards design
 
-The Static variant in the rail is a second design for the same citations: instead of an inline link or badge next to the message text, it collapses every citation into one pill that expands into a grid of cards, each with a domain avatar, the domain, and the title. It is a single props-driven component with no runtime dependency:
+The Static variant in the rail is a second design for the same citations: instead of an inline link or badge next to the message text, it collapses every citation into one pill that expands into a two-column grid of cards (the default), or, with `layout="list"`, a denser single line per source - each showing a domain avatar, the domain, and the title either way. It is a single props-driven component with no runtime dependency:
 
 ```sh
 npx shadcn@latest add "@assistant-ui/elements-sources"
@@ -263,7 +263,7 @@ export function Citations() {
 
 </StandaloneMode>
 
-Nothing inside the element opens or closes the panel: `open` and `onOpenChange` do. The trigger's count always reads `sources.length`, whether the panel is open or not; an empty `sources` array leaves the trigger reading "0" and the panel opens onto an empty grid.
+Nothing inside the element opens or closes the panel: `open` and `onOpenChange` do. The trigger's count always reads `sources.length`, whether the panel is open or not; an empty `sources` array leaves the trigger reading "0" and the panel opens onto an empty grid or list, depending on `layout`. When a caller already has its own control over `open` (a tab, a sibling toggle) and doesn't want a second, redundant disclosure affordance alongside it, `hideTrigger` renders only the panel content and leaves opening and closing entirely to that caller's own control. `SourceGlyph`, the small domain-initial favicon stand-in shown in both layouts, is exported for a caller building that custom trigger to reuse the same glyph.
 
 ### The Sources component
 
@@ -273,5 +273,7 @@ Nothing inside the element opens or closes the panel: `open` and `onOpenChange` 
 | `open` | `boolean` | required | Whether the card grid is expanded. |
 | `onOpenChange` | `(open: boolean) => void` | required | Called when the trigger is clicked. |
 | `className` | `string` | | Merged onto the root. |
+| `layout` | `"grid" \| "list"` | `"grid"` | `"grid"` renders the two-column card grid; `"list"` renders one compact line per source instead. |
+| `hideTrigger` | `boolean` | `false` | Omits the trigger button, rendering only the panel content, for a caller that supplies its own trigger. |
 
-`Source` is `{ domain: string; title: string }`. Unlike most elements in this catalog, this `Sources` does not spread extra props onto its root: only the four props above reach it.
+`Source` is `{ domain: string; title: string }`. Unlike most elements in this catalog, this `Sources` does not spread extra props onto its root: only the six props above reach it.
