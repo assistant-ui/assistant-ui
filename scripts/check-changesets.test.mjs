@@ -57,7 +57,7 @@ test("parseBumpLine reads every quoting style changesets accepts", () => {
   for (const line of [
     '"@assistant-ui/vue": patch',
     "'@assistant-ui/vue': patch",
-    "@assistant-ui/vue: patch",
+    '"@assistant-ui/vue" : patch',
     '"@assistant-ui/vue": "patch"',
     "\"@assistant-ui/vue\": 'patch'",
     '"@assistant-ui/vue": patch # keeps the release train moving',
@@ -79,6 +79,10 @@ test("parseBumpLine ignores lines that are not bumps", () => {
     '# "@assistant-ui/vue": patch',
     '"@assistant-ui/vue": prerelease',
     '"@assistant-ui/vue"',
+    "@assistant-ui/vue: patch",
+    '"@assistant-ui/vue":patch',
+    '"@assistant-ui/vue": patch#note',
+    '"@assistant-ui/vue": Patch',
   ]) {
     assert.equal(parseBumpLine(line), null, line);
   }
@@ -263,7 +267,11 @@ test("runCheck accepts a workspace whose changesets are all releasable", () => {
     '---\n"@fixture/published": patch\n---\n\nfix: something\n',
   );
   try {
-    assert.deepEqual(runCheck(root), { packageCount: 4, problems: [] });
+    assert.deepEqual(runCheck(root), {
+      packageCount: 4,
+      parseErrors: [],
+      problems: [],
+    });
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -364,6 +372,136 @@ test("runCheck reads a changeset whose frontmatter follows blank lines or a byte
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  }
+});
+
+test("runCheck rejects a changeset that changesets cannot parse", () => {
+  for (const [source, name] of [
+    [
+      "---\n@fixture/published: patch\n---\n\nfix: x\n",
+      "@fixture/published: patch",
+    ],
+    [
+      '---\n"@fixture/published": Patch\n---\n\nfix: x\n',
+      '"@fixture/published": Patch',
+    ],
+    [
+      '---\n"@fixture/published": patch#x\n---\n\nfix: x\n',
+      '"@fixture/published": patch#x',
+    ],
+    [
+      '---\n"@fixture/published": patch\n "@fixture/held": patch\n---\n\nfix: x\n',
+      '"@fixture/held": patch',
+    ],
+    [
+      '---\n\t"@fixture/published": patch\n---\n\nfix: x\n',
+      '\\u0009"@fixture/published": patch',
+    ],
+    [
+      '---\n"@fixture/published": patch\u00a0\n---\n\nfix: x\n',
+      '"@fixture/published": patch\\u00a0',
+    ],
+    [
+      '---\n"@fixture/published"\u00a0: patch\n---\n\nfix: x\n',
+      '"@fixture/published"\\u00a0: patch',
+    ],
+    ['---\n\u00a0\n"@fixture/published": patch\n---\n\nfix: x\n', "\\u00a0"],
+    [
+      '---\n"@fixture/published": patch\n\u00a0\n"@fixture/held": patch\n---\n\nfix: x\n',
+      "\\u00a0",
+    ],
+    [
+      '---\n"@fixture/published": patch\n"@fixture/published": minor\n---\n\nfix: x\n',
+      "@fixture/published",
+    ],
+    [
+      '---\n- "@fixture/published": patch\n---\n\nfix: x\n',
+      '- "@fixture/published": patch',
+    ],
+    ["fix: no frontmatter\n", "---"],
+  ]) {
+    const root = createWorkspace(source);
+    try {
+      assert.deepEqual(
+        runCheck(root).parseErrors.map((error) => error.name),
+        [name],
+        source,
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }
+});
+
+test("runCheck reports the file line of a changeset line it cannot parse", () => {
+  const root = createWorkspace(
+    '\n---\n"@fixture/published": patch\n\n"@fixture/held" : Patch\n---\n\nfix: x\n',
+  );
+  try {
+    assert.deepEqual(
+      runCheck(root).parseErrors.map(({ line, name }) => [line, name]),
+      [[5, '"@fixture/held" : Patch']],
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("runCheck names the indentation a changeset line breaks", () => {
+  for (const [source, reason] of [
+    [
+      '---\n"@fixture/published": patch\n "@fixture/held": patch\n---\n\nfix: x\n',
+      "is indented differently from the first release",
+    ],
+    [
+      '---\n\t"@fixture/published": patch\n---\n\nfix: x\n',
+      "is indented with a tab, which YAML does not allow",
+    ],
+  ]) {
+    const root = createWorkspace(source);
+    try {
+      assert.deepEqual(
+        runCheck(root).parseErrors.map((error) => error.reason),
+        [reason],
+        source,
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }
+});
+
+test("runCheck accepts every release line changesets parses", () => {
+  const root = createWorkspace(
+    "---\n# releases\n  \"@fixture/published\" : 'patch' # note\n\n  '@fixture/held':\tnone\n---\n\nfix: x\n",
+  );
+  try {
+    const { parseErrors, problems } = runCheck(root);
+    assert.deepEqual(parseErrors, []);
+    assert.deepEqual(problems, []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("the command reports a changeset it cannot parse as a parse error, not a skipped package", () => {
+  const root = createWorkspace(
+    "---\n@fixture/published: patch\n---\n\nfix: x\n",
+  );
+  try {
+    const result = runExecutable(root);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /cannot parse/);
+    assert.match(
+      result.stderr,
+      /\.changeset\/[^:\n]+\.md:2: "@fixture\/published: patch" is not a release/,
+    );
+    assert.doesNotMatch(
+      result.stderr,
+      /cannot be released|Drop the offending line/,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });
 
@@ -470,6 +608,42 @@ function runExecutable(root, { args = [], env = {} } = {}) {
   );
 }
 
+test("changed package validation reports a changeset the PR adds that changesets cannot parse", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/published": patch\n---\n\nfix: already on base\n',
+  );
+  try {
+    const sourceDir = path.join(root, "packages", "published", "src");
+    mkdirSync(sourceDir);
+    writeFileSync(path.join(sourceDir, "index.ts"), "export const a = 1;\n");
+    git(root, "init", "-q", "-b", "main");
+    const base = commitAll(root, "base");
+
+    writeFileSync(path.join(sourceDir, "index.ts"), "export const a = 2;\n");
+    writeFileSync(
+      path.join(root, ".changeset", "added-by-pr.md"),
+      "---\n@fixture/published: patch\n---\n\nfix: unquoted\n",
+    );
+    const head = commitAll(root, "source with an unparseable changeset");
+
+    assert.deepEqual(
+      runChangedPackageCheck(root, base, head).parseErrors.map(
+        ({ file, name }) => [file, name],
+      ),
+      [["added-by-pr.md", "@fixture/published: patch"]],
+    );
+    const result = runExecutable(root, {
+      args: ["--changed-packages"],
+      env: { BASE_SHA: base, HEAD_SHA: head },
+    });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /cannot parse/);
+    assert.match(result.stderr, /added-by-pr\.md:2:/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("changed package validation ignores non-release edits and requires a PR changeset", () => {
   const root = createWorkspace(
     '---\n"@fixture/published": patch\n---\n\nfix: already on base\n',
@@ -491,6 +665,7 @@ test("changed package validation ignores non-release edits and requires a PR cha
     const nonReleaseHead = commitAll(root, "tests and readme");
     assert.deepEqual(runChangedPackageCheck(root, base, nonReleaseHead), {
       changedSourceCount: 0,
+      parseErrors: [],
       missingChangesets: [],
     });
 
@@ -578,6 +753,7 @@ test("changed package validation skips packages that are never released", () => 
 
     assert.deepEqual(runChangedPackageCheck(root, base, head), {
       changedSourceCount: 0,
+      parseErrors: [],
       missingChangesets: [],
     });
   } finally {
@@ -610,6 +786,7 @@ test("changed package validation includes private packages opted into versioning
 
     assert.deepEqual(runChangedPackageCheck(root, base, head), {
       changedSourceCount: 1,
+      parseErrors: [],
       missingChangesets: [
         {
           fields: [],
@@ -640,6 +817,7 @@ test("changed package validation handles non-ASCII paths", () => {
 
     assert.deepEqual(runChangedPackageCheck(root, base, head), {
       changedSourceCount: 1,
+      parseErrors: [],
       missingChangesets: [
         {
           fields: [],
@@ -678,6 +856,7 @@ test("changed package validation scans published packages outside packages", () 
 
     assert.deepEqual(runChangedPackageCheck(root, base, head), {
       changedSourceCount: 1,
+      parseErrors: [],
       missingChangesets: [
         {
           fields: [],
@@ -713,6 +892,7 @@ test("changed package validation ignores target branch changes after the fork", 
 
     assert.deepEqual(runChangedPackageCheck(root, base, head), {
       changedSourceCount: 0,
+      parseErrors: [],
       missingChangesets: [],
     });
   } finally {
@@ -737,6 +917,7 @@ test("deleting published source requires a changeset", () => {
 
     assert.deepEqual(runChangedPackageCheck(root, base, head), {
       changedSourceCount: 1,
+      parseErrors: [],
       missingChangesets: [
         {
           fields: [],
@@ -787,6 +968,7 @@ test("published code outside src requires a changeset", () => {
 
     assert.deepEqual(runChangedPackageCheck(root, base, head), {
       changedSourceCount: 1,
+      parseErrors: [],
       missingChangesets: [
         {
           fields: [],
@@ -857,6 +1039,7 @@ test("renaming source within a published package reports the package once", () =
 
     assert.deepEqual(runChangedPackageCheck(root, base, head), {
       changedSourceCount: 2,
+      parseErrors: [],
       missingChangesets: [
         {
           fields: [],
@@ -948,6 +1131,7 @@ test("a version-only PR passes without a branch-name exemption", () => {
 
     assert.deepEqual(runChangedPackageCheck(root, base, head), {
       changedSourceCount: 0,
+      parseErrors: [],
       missingChangesets: [],
     });
     const result = runExecutable(root, {
@@ -1148,6 +1332,7 @@ test("a published manifest edit requires a changeset", () => {
     const inertHead = commitAll(root, "scripts and devDependencies");
     assert.deepEqual(runChangedPackageCheck(root, base, inertHead), {
       changedSourceCount: 0,
+      parseErrors: [],
       missingChangesets: [],
     });
 
@@ -1166,6 +1351,7 @@ test("a published manifest edit requires a changeset", () => {
     const missingHead = commitAll(root, "widen the published surface");
     assert.deepEqual(runChangedPackageCheck(root, base, missingHead), {
       changedSourceCount: 0,
+      parseErrors: [],
       missingChangesets: [
         {
           fields: ["dependencies", "exports", "files"],
@@ -1191,6 +1377,7 @@ test("a published manifest edit requires a changeset", () => {
     const coveredHead = commitAll(root, "add changeset");
     assert.deepEqual(runChangedPackageCheck(root, base, coveredHead), {
       changedSourceCount: 0,
+      parseErrors: [],
       missingChangesets: [],
     });
   } finally {
@@ -1228,6 +1415,7 @@ test("a manifest and source change report one entry", () => {
 
     assert.deepEqual(runChangedPackageCheck(root, base, head), {
       changedSourceCount: 1,
+      parseErrors: [],
       missingChangesets: [
         {
           fields: ["sideEffects"],
@@ -1284,6 +1472,7 @@ test("manifest validation ignores target branch changes after the fork", () => {
 
     assert.deepEqual(runChangedPackageCheck(root, base, head), {
       changedSourceCount: 0,
+      parseErrors: [],
       missingChangesets: [],
     });
   } finally {
