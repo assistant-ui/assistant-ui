@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   parsePartialJsonObject,
   getPartialJsonObjectFieldState,
+  getPartialJsonObjectMeta,
+  markPartialJsonObjectComplete,
 } from "./parse-partial-json-object";
 
 type PartialJsonTest = {
@@ -296,4 +298,28 @@ describe("parsePartialJsonObject inside a unicode escape", () => {
     expect(parsePartialJsonObject(`{"a":"x\\`)).toMatchObject({ a: "x" });
     expect(parsePartialJsonObject(`{"a":"x\\"`)).toMatchObject({ a: 'x"' });
   });
+});
+
+describe("markPartialJsonObjectComplete", () => {
+  it.each([
+    '{"__proto__":{"polluted":true}}',
+    '{"constructor":{"prototype":{"polluted":true}}}',
+  ])(
+    "keeps prototype-named fields as own data without relaxing safe parsing: %s",
+    (json) => {
+      const input = JSON.parse(json);
+      expect(parsePartialJsonObject(json)).toBeUndefined();
+
+      const complete = markPartialJsonObjectComplete(input);
+      expect(complete).not.toBe(input);
+      expect(Object.entries(complete)).toEqual(Object.entries(input));
+      expect(Object.getPrototypeOf(complete)).toBe(Object.prototype);
+      expect(Object.prototype).not.toHaveProperty("polluted");
+      expect(getPartialJsonObjectMeta(complete)?.state).toBe("complete");
+      expect(
+        getPartialJsonObjectFieldState(complete, [Object.keys(input)[0]!]),
+      ).toBe("complete");
+      expect(getPartialJsonObjectMeta(input)).toBeUndefined();
+    },
+  );
 });

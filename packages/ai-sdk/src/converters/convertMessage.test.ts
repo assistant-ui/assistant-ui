@@ -1214,7 +1214,9 @@ describe("AISDKMessageConverter", () => {
     const call = terminal[0]?.content.find(
       (part): part is any => part.type === "tool-call",
     );
-    expect(call?.args).toEqual({ city: "NYC" });
+    expect(Object.fromEntries(Object.entries(call?.args ?? {}))).toEqual({
+      city: "NYC",
+    });
     expect(call?.result).toEqual({ temp: 70 });
   });
 
@@ -1765,7 +1767,10 @@ describe("AISDKMessageConverter", () => {
     const toolCall = converted[0]?.content.find(
       (part): part is any => part.type === "tool-call",
     );
-    expect(toolCall?.args).toEqual({ city: "NYC", units: "F" });
+    expect(Object.fromEntries(Object.entries(toolCall?.args ?? {}))).toEqual({
+      city: "NYC",
+      units: "F",
+    });
     expect(toolCall?.argsText).toBe('{"city":"NYC","units":"F"}');
   });
 
@@ -1839,6 +1844,7 @@ describe("AISDKMessageConverter", () => {
 
     expect(a.argsText).toBe('{"a":1,"b":2}');
     expect(b.argsText).toBe('{"b":2,"a":1}');
+    expect(Object.keys(b.args)).toEqual(["a", "b"]);
 
     // Both entries must survive a reconversion: the key-order entries are gone
     // by now, so a cache miss would re-serialize B in raw key order.

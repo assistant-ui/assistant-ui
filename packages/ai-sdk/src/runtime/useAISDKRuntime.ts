@@ -319,7 +319,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     new Map(),
   );
   const toolArgsTextCacheRef = useRef<
-    WeakMap<ReadonlyJSONObject, Map<string, string>>
+    NonNullable<AISDKMessageConverterMetadata["toolArgsTextCache"]>
   >(new WeakMap());
   const mcpAppMetadataCacheRef = useRef<Map<string, McpAppMetadata>>(new Map());
   const toolArtifactsRef = useRef<Map<string, unknown>>(new Map());
