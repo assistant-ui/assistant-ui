@@ -992,6 +992,44 @@ describe("ToolInvocationTracker", () => {
     expect(onResult).not.toHaveBeenCalled();
   });
 
+  it("never executes a tool whose turn is discarded in the tick its run settles", async () => {
+    const execute = vi.fn(async () => ({ deleted: true }));
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange: () => {},
+    });
+    tracker.setState(createState([], false));
+
+    const complete = (isRunning: boolean) =>
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            { toolName: "deleteFile" },
+          ),
+        ],
+        isRunning,
+      );
+
+    tracker.setState(complete(true));
+    await new Promise((r) => setTimeout(r, 0));
+
+    tracker.setState(complete(false));
+    await tracker.abort({ discardPending: true });
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(onResult).not.toHaveBeenCalled();
+  });
+
   it("keeps a discarded call skipped when the pipeline restarts before it settles", async () => {
     const execute = vi.fn(async () => ({ deleted: true }));
     const getTools = () => ({
