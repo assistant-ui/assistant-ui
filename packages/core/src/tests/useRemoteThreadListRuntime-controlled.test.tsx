@@ -123,6 +123,170 @@ describe("useRemoteThreadListRuntime controlled threadId", () => {
     expect(onThreadIdChange).not.toHaveBeenCalled();
   });
 
+  it("opens a controlled thread whose fetch failed once the list loads it", async () => {
+    const list = deferred<{ threads: RemoteThreadMetadata[] }>();
+    const adapter = makeAdapter({
+      list: vi.fn(() => list.promise),
+      fetch: vi.fn(async () => {
+        throw new Error("network");
+      }),
+    });
+    const runtimeRef: RuntimeRef = { current: null };
+
+    render(
+      <ControlledRuntime
+        adapter={adapter}
+        threadId="thread-a"
+        onThreadIdChange={vi.fn()}
+        runtimeRef={runtimeRef}
+      />,
+    );
+    await waitFor(() => expect(adapter.fetch).toHaveBeenCalledWith("thread-a"));
+
+    await act(async () => {
+      list.resolve({ threads: [makeThreadMetadata("thread-a")] });
+    });
+    await waitForRemoteThread(runtimeRef, "thread-a");
+  });
+
+  it("opens a controlled thread whose fetch failed once a later page loads it", async () => {
+    const adapter = makeAdapter({
+      list: vi.fn(async (options?: { after?: string }) =>
+        options?.after === "page-2"
+          ? { threads: [makeThreadMetadata("thread-a")] }
+          : { threads: [makeThreadMetadata("thread-x")], nextCursor: "page-2" },
+      ),
+      fetch: vi.fn(async () => {
+        throw new Error("network");
+      }),
+    });
+    const runtimeRef: RuntimeRef = { current: null };
+
+    render(
+      <ControlledRuntime
+        adapter={adapter}
+        threadId="thread-a"
+        onThreadIdChange={vi.fn()}
+        runtimeRef={runtimeRef}
+      />,
+    );
+    await waitFor(() => expect(adapter.fetch).toHaveBeenCalledWith("thread-a"));
+    await waitFor(() =>
+      expect(runtimeRef.current!.threads.getState().threadIds).toEqual([
+        "thread-x",
+      ]),
+    );
+
+    await act(() => runtimeRef.current!.threads.loadMore());
+    await waitForRemoteThread(runtimeRef, "thread-a");
+  });
+
+  it("keeps a pending controlled fetch when the list loads without its thread", async () => {
+    const list = deferred<{ threads: RemoteThreadMetadata[] }>();
+    const fetchA = deferred<RemoteThreadMetadata>();
+    const adapter = makeAdapter({
+      list: vi.fn(() => list.promise),
+      fetch: vi
+        .fn()
+        .mockReturnValueOnce(fetchA.promise)
+        .mockRejectedValue(new Error("network")),
+    });
+    const runtimeRef: RuntimeRef = { current: null };
+
+    render(
+      <ControlledRuntime
+        adapter={adapter}
+        threadId="thread-a"
+        onThreadIdChange={vi.fn()}
+        runtimeRef={runtimeRef}
+      />,
+    );
+    await waitFor(() => expect(adapter.fetch).toHaveBeenCalledWith("thread-a"));
+
+    await act(async () => {
+      list.resolve({ threads: [] });
+    });
+    await act(async () => {
+      fetchA.resolve(makeThreadMetadata("thread-a"));
+    });
+    await waitForRemoteThread(runtimeRef, "thread-a");
+    expect(adapter.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("reopens the controlled thread through a replacement adapter whose list fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({ threads: [makeThreadMetadata("thread-a")] })),
+    });
+    const replacement = makeAdapter({
+      list: vi.fn(async () => {
+        throw new Error("network");
+      }),
+      fetch: vi.fn(async (id: string) => makeThreadMetadata(id)),
+    });
+    const runtimeRef: RuntimeRef = { current: null };
+
+    const { rerender } = render(
+      <ControlledRuntime
+        adapter={adapter}
+        threadId="thread-a"
+        onThreadIdChange={vi.fn()}
+        runtimeRef={runtimeRef}
+      />,
+    );
+    await waitForRemoteThread(runtimeRef, "thread-a");
+
+    rerender(
+      <ControlledRuntime
+        adapter={replacement}
+        threadId="thread-a"
+        onThreadIdChange={vi.fn()}
+        runtimeRef={runtimeRef}
+      />,
+    );
+    await waitFor(() =>
+      expect(replacement.fetch).toHaveBeenCalledWith("thread-a"),
+    );
+    await waitForRemoteThread(runtimeRef, "thread-a");
+  });
+
+  it("keeps a later switch when the list loads a controlled thread whose fetch failed", async () => {
+    const list = deferred<{ threads: RemoteThreadMetadata[] }>();
+    const adapter = makeAdapter({
+      list: vi.fn(() => list.promise),
+      fetch: vi.fn(async (id: string) => {
+        if (id === "thread-a") throw new Error("network");
+        return makeThreadMetadata(id);
+      }),
+    });
+    const runtimeRef: RuntimeRef = { current: null };
+
+    render(
+      <ControlledRuntime
+        adapter={adapter}
+        threadId="thread-a"
+        onThreadIdChange={vi.fn()}
+        runtimeRef={runtimeRef}
+      />,
+    );
+    await waitFor(() => expect(adapter.fetch).toHaveBeenCalledWith("thread-a"));
+    await act(() => runtimeRef.current!.threads.switchToThread("thread-b"));
+    await waitForRemoteThread(runtimeRef, "thread-b");
+
+    await act(async () => {
+      list.resolve({
+        threads: [
+          makeThreadMetadata("thread-a"),
+          makeThreadMetadata("thread-b"),
+        ],
+      });
+    });
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+    expect(runtimeRef.current!.threads.mainItem.getState().remoteId).toBe(
+      "thread-b",
+    );
+  });
+
   it("does not echo prop-driven thread switches", async () => {
     const adapter = makeAdapter();
     const onThreadIdChange = vi.fn();
