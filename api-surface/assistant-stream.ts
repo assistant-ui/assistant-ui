@@ -319,7 +319,7 @@ type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown
 
 type GenericAssistantMessage = {
   role: "assistant";
-  content: (GenericTextPart | GenericToolCallPart)[];
+  content: (GenericTextPart | GenericFilePart | GenericToolCallPart)[];
 };
 
 type GenericFilePart = {
