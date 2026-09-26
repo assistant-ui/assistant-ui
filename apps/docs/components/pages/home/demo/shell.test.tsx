@@ -107,4 +107,52 @@ describe("demo thread controls", () => {
     await waitFor(() => expect(mocks.switchToNewThread).toHaveBeenCalledOnce());
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
+
+  it.each(["ctrlKey", "metaKey"])(
+    "focuses the rename editor after closing the mobile sidebar with %s",
+    async (modifier) => {
+      create();
+      fireEvent.click(screen.getByRole("button", { name: "Open threads" }));
+      const dialog = await screen.findByRole("dialog", { name: "Threads" });
+      fireEvent.keyDown(dialog, {
+        key: "R",
+        [modifier]: true,
+        shiftKey: true,
+      });
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      const input = await screen.findByRole("textbox", {
+        name: "Rename thread",
+      });
+      await waitFor(() => expect(document.activeElement).toBe(input));
+      fireEvent.change(input, { target: { value: "Mobile title" } });
+      fireEvent.submit(input.closest("form")!);
+      await waitFor(() =>
+        expect(mocks.rename).toHaveBeenCalledWith("Mobile title"),
+      );
+    },
+  );
+
+  it("restores normal sidebar focus after a mobile rename is canceled", async () => {
+    create();
+    const openButton = screen.getByRole("button", { name: "Open threads" });
+    fireEvent.click(openButton);
+    const dialog = await screen.findByRole("dialog", { name: "Threads" });
+    fireEvent.keyDown(dialog, { key: "R", ctrlKey: true, shiftKey: true });
+    const input = await screen.findByRole("textbox", { name: "Rename thread" });
+    await waitFor(() => expect(document.activeElement).toBe(input));
+    fireEvent.keyDown(input, { key: "Escape" });
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("textbox", { name: "Rename thread" }),
+      ).toBeNull(),
+    );
+
+    openButton.focus();
+    fireEvent.click(openButton);
+    await screen.findByRole("dialog", { name: "Threads" });
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(openButton));
+    expect(mocks.rename).not.toHaveBeenCalled();
+  });
 });
