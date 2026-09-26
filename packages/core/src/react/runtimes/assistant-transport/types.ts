@@ -118,6 +118,8 @@ export type AssistantTransportOptions<T> = {
    */
   cloud?: AssistantCloud | undefined;
   resumeApi?: string;
+  /** Whether the backend retains a checkpoint for the current thread. Requires resumeApi; clear when that checkpoint expires, finishes, or the thread changes. */
+  canResume?: boolean;
   /** Endpoint that returns the retained initial state and run ID for a resume stream. A 204 response means no run is active and the resume is skipped. */
   resumeStateApi?: string;
   protocol?: AssistantTransportProtocol;

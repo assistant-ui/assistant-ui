@@ -205,6 +205,18 @@ Submits the composer form. Renders a `<button>` element unless `asChild` is set.
 </ComposerPrimitive.Send>
 ```
 
+### Resume
+
+Reconnects to an interrupted run when the runtime reports a resumable checkpoint.
+The button is disabled while the draft is nonempty, the thread is busy, or another
+resume control for the same thread is reconnecting.
+
+```tsx
+<ComposerPrimitive.Resume>Resume</ComposerPrimitive.Resume>
+```
+
+Provide `canResume` and `onResume` through your [runtime adapter](/docs/runtimes/custom/external-store#resuming-an-interrupted-run).
+
 ### Cancel
 
 Cancels the current composition or edit session. Renders a `<button>` element unless `asChild` is set.

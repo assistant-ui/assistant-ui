@@ -18,6 +18,14 @@ import { unstable_useComposerInput, unstable_useMessageStallDetection, useCloudT
 
 <ParametersTable {...useCloudThreadListAdapter} />
 
+### useComposerResume
+
+Resumes an adapter-owned checkpoint without resending or regenerating a message.
+
+```ts
+const useComposerResume: () => { resume: () => Promise<void>; disabled: boolean; };
+```
+
 ### useMessageQuote
 
 Hook that returns the quote info for the current message, if any.

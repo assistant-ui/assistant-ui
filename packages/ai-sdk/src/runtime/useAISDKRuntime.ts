@@ -131,6 +131,7 @@ export type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage = UIMessage> =
      * (for example, an SSE reconnect endpoint keyed by turn id).
      */
     onResume?: ExternalStoreAdapter["onResume"];
+    canResume?: ExternalStoreAdapter["canResume"];
     /**
      * Called when `runtime.thread.resumeToolCall(options)` is invoked for a tool call the in-process tracker does not own.
      *
@@ -288,6 +289,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     toCreateMessage: customToCreateMessage,
     cancelPendingToolCallsOnSend = true,
     onResume,
+    canResume,
     onResumeToolCall,
     onRespondToToolApproval: customOnRespondToToolApproval,
     joinStrategy,
@@ -878,6 +880,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     }),
     ...(suggestionAdapter ? { suggestions: generatedSuggestions } : {}),
     ...(onResume && { onResume }),
+    ...(canResume !== undefined && { canResume }),
     ...(onResumeToolCall && { onResumeToolCall }),
     ...(unstable_onBranchChange && { unstable_onBranchChange }),
     adapters: {

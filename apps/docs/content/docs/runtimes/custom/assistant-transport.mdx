@@ -313,6 +313,7 @@ data: [DONE]
   api: string,
   cloud?: AssistantCloud,
   resumeApi?: string,
+  canResume?: boolean,
   resumeStateApi?: string,
   protocol?: "data-stream" | "assistant-transport",
   converter: (state: T, connectionMetadata: ConnectionMetadata) => AssistantTransportState,
@@ -530,6 +531,20 @@ const runtime = useAssistantTransportRuntime({
   // ...
   api: "http://localhost:8010/assistant",
   resumeApi: "http://localhost:8010/resume",
+});
+```
+
+To offer `ComposerPrimitive.Resume`, also pass `canResume` from your backend's
+checkpoint state for the current thread. Configuring a resume endpoint does not
+prove that it currently retains a run, so the control stays disabled without this
+explicit state. Clear the flag when the checkpoint finishes, expires, or the thread
+changes. The runtime withholds availability while a request is in flight.
+
+```tsx
+const runtime = useAssistantTransportRuntime({
+  // ...
+  resumeApi: "/api/resume",
+  canResume: hasCheckpointForCurrentThread,
 });
 ```
 

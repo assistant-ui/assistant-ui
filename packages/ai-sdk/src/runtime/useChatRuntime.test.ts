@@ -51,16 +51,12 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("@ai-sdk/react", () => ({
+vi.mock("@ai-sdk/react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@ai-sdk/react")>()),
   useChat: (...args: unknown[]) => {
     const chat = mocks.useChat(...args);
     if (chat) chat.stop ??= vi.fn(async () => {});
     return chat;
-  },
-  Chat: class MockChat {
-    constructor(config: unknown) {
-      Object.assign(this, config);
-    }
   },
 }));
 
@@ -518,7 +514,7 @@ describe("useChatRuntime", () => {
     warn.mockRestore();
   });
 
-  it("calls onResumeError when automatic resumable stream resume fails", async () => {
+  it("retains the checkpoint when automatic resumable stream resume fails", async () => {
     const error = new Error("resume failed");
     const resumeStream = vi.fn().mockRejectedValue(error);
     const clear = vi.fn();
@@ -550,10 +546,7 @@ describe("useChatRuntime", () => {
       expect(onResumeError).toHaveBeenCalledWith(error);
     });
     expect(resumeStream).toHaveBeenCalledTimes(1);
-    expect(clear).toHaveBeenCalledTimes(1);
-    expect(onResumeError.mock.invocationCallOrder[0]).toBeLessThan(
-      clear.mock.invocationCallOrder[0]!,
-    );
+    expect(clear).not.toHaveBeenCalled();
     expect(warn).toHaveBeenCalledWith(
       "[assistant-ui] resumable: resume failed",
       error,
@@ -561,7 +554,7 @@ describe("useChatRuntime", () => {
     warn.mockRestore();
   });
 
-  it("clears resumable stream storage when onResumeError throws", async () => {
+  it("retains the checkpoint when onResumeError throws", async () => {
     const error = new Error("resume failed");
     const callbackError = new Error("callback failed");
     const resumeStream = vi.fn().mockRejectedValue(error);
@@ -596,9 +589,9 @@ describe("useChatRuntime", () => {
     );
 
     await waitFor(() => {
-      expect(clear).toHaveBeenCalledTimes(1);
+      expect(onResumeError).toHaveBeenCalledWith(error);
     });
-    expect(onResumeError).toHaveBeenCalledWith(error);
+    expect(clear).not.toHaveBeenCalled();
     expect(consoleError).toHaveBeenCalledWith(
       "[assistant-ui] resumable: onResumeError callback failed",
       callbackError,

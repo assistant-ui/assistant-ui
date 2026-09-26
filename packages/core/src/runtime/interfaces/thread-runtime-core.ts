@@ -254,6 +254,7 @@ export type ThreadRuntimeCore = Readonly<{
    * `ExternalStoreAdapter.isRunning`.
    */
   isRunning?: boolean | undefined;
+  canResume?: boolean | undefined;
   messages: readonly ThreadMessage[];
   state: ReadonlyJSONValue;
   suggestions: readonly ThreadSuggestion[];

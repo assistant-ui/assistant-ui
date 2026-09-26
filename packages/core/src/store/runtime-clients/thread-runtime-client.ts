@@ -182,6 +182,7 @@ const useThreadClient = ({
       isDisabled: runtimeState.isDisabled,
       isLoading: runtimeState.isLoading,
       isRunning: runtimeState.isRunning,
+      canResume: runtimeState.canResume ?? false,
       capabilities: runtimeState.capabilities,
       state: runtimeState.state,
       suggestions: runtimeState.suggestions,
