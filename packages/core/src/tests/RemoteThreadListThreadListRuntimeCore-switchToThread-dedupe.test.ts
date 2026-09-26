@@ -66,8 +66,8 @@ describe("RemoteThreadListThreadListRuntimeCore.switchToThread dedupe", () => {
     // Without this stub, auto-unarchive would filter `archivedThreadIds` via
     // `updateStatusReducer`, hiding any duplicate written by `switchToThread`.
     (
-      core as unknown as { unarchive: (id: string) => Promise<void> }
-    ).unarchive = async () => {};
+      core as unknown as { _unarchive: (id: string) => Promise<void> }
+    )._unarchive = async () => {};
 
     const loadPromise = core.getLoadThreadsPromise();
     const switchPromise = core.switchToThread(THREAD_ID);
