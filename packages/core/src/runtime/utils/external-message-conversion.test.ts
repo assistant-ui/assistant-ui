@@ -1,11 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import type { MessageStatus, ThreadMessage } from "../../types/message";
+import { getExternalStoreMessages } from "./external-store-message";
 import { fromThreadMessageLike } from "./thread-message-like";
 import {
   chunkExternalMessages,
   completeExternalMessageConversion,
   convertExternalMessageCallback,
   convertExternalMessageChunk,
+  convertExternalMessages,
+  createExternalMessageConversionCache,
   joinExternalMessages,
   type ExternalMessageConverterCallback,
   type ExternalMessageConverterCallbackResult,
@@ -596,4 +599,35 @@ describe("convertExternalMessageChunk", () => {
       reason: "unknown",
     });
   });
+});
+
+describe("external message source identity", () => {
+  it.each(["user", "assistant"] as const)(
+    "refreshes %s sources when a converter reuses its output",
+    (role) => {
+      const output = { id: "message", role, content: "unchanged" };
+      const callback = vi.fn(() => output);
+      const metadata = {};
+      const cache = createExternalMessageConversionCache<{ version: number }>();
+      const firstSource = { version: 1 };
+      const secondSource = { version: 2 };
+      const convert = (source: { version: number }) =>
+        convertExternalMessages(
+          [source],
+          callback,
+          false,
+          metadata,
+          undefined,
+          cache,
+        )[0]!;
+      const first = convert(firstSource);
+      expect(convert(firstSource)).toBe(first);
+      expect(callback).toHaveBeenCalledTimes(1);
+      const second = convert(secondSource);
+      expect(getExternalStoreMessages(second)).toEqual([secondSource]);
+      expect(getExternalStoreMessages(first)).toEqual([firstSource]);
+      expect(convert(secondSource)).toBe(second);
+      expect(callback).toHaveBeenCalledTimes(2);
+    },
+  );
 });

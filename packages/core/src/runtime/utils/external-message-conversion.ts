@@ -567,7 +567,11 @@ export const convertExternalMessages = <T extends WeakKey>(
       if (!key || !cache) return message;
 
       const cached = cache.chunkCache.get(key);
-      if (cached && shallowArrayEqual(cached.outputs, message.outputs)) {
+      if (
+        cached &&
+        shallowArrayEqual(cached.outputs, message.outputs) &&
+        shallowArrayEqual(cached.inputs, message.inputs)
+      ) {
         return cached;
       }
       cache.chunkCache.set(key, message);
