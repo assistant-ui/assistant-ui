@@ -64,8 +64,8 @@ export type AISDKMessageConverterMetadata =
   useExternalMessageConverter.Metadata & {
     toolArgsKeyOrderCache?: Map<string, Map<string, string[]>>;
     /**
-     * Frozen text and parsed args keyed weakly by a settled tool call's input
-     * object, then by call, since the text carries the call's streamed key
+     * Frozen text and completion-marked args keyed weakly by a settled tool
+     * call's input object, then by call, since the text carries its streamed key
      * order. A known call/input pair skips serialization and parsing; entries
      * become collectible once the input is unreachable.
      */
@@ -484,12 +484,10 @@ function convertParts(
             // Other runtimes can synthesize complete JSON text from an
             // accumulating snapshot, so only this converter supplies the
             // completion signal it knows from the AI SDK part state.
-            // The safe parser rejects prototype-named JSON keys. The SDK has
-            // already finalized this input, so preserve its own data fields
-            // and mark a copy complete without relaxing parser safeguards.
-            args =
-              parsePartialJsonObject(argsText) ??
-              markPartialJsonObjectComplete(args);
+            // A complete root marker settles every field without parsing the
+            // serialized text again. Keep the SDK input's nested identities
+            // and own fields, including prototype-named JSON keys.
+            args = markPartialJsonObjectComplete(args);
             metadata.toolArgsTextCache?.set(
               inputArgs,
               frozen.set(argsKeyOrderCacheKey, { argsText, args }),

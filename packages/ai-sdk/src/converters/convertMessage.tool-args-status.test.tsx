@@ -110,8 +110,8 @@ describe("AI SDK tool argument completion", () => {
     );
   });
 
-  it("reuses parsed arguments when the settled input object is unchanged", () => {
-    const input = { city: "Paris" };
+  it("reuses marked arguments when the settled input object is unchanged", () => {
+    const input = { weather: { city: "Paris" } };
     const metadata: AISDKMessageConverterMetadata = {
       toolArgsTextCache: new WeakMap(),
     };
@@ -138,6 +138,8 @@ describe("AI SDK tool argument completion", () => {
     const first = convert();
     const second = convert();
     expect(first.args).toBe(second.args);
+    expect(first.args).not.toBe(input);
+    expect(first.args.weather).toBe(input.weather);
     expect(first.argsText).toBe(second.argsText);
     expect(getPartialJsonObjectMeta(second.args)?.state).toBe("complete");
   });

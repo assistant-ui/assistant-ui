@@ -1844,6 +1844,7 @@ describe("AISDKMessageConverter", () => {
 
     expect(a.argsText).toBe('{"a":1,"b":2}');
     expect(b.argsText).toBe('{"b":2,"a":1}');
+    expect(Object.keys(b.args)).toEqual(["a", "b"]);
 
     // Both entries must survive a reconversion: the key-order entries are gone
     // by now, so a cache miss would re-serialize B in raw key order.
