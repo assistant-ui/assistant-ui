@@ -416,6 +416,40 @@ describe("SandboxHost", () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
+  it("cancels pending renders on replacement and unmount", async () => {
+    renderHtmlMock.mockImplementation(() => new Promise(() => {}));
+
+    await act(async () => {
+      root.render(
+        <SandboxHost
+          content={{ html: "first" }}
+          contentKey="first"
+          createBridge={() => ({ onMessage: vi.fn(), dispose: vi.fn() })}
+        />,
+      );
+    });
+    const firstSignal = renderHtmlMock.mock.calls[0]![2].signal as AbortSignal;
+
+    await act(async () => {
+      root.render(
+        <SandboxHost
+          content={{ html: "second" }}
+          contentKey="second"
+          createBridge={() => ({ onMessage: vi.fn(), dispose: vi.fn() })}
+        />,
+      );
+    });
+    const secondSignal = renderHtmlMock.mock.calls[1]![2].signal as AbortSignal;
+
+    expect(firstSignal.aborted).toBe(true);
+    expect(secondSignal.aborted).toBe(false);
+
+    await act(async () => {
+      root.unmount();
+    });
+    expect(secondSignal.aborted).toBe(true);
+  });
+
   it("contains failures thrown by onError", async () => {
     const renderError = new Error("render failed");
     const callbackError = new Error("error callback failed");
