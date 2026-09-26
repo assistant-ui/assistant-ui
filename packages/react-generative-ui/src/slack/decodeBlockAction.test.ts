@@ -60,6 +60,16 @@ describe("decodeBlockAction", () => {
     });
   });
 
+  it("decodes a number input action as a number", () => {
+    expect(
+      decodeBlockAction({
+        type: "number_input",
+        action_id: "set_quantity",
+        value: "3.5",
+      }),
+    ).toEqual({ type: "set_quantity", $input: 3.5 });
+  });
+
   it("decodes a checkboxes action, reading $input from selected_options[].value", () => {
     const action = {
       action_id: "toggle_opts",

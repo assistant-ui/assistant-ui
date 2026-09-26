@@ -45,12 +45,14 @@ describe("interactiveVocabulary $action dispatch", () => {
   it("Button render attaches an onClick that fires $dispatch with the $action payload", () => {
     const handler = vi.fn();
     const registry = createActionRegistry({ purchase: handler });
-    const out = interactiveVocabulary.Button.render({
-      label: "Buy",
-      $status: "done",
-      $action: { type: "purchase", itemId: "sku-1" },
-      $dispatch: registry.dispatch,
-    } as ButtonRenderProps) as ReactNode;
+    const out = renderWithHooks(() =>
+      interactiveVocabulary.Button.render({
+        label: "Buy",
+        $status: "done",
+        $action: { type: "purchase", itemId: "sku-1" },
+        $dispatch: registry.dispatch,
+      } as ButtonRenderProps),
+    );
     expect(isValidElement(out)).toBe(true);
     const onClick = (out as { props: { onClick: (e: object) => void } }).props
       .onClick;
@@ -62,11 +64,13 @@ describe("interactiveVocabulary $action dispatch", () => {
   });
 
   it("Button onClick is a no-op when no $dispatch is wired (read-only render)", () => {
-    const out = interactiveVocabulary.Button.render({
-      label: "Buy",
-      $status: "done",
-      $action: { type: "purchase", itemId: "sku-1" },
-    } as ButtonRenderProps) as ReactNode;
+    const out = renderWithHooks(() =>
+      interactiveVocabulary.Button.render({
+        label: "Buy",
+        $status: "done",
+        $action: { type: "purchase", itemId: "sku-1" },
+      } as ButtonRenderProps),
+    );
     const onClick = (out as { props: { onClick: (e: object) => void } }).props
       .onClick;
     expect(typeof onClick).toBe("function");
@@ -76,11 +80,13 @@ describe("interactiveVocabulary $action dispatch", () => {
   it("Button onClick is a no-op when $action is absent", () => {
     const handler = vi.fn();
     const registry = createActionRegistry({ purchase: handler });
-    const out = interactiveVocabulary.Button.render({
-      label: "Go",
-      $status: "done",
-      $dispatch: registry.dispatch,
-    } as ButtonRenderProps) as ReactNode;
+    const out = renderWithHooks(() =>
+      interactiveVocabulary.Button.render({
+        label: "Go",
+        $status: "done",
+        $dispatch: registry.dispatch,
+      } as ButtonRenderProps),
+    );
     (out as { props: { onClick: (e: object) => void } }).props.onClick({
       currentTarget: {},
     });
@@ -90,12 +96,14 @@ describe("interactiveVocabulary $action dispatch", () => {
   it("Select onChange merges the selected value into $input and preserves a model-supplied $action.value", () => {
     const handler = vi.fn();
     const registry = createActionRegistry({ pick: handler });
-    const out = interactiveVocabulary.Select.render({
-      options: [{ label: "A", value: "a" }],
-      $status: "done",
-      $action: { type: "pick", value: "model-supplied" },
-      $dispatch: registry.dispatch,
-    }) as ReactNode;
+    const out = renderWithHooks(() =>
+      interactiveVocabulary.Select.render({
+        options: [{ label: "A", value: "a" }],
+        $status: "done",
+        $action: { type: "pick", value: "model-supplied" },
+        $dispatch: registry.dispatch,
+      }),
+    ) as ReactNode;
     const onChange = (
       out as {
         props: { onChange: (e: { currentTarget: { value: string } }) => void };
@@ -114,11 +122,13 @@ describe("interactiveVocabulary $action dispatch", () => {
   it("Input onKeyDown (Enter) merges the entered value into $input", () => {
     const handler = vi.fn();
     const registry = createActionRegistry({ submit: handler });
-    const out = interactiveVocabulary.Input.render({
-      $status: "done",
-      $action: { type: "submit" },
-      $dispatch: registry.dispatch,
-    }) as ReactNode;
+    const out = renderWithHooks(() =>
+      interactiveVocabulary.Input.render({
+        $status: "done",
+        $action: { type: "submit" },
+        $dispatch: registry.dispatch,
+      }),
+    ) as ReactNode;
     const onKeyDown = (
       out as {
         props: {
@@ -143,12 +153,14 @@ describe("interactiveVocabulary $action dispatch", () => {
   it("Input onKeyDown (Enter) defers to an ancestor form instead of firing its own $action", () => {
     const handler = vi.fn();
     const registry = createActionRegistry({ submit: handler });
-    const out = interactiveVocabulary.Input.render({
-      name: "email",
-      $status: "done",
-      $action: { type: "submit" },
-      $dispatch: registry.dispatch,
-    }) as ReactNode;
+    const out = renderWithHooks(() =>
+      interactiveVocabulary.Input.render({
+        name: "email",
+        $status: "done",
+        $action: { type: "submit" },
+        $dispatch: registry.dispatch,
+      }),
+    ) as ReactNode;
     const onKeyDown = (
       out as {
         props: {
@@ -183,13 +195,15 @@ describe("interactiveVocabulary $action dispatch", () => {
   it("Input multiline (textarea) Ctrl+Enter inside a form calls HTMLFormElement.prototype.requestSubmit instead of firing its own $action", () => {
     const handler = vi.fn();
     const registry = createActionRegistry({ submit: handler });
-    const out = interactiveVocabulary.Input.render({
-      multiline: true,
-      name: "notes",
-      $status: "done",
-      $action: { type: "submit" },
-      $dispatch: registry.dispatch,
-    }) as ReactNode;
+    const out = renderWithHooks(() =>
+      interactiveVocabulary.Input.render({
+        multiline: true,
+        name: "notes",
+        $status: "done",
+        $action: { type: "submit" },
+        $dispatch: registry.dispatch,
+      }),
+    ) as ReactNode;
     const onKeyDown = (
       out as { props: { onKeyDown: (e: TextareaKeyDownEvent) => void } }
     ).props.onKeyDown;
@@ -229,12 +243,14 @@ describe("interactiveVocabulary $action dispatch", () => {
   it("Input multiline (textarea) Ctrl+Enter without a form still fires its own $action", () => {
     const handler = vi.fn();
     const registry = createActionRegistry({ submit: handler });
-    const out = interactiveVocabulary.Input.render({
-      multiline: true,
-      $status: "done",
-      $action: { type: "submit" },
-      $dispatch: registry.dispatch,
-    }) as ReactNode;
+    const out = renderWithHooks(() =>
+      interactiveVocabulary.Input.render({
+        multiline: true,
+        $status: "done",
+        $action: { type: "submit" },
+        $dispatch: registry.dispatch,
+      }),
+    ) as ReactNode;
     const onKeyDown = (
       out as { props: { onKeyDown: (e: TextareaKeyDownEvent) => void } }
     ).props.onKeyDown;
@@ -256,13 +272,15 @@ describe("interactiveVocabulary $action dispatch", () => {
   it("Button with submit set renders no onClick handler, so it never fires $action on click", () => {
     const handler = vi.fn();
     const registry = createActionRegistry({ purchase: handler });
-    const out = interactiveVocabulary.Button.render({
-      label: "Buy",
-      submit: true,
-      $status: "done",
-      $action: { type: "purchase" },
-      $dispatch: registry.dispatch,
-    } as ButtonRenderProps & { submit: boolean }) as ReactNode;
+    const out = renderWithHooks(() =>
+      interactiveVocabulary.Button.render({
+        label: "Buy",
+        submit: true,
+        $status: "done",
+        $action: { type: "purchase" },
+        $dispatch: registry.dispatch,
+      } as ButtonRenderProps & { submit: boolean }),
+    );
     expect(
       (out as { props: { onClick?: unknown } }).props.onClick,
     ).toBeUndefined();
@@ -272,12 +290,14 @@ describe("interactiveVocabulary $action dispatch", () => {
   it("Button without submit keeps firing $action on click", () => {
     const handler = vi.fn();
     const registry = createActionRegistry({ purchase: handler });
-    const out = interactiveVocabulary.Button.render({
-      label: "Buy",
-      $status: "done",
-      $action: { type: "purchase" },
-      $dispatch: registry.dispatch,
-    } as ButtonRenderProps) as ReactNode;
+    const out = renderWithHooks(() =>
+      interactiveVocabulary.Button.render({
+        label: "Buy",
+        $status: "done",
+        $action: { type: "purchase" },
+        $dispatch: registry.dispatch,
+      } as ButtonRenderProps),
+    );
     const onClick = (out as { props: { onClick: (e: object) => void } }).props
       .onClick;
     onClick({ currentTarget: {} });
@@ -287,12 +307,14 @@ describe("interactiveVocabulary $action dispatch", () => {
   it("Checkbox onChange fires $dispatch with the checked boolean as $input", () => {
     const handler = vi.fn();
     const registry = createActionRegistry({ toggle: handler });
-    const out = interactiveVocabulary.Checkbox.render({
-      label: "Accept",
-      $status: "done",
-      $action: { type: "toggle" },
-      $dispatch: registry.dispatch,
-    }) as ReactElement;
+    const out = renderWithHooks(() =>
+      interactiveVocabulary.Checkbox.render({
+        label: "Accept",
+        $status: "done",
+        $action: { type: "toggle" },
+        $dispatch: registry.dispatch,
+      }),
+    );
     const input = (out.props as { children: ReactElement[] }).children[0];
     const onChange = (
       input as {
@@ -308,11 +330,13 @@ describe("interactiveVocabulary $action dispatch", () => {
   });
 
   it("Checkbox onChange is a no-op when no $dispatch is wired", () => {
-    const out = interactiveVocabulary.Checkbox.render({
-      label: "Accept",
-      $status: "done",
-      $action: { type: "toggle" },
-    }) as ReactElement;
+    const out = renderWithHooks(() =>
+      interactiveVocabulary.Checkbox.render({
+        label: "Accept",
+        $status: "done",
+        $action: { type: "toggle" },
+      }),
+    );
     const input = (out.props as { children: ReactElement[] }).children[0];
     const onChange = (
       input as {

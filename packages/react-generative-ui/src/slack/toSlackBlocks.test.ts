@@ -173,6 +173,18 @@ describe("toSlackBlocks", () => {
       expect(warnings).toEqual([]);
     });
 
+    it("appends a fact delta to the value text", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Fact",
+        label: "Revenue",
+        value: "$12.4k",
+        delta: "+8%",
+      });
+      expect((blocks[0] as SlackSectionBlock).fields?.[0]?.text).toBe(
+        "*Revenue*\n$12.4k (+8%)",
+      );
+    });
+
     it("breaks Fact merging on a non-Fact sibling", () => {
       const root = [
         { $type: "Fact", label: "A", value: "1" },
@@ -678,6 +690,47 @@ describe("toSlackBlocks", () => {
     });
   });
 
+  describe("Slider", () => {
+    it("renders a number input block with its numeric bounds", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Slider",
+        label: "Quantity",
+        min: 1,
+        max: 12,
+        step: 0.5,
+        defaultValue: 3.5,
+        $action: { type: "set_quantity" },
+      });
+
+      expect(blocks).toEqual([
+        {
+          type: "input",
+          label: { type: "plain_text", text: "Quantity" },
+          element: {
+            type: "number_input",
+            action_id: "set_quantity",
+            min_value: 1,
+            max_value: 12,
+            initial_value: 3.5,
+            is_decimal_allowed: true,
+          },
+        },
+      ]);
+    });
+
+    it("uses the same input block when nested in a Form", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Form",
+        children: { $type: "Slider", label: "Quantity", min: 1, max: 12 },
+      });
+
+      expect(blocks[0]).toMatchObject({
+        type: "input",
+        element: { type: "number_input", min_value: 1, max_value: 12 },
+      });
+    });
+  });
+
   describe("Checkbox", () => {
     it("emits a single-option checkboxes element", () => {
       const { blocks } = toSlackBlocks({
@@ -736,9 +789,42 @@ describe("toSlackBlocks", () => {
         "initial_options",
       );
     });
+
+    it("maps a switch like a checkbox", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Checkbox",
+        label: "Agree",
+        variant: "switch",
+      });
+      expect((blocks[0] as SlackActionsBlock).elements[0]).toMatchObject({
+        type: "checkboxes",
+        options: [{ value: "Agree" }],
+      });
+    });
   });
 
   describe("RadioGroup", () => {
+    it("maps option descriptions to Slack option descriptions", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "RadioGroup",
+        options: [
+          {
+            label: "Free",
+            description: "For personal projects",
+            value: "free",
+          },
+        ],
+      });
+
+      expect((blocks[0] as SlackActionsBlock).elements[0]).toMatchObject({
+        options: [
+          {
+            description: { type: "plain_text", text: "For personal projects" },
+          },
+        ],
+      });
+    });
+
     it("names RadioGroup when the same option loss happens there", () => {
       const { warnings } = toSlackBlocks({
         $type: "RadioGroup",
@@ -1878,6 +1964,29 @@ describe("toSlackBlocks", () => {
             ],
           ],
         },
+      ]);
+    });
+
+    it("formats table cells from their columns", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Table",
+        columns: [
+          { label: "Number", format: { kind: "number", decimals: 1 } },
+          {
+            label: "Revenue",
+            format: { kind: "currency", currency: "USD", decimals: 2 },
+          },
+          { label: "Share", format: { kind: "percent", decimals: 0 } },
+          { label: "Date", format: { kind: "date" } },
+        ],
+        rows: [[1234.5, 12.4, 0.08, "2024-01-02"]],
+      });
+      const table = blocks[0] as SlackDataTableBlock;
+      expect(table.rows[1]?.map((cell) => cell.text)).toEqual([
+        "1,234.5",
+        "$12.40",
+        "8%",
+        "Jan 2, 2024",
       ]);
     });
 

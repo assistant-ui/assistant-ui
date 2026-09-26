@@ -1,17 +1,40 @@
+import { useState, type ReactNode } from "react";
 import { z } from "zod";
 import type { GenerativeUILibrary } from "../types";
+import { formatValue, isNumericTableFormat } from "./formatValue";
 import { toTextContent } from "./toTextContent";
 
 const columnSchema = z.object({
   label: z.string().describe("Column header label."),
+  align: z.enum(["start", "end"]).optional().describe("Cell alignment."),
+  format: z
+    .object({
+      kind: z
+        .enum(["number", "currency", "percent", "date"])
+        .describe(
+          "Format kind. `percent` takes a fraction, so 0.25 renders as 25%.",
+        ),
+      currency: z.string().optional().describe("Currency code."),
+      decimals: z.number().optional().describe("Decimal places."),
+    })
+    .optional()
+    .describe("Cell value format."),
 });
 
 const cellSchema = z
   .union([z.string(), z.number(), z.boolean()])
   .describe("A cell value.");
 
-type TableColumn = { label: string };
+type TableColumn = {
+  label: string;
+  align?: "start" | "end";
+  format?: unknown;
+};
 type TableCell = string | number | boolean;
+
+type TableSort = { column: number; direction: "ascending" | "descending" };
+
+const tableCollator = new Intl.Collator("en-US", { numeric: true });
 
 const isTableColumn = (column: unknown): column is TableColumn =>
   column !== null &&
@@ -24,14 +47,155 @@ const isTableCell = (cell: unknown): cell is TableCell =>
   typeof cell === "number" ||
   typeof cell === "boolean";
 
+const tableAlignment = (column: unknown): "start" | "end" | undefined => {
+  if (!isTableColumn(column)) return undefined;
+  if (column.align === "start" || column.align === "end") return column.align;
+  return isNumericTableFormat(column.format) ? "end" : undefined;
+};
+
+const compareTableCells = (left: unknown, right: unknown): number => {
+  if (
+    typeof left === "number" &&
+    Number.isFinite(left) &&
+    typeof right === "number" &&
+    Number.isFinite(right)
+  ) {
+    return left - right;
+  }
+  if (typeof left === "number" && Number.isFinite(left)) return -1;
+  if (typeof right === "number" && Number.isFinite(right)) return 1;
+  return tableCollator.compare(
+    isTableCell(left) ? String(left) : "",
+    isTableCell(right) ? String(right) : "",
+  );
+};
+
+type TableViewProps = {
+  columns: unknown;
+  rows: unknown;
+  children: ReactNode;
+  sort?: TableSort | undefined;
+  onSort?: ((column: number) => void) | undefined;
+};
+
+function TableView({ columns, rows, children, sort, onSort }: TableViewProps) {
+  const safeColumns = Array.isArray(columns) ? columns : [];
+  const hasColumns = safeColumns.some(isTableColumn);
+  const safeRows = Array.isArray(rows) ? rows.filter(Array.isArray) : [];
+  const sortedRows =
+    sort === undefined
+      ? safeRows
+      : safeRows
+          .map((row, index) => ({ row, index }))
+          .sort((left, right) => {
+            const comparison = compareTableCells(
+              left.row[sort.column],
+              right.row[sort.column],
+            );
+            return comparison === 0
+              ? left.index - right.index
+              : sort.direction === "ascending"
+                ? comparison
+                : -comparison;
+          })
+          .map(({ row }) => row);
+
+  return (
+    <table data-aui="table">
+      {hasColumns ? (
+        <thead>
+          <tr>
+            {safeColumns.map((column, i) => {
+              const label = isTableColumn(column) ? column.label : "";
+              const direction = sort?.column === i ? sort.direction : undefined;
+              return (
+                <th
+                  key={i}
+                  data-aui="table-col"
+                  data-aui-align={tableAlignment(column)}
+                  aria-sort={onSort ? (direction ?? "none") : undefined}
+                >
+                  {onSort ? (
+                    <button
+                      type="button"
+                      data-aui="table-sort"
+                      onClick={() => onSort(i)}
+                    >
+                      {label}
+                      {direction ? (
+                        <span
+                          aria-hidden="true"
+                          data-aui="table-sort-direction"
+                        >
+                          {direction === "ascending" ? "↑" : "↓"}
+                        </span>
+                      ) : null}
+                    </button>
+                  ) : (
+                    label
+                  )}
+                </th>
+              );
+            })}
+          </tr>
+        </thead>
+      ) : null}
+      {safeRows.length ? (
+        <tbody>
+          {sortedRows.map((row, r) => (
+            <tr key={r}>
+              {row.map((cell, c) => (
+                <td key={c} data-aui-align={tableAlignment(safeColumns[c])}>
+                  {formatValue(
+                    cell,
+                    isTableColumn(safeColumns[c])
+                      ? safeColumns[c].format
+                      : undefined,
+                  )}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      ) : null}
+      {children}
+    </table>
+  );
+}
+
+function SortableTable(props: Omit<TableViewProps, "sort" | "onSort">) {
+  const [sort, setSort] = useState<TableSort | undefined>();
+  return (
+    <TableView
+      {...props}
+      sort={sort}
+      onSort={(column) =>
+        setSort((current) =>
+          current?.column !== column
+            ? { column, direction: "ascending" }
+            : current.direction === "ascending"
+              ? { column, direction: "descending" }
+              : undefined,
+        )
+      }
+    />
+  );
+}
+
 const CHART_HEIGHT = 40;
 const CHART_WIDTH = 100;
 
 const clampValue = (value: unknown): number =>
-  typeof value === "number" && Number.isFinite(value) ? Math.max(0, value) : 0;
+  typeof value === "number" && Number.isFinite(value) ? value : 0;
 
-const yFor = (value: number, max: number): number =>
-  max > 0 ? CHART_HEIGHT - (value / max) * CHART_HEIGHT : CHART_HEIGHT;
+type ChartScale = { min: number; max: number };
+
+const yFor = (value: number, scale: ChartScale): number => {
+  const span = scale.max - scale.min;
+  return span > 0
+    ? CHART_HEIGHT - ((value - scale.min) / span) * CHART_HEIGHT
+    : CHART_HEIGHT;
+};
 
 const pointSchema = z.object({
   label: z.string().optional().describe("Point label."),
@@ -40,13 +204,24 @@ const pointSchema = z.object({
 
 const seriesSchema = z.object({
   label: z.string().optional().describe("Series label, shown in the legend."),
+  color: z
+    .string()
+    .optional()
+    .describe(
+      "Series color. One of `emphasis`, `secondary`, `alpha-70`, `white`, `white-70`, or `white-50`, matching Text's `color` tokens; other values have no visual effect.",
+    ),
   data: z.array(pointSchema).describe("Data points for this series."),
 });
 
-type ChartPoint = { label?: string; value: number };
-type ChartSeriesInput = { label?: string; data: ChartPoint[] };
+type ChartPoint = { label?: string | undefined; value: number };
+type ChartSeriesInput = {
+  label?: string | undefined;
+  color?: string | undefined;
+  data?: ChartPoint[] | undefined;
+};
 type NormalizedChartSeries = {
   label: string | undefined;
+  color: string | undefined;
   values: number[];
   labels: (string | undefined)[];
 };
@@ -77,6 +252,7 @@ function normalizeSeries(
     }
     return {
       label: typeof s?.label === "string" ? s.label : undefined,
+      color: typeof s?.color === "string" ? s.color : undefined,
       values,
       labels,
     };
@@ -85,23 +261,38 @@ function normalizeSeries(
   return { count, series };
 }
 
-function computeMax(
+function valueScale(values: number[]): ChartScale {
+  let min = 0;
+  let max = 0;
+  for (const value of values) {
+    min = Math.min(min, value);
+    max = Math.max(max, value);
+  }
+  return { min, max };
+}
+
+function computeScale(
   series: NormalizedChartSeries[],
   count: number,
   stacked: boolean,
-): number {
+): ChartScale {
   if (stacked) {
+    let min = 0;
     let max = 0;
     for (let i = 0; i < count; i++) {
-      let sum = 0;
-      for (const s of series) sum += s.values[i] ?? 0;
-      max = Math.max(max, sum);
+      let negative = 0;
+      let positive = 0;
+      for (const s of series) {
+        const value = s.values[i] ?? 0;
+        if (value < 0) negative += value;
+        else positive += value;
+      }
+      min = Math.min(min, negative);
+      max = Math.max(max, positive);
     }
-    return max;
+    return { min, max };
   }
-  let max = 0;
-  for (const s of series) for (const v of s.values) max = Math.max(max, v);
-  return max;
+  return valueScale(series.flatMap((s) => s.values));
 }
 
 const NICE_MULTIPLES = [1, 2, 5];
@@ -119,11 +310,27 @@ function niceMax(max: number): number {
 
 const TICK_COUNT = 5;
 
-/** `TICK_COUNT` evenly spaced ticks from `max` down to `0`, for a top-to-bottom y-axis column. */
-function tickValues(max: number): number[] {
+function axisScale(scale: ChartScale): ChartScale {
+  if (scale.min === 0) return { min: 0, max: niceMax(scale.max) };
+  if (scale.max === 0) return { min: -niceMax(-scale.min), max: 0 };
+  const step = niceMax(Math.max(-scale.min, scale.max) / 2);
+  return { min: -2 * step, max: 2 * step };
+}
+
+/** `TICK_COUNT` evenly spaced ticks from the top of the scale down to its bottom, for a top-to-bottom y-axis column. */
+function tickValues(scale: ChartScale): number[] {
   const ticks: number[] = [];
+  if (scale.min === 0) {
+    for (let i = 0; i < TICK_COUNT; i++) {
+      ticks.push((scale.max * (TICK_COUNT - 1 - i)) / (TICK_COUNT - 1));
+    }
+    return ticks;
+  }
   for (let i = 0; i < TICK_COUNT; i++) {
-    ticks.push((max * (TICK_COUNT - 1 - i)) / (TICK_COUNT - 1));
+    ticks.push(
+      scale.min +
+        ((scale.max - scale.min) * (TICK_COUNT - 1 - i)) / (TICK_COUNT - 1),
+    );
   }
   return ticks;
 }
@@ -136,29 +343,84 @@ type ChartVariant = "bar" | "line" | "sparkline" | "area";
 
 const SERIES_PALETTE_SIZE = 5;
 
+const tooltipText = (
+  seriesLabel: string | undefined,
+  pointLabel: string | undefined,
+  index: number,
+  value: number,
+) =>
+  `${seriesLabel ? `${seriesLabel}, ` : ""}${pointLabel || index + 1}: ${formatTick(value)}`;
+
+const seriesColor = (
+  series: NormalizedChartSeries,
+  seriesCount: number,
+  color: unknown,
+) =>
+  series.color ??
+  (seriesCount === 1 && typeof color === "string" ? color : undefined);
+
+const xFor = (index: number, count: number): number =>
+  count === 1 ? CHART_WIDTH / 2 : (index / (count - 1)) * CHART_WIDTH;
+
+function pointTargets(
+  series: NormalizedChartSeries,
+  positions: number[],
+  count: number,
+  scale: ChartScale,
+) {
+  return series.values.map((value, i) => (
+    <circle
+      key={i}
+      data-aui="chart-point"
+      cx={xFor(i, count)}
+      cy={yFor(positions[i] ?? 0, scale)}
+      r={4}
+      fill="transparent"
+    >
+      <title>{tooltipText(series.label, series.labels[i], i, value)}</title>
+    </circle>
+  ));
+}
+
+function barGeometry(value: number, start: number, scale: ChartScale) {
+  const end = start + value;
+  if (scale.min === 0 && start >= 0 && end >= 0) {
+    const height = scale.max > 0 ? (value / scale.max) * CHART_HEIGHT : 0;
+    const belowHeight = scale.max > 0 ? (start / scale.max) * CHART_HEIGHT : 0;
+    return { y: CHART_HEIGHT - belowHeight - height, height };
+  }
+  const startY = yFor(start, scale);
+  const endY = yFor(end, scale);
+  return { y: Math.min(startY, endY), height: Math.abs(endY - startY) };
+}
+
 function renderSeriesMarks(
   variant: ChartVariant,
   series: NormalizedChartSeries[],
   count: number,
-  scaleMax: number,
+  scale: ChartScale,
   stacked: boolean,
+  color: unknown,
 ) {
+  const seriesCount = series.length;
+
   if (variant === "bar") {
     const slot = count > 0 ? CHART_WIDTH / count : 0;
     const gap = slot * 0.2;
     const groupWidth = slot - gap;
-    const seriesCount = series.length;
     const perSeriesWidth =
       stacked || seriesCount <= 1 ? groupWidth : groupWidth / seriesCount;
-    const cumulative = new Array(count).fill(0) as number[];
+    const negatives = new Array(count).fill(0) as number[];
+    const positives = new Array(count).fill(0) as number[];
 
     return series.map((s, seriesIndex) => {
       const marks = s.values.map((value, i) => {
-        const height = scaleMax > 0 ? (value / scaleMax) * CHART_HEIGHT : 0;
-        const belowHeight =
-          stacked && scaleMax > 0
-            ? ((cumulative[i] ?? 0) / scaleMax) * CHART_HEIGHT
-            : 0;
+        const start = stacked
+          ? value < 0
+            ? (negatives[i] ?? 0)
+            : (positives[i] ?? 0)
+          : 0;
+        const { y, height } = barGeometry(value, start, scale);
         const x =
           stacked || seriesCount <= 1
             ? i * slot + gap / 2
@@ -167,16 +429,20 @@ function renderSeriesMarks(
           <rect
             key={i}
             x={x}
-            y={CHART_HEIGHT - belowHeight - height}
+            y={y}
             width={perSeriesWidth}
             height={height}
             fill="currentColor"
-          />
+          >
+            <title>{tooltipText(s.label, s.labels[i], i, value)}</title>
+          </rect>
         );
       });
       if (stacked) {
         for (let i = 0; i < count; i++) {
-          cumulative[i] = (cumulative[i] ?? 0) + (s.values[i] ?? 0);
+          const value = s.values[i] ?? 0;
+          if (value < 0) negatives[i] = (negatives[i] ?? 0) + value;
+          else positives[i] = (positives[i] ?? 0) + value;
         }
       }
       return (
@@ -184,6 +450,7 @@ function renderSeriesMarks(
           key={seriesIndex}
           data-aui="chart-series"
           data-aui-series={seriesIndex % SERIES_PALETTE_SIZE}
+          data-aui-color={seriesColor(s, seriesCount, color)}
         >
           {marks}
         </g>
@@ -192,28 +459,35 @@ function renderSeriesMarks(
   }
 
   if (variant === "area") {
-    const cumulative = new Array(count).fill(0) as number[];
+    const negatives = new Array(count).fill(0) as number[];
+    const positives = new Array(count).fill(0) as number[];
 
     return series.map((s, seriesIndex) => {
-      const bottoms = stacked
-        ? cumulative.slice()
-        : (new Array(count).fill(0) as number[]);
+      const bottoms = s.values.map((value, i) =>
+        stacked ? (value < 0 ? (negatives[i] ?? 0) : (positives[i] ?? 0)) : 0,
+      );
+      const tops = s.values.map((value, i) =>
+        stacked ? (bottoms[i] ?? 0) + value : value,
+      );
       if (stacked) {
         for (let i = 0; i < count; i++) {
-          cumulative[i] = (cumulative[i] ?? 0) + (s.values[i] ?? 0);
+          const value = s.values[i] ?? 0;
+          if (value < 0) negatives[i] = (negatives[i] ?? 0) + value;
+          else positives[i] = (positives[i] ?? 0) + value;
         }
       }
-      const tops = stacked ? cumulative.slice() : s.values.slice();
 
       if (count === 1) {
-        const y = yFor(tops[0] ?? 0, scaleMax);
+        const y = yFor(tops[0] ?? 0, scale);
         return (
           <g
             key={seriesIndex}
             data-aui="chart-series"
             data-aui-series={seriesIndex % SERIES_PALETTE_SIZE}
+            data-aui-color={seriesColor(s, seriesCount, color)}
           >
             <circle cx={CHART_WIDTH / 2} cy={y} r={2} fill="currentColor" />
+            {pointTargets(s, tops, count, scale)}
           </g>
         );
       }
@@ -223,17 +497,16 @@ function renderSeriesMarks(
             key={seriesIndex}
             data-aui="chart-series"
             data-aui-series={seriesIndex % SERIES_PALETTE_SIZE}
+            data-aui-color={seriesColor(s, seriesCount, color)}
           />
         );
       }
 
       const topPoints = tops.map(
-        (v, i) => `${(i / (count - 1)) * CHART_WIDTH},${yFor(v, scaleMax)}`,
+        (v, i) => `${xFor(i, count)},${yFor(v, scale)}`,
       );
       const bottomPoints = bottoms
-        .map(
-          (v, i) => `${(i / (count - 1)) * CHART_WIDTH},${yFor(v, scaleMax)}`,
-        )
+        .map((v, i) => `${xFor(i, count)},${yFor(v, scale)}`)
         .reverse();
 
       return (
@@ -241,6 +514,7 @@ function renderSeriesMarks(
           key={seriesIndex}
           data-aui="chart-series"
           data-aui-series={seriesIndex % SERIES_PALETTE_SIZE}
+          data-aui-color={seriesColor(s, seriesCount, color)}
         >
           <polygon
             points={[...topPoints, ...bottomPoints].join(" ")}
@@ -253,6 +527,7 @@ function renderSeriesMarks(
             stroke="currentColor"
             vectorEffect="non-scaling-stroke"
           />
+          {pointTargets(s, tops, count, scale)}
         </g>
       );
     });
@@ -264,27 +539,26 @@ function renderSeriesMarks(
       key={seriesIndex}
       data-aui="chart-series"
       data-aui-series={seriesIndex % SERIES_PALETTE_SIZE}
+      data-aui-color={seriesColor(s, series.length, color)}
     >
       {count === 1 ? (
         <circle
           cx={CHART_WIDTH / 2}
-          cy={yFor(s.values[0] ?? 0, scaleMax)}
+          cy={yFor(s.values[0] ?? 0, scale)}
           r={2}
           fill="currentColor"
         />
       ) : count > 1 ? (
         <polyline
           points={s.values
-            .map(
-              (v, i) =>
-                `${(i / (count - 1)) * CHART_WIDTH},${yFor(v, scaleMax)}`,
-            )
+            .map((v, i) => `${xFor(i, count)},${yFor(v, scale)}`)
             .join(" ")}
           fill="none"
           stroke="currentColor"
           vectorEffect="non-scaling-stroke"
         />
       ) : null}
+      {variant === "line" ? pointTargets(s, s.values, count, scale) : null}
     </g>
   ));
 }
@@ -296,40 +570,18 @@ export const dataVocabulary = {
     properties: z.object({
       columns: z.array(columnSchema).optional().describe("Column definitions."),
       rows: z.array(z.array(cellSchema)).optional().describe("Rows of cells."),
+      sortable: z.boolean().optional().describe("Allow header sorting."),
     }),
-    render: ({ columns, rows, children }) => {
-      const safeColumns = Array.isArray(columns) ? columns : [];
-      const hasColumns = safeColumns.some(isTableColumn);
-      const safeRows = Array.isArray(rows) ? rows.filter(Array.isArray) : [];
-
-      return (
-        <table data-aui="table">
-          {hasColumns ? (
-            <thead>
-              <tr>
-                {safeColumns.map((column, i) => (
-                  <th key={i} data-aui="table-col">
-                    {isTableColumn(column) ? column.label : ""}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-          ) : null}
-          {safeRows.length ? (
-            <tbody>
-              {safeRows.map((row, r) => (
-                <tr key={r}>
-                  {row.map((cell, c) => (
-                    <td key={c}>{isTableCell(cell) ? String(cell) : ""}</td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          ) : null}
+    render: ({ columns, rows, sortable, children }) =>
+      sortable === true ? (
+        <SortableTable columns={columns} rows={rows}>
           {children}
-        </table>
-      );
-    },
+        </SortableTable>
+      ) : (
+        <TableView columns={columns} rows={rows}>
+          {children}
+        </TableView>
+      ),
   },
   Markdown: {
     description:
@@ -403,10 +655,19 @@ export const dataVocabulary = {
         const points = Array.isArray(data) ? data : [];
         const n = points.length;
         const values = points.map((d) => clampValue(d?.value));
-        const max = values.reduce((m, v) => Math.max(m, v), 0);
+        const scale = valueScale(values);
+        const chartSeries: NormalizedChartSeries = {
+          label: undefined,
+          color: undefined,
+          values,
+          labels: points.map((point) =>
+            typeof point?.label === "string" ? point.label : undefined,
+          ),
+        };
         const slot = n > 0 ? CHART_WIDTH / n : 0;
         const gap = slot * 0.2;
         const barWidth = slot - gap;
+        const crossesZero = scale.min < 0 && scale.max > 0;
 
         return (
           <svg
@@ -418,37 +679,60 @@ export const dataVocabulary = {
             viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
             preserveAspectRatio="none"
           >
+            {crossesZero ? (
+              <line
+                data-aui="chart-zero"
+                x1={0}
+                x2={CHART_WIDTH}
+                y1={yFor(0, scale)}
+                y2={yFor(0, scale)}
+                stroke="currentColor"
+                vectorEffect="non-scaling-stroke"
+              />
+            ) : null}
             {variant === "bar" ? (
               values.map((v, i) => {
-                const height = max > 0 ? (v / max) * CHART_HEIGHT : 0;
+                const { y, height } = barGeometry(v, 0, scale);
                 return (
                   <rect
                     key={i}
                     x={i * slot + gap / 2}
-                    y={CHART_HEIGHT - height}
+                    y={y}
                     width={barWidth}
                     height={height}
                     fill="currentColor"
-                  />
+                  >
+                    <title>
+                      {tooltipText(undefined, chartSeries.labels[i], i, v)}
+                    </title>
+                  </rect>
                 );
               })
             ) : n === 1 ? (
-              <circle
-                cx={CHART_WIDTH / 2}
-                cy={yFor(values[0] ?? 0, max)}
-                r={2}
-                fill="currentColor"
-              />
+              <>
+                <circle
+                  cx={CHART_WIDTH / 2}
+                  cy={yFor(values[0] ?? 0, scale)}
+                  r={2}
+                  fill="currentColor"
+                />
+                {variant === "line"
+                  ? pointTargets(chartSeries, values, n, scale)
+                  : null}
+              </>
             ) : n > 1 ? (
-              <polyline
-                points={values
-                  .map(
-                    (v, i) => `${(i / (n - 1)) * CHART_WIDTH},${yFor(v, max)}`,
-                  )
-                  .join(" ")}
-                fill="none"
-                stroke="currentColor"
-              />
+              <>
+                <polyline
+                  points={values
+                    .map((v, i) => `${xFor(i, n)},${yFor(v, scale)}`)
+                    .join(" ")}
+                  fill="none"
+                  stroke="currentColor"
+                />
+                {variant === "line"
+                  ? pointTargets(chartSeries, values, n, scale)
+                  : null}
+              </>
             ) : null}
           </svg>
         );
@@ -457,15 +741,17 @@ export const dataVocabulary = {
       const { count, series: normalized } = normalizeSeries(series, data);
       const stackedScale =
         !!stacked && (variant === "bar" || variant === "area");
-      const rawMax = computeMax(normalized, count, stackedScale);
-      const scaleMax = showAxis ? niceMax(rawMax) : rawMax;
+      const rawScale = computeScale(normalized, count, stackedScale);
+      const scale = showAxis ? axisScale(rawScale) : rawScale;
       const marks = renderSeriesMarks(
         variant,
         normalized,
         count,
-        scaleMax,
+        scale,
         stackedScale,
+        color,
       );
+      const crossesZero = rawScale.min < 0 && rawScale.max > 0;
 
       const svg = (
         <svg
@@ -477,6 +763,17 @@ export const dataVocabulary = {
           viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
           preserveAspectRatio="none"
         >
+          {crossesZero ? (
+            <line
+              data-aui="chart-zero"
+              x1={0}
+              x2={CHART_WIDTH}
+              y1={yFor(0, scale)}
+              y2={yFor(0, scale)}
+              stroke="currentColor"
+              vectorEffect="non-scaling-stroke"
+            />
+          ) : null}
           {marks}
         </svg>
       );
@@ -487,7 +784,7 @@ export const dataVocabulary = {
         <div data-aui="chart-frame">
           {showAxis ? (
             <div data-aui="chart-ticks">
-              {tickValues(scaleMax).map((tick, i) => (
+              {tickValues(scale).map((tick, i) => (
                 <div key={i}>{formatTick(tick)}</div>
               ))}
             </div>
@@ -507,6 +804,7 @@ export const dataVocabulary = {
                   key={i}
                   data-aui="chart-legend-item"
                   data-aui-series={i % SERIES_PALETTE_SIZE}
+                  data-aui-color={seriesColor(s, normalized.length, color)}
                 >
                   <span data-aui="chart-legend-swatch" />
                   {s.label ?? `Series ${i + 1}`}

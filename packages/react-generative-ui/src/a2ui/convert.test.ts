@@ -648,6 +648,104 @@ describe("convertSurfaceToUISpec", () => {
     });
   });
 
+  it("maps a bound Slider with the spec's min default and a continuous step", () => {
+    const surface = surfaceFrom(
+      [
+        {
+          id: "root",
+          component: "Slider",
+          label: "Volume",
+          max: 1,
+          value: { path: "/volume" },
+        },
+      ],
+      { volume: 0.35 },
+    );
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "Slider",
+        min: 0,
+        max: 1,
+        step: 0.01,
+        defaultValue: 0.35,
+        label: "Volume",
+        name: "/volume",
+      },
+      warnings: [],
+    });
+  });
+
+  it("divides a Slider range by its steps and keeps integer values exact", () => {
+    const stepped = surfaceFrom([
+      { id: "root", component: "Slider", max: 100, steps: 4, value: 50 },
+    ]);
+    const wide = surfaceFrom([
+      { id: "root", component: "Slider", min: 0, max: 1000, value: 537 },
+    ]);
+
+    expect(convertSurfaceToUISpec(stepped).spec).toEqual({
+      $type: "Slider",
+      min: 0,
+      max: 100,
+      step: 25,
+      defaultValue: 50,
+    });
+    expect(convertSurfaceToUISpec(wide).spec).toEqual({
+      $type: "Slider",
+      min: 0,
+      max: 1000,
+      step: 1,
+      defaultValue: 537,
+    });
+  });
+
+  it("sends a Slider's live value to an action bound to its path", () => {
+    const surface = surfaceFrom(
+      [
+        { id: "root", component: "Column", children: ["volume", "save"] },
+        {
+          id: "volume",
+          component: "Slider",
+          max: 10,
+          value: { path: "/volume" },
+        },
+        {
+          id: "save",
+          component: "Button",
+          label: "Save",
+          action: {
+            event: { name: "save", context: { volume: { path: "/volume" } } },
+          },
+        },
+      ],
+      { volume: 4 },
+    );
+
+    const result = convertSurfaceToUISpec(surface);
+    expect(result.warnings).toEqual([]);
+    expect(result.spec).toMatchObject({
+      children: [
+        { $type: "Slider", name: "/volume", defaultValue: 4 },
+        {
+          $action: {
+            context: { volume: { $field: "/volume", fallback: 4 } },
+          },
+        },
+      ],
+    });
+  });
+
+  it("skips a Slider without a numeric max", () => {
+    const surface = surfaceFrom([
+      { id: "root", component: "Slider", value: 3 },
+    ]);
+
+    expect(convertSurfaceToUISpec(surface).warnings).toEqual([
+      'A2UI component "Slider" could not be mapped and was skipped.',
+    ]);
+  });
+
   it("warns and omits a malformed formatString template", () => {
     const surface = surfaceFrom([
       {

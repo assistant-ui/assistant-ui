@@ -88,6 +88,12 @@ describe("collectFormValues", () => {
     });
   });
 
+  it("resolves a range input to its numeric value", () => {
+    expect(
+      collectFormValues([el({ name: "volume", type: "range", value: "7" })]),
+    ).toEqual({ volume: 7 });
+  });
+
   it("collects repeated non-radio names into an array in document order", () => {
     expect(
       collectFormValues([

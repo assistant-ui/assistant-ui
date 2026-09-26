@@ -6,7 +6,7 @@ platforms: ["react"]
 
 Generative UI inverts the usual tool-rendering relationship. Instead of writing one component per tool, you ship a **vocabulary** of components and let the model assemble them. The model calls a single `present` tool whose arguments are a JSON tree of component names and props, and assistant-ui renders that tree.
 
-The package ships a default vocabulary of 27 components (cards, facts, tables, charts, forms, controls), so the shortest useful setup registers one tool and writes no components at all.
+The package ships a default vocabulary of 29 components (cards, facts, tables, charts, forms, controls), so the shortest useful setup registers one tool and writes no components at all.
 
 ## Which generative UI pattern?
 
@@ -263,7 +263,22 @@ const generative = new JSONGenerativeUI({
 }
 ```
 
-`Select`, `Input`, `DatePicker`, `Checkbox`, `RadioGroup`, and `CheckboxGroup` add the user's value as `$input` when they fire the action; a `CheckboxGroup`'s value is the array of its checked options' values. `Form`, and a `Card` with `asForm` set, add an object keyed by each control's `name` instead. On a `Card` there is no card-level `$action`: the collected object is dispatched through `confirm.$action`, while `cancel.$action` always fires without `$input`. Unknown action types are ignored and warn in development.
+### Undo window
+
+Set `undoable` for sends and other hard-to-reverse actions. The button waits five seconds, shows Undo with a countdown, and another click or Escape cancels it.
+
+```json
+{
+  "$type": "Button",
+  "label": "Delete order",
+  "undoable": true,
+  "$action": { "type": "delete_order", "orderId": "48213" }
+}
+```
+
+`Select`, `Input`, `DatePicker`, `Checkbox`, `Slider`, `RadioGroup`, and `CheckboxGroup` add the user's value as `$input` when they fire the action; `Slider` sends a number and a `CheckboxGroup` sends the array of its checked option values. `Form`, and a `Card` with `asForm` set, add an object keyed by each control's `name` instead. On a `Card` there is no card-level `$action`: the collected object is dispatched through `confirm.$action`, while `cancel.$action` always fires without `$input`. Unknown action types are ignored and warn in development.
+
+`Slider` takes `min`, `max`, an optional `step`, `defaultValue`, and `unit`; it shows the live value and commits only when the adjustment finishes. Set `Checkbox` `variant` to `"switch"` for a switch presentation without changing its boolean value. `RadioGroup` and `CheckboxGroup` options can add a short `description`, rendered under the label.
 
 Any value inside `$action` can be a `{ "$field": name }` reference instead, which resolves to a control's current value when the action fires. It reads the control with that `name` in the nearest enclosing `Form` or `Card` with `asForm`, or else anywhere in the same `JSONGenerativeUI` render, collected the way a `Form` collects it. When no control holds a value, a reference written as `{ "$field": name, "fallback": value }` resolves to its `fallback`, and one without a fallback is dropped. A component outside the default vocabulary that dispatches `$action` itself reads no control, so each reference in it resolves the same way. A tree rendered with `renderGenerativeUI` directly resolves references only inside one of those forms or an element marked `data-aui="root"`, so they never read a host page's own form. `Input` and `Select` take a `defaultValue`, so a button can send an edited value without a form:
 
@@ -294,7 +309,27 @@ Each `renderGenerativeUI` or `JSONGenerativeUI` render scopes native radio names
 
 Each dispatched action, including its `$input`, is recorded on the tool call on a best-effort basis. Recording depends on the runtime and the interaction log's limits, and it never delays or prevents dispatch. When the UI is registered through `promptUser()`, a handler's non-`undefined` return value becomes the `prompt_user` tool result only when that call has no result yet. Whether the run then continues depends on the runtime, including how it treats human tools. `present` actions never create a tool result.
 
+Once answered, a `prompt_user` locks its controls and shows the submitted values. Only values submitted through a `Form` or a `Card` with `asForm` are restored after a reload.
+
 Without a registry, the tree still renders and model-emitted actions degrade to a no-op.
+
+## Charts
+
+`Chart` accepts positive and negative values. Its scale always includes zero, so bars grow upward or downward from the zero line, areas fill to that line, and stacked bars and areas keep positive and negative totals on their respective sides. A chart that contains both positive and negative values draws a zero baseline. When `showAxis` is set, the ticks include zero and use round values for a mixed domain.
+
+Bars and data points in line and area charts expose a native tooltip with the point label and formatted value. A point without a label shows its position, counting from 1. Tooltips on named series also include the series label. Sparklines remain compact and do not add point targets.
+
+Use `series[].color` to set an individual series to `emphasis`, `secondary`, `alpha-70`, `white`, `white-70`, or `white-50`. The same color fills that series' legend swatch, while the legend label stays muted.
+
+## Tables and facts
+
+`Table` takes `columns`, `rows`, and optional `sortable`. Each column has a required `label`, an optional `align` of `"start"` or `"end"`, and an optional `format`. A format has a `kind` of `"number"`, `"currency"`, `"percent"`, or `"date"`; numeric kinds can set `decimals` from 0 to 20, currency also needs a `currency` code, and percent takes a fraction, so `0.25` renders as 25%. Number, currency, and percent columns end-align by default. Dates accept ISO strings or epoch numbers. Values with the wrong type, or a format the platform cannot apply, stay as their raw text. A sortable header cycles ascending, descending, then the original row order, and marks the sorted column with an arrow.
+
+`Fact` takes `label` and `value`, plus optional `delta`, `trend`, and `upIsGood`. `delta` renders as a change chip beside the value. Set `trend` to `"up"`, `"down"`, or `"flat"` to choose its direction, or omit it to infer down from a leading minus sign. The arrow carries the direction, so a sign that agrees with it is dropped from the chip. `upIsGood` defaults to `true` and flips which direction is positive when set to `false`.
+
+## Carousels
+
+Carousel paging controls appear only when cards overflow the available width. Each press moves one card, and motion follows the user's reduced motion preference.
 
 ## Styling
 

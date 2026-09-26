@@ -1,3 +1,7 @@
+// @vitest-environment jsdom
+
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { renderGenerativeUI } from "../renderGenerativeUI";
@@ -5,6 +9,10 @@ import { dataVocabulary } from "./data";
 
 const render = (node: unknown) =>
   renderToStaticMarkup(<>{renderGenerativeUI(node, dataVocabulary)}</>);
+
+(
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe("dataVocabulary", () => {
   it("Table renders columns and rows", () => {
@@ -30,6 +38,108 @@ describe("dataVocabulary", () => {
     expect(html).toContain('data-aui="table"');
     expect(html).not.toContain("<thead>");
     expect(html).toContain("<td>only</td>");
+  });
+
+  it("Table formats typed columns and end-aligns numeric formats", () => {
+    const html = render({
+      $type: "Table",
+      columns: [
+        { label: "Number", format: { kind: "number", decimals: 1 } },
+        {
+          label: "Revenue",
+          format: { kind: "currency", currency: "USD", decimals: 2 },
+        },
+        { label: "Share", format: { kind: "percent", decimals: 0 } },
+        { label: "Date", format: { kind: "date" } },
+      ],
+      rows: [[1234.5, 12.4, 0.08, "2024-01-02"]],
+    });
+    expect(html).toContain('data-aui-align="end">Number</th>');
+    expect(html).toContain('data-aui-align="end">Revenue</th>');
+    expect(html).toContain('data-aui-align="end">Share</th>');
+    expect(html).toContain('<td data-aui-align="end">1,234.5</td>');
+    expect(html).toContain('<td data-aui-align="end">$12.40</td>');
+    expect(html).toContain('<td data-aui-align="end">8%</td>');
+    expect(html).toContain("<td>Jan 2, 2024</td>");
+  });
+
+  it("Table keeps wrong-typed formatted cells as raw text", () => {
+    const html = render({
+      $type: "Table",
+      columns: [
+        { label: "Number", format: { kind: "number" } },
+        { label: "Date", format: { kind: "date" } },
+        {
+          label: "Currency",
+          format: { kind: "currency", currency: "not-a-currency" },
+        },
+      ],
+      rows: [["not a number", "not a date", 12]],
+    });
+    expect(html).toContain('<td data-aui-align="end">not a number</td>');
+    expect(html).toContain("<td>not a date</td>");
+    expect(html).toContain('<td data-aui-align="end">12</td>');
+  });
+
+  it("Table sorts through ascending, descending, and original row order", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    let root: Root | undefined;
+    try {
+      root = createRoot(container);
+      await act(async () => {
+        root!.render(
+          renderGenerativeUI(
+            {
+              $type: "Table",
+              sortable: true,
+              columns: [
+                { label: "Name" },
+                { label: "Score", format: { kind: "number" } },
+              ],
+              rows: [
+                ["Item 10", 2],
+                ["Item 2", 10],
+                ["Item 1", 1],
+              ],
+            },
+            dataVocabulary,
+          ),
+        );
+      });
+
+      const headers = container.querySelectorAll("th");
+      const nameButton = headers[0]?.querySelector("button");
+      const scoreButton = headers[1]?.querySelector("button");
+      const rowNames = () =>
+        Array.from(container.querySelectorAll("tbody tr")).map(
+          (row) => row.querySelector("td")?.textContent,
+        );
+      expect(headers[0]?.getAttribute("aria-sort")).toBe("none");
+      expect(headers[1]?.getAttribute("aria-sort")).toBe("none");
+
+      await act(async () => scoreButton?.click());
+      expect(headers[1]?.getAttribute("aria-sort")).toBe("ascending");
+      expect(scoreButton?.textContent).toBe("Score↑");
+      expect(rowNames()).toEqual(["Item 1", "Item 10", "Item 2"]);
+
+      await act(async () => scoreButton?.click());
+      expect(headers[1]?.getAttribute("aria-sort")).toBe("descending");
+      expect(scoreButton?.textContent).toBe("Score↓");
+      expect(rowNames()).toEqual(["Item 2", "Item 10", "Item 1"]);
+
+      await act(async () => scoreButton?.click());
+      expect(headers[1]?.getAttribute("aria-sort")).toBe("none");
+      expect(scoreButton?.textContent).toBe("Score");
+      expect(rowNames()).toEqual(["Item 10", "Item 2", "Item 1"]);
+
+      await act(async () => nameButton?.click());
+      expect(headers[0]?.getAttribute("aria-sort")).toBe("ascending");
+      expect(rowNames()).toEqual(["Item 1", "Item 2", "Item 10"]);
+    } finally {
+      await act(async () => root?.unmount());
+      container.remove();
+    }
   });
 
   it("Table ignores malformed collections instead of throwing", () => {
@@ -125,7 +235,8 @@ describe("dataVocabulary", () => {
       data: [{ value: 20 }],
     });
     expect(html).not.toContain("<polyline");
-    expect((html.match(/<circle/g) ?? []).length).toBe(1);
+    expect((html.match(/<circle/g) ?? []).length).toBe(2);
+    expect(html).toContain('data-aui="chart-point"');
     expect(html).toContain('cx="50"');
     expect(html).toContain('cy="0"');
     expect(html).toContain('r="2"');
@@ -169,15 +280,38 @@ describe("dataVocabulary", () => {
     expect(html).not.toContain("<rect");
   });
 
-  it("Chart clamps negative and non-finite values to 0", () => {
+  it("Chart maps negative bars from the zero line and non-finite values to 0", () => {
     const html = render({
       $type: "Chart",
       variant: "bar",
-      data: [{ value: -5 }, { value: Number.NaN }, { value: 10 }],
+      data: [
+        { label: "Loss", value: -10 },
+        { value: Number.NaN },
+        { label: "Gain", value: 10 },
+      ],
     });
     expect((html.match(/<rect/g) ?? []).length).toBe(3);
+    expect(html).toContain('data-aui="chart-zero"');
+    expect(html).toContain('y1="20" y2="20"');
+    expect(html).toMatch(/<rect[^>]*y="20"[^>]*height="20"/);
     expect(html).toContain('height="0"');
-    expect(html).toContain('height="40"');
+    expect(html).toContain("<title>Loss: -10</title>");
+    expect(html).toContain("<title>2: 0</title>");
+  });
+
+  it("Chart omits the zero baseline when values stay on one side of zero", () => {
+    const positive = render({
+      $type: "Chart",
+      variant: "bar",
+      data: [{ value: 1 }],
+    });
+    const negative = render({
+      $type: "Chart",
+      variant: "bar",
+      data: [{ value: -1 }],
+    });
+    expect(positive).not.toContain('data-aui="chart-zero"');
+    expect(negative).not.toContain('data-aui="chart-zero"');
   });
 
   it("Chart with all-zero data renders flat baseline marks", () => {
@@ -307,6 +441,22 @@ describe("dataVocabulary Chart stacking", () => {
     expect((html.match(/y="0"/g) ?? []).length).toBe(1); // only the tallest bar touches y=0
   });
 
+  it("stacks positive and negative bars independently from zero", () => {
+    const html = render({
+      $type: "Chart",
+      variant: "bar",
+      stacked: true,
+      series: [
+        { data: [{ value: -1 }, { value: 1 }] },
+        { data: [{ value: -1 }, { value: 1 }] },
+      ],
+    });
+    expect(html).toContain('x="5" y="20" width="40" height="10"');
+    expect(html).toContain('x="5" y="30" width="40" height="10"');
+    expect(html).toContain('x="55" y="10" width="40" height="10"');
+    expect(html).toContain('x="55" y="0" width="40" height="10"');
+  });
+
   it("stacked areas build cumulative top/bottom polygons per series", () => {
     const html = render({
       $type: "Chart",
@@ -322,6 +472,20 @@ describe("dataVocabulary Chart stacking", () => {
     expect(html).toContain('points="0,20 100,20 100,40 0,40"');
     // series 1 (top band): top=20/20*40=40 -> y=0, bottom=10/20*40=20 -> y=20
     expect(html).toContain('points="0,0 100,0 100,20 0,20"');
+  });
+
+  it("stacks positive and negative areas independently from zero", () => {
+    const html = render({
+      $type: "Chart",
+      variant: "area",
+      stacked: true,
+      series: [
+        { data: [{ value: -1 }, { value: 1 }] },
+        { data: [{ value: -1 }, { value: 1 }] },
+      ],
+    });
+    expect(html).toContain('points="0,30 100,10 100,20 0,20"');
+    expect(html).toContain('points="0,40 100,0 100,10 0,30"');
   });
 
   it("stacked bars with showAxis keep the bottom segment on the baseline, abut exactly, and share one denominator with the ticks (totals crossing a tick boundary)", () => {
@@ -392,6 +556,21 @@ describe("dataVocabulary Chart area variant", () => {
     expect(html).toMatch(/<polyline[^>]*vector-effect="non-scaling-stroke"/);
   });
 
+  it("fills negative and positive values to the zero line", () => {
+    const html = render({
+      $type: "Chart",
+      variant: "area",
+      data: [
+        { label: "Loss", value: -10 },
+        { label: "Gain", value: 10 },
+      ],
+    });
+    expect(html).toContain('data-aui="chart-zero"');
+    expect(html).toContain('points="0,40 100,0 100,20 0,20"');
+    expect((html.match(/data-aui="chart-point"/g) ?? []).length).toBe(2);
+    expect(html).toContain("<title>Loss: -10</title>");
+  });
+
   it("renders a circle instead of a degenerate polygon for a single point", () => {
     const html = render({
       $type: "Chart",
@@ -399,7 +578,7 @@ describe("dataVocabulary Chart area variant", () => {
       data: [{ value: 20 }],
     });
     expect(html).not.toContain("<polygon");
-    expect((html.match(/<circle/g) ?? []).length).toBe(1);
+    expect((html.match(/<circle/g) ?? []).length).toBe(2);
   });
 
   it("renders an empty series group without throwing when data is empty", () => {
@@ -445,6 +624,21 @@ describe("dataVocabulary Chart showAxis niceMax ticks", () => {
     });
     // niceMax = 50, so height = (42/50)*40 = 33.6, not (42/42)*40 = 40.
     expect(html).toContain('height="33.6"');
+  });
+
+  it("uses round ticks that include 0 for a domain crossing zero", () => {
+    const html = render({
+      $type: "Chart",
+      variant: "line",
+      showAxis: true,
+      data: [{ value: -3 }, { value: 5 }],
+    });
+    expect(html).toContain("<div>10</div>");
+    expect(html).toContain("<div>5</div>");
+    expect(html).toContain("<div>0</div>");
+    expect(html).toContain("<div>-5</div>");
+    expect(html).toContain("<div>-10</div>");
+    expect(html).toContain('data-aui="chart-zero"');
   });
 
   it("stays a bare svg (no frame) when neither showAxis nor showLegend is set, even with new props", () => {
@@ -509,6 +703,53 @@ describe("dataVocabulary Chart legend and x-labels", () => {
     );
   });
 
+  it("adds titles to line points with and without a series label", () => {
+    const standalone = render({
+      $type: "Chart",
+      variant: "line",
+      data: [{ label: "Jan", value: 1.5 }, { value: 2 }],
+    });
+    const named = render({
+      $type: "Chart",
+      variant: "line",
+      series: [{ label: "Revenue", data: [{ label: "Jan", value: 1.5 }] }],
+    });
+    expect(standalone).toContain("<title>Jan: 1.5</title>");
+    expect(standalone).toContain("<title>2: 2</title>");
+    expect(named).toContain("<title>Revenue, Jan: 1.5</title>");
+  });
+
+  it("emits per-series colors on chart series and legend items", () => {
+    const html = render({
+      $type: "Chart",
+      variant: "bar",
+      showLegend: true,
+      series: [
+        { label: "Revenue", color: "white", data: [{ value: 1 }] },
+        { label: "Cost", color: "alpha-70", data: [{ value: 2 }] },
+      ],
+    });
+    expect(html).toContain(
+      '<g data-aui="chart-series" data-aui-series="0" data-aui-color="white">',
+    );
+    expect(html).toContain(
+      '<span data-aui="chart-legend-item" data-aui-series="1" data-aui-color="alpha-70">',
+    );
+  });
+
+  it("uses the single-series color for its legend swatch", () => {
+    const html = render({
+      $type: "Chart",
+      variant: "bar",
+      color: "white",
+      showLegend: true,
+      data: [{ value: 1 }],
+    });
+    expect(html).toContain(
+      '<span data-aui="chart-legend-item" data-aui-series="0" data-aui-color="white"><span data-aui="chart-legend-swatch"></span>',
+    );
+  });
+
   it("falls back to a positional label when a series has no label", () => {
     const html = render({
       $type: "Chart",
@@ -564,7 +805,7 @@ describe("dataVocabulary Chart legend and x-labels", () => {
       stacked: true,
       series: [{ data: [{ value: 100 }] }, { data: [{ value: 100 }] }],
     });
-    expect((html.match(/cy="0"/g) ?? []).length).toBe(2);
+    expect((html.match(/cy="0"/g) ?? []).length).toBe(4);
   });
 
   it("cycles series colors past the palette size", () => {

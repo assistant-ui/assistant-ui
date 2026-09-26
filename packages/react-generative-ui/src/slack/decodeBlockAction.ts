@@ -50,10 +50,18 @@ export function decodeBlockAction(action: unknown): Action | undefined {
           .map(optionValue)
           .filter((value): value is string => value !== undefined)
       : undefined;
+    const numberInput =
+      action["type"] === "number_input" && typeof rawValue === "string"
+        ? Number(rawValue)
+        : undefined;
     const input =
       selectedOption ??
       selectedDate ??
-      (selectedOptions !== undefined ? selectedOptions : plainValue);
+      (selectedOptions !== undefined
+        ? selectedOptions
+        : Number.isFinite(numberInput)
+          ? numberInput
+          : plainValue);
 
     return {
       ...Object.fromEntries(

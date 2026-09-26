@@ -117,6 +117,241 @@ describe("JSONGenerativeUI — client build", () => {
     expect(html).toContain("<button>ok</button>");
   });
 
+  it("leaves present output live when the tool call has a result", () => {
+    const interactive = new ClientGenUI({
+      library: defaultGenerativeUILibrary,
+    });
+    const html = renderTool(
+      interactive.present(),
+      { $type: "Input", name: "note", defaultValue: "model default" },
+      {
+        result: { submitted: true },
+        unstable_interactions: {
+          entries: [
+            {
+              type: "action",
+              occurredAt: 1,
+              payload: { $input: { note: "submitted" } },
+            },
+          ],
+        },
+      },
+    );
+
+    expect(html).not.toContain('data-aui="answered"');
+    expect(html).toContain('value="model default"');
+  });
+
+  it("locks an answered prompt without recorded actions at its defaults", () => {
+    const interactive = new ClientGenUI({
+      library: defaultGenerativeUILibrary,
+    });
+    const html = renderTool(
+      interactive.promptUser(),
+      { $type: "Input", name: "note", defaultValue: "model default" },
+      { result: { submitted: true } },
+    );
+
+    expect(html).toContain('<fieldset disabled="" data-aui="answered">');
+    expect(html).toContain('value="model default"');
+  });
+
+  it("locks an answered prompt and restores submitted Form values", async () => {
+    const handler = vi.fn();
+    const interactive = new ClientGenUI({
+      library: defaultGenerativeUILibrary,
+      actions: createActionRegistry({ save: handler }),
+    });
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    try {
+      await act(async () => {
+        root.render(
+          (interactive.promptUser() as any).render({
+            args: {
+              $type: "Form",
+              $action: { type: "save" },
+              children: [
+                {
+                  $type: "Input",
+                  name: "message",
+                  defaultValue: "model message",
+                },
+                {
+                  $type: "Select",
+                  name: "role",
+                  defaultValue: "viewer",
+                  options: [
+                    { label: "Viewer", value: "viewer" },
+                    { label: "Editor", value: "editor" },
+                  ],
+                },
+                {
+                  $type: "DatePicker",
+                  name: "date",
+                  value: "2026-01-01",
+                },
+                {
+                  $type: "Checkbox",
+                  name: "updates",
+                  label: "Updates",
+                  defaultChecked: false,
+                },
+                {
+                  $type: "RadioGroup",
+                  name: "plan",
+                  defaultValue: "basic",
+                  options: [
+                    { label: "Basic", value: "basic" },
+                    { label: "Pro", value: "pro" },
+                  ],
+                },
+                {
+                  $type: "CheckboxGroup",
+                  name: "toppings",
+                  defaultValue: ["olives"],
+                  options: [
+                    { label: "Basil", value: "basil" },
+                    { label: "Olives", value: "olives" },
+                    { label: "Onion", value: "onion" },
+                  ],
+                },
+                { $type: "Button", label: "Save", submit: true },
+              ],
+            },
+            status: { type: "complete" },
+            toolCallId: "answered-form",
+            toolName: "prompt_user",
+            argsText: "",
+            addResult: vi.fn(),
+            result: { saved: true },
+            unstable_interactions: {
+              entries: [
+                {
+                  type: "action",
+                  occurredAt: 1,
+                  payload: { $input: { message: "older value" } },
+                },
+                {
+                  type: "action",
+                  occurredAt: 2,
+                  payload: {
+                    $input: {
+                      message: "submitted message",
+                      role: "editor",
+                      date: "2026-02-03",
+                      updates: true,
+                      plan: "pro",
+                      toppings: ["basil", "onion"],
+                    },
+                  },
+                },
+              ],
+            },
+          }),
+        );
+      });
+
+      const answered = container.querySelector('fieldset[data-aui="answered"]');
+      const form = container.querySelector("form");
+      const message = container.querySelector<HTMLInputElement>(
+        'input[name="message"]',
+      );
+      const role = container.querySelector<HTMLSelectElement>(
+        'select[name="role"]',
+      );
+      const date =
+        container.querySelector<HTMLInputElement>('input[name="date"]');
+      const updates = container.querySelector<HTMLInputElement>(
+        'input[name="updates"]',
+      );
+      const pro = container.querySelector<HTMLInputElement>(
+        'input[type="radio"][value="pro"]',
+      );
+      const toppings = Array.from(
+        container.querySelectorAll<HTMLInputElement>('input[name="toppings"]'),
+      );
+      const button = container.querySelector("button");
+      if (
+        !answered ||
+        !form ||
+        !message ||
+        !role ||
+        !date ||
+        !updates ||
+        !pro ||
+        !button
+      ) {
+        throw new Error("Expected answered prompt controls to render.");
+      }
+
+      expect(message.value).toBe("submitted message");
+      expect(role.value).toBe("editor");
+      expect(date.value).toBe("2026-02-03");
+      expect(updates.checked).toBe(true);
+      expect(pro.checked).toBe(true);
+      expect(toppings.map((input) => input.checked)).toEqual([
+        true,
+        false,
+        true,
+      ]);
+      for (const control of [
+        ...container.querySelectorAll("input, select, textarea, button"),
+      ]) {
+        expect(control.matches(":disabled")).toBe(true);
+      }
+
+      await act(async () => {
+        button.click();
+        form.dispatchEvent(
+          new Event("submit", { bubbles: true, cancelable: true }),
+        );
+      });
+
+      expect(handler).not.toHaveBeenCalled();
+    } finally {
+      await act(async () => root.unmount());
+    }
+  });
+
+  it("keeps an unanswered prompt live", async () => {
+    const handler = vi.fn();
+    const interactive = new ClientGenUI({
+      library: defaultGenerativeUILibrary,
+      actions: createActionRegistry({ save: handler }),
+    });
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    try {
+      await act(async () => {
+        root.render(
+          (interactive.promptUser() as any).render({
+            args: {
+              $type: "Button",
+              label: "Save",
+              $action: { type: "save" },
+            },
+            status: { type: "complete" },
+            toolCallId: "unanswered-button",
+            toolName: "prompt_user",
+            argsText: "",
+            addResult: vi.fn(),
+          }),
+        );
+      });
+
+      const button = container.querySelector("button");
+      if (!button) throw new Error("Expected an unanswered prompt button.");
+      expect(container.querySelector('[data-aui="answered"]')).toBeNull();
+      await act(async () => button.click());
+      expect(handler).toHaveBeenCalledWith({ payload: { type: "save" } });
+    } finally {
+      await act(async () => root.unmount());
+    }
+  });
+
   it.each(["running", "incomplete"])(
     "holds prompt controls back for %s arguments",
     (type) => {
@@ -307,17 +542,29 @@ describe("JSONGenerativeUI — client build", () => {
     expect(addResult).not.toHaveBeenCalled();
   });
 
-  it("does not complete prompt_user when the tool call already has a result", async () => {
-    const addResult = vi.fn();
-    const dispatch = captureActionDispatch(
-      "promptUser",
-      createActionRegistry({ answer: () => ({ choice: "new" }) }),
-      { addResult, result: { choice: "existing" } },
+  it("does not provide an action dispatch when prompt_user already has a result", () => {
+    let dispatch: GenerativeUIDispatch | undefined;
+    const ui = new ClientGenUI({
+      library: {
+        Action: {
+          description: "An action target.",
+          properties: z.object({}),
+          render: ({ $dispatch }: any) => {
+            dispatch = $dispatch;
+            return null;
+          },
+        },
+      },
+      actions: createActionRegistry({ answer: vi.fn() }),
+    });
+
+    renderTool(
+      ui.promptUser(),
+      { $type: "Action", $action: { type: "answer" } },
+      { result: { choice: "existing" } },
     );
 
-    dispatch({ type: "answer" });
-    await Promise.resolve();
-    expect(addResult).not.toHaveBeenCalled();
+    expect(dispatch).toBeUndefined();
   });
 
   it("never completes present from an action result", async () => {
