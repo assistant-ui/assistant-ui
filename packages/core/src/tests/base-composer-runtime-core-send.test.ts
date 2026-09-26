@@ -1306,6 +1306,100 @@ describe("BaseComposerRuntimeCore.send with an upload still running in add()", (
     expect(composer.attachments).toEqual([]);
   });
 
+  it("keeps uploading a sending attachment when the draft's attachments are cleared", async () => {
+    const puts: ((response: { ok: boolean }) => void)[] = [];
+    const fetchMock = vi.fn(
+      () => new Promise<{ ok: boolean }>((resolve) => puts.push(resolve)),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const cloud = {
+      files: {
+        generatePresignedUploadUrl: vi.fn().mockResolvedValue({
+          signedUrl: "https://storage.example/upload",
+          publicUrl: "https://cdn.example/image.png",
+        }),
+      },
+    } as unknown as AssistantCloud;
+    const core = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: { run: async () => ({ content: [] }) },
+          attachments: new CloudFileAttachmentAdapter(cloud),
+        },
+      },
+      undefined,
+    );
+    const thread = core.threads.getMainThreadRuntimeCore();
+    const image = () =>
+      new File([new Uint8Array([1, 2, 3])], "image.png", { type: "image/png" });
+
+    thread.composer.setText("look at this");
+    const adding = thread.composer.addAttachment(image());
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const sendPromise = thread.composer.send({ startRun: false });
+
+    void thread.composer.addAttachment(image());
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await thread.composer.clearAttachments();
+    puts[0]!({ ok: true });
+    await adding;
+    await sendPromise;
+
+    expect(thread.messages).toMatchObject([
+      {
+        content: [{ type: "text", text: "look at this" }],
+        attachments: [{ status: { type: "complete" } }],
+      },
+    ]);
+    expect(thread.composer.text).toBe("");
+    expect(thread.composer.attachments).toEqual([]);
+  });
+
+  it("stops the draft's upload when its attachments are cleared during a send", async () => {
+    const upload = deferred();
+    let adds = 0;
+    const { composer, append } = makeComposer(
+      makeAdapter({
+        async *add({ file }) {
+          const attachment = {
+            id: `att-${++adds}`,
+            type: "file",
+            name: file.name,
+            contentType: file.type,
+            file,
+          };
+          yield {
+            ...attachment,
+            status: { type: "running", reason: "uploading", progress: 0 },
+          } satisfies PendingAttachment;
+          await upload.promise;
+          yield {
+            ...attachment,
+            status: { type: "requires-action", reason: "composer-send" },
+          } satisfies PendingAttachment;
+        },
+        send: completeSend(),
+      }),
+    );
+
+    composer.setText("hello");
+    const adding = composer.addAttachment(textFile());
+    await vi.waitFor(() =>
+      expect(composer.attachments[0]?.status.type).toBe("running"),
+    );
+    const sendPromise = composer.send();
+    const addingToDraft = composer.addAttachment(textFile());
+    await vi.waitFor(() => expect(composer.attachments[0]?.id).toBe("att-2"));
+    await composer.clearAttachments();
+    upload.resolve();
+    await Promise.all([adding, addingToDraft, sendPromise]);
+
+    expect(append.mock.calls[0]![0].attachments).toMatchObject([
+      { id: "att-1", status: { type: "complete" } },
+    ]);
+    expect(composer.attachments).toEqual([]);
+  });
+
   it("keeps an attachment re-added under a removed id out of the send", async () => {
     const upload = deferred();
     const send = completeSend();

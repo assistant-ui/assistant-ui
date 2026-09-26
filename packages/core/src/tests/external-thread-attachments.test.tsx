@@ -1090,6 +1090,140 @@ describe("ExternalThread attachments", () => {
     expect(composer().getState().attachments).toHaveLength(0);
   });
 
+  it("keeps uploading a sending attachment when the draft's attachments are cleared", async () => {
+    const upload = deferred();
+    const onNew = vi.fn();
+    const send = vi.fn(async (pending: PendingAttachment) => {
+      if (pending.status.type === "running")
+        throw new Error("Attachment not uploaded");
+      return {
+        ...pending,
+        status: { type: "complete" as const },
+        content: [],
+      };
+    });
+    let adds = 0;
+    const aui = renderThreadWithProps({
+      attachmentAdapter: {
+        accept: "*",
+        async *add({ file }) {
+          const attachment = {
+            id: `att-${++adds}`,
+            type: "file",
+            name: file.name,
+            contentType: file.type,
+            file,
+          };
+          yield {
+            ...attachment,
+            status: { type: "running", reason: "uploading", progress: 0 },
+          } satisfies PendingAttachment;
+          await upload.promise;
+          yield {
+            ...attachment,
+            status: { type: "requires-action", reason: "composer-send" },
+          } satisfies PendingAttachment;
+        },
+        send,
+        remove: async () => {},
+      },
+      onNew,
+    });
+    const composer = () => aui().thread.composer();
+    const file = () => new File(["data"], "notes.txt", { type: "text/plain" });
+
+    let adding!: Promise<void>;
+    act(() => {
+      adding = composer().addAttachment(file());
+    });
+    await waitFor(() =>
+      expect(composer().getState().attachments[0]?.status.type).toBe("running"),
+    );
+    await act(async () => {
+      composer().setText("hello");
+      composer().send();
+    });
+
+    let addingToDraft!: Promise<void>;
+    act(() => {
+      addingToDraft = composer().addAttachment(file());
+    });
+    await waitFor(() =>
+      expect(composer().getState().attachments[0]?.id).toBe("att-2"),
+    );
+    await act(async () => {
+      await composer().clearAttachments();
+    });
+    await act(async () => {
+      upload.resolve();
+      await Promise.all([adding, addingToDraft]);
+    });
+    await waitFor(() => expect(onNew).toHaveBeenCalledTimes(1));
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls[0]![0].status.type).toBe("requires-action");
+    expect(onNew.mock.calls[0]![0]).toMatchObject({
+      content: [{ type: "text", text: "hello" }],
+      attachments: [{ id: "att-1", status: { type: "complete" } }],
+    });
+    expect(composer().getState().attachments).toEqual([]);
+  });
+
+  it("sends an edit without waiting for an upload its attachments were cleared of", async () => {
+    const onEdit = vi.fn();
+    const aui = renderThreadWithProps({
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          content: [{ type: "text", text: "hi" }],
+          createdAt: new Date(0),
+          attachments: [],
+          metadata: { custom: {} },
+        } as unknown as ExternalThreadMessage,
+      ],
+      onEdit,
+      attachmentAdapter: {
+        accept: "*",
+        async *add({ file }) {
+          yield {
+            id: "att-edit",
+            type: "file",
+            name: file.name,
+            contentType: file.type,
+            file,
+            status: { type: "running", reason: "uploading", progress: 0 },
+          } satisfies PendingAttachment;
+          await new Promise(() => {});
+        },
+        send: async () => ({}) as never,
+        remove: async () => {},
+      },
+    });
+    const composer = () => aui().thread.message({ id: "u1" }).composer();
+    await act(async () => {
+      composer().beginEdit();
+    });
+
+    act(() => {
+      void composer().addAttachment(
+        new File(["data"], "notes.txt", { type: "text/plain" }),
+      );
+    });
+    await waitFor(() =>
+      expect(composer().getState().attachments[0]?.status.type).toBe("running"),
+    );
+    await act(async () => {
+      composer().send();
+    });
+    await act(async () => {
+      await composer().clearAttachments();
+    });
+
+    await waitFor(() => expect(onEdit).toHaveBeenCalledTimes(1));
+    expect(onEdit.mock.calls[0]![0].attachments).toEqual([]);
+  });
+
   it("routes edit-composer attachments through the adapter", async () => {
     const add = vi.fn(async ({ file }: { file: File }) => ({
       id: "att-edit",

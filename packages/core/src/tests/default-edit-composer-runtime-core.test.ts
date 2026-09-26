@@ -436,9 +436,12 @@ describe("DefaultEditComposerRuntimeCore sending attachments", () => {
     ...overrides,
   });
 
-  const makeEditComposer = (attachments: AttachmentAdapter) => {
+  const makeEditComposer = (
+    attachments: AttachmentAdapter,
+    append = vi.fn(),
+  ) => {
     const runtime = {
-      append: vi.fn(),
+      append,
       composer: { runConfig: {} },
       voice: undefined,
       subscribe: () => () => {},
@@ -485,6 +488,36 @@ describe("DefaultEditComposerRuntimeCore sending attachments", () => {
     await Promise.resolve();
 
     expect(remove).not.toHaveBeenCalled();
+  });
+
+  it("sends an edit without waiting for an upload its attachments were cleared of", async () => {
+    const append = vi.fn();
+    const composer = makeEditComposer(
+      attachmentAdapter({
+        async *add({ file }) {
+          yield {
+            id: "f",
+            type: "file",
+            name: file.name,
+            contentType: file.type,
+            file,
+            status: { type: "running", reason: "uploading", progress: 0 },
+          };
+          await new Promise(() => {});
+        },
+      }),
+      append,
+    );
+
+    void composer.addAttachment(file());
+    await vi.waitFor(() =>
+      expect(composer.attachments.at(-1)?.status.type).toBe("running"),
+    );
+    void composer.send();
+    await composer.clearAttachments();
+
+    await vi.waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+    expect(append.mock.calls[0]![0].attachments).toEqual([]);
   });
 
   it("keeps the reason an upload failed on the edit's attachment", async () => {
