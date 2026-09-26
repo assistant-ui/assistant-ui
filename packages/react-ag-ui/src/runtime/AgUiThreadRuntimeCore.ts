@@ -2037,9 +2037,11 @@ export class AgUiThreadRuntimeCore {
     activeAssistantId: string | undefined,
   ) {
     try {
-      const activeMessage = activeAssistantId
-        ? this.session.tryGetMessage(activeAssistantId)?.message
+      const activeAssistantItem = activeAssistantId
+        ? this.session.tryGetMessage(activeAssistantId)
         : undefined;
+      const activeMessage = activeAssistantItem?.message;
+      const activeAssistantParentId = activeAssistantItem?.parentId;
       const activeAssistant =
         activeMessage?.role === "assistant" ? activeMessage : undefined;
       const normalized = fromAgUiMessages(rawMessages, {
@@ -2084,7 +2086,9 @@ export class AgUiThreadRuntimeCore {
         activeAssistant !== undefined &&
         !snapshotContainsActiveAssistant &&
         (activeAssistant.metadata.isOptimistic !== true ||
-          converted.at(-1)?.role !== "assistant");
+          converted.at(-1)?.role !== "assistant" ||
+          (activeAssistantParentId !== undefined &&
+            converted.at(-1)?.id === activeAssistantParentId));
       if (preservesActiveAssistant) {
         converted.push(activeAssistant);
       }
