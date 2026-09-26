@@ -119,6 +119,48 @@ describe("terminal thread controls", () => {
     columns.mockRestore();
   });
 
+  it("resizes sidebar pages when only the terminal height changes", async () => {
+    const previous = {
+      ids: mocks.state.threadIds,
+      items: mocks.state.threadItems,
+    };
+    mocks.state.threadItems = Array.from({ length: 16 }, (_, index) => ({
+      id: `t${index}`,
+      title: `Thread ${String(index).padStart(2, "0")}`,
+      status: "regular",
+      custom: {},
+    }));
+    mocks.state.threadIds = mocks.state.threadItems.map((item) => item.id);
+    try {
+      const { stdout, lastFrame, press } = await create();
+      Object.assign(stdout, { rows: 40 });
+      stdout.emit("resize");
+      await press("\x07");
+      await press("\x1b[B");
+      await press("\x1b[B");
+      expect(lastFrame()).toContain("Thread 15");
+
+      Object.assign(stdout, { rows: 18 });
+      stdout.emit("resize");
+      await vi.waitFor(() => {
+        expect(lastFrame()).not.toContain("Thread 15");
+        expect(lastFrame()).toContain("Thread 02");
+        expect(lastFrame()).toContain("12 more");
+      });
+
+      Object.assign(stdout, { rows: 40 });
+      stdout.emit("resize");
+      await vi.waitFor(() => expect(lastFrame()).toContain("Thread 15"));
+      await press("\r");
+      expect(mocks.switchToThread).toHaveBeenCalledWith("t2", {
+        unarchive: false,
+      });
+    } finally {
+      mocks.state.threadIds = previous.ids;
+      mocks.state.threadItems = previous.items;
+    }
+  });
+
   it("navigates and opens a selected thread without leaving the sidebar input active", async () => {
     const { press, lastFrame } = await create();
     await press("\x07");

@@ -12,7 +12,10 @@ export function ThreadShell({
   const aui = useAui();
   const state = useAuiState((s) => s.threads);
   const { stdout } = useStdout();
-  const [columns, setColumns] = useState(stdout.columns ?? 80);
+  const [{ columns, rows }, setDimensions] = useState(() => ({
+    columns: stdout.columns ?? 80,
+    rows: stdout.rows ?? 24,
+  }));
   const [mode, setMode] = useState<Mode>("chat");
   const [archived, setArchived] = useState(false);
   const [query, setQuery] = useState("");
@@ -24,7 +27,11 @@ export function ThreadShell({
   const pendingRef = useRef(false);
 
   useEffect(() => {
-    const resize = () => setColumns(stdout.columns ?? 80);
+    const resize = () =>
+      setDimensions({
+        columns: stdout.columns ?? 80,
+        rows: stdout.rows ?? 24,
+      });
     stdout.on("resize", resize);
     return () => {
       stdout.off("resize", resize);
@@ -54,7 +61,7 @@ export function ThreadShell({
   const wide = columns >= 88;
   const showSidebar = wide || mode !== "chat";
   const width = Math.max(20, columns - 2 - (wide ? 30 : 0));
-  const pageSize = Math.max(3, (stdout.rows ?? 24) - 14);
+  const pageSize = Math.max(3, rows - 14);
   const offset = Math.max(
     0,
     Math.min(selectedIndex - pageSize + 1, items.length - pageSize),
