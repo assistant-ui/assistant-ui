@@ -77,7 +77,7 @@ export const ThreadPrimitiveRoot = forwardRef<
 
   return (
     <ThreadRootElementContext.Provider value={rootRef}>
-      <Primitive.div {...props} ref={composedRef} />
+      <Primitive.div {...props} data-aui-thread-root="" ref={composedRef} />
     </ThreadRootElementContext.Provider>
   );
 });

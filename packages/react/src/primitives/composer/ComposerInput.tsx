@@ -26,6 +26,7 @@ import { useAui } from "@assistant-ui/store";
 import { flushTapSync } from "@assistant-ui/tap";
 import { useComposerInputPluginRegistryOptional } from "./ComposerInputPluginContext";
 import { useComposerCompactContextOptional } from "./ComposerCompactContext";
+import { useComposerCancelWithFocus } from "./useComposerCancelWithFocus";
 import {
   useComposerInputDisabled,
   useComposerInputValue,
@@ -191,6 +192,7 @@ export const ComposerPrimitiveInput = forwardRef<
     const value = useComposerInputValue();
     const isDisabled = useComposerInputDisabled(disabledProp);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const { cancel } = useComposerCancelWithFocus();
     const ref = useComposedRefs(forwardedRef, textareaRef);
     // suppress text/cursor broadcasts during IME composition
     const compositionRef = useRef(false);
@@ -213,7 +215,7 @@ export const ComposerPrimitiveInput = forwardRef<
 
       const composer = aui.composer;
       if (composer.getState().canCancel) {
-        composer.cancel();
+        cancel(textareaRef.current);
         e.preventDefault();
       }
     });

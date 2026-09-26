@@ -5,12 +5,13 @@ import {
   type ActionButtonProps,
   createActionButton,
 } from "../../utils/createActionButton";
-import { useComposerCancel as useComposerCancelBehavior } from "@assistant-ui/core/react";
+import type { MouseEvent } from "react";
+import { useComposerCancelWithFocus } from "./useComposerCancelWithFocus";
 
 const useComposerCancel = () => {
-  const { disabled, cancel } = useComposerCancelBehavior();
+  const { disabled, cancel } = useComposerCancelWithFocus();
   if (disabled) return null;
-  return cancel;
+  return (event: MouseEvent<HTMLButtonElement>) => cancel(event.currentTarget);
 };
 
 export namespace ComposerPrimitiveCancel {
