@@ -5,6 +5,7 @@ import { defaultExclude } from "vitest/config";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default {
+  css: { postcss: { plugins: [] } },
   test: {
     environment: "node",
     pool: "threads",
@@ -30,6 +31,10 @@ export default {
       "@/hooks/use-mobile": resolve(
         __dirname,
         "../../packages/ui/src/hooks/use-mobile",
+      ),
+      "@/hooks/use-attachment-src": resolve(
+        __dirname,
+        "../../packages/ui/src/hooks/use-attachment-src",
       ),
       "@/components/ui": resolve(
         __dirname,

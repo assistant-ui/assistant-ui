@@ -1,5 +1,5 @@
-// Mirrors examples/with-react-ink/src/components/thread.tsx; keep in sync.
-import { Box, Text, useStdout } from "ink";
+import { createContext, useContext } from "react";
+import { Box, Text } from "ink";
 import {
   AuiIf,
   ThreadPrimitive,
@@ -14,16 +14,18 @@ import { MarkdownText } from "@assistant-ui/react-ink-markdown";
 // markdansi defaults width and color from process.stdout, which does not
 // exist in the browser bundle; pass both explicitly so it never reads it.
 const BrowserMarkdownText = ({ text }: { text: string }) => {
-  const { stdout } = useStdout();
+  const width = useContext(ThreadWidthContext);
   return (
     <MarkdownText
       text={text}
-      width={(stdout?.columns ?? 80) - 4}
+      width={Math.max(20, width - 2)}
       hyperlinks={false}
       color
     />
   );
 };
+
+const ThreadWidthContext = createContext(80);
 
 const UserMessage = () => (
   <MessagePrimitive.Root>
@@ -70,37 +72,49 @@ const Loading = () => (
   </LoadingPrimitive.Root>
 );
 
-export const Thread = () => {
+export const Thread = ({
+  isComposing = true,
+  width = 80,
+}: {
+  isComposing?: boolean;
+  width?: number;
+}) => {
   return (
-    <ThreadPrimitive.Root>
-      <AuiIf condition={(s) => s.thread.isEmpty}>
-        <Box flexDirection="column" marginBottom={1}>
-          <Text>
-            A real LLM streaming into a real Ink render loop in your browser.
-          </Text>
-          <Text dimColor>
-            {'  try: "what is assistant-ui?" or "how do I render markdown?"'}
-          </Text>
+    <ThreadWidthContext.Provider value={width}>
+      <ThreadPrimitive.Root>
+        <AuiIf condition={(s) => s.thread.isEmpty}>
+          <Box flexDirection="column" marginBottom={1}>
+            <Text>
+              A real LLM streaming into a real Ink render loop in your browser.
+            </Text>
+            <Text dimColor>
+              {'  try: "what is assistant-ui?" or "how do I render markdown?"'}
+            </Text>
+          </Box>
+        </AuiIf>
+
+        <ThreadPrimitive.Messages>
+          {({ message }) =>
+            message.role === "user" ? <UserMessage /> : <AssistantMessage />
+          }
+        </ThreadPrimitive.Messages>
+
+        <Loading />
+
+        <Box borderStyle="round" borderColor="gray" paddingX={1}>
+          <Text color="gray">{"> "}</Text>
+          {isComposing ? (
+            <ComposerPrimitive.Input
+              submitOnEnter
+              multiLine
+              placeholder="Type a message... (Enter to send)"
+              autoFocus
+            />
+          ) : (
+            <Text dimColor>Press Esc to return to your message</Text>
+          )}
         </Box>
-      </AuiIf>
-
-      <ThreadPrimitive.Messages>
-        {({ message }) =>
-          message.role === "user" ? <UserMessage /> : <AssistantMessage />
-        }
-      </ThreadPrimitive.Messages>
-
-      <Loading />
-
-      <Box borderStyle="round" borderColor="gray" paddingX={1}>
-        <Text color="gray">{"> "}</Text>
-        <ComposerPrimitive.Input
-          submitOnEnter
-          multiLine
-          placeholder="Type a message... (Enter to send)"
-          autoFocus
-        />
-      </Box>
-    </ThreadPrimitive.Root>
+      </ThreadPrimitive.Root>
+    </ThreadWidthContext.Provider>
   );
 };

@@ -9,13 +9,14 @@ import {
   NotebookTextIcon,
   PanelLeftIcon,
 } from "lucide-react";
+import { useRef, useState, type ReactNode } from "react";
+import { toast } from "sonner";
+import { ThreadRenameInput } from "./thread-rename-input";
 import {
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-  type RefObject,
-} from "react";
+  threadCommands,
+  getThreadShortcut,
+  type ThreadCommand,
+} from "./thread-shortcuts";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { CommandInstructions } from "./commands";
@@ -45,11 +46,94 @@ export function DemoShell({
 }): ReactNode {
   const rootRef = useRef<HTMLDivElement>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  useThreadShortcuts(rootRef);
+  const aui = useAui();
+  const [renaming, setRenaming] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
+  const mainThreadId = useAuiState((s) => s.threads.mainThreadId);
+  if (renaming && renaming.id !== mainThreadId) setRenaming(null);
+  const persisted = useAuiState((s) =>
+    s.threads.threadItems.some(
+      (item) => item.id === s.threads.mainThreadId && item.status !== "new",
+    ),
+  );
+  const runCommand = (command: ThreadCommand) => {
+    if (command === "sidebar") {
+      if (window.matchMedia("(max-width: 767px)").matches)
+        setMobileSidebarOpen((open) => !open);
+      else setSidebarCollapsed(!sidebarCollapsed);
+      return;
+    }
+    if (command === "composer") {
+      setMobileSidebarOpen(false);
+      setView("thread");
+      requestAnimationFrame(() =>
+        rootRef.current
+          ?.querySelector<HTMLTextAreaElement>("[data-composer-input]")
+          ?.focus(),
+      );
+      return;
+    }
+    const state = aui.threads.getState();
+    const item = state.threadItems.find(
+      (item) => item.id === state.mainThreadId,
+    );
+    if (command === "rename") {
+      if (item && item.status !== "new")
+        setRenaming({ id: item.id, title: item.title ?? "" });
+      return;
+    }
+    void Promise.resolve()
+      .then(() => {
+        if (command === "new") {
+          setMobileSidebarOpen(false);
+          setView("thread");
+          return aui.threads.switchToNewThread();
+        }
+        if (command === "previous" || command === "next") {
+          const index = state.threadIds.indexOf(state.mainThreadId);
+          const next =
+            index < 0
+              ? command === "next"
+                ? 0
+                : state.threadIds.length - 1
+              : index + (command === "next" ? 1 : -1);
+          const id = state.threadIds[next];
+          if (id) {
+            setMobileSidebarOpen(false);
+            setView("thread");
+            return aui.threads.switchToThread(id);
+          }
+          return;
+        }
+        if (!item || item.status === "new") return;
+        const client = aui.threads.item({ id: item.id });
+        if (command === "archive")
+          return item.status === "archived"
+            ? client.unarchive()
+            : client.archive();
+        if (command === "pin") {
+          const { pinned, ...custom } = item.custom ?? {};
+          return client.updateCustom(
+            pinned === "true" ? custom : { ...custom, pinned: "true" },
+          );
+        }
+      })
+      .catch(() =>
+        toast.error("Could not update the thread. Please try again."),
+      );
+  };
 
   return (
     <div
       ref={rootRef}
+      onKeyDown={(event) => {
+        const command = getThreadShortcut(event.nativeEvent);
+        if (!command) return;
+        event.preventDefault();
+        runCommand(command);
+      }}
       className={cn(
         "bg-background grid h-full grid-rows-[3rem_minmax(0,1fr)]",
         sidebarCollapsed
@@ -103,9 +187,35 @@ export function DemoShell({
             <PanelLeftIcon className="size-4" />
           </button>
         ) : null}
-        <ThreadTitle view={view} />
+        {renaming && renaming.id === mainThreadId ? (
+          <div className="max-w-sm min-w-0 flex-1">
+            <ThreadRenameInput
+              key={renaming.id}
+              title={renaming.title}
+              onRename={(title) =>
+                aui.threads.item({ id: renaming.id }).rename(title)
+              }
+              onDone={(restoreFocus) => {
+                setRenaming(null);
+                if (restoreFocus)
+                  rootRef.current
+                    ?.querySelector<HTMLButtonElement>(
+                      '[aria-label="Demo options"]',
+                    )
+                    ?.focus();
+              }}
+            />
+          </div>
+        ) : (
+          <ThreadTitle view={view} />
+        )}
         <div className="-me-1.5 ml-auto flex shrink-0 items-center gap-1.5">
-          <DemoMenu view={view} onViewChange={setView} />
+          <DemoMenu
+            view={view}
+            onViewChange={setView}
+            onCommand={runCommand}
+            persisted={persisted}
+          />
           {onToggleExpanded ? (
             <button
               type="button"
@@ -155,35 +265,6 @@ export function DemoShell({
   );
 }
 
-function useThreadShortcuts(rootRef: RefObject<HTMLDivElement | null>) {
-  const aui = useAui();
-
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented) return;
-      if (
-        (event.metaKey || event.ctrlKey) &&
-        event.shiftKey &&
-        event.key.toLowerCase() === "o"
-      ) {
-        event.preventDefault();
-        aui.threads.switchToNewThread();
-        return;
-      }
-      if (event.shiftKey && event.key === "Escape") {
-        event.preventDefault();
-        root
-          .querySelector<HTMLTextAreaElement>("[data-composer-input]")
-          ?.focus();
-      }
-    };
-    root.addEventListener("keydown", onKeyDown);
-    return () => root.removeEventListener("keydown", onKeyDown);
-  }, [aui, rootRef]);
-}
-
 function ThreadTitle({ view }: { view: DemoView }): ReactNode {
   const title = useAuiState(
     (s) =>
@@ -200,12 +281,25 @@ function ThreadTitle({ view }: { view: DemoView }): ReactNode {
 function DemoMenu({
   view,
   onViewChange,
+  onCommand,
+  persisted,
 }: {
   view: DemoView;
   onViewChange: (view: DemoView) => void;
+  onCommand: (command: ThreadCommand) => void;
+  persisted: boolean;
 }): ReactNode {
+  const pendingCommand = useRef<ThreadCommand | null>(null);
   return (
-    <Menu.Root>
+    <Menu.Root
+      onOpenChange={(open) => {
+        if (open) pendingCommand.current = null;
+      }}
+      onOpenChangeComplete={(open) => {
+        if (open || !pendingCommand.current) return;
+        onCommand(pendingCommand.current);
+      }}
+    >
       <Menu.Trigger
         aria-label="Demo options"
         render={
@@ -224,7 +318,32 @@ function DemoMenu({
           align="end"
           sideOffset={6}
         >
-          <Menu.Popup className={menuContentClass}>
+          <Menu.Popup
+            className={menuContentClass}
+            finalFocus={() =>
+              pendingCommand.current !== "rename" &&
+              pendingCommand.current !== "composer"
+            }
+          >
+            {threadCommands.map((command) => (
+              <Menu.Item
+                key={command.id}
+                className={cn(menuItemClass, "justify-between gap-6")}
+                disabled={
+                  !persisted &&
+                  ["rename", "archive", "pin"].includes(command.id)
+                }
+                onClick={() => {
+                  pendingCommand.current = command.id;
+                }}
+              >
+                <span>{command.label}</span>
+                <kbd className="text-muted-foreground font-mono text-[10px]">
+                  {command.shortcut}
+                </kbd>
+              </Menu.Item>
+            ))}
+            <Menu.Separator className="bg-border my-1 h-px" />
             <Menu.Item
               className={menuItemClass}
               onClick={() =>
