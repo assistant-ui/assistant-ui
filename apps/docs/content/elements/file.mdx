@@ -1,9 +1,9 @@
 ---
 title: "File"
-description: "File message parts with type-aware icons, filename, size, and download actions."
+description: "File message parts with type-aware icons, inline media playback, filename, size, and download actions."
 ---
 
-File renders one file message part as a row: an icon chosen from the MIME type, the filename, an optional size, and a download link. With a runtime it renders straight from a message's file part; standalone you hand it the part yourself.
+File renders one file message part. Playable `audio/*` and `video/*` files stay inline with their player, filename, optional size, and download link. Every other file remains the compact icon row. With a runtime it renders straight from a message's file part; standalone you hand it the part yourself.
 
 ## Getting started
 
@@ -70,17 +70,17 @@ export function Attachment() {
 ## Anatomy
 
 ```tsx
-<div data-slot="file-root" data-variant={variant} data-size={size}>
-  <span data-slot="file-icon" />
+<div data-slot="file-player">
+  <div data-slot="audio-player | video-player" />
   <div>
     <span data-slot="file-name">{filename ?? "Unnamed file"}</span>
-    <span data-slot="file-size" /> {/* only for inline (base64 / data URI) data */}
+    <span data-slot="file-size" />
+    <a data-slot="file-download" />
   </div>
-  <a data-slot="file-download" />{/* omitted when data can't produce a safe href */}
 </div>
 ```
 
-The icon depends on `mimeType`: images get an image icon, PDFs and other text get a document icon, JSON gets a braces icon, audio and video get their own icons, and everything else gets a generic file icon. `sourceType` states how `data` is encoded on the wire: `"url"` for a link, `"id"` for an opaque reference the download link can't resolve on its own, or omitted to infer it (an `http(s)://` string is treated as a URL, anything else as base64). The size row only appears for inline data (base64 or a `data:` URI), since a URL or id reference carries no byte count to read. The download link itself only renders for base64 and `data:` URI data, or for a URL that actually starts with `http(s)://` or `blob:`; an `"id"` reference, or a URL that fails that check, renders no link at all.
+The icon row remains for non-media files. `File.Player` routes playable audio and video data to the matching player: `http(s)`, `blob:`, and `data:` URLs are safe to play, and raw base64 becomes a data URI with the part's MIME type. An `id` or another URL scheme keeps the plain row. The icon depends on `mimeType`: images get an image icon, PDFs and other text get a document icon, JSON gets a braces icon, audio and video get their own icons, and everything else gets a generic file icon. `sourceType` states how `data` is encoded on the wire: `"url"` for a link, `"id"` for an opaque reference the download link can't resolve on its own, or omitted to infer it. The size row only appears for inline data (base64 or a `data:` URI), since a URL or id reference carries no byte count to read.
 
 ## Examples
 
@@ -104,21 +104,36 @@ The icon depends on `mimeType`: images get an image icon, PDFs and other text ge
 
 ### Restyle the row
 
-`File.Root`, `File.Icon`, `File.Name`, `File.Size`, and `File.Download` are exported individually for a custom layout:
+`File.Root`, `File.Icon`, `File.Name`, `File.Size`, `File.Download`, and `File.Player` are exported individually for a custom layout:
 
 ```tsx
 import { File } from "@/components/assistant-ui/elements/file";
 
-<File.Root variant="ghost">
-  <File.Icon mimeType={part.mimeType} />
-  <File.Name>{part.filename}</File.Name>
-  <File.Download
-    data={part.data}
-    mimeType={part.mimeType}
-    filename={part.filename}
-    sourceType={part.sourceType}
-  />
-</File.Root>;
+export function CustomFileRow() {
+  return (
+    <File.Root variant="ghost">
+      <File.Icon mimeType={part.mimeType} />
+      <File.Name>{part.filename}</File.Name>
+      <File.Download
+        data={part.data}
+        mimeType={part.mimeType}
+        filename={part.filename}
+        sourceType={part.sourceType}
+      />
+    </File.Root>
+  );
+}
+
+export function CustomMediaFile() {
+  return (
+    <File.Player
+      data={part.data}
+      mimeType={part.mimeType}
+      filename={part.filename}
+      sourceType={part.sourceType}
+    />
+  );
+}
 ```
 
 ## API reference
@@ -135,6 +150,7 @@ import { File } from "@/components/assistant-ui/elements/file";
 | `File.Name` | `span` | Filename text; shows "Unnamed file" when empty. |
 | `File.Size` | `span` | Formatted byte size; you supply `bytes`. |
 | `File.Download` | `a` | Download link; `null` when `data` can't produce a safe `href`. |
+| `File.Player` | `div` | Routes playable audio and video files to the matching inline player; `null` otherwise. |
 
 ### File part
 
@@ -162,6 +178,6 @@ import { File } from "@/components/assistant-ui/elements/file";
 | `variant` | `"outline" \| "ghost" \| "muted"` | `"outline"` | Row style, set on `File.Root`. |
 | `size` | `"sm" \| "default" \| "lg"` | `"default"` | Row size, set on `File.Root`. |
 
-`File.Root`, `File.Icon`, `File.Name`, `File.Size`, and `File.Download` are exported individually for a custom layout, as shown in [Restyle the row](#restyle-the-row).
+`File.Root`, `File.Icon`, `File.Name`, `File.Size`, `File.Download`, and `File.Player` are exported individually for a custom layout, as shown in [Restyle the row](#restyle-the-row).
 
 </StandaloneMode>

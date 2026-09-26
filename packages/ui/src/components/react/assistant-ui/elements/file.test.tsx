@@ -115,3 +115,78 @@ describe("File inline size", () => {
     },
   );
 });
+
+describe("File media players", () => {
+  it("renders a playable audio URL with its download", () => {
+    render(
+      <File
+        type="file"
+        status={{ type: "complete" }}
+        data="https://example.com/briefing.mp3"
+        mimeType="audio/mpeg"
+        filename="briefing.mp3"
+      />,
+    );
+
+    expect(document.querySelector('[data-slot="audio-player"]')).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "Download briefing.mp3" }),
+    ).toBeTruthy();
+  });
+
+  it("renders a playable video data URI with its download", () => {
+    render(
+      <File
+        type="file"
+        status={{ type: "complete" }}
+        data="data:video/mp4;base64,AAAA"
+        mimeType="video/mp4"
+        filename="clip.mp4"
+      />,
+    );
+
+    expect(document.querySelector('[data-slot="video-player"]')).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "Download clip.mp4" }),
+    ).toBeTruthy();
+  });
+
+  it("turns base64 audio into a data URI player with its download", () => {
+    render(
+      <File
+        type="file"
+        status={{ type: "complete" }}
+        data="YXVkaW8="
+        mimeType="audio/wav"
+        filename="tone.wav"
+      />,
+    );
+
+    expect(document.querySelector("audio")?.getAttribute("src")).toBe(
+      "data:audio/wav;base64,YXVkaW8=",
+    );
+    expect(
+      screen.getByRole("link", { name: "Download tone.wav" }),
+    ).toBeTruthy();
+  });
+
+  it.each([
+    ["file-123", "id"],
+    ["javascript:alert(1)", undefined],
+  ] as const)("keeps an %s source as a plain row", (data, sourceType) => {
+    const { container } = render(
+      <File
+        type="file"
+        status={{ type: "complete" }}
+        data={data}
+        mimeType="audio/mpeg"
+        filename="briefing.mp3"
+        {...(sourceType !== undefined && { sourceType })}
+      />,
+    );
+
+    expect(container.querySelector('[data-slot="file-root"]')).toBeTruthy();
+    expect(container.querySelector('[data-slot="file-player"]')).toBeNull();
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+});

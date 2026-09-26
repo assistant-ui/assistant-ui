@@ -1,0 +1,201 @@
+---
+title: "Geo map"
+description: "Real coordinates become a tiled map, route lines, and an accessible list of the places returned by a tool."
+---
+
+GeoMap gives a tool result a real geographic frame. It loads Leaflet only in the browser, keeps the location list available to keyboard and screen reader users, and leaves MapAnswer as the dependency free schematic option when coordinates are not the answer.
+
+## Getting started
+
+<RuntimeMode>
+
+A backend place search returns `{ places, routes }`, then the tool renderer passes those coordinates directly to GeoMap. The map is ready once the result arrives, while the rest of the message can explain why these places matter.
+
+<Steps>
+  <Step>
+
+### Render the backend result
+
+```tsx title="components/assistant-ui/elements/find-places-tool-ui.tsx"
+"use client";
+
+import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
+import {
+  GeoMap,
+  type GeoMapPlace,
+  type GeoMapRoute,
+} from "@/components/assistant-ui/elements/geo-map";
+
+type FindPlacesResult = {
+  places: GeoMapPlace[];
+  routes: GeoMapRoute[];
+};
+
+export const FindPlacesToolUI: ToolCallMessagePartComponent<
+  { query: string },
+  FindPlacesResult
+> = ({ result }) => {
+  if (!result) return null;
+  return <GeoMap places={result.places} routes={result.routes} />;
+};
+```
+
+  </Step>
+  <Step>
+
+### Return coordinates from the tool
+
+The backend tool should return latitude and longitude in WGS 84 order, `{ lat, lng }` for each place and `[lat, lng]` for every route point. GeoMap ignores nonfinite values and values beyond geographic bounds before it draws or lists them.
+
+```ts
+return {
+  places: await findPlaces(query),
+  routes: await findWalkingRoutes(query),
+};
+```
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, pass places and route points from any data source. Without `selectedId`, GeoMap selects its first valid place and maintains selection itself.
+
+<Steps>
+  <Step>
+
+### Show a result
+
+```tsx title="app/nearby.tsx"
+import { GeoMap } from "@/components/assistant-ui/elements/geo-map";
+
+export function Nearby({ places, routes }) {
+  return <GeoMap places={places} routes={routes} />;
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="geo-map">
+  <div role="region" aria-label="Map of 3 places" />
+  <ol>
+    <li><button aria-current="true">Place label, detail, and coordinates</button></li>
+  </ol>
+</div>
+```
+
+The paper card contains printed map matter, not another bordered panel. Leaflet owns keyboard zoom after the map receives focus. Every place has a matching list button below it, where the current place is announced with `aria-current`; selecting either the marker or button pans to that place. Route lines and map bounds use every valid coordinate.
+
+## Examples
+
+### Draw a route
+
+Routes are supplied paths, not directions GeoMap computes. A route with fewer than two valid points does not draw.
+
+```tsx
+<GeoMap
+  places={places}
+  routes={[
+    {
+      id: "morning-walk",
+      label: "Morning walk",
+      points: [
+        [40.7412, -73.9896],
+        [40.7398, -73.9911],
+      ],
+    },
+  ]}
+/>
+```
+
+### Use custom tiles
+
+Without `tileUrl`, the map draws the public OpenStreetMap tiles in the page's ink: grayscale on a light page, inverted on a dark one. `tileUrl` and `attribution` point it at your own tile provider instead, and custom tiles are shown exactly as the provider draws them.
+
+```tsx
+<GeoMap
+  places={places}
+  tileUrl="https://tiles.example.com/{z}/{x}/{y}.png"
+  attribution="© Example Maps"
+/>
+```
+
+The public OpenStreetMap tile servers are meant for light use under the [OpenStreetMap tile usage policy](https://operations.osmfoundation.org/policies/tiles/), which rules out an app sending all of its traffic there. For production, set `tileUrl` to a provider you have an account with, and keep its attribution visible.
+
+### Control the selection
+
+Pass `selectedId` when another part of the answer needs to choose the current place too.
+
+```tsx
+const [selectedId, setSelectedId] = useState(places[0]?.id);
+
+<GeoMap
+  places={places}
+  routes={routes}
+  selectedId={selectedId}
+  onSelect={setSelectedId}
+/>
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Tool call render props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `args` | `TArgs` | Parsed tool arguments, partial while they stream. |
+| `result` | `{ places: GeoMapPlace[]; routes: GeoMapRoute[] } \| undefined` | The backend result once the tool completes. |
+| `status` | `ToolCallMessagePartStatus` | The tool lifecycle state. |
+| `toolName` | `string` | The backend tool name. |
+
+Register the renderer on a toolkit entry's `render` field. See [Tool UI](/docs/tools/tool-ui) for the complete render prop surface.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### GeoMap
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `places` | `readonly GeoMapPlace[]` | required | Places to mark and list, in display order. Invalid coordinates are ignored. |
+| `routes` | `readonly GeoMapRoute[]` | | Supplied paths to draw through valid coordinates. |
+| `selectedId` | `string` | | The controlled current place. |
+| `onSelect` | `(id: string) => void` | | Called from a marker or list button. |
+| `theme` | `"light" \| "dark" \| "auto"` | `"auto"` | How the default tiles are inked. Auto follows the document's `dark` class and the system preference. |
+| `tileUrl` | `string` | OpenStreetMap | A tile URL template for your provider, shown as the provider draws it. |
+| `attribution` | `string` | | Replaces the default tile attribution. |
+| `height` | `number` | `260` | Map height in pixels. |
+| `className` | `string` | | Merged onto the root. |
+
+### GeoMapPlace
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | Stable selection id. |
+| `lat` | `number` | Latitude from `-90` to `90`. |
+| `lng` | `number` | Longitude from `-180` to `180`. |
+| `label` | `string` | Marker title and list label. |
+| `description` | `string` | Optional detail below the list label. |
+
+### GeoMapRoute
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | Stable route id. |
+| `points` | `readonly [lat, lng][]` | Route coordinates in draw order. |
+| `label` | `string` | Optional route label for application data. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

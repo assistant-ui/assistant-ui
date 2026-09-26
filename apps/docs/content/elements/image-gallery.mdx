@@ -1,0 +1,151 @@
+---
+title: "Image gallery"
+description: "A compact image grid that opens every result in one shared lightbox."
+---
+
+Image gallery groups several images a tool returned, such as search results or generated variants, into a compact grid without making the transcript heavy.
+
+## Getting started
+
+<RuntimeMode>
+
+A backend tool can return its finished images as `{ images }`. Its render function passes that result straight to `ImageGallery`, so a later tool result creates a separate gallery in the transcript.
+
+<Steps>
+  <Step>
+
+### Render the tool result
+
+```tsx title="app/toolkit.tsx"
+"use client";
+
+import {
+  defineToolkit,
+  type ToolCallMessagePartComponent,
+} from "@assistant-ui/react";
+import {
+  ImageGallery,
+  type GalleryImage,
+} from "@/components/assistant-ui/elements/image-gallery";
+
+type ImageSearchResult = { images: GalleryImage[] };
+
+const ImageSearchToolUI: ToolCallMessagePartComponent<
+  { query: string },
+  ImageSearchResult
+> = ({ result }) => <ImageGallery images={result?.images ?? []} />;
+
+export const toolkit = defineToolkit({
+  show_image_results: {
+    type: "backend",
+    render: ImageSearchToolUI,
+  },
+});
+```
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Render the gallery with images from your own search or generation request. `onOpen` is useful for lightweight analytics or for synchronizing a nearby detail panel.
+
+```tsx title="app/results.tsx"
+import { ImageGallery, type GalleryImage } from "@/components/assistant-ui/elements/image-gallery";
+
+const images: GalleryImage[] = [
+  {
+    id: "redwood",
+    src: "/results/redwood.jpg",
+    alt: "Sunlight through a redwood grove",
+    caption: "Generated landscape, variation 1",
+  },
+];
+
+export function Results() {
+  return <ImageGallery images={images} onOpen={(id) => console.log(id)} />;
+}
+```
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="image-gallery">
+  <button aria-label="Open image: Sunlight through a redwood grove">
+    <img loading="lazy" />
+  </button>
+  <dialog>
+    <img />
+    <div>Caption, source, counter, and image controls</div>
+  </dialog>
+</div>
+```
+
+The grid uses two columns and grows to three when its container has room. It shows six images by default. When there are more, the final visible tile reads `+N` and opens at that image rather than hiding the rest of the gallery. The dialog keeps its place with previous and next controls, ArrowLeft and ArrowRight, and Escape.
+
+## Examples
+
+### Show an overflow tile
+
+Set `maxVisible` when the surrounding layout needs a smaller grid. The final visible tile remains the next image in order.
+
+```tsx
+<ImageGallery images={images} maxVisible={3} />
+```
+
+### Link image sources
+
+An image can carry a caption and source. The source becomes an external link only for a safe `http`, `https`, `mailto`, or relative URL.
+
+```tsx
+<ImageGallery
+  images={[
+    {
+      id: "river",
+      src: "/results/river.jpg",
+      alt: "A river seen from above",
+      caption: "Reference photograph",
+      source: {
+        label: "National Park Service",
+        url: "https://www.nps.gov/",
+      },
+    },
+  ]}
+/>
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Tool result
+
+| Field | Type | Description |
+|------|------|-------------|
+| `result.images` | `GalleryImage[]` | The tool result passed to the gallery after the backend call completes. |
+| `GalleryImage.id` | `string` | Stable image identifier reported to `onOpen`. |
+| `GalleryImage.src` | `string` | Image URL or data URI. |
+| `GalleryImage.alt` | `string` | Accessible image description and tile label. |
+| `GalleryImage.caption` | `string` | Optional text in the lightbox caption row. |
+| `GalleryImage.source` | `{ label?, url? }` | Optional source label, linked only when its URL is safe. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### ImageGallery
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `images` | `GalleryImage[]` | required | Images in grid and lightbox order. An empty list renders nothing. |
+| `maxVisible` | `number` | `6` | Number of tiles before the final tile displays the remaining count. |
+| `onOpen` | `(id: string) => void` | | Receives the opened image id. |
+| `className` | `string` | | Merged onto the gallery root. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

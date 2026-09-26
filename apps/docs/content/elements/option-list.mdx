@@ -1,0 +1,220 @@
+---
+title: "Option list"
+description: "The agent asks a question with a few answers; the pick returns to it and stays as a receipt."
+---
+
+An option list puts the answers to the agent's question in front of the user as rows. A single pick commits on the spot; a multiple selection gathers checks and commits on confirm. Once the answer lands, the list collapses to a receipt of just the chosen rows, so scrolling back never shows a live control for a decision already made.
+
+## Getting started
+
+<RuntimeMode>
+
+The question is a human tool: the model supplies the options as arguments, the run pauses, and `addResult` sends the pick back as the tool's result. The same result drives the receipt.
+
+<Steps>
+  <Step>
+
+### Render the tool call
+
+```tsx title="app/toolkit.tsx"
+"use client";
+
+import { defineToolkit, useAuiState } from "@assistant-ui/react";
+import { z } from "zod";
+import { OptionList } from "@/components/assistant-ui/elements/option-list";
+
+export const toolkit = defineToolkit({
+  ask_user_to_choose: {
+    type: "human",
+    description:
+      "Ask the user a question with a few answers. Put the question itself in your message, not in the options.",
+    parameters: z.object({
+      options: z.array(
+        z.object({
+          id: z.string(),
+          label: z.string(),
+          description: z.string().optional(),
+        }),
+      ),
+      selectionMode: z.enum(["single", "multiple"]).optional(),
+    }),
+    render: function AskUserToChoose({ args, status, result, addResult }) {
+      const canAnswer = useAuiState(
+        (s) => s.thread.capabilities.answerToolCall,
+      );
+      const waiting = status.type === "requires-action" && canAnswer;
+
+      return (
+        <OptionList
+          options={args.options ?? []}
+          selectionMode={args.selectionMode}
+          choice={result?.selected}
+          onConfirm={
+            waiting ? (ids) => addResult({ selected: ids }) : undefined
+          }
+        />
+      );
+    },
+  },
+});
+```
+
+`status.type` is `"requires-action"` only once the arguments are complete and the run is waiting on the user, and `answerToolCall` is `false` in a readonly thread such as a sub-agent transcript. Outside that window `onConfirm` is absent and the list only displays its options.
+
+  </Step>
+  <Step>
+
+### Register the toolkit
+
+```tsx title="app/MyRuntimeProvider.tsx"
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { toolkit } from "./toolkit";
+
+const config = AuiConfig({ tools: Tools({ toolkit }) });
+
+export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+A human tool has no executor on either side, so the model only sees its answer as the tool result `{ selected: [...] }`. See [Tool UI](/docs/tools/tool-ui#user-input-collection) for the human tool lifecycle.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, you own the answer: `onConfirm` receives the pick and `choice` shows it back.
+
+<Steps>
+  <Step>
+
+### Hold the answer
+
+```tsx title="app/duplicates.tsx"
+"use client";
+
+import { useState } from "react";
+import { OptionList } from "@/components/assistant-ui/elements/option-list";
+
+const OPTIONS = [
+  { id: "merge", label: "Merge duplicates" },
+  { id: "keep", label: "Keep both" },
+  { id: "review", label: "Review each pair" },
+];
+
+export function Duplicates() {
+  const [choice, setChoice] = useState<string[]>();
+
+  return (
+    <OptionList
+      aria-label="How should I handle the duplicate contacts?"
+      options={OPTIONS}
+      choice={choice}
+      onConfirm={setChoice}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Commit asynchronously
+
+Return a promise from `onConfirm` when the answer has to reach a server first. The list locks while it is pending, and a rejection reopens it with the error message, because the answer never landed:
+
+```tsx
+<OptionList
+  options={OPTIONS}
+  choice={choice}
+  onConfirm={async (ids) => {
+    await saveAnswer(ids);
+    setChoice(ids);
+  }}
+/>
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="option-list" data-state="open | pending | receipt">
+  {/* one row per option: a button, a checkbox in multiple mode, or a plain row when display only */}
+  {/* multiple mode: a "2 of 3" count and the confirm button */}
+</div>
+```
+
+The list has three shapes. Without `onConfirm` it only displays its options. With `onConfirm` a single pick commits on the spot, and a multiple selection toggles checkboxes and commits on the confirm button. With `choice` it is a receipt: only the chosen options remain, each marked selected, and nothing takes input. An empty `choice` reads "Nothing selected".
+
+Disabled options stay visible but never commit. In multiple mode, once `maxSelections` options are checked the remaining ones are unavailable until one is unchecked, and the confirm button stays unavailable until at least `minSelections` are checked.
+
+## Examples
+
+### Several answers
+
+`selectionMode="multiple"` swaps the rows for checkboxes and adds a confirm step. `defaultValue` pre-checks options, and `minSelections` and `maxSelections` bound the answer:
+
+```tsx
+<OptionList
+  aria-label="Which checks should run before the deploy?"
+  selectionMode="multiple"
+  defaultValue={["typecheck", "unit"]}
+  maxSelections={3}
+  options={CHECKS}
+  onConfirm={setChoice}
+/>
+```
+
+The ids reach `onConfirm` in the order of `options`, not the order they were checked.
+
+### Label the question
+
+The question belongs in the assistant's message, not in the list, so the list carries no heading. Give the group an accessible name with `aria-label` or `aria-labelledby` so a screen reader announces what it answers.
+
+## API reference
+
+<RuntimeMode>
+
+### Tool-call render props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `args` | `{ options: OptionListOption[]; selectionMode?: "single" \| "multiple" }` | The options the model offered, partial while they stream. |
+| `status` | `ToolCallMessagePartStatus` | `status.type === "requires-action"` while the run waits on the answer. |
+| `result` | `{ selected: string[] } \| undefined` | The committed answer, which becomes `choice`. |
+| `addResult` | `(result) => void` | Completes the tool call with the answer. |
+
+See [Tool UI](/docs/tools/tool-ui) for the full render-prop surface.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### OptionList
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `options` | `OptionListOption[]` | required | `{ id, label, description?, disabled? }` rows, in display order. |
+| `selectionMode` | `"single" \| "multiple"` | `"single"` | A single pick commits on the spot; a multiple selection commits on confirm. |
+| `defaultValue` | `string[]` | | Ids a multiple selection starts with. Unknown ids are ignored. |
+| `minSelections` | `number` | `1` | The fewest options a multiple selection confirms with. |
+| `maxSelections` | `number` | `options.length` | The most options a multiple selection may hold. |
+| `onConfirm` | `(ids: string[]) => void \| Promise<void>` | | Commits the answer. Without it the list only displays its options. |
+| `confirmLabel` | `string` | `"Confirm"` | The confirm button's label in multiple mode. |
+| `choice` | `string[]` | | The committed answer. When set, the list renders as a receipt. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props, including `aria-label`, are forwarded to the root.
+
+</StandaloneMode>
