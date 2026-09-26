@@ -367,7 +367,7 @@ const priorityStyles = {
 
 ## Integration with Assistant Streams
 
-When using assistant-stream libraries, you can add custom metadata to parts:
+When using assistant-stream libraries, you can give related parts a shared parent ID:
 
 ### Python (assistant-stream)
 
@@ -396,18 +396,12 @@ const stream = createAssistantStream(async (controller) => {
   // Add parts with parentId
   const researchController = controller.withParentId("research-123");
 
-  await researchController.addToolCallPart({
+  researchController.addToolCallPart({
     toolName: "search",
     args: { query: "climate data" },
+    response: { result: "climate data results" },
   });
-
-  // Add parts with custom metadata
-  controller.appendPart({
-    type: "text",
-    text: "High priority finding",
-    priority: "high",
-    category: "findings",
-  });
+  researchController.appendText("Key findings from the research:");
 });
 ```
 
