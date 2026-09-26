@@ -89,6 +89,7 @@ export class RemoteThreadListThreadListRuntimeCore
   private _adapterGeneration = 0;
   private _replaceListOnNextLoad = false;
   private _staleThreadIdsOnReplace: ReadonlySet<string> | undefined;
+  private _staleThreadsAdapter: RemoteThreadListAdapter | undefined;
   private _switchGeneration = 0;
   private _switchTask: Promise<void> | undefined;
   private readonly _titleStates = new Map<string, ThreadTitleState>();
@@ -320,6 +321,10 @@ export class RemoteThreadListThreadListRuntimeCore
       this._options !== undefined &&
       this._options.threadId !== options.threadId;
 
+    // A swap made before the replacement list landed leaves the earlier
+    // adapter recorded: the slots still on screen came from its list.
+    if (adapterChanged && !this._replaceListOnNextLoad)
+      this._staleThreadsAdapter = this._options.adapter;
     this._options = options;
 
     this.providerStore.setState(this.resolveProvider(options.adapter));
@@ -358,6 +363,34 @@ export class RemoteThreadListThreadListRuntimeCore
     }
   }
 
+  // Adapters can list threads under the same id. Until a replacement list
+  // lands, a stale slot still holds the thread of the adapter it came from.
+  // Owners compare by adapter identity, not generation, so a deletion made
+  // under A stays in force after A -> B -> A and A's stale list cannot bring
+  // the thread back.
+  private _isOtherAdaptersThread(
+    state: RemoteThreadState,
+    adapter: RemoteThreadListAdapter,
+    threadId: string,
+  ) {
+    const current = getThreadData(state, threadId);
+    if (current === undefined) return false;
+    const owner = this._staleThreadIdsOnReplace?.has(current.id)
+      ? this._staleThreadsAdapter
+      : this._options.adapter;
+    return owner !== adapter;
+  }
+
+  private _updateStatusFromAdapter(
+    state: RemoteThreadState,
+    adapter: RemoteThreadListAdapter,
+    threadId: string,
+    status: "regular" | "archived" | "deleted",
+  ) {
+    if (this._isOtherAdaptersThread(state, adapter, threadId)) return state;
+    return updateStatusReducer(state, threadId, status);
+  }
+
   private _requireAdapterSettled() {
     if (this._replaceListOnNextLoad) {
       throw new ThreadListAdapterChangedError();
@@ -390,6 +423,7 @@ export class RemoteThreadListThreadListRuntimeCore
       }
     }
     this._staleThreadIdsOnReplace = undefined;
+    this._staleThreadsAdapter = undefined;
 
     const seed: ClassifyAccumulator = {
       threadIds: [],
@@ -938,6 +972,8 @@ export class RemoteThreadListThreadListRuntimeCore
           return adapter.rename(remoteId, newTitle);
         },
         optimistic: (state) => {
+          if (this._isOtherAdaptersThread(state, adapter, threadIdOrRemoteId))
+            return state;
           const currentData = getThreadData(state, threadIdOrRemoteId);
           if (!currentData) return state;
 
@@ -999,6 +1035,8 @@ export class RemoteThreadListThreadListRuntimeCore
         return adapter.updateCustom(remoteId, custom);
       },
       optimistic: (state) => {
+        if (this._isOtherAdaptersThread(state, adapter, threadIdOrRemoteId))
+          return state;
         const data = getThreadData(state, threadIdOrRemoteId);
         if (!data) return state;
 
@@ -1061,9 +1099,8 @@ export class RemoteThreadListThreadListRuntimeCore
         this._requireAdapterGeneration(adapterGeneration);
         return adapter.archive(remoteId);
       },
-      optimistic: (state) => {
-        return updateStatusReducer(state, data.id, "archived");
-      },
+      optimistic: (state) =>
+        this._updateStatusFromAdapter(state, adapter, data.id, "archived"),
     });
   }
 
@@ -1089,9 +1126,8 @@ export class RemoteThreadListThreadListRuntimeCore
           throw error;
         }
       },
-      optimistic: (state) => {
-        return updateStatusReducer(state, data.id, "regular");
-      },
+      optimistic: (state) =>
+        this._updateStatusFromAdapter(state, adapter, data.id, "regular"),
     });
   }
 
@@ -1112,15 +1148,16 @@ export class RemoteThreadListThreadListRuntimeCore
         this._requireAdapterGeneration(adapterGeneration);
         return await adapter.delete(remoteId);
       },
-      optimistic: (state) => {
-        return updateStatusReducer(state, data.id, "deleted");
-      },
+      optimistic: (state) =>
+        this._updateStatusFromAdapter(state, adapter, data.id, "deleted"),
     });
     // The optimistic layer survives an adapter swap, so a resolved deletion has
     // dropped the slot from `threadData`, where `_replaceWithThreads` would
     // otherwise have found it to stop.
-    this._hookManager.stopThreadRuntime(data.id);
-    clearThreadTitleState(this._titleStates, data.id);
+    if (!this._isOtherAdaptersThread(this._state.value, adapter, data.id)) {
+      this._hookManager.stopThreadRuntime(data.id);
+      clearThreadTitleState(this._titleStates, data.id);
+    }
     return result;
   }
 
