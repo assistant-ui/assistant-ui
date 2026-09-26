@@ -174,6 +174,42 @@ describe("SandboxHost", () => {
     expect(rendered.dispose).not.toHaveBeenCalled();
   });
 
+  it("reports a shim initialization failure after the frame cleans itself up", async () => {
+    const rendered = fakeRendered();
+    rendered.fullyLoadedPromiseWithTimeout.mockImplementation(() => {
+      rendered.iframe.remove();
+      return Promise.reject(
+        Object.assign(new Error("Product name was either invalid or null"), {
+          code: "shim-error",
+        }),
+      );
+    });
+    renderHtmlMock.mockResolvedValue(rendered);
+    const onError = vi.fn();
+
+    await act(async () => {
+      root.render(
+        <SandboxHost
+          content={{ html: "" }}
+          contentKey="k"
+          createBridge={() => ({ onMessage: vi.fn(), dispose: vi.fn() })}
+          onError={onError}
+        />,
+      );
+    });
+    await flush();
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "shim-error",
+        message: "Product name was either invalid or null",
+      }),
+    );
+    expect(rendered.iframe.parentNode).toBeNull();
+    expect(rendered.dispose).not.toHaveBeenCalled();
+  });
+
   it("stays silent when the shim started and the render is merely slow", async () => {
     const rendered = fakeRendered();
     rendered.fullyLoadedPromiseWithTimeout.mockImplementation(() =>
