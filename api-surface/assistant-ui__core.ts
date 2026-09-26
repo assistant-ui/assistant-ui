@@ -6232,6 +6232,10 @@ type VoiceSessionState = {
   readonly canSendText: boolean;
 };
 
+type WalkToolCallTreeOptions = {
+  readonly shouldDescend?: (part: ToolCallMessagePart) => boolean;
+};
+
 declare class WebSpeechDictationAdapter implements DictationAdapter {
   #private;
   constructor(options?: {
@@ -6511,7 +6515,7 @@ declare function isParsableUrl(value: string): boolean;
 
 declare function isRecord(value: unknown): value is Record<string, unknown>;
 
-declare function iterateToolCallParts(content: readonly ThreadAssistantMessagePart[]): Generator<ToolCallMessagePart>;
+declare function iterateToolCallParts(content: readonly ThreadAssistantMessagePart[], options?: WalkToolCallTreeOptions): Generator<ToolCallMessagePart>;
 
 declare const makeAssistantDataUI: <T = any>(dataUI: AssistantDataUIProps<T>) => AssistantDataUI;
 
@@ -6889,6 +6893,6 @@ declare const useVoiceState: () => VoiceSessionState | undefined;
 
 declare const useVoiceVolume: () => number;
 
-declare function walkToolCallTree(messages: readonly ThreadMessage[]): Generator<ToolCallTreeEntry>;
+declare function walkToolCallTree(messages: readonly ThreadMessage[], options?: WalkToolCallTreeOptions): Generator<ToolCallTreeEntry>;
 
 export { entry_internal_exports as entry_internal, entry_react_exports as entry_react, entry_root_exports as entry_root, entry_store_exports as entry_store, entry_store_internal_exports as entry_store_internal };
