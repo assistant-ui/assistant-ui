@@ -564,6 +564,94 @@ describe("toSlackBlocks", () => {
   });
 
   describe("Input", () => {
+    it.each([undefined, false])(
+      "enables Enter actions for an actionable single-line input (multiline: %s)",
+      (multiline) => {
+        const { blocks, warnings } = toSlackBlocks(
+          {
+            $type: "Input",
+            label: "Notes",
+            multiline,
+            $action: { type: "save_note" },
+          },
+          { surface: "modal" },
+        );
+
+        expect(warnings).toEqual([]);
+        expect(blocks[0]).toMatchObject({
+          type: "input",
+          dispatch_action: true,
+          element: {
+            action_id: "save_note",
+            dispatch_action_config: {
+              trigger_actions_on: ["on_enter_pressed"],
+            },
+          },
+        });
+      },
+    );
+
+    it.each([undefined, null, {}, { type: "" }, { type: 42 }])(
+      "keeps an input without an actionable type passive: %j",
+      ($action) => {
+        const { blocks } = toSlackBlocks(
+          { $type: "Input", label: "Notes", $action },
+          { surface: "modal" },
+        );
+        expect(blocks[0]).not.toHaveProperty("dispatch_action");
+        expect((blocks[0] as SlackInputBlock).element).not.toHaveProperty(
+          "dispatch_action_config",
+        );
+      },
+    );
+
+    it.each(["Form", "Card"])(
+      "keeps %s inputs passive without disabling subsequent standalone inputs",
+      ($type) => {
+        const input = {
+          $type: "Input",
+          label: "Notes",
+          $action: { type: "notes" },
+        };
+        const { blocks } = toSlackBlocks(
+          {
+            $type: "Col",
+            children: [
+              {
+                $type,
+                ...($type === "Form"
+                  ? { $action: { type: "save" } }
+                  : {
+                      asForm: true,
+                      confirm: { label: "Save", $action: { type: "save" } },
+                    }),
+                children: { $type: "Col", children: input },
+              },
+              input,
+            ],
+          },
+          { surface: "modal" },
+        );
+        const inputs = blocks.filter((block) => block.type === "input");
+
+        expect(inputs).toHaveLength(2);
+        expect(inputs[0]).not.toHaveProperty("dispatch_action");
+        expect(inputs[0]!.element).not.toHaveProperty("dispatch_action_config");
+        expect(inputs[1]).toMatchObject({
+          dispatch_action: true,
+          element: {
+            dispatch_action_config: {
+              trigger_actions_on: ["on_enter_pressed"],
+            },
+          },
+        });
+        expect(blocks[1]).toMatchObject({
+          type: "actions",
+          elements: [{ action_id: "save" }],
+        });
+      },
+    );
+
     it("wraps a plain_text_input element, passing multiline through", () => {
       const { blocks } = toSlackBlocks({
         $type: "Input",

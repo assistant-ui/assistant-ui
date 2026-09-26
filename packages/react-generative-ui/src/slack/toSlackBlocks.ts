@@ -75,6 +75,7 @@ type ConversionContext = {
   markdownCharacters: number;
   markdownExhausted: boolean;
   dataTableCharacters: number;
+  inForm: boolean;
 };
 
 const INTERACTIVE_TYPES = new Set([
@@ -682,6 +683,20 @@ const isEmptyCard = (card: SlackCardBlock): boolean =>
   card.body === undefined &&
   (card.actions === undefined || card.actions.length === 0);
 
+const convertFormChildren = (
+  element: NormalizedUIElement,
+  context: ConversionContext,
+  depth: number,
+): SlackBlock[] => {
+  const wasInForm = context.inForm;
+  context.inForm = true;
+  try {
+    return convertSequence(element.children, context, depth + 1);
+  } finally {
+    context.inForm = wasInForm;
+  }
+};
+
 const convertCard = (
   element: NormalizedUIElement,
   context: ConversionContext,
@@ -702,7 +717,9 @@ const convertCard = (
       ...(titleText
         ? [{ type: "header" as const, text: plainText(titleText) }]
         : []),
-      ...convertSequence(element.children, context, depth + 1),
+      ...(element.props["asForm"] === true
+        ? convertFormChildren(element, context, depth)
+        : convertSequence(element.children, context, depth + 1)),
       ...(buttons.length > 0
         ? [{ type: "actions" as const, elements: buttons }]
         : []),
@@ -1271,13 +1288,26 @@ const convertElement = (
         context,
       );
       const defaultValue = props["defaultValue"];
+      const dispatchAction =
+        !context.inForm &&
+        props["multiline"] !== true &&
+        typeof element.action?.type === "string" &&
+        element.action.type.length > 0;
       return [
         {
           type: "input",
           label: plainText(label),
+          ...(dispatchAction ? { dispatch_action: true } : {}),
           element: {
             type: "plain_text_input",
             action_id: asActionId(element.action, "Input", context),
+            ...(dispatchAction
+              ? {
+                  dispatch_action_config: {
+                    trigger_actions_on: ["on_enter_pressed" as const],
+                  },
+                }
+              : {}),
             ...(props["multiline"] === true ? { multiline: true } : {}),
             ...(typeof defaultValue === "string" && defaultValue
               ? { initial_value: defaultValue }
@@ -1393,7 +1423,7 @@ const convertElement = (
       return [convertListItem(element, context, depth)];
     case "Form":
       return [
-        ...convertSequence(element.children, context, depth + 1),
+        ...convertFormChildren(element, context, depth),
         {
           type: "actions",
           elements: [
@@ -1485,6 +1515,7 @@ export function toSlackBlocks(
     markdownCharacters: 0,
     markdownExhausted: false,
     dataTableCharacters: 0,
+    inForm: false,
   };
   try {
     const bounded = boundSpec(node, (reason) =>
