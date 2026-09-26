@@ -43,6 +43,14 @@ registered on every mounted thread.
 
 ### AISDKToolkit
 
+Builds an AI SDK `ToolSet` while pooling MCP connections and reusing static
+provider and backend tool definitions.
+
+Static toolkit entries are compiled on the first call to `tools()` and
+reused afterward. Treat the toolkit and its static entries as immutable once
+`tools()` has been called. Frontend tools and MCP tool listings remain dynamic
+and are resolved for every call.
+
 <ParametersTable {...aiSdk_AISDKToolkit} />
 
 ### AssistantChatTransport

@@ -110,6 +110,11 @@ export type AISDKToolkitToolsOptions = {
   frontend?: FrontendTools;
 };
 
+type StaticToolSets = {
+  provider: ToolSet;
+  server: ToolSet;
+};
+
 /**
  * Builds an AI SDK `ToolSet` for server-side use with `streamText` /
  * `generateText` from a generative `toolkit` and the frontend-uploaded tools.
@@ -153,9 +158,19 @@ export const generativeTools = (options: GenerativeToolsOptions): ToolSet => {
   };
 };
 
+/**
+ * Builds an AI SDK `ToolSet` while pooling MCP connections and reusing static
+ * provider and backend tool definitions.
+ *
+ * Static toolkit entries are compiled on the first call to `tools()` and
+ * reused afterward. Treat the toolkit and its static entries as immutable once
+ * `tools()` has been called. Frontend tools and MCP tool listings remain dynamic
+ * and are resolved for every call.
+ */
 export class AISDKToolkit {
   readonly #toolkit: Toolkit;
   readonly #mcpClients = new Map<string, Promise<MCPClient>>();
+  #staticToolSets: StaticToolSets | undefined;
 
   constructor(options: AISDKToolkitOptions) {
     this.#toolkit = options.toolkit;
@@ -166,8 +181,8 @@ export class AISDKToolkit {
       ? frontendTools(options.frontend)
       : {};
     const mcpToolSet = await this.#mcpTools();
-    const providerToolSet = toProviderToolSet(this.#toolkit);
-    const serverToolSet = toServerToolSet(this.#toolkit as ToolkitDefinition);
+    const { provider: providerToolSet, server: serverToolSet } =
+      this.#getStaticToolSets();
 
     assertNoMcpToolNameCollisions(mcpToolSet, [
       { source: "frontend", tools: frontendToolSet },
@@ -181,6 +196,15 @@ export class AISDKToolkit {
       ...providerToolSet,
       ...serverToolSet,
     };
+  }
+
+  #getStaticToolSets(): StaticToolSets {
+    if (this.#staticToolSets) return this.#staticToolSets;
+
+    const provider = toProviderToolSet(this.#toolkit);
+    const server = toServerToolSet(this.#toolkit as ToolkitDefinition);
+    this.#staticToolSets = { provider, server };
+    return this.#staticToolSets;
   }
 
   async close(): Promise<void> {

@@ -100,6 +100,13 @@ describe("against the real workspace", () => {
     const covers = (file: string) => [...(coverage.get(file) ?? [])].sort();
     expect(covers("bench/accumulator.bench.ts")).toEqual(["assistant-stream"]);
     expect(covers("bench/data-stream.bench.ts")).toEqual(["assistant-stream"]);
+    expect(covers("bench/ai-sdk-toolkit.bench.ts")).toEqual([
+      "@assistant-ui/ai-sdk",
+      "@assistant-ui/core",
+      "@assistant-ui/store",
+      "@assistant-ui/tap",
+      "assistant-stream",
+    ]);
     expect(covers("bench/tree.bench.tsx")).toEqual(["@assistant-ui/tap"]);
     expect(covers("bench/useResources.bench.tsx")).toEqual([
       "@assistant-ui/tap",
@@ -129,6 +136,7 @@ describe("against the real workspace", () => {
   it("plans a core change as its own benches plus three controls", () => {
     expect(planBenches(coverage, ["@assistant-ui/core"])).toEqual({
       measured: [
+        "bench/ai-sdk-toolkit.bench.ts",
         "bench/external-message-conversion.bench.ts",
         "bench/from-thread-message-like.bench.ts",
         "bench/interactable-array-patches.bench.ts",

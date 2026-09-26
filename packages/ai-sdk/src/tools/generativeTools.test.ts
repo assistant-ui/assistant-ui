@@ -130,6 +130,73 @@ describe("AISDKToolkit.tools()", () => {
       supportsDeferredResults: false,
     });
   });
+
+  it("reuses compiled static tool definitions between calls", async () => {
+    const serverSchema = vi.fn(() => ({
+      type: "object",
+      properties: { city: { type: "string" } },
+    }));
+    const providerSchema = vi.fn(() => ({
+      type: "object",
+      properties: { query: { type: "string" } },
+    }));
+    const toolkit = new AISDKToolkit({
+      toolkit: {
+        weather: {
+          type: "backend",
+          parameters: { toJSONSchema: serverSchema },
+          execute: async () => "sunny",
+        },
+        web_search: {
+          type: "provider",
+          providerId: "openai.web_search_preview",
+          args: {},
+          parameters: { toJSONSchema: providerSchema },
+        },
+      } as never,
+    });
+
+    const first = await toolkit.tools();
+    const second = await toolkit.tools();
+
+    expect(serverSchema).toHaveBeenCalledTimes(1);
+    expect(providerSchema).toHaveBeenCalledTimes(1);
+    expect(second.weather).toBe(first.weather);
+    expect(second.web_search).toBe(first.web_search);
+  });
+
+  it("keeps static entries immutable after first use while rebuilding frontend tools", async () => {
+    const toolkitDefinition = {
+      weather: {
+        type: "backend",
+        description: "Initial weather tool",
+        parameters: { type: "object", properties: {} },
+        execute: async () => "sunny",
+      },
+    };
+    const toolkit = new AISDKToolkit({ toolkit: toolkitDefinition as never });
+
+    const first = await toolkit.tools({
+      frontend: {
+        firstClientTool: {
+          parameters: { type: "object", properties: {} },
+        },
+      },
+    });
+    toolkitDefinition.weather.description = "Mutated weather tool";
+    const second = await toolkit.tools({
+      frontend: {
+        secondClientTool: {
+          parameters: { type: "object", properties: {} },
+        },
+      },
+    });
+
+    expect(second.weather).toBe(first.weather);
+    expect(second.weather?.description).toBe("Initial weather tool");
+    expect(second).not.toHaveProperty("firstClientTool");
+    expect(second).toHaveProperty("secondClientTool");
+  });
 });
 
 describe("AISDKToolkit", () => {
