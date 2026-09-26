@@ -435,6 +435,9 @@ describe("useLangGraphRuntime voice transcripts", () => {
     await waitFor(() =>
       expect(result.current.thread.getState().isRunning).toBe(false),
     );
+    expect(
+      result.current.thread.getState().messages.map((message) => message.id),
+    ).toEqual([user!.id, assistant!.id]);
     await act(async () => {
       await result.current.thread.append("Next typed turn");
     });
@@ -442,8 +445,10 @@ describe("useLangGraphRuntime voice transcripts", () => {
     expect(stream).toHaveBeenCalledTimes(1);
     expect(stream.mock.calls[0]![0].map((message) => message.id)).toEqual([
       user!.id,
+      assistant!.id,
       expect.any(String),
     ]);
+    expect(stream.mock.calls[0]![1]).not.toHaveProperty("checkpointId");
   });
 
   it("regenerates an unsent assistant transcript by forking before the user transcript", async () => {
