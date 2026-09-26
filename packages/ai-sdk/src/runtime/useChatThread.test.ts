@@ -311,9 +311,9 @@ describe("useChatThread", () => {
     },
   );
 
-  it("does not advertise manual resume when the stream omits start.messageId", async () => {
+  it("does not advertise manual resume from a stored stream id alone", async () => {
     const storage = createResumableSessionStorage({
-      key: "resume-without-message-id",
+      key: "resume-without-opt-in",
     });
     storage.clear();
     let initial!: ReadableStreamDefaultController<Uint8Array>;
@@ -346,7 +346,7 @@ describe("useChatThread", () => {
       flushTapSync(() => aui.composer.setText("continue this response"));
       flushTapSync(() => aui.composer.send());
       for (const chunk of [
-        { type: "start" },
+        { type: "start", messageId: "answer" },
         { type: "text-start", id: "text" },
         { type: "text-delta", id: "text", delta: "Partial" },
       ] satisfies UIMessageChunk[]) {

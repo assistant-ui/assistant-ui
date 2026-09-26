@@ -44,8 +44,8 @@ export type ChatThreadOptions<UI_MESSAGE extends UIMessage = UIMessage> =
       /**
        * Called when a resumable stream reconnect fails. Use this to
        * surface a toast, report telemetry, or mark the thread as needing a
-       * retry. The failed stream id is cleared after the callback unless a
-       * newer id has replaced it.
+       * retry. The stream id is kept so the reconnect can be retried; a 204 or
+       * 404 from the resume endpoint clears it.
        */
       onResumeError?: ((error: unknown) => void) | undefined;
       joinStrategy?: AISDKRuntimeAdapter["joinStrategy"];
