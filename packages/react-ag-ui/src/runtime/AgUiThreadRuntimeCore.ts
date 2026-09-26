@@ -1327,8 +1327,14 @@ export class AgUiThreadRuntimeCore {
     try {
       if (resumeStream) {
         // Cancel flips only the status; an aggregator RUN_CANCELLED would emit an empty snapshot and wipe the replayed content.
-        cancelRun = () =>
+        cancelRun = () => {
+          const current =
+            assistantMessageId === undefined
+              ? undefined
+              : this.session.tryGetMessage(assistantMessageId)?.message;
+          if (current?.status?.type === "complete") return;
           applyUpdate({ status: { type: "incomplete", reason: "cancelled" } });
+        };
         pendingError =
           (await this.consumeResumeStream(resumeStream, {
             runConfig: normalizedRunConfig,

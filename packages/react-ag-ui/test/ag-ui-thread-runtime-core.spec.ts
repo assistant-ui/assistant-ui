@@ -2896,6 +2896,65 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(assistant.status).toMatchObject({ type: "complete" });
   });
 
+  it("keeps a replayed answer complete when Stop lands before the resume stream closes", async () => {
+    const agent = {
+      runAgent: vi.fn(),
+      abortRun: vi.fn(),
+    } as unknown as HttpAgent;
+    const onCancel = vi.fn();
+    const userMessage: ThreadMessage = {
+      id: "msg-1",
+      role: "user",
+      createdAt: new Date(),
+      content: [{ type: "text", text: "Hello" }],
+      attachments: [],
+      metadata: { custom: {} },
+    };
+    let completeYielded!: () => void;
+    const completeYieldedPromise = new Promise<void>((resolve) => {
+      completeYielded = resolve;
+    });
+    const resume = async function* (options: {
+      abortSignal: AbortSignal;
+    }): AsyncGenerator<ChatModelRunResult, void, unknown> {
+      yield {
+        content: [{ type: "text", text: "recovered" }],
+        status: { type: "complete", reason: "unknown" },
+      };
+      completeYielded();
+      await new Promise<void>((resolve) => {
+        options.abortSignal.addEventListener("abort", () => resolve(), {
+          once: true,
+        });
+      });
+    };
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({
+        headId: "msg-1",
+        messages: [{ message: userMessage, parentId: null }],
+        unstable_resume: true,
+      }),
+      resume,
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const core = createCore(agent, { history: historyAdapter, onCancel });
+
+    const load = core.__internal_load();
+    await completeYieldedPromise;
+    expect(core.isRunning()).toBe(true);
+    await core.cancel();
+    await load;
+
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    expect(assistant.content.at(-1)).toMatchObject({
+      type: "text",
+      text: "recovered",
+    });
+    expect(assistant.status).toEqual({ type: "complete", reason: "unknown" });
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(core.isRunning()).toBe(false);
+  });
+
   it("resumeInFlightRun feeds history.resume() stream instead of re-running", async () => {
     const runAgent = vi.fn(async (_input, subscriber) => {
       subscriber.onRunFinalized?.();
