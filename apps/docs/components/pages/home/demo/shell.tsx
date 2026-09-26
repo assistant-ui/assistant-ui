@@ -53,6 +53,11 @@ export function DemoShell({
     id: string;
     title: string;
   } | null>(null);
+  const pendingMobileRename = useRef<typeof renaming>(null);
+  const onMobileSidebarOpenChange = (open: boolean) => {
+    if (open) pendingMobileRename.current = null;
+    setMobileSidebarOpen(open);
+  };
   const mainThreadId = useAuiState((s) => s.threads.mainThreadId);
   if (renaming && renaming.id !== mainThreadId) setRenaming(null);
   const persisted = useAuiState((s) =>
@@ -63,7 +68,7 @@ export function DemoShell({
   const runCommand = (command: ThreadCommand) => {
     if (command === "sidebar") {
       if (window.matchMedia("(max-width: 767px)").matches)
-        setMobileSidebarOpen((open) => !open);
+        onMobileSidebarOpenChange(!mobileSidebarOpen);
       else setSidebarCollapsed(!sidebarCollapsed);
       return;
     }
@@ -82,8 +87,13 @@ export function DemoShell({
       (item) => item.id === state.mainThreadId,
     );
     if (command === "rename") {
-      if (item && item.status !== "new")
-        setRenaming({ id: item.id, title: item.title ?? "" });
+      if (item && item.status !== "new") {
+        const target = { id: item.id, title: item.title ?? "" };
+        if (mobileSidebarOpen) {
+          pendingMobileRename.current = target;
+          setMobileSidebarOpen(false);
+        } else setRenaming(target);
+      }
       return;
     }
     void Promise.resolve()
@@ -169,7 +179,7 @@ export function DemoShell({
       <div className="border-foreground/10 flex h-12 min-w-0 items-center gap-2 border-b px-4 md:px-5">
         <button
           type="button"
-          onClick={() => setMobileSidebarOpen(true)}
+          onClick={() => onMobileSidebarOpenChange(true)}
           aria-label="Open threads"
           className="text-muted-foreground hover:text-foreground rounded-control -ms-1.5 grid size-7 shrink-0 place-items-center transition-colors md:hidden"
         >
@@ -249,10 +259,18 @@ export function DemoShell({
       >
         {view === "memory" ? <MemoryView /> : <Thread />}
       </main>
-      <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
+      <Sheet
+        open={mobileSidebarOpen}
+        onOpenChange={onMobileSidebarOpenChange}
+        onOpenChangeComplete={(open) => {
+          if (!open && pendingMobileRename.current)
+            setRenaming(pendingMobileRename.current);
+        }}
+      >
         <SheetContent
           side="left"
           className="bg-background w-72 overflow-hidden p-3 pt-12"
+          finalFocus={() => pendingMobileRename.current === null}
         >
           <SheetTitle className="sr-only">Threads</SheetTitle>
           <Sidebar
