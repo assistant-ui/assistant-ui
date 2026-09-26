@@ -130,6 +130,79 @@ describe("unstable_notifySessionReset", () => {
     expect(harness.thread.messages.at(-1)?.id).toBe("a1");
   });
 
+  it("leaves no message running once the reset stops the executing tool", async () => {
+    const store = (messages: readonly ThreadMessage[]) => ({
+      messages,
+      isRunning: false,
+      convertMessage: (message: ThreadMessage) => message,
+      onNew: vi.fn(async () => {}),
+      unstable_enableToolInvocations: true,
+      onAddToolResult: vi.fn(),
+    });
+    const core = new ExternalStoreRuntimeCore(store([]));
+    core.registerModelContextProvider({
+      getModelContext: () => ({
+        tools: {
+          send_email: {
+            parameters: { type: "object", properties: {} },
+            execute: vi.fn(() => new Promise(() => {})),
+          },
+        },
+      }),
+    });
+    const thread = core.threads.getMainThreadRuntimeCore();
+    core.setAdapter(
+      store([
+        trailingUserMessage,
+        {
+          id: "a1",
+          role: "assistant",
+          content: toolCallMessage.content,
+        } as ThreadMessage,
+      ]),
+    );
+    await waitFor(() => expect(thread.isRunning).toBe(true));
+
+    thread.unstable_notifySessionReset();
+
+    expect(thread.isRunning).toBe(false);
+    expect(thread.messages.at(-1)?.status?.type).not.toBe("running");
+  });
+
+  it("still evicts a message whose delete the host confirms after the reset", async () => {
+    const harness = externalThread();
+    let confirmDelete!: () => void;
+    Object.assign(harness.store, {
+      onDelete: vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            confirmDelete = resolve;
+          }),
+      ),
+    });
+    await driveExecutingTool(harness);
+
+    const deleted = harness.thread.deleteMessage("u1");
+    harness.thread.unstable_notifySessionReset();
+    harness.core.setAdapter({ ...harness.store, messages: [toolCallMessage] });
+    confirmDelete();
+    await deleted;
+
+    expect(harness.thread.getBranches("a1")).toEqual(["a1"]);
+  });
+
+  it("still evicts a message whose delete settled before the reset and the host republished after it", async () => {
+    const harness = externalThread();
+    Object.assign(harness.store, { onDelete: vi.fn(async () => {}) });
+    await driveExecutingTool(harness);
+
+    await harness.thread.deleteMessage("u1");
+    harness.thread.unstable_notifySessionReset();
+    harness.core.setAdapter({ ...harness.store, messages: [toolCallMessage] });
+
+    expect(harness.thread.getBranches("a1")).toEqual(["a1"]);
+  });
+
   it("throws on runtimes without a backing session", () => {
     const local = new LocalRuntimeCore(
       {
