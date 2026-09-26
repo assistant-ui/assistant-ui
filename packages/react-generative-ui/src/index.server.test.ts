@@ -26,10 +26,10 @@ const CLIENT_ONLY_REACT_APIS = new Set([
   "useTransition",
 ]);
 
-const RELATIVE_FROM_RE = /\bfrom\s+["'](\.[^"']*)["']/g;
+const RELATIVE_SPECIFIER_RE = /\b(?:from|import)\s*\(?\s*["'](\.[^"']*)["']/g;
 
-const NAMED_REACT_IMPORT_RE =
-  /import\s+(type\s+)?\{([^}]*)\}\s+from\s+["']react["']/g;
+const NAMED_FROM_REACT_RE =
+  /(?:import|export)\s+(type\s+)?(?:\w+\s*,\s*)?\{([^}]*)\}\s+from\s+["']react["']/g;
 
 function resolveRelative(fromFile: string, spec: string): string | undefined {
   const base = resolve(dirname(fromFile), spec);
@@ -50,7 +50,7 @@ function collectGraph(entry: string): Set<string> {
     if (visited.has(file)) continue;
     visited.add(file);
     for (const [, spec] of readFileSync(file, "utf8").matchAll(
-      RELATIVE_FROM_RE,
+      RELATIVE_SPECIFIER_RE,
     )) {
       const resolved = resolveRelative(file, spec!);
       if (resolved) pending.push(resolved);
@@ -62,7 +62,7 @@ function collectGraph(entry: string): Set<string> {
 function clientOnlyReactImports(file: string): string[] {
   const names: string[] = [];
   for (const [, typeOnly, specifiers] of readFileSync(file, "utf8").matchAll(
-    NAMED_REACT_IMPORT_RE,
+    NAMED_FROM_REACT_RE,
   )) {
     if (typeOnly) continue;
     for (const specifier of specifiers!.split(",")) {
