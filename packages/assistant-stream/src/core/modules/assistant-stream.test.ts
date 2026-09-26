@@ -9,6 +9,11 @@ import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import { DataStreamDecoder } from "../serialization/data-stream/DataStream";
 import { AssistantMessageAccumulator } from "../accumulators/assistant-message-accumulator";
 import type { AssistantMessage } from "../utils/types";
+import { toolResultStream } from "../tool/toolResultStream";
+import {
+  AssistantTransportDecoder,
+  AssistantTransportEncoder,
+} from "../serialization/assistant-transport/AssistantTransport";
 
 const accumulate = async (response: Response): Promise<AssistantMessage> => {
   const stream = AssistantStream.fromResponse(
@@ -154,6 +159,149 @@ describe("raw chunk ordering", () => {
 });
 
 describe("createAssistantStream task settlement", () => {
+  it("finishes open text and reasoning parts and cuts off open tool calls when the callback throws", async () => {
+    const chunks = await collectChunks(
+      createAssistantStream(async (controller) => {
+        controller.addTextPart().append("partial");
+        controller.addReasoningPart().append("thinking");
+        controller.addToolCallPart({ toolCallId: "t1", toolName: "search" });
+        throw new Error("provider failed");
+      }),
+    );
+
+    expect(chunks.filter((c) => c.type === "error")).toHaveLength(1);
+    expect(chunks).toContainEqual({
+      type: "text-delta",
+      path: [0],
+      textDelta: "partial",
+    });
+    expect(
+      chunks.filter((c) => c.type === "part-finish").map((c) => c.path),
+    ).toEqual([[0], [1]]);
+    expect(chunks.map((c) => c.type)).not.toContain(
+      "tool-call-args-text-finish",
+    );
+  });
+
+  it.each(["appendText", "appendReasoning"] as const)(
+    "finishes the part %s opened when the callback throws",
+    async (method) => {
+      const chunks = await collectChunks(
+        createAssistantStream((controller) => {
+          controller[method]("partial");
+          throw new Error("provider failed");
+        }),
+      );
+
+      expect(chunks.map((c) => c.type)).toEqual([
+        "part-start",
+        "error",
+        "text-delta",
+        "part-finish",
+      ]);
+    },
+  );
+
+  it("does not run a frontend tool whose call was open when the callback threw", async () => {
+    const execute = vi.fn(() => "confirmed");
+    const response = new Response(
+      createAssistantStream((controller) => {
+        controller.appendText("partial");
+        controller.addToolCallPart({ toolCallId: "t1", toolName: "confirm" });
+        controller
+          .addToolCallPart({ toolCallId: "t2", toolName: "confirm" })
+          .argsText.append('{"orderId":');
+        throw new Error("upstream failed");
+      }).pipeThrough(new AssistantTransportEncoder()),
+    );
+
+    let message: AssistantMessage | undefined;
+    await AssistantStream.fromResponse(
+      response,
+      new AssistantTransportDecoder(),
+    )
+      .pipeThrough(
+        toolResultStream(
+          { confirm: { parameters: { type: "object" }, execute } },
+          new AbortController().signal,
+          async () => {},
+        ),
+      )
+      .pipeThrough(new AssistantMessageAccumulator())
+      .pipeTo(
+        new WritableStream({
+          write(m) {
+            message = m;
+          },
+        }),
+      );
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(message?.status).toMatchObject({
+      type: "incomplete",
+      reason: "error",
+    });
+    expect(message?.parts).toMatchObject([
+      { type: "text", text: "partial", status: { type: "complete" } },
+      { toolCallId: "t1", state: "partial-call" },
+      { toolCallId: "t2", state: "partial-call", argsText: '{"orderId":' },
+    ]);
+  });
+
+  it("ends when the callback throws while a merged stream is still open", async () => {
+    const cancelSource = vi.fn();
+    let chunks: AssistantStreamChunk[] = [];
+    const unhandledRejections = await captureUnhandledRejections(async () => {
+      chunks = await collectChunks(
+        createAssistantStream(async (controller) => {
+          controller.merge(
+            createAssistantStream((inner) => {
+              inner.addToolCallPart("search");
+            }),
+          );
+          controller.merge(new ReadableStream({ cancel: cancelSource }));
+          throw new Error("outer failed");
+        }),
+      );
+    });
+
+    expect(chunks.filter((c) => c.type === "error")).toHaveLength(1);
+    expect(cancelSource).toHaveBeenCalledOnce();
+    expect(unhandledRejections).toEqual([]);
+  });
+
+  it("stops tracking an input once it finishes", async () => {
+    let tracked: Set<unknown> | undefined;
+    await collectChunks(
+      createAssistantStream(async (controller) => {
+        tracked = (
+          controller as unknown as { _state: { openInputs: Set<unknown> } }
+        )._state.openInputs;
+        controller.appendText("a");
+        controller.addReasoningPart().close();
+        controller.addToolCallPart("search").setResponse({ result: 1 });
+        controller.merge(createAssistantStream(() => {}));
+      }),
+    );
+
+    expect(tracked?.size).toBe(0);
+  });
+
+  it("closes the outer stream when a merged stream throws with an open part", async () => {
+    const chunks = await collectChunks(
+      createAssistantStream((controller) => {
+        controller.merge(
+          createAssistantStream(async (inner) => {
+            inner.addToolCallPart("search");
+            throw new Error("inner failed");
+          }),
+        );
+      }),
+    );
+
+    expect(chunks.map((c) => c.type)).toEqual(["part-start", "error"]);
+  });
+
   it("emits callback failures without leaking an unhandled rejection", async () => {
     let chunks: AssistantStreamChunk[] = [];
     const unhandledRejections = await captureUnhandledRejections(async () => {
