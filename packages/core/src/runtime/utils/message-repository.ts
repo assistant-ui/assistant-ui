@@ -529,9 +529,44 @@ export class MessageRepository {
     }
 
     return {
-      headId: this.canonicalHeadId,
+      headId: this.exportedHeadId(),
       messages: exportItems,
     };
+  }
+
+  /**
+   * The head as it would be if the optimistic messages were deleted. Import
+   * resets to the exported head and drops its descendants, so an optimistic
+   * head resolves to a leaf of the exported tree rather than to its persisted
+   * ancestor, whose other children would be lost.
+   */
+  private exportedHeadId(): string | null {
+    let head = this.head;
+    while (head?.current.metadata?.isOptimistic) head = head.prev;
+    if (head === this.head) return head?.current.id ?? null;
+
+    for (;;) {
+      const next = this.exportedChild(head ?? this.root);
+      if (!next) return head?.current.id ?? null;
+      head = next;
+    }
+  }
+
+  private exportedChild(parent: RepositoryParent): RepositoryMessage | null {
+    const selected = parent.next;
+    if (selected) {
+      if (!selected.current.metadata?.isOptimistic) return selected;
+      const descendant = this.exportedChild(selected);
+      if (descendant) return descendant;
+    }
+    for (let i = parent.children.length - 1; i >= 0; i--) {
+      const child = this.messages.get(parent.children[i]!);
+      if (!child || child === selected) continue;
+      if (!child.current.metadata?.isOptimistic) return child;
+      const descendant = this.exportedChild(child);
+      if (descendant) return descendant;
+    }
+    return null;
   }
 
   import({ headId, messages }: ExportedMessageRepository) {

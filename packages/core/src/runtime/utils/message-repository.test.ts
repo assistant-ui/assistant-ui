@@ -170,3 +170,128 @@ describe("MessageRepository import order", () => {
     ]);
   });
 });
+
+const assistantMessage = (id: string, isOptimistic = false): ThreadMessage => ({
+  id,
+  createdAt: new Date(0),
+  role: "assistant",
+  content: [{ type: "text", text: id }],
+  status: { type: "complete", reason: "stop" },
+  metadata: {
+    unstable_state: null,
+    unstable_annotations: [],
+    unstable_data: [],
+    steps: [],
+    custom: {},
+    ...(isOptimistic ? { isOptimistic: true } : {}),
+  },
+});
+
+const roundTrip = (repository: MessageRepository) => {
+  const restored = new MessageRepository();
+  restored.import(repository.export());
+  return restored;
+};
+
+describe("MessageRepository export with an optimistic head", () => {
+  it("keeps a persisted sibling of the optimistic head through export and import", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, assistantMessage("u"));
+    repository.addOrUpdateMessage("u", assistantMessage("placeholder", true));
+    repository.addOrUpdateMessage("u", assistantMessage("a"));
+    expect(repository.headId).toBe("placeholder");
+
+    expect(repository.export().headId).toBe("a");
+
+    const restored = roundTrip(repository);
+    expect(restored.getMessages().map((m) => m.id)).toEqual(["u", "a"]);
+    expect(restored.getBranches("a")).toEqual(["a"]);
+  });
+
+  it("exports a persisted root sibling as the head when the optimistic head is a root message", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, assistantMessage("a"));
+    repository.addOrUpdateMessage(null, assistantMessage("placeholder", true));
+    repository.switchToBranch("placeholder");
+
+    expect(repository.export().headId).toBe("a");
+    expect(
+      roundTrip(repository)
+        .getMessages()
+        .map((m) => m.id),
+    ).toEqual(["a"]);
+  });
+
+  it("follows a persisted branch below the optimistic head's ancestor to its leaf", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, assistantMessage("u"));
+    repository.addOrUpdateMessage("u", assistantMessage("a1"));
+    repository.addOrUpdateMessage("a1", assistantMessage("u2"));
+    repository.addOrUpdateMessage("u", assistantMessage("placeholder", true));
+    repository.switchToBranch("placeholder");
+
+    expect(repository.export().headId).toBe("u2");
+    expect(
+      roundTrip(repository)
+        .getMessages()
+        .map((m) => m.id),
+    ).toEqual(["u", "a1", "u2"]);
+  });
+
+  it("follows a persisted message's selected child, not its last child", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, assistantMessage("u"));
+    repository.addOrUpdateMessage("u", assistantMessage("a1"));
+    repository.addOrUpdateMessage("a1", assistantMessage("b1"));
+    repository.addOrUpdateMessage("a1", assistantMessage("b2"));
+    repository.switchToBranch("b1");
+    repository.addOrUpdateMessage("u", assistantMessage("placeholder", true));
+    repository.switchToBranch("placeholder");
+
+    expect(repository.export().headId).toBe("b1");
+    const restored = roundTrip(repository);
+    expect(restored.getMessages().map((m) => m.id)).toEqual(["u", "a1", "b1"]);
+    expect(restored.getBranches("b1")).toEqual(["b1", "b2"]);
+  });
+
+  it("follows the selected optimistic chain to its persisted descendant before a later sibling", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, assistantMessage("u"));
+    repository.addOrUpdateMessage("u", assistantMessage("o1", true));
+    repository.addOrUpdateMessage("o1", assistantMessage("d"));
+    repository.addOrUpdateMessage("o1", assistantMessage("o2", true));
+    repository.switchToBranch("o2");
+    repository.addOrUpdateMessage("u", assistantMessage("s"));
+    expect(repository.headId).toBe("o2");
+
+    expect(repository.export().headId).toBe("d");
+    const restored = roundTrip(repository);
+    expect(restored.getMessages().map((m) => m.id)).toEqual(["u", "d"]);
+    expect(restored.getBranches("d")).toEqual(["d", "s"]);
+  });
+
+  it("follows the selected persisted child below an optimistic message, not its last child", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, assistantMessage("a"));
+    repository.addOrUpdateMessage("a", assistantMessage("o", true));
+    repository.addOrUpdateMessage("o", assistantMessage("b"));
+    repository.addOrUpdateMessage("o", assistantMessage("c"));
+    repository.addOrUpdateMessage("b", assistantMessage("p", true));
+    repository.addOrUpdateMessage(null, assistantMessage("p", true));
+    expect(repository.headId).toBe("p");
+
+    expect(repository.export().headId).toBe("b");
+    const restored = roundTrip(repository);
+    expect(restored.getMessages().map((m) => m.id)).toEqual(["a", "b"]);
+    expect(restored.getBranches("b")).toEqual(["b", "c"]);
+  });
+
+  it("exports the persisted ancestor when nothing persisted lies below it", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, assistantMessage("u"));
+    repository.addOrUpdateMessage("u", assistantMessage("placeholder", true));
+    expect(repository.headId).toBe("placeholder");
+
+    expect(repository.export().headId).toBe("u");
+  });
+});
