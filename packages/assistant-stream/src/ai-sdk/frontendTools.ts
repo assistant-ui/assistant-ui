@@ -1,20 +1,48 @@
-import { jsonSchema, type ToolSet } from "ai";
-import type { ToolJSONSchema } from "assistant-stream";
-import { unwrapModelContentEnvelope } from "../converters/modelContentEnvelope";
+import { gateway, jsonSchema, type Tool, type ToolSet } from "ai";
+import type { ToolJSONSchema } from "../core/tool/schema-utils";
+import { unwrapModelContentEnvelope } from "./modelContentEnvelope";
 import {
   toAISDKContent,
   toAISDKDefaultOutput,
-} from "../converters/toolOutputConversion";
+  type TaggedAISDKContent,
+} from "./toolOutputConversion";
+
+// ai@7 speaks provider spec v4, whose tool-result content adds the tagged
+// `file` part; ai@6 only accepts the base64 `file-data` part. `ai` exports no
+// version, so the re-exported gateway provider's spec version stands in: an
+// export only ai@7 has fails webpack and Turbopack builds under ai@6, and a
+// computed or `in` read keeps all of `ai` in the bundle.
+const supportsTaggedFileData =
+  (gateway.specificationVersion as string) === "v4";
+
+type ToolModelOutput = Awaited<ReturnType<NonNullable<Tool["toModelOutput"]>>>;
+type InstalledTaggedFilePart = Extract<
+  Extract<ToolModelOutput, { type: "content" }>["value"][number],
+  { type: "file" }
+>;
+// ai@6's types have no tagged part, so the tagged branch is asserted; under
+// ai@7 the cast target degrades to unknown if the emitted content drifts.
+type TaggedToolModelOutput = [InstalledTaggedFilePart] extends [never]
+  ? ToolModelOutput
+  : TaggedAISDKContent extends ToolModelOutput
+    ? ToolModelOutput
+    : unknown;
 
 /** Frontend tool definitions uploaded by AssistantChatTransport. */
 export type FrontendTools = Record<string, ToolJSONSchema>;
 
-export const defaultToModelOutput = ({ output }: { output: unknown }) => {
+const defaultToModelOutput: NonNullable<Tool["toModelOutput"]> = ({
+  output,
+}) => {
   const { result, modelContent } = unwrapModelContentEnvelope(output);
-  if (modelContent !== undefined) {
-    return toAISDKContent(modelContent);
+  if (modelContent === undefined) {
+    return toAISDKDefaultOutput(result);
   }
-  return toAISDKDefaultOutput(result);
+  return supportsTaggedFileData
+    ? (toAISDKContent(modelContent, {
+        taggedFileData: true,
+      }) as unknown as TaggedToolModelOutput)
+    : toAISDKContent(modelContent, { taggedFileData: false });
 };
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
