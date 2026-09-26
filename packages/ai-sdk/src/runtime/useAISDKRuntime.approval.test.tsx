@@ -203,6 +203,18 @@ describe("useAISDKRuntime tool approvals", () => {
     });
   });
 
+  it("finds the pending approval past malformed parts", async () => {
+    const onRespondToToolApproval = vi.fn(async () => {});
+    const { respond, messages } = setupPendingApproval(onRespondToToolApproval);
+    (messages[0]!.parts as unknown[]).unshift(null, { text: "no type" });
+
+    await act(async () => {
+      await respond({ approvalId: "approval-1", approved: true });
+    });
+
+    expect(onRespondToToolApproval).toHaveBeenCalledOnce();
+  });
+
   it("does not store a request the handler hands back through the AI SDK", async () => {
     const { respond, addToolApprovalResponse } = setupPendingApproval(
       (_response, { respondViaAISDK }) => respondViaAISDK(),
