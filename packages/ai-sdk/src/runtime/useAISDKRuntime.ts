@@ -579,7 +579,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       .find(
         ({ part }) =>
           part.state === "approval-requested" &&
-          part.approval.id === approvalId,
+          part.approval?.id === approvalId,
       );
     if (!requested || hostApprovalIdsRef.current.has(approvalId))
       throw new Error(
