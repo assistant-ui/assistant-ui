@@ -122,6 +122,8 @@ The `New` button gets `data-active` when the user is on a fresh, unsaved thread.
 
 Every item stays a native Tab stop, and arrow keys are layered on top. Up/Down move between items and Right focuses an item's `More` button (Left/Right are mirrored in RTL). This is built into the primitives — no prop is required.
 
+Arrow keys modified with Alt, Ctrl, Meta, or Shift pass through to the application without moving focus or preventing the default event.
+
 To fold the `More` menu into the same navigation, opt it in with `sharedFocusGroup`:
 
 ```tsx
