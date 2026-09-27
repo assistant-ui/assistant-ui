@@ -143,6 +143,82 @@ describe("ThreadPrimitiveRoot", () => {
     expect(event.defaultPrevented).toBe(false);
   });
 
+  it("does not stop speech in another mounted thread", async () => {
+    const firstSpeech = createSpeechAdapter();
+    const secondSpeech = createSpeechAdapter();
+    const firstRuntimeRef: RuntimeRef = { current: null };
+    const secondRuntimeRef: RuntimeRef = { current: null };
+    render(
+      <>
+        <RuntimeProvider
+          runtimeRef={firstRuntimeRef}
+          speech={firstSpeech.adapter}
+        >
+          <ThreadPrimitiveRoot>
+            <button data-testid="first-thread-control" />
+          </ThreadPrimitiveRoot>
+        </RuntimeProvider>
+        <RuntimeProvider
+          runtimeRef={secondRuntimeRef}
+          speech={secondSpeech.adapter}
+        >
+          <ThreadPrimitiveRoot>
+            <button data-testid="second-thread-control" />
+          </ThreadPrimitiveRoot>
+        </RuntimeProvider>
+      </>,
+    );
+    startSpeaking(firstRuntimeRef);
+    await waitFor(() => {
+      expect(firstRuntimeRef.current!.thread.getState().speech).toBeDefined();
+    });
+
+    const event = dispatchEscape(screen.getByTestId("second-thread-control"));
+
+    expect(firstSpeech.cancel).not.toHaveBeenCalled();
+    expect(secondSpeech.cancel).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it("stops speech in the thread containing the Escape target", async () => {
+    const firstSpeech = createSpeechAdapter();
+    const secondSpeech = createSpeechAdapter();
+    const firstRuntimeRef: RuntimeRef = { current: null };
+    const secondRuntimeRef: RuntimeRef = { current: null };
+    render(
+      <>
+        <RuntimeProvider
+          runtimeRef={firstRuntimeRef}
+          speech={firstSpeech.adapter}
+        >
+          <ThreadPrimitiveRoot>
+            <button data-testid="first-thread-control" />
+          </ThreadPrimitiveRoot>
+        </RuntimeProvider>
+        <RuntimeProvider
+          runtimeRef={secondRuntimeRef}
+          speech={secondSpeech.adapter}
+        >
+          <ThreadPrimitiveRoot>
+            <button data-testid="second-thread-control" />
+          </ThreadPrimitiveRoot>
+        </RuntimeProvider>
+      </>,
+    );
+    startSpeaking(firstRuntimeRef);
+    startSpeaking(secondRuntimeRef);
+    await waitFor(() => {
+      expect(firstRuntimeRef.current!.thread.getState().speech).toBeDefined();
+      expect(secondRuntimeRef.current!.thread.getState().speech).toBeDefined();
+    });
+
+    const event = dispatchEscape(screen.getByTestId("second-thread-control"));
+
+    expect(firstSpeech.cancel).not.toHaveBeenCalled();
+    expect(secondSpeech.cancel).toHaveBeenCalledOnce();
+    expect(event.defaultPrevented).toBe(true);
+  });
+
   it("stops speech from outside the only mounted thread", async () => {
     const speech = createSpeechAdapter();
     const runtimeRef: RuntimeRef = { current: null };

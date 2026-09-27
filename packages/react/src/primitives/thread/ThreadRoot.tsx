@@ -27,8 +27,9 @@ export namespace ThreadPrimitiveRoot {
  * This component serves as the foundational wrapper for all thread-related components.
  * It provides the basic structure and context needed for thread functionality.
  *
- * While this component is mounted, an unhandled Escape keydown stops active speech, even if
- * the action bar that started it is no longer mounted.
+ * While this component is mounted, an unhandled Escape keydown inside this thread stops its
+ * active speech, even if the action bar that started it is no longer mounted. Escape outside
+ * every thread retains the document-level fallback.
  *
  * @example
  * ```tsx
@@ -53,6 +54,14 @@ export const ThreadPrimitiveRoot = forwardRef<
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       if (event.defaultPrevented || aui.thread.source === null) return;
+      const eventThreadRoot = event
+        .composedPath()
+        .find(
+          (target) =>
+            target instanceof Element &&
+            target.hasAttribute("data-aui-thread-root"),
+        );
+      if (eventThreadRoot && eventThreadRoot !== rootRef.current) return;
       if (aui.thread.getState().speech == null) return;
       event.preventDefault();
       try {
@@ -77,7 +86,7 @@ export const ThreadPrimitiveRoot = forwardRef<
 
   return (
     <ThreadRootElementContext.Provider value={rootRef}>
-      <Primitive.div {...props} ref={composedRef} />
+      <Primitive.div {...props} data-aui-thread-root="" ref={composedRef} />
     </ThreadRootElementContext.Provider>
   );
 });
