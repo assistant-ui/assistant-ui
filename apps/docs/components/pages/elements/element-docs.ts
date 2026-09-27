@@ -1581,6 +1581,18 @@ const matches = useMentionMatches(value, people);
               "Called when the user clicks a thread row. Without it, rows render as non-interactive list items.",
           },
           {
+            name: "onRename",
+            type: "(index: number) => void",
+            description:
+              "Shows a labelled rename button and reports the clicked row.",
+          },
+          {
+            name: "onDelete",
+            type: "(index: number) => void",
+            description:
+              "Shows a labelled delete button and reports the clicked row.",
+          },
+          {
             name: "className",
             type: "string",
             description: "Extra classes merged onto the root.",

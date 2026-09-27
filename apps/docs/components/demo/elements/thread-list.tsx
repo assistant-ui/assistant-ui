@@ -14,13 +14,30 @@ const THREADS: ThreadItem[] = [
 ];
 
 export function ThreadListDemo() {
+  const [threads, setThreads] = useState(THREADS);
   const [activeIndex, setActiveIndex] = useState(0);
 
   return (
     <ThreadList
-      threads={THREADS}
+      threads={threads}
       activeIndex={activeIndex}
       onActiveIndexChange={setActiveIndex}
+      onRename={(index) => {
+        const currentTitle = threads[index]?.title;
+        const title = window.prompt("Rename thread", currentTitle);
+        if (!title?.trim()) return;
+        setThreads((current) =>
+          current.map((thread, i) =>
+            i === index ? { ...thread, title: title.trim() } : thread,
+          ),
+        );
+      }}
+      onDelete={(index) => {
+        setThreads((current) => current.filter((_, i) => i !== index));
+        setActiveIndex((current) =>
+          Math.max(0, current - Number(index <= current)),
+        );
+      }}
     />
   );
 }

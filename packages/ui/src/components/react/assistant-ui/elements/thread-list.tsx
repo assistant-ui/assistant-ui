@@ -15,15 +15,24 @@ export function ThreadList({
   threads,
   activeIndex,
   onActiveIndexChange,
+  onRename,
+  onDelete,
   className,
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "children" | "threads" | "activeIndex" | "onActiveIndexChange"
+  | "children"
+  | "threads"
+  | "activeIndex"
+  | "onActiveIndexChange"
+  | "onRename"
+  | "onDelete"
 > & {
   threads: readonly ThreadItem[];
   activeIndex: number;
   onActiveIndexChange?: (index: number) => void;
+  onRename?: (index: number) => void;
+  onDelete?: (index: number) => void;
 }) {
   return (
     <div
@@ -35,14 +44,17 @@ export function ThreadList({
       <div className={cn(mono, "text-foreground/35 px-3 pb-1.5")}>Today</div>
       {threads.map((thread, i) => {
         const active = i === activeIndex;
-        const className = cn(
-          "group flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-start text-[13.5px] transition-colors",
+        const hasActions = onRename !== undefined || onDelete !== undefined;
+        const rowClassName = cn(
+          "group relative flex w-full items-center rounded-xl text-[13.5px] transition-colors",
           active
             ? field
             : onActiveIndexChange
               ? "hover:bg-foreground/[0.03]"
               : undefined,
         );
+        const contentClassName =
+          "flex min-w-0 flex-1 items-center justify-between gap-2 rounded-xl px-3 py-2 text-start";
         const content = (
           <>
             <span className="flex-1 truncate">{thread.title}</span>
@@ -50,7 +62,10 @@ export function ThreadList({
               className={cn(
                 mono,
                 "text-foreground/35 flex items-center gap-1.5 tabular-nums",
-                onActiveIndexChange && "group-hover:hidden",
+                hasActions &&
+                  (onActiveIndexChange
+                    ? "group-focus-within:hidden group-hover:hidden"
+                    : "hidden"),
               )}
             >
               {thread.unread && !active && (
@@ -64,36 +79,59 @@ export function ThreadList({
               )}
               {thread.time}
             </span>
-            {onActiveIndexChange && (
-              <span className="hidden items-center gap-0.5 group-hover:flex">
-                <span className="text-foreground/45 hover:bg-foreground/[0.06] hover:text-foreground/90 rounded-full p-1">
-                  <PencilIcon className="size-3" />
-                </span>
-                <span className="text-foreground/45 hover:bg-foreground/[0.06] hover:text-foreground/90 rounded-full p-1">
-                  <Trash2Icon className="size-3" />
-                </span>
-              </span>
-            )}
           </>
         );
 
-        return onActiveIndexChange ? (
-          <button
-            key={thread.title}
-            type="button"
-            aria-current={active || undefined}
-            onClick={() => onActiveIndexChange(i)}
-            className={className}
-          >
-            {content}
-          </button>
-        ) : (
-          <div
-            key={thread.title}
-            aria-current={active || undefined}
-            className={className}
-          >
-            {content}
+        return (
+          <div key={thread.title} className={rowClassName}>
+            {onActiveIndexChange ? (
+              <button
+                type="button"
+                aria-current={active || undefined}
+                onClick={() => onActiveIndexChange(i)}
+                className={contentClassName}
+              >
+                {content}
+              </button>
+            ) : (
+              <div
+                aria-current={active || undefined}
+                className={contentClassName}
+              >
+                {content}
+              </div>
+            )}
+            {hasActions && (
+              <div
+                className={cn(
+                  "absolute end-2 items-center gap-0.5",
+                  onActiveIndexChange
+                    ? "hidden group-focus-within:flex group-hover:flex"
+                    : "flex",
+                )}
+              >
+                {onRename && (
+                  <button
+                    type="button"
+                    aria-label={`Rename ${thread.title}`}
+                    onClick={() => onRename(i)}
+                    className="text-foreground/45 hover:bg-foreground/[0.06] hover:text-foreground/90 rounded-full p-1"
+                  >
+                    <PencilIcon className="size-3" />
+                  </button>
+                )}
+                {onDelete && (
+                  <button
+                    type="button"
+                    aria-label={`Delete ${thread.title}`}
+                    onClick={() => onDelete(i)}
+                    className="text-foreground/45 hover:bg-foreground/[0.06] hover:text-foreground/90 rounded-full p-1"
+                  >
+                    <Trash2Icon className="size-3" />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         );
       })}
