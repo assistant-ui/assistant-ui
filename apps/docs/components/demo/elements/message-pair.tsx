@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { MessagePair } from "@/components/assistant-ui/elements/message-pair";
 import { useWordStream } from "@/components/demo/hooks/use-demo";
 
@@ -9,27 +8,12 @@ const ASSISTANT_MESSAGE =
   "Key the draft by thread id inside the runtime, hydrate the composer when a thread becomes active, and drop the entry after the message sends.";
 
 function MessagePairStory({ variant }: { variant: "bubble" | "flat" }) {
-  const [generation, setGeneration] = useState(0);
-
-  return (
-    <MessagePairGeneration
-      key={generation}
-      variant={variant}
-      onRegenerate={() => setGeneration((current) => current + 1)}
-    />
+  const { words, count, streaming, restart } = useWordStream(
+    ASSISTANT_MESSAGE,
+    {
+      interval: 82,
+    },
   );
-}
-
-function MessagePairGeneration({
-  variant,
-  onRegenerate,
-}: {
-  variant: "bubble" | "flat";
-  onRegenerate: () => void;
-}) {
-  const { words, count, streaming } = useWordStream(ASSISTANT_MESSAGE, {
-    interval: 82,
-  });
 
   return (
     <MessagePair
@@ -39,7 +23,7 @@ function MessagePairGeneration({
       streaming={streaming}
       variant={variant}
       onCopy={() => void navigator.clipboard?.writeText(ASSISTANT_MESSAGE)}
-      onRegenerate={onRegenerate}
+      onRegenerate={restart}
     />
   );
 }

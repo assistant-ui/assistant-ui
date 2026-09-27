@@ -134,12 +134,13 @@ export interface WordStream {
   /** Number of words currently revealed. */
   count: number;
   streaming: boolean;
+  restart: () => void;
 }
 
 /**
- * Reveals `text` word by word and stops when finished (replay happens by
- * remounting the demo). Word delays are jittered deterministically so the
- * rhythm reads as generation rather than a metronome.
+ * Reveals `text` word by word and stops when finished. Word delays are
+ * jittered deterministically so the rhythm reads as generation rather than a
+ * metronome.
  */
 export function useWordStream(
   text: string,
@@ -152,7 +153,14 @@ export function useWordStream(
   const stopped = stage?.stopped ?? false;
   const words = useMemo(() => text.split(" "), [text]);
   const [count, setCount] = useState(0);
+  const [restartKey, setRestartKey] = useState(0);
   const countRef = useRef(0);
+
+  const restart = useCallback(() => {
+    countRef.current = 0;
+    setCount(0);
+    setRestartKey((current) => current + 1);
+  }, []);
 
   useEffect(() => {
     stage?.setPlaying(!stopped && count < words.length);
@@ -178,9 +186,14 @@ export function useWordStream(
     };
     id = setTimeout(tick, startDelay);
     return () => clearTimeout(id);
-  }, [words, interval, startDelay, stopped]);
+  }, [words, interval, startDelay, stopped, restartKey]);
 
-  return { words, count, streaming: !stopped && count < words.length };
+  return {
+    words,
+    count,
+    streaming: !stopped && count < words.length,
+    restart,
+  };
 }
 
 /** Types `text` character by character, clears, and restarts. */
