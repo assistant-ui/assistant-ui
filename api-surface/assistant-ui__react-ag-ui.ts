@@ -1690,6 +1690,7 @@ type UseAgUiRuntimeOptions = ExternalStoreSharedOptions & {
   agent: AbstractAgent;
   logger?: Partial<Logger>;
   showThinking?: boolean;
+  canResume?: boolean | undefined;
   resumeTranscript?: AgUiResumeTranscript | undefined;
   autoCancelPendingToolCalls?: boolean | undefined;
   unstable_enableMessageQueue?: boolean | undefined;

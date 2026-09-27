@@ -282,6 +282,7 @@ export function useAgUiRuntime(
             core.reportError(error);
             throw error;
           }),
+        canResume: options.canResume,
         onResume: (config) => core.resume(config),
         setMessages: (messages: readonly ThreadMessage[]) =>
           core.applyExternalMessages(messages),
@@ -304,6 +305,7 @@ export function useAgUiRuntime(
       queueItems,
       steerQueueItems,
       shared,
+      options.canResume,
     ],
   );
 

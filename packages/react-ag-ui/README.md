@@ -33,6 +33,10 @@ export function Provider({ children }: { children: React.ReactNode }) {
 }
 ```
 
+## Checkpoint resume
+
+Pass `canResume` when your host has a resumable checkpoint for the current thread. It defaults to `false`; interrupts or a resume endpoint alone do not imply checkpoint availability. The runtime disables Resume while loading or running, then uses the latest host value when the attempt settles.
+
 ## Subagents
 
 An AG-UI backend that runs subagents (the agents-as-tools pattern) emits `SUBAGENT_STARTED` / `SUBAGENT_FINISHED` / `SUBAGENT_ERROR` plus a `subagentRunId` on the events each subagent produces. This adapter groups that activity into one nested assistant message per subagent run and attaches it to the spawning tool call as `ToolCallMessagePart.messages`, joined on `SUBAGENT_STARTED.parentToolCallId`. `PartPrimitive.Messages` renders it without extra wiring, and the subagent's name, description, result, and error code ride on that message's `agui` metadata.

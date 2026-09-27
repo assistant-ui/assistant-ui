@@ -139,11 +139,16 @@ function wrapFetchWithResumable(
     const headers = new Headers(init?.headers);
     const threadId = headers.get(RESUMABLE_THREAD_ID_HEADER) ?? undefined;
     const reconnectingStreamId = headers.get(RESUMABLE_RECONNECT_ID_HEADER);
+    const checkpointAtRequest =
+      reconnectingStreamId ?? resumable.storage.getStreamId(threadId);
     headers.delete(RESUMABLE_THREAD_ID_HEADER);
     headers.delete(RESUMABLE_RECONNECT_ID_HEADER);
     const res = await baseFetch(input, { ...init, headers });
     const id = res.headers.get(RESUMABLE_STREAM_ID_HEADER);
-    if (id) resumable.storage.setStreamId(id, threadId);
+    const ownsCheckpoint =
+      !reconnectingStreamId ||
+      resumable.storage.getStreamId(threadId) === reconnectingStreamId;
+    if (id && ownsCheckpoint) resumable.storage.setStreamId(id, threadId);
     if (
       (res.status === 204 || res.status === 404) &&
       reconnectingStreamId &&
@@ -163,7 +168,11 @@ function wrapFetchWithResumable(
         controller.enqueue(chunk);
         accumulator += decoder.decode(chunk, { stream: true });
         if (detectFinish(chunk, accumulator)) {
-          if (!id || resumable.storage.getStreamId(threadId) === id) {
+          if (
+            ownsCheckpoint &&
+            resumable.storage.getStreamId(threadId) ===
+              (id ?? checkpointAtRequest)
+          ) {
             resumable.storage.clear(threadId);
           }
           accumulator = "";

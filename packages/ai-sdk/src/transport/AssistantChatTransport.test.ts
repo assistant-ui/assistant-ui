@@ -257,6 +257,102 @@ describe("AssistantChatTransport resumable fetch wrapper", () => {
     expect(storage.getStreamId()).toBe("stream-new");
   });
 
+  it.each([undefined, "stream-old", "response-id"])(
+    "preserves a replacement checkpoint on a delayed successful reconnect (%s)",
+    async (responseId) => {
+      const storage = createMemoryStorage("stream-old");
+      let respond!: (response: Response) => void;
+      const fetch = vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            respond = resolve;
+          }),
+      );
+      const transport = new AssistantChatTransport({
+        fetch,
+        resumable: { storage, resumeApi: "/api/resume" },
+      });
+      const pending = transport.reconnectToStream({ chatId: "thread" });
+      await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+      storage.setStreamId("stream-new");
+      respond(
+        new Response('data: {"type":"finish"}\n\n', {
+          headers: {
+            "content-type": "text/event-stream",
+            ...(responseId && { [RESUMABLE_STREAM_ID_HEADER]: responseId }),
+          },
+        }),
+      );
+      const stream = await pending;
+      expect(storage.getStreamId()).toBe("stream-new");
+      const reader = stream!.getReader();
+      while (!(await reader.read()).done) {}
+      expect(storage.getStreamId()).toBe("stream-new");
+    },
+  );
+
+  it.each([undefined, "stream-old", "response-id"])(
+    "preserves a checkpoint replaced while consuming a reconnect (%s)",
+    async (responseId) => {
+      const storage = createMemoryStorage("stream-old");
+      let controller!: ReadableStreamDefaultController<Uint8Array>;
+      const transport = new AssistantChatTransport({
+        fetch: vi.fn(
+          async () =>
+            new Response(
+              new ReadableStream({
+                start(value) {
+                  controller = value;
+                },
+              }),
+              {
+                headers: {
+                  "content-type": "text/event-stream",
+                  ...(responseId && {
+                    [RESUMABLE_STREAM_ID_HEADER]: responseId,
+                  }),
+                },
+              },
+            ),
+        ),
+        resumable: { storage, resumeApi: "/api/resume" },
+      });
+      const stream = await transport.reconnectToStream({ chatId: "thread" });
+      expect(storage.getStreamId()).toBe(responseId ?? "stream-old");
+      storage.setStreamId("stream-new");
+      controller.enqueue(
+        new TextEncoder().encode('data: {"type":"finish"}\n\n'),
+      );
+      controller.close();
+      const reader = stream!.getReader();
+      while (!(await reader.read()).done) {}
+      expect(storage.getStreamId()).toBe("stream-new");
+    },
+  );
+
+  it.each([undefined, "stream-old", "response-id"])(
+    "clears the checkpoint owned by a completed reconnect (%s)",
+    async (responseId) => {
+      const storage = createMemoryStorage("stream-old");
+      const transport = new AssistantChatTransport({
+        fetch: vi.fn(
+          async () =>
+            new Response('data: {"type":"finish"}\n\n', {
+              headers: {
+                "content-type": "text/event-stream",
+                ...(responseId && { [RESUMABLE_STREAM_ID_HEADER]: responseId }),
+              },
+            }),
+        ),
+        resumable: { storage, resumeApi: "/api/resume" },
+      });
+      const stream = await transport.reconnectToStream({ chatId: "thread" });
+      const reader = stream!.getReader();
+      while (!(await reader.read()).done) {}
+      expect(storage.getStreamId()).toBeNull();
+    },
+  );
+
   it("passes a 204 with a non-null empty body through untouched (WebKit)", async () => {
     const response = nullBodyStatusWithBody(204);
     const fetchMock = vi.fn(async () => response);
