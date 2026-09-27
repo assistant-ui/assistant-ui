@@ -70,6 +70,22 @@ describe("QuestionFlow", () => {
     ).toContain("bg-foreground/[0.06]");
   });
 
+  it("excludes answers for steps removed before completion", async () => {
+    const onComplete = vi.fn();
+    const { rerender } = render(
+      <QuestionFlow steps={STEPS.slice(0, 2)} onComplete={onComplete} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "The whole team" }));
+    rerender(<QuestionFlow steps={[STEPS[1]!]} onComplete={onComplete} />);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Unit tests" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+    });
+
+    expect(onComplete).toHaveBeenCalledWith({ checks: ["tests"] });
+  });
+
   it("requires Next for a multiple selection", () => {
     render(<QuestionFlow steps={STEPS} onComplete={() => {}} />);
 
