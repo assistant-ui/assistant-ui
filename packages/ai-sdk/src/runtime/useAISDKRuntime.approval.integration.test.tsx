@@ -435,6 +435,54 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
     expect(sendMessages).not.toHaveBeenCalled();
   });
 
+  it("clears a preliminary marker when a late final tool result is stored", async () => {
+    const { part, toolPart, sendMessages, sendAutomaticallyWhen } = await setup(
+      () => async () => {},
+      {
+        messages: [
+          {
+            id: "user-1",
+            role: "user",
+            parts: [{ type: "text", text: "deploy" }],
+          },
+          {
+            id: "assistant-1",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-deploy",
+                toolCallId: "tool-1",
+                state: "output-available",
+                input: {},
+                output: "preview",
+                preliminary: true,
+              },
+            ],
+          },
+          {
+            id: "user-2",
+            role: "user",
+            parts: [{ type: "text", text: "later" }],
+          },
+        ],
+      },
+    );
+    const automaticSendChecks = sendAutomaticallyWhen.mock.calls.length;
+
+    act(() => part().addToolResult("deployed"));
+
+    await waitFor(() =>
+      expect(toolPart()).toMatchObject({
+        state: "output-available",
+        output: "deployed",
+      }),
+    );
+    expect(toolPart()).not.toHaveProperty("preliminary");
+    expect(part().getState()).not.toHaveProperty("isPreliminary");
+    expect(sendAutomaticallyWhen).toHaveBeenCalledTimes(automaticSendChecks);
+    expect(sendMessages).not.toHaveBeenCalled();
+  });
+
   it("stores a late tool result in the correct raw message when assistant messages are joined", async () => {
     const { chat, part, sendMessages, sendAutomaticallyWhen } = await setup(
       () => async () => {},

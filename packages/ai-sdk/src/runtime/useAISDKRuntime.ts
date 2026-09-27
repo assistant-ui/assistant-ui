@@ -952,18 +952,21 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
 
             return {
               ...message,
-              parts: message.parts.map((part) =>
-                isToolUIPart(part) && part.toolCallId === toolCallId
-                  ? ({
-                      ...part,
-                      state: isError
-                        ? ("output-error" as const)
-                        : ("output-available" as const),
-                      output: isError ? undefined : output,
-                      errorText: isError ? errorText : undefined,
-                    } as typeof part)
-                  : part,
-              ),
+              parts: message.parts.map((part) => {
+                if (!isToolUIPart(part) || part.toolCallId !== toolCallId)
+                  return part;
+
+                const { preliminary: _preliminary, ...finalPart } =
+                  part as typeof part & { preliminary?: boolean };
+                return {
+                  ...finalPart,
+                  state: isError
+                    ? ("output-error" as const)
+                    : ("output-available" as const),
+                  output: isError ? undefined : output,
+                  errorText: isError ? errorText : undefined,
+                } as typeof part;
+              }),
             };
           }),
         );
