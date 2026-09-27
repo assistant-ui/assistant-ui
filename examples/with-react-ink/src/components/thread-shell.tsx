@@ -53,10 +53,10 @@ export function ThreadShell({
         .toLowerCase()
         .includes(query.trim().toLowerCase()),
   );
-  const selectedIndex = Math.max(
-    0,
-    items.findIndex((item) => item.id === selectedId),
-  );
+  const selectedIndex =
+    selectedId === undefined
+      ? 0
+      : items.findIndex((item) => item.id === selectedId);
   const selected = items[selectedIndex];
   const wide = columns >= 88;
   const showSidebar = wide || mode !== "chat";
@@ -113,7 +113,11 @@ export function ThreadShell({
     if (pendingRef.current) return;
     if (key.ctrl && input === "g" && mode !== "rename" && mode !== "delete") {
       setMode(mode === "chat" ? "threads" : "chat");
-      setSelectedId(state.mainThreadId);
+      setSelectedId(
+        items.some((item) => item.id === state.mainThreadId)
+          ? state.mainThreadId
+          : undefined,
+      );
       return;
     }
     if (key.escape) {
@@ -227,7 +231,10 @@ export function ThreadShell({
             {mode === "search" ? (
               <TextInput
                 value={query}
-                onChange={setQuery}
+                onChange={(value) => {
+                  setQuery(value);
+                  setSelectedId(undefined);
+                }}
                 submitOnEnter
                 onSubmit={() => setMode("threads")}
                 placeholder="Search threads…"

@@ -242,6 +242,41 @@ describe("terminal thread controls", () => {
     expect(mocks.delete).toHaveBeenCalledOnce();
   });
 
+  it.each(["archive", "delete"] as const)(
+    "clears selection when %s removes the selected thread",
+    async (action) => {
+      const previousIds = mocks.state.threadIds;
+      mocks[action].mockImplementationOnce(() => {
+        mocks.state.threadIds = ["one"];
+      });
+      try {
+        const { press, lastFrame } = await create();
+        await press("\x07");
+        await press("\x1b[B");
+        if (action === "archive") await press("a");
+        else {
+          await press("d");
+          await press("y");
+        }
+        expect(mocks.item).toHaveBeenLastCalledWith({ id: "two" });
+        expect(lastFrame()).not.toContain("Second thread");
+        const calls = mocks.item.mock.calls.length;
+
+        await press("a");
+        await press("d");
+        expect(mocks.item).toHaveBeenCalledTimes(calls);
+        expect(lastFrame()).not.toContain("This cannot be undone");
+
+        await press("\x1b[B");
+        await press("r");
+        expect(mocks.item).toHaveBeenLastCalledWith({ id: "one" });
+        expect(lastFrame()).toContain("Rename thread");
+      } finally {
+        mocks.state.threadIds = previousIds;
+      }
+    },
+  );
+
   it("retains a failed rename and prevents duplicate saves while pending", async () => {
     let reject!: (error: Error) => void;
     mocks.rename.mockImplementationOnce(
