@@ -93,7 +93,7 @@ export function ThreadList({
         );
 
         return (
-          <div key={thread.title} className={rowClassName}>
+          <div key={i} className={rowClassName}>
             {onActiveIndexChange ? (
               <button
                 type="button"
