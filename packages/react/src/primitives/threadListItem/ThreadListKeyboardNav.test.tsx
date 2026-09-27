@@ -60,6 +60,36 @@ const menu = (): HTMLElement | null =>
   document.querySelector<HTMLElement>('[role="menu"]');
 
 describe("thread list keyboard navigation", () => {
+  it.each(["altKey", "ctrlKey", "metaKey", "shiftKey"])(
+    "leaves arrows modified with %s available to ancestor shortcuts",
+    (modifier) => {
+      const prevented: boolean[] = [];
+      const { container } = render(
+        <div onKeyDown={(event) => prevented.push(event.defaultPrevented)}>
+          <ThreadListPrimitiveRoot>
+            {[0, 1].map((i) => (
+              <ThreadListItemPrimitiveRoot key={i}>
+                <ThreadListItemPrimitiveTrigger>
+                  item {i}
+                </ThreadListItemPrimitiveTrigger>
+              </ThreadListItemPrimitiveRoot>
+            ))}
+          </ThreadListPrimitiveRoot>
+        </div>,
+      );
+      const [first, second] = triggers(container);
+
+      first!.focus();
+      fireEvent.keyDown(first!, { key: "ArrowDown", [modifier]: true });
+      expect(document.activeElement).toBe(first);
+
+      second!.focus();
+      fireEvent.keyDown(second!, { key: "ArrowUp", [modifier]: true });
+      expect(document.activeElement).toBe(second);
+      expect(prevented).toEqual([false, false]);
+    },
+  );
+
   it("moves focus between items with the up/down arrows", () => {
     const { container } = render(
       <ThreadListPrimitiveRoot>
