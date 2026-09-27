@@ -111,6 +111,11 @@ export function ThreadShell({
 
   useInput((input, key) => {
     if (pendingRef.current) return;
+    if (key.ctrl && input === "g" && mode !== "rename" && mode !== "delete") {
+      setMode(mode === "chat" ? "threads" : "chat");
+      setSelectedId(state.mainThreadId);
+      return;
+    }
     if (key.escape) {
       setError("");
       setMode(
@@ -130,11 +135,6 @@ export function ThreadShell({
     }
     if (mode === "help") {
       if (input === "?") setMode("threads");
-      return;
-    }
-    if (key.ctrl && input === "g") {
-      setMode(mode === "chat" ? "threads" : "chat");
-      setSelectedId(state.mainThreadId);
       return;
     }
     if (key.meta && (key.upArrow || key.downArrow)) {

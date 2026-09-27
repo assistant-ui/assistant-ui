@@ -81,6 +81,31 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("terminal thread controls", () => {
+  it.each([null, "/", "?"])(
+    "returns to composer with Ctrl+G from %s",
+    async (mode) => {
+      const { press, lastFrame } = await create();
+      await press("\x07");
+      if (mode) await press(mode);
+      await press("\x07");
+      expect(lastFrame()).toContain("Composer active");
+    },
+  );
+
+  it.each([
+    { key: "r", prompt: "Rename thread" },
+    { key: "d", prompt: "This cannot be undone" },
+  ])("keeps $prompt open on Ctrl+G", async ({ key, prompt }) => {
+    const { press, lastFrame } = await create();
+    await press("\x07");
+    await press(key);
+    await press("\x07");
+    expect(lastFrame()).toContain(prompt);
+    expect(lastFrame()).not.toContain("Composer active");
+    expect(mocks.rename).not.toHaveBeenCalled();
+    expect(mocks.delete).not.toHaveBeenCalled();
+  });
+
   it.each([
     { main: "one", key: "\x1b[1;3A", target: "two" },
     { main: "two", key: "\x1b[1;3B", target: "one" },

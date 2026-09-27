@@ -8,7 +8,7 @@ The same sidebar is used by [the browser terminal demo](../with-react-ink-web). 
 
 | Shortcut | Action |
 | --- | --- |
-| Ctrl+G | Switch between threads and composer |
+| Ctrl+G | Switch between threads and composer; also exits search or help |
 | Alt+↑ / Alt+↓ | Open the previous / next active thread |
 | Ctrl+N | New thread |
 | Ctrl+R | Rename the current thread |
