@@ -126,18 +126,23 @@ const useStartOfToday = () => {
   );
 
   useEffect(() => {
-    const now = new Date();
-    const startOfTomorrow = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate() + 1,
-    ).getTime();
-    const timeout = window.setTimeout(
-      () => setStartOfToday(startOfLocalDay(new Date())),
-      startOfTomorrow - now.getTime(),
-    );
+    let timeout: number;
+    const scheduleNextDay = () => {
+      const now = new Date();
+      setStartOfToday(startOfLocalDay(now));
+      const startOfTomorrow = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() + 1,
+      ).getTime();
+      timeout = window.setTimeout(
+        scheduleNextDay,
+        startOfTomorrow - now.getTime(),
+      );
+    };
+    scheduleNextDay();
     return () => window.clearTimeout(timeout);
-  }, [startOfToday]);
+  }, []);
 
   return startOfToday;
 };

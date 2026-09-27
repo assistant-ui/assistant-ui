@@ -320,8 +320,14 @@ describe("ThreadList", () => {
     });
     expect(texts(container, "group-label")).toEqual(["Today"]);
 
+    vi.setSystemTime(new Date(2026, 7, 31, 23, 59, 59, 498));
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(texts(container, "group-label")).toEqual(["Today"]);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
     });
     expect(texts(container, "group-label")).toEqual(["Yesterday"]);
   });
