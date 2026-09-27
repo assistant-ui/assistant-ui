@@ -45,6 +45,7 @@ export function ThreadList({
       {threads.map((thread, i) => {
         const active = i === activeIndex;
         const hasActions = onRename !== undefined || onDelete !== undefined;
+        const hasTwoActions = onRename !== undefined && onDelete !== undefined;
         const rowClassName = cn(
           "group relative flex w-full items-center rounded-xl text-[13.5px] transition-colors",
           active
@@ -53,8 +54,17 @@ export function ThreadList({
               ? "hover:bg-foreground/[0.03]"
               : undefined,
         );
-        const contentClassName =
-          "flex min-w-0 flex-1 items-center justify-between gap-2 rounded-xl px-3 py-2 text-start";
+        const contentClassName = cn(
+          "flex min-w-0 flex-1 items-center justify-between gap-2 rounded-xl px-3 py-2 text-start",
+          hasActions &&
+            (onActiveIndexChange
+              ? hasTwoActions
+                ? "group-focus-within:pe-14 group-hover:pe-14"
+                : "group-focus-within:pe-9 group-hover:pe-9"
+              : hasTwoActions
+                ? "pe-14"
+                : "pe-9"),
+        );
         const content = (
           <>
             <span className="flex-1 truncate">{thread.title}</span>

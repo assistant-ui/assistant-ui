@@ -50,6 +50,9 @@ describe("ThreadList", () => {
         .getByRole("button", { name: "Rename First thread" })
         .closest("button[aria-current]"),
     ).toBeNull();
+    expect(
+      screen.getByRole("button", { name: /first thread.*2m/i }).className,
+    ).toContain("group-hover:pe-14");
     expect(onRename).toHaveBeenCalledWith(0);
     expect(onDelete).toHaveBeenCalledWith(1);
     expect(onActiveIndexChange).not.toHaveBeenCalled();
