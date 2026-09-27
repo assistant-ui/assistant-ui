@@ -23,6 +23,7 @@
     "scheduler": "^0.28.0"
   },
   "devDependencies": {
+    "with-react-ink": "workspace:*",
     "@types/node": "^26.5.1",
     "@types/react": "^19.3.0",
     "typescript": "^7.0.2",

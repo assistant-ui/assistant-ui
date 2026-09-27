@@ -1,3 +1,4 @@
+// Mirrors examples/with-react-ink/src/components/thread.tsx; keep in sync.
 import { Activity, createContext, useContext } from "react";
 import { Box, Text } from "ink";
 import {

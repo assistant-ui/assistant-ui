@@ -44,6 +44,7 @@ test("each example's inputs follow its workspace dependency graph", () => {
   const ink = exampleInputs(repoRoot, "with-react-ink-web");
   for (const input of [
     "examples/with-react-ink-web",
+    "examples/with-react-ink",
     "packages/react-ink",
     "packages/react-ink-markdown",
     "packages/core",
@@ -64,6 +65,14 @@ test("each example's inputs follow its workspace dependency graph", () => {
 });
 
 test("a change selects only the examples it feeds", () => {
+  assert.deepEqual(
+    examplesOf(
+      planDeploys(repoRoot, [
+        "examples/with-react-ink/src/components/thread-shell.tsx",
+      ]),
+    ),
+    ["with-react-ink-web"],
+  );
   assert.deepEqual(
     examplesOf(
       planDeploys(repoRoot, ["packages/ui/src/components/react-native/x.tsx"]),

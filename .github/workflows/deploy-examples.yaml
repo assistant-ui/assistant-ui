@@ -9,6 +9,7 @@ on:
     paths:
       - .github/workflows/deploy-examples.yaml
       - examples/with-expo/**
+      - examples/with-react-ink/**
       - examples/with-react-ink-web/**
       - package.json
       - packages/ai-sdk/**

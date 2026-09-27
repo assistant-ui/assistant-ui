@@ -3100,6 +3100,9 @@ importers:
       vercel:
         specifier: 59.5.0
         version: 59.5.0(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(rollup@4.63.3)(supports-color@10.2.2)
+      with-react-ink:
+        specifier: workspace:*
+        version: link:../with-react-ink
 
   examples/with-react-router:
     dependencies:
