@@ -60,10 +60,6 @@ export function QuestionFlow({
   const currentIndex = Math.min(stepIndex, Math.max(0, steps.length - 1));
   const currentStep = steps[currentIndex];
   const previousStepId = useRef(currentStep?.id);
-  const stepIds = new Set(steps.map((step) => step.id));
-  const activeAnswers = Object.fromEntries(
-    Object.entries(answers).filter(([id]) => stepIds.has(id)),
-  );
 
   useLayoutEffect(() => {
     if (previousStepId.current === currentStep?.id) return;
@@ -162,22 +158,26 @@ export function QuestionFlow({
   }
 
   const questionId = `${questionPrefix}-${currentStep.id}`;
-  const currentAnswer = activeAnswers[currentStep.id];
+  const currentAnswer = answers[currentStep.id];
   const finalStep = currentIndex === steps.length - 1;
 
   const confirm = (ids: string[]) => {
-    const nextAnswers = { ...activeAnswers, [currentStep.id]: ids };
+    const nextAnswers = { ...answers, [currentStep.id]: ids };
     if (!finalStep) {
       setAnswers(nextAnswers);
       setStepIndex(currentIndex + 1);
       return;
     }
+    const stepIds = new Set(steps.map((step) => step.id));
+    const completedAnswers = Object.fromEntries(
+      Object.entries(nextAnswers).filter(([id]) => stepIds.has(id)),
+    );
     setIsCompleting(true);
     try {
-      return Promise.resolve(onComplete(nextAnswers)).then(
+      return Promise.resolve(onComplete(completedAnswers)).then(
         () => {
           setAnswers(nextAnswers);
-          setConfirmedAnswers(nextAnswers);
+          setConfirmedAnswers(completedAnswers);
         },
         (error) => {
           setIsCompleting(false);
