@@ -132,6 +132,41 @@ describe("thread list keyboard navigation", () => {
     expect(menu()).not.toBeNull();
   });
 
+  it.each(["altKey", "ctrlKey", "metaKey", "shiftKey"])(
+    "leaves the More menu closed on ArrowRight modified with %s",
+    (modifier) => {
+      const { more } = renderItem();
+
+      more.focus();
+      const unhandled = fireEvent.keyDown(more, {
+        key: "ArrowRight",
+        [modifier]: true,
+      });
+
+      expect(menu()).toBeNull();
+      expect(document.activeElement).toBe(more);
+      expect(unhandled).toBe(true);
+    },
+  );
+
+  it.each(["altKey", "ctrlKey", "metaKey", "shiftKey"])(
+    "leaves the More menu open on ArrowLeft modified with %s",
+    (modifier) => {
+      renderItem({ defaultOpen: true });
+      const content = menu()!;
+
+      content.focus();
+      const unhandled = fireEvent.keyDown(content, {
+        key: "ArrowLeft",
+        [modifier]: true,
+      });
+
+      expect(menu()).toBe(content);
+      expect(document.activeElement).toBe(content);
+      expect(unhandled).toBe(true);
+    },
+  );
+
   it.each(["ArrowLeft", "Escape"])(
     "closes the menu on %s and returns focus to the More button",
     (key) => {
