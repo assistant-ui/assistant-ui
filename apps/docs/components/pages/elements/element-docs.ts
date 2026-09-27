@@ -827,6 +827,12 @@ import { ToolTimeline } from "@/components/assistant-ui/elements/tool-timeline";
               "When true the frame holds a pulsing dot grid; otherwise the image resolves.",
           },
           {
+            name: "onRegenerate",
+            type: "() => void",
+            description:
+              "Shows the regenerate button and runs when generation is restarted.",
+          },
+          {
             name: "className",
             type: "string",
             description: "Extra classes merged onto the root.",
