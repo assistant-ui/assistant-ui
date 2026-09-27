@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { convertSurfaceToUISpec } from "../a2ui/convert";
 import { applyA2uiOperations } from "../a2ui/reducer";
 import { createActionRegistry, type ActionHandler } from "../actionRegistry";
+import { AnsweredValuesProvider } from "../answeredValues";
 import type { GenerativeUIDispatch, GenerativeUILibrary } from "../types";
 import { renderGenerativeUI } from "../renderGenerativeUI";
 import { defaultGenerativeUILibrary } from "./index";
@@ -27,6 +28,7 @@ afterEach(async () => {
   await act(async () => root?.unmount());
   root = undefined;
   document.body.innerHTML = "";
+  vi.useRealTimers();
 });
 
 const view = (node: unknown, dispatch?: GenerativeUIDispatch) => (
@@ -420,6 +422,369 @@ describe("CheckboxGroup", () => {
       },
     });
   });
+});
+
+describe("Button undo window", () => {
+  it("counts down for five seconds before firing once", async () => {
+    vi.useFakeTimers();
+    const purchase = vi.fn();
+    const container = await mount(
+      {
+        $type: "Button",
+        label: "Purchase",
+        undoable: true,
+        $action: { type: "purchase" },
+      },
+      { purchase },
+    );
+    const button = container.querySelector<HTMLButtonElement>("button")!;
+
+    await act(async () => button.click());
+
+    expect(button.dataset.auiState).toBe("pending");
+    expect(button.textContent).toContain("Undo 5");
+    expect(button.getAttribute("aria-label")).toBe("Undo Purchase");
+    expect(container.querySelector('[role="status"]')?.textContent).toBe(
+      "Purchase in 5 seconds",
+    );
+    expect(purchase).not.toHaveBeenCalled();
+
+    for (const seconds of [4, 3, 2, 1]) {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_000);
+      });
+      expect(button.textContent).toContain(`Undo ${seconds}`);
+      expect(purchase).not.toHaveBeenCalled();
+    }
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+
+    expect(purchase).toHaveBeenCalledTimes(1);
+    expect(purchase).toHaveBeenCalledWith({ payload: { type: "purchase" } });
+    expect(button.dataset.auiState).toBeUndefined();
+    expect(button.textContent).toBe("Purchase");
+  });
+
+  it("keeps the generic undo label when its text label is empty", async () => {
+    vi.useFakeTimers();
+    const remove = vi.fn();
+    const container = await mount(
+      {
+        $type: "Button",
+        label: "",
+        undoable: true,
+        $action: { type: "remove" },
+      },
+      { remove },
+    );
+    const button = container.querySelector<HTMLButtonElement>("button")!;
+
+    await act(async () => button.click());
+
+    expect(button.getAttribute("aria-label")).toBe("Undo");
+  });
+
+  it("cancels when clicked again", async () => {
+    vi.useFakeTimers();
+    const send = vi.fn();
+    const container = await mount(
+      {
+        $type: "Button",
+        label: "Send",
+        undoable: true,
+        $action: { type: "send" },
+      },
+      { send },
+    );
+    const button = container.querySelector<HTMLButtonElement>("button")!;
+
+    await act(async () => button.click());
+    await act(async () => button.click());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+
+    expect(send).not.toHaveBeenCalled();
+    expect(button.dataset.auiState).toBeUndefined();
+    expect(button.textContent).toBe("Send");
+  });
+
+  it("cancels when Escape is pressed while focused", async () => {
+    vi.useFakeTimers();
+    const remove = vi.fn();
+    const container = await mount(
+      {
+        $type: "Button",
+        label: "Delete",
+        undoable: true,
+        $action: { type: "remove" },
+      },
+      { remove },
+    );
+    const button = container.querySelector<HTMLButtonElement>("button")!;
+
+    await act(async () => button.click());
+    button.focus();
+    await act(async () => {
+      button.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }),
+      );
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+
+    expect(remove).not.toHaveBeenCalled();
+    expect(button.dataset.auiState).toBeUndefined();
+    expect(button.textContent).toBe("Delete");
+  });
+
+  it("clears the timer on unmount", async () => {
+    vi.useFakeTimers();
+    const purchase = vi.fn();
+    const container = await mount(
+      {
+        $type: "Button",
+        label: "Purchase",
+        undoable: true,
+        $action: { type: "purchase" },
+      },
+      { purchase },
+    );
+
+    await act(async () => container.querySelector("button")!.click());
+    await act(async () => root!.unmount());
+    root = undefined;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+
+    expect(purchase).not.toHaveBeenCalled();
+  });
+
+  it("leaves an undoable button without a dispatcher unchanged", async () => {
+    vi.useFakeTimers();
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => {
+      root!.render(
+        view({
+          $type: "Button",
+          label: "Purchase",
+          undoable: true,
+          $action: { type: "purchase" },
+        }),
+      );
+    });
+    const button = container.querySelector<HTMLButtonElement>("button")!;
+
+    await act(async () => button.click());
+
+    expect(button.dataset.auiState).toBeUndefined();
+    expect(button.textContent).toBe("Purchase");
+  });
+});
+
+describe("Slider", () => {
+  it("renders a labelled range with its current value and unit", async () => {
+    const container = await mount(
+      {
+        $type: "Slider",
+        name: "volume",
+        label: "Volume",
+        min: 0,
+        max: 10,
+        defaultValue: 4,
+        unit: "%",
+      },
+      {},
+    );
+    const slider = container.querySelector<HTMLInputElement>(
+      '[data-aui="slider"]',
+    )!;
+
+    expect(slider.type).toBe("range");
+    expect(slider.getAttribute("aria-valuetext")).toBe("4 %");
+    expect(
+      container.querySelector('[data-aui="slider-value"]')?.textContent,
+    ).toBe("4 %");
+  });
+
+  it("normalizes malformed range props before rendering", () => {
+    function Slider() {
+      return defaultGenerativeUILibrary.Slider!.render({
+        $status: "done",
+        min: Number.NaN,
+        max: Number.POSITIVE_INFINITY,
+        step: Number.NEGATIVE_INFINITY,
+        defaultValue: Number.NaN,
+      });
+    }
+
+    const markup = renderToString(<Slider />);
+
+    expect(markup).toContain('min="0"');
+    expect(markup).toContain('max="100"');
+    expect(markup).toContain('step="1"');
+    expect(markup).toContain('value="0"');
+  });
+
+  it("fires once with a number for a committed adjustment", async () => {
+    const setVolume = vi.fn();
+    const container = await mount(
+      {
+        $type: "Slider",
+        name: "volume",
+        min: 0,
+        max: 10,
+        $action: { type: "set_volume" },
+      },
+      { set_volume: setVolume },
+    );
+    const slider = container.querySelector<HTMLInputElement>(
+      '[data-aui="slider"]',
+    )!;
+
+    await act(async () => {
+      slider.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      slider.value = "7";
+      slider.dispatchEvent(new Event("input", { bubbles: true }));
+      slider.dispatchEvent(new Event("change", { bubbles: true }));
+      slider.dispatchEvent(new Event("pointerup", { bubbles: true }));
+      slider.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    expect(setVolume).toHaveBeenCalledTimes(1);
+    expect(setVolume).toHaveBeenCalledWith({
+      payload: { type: "set_volume", $input: 7 },
+    });
+  });
+
+  it("does not dispatch when a pointer interaction keeps the initial value", async () => {
+    const setVolume = vi.fn();
+    const container = await mount(
+      {
+        $type: "Slider",
+        min: 0,
+        max: 10,
+        defaultValue: 4,
+        $action: { type: "set_volume" },
+      },
+      { set_volume: setVolume },
+    );
+    const slider = container.querySelector<HTMLInputElement>(
+      '[data-aui="slider"]',
+    )!;
+
+    await act(async () => {
+      slider.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      slider.dispatchEvent(new Event("pointerup", { bubbles: true }));
+    });
+
+    expect(setVolume).not.toHaveBeenCalled();
+  });
+
+  it("collects as a number in a Form", async () => {
+    const submit = vi.fn();
+    const container = await mount(
+      {
+        $type: "Form",
+        $action: { type: "submit" },
+        children: [
+          {
+            $type: "Slider",
+            name: "volume",
+            min: 0,
+            max: 10,
+            defaultValue: 3,
+          },
+          { $type: "Button", label: "Save", submit: true },
+        ],
+      },
+      { submit },
+    );
+
+    await act(async () => container.querySelector("button")!.click());
+
+    expect(submit).toHaveBeenCalledWith({
+      payload: { type: "submit", $input: { volume: 3 } },
+    });
+  });
+
+  it("restores an answered numeric value", () => {
+    function Slider() {
+      return defaultGenerativeUILibrary.Slider!.render({
+        $status: "done",
+        name: "volume",
+        min: 0,
+        max: 10,
+        defaultValue: 3,
+      });
+    }
+
+    const markup = renderToString(
+      <AnsweredValuesProvider values={{ volume: 7 }}>
+        <Slider />
+      </AnsweredValuesProvider>,
+    );
+
+    expect(markup).toContain('value="7"');
+  });
+});
+
+describe("Checkbox and option descriptions", () => {
+  it("renders a switch role and preserves its boolean form value", async () => {
+    const submit = vi.fn();
+    const container = await mount(
+      {
+        $type: "Form",
+        $action: { type: "submit" },
+        children: [
+          {
+            $type: "Checkbox",
+            name: "enabled",
+            label: "Enabled",
+            variant: "switch",
+            defaultChecked: true,
+          },
+          { $type: "Button", label: "Save", submit: true },
+        ],
+      },
+      { submit },
+    );
+
+    expect(container.querySelector('input[role="switch"]')).not.toBeNull();
+    await act(async () => container.querySelector("button")!.click());
+    expect(submit).toHaveBeenCalledWith({
+      payload: { type: "submit", $input: { enabled: true } },
+    });
+  });
+
+  it.each(["RadioGroup", "CheckboxGroup"])(
+    "renders an option description for %s",
+    async ($type) => {
+      const container = await mount(
+        {
+          $type,
+          options: [
+            {
+              label: "Free",
+              description: "For personal projects",
+              value: "free",
+            },
+          ],
+        },
+        {},
+      );
+
+      expect(
+        container.querySelector('[data-aui="option-description"]')?.textContent,
+      ).toBe("For personal projects");
+    },
+  );
 });
 
 describe("$field references", () => {

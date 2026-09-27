@@ -54,8 +54,12 @@ export function collectFormValues(
       continue;
     }
 
-    const value: string | boolean =
-      element.type === "checkbox" ? (element.checked ?? false) : element.value;
+    const value: string | number | boolean =
+      element.type === "checkbox"
+        ? (element.checked ?? false)
+        : element.type === "range"
+          ? Number(element.value)
+          : element.value;
 
     if (Object.hasOwn(values, name)) {
       const existing = values[name];

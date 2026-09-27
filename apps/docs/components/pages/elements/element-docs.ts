@@ -650,61 +650,6 @@ import { ToolTimeline } from "@/components/assistant-ui/elements/tool-timeline";
       },
     ],
   },
-  "terminal-block": {
-    usage: `import { TerminalBlock } from "@/components/assistant-ui/elements/terminal-block";
-
-<TerminalBlock
-  command="pnpm test"
-  lines={["PASS  thread.test.ts", "Tests: 2 passed"]}
-  visibleCount={2}
-  done
-/>`,
-    props: [
-      {
-        component: "TerminalBlock",
-        rows: [
-          {
-            name: "command",
-            type: "string",
-            required: true,
-            description: "Command string shown in the terminal header.",
-          },
-          {
-            name: "lines",
-            type: "readonly string[]",
-            required: true,
-            description: "Output lines available to stream into the body.",
-          },
-          {
-            name: "visibleCount",
-            type: "number",
-            required: true,
-            description:
-              "How many output lines from the start are currently shown.",
-          },
-          {
-            name: "variant",
-            type: '"paper" | "ink"',
-            defaultValue: '"paper"',
-            description:
-              "paper matches the surrounding surfaces; ink renders the classic dark terminal slab.",
-          },
-          {
-            name: "done",
-            type: "boolean",
-            required: true,
-            description:
-              "When true the header shows exit 0; otherwise a spinner keeps spinning.",
-          },
-          {
-            name: "className",
-            type: "string",
-            description: "Extra classes merged onto the root.",
-          },
-        ],
-      },
-    ],
-  },
   "code-diff": {
     usage: `import { CodeDiff } from "@/components/assistant-ui/elements/code-diff";
 
@@ -860,54 +805,6 @@ import { ToolTimeline } from "@/components/assistant-ui/elements/tool-timeline";
       },
     ],
   },
-  "inline-citation": {
-    usage: `import { InlineCitation } from "@/components/assistant-ui/elements/inline-citation";
-
-<InlineCitation
-  sources={[
-    {
-      domain: "docs.example.com",
-      title: "Optimistic updates",
-      snippet: "Confirm writes after paint.",
-    },
-  ]}
-  openIndex={0}
-  onOpenIndexChange={setOpenIndex}
-/>`,
-    props: [
-      {
-        component: "InlineCitation",
-        rows: [
-          {
-            name: "sources",
-            type: "Source[]",
-            required: true,
-            description:
-              "Sources attached to the numbered reference markers in the sentence.",
-          },
-          {
-            name: "openIndex",
-            type: "number | null",
-            required: true,
-            description:
-              "Which citation preview is open, or null when none is open.",
-          },
-          {
-            name: "onOpenIndexChange",
-            type: "(index: number | null) => void",
-            required: true,
-            description:
-              "Called when a citation marker opens or closes its preview.",
-          },
-          {
-            name: "className",
-            type: "string",
-            description: "Extra classes merged onto the root.",
-          },
-        ],
-      },
-    ],
-  },
   "image-generation": {
     usage: `import { ImageGeneration } from "@/components/assistant-ui/elements/image-generation";
 
@@ -938,40 +835,6 @@ import { ToolTimeline } from "@/components/assistant-ui/elements/tool-timeline";
       },
     ],
   },
-  "data-table": {
-    usage: `import { DataTable } from "@/components/assistant-ui/elements/data-table";
-
-<DataTable
-  rows={[{ name: "Sonnet", context: "200k", cost: "$3" }]}
-  cycle={0}
-/>`,
-    props: [
-      {
-        component: "DataTable",
-        rows: [
-          {
-            name: "rows",
-            type: "readonly ModelUsage[]",
-            required: true,
-            description:
-              "Table rows with model name, context window, and cost.",
-          },
-          {
-            name: "cycle",
-            type: "number",
-            required: true,
-            description:
-              "Identity key that remounts the body so row entrance can replay.",
-          },
-          {
-            name: "className",
-            type: "string",
-            description: "Extra classes merged onto the root.",
-          },
-        ],
-      },
-    ],
-  },
   "number-ticker": {
     usage: `import { NumberTicker } from "@/components/assistant-ui/elements/number-ticker";
 
@@ -992,39 +855,6 @@ import { ToolTimeline } from "@/components/assistant-ui/elements/tool-timeline";
             type: "string",
             required: true,
             description: "Mono caption rendered under the rolling number.",
-          },
-          {
-            name: "className",
-            type: "string",
-            description: "Extra classes merged onto the root.",
-          },
-        ],
-      },
-    ],
-  },
-  "agent-plan": {
-    usage: `import { AgentPlan } from "@/components/assistant-ui/elements/agent-plan";
-
-<AgentPlan
-  steps={["Read the file", "Draft the fix", "Run tests"]}
-  activeIndex={1}
-/>`,
-    props: [
-      {
-        component: "AgentPlan",
-        rows: [
-          {
-            name: "steps",
-            type: "readonly string[]",
-            required: true,
-            description: "Checklist items the agent works through in order.",
-          },
-          {
-            name: "activeIndex",
-            type: "number",
-            required: true,
-            description:
-              "Index of the step currently running. Values past the end mark every step done, and values before the start mark none.",
           },
           {
             name: "className",
@@ -1117,75 +947,6 @@ import { ToolTimeline } from "@/components/assistant-ui/elements/tool-timeline";
             name: "elapsed",
             type: "string",
             description: "Elapsed time shown in mono when provided.",
-          },
-          {
-            name: "className",
-            type: "string",
-            description: "Extra classes merged onto the root.",
-          },
-        ],
-      },
-    ],
-  },
-  "approval-card": {
-    usage: `import { ApprovalCard } from "@/components/assistant-ui/elements/approval-card";
-
-<ApprovalCard
-  state="request"
-  command="pnpm db:migrate"
-  title="Run migration"
-  subtitle="Needs your approval"
-  onAllowOnce={() => approve()}
-  onDeny={() => deny()}
-/>`,
-    props: [
-      {
-        component: "ApprovalCard",
-        rows: [
-          {
-            name: "state",
-            type: '"request" | "running" | "done" | "denied"',
-            required: true,
-            description:
-              "Lifecycle of the card: request with actions, running spinner, done check, or denied.",
-          },
-          {
-            name: "command",
-            type: "string",
-            required: true,
-            description:
-              "Command shown in the mono field the agent wants to run.",
-          },
-          {
-            name: "title",
-            type: "string",
-            required: true,
-            description: "Headline naming the action that needs approval.",
-          },
-          {
-            name: "subtitle",
-            type: "string",
-            required: true,
-            description:
-              "Supporting line under the title explaining the request.",
-          },
-          {
-            name: "onAllowOnce",
-            type: "() => void",
-            description:
-              "Called when the user clicks Allow once. The button renders only when this is supplied.",
-          },
-          {
-            name: "onAlwaysAllow",
-            type: "() => void",
-            description:
-              "Called when the user clicks Always allow. The button renders only when this is supplied.",
-          },
-          {
-            name: "onDeny",
-            type: "() => void",
-            description:
-              "Called when the user clicks Deny. The button renders only when this is supplied.",
           },
           {
             name: "className",
@@ -1865,68 +1626,6 @@ const matches = useMentionMatches(value, people);
             name: "className",
             type: "string",
             description: "Extra classes merged onto the root.",
-          },
-        ],
-      },
-    ],
-  },
-  "todo-list": {
-    usage: `import { TodoList } from "@/components/assistant-ui/elements/todo-list";
-
-<TodoList
-  items={[
-    { id: "read", text: "Read the failing test", status: "done" },
-    { id: "fix", text: "Fix the converter", status: "active" },
-    { id: "verify", text: "Re-run the suite", status: "pending" },
-  ]}
-  revision={2}
-/>`,
-    props: [
-      {
-        component: "TodoList",
-        rows: [
-          {
-            name: "items",
-            type: "TodoItem[]",
-            required: true,
-            description:
-              "The list as it stands right now. Each item carries its own status, so the agent can add, reorder, and complete items in any order between renders.",
-          },
-          {
-            name: "revision",
-            type: "number",
-            description:
-              "Which rewrite of the list this is. Omit to show a plain done/total count instead.",
-          },
-          {
-            name: "className",
-            type: "string",
-            description: "Extra classes merged onto the root.",
-          },
-        ],
-      },
-      {
-        component: "TodoItem",
-        rows: [
-          {
-            name: "id",
-            type: "string",
-            required: true,
-            description:
-              "Stable identity across revisions. Reusing an id keeps an item in place while its text or status changes.",
-          },
-          {
-            name: "text",
-            type: "string",
-            required: true,
-            description: "The item as the agent phrased it.",
-          },
-          {
-            name: "status",
-            type: '"pending" | "active" | "done"',
-            required: true,
-            description:
-              "Per-item state. More than one item may be active if the agent works in parallel.",
           },
         ],
       },
@@ -4888,67 +4587,6 @@ const matches = useMentionMatches(value, people);
             name: "detail",
             type: "string",
             description: "Optional second line under the title.",
-          },
-        ],
-      },
-    ],
-  },
-  "job-progress": {
-    usage: `import { JobProgress } from "@/components/assistant-ui/elements/job-progress";
-
-<JobProgress
-  title="Verify the fix on CI"
-  stages={stages}
-  stageIndex={1}
-  stageProgress={0.6}
-  eta="about 3 min"
-/>`,
-    props: [
-      {
-        component: "JobProgress",
-        rows: [
-          {
-            name: "title",
-            type: "string",
-            required: true,
-            description: "What the job is doing.",
-          },
-          {
-            name: "stages",
-            type: "JobStage[]",
-            required: true,
-            description:
-              "Stages with relative weights, so a long install does not read the same as a fast clone.",
-          },
-          {
-            name: "stageIndex",
-            type: "number",
-            required: true,
-            description:
-              "Which stage is running. Passing stages.length marks the job finished, and the bar never runs past its track.",
-          },
-          {
-            name: "stageProgress",
-            type: "number",
-            required: true,
-            description: "Progress inside the current stage, 0 to 1.",
-          },
-          {
-            name: "eta",
-            type: "string",
-            required: true,
-            description:
-              "Pre-formatted estimate. Replaced by done once finished.",
-          },
-          {
-            name: "onCancel",
-            type: "() => void",
-            description: "Called to stop the job. Hidden once it finishes.",
-          },
-          {
-            name: "className",
-            type: "string",
-            description: "Extra classes merged onto the root.",
           },
         ],
       },
