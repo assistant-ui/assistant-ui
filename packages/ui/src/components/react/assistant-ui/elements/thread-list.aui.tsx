@@ -107,15 +107,39 @@ export const ThreadListItems: FC<
   );
 };
 
-const DAY_IN_MS = 86_400_000;
-
 const dateGroupLabel = (
   date: Date | undefined,
   startOfToday: number,
+  startOfYesterday: number,
 ): string => {
   if (!date || date.getTime() >= startOfToday) return "Today";
-  if (date.getTime() >= startOfToday - DAY_IN_MS) return "Yesterday";
+  if (date.getTime() >= startOfYesterday) return "Yesterday";
   return "Earlier";
+};
+
+const startOfLocalDay = (date: Date) =>
+  new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+
+const useStartOfToday = () => {
+  const [startOfToday, setStartOfToday] = useState(() =>
+    startOfLocalDay(new Date()),
+  );
+
+  useEffect(() => {
+    const now = new Date();
+    const startOfTomorrow = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + 1,
+    ).getTime();
+    const timeout = window.setTimeout(
+      () => setStartOfToday(startOfLocalDay(new Date())),
+      startOfTomorrow - now.getTime(),
+    );
+    return () => window.clearTimeout(timeout);
+  }, [startOfToday]);
+
+  return startOfToday;
 };
 
 export type ThreadListGroup = { label: string; indices: number[] };
@@ -130,6 +154,7 @@ export const useThreadListGroups = (searchQuery = "") => {
   const threadItems = useAuiState((s) => s.threads.threadItems);
 
   const query = searchQuery.trim().toLowerCase();
+  const startOfToday = useStartOfToday();
 
   return useMemo(() => {
     const itemsById = new Map(threadItems.map((item) => [item.id, item]));
@@ -148,19 +173,20 @@ export const useThreadListGroups = (searchQuery = "") => {
       return { threadIds, filteredIndices, groups: null };
     }
 
-    const now = new Date();
-    const startOfToday = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-    ).getTime();
+    const yesterday = new Date(startOfToday);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const startOfYesterday = yesterday.getTime();
     const time = (index: number) =>
       dates[index]?.getTime() ?? Number.MAX_SAFE_INTEGER;
     const sorted = [...filteredIndices].sort((a, b) => time(b) - time(a));
 
     const result: ThreadListGroup[] = [];
     for (const index of sorted) {
-      const label = dateGroupLabel(dates[index], startOfToday);
+      const label = dateGroupLabel(
+        dates[index],
+        startOfToday,
+        startOfYesterday,
+      );
       const lastGroup = result[result.length - 1];
       if (lastGroup?.label === label) {
         lastGroup.indices.push(index);
@@ -169,7 +195,7 @@ export const useThreadListGroups = (searchQuery = "") => {
       }
     }
     return { threadIds, filteredIndices, groups: result };
-  }, [threadIds, threadItems, query]);
+  }, [threadIds, threadItems, query, startOfToday]);
 };
 
 const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({

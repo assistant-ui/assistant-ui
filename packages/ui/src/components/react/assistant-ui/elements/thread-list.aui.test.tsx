@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { resource } from "@assistant-ui/tap";
 import {
@@ -95,6 +101,7 @@ const freezeClockAtMidday = () => {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
   cleanup();
   document.body.replaceChildren();
 });
@@ -255,6 +262,68 @@ describe("ThreadList", () => {
     await waitFor(() => expect(slots(container, "item-title")).toHaveLength(2));
     expect(texts(container, "group-label")).toEqual(["Today", "Earlier"]);
     expect(texts(container, "item-title")).toEqual(["No date", "Last week"]);
+  });
+
+  it.each([
+    { dayLength: 23, boundaryOffset: 23.5, labels: ["Yesterday", "Earlier"] },
+    { dayLength: 25, boundaryOffset: 24.5, labels: ["Yesterday"] },
+  ])(
+    "uses local calendar boundaries when the previous day has $dayLength hours",
+    async ({ dayLength, boundaryOffset, labels }) => {
+      const startOfToday = freezeClockAtMidday();
+      vi.spyOn(Date.prototype, "setDate").mockImplementation(function (
+        this: Date,
+      ) {
+        return this.setTime(this.getTime() - dayLength * 60 * 60 * 1_000);
+      });
+
+      const { container } = renderThreadList(
+        makeAdapter([
+          {
+            remoteId: "t0",
+            title: "Recent yesterday",
+            lastMessageAt: new Date(startOfToday - 60 * 60 * 1_000),
+          },
+          {
+            remoteId: "t1",
+            title: "Boundary thread",
+            lastMessageAt: new Date(
+              startOfToday - boundaryOffset * 60 * 60 * 1_000,
+            ),
+          },
+        ]),
+      );
+
+      await waitFor(() =>
+        expect(slots(container, "item-title")).toHaveLength(2),
+      );
+      expect(texts(container, "group-label")).toEqual(labels);
+    },
+  );
+
+  it("regroups threads when the local date changes", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 7, 31, 23, 59, 59, 500));
+
+    const { container } = renderThreadList(
+      makeAdapter([
+        {
+          remoteId: "t0",
+          title: "Late today",
+          lastMessageAt: new Date(2026, 7, 31, 12),
+        },
+      ]),
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(texts(container, "group-label")).toEqual(["Today"]);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(texts(container, "group-label")).toEqual(["Yesterday"]);
   });
 
   it("opens the item menu and archives through the menu item", async () => {
