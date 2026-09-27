@@ -53,11 +53,15 @@ export function DemoShell({
     id: string;
     title: string;
   } | null>(null);
-  const pendingMobileRename = useRef<typeof renaming>(null);
+  const pendingMobileAction = useRef<typeof renaming | "composer">(null);
   const onMobileSidebarOpenChange = (open: boolean) => {
-    if (open) pendingMobileRename.current = null;
+    if (open) pendingMobileAction.current = null;
     setMobileSidebarOpen(open);
   };
+  const focusComposer = () =>
+    rootRef.current
+      ?.querySelector<HTMLTextAreaElement>("[data-composer-input]")
+      ?.focus();
   const mainThreadId = useAuiState((s) => s.threads.mainThreadId);
   if (renaming && renaming.id !== mainThreadId) setRenaming(null);
   const persisted = useAuiState((s) =>
@@ -73,13 +77,11 @@ export function DemoShell({
       return;
     }
     if (command === "composer") {
-      setMobileSidebarOpen(false);
       setView("thread");
-      requestAnimationFrame(() =>
-        rootRef.current
-          ?.querySelector<HTMLTextAreaElement>("[data-composer-input]")
-          ?.focus(),
-      );
+      if (mobileSidebarOpen) {
+        pendingMobileAction.current = "composer";
+        setMobileSidebarOpen(false);
+      } else requestAnimationFrame(focusComposer);
       return;
     }
     const state = aui.threads.getState();
@@ -90,7 +92,7 @@ export function DemoShell({
       if (item && item.status !== "new") {
         const target = { id: item.id, title: item.title ?? "" };
         if (mobileSidebarOpen) {
-          pendingMobileRename.current = target;
+          pendingMobileAction.current = target;
           setMobileSidebarOpen(false);
         } else setRenaming(target);
       }
@@ -263,14 +265,22 @@ export function DemoShell({
         open={mobileSidebarOpen}
         onOpenChange={onMobileSidebarOpenChange}
         onOpenChangeComplete={(open) => {
-          if (!open && pendingMobileRename.current)
-            setRenaming(pendingMobileRename.current);
+          if (open) return;
+          if (pendingMobileAction.current === "composer") focusComposer();
+          else if (pendingMobileAction.current)
+            setRenaming(pendingMobileAction.current);
         }}
       >
         <SheetContent
           side="left"
           className="bg-background w-72 overflow-hidden p-3 pt-12"
-          finalFocus={() => pendingMobileRename.current === null}
+          finalFocus={() => pendingMobileAction.current === null}
+          onKeyDownCapture={(event) => {
+            if (getThreadShortcut(event.nativeEvent) !== "composer") return;
+            event.preventDefault();
+            event.stopPropagation();
+            runCommand("composer");
+          }}
         >
           <SheetTitle className="sr-only">Threads</SheetTitle>
           <Sidebar

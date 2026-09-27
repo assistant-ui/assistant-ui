@@ -84,6 +84,38 @@ const create = () => {
 };
 
 describe("demo thread controls", () => {
+  it.each([false, true])(
+    "focuses the composer with Shift+Escape (mobile sidebar: %s)",
+    async (mobile) => {
+      const { onViewChange } = create();
+      const openButton = screen.getByRole("button", { name: "Open threads" });
+      openButton.focus();
+      let target: HTMLElement = openButton;
+      if (mobile) {
+        fireEvent.click(openButton);
+        target = await screen.findByRole("dialog", { name: "Threads" });
+        await waitFor(() =>
+          expect(target.contains(document.activeElement)).toBe(true),
+        );
+      }
+      fireEvent.keyDown(target, { key: "Escape", shiftKey: true });
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      expect(onViewChange).toHaveBeenCalledWith("thread");
+      await waitFor(() =>
+        expect(document.activeElement).toBe(
+          screen.getByRole("textbox", { name: "Message" }),
+        ),
+      );
+
+      openButton.focus();
+      fireEvent.click(openButton);
+      const dialog = await screen.findByRole("dialog", { name: "Threads" });
+      fireEvent.keyDown(dialog, { key: "Escape" });
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      await waitFor(() => expect(document.activeElement).toBe(openButton));
+    },
+  );
+
   it.each(["pinned", "activity"])(
     "navigates in the sidebar's %s order",
     async (order) => {
