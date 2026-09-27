@@ -8,6 +8,7 @@ import {
   type UIMessage,
   type UIMessageChunk,
 } from "ai";
+import { ToolResponse } from "assistant-stream";
 import { describe, expect, it, vi } from "vitest";
 import { useAISDKRuntime } from "./useAISDKRuntime";
 
@@ -102,6 +103,7 @@ const setup = async (
 
   return {
     chat,
+    thread: () => result.current.runtime.thread,
     part,
     approval: () =>
       (part().getState() as { approval?: Record<string, unknown> }).approval,
@@ -295,8 +297,53 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
     expect(sendMessages).toHaveBeenCalledTimes(2);
   });
 
-  it("leaves a request handed back to the AI SDK as the AI SDK does", async () => {
-    const { approval, toolPart, sendMessages, respond } = await setup(
+  it("cancels an unanswered approval when a staged message follows it", async () => {
+    const { thread, approval, part, toolPart } = await setup(
+      () =>
+        (_response, { respondViaAISDK }) =>
+          respondViaAISDK(),
+    );
+
+    await act(() =>
+      thread().append({
+        role: "user",
+        content: [{ type: "text", text: "later" }],
+        startRun: false,
+      }),
+    );
+
+    expect(toolPart()).toMatchObject({ state: "approval-requested" });
+    expect(approval()).toMatchObject({
+      id: "approval-1",
+      resolution: "cancelled",
+    });
+    expect(part().getState().status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+  });
+
+  it("preserves a host answer when a staged message follows it", async () => {
+    const { thread, approval, respond } = await setup(() => async () => {});
+
+    await respond();
+    await act(() =>
+      thread().append({
+        role: "user",
+        content: [{ type: "text", text: "later" }],
+        startRun: false,
+      }),
+    );
+
+    expect(approval()).toMatchObject({
+      id: "approval-1",
+      approved: true,
+    });
+    expect(approval()).not.toHaveProperty("resolution");
+  });
+
+  it("rejects a stale approval even when consecutive assistant messages are joined", async () => {
+    const { approval, part, toolPart, sendMessages, respond } = await setup(
       () =>
         (_response, { respondViaAISDK }) =>
           respondViaAISDK(),
@@ -329,10 +376,167 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
       },
     );
 
-    await respond();
-
     expect(toolPart()).toMatchObject({ state: "approval-requested" });
-    expect(approval()).not.toHaveProperty("approved");
+    expect(approval()).toMatchObject({
+      id: "approval-1",
+      resolution: "cancelled",
+    });
+    expect(part().getState().status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+    expect(() => respond()).toThrow("Tool call has no pending approval");
+    expect(sendMessages).not.toHaveBeenCalled();
+  });
+
+  it("stores a late successful tool result in its original message without sending", async () => {
+    const { chat, part, toolPart, sendMessages, sendAutomaticallyWhen } =
+      await setup(() => async () => {}, {
+        messages: [
+          {
+            id: "user-1",
+            role: "user",
+            parts: [{ type: "text", text: "deploy" }],
+          },
+          {
+            id: "assistant-1",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-deploy",
+                toolCallId: "tool-1",
+                state: "input-available",
+                input: {},
+              },
+            ],
+          },
+          {
+            id: "user-2",
+            role: "user",
+            parts: [{ type: "text", text: "later" }],
+          },
+        ],
+      });
+    const automaticSendChecks = sendAutomaticallyWhen.mock.calls.length;
+
+    act(() => part().addToolResult("deployed"));
+
+    await waitFor(() =>
+      expect(toolPart()).toMatchObject({
+        state: "output-available",
+        output: "deployed",
+      }),
+    );
+    expect(chat().messages[2]).toMatchObject({
+      id: "user-2",
+      parts: [{ type: "text", text: "later" }],
+    });
+    expect(sendAutomaticallyWhen).toHaveBeenCalledTimes(automaticSendChecks);
+    expect(sendMessages).not.toHaveBeenCalled();
+  });
+
+  it("stores a late tool result in the correct raw message when assistant messages are joined", async () => {
+    const { chat, part, sendMessages, sendAutomaticallyWhen } = await setup(
+      () => async () => {},
+      {
+        messages: [
+          {
+            id: "user-1",
+            role: "user",
+            parts: [{ type: "text", text: "deploy" }],
+          },
+          {
+            id: "assistant-1",
+            role: "assistant",
+            parts: [{ type: "text", text: "Preparing." }],
+          },
+          {
+            id: "assistant-2",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-deploy",
+                toolCallId: "tool-1",
+                state: "input-available",
+                input: {},
+              },
+            ],
+          },
+          {
+            id: "user-2",
+            role: "user",
+            parts: [{ type: "text", text: "later" }],
+          },
+        ],
+      },
+    );
+    const automaticSendChecks = sendAutomaticallyWhen.mock.calls.length;
+
+    act(() => part().addToolResult("deployed"));
+
+    await waitFor(() =>
+      expect(
+        chat()
+          .messages.find((message) => message.id === "assistant-2")
+          ?.parts.find(
+            (candidate) =>
+              candidate.type === "tool-deploy" &&
+              candidate.toolCallId === "tool-1",
+          ),
+      ).toMatchObject({
+        state: "output-available",
+        output: "deployed",
+      }),
+    );
+    expect(sendAutomaticallyWhen).toHaveBeenCalledTimes(automaticSendChecks);
+    expect(sendMessages).not.toHaveBeenCalled();
+  });
+
+  it("stores a late failed tool result in its original message without sending", async () => {
+    const { part, toolPart, sendMessages, sendAutomaticallyWhen } = await setup(
+      () => async () => {},
+      {
+        messages: [
+          {
+            id: "user-1",
+            role: "user",
+            parts: [{ type: "text", text: "deploy" }],
+          },
+          {
+            id: "assistant-1",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-deploy",
+                toolCallId: "tool-1",
+                state: "input-available",
+                input: {},
+              },
+            ],
+          },
+          {
+            id: "user-2",
+            role: "user",
+            parts: [{ type: "text", text: "later" }],
+          },
+        ],
+      },
+    );
+    const automaticSendChecks = sendAutomaticallyWhen.mock.calls.length;
+
+    act(() =>
+      part().addToolResult(
+        new ToolResponse({ result: "deploy failed", isError: true }),
+      ),
+    );
+
+    await waitFor(() =>
+      expect(toolPart()).toMatchObject({
+        state: "output-error",
+        errorText: "deploy failed",
+      }),
+    );
+    expect(sendAutomaticallyWhen).toHaveBeenCalledTimes(automaticSendChecks);
     expect(sendMessages).not.toHaveBeenCalled();
   });
 });

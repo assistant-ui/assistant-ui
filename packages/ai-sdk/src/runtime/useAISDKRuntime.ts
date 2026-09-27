@@ -266,6 +266,87 @@ const NO_TOOL_APPROVAL_RESPONSES: ReadonlyMap<
   RespondToToolApprovalOptions
 > = new Map();
 
+const getSupersededApprovalProjection = <UI_MESSAGE extends UIMessage>(
+  messages: readonly UI_MESSAGE[],
+  hostApprovalIds: ReadonlySet<string>,
+  joinStrategy: JoinStrategy | undefined,
+) => {
+  const approvalIds = new Set<string>();
+  const statusMessageIds = new Set<string>();
+  const lastIndex = messages.length - 1;
+
+  for (let index = 0; index < lastIndex; index++) {
+    const message = messages[index]!;
+    let hasSupersededApproval = false;
+
+    for (const part of message.parts ?? []) {
+      if (!isToolUIPart(part) || part.state !== "approval-requested") continue;
+
+      const approvalId = part.approval.id;
+      if (hostApprovalIds.has(approvalId)) continue;
+
+      const resolution =
+        (part.approval as { resolution?: unknown }).resolution ??
+        (
+          part.approval.descriptor as
+            | { resolution?: unknown }
+            | null
+            | undefined
+        )?.resolution;
+      if (resolution === "cancelled" || resolution === "expired") continue;
+
+      approvalIds.add(approvalId);
+      hasSupersededApproval = true;
+    }
+
+    if (!hasSupersededApproval || message.role !== "assistant") continue;
+
+    let statusIndex = index;
+    if (joinStrategy !== "none") {
+      while (
+        statusIndex + 1 < messages.length &&
+        messages[statusIndex + 1]?.role === "assistant"
+      )
+        statusIndex++;
+    }
+    statusMessageIds.add(messages[statusIndex]!.id);
+  }
+
+  return { approvalIds, statusMessageIds };
+};
+
+const findRawToolMessageIndex = <UI_MESSAGE extends UIMessage>(
+  messages: readonly UI_MESSAGE[],
+  messageId: string,
+  toolCallId: string,
+  joinStrategy: JoinStrategy | undefined,
+) => {
+  const containsToolCall = (message: UI_MESSAGE) =>
+    message.parts?.some(
+      (part) => isToolUIPart(part) && part.toolCallId === toolCallId,
+    ) === true;
+
+  const messageIndex = messages.findIndex(
+    (message) => message.id === messageId,
+  );
+  if (messageIndex === -1) return -1;
+  if (containsToolCall(messages[messageIndex]!)) return messageIndex;
+  if (joinStrategy === "none" || messages[messageIndex]?.role !== "assistant")
+    return -1;
+
+  let start = messageIndex;
+  while (start > 0 && messages[start - 1]?.role === "assistant") start--;
+
+  let end = messageIndex;
+  while (end + 1 < messages.length && messages[end + 1]?.role === "assistant")
+    end++;
+
+  for (let index = start; index <= end; index++) {
+    if (containsToolCall(messages[index]!)) return index;
+  }
+  return -1;
+};
+
 const toChatError = (error: Error): AssistantError => {
   const code = (error as { code?: unknown }).code;
   return {
@@ -356,14 +437,31 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       : NO_CANCELLED_MESSAGE_IDS;
   const supportsRichToolApprovalResponses =
     customOnRespondToToolApproval != null;
+  const supersededApprovalProjection = useMemo(
+    () =>
+      getSupersededApprovalProjection(
+        chatHelpers.messages,
+        hostApprovalIdsRef.current,
+        joinStrategy,
+      ),
+    // oxlint-disable-next-line react/exhaustive-deps -- hostApprovalIdsRef changes alongside toolApprovalResponses, which invalidates the projection
+    [chatHelpers.messages, joinStrategy, toolApprovalResponses],
+  );
 
   const toThreadMessages = useCallback(
     (sourceMessages: UI_MESSAGE[]) => {
+      const projection = getSupersededApprovalProjection(
+        sourceMessages,
+        hostApprovalIdsRef.current,
+        joinStrategy,
+      );
       const metadata: AISDKMessageConverterMetadata = {
         supportsRichToolApprovalResponses,
         toolArtifacts: toolArtifactsRef.current,
         toolInteractions: toolInteractionsRef.current,
         toolApprovalResponses: toolApprovalResponsesRef.current,
+        cancelledToolApprovalIds: projection.approvalIds,
+        cancelledStatusMessageIds: projection.statusMessageIds,
       };
       return AISDKMessageConverter.toThreadMessages(
         sourceMessages,
@@ -371,7 +469,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         metadata,
       );
     },
-    [supportsRichToolApprovalResponses],
+    [joinStrategy, supportsRichToolApprovalResponses],
   );
 
   const retractCancellation = useCallback(
@@ -420,6 +518,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         toolArtifacts: toolArtifactsRef.current,
         toolInteractions: toolInteractionsRef.current,
         supportsRichToolApprovalResponses,
+        cancelledToolApprovalIds: supersededApprovalProjection.approvalIds,
+        cancelledStatusMessageIds:
+          supersededApprovalProjection.statusMessageIds,
         ...(optimisticMessageId && { optimisticMessageId }),
         ...(chatHelpers.error && {
           error: toChatError(chatHelpers.error),
@@ -435,6 +536,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         cancelledMessageIds,
         toolApprovalResponses,
         supportsRichToolApprovalResponses,
+        supersededApprovalProjection,
         toolArtifactEpoch,
         toolInteractionEpoch,
       ],
@@ -815,6 +917,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       await chatHelpers.regenerate({ metadata: config.runConfig });
     },
     onAddToolResult: ({
+      messageId,
       toolCallId,
       toolName,
       result,
@@ -826,6 +929,47 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         toolArtifactsRef.current.set(toolCallId, artifact);
         markToolArtifactsChanged();
       }
+
+      const targetIndex = findRawToolMessageIndex(
+        chatHelpers.messages,
+        messageId,
+        toolCallId,
+        joinStrategy,
+      );
+
+      const errorText =
+        typeof result === "string" ? result : JSON.stringify(result);
+      const output =
+        !isError && modelContent !== undefined
+          ? wrapModelContentEnvelope(result, modelContent)
+          : result;
+
+      if (targetIndex >= 0 && targetIndex !== chatHelpers.messages.length - 1) {
+        const targetMessageId = chatHelpers.messages[targetIndex]!.id;
+        chatHelpers.setMessages((current) =>
+          current.map((message) => {
+            if (message.id !== targetMessageId) return message;
+
+            return {
+              ...message,
+              parts: message.parts.map((part) =>
+                isToolUIPart(part) && part.toolCallId === toolCallId
+                  ? ({
+                      ...part,
+                      state: isError
+                        ? ("output-error" as const)
+                        : ("output-available" as const),
+                      output: isError ? undefined : output,
+                      errorText: isError ? errorText : undefined,
+                    } as typeof part)
+                  : part,
+              ),
+            };
+          }),
+        );
+        return Promise.resolve();
+      }
+
       const options = { metadata: lastRunConfigRef.current };
       if (isError) {
         return Promise.resolve(
@@ -833,25 +977,20 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
             state: "output-error",
             tool: toolName ?? toolCallId,
             toolCallId,
-            errorText:
-              typeof result === "string" ? result : JSON.stringify(result),
-            options,
-          }),
-        );
-      } else {
-        const output =
-          modelContent !== undefined
-            ? wrapModelContentEnvelope(result, modelContent)
-            : result;
-        return Promise.resolve(
-          chatHelpers.addToolOutput({
-            tool: toolName,
-            toolCallId,
-            output,
+            errorText,
             options,
           }),
         );
       }
+
+      return Promise.resolve(
+        chatHelpers.addToolOutput({
+          tool: toolName,
+          toolCallId,
+          output,
+          options,
+        }),
+      );
     },
     onRespondToToolApproval: customOnRespondToToolApproval
       ? (response) => respondViaHost(customOnRespondToToolApproval, response)
