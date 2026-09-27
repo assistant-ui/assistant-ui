@@ -114,10 +114,9 @@ export function ThreadList({
             {hasActions && (
               <div
                 className={cn(
-                  "absolute end-2 items-center gap-0.5",
-                  onActiveIndexChange
-                    ? "hidden group-focus-within:flex group-hover:flex"
-                    : "flex",
+                  "absolute end-2 flex items-center gap-0.5",
+                  onActiveIndexChange &&
+                    "opacity-0 group-focus-within:opacity-100 group-hover:opacity-100",
                 )}
               >
                 {onRename && (

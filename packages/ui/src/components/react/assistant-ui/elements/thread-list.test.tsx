@@ -90,6 +90,26 @@ describe("ThreadList", () => {
     expect(onActiveIndexChange).toHaveBeenCalledWith(1);
   });
 
+  it("keeps thread actions available to backward keyboard navigation", () => {
+    render(
+      <ThreadList
+        threads={THREADS}
+        activeIndex={0}
+        onActiveIndexChange={() => undefined}
+        onRename={() => undefined}
+        onDelete={() => undefined}
+      />,
+    );
+
+    const actions = screen.getByRole("button", {
+      name: "Rename First thread",
+    }).parentElement;
+
+    expect(actions?.className).toContain("flex");
+    expect(actions?.className).toContain("opacity-0");
+    expect(actions?.className).not.toContain("hidden");
+  });
+
   it("keeps timestamps visible when rows only expose actions", () => {
     render(
       <ThreadList
