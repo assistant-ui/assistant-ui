@@ -31,6 +31,7 @@ import { ThreadPrimitiveScrollToBottom } from "./ThreadScrollToBottom";
 import { ThreadPrimitiveViewport } from "./ThreadViewport";
 import {
   ExportedMessageRepository,
+  useExternalStoreRuntime,
   useLocalRuntime,
   type ChatModelAdapter,
   type ThreadHistoryAdapter,
@@ -188,11 +189,13 @@ const Thread = ({
   autoScroll,
   scrollToBottomOnInitialize,
   scrollToBottomOnRunStart,
+  scrollToBottomOnThreadSwitch,
   turnAnchor = "top",
 }: {
   autoScroll?: boolean | undefined;
   scrollToBottomOnInitialize?: boolean | undefined;
   scrollToBottomOnRunStart?: boolean | undefined;
+  scrollToBottomOnThreadSwitch?: boolean | undefined;
   turnAnchor?: "top" | "bottom" | undefined;
 }) => (
   <ThreadPrimitiveRoot>
@@ -202,6 +205,7 @@ const Thread = ({
       turnAnchor={turnAnchor}
       scrollToBottomOnInitialize={scrollToBottomOnInitialize}
       scrollToBottomOnRunStart={scrollToBottomOnRunStart}
+      scrollToBottomOnThreadSwitch={scrollToBottomOnThreadSwitch}
     >
       <ThreadPrimitiveMessages components={{ Message }} />
       <AtBottom />
@@ -1211,5 +1215,179 @@ describe("useThreadViewportAutoScroll", () => {
       store!.getState().resumeAutoScroll();
     });
     expect(screen.getByTestId("paused-state").textContent).toBe("false");
+  });
+
+  it("resets autoScrollPaused on new run start when turnAnchor is top and scrollToBottomOnRunStart is true", async () => {
+    let runtime: ReturnType<typeof useLocalRuntime> | null = null;
+    const Harness: FC = () => {
+      runtime = useLocalRuntime(adapter, { initialMessages: messages });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <Thread autoScroll turnAnchor="top" scrollToBottomOnRunStart={true} />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<Harness />);
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId("thread-message")).toHaveLength(
+        messages.length,
+      );
+    });
+
+    act(() => {
+      fireEvent.click(screen.getByTestId("pause-auto-scroll"));
+    });
+    expect(screen.getByTestId("auto-scroll-paused").textContent).toBe("true");
+
+    await act(async () => {
+      void runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("auto-scroll-paused").textContent).toBe(
+        "false",
+      );
+    });
+  });
+
+  it("resets autoScrollPaused on thread selection change even when scrollToBottomOnThreadSwitch is false", async () => {
+    let switchThread!: (id: string) => void;
+    const threadMessages = messages.map((m, idx) => ({
+      id: `msg-${idx}`,
+      role: m.role,
+      content: m.content,
+      ...(m.role === "assistant"
+        ? { status: { type: "complete" as const, reason: "stop" as const } }
+        : {}),
+      metadata: { unstable_state: null },
+    }));
+    const Harness: FC = () => {
+      const [threadId, setThreadId] = useState("t1");
+      switchThread = setThreadId;
+      const threadData = [
+        { id: "t1", title: "one", messages: threadMessages },
+        { id: "t2", title: "two", messages: threadMessages },
+      ];
+      const runtime = useExternalStoreRuntime({
+        messages: threadData.find((t) => t.id === threadId)!.messages,
+        isRunning: false,
+        convertMessage: (m) => m,
+        onNew: async () => {},
+        adapters: {
+          threadList: {
+            threadId,
+            threads: threadData.map((t) => ({
+              status: "regular" as const,
+              id: t.id,
+              title: t.title,
+            })),
+            onSwitchToThread: (id) => setThreadId(id),
+            onSwitchToNewThread: () => {},
+          },
+        },
+      });
+
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <Thread autoScroll scrollToBottomOnThreadSwitch={false} />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<Harness />);
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId("thread-message")).toHaveLength(
+        messages.length,
+      );
+    });
+
+    act(() => {
+      fireEvent.click(screen.getByTestId("pause-auto-scroll"));
+    });
+    expect(screen.getByTestId("auto-scroll-paused").textContent).toBe("true");
+
+    act(() => {
+      switchThread("t2");
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("auto-scroll-paused").textContent).toBe(
+        "false",
+      );
+    });
+  });
+
+  it("preserves pause when overlapping outer and inner handles are held, until both are released", async () => {
+    let outerStore!: ReturnType<typeof useThreadViewportStore>;
+    let innerStore!: ReturnType<typeof useThreadViewportStore>;
+
+    const OuterProbe: FC = () => {
+      outerStore = useThreadViewportStore();
+      const paused = useThreadViewport((s) => s.autoScrollPaused);
+      return <output data-testid="outer-paused">{String(paused)}</output>;
+    };
+
+    const InnerStoreProbe: FC = () => {
+      innerStore = useThreadViewportStore();
+      return null;
+    };
+
+    const ThreadWithInnerProbe = () => (
+      <ThreadPrimitiveRoot>
+        <ThreadPrimitiveViewport data-testid="viewport" autoScroll>
+          <ThreadPrimitiveMessages components={{ Message }} />
+          <AtBottom />
+          <ViewportControls />
+          <InnerStoreProbe />
+        </ThreadPrimitiveViewport>
+      </ThreadPrimitiveRoot>
+    );
+
+    render(
+      <SyncRuntimeProvider>
+        <OuterProbe />
+        <ThreadWithInnerProbe />
+      </SyncRuntimeProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId("thread-message")).toHaveLength(
+        messages.length,
+      );
+    });
+
+    expect(screen.getByTestId("outer-paused").textContent).toBe("false");
+    expect(screen.getByTestId("auto-scroll-paused").textContent).toBe("false");
+
+    let releaseOuter!: () => void;
+    let releaseInner!: () => void;
+
+    // Both outer and inner acquire a pause handle
+    act(() => {
+      releaseOuter = outerStore!.getState().pauseAutoScroll();
+      releaseInner = innerStore!.getState().pauseAutoScroll();
+    });
+    expect(screen.getByTestId("outer-paused").textContent).toBe("true");
+    expect(screen.getByTestId("auto-scroll-paused").textContent).toBe("true");
+
+    // Releasing outer first keeps inner paused
+    act(() => {
+      releaseOuter();
+    });
+    expect(screen.getByTestId("outer-paused").textContent).toBe("true");
+    expect(screen.getByTestId("auto-scroll-paused").textContent).toBe("true");
+
+    // Releasing inner finally unpauses
+    act(() => {
+      releaseInner();
+    });
+    expect(screen.getByTestId("outer-paused").textContent).toBe("false");
+    expect(screen.getByTestId("auto-scroll-paused").textContent).toBe("false");
   });
 });
