@@ -1,12 +1,27 @@
+import { useState } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ThreadList, type ThreadItem } from "./thread-list";
 
 const THREADS: ThreadItem[] = [
-  { title: "First thread", time: "2m" },
-  { title: "Second thread", time: "1h" },
+  { id: "first", title: "First thread", time: "2m" },
+  { id: "second", title: "Second thread", time: "1h" },
 ];
+
+function DeletingThreadList() {
+  const [threads, setThreads] = useState(THREADS);
+
+  return (
+    <ThreadList
+      threads={threads}
+      activeIndex={0}
+      onDelete={(index) =>
+        setThreads((current) => current.filter((_, i) => i !== index))
+      }
+    />
+  );
+}
 
 afterEach(cleanup);
 
@@ -73,5 +88,32 @@ describe("ThreadList", () => {
     fireEvent.click(screen.getByRole("button", { name: /second thread.*1h/i }));
 
     expect(onActiveIndexChange).toHaveBeenCalledWith(1);
+  });
+
+  it("keeps timestamps visible when rows only expose actions", () => {
+    render(
+      <ThreadList
+        threads={THREADS}
+        activeIndex={0}
+        onDelete={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText("2m").className).not.toContain("hidden");
+  });
+
+  it("does not reuse a focused delete button for the next thread", () => {
+    render(<DeletingThreadList />);
+    const deleteFirst = screen.getByRole("button", {
+      name: "Delete First thread",
+    });
+
+    deleteFirst.focus();
+    fireEvent.click(deleteFirst);
+
+    expect(screen.queryByText("First thread")).toBeNull();
+    expect(document.activeElement).not.toBe(
+      screen.getByRole("button", { name: "Delete Second thread" }),
+    );
   });
 });

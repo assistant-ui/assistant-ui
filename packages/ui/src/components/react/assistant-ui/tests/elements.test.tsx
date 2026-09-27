@@ -478,6 +478,7 @@ const CASES: Record<string, Case> = {
   "thread-list": (n, items) => (
     <ThreadList
       threads={list(items, (i) => ({
+        id: `t${i}`,
         title: `t${i}`,
         time: "1m",
         unread: true,

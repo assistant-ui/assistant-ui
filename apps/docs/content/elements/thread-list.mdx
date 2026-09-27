@@ -54,8 +54,8 @@ import {
 } from "@/components/assistant-ui/elements/thread-list";
 
 const threads: ThreadItem[] = [
-  { title: "Renaming a component", time: "2m", unread: true },
-  { title: "Deploy checklist", time: "1h" },
+  { id: "rename", title: "Renaming a component", time: "2m", unread: true },
+  { id: "deploy", title: "Deploy checklist", time: "1h" },
 ];
 
 export function Sidebar() {
@@ -146,9 +146,12 @@ Use `onRename` to open your own inline editor or dialog. The callback receives t
   activeIndex={activeIndex}
   onActiveIndexChange={setActiveIndex}
   onRename={(index) => setRenamingIndex(index)}
-  onDelete={(index) =>
-    setThreads((current) => current.filter((_, i) => i !== index))
-  }
+  onDelete={(index) => {
+    setThreads((current) => current.filter((_, i) => i !== index));
+    setActiveIndex((current) =>
+      Math.max(0, current - Number(index <= current)),
+    );
+  }}
 />
 ```
 
@@ -219,6 +222,7 @@ All other `div` props are forwarded to the root.
 
 | Field | Type | Description |
 |-------|------|--------------|
+| `id` | `string` | Stable row identifier used to preserve identity when threads change. |
 | `title` | `string` | Row label. |
 | `time` | `string` | Trailing timestamp text, already formatted. |
 | `unread` | `boolean \| undefined` | Shows a dot before the timestamp when true and the row is not active. |

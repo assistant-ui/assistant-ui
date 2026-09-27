@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { field, mono } from "./surfaces";
 
 export interface ThreadItem {
+  id: string;
   title: string;
   time: string;
   unread?: boolean;
@@ -73,9 +74,8 @@ export function ThreadList({
                 mono,
                 "text-foreground/35 flex items-center gap-1.5 tabular-nums",
                 hasActions &&
-                  (onActiveIndexChange
-                    ? "group-focus-within:hidden group-hover:hidden"
-                    : "hidden"),
+                  onActiveIndexChange &&
+                  "group-focus-within:hidden group-hover:hidden",
               )}
             >
               {thread.unread && !active && (
@@ -93,7 +93,7 @@ export function ThreadList({
         );
 
         return (
-          <div key={i} className={rowClassName}>
+          <div key={thread.id} className={rowClassName}>
             {onActiveIndexChange ? (
               <button
                 type="button"
