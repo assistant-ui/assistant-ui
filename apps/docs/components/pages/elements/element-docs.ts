@@ -230,6 +230,8 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
   words={["Here", "is", "a", "short", "reply."]}
   visibleWords={5}
   streaming={false}
+  onCopy={() => navigator.clipboard.writeText("Here is a short reply.")}
+  onRegenerate={regenerate}
 />`,
     props: [
       {
@@ -266,6 +268,18 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
             defaultValue: '"bubble"',
             description:
               "bubble wraps the user message in a surface; flat renders it as plain right-aligned text.",
+          },
+          {
+            name: "onCopy",
+            type: "() => void",
+            description:
+              "Shows the copy button and runs when the user activates it.",
+          },
+          {
+            name: "onRegenerate",
+            type: "() => void",
+            description:
+              "Shows the regenerate button and runs when the user activates it.",
           },
           {
             name: "className",
