@@ -5,12 +5,15 @@ import {
   type ComponentRef,
   forwardRef,
   type ComponentPropsWithoutRef,
+  type KeyboardEventHandler,
   useEffect,
   useRef,
 } from "react";
 import { useAui } from "@assistant-ui/store";
 import { useComposedRefs } from "radix-ui/internal";
 import { ThreadRootElementContext } from "./ThreadRootElementContext";
+
+const escapeEventThreadRoots = new WeakMap<KeyboardEvent, Element>();
 
 export namespace ThreadPrimitiveRoot {
   export type Element = ComponentRef<typeof Primitive.div>;
@@ -49,18 +52,28 @@ export const ThreadPrimitiveRoot = forwardRef<
   const aui = useAui();
   const rootRef = useRef<ThreadPrimitiveRoot.Element>(null);
   const composedRef = useComposedRefs(ref, rootRef);
+  const handleRootKeyDown: KeyboardEventHandler<ThreadPrimitiveRoot.Element> = (
+    event,
+  ) => {
+    if (event.key === "Escape" && rootRef.current) {
+      escapeEventThreadRoots.set(event.nativeEvent, rootRef.current);
+    }
+    props.onKeyDown?.(event);
+  };
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       if (event.defaultPrevented || aui.thread.source === null) return;
-      const eventThreadRoot = event
-        .composedPath()
-        .find(
-          (target) =>
-            target instanceof Element &&
-            target.hasAttribute("data-aui-thread-root"),
-        );
+      const eventThreadRoot =
+        escapeEventThreadRoots.get(event) ??
+        event
+          .composedPath()
+          .find(
+            (target) =>
+              target instanceof Element &&
+              target.hasAttribute("data-aui-thread-root"),
+          );
       if (eventThreadRoot && eventThreadRoot !== rootRef.current) return;
       if (aui.thread.getState().speech == null) return;
       event.preventDefault();
@@ -86,7 +99,12 @@ export const ThreadPrimitiveRoot = forwardRef<
 
   return (
     <ThreadRootElementContext.Provider value={rootRef}>
-      <Primitive.div {...props} data-aui-thread-root="" ref={composedRef} />
+      <Primitive.div
+        {...props}
+        data-aui-thread-root=""
+        ref={composedRef}
+        onKeyDown={handleRootKeyDown}
+      />
     </ThreadRootElementContext.Provider>
   );
 });

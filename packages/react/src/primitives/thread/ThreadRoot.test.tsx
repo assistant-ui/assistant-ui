@@ -94,6 +94,7 @@ const dispatchEscape = (target: EventTarget) => {
     key: "Escape",
     bubbles: true,
     cancelable: true,
+    composed: true,
   });
   act(() => target.dispatchEvent(event));
   return event;
@@ -217,6 +218,59 @@ describe("ThreadPrimitiveRoot", () => {
     expect(firstSpeech.cancel).not.toHaveBeenCalled();
     expect(secondSpeech.cancel).toHaveBeenCalledOnce();
     expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("stops speech in a thread mounted inside a closed shadow root", async () => {
+    const firstSpeech = createSpeechAdapter();
+    const secondSpeech = createSpeechAdapter();
+    const firstRuntimeRef: RuntimeRef = { current: null };
+    const secondRuntimeRef: RuntimeRef = { current: null };
+    render(
+      <RuntimeProvider
+        runtimeRef={firstRuntimeRef}
+        speech={firstSpeech.adapter}
+      >
+        <ThreadPrimitiveRoot />
+      </RuntimeProvider>,
+    );
+    const shadowHost = document.createElement("div");
+    const shadowRoot = shadowHost.attachShadow({ mode: "closed" });
+    const shadowContainer = document.createElement("div");
+    shadowRoot.append(shadowContainer);
+    document.body.append(shadowHost);
+    const shadowView = render(
+      <RuntimeProvider
+        runtimeRef={secondRuntimeRef}
+        speech={secondSpeech.adapter}
+      >
+        <ThreadPrimitiveRoot>
+          <button data-testid="shadow-thread-control" />
+        </ThreadPrimitiveRoot>
+      </RuntimeProvider>,
+      { container: shadowContainer },
+    );
+
+    try {
+      startSpeaking(firstRuntimeRef);
+      startSpeaking(secondRuntimeRef);
+      await waitFor(() => {
+        expect(firstRuntimeRef.current!.thread.getState().speech).toBeDefined();
+        expect(
+          secondRuntimeRef.current!.thread.getState().speech,
+        ).toBeDefined();
+      });
+
+      const event = dispatchEscape(
+        shadowContainer.querySelector("[data-testid=shadow-thread-control]")!,
+      );
+
+      expect(firstSpeech.cancel).not.toHaveBeenCalled();
+      expect(secondSpeech.cancel).toHaveBeenCalledOnce();
+      expect(event.defaultPrevented).toBe(true);
+    } finally {
+      shadowView.unmount();
+      shadowHost.remove();
+    }
   });
 
   it("stops speech from outside the only mounted thread", async () => {
