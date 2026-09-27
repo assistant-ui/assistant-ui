@@ -36,6 +36,8 @@ The terminal shares its thread sidebar with the native Ink example. Press **Ctrl
 
 Thread history is held in memory for the current session. See the [complete keyboard reference](../with-react-ink/README.md#keyboard-controls).
 
+Browsers can reserve shortcuts such as Ctrl+N for opening a new window. Press Ctrl+G, then n in the sidebar to create a thread when the browser handles that shortcut.
+
 ## Learn more
 
 - [assistant-ui ink documentation](https://www.assistant-ui.com/docs/ink): primitives, hooks, and adapters for terminal UIs.

@@ -4,6 +4,30 @@ import { describe, expect, it } from "vitest";
 import { getThreadShortcut } from "./thread-shortcuts";
 
 describe("thread shortcuts", () => {
+  it("pins with Alt+Shift+P and leaves private-window shortcuts to the browser", () => {
+    expect(
+      getThreadShortcut(
+        new KeyboardEvent("keydown", {
+          key: "∏",
+          code: "KeyP",
+          altKey: true,
+          shiftKey: true,
+        }),
+      ),
+    ).toBe("pin");
+    for (const modifier of ["ctrlKey", "metaKey"])
+      expect(
+        getThreadShortcut(
+          new KeyboardEvent("keydown", {
+            key: "P",
+            code: "KeyP",
+            shiftKey: true,
+            [modifier]: true,
+          }),
+        ),
+      ).toBeUndefined();
+  });
+
   it.each(["ctrlKey", "metaKey"])(
     "supports %s for thread actions",
     (modifier) => {
@@ -11,7 +35,6 @@ describe("thread shortcuts", () => {
         O: "new",
         R: "rename",
         A: "archive",
-        P: "pin",
         B: "sidebar",
       })) {
         expect(
