@@ -231,7 +231,6 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
   visibleWords={5}
   streaming={false}
   onCopy={() => navigator.clipboard.writeText("Here is a short reply.")}
-  onRegenerate={regenerate}
 />`,
     props: [
       {
