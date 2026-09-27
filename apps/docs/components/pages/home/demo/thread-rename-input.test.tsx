@@ -115,6 +115,29 @@ describe("thread rename", () => {
     expect(onDone).toHaveBeenCalledExactlyOnceWith(true);
   });
 
+  it.each(["Cancel rename", "Save thread name"])(
+    "handles %s when mouse clicks do not focus buttons",
+    async (action) => {
+      const onRename = vi.fn();
+      const onDone = vi.fn();
+      render(
+        <ThreadRenameInput title="First" onRename={onRename} onDone={onDone} />,
+      );
+      const input = screen.getByRole("textbox");
+      fireEvent.change(input, { target: { value: "Edited" } });
+      const button = screen.getByRole("button", { name: action });
+
+      if (fireEvent.mouseDown(button))
+        fireEvent.blur(input, { relatedTarget: null });
+      fireEvent.mouseUp(button);
+      fireEvent.click(button);
+
+      await waitFor(() => expect(onDone).toHaveBeenCalledExactlyOnceWith(true));
+      if (action === "Cancel rename") expect(onRename).not.toHaveBeenCalled();
+      else expect(onRename).toHaveBeenCalledExactlyOnceWith("Edited");
+    },
+  );
+
   it("does not move focus or close another editor after unmounting during a save", async () => {
     let finish!: () => void;
     const onRename = () =>

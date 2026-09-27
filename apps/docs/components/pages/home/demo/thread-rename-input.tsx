@@ -100,6 +100,7 @@ export function ThreadRenameInput({
           <>
             <button
               type="submit"
+              onMouseDown={(event) => event.preventDefault()}
               aria-label="Save thread name"
               title="Save (Enter)"
               className="text-muted-foreground hover:text-foreground focus-visible:bg-muted grid size-7 shrink-0 place-items-center rounded-sm outline-none"
@@ -108,6 +109,7 @@ export function ThreadRenameInput({
             </button>
             <button
               type="button"
+              onMouseDown={(event) => event.preventDefault()}
               onClick={cancel}
               aria-label="Cancel rename"
               title="Cancel (Esc)"
