@@ -4,51 +4,66 @@ import { describe, expect, it } from "vitest";
 import { getThreadShortcut } from "./thread-shortcuts";
 
 describe("thread shortcuts", () => {
-  it("pins with Alt+Shift+P and leaves private-window shortcuts to the browser", () => {
+  it.each([
+    ["KeyO", "Ø", "new"],
+    ["KeyR", "‰", "rename"],
+    ["KeyX", "˛", "archive"],
+    ["KeyH", "Ó", "sidebar"],
+    ["KeyP", "∏", "pin"],
+    ["KeyC", "Ç", "composer"],
+  ])("handles Alt+Shift+%s as %s for %s", (code, key, command) => {
     expect(
       getThreadShortcut(
         new KeyboardEvent("keydown", {
-          key: "∏",
-          code: "KeyP",
+          key,
+          code,
           altKey: true,
           shiftKey: true,
         }),
       ),
-    ).toBe("pin");
-    for (const modifier of ["ctrlKey", "metaKey"])
-      expect(
-        getThreadShortcut(
-          new KeyboardEvent("keydown", {
-            key: "P",
-            code: "KeyP",
-            shiftKey: true,
-            [modifier]: true,
-          }),
-        ),
-      ).toBeUndefined();
+    ).toBe(command);
   });
 
   it.each(["ctrlKey", "metaKey"])(
-    "supports %s for thread actions",
+    "leaves browser-owned %s shortcuts untouched",
     (modifier) => {
-      for (const [key, command] of Object.entries({
-        O: "new",
-        R: "rename",
-        A: "archive",
-        B: "sidebar",
-      })) {
+      for (const key of ["O", "R", "A", "B", "P"]) {
         expect(
           getThreadShortcut(
             new KeyboardEvent("keydown", {
               key,
+              code: `Key${key}`,
               shiftKey: true,
               [modifier]: true,
             }),
           ),
-        ).toBe(command);
+        ).toBeUndefined();
       }
     },
   );
+
+  it("leaves browser toolbar, split-view, and task-manager shortcuts untouched", () => {
+    for (const key of ["A", "B", "I", "N", "T"]) {
+      expect(
+        getThreadShortcut(
+          new KeyboardEvent("keydown", {
+            key,
+            code: `Key${key}`,
+            altKey: true,
+            shiftKey: true,
+          }),
+        ),
+      ).toBeUndefined();
+    }
+    expect(
+      getThreadShortcut(
+        new KeyboardEvent("keydown", {
+          key: "Escape",
+          shiftKey: true,
+        }),
+      ),
+    ).toBeUndefined();
+  });
 
   it("switches threads without consuming ordinary arrows or text editing", () => {
     expect(
@@ -77,8 +92,9 @@ describe("thread shortcuts", () => {
       expect(
         getThreadShortcut(
           new KeyboardEvent("keydown", {
-            key: "a",
-            ctrlKey: true,
+            key: "˛",
+            code: "KeyX",
+            altKey: true,
             shiftKey: true,
             ...extra,
           }),
@@ -86,8 +102,9 @@ describe("thread shortcuts", () => {
       ).toBeUndefined();
     }
     const event = new KeyboardEvent("keydown", {
-      key: "r",
-      ctrlKey: true,
+      key: "‰",
+      code: "KeyR",
+      altKey: true,
       shiftKey: true,
       cancelable: true,
     });

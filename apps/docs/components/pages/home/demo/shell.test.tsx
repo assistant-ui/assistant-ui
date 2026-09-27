@@ -85,7 +85,7 @@ const create = () => {
 
 describe("demo thread controls", () => {
   it.each([false, true])(
-    "focuses the composer with Shift+Escape (mobile sidebar: %s)",
+    "focuses the composer with Alt+Shift+C (mobile sidebar: %s)",
     async (mobile) => {
       const { onViewChange } = create();
       const openButton = screen.getByRole("button", { name: "Open threads" });
@@ -98,7 +98,12 @@ describe("demo thread controls", () => {
           expect(target.contains(document.activeElement)).toBe(true),
         );
       }
-      fireEvent.keyDown(target, { key: "Escape", shiftKey: true });
+      fireEvent.keyDown(target, {
+        key: "Ç",
+        code: "KeyC",
+        altKey: true,
+        shiftKey: true,
+      });
       await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
       expect(onViewChange).toHaveBeenCalledWith("thread");
       await waitFor(() =>
@@ -174,20 +179,26 @@ describe("demo thread controls", () => {
     create();
     fireEvent.click(screen.getByRole("button", { name: "Open threads" }));
     const dialog = await screen.findByRole("dialog", { name: "Threads" });
-    fireEvent.keyDown(dialog, { key: "O", ctrlKey: true, shiftKey: true });
+    fireEvent.keyDown(dialog, {
+      key: "Ø",
+      code: "KeyO",
+      altKey: true,
+      shiftKey: true,
+    });
     await waitFor(() => expect(mocks.switchToNewThread).toHaveBeenCalledOnce());
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
-  it.each(["ctrlKey", "metaKey"])(
-    "focuses the rename editor after closing the mobile sidebar with %s",
-    async (modifier) => {
+  it.each(["R", "‰"])(
+    "focuses the rename editor after closing the mobile sidebar with key %s",
+    async (key) => {
       create();
       fireEvent.click(screen.getByRole("button", { name: "Open threads" }));
       const dialog = await screen.findByRole("dialog", { name: "Threads" });
       fireEvent.keyDown(dialog, {
-        key: "R",
-        [modifier]: true,
+        key,
+        code: "KeyR",
+        altKey: true,
         shiftKey: true,
       });
       await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
@@ -208,7 +219,12 @@ describe("demo thread controls", () => {
     const openButton = screen.getByRole("button", { name: "Open threads" });
     fireEvent.click(openButton);
     const dialog = await screen.findByRole("dialog", { name: "Threads" });
-    fireEvent.keyDown(dialog, { key: "R", ctrlKey: true, shiftKey: true });
+    fireEvent.keyDown(dialog, {
+      key: "‰",
+      code: "KeyR",
+      altKey: true,
+      shiftKey: true,
+    });
     const input = await screen.findByRole("textbox", { name: "Rename thread" });
     await waitFor(() => expect(document.activeElement).toBe(input));
     fireEvent.keyDown(input, { key: "Escape" });
