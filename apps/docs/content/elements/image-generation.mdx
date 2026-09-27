@@ -81,17 +81,15 @@ Standalone, `ImageGeneration` is fully controlled: you hold the prompt and wheth
 ```tsx title="app/answer.tsx"
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ImageGeneration } from "@/components/assistant-ui/elements/image-generation";
 
 export function Generation() {
+  const prompt = "A calm mountain lake at dawn";
   const [generating, setGenerating] = useState(true);
 
   return (
-    <ImageGeneration
-      prompt="A calm mountain lake at dawn"
-      generating={generating}
-    />
+    <ImageGeneration prompt={prompt} generating={generating} />
   );
 }
 ```
@@ -101,19 +99,37 @@ export function Generation() {
 
 ### Flip it off once generation finishes
 
-`ImageGeneration` never receives the resulting URL, so hold it separately and swap in a real image renderer once it arrives:
+`ImageGeneration` never receives the resulting URL, so hold it separately and swap in a real image renderer once it arrives. Keep regeneration available beside the result:
 
 ```tsx
 const [imageUrl, setImageUrl] = useState<string | null>(null);
 
-useEffect(() => {
-  generateImage(prompt).then((url) => {
-    setGenerating(false);
+const regenerate = useCallback(async () => {
+  setGenerating(true);
+
+  try {
+    const url = await generateImage(prompt);
     setImageUrl(url);
-  });
+  } finally {
+    setGenerating(false);
+  }
 }, [prompt]);
 
-return imageUrl ? <img src={imageUrl} alt={prompt} /> : (
+useEffect(() => {
+  void regenerate();
+}, [regenerate]);
+
+return imageUrl && !generating ? (
+  <figure>
+    <img src={imageUrl} alt={prompt} />
+    <figcaption>
+      <span>{prompt}</span>
+      <button type="button" onClick={() => void regenerate()}>
+        Regenerate image
+      </button>
+    </figcaption>
+  </figure>
+) : (
   <ImageGeneration prompt={prompt} generating={generating} />
 );
 ```
