@@ -73,6 +73,58 @@ describe("getSelectionMessageId", () => {
     expect(getSelectionMessageId(selection)).toBe("message-1");
   });
 
+  it.each([false, true])(
+    "accepts a zero-offset end inside an excluded next message (backward: %s)",
+    (backward) => {
+      document.body.innerHTML =
+        '<div data-message-id="message-1"><p id="first" data-aui-quote-selectable>first text</p></div><div data-message-id="message-2" data-aui-quote-selectable="false"><p><span id="second">second text</span></p></div>';
+      const first = textNode("#first");
+      const second = textNode("#second");
+      const selection = selectText(first);
+      selection.setBaseAndExtent(
+        backward ? second : first,
+        0,
+        backward ? first : second,
+        0,
+      );
+      const endpoints = [
+        selection.anchorNode,
+        selection.anchorOffset,
+        selection.focusNode,
+        selection.focusOffset,
+      ];
+      const text = selection.toString();
+
+      expect(getSelectionMessageId(selection)).toBe("message-1");
+      expect(selection.toString()).toBe(text);
+      expect([
+        selection.anchorNode,
+        selection.anchorOffset,
+        selection.focusNode,
+        selection.focusOffset,
+      ]).toEqual(endpoints);
+    },
+  );
+
+  it.each(["<span></span>", "<span> </span>", "<span>excluded text</span>"])(
+    "rejects selected content inheriting the next message's exclusion: %s",
+    (prefix) => {
+      document.body.innerHTML = `<div data-message-id="message-1"><p id="first" data-aui-quote-selectable>first text</p></div><div data-message-id="message-2" data-aui-quote-selectable="false">${prefix}<p id="second">second text</p></div>`;
+      const first = textNode("#first");
+      const second = textNode("#second");
+      const selection = selectText(first);
+      for (const backward of [false, true]) {
+        selection.setBaseAndExtent(
+          backward ? second : first,
+          0,
+          backward ? first : second,
+          0,
+        );
+        expect(getSelectionMessageId(selection)).toBeNull();
+      }
+    },
+  );
+
   it.each([
     { footer: "", separator: "", prefix: "<span></span>" },
     { footer: "", separator: "\n  ", prefix: "" },

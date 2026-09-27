@@ -59,7 +59,8 @@ const normalizeRangeEnd = (range: Range): Range => {
     if (range.comparePoint(node, offset) < 0) return range;
     const element = node instanceof Element ? node : node.parentElement;
     const marker = element?.closest(QUOTE_SELECTABLE_SELECTOR);
-    if (marker && isExcluded(marker)) return range;
+    if (marker && isExcluded(marker) && !node.contains(range.endContainer))
+      return range;
     if (!(node instanceof Text) || !node.data.trim()) continue;
 
     const normalized = range.cloneRange();
