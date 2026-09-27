@@ -168,7 +168,7 @@ Pass `onRegenerate` to show the button and restart your generation flow:
 <ImageGeneration
   prompt={prompt}
   generating={generating}
-  onRegenerate={() => regenerate(prompt)}
+  onRegenerate={() => void regenerate()}
 />
 ```
 
