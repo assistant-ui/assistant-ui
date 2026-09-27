@@ -31,8 +31,9 @@ export namespace ComposerPrimitiveCancel {
  *
  * This component automatically handles the cancel functionality and is disabled
  * when canceling is not available.
- * Keyboard activation after editing returns focus to the main thread composer
- * when available, unless a handler has moved focus elsewhere.
+ * Keyboard or assistive-technology activation after editing returns focus to the
+ * main thread composer when available, unless a handler has moved focus elsewhere.
+ * Pointer activation preserves the existing focus behavior.
  *
  * @example
  * ```tsx
