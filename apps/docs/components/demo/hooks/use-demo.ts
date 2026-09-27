@@ -157,10 +157,11 @@ export function useWordStream(
   const countRef = useRef(0);
 
   const restart = useCallback(() => {
+    if (stopped) return;
     countRef.current = 0;
     setCount(0);
     setRestartKey((current) => current + 1);
-  }, []);
+  }, [stopped]);
 
   useEffect(() => {
     stage?.setPlaying(!stopped && count < words.length);
