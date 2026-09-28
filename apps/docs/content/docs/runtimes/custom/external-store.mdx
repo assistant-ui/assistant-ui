@@ -981,7 +981,6 @@ for manual retry; otherwise they clear the matching checkpoint. Stopping an acti
 response preserves its checkpoint.
 With manual resume enabled, switching branches clears the stored checkpoint before notifying the application,
 so the interrupted response cannot attach to a different transcript.
-See `examples/with-resumable-stream` for an end-to-end example.
 
 `useAgUiRuntime` does not expose the generic Resume control: its default resume
 path starts a new AG-UI run, which does not establish checkpoint availability.

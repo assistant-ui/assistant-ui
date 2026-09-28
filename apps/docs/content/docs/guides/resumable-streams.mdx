@@ -304,6 +304,8 @@ Both helpers default to the data-stream encoder; pass `encoder: () => new Assist
 
 [`examples/with-resumable-stream`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-resumable-stream) is a runnable Next.js app that uses `useChat`, the `resumable` transport option, and `useChatRuntime`. It falls back to a built-in mock when `OPENAI_API_KEY` is unset, and switches the store from in-memory to Redis when `REDIS_URL` is set.
 
+The example demonstrates automatic reconnection after a reload. It does not enable manual Resume in the composer.
+
 ```sh
 npx assistant-ui create my-app -e with-resumable-stream
 ```
