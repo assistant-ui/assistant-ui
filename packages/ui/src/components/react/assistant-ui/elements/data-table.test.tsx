@@ -157,6 +157,33 @@ describe("DataTable", () => {
     expect(tableRows(container)).toEqual(["Charlie3", "Alpha1", "Bravo2"]);
   });
 
+  it("keeps focused row content attached to its record while sorting", () => {
+    const { container } = render(
+      <DataTable
+        columns={[
+          {
+            key: "name",
+            label: "Name",
+            format: { kind: "link", hrefKey: "url" },
+          },
+        ]}
+        rows={[
+          { name: "Charlie", url: "https://example.com/charlie" },
+          { name: "Alpha", url: "https://example.com/alpha" },
+        ]}
+      />,
+    );
+    const charlie = container.querySelector<HTMLAnchorElement>("tbody a")!;
+    charlie.focus();
+
+    fireEvent.click(screen.getByRole("button", { name: "Sort by Name" }));
+
+    expect(charlie.textContent).toContain("Charlie");
+    expect(charlie.closest("tr")).toBe(
+      container.querySelectorAll("tbody tr")[1],
+    );
+  });
+
   it("reports a sort change without changing controlled state", () => {
     const onSortChange = vi.fn();
     render(

@@ -446,28 +446,26 @@ export function DataTable({
   const relativeTime = relativeTo ?? Date.now();
   const sortColumn = columns.find((column) => column.key === activeSort?.key);
   const collator = collatorFor(locale);
+  const indexedRows = rows.map((row, index) => ({ row, index }));
   const sortedRows =
     activeSort && sortColumn
-      ? rows
-          .map((row, index) => ({ row, index }))
-          .sort((a, b) => {
-            const result = compareValues(
-              a.row[sortColumn.key],
-              b.row[sortColumn.key],
-              sortColumn,
-              collator,
-            );
-            if (result === 0) return a.index - b.index;
-            if (
-              isEmpty(a.row[sortColumn.key]) ||
-              isEmpty(b.row[sortColumn.key])
-            ) {
-              return result;
-            }
-            return activeSort.direction === "asc" ? result : -result;
-          })
-          .map(({ row }) => row)
-      : rows;
+      ? indexedRows.sort((a, b) => {
+          const result = compareValues(
+            a.row[sortColumn.key],
+            b.row[sortColumn.key],
+            sortColumn,
+            collator,
+          );
+          if (result === 0) return a.index - b.index;
+          if (
+            isEmpty(a.row[sortColumn.key]) ||
+            isEmpty(b.row[sortColumn.key])
+          ) {
+            return result;
+          }
+          return activeSort.direction === "asc" ? result : -result;
+        })
+      : indexedRows;
   const primaryColumn =
     columns.find((column) => column.priority === "primary") ?? columns[0];
 
@@ -567,7 +565,7 @@ export function DataTable({
               </td>
             </tr>
           ) : (
-            sortedRows.map((row, index) => (
+            sortedRows.map(({ row, index }) => (
               <tr
                 key={rowIdentifier(row, rowKey, index)}
                 className="hover:bg-foreground/[0.025] transition-colors motion-reduce:transition-none"
@@ -599,7 +597,7 @@ export function DataTable({
             {emptyMessage}
           </div>
         ) : (
-          sortedRows.map((row, index) => (
+          sortedRows.map(({ row, index }) => (
             <div
               key={rowIdentifier(row, rowKey, index)}
               role="listitem"
