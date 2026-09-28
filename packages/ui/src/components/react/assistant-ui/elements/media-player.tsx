@@ -208,6 +208,12 @@ export function AudioPlayer({
         }
         onPlay={() => update({ playing: true })}
         onPause={() => update({ playing: false })}
+        onEnded={(event) =>
+          update({
+            currentTime: event.currentTarget.currentTime,
+            playing: false,
+          })
+        }
         onError={() => update({ hasError: true, playing: false })}
       />
       {hasError ? (

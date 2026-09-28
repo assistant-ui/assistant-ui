@@ -85,6 +85,24 @@ describe("AudioPlayer", () => {
     expect(screen.getByText("0:12 / 2:05")).toBeTruthy();
   });
 
+  it("returns to the play action when playback ends", async () => {
+    vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
+    const { container } = render(
+      <AudioPlayer src="https://example.com/briefing.mp3" title="Briefing" />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Play Briefing" }));
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Pause Briefing" }),
+      ).toBeTruthy();
+    });
+
+    fireEvent.ended(container.querySelector("audio")!);
+
+    expect(screen.getByRole("button", { name: "Play Briefing" })).toBeTruthy();
+  });
+
   it("seeks the media element", () => {
     const { container } = render(
       <AudioPlayer
