@@ -514,89 +514,105 @@ describe("useChatRuntime", () => {
     warn.mockRestore();
   });
 
-  it("retains the checkpoint when automatic resumable stream resume fails", async () => {
-    const error = new Error("resume failed");
-    const resumeStream = vi.fn().mockRejectedValue(error);
-    const clear = vi.fn();
-    const onResumeError = vi.fn();
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    mocks.useChat.mockReturnValue({
-      resumeStream,
-    });
+  it.each([undefined, false, true])(
+    "keeps failed automatic checkpoints only when canResume is %s",
+    async (canResume) => {
+      const error = new Error("resume failed");
+      const resumeStream = vi.fn().mockRejectedValue(error);
+      const clear = vi.fn();
+      const onResumeError = vi.fn();
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      mocks.useChat.mockReturnValue({
+        resumeStream,
+      });
 
-    const transport = {
-      getResumableAdapter: () => ({
-        storage: {
-          getStreamId: () => "stream-1",
-          setStreamId: vi.fn(),
-          clear,
-        },
-        resumeApi: "/api/chat/resume",
-      }),
-    };
+      const transport = {
+        getResumableAdapter: () => ({
+          storage: {
+            getStreamId: () => "stream-1",
+            setStreamId: vi.fn(),
+            clear,
+          },
+          resumeApi: "/api/chat/resume",
+        }),
+      };
 
-    renderHook(() =>
-      useChatRuntime({
-        transport: transport as never,
-        onResumeError,
-      }),
-    );
+      renderHook(() =>
+        useChatRuntime({
+          transport: transport as never,
+          onResumeError,
+          canResume,
+        }),
+      );
 
-    await waitFor(() => {
-      expect(onResumeError).toHaveBeenCalledWith(error);
-    });
-    expect(resumeStream).toHaveBeenCalledTimes(1);
-    expect(clear).not.toHaveBeenCalled();
-    expect(warn).toHaveBeenCalledWith(
-      "[assistant-ui] resumable: resume failed",
-      error,
-    );
-    warn.mockRestore();
-  });
+      await waitFor(() => {
+        expect(onResumeError).toHaveBeenCalledWith(error);
+      });
+      expect(resumeStream).toHaveBeenCalledTimes(1);
+      if (canResume) {
+        expect(clear).not.toHaveBeenCalled();
+      } else {
+        expect(clear).toHaveBeenCalledOnce();
+      }
+      expect(warn).toHaveBeenCalledWith(
+        "[assistant-ui] resumable: resume failed",
+        error,
+      );
+      warn.mockRestore();
+    },
+  );
 
-  it("retains the checkpoint when onResumeError throws", async () => {
-    const error = new Error("resume failed");
-    const callbackError = new Error("callback failed");
-    const resumeStream = vi.fn().mockRejectedValue(error);
-    const clear = vi.fn();
-    const onResumeError = vi.fn(() => {
-      throw callbackError;
-    });
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-    mocks.useChat.mockReturnValue({
-      resumeStream,
-    });
+  it.each([undefined, false, true])(
+    "applies the canResume=%s checkpoint policy even when onResumeError throws",
+    async (canResume) => {
+      const error = new Error("resume failed");
+      const callbackError = new Error("callback failed");
+      const resumeStream = vi.fn().mockRejectedValue(error);
+      const clear = vi.fn();
+      const onResumeError = vi.fn(() => {
+        throw callbackError;
+      });
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      mocks.useChat.mockReturnValue({
+        resumeStream,
+      });
 
-    const transport = {
-      getResumableAdapter: () => ({
-        storage: {
-          getStreamId: () => "stream-1",
-          setStreamId: vi.fn(),
-          clear,
-        },
-        resumeApi: "/api/chat/resume",
-      }),
-    };
+      const transport = {
+        getResumableAdapter: () => ({
+          storage: {
+            getStreamId: () => "stream-1",
+            setStreamId: vi.fn(),
+            clear,
+          },
+          resumeApi: "/api/chat/resume",
+        }),
+      };
 
-    renderHook(() =>
-      useChatRuntime({
-        transport: transport as never,
-        onResumeError,
-      }),
-    );
+      renderHook(() =>
+        useChatRuntime({
+          transport: transport as never,
+          onResumeError,
+          canResume,
+        }),
+      );
 
-    await waitFor(() => {
-      expect(onResumeError).toHaveBeenCalledWith(error);
-    });
-    expect(clear).not.toHaveBeenCalled();
-    expect(consoleError).toHaveBeenCalledWith(
-      "[assistant-ui] resumable: onResumeError callback failed",
-      callbackError,
-    );
-    warn.mockRestore();
-    consoleError.mockRestore();
-  });
+      await waitFor(() => {
+        expect(onResumeError).toHaveBeenCalledWith(error);
+      });
+      if (canResume) {
+        expect(clear).not.toHaveBeenCalled();
+      } else {
+        expect(clear).toHaveBeenCalledOnce();
+      }
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] resumable: onResumeError callback failed",
+        callbackError,
+      );
+      warn.mockRestore();
+      consoleError.mockRestore();
+    },
+  );
 });

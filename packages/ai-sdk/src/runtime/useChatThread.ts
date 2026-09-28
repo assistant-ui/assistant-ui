@@ -44,8 +44,9 @@ export type ChatThreadOptions<UI_MESSAGE extends UIMessage = UIMessage> =
       /**
        * Called when a resumable stream reconnect fails. Use this to
        * surface a toast, report telemetry, or mark the thread as needing a
-       * retry. The stream id is kept so the reconnect can be retried; a 204 or
-       * 404 from the resume endpoint clears it.
+       * retry. With `canResume: true`, transient errors keep the stream id for
+       * manual retry. Otherwise, a failed reconnect clears the matching id.
+       * A 204 or 404 from the resume endpoint always clears the matching id.
        */
       onResumeError?: ((error: unknown) => void) | undefined;
       joinStrategy?: AISDKRuntimeAdapter["joinStrategy"];
@@ -317,6 +318,9 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
       const error = activeChat.error;
       if (error) throw error;
     } catch (error) {
+      if (!canResume && resumableStorage?.getStreamId(id) === streamId) {
+        resumableStorage.clear(id);
+      }
       try {
         onResumeErrorRef.current?.(error);
       } catch (callbackError) {
@@ -327,7 +331,15 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
       }
       throw error;
     }
-  }, [chat, externalChat, id, ownedChat, resumableStorage, resumedStreamIds]);
+  }, [
+    canResume,
+    chat,
+    externalChat,
+    id,
+    ownedChat,
+    resumableStorage,
+    resumedStreamIds,
+  ]);
 
   const handleBranchChange = useCallback<
     NonNullable<AISDKRuntimeAdapter["unstable_onBranchChange"]>

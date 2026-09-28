@@ -7,6 +7,9 @@ import { ExternalThread } from "../store/clients/external-thread";
 import { useComposerResume } from "../react/primitive-hooks/useComposerResume";
 import { ExternalStoreThreadRuntimeCore } from "../runtimes/external-store/external-store-thread-runtime-core";
 import type { ThreadMessage } from "../types/message";
+import { AssistantRuntimeProvider } from "../react/AssistantRuntimeProvider";
+import { AssistantRuntimeImpl } from "../runtime/api/assistant-runtime";
+import { ExternalStoreRuntimeCore } from "../runtimes/external-store/external-store-runtime-core";
 import { getThreadRuntimeCoreIsRunning } from "../runtime/api/thread-runtime";
 
 let action!: ReturnType<typeof useComposerResume>;
@@ -83,6 +86,91 @@ describe("checkpoint resume", () => {
     });
     expect(duplicateSettled).toBe(true);
     expect(second.disabled).toBe(false);
+  });
+
+  it("blocks repeated Resume controls through the external-store runtime bridge", async () => {
+    let finish!: () => void;
+    const onResume = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const runtime = new AssistantRuntimeImpl(
+      new ExternalStoreRuntimeCore({
+        messages: [],
+        onNew: vi.fn(),
+        onResume,
+        canResume: true,
+      }),
+    );
+    render(
+      <AssistantRuntimeProvider runtime={runtime}>
+        <Capture />
+      </AssistantRuntimeProvider>,
+    );
+    let pending!: Promise<void>;
+    act(() => {
+      pending = action.resume();
+      void action.resume();
+    });
+    expect(onResume).toHaveBeenCalledOnce();
+    expect(action.disabled).toBe(true);
+    await act(async () => {
+      finish();
+      await pending;
+    });
+    expect(action.disabled).toBe(false);
+  });
+
+  it("allows resuming a new thread while the previous thread is pending", async () => {
+    let finishFirst!: () => void;
+    const firstResume = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finishFirst = resolve;
+        }),
+    );
+    const secondResume = vi.fn(async () => {});
+    const adapter = (threadId: string) => ({
+      messages: [],
+      onNew: vi.fn(),
+      canResume: true,
+      onResume: threadId === "first" ? firstResume : secondResume,
+      adapters: {
+        threadList: {
+          threadId,
+          threads: [
+            { id: "first", status: "regular" as const },
+            { id: "second", status: "regular" as const },
+          ],
+        },
+      },
+    });
+    const core = new ExternalStoreRuntimeCore(adapter("first"));
+    const runtime = new AssistantRuntimeImpl(core);
+    render(
+      <AssistantRuntimeProvider runtime={runtime}>
+        <Capture />
+      </AssistantRuntimeProvider>,
+    );
+    let first!: Promise<void>;
+    act(() => {
+      first = action.resume();
+    });
+    act(() => {
+      core.setAdapter(adapter("second"));
+    });
+    await act(async () => {
+      await action.resume();
+    });
+    expect(firstResume).toHaveBeenCalledOnce();
+    expect(secondResume).toHaveBeenCalledOnce();
+    await act(async () => {
+      finishFirst();
+      await first;
+    });
+    expect(action.disabled).toBe(false);
   });
 
   it("uses the latest callback when checkpoint availability is unchanged", async () => {
@@ -221,49 +309,93 @@ describe("checkpoint resume", () => {
     expect(runtime.canResume).toBe(false);
   });
 
-  it("guards concurrent external-store resume calls on the thread runtime", async () => {
-    let finish!: () => void;
-    const onResume = vi.fn(
-      () =>
-        new Promise<void>((resolve) => {
-          finish = resolve;
-        }),
-    );
+  it.each([undefined, false, true])(
+    "forwards each external-store resume config when canResume is %s",
+    async (canResume) => {
+      let finishFirst!: () => void;
+      let finishSecond!: () => void;
+      const onResume = vi
+        .fn()
+        .mockImplementationOnce(
+          () =>
+            new Promise<void>((resolve) => {
+              finishFirst = resolve;
+            }),
+        )
+        .mockImplementationOnce(
+          () =>
+            new Promise<void>((resolve) => {
+              finishSecond = resolve;
+            }),
+        );
+      const runtime = new ExternalStoreThreadRuntimeCore(
+        { getModelContext: () => ({}) },
+        { messages: [], onNew: vi.fn(), onResume, canResume },
+      );
+      const first = { parentId: null, sourceId: null, runConfig: {} };
+      const second = { parentId: "other", sourceId: null, runConfig: {} };
+      const pending = runtime.resumeRun(first);
+      expect(onResume).toHaveBeenNthCalledWith(1, first);
+      expect(runtime.canResume).toBe(false);
+      const next = runtime.resumeRun(second);
+      expect(onResume).toHaveBeenNthCalledWith(2, second);
+      finishFirst();
+      await pending;
+      expect(runtime.canResume).toBe(false);
+      finishSecond();
+      await next;
+      expect(runtime.canResume).toBe(!!canResume);
+    },
+  );
+
+  it("keeps explicit resume calls independent after one fails", async () => {
+    let failFirst!: (error: Error) => void;
+    let finishSecond!: () => void;
+    const onResume = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((_resolve, reject) => {
+            failFirst = reject;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            finishSecond = resolve;
+          }),
+      );
     const runtime = new ExternalStoreThreadRuntimeCore(
       { getModelContext: () => ({}) },
       { messages: [], onNew: vi.fn(), onResume, canResume: true },
     );
     const config = { parentId: null, sourceId: null, runConfig: {} };
     const pending = runtime.resumeRun(config);
+    const next = runtime.resumeRun(config);
+    expect(onResume).toHaveBeenCalledTimes(2);
+    failFirst(new Error("reconnect failed"));
+    await expect(pending).rejects.toThrow("reconnect failed");
     expect(runtime.canResume).toBe(false);
-    const duplicate = runtime.resumeRun(config);
-    await Promise.resolve();
-    expect(onResume).toHaveBeenCalledOnce();
-    finish();
-    await Promise.all([pending, duplicate]);
+    finishSecond();
+    await next;
     expect(runtime.canResume).toBe(true);
   });
 
-  it("shares a failed external-store resume with concurrent callers", async () => {
-    let fail!: (error: Error) => void;
-    const onResume = vi.fn(
-      () =>
-        new Promise<void>((_resolve, reject) => {
-          fail = reject;
-        }),
-    );
+  it("restores resume availability after a synchronous adapter error", async () => {
     const runtime = new ExternalStoreThreadRuntimeCore(
       { getModelContext: () => ({}) },
-      { messages: [], onNew: vi.fn(), onResume, canResume: true },
+      {
+        messages: [],
+        onNew: vi.fn(),
+        canResume: true,
+        onResume: () => {
+          throw new Error("invalid checkpoint");
+        },
+      },
     );
-    const config = { parentId: null, sourceId: null, runConfig: {} };
-    const pending = runtime.resumeRun(config);
-    const duplicate = runtime.resumeRun(config);
-    await Promise.resolve();
-    expect(onResume).toHaveBeenCalledOnce();
-    fail(new Error("reconnect failed"));
-    await expect(pending).rejects.toThrow("reconnect failed");
-    await expect(duplicate).rejects.toThrow("reconnect failed");
+    await expect(
+      runtime.resumeRun({ parentId: null, sourceId: null, runConfig: {} }),
+    ).rejects.toThrow("invalid checkpoint");
     expect(runtime.canResume).toBe(true);
   });
 

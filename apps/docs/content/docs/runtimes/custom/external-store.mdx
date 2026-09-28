@@ -969,7 +969,9 @@ the interrupted assistant message ID. A stored stream ID alone is insufficient:
 streams without `start.messageId` can append a second answer instead of
 continuing the partial one.
 A missing or expired stream clears that checkpoint; reconnect failures also invoke
-`onResumeError`, while stopping an active response preserves its checkpoint.
+`onResumeError`. Transient failures retain the checkpoint only with `canResume: true`
+for manual retry; otherwise they clear the matching checkpoint. Stopping an active
+response preserves its checkpoint.
 Switching branches clears the stored checkpoint before notifying the application,
 so the interrupted response cannot attach to a different transcript.
 See `examples/with-resumable-stream` for an end-to-end example.

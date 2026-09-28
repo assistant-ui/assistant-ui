@@ -109,12 +109,12 @@ export class ExternalStoreThreadRuntimeCore
   public get isLoading() {
     return this._store.isLoading ?? false;
   }
-  private _resumePending: Promise<void> | undefined;
+  private _pendingResumeCount = 0;
   public get canResume(): boolean {
     return (
       !!this._store.canResume &&
       !!this._store.onResume &&
-      !this._resumePending &&
+      this._pendingResumeCount === 0 &&
       !this.isDisabled &&
       !getThreadRuntimeCoreIsRunning(this) &&
       !this.isLoading &&
@@ -899,15 +899,13 @@ export class ExternalStoreThreadRuntimeCore
       throw new Error("Cannot start a run while a voice session is connected");
     if (this._isVoiceMessage(config.sourceId))
       throw new Error("Voice transcript messages cannot be reloaded");
-    if (this._resumePending) return this._resumePending;
     const onResume = this._store.onResume;
-    const pending = Promise.resolve().then(() => onResume(config));
-    this._resumePending = pending;
+    this._pendingResumeCount++;
     this._notifySubscribers();
     try {
-      await pending;
+      await onResume(config);
     } finally {
-      this._resumePending = undefined;
+      this._pendingResumeCount--;
       this._notifySubscribers();
     }
   }
