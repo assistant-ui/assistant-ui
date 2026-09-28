@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ComponentProps } from "react";
+import { useEffect, useState, type ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { safeHref } from "../utils/href";
 import { clamp } from "../utils/range";
@@ -174,6 +174,32 @@ const relativeDate = (date: Date, locale: string, relativeTo: number) => {
     Math.round(seconds / amount),
     unit,
   );
+};
+
+const relativeRefreshDelay = (
+  columns: readonly DataTableColumn[],
+  rows: readonly DataTableRow[],
+  now: number,
+) => {
+  const relativeKeys = columns
+    .filter(
+      (column) =>
+        column.format?.kind === "date" && column.format.style === "relative",
+    )
+    .map((column) => column.key);
+  const freshestAge = rows.reduce((minimum, row) => {
+    for (const key of relativeKeys) {
+      const date = asDate(row[key]);
+      if (date) minimum = Math.min(minimum, Math.abs(now - date.getTime()));
+    }
+    return minimum;
+  }, Number.POSITIVE_INFINITY);
+
+  if (freshestAge < 60_000) return 1_000;
+  if (freshestAge < 3_600_000) return 30_000;
+  if (freshestAge < 86_400_000) return 60_000;
+  if (freshestAge < 604_800_000) return 3_600_000;
+  return 86_400_000;
 };
 
 const withUnit = (text: string, unit: string | undefined) =>
@@ -443,7 +469,25 @@ export function DataTable({
   );
   const [announcement, setAnnouncement] = useState("");
   const activeSort = sort === undefined ? internalSort : sort;
+  const hasRelativeDates = columns.some(
+    (column) =>
+      column.format?.kind === "date" && column.format.style === "relative",
+  );
+  const [, setTick] = useState(0);
   const relativeTime = relativeTo ?? Date.now();
+  const refreshDelay =
+    relativeTo === undefined && hasRelativeDates
+      ? relativeRefreshDelay(columns, rows, relativeTime)
+      : undefined;
+
+  useEffect(() => {
+    if (refreshDelay === undefined) return;
+    const timeout = window.setTimeout(
+      () => setTick((tick) => tick + 1),
+      refreshDelay,
+    );
+    return () => window.clearTimeout(timeout);
+  });
   const sortColumn = columns.find((column) => column.key === activeSort?.key);
   const collator = collatorFor(locale);
   const sortedRows =

@@ -13,6 +13,7 @@ import {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 const COLUMNS = [
@@ -113,6 +114,83 @@ describe("DataTable", () => {
     ).toBe(true);
     expect(screen.getAllByText("ready")).toHaveLength(2);
     expect(screen.getAllByText("+1")).toHaveLength(2);
+  });
+
+  it("refreshes uncontrolled relative dates as time passes", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(Date.parse("2026-09-28T12:00:59.000Z"));
+    render(
+      <DataTable
+        columns={[
+          {
+            key: "updated",
+            label: "Updated",
+            format: { kind: "date", style: "relative" },
+          },
+        ]}
+        rows={[{ updated: "2026-09-28T12:00:00.000Z" }]}
+      />,
+    );
+
+    expect(screen.getAllByText("59 seconds ago")).toHaveLength(2);
+
+    act(() => vi.advanceTimersByTime(2_000));
+
+    expect(screen.getAllByText("1 minute ago")).toHaveLength(2);
+  });
+
+  it("refreshes immediately when relativeTo becomes uncontrolled", () => {
+    vi.useFakeTimers();
+    const referenceTime = Date.parse("2026-09-28T12:00:00.000Z");
+    vi.setSystemTime(referenceTime);
+    const columns: readonly DataTableColumn[] = [
+      {
+        key: "updated",
+        label: "Updated",
+        format: { kind: "date", style: "relative" },
+      },
+    ];
+    const rows = [{ updated: "2026-09-28T11:59:00.000Z" }];
+    const { rerender } = render(
+      <DataTable columns={columns} rows={rows} relativeTo={referenceTime} />,
+    );
+
+    vi.setSystemTime(referenceTime + 60_000);
+    rerender(<DataTable columns={columns} rows={rows} />);
+
+    expect(screen.getAllByText("2 minutes ago")).toHaveLength(2);
+  });
+
+  it("uses the current time immediately when rows change", () => {
+    vi.useFakeTimers();
+    const initialTime = Date.parse("2026-09-28T12:00:00.000Z");
+    const columns: readonly DataTableColumn[] = [
+      {
+        key: "updated",
+        label: "Updated",
+        format: { kind: "date", style: "relative" },
+      },
+    ];
+    vi.setSystemTime(initialTime);
+    const { rerender } = render(
+      <DataTable
+        columns={columns}
+        rows={[{ updated: "2026-09-14T12:00:00.000Z" }]}
+      />,
+    );
+
+    vi.setSystemTime(initialTime + 2 * 86_400_000);
+    rerender(
+      <DataTable
+        columns={columns}
+        rows={[
+          { updated: "2026-09-14T12:00:00.000Z" },
+          { updated: "2026-09-30T11:59:59.000Z" },
+        ]}
+      />,
+    );
+
+    expect(screen.getAllByText("1 second ago")).toHaveLength(2);
   });
 
   it("cycles sort direction and announces the current order", () => {
