@@ -12,7 +12,10 @@ export interface A2uiTemplateChildren {
 export interface ComponentNode extends Record<string, unknown> {
   readonly id: string;
   readonly component: string;
-  readonly children?: readonly string[] | A2uiTemplateChildren;
+  readonly children?:
+    | readonly string[]
+    | { readonly componentId: string; readonly path: string }
+    | A2uiTemplateChildren;
 }
 
 export interface A2uiCreateSurfaceV09Payload {
