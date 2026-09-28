@@ -1,9 +1,5 @@
 import { ICON_NAMES, type UIElement } from "../ir";
-import {
-  A2UI_SURFACE_ID,
-  type A2uiSurfaceState,
-  type A2uiTemplateChildren,
-} from "./types";
+import { A2UI_SURFACE_ID, type A2uiSurfaceState } from "./types";
 import {
   evaluateA2uiValueFunction,
   type ExpressionPart,
@@ -84,13 +80,22 @@ const isBinding = (value: unknown): value is { readonly path: string } =>
   Object.keys(value).length === 1 &&
   typeof value["path"] === "string";
 
-const isTemplateChildren = (value: unknown): value is A2uiTemplateChildren =>
-  isPlainObject(value) &&
-  Object.keys(value).length === 1 &&
-  isPlainObject(value["template"]) &&
-  Object.keys(value["template"]).length === 2 &&
-  typeof value["template"]["componentId"] === "string" &&
-  typeof value["template"]["path"] === "string";
+type ChildTemplate = { readonly componentId: string; readonly path: string };
+
+const childTemplateOf = (children: unknown): ChildTemplate | undefined => {
+  const template =
+    isPlainObject(children) &&
+    Object.keys(children).length === 1 &&
+    isPlainObject(children["template"])
+      ? children["template"]
+      : children;
+  return isPlainObject(template) &&
+    Object.keys(template).length === 2 &&
+    typeof template["componentId"] === "string" &&
+    typeof template["path"] === "string"
+    ? { componentId: template["componentId"], path: template["path"] }
+    : undefined;
+};
 
 const decodePointer = (path: string): string[] => {
   if (path === "" || path === "/") return [];
@@ -804,28 +809,18 @@ const mappedProps = (
 
 const convertTemplate = (
   node: Record<string, unknown>,
-  templateChildren: A2uiTemplateChildren,
+  template: ChildTemplate,
   scope: Scope,
   context: ConversionContext,
   depth: number,
   visited: Set<string>,
-  retained?: UIElement,
-  mappedContainer?: UIElement,
+  converted: UIElement | undefined,
 ): UIElement | null => {
   if (!reserveNode(context)) return null;
-  const horizontalList =
-    node["component"] === "List" &&
-    materialize(node["direction"], scope.data, context) === "horizontal";
-  const container = mappedContainer ??
-    retained ?? {
-      $type: horizontalList ? "Row" : "ListView",
-    };
-  const list = materialize(
-    { path: templateChildren.template.path },
-    scope.data,
-    context,
-  );
-  const listPointer = pointerIn(scope, templateChildren.template.path);
+  const container = converted ?? { $type: "ListView" };
+  const itemized = container.$type === "ListView";
+  const list = materialize({ path: template.path }, scope.data, context);
+  const listPointer = pointerIn(scope, template.path);
   if (!Array.isArray(list)) {
     context.warnings.push(
       `Template on component "${String(node["id"] ?? "")}" did not resolve to a list.`,
@@ -841,21 +836,21 @@ const convertTemplate = (
   }
   const children: UIElement[] = [];
   for (let index = 0; index < itemCount; index++) {
-    if (!retained && !horizontalList && !reserveNode(context)) break;
+    if (itemized && !reserveNode(context)) break;
     const child = convertComponent(
-      templateChildren.template.componentId,
+      template.componentId,
       { data: list[index], path: `${listPointer}/${index}` },
       context,
       depth + 1,
       visited,
     );
-    if (retained || horizontalList) {
-      if (child) children.push(child);
-    } else {
+    if (itemized) {
       children.push({
         $type: "ListViewItem",
         ...(child ? { children: child } : {}),
       });
+    } else if (child) {
+      children.push(child);
     }
   }
   return { ...container, children };
@@ -894,12 +889,11 @@ function convertComponent(
       );
       return null;
     }
-    const templateChildren = node["children"];
-    const hasTemplate = isTemplateChildren(templateChildren);
+    const template = childTemplateOf(node["children"]);
     if (
       !SUPPORTED_COMPONENTS.has(component) &&
       !context.keepUnknownComponents &&
-      !hasTemplate
+      !template
     ) {
       context.warnings.push(
         `Unknown A2UI component "${component}" was skipped.`,
@@ -940,20 +934,19 @@ function convertComponent(
             ),
           }
         : undefined;
-    if (hasTemplate) {
+    const converted = mapped ?? retained;
+    if (template) {
       return convertTemplate(
         node,
-        templateChildren,
+        template,
         scope,
         context,
         depth,
         visited,
-        retained,
-        component === "List" ? mapped : undefined,
+        converted,
       );
     }
     if (!reserveNode(context)) return null;
-    const converted = mapped ?? retained;
     if (!converted) return null;
     recordBindings(node, props, converted, scope, context);
     const children = childrenOf(node, scope, context, depth, visited);
