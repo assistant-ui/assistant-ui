@@ -59,7 +59,7 @@
     "expo-clipboard": "^57.0.2",
     "expo-image-manipulator": "^57.0.20",
     "expo-image-picker": "^57.0.20",
-    "jsdom": "^30.1.1",
+    "jsdom": "^30.0.1",
     "leaflet": "^1.9.4",
     "lucide-react-native": "^1.48.0",
     "markdown-it": "^15.0.2",
