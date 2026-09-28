@@ -50,6 +50,8 @@ Anonymous access is not allowed
 
 ## From your code
 
+The browser examples below read the Next.js variable; on Vite, React Router and TanStack Start read `import.meta.env.VITE_ASSISTANT_BASE_URL` instead.
+
 Create an anonymous browser client with the project's frontend base URL:
 
 ```ts title="app/cloud.ts"
@@ -60,8 +62,6 @@ export const cloud = new AssistantCloud({
   anonymous: true,
 });
 ```
-
-On Vite, React Router and TanStack Start read `import.meta.env.VITE_ASSISTANT_BASE_URL` instead.
 
 The first token response has this shape:
 
