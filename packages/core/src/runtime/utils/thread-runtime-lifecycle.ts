@@ -1,5 +1,4 @@
 import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
-import { BaseComposerRuntimeCore } from "../base/base-composer-runtime-core";
 
 // Invalidation must stay re-entrant: StrictMode's simulated unmount runs the
 // effect cleanup while the runtime object survives into the next mount, so a
@@ -16,6 +15,22 @@ export const captureThreadRuntimeGeneration = (
   }
   return generation.signal;
 };
+
+const disposals = new WeakMap<ThreadRuntimeCore, AbortController>();
+
+const disposalOf = (runtime: ThreadRuntimeCore) => {
+  let disposal = disposals.get(runtime);
+  if (!disposal) {
+    disposal = new AbortController();
+    disposals.set(runtime, disposal);
+  }
+  return disposal;
+};
+
+/** Aborts only when the runtime is disposed for good, never on invalidation. */
+export const captureThreadRuntimeDisposal = (
+  runtime: ThreadRuntimeCore,
+): AbortSignal => disposalOf(runtime).signal;
 
 export const invalidateThreadRuntime = (runtime: ThreadRuntimeCore) => {
   const generation = generations.get(runtime);
@@ -49,7 +64,6 @@ export const disposeThreadRuntime = (runtime: ThreadRuntimeCore) => {
   const generation = generations.get(runtime) ?? new AbortController();
   generations.set(runtime, generation);
   generation.abort();
-  if (runtime.composer instanceof BaseComposerRuntimeCore)
-    runtime.composer.__internal_dispose();
+  disposalOf(runtime).abort();
   endVoiceSession(runtime);
 };

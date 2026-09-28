@@ -1,6 +1,7 @@
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
 import type { AttachmentAdapter } from "../../adapters/attachment";
+import type { ThreadMessage } from "../../types/message";
 import { ExternalStoreThreadRuntimeCore } from "../../runtimes/external-store/external-store-thread-runtime-core";
 import {
   captureThreadRuntimeGeneration,
@@ -63,6 +64,68 @@ describe("thread runtime lifecycle", () => {
     resolveSend();
     await pending;
     expect(onNew).toHaveBeenCalledOnce();
+  });
+
+  it("aborts an edit composer's pending attachment send on disposal", async () => {
+    let resolveSend!: () => void;
+    const send = vi.fn<AttachmentAdapter["send"]>(
+      (attachment) =>
+        new Promise((resolve) => {
+          resolveSend = () =>
+            resolve({
+              ...attachment,
+              status: { type: "complete" },
+              content: [],
+            });
+        }),
+    );
+    const attachments: AttachmentAdapter = {
+      accept: "*",
+      add: async ({ file }) => ({
+        id: "attachment-1",
+        type: "document",
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: { type: "requires-action", reason: "composer-send" },
+      }),
+      remove: async () => {},
+      send,
+    };
+    const onEdit = vi.fn(async () => {});
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      { getModelContext: () => ({}) },
+      {
+        messages: [
+          {
+            id: "u1",
+            role: "user",
+            createdAt: new Date(),
+            content: [{ type: "text", text: "hello" }],
+            attachments: [],
+            metadata: { custom: {} },
+          } as ThreadMessage,
+        ],
+        onNew: vi.fn(async () => {}),
+        onEdit,
+        adapters: { attachments },
+      },
+    );
+    runtime.beginEdit("u1");
+    const composer = runtime.getEditComposer("u1")!;
+    await composer.addAttachment(
+      new File(["hello"], "notes.txt", { type: "text/plain" }),
+    );
+
+    const pending = composer.send();
+    const signal = send.mock.lastCall?.[1]?.signal;
+    expect(signal?.aborted).toBe(false);
+    disposeThreadRuntime(runtime);
+    expect(signal?.aborted).toBe(true);
+
+    resolveSend();
+    await pending;
+    expect(onEdit).not.toHaveBeenCalled();
   });
 
   it("starts a fresh generation after invalidation", () => {
