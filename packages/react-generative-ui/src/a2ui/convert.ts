@@ -28,6 +28,12 @@ const SUPPORTED_COMPONENTS = new Set([
   "Slider",
 ]);
 
+const CHILD_LIST_COMPONENTS: ReadonlySet<string> = new Set([
+  "Row",
+  "Column",
+  "List",
+]);
+
 const ICON_NAME_SET: ReadonlySet<string> = new Set(ICON_NAMES);
 const ICON_SIZE_SET: ReadonlySet<string> = new Set(["sm", "md", "lg"]);
 
@@ -934,7 +940,6 @@ function convertComponent(
             ),
           }
         : undefined;
-    const converted = mapped ?? retained;
     if (template) {
       return convertTemplate(
         node,
@@ -943,10 +948,11 @@ function convertComponent(
         context,
         depth,
         visited,
-        converted,
+        CHILD_LIST_COMPONENTS.has(component) ? mapped : retained,
       );
     }
     if (!reserveNode(context)) return null;
+    const converted = mapped ?? retained;
     if (!converted) return null;
     recordBindings(node, props, converted, scope, context);
     const children = childrenOf(node, scope, context, depth, visited);

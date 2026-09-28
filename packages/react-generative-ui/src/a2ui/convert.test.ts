@@ -1125,6 +1125,33 @@ describe("convertSurfaceToUISpec", () => {
     });
   });
 
+  it("expands a template on a component without a child list into a ListView", () => {
+    const surface = surfaceFrom(
+      [
+        {
+          id: "root",
+          component: "Divider",
+          children: { componentId: "item", path: "/items" },
+        },
+        { id: "item", component: "Text", text: { path: "name" } },
+      ],
+      { items: [{ name: "one" }] },
+    );
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "ListView",
+        children: [
+          {
+            $type: "ListViewItem",
+            children: { $type: "Markdown", value: "one" },
+          },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
   it("reads template children wrapped in a template key", () => {
     const surface = surfaceFrom(
       [
