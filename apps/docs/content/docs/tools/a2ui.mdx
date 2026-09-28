@@ -43,7 +43,7 @@ A backend paints or updates a surface by emitting an activity snapshot on the AG
 - A snapshot with `replace: true` (the schema default) rebuilds that `messageId`'s surface state from the operations it carries. `replace: false` means the snapshot is ignored when that `messageId` has already been seen, matching the AG-UI event spec. The middleware always emits `replace: true`.
 - Surfaces are keyed by the `surfaceId` inside the operations, not by `messageId`. Multiple snapshots that share a `messageId` update their surfaces in place, and the synthesized part keeps its `toolCallId`, so the rendered surface updates without duplicating parts.
 - Each synthesized surface stores its replayable operations in `artifact.a2ui`, so it replays from history and in the Assistant Cloud dashboard.
-- Component trees use the A2UI adjacency-list model: nodes reference their children by id (`children` for a list, `child` for a single component), the root node has id `root`, and props of shape `{ "path": "/x/y" }` are JSON Pointer bindings resolved against the surface data model. Both v0.9 and v1.0 operation payloads are accepted, including the v1.0 inline `components` and `dataModel` on `createSurface`.
+- Component trees use the A2UI adjacency-list model: nodes reference their children by id (`children` for a list, `child` for a single component), the root node has id `root`, and props of shape `{ "path": "/x/y" }` are JSON Pointer bindings resolved against the surface data model. Operation payloads from v0.9, v0.9.1 (read as v0.9), and v1.0 are accepted, including the v1.0 inline `components` and `dataModel` on `createSurface`.
 - Lifecycle snapshots that carry a `status` (such as `"building"`) but no `a2ui_operations` are tolerated and produce no part until operations arrive. A `deleteSurface` operation removes the surface's part.
 - The `a2ui:` tool-call id prefix is reserved for synthesized surface parts: they are client-side render artifacts and are excluded from the history sent back to the agent, so genuine agent tool calls must not use ids starting with `a2ui:`.
 
@@ -124,7 +124,7 @@ The converter maps the A2UI basic catalog onto the default generative UI vocabul
 
 ## Limitations
 
-- The upstream middleware currently emits v0.9 operation payloads; the renderer accepts v0.9 and v1.0 shapes.
+- The upstream middleware currently emits v0.9 operation payloads; the renderer accepts v0.9, v0.9.1, and v1.0 shapes.
 - The renderer keeps no data model of its own. User input reaches only the action values bound to it, so other components bound to the same path, and values computed by a function call such as `formatString`, keep what they were when the surface was converted. An agent update replaces what the user entered only when it changes the bound value, and two inputs bound to the same path do not mirror each other, so an action value bound to that path carries both values as a list.
 - `sendDataModel` is not implemented, so an action never carries the whole data model; bind the fields it needs in its `context`.
 - `DateTimeInput` renders a date only picker, so a value with a time renders empty and action values bound to it keep what the agent sent.
