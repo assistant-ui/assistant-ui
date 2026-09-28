@@ -189,7 +189,7 @@ export class AssistantCloudAPI {
       ...(options.keepalive ? { keepalive: true } : {}),
     });
 
-    this._auth.readAuthHeaders(response.headers);
+    this._auth.readAuthHeaders(response.headers, new Headers(headers));
 
     if (!response.ok) {
       const text = await response.text();

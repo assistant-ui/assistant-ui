@@ -35,7 +35,7 @@ const withAuthTokenDeadline = async <T>(
 export type AssistantCloudAuthStrategy = {
   readonly strategy: "anon" | "jwt" | "api-key";
   getAuthHeaders(): Promise<Record<string, string> | false>;
-  readAuthHeaders(headers: Headers): void;
+  readAuthHeaders(headers: Headers, requestHeaders?: Headers): void;
 };
 
 const getJwtExpiry = (jwt: string): number => {
@@ -122,24 +122,34 @@ export class AssistantCloudJWTAuthStrategy implements AssistantCloudAuthStrategy
   public readonly strategy = "jwt";
 
   private cachedToken: string | null = null;
+  private cachedSourceToken: string | null = null;
   private tokenExpiry: number | null = null;
   private tokenRequest: Promise<Record<string, string> | false> | null = null;
+  private readonly revalidate: boolean;
   #authTokenCallback: () => Promise<string | null>;
 
-  constructor(authTokenCallback: () => Promise<string | null>) {
+  constructor(
+    authTokenCallback: () => Promise<string | null>,
+    options: { revalidate?: boolean } = {},
+  ) {
     this.#authTokenCallback = authTokenCallback;
+    this.revalidate = options.revalidate ?? true;
   }
 
   public async getAuthHeaders(): Promise<Record<string, string> | false> {
     const currentTime = Date.now();
 
-    // Use cached token if it's valid for at least 30 more seconds
     if (
+      !this.revalidate &&
       this.cachedToken &&
       this.tokenExpiry &&
       this.tokenExpiry - currentTime > 30 * 1000
     ) {
       return { Authorization: `Bearer ${this.cachedToken}` };
+    }
+
+    if (this.revalidate) {
+      return this.fetchAuthHeaders();
     }
 
     if (!this.tokenRequest) {
@@ -158,16 +168,42 @@ export class AssistantCloudJWTAuthStrategy implements AssistantCloudAuthStrategy
 
   private async fetchAuthHeaders(): Promise<Record<string, string> | false> {
     const token = await this.#authTokenCallback();
-    if (!token) return false;
+    if (!token) {
+      this.cachedToken = null;
+      this.cachedSourceToken = null;
+      this.tokenExpiry = null;
+      return false;
+    }
+
+    const currentTime = Date.now();
+    if (
+      token === this.cachedSourceToken &&
+      this.cachedToken &&
+      this.tokenExpiry &&
+      this.tokenExpiry - currentTime > 30 * 1000
+    ) {
+      return { Authorization: `Bearer ${this.cachedToken}` };
+    }
 
     const tokenExpiry = getJwtExpiry(token);
     this.cachedToken = token;
+    this.cachedSourceToken = token;
     this.tokenExpiry = tokenExpiry;
 
     return { Authorization: `Bearer ${token}` };
   }
 
-  public readAuthHeaders(headers: Headers) {
+  public readAuthHeaders(headers: Headers, requestHeaders?: Headers) {
+    const requestAuthHeader = requestHeaders?.get("Authorization");
+    if (
+      requestAuthHeader !== null &&
+      requestAuthHeader !== undefined &&
+      requestAuthHeader !==
+        (this.cachedToken ? `Bearer ${this.cachedToken}` : undefined)
+    ) {
+      return;
+    }
+
     const authHeader = headers.get("Authorization");
     if (!authHeader) return;
 
@@ -425,8 +461,9 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
         },
       );
     };
-    this.jwtStrategy = new AssistantCloudJWTAuthStrategy(() =>
-      getSharedAnonymousAuthToken(this.baseUrl, requestAuthToken),
+    this.jwtStrategy = new AssistantCloudJWTAuthStrategy(
+      () => getSharedAnonymousAuthToken(this.baseUrl, requestAuthToken),
+      { revalidate: false },
     );
   }
 
@@ -434,7 +471,7 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
     return this.jwtStrategy.getAuthHeaders();
   }
 
-  public readAuthHeaders(headers: Headers): void {
-    this.jwtStrategy.readAuthHeaders(headers);
+  public readAuthHeaders(headers: Headers, requestHeaders?: Headers): void {
+    this.jwtStrategy.readAuthHeaders(headers, requestHeaders);
   }
 }

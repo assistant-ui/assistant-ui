@@ -52,7 +52,7 @@ The client chooses an arm in this order: `authToken`, then `apiKey`, then `anony
 
 ### Choose authentication
 
-**JWT.** The client caches a token until it is within 30 seconds of its JWT expiry and shares one pending callback invocation. It sends `Authorization: Bearer <token>`. A null or empty callback result makes the request throw `Authorization failed`. Every response is inspected for an `Authorization: Bearer <token>` header, which refreshes the cache. A response authorization header with another scheme throws `Invalid auth header received`.
+**JWT.** Before each request, the client calls `authToken` to confirm the current provider identity. While the returned token is unchanged, it reuses the cached token until it is within 30 seconds of its JWT expiry. A changed provider token replaces the cache; a null or empty result clears it and makes the request throw `Authorization failed`. Every response is inspected for an `Authorization: Bearer <token>` header, which refreshes the cache only when it belongs to the request's current identity. A response authorization header with another scheme throws `Invalid auth header received`.
 
 **API key.** The client does no token caching or network work. Every request sends `Authorization: Bearer <apiKey>`, `Aui-User-Id: <userId>`, and `Aui-Workspace-Id: <workspaceId>`.
 

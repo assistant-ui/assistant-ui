@@ -9,6 +9,8 @@ import { CloudResponseError } from "../cloudResponse";
 
 const baseUrl = "https://test.example.com";
 const accessToken = `${Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url")}.${Buffer.from(JSON.stringify({ exp: 4102444800 })).toString("base64url")}.sig`;
+const createAccessToken = (subject: string) =>
+  `${Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url")}.${Buffer.from(JSON.stringify({ exp: 4102444800, sub: subject })).toString("base64url")}.sig`;
 const refreshToken = {
   token: "r1",
   expires_at: "2099-01-01",
@@ -935,6 +937,118 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
 });
 
 describe("AssistantCloudJWTAuthStrategy", () => {
+  it("stops authenticating when the provider signs out", async () => {
+    let currentToken: string | null = createAccessToken("user-a");
+    const authToken = vi.fn(async () => currentToken);
+    const strategy = new AssistantCloudJWTAuthStrategy(authToken);
+
+    const requestHeaders = await strategy.getAuthHeaders();
+    expect(requestHeaders).toEqual({
+      Authorization: `Bearer ${currentToken}`,
+    });
+    if (requestHeaders === false) throw new Error("Expected auth headers");
+    strategy.readAuthHeaders(
+      new Headers({
+        Authorization: `Bearer ${createAccessToken("internal-user-a")}`,
+      }),
+      new Headers(requestHeaders),
+    );
+
+    currentToken = null;
+
+    await expect(strategy.getAuthHeaders()).resolves.toBe(false);
+    expect(authToken).toHaveBeenCalledTimes(2);
+  });
+
+  it("uses the new provider token after an account switch", async () => {
+    let currentToken = createAccessToken("user-a");
+    const authToken = vi.fn(async () => currentToken);
+    const strategy = new AssistantCloudJWTAuthStrategy(authToken);
+
+    const requestHeaders = await strategy.getAuthHeaders();
+    expect(requestHeaders).toEqual({
+      Authorization: `Bearer ${currentToken}`,
+    });
+    if (requestHeaders === false) throw new Error("Expected auth headers");
+    strategy.readAuthHeaders(
+      new Headers({
+        Authorization: `Bearer ${createAccessToken("internal-user-a")}`,
+      }),
+      new Headers(requestHeaders),
+    );
+
+    currentToken = createAccessToken("user-b");
+
+    await expect(strategy.getAuthHeaders()).resolves.toEqual({
+      Authorization: `Bearer ${currentToken}`,
+    });
+    expect(authToken).toHaveBeenCalledTimes(2);
+  });
+
+  it("reuses an exchanged token while the provider identity is unchanged", async () => {
+    const providerToken = createAccessToken("user-a");
+    const internalToken = createAccessToken("internal-user-a");
+    const authToken = vi.fn(async () => providerToken);
+    const strategy = new AssistantCloudJWTAuthStrategy(authToken);
+
+    const requestHeaders = await strategy.getAuthHeaders();
+    if (requestHeaders === false) throw new Error("Expected auth headers");
+    strategy.readAuthHeaders(
+      new Headers({ Authorization: `Bearer ${internalToken}` }),
+      new Headers(requestHeaders),
+    );
+
+    await expect(strategy.getAuthHeaders()).resolves.toEqual({
+      Authorization: `Bearer ${internalToken}`,
+    });
+    expect(authToken).toHaveBeenCalledTimes(2);
+  });
+
+  it("ignores a rotated token from a superseded provider request", async () => {
+    let currentToken = createAccessToken("user-a");
+    const authToken = vi.fn(async () => currentToken);
+    const strategy = new AssistantCloudJWTAuthStrategy(authToken);
+
+    const userAHeaders = await strategy.getAuthHeaders();
+    if (userAHeaders === false) throw new Error("Expected auth headers");
+
+    currentToken = createAccessToken("user-b");
+    await strategy.getAuthHeaders();
+
+    strategy.readAuthHeaders(
+      new Headers({
+        Authorization: `Bearer ${createAccessToken("internal-user-a")}`,
+      }),
+      new Headers(userAHeaders),
+    );
+
+    await expect(strategy.getAuthHeaders()).resolves.toEqual({
+      Authorization: `Bearer ${currentToken}`,
+    });
+    expect(authToken).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not share an in-flight provider token across sign-out", async () => {
+    let resolveUserAToken: (token: string) => void = () => {};
+    const userAToken = new Promise<string>((resolve) => {
+      resolveUserAToken = resolve;
+    });
+    const authToken = vi
+      .fn<() => Promise<string | null>>()
+      .mockImplementationOnce(() => userAToken)
+      .mockResolvedValueOnce(null);
+    const strategy = new AssistantCloudJWTAuthStrategy(authToken);
+
+    const userARequest = strategy.getAuthHeaders();
+    await expect(strategy.getAuthHeaders()).resolves.toBe(false);
+
+    resolveUserAToken(createAccessToken("user-a"));
+    await expect(userARequest).resolves.toEqual({
+      Authorization: `Bearer ${createAccessToken("user-a")}`,
+    });
+    expect(authToken).toHaveBeenCalledTimes(2);
+  });
+
   it("retries token acquisition after a failed request", async () => {
     const authToken = vi
       .fn<() => Promise<string | null>>()
@@ -957,19 +1071,22 @@ describe("AssistantCloudJWTAuthStrategy", () => {
       .mockResolvedValue(accessToken);
     const strategy = new AssistantCloudJWTAuthStrategy(authToken);
 
-    await expect(strategy.getAuthHeaders()).resolves.toEqual({
+    const requestHeaders = await strategy.getAuthHeaders();
+    expect(requestHeaders).toEqual({
       Authorization: `Bearer ${accessToken}`,
     });
+    if (requestHeaders === false) throw new Error("Expected auth headers");
 
     expect(() =>
       strategy.readAuthHeaders(
         new Headers({ Authorization: "Bearer malformed" }),
+        new Headers(requestHeaders),
       ),
     ).toThrow("Unable to determine the token expiry");
 
     await expect(strategy.getAuthHeaders()).resolves.toEqual({
       Authorization: `Bearer ${accessToken}`,
     });
-    expect(authToken).toHaveBeenCalledTimes(1);
+    expect(authToken).toHaveBeenCalledTimes(2);
   });
 });

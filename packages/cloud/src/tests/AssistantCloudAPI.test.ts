@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AssistantCloudAPI, CloudAPIError } from "../AssistantCloudAPI";
 import { CloudResponseError } from "../cloudResponse";
 
+const createAccessToken = (subject: string) =>
+  `${Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url")}.${Buffer.from(JSON.stringify({ exp: 4102444800, sub: subject })).toString("base64url")}.sig`;
+
 describe("AssistantCloudAPI", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -159,6 +162,55 @@ describe("AssistantCloudAPI", () => {
       "Authorization failed",
     );
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("does not let an old response restore a superseded identity", async () => {
+    const userAToken = createAccessToken("user-a");
+    const userBToken = createAccessToken("user-b");
+    const internalUserAToken = createAccessToken("internal-user-a");
+    let currentToken = userAToken;
+    let resolveUserAResponse: (response: Response) => void = () => {};
+    const userAResponse = new Promise<Response>((resolve) => {
+      resolveUserAResponse = resolve;
+    });
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockImplementationOnce(() => userAResponse)
+      .mockResolvedValue({
+        ok: true,
+        headers: new Headers(),
+      } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const api = new AssistantCloudAPI({
+      baseUrl: "https://test.example.com",
+      authToken: async () => currentToken,
+    });
+
+    const userARequest = api.makeRawRequest("/threads");
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    currentToken = userBToken;
+    await api.makeRawRequest("/threads");
+
+    resolveUserAResponse({
+      ok: true,
+      headers: new Headers({
+        Authorization: `Bearer ${internalUserAToken}`,
+      }),
+    } as Response);
+    await userARequest;
+    await api.makeRawRequest("/threads");
+
+    expect(fetchMock.mock.calls[0]?.[1]?.headers).toMatchObject({
+      Authorization: `Bearer ${userAToken}`,
+    });
+    expect(fetchMock.mock.calls[1]?.[1]?.headers).toMatchObject({
+      Authorization: `Bearer ${userBToken}`,
+    });
+    expect(fetchMock.mock.calls[2]?.[1]?.headers).toMatchObject({
+      Authorization: `Bearer ${userBToken}`,
+    });
   });
 
   it("returns false from initializeAuth when auth token callback returns null", async () => {
