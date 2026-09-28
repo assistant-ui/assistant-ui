@@ -8,7 +8,7 @@ import { AssistantRuntimeImpl } from "../../runtime/internal";
 import { invalidateThreadRuntime } from "../../runtime/utils/thread-runtime-lifecycle";
 import { useRuntimeAdapters } from "./RuntimeAdapterProvider";
 import { ExternalStoreHistoryCopy } from "./external-store-history-copy";
-import { useReplaySafeEffect } from "../utils/useReplaySafeEffect";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 
 export const useExternalStoreRuntime = <T>(
   store: ExternalStoreAdapter<T>,

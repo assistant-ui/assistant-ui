@@ -6,7 +6,7 @@ import {
   useMemo,
 } from "react";
 import { generateId } from "@assistant-ui/core";
-import { useReplaySafeEffect } from "@assistant-ui/core/react";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import { useAui } from "@assistant-ui/store";
 import {
   abortableIterable,

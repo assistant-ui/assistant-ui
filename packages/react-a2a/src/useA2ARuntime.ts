@@ -11,9 +11,9 @@ import {
 import {
   useExternalStoreRuntime,
   useExternalStoreSharedOptions,
-  useReplaySafeEffect,
   useRuntimeAdapters,
 } from "@assistant-ui/core/react";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import type {
   AssistantRuntime,
   AppendMessage,

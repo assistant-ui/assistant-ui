@@ -238,7 +238,6 @@ export {
 export { RemoteThreadListHookInstanceManager } from "./runtimes/RemoteThreadListHookInstanceManager";
 export { RemoteThreadListThreadListRuntimeCore } from "./runtimes/RemoteThreadListThreadListRuntimeCore";
 export { useRemoteThreadListRuntime } from "./runtimes/useRemoteThreadListRuntime";
-export { useReplaySafeEffect } from "./utils/useReplaySafeEffect";
 export { useCloudThreadListAdapter } from "./runtimes/cloud/useCloudThreadListAdapter";
 export {
   createCloudThreadListAdapter,

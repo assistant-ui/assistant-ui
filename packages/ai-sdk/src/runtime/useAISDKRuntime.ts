@@ -17,10 +17,10 @@ import type {
 import { isToolUIPart, generateId, getToolName } from "ai";
 import {
   useExternalStoreRuntime,
-  useReplaySafeEffect,
   useRuntimeAdapters,
   type JoinStrategy,
 } from "@assistant-ui/core/react";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import type {
   SuggestionAdapter,
   ThreadSuggestion,

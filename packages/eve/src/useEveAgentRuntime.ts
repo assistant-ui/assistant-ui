@@ -27,9 +27,9 @@ import {
   useCloudThreadListAdapter,
   useExternalStoreRuntime,
   useRemoteThreadListRuntime,
-  useReplaySafeEffect,
   useRuntimeAdapters,
 } from "@assistant-ui/core/react";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import { useAui } from "@assistant-ui/store";
 import type { AssistantCloud } from "assistant-cloud";
 import {
