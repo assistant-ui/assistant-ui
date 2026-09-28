@@ -1,5 +1,7 @@
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
+import type { AttachmentAdapter } from "../../adapters/attachment";
+import { ExternalStoreThreadRuntimeCore } from "../../runtimes/external-store/external-store-thread-runtime-core";
 import {
   captureThreadRuntimeGeneration,
   disposeThreadRuntime,
@@ -14,6 +16,55 @@ const createRuntime = (disconnectVoice: () => void = vi.fn()) =>
   }) as unknown as ThreadRuntimeCore;
 
 describe("thread runtime lifecycle", () => {
+  it.each([
+    ["invalidation", invalidateThreadRuntime],
+    ["supersession", supersedeThreadRuntime],
+  ])("delivers a pending attachment send through %s", async (_, transition) => {
+    let resolveSend!: () => void;
+    const send = vi.fn<AttachmentAdapter["send"]>(
+      (attachment) =>
+        new Promise((resolve) => {
+          resolveSend = () =>
+            resolve({
+              ...attachment,
+              status: { type: "complete" },
+              content: [],
+            });
+        }),
+    );
+    const attachments: AttachmentAdapter = {
+      accept: "*",
+      add: async ({ file }) => ({
+        id: "attachment-1",
+        type: "document",
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: { type: "requires-action", reason: "composer-send" },
+      }),
+      remove: async () => {},
+      send,
+    };
+    const onNew = vi.fn(async () => {});
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      { getModelContext: () => ({}) },
+      { messages: [], onNew, adapters: { attachments } },
+    );
+    runtime.composer.setText("hello");
+    await runtime.composer.addAttachment(
+      new File(["hello"], "notes.txt", { type: "text/plain" }),
+    );
+
+    const pending = runtime.composer.send();
+    const signal = send.mock.lastCall?.[1]?.signal;
+    transition(runtime);
+    expect(signal?.aborted).toBe(false);
+
+    resolveSend();
+    await pending;
+    expect(onNew).toHaveBeenCalledOnce();
+  });
+
   it("starts a fresh generation after invalidation", () => {
     const runtime = createRuntime();
     const generation = captureThreadRuntimeGeneration(runtime);
