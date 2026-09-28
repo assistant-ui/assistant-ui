@@ -74,7 +74,7 @@ const setupPendingAttachmentSend = async () => {
     });
     return <AuiProvider value={aui}>{null}</AuiProvider>;
   };
-  render(<Harness />);
+  const view = render(<Harness />);
   await act(async () => {});
 
   await act(async () => {
@@ -90,6 +90,7 @@ const setupPendingAttachmentSend = async () => {
 
   return {
     getAui: () => aui,
+    unmount: () => view.unmount(),
     getSendSignal: () => sendSignal,
     mainOnNew,
     otherOnNew,
@@ -224,6 +225,38 @@ describe("InMemoryThreadList thread state", () => {
     await resolveUpload();
     expect(mainOnNew).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ["while its thread is selected", false],
+    ["after switching away from its thread", true],
+  ])(
+    "aborts a pending attachment send when the list's owner unmounts %s",
+    async (_, switchAway) => {
+      const {
+        getAui,
+        getSendSignal,
+        mainOnNew,
+        otherOnNew,
+        resolveUpload,
+        unmount,
+      } = await setupPendingAttachmentSend();
+
+      if (switchAway) {
+        await act(async () => {
+          getAui().threads.switchToNewThread();
+        });
+      }
+      expect(getSendSignal()?.aborted).toBe(false);
+
+      unmount();
+      await act(async () => {});
+      expect(getSendSignal()?.aborted).toBe(true);
+
+      await resolveUpload();
+      expect(mainOnNew).not.toHaveBeenCalled();
+      expect(otherOnNew).not.toHaveBeenCalled();
+    },
+  );
 
   it("aborts a pending attachment send when an unselected thread is deleted", async () => {
     const { getAui, getSendSignal, mainOnNew, resolveUpload } =
