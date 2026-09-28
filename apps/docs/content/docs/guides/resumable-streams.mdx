@@ -140,11 +140,12 @@ The default finish detector scans the SSE body for the AI SDK `"type":"finish"` 
 With the resumable transport above, pressing **Stop generating** retains the
 stream ID. Automatic reconnect after a reload still uses `chat.resumeStream()`.
 For a manual **Resume generating** control, pass `canResume: true` only when
-the server guarantees the resumed stream's `start.messageId` matches the
-interrupted assistant message. Some AI SDK responses omit that ID; replaying
-one of those streams after Stop can append a second answer instead of
-continuing the partial one. In that case, leave manual Resume disabled. When
-the server emits `finish`, storage is cleared.
+the server replays the full interrupted message with the same `start.messageId`.
+[AI SDK 7 starts a resume with fresh message state](https://github.com/vercel/ai/blob/ai%407.0.101/packages/ai/src/ui/chat.ts#L733-L740)
+and replaces the last message only when their IDs match. An omitted or different
+ID appends a second answer; a replay containing only the remaining text loses
+the earlier partial content. Leave manual Resume disabled unless the endpoint
+satisfies both requirements. When the server emits `finish`, storage is cleared.
 
 Typing a new draft keeps Send available. Resumable storage alone does not
 expose manual Resume. Custom adapters can opt in with

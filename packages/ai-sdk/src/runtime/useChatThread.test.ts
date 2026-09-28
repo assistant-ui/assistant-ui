@@ -613,10 +613,9 @@ describe("useChatThread", () => {
         expect(state.canResume).toBe(false);
         expect(state.messages).toHaveLength(2);
         expect(state.messages.at(-1)?.id).toBe("answer");
-        expect(state.messages.at(-1)?.parts[0]).toMatchObject({
-          type: "text",
-          text: "Partial complete",
-        });
+        expect(state.messages.at(-1)?.parts).toEqual([
+          expect.objectContaining({ type: "text", text: "Partial complete" }),
+        ]);
       });
       expect(storage.getStreamId("main")).toBeNull();
       expect(fetch).toHaveBeenCalledTimes(2);
@@ -625,6 +624,67 @@ describe("useChatThread", () => {
       storage.clear();
     }
   });
+
+  it.each([undefined, "different-answer"])(
+    "AI SDK replay with messageId=%s appends instead of replacing a partial answer",
+    async (messageId) => {
+      const transport = {
+        sendMessages: vi.fn<ChatTransport<UIMessage>["sendMessages"]>(),
+        reconnectToStream: vi.fn(
+          async () =>
+            new ReadableStream<UIMessageChunk>({
+              start(controller) {
+                for (const chunk of [
+                  {
+                    type: "start",
+                    ...(messageId !== undefined && { messageId }),
+                  },
+                  { type: "text-start", id: "text" },
+                  { type: "text-delta", id: "text", delta: "Partial complete" },
+                  { type: "text-end", id: "text" },
+                  { type: "finish" },
+                ] satisfies UIMessageChunk[]) {
+                  controller.enqueue(chunk);
+                }
+                controller.close();
+              },
+            }),
+        ),
+      } satisfies ChatTransport<UIMessage>;
+      const chat = createChat(
+        {
+          id: "main",
+          transport,
+          messages: [
+            {
+              id: "user",
+              role: "user",
+              parts: [{ type: "text", text: "hello" }],
+            },
+            {
+              id: "answer",
+              role: "assistant",
+              parts: [{ type: "text", text: "Partial" }],
+            },
+          ],
+        },
+        { current: {} },
+      );
+
+      await chat.resumeStream();
+
+      expect(chat.error).toBeUndefined();
+      expect(transport.sendMessages).not.toHaveBeenCalled();
+      expect(chat.messages).toHaveLength(3);
+      expect(chat.messages[1]?.parts).toEqual([
+        { type: "text", text: "Partial" },
+      ]);
+      expect(chat.messages.at(-1)?.id).not.toBe("answer");
+      expect(chat.messages.at(-1)?.parts).toEqual([
+        expect.objectContaining({ type: "text", text: "Partial complete" }),
+      ]);
+    },
+  );
 
   it("stops an in-flight chat on client destroy when stopOnClientDestroy is omitted", async () => {
     expect(await streamThenDestroy({})).toBe(1);

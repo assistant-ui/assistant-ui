@@ -382,10 +382,10 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
       : canResume && resumableStorage
         ? { onResume: resumeStream }
         : {}),
-    // A stored stream ID does not prove a replay will keep the original
-    // assistant message ID. Some AI SDK streams omit start.messageId, in which
-    // case resumeStream appends a second message after the stopped partial one.
-    // Only the host can opt in when it knows its stream preserves that ID.
+    // AI SDK 7 starts resume-stream with fresh message state (chat.ts), so the
+    // host must replay the full message with its original start.messageId.
+    // Without that ID the replay appends a second message. A stored stream ID
+    // alone cannot establish this contract; only the host can opt in.
     canResume: onResume
       ? !!canResume
       : !!canResume && !!pendingStreamId && !isChatRunning,

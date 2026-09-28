@@ -953,9 +953,11 @@ Adapters without an explicit checkpoint keep the Send/Cancel controls.
 `onResume` must continue the same assistant message and tool state. Do not implement
 it with `append`, `reload`, or an empty user message. Set `isRunning` while reconnecting
 and clear `canResume` when the checkpoint is consumed, expires, or the thread changes.
-With `canResume: true`, identical pending resume requests share one attempt;
-different run configurations remain separate. Without this opt-in, explicit
-resume calls retain their existing independent behavior.
+With `canResume: true`, `useExternalStoreRuntime` shares one attempt for identical
+pending resume requests; different run configurations remain separate.
+`ExternalThread` has a parameterless `onResume`, so it shares one pending attempt
+per thread. Without this opt-in, explicit resume calls retain their existing
+independent behavior.
 A rejected callback re-enables the control for retry; report the failure through your
 adapter's normal error state. The runtime also suppresses repeated clicks
 across controls for the same thread while the callback is pending and preserves
@@ -967,10 +969,12 @@ The same opt-in fields are available on `ExternalThread`, `useAISDKRuntime`, and
 the flag must come from the backend's checkpoint state for the current thread.
 With a resumable `AssistantChatTransport`, `useChatRuntime` reconnects on
 mount using the AI SDK's `resumeStream`. To show the manual Resume control,
-opt in with `canResume: true` only if the resumed stream's `start` chunk repeats
-the interrupted assistant message ID. A stored stream ID alone is insufficient:
-streams without `start.messageId` can append a second answer instead of
-continuing the partial one.
+opt in with `canResume: true` only if the endpoint replays the full interrupted
+message and its `start` chunk repeats the original assistant message ID.
+[AI SDK 7 uses fresh state for a resumed stream](https://github.com/vercel/ai/blob/ai%407.0.101/packages/ai/src/ui/chat.ts#L733-L740):
+an omitted or different `start.messageId` appends a second answer, while a replay
+of only the remaining text loses the earlier content. A stored stream ID alone
+does not establish these requirements.
 A missing or expired stream clears that checkpoint; reconnect failures also invoke
 `onResumeError`. Transient failures retain the checkpoint only with `canResume: true`
 for manual retry; otherwise they clear the matching checkpoint. Stopping an active
