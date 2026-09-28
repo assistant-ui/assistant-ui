@@ -975,7 +975,7 @@ A missing or expired stream clears that checkpoint; reconnect failures also invo
 `onResumeError`. Transient failures retain the checkpoint only with `canResume: true`
 for manual retry; otherwise they clear the matching checkpoint. Stopping an active
 response preserves its checkpoint.
-Switching branches clears the stored checkpoint before notifying the application,
+With manual resume enabled, switching branches clears the stored checkpoint before notifying the application,
 so the interrupted response cannot attach to a different transcript.
 See `examples/with-resumable-stream` for an end-to-end example.
 

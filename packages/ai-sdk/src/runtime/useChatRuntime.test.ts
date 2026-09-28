@@ -553,6 +553,9 @@ describe("useChatRuntime", () => {
         expect(clear).not.toHaveBeenCalled();
       } else {
         expect(clear).toHaveBeenCalledOnce();
+        expect(onResumeError.mock.invocationCallOrder[0]).toBeLessThan(
+          clear.mock.invocationCallOrder[0]!,
+        );
       }
       expect(warn).toHaveBeenCalledWith(
         "[assistant-ui] resumable: resume failed",

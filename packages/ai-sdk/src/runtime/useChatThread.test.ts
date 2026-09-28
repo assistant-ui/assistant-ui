@@ -70,115 +70,185 @@ const streamThenDestroy = async (
 };
 
 describe("useChatThread", () => {
-  it("clears the originating branch checkpoint before notifying a branch switch", async () => {
-    const storage = createResumableSessionStorage({ key: "resume-branch" });
-    storage.clear();
-    let stream!: ReadableStreamDefaultController<Uint8Array>;
-    const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
-      new Response(
-        new ReadableStream({
-          start: (controller) => {
-            stream = controller;
-          },
-        }),
-        {
-          headers: {
-            "content-type": "text/event-stream",
-            [RESUMABLE_STREAM_ID_HEADER]: "stream-1",
-          },
-        },
-      ),
-    );
-    const onBranchChange = vi.fn(() =>
-      expect(storage.getStreamId("main")).toBeNull(),
-    );
-    const Host = createHost({});
-    const handle = createAssistantClient(
-      AuiConfig({
-        threads: Host({
-          canResume: true,
-          transport: new AssistantChatTransport({
-            fetch,
-            resumable: { storage, resumeApi: (id) => `/api/resume/${id}` },
-          }),
-          messageRepository: {
-            headId: "other",
-            messages: [
-              {
-                parentId: null,
-                message: {
-                  id: "question",
-                  role: "user",
-                  parts: [{ type: "text", text: "Question" }],
-                },
-              },
-              {
-                parentId: "question",
-                message: {
-                  id: "other",
-                  role: "assistant",
-                  parts: [{ type: "text", text: "Other branch" }],
-                },
-              },
-            ],
-          },
-          unstable_onBranchChange: onBranchChange,
-        }),
-      }),
-    );
-    handle.subscribe(() => {});
-    const aui = handle.getClient();
-    try {
-      await vi.waitFor(() =>
-        expect(aui.thread.getState().messages.at(-1)?.id).toBe("other"),
-      );
-      flushTapSync(() => aui.thread.message({ id: "other" }).reload());
-      for (const chunk of [
-        { type: "start", messageId: "answer" },
-        { type: "text-start", id: "text" },
-        { type: "text-delta", id: "text", delta: "Partial" },
-      ] satisfies UIMessageChunk[])
-        stream.enqueue(
-          new TextEncoder().encode(`data: ${JSON.stringify(chunk)}\n\n`),
+  it.each([false, true])(
+    "reports SDK reconnect failures and preserves replacement checkpoints: %s",
+    async (replaceCheckpoint) => {
+      const storage = createResumableSessionStorage({
+        key: `automatic-resume-error-${replaceCheckpoint}`,
+      });
+      storage.setStreamId("failed-stream", "main");
+      const error = new Error("resume offline");
+      const onError = vi.fn();
+      const onResumeError = vi.fn(() => {
+        if (replaceCheckpoint) storage.setStreamId("replacement", "main");
+      });
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      let finishReplacement: (() => void) | undefined;
+      const fetch = vi
+        .fn<typeof globalThis.fetch>()
+        .mockRejectedValueOnce(error)
+        .mockImplementation(
+          () =>
+            new Promise<Response>((resolve) => {
+              finishReplacement = () =>
+                resolve(new Response(null, { status: 204 }));
+            }),
         );
-      await vi.waitFor(() =>
-        expect(aui.thread.getState().messages.at(-1)?.id).toBe("answer"),
+      const Host = createHost({});
+      const handle = createAssistantClient(
+        AuiConfig({
+          threads: Host({
+            transport: new AssistantChatTransport({
+              fetch,
+              resumable: { storage, resumeApi: (id) => `/api/resume/${id}` },
+            }),
+            onError,
+            onResumeError,
+          }),
+        }),
       );
-      flushTapSync(() => aui.thread.cancelRun());
-      await vi.waitFor(() =>
-        expect(aui.thread.getState().canResume).toBe(true),
-      );
-      flushTapSync(() =>
-        aui.thread
-          .message({ id: "answer" })
-          .switchToBranch({ branchId: "answer" }),
-      );
-      expect(storage.getStreamId("main")).toBe("stream-1");
-      expect(onBranchChange).not.toHaveBeenCalled();
-      flushTapSync(() =>
-        aui.thread
-          .message({ id: "answer" })
-          .switchToBranch({ branchId: "other" }),
-      );
-      await vi.waitFor(() => {
-        expect(aui.thread.getState().canResume).toBe(false);
-        expect(aui.thread.getState().messages.at(-1)?.id).toBe("other");
-      });
-      expect(onBranchChange).toHaveBeenCalledWith({
-        headId: "other",
-        visibleMessageIds: ["question", "other"],
-      });
-      await aui.thread.resumeRun({ parentId: "other" });
-      expect(fetch).toHaveBeenCalledOnce();
-      expect(aui.thread.getState().messages.at(-1)?.parts[0]).toMatchObject({
-        type: "text",
-        text: "Other branch",
-      });
-    } finally {
-      handle.destroy();
+      handle.subscribe(() => {});
+      try {
+        await vi.waitFor(() => {
+          expect(onError).toHaveBeenCalledWith(error);
+          expect(onResumeError).toHaveBeenCalledOnce();
+        });
+        expect(onResumeError).toHaveBeenCalledWith(error);
+        expect(warn).toHaveBeenCalledWith(
+          "[assistant-ui] resumable: resume failed",
+          error,
+        );
+        expect(storage.getStreamId("main")).toBe(
+          replaceCheckpoint ? "replacement" : null,
+        );
+      } finally {
+        handle.destroy();
+        finishReplacement?.();
+        storage.clear();
+        warn.mockRestore();
+      }
+    },
+  );
+
+  it.each([false, true])(
+    "scopes branch checkpoint cleanup to the manual resume opt-in: %s",
+    async (canResume) => {
+      const storage = createResumableSessionStorage({ key: "resume-branch" });
       storage.clear();
-    }
-  });
+      let stream!: ReadableStreamDefaultController<Uint8Array>;
+      const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(
+        new Response(
+          new ReadableStream({
+            start: (controller) => {
+              stream = controller;
+            },
+          }),
+          {
+            headers: {
+              "content-type": "text/event-stream",
+              [RESUMABLE_STREAM_ID_HEADER]: "stream-1",
+            },
+          },
+        ),
+      );
+      const onBranchChange = vi.fn(() =>
+        expect(storage.getStreamId("main")).toBe(canResume ? null : "stream-1"),
+      );
+      const Host = createHost({});
+      const handle = createAssistantClient(
+        AuiConfig({
+          threads: Host({
+            canResume,
+            transport: new AssistantChatTransport({
+              fetch,
+              resumable: { storage, resumeApi: (id) => `/api/resume/${id}` },
+            }),
+            messageRepository: {
+              headId: "other",
+              messages: [
+                {
+                  parentId: null,
+                  message: {
+                    id: "question",
+                    role: "user",
+                    parts: [{ type: "text", text: "Question" }],
+                  },
+                },
+                {
+                  parentId: "question",
+                  message: {
+                    id: "other",
+                    role: "assistant",
+                    parts: [{ type: "text", text: "Other branch" }],
+                  },
+                },
+              ],
+            },
+            unstable_onBranchChange: onBranchChange,
+          }),
+        }),
+      );
+      handle.subscribe(() => {});
+      const aui = handle.getClient();
+      try {
+        await vi.waitFor(() =>
+          expect(aui.thread.getState().messages.at(-1)?.id).toBe("other"),
+        );
+        flushTapSync(() => aui.thread.message({ id: "other" }).reload());
+        for (const chunk of [
+          { type: "start", messageId: "answer" },
+          { type: "text-start", id: "text" },
+          { type: "text-delta", id: "text", delta: "Partial" },
+        ] satisfies UIMessageChunk[])
+          stream.enqueue(
+            new TextEncoder().encode(`data: ${JSON.stringify(chunk)}\n\n`),
+          );
+        await vi.waitFor(() =>
+          expect(aui.thread.getState().messages.at(-1)?.id).toBe("answer"),
+        );
+        flushTapSync(() => aui.thread.cancelRun());
+        await vi.waitFor(() => {
+          expect(aui.thread.getState().isRunning).toBe(false);
+          expect(aui.thread.getState().canResume).toBe(canResume);
+        });
+        flushTapSync(() =>
+          aui.thread
+            .message({ id: "answer" })
+            .switchToBranch({ branchId: "answer" }),
+        );
+        expect(storage.getStreamId("main")).toBe("stream-1");
+        expect(onBranchChange).not.toHaveBeenCalled();
+        flushTapSync(() =>
+          aui.thread
+            .message({ id: "answer" })
+            .switchToBranch({ branchId: "other" }),
+        );
+        await vi.waitFor(() => {
+          expect(aui.thread.getState().canResume).toBe(false);
+          expect(aui.thread.getState().messages.at(-1)?.id).toBe("other");
+        });
+        expect(onBranchChange).toHaveBeenCalledWith({
+          headId: "other",
+          visibleMessageIds: ["question", "other"],
+        });
+        if (canResume) {
+          await aui.thread.resumeRun({ parentId: "other" });
+        } else {
+          await expect(
+            aui.thread.resumeRun({ parentId: "other" }),
+          ).rejects.toThrow("Runtime does not support resuming runs.");
+        }
+        expect(fetch).toHaveBeenCalledOnce();
+        expect(aui.thread.getState().messages.at(-1)?.parts[0]).toMatchObject({
+          type: "text",
+          text: "Other branch",
+        });
+      } finally {
+        handle.destroy();
+        storage.clear();
+      }
+    },
+  );
 
   it.each(
     ([204, 404, "network", "aborted"] as const).flatMap((result) =>
@@ -366,6 +436,9 @@ describe("useChatThread", () => {
       );
       expect(storage.getStreamId("main")).toBe("stream-1");
       expect(aui.thread.getState().canResume).toBe(false);
+      await expect(
+        aui.thread.resumeRun({ parentId: "answer" }),
+      ).rejects.toThrow("Runtime does not support resuming runs.");
       await nextTask();
       expect(fetch).toHaveBeenCalledOnce();
     } finally {

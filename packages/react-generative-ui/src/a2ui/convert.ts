@@ -29,6 +29,7 @@ const SUPPORTED_COMPONENTS = new Set([
   "CheckBox",
   "ChoicePicker",
   "DateTimeInput",
+  "Slider",
 ]);
 
 const ICON_NAME_SET: ReadonlySet<string> = new Set(ICON_NAMES);
@@ -320,9 +321,39 @@ const INPUT_COMPONENTS: ReadonlySet<string> = new Set([
   "CheckBox",
   "ChoicePicker",
   "DateTimeInput",
+  "Slider",
 ]);
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+const finiteNumber = (value: unknown): number | undefined =>
+  typeof value === "number" && Number.isFinite(value) ? value : undefined;
+
+const decimalPlaces = (value: number): number => {
+  const [mantissa = "", exponent = "0"] = String(value).split("e");
+  return Math.max(0, (mantissa.split(".")[1]?.length ?? 0) - Number(exponent));
+};
+
+// A spec slider without `steps` is continuous, so its step leaves at least a hundred divisions and keeps every bound value on the grid.
+const sliderStep = (
+  min: number,
+  max: number,
+  value: number | undefined,
+  steps: unknown,
+): number | undefined => {
+  if (max <= min) return undefined;
+  if (typeof steps === "number" && Number.isInteger(steps) && steps >= 1) {
+    return (max - min) / steps;
+  }
+  const precision = Math.max(
+    decimalPlaces(min),
+    value === undefined ? 0 : decimalPlaces(value),
+  );
+  return Math.min(
+    10 ** Math.floor(Math.log10((max - min) / 100)),
+    10 ** -precision,
+  );
+};
 
 const recordBindings = (
   node: Record<string, unknown>,
@@ -695,6 +726,23 @@ const mappedProps = (
       ...(label !== undefined ? { label } : {}),
       ...(name !== undefined ? { name } : {}),
       ...(typeof defaultChecked === "boolean" ? { defaultChecked } : {}),
+    };
+  }
+
+  if (component === "Slider") {
+    const min = finiteNumber(props["min"]) ?? 0;
+    const max = finiteNumber(props["max"]);
+    if (max === undefined || max < min) return undefined;
+    const value = finiteNumber(props["value"]);
+    const step = sliderStep(min, max, value, props["steps"]);
+    return {
+      $type: "Slider",
+      min,
+      max,
+      ...(step !== undefined ? { step } : {}),
+      ...(value !== undefined ? { defaultValue: value } : {}),
+      ...(label !== undefined ? { label } : {}),
+      ...(name !== undefined ? { name } : {}),
     };
   }
 

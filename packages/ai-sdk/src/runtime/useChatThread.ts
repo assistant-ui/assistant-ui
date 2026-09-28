@@ -318,9 +318,6 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
       const error = activeChat.error;
       if (error) throw error;
     } catch (error) {
-      if (!canResume && resumableStorage?.getStreamId(id) === streamId) {
-        resumableStorage.clear(id);
-      }
       try {
         onResumeErrorRef.current?.(error);
       } catch (callbackError) {
@@ -328,6 +325,10 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
           "[assistant-ui] resumable: onResumeError callback failed",
           callbackError,
         );
+      } finally {
+        if (!canResume && resumableStorage?.getStreamId(id) === streamId) {
+          resumableStorage.clear(id);
+        }
       }
       throw error;
     }
@@ -345,10 +346,10 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     NonNullable<AISDKRuntimeAdapter["unstable_onBranchChange"]>
   >(
     (event) => {
-      resumableStorage?.clear(id);
+      if (canResume) resumableStorage?.clear(id);
       unstable_onBranchChange?.(event);
     },
-    [id, resumableStorage, unstable_onBranchChange],
+    [canResume, id, resumableStorage, unstable_onBranchChange],
   );
 
   const runtime = useAISDKRuntime(chat, {
@@ -357,7 +358,7 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(toCreateMessage && { toCreateMessage }),
     ...(onResume
       ? { onResume }
-      : resumableStorage
+      : canResume && resumableStorage
         ? { onResume: resumeStream }
         : {}),
     // A stored stream ID does not prove a replay will keep the original
@@ -374,7 +375,7 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(messageRepositoryInstance && {
       unstable_messageRepositoryInstance: messageRepositoryInstance,
     }),
-    ...((resumableStorage || unstable_onBranchChange) && {
+    ...(((canResume && resumableStorage) || unstable_onBranchChange) && {
       unstable_onBranchChange: handleBranchChange,
     }),
   });
