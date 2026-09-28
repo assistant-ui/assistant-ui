@@ -350,27 +350,37 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     }
     if (isLoadingHistory) return;
     resumedStreamIds.add(pendingStreamId);
-    chat.resumeStream().catch((err: unknown) => {
-      console.warn("[assistant-ui] resumable: resume failed", err);
-      try {
-        onResumeErrorRef.current?.(err);
-      } catch (callbackError) {
-        console.error(
-          "[assistant-ui] resumable: onResumeError callback failed",
-          callbackError,
-        );
-      } finally {
-        if (resumableStorage?.getStreamId(id) === pendingStreamId) {
-          resumableStorage.clear(id);
+    const activeChat = externalChat ?? ownedChat;
+    activeChat.clearError();
+    chat
+      .resumeStream()
+      .then(() => {
+        // The SDK reports reconnect errors on Chat.error without rejecting.
+        if (activeChat.error) throw activeChat.error;
+      })
+      .catch((err: unknown) => {
+        console.warn("[assistant-ui] resumable: resume failed", err);
+        try {
+          onResumeErrorRef.current?.(err);
+        } catch (callbackError) {
+          console.error(
+            "[assistant-ui] resumable: onResumeError callback failed",
+            callbackError,
+          );
+        } finally {
+          if (resumableStorage?.getStreamId(id) === pendingStreamId) {
+            resumableStorage.clear(id);
+          }
         }
-      }
-    });
+      });
   }, [
     chat,
+    externalChat,
     id,
     isChatRunning,
     isLoadingHistory,
     pendingStreamId,
+    ownedChat,
     resumableStorage,
     resumedStreamIds,
   ]);

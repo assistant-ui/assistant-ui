@@ -13,6 +13,8 @@ import {
   createAssistantClient,
 } from "@assistant-ui/store/client";
 import { useChatThread, type ChatThreadEnvironment } from "./useChatThread";
+import { AssistantChatTransport } from "../transport/AssistantChatTransport";
+import { createResumableSessionStorage } from "../transport/resumable";
 import {
   createCancellableTransport,
   nextTask,
@@ -64,6 +66,66 @@ const streamThenDestroy = async (
 };
 
 describe("useChatThread", () => {
+  it.each([false, true])(
+    "reports SDK reconnect failures and preserves replacement checkpoints: %s",
+    async (replaceCheckpoint) => {
+      const storage = createResumableSessionStorage({
+        key: `automatic-resume-error-${replaceCheckpoint}`,
+      });
+      storage.setStreamId("failed-stream", "main");
+      const error = new Error("resume offline");
+      const onError = vi.fn();
+      const onResumeError = vi.fn(() => {
+        if (replaceCheckpoint) storage.setStreamId("replacement", "main");
+      });
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      let finishReplacement: (() => void) | undefined;
+      const fetch = vi
+        .fn<typeof globalThis.fetch>()
+        .mockRejectedValueOnce(error)
+        .mockImplementation(
+          () =>
+            new Promise<Response>((resolve) => {
+              finishReplacement = () =>
+                resolve(new Response(null, { status: 204 }));
+            }),
+        );
+      const Host = createHost({});
+      const handle = createAssistantClient(
+        AuiConfig({
+          threads: Host({
+            transport: new AssistantChatTransport({
+              fetch,
+              resumable: { storage, resumeApi: (id) => `/api/resume/${id}` },
+            }),
+            onError,
+            onResumeError,
+          }),
+        }),
+      );
+      handle.subscribe(() => {});
+      try {
+        await vi.waitFor(() => {
+          expect(onError).toHaveBeenCalledWith(error);
+          expect(onResumeError).toHaveBeenCalledOnce();
+        });
+        expect(onResumeError).toHaveBeenCalledWith(error);
+        expect(warn).toHaveBeenCalledWith(
+          "[assistant-ui] resumable: resume failed",
+          error,
+        );
+        expect(storage.getStreamId("main")).toBe(
+          replaceCheckpoint ? "replacement" : null,
+        );
+      } finally {
+        handle.destroy();
+        finishReplacement?.();
+        storage.clear();
+        warn.mockRestore();
+      }
+    },
+  );
+
   it("stops an in-flight chat on client destroy when stopOnClientDestroy is omitted", async () => {
     expect(await streamThenDestroy({})).toBe(1);
   });
