@@ -254,8 +254,8 @@ importers:
         specifier: ^7.0.118
         version: 7.0.118(zod@4.6.5)
       eve:
-        specifier: ^0.67.2
-        version: 0.67.2(@opentelemetry/api@1.9.1)(ai@7.0.118)(just-bash@3.4.2(supports-color@10.2.2))
+        specifier: ^0.56.0
+        version: 0.56.0(@opentelemetry/api@1.9.1)(ai@7.0.118)(just-bash@3.4.2(supports-color@10.2.2))
       ink:
         specifier: ^7.1.1
         version: 7.1.1(@types/react@19.3.0)(react-devtools-core@6.1.5)(react@19.3.0)
@@ -1674,8 +1674,8 @@ importers:
         specifier: ^0.4.0
         version: 0.4.0
       eve:
-        specifier: ^0.67.2
-        version: 0.67.2(@opentelemetry/api@1.9.1)(ai@7.0.118)(just-bash@3.4.2(supports-color@10.2.2))
+        specifier: ^0.56.0
+        version: 0.56.0(@opentelemetry/api@1.9.1)(ai@7.0.118)(just-bash@3.4.2(supports-color@10.2.2))
       lucide-react:
         specifier: ^1.48.0
         version: 1.48.0(react@19.3.0)
@@ -5846,8 +5846,8 @@ importers:
         specifier: ^0.4.0
         version: 0.4.0
       eve:
-        specifier: ^0.67.2
-        version: 0.67.2(@opentelemetry/api@1.9.1)(ai@7.0.118)(just-bash@3.4.2(supports-color@10.2.2))
+        specifier: ^0.56.0
+        version: 0.56.0(@opentelemetry/api@1.9.1)(ai@7.0.118)(just-bash@3.4.2(supports-color@10.2.2))
       lucide-react:
         specifier: ^1.48.0
         version: 1.48.0(react@19.3.0)
@@ -14569,32 +14569,6 @@ packages:
       '@opentelemetry/api':
         optional: true
       braintrust:
-        optional: true
-      dd-trace:
-        optional: true
-      just-bash:
-        optional: true
-      microsandbox:
-        optional: true
-
-  eve@0.67.2:
-    resolution: {integrity: sha512-SMdO0GbKLDIN0vsV6zbKca0OlWYaGb79yrdJLIAm7HWWjO/X2M598dJdxVTBWV+20SDtrLv0yrSLmb9CxP5QCQ==}
-    engines: {node: '>=24'}
-    hasBin: true
-    peerDependencies:
-      '@opentelemetry/api': ^1.0.0
-      ai: ^7.0.105
-      braintrust: ^3.0.0
-      chat: ^4.41.0
-      dd-trace: ^6.13.0
-      just-bash: ^3.1.0
-      microsandbox: ^0.5.0
-    peerDependenciesMeta:
-      '@opentelemetry/api':
-        optional: true
-      braintrust:
-        optional: true
-      chat:
         optional: true
       dd-trace:
         optional: true
@@ -30749,15 +30723,6 @@ snapshots:
   etag@1.8.1: {}
 
   eve@0.56.0(@opentelemetry/api@1.9.1)(ai@7.0.118)(just-bash@3.4.2(supports-color@10.2.2)):
-    dependencies:
-      ai: 7.0.118(zod@4.6.5)
-      nitro: 3.0.260903-beta
-      undici: 8.9.0
-    optionalDependencies:
-      '@opentelemetry/api': 1.9.1
-      just-bash: 3.4.2(supports-color@10.2.2)
-
-  eve@0.67.2(@opentelemetry/api@1.9.1)(ai@7.0.118)(just-bash@3.4.2(supports-color@10.2.2)):
     dependencies:
       ai: 7.0.118(zod@4.6.5)
       nitro: 3.0.260903-beta
