@@ -15,7 +15,7 @@ strictDepBuilds: true
 verifyDepsBeforeRun: install
 
 # Metro, Expo and React Native run Babel 7. A Babel 8 copy of these packages lands where react-native-worklets 0.10 requires them undeclared and breaks native bundles, and babel-plugin-react-compiler 1.0 fails under @babel/core 8. taze reads this list too.
-# @ag-ui/client 1.0 and eve 0.67 are upstream protocol majors that react-ag-ui and eve haven't migrated to; bumping them breaks the adapters' converters against the older fixtures. jsdom 30.1 throws from its own URL.createObjectURL on a real File, breaking every attachment-preview test; it's devDependency-only tooling that never ships. Drop each once its fix lands.
+# @ag-ui/client 1.0 and eve 0.67 are upstream protocol majors that react-ag-ui and eve haven't migrated to; bumping them breaks the adapters' converters against the older fixtures. Drop each once its migration lands.
 update:
   ignoreDeps:
     - '@ag-ui/client'
@@ -25,7 +25,6 @@ update:
     - '@babel/traverse'
     - '@babel/types'
     - eve
-    - jsdom
 
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
