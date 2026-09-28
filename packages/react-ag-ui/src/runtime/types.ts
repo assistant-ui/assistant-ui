@@ -62,8 +62,6 @@ export type UseAgUiRuntimeOptions = ExternalStoreSharedOptions & {
   agent: AbstractAgent;
   logger?: Partial<Logger>;
   showThinking?: boolean;
-  /** Whether the host has a resumable checkpoint for the current thread. */
-  canResume?: boolean | undefined;
   /**
    * What `messages` carries on a resume run, meaning a `RunAgentInput` that
    * also carries `resume`. The AG-UI interrupt spec leaves this undefined: its

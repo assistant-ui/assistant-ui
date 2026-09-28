@@ -34,6 +34,76 @@ const App = ({
 afterEach(cleanup);
 
 describe("checkpoint resume", () => {
+  it.each([undefined, false])(
+    "preserves synchronous repeated ExternalThread calls without opt-in: %s",
+    (canResume) => {
+      const onResume = vi.fn();
+      render(<App options={{ messages: [], onResume, canResume }} />);
+      act(() => {
+        expect(aui.thread().resumeRun({ parentId: null })).toBeUndefined();
+        expect(onResume).toHaveBeenCalledTimes(1);
+        aui.thread().resumeRun({ parentId: null });
+        expect(onResume).toHaveBeenCalledTimes(2);
+      });
+    },
+  );
+
+  it.each([undefined, false])(
+    "does not coalesce existing runtime calls without opt-in: %s",
+    async (canResume) => {
+      const onResume = vi.fn(async () => {});
+      const runtime = new ExternalStoreThreadRuntimeCore(
+        { getModelContext: () => ({}) },
+        { messages: [], onNew: vi.fn(), canResume, onResume },
+      );
+      const config = { parentId: null, sourceId: null, runConfig: {} };
+      const first = runtime.resumeRun(config);
+      const second = runtime.resumeRun(config);
+      expect(onResume).toHaveBeenCalledTimes(2);
+      await Promise.all([first, second]);
+    },
+  );
+
+  it.each([false, true])(
+    "coalesces opt-in requests when availability clears: %s",
+    async (clearAvailability) => {
+      let finish!: () => void;
+      const onResume = vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            finish = resolve;
+          }),
+      );
+      const onNew = vi.fn();
+      const runtime = new ExternalStoreThreadRuntimeCore(
+        { getModelContext: () => ({}) },
+        { messages: [], onNew, canResume: true, onResume },
+      );
+      const first = runtime.resumeRun({
+        parentId: null,
+        sourceId: null,
+        runConfig: {},
+      });
+      if (clearAvailability) {
+        runtime.__internal_setAdapter({
+          messages: [],
+          onNew,
+          onResume,
+          canResume: false,
+        });
+      }
+      const second = runtime.resumeRun({
+        parentId: null,
+        sourceId: null,
+        runConfig: {},
+      });
+      expect(onResume).toHaveBeenCalledOnce();
+      finish();
+      await Promise.all([first, second]);
+      expect(runtime.canResume).toBe(!clearAvailability);
+    },
+  );
+
   it("shares pending state across resume controls for the same thread", async () => {
     let finish!: () => void;
     const onResume = vi.fn(
@@ -69,6 +139,7 @@ describe("checkpoint resume", () => {
     act(() => {
       pending = first.resume();
       duplicate = second.resume();
+      expect(onResume).toHaveBeenCalledOnce();
     });
     await waitFor(() => expect(onResume).toHaveBeenCalledOnce());
     expect(first.disabled).toBe(true);
@@ -250,10 +321,11 @@ describe("checkpoint resume", () => {
     );
     await waitFor(() => expect(action.disabled).toBe(false));
     let pending!: Promise<void>;
+    let duplicate!: Promise<void>;
     act(() => {
       pending = action.resume();
+      duplicate = action.resume();
     });
-    const duplicate = action.resume();
     await waitFor(() => expect(action.disabled).toBe(true));
     expect(onResume).toHaveBeenCalledTimes(1);
     expect(onNew).not.toHaveBeenCalled();
@@ -333,7 +405,11 @@ describe("checkpoint resume", () => {
         { messages: [], onNew: vi.fn(), onResume, canResume },
       );
       const first = { parentId: null, sourceId: null, runConfig: {} };
-      const second = { parentId: "other", sourceId: null, runConfig: {} };
+      const second = {
+        parentId: null,
+        sourceId: null,
+        runConfig: { custom: { mode: "second" } },
+      };
       const pending = runtime.resumeRun(first);
       expect(onResume).toHaveBeenNthCalledWith(1, first);
       expect(runtime.canResume).toBe(false);
@@ -348,7 +424,7 @@ describe("checkpoint resume", () => {
     },
   );
 
-  it("keeps explicit resume calls independent after one fails", async () => {
+  it("keeps different resume requests independent after one fails", async () => {
     let failFirst!: (error: Error) => void;
     let finishSecond!: () => void;
     const onResume = vi
@@ -371,7 +447,10 @@ describe("checkpoint resume", () => {
     );
     const config = { parentId: null, sourceId: null, runConfig: {} };
     const pending = runtime.resumeRun(config);
-    const next = runtime.resumeRun(config);
+    const next = runtime.resumeRun({
+      ...config,
+      runConfig: { custom: { mode: "second" } },
+    });
     expect(onResume).toHaveBeenCalledTimes(2);
     failFirst(new Error("reconnect failed"));
     await expect(pending).rejects.toThrow("reconnect failed");

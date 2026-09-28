@@ -282,7 +282,8 @@ export function useAgUiRuntime(
             core.reportError(error);
             throw error;
           }),
-        canResume: options.canResume,
+        // Generic AG-UI resume starts a fresh run without a checkpoint stream.
+        canResume: false,
         onResume: (config) => core.resume(config),
         setMessages: (messages: readonly ThreadMessage[]) =>
           core.applyExternalMessages(messages),
@@ -305,7 +306,6 @@ export function useAgUiRuntime(
       queueItems,
       steerQueueItems,
       shared,
-      options.canResume,
     ],
   );
 

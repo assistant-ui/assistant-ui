@@ -1736,14 +1736,26 @@ const useExternalThread = ({
           "Runtime does not support resuming runs (onResume is not set).",
         );
       if (resumePendingRef.current) return resumePendingRef.current;
-      const pending = Promise.resolve()
-        .then(onResume)
-        .finally(() => {
-          resumePendingRef.current = null;
-          setResumePending(false);
-        });
+      if (!canResume) {
+        onResume();
+        return;
+      }
+      let start!: () => void;
+      const pending = new Promise<void>((resolve, reject) => {
+        start = () => {
+          try {
+            resolve(onResume());
+          } catch (error) {
+            reject(error);
+          }
+        };
+      }).finally(() => {
+        resumePendingRef.current = null;
+        setResumePending(false);
+      });
       resumePendingRef.current = pending;
       setResumePending(true);
+      start();
       return pending;
     },
     cancelRun: handleCancelRun,

@@ -953,6 +953,9 @@ Adapters without an explicit checkpoint keep the Send/Cancel controls.
 `onResume` must continue the same assistant message and tool state. Do not implement
 it with `append`, `reload`, or an empty user message. Set `isRunning` while reconnecting
 and clear `canResume` when the checkpoint is consumed, expires, or the thread changes.
+With `canResume: true`, identical pending resume requests share one attempt;
+different run configurations remain separate. Without this opt-in, explicit
+resume calls retain their existing independent behavior.
 A rejected callback re-enables the control for retry; report the failure through your
 adapter's normal error state. The runtime also suppresses repeated clicks
 across controls for the same thread while the callback is pending and preserves
@@ -975,6 +978,10 @@ response preserves its checkpoint.
 Switching branches clears the stored checkpoint before notifying the application,
 so the interrupted response cannot attach to a different transcript.
 See `examples/with-resumable-stream` for an end-to-end example.
+
+`useAgUiRuntime` does not expose the generic Resume control: its default resume
+path starts a new AG-UI run, which does not establish checkpoint availability.
+Its existing interrupt handling and history-stream resumption APIs remain available.
 
 ## Related
 

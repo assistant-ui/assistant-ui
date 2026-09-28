@@ -35,7 +35,7 @@ export function Provider({ children }: { children: React.ReactNode }) {
 
 ## Checkpoint resume
 
-Pass `canResume` when your host has a resumable checkpoint for the current thread. It defaults to `false`; interrupts or a resume endpoint alone do not imply checkpoint availability. The runtime disables Resume while loading or running, then uses the latest host value when the attempt settles.
+The generic Resume control is unavailable for this adapter: calling `resumeRun` without an interrupt payload starts a new AG-UI run over the current messages, rather than reconnecting a retained stream. Existing explicit run, interrupt handling, and history-stream resumption APIs remain available.
 
 ## Subagents
 

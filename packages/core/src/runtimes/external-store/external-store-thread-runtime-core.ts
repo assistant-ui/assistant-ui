@@ -109,12 +109,17 @@ export class ExternalStoreThreadRuntimeCore
   public get isLoading() {
     return this._store.isLoading ?? false;
   }
-  private _pendingResumeCount = 0;
+  private _pendingResumes = new Set<{
+    coalesce: boolean;
+    config: ResumeRunConfig;
+    onResume: (config: ResumeRunConfig) => Promise<void>;
+    promise: Promise<void>;
+  }>();
   public get canResume(): boolean {
     return (
       !!this._store.canResume &&
       !!this._store.onResume &&
-      this._pendingResumeCount === 0 &&
+      this._pendingResumes.size === 0 &&
       !this.isDisabled &&
       !getThreadRuntimeCoreIsRunning(this) &&
       !this.isLoading &&
@@ -900,14 +905,40 @@ export class ExternalStoreThreadRuntimeCore
     if (this._isVoiceMessage(config.sourceId))
       throw new Error("Voice transcript messages cannot be reloaded");
     const onResume = this._store.onResume;
-    this._pendingResumeCount++;
-    this._notifySubscribers();
-    try {
-      await onResume(config);
-    } finally {
-      this._pendingResumeCount--;
-      this._notifySubscribers();
+    for (const pending of this._pendingResumes) {
+      if (
+        pending.coalesce &&
+        pending.onResume === onResume &&
+        pending.config.parentId === config.parentId &&
+        pending.config.sourceId === config.sourceId &&
+        pending.config.stream === config.stream &&
+        shallowEqual(pending.config.runConfig, config.runConfig)
+      )
+        return pending.promise;
     }
+    let start!: () => void;
+    const promise = new Promise<void>((resolve, reject) => {
+      start = () => {
+        try {
+          resolve(onResume(config));
+        } catch (error) {
+          reject(error);
+        }
+      };
+    }).finally(() => {
+      this._pendingResumes.delete(pending);
+      this._notifySubscribers();
+    });
+    const pending = {
+      coalesce: this._store.canResume === true,
+      config,
+      onResume,
+      promise,
+    };
+    this._pendingResumes.add(pending);
+    this._notifySubscribers();
+    start();
+    return promise;
   }
 
   public exportExternalState(): any {
