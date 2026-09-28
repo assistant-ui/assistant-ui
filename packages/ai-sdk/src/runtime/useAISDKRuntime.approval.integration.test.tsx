@@ -331,8 +331,8 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
 
     await respond();
 
-    expect(toolPart()).toMatchObject({ state: "approval-requested" });
-    expect(approval()).not.toHaveProperty("approved");
+    expect(toolPart()).toMatchObject({ state: "approval-responded" });
+    expect(approval()).toMatchObject({ approved: true });
     expect(sendMessages).not.toHaveBeenCalled();
   });
 });
