@@ -89,6 +89,60 @@ const useThreadListItemClient = (props: {
 
 const ThreadListItemClient = resource(useThreadListItemClient);
 
+const createThreadLifetimes = () => {
+  const controllers = new Map<string, AbortController>();
+  let owner: AbortSignal | undefined;
+  let unlinkOwner: (() => void) | undefined;
+  const abortAll = () => {
+    unlinkOwner?.();
+    unlinkOwner = undefined;
+    for (const controller of controllers.values()) {
+      controller.abort(owner?.reason);
+    }
+  };
+  return {
+    signalFor(threadId: string, ownerSignal: AbortSignal | undefined) {
+      let controller = controllers.get(threadId);
+      if (!controller) {
+        controller = new AbortController();
+        if (ownerSignal?.aborted) controller.abort(ownerSignal.reason);
+        controllers.set(threadId, controller);
+      }
+      return controller.signal;
+    },
+    release(threadId: string) {
+      controllers.get(threadId)?.abort();
+      controllers.delete(threadId);
+    },
+    bindOwner(signal: AbortSignal | undefined) {
+      if (owner === signal) return;
+      unlinkOwner?.();
+      unlinkOwner = undefined;
+      owner = signal;
+      if (!signal) return;
+      if (signal.aborted) {
+        abortAll();
+        return;
+      }
+      signal.addEventListener("abort", abortAll);
+      unlinkOwner = () => signal.removeEventListener("abort", abortAll);
+    },
+  };
+};
+
+const useOwnedThread = ({
+  destroySignal,
+  thread,
+}: {
+  destroySignal: AbortSignal;
+  thread: ResourceElement<ClientOutput<"thread">>;
+}): ClientOutput<"thread"> =>
+  useDestroySignalProvider(destroySignal, function useSelectedThread() {
+    return useClientResource(thread).methods;
+  });
+
+const OwnedThread = resource(useOwnedThread);
+
 // InMemoryThreadList Client
 const useInMemoryThreadList = (
   props: InMemoryThreadListProps,
@@ -100,35 +154,12 @@ const useInMemoryThreadList = (
     onDelete,
   } = props;
   const ownerDestroySignal = useAssistantClientDestroySignal();
-  const [lifetime] = useState(() => ({
-    controllers: new Map<string, AbortController>(),
-    ownerSignal: undefined as AbortSignal | undefined,
-    unlinkOwner: undefined as (() => void) | undefined,
-  }));
-  const threadDestroy = lifetime.controllers;
+  const [lifetimes] = useState(createThreadLifetimes);
 
-  // Keep the owner listener through a hidden list so pending sends still abort.
+  // No cleanup: a hidden list must still abort its threads' sends when the owner is destroyed.
   useEffect(() => {
-    if (lifetime.ownerSignal === ownerDestroySignal) return;
-    lifetime.unlinkOwner?.();
-    lifetime.ownerSignal = ownerDestroySignal;
-    lifetime.unlinkOwner = undefined;
-    if (!ownerDestroySignal) return;
-    const abortThreads = () => {
-      ownerDestroySignal.removeEventListener("abort", abortThreads);
-      lifetime.unlinkOwner = undefined;
-      for (const controller of threadDestroy.values()) {
-        controller.abort(ownerDestroySignal.reason);
-      }
-    };
-    if (ownerDestroySignal.aborted) {
-      abortThreads();
-      return;
-    }
-    ownerDestroySignal.addEventListener("abort", abortThreads);
-    lifetime.unlinkOwner = () =>
-      ownerDestroySignal.removeEventListener("abort", abortThreads);
-  }, [ownerDestroySignal, lifetime, threadDestroy]);
+    lifetimes.bindOwner(ownerDestroySignal);
+  }, [lifetimes, ownerDestroySignal]);
 
   const [{ threads, mainThreadId }, setListState] = useState<{
     threads: readonly ThreadData[];
@@ -180,8 +211,7 @@ const useInMemoryThreadList = (
   };
 
   const handleDelete = (threadId: string) => {
-    threadDestroy.get(threadId)?.abort();
-    threadDestroy.delete(threadId);
+    lifetimes.release(threadId);
     // Deleting the last thread starts a fresh one; the removed id must not
     // stay selected. The fallback id is minted eagerly so the updater stays
     // pure under batched deletes.
@@ -218,23 +248,15 @@ const useInMemoryThreadList = (
     onSwitchToNewThread?.();
   };
 
-  let selectedThreadDestroy = threadDestroy.get(mainThreadId);
-  if (!selectedThreadDestroy) {
-    selectedThreadDestroy = new AbortController();
-    if (ownerDestroySignal?.aborted) {
-      selectedThreadDestroy.abort(ownerDestroySignal.reason);
-    }
-    threadDestroy.set(mainThreadId, selectedThreadDestroy);
-  }
-
   // Only the main thread is mounted, so it is the only thread that can run.
-  const mainThreadClient = useDestroySignalProvider(
-    selectedThreadDestroy.signal,
-    function useSelectedThread() {
-      return useClientResource(
-        withKey(mainThreadId, threadFactory(mainThreadId)),
-      );
-    },
+  const mainThreadClient = useClientResource(
+    withKey(
+      mainThreadId,
+      OwnedThread({
+        destroySignal: lifetimes.signalFor(mainThreadId, ownerDestroySignal),
+        thread: threadFactory(mainThreadId),
+      }),
+    ),
   );
 
   const threadListItems = useClientLookup(
