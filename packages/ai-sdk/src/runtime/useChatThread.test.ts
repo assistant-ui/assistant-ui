@@ -525,7 +525,7 @@ describe("useChatThread", () => {
     }
   });
 
-  it("resumes a stopped response without sending another message and consumes its checkpoint on finish", async () => {
+  it("coalesces resume calls across chat updates and consumes the stopped response checkpoint on finish", async () => {
     const storage = createResumableSessionStorage({ key: "composer-resume" });
     storage.clear();
     let initial!: ReadableStreamDefaultController<Uint8Array>;
@@ -536,6 +536,7 @@ describe("useChatThread", () => {
     };
     const fetch = vi
       .fn<typeof globalThis.fetch>()
+      .mockImplementation(async () => new Response(null, { status: 204 }))
       .mockResolvedValueOnce(
         new Response(
           new ReadableStream({ start: (controller) => (initial = controller) }),
@@ -595,7 +596,13 @@ describe("useChatThread", () => {
       expect(fetch).toHaveBeenCalledOnce();
 
       const pending = aui.thread.resumeRun({ parentId: "answer" });
-      await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() => {
+        expect(fetch).toHaveBeenCalledTimes(2);
+        expect(aui.thread.getState().isRunning).toBe(true);
+      });
+      await nextTask();
+      const duplicate = aui.thread.resumeRun({ parentId: "answer" });
+      const settled = Promise.allSettled([pending, duplicate]);
       expect(fetch.mock.calls[1]?.[0]).toBe("/api/resume/stream-1");
       emit(
         resumed,
@@ -606,7 +613,11 @@ describe("useChatThread", () => {
         { type: "finish" },
       );
       resumed.close();
-      await pending;
+      expect(await settled).toEqual([
+        { status: "fulfilled", value: undefined },
+        { status: "fulfilled", value: undefined },
+      ]);
+      expect(fetch).toHaveBeenCalledTimes(2);
       await vi.waitFor(() => {
         const state = aui.thread.getState();
         expect(state.isRunning).toBe(false);
@@ -618,7 +629,6 @@ describe("useChatThread", () => {
         ]);
       });
       expect(storage.getStreamId("main")).toBeNull();
-      expect(fetch).toHaveBeenCalledTimes(2);
     } finally {
       handle.destroy();
       storage.clear();

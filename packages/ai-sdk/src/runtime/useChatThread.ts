@@ -323,6 +323,7 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
   useEffect(() => {
     onResumeErrorRef.current = onResumeError;
   });
+  const resumeChatStream = chat.resumeStream;
   const resumeStream = useCallback(async () => {
     const streamId = resumableStorage?.getStreamId(id);
     if (!streamId) return;
@@ -330,7 +331,7 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     try {
       const activeChat = externalChat ?? ownedChat;
       activeChat.clearError();
-      const pending = chat.resumeStream();
+      const pending = resumeChatStream();
       const request = requestsByChat.get(activeChat);
       await pending;
       // Chat.error is shared with sends and resumes that can start before
@@ -355,10 +356,10 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     }
   }, [
     canResume,
-    chat,
     externalChat,
     id,
     ownedChat,
+    resumeChatStream,
     resumableStorage,
     resumedStreamIds,
   ]);
