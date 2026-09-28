@@ -11,6 +11,7 @@ import { useRemoteThreadListRuntime } from "./useRemoteThreadListRuntime";
 import { useCloudThreadListAdapter } from "./cloud/useCloudThreadListAdapter";
 import { useRuntimeAdapters } from "./RuntimeAdapterProvider";
 import type { AssistantCloud } from "assistant-cloud";
+import { useReplaySafeEffect } from "../utils/useReplaySafeEffect";
 
 export type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
   cloud?: AssistantCloud | undefined;
@@ -47,7 +48,7 @@ const useLocalThreadRuntime = (
       );
   }, [aui, runtime]);
 
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     return () => {
       runtime.threads.getMainThreadRuntimeCore().detach();
     };
