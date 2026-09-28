@@ -47,11 +47,10 @@ const effectNeedsRun = (cell: EffectCell): boolean => {
   return !depsShallowEqual(cell.deps!, cell.setupDeps);
 };
 
-export function reconcileEffects<R>(fiber: ResourceFiber<R>): void {
-  const errors: unknown[] = [];
+function reconcileCells(cells: EffectCell[], errors: unknown[]): void {
   const pending: EffectCell[] = [];
 
-  for (const cell of fiber.effectCells) {
+  for (const cell of cells) {
     if (effectNeedsRun(cell)) pending.push(cell);
   }
 
@@ -73,13 +72,23 @@ export function reconcileEffects<R>(fiber: ResourceFiber<R>): void {
       errors.push(e);
     }
   }
+}
 
+export function reconcileEffects<R>(
+  fiber: ResourceFiber<R>,
+  includeInsertion = true,
+): void {
+  const errors: unknown[] = [];
+  if (fiber.insertionCells !== null && includeInsertion) {
+    reconcileCells(fiber.insertionCells, errors);
+  }
+  reconcileCells(fiber.effectCells, errors);
   throwAggregated(errors, "Errors during commit");
 }
 
-export function cleanupAllEffects<R>(executionContext: ResourceFiber<R>) {
+export function cleanupCells(cells: EffectCell[]): void {
   const errors: unknown[] = [];
-  for (const cell of executionContext.effectCells) {
+  for (const cell of cells) {
     cell.deps = null;
 
     if (cell.cleanup) {

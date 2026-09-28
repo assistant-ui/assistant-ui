@@ -2,13 +2,14 @@ import type { ResourceFiber, TapRoot } from "./types";
 import { bubbleContextDeps } from "./context";
 import {
   commitAllCallbacks,
-  cleanupAllEffects,
+  cleanupCells,
   reconcileEffects,
 } from "./helpers/commit";
 import { withResourceFiber } from "./helpers/execution-context";
 import { withReactDispatcher } from "./react-dispatcher";
 import { isDevelopment } from "./helpers/env";
 import { commitRoot } from "./helpers/root";
+import { throwAggregated } from "./helpers/throwAggregated";
 
 export function createResourceFiber<R>(
   hook: (...args: any[]) => R,
@@ -23,6 +24,8 @@ export function createResourceFiber<R>(
     devStrictMode: strictMode,
     cells: [],
     effectCells: [],
+    insertionCells: null,
+    hostCells: null,
     contextDeps: null,
     wipContextDeps: null,
     wipCommitCallbacks: null,
@@ -35,6 +38,7 @@ export function createResourceFiber<R>(
     currentIndex: 0,
     isFirstRender: true,
     isMounted: false,
+    isReleased: false,
     isNeverMounted: true,
   };
 }
@@ -47,11 +51,44 @@ export function discardWipRender<R>(fiber: ResourceFiber<R>): void {
   fiber.memoCache.workInProgress = null;
 }
 
-export function unmountResourceFiber<R>(fiber: ResourceFiber<R>): void {
-  if (!fiber.isMounted) return;
+function cleanupResourceFiber<R>(
+  fiber: ResourceFiber<R>,
+  insertion: boolean,
+  errors: unknown[],
+): void {
+  try {
+    if (insertion) {
+      fiber.isReleased = true;
+      if (fiber.insertionCells !== null) cleanupCells(fiber.insertionCells);
+    } else if (fiber.isMounted) {
+      fiber.isMounted = false;
+      cleanupCells(fiber.effectCells);
+    }
+  } catch (error) {
+    errors.push(error);
+  }
+  if (fiber.hostCells !== null) {
+    for (const cell of fiber.hostCells) {
+      if (cell.fiber !== null) {
+        cleanupResourceFiber(cell.fiber, insertion, errors);
+      }
+      if (cell.fibers !== null) {
+        for (const { fiber } of cell.fibers.values()) {
+          cleanupResourceFiber(fiber, insertion, errors);
+        }
+      }
+    }
+  }
+}
 
-  fiber.isMounted = false;
-  cleanupAllEffects(fiber);
+export function unmountResourceFiber<R>(
+  fiber: ResourceFiber<R>,
+  permanent = true,
+): void {
+  const errors: unknown[] = [];
+  if (permanent) cleanupResourceFiber(fiber, true, errors);
+  cleanupResourceFiber(fiber, false, errors);
+  throwAggregated(errors, "Errors during cleanup");
 }
 
 export function renderResourceFiber<R>(
@@ -111,8 +148,9 @@ export function commitResourceFiber<R>(fiber: ResourceFiber<R>): void {
     commitAllCallbacks(commitCallbacks);
   }
   if (strictReplay) {
-    reconcileEffects(fiber);
-    cleanupAllEffects(fiber);
+    reconcileEffects(fiber, commitCallbacks !== null);
+    unmountResourceFiber(fiber, false);
+    fiber.isMounted = true;
   }
-  reconcileEffects(fiber);
+  reconcileEffects(fiber, !strictReplay && commitCallbacks !== null);
 }

@@ -14,7 +14,10 @@ import {
   hasChangedContexts,
   hasContextDepsChanged,
 } from "../core/context";
-import { useResourceFiberHost } from "./utils/useResourceFiberHostUtils";
+import {
+  useHostLifecycle,
+  useResourceFiberHost,
+} from "./utils/useResourceFiberHostUtils";
 import { useEffect, useState } from "react";
 import { useRenderMemo } from "./utils/useRenderMemo";
 import { depsShallowEqual } from "./utils/depsShallowEqual";
@@ -159,14 +162,7 @@ export function useResources<E extends ResourceElement<any>>(
     hasAnyContextDepsChanged,
   );
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      for (const key of fibers.keys()) {
-        unmountResourceFiber(fibers.get(key)!.fiber);
-      }
-    };
-  }, [fibers]);
+  useHostLifecycle(fibers);
 
   useEffect(() => {
     void val; // as a performance optimization, we only run if the results have changed
@@ -174,7 +170,7 @@ export function useResources<E extends ResourceElement<any>>(
     for (const [key, state] of fibers.entries()) {
       const next = state.next;
       if (next === "delete") {
-        unmountResourceFiber(state.fiber);
+        unmountResourceFiber(state.fiber, true);
         fibers.delete(key);
       } else if (next === "skip") {
         // Bailed this render: nothing to commit, keep committed deps/value.
@@ -183,7 +179,7 @@ export function useResources<E extends ResourceElement<any>>(
         }
       } else {
         if (next.remount) {
-          unmountResourceFiber(state.fiber);
+          unmountResourceFiber(state.fiber, true);
           state.fiber = next.remount;
         }
         commitResourceFiber(state.fiber);

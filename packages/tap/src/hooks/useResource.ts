@@ -1,21 +1,33 @@
 import type { ExtractResourceReturnType, ResourceElement } from "../core/types";
 import {
-  unmountResourceFiber,
   renderResourceFiber,
   commitResourceFiber,
 } from "../core/ResourceFiber";
 import { hasContextDepsChanged } from "../core/context";
-import { useResourceFiberHost } from "./utils/useResourceFiberHostUtils";
-import { useEffect, useMemo } from "react";
+import {
+  useHostLifecycle,
+  useResourceFiberHost,
+} from "./utils/useResourceFiberHostUtils";
+import { useEffect, useMemo, useState } from "react";
 import { useRenderMemo } from "./utils/useRenderMemo";
 
 export function useResource<E extends ResourceElement<any>>(
   element: E,
 ): ExtractResourceReturnType<E> {
   const { version, createFiber } = useResourceFiberHost();
-  const fiber = useMemo(() => {
-    return createFiber(element.hook, element.key);
-  }, [element.hook, element.key, createFiber]);
+  const [host] = useState(() => ({
+    fiber: createFiber(element.hook, element.key),
+    key: element.key,
+  }));
+  const fiber = useMemo(
+    () =>
+      host.fiber.hook === element.hook &&
+      host.key === element.key &&
+      !host.fiber.isReleased
+        ? host.fiber
+        : createFiber(element.hook, element.key),
+    [host, element.hook, element.key, createFiber],
+  );
 
   const result = useRenderMemo(
     () => ({ value: renderResourceFiber(fiber, element.args) }),
@@ -23,11 +35,13 @@ export function useResource<E extends ResourceElement<any>>(
     hasContextDepsChanged(fiber),
   );
 
-  useEffect(() => () => unmountResourceFiber(fiber), [fiber]);
+  useHostLifecycle(fiber);
   useEffect(() => {
     void result;
+    host.fiber = fiber;
+    host.key = element.key;
     commitResourceFiber(fiber);
-  }, [fiber, result]);
+  }, [host, fiber, element.key, result]);
 
   return result.value;
 }

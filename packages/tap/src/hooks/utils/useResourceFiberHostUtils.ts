@@ -1,4 +1,12 @@
-import { useRef, useMemo, useReducer, useState, useCallback } from "react";
+import {
+  useRef,
+  useMemo,
+  useReducer,
+  useState,
+  useCallback,
+  useEffect,
+  useInsertionEffect,
+} from "react";
 import {
   getCurrentResourceFiber,
   peekResourceFiber,
@@ -7,8 +15,58 @@ import {
   createResourceFiberRoot,
   setRootVersion,
 } from "../../core/helpers/root";
-import { createResourceFiber } from "../../core/ResourceFiber";
+import {
+  createResourceFiber,
+  unmountResourceFiber,
+} from "../../core/ResourceFiber";
 import { useDevStrictMode } from "./useDevStrictMode";
+import { useHostCell, type HostTarget } from "./useHostCell";
+import { throwAggregated } from "../../core/helpers/throwAggregated";
+
+const getHostedFibers = (target: HostTarget) =>
+  target instanceof Map ? target.values() : [{ fiber: target }];
+
+const useHostLifecycleReact = (target: HostTarget): void => {
+  useInsertionEffect(() => {
+    for (const { fiber } of getHostedFibers(target)) fiber.isReleased = false;
+    return () => {
+      for (const { fiber } of getHostedFibers(target)) {
+        fiber.isReleased = true;
+        if (!fiber.isMounted) {
+          queueMicrotask(() => {
+            if (fiber.isReleased) unmountResourceFiber(fiber, true);
+          });
+        }
+      }
+    };
+  }, [target]);
+
+  useEffect(
+    () => () => {
+      let errors: unknown[] | undefined;
+      for (const { fiber } of getHostedFibers(target)) {
+        try {
+          unmountResourceFiber(fiber, fiber.isReleased);
+        } catch (error) {
+          (errors ??= []).push(error);
+        }
+      }
+      if (errors !== undefined)
+        throwAggregated(errors, "Errors during cleanup");
+    },
+    [target],
+  );
+};
+
+export const useHostLifecycle = (target: HostTarget): void => {
+  if (peekResourceFiber()) {
+    // oxlint-disable-next-line react-hooks/rules-of-hooks
+    useHostCell(target);
+  } else {
+    // oxlint-disable-next-line react-hooks/rules-of-hooks
+    useHostLifecycleReact(target);
+  }
+};
 
 const useResourceFiberHostUtilsTap = () => {
   const versionRef = useRef(0);
