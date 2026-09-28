@@ -17,6 +17,7 @@ import type {
   ThreadMessageLike,
 } from "@assistant-ui/react";
 import { invokeUserCallback } from "@assistant-ui/core/internal";
+import { useReplaySafeEffect } from "@assistant-ui/core/react";
 import { createOpencodeClient } from "@opencode-ai/sdk/v2/client";
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import type {
@@ -383,23 +384,31 @@ export const useOpenCodeRuntime = (
   options: OpenCodeRuntimeOptions = {},
 ): AssistantRuntime => {
   const baseUrl = options.baseUrl ?? "http://localhost:4096";
-  const client = useMemo(
-    () => options.client ?? createOpencodeClient({ baseUrl }),
-    [baseUrl, options.client],
-  );
-  const registry = useMemo(() => createRegistry(client), [client]);
+  const clientKey = options.client ?? baseUrl;
+  const createPinned = () => {
+    const client = options.client ?? createOpencodeClient({ baseUrl });
+    return {
+      key: clientKey,
+      client,
+      registry: createRegistry(client),
+      adapter: createOpenCodeThreadListAdapter(client),
+    };
+  };
+  const [pinned, setPinned] = useState(createPinned);
+  let current = pinned;
+  if (pinned.key !== clientKey) {
+    current = createPinned();
+    setPinned(current);
+  }
+  const { client, registry, adapter: openCodeAdapter } = current;
 
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     registry.activate();
     return () => {
       registry.dispose();
     };
   }, [registry]);
 
-  const openCodeAdapter = useMemo(
-    () => createOpenCodeThreadListAdapter(client),
-    [client],
-  );
   const cloudAdapter = useCloudThreadListAdapter({
     cloud: options.cloud,
     sdk: options.cloud ? OPENCODE_SDK : undefined,

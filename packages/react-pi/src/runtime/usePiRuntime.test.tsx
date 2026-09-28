@@ -257,9 +257,10 @@ describe("usePiRuntime new-thread store", () => {
 describe("usePiRuntime controller subscriptions", () => {
   const renderRuntime = async () => {
     let renders = 0;
+    const client = {} as PiClient;
     const App = () => {
       renders += 1;
-      usePiRuntime({ client: {} as PiClient, initialThreadId: "t1" });
+      usePiRuntime({ client, initialThreadId: "t1" });
       return null;
     };
     root = createRoot(document.createElement("div"));
