@@ -9,7 +9,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@ag-ui/client": "^1.0.0",
+    "@ag-ui/client": "^0.0.59",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ag-ui": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
