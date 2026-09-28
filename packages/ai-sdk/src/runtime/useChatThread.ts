@@ -185,6 +185,8 @@ type ChatCallbacks<UI_MESSAGE extends UIMessage> = Pick<
   "onToolCall" | "onData" | "onFinish" | "onError" | "sendAutomaticallyWhen"
 >;
 
+const requestsByChat = new WeakMap<object, symbol>();
+
 /**
  * Constructs a `Chat` whose callbacks read the latest options through
  * `callbacksRef`, the forwarding `useChat` applies only to a chat it
@@ -193,9 +195,22 @@ type ChatCallbacks<UI_MESSAGE extends UIMessage> = Pick<
 export const createChat = <UI_MESSAGE extends UIMessage>(
   init: ChatInit<UI_MESSAGE>,
   callbacksRef: { readonly current: ChatCallbacks<UI_MESSAGE> | undefined },
-): Chat<UI_MESSAGE> =>
-  new Chat<UI_MESSAGE>({
+): Chat<UI_MESSAGE> => {
+  const transport = init.transport;
+  const chat = new Chat<UI_MESSAGE>({
     ...init,
+    ...(transport && {
+      transport: {
+        sendMessages: (options) => {
+          requestsByChat.set(chat, Symbol());
+          return transport.sendMessages(options);
+        },
+        reconnectToStream: (options) => {
+          requestsByChat.set(chat, Symbol());
+          return transport.reconnectToStream(options);
+        },
+      },
+    }),
     onToolCall: (arg) => callbacksRef.current?.onToolCall?.(arg),
     onData: (arg) => callbacksRef.current?.onData?.(arg),
     onFinish: (arg) => callbacksRef.current?.onFinish?.(arg),
@@ -203,6 +218,8 @@ export const createChat = <UI_MESSAGE extends UIMessage>(
     sendAutomaticallyWhen: (arg) =>
       callbacksRef.current?.sendAutomaticallyWhen?.(arg) ?? false,
   });
+  return chat;
+};
 
 export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
   options: ChatThreadOptions<UI_MESSAGE> | undefined,
@@ -313,10 +330,14 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     try {
       const activeChat = externalChat ?? ownedChat;
       activeChat.clearError();
-      await chat.resumeStream();
-      // The SDK reports reconnect errors on Chat.error without rejecting.
-      const error = activeChat.error;
-      if (error) throw error;
+      const pending = chat.resumeStream();
+      const request = requestsByChat.get(activeChat);
+      await pending;
+      // Chat.error is shared with sends and resumes that can start before
+      // this promise settles, including inside the caller's onFinish.
+      if (requestsByChat.get(activeChat) === request && activeChat.error) {
+        throw activeChat.error;
+      }
     } catch (error) {
       try {
         onResumeErrorRef.current?.(error);

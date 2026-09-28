@@ -3,6 +3,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { resource, useResource, flushTapSync } from "@assistant-ui/tap";
 import { useState } from "react";
+import type { ChatTransport, UIMessage } from "ai";
 import {
   RuntimeAdapter,
   runtimeAdapterTransformScopes,
@@ -12,7 +13,11 @@ import {
   AuiConfig,
   createAssistantClient,
 } from "@assistant-ui/store/client";
-import { useChatThread, type ChatThreadEnvironment } from "./useChatThread";
+import {
+  createChat,
+  useChatThread,
+  type ChatThreadEnvironment,
+} from "./useChatThread";
 import { AssistantChatTransport } from "../transport/AssistantChatTransport";
 import {
   createResumableSessionStorage,
@@ -25,7 +30,7 @@ import {
 } from "./__tests__/controlled-transport";
 
 const createHost = (
-  env: Pick<ChatThreadEnvironment, "stopOnClientDestroy">,
+  env: Pick<ChatThreadEnvironment, "stopOnClientDestroy" | "chat">,
 ) => {
   const useHost = (options: Parameters<typeof useChatThread>[0]) => {
     const [threadListItem] = useState(() => ({
@@ -70,6 +75,79 @@ const streamThenDestroy = async (
 };
 
 describe("useChatThread", () => {
+  it.each(["send", "resume"])(
+    "ignores errors from a subsequent %s when a resume finishes",
+    async (nextRequest) => {
+      const storage = createResumableSessionStorage({
+        key: `resume-${nextRequest}-race`,
+      });
+      storage.setStreamId("stream-1", "main");
+      const error = new Error(`${nextRequest} offline`);
+      const onError = vi.fn();
+      const onResumeError = vi.fn();
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const transport = {
+        getResumableAdapter: () => ({ storage }),
+        reconnectToStream: vi
+          .fn<ChatTransport<UIMessage>["reconnectToStream"]>()
+          .mockRejectedValue(error)
+          .mockImplementationOnce(
+            async () =>
+              new ReadableStream({
+                start(controller) {
+                  controller.enqueue({ type: "start", messageId: "resumed" });
+                  controller.close();
+                },
+              }),
+          ),
+        sendMessages: vi.fn(async () => {
+          throw error;
+        }),
+      } satisfies ChatTransport<UIMessage> & {
+        getResumableAdapter: () => { storage: typeof storage };
+      };
+      let sent = false;
+      const callbacks = {
+        onError,
+        onFinish: () => {
+          if (!sent) {
+            sent = true;
+            if (nextRequest === "resume") {
+              void chat.resumeStream();
+            } else {
+              void chat.sendMessage({
+                role: "user",
+                parts: [{ type: "text", text: "next" }],
+              });
+            }
+          }
+        },
+      };
+      const chat = createChat(
+        {
+          id: "main",
+          transport,
+        },
+        { current: callbacks },
+      );
+      const Host = createHost({ chat });
+      const handle = createAssistantClient(
+        AuiConfig({ threads: Host({ transport, onResumeError }) }),
+      );
+      handle.subscribe(() => {});
+      try {
+        await vi.waitFor(() => expect(onError).toHaveBeenCalledWith(error));
+        await nextTask();
+        expect(onResumeError).not.toHaveBeenCalled();
+        expect(storage.getStreamId("main")).toBe("stream-1");
+      } finally {
+        handle.destroy();
+        storage.clear();
+        warn.mockRestore();
+      }
+    },
+  );
+
   it.each([false, true])(
     "reports SDK reconnect failures and preserves replacement checkpoints: %s",
     async (replaceCheckpoint) => {

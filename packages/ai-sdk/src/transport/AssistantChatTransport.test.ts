@@ -236,26 +236,42 @@ describe("AssistantChatTransport resumable fetch wrapper", () => {
     expect(storage.getStreamId()).toBe("stream-new");
   });
 
-  it("keeps a newer checkpoint when an older reconnect returns no content", async () => {
-    const storage = createMemoryStorage("stream-old");
-    let respond!: (response: Response) => void;
-    const fetch = vi.fn(
-      () =>
-        new Promise<Response>((resolve) => {
-          respond = resolve;
-        }),
-    );
-    const transport = new AssistantChatTransport({
-      fetch,
-      resumable: { storage, resumeApi: "/api/resume" },
-    });
-    const pending = transport.reconnectToStream({ chatId: "thread" });
-    await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce());
-    storage.setStreamId("stream-new");
-    respond(new Response(null, { status: 204 }));
-    await expect(pending).resolves.toBeNull();
-    expect(storage.getStreamId()).toBe("stream-new");
-  });
+  it.each([
+    { status: 204, replaceCheckpoint: false },
+    { status: 204, replaceCheckpoint: true },
+    { status: 404, replaceCheckpoint: false },
+    { status: 404, replaceCheckpoint: true },
+  ])(
+    "clears only the matching checkpoint after $status (replacement: $replaceCheckpoint)",
+    async ({ status, replaceCheckpoint }) => {
+      const storage = createMemoryStorage("stream-old");
+      let respond!: (response: Response) => void;
+      const fetch = vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            respond = resolve;
+          }),
+      );
+      const transport = new AssistantChatTransport({
+        fetch,
+        resumable: { storage, resumeApi: "/api/resume" },
+      });
+      const pending = transport.reconnectToStream({ chatId: "thread" });
+      await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+      if (replaceCheckpoint) storage.setStreamId("stream-new");
+      respond(
+        new Response(status === 404 ? "stream expired" : null, { status }),
+      );
+      if (status === 404) {
+        await expect(pending).rejects.toThrow("stream expired");
+      } else {
+        await expect(pending).resolves.toBeNull();
+      }
+      expect(storage.getStreamId()).toBe(
+        replaceCheckpoint ? "stream-new" : null,
+      );
+    },
+  );
 
   it.each([undefined, "stream-old", "response-id"])(
     "preserves a replacement checkpoint on a delayed successful reconnect (%s)",
