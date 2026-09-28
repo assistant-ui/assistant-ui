@@ -25,7 +25,7 @@ describe("convertSurfaceToUISpec", () => {
         {
           id: "root",
           component: "List",
-          children: { template: { componentId: "row", path: "/items" } },
+          children: { componentId: "row", path: "/items" },
         },
         {
           id: "row",
@@ -55,7 +55,7 @@ describe("convertSurfaceToUISpec", () => {
         {
           id: "nested",
           component: "List",
-          children: { template: { componentId: "label", path: "/labels" } },
+          children: { componentId: "label", path: "/labels" },
         },
         { id: "label", component: "Text", text: { path: "name" } },
       ],
@@ -114,9 +114,7 @@ describe("convertSurfaceToUISpec", () => {
             {
               id: "items",
               component: "List",
-              children: {
-                template: { componentId: "item", path: "/items" },
-              },
+              children: { componentId: "item", path: "/items" },
             },
             {
               id: "item",
@@ -783,7 +781,7 @@ describe("convertSurfaceToUISpec", () => {
         {
           id: "rows",
           component: "Column",
-          children: { template: { componentId: "row", path: "/items" } },
+          children: { componentId: "row", path: "/items" },
         },
         {
           id: "row",
@@ -806,13 +804,8 @@ describe("convertSurfaceToUISpec", () => {
         children: [
           { $type: "Markdown", value: usd(12) },
           {
-            $type: "ListView",
-            children: [
-              {
-                $type: "ListViewItem",
-                children: { $type: "Markdown", value: `Tea: ${usd(3)}` },
-              },
-            ],
+            $type: "Col",
+            children: [{ $type: "Markdown", value: `Tea: ${usd(3)}` }],
           },
         ],
       },
@@ -1055,10 +1048,8 @@ describe("convertSurfaceToUISpec", () => {
       [
         {
           id: "root",
-          component: "Column",
-          children: {
-            template: { componentId: "item", path: "/items" },
-          },
+          component: "List",
+          children: { componentId: "item", path: "/items" },
         },
         {
           id: "item",
@@ -1087,6 +1078,107 @@ describe("convertSurfaceToUISpec", () => {
     });
   });
 
+  it("keeps a Row or Column template in its own container", () => {
+    const surface = surfaceFrom(
+      [
+        { id: "root", component: "Column", children: ["days", "hours"] },
+        {
+          id: "days",
+          component: "Row",
+          justify: "spaceBetween",
+          children: { componentId: "day", path: "/days" },
+        },
+        {
+          id: "hours",
+          component: "Column",
+          align: "center",
+          children: { componentId: "day", path: "/hours" },
+        },
+        { id: "day", component: "Text", text: { path: "label" } },
+      ],
+      {
+        days: [{ label: "Tue" }, { label: "Wed" }],
+        hours: [{ label: "9am" }],
+      },
+    );
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "Col",
+        children: [
+          {
+            $type: "Row",
+            justify: "spaceBetween",
+            children: [
+              { $type: "Markdown", value: "Tue" },
+              { $type: "Markdown", value: "Wed" },
+            ],
+          },
+          {
+            $type: "Col",
+            align: "center",
+            children: [{ $type: "Markdown", value: "9am" }],
+          },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
+  it("expands a template on a component without a child list into a ListView", () => {
+    const surface = surfaceFrom(
+      [
+        {
+          id: "root",
+          component: "Divider",
+          children: { componentId: "item", path: "/items" },
+        },
+        { id: "item", component: "Text", text: { path: "name" } },
+      ],
+      { items: [{ name: "one" }] },
+    );
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "ListView",
+        children: [
+          {
+            $type: "ListViewItem",
+            children: { $type: "Markdown", value: "one" },
+          },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
+  it("reads template children wrapped in a template key", () => {
+    const surface = surfaceFrom(
+      [
+        {
+          id: "root",
+          component: "List",
+          children: { template: { componentId: "item", path: "/items" } },
+        },
+        { id: "item", component: "Text", text: { path: "name" } },
+      ],
+      { items: [{ name: "one" }] },
+    );
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "ListView",
+        children: [
+          {
+            $type: "ListViewItem",
+            children: { $type: "Markdown", value: "one" },
+          },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
   it("preserves a horizontal list container when expanding templates", () => {
     const surface = surfaceFrom(
       [
@@ -1095,9 +1187,7 @@ describe("convertSurfaceToUISpec", () => {
           component: "List",
           direction: "horizontal",
           align: "center",
-          children: {
-            template: { componentId: "item", path: "/items" },
-          },
+          children: { componentId: "item", path: "/items" },
         },
         { id: "item", component: "Text", text: { path: "label" } },
       ],
@@ -1138,9 +1228,7 @@ describe("convertSurfaceToUISpec", () => {
             id: "root",
             component: "List",
             direction: "horizontal",
-            children: {
-              template: { componentId: "item", path: "/items" },
-            },
+            children: { componentId: "item", path: "/items" },
           }),
           dataModel,
         ),
@@ -1150,9 +1238,7 @@ describe("convertSurfaceToUISpec", () => {
           components({
             id: "root",
             component: "CustomList",
-            children: {
-              template: { componentId: "item", path: "/items" },
-            },
+            children: { componentId: "item", path: "/items" },
           }),
           dataModel,
         ),
@@ -1176,9 +1262,7 @@ describe("convertSurfaceToUISpec", () => {
         {
           id: "root",
           component: "Column",
-          children: {
-            template: { componentId: "item", path: "/items" },
-          },
+          children: { componentId: "item", path: "/items" },
         },
         {
           id: "item",
@@ -1570,7 +1654,7 @@ describe("convertSurfaceToUISpec", () => {
         {
           id: "lines",
           component: "List",
-          children: { template: { componentId: "line", path: "/items" } },
+          children: { componentId: "line", path: "/items" },
         },
         { id: "line", component: "Row", children: ["qty", "remove"] },
         {
@@ -2166,9 +2250,7 @@ describe("convertSurfaceToUISpec", () => {
           $action: { type: "injected" },
           $key: "injected",
           $status: "injected",
-          children: {
-            template: { componentId: "item", path: "/items" },
-          },
+          children: { componentId: "item", path: "/items" },
         },
         { id: "item", component: "Text", text: { path: "label" } },
       ],
@@ -2199,9 +2281,7 @@ describe("convertSurfaceToUISpec", () => {
         {
           id: "root",
           component: "CustomList",
-          children: {
-            template: { componentId: "item", path: "/items" },
-          },
+          children: { componentId: "item", path: "/items" },
         },
         { id: "item", component: "Text", text: { path: "label" } },
       ],
@@ -2229,9 +2309,7 @@ describe("convertSurfaceToUISpec", () => {
           id: "root",
           component: "CustomList",
           title: { path: "/title" },
-          children: {
-            template: { componentId: "item", path: "/items" },
-          },
+          children: { componentId: "item", path: "/items" },
         },
         { id: "item", component: "Text", text: { path: "label" } },
       ],
