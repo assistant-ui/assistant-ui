@@ -306,9 +306,14 @@ type ConversionContext = {
   functionDepthWarned: boolean;
   readonly templates: Map<string, ExpressionPart[] | null>;
   readonly inputFields: Map<string, unknown>;
+  readonly textFields: Set<string>;
   readonly boundActionEntries: {
     readonly target: Record<string, unknown>;
     readonly key: string;
+    readonly pointer: string;
+  }[];
+  readonly boundUserMessages: {
+    readonly action: Record<string, unknown>;
     readonly pointer: string;
   }[];
   readonly keepUnknownComponents: boolean;
@@ -390,6 +395,9 @@ const recordBindings = (
         ? [field(Array.isArray(value) ? value[0] : undefined)]
         : field(value),
     );
+    if (component === "TextField" || component === "DateTimeInput") {
+      context.textFields.add(name);
+    }
   }
   const action = mapped.$action;
   const raw = node["action"];
@@ -398,9 +406,8 @@ const recordBindings = (
   const event = isRecord(raw["event"]) ? raw["event"] : raw;
   const userMessage = event["userMessage"];
   if (!functionCall && isBinding(userMessage)) {
-    context.boundActionEntries.push({
-      target: action,
-      key: "userMessage",
+    context.boundUserMessages.push({
+      action,
       pointer: pointerIn(scope, userMessage.path),
     });
   }
@@ -1010,7 +1017,9 @@ export function convertSurfaceToUISpec(
     functionDepthWarned: false,
     templates: new Map(),
     inputFields: new Map(),
+    textFields: new Set(),
     boundActionEntries: [],
+    boundUserMessages: [],
     keepUnknownComponents: options.keepUnknownComponents === true,
   };
   try {
@@ -1028,6 +1037,17 @@ export function convertSurfaceToUISpec(
         context.inputFields,
       );
       if (value !== undefined) setOwnProperty(target, key, value);
+    }
+    for (const { action, pointer } of context.boundUserMessages) {
+      if (!context.textFields.has(pointer)) continue;
+      const fallback = action["userMessage"];
+      setOwnProperty(
+        action,
+        "userMessage",
+        typeof fallback === "string"
+          ? { $field: pointer, fallback }
+          : { $field: pointer },
+      );
     }
     return { spec, warnings };
   } catch {
