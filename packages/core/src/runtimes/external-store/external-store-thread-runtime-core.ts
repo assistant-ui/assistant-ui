@@ -256,11 +256,8 @@ export class ExternalStoreThreadRuntimeCore
     if (repositoryChanged) {
       this.repository = repositoryInstance;
       this._pendingDeleteEvictions.clear();
-      // An adopted repository may carry a live optimistic placeholder from a
-      // previous core over the same instance (a thread remount mid-run).
-      // Adopt it instead of minting a new id: a competing placeholder would
-      // evict the previous one on resetHead, and clients still rendering from
-      // the pre-adoption snapshot would crash resolving the evicted id.
+      // Keep the live placeholder so resetHead cannot evict an id still used
+      // by clients rendering the previous snapshot.
       const head = this.repository.getMessages();
       const tail = head.at(-1);
       this._optimistic = tail?.metadata?.isOptimistic
