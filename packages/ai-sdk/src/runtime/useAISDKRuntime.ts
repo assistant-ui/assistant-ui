@@ -624,6 +624,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     messages.length === 0;
 
   const runtime = useExternalStoreRuntime({
+    unstable_persistsHistory: true,
     isRunning: providerIsRunning,
     ...(shouldFeedRepository
       ? { messageRepository: exportedMessageRepository }

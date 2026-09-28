@@ -503,9 +503,11 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
       );
     }
 
-    default:
-      console.warn(`Unknown message part type: ${type}`);
+    default: {
+      const unhandledType: never = type;
+      console.warn(`Unknown message part type: ${unhandledType}`);
       return null;
+    }
   }
 };
 

@@ -175,6 +175,7 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
       isLoading: core.isLoading,
       messageRepository: core.getMessageRepository(),
       isRunning: core.isRunning(),
+      unstable_persistsHistory: true,
       extras: a2aExtras.provide({
         task: core.getTask(),
         artifacts: core.getArtifacts(),

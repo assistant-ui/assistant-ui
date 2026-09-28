@@ -303,12 +303,13 @@ export abstract class BaseComposerRuntimeCore
     if (!this.canSend || this.isSubmitting) return;
 
     if (this._dictationSession) {
+      const sessionId = this._activeDictationSessionId;
       try {
         this._dictationSession.cancel();
       } catch (error) {
         console.error("[assistant-ui] Dictation session cancel threw", error);
       } finally {
-        this._cleanupDictation();
+        this._cleanupDictation({ sessionId });
       }
     }
 

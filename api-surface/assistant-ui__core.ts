@@ -356,6 +356,7 @@ declare class AssistantCloudScores {
 type AssistantCloudTelemetryConfig = {
   enabled?: boolean;
   events?: boolean;
+  messages?: boolean;
   release?: string;
   environment?: string;
   tags?: string[];
@@ -366,6 +367,8 @@ type AssistantCloudThreadMessageCreateBody = {
   parent_id: string | null;
   format: "aui/v0" | string;
   content: ReadonlyJSONObject;
+  external_id?: string | undefined;
+  parent_external_id?: string | undefined;
 };
 
 type AssistantCloudThreadMessageFeedbackBody = {
@@ -427,6 +430,7 @@ type AssistantCloudThreadsCreateBody = {
   last_message_at: Date;
   metadata?: unknown | undefined;
   external_id?: string | undefined;
+  upsert?: boolean | undefined;
 };
 
 type AssistantCloudThreadsCreateResponse = {
@@ -667,6 +671,7 @@ type AssistantTransportConnectionMetadata = {
 type AssistantTransportOptions<T> = {
   initialState: T;
   api: string;
+  cloud?: AssistantCloud | undefined;
   resumeApi?: string;
   resumeStateApi?: string;
   protocol?: AssistantTransportProtocol;
@@ -1243,6 +1248,7 @@ type CloudMessage = {
   updated_at: Date;
   format: "aui/v0" | string;
   content: ReadonlyJSONObject;
+  external_id?: string | null | undefined;
 };
 
 type CloudThread = {
@@ -1261,15 +1267,16 @@ type CloudThread = {
 type CloudThreadListAdapter = {
   cloud: AssistantCloud;
   runtimeHook: () => AssistantRuntime;
-  create?(): Promise<ThreadData>;
+  create?(threadId: string): Promise<ThreadData>;
   delete?(threadId: string): Promise<void>;
 };
 
 type CloudThreadListAdapterOptions = {
   cloud?: AssistantCloud | undefined;
   sdk?: SdkIdentity | undefined;
-  create?: (() => Promise<ThreadData$1>) | undefined;
+  create?: ((threadId: string) => Promise<ThreadData$1>) | undefined;
   delete?: ((threadId: string) => Promise<void>) | undefined;
+  upsert?: boolean | undefined;
 };
 
 type CompleteAttachment = BaseAttachment & {
@@ -1906,6 +1913,7 @@ type ExternalMessageConverterMetadata = {
 type ExternalStoreAdapter<T = ThreadMessage> = ExternalStoreAdapterBase<T> & (T extends ThreadMessage ? object : ExternalStoreMessageConverterAdapter<T>);
 
 type ExternalStoreAdapterBase<T> = {
+  unstable_persistsHistory?: boolean | undefined;
   isDisabled?: boolean | undefined;
   isSendDisabled?: boolean | undefined;
   isRunning?: boolean | undefined;
@@ -1966,6 +1974,7 @@ type ExternalStoreMessageConverterAdapter<T> = {
 };
 
 declare class ExternalStoreRuntimeCore extends BaseAssistantRuntimeCore {
+  #private;
   readonly threads: ExternalStoreThreadListRuntimeCore;
   constructor(adapter: ExternalStoreAdapter<any>);
   setAdapter(adapter: ExternalStoreAdapter<any>): void;
@@ -2384,6 +2393,7 @@ declare abstract class InertThreadRuntimeCore extends BaseSubscribable implement
     readonly attachments: false;
     readonly feedback: false;
     readonly queue: false;
+    readonly answerToolCall: false;
   };
   isDisabled: boolean;
   isSendDisabled: boolean;
@@ -2579,6 +2589,7 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
     attachments: boolean;
     feedback: boolean;
     queue: boolean;
+    answerToolCall: boolean;
   };
   readonly isDisabled = false;
   readonly isSendDisabled = false;
@@ -3085,6 +3096,7 @@ declare class MessageRepository {
     index: number;
   };
   deleteMessage(messageId: string, replacementId?: string | null | undefined): void;
+  hasChildren(messageId: string): boolean;
   getBranches(messageId: string): string[];
   switchToBranch(messageId: string): void;
   resetHead(messageId: string | null): void;
@@ -3593,23 +3605,24 @@ declare class ReadonlyThreadRuntimeCore extends InertThreadRuntimeCore {
     }[];
   };
   composer: {
+    addAttachment(_fileOrAttachment: File | CreateAttachment): Promise<void>;
+    setText(_value: string): void;
+    send(_options?: SendOptions): void;
+    setQuote(_quote: QuoteInfo | undefined): void;
     attachments: never[];
     attachmentAccept: string;
-    addAttachment(): Promise<never>;
     removeAttachment(): Promise<never>;
     isEditing: false;
     canCancel: boolean;
     canSend: boolean;
     isEmpty: boolean;
     text: string;
-    setText(): never;
     role: "user";
     setRole(): never;
     runConfig: {};
     setRunConfig(): never;
     reset(): Promise<void>;
     clearAttachments(): Promise<void>;
-    send(): never;
     cancel(): void;
     queue: never[];
     moveQueueItem(): void;
@@ -3618,11 +3631,12 @@ declare class ReadonlyThreadRuntimeCore extends InertThreadRuntimeCore {
     startDictation(): never;
     stopDictation(): void;
     quote: undefined;
-    setQuote(): never;
     subscribe(): () => void;
     unstable_on(): () => void;
   };
   isLoading: boolean;
+  isDisabled: boolean;
+  isSendDisabled: boolean;
   switchToBranch(): void;
   append(): void;
   deleteMessage(): void;
@@ -4226,6 +4240,7 @@ type RuntimeCapabilities = {
   readonly attachments: boolean;
   readonly feedback: boolean;
   readonly queue: boolean;
+  readonly answerToolCall: boolean;
 };
 
 type RuntimeExtras<T extends object> = {
@@ -4739,6 +4754,7 @@ type ThreadEvents = {
 };
 
 type ThreadHistoryAdapter = {
+  unstable_copy?: ((branch: readonly ThreadMessage[], messageIds: readonly string[]) => Promise<void>) | undefined;
   load(): Promise<ExportedMessageRepository & {
     state?: ReadonlyJSONValue;
     unstable_resume?: boolean;
@@ -5105,29 +5121,7 @@ declare class ThreadMessageConverter {
 
 type ThreadMessageLike = {
   readonly role: "assistant" | "system" | "user";
-  readonly content: string | readonly (TextMessagePart | ReasoningMessagePart | SourceMessagePart | ImageMessagePart | FileMessagePart | DataMessagePart | GenerativeUIMessagePart | Unstable_AudioMessagePart | DataPrefixedPart | {
-    readonly type: "tool-call";
-    readonly toolCallId?: string;
-    readonly toolName: string;
-    readonly args?: ReadonlyJSONObject;
-    readonly argsText?: string;
-    readonly artifact?: any;
-    readonly modelContent?: readonly ToolModelContentPart[] | undefined;
-    readonly result?: any | undefined;
-    readonly isError?: boolean | undefined;
-    readonly isPreliminary?: boolean | undefined;
-    readonly parentId?: string | undefined;
-    readonly messages?: readonly ThreadMessage[] | undefined;
-    readonly interrupt?: {
-      type: "human";
-      payload: unknown;
-    };
-    readonly timing?: ToolCallTiming;
-    readonly mcp?: ToolCallMessagePartMcpMetadata;
-    readonly providerMetadata?: PartProviderMetadata;
-    readonly approval?: NonNullable<ToolCallMessagePart["approval"]>;
-    readonly unstable_interactions?: Unstable_ToolInteractionLog;
-  })[];
+  readonly content: string | readonly ThreadMessageLikePart[];
   readonly id?: string | undefined;
   readonly createdAt?: Date | undefined;
   readonly status?: MessageStatus | undefined;
@@ -5148,6 +5142,30 @@ type ThreadMessageLike = {
     readonly modality?: MessageModality | undefined;
     readonly custom?: Record<string, unknown> | undefined;
   } | undefined;
+};
+
+type ThreadMessageLikePart = ThreadUserMessagePart | ThreadAssistantMessagePart | DataPrefixedPart | {
+  readonly type: "tool-call";
+  readonly toolCallId?: string;
+  readonly toolName: string;
+  readonly args?: ReadonlyJSONObject;
+  readonly argsText?: string;
+  readonly artifact?: any;
+  readonly modelContent?: readonly ToolModelContentPart[] | undefined;
+  readonly result?: any | undefined;
+  readonly isError?: boolean | undefined;
+  readonly isPreliminary?: boolean | undefined;
+  readonly parentId?: string | undefined;
+  readonly messages?: readonly ThreadMessage[] | undefined;
+  readonly interrupt?: {
+    type: "human";
+    payload: unknown;
+  };
+  readonly timing?: ToolCallTiming;
+  readonly mcp?: ToolCallMessagePartMcpMetadata;
+  readonly providerMetadata?: PartProviderMetadata;
+  readonly approval?: NonNullable<ToolCallMessagePart["approval"]>;
+  readonly unstable_interactions?: Unstable_ToolInteractionLog;
 };
 
 type ThreadMeta = {

@@ -6,7 +6,7 @@ import { collectFormValuesFromEvent } from "./collectFormValues";
 export const formVocabulary = {
   Form: {
     description:
-      "Wraps named child controls (Select/Input/Checkbox/RadioGroup/DatePicker with a `name`). Carries `$action`; on submit it fires with every named control's value, keyed by `name`.",
+      "Wraps named child controls (Select/Input/Checkbox/RadioGroup/CheckboxGroup/DatePicker with a `name`). Carries `$action`; on submit it fires with every named control's value, keyed by `name`.",
     properties: z.object({
       gap: z
         .number()
@@ -24,7 +24,12 @@ export const formVocabulary = {
         data-aui-action={actionAttr($action)}
         onSubmit={(event) => {
           event.preventDefault();
-          fire($action, $dispatch, collectFormValuesFromEvent(event));
+          fire(
+            $action,
+            $dispatch,
+            collectFormValuesFromEvent(event),
+            event.currentTarget,
+          );
         }}
       >
         {children}

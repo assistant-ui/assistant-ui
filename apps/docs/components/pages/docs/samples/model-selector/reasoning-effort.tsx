@@ -12,8 +12,8 @@ import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 export function ModelSelectorWithEffort() {
   const models: ModelOption[] = [
     {
-      id: "gpt-5.6-sol",
-      name: "GPT-5.6 Sol",
+      id: "gpt-6-astra",
+      name: "GPT-6 Astra",
       efforts: [
         { id: "minimal", name: "Minimal" },
         { id: "standard", name: "Standard" },
@@ -21,7 +21,7 @@ export function ModelSelectorWithEffort() {
       ],
     },
   ];
-  const [model, setModel] = useState("gpt-5.6-sol");
+  const [model, setModel] = useState("gpt-6-astra");
   const [effort, setEffort] = useState("standard");
 
   return (

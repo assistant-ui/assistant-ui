@@ -258,6 +258,7 @@ export function useAgUiRuntime(
           setState: (next) => core.setState(next),
         }),
         unstable_enableToolInvocations: true,
+        unstable_persistsHistory: true,
         setToolStatuses,
         onNew: (message: AppendMessage) => core.append(message),
         onVoiceTranscript: (message) => core.appendVoiceTranscript(message),
