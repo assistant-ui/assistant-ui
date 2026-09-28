@@ -152,7 +152,7 @@ const runtime = useCloudThreadListRuntime({
 |---|---|---|
 | `cloud` | Required | The client backing the remote list. |
 | `runtimeHook` | Required | The hook returning a runtime for each mounted thread. |
-| `create` | `undefined` | Runs before the cloud thread is created. Its `externalId` becomes the cloud thread's `external_id`. |
+| `create` | `undefined` | Runs before the cloud thread is created and receives the thread list item's `id`. Its `externalId` becomes the cloud thread's `external_id`. |
 | `delete` | `undefined` | Runs with the remote thread id before the cloud thread is deleted. |
 
 `useAgUiRuntime` and `useA2ARuntime` can be the `runtimeHook`. They read history and attachment adapters from this context, so they gain the cloud list, title action, `aui/v0` persistence, engagement, feedback, attachments and reports from stored assistant messages. AG-UI stores its final agent state in `metadata.unstable_state`, activity values as `agui-activity/<type>` data parts, and A2UI `present` calls with `artifact.a2ui`. A2A stores the same A2UI calls and its artifacts in `metadata.custom.a2a.artifacts`, without bytes from inline files. See [Stored message formats](/docs/cloud/formats).

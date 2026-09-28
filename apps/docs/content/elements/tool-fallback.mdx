@@ -62,7 +62,7 @@ Standalone, there's nothing to fall back to: `ToolFallback` exists specifically 
   <div> {/* ToolFallbackContent */}
     {/* error, only while status is "incomplete" and carries one */}
     {/* args, only when argsText is non-empty */}
-    {/* approval controls, only while requires-action and unanswered */}
+    {/* approval controls while requires-action and unanswered, then a receipt of the decision */}
     {/* result, only when result is defined */}
   </div>
 </div>
@@ -99,7 +99,21 @@ approval: {
 }
 ```
 
-Choosing "Always allow" here shows a confirm/back step before it calls `respondToApproval({ optionId: "always" })`; the other two resolve immediately. Once `approval.approved` or `approval.resolution` is set, the whole approval block stops rendering. In a thread that cannot answer tool calls, where `s.thread.capabilities.answerToolCall` is `false` as in a sub-agent transcript, the block shows only the prompt.
+Choosing "Always allow" here shows a confirm/back step before it calls `respondToApproval({ optionId: "always" })`; the other two resolve immediately. In a thread that cannot answer tool calls, where `s.thread.capabilities.answerToolCall` is `false` as in a sub-agent transcript, the block shows only the prompt.
+
+### Receipt of a settled request
+
+Once `approval.approved` or `approval.resolution` is set, the controls give way to a receipt, so scrolling back never shows a live button for a decision already made. The receipt keeps the prompt and states what happened in the past tense: "Allowed" or "Denied" for a decision, "Answered" or "Dismissed" for a question, and "Cancelled before a decision" or "Expired before a decision" for a request that closed unanswered. The chosen option's label follows the verb, a typed `text` and a host `reason` follow on their own lines, and `isAutomatic` appends "automatically" when a policy decided instead of the user.
+
+```tsx
+approval: {
+  id: "call-1",
+  approved: true,
+  optionId: "always",
+  options: [{ id: "always", kind: "allow-always" }],
+}
+// renders: Allowed · Always allow
+```
 
 ### Question that accepts a dismissal
 
@@ -143,7 +157,7 @@ import { ToolFallbackTrigger, ToolFallbackContent } from "@/components/assistant
 | `ToolFallbackArgs` | `pre` | Takes `argsText`; renders `null` when empty. |
 | `ToolFallbackResult` | `pre` | Takes `result`; renders `null` when `undefined`. Stringifies non-string results. |
 | `ToolFallbackError` | text | Takes `status`; renders `null` unless `status.type === "incomplete"` and it carries an error. |
-| `ToolFallbackApproval` | buttons | Takes `approval`, `interrupt`, `status`, `addResult`, `resume`, `respondToApproval`. |
+| `ToolFallbackApproval` | buttons, then a receipt | Takes `approval`, `interrupt`, `status`, `addResult`, `resume`, `respondToApproval`. Renders the receipt once the approval is settled. |
 
 ### Tool-call part fields
 

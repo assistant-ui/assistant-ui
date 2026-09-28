@@ -802,6 +802,7 @@ interface SlackPlainTextInputElement {
   readonly type: "plain_text_input";
   readonly action_id: string;
   readonly multiline?: boolean;
+  readonly initial_value?: string;
   readonly placeholder?: SlackPlainText;
 }
 
@@ -823,6 +824,7 @@ interface SlackStaticSelectElement {
   readonly type: "static_select";
   readonly action_id: string;
   readonly options: readonly SlackOption[];
+  readonly initial_option?: SlackOption;
   readonly placeholder?: SlackPlainText;
 }
 
@@ -1010,6 +1012,7 @@ interface TeamsInputText {
   readonly id: string;
   readonly label?: string;
   readonly placeholder?: string;
+  readonly value?: string;
   readonly isMultiline?: true;
   readonly separator?: true;
   readonly spacing?: "large";

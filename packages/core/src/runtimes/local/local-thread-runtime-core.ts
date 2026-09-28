@@ -238,6 +238,27 @@ export class LocalThreadRuntimeCore
   private _roundtripsInFlight = new Map<string, AbortController>();
   private _followedDuringRun = new Set<string>();
 
+  // Messages a run created that a history without `update` has not received,
+  // such as a pause; one loaded from the history is never in it.
+  private _unwrittenMessages = new Set<string>();
+
+  // A settled pause is rewritten in place, or appended when a history without
+  // `update` never received it; a turn that cancels it waits for that append.
+  private _persistSettledPause(
+    parentId: string | null,
+    message: ThreadAssistantMessage,
+  ) {
+    this._persistMessageUpdate(message.id);
+    const history = this._options.adapters.history;
+    if (!history || !this._unwrittenMessages.delete(message.id))
+      return undefined;
+    return history.append({
+      parentId,
+      message,
+      runConfig: this._lastRunConfig,
+    });
+  }
+
   private _cancelPause(messageId: string | null) {
     if (messageId === null) return;
     let entry: { parentId: string | null; message: ThreadMessage };
@@ -254,7 +275,7 @@ export class LocalThreadRuntimeCore
     const message = withCancelledPause(entry.message);
     if (message === entry.message) return;
     this.repository.addOrUpdateMessage(entry.parentId, message);
-    this._persistMessageUpdate(messageId);
+    return this._persistSettledPause(entry.parentId, message);
   }
 
   // A message that a later turn follows never resumes, since a roundtrip
@@ -533,7 +554,7 @@ export class LocalThreadRuntimeCore
       }
       const parentId = this.repository.headId;
       this.repository.addOrUpdateMessage(parentId, message);
-      this._cancelPause(parentId);
+      const settledWrite = this._cancelPause(parentId);
       this.repository.resetHead(message.id);
       const historyWrite = this._options.adapters.history?.append({
         parentId,
@@ -545,7 +566,9 @@ export class LocalThreadRuntimeCore
       // clears the side list before the barrier resolves.
       this._dropVoiceMessage(message.id, false);
       if (notify) this._notifySubscribers();
-      return historyWrite;
+      return settledWrite
+        ? Promise.all([settledWrite, historyWrite]).then(() => {})
+        : historyWrite;
     };
     const barrier = this._getVoiceCommitBarrier();
     return barrier ? barrier.then(() => commit(true)) : commit(false);
@@ -653,12 +676,15 @@ export class LocalThreadRuntimeCore
       this._rollbackAppend(newMessage.id);
       return;
     }
-    this._cancelPause(message.parentId);
-    const historyWrite = this._options.adapters.history?.append({
+    const settledWrite = this._cancelPause(message.parentId);
+    const messageWrite = this._options.adapters.history?.append({
       parentId: message.parentId,
       message: newMessage,
       ...(message.runConfig !== undefined && { runConfig: message.runConfig }),
     });
+    const historyWrite = settledWrite
+      ? Promise.all([settledWrite, messageWrite]).then(() => {})
+      : messageWrite;
     void historyWrite?.catch(() => {});
 
     const startRun = message.startRun ?? message.role === "user";
@@ -712,6 +738,7 @@ export class LocalThreadRuntimeCore
   public override import(data: ExportedMessageRepository) {
     this._roundtripsInFlight.clear();
     this._followedDuringRun.clear();
+    this._unwrittenMessages.clear();
     super.import(withLocalPauseReasons(data));
   }
 
@@ -733,7 +760,7 @@ export class LocalThreadRuntimeCore
     if (this._isVoiceMessage(sourceId))
       throw new Error("Voice transcript messages cannot be reloaded");
 
-    this._cancelPause(parentId);
+    const settledWrite = this._cancelPause(parentId);
 
     // add assistant message
     const id = generateId();
@@ -751,8 +778,17 @@ export class LocalThreadRuntimeCore
       },
       createdAt: new Date(),
     };
+    const history = this._options.adapters.history;
+    if (history && !history.update) this._unwrittenMessages.add(id);
 
-    return this._runLoop(parentId, message, runConfig, runCallback);
+    const run = this._runLoop(parentId, message, runConfig, runCallback);
+    if (!settledWrite) return run;
+    const [runResult, settledResult] = await Promise.allSettled([
+      run,
+      settledWrite,
+    ]);
+    if (runResult.status === "rejected") throw runResult.reason;
+    if (settledResult.status === "rejected") throw settledResult.reason;
   }
 
   private async _runLoop(
@@ -1142,6 +1178,7 @@ export class LocalThreadRuntimeCore
       const history = this._options.adapters.history;
       const ownsCurrentMessage = syncOwnedMessage();
       let settled = false;
+      let written: Promise<void> | undefined;
       if (holdsMessage && this._followedDuringRun.delete(message.id)) {
         const stored = this.getMessageById(message.id);
         if (stored?.message.role === "assistant") {
@@ -1150,7 +1187,8 @@ export class LocalThreadRuntimeCore
             this.repository.addOrUpdateMessage(stored.parentId, cancelled);
             settled = true;
             if (ownsCurrentMessage) message = cancelled;
-            else this._persistMessageUpdate(message.id);
+            else
+              written = this._persistSettledPause(stored.parentId, cancelled);
           }
         }
       }
@@ -1168,7 +1206,6 @@ export class LocalThreadRuntimeCore
 
       // Pauses are written only for adapters that can rewrite the entry later;
       // an append-only adapter would strand a half-finished run in history.
-      let written: Promise<void> | undefined;
       if (
         ownsCurrentMessage &&
         (isTerminal || (isPausing && history?.update))
@@ -1178,6 +1215,7 @@ export class LocalThreadRuntimeCore
             ? history.update.bind(history)
             : history?.append.bind(history);
         if (write) {
+          this._unwrittenMessages.delete(message.id);
           written = this._chainHistoryWrite(message.id, () => write(item));
         }
       }

@@ -1070,6 +1070,32 @@ function HeavyComputationToolProvider({ children }: { children: ReactNode }) {
   server.
 </Callout>
 
+## Designing for the Conversation
+
+A tool UI shares the transcript with the assistant's prose and the user's replies, so it is designed against the conversation rather than as a standalone screen.
+
+### Give Each Tool UI One Job
+
+A tool UI either informs (a table, a chart, a link card), asks for a decision (an approval, an [option list](/elements/option-list)), adjusts something reversible (a filter, a parameter), or reports work in flight (a plan, a progress bar). When one surface does two of these, let one lead: a table with row actions is information first, and its actions stay secondary.
+
+### Fit the Chat Column
+
+Messages are narrow and interleaved with text. State the purpose in the first 300px of height, design for 400 to 600px of width in a single column, give every control at least a 44px touch target, and show five to seven options at most, leaving the rest to a follow-up. The [elements](/elements) are sized to this column already (`max-w-sm` or `max-w-md`); keep a custom tool UI to the same widths.
+
+### Keep What the User Acts On Addressable
+
+The model can only refer back to what it can name. Give the options, rows, and items a tool UI renders stable ids from your data, not array positions or ids minted at render time, and send those ids back through `addResult`. Then "the second option" and "row 4" in the next turn resolve to the same records the user saw.
+
+### Leave a Receipt
+
+Once a user decides, the interactive surface should become a record of the decision, so scrolling back never shows a live control for a choice already made. Render the receipt from the tool call itself: `result` for a human tool, `approval` for an approval gate, and `unstable_interactions` for recorded actions. The kit follows this everywhere: [`ToolFallback`](/elements/tool-fallback) replaces settled approval controls with a receipt, [`OptionList`](/elements/option-list) takes the committed answer as `choice`, and an answered generative `prompt_user` locks its controls.
+
+Write the decision in the past tense and the request in the imperative, so the receipt reads as what happened to what was asked: "Denied · Delete all project files", "Answered · Staging". Skip receipts for reversible controls such as sorting or filtering; nothing was decided there.
+
+### Split the Work with the Message
+
+The assistant's text introduces the tool UI and the tool UI carries the structure, so neither repeats the other: when the message asks "Which environment?", the option list shows only the environments. Avoid text inputs inside a tool UI when the answer could simply be typed into the composer, avoid tabs or navigation inside one surface (split it into separate tool calls instead), and never let an action change state silently; show its outcome.
+
 ## Data-Part Generative UI
 
 Alongside tool-call rendering, assistant-ui supports a second generative UI mechanism based on `DataMessagePart`. Instead of attaching UI to a tool invocation, the backend (or the LangGraph graph) emits named data events that are appended as `{ type: "data", name, data }` parts on the parent assistant message.
