@@ -4088,7 +4088,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onRun",
             type: "() => void",
-            description: "Called when the run control is pressed.",
+            description:
+              "Renders the run control and is called when it is pressed.",
           },
           {
             name: "className",
