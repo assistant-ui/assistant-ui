@@ -29,10 +29,13 @@ export const useCloudThreadListAdapter = (
 
   const cloud = adapter.cloud ?? autoCloud;
   const createAdapter = (): RemoteThreadListAdapter => {
+    // Construction registers this render's SDK on the new cloud; the adapter's callbacks read the committed options.
+    let readOptions = () => adapter;
     const base = createCloudThreadListAdapter(() => ({
-      ...adapterRef.current,
+      ...readOptions(),
       cloud,
     }));
+    readOptions = () => adapterRef.current;
     if (base.unstable_useAdapters === undefined) return base;
     return { ...base, unstable_useAdapters };
   };
