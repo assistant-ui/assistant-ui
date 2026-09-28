@@ -27,6 +27,7 @@ import {
   useCloudThreadListAdapter,
   useExternalStoreRuntime,
   useRemoteThreadListRuntime,
+  useReplaySafeEffect,
   useRuntimeAdapters,
 } from "@assistant-ui/core/react";
 import { useAui } from "@assistant-ui/store";
@@ -372,9 +373,9 @@ const useEveThreadRuntime = (
 
   // The store outlives the component (useEveAgent holds it in a ref with no
   // cleanup), so queued sends must not fire server turns after unmount. The
-  // flag separates that teardown from a user cancel, and is re-armed in setup
-  // for a remounted tree.
-  useEffect(() => {
+  // flag separates that teardown from a user cancel. Replayed effects keep
+  // the queued sends alive until the runtime actually unmounts.
+  useReplaySafeEffect(() => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
@@ -405,7 +406,7 @@ const useEveThreadRuntime = (
     };
   }, [enqueueResume, resumesOnMount]);
 
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     if (!cloudThread?.isNew) return;
     return () => cloudThread.sessions.release(cloudThread.id);
   }, [cloudThread]);
