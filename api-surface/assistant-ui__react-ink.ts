@@ -115,7 +115,7 @@ declare class AssistantCloudAPI {
 type AssistantCloudAuthStrategy = {
   readonly strategy: "anon" | "api-key" | "jwt";
   getAuthHeaders(): Promise<Record<string, string> | false>;
-  readAuthHeaders(headers: Headers): void;
+  readAuthHeaders(headers: Headers, requestHeaders?: Headers): void;
 };
 
 declare class AssistantCloudAuthTokens {
