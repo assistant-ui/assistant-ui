@@ -5062,6 +5062,9 @@ importers:
       '@types/react':
         specifier: ^19.3.0
         version: 19.3.0
+      jsdom:
+        specifier: ^30.1.1
+        version: 30.1.1
       react:
         specifier: ^19.3.0
         version: 19.3.0
@@ -5070,7 +5073,7 @@ importers:
         version: 19.3.0(react@19.3.0)
       vitest:
         specifier: ^5.0.2
-        version: 5.0.2(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.6.3)(@vitest/coverage-v8@5.0.2)(@vitest/ui@5.0.2)(jsdom@30.0.1)(vite@8.3.1(@types/node@26.6.3))
+        version: 5.0.2(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.6.3)(@vitest/coverage-v8@5.0.2)(@vitest/ui@5.0.2)(jsdom@30.1.1)(vite@8.3.1(@types/node@26.6.3))
 
   packages/react-syntax-highlighter:
     devDependencies:
