@@ -1264,6 +1264,65 @@ describe("convertSurfaceToUISpec", () => {
     });
   });
 
+  it("carries an event's userMessage when it resolves to a string", () => {
+    const surface = surfaceFrom(
+      [
+        { id: "root", component: "Row", children: ["greet", "count"] },
+        {
+          id: "greet",
+          component: "Button",
+          label: "Greet",
+          action: {
+            event: {
+              name: "greet",
+              userMessage: {
+                call: "formatString",
+                args: { value: "Greet ${/name}" },
+              },
+            },
+          },
+        },
+        {
+          id: "count",
+          component: "Button",
+          label: "Count",
+          action: { event: { name: "count", userMessage: { path: "/count" } } },
+        },
+      ],
+      { name: "Ada", count: 3 },
+    );
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "Row",
+        children: [
+          {
+            $type: "Button",
+            label: "Greet",
+            $action: {
+              type: "a2ui:action",
+              name: "greet",
+              surfaceId: "",
+              sourceComponentId: "greet",
+              userMessage: "Greet Ada",
+            },
+          },
+          {
+            $type: "Button",
+            label: "Count",
+            $action: {
+              type: "a2ui:action",
+              name: "count",
+              surfaceId: "",
+              sourceComponentId: "count",
+            },
+          },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
   it("takes a button label only from a Text child and keeps action data as bound", () => {
     const surface = surfaceFrom(
       [

@@ -395,13 +395,20 @@ const recordBindings = (
   const raw = node["action"];
   if (!action || !isRecord(raw)) return;
   const functionCall = action.type === "a2ui:functionCall";
+  const event = isRecord(raw["event"]) ? raw["event"] : raw;
+  const userMessage = event["userMessage"];
+  if (!functionCall && isBinding(userMessage)) {
+    context.boundActionEntries.push({
+      target: action,
+      key: "userMessage",
+      pointer: pointerIn(scope, userMessage.path),
+    });
+  }
   const rawEntries = functionCall
     ? isRecord(raw["functionCall"])
       ? raw["functionCall"]["args"]
       : undefined
-    : isRecord(raw["event"])
-      ? raw["event"]["context"]
-      : raw["context"];
+    : event["context"];
   const target = functionCall ? action["args"] : action["context"];
   if (!isRecord(rawEntries) || !isRecord(target)) return;
   for (const [key, entry] of Object.entries(rawEntries)) {
@@ -519,10 +526,12 @@ const mappedAction = (
         : undefined;
   if (actionName) {
     const actionContext = isRecord(event) ? event["context"] : undefined;
+    const userMessage = isRecord(event) ? event["userMessage"] : undefined;
     return {
       type: "a2ui:action",
       name: actionName,
       ...source,
+      ...(typeof userMessage === "string" ? { userMessage } : {}),
       ...(actionContext !== undefined ? { context: actionContext } : {}),
     };
   }
