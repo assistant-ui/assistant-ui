@@ -200,15 +200,19 @@ describe("fetchDownloadsTimeline", () => {
     expect(points.at(-1)).toEqual({ date: "2026-09", value: 3063 });
   });
 
-  it("falls back to the current day when npm withholds its window", async () => {
-    getLastWeek.mockResolvedValue(null);
+  it.each([
+    ["withholds its window", null],
+    [
+      "sends an end it cannot have meant",
+      { downloads: 1, start: null, end: null },
+    ],
+  ] as const)("reads nothing when npm %s", async (_, week) => {
+    getLastWeek.mockResolvedValue(week);
 
-    await fetchDownloadsTimeline("@assistant-ui/react");
-
-    expect(windows()).toEqual([
-      "2025-09-01:2026-08-31",
-      "2026-09-01:2026-09-08",
-    ]);
+    await expect(
+      fetchDownloadsTimeline("@assistant-ui/react"),
+    ).resolves.toEqual([]);
+    expect(getDownloadsRange).not.toHaveBeenCalled();
   });
 });
 
@@ -227,6 +231,25 @@ describe("fetchTimelineSeries", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("keeps the series and reads nothing when npm withholds its window", async () => {
+    getLastWeek.mockResolvedValue(null);
+
+    const timeline = await fetchTimelineSeries(["@assistant-ui/react"]);
+
+    expect(getDownloadsRange).not.toHaveBeenCalled();
+    expect(timeline).toEqual({
+      series: [
+        {
+          key: "s0",
+          pkg: "@assistant-ui/react",
+          label: "react",
+          chartIndex: 1,
+        },
+      ],
+      data: [],
+    });
   });
 
   it("leaves a month it could not read out of the row rather than calling it zero", async () => {

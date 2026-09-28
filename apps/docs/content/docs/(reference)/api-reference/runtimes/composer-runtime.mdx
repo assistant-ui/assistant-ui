@@ -3,7 +3,7 @@ title: ComposerRuntime
 description: ComposerRuntime state and actions for controlling assistant-ui composer text, attachments, submission, cancellation, and pending input.
 ---
 
-import { ComposerRuntime, ComposerState, EditComposerRuntime, EditComposerState } from "@/generated/typeDocs";
+import { ComposerRuntime, ComposerRuntimeState, ComposerState, EditComposerRuntime, EditComposerState } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -18,9 +18,9 @@ import { ComposerRuntime, ComposerState, EditComposerRuntime, EditComposerState 
 
 <ParametersTable {...ComposerRuntime} />
 
-### ComposerState
+### ComposerRuntimeState
 
-<ParametersTable {...ComposerState} />
+<ParametersTable {...ComposerRuntimeState} />
 
 ### EditComposerRuntime
 
@@ -29,4 +29,12 @@ import { ComposerRuntime, ComposerState, EditComposerRuntime, EditComposerState 
 ### EditComposerState
 
 <ParametersTable {...EditComposerState} />
+
+### ComposerState
+
+<Callout type="warn">
+<strong>Deprecated.</strong> Use `ComposerRuntimeState`. From `@assistant-ui/react` 0.16, `ComposerState` names the composer state read through `useAuiState`.
+</Callout>
+
+<ParametersTable {...ComposerState} />
 {/* api-reference:end */}

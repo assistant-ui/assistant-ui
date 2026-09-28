@@ -33,7 +33,7 @@ Values whose field name matches `api_key`, `credentials`, `secret`, `sha256` or 
 | `model_price` | `model_price.create`, `model_price.update`, `model_price.delete` |
 | `harness` | `harness.create`, `harness.update`, `harness.delete` |
 | `intelligence_request` | `intelligence.request` |
-| `task` | `task.skill.create` |
+| `task` | `task.skill.create`, `task.skill.publish`, `task.skill.update`, `task.skill.unpublish` |
 | `score` | `score.create`, `score.update` |
 | `user` | `user.erase` |
 
@@ -41,7 +41,7 @@ Dashboard changes made by a signed in person are recorded with actor type `user`
 
 ## Find an entry
 
-Use the resource filter to choose one of the resource types above. The actor filter accepts text, and the filter options show actors with their captured labels and entry counts. The page reads the selected resource from the URL and validates it before loading results.
+Use the resource filter to choose one of the resource types above. The actor filter is a single choice list of actors with their captured labels and entry counts. The page reads the selected resource from the URL and validates it before loading results.
 
 Entries are newest first. Each page returns 50 entries and uses a keyset cursor of the last entry's creation time and id. **Load more** asks for the next page only when a 51st entry exists.
 

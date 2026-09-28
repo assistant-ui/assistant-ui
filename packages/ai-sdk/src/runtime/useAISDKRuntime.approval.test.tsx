@@ -1,11 +1,18 @@
 // @vitest-environment jsdom
 
-import { act, renderHook } from "@testing-library/react";
-import type { ExternalStoreAdapter } from "@assistant-ui/core";
-import { describe, expect, it, vi } from "vitest";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import {
+  bindExternalStoreMessage,
+  type ExternalStoreAdapter,
+  type ThreadAssistantMessage,
+  type ThreadMessage,
+} from "@assistant-ui/core";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   adapter: undefined as ExternalStoreAdapter | undefined,
+  persistToolApprovalResponses: vi.fn(),
+  threadMessages: [] as ThreadMessage[],
 }));
 
 vi.mock("@assistant-ui/core/react", async (importOriginal) => {
@@ -15,7 +22,11 @@ vi.mock("@assistant-ui/core/react", async (importOriginal) => {
     ...original,
     useExternalStoreRuntime: vi.fn((adapter: ExternalStoreAdapter) => {
       mocks.adapter = adapter;
-      return {};
+      return {
+        thread: {
+          getState: () => ({ messages: mocks.threadMessages }),
+        },
+      } as never;
     }),
     useRuntimeAdapters: vi.fn(() => ({})),
   };
@@ -29,13 +40,30 @@ vi.mock("./useExternalHistory", async (importOriginal) => {
     useExternalHistory: vi.fn(() => ({
       isLoading: false,
       deleteMessage: vi.fn().mockResolvedValue(undefined),
+      persistToolInteractions: vi.fn().mockResolvedValue(undefined),
+      persistToolApprovalResponses: mocks.persistToolApprovalResponses,
     })),
   };
 });
 
 import { useAISDKRuntime } from "./useAISDKRuntime";
+import { useExternalHistory } from "./useExternalHistory";
 
 describe("useAISDKRuntime tool approvals", () => {
+  beforeEach(() => {
+    mocks.adapter = undefined;
+    mocks.threadMessages = [];
+    mocks.persistToolApprovalResponses.mockReset().mockResolvedValue(undefined);
+    vi.mocked(useExternalHistory)
+      .mockReset()
+      .mockImplementation(() => ({
+        isLoading: false,
+        deleteMessage: vi.fn().mockResolvedValue(undefined),
+        persistToolInteractions: vi.fn().mockResolvedValue(undefined),
+        persistToolApprovalResponses: mocks.persistToolApprovalResponses,
+      }));
+  });
+
   it("forwards the AI SDK approval promise to the external-store adapter", () => {
     const approvalPromise = Promise.resolve();
     const addToolApprovalResponse = vi.fn(() => approvalPromise);
@@ -88,6 +116,7 @@ describe("useAISDKRuntime tool approvals", () => {
       },
     ];
     const setMessages = vi.fn();
+    const sendMessage = vi.fn();
     const addToolApprovalResponse = vi.fn();
     const chat = {
       id: "chat-1",
@@ -95,7 +124,7 @@ describe("useAISDKRuntime tool approvals", () => {
       error: undefined,
       messages,
       setMessages,
-      sendMessage: vi.fn(),
+      sendMessage,
       regenerate: vi.fn(),
       addToolOutput: vi.fn(),
       addToolApprovalResponse,
@@ -116,17 +145,29 @@ describe("useAISDKRuntime tool approvals", () => {
       }) => mocks.adapter?.onRespondToToolApproval?.(response),
       setMessages,
       addToolApprovalResponse,
+      sendMessage,
+      messages,
       getApproval: () =>
         mocks.adapter?.messages?.[0]?.content.find(
           (part) => part.type === "tool-call",
         )?.approval,
+      getToolCall: () =>
+        mocks.adapter?.messages?.[0]?.content.find(
+          (part) => part.type === "tool-call",
+        ),
     };
   };
 
-  it("hands the complete response to a custom handler and applies the answer", async () => {
+  it("stores a host answer after the handler resolves without starting a run", async () => {
     const onRespondToToolApproval = vi.fn(async () => {});
-    const { respond, setMessages, addToolApprovalResponse, getApproval } =
-      setupPendingApproval(onRespondToToolApproval);
+    const {
+      respond,
+      setMessages,
+      addToolApprovalResponse,
+      sendMessage,
+      messages,
+      getApproval,
+    } = setupPendingApproval(onRespondToToolApproval);
 
     const response = {
       approvalId: "approval-1",
@@ -146,6 +187,13 @@ describe("useAISDKRuntime tool approvals", () => {
     });
     expect(addToolApprovalResponse).not.toHaveBeenCalled();
     expect(setMessages).not.toHaveBeenCalled();
+    expect(sendMessage).not.toHaveBeenCalled();
+    expect(mocks.persistToolApprovalResponses).toHaveBeenCalledExactlyOnceWith(
+      "message-1",
+    );
+    expect(messages[0]).not.toHaveProperty(
+      "metadata.__aui_toolApprovalResponses",
+    );
     expect(getApproval()).toEqual({
       id: "approval-1",
       approved: true,
@@ -155,7 +203,7 @@ describe("useAISDKRuntime tool approvals", () => {
     });
   });
 
-  it("sends a request the handler hands back through the AI SDK", async () => {
+  it("does not store a request the handler hands back through the AI SDK", async () => {
     const { respond, addToolApprovalResponse } = setupPendingApproval(
       (_response, { respondViaAISDK }) => respondViaAISDK(),
     );
@@ -175,6 +223,27 @@ describe("useAISDKRuntime tool approvals", () => {
       reason: "Not now",
       options: { metadata: undefined },
     });
+    expect(mocks.persistToolApprovalResponses).not.toHaveBeenCalled();
+  });
+
+  it("does not store a host answer when the handler rejects", async () => {
+    const { respond, messages, getApproval } = setupPendingApproval(
+      async () => {
+        throw new Error("resume failed");
+      },
+    );
+
+    await expect(
+      act(async () => {
+        await respond({ approvalId: "approval-1", approved: true });
+      }),
+    ).rejects.toThrow("resume failed");
+
+    expect(mocks.persistToolApprovalResponses).not.toHaveBeenCalled();
+    expect(getApproval()).toEqual({ id: "approval-1" });
+    expect(messages[0]).not.toHaveProperty(
+      "metadata.__aui_toolApprovalResponses",
+    );
   });
 
   it("reopens a request when a handed-back AI SDK response fails inside the handler", async () => {
@@ -251,6 +320,153 @@ describe("useAISDKRuntime tool approvals", () => {
     await expect(respond("approval-a")).rejects.toThrow(
       "Tool approval approval-a is not waiting for a response.",
     );
+    expect(onRespondToToolApproval).toHaveBeenCalledTimes(2);
+  });
+
+  it("restores a host answer and refuses a second response", async () => {
+    const onRespondToToolApproval = vi.fn(async () => {});
+    const { respond, getApproval, messages } = setupPendingApproval(
+      onRespondToToolApproval,
+    );
+    const historyCall = vi.mocked(useExternalHistory).mock.calls.at(-1)!;
+    const toolApprovalResponses = historyCall[9] as Map<
+      string,
+      { approvalId: string; approved: boolean; reason?: string }
+    >;
+    const onToolApprovalResponsesRestored = historyCall[10] as () => void;
+
+    await act(async () => {
+      toolApprovalResponses.set("approval-1", {
+        approvalId: "approval-1",
+        approved: true,
+        reason: "Approved by operator",
+      });
+      onToolApprovalResponsesRestored();
+    });
+
+    await waitFor(() =>
+      expect(getApproval()).toEqual({
+        id: "approval-1",
+        approved: true,
+        reason: "Approved by operator",
+      }),
+    );
+    await expect(
+      respond({ approvalId: "approval-1", approved: true }),
+    ).rejects.toThrow(
+      "Tool approval approval-1 is not waiting for a response.",
+    );
+    expect(onRespondToToolApproval).not.toHaveBeenCalled();
+    expect(messages[0]).not.toHaveProperty(
+      "metadata.__aui_toolApprovalResponses",
+    );
+  });
+
+  it("reopens a restored approval when history clears its response map", async () => {
+    const onRespondToToolApproval = vi.fn(async () => {});
+    const { respond, getApproval } = setupPendingApproval(
+      onRespondToToolApproval,
+    );
+    const historyCall = vi.mocked(useExternalHistory).mock.calls.at(-1)!;
+    const toolApprovalResponses = historyCall[9] as Map<
+      string,
+      { approvalId: string; approved: boolean }
+    >;
+    const onToolApprovalResponsesRestored = historyCall[10] as () => void;
+
+    await act(async () => {
+      toolApprovalResponses.set("approval-1", {
+        approvalId: "approval-1",
+        approved: true,
+      });
+      onToolApprovalResponsesRestored();
+    });
+    await waitFor(() =>
+      expect(getApproval()).toEqual({ id: "approval-1", approved: true }),
+    );
+
+    await act(async () => {
+      toolApprovalResponses.clear();
+      onToolApprovalResponsesRestored();
+    });
+    await waitFor(() => expect(getApproval()).toEqual({ id: "approval-1" }));
+
+    await act(async () => {
+      await respond({ approvalId: "approval-1", approved: true });
+    });
+    expect(onRespondToToolApproval).toHaveBeenCalledOnce();
+  });
+
+  it("clears deleted tool sidecars and its host approval reservation", async () => {
+    const onRespondToToolApproval = vi.fn(async () => {});
+    const { getApproval, getToolCall, messages, respond } =
+      setupPendingApproval(onRespondToToolApproval);
+    const threadMessage: ThreadAssistantMessage = {
+      id: "message-1",
+      role: "assistant",
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "tool-1",
+          toolName: "deploy",
+          args: {},
+          argsText: "{}",
+          result: undefined,
+          isError: false,
+          approval: { id: "approval-1" },
+        },
+      ],
+      createdAt: new Date(),
+      status: { type: "requires-action", reason: "tool-calls" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+    };
+    bindExternalStoreMessage(threadMessage, messages[0]!);
+    mocks.threadMessages = [threadMessage];
+
+    await act(async () => {
+      await respond({ approvalId: "approval-1", approved: true });
+      await mocks.adapter?.onAddToolResult?.({
+        messageId: "message-1",
+        toolCallId: "tool-1",
+        toolName: "deploy",
+        result: "deployed",
+        artifact: { preview: "deployment complete" },
+        isError: false,
+      });
+      await mocks.adapter?.unstable_onRecordToolInteraction?.({
+        messageId: "message-1",
+        toolCallId: "tool-1",
+        interaction: {
+          type: "action",
+          occurredAt: 1,
+          payload: { copied: true },
+        },
+      });
+    });
+    expect(getToolCall()).toMatchObject({
+      artifact: { preview: "deployment complete" },
+      unstable_interactions: {
+        entries: [{ type: "action", occurredAt: 1, payload: { copied: true } }],
+      },
+      approval: { id: "approval-1", approved: true },
+    });
+
+    await act(async () => {
+      await mocks.adapter?.onDelete?.("message-1");
+    });
+    expect(getToolCall()).not.toHaveProperty("artifact");
+    expect(getToolCall()).not.toHaveProperty("unstable_interactions");
+    expect(getApproval()).toEqual({ id: "approval-1" });
+
+    await act(async () => {
+      await respond({ approvalId: "approval-1", approved: true });
+    });
     expect(onRespondToToolApproval).toHaveBeenCalledTimes(2);
   });
 

@@ -15,7 +15,11 @@ import {
   type GroupByContext,
   type GroupNode,
 } from "../../utils/groupParts";
-import { MessagePartChildren, type EnrichedPartState } from "./MessageParts";
+import {
+  DefaultPartFallback,
+  MessagePartChildren,
+  type EnrichedPartState,
+} from "./MessageParts";
 
 export namespace MessagePrimitiveGroupedParts {
   /** Per status tallies over the group's `indices`; they sum to `indices.length`. */
@@ -80,7 +84,9 @@ export namespace MessagePrimitiveGroupedParts {
      * For group nodes: the recursively-rendered subtree (subgroups +
      * leaf parts). For leaf parts: a sentinel that throws when rendered
      * — accidental fall-through (`default: return children;`) errors
-     * loudly instead of silently rendering nothing.
+     * loudly instead of silently rendering nothing. Returning `null` for a
+     * leaf renders its registered tool or data UI, when one exists; return an
+     * empty fragment to suppress that registered UI explicitly.
      */
     readonly children: ReactNode;
   };
@@ -135,11 +141,14 @@ export namespace MessagePrimitiveGroupedParts {
      * (when the `indicator` condition is met) once for the trailing
      * {@link IndicatorPart}. Switch on `part.type`: `"group-…"` cases wrap
      * `children`; real part types (`"text"`, `"tool-call"`, …) render the
-     * part directly; `"indicator"` renders status/loading UI.
+     * part directly. Returning `null` for a tool or data leaf uses its
+     * registered UI, while an empty fragment suppresses it; `"indicator"`
+     * renders status/loading UI.
      *
      * Leaf parts receive the same {@link EnrichedPartState} that
      * `<MessagePrimitive.Parts>` would produce (`toolUI`, `addResult`,
-     * `resume`, `respondToApproval`, `dataRendererUI`).
+     * `resume`, `respondToApproval`, `unstable_recordInteraction`,
+     * `dataRendererUI`).
      */
     readonly children: (info: RenderInfo<TKey>) => ReactNode;
   };
@@ -181,7 +190,7 @@ const PartChildrenSentinel: FC = () => {
   throw new Error(
     "MessagePrimitive.GroupedParts: rendered `children` under a leaf " +
       "part. `children` is only meaningful for `group-…` cases — add a " +
-      "matching case for the part type or return `null` to skip it.",
+      "matching case for the part type or return `null` to use registered UIs.",
   );
 };
 
@@ -199,7 +208,11 @@ const renderNode = <TKey extends `group-${string}`>(
         key={node.idKey ? `part-${node.idKey}` : `part-${node.index}`}
         index={node.index}
       >
-        {({ part }) => render({ part, children: <PartChildrenSentinel /> })}
+        {({ part }) =>
+          render({ part, children: <PartChildrenSentinel /> }) ?? (
+            <DefaultPartFallback />
+          )
+        }
       </MessagePartChildren>
     );
   }

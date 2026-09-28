@@ -1,5 +1,11 @@
 # @assistant-ui/metro
 
+## 0.0.15
+
+### Patch Changes
+
+- [#7985](https://github.com/assistant-ui/assistant-ui/pull/7985) [`407a0ff`](https://github.com/assistant-ui/assistant-ui/commit/407a0ff8ad7aee137b841a5474e188790c9a7ce4) - fix: stop `@assistant-ui/metro` from breaking native bundles in Expo apps that use reanimated, by moving its Babel dependencies and those of `@assistant-ui/x-generative-compiler` back to Babel 7, the major Metro and Expo run ([@rupic-app](https://github.com/apps/rupic-app))
+
 ## 0.0.14
 
 ### Patch Changes

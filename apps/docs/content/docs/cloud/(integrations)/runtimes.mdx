@@ -3,16 +3,18 @@ title: Which runtime
 description: What every assistant-ui runtime stores in the cloud and reports to it, what each cannot, and how the three platforms differ.
 ---
 
-Every assistant-ui runtime takes the same `cloud` client and gets what its shape allows. A runtime that hands its messages to the cloud gets everything; a runtime whose backend keeps the transcript gets the thread list and the engagement side, and fills Runs from server traces instead.
+Every assistant-ui runtime takes the same `cloud` client and gets what its shape allows. A runtime that hands its messages to the cloud gets everything; a runtime whose backend keeps the transcript gets the thread list, a copy of its messages and the engagement side, and fills Runs from server traces instead.
 
 ## The matrix
 
 | Integration | Thread list | Stored messages | Titles | Run reports | Engagement, feedback, attachments |
 |---|---|---|---|---|---|
 | [AI SDK](/docs/cloud/ai-sdk), `useChatRuntime` | yes | `ai-sdk/v6` | at the first message | yes, with model and usage from the route's metadata | yes |
-| [Local runtime](/docs/cloud/local-runtime), `useLocalRuntime` and `useDataStreamRuntime` | yes | `aui/v0` | at the first message | yes, with model and usage from the adapter's metadata | yes |
-| [LangGraph, LangChain, ADK](/docs/cloud/langgraph) | yes | none, the backend keeps them | at the first message | none; export traces | engagement and attachments; feedback is skipped without stored messages |
+| [Local runtime](/docs/cloud/local-runtime), `useLocalRuntime`, `useDataStreamRuntime` and `useCloudRuntime` | yes | `aui/v0` | at the first message | yes, with model and usage from the adapter's metadata | yes |
+| [LangGraph, LangChain, ADK](/docs/cloud/langgraph) | yes | `aui/v0`, a copy of eligible settled messages | at the first message | none; export traces | engagement and feedback; attachments through the runtime's own adapter |
+| [OpenCode](/docs/runtimes/opencode/quickstart#store-threads-in-assistant-cloud), [Pi](https://github.com/assistant-ui/assistant-ui/tree/main/packages/react-pi#assistant-cloud), [assistant transport](/docs/runtimes/custom/assistant-transport#adapter-support) | yes | `aui/v0`, a copy of eligible settled messages | at the first message | none; export traces | engagement and feedback; attachments through the runtime's own adapter |
 | [AG-UI and A2A](/docs/cloud/custom-thread-list) through `useCloudThreadListRuntime` | yes | `aui/v0` | at the first message | yes, read from the stored assistant message | yes |
+| [Eve](/docs/runtimes/eve/overview#store-threads-in-assistant-cloud), `useEveAgentRuntime` | yes | `aui/v0`, a copy of eligible settled messages | at the first message | none; export traces | engagement and feedback; attachments through the cloud unless the runtime is given its own adapter |
 | [A server with an API key](/docs/cloud/servers) | its own calls | whatever it stores | when it stores the user message | whatever it reports | events and scores it sends |
 | [Traces only](/docs/cloud/traces#configure-another-producer), any language | none | none | none | runs, steps and tools from spans | none |
 
@@ -20,10 +22,11 @@ Every assistant-ui runtime takes the same `cloud` client and gets what its shape
 
 ## What decides the column
 
-- **Thread list.** Any runtime given a `cloud` backs its thread list with the project: listed per workspace, created on the first send, renamed, archived and deleted through the cloud. AG-UI and A2A have no `cloud` option of their own and get the list by being the `runtimeHook` of `useCloudThreadListRuntime`.
+- **Thread list.** Any runtime given a `cloud` backs its thread list with the project: listed per workspace, created on the first send, renamed, archived and deleted through the cloud. AG-UI and A2A have no `cloud` option of their own and get the list by being the `runtimeHook` of `useCloudThreadListRuntime`. OpenCode and Pi take `cloud` only when it is passed, since their list otherwise comes from their own server, and so does Eve, which otherwise runs a single session; `NEXT_PUBLIC_ASSISTANT_BASE_URL` alone does not switch them. Eve saves a new thread once its first turn creates the Eve session that becomes the thread's external id.
 - **Stored messages.** A runtime stores messages when it hands them to the cloud history adapter. The AI SDK runtime stores `ai-sdk/v6`, the local runtime and the composed runtimes store `aui/v0`. The messages endpoint converts `aui/v0` rows to `ai-sdk/v6` on read, so a thread written by the local runtime opens in the AI SDK runtime; the reverse is not converted.
+- **Copied messages.** LangGraph, LangChain, ADK, OpenCode, Pi, Eve and assistant transport keep the transcript on their backend. `useExternalStoreRuntime` copies only when the store does not set `unstable_persistsHistory` or install a thread-list adapter, so the AI SDK, AG-UI and A2A do not use this path. When a run settles, the runtime copies new or changed eligible messages as `aui/v0`, keyed by backend message ids. It skips optimistic messages, fallback ids beginning `__external_store_fallback_`, error ids and running assistant messages; the Cloud adapter also rejects empty ids and ids longer than 255 characters. Give every backend message a stable id. An interaction recorded on a message that is not copied is accepted but not stored. The dashboard shows copied threads like any other and feedback can rate their copied messages; the runtime never reads the copy back. `telemetry: { messages: false }` on the cloud client keeps the copy out, and tool interactions are then rejected; `telemetry: false` turns it off together with run reports and events.
 - **Run reports.** A report is sent when a stored assistant message settles. It carries what the runtime measured (duration, first token, steps, tool calls, status and outcome) and what the route or adapter put in the message metadata (model, provider, usage, trace id). Without that metadata the run is stored and listed under *No model reported*, and cannot be priced. [Run reports](/docs/cloud/run-reports) lists every field and what each runtime fills.
-- **Engagement, feedback and attachments.** The runtimes read every event from their store, so any action taken through the components or the primitives is counted. The feedback and attachment adapters default to the cloud whenever `cloud` is set, and can be replaced through `adapters`; a runtime that supplies its own adapter keeps it, and feedback needs a stored cloud message to rate.
+- **Engagement, feedback and attachments.** The runtimes read every event from their store, so any action taken through the components or the primitives is counted. The cloud supplies feedback to an external-store runtime when it has no feedback adapter. It supplies attachments to the AI SDK, local runtime, and AG-UI or A2A through the Cloud thread-list runtime, and to Eve when it is given no attachment adapter; LangGraph, LangChain, ADK, OpenCode, Pi and assistant transport keep their own attachment adapter. A runtime that supplies its own adapter keeps it, and feedback needs a stored cloud message to rate.
 
 ## The three platforms
 

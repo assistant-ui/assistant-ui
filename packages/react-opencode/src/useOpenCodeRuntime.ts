@@ -5,6 +5,7 @@ import {
   pickExternalStoreSharedOptions,
   useAui,
   useAuiState,
+  useCloudThreadListAdapter,
   useExternalStoreRuntime,
   useRemoteThreadListRuntime,
 } from "@assistant-ui/react";
@@ -31,7 +32,12 @@ import {
   isOpenCodeStateRunning,
 } from "./openCodeThreadState";
 import { openCodeExtras } from "./openCodeExtras";
-import { createOpenCodeThreadListAdapter } from "./openCodeThreadListAdapter";
+import { OPEN_CODE_REQUEST_OPTIONS } from "./openCodeRequestOptions";
+import {
+  createOpenCodeSession,
+  createOpenCodeThreadListAdapter,
+} from "./openCodeThreadListAdapter";
+import { OPENCODE_SDK } from "./sdkIdentity";
 import { useOpenCodeControllerState } from "./useOpenCodeControllerState";
 import { useOpenCodeStreamingTiming } from "./useOpenCodeStreamingTiming";
 
@@ -110,6 +116,10 @@ const NOOP_CONTROLLER: OpenCodeThreadControllerLike = {
   replyToQuestion: async () => {},
   rejectQuestion: async () => {},
 };
+
+const isMissingSession = (error: unknown) =>
+  error instanceof Error &&
+  (error.cause as { status?: unknown } | undefined)?.status === 404;
 
 const invokeErrorCallback = (
   callback: ((error: unknown) => void | Promise<void>) | undefined,
@@ -312,7 +322,14 @@ const useNewOpenCodeThreadStore = (
               removeOptimisticMessage();
               return;
             }
-            const sessionId = externalId ?? remoteId;
+            const sessionId = options.cloud
+              ? externalId
+              : (externalId ?? remoteId);
+            if (!sessionId) {
+              throw new Error(
+                "This thread has no OpenCode session to send to.",
+              );
+            }
             const controller = getController(registry, client, sessionId);
             const dispatch = sendOpenCodeMessage(controller, message, options);
             removeOptimisticMessage();
@@ -341,7 +358,9 @@ const useRuntimeHook = (
   options: OpenCodeRuntimeOptions,
 ) => {
   const threadListItem = useAuiState((state) => state.threadListItem);
-  const sessionId = threadListItem.externalId ?? threadListItem.remoteId;
+  const sessionId = options.cloud
+    ? threadListItem.externalId
+    : (threadListItem.externalId ?? threadListItem.remoteId);
 
   const controller = sessionId
     ? getController(registry, client, sessionId)
@@ -377,15 +396,36 @@ export const useOpenCodeRuntime = (
     };
   }, [registry]);
 
-  const adapter = useMemo(
+  const openCodeAdapter = useMemo(
     () => createOpenCodeThreadListAdapter(client),
     [client],
   );
+  const cloudAdapter = useCloudThreadListAdapter({
+    cloud: options.cloud,
+    sdk: options.cloud ? OPENCODE_SDK : undefined,
+    create: async () => {
+      const { externalId } = await createOpenCodeSession(client);
+      return { externalId };
+    },
+    delete: async (threadId) => {
+      const { external_id } = await options.cloud!.threads.get(threadId);
+      if (!external_id) return;
+      try {
+        await client.session.delete(
+          { sessionID: external_id },
+          OPEN_CODE_REQUEST_OPTIONS,
+        );
+      } catch (error) {
+        if (!isMissingSession(error)) throw error;
+      }
+    },
+  });
+  const adapter = options.cloud ? cloudAdapter : openCodeAdapter;
 
   return useRemoteThreadListRuntime({
     allowNesting: true,
     adapter,
-    initialThreadId: options.initialSessionId,
+    initialThreadId: options.cloud ? undefined : options.initialSessionId,
     onThreadIdChange: options.onThreadIdChange,
     // oxlint-disable-next-line react-hooks/rules-of-hooks -- runtimeHook callback is invoked by useRemoteThreadListRuntime at the appropriate hook position
     runtimeHook: () => useRuntimeHook(client, registry, options),

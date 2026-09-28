@@ -24,6 +24,7 @@ export interface A2uiCreateSurfaceV09Payload {
 
 export interface A2uiCreateSurfaceV10Payload {
   readonly surfaceId: string;
+  readonly catalogId?: string;
   readonly surfaceProperties?: unknown;
   readonly sendDataModel?: unknown;
   readonly components?: readonly ComponentNode[];
@@ -78,7 +79,22 @@ export type A2uiOperation =
   | A2uiUpdateDataModelOperation
   | A2uiDeleteSurfaceOperation;
 
+export type A2uiSurfaceSnapshotOperation =
+  | {
+      readonly version: "v0.9";
+      readonly createSurface: A2uiCreateSurfaceV09Payload;
+    }
+  | {
+      readonly version: "v0.9";
+      readonly updateComponents: A2uiUpdateComponentsPayload;
+    }
+  | {
+      readonly version: "v0.9";
+      readonly updateDataModel: A2uiUpdateDataModelPayload;
+    };
+
 export type A2uiSurfaceState = {
+  catalogId?: string;
   components: Map<string, Record<string, unknown>>;
   dataModel: unknown;
 };

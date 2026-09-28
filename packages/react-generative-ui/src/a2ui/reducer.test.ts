@@ -35,6 +35,7 @@ describe("applyA2uiOperations", () => {
     expect(initial.size).toBe(0);
     expect(created.warnings).toEqual([]);
     expect(created.state.get("main")).toMatchObject({
+      catalogId: "default",
       dataModel: { profile: { name: "Ada" } },
     });
     expect(created.state.get("main")?.components.get("root")).toEqual({
@@ -61,6 +62,7 @@ describe("applyA2uiOperations", () => {
         version: "v1.0",
         createSurface: {
           surfaceId: "inline",
+          catalogId: "basic",
           surfaceProperties: { ignored: true },
           sendDataModel: true,
           components: [
@@ -73,6 +75,7 @@ describe("applyA2uiOperations", () => {
 
     expect(result.warnings).toEqual([]);
     expect(result.state.get("inline")).toMatchObject({
+      catalogId: "basic",
       dataModel: { message: "hello" },
     });
     expect(result.state.get("inline")?.components.get("root")).toEqual({
@@ -80,6 +83,21 @@ describe("applyA2uiOperations", () => {
       component: "Text",
       text: { path: "/message" },
     });
+  });
+
+  it("keeps a v1.0 catalog id from surface properties", () => {
+    const result = applyA2uiOperations(new Map(), [
+      {
+        version: "v1.0",
+        createSurface: {
+          surfaceId: "properties",
+          surfaceProperties: { catalogId: "basic" },
+        },
+      },
+    ]);
+
+    expect(result.warnings).toEqual([]);
+    expect(result.state.get("properties")?.catalogId).toBe("basic");
   });
 
   it.each(["10001", "4294967294"])(
