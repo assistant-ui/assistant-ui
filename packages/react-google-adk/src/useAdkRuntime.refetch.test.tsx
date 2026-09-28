@@ -329,6 +329,7 @@ describe("useAdkRuntime refetch", () => {
     expect(signals[1]?.aborted).toBe(false);
 
     unmount();
+    await act(async () => {});
 
     expect(signals[1]?.aborted).toBe(true);
     pending.resolve({ messages: [] });

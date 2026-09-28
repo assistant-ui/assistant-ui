@@ -39,6 +39,7 @@ import {
   useRemoteThreadListRuntime,
   useExternalMessageConverter,
   useExternalStoreRuntime,
+  useReplaySafeEffect,
 } from "@assistant-ui/core/react";
 import { useAui } from "@assistant-ui/store";
 import {
@@ -748,7 +749,7 @@ const useLangGraphRuntimeImpl = (
     ],
   );
 
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     runLoad();
     return () => {
       // Whatever is current, not this effect's own controller: a refetch swaps
@@ -758,7 +759,7 @@ const useLangGraphRuntimeImpl = (
     };
   }, [loadController, runLoad]);
 
-  useEffect(() => cancelActiveRun, [cancelActiveRun]);
+  useReplaySafeEffect(() => cancelActiveRun, [cancelActiveRun]);
 
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
