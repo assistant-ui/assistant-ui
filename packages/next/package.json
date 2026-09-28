@@ -50,8 +50,8 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^26.5.1",
-    "vitest": "^5.0.1"
+    "@types/node": "^26.6.3",
+    "vitest": "^5.0.2"
   },
   "publishConfig": {
     "access": "public",
