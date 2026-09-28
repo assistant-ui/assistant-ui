@@ -317,7 +317,7 @@ type ConversionContext = {
   functionDepthWarned: boolean;
   readonly templates: Map<string, ExpressionPart[] | null>;
   readonly inputFields: Map<string, unknown>;
-  readonly textFields: Set<string>;
+  readonly textFields: Map<string, boolean>;
   readonly boundActionEntries: {
     readonly target: Record<string, unknown>;
     readonly key: string;
@@ -388,26 +388,28 @@ const recordBindings = (
     typeof value !== "string" ||
     value === "" ||
     DATE_PATTERN.test(value);
-  if (
-    INPUT_COMPONENTS.has(String(component)) &&
-    typeof name === "string" &&
-    holdsValue
-  ) {
-    const field = (fallback: unknown) =>
-      fallback === undefined ? { $field: name } : { $field: name, fallback };
-    // A single-choice picker collects one string, while the spec binds it to a string list.
-    const listValued =
-      component === "ChoicePicker" &&
-      mapped.$type !== "CheckboxGroup" &&
-      typeof value !== "string";
-    context.inputFields.set(
+  if (INPUT_COMPONENTS.has(String(component)) && typeof name === "string") {
+    // Controls that share a name collect as a list, so only a lone text control collects one string.
+    context.textFields.set(
       name,
-      listValued
-        ? [field(Array.isArray(value) ? value[0] : undefined)]
-        : field(value),
+      !context.textFields.has(name) &&
+        holdsValue &&
+        (component === "TextField" || component === "DateTimeInput"),
     );
-    if (component === "TextField" || component === "DateTimeInput") {
-      context.textFields.add(name);
+    if (holdsValue) {
+      const field = (fallback: unknown) =>
+        fallback === undefined ? { $field: name } : { $field: name, fallback };
+      // A single-choice picker collects one string, while the spec binds it to a string list.
+      const listValued =
+        component === "ChoicePicker" &&
+        mapped.$type !== "CheckboxGroup" &&
+        typeof value !== "string";
+      context.inputFields.set(
+        name,
+        listValued
+          ? [field(Array.isArray(value) ? value[0] : undefined)]
+          : field(value),
+      );
     }
   }
   const action = mapped.$action;
@@ -1016,7 +1018,7 @@ export function convertSurfaceToUISpec(
     functionDepthWarned: false,
     templates: new Map(),
     inputFields: new Map(),
-    textFields: new Set(),
+    textFields: new Map(),
     boundActionEntries: [],
     boundUserMessages: [],
     keepUnknownComponents: options.keepUnknownComponents === true,
@@ -1038,7 +1040,7 @@ export function convertSurfaceToUISpec(
       if (value !== undefined) setOwnProperty(target, key, value);
     }
     for (const { action, pointer } of context.boundUserMessages) {
-      if (!context.textFields.has(pointer)) continue;
+      if (!context.textFields.get(pointer)) continue;
       const fallback = action["userMessage"];
       setOwnProperty(
         action,

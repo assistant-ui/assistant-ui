@@ -1407,13 +1407,23 @@ describe("convertSurfaceToUISpec", () => {
     });
   });
 
-  it("points a userMessage only at a text input bound to its exact path", () => {
+  it("points a userMessage only at a lone text input bound to its exact path", () => {
     const surface = surfaceFrom(
       [
         {
           id: "root",
           component: "Column",
-          children: ["email", "volume", "note", "form", "level", "draft"],
+          children: [
+            "email",
+            "volume",
+            "note",
+            "qty",
+            "qty-level",
+            "form",
+            "level",
+            "draft",
+            "copy",
+          ],
         },
         { id: "email", component: "TextField", value: { path: "/form/email" } },
         {
@@ -1423,6 +1433,13 @@ describe("convertSurfaceToUISpec", () => {
           value: { path: "/volume" },
         },
         { id: "note", component: "TextField", value: { path: "/note" } },
+        { id: "qty", component: "TextField", value: { path: "/qty" } },
+        {
+          id: "qty-level",
+          component: "Slider",
+          max: 10,
+          value: { path: "/qty" },
+        },
         {
           id: "form",
           component: "Button",
@@ -1443,8 +1460,14 @@ describe("convertSurfaceToUISpec", () => {
           label: "Draft",
           action: { event: { name: "draft", userMessage: { path: "/note" } } },
         },
+        {
+          id: "copy",
+          component: "Button",
+          label: "Copy",
+          action: { event: { name: "copy", userMessage: { path: "/qty" } } },
+        },
       ],
-      { form: { email: "ada@example.com" }, volume: 4 },
+      { form: { email: "ada@example.com" }, volume: 4, qty: "2" },
     );
 
     const { spec, warnings } = convertSurfaceToUISpec(surface);
@@ -1479,6 +1502,17 @@ describe("convertSurfaceToUISpec", () => {
         surfaceId: "",
         sourceComponentId: "draft",
         userMessage: { $field: "/note" },
+      },
+    });
+    expect(spec?.["children"]).toContainEqual({
+      $type: "Button",
+      label: "Copy",
+      $action: {
+        type: "a2ui:action",
+        name: "copy",
+        surfaceId: "",
+        sourceComponentId: "copy",
+        userMessage: "2",
       },
     });
   });
