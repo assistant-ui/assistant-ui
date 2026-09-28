@@ -33,32 +33,56 @@ export const getClientState = (client: ClientMethods) => {
   return (output as any).getState?.();
 };
 
-// Global cache for function templates by field name
+type ClientConnection = {
+  connected: boolean;
+  generation: number;
+  warnedMethods: Set<string | symbol> | undefined;
+};
+
+const disconnectedMethods = new Set<string | symbol>([
+  "getState",
+  "subscribe",
+  "composer",
+  "message",
+  "part",
+  "attachment",
+  "item",
+  "queueItem",
+  "thread",
+  "suggestions",
+  "suggestion",
+  "task",
+  "child",
+  "server",
+  "connector",
+  "customServer",
+]);
+
 const fieldAccessFns = new Map<
   string | symbol,
-  (this: unknown, ...args: unknown[]) => unknown
+  (
+    connection: ClientConnection,
+    outputRef: { current: ClientMethods },
+    ...args: unknown[]
+  ) => unknown
 >();
 
 function getOrCreateProxyFn(prop: string | symbol) {
   let template = fieldAccessFns.get(prop);
   if (!template) {
-    template = function (this: unknown, ...args: unknown[]) {
-      if (!this || typeof this !== "object") {
-        throw new Error(
-          `Method "${String(prop)}" called without proper context. ` +
-            `This may indicate the function was called incorrectly.`,
-        );
+    template = function (connection, outputRef, ...args) {
+      if (!connection.connected && !disconnectedMethods.has(prop)) {
+        const warnedMethods = (connection.warnedMethods ??= new Set());
+        if (!warnedMethods.has(prop)) {
+          warnedMethods.add(prop);
+          console.warn(
+            `Method "${String(prop)}" called on a disconnected client. The action was ignored.`,
+          );
+        }
+        return undefined;
       }
 
-      const output = (this as ClientInternal)[SYMBOL_GET_OUTPUT];
-      if (!output) {
-        throw new Error(
-          `Method "${String(prop)}" called on invalid client proxy. ` +
-            `Ensure you are calling this method on a valid client instance.`,
-        );
-      }
-
-      const method = output[prop];
+      const method = outputRef.current[prop];
       if (!method)
         throw new Error(`Method "${String(prop)}" is not implemented.`);
       if (typeof method !== "function")
@@ -77,13 +101,13 @@ class ClientProxyHandler
   private boundFns:
     | Map<string | symbol, (...args: never) => unknown>
     | undefined;
-  private cachedReceiver: unknown;
 
   private readonly outputRef: {
     current: ClientMethods;
   };
   private readonly tagRef: { current: object };
   private readonly index: number;
+  private readonly connection: ClientConnection;
 
   constructor(
     outputRef: {
@@ -91,14 +115,16 @@ class ClientProxyHandler
     },
     tagRef: { current: object },
     index: number,
+    connection: ClientConnection,
   ) {
     super();
     this.outputRef = outputRef;
     this.tagRef = tagRef;
     this.index = index;
+    this.connection = connection;
   }
 
-  get(_: unknown, prop: string | symbol, receiver: unknown) {
+  get(_: unknown, prop: string | symbol) {
     if (prop === SYMBOL_GET_OUTPUT) return this.outputRef.current;
     if (prop === SYMBOL_CLIENT_INDEX) return this.index;
     if (prop === INSTANCE_TAG_SYMBOL) return this.tagRef.current;
@@ -106,17 +132,15 @@ class ClientProxyHandler
     if (introspection !== false) return introspection;
     const value = this.outputRef.current[prop];
     if (typeof value === "function") {
-      // receiver-less reads (getOwnPropertyDescriptor) get the raw method so
-      // the bound-fn cache stays keyed on the real receiver
-      if (receiver === undefined) return value;
-      if (!this.boundFns || this.cachedReceiver !== receiver) {
-        this.boundFns = new Map();
-        this.cachedReceiver = receiver;
-      }
-      let bound = this.boundFns!.get(prop);
+      this.boundFns ??= new Map();
+      let bound = this.boundFns.get(prop);
       if (!bound) {
-        bound = getOrCreateProxyFn(prop).bind(receiver);
-        this.boundFns!.set(prop, bound);
+        bound = getOrCreateProxyFn(prop).bind(
+          null,
+          this.connection,
+          this.outputRef,
+        );
+        this.boundFns.set(prop, bound);
       }
       return bound;
     }
@@ -154,14 +178,30 @@ export const useClientResource = <TMethods extends ClientMethods>(
   const instanceTag = useMemo(() => ({}), [element.hook, element.key]);
 
   const index = useClientStack().length;
-  const methods = useMemo(
-    () =>
-      new Proxy<TMethods>(
+  const { methods, connection } = useMemo(() => {
+    const connection: ClientConnection = {
+      connected: true,
+      generation: 0,
+      warnedMethods: undefined,
+    };
+    return {
+      methods: new Proxy<TMethods>(
         {} as TMethods,
-        new ClientProxyHandler(valueRef, tagRef, index),
+        new ClientProxyHandler(valueRef, tagRef, index, connection),
       ),
-    [index],
-  );
+      connection,
+    };
+  }, [index]);
+
+  useEffect(() => {
+    connection.connected = true;
+    const generation = ++connection.generation;
+    return () => {
+      queueMicrotask(() => {
+        if (connection.generation === generation) connection.connected = false;
+      });
+    };
+  }, [connection]);
 
   const value = useClientStackProvider(methods, function WithClientStack() {
     return useResource(element);
