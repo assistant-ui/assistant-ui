@@ -67,6 +67,18 @@ const emitAssistantText = (
   });
 };
 
+const emitReasoning = (subscriber: any, messageId: string, delta: string) => {
+  subscriber.onReasoningMessageStartEvent?.({
+    event: { type: "REASONING_MESSAGE_START", messageId },
+  });
+  subscriber.onReasoningMessageContentEvent?.({
+    event: { type: "REASONING_MESSAGE_CONTENT", messageId, delta },
+  });
+  subscriber.onReasoningMessageEndEvent?.({
+    event: { type: "REASONING_MESSAGE_END", messageId },
+  });
+};
+
 describe("AgUiThreadRuntimeCore branch flows", () => {
   it("append: records the visible pair and persists user then assistant with correct parents", async () => {
     const agent = finalizingAgent("Hello");
@@ -889,5 +901,51 @@ describe("AgUiThreadRuntimeCore branch flows", () => {
     });
     expect(tail.metadata.isOptimistic).toBeUndefined();
     expect(tail.id.startsWith("__optimistic__")).toBe(false);
+  });
+
+  it("MESSAGES_SNAPSHOT without reasoning records keeps the reasoning of earlier replies", async () => {
+    let runCount = 0;
+    let userId = "";
+    const agent = {
+      runAgent: vi.fn(async (input: any, subscriber: any) => {
+        runCount++;
+        if (runCount === 1) {
+          userId = input.messages.find(
+            (m: { role: string }) => m.role === "user",
+          ).id;
+          emitReasoning(subscriber, "reasoning-1", "thinking");
+          emitAssistantText(subscriber, "assistant-1", "Hello.");
+          subscriber.onRunFinalized?.();
+          return;
+        }
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: userId, role: "user", content: "hi" },
+              { id: "assistant-1", role: "assistant", content: "Hello." },
+            ],
+          },
+        });
+        emitAssistantText(subscriber, "assistant-2", "Hi again.");
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+    await core.append(
+      createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+    );
+
+    const messages = core.getMessages();
+    const first = messages.find(
+      ({ id }) => id === "assistant-1",
+    ) as ThreadAssistantMessage;
+    expect(first.content[0]).toMatchObject({
+      type: "reasoning",
+      text: "thinking",
+    });
+    expect(first.content[1]).toMatchObject({ type: "text", text: "Hello." });
   });
 });

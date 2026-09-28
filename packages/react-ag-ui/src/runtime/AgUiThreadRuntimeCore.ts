@@ -83,6 +83,9 @@ const isResolvedToolCall = (
 ): boolean =>
   part.type === "tool-call" && "result" in part && part.result !== undefined;
 
+const isActivityPart = (part: ThreadAssistantMessage["content"][number]) =>
+  part.type === "data" && part.name.startsWith("agui-activity/");
+
 type RunConfig = NonNullable<AppendMessage["runConfig"]>;
 type ResumeStream = (
   options: ChatModelRunOptions,
@@ -1760,6 +1763,26 @@ export class AgUiThreadRuntimeCore {
     return changed ? content : next;
   }
 
+  // A snapshot built from user, assistant, and tool records alone carries no
+  // reasoning or activity of its own, so the parts streamed locally would be
+  // lost on every refresh; keep the local ones when the snapshot has none of
+  // that kind, matching the merge rule of @ag-ui/client. Reasoning precedes
+  // the answer it belongs to, so kept parts go first.
+  private mergeSnapshotAssistantContent(
+    previous: ThreadAssistantMessage["content"],
+    next: ThreadAssistantMessage["content"],
+    snapshotHasReasoning: boolean,
+    snapshotHasActivity: boolean,
+  ): ThreadAssistantMessage["content"] {
+    const kept = previous.filter((part) =>
+      part.type === "reasoning"
+        ? !snapshotHasReasoning
+        : isActivityPart(part) && !snapshotHasActivity,
+    );
+    const merged = this.preserveToolInteractions(previous, next);
+    return kept.length === 0 ? merged : [...kept, ...merged];
+  }
+
   private mergeAssistantMetadata(
     current: ThreadAssistantMessage["metadata"],
     incoming: NonNullable<ChatModelRunResult["metadata"]>,
@@ -2048,33 +2071,43 @@ export class AgUiThreadRuntimeCore {
       const converted: ThreadMessage[] = [];
       for (const message of normalized) {
         try {
-          const convertedMessage = fromThreadMessageLike(
-            message,
-            generateId(),
-            FALLBACK_USER_STATUS,
+          converted.push(
+            fromThreadMessageLike(message, generateId(), FALLBACK_USER_STATUS),
           );
-          const existing = this.session.tryGetMessage(
-            convertedMessage.id,
-          )?.message;
-          if (
-            convertedMessage.role === "assistant" &&
-            existing?.role === "assistant"
-          ) {
-            converted.push({
-              ...convertedMessage,
-              content: this.preserveToolInteractions(
-                existing.content,
-                convertedMessage.content,
-              ),
-            });
-          } else {
-            converted.push(convertedMessage);
-          }
         } catch (error) {
           this.logger.error?.(
             "[agui] failed to import message from snapshot",
             error,
           );
+        }
+      }
+      const snapshotHasReasoning = converted.some(
+        (message) =>
+          message.role === "assistant" &&
+          message.content.some((part) => part.type === "reasoning"),
+      );
+      const snapshotHasActivity = converted.some(
+        (message) =>
+          message.role === "assistant" && message.content.some(isActivityPart),
+      );
+      for (let index = 0; index < converted.length; index++) {
+        const convertedMessage = converted[index]!;
+        const existing = this.session.tryGetMessage(
+          convertedMessage.id,
+        )?.message;
+        if (
+          convertedMessage.role === "assistant" &&
+          existing?.role === "assistant"
+        ) {
+          converted[index] = {
+            ...convertedMessage,
+            content: this.mergeSnapshotAssistantContent(
+              existing.content,
+              convertedMessage.content,
+              snapshotHasReasoning,
+              snapshotHasActivity,
+            ),
+          };
         }
       }
       const snapshotContainsActiveAssistant = converted.some(
