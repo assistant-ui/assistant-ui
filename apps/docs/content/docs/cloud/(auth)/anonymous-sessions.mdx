@@ -32,7 +32,7 @@ If a refresh returns `429` or a `5xx` status, the client throws `Assistant Cloud
 
 ### Letting a runtime create the client
 
-When you do not pass `cloud`, the cloud thread list adapter creates an anonymous client from `NEXT_PUBLIC_ASSISTANT_BASE_URL`. `useLocalRuntime` and `useChatRuntime` reach that adapter, so the same default applies to them. If the variable is absent, no cloud client is created and the thread list falls back to in memory state.
+On Next.js, when you do not pass `cloud`, the cloud thread list adapter creates an anonymous client from `NEXT_PUBLIC_ASSISTANT_BASE_URL`. `useLocalRuntime` and `useChatRuntime` reach that adapter, so the same default applies to them. If the variable is absent, no cloud client is created and the thread list falls back to in memory state. Vite, React Router and TanStack Start do not expose that variable to the browser, so create the client as shown below and pass it.
 
 ## Configure anonymous access
 
@@ -60,6 +60,8 @@ export const cloud = new AssistantCloud({
   anonymous: true,
 });
 ```
+
+On Vite, React Router and TanStack Start read `import.meta.env.VITE_ASSISTANT_BASE_URL` instead.
 
 The first token response has this shape:
 
