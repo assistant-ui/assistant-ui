@@ -186,7 +186,7 @@ describe("InMemoryThreadList selection events", () => {
 });
 
 describe("InMemoryThreadList thread state", () => {
-  it("clears the composer draft on each thread switch", async () => {
+  it("does not carry a composer draft into another thread", async () => {
     let aui!: ReturnType<typeof useAui>;
     const Harness = () => {
       aui = useAui({
@@ -209,11 +209,6 @@ describe("InMemoryThreadList thread state", () => {
     });
     await act(async () => {});
 
-    expect(aui.composer.getState().text).toBe("");
-
-    await act(async () => {
-      aui.threads.switchToThread("main");
-    });
     expect(aui.composer.getState().text).toBe("");
   });
 

@@ -260,7 +260,7 @@ export class ExternalStoreThreadRuntimeCore
       // by clients rendering the previous snapshot.
       const head = this.repository.getMessages();
       const tail = head.at(-1);
-      this._optimistic = tail?.metadata?.isOptimistic
+      this._optimistic = tail?.metadata.isOptimistic
         ? { id: tail.id, parentId: head.at(-2)?.id ?? null }
         : null;
     }
