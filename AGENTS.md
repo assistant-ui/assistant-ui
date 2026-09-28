@@ -9,7 +9,7 @@ Composable runtime and UI primitives for AI chat in React, React Native, and the
 - `pnpm lint:fix` formats; oxfmt owns formatting, so never format by hand.
 - `pnpm sync-templates --write` after editing anything under `packages/ui/src/` or an `apps/registry` file a template mirrors; the Template Sync job fails on drift.
 - `pnpm check:resource-memo` after bumping `@babel/core`, `babel-plugin-react-compiler`, or `react-compiler`, because a green build does not prove the compiler toolchain works.
-- autofix.ci commits the output of `pnpm lint:fix`, `pnpm api-surface`, `pnpm size:update:all`, and `pnpm -C apps/docs generate:api-reference` to every PR.
+- autofix.ci commits the output of `pnpm lint:fix`, `pnpm api-surface`, and `pnpm -C apps/docs generate:api-reference` to every PR.
 
 ## Rules
 

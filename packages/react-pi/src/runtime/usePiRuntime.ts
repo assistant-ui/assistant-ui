@@ -41,6 +41,7 @@ import type { PiClient, PiThreadMetadata } from "../types";
 import { piExtras } from "./piExtras";
 import type { PiRuntimeExtrasInternal, PiRuntimeOptions } from "./runtimeTypes";
 import { PI_SDK } from "../sdkIdentity";
+import { disposeControllers } from "./disposeControllers";
 
 const EMPTY_THREAD_STATE = createPiThreadState("__pending__");
 const EMPTY_PROJECTED_MESSAGES: readonly ThreadMessageLike[] = [];
@@ -73,7 +74,7 @@ const createRegistry = (client: PiClient): PiControllerRegistry => {
     },
     dispose() {
       disposed = true;
-      for (const controller of controllers.values()) controller.dispose();
+      disposeControllers(controllers.values());
       // Controllers stay cached so a StrictMode cleanup/remount reuses them;
       // a real unmount drops this whole registry.
     },

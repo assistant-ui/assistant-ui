@@ -56,5 +56,6 @@ export const useExternalStoreRuntime = <T>(
     return runtime.registerModelContextProvider(modelContext);
   }, [modelContext, runtime]);
 
-  return useMemo(() => new AssistantRuntimeImpl(runtime), [runtime]);
+  const [assistantRuntime] = useState(() => new AssistantRuntimeImpl(runtime));
+  return assistantRuntime;
 };

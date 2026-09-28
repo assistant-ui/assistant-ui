@@ -565,6 +565,7 @@ type AssistantCloudThreadsCreateBody = {
   last_message_at: Date;
   metadata?: unknown | undefined;
   external_id?: string | undefined;
+  upsert?: boolean | undefined;
 };
 
 type AssistantCloudThreadsCreateResponse = {
@@ -1455,15 +1456,16 @@ type CloudThread = {
 type CloudThreadListAdapter = {
   cloud: AssistantCloud;
   runtimeHook: () => AssistantRuntime;
-  create?(): Promise<ThreadData>;
+  create?(threadId: string): Promise<ThreadData>;
   delete?(threadId: string): Promise<void>;
 };
 
 type CloudThreadListAdapterOptions = {
   cloud?: AssistantCloud | undefined;
   sdk?: SdkIdentity | undefined;
-  create?: (() => Promise<ThreadData$1>) | undefined;
+  create?: ((threadId: string) => Promise<ThreadData$1>) | undefined;
   delete?: ((threadId: string) => Promise<void>) | undefined;
+  upsert?: boolean | undefined;
 };
 
 type CompleteAttachment = BaseAttachment & {
@@ -3260,6 +3262,7 @@ declare class MessageRepository {
     index: number;
   };
   deleteMessage(messageId: string, replacementId?: string | null | undefined): void;
+  hasChildren(messageId: string): boolean;
   getBranches(messageId: string): string[];
   switchToBranch(messageId: string): void;
   resetHead(messageId: string | null): void;
@@ -3993,6 +3996,7 @@ type RuntimeCapabilities = {
   readonly attachments: boolean;
   readonly feedback: boolean;
   readonly queue: boolean;
+  readonly answerToolCall: boolean;
 };
 
 type SamplingCallData = {

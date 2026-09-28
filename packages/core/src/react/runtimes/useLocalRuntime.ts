@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   AssistantRuntime,
   ChatModelAdapter,
@@ -74,7 +74,8 @@ const useLocalThreadRuntime = (
     return runtime.registerModelContextProvider(modelContext);
   }, [modelContext, runtime]);
 
-  return useMemo(() => new AssistantRuntimeImpl(runtime), [runtime]);
+  const [assistantRuntime] = useState(() => new AssistantRuntimeImpl(runtime));
+  return assistantRuntime;
 };
 
 export const splitLocalRuntimeOptions = <T extends LocalRuntimeOptions>(

@@ -30,6 +30,27 @@ describe("shop entry points", () => {
     ).toBeTruthy();
   });
 
+  it("keeps the banner for the main installer only when the shop is closed", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SHOP_ENABLED", "");
+    vi.stubEnv("NODE_ENV", "production");
+    const { AgentSetup, CartButton } = await load();
+    const { container } = render(
+      <>
+        <CartButton />
+        <AgentSetup product="guides/mcp" />
+        <AgentSetup product="elements/thread-list" />
+        <AgentSetup product="cloud" />
+      </>,
+    );
+    await Promise.resolve();
+    expect(container.innerHTML).toBe("");
+    render(<AgentSetup product="assistant-ui" />);
+    expect(
+      await screen.findByRole("button", { name: "Begin setup" }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /cart/i })).toBeNull();
+  });
+
   it("renders nothing without a checkout worker", async () => {
     vi.stubEnv("NEXT_PUBLIC_CHECKOUT_URL", "");
     const { AgentSetup, CartButton } = await load();
