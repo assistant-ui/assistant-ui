@@ -729,7 +729,7 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
     }
   }, []);
 
-  useReplaySafeEffect(() => cancel, [cancel]);
+  useReplaySafeEffect(() => cancel, []);
 
   return {
     interrupt,

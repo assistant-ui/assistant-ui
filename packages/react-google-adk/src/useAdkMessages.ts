@@ -286,7 +286,7 @@ export const useAdkMessages = ({
     }
   }, []);
 
-  useReplaySafeEffect(() => cancel, [cancel]);
+  useReplaySafeEffect(() => cancel, []);
 
   return {
     messages,

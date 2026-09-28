@@ -163,6 +163,43 @@ it.each(["unmount", "hide"] as const)(
   },
 );
 
+it("keeps a direct useLangGraphMessages stream through Fast Refresh and cancels on unmount", async () => {
+  let signal: AbortSignal | undefined;
+  let send: (() => void) | undefined;
+  let rendered: string | undefined;
+  const stream = vi.fn((_messages, config: { abortSignal: AbortSignal }) => {
+    signal = config.abortSignal;
+    return new Promise<never>(() => {});
+  });
+  const host = (name: string) => () => {
+    rendered = name;
+    const { sendMessage } = useLangGraphMessages({
+      stream: stream as never,
+      appendMessage: appendLangChainChunk,
+    });
+    send = () => {
+      void sendMessage([{ type: "human", content: "hello" }], {});
+    };
+    return null;
+  };
+  const Before = host("before");
+  const After = host("after");
+  const view = render(<Before />);
+
+  act(() => send!());
+  await waitFor(() => expect(stream).toHaveBeenCalledTimes(1));
+  expect(signal!.aborted).toBe(false);
+
+  await refresh(Before, After);
+  expect(rendered).toBe("after");
+  expect(signal!.aborted).toBe(false);
+  expect(stream).toHaveBeenCalledTimes(1);
+
+  view.unmount();
+  await act(async () => {});
+  expect(signal!.aborted).toBe(true);
+});
+
 it("keeps a stream started during StrictMode's effect replay", async () => {
   let signal: AbortSignal | undefined;
   let launched = false;
