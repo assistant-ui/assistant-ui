@@ -31,9 +31,12 @@ Choose the runtime that owns the conversation history before a thread is used. T
 |---|---|---|
 | Local runtime | `aui/v0` | Initializes the remote thread, encodes a message and appends it with its parent id. |
 | AI SDK runtime | `ai-sdk/v6` | Pins the current thread list item, then encodes and writes settled messages through the formatted history adapter. |
+| External-store runtime | `aui/v0` | Copies eligible backend messages with `external_id` values. |
 | Older AI SDK client | `ai-sdk/v5` | Its rows remain readable directly or through the `ai-sdk/v6` conversion path. |
 
 The AI SDK adapter pins the thread list item before it writes, so a later thread switch does not redirect an in flight history write. It waits for the run to settle, appends each unpersisted message once with its chained parent, and updates an already persisted message only when the encoded content changed. The cloud history adapter never deletes a message.
+
+An external-store runtime never copies a message without a backend ID. It skips fallback IDs beginning `__external_store_fallback_`, optimistic messages, error IDs, and running assistant messages. Empty IDs and IDs longer than 255 characters are also skipped.
 
 ![Thread detail on the demo project](../images/thread.webp)
 
@@ -63,7 +66,7 @@ await cloud.threads.messages.update(threadId, message_id, {
 });
 ```
 
-Use the REST creation path when an application mirrors its own message ids. `external_id` makes a repeat safe, and `parent_external_id` lets a mirrored child refer to the application's parent id.
+Use `cloud.threads.messages.create` when an application mirrors its own message IDs. It accepts `external_id` to make a repeat safe and `parent_external_id` to let a mirrored child refer to the application's parent ID.
 
 | Repeat or parent case | Result |
 |---|---|
@@ -105,4 +108,4 @@ The cloud limits the stored content and the page and deletion batches below. The
 |---|---|---|
 | History is empty after switching runtimes | The local runtime reads `aui/v0`, while the AI SDK runtime reads its `ai-sdk/v6` persistence path. A thread id alone does not make every stored format a local runtime history item. | Keep the runtime for a thread consistent, or load through a supported `ai-sdk/v5` or `ai-sdk/v6` conversion path. |
 | The first message answers 402 | It is a new user message and the project has reached its active user cap for the UTC calendar month. | Check the plan and the `period_end` in the response, then retry when capacity is available. |
-| A message is stored twice | The application repeated a create without a stable `external_id`, or repeated it with changed content. | Mirror one stable external id for that message. An identical repeat returns the original message without another write. |
+| A message is stored twice | The application repeated a create without a stable `external_id`. | Mirror one stable external ID for that message. A repeat with changed content updates the same row. |
