@@ -1,8 +1,11 @@
+// @vitest-environment jsdom
+
 import { describe, it, expect } from "vitest";
 import {
   collectFormValues,
   type FormControlElementLike,
 } from "./collectFormValues";
+import { CHECKBOX_GROUP_ATTR, GENERATED_NAME_ATTR } from "../constants";
 
 const el = (
   partial: Partial<FormControlElementLike>,
@@ -11,6 +14,7 @@ const el = (
   type: "text",
   value: "",
   disabled: false,
+  hasAttribute: () => false,
   ...partial,
 });
 
@@ -47,6 +51,27 @@ describe("collectFormValues", () => {
     expect(values.size).toBeUndefined();
   });
 
+  it("resolves a checkbox group to its checked values in document order", () => {
+    const option = (value: string, checked: boolean) =>
+      el({
+        name: "toppings",
+        type: "checkbox",
+        value,
+        checked,
+        hasAttribute: (name) => name === CHECKBOX_GROUP_ATTR,
+      });
+    expect(
+      collectFormValues([
+        option("basil", true),
+        option("olives", false),
+        option("onion", true),
+      ]),
+    ).toEqual({ toppings: ["basil", "onion"] });
+    expect(collectFormValues([option("basil", false)])).toEqual({
+      toppings: [],
+    });
+  });
+
   it("resolves select/input/textarea/date controls to their string value", () => {
     expect(
       collectFormValues([
@@ -61,6 +86,12 @@ describe("collectFormValues", () => {
       bio: "hi",
       dob: "2026-01-01",
     });
+  });
+
+  it("resolves a range input to its numeric value", () => {
+    expect(
+      collectFormValues([el({ name: "volume", type: "range", value: "7" })]),
+    ).toEqual({ volume: 7 });
   });
 
   it("collects repeated non-radio names into an array in document order", () => {
@@ -80,6 +111,20 @@ describe("collectFormValues", () => {
         el({ name: "kept", type: "text", value: "yes" }),
       ]),
     ).toEqual({ kept: "yes" });
+  });
+
+  it("skips radio groups whose name is generated only for native grouping", () => {
+    expect(
+      collectFormValues([
+        el({
+          name: "_R_1_",
+          type: "radio",
+          value: "sm",
+          checked: true,
+          hasAttribute: (name) => name === GENERATED_NAME_ATTR,
+        }),
+      ]),
+    ).toEqual({});
   });
 
   it("skips disabled controls", () => {
@@ -104,6 +149,26 @@ describe("collectFormValues", () => {
         el({ name: "size", type: "radio", value: "md", checked: false }),
       ]),
     ).toEqual({ size: undefined });
+  });
+
+  it("skips controls disabled by a fieldset while preserving its first legend", () => {
+    const form = document.createElement("form");
+    form.innerHTML = `
+      <fieldset disabled>
+        <legend><input name="legend" value="kept" /></legend>
+        <input name="blocked" value="old" />
+      </fieldset>
+      <input name="enabled" value="yes" />
+    `;
+    const blocked = form.elements.namedItem("blocked") as HTMLInputElement;
+
+    expect(blocked.disabled).toBe(false);
+
+    expect(
+      collectFormValues(
+        form.elements as unknown as ArrayLike<FormControlElementLike>,
+      ),
+    ).toEqual({ legend: "kept", enabled: "yes" });
   });
 
   it("returns an empty object for no elements", () => {

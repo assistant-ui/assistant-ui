@@ -103,7 +103,7 @@ export function MobileComposer({
               if (event.key !== "Enter" || event.shiftKey) return;
               if (event.nativeEvent.isComposing) return;
               event.preventDefault();
-              if (!running && value !== "") onSend?.();
+              if (!running && value !== "" && onSend) onSend();
             }}
             placeholder="Message"
             aria-label="Message"
@@ -114,22 +114,24 @@ export function MobileComposer({
           )}
         </div>
 
-        <button
-          type="button"
-          aria-label={running ? "Stop" : "Send"}
-          onClick={running ? onStop : onSend}
-          disabled={!running && value === ""}
-          className={cn(
-            inkButton,
-            "flex size-9 shrink-0 items-center justify-center rounded-full disabled:pointer-events-none disabled:opacity-25",
-          )}
-        >
-          {running ? (
-            <SquareIcon className="size-3 fill-current" />
-          ) : (
-            <ArrowUpIcon className="size-4" />
-          )}
-        </button>
+        {(onSend || onStop) && (
+          <button
+            type="button"
+            aria-label={running ? "Stop" : "Send"}
+            onClick={running ? onStop : onSend}
+            disabled={running ? !onStop : !onSend || value === ""}
+            className={cn(
+              inkButton,
+              "flex size-9 shrink-0 items-center justify-center rounded-full disabled:pointer-events-none disabled:opacity-25",
+            )}
+          >
+            {running ? (
+              <SquareIcon className="size-3 fill-current" />
+            ) : (
+              <ArrowUpIcon className="size-4" />
+            )}
+          </button>
+        )}
       </div>
 
       {!keyboardOpen && (

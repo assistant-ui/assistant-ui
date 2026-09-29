@@ -27,7 +27,7 @@ Mastra integrates at the LLM-client layer on the server. assistant-ui talks to y
 
 Shared adapters (attachments, speech, feedback, history) work the same way described in [adapters](/docs/runtimes/concepts/adapters). Multi-thread support uses [AssistantCloud](/docs/cloud) or a [custom thread list](/docs/runtimes/concepts/threads).
 
-With Assistant Cloud, add `cloud` to the `useChatRuntime` call of either pattern and the app gets the thread list, message persistence, automatic titles, run reports and engagement events; a `messageMetadata` callback on the route fills in the model and usage of each run the same way as on any AI SDK route. See [AI SDK + assistant-ui](/docs/cloud/ai-sdk-assistant-ui).
+With Assistant Cloud, add `cloud` to the `useChatRuntime` call of either pattern and the app gets the thread list, message persistence, automatic titles, run reports and engagement events; a `messageMetadata` callback on the route fills in the model and usage of each run the same way as on any AI SDK route. See [AI SDK + assistant-ui](/docs/cloud/ai-sdk).
 
 ## Requirements
 

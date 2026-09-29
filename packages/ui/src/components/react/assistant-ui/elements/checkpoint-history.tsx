@@ -79,17 +79,17 @@ export function CheckpointHistory({
               <span className={cn(mono, "text-foreground/35 shrink-0")}>
                 current
               </span>
-            ) : (
+            ) : onRestore ? (
               <button
                 type="button"
                 aria-label={`Restore to ${checkpoint.label}`}
-                onClick={() => onRestore?.(checkpoint.id)}
+                onClick={() => onRestore(checkpoint.id)}
                 className="text-foreground/45 hover:bg-foreground/[0.06] hover:text-foreground/90 flex h-6 shrink-0 items-center gap-1 rounded-full px-2 text-[11px] font-medium opacity-0 transition-[background-color,color,opacity,scale] duration-150 group-hover:opacity-100 focus-visible:opacity-100 active:scale-[0.96]"
               >
                 <RotateCcwIcon className="size-2.5" />
                 Restore
               </button>
-            )}
+            ) : null}
           </div>
         );
       })}

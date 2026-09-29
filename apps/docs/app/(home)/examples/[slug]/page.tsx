@@ -3,13 +3,13 @@ import { LiveDot } from "@/components/shared/live-dot";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowUpRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight } from "lucide-react";
 import {
   ExamplePreview,
   hasExamplePreview,
 } from "@/components/pages/examples/example-preview";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";
+import { typeDeck, typePage } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 import { createOgMetadata } from "@/lib/og";
 import {
@@ -142,8 +142,8 @@ export default async function ExamplePage(props: {
               href={neighbors.previous.link}
               className="group flex flex-col py-5 md:pe-8"
             >
-              <span className={typeEyebrow}>Previous</span>
-              <span className="mt-1.5 block truncate text-sm font-medium">
+              <span className="flex items-center gap-1.5 truncate text-sm font-medium">
+                <ArrowLeft className="size-3.5 shrink-0" />
                 {neighbors.previous.title}
               </span>
             </Link>
@@ -155,9 +155,9 @@ export default async function ExamplePage(props: {
               href={neighbors.next.link}
               className="group flex flex-col py-5 md:ps-8 md:text-right"
             >
-              <span className={typeEyebrow}>Next</span>
-              <span className="mt-1.5 block truncate text-sm font-medium">
+              <span className="flex items-center gap-1.5 truncate text-sm font-medium md:justify-end">
                 {neighbors.next.title}
+                <ArrowRight className="size-3.5 shrink-0" />
               </span>
             </Link>
           ) : (

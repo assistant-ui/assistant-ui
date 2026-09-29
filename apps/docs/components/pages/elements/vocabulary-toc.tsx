@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { typeEyebrow } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 import type { ComponentCategory } from "@/lib/component-reference";
 
@@ -53,7 +52,7 @@ export function VocabularyToc({
 
   return (
     <aside className="hidden lg:block">
-      <div className="bg-background fixed top-12 bottom-0 w-52 overflow-y-auto overscroll-contain pt-20 pb-8">
+      <div className="bg-background sticky top-12 -mt-20 max-h-[calc(100dvh-3rem)] w-52 overflow-y-auto overscroll-contain pt-20 pb-8">
         <p className="text-muted-foreground flex items-baseline justify-between px-2 text-[13px]">
           Vocabulary
           <span className="font-mono text-[11px] tabular-nums">{total}</span>
@@ -64,7 +63,9 @@ export function VocabularyToc({
         >
           {categories.map((category) => (
             <div key={category.label} className="flex flex-col gap-1">
-              <p className={cn(typeEyebrow, "px-2")}>{category.label}</p>
+              <p className="text-muted-foreground px-2 text-xs font-medium">
+                {category.label}
+              </p>
               <div className="flex flex-col gap-0.5">
                 {category.components.map((name) => {
                   const active = activeId === name;

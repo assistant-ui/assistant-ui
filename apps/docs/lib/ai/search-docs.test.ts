@@ -42,6 +42,7 @@ describe("createSearchDocsTool", () => {
       {
         toolCallId: "1",
         messages: [],
+        context: {},
       },
     )) as { results: { url: string; title: string; excerpt?: string }[] };
 

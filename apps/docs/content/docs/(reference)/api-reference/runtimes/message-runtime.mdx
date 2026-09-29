@@ -3,7 +3,7 @@ title: MessageRuntime
 description: MessageRuntime state and actions for editing, reloading, copying, rating, speaking, and branching assistant-ui messages.
 ---
 
-import { MessageRuntime, MessageState } from "@/generated/typeDocs";
+import { MessageRuntime, MessageRuntimeState, MessageState } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -18,7 +18,15 @@ import { MessageRuntime, MessageState } from "@/generated/typeDocs";
 
 <ParametersTable {...MessageRuntime} />
 
+### MessageRuntimeState
+
+<ParametersTable {...MessageRuntimeState} />
+
 ### MessageState
+
+<Callout type="warn">
+<strong>Deprecated.</strong> Use `MessageRuntimeState`. From `@assistant-ui/react` 0.16, `MessageState` names the message state read through `useAuiState`.
+</Callout>
 
 <ParametersTable {...MessageState} />
 {/* api-reference:end */}

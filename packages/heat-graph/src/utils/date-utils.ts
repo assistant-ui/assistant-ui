@@ -1,12 +1,15 @@
 import type { WeekStart } from "../types";
 
 export const normalizeDate = (d: string | Date): Date => {
-  if (typeof d === "string") {
-    // Parse YYYY-MM-DD as local date (not UTC)
+  // Date-only strings are local calendar days; timestamps are instants
+  // projected onto their local calendar day.
+  if (typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
     const [y, m, day] = d.split("-").map(Number);
     return new Date(y!, m! - 1, day);
   }
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+  const date = typeof d === "string" ? new Date(d) : d;
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 };
 
 export const dateToKey = (d: Date): string => {
@@ -27,18 +30,17 @@ export const getDayOfWeekIndex = (date: Date, weekStart: WeekStart): number => {
   return (day - offset + 7) % 7;
 };
 
-export const startOfWeek = (date: Date, weekStart: WeekStart): Date => {
-  const d = new Date(date);
-  const dayIndex = getDayOfWeekIndex(d, weekStart);
-  d.setDate(d.getDate() - dayIndex);
-  return d;
-};
+export const startOfWeek = (date: Date, weekStart: WeekStart): Date =>
+  addDays(date, -getDayOfWeekIndex(date, weekStart));
 
-export const addDays = (date: Date, days: number): Date => {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-};
+// Every date here stands for a local calendar day at midnight. `setDate` would
+// carry the time-of-day forward, and where a DST transition happens at 00:00
+// that midnight does not exist, so the constructor lands on 01:00 and every
+// later step keeps the offset — enough for an instant comparison against a
+// midnight endpoint to end the range a day early. Rebuilding from the calendar
+// fields restores midnight on each step.
+export const addDays = (date: Date, days: number): Date =>
+  new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
 
 export const MONTH_SHORT = [
   "Jan",

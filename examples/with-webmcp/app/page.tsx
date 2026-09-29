@@ -26,11 +26,19 @@ const WebMcpStatus = () => {
 
   return (
     <p className="text-muted-foreground text-xs">
-      {status === "unsupported"
-        ? "WebMCP not detected in this browser — the tools stay chat-only."
-        : registeredToolNames.length === 0
-          ? "WebMCP detected — no tools published yet."
-          : `Exposed to your browser agent: ${registeredToolNames.join(", ")}`}
+      {status === "unsupported" ? (
+        <>
+          WebMCP not detected, so the tools stay chat-only. Enable{" "}
+          <span className="whitespace-nowrap">
+            chrome://flags/#enable-webmcp-testing
+          </span>{" "}
+          in Chrome to try it.
+        </>
+      ) : registeredToolNames.length === 0 ? (
+        "WebMCP detected, but no tools are published yet."
+      ) : (
+        `Exposed to your browser agent: ${registeredToolNames.join(", ")}`
+      )}
     </p>
   );
 };

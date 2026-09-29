@@ -244,9 +244,29 @@ async def test_rejects_append_on_missing_stream() -> None:
 async def test_finalize_is_idempotent() -> None:
     store = create_in_memory_resumable_stream_store()
     await store.acquire("a")
-    await store.finalize("a", "done")
-    await store.finalize("a", "done")
+    assert await store.finalize("a", "done") is True
+    assert await store.finalize("a", "done") is False
     assert await store.status("a") == "done"
+
+
+@pytest.mark.anyio
+async def test_stale_lease_finalize_returns_false_after_reacquisition() -> None:
+    now = [1_000.0]
+    store = create_in_memory_resumable_stream_store(
+        default_ttl_ms=100,
+        now=lambda: now[0],
+    )
+    stale = await store.acquire_lease("a")
+    assert stale.role == "producer"
+    assert stale.lease is not None
+
+    now[0] += 101
+    fresh = await store.acquire_lease("a")
+    assert fresh.role == "producer"
+    assert fresh.lease is not None
+
+    assert await store.finalize("a", "done", lease=stale.lease) is False
+    assert await store.status("a") == "streaming"
 
 
 @pytest.mark.anyio

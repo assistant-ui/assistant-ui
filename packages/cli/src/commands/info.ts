@@ -23,7 +23,6 @@ const ASSISTANT_UI_PACKAGES = [
   // Streaming & Cloud
   "assistant-stream",
   "assistant-cloud",
-  "@assistant-ui/cloud-ai-sdk",
   // Adapters
   "@assistant-ui/eve",
   "@assistant-ui/ai-sdk",

@@ -1,7 +1,4 @@
-import {
-  findXuluxSuggestion,
-  XULUX_SUGGESTION_GROUPS,
-} from "./xulux-suggestions";
+import { findXuluxSuggestion, XULUX_SUGGESTIONS } from "./xulux-suggestions";
 import { NAV_ITEMS } from "@/lib/constants";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 
@@ -9,9 +6,7 @@ describe("Xulux Learn suggestions", () => {
   it("does not encode course navigation as a prompt replay", () => {
     expect(findXuluxSuggestion("learn-guided-course")).toBeUndefined();
     expect(
-      XULUX_SUGGESTION_GROUPS.flatMap((group) => group.options).some(
-        (option) => option.prompt === "Start the course.",
-      ),
+      XULUX_SUGGESTIONS.some((option) => option.prompt === "Start the course."),
     ).toBe(false);
   });
 

@@ -50,19 +50,16 @@ export function ModelPicker({
             .filter((model) => model.family === family)
             .map((model) => {
               const selected = model.id === selectedId;
-              return (
-                <button
-                  key={model.id}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => onSelect?.(model.id)}
-                  className={cn(
-                    "flex items-center gap-2.5 rounded-xl px-2 py-2 text-start transition-colors",
-                    selected
-                      ? "bg-foreground/[0.06]"
-                      : "hover:bg-foreground/[0.035]",
-                  )}
-                >
+              const className = cn(
+                "flex items-center gap-2.5 rounded-xl px-2 py-2 text-start transition-colors",
+                selected
+                  ? "bg-foreground/[0.06]"
+                  : onSelect
+                    ? "hover:bg-foreground/[0.035]"
+                    : undefined,
+              );
+              const content = (
+                <>
                   <span className="flex size-3.5 shrink-0 items-center justify-center">
                     {selected && (
                       <CheckIcon className="fade-in zoom-in-90 animate-in text-foreground/70 size-3.5 duration-200" />
@@ -99,7 +96,27 @@ export function ModelPicker({
                       {model.price}
                     </span>
                   </span>
+                </>
+              );
+
+              return onSelect ? (
+                <button
+                  key={model.id}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => onSelect(model.id)}
+                  className={className}
+                >
+                  {content}
                 </button>
+              ) : (
+                <div
+                  key={model.id}
+                  aria-current={selected ? "true" : undefined}
+                  className={className}
+                >
+                  {content}
+                </div>
               );
             })}
         </div>

@@ -74,10 +74,10 @@ const EmptyState: FC = () => {
   return (
     <div className="flex grow flex-col items-center justify-center px-4">
       <div className="mx-auto flex w-full max-w-2xl flex-col items-stretch gap-5">
-        <h1 className="flex items-center justify-center gap-3 font-serif text-3xl text-[#1a1a18] sm:text-4xl dark:text-[#eee]">
+        <p className="flex items-center justify-center gap-3 font-serif text-3xl text-[#1a1a18] sm:text-4xl dark:text-[#eee]">
           <Sparkle className="size-7 fill-[#c96442] text-[#c96442]" />
           <span>How can I help you today?</span>
-        </h1>
+        </p>
         <Composer />
         <ModeTabs />
       </div>
@@ -171,13 +171,13 @@ const ComposerPrimaryAction: FC = () => {
 
 const CLAUDE_MODELS = [
   {
-    id: "sonnet-4.5",
-    name: "Sonnet 4.5",
+    id: "sonnet-5",
+    name: "Sonnet 5",
     description: "Smart, fast, everyday tasks",
   },
   {
-    id: "opus-4.7",
-    name: "Opus 4.7",
+    id: "fable-5.1",
+    name: "Fable 5.1",
     description: "Anthropic's most capable model",
   },
   {

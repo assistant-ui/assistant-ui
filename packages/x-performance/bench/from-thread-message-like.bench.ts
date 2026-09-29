@@ -1,4 +1,4 @@
-import { describe, test } from "vitest";
+import { describe, inject, test } from "vitest";
 import {
   fromThreadMessageLike,
   type ThreadMessageLike,
@@ -31,7 +31,7 @@ describe("core: fromThreadMessageLike text parts", () => {
     test(`${n} text parts`, async ({ bench }) => {
       await bench(`${n} text parts`, () => {
         fromThreadMessageLike(like, "fallback-id", status);
-      }).run();
+      }).run(inject("benchSampling"));
     });
   }
 });
@@ -42,7 +42,7 @@ describe("core: fromThreadMessageLike tool calls", () => {
     test(`${n} tool calls`, async ({ bench }) => {
       await bench(`${n} tool calls`, () => {
         fromThreadMessageLike(like, "fallback-id", status);
-      }).run();
+      }).run(inject("benchSampling"));
     });
   }
 });

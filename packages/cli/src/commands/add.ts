@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { logger } from "../lib/utils/logger";
 import { hasConfig } from "../lib/utils/config";
 import {
+  detectRegistryPlatform,
   getComponentsJsonStyle,
   resolveRegistryItemUrl,
 } from "../lib/utils/registry";
@@ -24,12 +25,13 @@ export function createAddComponentsPlan(params: {
   overwrite?: boolean;
   path?: string;
   style?: string;
+  platform?: "web" | "native";
 }): AddComponentsPlan {
   const componentsToAdd = params.components.map((c) => {
     if (!/^[a-zA-Z0-9-/]+$/.test(c)) {
       throw new Error(`Invalid component name: ${c}`);
     }
-    return resolveRegistryItemUrl(c, params.style);
+    return resolveRegistryItemUrl(c, params.style, params.platform);
   });
 
   const [command, dlxArgs] = dlxCommand(params.packageManager);
@@ -61,21 +63,25 @@ export const add = new Command()
   .option("--use-yarn", "explicitly use yarn")
   .option("--use-bun", "explicitly use bun")
   .action(async (components: string[], opts) => {
+    const platform = detectRegistryPlatform(opts.cwd);
+
     // Check if project is initialized
     if (!hasConfig(opts.cwd)) {
       logger.warn(
-        "It looks like you haven't initialized your project yet — defaulting to Base UI flavored components. Run 'assistant-ui init' first for a configured setup.",
+        `It looks like you haven't initialized your project yet. Defaulting to ${platform === "native" ? "the native component tree" : "Base UI flavored components"}. Run 'assistant-ui init' first for a configured setup.`,
       );
       logger.break();
     }
 
+    logger.info(`Using the ${platform} registry tree.`);
     logger.step(`Adding ${components.length} component(s)...`);
 
     const packageManager = await resolvePackageManagerForCwd(
       opts.cwd,
       resolvePackageManager(opts),
     );
-    const style = getComponentsJsonStyle(opts.cwd);
+    const style =
+      platform === "web" ? getComponentsJsonStyle(opts.cwd) : undefined;
     const { command, args } = createAddComponentsPlan({
       components,
       packageManager,
@@ -83,6 +89,7 @@ export const add = new Command()
       overwrite: opts.overwrite,
       path: opts.path,
       ...(style === undefined ? {} : { style }),
+      platform,
     });
 
     try {
