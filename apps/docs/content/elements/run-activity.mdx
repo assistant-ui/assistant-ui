@@ -61,7 +61,7 @@ Only put public commentary and tool history in `entries`, in their original orde
 
 The demo on this page runs through `useExternalStoreRuntime`, `ThreadPrimitive.Viewport`, and `MessagePrimitive.PartByIndex`. Its [complete, tested integration](https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/demo/elements/run-activity.tsx) includes conversion, timing, status mapping, tool approvals, and scroll locking.
 
-Keep one stable assistant message ID for each application-defined run. Your adapter must identify run boundaries and classify each part before rendering. The example stores that application-owned record in `metadata.custom.activityRun`; this is a recipe convention, not a built-in assistant-ui metadata field.
+Keep one stable assistant message ID for each application-defined run. Your adapter must identify run boundaries and classify each part before rendering. The example stores only presentation annotations and timing in `metadata.custom.activityPresentation`; this is a recipe convention, not a built-in assistant-ui metadata field. Content, approval state, and message status are read from the live runtime, not copied into metadata.
 
 ```tsx
 const runtime = useExternalStoreRuntime<ActivityRun>({
@@ -72,17 +72,27 @@ const runtime = useExternalStoreRuntime<ActivityRun>({
     role: "assistant",
     status: run.status,
     content: run.parts.map((entry) => entry.part),
-    metadata: { custom: { activityRun: run } },
+    metadata: {
+      custom: {
+        activityPresentation: {
+          timing: run.timing,
+          entries: run.parts.map(({ id, kind, label }) => ({ id, kind, label })),
+        },
+      },
+    },
   }),
   onNew: sendMessage,
   onRespondToToolApproval: respondToApproval,
+  onAddToolResult: recordToolResult,
   onResumeToolCall: resumeToolCall,
 });
 ```
 
-In the message renderer, read that record with `useAuiState`. Render each classified part with `MessagePrimitive.PartByIndex`, using its index in the converted message and your existing text/tool components. Put `commentary` and `tool` entries in the disclosure, `answer` parts in `children`, and `attention` parts in `attention`. Do not also render `MessagePrimitive.Parts` for the whole message: that would duplicate the content.
+In the message renderer, read the annotations alongside `s.message.parts` and `s.message.status` with `useAuiState`. Render each classified part with `MessagePrimitive.PartByIndex`, using its index in the converted message and your existing text/tool components. Put `commentary` and `tool` entries in the disclosure, `answer` parts in `children`, and `attention` parts in `attention`. Unclassified parts stay outside the disclosure. Do not also render `MessagePrimitive.Parts` for the whole message: that would duplicate the content.
 
-The example keeps pending approvals, unresolved tool interruptions, and tool errors in `attention` even if their original classification was `tool`. It uses the existing `ToolFallback`, so the runtime's approval callback still receives the approval response. Supply your app's clarification and recovery renderers there as well. Classification alone does not implement an approval or retry: wire the appropriate external-store callbacks to your backend and persist their result.
+The example keeps approvals, tool interruptions, tool errors, and runtime `requires-action` parts in `attention` even if their original classification was `tool`. This includes status-only tool decisions without an approval or interrupt payload. Once surfaced, an entry stays in the visible slot for that message instance after settlement. Persist its `attention` classification or approval/interrupt metadata to retain that placement after a reload. The attention wrapper returns focus to that result only if the focused decision control was removed; it does not take focus from another control. It uses the existing `ToolFallback`, so the runtime's approval or tool-result callback still receives the response. Supply your app's clarification and recovery renderers there as well. Classification alone does not implement an approval or retry: wire the appropriate external-store callbacks to your backend and persist their result.
+
+For adjacent activity groups, prefer [`MessagePrimitive.GroupedParts`](/docs/guides/part-grouping) with a custom `groupBy` and standalone tool handling. This recipe uses `PartByIndex` because a single run disclosure must include activity on both sides of a visible decision: `GroupedParts` coalesces adjacent parts, so an ungrouped decision splits that sequence into separate disclosures. The props-only element works with any runtime; this adapter example specifically covers external-store runs with explicit classification.
 
 If your backend emits several messages per run, project them into one stable assistant message in the adapter, preserving their part order and explicit final-answer markers. Do not infer an answer from the last text part, punctuation, or a tool finishing. Retain stable part positions while a run streams; start a new run/message ID for a new turn.
 

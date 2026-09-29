@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import {
   AssistantRuntimeProvider,
   MessagePrimitive,
@@ -8,7 +8,9 @@ import {
   useAuiState,
   useExternalStoreRuntime,
   useScrollLock,
+  type AddToolResultOptions,
   type MessageStatus,
+  type PartState,
   type RespondToToolApprovalOptions,
   type TextMessagePart,
   type ThreadMessageLike,
@@ -37,13 +39,29 @@ export type ActivityRun = {
   }[];
 };
 
+type ActivityPresentation = {
+  timing: ActivityRun["timing"];
+  entries: readonly Omit<ActivityRun["parts"][number], "part">[];
+};
+
 export function convertRun(run: ActivityRun): ThreadMessageLike {
   return {
     id: run.id,
     role: "assistant",
     status: run.status,
     content: run.parts.map((entry) => entry.part),
-    metadata: { custom: { activityRun: run } },
+    metadata: {
+      custom: {
+        activityPresentation: {
+          timing: run.timing,
+          entries: run.parts.map(({ id, kind, label }) => ({
+            id,
+            kind,
+            label,
+          })),
+        } satisfies ActivityPresentation,
+      },
+    },
   };
 }
 
@@ -64,8 +82,9 @@ const LABELS: Record<RunActivityStatus, string> = {
   error: "Failed after",
 };
 
-function RunDuration({ run }: { run: ActivityRun }) {
-  const elapsed = useTaskElapsed(run.timing, run.status.type === "running");
+function RunDuration({ timing }: { timing: ActivityRun["timing"] }) {
+  const running = useAuiState((s) => s.message.status?.type === "running");
+  const elapsed = useTaskElapsed(timing, running);
   return elapsed === undefined ? null : <>{formatElapsed(elapsed)}</>;
 }
 
@@ -74,43 +93,113 @@ const PART_COMPONENTS = {
   tools: { Fallback: ToolFallback },
 };
 
-function needsAttention(entry: ActivityRun["parts"][number]) {
-  if (entry.kind === "attention") return true;
-  if (entry.part.type !== "tool-call") return false;
-  const { approval, interrupt, result, isError } = entry.part;
-  return Boolean(
-    isError ||
-    (approval && approval.approved === undefined && !approval.resolution) ||
-    (interrupt && result === undefined),
+function needsAttention(part: PartState) {
+  return (
+    part.type === "tool-call" &&
+    Boolean(
+      part.status.type === "requires-action" ||
+      part.isError ||
+      part.approval ||
+      part.interrupt,
+    )
+  );
+}
+
+function AttentionPart({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const focusWasWithin = useRef(false);
+  useLayoutEffect(() => {
+    const element = ref.current;
+    // Settling a decision removes its focused button, but not its visible result.
+    if (
+      element &&
+      focusWasWithin.current &&
+      element.ownerDocument.activeElement === element.ownerDocument.body
+    ) {
+      element.focus({ preventScroll: true });
+    }
+  });
+
+  return (
+    <div
+      ref={ref}
+      role="group"
+      aria-label={label}
+      tabIndex={-1}
+      className="focus-visible:ring-ring rounded-md outline-none focus-visible:ring-2"
+      onFocusCapture={() => {
+        focusWasWithin.current = true;
+      }}
+      onBlurCapture={(event) => {
+        focusWasWithin.current = event.currentTarget.contains(
+          event.relatedTarget,
+        );
+      }}
+    >
+      {children}
+    </div>
   );
 }
 
 export function ActivityRunMessage() {
-  const run = useAuiState(
-    (s) => s.message.metadata.custom.activityRun as ActivityRun,
+  const presentation = useAuiState(
+    (s) =>
+      s.message.metadata.custom.activityPresentation as ActivityPresentation,
   );
+  const messageParts = useAuiState((s) => s.message.parts);
+  const messageStatus = useAuiState((s) => s.message.status);
   const [open, setOpen] = useState(false);
+  const [attentionIds, setAttentionIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
   const rootRef = useRef<HTMLDivElement>(null);
   const lockScroll = useScrollLock(rootRef, 200);
-  const status = activityStatus(run.status);
-  const parts = run.parts.map((entry, index) => ({
-    ...entry,
-    attention: needsAttention(entry),
-    content: (
-      <MessagePrimitive.PartByIndex
-        key={entry.id}
-        index={index}
-        components={PART_COMPONENTS}
-      />
-    ),
-  }));
+  const status = activityStatus(messageStatus!);
+  const parts = messageParts.map((part, index) => {
+    const entry = presentation.entries[index];
+    const id =
+      entry?.id ??
+      (part.type === "tool-call" ? part.toolCallId : String(index));
+    return {
+      id,
+      kind: entry?.kind ?? "attention",
+      label: entry?.label ?? "Additional content",
+      attention:
+        attentionIds.has(id) ||
+        !entry ||
+        entry.kind === "attention" ||
+        needsAttention(part),
+      content: (
+        <MessagePrimitive.PartByIndex
+          key={id}
+          index={index}
+          components={PART_COMPONENTS}
+        />
+      ),
+    };
+  });
+  const newlyVisibleIds = parts.filter(
+    (part) => part.attention && !attentionIds.has(part.id),
+  );
+  if (newlyVisibleIds.length > 0) {
+    // A settled decision stays in the same parent even if the adapter drops its request payload.
+    setAttentionIds(
+      new Set([...attentionIds, ...newlyVisibleIds.map((part) => part.id)]),
+    );
+  }
 
   return (
     <MessagePrimitive.Root ref={rootRef}>
       <RunActivity
         status={status}
         statusLabel={LABELS[status]}
-        durationLabel={<RunDuration run={run} />}
+        durationLabel={<RunDuration timing={presentation.timing} />}
         entries={parts.flatMap((entry) =>
           !entry.attention &&
           (entry.kind === "commentary" || entry.kind === "tool")
@@ -124,7 +213,11 @@ export function ActivityRunMessage() {
         }}
         attention={parts
           .filter((entry) => entry.attention)
-          .map((entry) => entry.content)}
+          .map((entry) => (
+            <AttentionPart key={entry.id} label={entry.label}>
+              {entry.content}
+            </AttentionPart>
+          ))}
       >
         {parts
           .filter((entry) => entry.kind === "answer" && !entry.attention)
@@ -145,9 +238,11 @@ function UserMessage() {
 export function ActivityRunExample({
   run,
   onRespondToToolApproval,
+  onAddToolResult,
 }: {
   run: ActivityRun;
   onRespondToToolApproval?: (options: RespondToToolApprovalOptions) => void;
+  onAddToolResult?: (options: AddToolResultOptions) => void;
 }) {
   const runtime = useExternalStoreRuntime<ActivityRun>({
     messages: [run],
@@ -155,6 +250,7 @@ export function ActivityRunExample({
     convertMessage: convertRun,
     onNew: async () => {},
     onRespondToToolApproval,
+    onAddToolResult,
   });
 
   return (

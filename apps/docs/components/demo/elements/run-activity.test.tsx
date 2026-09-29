@@ -23,6 +23,7 @@ import {
   convertRun,
   type ActivityRun,
 } from "./run-activity";
+import type { ToolCallMessagePart } from "@assistant-ui/react";
 
 beforeAll(() => {
   Object.defineProperty(HTMLElement.prototype, "scrollTo", {
@@ -94,7 +95,10 @@ describe("run activity external-store recipe", () => {
     expect(converted.id).toBe(RUN.id);
     expect(converted.content).toEqual(RUN.parts.map((entry) => entry.part));
     expect(converted.status).toEqual(RUN.status);
-    expect(converted.metadata?.custom?.activityRun).toBe(RUN);
+    expect(converted.metadata?.custom?.activityPresentation).toEqual({
+      timing: RUN.timing,
+      entries: RUN.parts.map(({ id, kind, label }) => ({ id, kind, label })),
+    });
   });
 
   it("renders persisted duration and keeps the answer outside the runtime disclosure", async () => {
@@ -176,6 +180,179 @@ describe("run activity external-store recipe", () => {
       approved: true,
     });
   });
+
+  it("keeps one history disclosure across a visible decision between activity parts", async () => {
+    render(
+      <ActivityRunExample
+        run={{
+          ...RUN,
+          status: { type: "requires-action", reason: "tool-calls" },
+          parts: [
+            RUN.parts[0]!,
+            {
+              id: "approval",
+              kind: "tool",
+              label: "Run tests",
+              part: {
+                type: "tool-call",
+                toolCallId: "approval",
+                toolName: "run_command",
+                args: {},
+                argsText: "{}",
+                approval: { id: "approval-1", prompt: "Run the tests?" },
+              },
+            },
+            ...RUN.parts.slice(1),
+          ],
+        }}
+        onRespondToToolApproval={vi.fn()}
+      />,
+    );
+    expect(await screen.findByRole("button", { name: "Allow" })).toBeTruthy();
+    const summaries = screen.getAllByRole("button", {
+      name: /Needs your input/,
+    });
+    expect(summaries).toHaveLength(1);
+    fireEvent.click(summaries[0]!);
+    expect(
+      screen
+        .getAllByRole("listitem")
+        .map((item) => item.getAttribute("data-activity-kind")),
+    ).toEqual(["commentary", "tool", "commentary"]);
+    expect(screen.getByText("The final answer.")).toBeTruthy();
+    expect(
+      screen.getByRole("group", { name: "Run tests" }).closest("ol"),
+    ).toBeNull();
+  });
+
+  it("surfaces a status-only tool decision and keeps its result visible after settlement", async () => {
+    const tool: ToolCallMessagePart = {
+      type: "tool-call",
+      toolCallId: "status-only",
+      toolName: "run_command",
+      args: {},
+      argsText: "{}",
+    };
+    const run: ActivityRun = {
+      ...RUN,
+      status: { type: "requires-action", reason: "tool-calls" },
+      parts: [
+        RUN.parts[0]!,
+        { id: "status-only", kind: "tool", label: "Run tests", part: tool },
+      ],
+    };
+    const onAddToolResult = vi.fn();
+    const view = render(
+      <ActivityRunExample run={run} onAddToolResult={onAddToolResult} />,
+    );
+    const allow = await screen.findByRole("button", { name: "Allow" });
+    allow.focus();
+    fireEvent.click(allow);
+    await waitFor(() => expect(onAddToolResult).toHaveBeenCalledOnce());
+    expect(onAddToolResult.mock.calls[0]?.[0]).toMatchObject({
+      toolCallId: "status-only",
+      result: "Approved by user",
+    });
+    await act(async () =>
+      view.rerender(
+        <ActivityRunExample
+          run={{
+            ...run,
+            status: { type: "complete", reason: "stop" },
+            parts: [
+              run.parts[0]!,
+              {
+                ...run.parts[1]!,
+                part: { ...tool, result: "Recorded tool result" },
+              },
+            ],
+          }}
+        />,
+      ),
+    );
+    expect(screen.getByText("Recorded tool result")).toBeTruthy();
+    expect(document.activeElement).toBe(
+      screen.getByRole("group", { name: "Run tests" }),
+    );
+  });
+
+  it.each([
+    [true, false],
+    [false, false],
+    [true, true],
+  ])(
+    "keeps the decision visible with approved=%s and focus elsewhere=%s",
+    async (approved, focusElsewhere) => {
+      const approvalPart = {
+        type: "tool-call" as const,
+        toolCallId: "approval",
+        toolName: "run_command",
+        args: {},
+        argsText: "{}",
+        approval: { id: "approval-1", prompt: "Run the tests?" },
+      };
+      const run: ActivityRun = {
+        ...RUN,
+        status: { type: "requires-action", reason: "tool-calls" },
+        parts: [
+          RUN.parts[0]!,
+          {
+            id: "approval",
+            kind: "tool",
+            label: "Run tests",
+            part: approvalPart,
+          },
+        ],
+      };
+      const onRespondToToolApproval = vi.fn();
+      const example = (value: ActivityRun) => (
+        <>
+          <ActivityRunExample
+            run={value}
+            onRespondToToolApproval={onRespondToToolApproval}
+          />
+          <button type="button">Other action</button>
+        </>
+      );
+      const view = render(example(run));
+      const decision = await screen.findByRole("button", {
+        name: approved ? "Allow" : "Deny",
+      });
+      decision.focus();
+      fireEvent.click(decision);
+      const otherAction = screen.getByRole("button", { name: "Other action" });
+      if (focusElsewhere) otherAction.focus();
+      await act(async () =>
+        view.rerender(
+          example({
+            ...run,
+            status: { type: "complete", reason: "stop" },
+            parts: [
+              run.parts[0]!,
+              {
+                ...run.parts[1]!,
+                part: {
+                  ...approvalPart,
+                  approval: { ...approvalPart.approval, approved },
+                  result: "Decision recorded",
+                },
+              },
+            ],
+          }),
+        ),
+      );
+      expect(screen.getByText("Decision recorded")).toBeTruthy();
+      const attention = screen.getByRole("group", { name: "Run tests" });
+      expect(document.activeElement).toBe(
+        focusElsewhere ? otherAction : attention,
+      );
+      expect(
+        screen
+          .getByRole("button", { name: "Worked for 2m 13s" })
+          .getAttribute("aria-expanded"),
+      ).toBe("false");
+    },
+  );
 
   it.each([
     [{ type: "requires-action", reason: "interrupt" }, "requires-action"],
