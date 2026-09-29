@@ -1,10 +1,26 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
-import { InputHelp } from "./input-shared";
+import { useState } from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { ChoiceIcon, InputHelp, NoteField } from "./input-shared";
+import { INPUT_PRESETS } from "../../../lib/checkout/presets";
 
 afterEach(cleanup);
+
+describe("ChoiceIcon", () => {
+  it("has a mark for every preset choice", () => {
+    for (const preset of Object.values(INPUT_PRESETS)) {
+      for (const option of preset.options) {
+        const { container, unmount } = render(
+          <ChoiceIcon icon={option.icon ?? ""} />,
+        );
+        expect(container.firstChild, option.id).not.toBeNull();
+        unmount();
+      }
+    }
+  });
+});
 
 describe("InputHelp", () => {
   it("renders an HTTPS guide link with its destination host", () => {
@@ -44,5 +60,34 @@ describe("InputHelp", () => {
     );
     expect(container.querySelector("a")).toBeNull();
     expect(container.textContent).toContain("Choose carefully.");
+  });
+});
+
+describe("NoteField", () => {
+  function Form({ onSubmit }: { onSubmit: () => void }) {
+    const [note, setNote] = useState("");
+    return (
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSubmit();
+        }}
+      >
+        <NoteField value={note} onChange={setNote} />
+      </form>
+    );
+  }
+
+  it("submits on Shift+Enter and keeps plain Enter for new lines", () => {
+    const onSubmit = vi.fn();
+    render(<Form onSubmit={onSubmit} />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Add a note for your agent" }),
+    );
+    const note = screen.getByLabelText("Note for your agent");
+    fireEvent.keyDown(note, { key: "Enter" });
+    expect(onSubmit).not.toHaveBeenCalled();
+    fireEvent.keyDown(note, { key: "Enter", shiftKey: true });
+    expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 });

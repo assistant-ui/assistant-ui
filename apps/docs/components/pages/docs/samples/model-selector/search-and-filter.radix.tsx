@@ -22,37 +22,37 @@ import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 export function SearchableModelSelector() {
   const models: ModelOption[] = [
     {
-      id: "gpt-5.6-luna",
-      name: "GPT-5.6 Luna",
+      id: "gpt-6-luna",
+      name: "GPT-6 Luna",
       keywords: ["OpenAI"],
       icon: <OpenAILogo />,
     },
     {
-      id: "gpt-5.6-sol",
-      name: "GPT-5.6 Sol",
+      id: "gpt-6-astra",
+      name: "GPT-6 Astra",
       keywords: ["OpenAI"],
       icon: <OpenAILogo />,
     },
     {
-      id: "claude-fable-5",
-      name: "Claude Fable 5",
+      id: "claude-fable-5-1",
+      name: "Claude Fable 5.1",
       keywords: ["Anthropic"],
       icon: <ClaudeLogo />,
     },
     {
-      id: "claude-opus-5",
-      name: "Claude Opus 5",
+      id: "claude-opus-5-5",
+      name: "Claude Opus 5.5",
       keywords: ["Anthropic"],
       icon: <ClaudeLogo />,
     },
     {
-      id: "gemini-3.7-flash",
-      name: "Gemini 3.7 Flash",
+      id: "gemini-3.8-flash",
+      name: "Gemini 3.8 Flash",
       keywords: ["Google"],
       icon: <GeminiLogo />,
     },
   ];
-  const [model, setModel] = useState("gpt-5.6-luna");
+  const [model, setModel] = useState("gpt-6-luna");
 
   return (
     <ModelSelectorRoot models={models} value={model} onValueChange={setModel}>

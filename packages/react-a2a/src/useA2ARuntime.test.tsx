@@ -360,6 +360,251 @@ describe("useA2ARuntime", () => {
     ]);
   });
 
+  it("does not keep the previous thread as a sibling branch after a switch", async () => {
+    const { client } = createMockClient();
+    let resolveNext!: (value: { messages: ThreadMessage[] }) => void;
+    let pending = new Promise<{ messages: ThreadMessage[] }>((resolve) => {
+      resolveNext = resolve;
+    });
+    const { result } = renderHook(() => {
+      const [threadId, setThreadId] = useState("initial");
+      return useA2ARuntime({
+        client,
+        adapters: {
+          threadList: {
+            threadId,
+            onSwitchToThread: async (nextThreadId) => {
+              setThreadId(nextThreadId);
+              return pending;
+            },
+          },
+        },
+      });
+    });
+
+    await act(async () => {
+      const switchA = result.current.threads.switchToThread("thread-a");
+      resolveNext({ messages: [createThreadMessage("thread-a")] });
+      await switchA;
+    });
+    expect(
+      result.current.thread.export().messages.map((m) => m.message.id),
+    ).toEqual(["thread-a"]);
+
+    pending = new Promise<{ messages: ThreadMessage[] }>((resolve) => {
+      resolveNext = resolve;
+    });
+    let switchB!: Promise<void>;
+    act(() => {
+      switchB = result.current.threads.switchToThread("thread-b");
+    });
+    expect(result.current.thread.export().messages).toEqual([]);
+
+    await act(async () => {
+      resolveNext({ messages: [createThreadMessage("thread-b")] });
+      await switchB;
+    });
+    expect(
+      result.current.thread.export().messages.map((m) => m.message.id),
+    ).toEqual(["thread-b"]);
+  });
+
+  it("does not keep the previous thread as a sibling branch after switching to a new thread", async () => {
+    const { client, streamMessage } = createMockClient(true);
+    let resolveNext!: (value: { messages: ThreadMessage[] }) => void;
+    let pending = new Promise<{ messages: ThreadMessage[] }>((resolve) => {
+      resolveNext = resolve;
+    });
+    let resolveNew!: () => void;
+    const pendingNew = new Promise<void>((resolve) => {
+      resolveNew = resolve;
+    });
+    const { result } = renderHook(() => {
+      const [threadId, setThreadId] = useState("initial");
+      return useA2ARuntime({
+        client,
+        adapters: {
+          threadList: {
+            threadId,
+            onSwitchToThread: async (nextThreadId) => {
+              setThreadId(nextThreadId);
+              return pending;
+            },
+            onSwitchToNewThread: async () => {
+              setThreadId("thread-new");
+              await pendingNew;
+            },
+          },
+        },
+      });
+    });
+
+    await act(async () => {
+      const switchA = result.current.threads.switchToThread("thread-a");
+      resolveNext({ messages: [createThreadMessage("thread-a")] });
+      await switchA;
+    });
+    expect(
+      result.current.thread.export().messages.map((m) => m.message.id),
+    ).toEqual(["thread-a"]);
+
+    act(() => {
+      void result.current.thread.append("still running");
+    });
+    await waitFor(() => expect(streamMessage).toHaveBeenCalledOnce());
+
+    let switchNew!: Promise<void>;
+    act(() => {
+      switchNew = result.current.threads.switchToNewThread();
+    });
+    expect(result.current.thread.export().messages).toEqual([]);
+
+    await act(async () => {
+      resolveNew();
+      await switchNew;
+    });
+    expect(result.current.thread.export().messages).toEqual([]);
+  });
+
+  it("leaves a new thread empty after an active run and failed creation", async () => {
+    const { client, streamMessage } = createMockClient(true);
+    let rejectNew!: (error: Error) => void;
+    const pendingNew = new Promise<void>((_, reject) => {
+      rejectNew = reject;
+    });
+    const { result } = renderHook(() => {
+      const [threadId, setThreadId] = useState("initial");
+      return useA2ARuntime({
+        client,
+        adapters: {
+          threadList: {
+            threadId,
+            onSwitchToNewThread: async () => {
+              setThreadId("thread-new");
+              await pendingNew;
+            },
+          },
+        },
+      });
+    });
+
+    act(() => {
+      void result.current.thread.append("still running");
+    });
+    await waitFor(() => expect(streamMessage).toHaveBeenCalledOnce());
+
+    let switchNew!: Promise<void>;
+    act(() => {
+      switchNew = result.current.threads.switchToNewThread();
+    });
+    await waitFor(() =>
+      expect(result.current.threads.getState().mainThreadId).toBe("thread-new"),
+    );
+    rejectNew(new Error("create failed"));
+    await expect(switchNew).rejects.toThrow("create failed");
+
+    expect(result.current.thread.export()).toEqual({
+      headId: null,
+      messages: [],
+    });
+  });
+
+  it("does not clear a newer thread when an older creation finishes", async () => {
+    const { client } = createMockClient();
+    let resolveNew!: () => void;
+    const pendingNew = new Promise<void>((resolve) => {
+      resolveNew = resolve;
+    });
+    const { result } = renderHook(() => {
+      const [threadId, setThreadId] = useState("initial");
+      return useA2ARuntime({
+        client,
+        adapters: {
+          threadList: {
+            threadId,
+            onSwitchToThread: async (nextThreadId) => {
+              setThreadId(nextThreadId);
+              return { messages: [createThreadMessage(nextThreadId)] };
+            },
+            onSwitchToNewThread: async () => {
+              setThreadId("thread-new");
+              await pendingNew;
+            },
+          },
+        },
+      });
+    });
+
+    let switchNew!: Promise<void>;
+    act(() => {
+      switchNew = result.current.threads.switchToNewThread();
+    });
+    await act(async () => {
+      await result.current.threads.switchToThread("thread-b");
+    });
+    await act(async () => {
+      resolveNew();
+      await switchNew;
+    });
+
+    expect(result.current.threads.getState().mainThreadId).toBe("thread-b");
+    expect(result.current.thread.getState().messages.map((m) => m.id)).toEqual([
+      "thread-b",
+    ]);
+  });
+
+  it("does not restore initial history next to the switched thread", async () => {
+    const { client } = createMockClient();
+    let resolveHistory!: (repo: ExportedMessageRepository) => void;
+    const pendingHistory = new Promise<ExportedMessageRepository>((resolve) => {
+      resolveHistory = resolve;
+    });
+    let resolveSwitch!: (value: { messages: ThreadMessage[] }) => void;
+    const pendingSwitch = new Promise<{ messages: ThreadMessage[] }>(
+      (resolve) => {
+        resolveSwitch = resolve;
+      },
+    );
+    const { result } = renderHook(() => {
+      const [threadId, setThreadId] = useState("initial");
+      return useA2ARuntime({
+        client,
+        adapters: {
+          history: { load: () => pendingHistory, append: async () => {} },
+          threadList: {
+            threadId,
+            onSwitchToThread: async (nextThreadId) => {
+              setThreadId(nextThreadId);
+              return pendingSwitch;
+            },
+          },
+        },
+      });
+    });
+
+    let switchB!: Promise<void>;
+    act(() => {
+      switchB = result.current.threads.switchToThread("thread-b");
+    });
+    await act(async () => {
+      resolveHistory({
+        headId: "history-a",
+        messages: [
+          { parentId: null, message: createThreadMessage("history-a") },
+        ],
+      });
+      await pendingHistory;
+    });
+    await act(async () => {
+      resolveSwitch({ messages: [createThreadMessage("thread-b")] });
+      await switchB;
+    });
+
+    expect(
+      result.current.thread.export().messages.map((m) => m.message.id),
+    ).toEqual(["thread-b"]);
+  });
+
   it("keeps pending history when a run is cancelled in the same thread", async () => {
     const { client, streamMessage } = createMockClient(true);
     let resolve!: (repo: ExportedMessageRepository) => void;

@@ -135,11 +135,18 @@ export function PromptLibrary({
               id={optionId(prompt.id)}
               type="button"
               role="option"
-              tabIndex={-1}
+              tabIndex={onSelect ? -1 : 0}
               aria-selected={prompt.id === selectedId}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={onSelect ? () => onSelect(prompt.id) : undefined}
-              onDoubleClick={onInsert ? () => onInsert(prompt.id) : undefined}
+              onMouseDown={
+                onSelect ? (event) => event.preventDefault() : undefined
+              }
+              onClick={(event) => {
+                if (onSelect) onSelect(prompt.id);
+                else if (event.detail <= 1) onInsert?.(prompt.id);
+              }}
+              onDoubleClick={
+                onSelect && onInsert ? () => onInsert(prompt.id) : undefined
+              }
               className={className}
             >
               {content}
