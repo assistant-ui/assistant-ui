@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ToolCallReaderImpl } from "./ToolCallReader";
+import { ToolCallArgsReaderImpl, ToolCallReaderImpl } from "./ToolCallReader";
 
 const parsePartialJsonObjectCalls = vi.hoisted(() => vi.fn());
 
@@ -368,5 +368,89 @@ describe("ToolCallArgsReader.forEach lifecycle", () => {
     await reader.finishArgsText();
 
     expect(await collect(values)).toEqual(["first"]);
+  });
+});
+
+describe("ToolCallArgsReader termination", () => {
+  const failure = new Error("connection reset");
+
+  const argsReader = (deltas: string[], reason?: unknown) => {
+    let index = 0;
+    return new ToolCallArgsReaderImpl<Args>(
+      // Erroring a controller discards its queue, so the deltas are pulled one
+      // at a time to reach the reader before the failure.
+      new ReadableStream<string>({
+        pull(controller) {
+          const delta = deltas[index++];
+          if (delta !== undefined) {
+            controller.enqueue(delta);
+          } else if (reason === undefined) {
+            controller.close();
+          } else {
+            controller.error(reason);
+          }
+        },
+      }),
+    );
+  };
+
+  it("rejects a pending get when the args stream fails mid-payload", async () => {
+    const args = argsReader(['{"required":"hel'], failure);
+
+    await expect(args.get("required")).rejects.toBe(failure);
+  });
+
+  it("rejects a get requested after the args stream failed", async () => {
+    const args = argsReader(['{"required":"hel'], failure);
+    await expect(args.get("required")).rejects.toBe(failure);
+
+    await expect(args.get("required")).rejects.toBe(failure);
+  });
+
+  it("keeps a field that completed before the failure", async () => {
+    const args = argsReader(['{"required":"hello","optional":"par'], failure);
+
+    await expect(args.get("required")).resolves.toBe("hello");
+    await expect(args.get("optional")).rejects.toBe(failure);
+  });
+
+  // The first get drives the stream to its failure, so the second goes through
+  // activateHandle rather than the in-flight path.
+  it("keeps a completed field for a get issued after the failure", async () => {
+    const args = argsReader(['{"required":"hello","optional":"par'], failure);
+
+    await expect(args.get("optional")).rejects.toBe(failure);
+    await expect(args.get("required")).resolves.toBe("hello");
+    await expect(args.get("items")).rejects.toBe(failure);
+  });
+
+  it("resolves undefined for an absent field when the stream closes cleanly", async () => {
+    const args = argsReader(['{"required":"hello"}']);
+
+    await expect(args.get("optional")).resolves.toBeUndefined();
+  });
+
+  it("resolves the value when the stream closes cleanly", async () => {
+    const args = argsReader(['{"required":"hel', 'lo"}']);
+
+    await expect(args.get("required")).resolves.toBe("hello");
+  });
+
+  it("errors an open streamText when the args stream fails", async () => {
+    const args = argsReader(['{"required":"hel'], failure);
+
+    await expect(collect(args.streamText("required"))).rejects.toBe(failure);
+  });
+
+  it("errors an open streamValues when the args stream fails", async () => {
+    const args = argsReader(['{"required":"hel'], failure);
+
+    await expect(collect(args.streamValues("required"))).rejects.toBe(failure);
+  });
+
+  it("errors an open forEach when the args stream fails", async () => {
+    const args = argsReader(['{"required":"hi","items":["a"'], failure);
+
+    await expect(collect(args.forEach("items"))).rejects.toBe(failure);
   });
 });

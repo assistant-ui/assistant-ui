@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/select";
 import { SetupLink } from "@/components/shared/setup-navigation";
 import { NavGlyph } from "@/components/shared/nav-glyph";
-import { useCheckout } from "@/components/shared/checkout-provider";
 import { typeDeck, typePage } from "@/components/shared/type";
 import {
   estimateAgentMinutes,
@@ -71,7 +70,6 @@ export function CartView() {
   const params = useSearchParams();
   const linkedItems = params.get("items");
   const slugs = useCart();
-  const checkout = useCheckout();
   const session = useCheckoutSession();
   const products = resolveProducts(slugs);
   const shipping = useShippingMethod();
@@ -92,7 +90,7 @@ export function CartView() {
   if (products.length === 0) {
     return (
       <div className="max-w-xl">
-        {checkout ? <ActiveCheckoutBanner /> : null}
+        {session !== null ? <ActiveCheckoutBanner /> : null}
         <h1 className={typePage}>Your cart is empty.</h1>
         <p className={cn("mt-4", typeDeck)}>
           Open a product in the shop and add it here. Everything is free.
@@ -114,7 +112,7 @@ export function CartView() {
   return (
     <div className="grid gap-12 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-16">
       <div>
-        {checkout ? <ActiveCheckoutBanner /> : null}
+        {session !== null ? <ActiveCheckoutBanner /> : null}
         <h1 className={typePage}>Cart</h1>
         <ul
           role="list"
@@ -191,14 +189,6 @@ export function CartView() {
             />
           </div>
         </details>
-
-        <Link
-          href="/shop"
-          className="text-muted-foreground hover:text-foreground mt-6 inline-flex items-center gap-1.5 text-sm transition-colors"
-        >
-          <ArrowLeftIcon className="size-3.5" />
-          Continue browsing
-        </Link>
       </div>
 
       <aside
@@ -217,7 +207,7 @@ export function CartView() {
             <dt className="text-muted-foreground">
               <label htmlFor="shipping-method">Shipping</label>
             </dt>
-            <dd className="flex items-center gap-3">
+            <dd>
               <Select
                 value={shipping.id}
                 onValueChange={(id) => {
@@ -228,7 +218,7 @@ export function CartView() {
                 <SelectTrigger
                   id="shipping-method"
                   size="sm"
-                  className="h-7 border-0 bg-transparent px-2 shadow-none"
+                  className="h-7 flex-row-reverse border-0 bg-transparent pr-0 pl-1 shadow-none hover:bg-transparent"
                 >
                   <SelectValue />
                 </SelectTrigger>
@@ -240,11 +230,10 @@ export function CartView() {
                   ))}
                 </SelectContent>
               </Select>
-              <span className="tabular-nums">$0.00</span>
             </dd>
           </div>
           <div className="flex justify-between gap-4 py-3">
-            <dt className="text-muted-foreground">Setup by agent</dt>
+            <dt className="text-muted-foreground">ETA</dt>
             <dd className="tabular-nums">{estimate}</dd>
           </div>
           <div className="flex justify-between gap-4 py-3 font-medium">
@@ -252,7 +241,7 @@ export function CartView() {
             <dd className="tabular-nums">$0.00</dd>
           </div>
         </dl>
-        {checkout ? (
+        {session !== null ? (
           <Button disabled className="mt-4 w-full">
             Start setup
           </Button>
@@ -266,7 +255,7 @@ export function CartView() {
           </Button>
         )}
         <p className="text-muted-foreground mt-3 text-center text-sm">
-          {checkout
+          {session !== null
             ? "Finish the current setup to start another."
             : "Your coding agent handles the setup."}
         </p>

@@ -13,6 +13,7 @@ import {
 import {
   applyA2uiOperations,
   convertSurfaceToUISpec,
+  surfaceToOperations,
   type A2uiState,
   type A2uiSurfaceState,
 } from "@assistant-ui/react-generative-ui/a2ui";
@@ -49,7 +50,7 @@ type PartOrderEntry =
   | { kind: "text"; key: string; subagentRunId?: string }
   | { kind: "reasoning"; key: string; subagentRunId?: string }
   | { kind: "tool-call"; toolCallId: string }
-  | { kind: "data"; name: string; value: unknown };
+  | { kind: "data"; name: string; value: unknown; subagentRunId?: string };
 
 type BuildContext = {
   subagentsByParentToolCallId: Map<string, string[]>;
@@ -95,6 +96,7 @@ type ToolCallState = {
   toolMessageId?: string;
   mcpAppResourceUri?: string;
   mcpAppServerId?: string;
+  artifact?: unknown;
   modelContent?: ToolModelContentPart[];
   snapshotResultApplied: boolean;
   subagentRunId?: string;
@@ -246,6 +248,10 @@ export class RunAggregator {
   private readonly toolCalls = new Map<string, ToolCallState>();
   private readonly a2uiBuckets = new Map<string, A2uiState>();
   private readonly a2uiToolCallIds = new Set<string>();
+  private readonly activityParts = new Map<
+    string,
+    { kind: "data"; name: string; value: unknown; subagentRunId?: string }
+  >();
   private readonly lastResolvedToolCallIdByScope = new Map<string, string>();
   private readonly partOrder: PartOrderEntry[] = [];
   private textPartCounter = 0;
@@ -319,6 +325,9 @@ export class RunAggregator {
         break;
       }
       case "RUN_CANCELLED": {
+        // A cancel can land after RUN_FINISHED while the response is still
+        // closing, and the answer it finished is already persisted as complete.
+        if (this.status?.type === "complete") break;
         this.status = { type: "incomplete", reason: "cancelled" };
         this.closeOpenSubagentRuns(this.status);
         this.emit();
@@ -503,7 +512,10 @@ export class RunAggregator {
           this.handleA2uiActivitySnapshot(event);
           break;
         }
-        if (event.activityType !== MCP_APPS_ACTIVITY_TYPE) break;
+        if (event.activityType !== MCP_APPS_ACTIVITY_TYPE) {
+          this.handleActivitySnapshot(event);
+          break;
+        }
         const activityScope = this.scopeOf(event);
         const toolCallId = event.content.toolCallId;
         const fallbackId =
@@ -644,6 +656,42 @@ export class RunAggregator {
     this.emit();
   }
 
+  private handleActivitySnapshot(
+    event: Extract<AgUiEvent, { type: "ACTIVITY_SNAPSHOT" }>,
+  ): void {
+    const scope = this.scopeOf(event);
+    const key = this.partKey(
+      scope,
+      event.messageId !== undefined
+        ? `message:${event.messageId}`
+        : `type:${event.activityType}`,
+    );
+    const existing = this.activityParts.get(key);
+    if (existing) {
+      if (event.replace === false) return;
+      existing.name = `agui-activity/${event.activityType}`;
+      existing.value = event.content;
+    } else {
+      const part =
+        scope === ROOT_SCOPE
+          ? {
+              kind: "data" as const,
+              name: `agui-activity/${event.activityType}`,
+              value: event.content,
+            }
+          : {
+              kind: "data" as const,
+              name: `agui-activity/${event.activityType}`,
+              value: event.content,
+              subagentRunId: scope,
+            };
+      this.activityParts.set(key, part);
+      this.partOrder.push(part);
+      this.activeTextMessageIdByScope.delete(scope);
+    }
+    this.emit();
+  }
+
   private synthesizeA2uiToolCalls(): void {
     const surfaces = new Map<string, A2uiSurfaceState>();
 
@@ -671,6 +719,7 @@ export class RunAggregator {
         parsedArgs: spec,
         result: {},
         isError: undefined,
+        artifact: { a2ui: surfaceToOperations(surface) },
         snapshotResultApplied: false,
       };
       if (!this.toolCalls.has(toolCallId)) {
@@ -729,6 +778,7 @@ export class RunAggregator {
     this.toolCalls.clear();
     this.a2uiBuckets.clear();
     this.a2uiToolCallIds.clear();
+    this.activityParts.clear();
     this.lastResolvedToolCallIdByScope.clear();
     this.partOrder.length = 0;
     this.textPartCounter = 0;
@@ -1097,6 +1147,7 @@ export class RunAggregator {
           argsText: entry.argsText,
           ...(approval ? { approval } : {}),
           ...(entry.result !== undefined ? { result: entry.result } : {}),
+          ...(entry.artifact !== undefined ? { artifact: entry.artifact } : {}),
           ...(entry.modelContent !== undefined
             ? { modelContent: entry.modelContent }
             : {}),

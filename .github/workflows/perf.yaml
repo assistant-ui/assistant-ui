@@ -56,6 +56,7 @@ jobs:
           echo "bench=$bench trace=$trace"
 
       - name: Setup pnpm and node.js
+        if: steps.lanes.outputs.bench == 'true' || steps.lanes.outputs.trace == 'true'
         uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
         with:
           runtime: node@24
@@ -63,6 +64,7 @@ jobs:
           install: false
 
       - name: Install dependencies
+        if: steps.lanes.outputs.bench == 'true' || steps.lanes.outputs.trace == 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Build measured packages
@@ -111,6 +113,7 @@ jobs:
           path: packages/x-performance/.perf/trace-*.png
 
       - name: Assemble the report
+        if: steps.lanes.outputs.bench == 'true' || steps.lanes.outputs.trace == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -121,14 +124,15 @@ jobs:
           cat "$RUNNER_TEMP/comment.md" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Post the report as a sticky PR comment
+        if: steps.lanes.outputs.bench == 'true' || steps.lanes.outputs.trace == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPORT_MARKER: "<!-- aui-perf-report -->"
         run: |
           set -euo pipefail
-          marker='<!-- aui-perf-report -->'
-          existing=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | sed -n '1p')
+          existing=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$REPORT_MARKER\"))) | .id" | sed -n '1p')
           if [ -n "$existing" ]; then
             gh api "repos/$REPO/issues/comments/$existing" --method PATCH -F body=@"$RUNNER_TEMP/comment.md"
           else

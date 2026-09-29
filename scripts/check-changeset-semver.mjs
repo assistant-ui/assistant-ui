@@ -4,7 +4,7 @@ import { appendFileSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isExecutedAsMain } from "./check-built-declarations.mjs";
-import { parseBumpLine } from "./check-changesets.mjs";
+import { parseBumpLine, readChangesetSource } from "./check-changesets.mjs";
 import { collectPackages } from "./lib/workspace.mjs";
 
 const repoRoot = path.resolve(
@@ -33,6 +33,47 @@ export function isOutsideCaretRange(rangeVersion, newVersion) {
   return newMajor !== rangeMajor;
 }
 
+function compareVersions(left, right) {
+  for (let index = 0; index < 3; index++) {
+    if (left[index] !== right[index]) return left[index] - right[index];
+  }
+  return 0;
+}
+
+const CARET =
+  /^\^[v=\s]*(0|[1-9]\d*)(?:\.(0|[1-9]\d*|[xX*])(?:\.(0|[1-9]\d*|[xX*])(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)?)?$/;
+
+// A prerelease tag on the floor is dropped because every compared version is
+// a release, which such a floor admits from its release tuple on.
+function caretBounds(range) {
+  const bounds = [];
+  for (const alternative of range.split("||")) {
+    const match = CARET.exec(alternative.trim());
+    if (!match) return null;
+    const given = [];
+    for (const part of match.slice(1)) {
+      if (!/^\d+$/.test(part ?? "")) break;
+      given.push(Number(part));
+    }
+    const lower = [...given, 0, 0].slice(0, 3);
+    const nonZero = given.findIndex((part) => part !== 0);
+    const pivot = nonZero === -1 ? given.length - 1 : nonZero;
+    const upper = lower.map((part, index) =>
+      index < pivot ? part : index === pivot ? part + 1 : 0,
+    );
+    bounds.push({ lower, upper });
+  }
+  return bounds;
+}
+
+function satisfiesCaretRange(range, version) {
+  const parts = version.split(".").map(Number);
+  return (caretBounds(range) ?? []).some(
+    ({ lower, upper }) =>
+      compareVersions(parts, lower) >= 0 && compareVersions(parts, upper) < 0,
+  );
+}
+
 export function buildDependencyGraph(manifests) {
   const pkgMap = new Map();
   for (const pkg of manifests) {
@@ -52,7 +93,9 @@ export function buildDependencyGraph(manifests) {
       // every other protocol spelling in a published dependency field.
       const range =
         rawRange === "workspace:^" ? `^${target.version}` : rawRange;
-      if (!range.startsWith("^")) continue;
+      // changesets drops an edge whose range misses the current version, so
+      // such a dependent is never cascaded onto.
+      if (!satisfiesCaretRange(range, target.version)) continue;
       if (!revDeps.has(dependency)) revDeps.set(dependency, []);
       revDeps.get(dependency).push({
         name: pkg.name,
@@ -77,8 +120,7 @@ export function computeCascade(bumps, pkgMap, revDeps) {
     const { name, newVersion } = queue[index];
     for (const dependent of revDeps.get(name) ?? []) {
       if (visited.has(dependent.name)) continue;
-      const rangeVersion = dependent.range.replace(/^\^/, "");
-      if (!isOutsideCaretRange(rangeVersion, newVersion)) continue;
+      if (satisfiesCaretRange(dependent.range, newVersion)) continue;
       visited.add(dependent.name);
 
       const version = pkgMap.get(dependent.name)?.version ?? dependent.version;
@@ -239,10 +281,10 @@ function readChangesetBumps(root, files, pkgMap) {
   const bumps = [];
   for (const file of files) {
     const source = readFileSync(path.join(root, ".changeset", file), "utf8");
-    const frontmatter = source.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-    if (!frontmatter) continue;
-    const intended = INTENDED_MARKER.test(source.slice(frontmatter[0].length));
-    for (const line of frontmatter[1].split("\n")) {
+    const changeset = readChangesetSource(source);
+    if (!changeset) continue;
+    const intended = INTENDED_MARKER.test(changeset.body);
+    for (const line of changeset.frontmatter.split("\n")) {
       const parsed = parseBumpLine(line);
       if (!parsed) continue;
       const pkg = pkgMap.get(parsed.name);
@@ -300,6 +342,7 @@ function diffChangesetFiles(root, baseSha, headSha) {
       [
         "diff",
         "--name-only",
+        "--no-renames",
         "--diff-filter=ACM",
         `${baseSha}...${headSha}`,
         "--",

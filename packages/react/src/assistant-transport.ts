@@ -21,10 +21,11 @@ import type { UserCommands, UserExternalState } from "./augmentations";
 
 export type { AssistantTransportProtocol };
 
-export type SendCommandsRequestBody = Omit<
-  CoreSendCommandsRequestBody,
-  "commands"
-> & {
+export type SendCommandsRequestBody = {
+  [
+    K in keyof CoreSendCommandsRequestBody as K extends "commands" ? never : K
+  ]: CoreSendCommandsRequestBody[K];
+} & {
   commands: AssistantTransportCommand[];
 };
 

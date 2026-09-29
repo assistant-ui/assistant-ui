@@ -22,7 +22,7 @@
  *   POST   /threads/:id/thinking    → 204                   (body: { level })
  *   POST   /threads/:id/archive     → 204
  *   POST   /threads/:id/unarchive   → 204
- *   DELETE /threads/:id             → 204
+ *   DELETE /threads/:id             → 204 (also when the thread is already gone)
  *   POST   /threads/:id/host-ui     → 204                   (body: { response })
  *   GET    /threads/:id/events      → SSE of PiClientEvent (?snapshot=false skips initial snapshot)
  */
@@ -389,7 +389,9 @@ export const createPiHttpClient = (
     },
 
     deleteThread: async (threadId) => {
-      await assertOk(await send(threadUrl(threadId), "DELETE"));
+      const response = await send(threadUrl(threadId), "DELETE");
+      if (response.status === 404) return;
+      await assertOk(response);
     },
 
     respondToHostUiRequest: async (threadId, response: PiHostUiResponse) => {

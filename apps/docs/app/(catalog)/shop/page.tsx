@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { ProductRow } from "@/components/pages/shop/product-row";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typePage } from "@/components/shared/type";
@@ -8,6 +9,7 @@ import { AddToCartButton } from "@/components/pages/shop/add-to-cart-button";
 import { CATALOG } from "@/lib/catalog";
 import { ELEMENT_PRODUCTS } from "@/lib/catalog/products/elements";
 import { GUIDE_PRODUCTS } from "@/lib/catalog/products/guides";
+import { shopEnabled } from "@/lib/checkout/config";
 import { createOgMetadata } from "@/lib/og";
 
 const title = "Shop";
@@ -21,6 +23,7 @@ export const metadata: Metadata = {
 };
 
 export default function ShopPage() {
+  if (!shopEnabled) notFound();
   return (
     <PageFrame pad="sub">
       <header>
