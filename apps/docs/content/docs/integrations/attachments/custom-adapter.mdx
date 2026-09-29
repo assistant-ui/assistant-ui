@@ -3,7 +3,7 @@ title: Custom attachment uploads
 description: Upload chat attachments to object storage with a presigned-URL AttachmentAdapter.
 ---
 
-The bundled `SimpleImageAttachmentAdapter` and `SimpleTextAttachmentAdapter` inline files as data URLs. That works for small images and text files but breaks down for large files, persistent threads, and serverless body-size limits. This page shows the production pattern: an `AttachmentAdapter` that uploads to object storage via a presigned URL and sends only the URL to the model.
+The bundled `SimpleImageAttachmentAdapter` and `SimpleTextAttachmentAdapter` inline file contents into the message: images as data URLs, text files as text. That works for small images and text files but breaks down for large files, persistent threads, and serverless body-size limits. This page shows the production pattern: an `AttachmentAdapter` that uploads to object storage via a presigned URL and sends only the URL to the model.
 
 For the adapter contract itself, see [adapters](/docs/runtimes/concepts/adapters#attachment-adapter). This page is the storage variant.
 
@@ -15,11 +15,11 @@ flowchart LR
     pending --> send["composer send"] --> part["send() emits a<br/>content part with the URL"] --> model["AI SDK passes<br/>URL to the model"]
 ```
 
-Three ideas to internalize before reading the code:
+The adapter has three methods:
 
-1. **`add` uploads, returns `requires-action`.** The composer holds the file with the user's other input.
-2. **`send` finalizes.** When the user submits, you mark the attachment `complete` and emit a `content` part with a stable URL.
-3. **`remove` deletes.** Optional. Runs only if the user removes the attachment from the composer before sending; messages already sent are immutable.
+1. `add` uploads the file and returns a `requires-action` attachment. The composer holds it with the user's other input.
+2. `send` runs when the user submits. It marks the attachment `complete` and emits a `content` part with a stable URL.
+3. `remove` deletes the uploaded file. It runs only if the user removes the attachment from the composer before sending; messages already sent are immutable.
 
 ## Setup
 
@@ -164,7 +164,7 @@ export const attachmentAdapter: AttachmentAdapter = {
   },
 
   async remove(attachment) {
-    await fetch(`/api/upload/${(attachment as Pending).key}`, {
+    await fetch(`/api/upload/${encodeURIComponent((attachment as Pending).key)}`, {
       method: "DELETE",
     });
   },
@@ -235,7 +235,7 @@ export const attachmentAdapter: AttachmentAdapter = {
   },
 
   async remove(attachment) {
-    await fetch(`${API_URL}/upload/${(attachment as Pending).key}`, {
+    await fetch(`${API_URL}/upload/${encodeURIComponent((attachment as Pending).key)}`, {
       method: "DELETE",
     });
   },
@@ -314,7 +314,7 @@ export const attachmentAdapter: AttachmentAdapter = {
   },
 
   async remove(attachment) {
-    await fetch(`${API_URL}/upload/${(attachment as Pending).key}`, {
+    await fetch(`${API_URL}/upload/${encodeURIComponent((attachment as Pending).key)}`, {
       method: "DELETE",
     });
   },
@@ -425,7 +425,7 @@ Pick a file. Check:
 
 ## Variants
 
-The `add()` body is the only thing that changes per provider. Tabs below show the upload step; everything else (presign endpoint, `send`, `remove`, runtime wiring) is identical.
+Only the upload step changes per provider: the server route and the `add()` body. The tabs below show that step; `send`, `remove`, and the runtime wiring stay the same.
 
 <Tabs items={["S3 / R2", "Vercel Blob", "Uploadthing"]}>
 <Tab value="S3 / R2">
@@ -470,7 +470,7 @@ In the adapter's `add`, call `upload(name, file, { access: "public", handleUploa
 </Tab>
 <Tab value="Uploadthing">
 
-Uploadthing wraps both halves. Define a file router on the server, then call `useUploadThing` from the adapter.
+Uploadthing wraps both halves. Define a file router on the server, then upload from the adapter.
 
 ```ts title="app/api/uploadthing/core.ts"
 import { createUploadthing, type FileRouter } from "uploadthing/next";
@@ -510,7 +510,7 @@ const content = [
 - **Persistence.** A URL the model sees on Monday must still resolve next week if the thread is reloaded. Either use storage with no expiry on the public URL, or have your [history adapter](/docs/integrations/persistence/custom-adapter) regenerate signed URLs on `load`. Don't store presigned URLs in the message row.
 - **Cleanup.** `remove` runs only if the user dismisses the attachment before sending. Files in sent messages are kept; deleting them later breaks message rendering.
 - **`accept` string.** Comma-separated MIME types or extensions, including wildcards (`image/*`). The composer file picker uses this directly. To handle multiple type families with different upload paths, use [`CompositeAttachmentAdapter`](/docs/runtimes/concepts/adapters#attachment-adapter).
-- **Server-side validation.** Even with presigning, validate `contentType` and file size on the server. The client controls what it sends; trust nothing.
+- **Server-side validation.** Even with presigning, validate `contentType` and file size on the server, because the client controls what it sends.
 
 ## Related
 

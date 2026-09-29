@@ -6,7 +6,7 @@ description: Trace AI SDK calls into Langfuse via OpenTelemetry for tracing, eva
 import { LangChainIcon } from "@/components/icons/langchain";
 import { VercelIcon } from "@/components/icons/vercel";
 
-[Langfuse](https://langfuse.com/) is an open-source LLM observability platform. It gives you a hierarchical trace per request (planner → tool calls → final LLM step), prompt-level analytics, datasets, and LLM-as-judge evals. Self-hostable, OpenTelemetry-native.
+[Langfuse](https://langfuse.com/) is an open-source LLM observability platform. It gives you a hierarchical trace per request (planner → tool calls → final LLM step), prompt-level analytics, datasets, and LLM-as-judge evals. It is self-hostable and built on OpenTelemetry.
 
 Pick Langfuse when you want to see the agent's full call tree inside a single turn.
 
@@ -19,7 +19,7 @@ flowchart LR
     route["your route"] --> stream["AI SDK streamText<br/>(experimental_telemetry)"] --> otel["OpenTelemetry SDK"] --> proc["LangfuseSpanProcessor"] --> langfuse["Langfuse"]
 ```
 
-Langfuse subscribes to OpenTelemetry spans the AI SDK already emits when telemetry is enabled. No proxy, no wrapping; the SDK ships spans and Langfuse renders them.
+Langfuse subscribes to OpenTelemetry spans the AI SDK already emits when telemetry is enabled. It needs no proxy and no wrapper: the SDK emits spans and Langfuse renders them.
 
 ## Setup
 
