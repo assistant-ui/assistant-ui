@@ -256,6 +256,26 @@ describe("CheckoutSessionBridge", () => {
     }
   });
 
+  it("retries a proposal the checkout rejected on the next tick, and only until it lands", async () => {
+    vi.useFakeTimers();
+    wire.addProduct.mockRejectedValueOnce(new Error("not-created"));
+    wire.state = {
+      ...previous(),
+      id: "s2",
+      status: "planning",
+      inputs: [proposal("p1", "assistant-ui")],
+    };
+    render(<CheckoutSessionBridge session={session} onChange={vi.fn()} />);
+    expect(wire.addProduct).toHaveBeenCalledOnce();
+    await act(() => Promise.resolve());
+    act(() => vi.advanceTimersByTime(5000));
+    expect(wire.addProduct).toHaveBeenCalledTimes(2);
+    await act(() => Promise.resolve());
+    act(() => vi.advanceTimersByTime(5000));
+    expect(wire.addProduct).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+
   it("leaves a proposal alone once the checkout is closed", () => {
     wire.state = {
       ...previous(),

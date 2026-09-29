@@ -1631,6 +1631,24 @@ describe("SetupWizard messages", () => {
     vi.useRealTimers();
   });
 
+  it("cycles the exploring verbs back to the first", () => {
+    vi.useFakeTimers();
+    render(
+      <SetupWizard checkout={context(connected({ status: "planning" }))} />,
+    );
+    const verb = () =>
+      screen.getByRole("heading", { level: 1 }).querySelector("[aria-hidden]")!
+        .textContent;
+    const seen = new Set<string>();
+    for (let swap = 0; swap < 7; swap++) {
+      seen.add(verb()!);
+      act(() => vi.advanceTimersByTime(2400));
+    }
+    expect(seen.size).toBe(7);
+    expect(verb()).toBe("Exploring");
+    vi.useRealTimers();
+  });
+
   it("keeps the exploring title still under reduced motion", () => {
     reducedMotion = true;
     vi.useFakeTimers();
