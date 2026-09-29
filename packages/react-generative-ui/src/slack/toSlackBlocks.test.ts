@@ -792,7 +792,7 @@ describe("toSlackBlocks", () => {
       });
       expect(blocks[0]).toEqual({
         type: "actions",
-        block_id: `aui:0:${JSON.stringify([["toggle", "agree"]])}`,
+        block_id: `aui:0:${JSON.stringify([["toggle", "agree", "Checkbox"]])}`,
         elements: [
           {
             type: "checkboxes",
@@ -803,6 +803,27 @@ describe("toSlackBlocks", () => {
           },
         ],
       });
+      const block = blocks[0];
+      if (block?.type !== "actions" || !block.block_id) {
+        throw new Error("Expected a named checkbox block");
+      }
+      const checkbox = block.elements[0];
+      if (checkbox?.type !== "checkboxes") {
+        throw new Error("Expected a checkbox");
+      }
+      for (const [selectedOptions, expected] of [
+        [[], false],
+        [checkbox.options, true],
+      ] as const) {
+        expect(
+          decodeBlockAction({
+            type: "checkboxes",
+            block_id: block.block_id,
+            action_id: checkbox.action_id,
+            selected_options: selectedOptions,
+          }),
+        ).toEqual({ type: "toggle", $input: expected });
+      }
     });
 
     it("falls back to the label as the option value when name is absent", () => {
@@ -2456,6 +2477,37 @@ describe("toSlackBlocks", () => {
         ])}`,
       });
       expect(warnings).toEqual([]);
+      const block = blocks[0];
+      if (block?.type !== "actions" || !block.block_id) {
+        throw new Error("Expected a named actions block");
+      }
+      const button = block.elements.find(
+        (element) => element.type === "button",
+      );
+      if (!button) throw new Error("Expected a button");
+      for (const [selectedOptions, tags] of [
+        [[], []],
+        [[{ value: "news" }], ["news"]],
+      ] as const) {
+        expect(
+          decodeBlockAction({
+            type: "checkboxes",
+            block_id: block.block_id,
+            action_id: "choose_tags",
+            selected_options: selectedOptions,
+          }),
+        ).toEqual({ type: "choose_tags", $input: tags });
+        expect(
+          decodeBlockAction(button, {
+            [block.block_id]: {
+              choose_tags: {
+                type: "checkboxes",
+                selected_options: selectedOptions,
+              },
+            },
+          }),
+        ).toEqual({ type: "save", tags });
+      }
     });
 
     it("starts a new actions block when repeated action ids need distinct field mappings", () => {

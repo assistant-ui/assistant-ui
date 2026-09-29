@@ -64,6 +64,89 @@ const convertForm = () => {
 };
 
 describe("A2UI actions on Slack", () => {
+  it("resolves a bound CheckBox as a boolean when a button is pressed", () => {
+    const { spec, warnings } = convertSurfaceToUISpec({
+      components: new Map([
+        [
+          "root",
+          { id: "root", component: "Column", children: ["accepted", "send"] },
+        ],
+        [
+          "accepted",
+          {
+            id: "accepted",
+            component: "CheckBox",
+            label: "Accepted",
+            value: { path: "/form/accepted" },
+          },
+        ],
+        [
+          "send",
+          {
+            id: "send",
+            component: "Button",
+            label: "Send",
+            action: {
+              event: {
+                name: "send",
+                context: { accepted: { path: "/form/accepted" } },
+              },
+            },
+          },
+        ],
+      ]),
+      dataModel: { form: { accepted: true } },
+    });
+    expect(warnings).toEqual([]);
+    if (!spec) throw new Error("Expected an A2UI tree");
+    const { blocks, warnings: slackWarnings } = toSlackBlocks(spec);
+    expect(slackWarnings).toEqual([]);
+    const checkboxBlock = blocks.find(
+      (block) =>
+        block.type === "actions" &&
+        block.elements.some((element) => element.type === "checkboxes"),
+    );
+    const buttonBlock = blocks.find(
+      (block) =>
+        block.type === "actions" &&
+        block.elements.some((element) => element.type === "button"),
+    );
+    if (
+      !checkboxBlock ||
+      checkboxBlock.type !== "actions" ||
+      !checkboxBlock.block_id ||
+      !buttonBlock ||
+      buttonBlock.type !== "actions"
+    ) {
+      throw new Error("Expected named checkbox and button blocks");
+    }
+    const checkbox = checkboxBlock.elements.find(
+      (element) => element.type === "checkboxes",
+    );
+    const button = buttonBlock.elements.find(
+      (element) => element.type === "button",
+    );
+    if (!checkbox || checkbox.type !== "checkboxes" || !button) {
+      throw new Error("Expected a checkbox and button");
+    }
+
+    for (const [selectedOptions, accepted] of [
+      [[], false],
+      [checkbox.options[0] ? [checkbox.options[0]] : [], true],
+    ] as const) {
+      expect(
+        decodeBlockAction(button, {
+          [checkboxBlock.block_id]: {
+            [checkbox.action_id]: {
+              type: "checkboxes",
+              selected_options: selectedOptions,
+            },
+          },
+        }),
+      ).toMatchObject({ context: { accepted } });
+    }
+  });
+
   it("sends the user's edited TextField value", () => {
     const { blockId, actionId, button } = convertForm();
     const stateValues = {

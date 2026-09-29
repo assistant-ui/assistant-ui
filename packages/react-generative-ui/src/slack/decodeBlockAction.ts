@@ -37,18 +37,18 @@ const selectedValue = (action: Record<string, unknown>): unknown => {
 
 const fieldMappingsFromBlockId = (
   blockId: string,
-): readonly (readonly [string, string])[] => {
+): readonly (readonly [string, string, boolean])[] => {
   if (!/^aui:\d+:/.test(blockId)) return [];
   const mappingStart = blockId.indexOf(":", 4);
   if (mappingStart === -1) return [];
   try {
     const parsed: unknown = JSON.parse(blockId.slice(mappingStart + 1));
     if (!Array.isArray(parsed)) return [];
-    return parsed.flatMap((entry): (readonly [string, string])[] =>
+    return parsed.flatMap((entry): (readonly [string, string, boolean])[] =>
       Array.isArray(entry) &&
       typeof entry[0] === "string" &&
       typeof entry[1] === "string"
-        ? [[entry[0], entry[1]]]
+        ? [[entry[0], entry[1], entry[2] === "Checkbox"]]
         : [],
     );
   } catch {
@@ -56,8 +56,23 @@ const fieldMappingsFromBlockId = (
   }
 };
 
-const stateFieldValue = (value: unknown): unknown => {
+const checkboxValue = (
+  value: Record<string, unknown>,
+  name: string,
+): boolean | undefined =>
+  Array.isArray(value["selected_options"])
+    ? value["selected_options"].some((option) => optionValue(option) === name)
+    : undefined;
+
+const stateFieldValue = (
+  value: unknown,
+  name: string,
+  isCheckbox: boolean,
+): unknown => {
   if (!isRecord(value)) return undefined;
+  if (isCheckbox && value["type"] === "checkboxes") {
+    return checkboxValue(value, name);
+  }
   if (value["type"] === "plain_text_input") {
     return typeof value["value"] === "string" ? value["value"] : undefined;
   }
@@ -71,9 +86,11 @@ const fieldValuesFromState = (
   if (!isRecord(stateValues)) return fields;
   for (const [blockId, rawBlockValues] of Object.entries(stateValues)) {
     if (!isRecord(rawBlockValues)) continue;
-    for (const [actionId, name] of fieldMappingsFromBlockId(blockId)) {
+    for (const [actionId, name, isCheckbox] of fieldMappingsFromBlockId(
+      blockId,
+    )) {
       if (!Object.hasOwn(rawBlockValues, actionId)) continue;
-      const value = stateFieldValue(rawBlockValues[actionId]);
+      const value = stateFieldValue(rawBlockValues[actionId], name, isCheckbox);
       if (value === undefined) continue;
       Object.defineProperty(fields, name, {
         value,
@@ -123,7 +140,17 @@ export function decodeBlockAction(
       }
     }
 
-    const input = selectedValue(action) ?? plainValue;
+    const checkboxMapping =
+      action["type"] === "checkboxes" && typeof action["block_id"] === "string"
+        ? fieldMappingsFromBlockId(action["block_id"]).find(
+            ([mappedActionId, , isCheckbox]) =>
+              mappedActionId === actionId && isCheckbox,
+          )
+        : undefined;
+    const input =
+      (checkboxMapping
+        ? checkboxValue(action, checkboxMapping[1])
+        : selectedValue(action)) ?? plainValue;
 
     const decoded = {
       ...Object.fromEntries(

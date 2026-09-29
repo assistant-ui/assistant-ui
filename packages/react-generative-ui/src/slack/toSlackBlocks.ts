@@ -169,7 +169,11 @@ const serializeFieldBlockId = (
   fields: readonly FieldMapping[],
 ): string =>
   `aui:${sequence}:${JSON.stringify(
-    fields.map(({ actionId, name }) => [actionId, name]),
+    fields.map(({ actionId, name, component }) =>
+      component === "Checkbox"
+        ? [actionId, name, "Checkbox"]
+        : [actionId, name],
+    ),
   )}`;
 
 const fieldBlockId = (
