@@ -88,6 +88,9 @@ const listProducts = (names: string[]) =>
     names,
   );
 
+/** The most products the welcome title names; a longer list moves under it, so the title stays one line. */
+const TITLE_PRODUCTS = 2;
+
 function ConnectionNotice({
   connection,
   degraded,
@@ -566,7 +569,14 @@ export function SetupWizard({
     switch (page.id) {
       case "welcome":
         return {
-          title: `Welcome to the setup wizard for ${listProducts(products)}`,
+          title:
+            products.length <= TITLE_PRODUCTS
+              ? `Welcome to the setup wizard for ${listProducts(products)}`
+              : "Welcome to the setup wizard",
+          subtitle:
+            products.length <= TITLE_PRODUCTS
+              ? undefined
+              : `Setting up ${listProducts(products)}.`,
           body: <SetupIntro onContinue={acknowledgeSetupIntro} />,
         };
       case "connect":

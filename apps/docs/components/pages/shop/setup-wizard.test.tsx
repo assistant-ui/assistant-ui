@@ -136,6 +136,24 @@ describe("SetupWizard", () => {
     );
   });
 
+  it("keeps the introduction's title to one line and lists a longer set of products under it", () => {
+    render(
+      <SetupWizard
+        checkout={context(initialCheckoutState(), false, false, {
+          products: ["assistant-ui", "cloud", "agent-tools"],
+        })}
+      />,
+    );
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "Welcome to the setup wizard",
+    );
+    expect(
+      screen.getByText(
+        "Setting up assistant-ui, Assistant Cloud, and Agent tools.",
+      ).className,
+    ).toContain("text-muted-foreground");
+  });
+
   it("keeps the frame at one fixed size on every page", () => {
     const frame = () =>
       document.querySelector('section[aria-labelledby="setup-wizard-title"]')!
