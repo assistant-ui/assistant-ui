@@ -31,8 +31,9 @@ const toCustom = (value: unknown): Record<string, unknown> | undefined =>
   isRecord(value) ? value : undefined;
 
 const baseUrl =
-  typeof process !== "undefined" &&
-  process?.env?.NEXT_PUBLIC_ASSISTANT_BASE_URL;
+  typeof process !== "undefined"
+    ? process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL
+    : undefined;
 export const autoCloud = baseUrl
   ? new AssistantCloud({ baseUrl, anonymous: true })
   : undefined;

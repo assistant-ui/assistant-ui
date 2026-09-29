@@ -165,6 +165,41 @@ describe("OptionList", () => {
     expect(screen.getByText("1 of 4")).toBeTruthy();
   });
 
+  it("ignores unavailable selections when enforcing the selection bounds", () => {
+    const onConfirm = vi.fn();
+    const { rerender } = render(
+      <OptionList
+        options={OPTIONS.slice(0, 2)}
+        selectionMode="multiple"
+        defaultValue={["merge"]}
+        minSelections={1}
+        onConfirm={onConfirm}
+      />,
+    );
+
+    expect(screen.getByText("1 of 2")).toBeTruthy();
+
+    rerender(
+      <OptionList
+        options={[OPTIONS[1]!]}
+        selectionMode="multiple"
+        defaultValue={["merge"]}
+        minSelections={1}
+        onConfirm={onConfirm}
+      />,
+    );
+
+    const confirm = screen.getByRole("button", { name: "Confirm" });
+    expect(screen.getByText("0 of 1")).toBeTruthy();
+    expect(confirm.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(confirm);
+    expect(onConfirm).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /Keep all/ }));
+    fireEvent.click(confirm);
+    expect(onConfirm).toHaveBeenCalledWith(["keep"]);
+  });
+
   it("renders the committed choice as a receipt of just those options", () => {
     render(
       <OptionList

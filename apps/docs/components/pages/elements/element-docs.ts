@@ -230,6 +230,7 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
   words={["Here", "is", "a", "short", "reply."]}
   visibleWords={5}
   streaming={false}
+  onCopy={() => navigator.clipboard.writeText("Here is a short reply.")}
 />`,
     props: [
       {
@@ -266,6 +267,18 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
             defaultValue: '"bubble"',
             description:
               "bubble wraps the user message in a surface; flat renders it as plain right-aligned text.",
+          },
+          {
+            name: "onCopy",
+            type: "() => void",
+            description:
+              "Shows the copy button and runs when the user activates it.",
+          },
+          {
+            name: "onRegenerate",
+            type: "() => void",
+            description:
+              "Shows the regenerate button and runs when the user activates it.",
           },
           {
             name: "className",
@@ -825,6 +838,12 @@ import { ToolTimeline } from "@/components/assistant-ui/elements/tool-timeline";
             required: true,
             description:
               "When true the frame holds a pulsing dot grid; otherwise the image resolves.",
+          },
+          {
+            name: "onRegenerate",
+            type: "() => void",
+            description:
+              "Shows the regenerate button and runs when generation is restarted.",
           },
           {
             name: "className",
@@ -1550,8 +1569,8 @@ const matches = useMentionMatches(value, people);
 
 <ThreadList
   threads={[
-    { title: "Composer polish", time: "2m", unread: true },
-    { title: "Runtime migration", time: "1h" },
+    { id: "composer", title: "Composer polish", time: "2m", unread: true },
+    { id: "runtime", title: "Runtime migration", time: "1h" },
   ]}
   activeIndex={activeIndex}
   onActiveIndexChange={setActiveIndex}
@@ -1565,7 +1584,7 @@ const matches = useMentionMatches(value, people);
             type: "readonly ThreadItem[]",
             required: true,
             description:
-              "Conversation rows with title, time, and optional unread mark.",
+              "Conversation rows with a stable id, title, time, and optional unread mark.",
           },
           {
             name: "activeIndex",
@@ -1579,6 +1598,18 @@ const matches = useMentionMatches(value, people);
             type: "(index: number) => void",
             description:
               "Called when the user clicks a thread row. Without it, rows render as non-interactive list items.",
+          },
+          {
+            name: "onRename",
+            type: "(index: number) => void",
+            description:
+              "Shows a labelled rename button and reports the clicked row.",
+          },
+          {
+            name: "onDelete",
+            type: "(index: number) => void",
+            description:
+              "Shows a labelled delete button and reports the clicked row.",
           },
           {
             name: "className",
@@ -4057,7 +4088,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onRun",
             type: "() => void",
-            description: "Called when the run control is pressed.",
+            description:
+              "Renders the run control and is called when it is pressed.",
           },
           {
             name: "className",
@@ -5088,13 +5120,13 @@ const matches = useMentionMatches(value, people);
             name: "onSelect",
             type: "(id: string) => void",
             description:
-              "Called when a prompt is highlighted. Without it, clicking reports nothing; rows become non-interactive only when onInsert is also absent.",
+              "Called when a prompt is highlighted. Without it, rows insert directly when onInsert is supplied and are non-interactive otherwise.",
           },
           {
             name: "onInsert",
             type: "(id: string) => void",
             description:
-              "Called on double click to drop the prompt into the composer. Insertion is enabled only when this is supplied.",
+              "Called on double click or Enter with onSelect; without onSelect, called on one pointer or keyboard activation.",
           },
           {
             name: "className",

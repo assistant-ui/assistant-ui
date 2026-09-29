@@ -142,6 +142,8 @@ export function OptionList({
     clamp(maxSelections ?? options.length, 0, options.length),
   );
   const min = Math.floor(clamp(minSelections, 0, max));
+  const optionIds = new Set(options.map((option) => option.id));
+  const selectedIds = selected.filter((id) => optionIds.has(id));
 
   const commit = (ids: string[]) => {
     if (locked) return;
@@ -164,16 +166,17 @@ export function OptionList({
 
   const toggle = (id: string) => {
     if (locked) return;
-    setSelected((current) =>
-      current.includes(id)
-        ? current.filter((value) => value !== id)
-        : current.length < max
-          ? [...current, id]
-          : current,
-    );
+    setSelected((current) => {
+      const available = current.filter((value) => optionIds.has(value));
+      return available.includes(id)
+        ? available.filter((value) => value !== id)
+        : available.length < max
+          ? [...available, id]
+          : available;
+    });
   };
 
-  const count = selected.length;
+  const count = selectedIds.length;
   const canConfirm = !locked && count >= min && count <= max;
 
   return (
@@ -187,7 +190,7 @@ export function OptionList({
     >
       {options.map((option) => {
         const isSelected = multiple
-          ? selected.includes(option.id)
+          ? selectedIds.includes(option.id)
           : (pending ?? selected).includes(option.id);
         const unavailable =
           option.disabled === true || (multiple && !isSelected && count >= max);
@@ -264,7 +267,7 @@ export function OptionList({
               if (!canConfirm) return;
               commit(
                 options
-                  .filter((option) => selected.includes(option.id))
+                  .filter((option) => selectedIds.includes(option.id))
                   .map((option) => option.id),
               );
             }}

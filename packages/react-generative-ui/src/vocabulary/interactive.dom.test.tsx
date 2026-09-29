@@ -1036,6 +1036,50 @@ describe("A2UI two-way binding", () => {
     });
   });
 
+  it("sends a userMessage bound to an input as the text the user entered", async () => {
+    const { state } = applyA2uiOperations(new Map(), [
+      {
+        version: "v1.0",
+        createSurface: {
+          surfaceId: "s",
+          dataModel: { note: "Draft" },
+          components: [
+            { id: "root", component: "Column", children: ["note", "send"] },
+            { id: "note", component: "TextField", value: { path: "/note" } },
+            {
+              id: "send",
+              component: "Button",
+              label: "Send",
+              action: {
+                event: { name: "send", userMessage: { path: "/note" } },
+              },
+            },
+          ],
+        },
+      },
+    ]);
+    const send = vi.fn();
+    const container = await mount(
+      convertSurfaceToUISpec(state.get("s")!).spec,
+      { "a2ui:action": send },
+    );
+
+    container.querySelector<HTMLInputElement>(
+      'input[data-aui="input"]',
+    )!.value = "Ship it";
+    await act(async () => container.querySelector("button")!.click());
+
+    expect(send).toHaveBeenCalledWith({
+      payload: {
+        type: "a2ui:action",
+        name: "send",
+        surfaceId: "s",
+        sourceComponentId: "send",
+        userMessage: "Ship it",
+      },
+    });
+  });
+
   it("sends the agent's values when an overridden Button dispatches $action itself", async () => {
     const { state } = applyA2uiOperations(new Map(), [
       { version: "v0.9", createSurface: { surfaceId: "s" } },
