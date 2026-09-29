@@ -202,6 +202,22 @@ describe("toAdaptiveCard", () => {
       expect((card.body[0] as TeamsFactSet).facts).toHaveLength(5);
     });
 
+    it("appends a directional fact delta to the value text", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Fact",
+        label: "Revenue",
+        value: "$12.4k",
+        delta: "8%",
+        trend: "down",
+      });
+      expect(card.body).toEqual([
+        {
+          type: "FactSet",
+          facts: [{ title: "Revenue", value: "$12.4k (↓ 8%)" }],
+        },
+      ]);
+    });
+
     it("breaks Fact merging on a non-Fact sibling", () => {
       const { card } = toAdaptiveCard([
         { $type: "Fact", label: "A", value: "1" },
@@ -574,6 +590,22 @@ describe("toAdaptiveCard", () => {
         },
       ]);
     });
+
+    it("appends option descriptions to choice titles", () => {
+      const { card } = toAdaptiveCard({
+        $type: "RadioGroup",
+        options: [
+          {
+            label: "Free",
+            description: "For personal projects",
+            value: "free",
+          },
+        ],
+      });
+      expect((card.body[0] as TeamsInputChoiceSet).choices).toEqual([
+        { title: "Free: For personal projects", value: "free" },
+      ]);
+    });
   });
 
   describe("CheckboxGroup", () => {
@@ -664,6 +696,39 @@ describe("toAdaptiveCard", () => {
       const { card } = toAdaptiveCard({ $type: "Checkbox", label: "Agree" });
       expect((card.body[0] as TeamsInputToggle).id).toBe("Agree");
       expect((card.body[0] as TeamsInputToggle).value).toBe("false");
+    });
+
+    it("maps a switch like a checkbox", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Checkbox",
+        label: "Subscribe",
+        variant: "switch",
+      });
+      expect(card.body[0]).toMatchObject({
+        type: "Input.Toggle",
+        title: "Subscribe",
+      });
+    });
+  });
+
+  describe("Slider", () => {
+    it("renders an Input.Number with its bounds, value, and label", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Slider",
+        name: "quantity",
+        label: "Quantity",
+        min: 1,
+        max: 12,
+        defaultValue: 3,
+      });
+      expect(card.body[0]).toEqual({
+        type: "Input.Number",
+        id: "quantity",
+        label: "Quantity",
+        min: 1,
+        max: 12,
+        value: 3,
+      });
     });
   });
 
@@ -765,6 +830,7 @@ describe("toAdaptiveCard", () => {
       ["RadioGroup", { $type: "RadioGroup", name: "aui", options: [] }],
       ["CheckboxGroup", { $type: "CheckboxGroup", name: "aui", options: [] }],
       ["Checkbox", { $type: "Checkbox", name: "aui", label: "Agree" }],
+      ["Slider", { $type: "Slider", name: "aui", min: 0, max: 10 }],
       ["DatePicker", { $type: "DatePicker", name: "aui" }],
     ] as const)(
       "renames a %s named aui to aui_ with a warning",
@@ -1241,6 +1307,28 @@ describe("toAdaptiveCard", () => {
           ],
         },
       ]);
+    });
+
+    it("formats table cells from their columns", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Table",
+        columns: [
+          { label: "Number", format: { kind: "number", decimals: 1 } },
+          {
+            label: "Revenue",
+            format: { kind: "currency", currency: "USD", decimals: 2 },
+          },
+          { label: "Share", format: { kind: "percent", decimals: 0 } },
+          { label: "Date", format: { kind: "date" } },
+        ],
+        rows: [[1234.5, 12.4, 0.08, "2024-01-02"]],
+      });
+      const table = card.body[0] as TeamsTable;
+      expect(
+        table.rows[1]?.cells.map(
+          (cell) => (cell.items[0] as TeamsTextBlock).text,
+        ),
+      ).toEqual(["1,234.5", "$12.40", "8%", "Jan 2, 2024"]);
     });
 
     it("sets firstRowAsHeaders false and emits no header row when there are no columns", () => {

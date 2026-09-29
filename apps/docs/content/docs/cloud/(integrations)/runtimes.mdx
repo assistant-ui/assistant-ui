@@ -34,7 +34,7 @@ The packages are the same on React, React Native and Ink; the environment differ
 
 | | React | React Native | React Ink |
 |---|---|---|---|
-| The client | Created for you from `NEXT_PUBLIC_ASSISTANT_BASE_URL` when you pass no `cloud`, anonymous | Constructed explicitly from `assistant-cloud` and passed as `cloud` | Constructed explicitly and passed as `cloud` |
+| The client | On Next.js, created for you from `NEXT_PUBLIC_ASSISTANT_BASE_URL` when you pass no `cloud`, anonymous; on Vite, React Router and TanStack Start, constructed from `import.meta.env.VITE_ASSISTANT_BASE_URL` and passed as `cloud` | Constructed explicitly from `assistant-cloud` and passed as `cloud` | Constructed explicitly and passed as `cloud` |
 | The chat route | Same origin, `/api/chat` by default | Another origin, named in the transport's `api` | Another origin, named in the transport's `api` |
 | Anonymous identity | Kept in `localStorage` for 30 days and extended on every visit | No storage: an identity per launch | No storage: an identity per process |
 | Components | `@assistant-ui/react` and the registry elements | `@assistant-ui/react-native` and its elements | `@assistant-ui/react-ink` |

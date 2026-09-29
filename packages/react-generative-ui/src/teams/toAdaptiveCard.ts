@@ -12,6 +12,11 @@ import {
   type NormalizedUINode,
 } from "../ir";
 import {
+  factTrend,
+  formatFactDelta,
+  formatValue,
+} from "../vocabulary/formatValue";
+import {
   CHOICE_OPTION_CAP,
   PAYLOAD_SOFT_CAP,
   PRIMARY_ACTION_CAP,
@@ -51,6 +56,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const asString = (value: unknown): string =>
   typeof value === "string" ? value : "";
+
+const asFiniteNumber = (value: unknown): number | undefined =>
+  typeof value === "number" && Number.isFinite(value) ? value : undefined;
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -171,7 +179,14 @@ const toChoice = (option: unknown): TeamsInputChoice | undefined => {
   if (!isRecord(option) || typeof option["value"] !== "string") {
     return undefined;
   }
-  return { title: asString(option["label"]), value: option["value"] };
+  const label = asString(option["label"]);
+  const description = asString(option["description"]);
+  return {
+    title: description
+      ? [label, description].filter(Boolean).join(": ")
+      : label,
+    value: option["value"],
+  };
 };
 
 const choicesFrom = (
@@ -206,10 +221,18 @@ const choicesFrom = (
 };
 
 function convertFacts(facts: readonly NormalizedUIElement[]): TeamsCardElement {
-  const set: TeamsFact[] = facts.map((fact) => ({
-    title: asString(fact.props["label"]),
-    value: asString(fact.props["value"]),
-  }));
+  const set: TeamsFact[] = facts.map((fact) => {
+    const value = asString(fact.props["value"]);
+    const delta = fact.props["delta"];
+    const deltaText =
+      typeof delta === "string"
+        ? formatFactDelta(delta, factTrend(delta, fact.props["trend"]))
+        : undefined;
+    return {
+      title: asString(fact.props["label"]),
+      value: deltaText === undefined ? value : `${value} (${deltaText})`,
+    };
+  });
   return { type: "FactSet", facts: set };
 }
 
@@ -277,13 +300,6 @@ const ALERT_STYLE_MAP: Record<string, TeamsContainerStyle> = {
   danger: "attention",
 };
 
-const stringifyCell = (value: unknown): string => {
-  if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean")
-    return String(value);
-  return "";
-};
-
 function convertTable(
   props: Readonly<Record<string, unknown>>,
   context: ConversionContext,
@@ -342,9 +358,18 @@ function convertTable(
     cells: (Array.isArray(row)
       ? copyBounded(row, TABLE_COLUMN_CAP).items
       : []
-    ).map((cell) => ({
+    ).map((cell, index) => ({
       type: "TableCell" as const,
-      items: [textBlock(stringifyCell(cell))],
+      items: [
+        textBlock(
+          formatValue(
+            cell,
+            isRecord(rawColumns[index])
+              ? rawColumns[index]["format"]
+              : undefined,
+          ),
+        ),
+      ],
     })),
   }));
 
@@ -526,6 +551,22 @@ export function convertElement(
         valueOn: "true",
         valueOff: "false",
       };
+      return withCompanionSubmit(element, input, context);
+    }
+    case "Slider": {
+      const name = asString(props["name"]);
+      const label = asString(props["label"]);
+      const min = asFiniteNumber(props["min"]);
+      const max = asFiniteNumber(props["max"]);
+      const defaultValue = asFiniteNumber(props["defaultValue"]);
+      const input = {
+        type: "Input.Number",
+        id: reservedSafeId(name || "slider", "Slider", context),
+        ...(label ? { label } : {}),
+        ...(min !== undefined ? { min } : {}),
+        ...(max !== undefined ? { max } : {}),
+        ...(defaultValue !== undefined ? { value: defaultValue } : {}),
+      } as unknown as TeamsCardElement;
       return withCompanionSubmit(element, input, context);
     }
     case "Input": {
@@ -813,7 +854,7 @@ export function convertRootToCard(
  * Converts a generative-ui tree into a Microsoft Teams Adaptive Card and
  * non-fatal conversion warnings. Sizes, weights, and colors map to Adaptive
  * Card's semantic enums rather than raw values. An Input/Select/RadioGroup/
- * CheckboxGroup/Checkbox/DatePicker whose id would be the reserved
+ * CheckboxGroup/Checkbox/Slider/DatePicker whose id would be the reserved
  * {@link RESERVED_INPUT_ID} is renamed with a warning (see `decodeSubmitData`).
  * Never throws: an unknown `$type` is skipped with a "dropped" warning, and a
  * malformed input resolves to an empty card plus a "dropped" warning instead
