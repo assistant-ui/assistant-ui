@@ -288,7 +288,7 @@ declare namespace entry_root_exports {
 }
 
 declare namespace entry_internal_exports {
-  export { shallowEqual, useAssistantClientDestroySignal, useHostDestroySignal, useShallowSelector, useShallowStable };
+  export { shallowEqual, useAssistantClientDestroySignal, useHostDestroySignal, useReplaySafeEffect, useShallowSelector, useShallowStable };
 }
 
 declare const isUserScrollUp: (previous: {
@@ -379,6 +379,8 @@ declare const useConfiguredAui: (parent: AssistantClient, clients: AuiConfig.Inp
 declare const useDestroySignalProvider: <TResult>(destroySignal: AbortSignal | undefined, fn: () => TResult) => TResult;
 
 declare const useHostDestroySignal: () => AbortSignal;
+
+declare const useReplaySafeEffect: (effect: () => (() => void) | void, deps: readonly unknown[]) => void;
 
 declare const useShallowSelector: <TState, TResult extends object>(select: (state: TState) => TResult) => ((state: TState) => TResult);
 

@@ -7,7 +7,7 @@ export const assistantUi: CatalogProduct = {
   name: "assistant-ui",
   tagline: "A streaming chat UI wired to the agent framework you already use.",
   description:
-    "The Thread component, the runtime that binds it to your backend, and a chat route that streams from your model provider. Pick the Vercel AI SDK, Mastra or LangGraph at checkout; everything installs into your project as source you own.",
+    "The Thread component, the runtime that binds it to your backend, and a chat route that streams from your model provider. Pick the Vercel AI SDK, Mastra or LangGraph during setup; everything installs into your project as source you own.",
   kind: "library",
   audience: "new and existing React apps",
   license: "MIT",

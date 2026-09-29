@@ -418,7 +418,7 @@ const sending = useAuiState((s) => s.composer.submission !== undefined);
 
 ### Aborting Work in `send()`
 
-`send()` receives an options object whose `signal` aborts when the send is abandoned: the user cancels it while its attachments are prepared, or, for a thread built on the tap-native `ExternalThread`, the thread is torn down for good, as when the component rendering its `AuiProvider` unmounts. Hiding a thread, for example inside `<Activity>`, never aborts its send, and the message is still delivered. The built-in adapters that read the file in `send()` stop reading when the signal aborts; a custom adapter that does slow work there should pass the signal on:
+`send()` receives an options object whose `signal` aborts when the send is abandoned: the user cancels it while its attachments are prepared, or the thread is torn down for good. A thread built on the tap-native `ExternalThread` is torn down when the component rendering its `AuiProvider` unmounts; a runtime's thread is torn down when its thread list discards it, as when the component calling `useLocalRuntime` unmounts or an external store runtime switches `threadId`, and when the component calling a `useExternalStoreRuntime` that no thread list hosts unmounts. Hiding a thread, for example inside `<Activity>`, never aborts its send, and the message is still delivered. The built-in adapters that read the file in `send()` stop reading when the signal aborts; a custom adapter that does slow work there should pass the signal on:
 
 ```tsx
 async send(

@@ -339,6 +339,7 @@ describe("ADK stream lifecycle", () => {
     await started;
 
     unmount();
+    await act(async () => {});
 
     expect(runSignal?.aborted).toBe(true);
     await expect(sendPromise).resolves.toBeUndefined();

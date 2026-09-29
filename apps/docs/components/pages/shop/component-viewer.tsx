@@ -48,7 +48,6 @@ const checkoutOf = (
       products: state?.products.map((product) => product.slug) ?? [],
       startedAt: 0,
       introSeen: true,
-      licenseAccepted: true,
       ...scene.session,
     },
     url: "https://checkout.test/viewer",

@@ -5447,7 +5447,9 @@ describe("LocalThreadRuntimeCore imported approvals", () => {
 });
 
 describe("LocalThreadRuntimeCore message queue", () => {
-  const createQueuedThread = () => {
+  const createQueuedThread = (
+    options: { unstable_queueClearOnCancel?: boolean } = {},
+  ) => {
     const dispatched: string[] = [];
     let release!: () => void;
     let gate = new Promise<void>((resolve) => (release = resolve));
@@ -5469,6 +5471,7 @@ describe("LocalThreadRuntimeCore message queue", () => {
           },
         },
         unstable_enableMessageQueue: true,
+        ...options,
       },
       undefined,
     );
@@ -5521,6 +5524,37 @@ describe("LocalThreadRuntimeCore message queue", () => {
 
     await releaseRun();
     expect(dispatched).toEqual(["first", "second", "implicit", "bulk"]);
+    await releaseRun();
+  });
+
+  it("keeps draining after a thread subscriber cancels as the queue empties", async () => {
+    const { thread, dispatched, releaseRun } = createQueuedThread({
+      unstable_queueClearOnCancel: false,
+    });
+    const appendToTail = (text: string) =>
+      void thread.append({
+        ...userMessage(text),
+        parentId: thread.messages.at(-1)?.id ?? null,
+      });
+    appendToTail("first");
+    await flush();
+    appendToTail("second");
+    await flush();
+
+    let armed = true;
+    thread.subscribe(() => {
+      const queued =
+        thread.getQueueItems().length + thread.getSteerQueueItems().length;
+      if (!armed || queued !== 0) return;
+      armed = false;
+      thread.cancelRun();
+    });
+    await releaseRun();
+    await releaseRun();
+    appendToTail("third");
+    await flush();
+
+    expect(dispatched).toEqual(["first", "second", "third"]);
     await releaseRun();
   });
 });

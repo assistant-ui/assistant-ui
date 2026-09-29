@@ -69,7 +69,6 @@ const session: CheckoutSession = {
   products: ["assistant-ui"],
   startedAt: 1,
   fromCart: true,
-  licenseAccepted: true,
 };
 
 const state: Checkout.State = {

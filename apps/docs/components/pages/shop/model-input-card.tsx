@@ -50,8 +50,6 @@ const TEST_COPY: Record<KeyTest["status"], string> = {
     "Could not reach the provider from the browser. Your agent will check the key when it uses it.",
 };
 
-const FEATURED_PROVIDERS = ["openai", "anthropic"];
-
 type Step = "provider" | "key" | "model";
 
 export function ModelInputCard({
@@ -63,12 +61,6 @@ export function ModelInputCard({
 }) {
   const options = (input.options ?? []).filter((option) =>
     getModelProvider(option.id),
-  );
-  const featured = options.filter((option) =>
-    FEATURED_PROVIDERS.includes(option.id),
-  );
-  const others = options.filter(
-    (option) => !FEATURED_PROVIDERS.includes(option.id),
   );
   const [step, setStep] = useState<Step>("provider");
   const [providerId, setProviderId] = useState(
@@ -90,7 +82,6 @@ export function ModelInputCard({
 
   const provider = getModelProvider(providerId);
   const option = options.find((entry) => entry.id === providerId);
-  const otherChosen = others.some((entry) => entry.id === providerId);
   const models = test.status === "ok" ? test.models : [];
   const suggestedModel =
     provider?.defaultModel !== undefined &&
@@ -100,8 +91,8 @@ export function ModelInputCard({
   const chosenModel = model.trim() || suggestedModel || "";
   const tested = test.status !== "idle" && test.status !== "testing";
 
-  const chooseProvider = (id: string | null) => {
-    if (id === null || id === providerId) return;
+  const chooseProvider = (id: string) => {
+    if (id === providerId) return;
     providerIdRef.current = id;
     apiKeyRef.current = "";
     setProviderId(id);
@@ -202,72 +193,29 @@ export function ModelInputCard({
         )}
 
         {step === "provider" ? (
-          <div className="flex flex-col gap-3">
-            <div
-              role="radiogroup"
-              aria-label="Provider"
-              className="grid grid-cols-3 gap-2"
-            >
-              {featured.map((entry) => (
-                <label
-                  key={entry.id}
-                  className={tileClassName(entry.id === providerId)}
-                >
-                  <input
-                    type="radio"
-                    name={`${listId}-provider`}
-                    checked={entry.id === providerId}
-                    onChange={() => chooseProvider(entry.id)}
-                    className="sr-only"
-                  />
-                  {entry.icon ? (
-                    <ChoiceIcon icon={entry.icon} className="size-4 shrink-0" />
-                  ) : null}
-                  {entry.label}
-                </label>
-              ))}
-              {others.length > 0 ? (
-                <label className={tileClassName(otherChosen)}>
-                  <input
-                    type="radio"
-                    name={`${listId}-provider`}
-                    checked={otherChosen}
-                    onChange={() => chooseProvider(others[0]!.id)}
-                    className="sr-only"
-                  />
-                  Other
-                </label>
-              ) : null}
-            </div>
-            {otherChosen ? (
-              <Select
-                value={providerId}
-                onValueChange={chooseProvider}
-                items={others.map((entry) => ({
-                  value: entry.id,
-                  label: entry.label,
-                }))}
+          <div
+            role="radiogroup"
+            aria-label="Provider"
+            className="grid grid-cols-2 gap-2 sm:grid-cols-3"
+          >
+            {options.map((entry) => (
+              <label
+                key={entry.id}
+                className={tileClassName(entry.id === providerId)}
               >
-                <SelectTrigger aria-label="Other provider" className="w-full">
-                  <SelectValue>
-                    {option?.icon ? (
-                      <ChoiceIcon icon={option.icon} className="size-4" />
-                    ) : null}
-                    {option?.label}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent align="start">
-                  {others.map((entry) => (
-                    <SelectItem key={entry.id} value={entry.id}>
-                      {entry.icon ? (
-                        <ChoiceIcon icon={entry.icon} className="size-4" />
-                      ) : null}
-                      {entry.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : null}
+                <input
+                  type="radio"
+                  name={`${listId}-provider`}
+                  checked={entry.id === providerId}
+                  onChange={() => chooseProvider(entry.id)}
+                  className="sr-only"
+                />
+                {entry.icon ? (
+                  <ChoiceIcon icon={entry.icon} className="size-4 shrink-0" />
+                ) : null}
+                {entry.label}
+              </label>
+            ))}
           </div>
         ) : null}
 
