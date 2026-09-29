@@ -3,15 +3,18 @@ import { spawn } from "cross-spawn";
 export class SpawnExitError extends Error {
   code: number;
   stderr: string;
+  stdout: string;
 
-  constructor(code: number, stderr = "") {
+  constructor(code: number, stderr = "", stdout = "") {
+    const output = [stdout, stderr].filter(Boolean).join("\n");
     super(
-      stderr
-        ? `Process exited with code ${code}\n${stderr}`
+      output
+        ? `Process exited with code ${code}\n${output}`
         : `Process exited with code ${code}`,
     );
     this.code = code;
     this.stderr = stderr;
+    this.stdout = stdout;
   }
 }
 

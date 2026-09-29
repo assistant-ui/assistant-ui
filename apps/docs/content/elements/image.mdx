@@ -84,12 +84,43 @@ export function Picture() {
     </div>
   </div>
   <span data-slot="image-filename" /> {/* omitted when there is no filename */}
+  <div data-slot="image-source" /> {/* optional attribution footer */}
 </div>
 ```
 
-The three top-level states are exclusive and resolve from `status`: `running` shows only the generating placeholder, `incomplete` with reason `content-filter` shows only the blocked-image message, and everything else (including no `status`) shows the real preview. Clicking the preview, or pressing Enter or Space while it has focus, opens the image in a fullscreen dialog: a portal overlay with a focus trap, Escape-to-close, click-outside-to-close, and the page scroll locked while it is open. Space activation prevents page scrolling. `ImageActions` (download, copy, regenerate) is not part of the default render tree; add it yourself, as shown below.
+The three top-level states are exclusive and resolve from `status`: `running` shows only the generating placeholder, `incomplete` with reason `content-filter` shows only the blocked-image message, and everything else (including no `status`) shows the real preview. Clicking the preview, or pressing Enter or Space while it has focus, opens the image in a fullscreen dialog: a portal overlay with a focus trap, Escape-to-close, click-outside-to-close, and the page scroll locked while it is open. Space activation prevents page scrolling. `ImageActions` (download, copy, regenerate) and `ImageSource` are not part of the default render tree; add them yourself, as shown below.
 
 ## Examples
+
+### Attribute a tool result
+
+Compose the image parts when a tool returns its own image and source metadata. `ratio` gives the preview a stable frame while it loads, and `fit="cover"` crops the image to fill that frame. Use `fit="contain"` when every pixel matters.
+
+```tsx
+import { Image } from "@/components/assistant-ui/elements/image";
+
+type ImageToolResult = {
+  imageUrl: string;
+  source: {
+    label?: string;
+    url?: string;
+    iconUrl?: string;
+  };
+};
+
+function ToolImage({ imageUrl, source }: ImageToolResult) {
+  return (
+    <Image.Root>
+      <Image.Zoom src={imageUrl}>
+        <Image.Preview src={imageUrl} ratio="16:9" fit="cover" />
+      </Image.Zoom>
+      <Image.Source {...source} />
+    </Image.Root>
+  );
+}
+```
+
+`Image.Source` uses `label`, or the URL host when no label is supplied. A safe URL makes the label a new-tab link. Give it `iconUrl` to show a 16px favicon; without one, it uses the source initial.
 
 ### Add download, copy, and regenerate actions
 
@@ -139,7 +170,8 @@ function ImageWithActions(part: React.ComponentProps<typeof Image>) {
 |--------|---------|-------|
 | `Image` | `div` | The `Image` message-part renderer. Pass to `MessagePrimitive.Parts` as `components.Image`. |
 | `Image.Root` | `div` | Frame with `variant` and `size`. |
-| `Image.Preview` | `div` + `img` | Loads `src`, shows a placeholder until it does, an error icon if it fails. |
+| `Image.Preview` | `div` + `img` | Loads `src`, shows a placeholder until it does, an error icon if it fails. `ratio` and `fit` control fixed framing. |
+| `Image.Source` | `div` | Optional source attribution footer with an icon and label or host. |
 | `Image.Zoom` | trigger + portal dialog | Wraps children in a click-to-zoom trigger for `src`. |
 | `Image.Filename` | `span` | Renders nothing when there is no filename. |
 | `Image.Generating` | `div` | Shown while `status.type === "running"`. |
@@ -169,6 +201,24 @@ function ImageWithActions(part: React.ComponentProps<typeof Image>) {
 | `variant` | `"outline" \| "ghost" \| "muted"` | `"outline"` | Frame style, set on `Image.Root`. |
 | `size` | `"sm" \| "default" \| "lg" \| "full"` | `"default"` | Max width, set on `Image.Root`. |
 
-`Image.Root`, `Image.Preview`, `Image.Zoom`, `Image.Filename`, `Image.Generating`, `Image.ContentFilterError`, and `Image.Actions` are exported individually for a custom layout, as shown in [Add download, copy, and regenerate actions](#add-download-copy-and-regenerate-actions).
+`Image.Root`, `Image.Preview`, `Image.Source`, `Image.Zoom`, `Image.Filename`, `Image.Generating`, `Image.ContentFilterError`, and `Image.Actions` are exported individually for a custom layout, as shown in the examples above.
+
+### ImagePreview
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `ratio` | `"auto" \| "1:1" \| "4:3" \| "16:9" \| "9:16"` | `"auto"` | Keeps the image's natural height, or creates a fixed aspect-ratio frame. |
+| `fit` | `"cover" \| "contain"` | `"contain"` | Crops to fill a fixed frame, or keeps the full image visible. |
+
+### ImageSource
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `label` | `string` | | Attribution label. Falls back to the URL host. |
+| `url` | `string` | | Safe URLs make the label a new-tab link and provide the fallback host. |
+| `iconUrl` | `string` | | 16px favicon URL. Without one, the source initial appears in a muted square. |
+| `className` | `string` | | Merged onto the attribution footer. |
+
+All other `div` props are forwarded to `Image.Source`. It renders nothing without a label or a displayable URL host.
 
 </StandaloneMode>

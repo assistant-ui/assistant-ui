@@ -106,6 +106,7 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
     expect(bare.capabilities.cancel).toBe(false);
     expect(bare.capabilities.switchToBranch).toBe(false);
     expect(bare.capabilities.unstable_copy).toBe(true);
+    expect(bare.capabilities.answerToolCall).toBe(false);
 
     const full = new ExternalStoreThreadRuntimeCore(
       contextProvider,
@@ -122,6 +123,20 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
     expect(full.capabilities.cancel).toBe(true);
     expect(full.capabilities.switchToBranch).toBe(true);
     expect(full.capabilities.unstable_copy).toBe(false);
+  });
+
+  it("reports answerToolCall when any tool answer handler is set", () => {
+    for (const handler of [
+      { onAddToolResult: vi.fn() },
+      { onResumeToolCall: vi.fn() },
+      { onRespondToToolApproval: vi.fn(async () => {}) },
+    ]) {
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter(handler),
+      );
+      expect(core.capabilities.answerToolCall).toBe(true);
+    }
   });
 
   describe("append", () => {
@@ -937,6 +952,64 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       await vi.waitFor(() => expect(core.isRunning).toBe(false));
       expect(onRunEnd).toHaveBeenCalledOnce();
       expect(onUpdate).toHaveBeenCalled();
+    });
+
+    it("stops running once a human-input request from streamCall is resumed", async () => {
+      const setToolStatuses = vi.fn();
+      const adapter = (messages: ThreadMessage[]) =>
+        createBaseAdapter({
+          unstable_enableToolInvocations: true,
+          isRunning: false,
+          setToolStatuses,
+          messages,
+        });
+      const core = new ExternalStoreThreadRuntimeCore(
+        {
+          getModelContext: () => ({
+            tools: {
+              confirm: {
+                parameters: { type: "object", properties: {} },
+                streamCall: async (_reader, { human }) => {
+                  await human({ request: "confirm" });
+                },
+              },
+            },
+          }),
+        },
+        adapter([]),
+      );
+
+      core.__internal_setAdapter(
+        adapter([
+          {
+            ...createAssistantMessage("a1"),
+            status: { type: "requires-action", reason: "tool-calls" },
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "tc1",
+                toolName: "confirm",
+                args: {},
+                argsText: "{}",
+              },
+            ],
+          },
+        ]),
+      );
+      await vi.waitFor(() =>
+        expect(setToolStatuses).toHaveBeenLastCalledWith({
+          tc1: {
+            type: "interrupt",
+            payload: { type: "human", payload: { request: "confirm" } },
+          },
+        }),
+      );
+
+      expect(core.capabilities.answerToolCall).toBe(true);
+      core.resumeToolCall({ toolCallId: "tc1", payload: true });
+
+      expect(setToolStatuses).toHaveBeenLastCalledWith({});
+      expect(core.isRunning).toBe(false);
     });
 
     it("mirrors the adapter running value when tool invocations are disabled", () => {

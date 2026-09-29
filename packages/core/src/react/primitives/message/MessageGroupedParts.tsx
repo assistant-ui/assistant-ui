@@ -147,7 +147,8 @@ export namespace MessagePrimitiveGroupedParts {
      *
      * Leaf parts receive the same {@link EnrichedPartState} that
      * `<MessagePrimitive.Parts>` would produce (`toolUI`, `addResult`,
-     * `resume`, `respondToApproval`, `dataRendererUI`).
+     * `resume`, `respondToApproval`, `unstable_recordInteraction`,
+     * `dataRendererUI`).
      */
     readonly children: (info: RenderInfo<TKey>) => ReactNode;
   };

@@ -2,16 +2,20 @@
 
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import {
   inputCardClassName,
+  inputLinkClassName,
   useInputActions,
 } from "@/components/pages/shop/input-shared";
+import {
+  useWizardFormId,
+  useWizardNext,
+} from "@/components/pages/shop/wizard-actions";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import { getCatalogItem } from "@/lib/catalog";
 import { cartUrl } from "@/lib/catalog/install-prompt";
-import type { Checkout } from "@/lib/checkout/protocol";
+import { inputPrompt, type Checkout } from "@/lib/checkout/protocol";
 
 export function ProductInputCard({
   input,
@@ -23,6 +27,12 @@ export function ProductInputCard({
   const product = getCatalogItem(input.product ?? "");
   const [adding, setAdding] = useState(false);
   const { busy, dismiss } = useInputActions(input, checkout);
+  const formId = useWizardFormId();
+  useWizardNext({
+    label: "Add",
+    disabled: busy || adding || !product,
+    submit: true,
+  });
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!product) return;
@@ -43,6 +53,7 @@ export function ProductInputCard({
   };
   return (
     <form
+      id={formId}
       onSubmit={(event) => void submit(event)}
       className={inputCardClassName}
     >
@@ -50,14 +61,12 @@ export function ProductInputCard({
         disabled={busy || adding}
         className="flex min-w-0 flex-col gap-3"
       >
-        <legend className="mb-3 max-w-full text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
-          {input.prompt}
-        </legend>
+        <legend className="sr-only">{inputPrompt(input)}</legend>
         {product ? (
-          <div className="border-foreground/15 bg-background flex items-center gap-3 rounded-lg border px-3 py-2.5">
+          <div className="border-foreground/10 flex items-center gap-3 rounded-lg border p-3">
             <NavGlyph kind={product.glyph} size="sm" />
             <div className="min-w-0">
-              <p className="text-base font-medium sm:text-sm">{product.name}</p>
+              <p className="text-sm font-medium">{product.name}</p>
               <p className="text-muted-foreground text-sm">{product.tagline}</p>
             </div>
           </div>
@@ -67,21 +76,14 @@ export function ProductInputCard({
           </p>
         )}
       </fieldset>
-      <div className="mt-4 flex gap-2">
-        {product ? (
-          <Button type="submit" disabled={busy || adding}>
-            Add to this setup
-          </Button>
-        ) : null}
-        <Button
-          type="button"
-          variant="outline"
-          disabled={busy || adding}
-          onClick={dismiss}
-        >
-          {product ? "Not now" : "Dismiss"}
-        </Button>
-      </div>
+      <button
+        type="button"
+        disabled={busy || adding}
+        onClick={dismiss}
+        className={inputLinkClassName}
+      >
+        {product ? "Not now" : "Dismiss"}
+      </button>
     </form>
   );
 }

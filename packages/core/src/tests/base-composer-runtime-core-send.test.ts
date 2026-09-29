@@ -55,29 +55,48 @@ const deferred = () => {
 };
 
 describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
-  it("restores text, attachments, and quote when an upload fails", async () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("takes text, attachments, and quote back when an upload fails", async () => {
     const adapter = makeAdapter({
       send: async () => {
         throw new Error("upload failed");
       },
     });
     const { composer, append } = makeComposer(adapter);
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
 
     composer.setText("hello");
     await composer.addAttachment(textFile());
     composer.setQuote({ text: "quoted", messageId: "m-1" });
     const originalAttachments = composer.attachments;
 
-    await expect(composer.send()).rejects.toThrow("upload failed");
+    await expect(composer.send()).resolves.toBeUndefined();
 
+    expect(composer.submission).toBeUndefined();
     expect(composer.text).toBe("hello");
-    expect(composer.attachments).toEqual(originalAttachments);
     expect(composer.attachments).toHaveLength(1);
+    expect(composer.attachments[0]).toMatchObject({
+      ...originalAttachments[0],
+      status: {
+        type: "incomplete",
+        reason: "error",
+        message: "upload failed",
+      },
+    });
     expect(composer.quote).toEqual({ text: "quoted", messageId: "m-1" });
     expect(append).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] Failed to send attachments",
+      expect.objectContaining({ message: "upload failed" }),
+    );
   });
 
-  it("does not clobber text the user typed while the upload was in flight", async () => {
+  it("merges text typed while a failed upload was in flight", async () => {
     let rejectSend!: (e: Error) => void;
     const adapter = makeAdapter({
       send: () =>
@@ -94,14 +113,19 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     composer.setText("new draft");
     rejectSend(new Error("upload failed"));
 
-    await expect(sendPromise).rejects.toThrow("upload failed");
+    await expect(sendPromise).resolves.toBeUndefined();
 
-    expect(composer.text).toBe("new draft");
+    expect(composer.text).toBe("hello\nnew draft");
     expect(composer.attachments).toHaveLength(1);
+    expect(composer.attachments[0]?.status).toEqual({
+      type: "incomplete",
+      reason: "error",
+      message: "upload failed",
+    });
     expect(append).not.toHaveBeenCalled();
   });
 
-  it("does not clobber a quote the user set while the upload was in flight", async () => {
+  it("keeps a quote set while a failed upload returns to the draft", async () => {
     let rejectSend!: (e: Error) => void;
     const adapter = makeAdapter({
       send: () =>
@@ -118,11 +142,16 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     composer.setQuote({ text: "new quote", messageId: "m-2" });
     rejectSend(new Error("upload failed"));
 
-    await expect(sendPromise).rejects.toThrow("upload failed");
+    await expect(sendPromise).resolves.toBeUndefined();
 
     expect(composer.quote).toEqual({ text: "new quote", messageId: "m-2" });
-    expect(composer.text).toBe("");
+    expect(composer.text).toBe("hello");
     expect(composer.attachments).toHaveLength(1);
+    expect(composer.attachments[0]?.status).toEqual({
+      type: "incomplete",
+      reason: "error",
+      message: "upload failed",
+    });
     expect(append).not.toHaveBeenCalled();
   });
 
@@ -143,7 +172,7 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     expect(message.attachments[0].status).toEqual({ type: "complete" });
   });
 
-  it("keeps the attachments visible until the upload resolves", async () => {
+  it("keeps sent attachments on the submission until the upload resolves", async () => {
     let resolveSend!: () => void;
     const adapter = makeAdapter({
       send: (a) =>
@@ -161,7 +190,12 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     await Promise.resolve();
 
     expect(composer.text).toBe("");
-    expect(composer.attachments).toHaveLength(1);
+    expect(composer.attachments).toHaveLength(0);
+    expect(composer.submission).toMatchObject({
+      role: "user",
+      text: "hello",
+      attachments: [expect.objectContaining({ id: "att-1" })],
+    });
     expect(append).not.toHaveBeenCalled();
 
     resolveSend();
@@ -308,18 +342,14 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     await composer.addAttachment(new File(["b"], "b.txt"));
 
     const sendPromise = composer.send();
-    const caught = sendPromise.catch(() => {});
 
-    // b's rejection has already surfaced from Promise.all, but a's upload is
-    // still running — sending must stay blocked so a retry can't fire a second
-    // adapter.send for the attachment that's still in flight.
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
     expect(composer.canSend).toBe(false);
 
     resolveA();
-    await caught;
+    await sendPromise;
     await vi.waitFor(() => expect(composer.canSend).toBe(true));
     expect(sendCallsForA).toBe(1);
   });
@@ -360,21 +390,28 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
       composer.setText("hello");
 
       const sending = composer.send();
-      const rejected = expect(sending).rejects.toBe(error);
       if (failureOrder === "after") {
         successfulUpload.resolve();
         await successfulUpload.promise;
       }
       failedUpload.reject(error);
-      await rejected;
       if (failureOrder === "before") {
         expect(composer.canSend).toBe(false);
+        expect(composer.submission?.attachments).toEqual(original);
         successfulUpload.resolve();
       }
+      await expect(sending).resolves.toBeUndefined();
       await vi.waitFor(() => expect(composer.canSend).toBe(true));
 
       expect(composer.attachments[0]).toBe(original[0]);
-      expect(composer.attachments[1]).toBe(original[1]);
+      expect(composer.attachments[1]).toMatchObject({
+        id: "b.txt",
+        status: {
+          type: "incomplete",
+          reason: "error",
+          message: "temporary upload failure",
+        },
+      });
       send.mockImplementation(async (attachment) => {
         if (attachment.name === "a.txt") throw new Error("Already consumed");
         return { ...attachment, status: { type: "complete" }, content: [] };
@@ -423,7 +460,7 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
       await composer.addAttachment(new File(["a"], "a"));
       await composer.addAttachment(new File(["b"], "b"));
       const original = composer.attachments[0];
-      await expect(composer.send()).rejects.toThrow("upload failed");
+      await expect(composer.send()).resolves.toBeUndefined();
       await vi.waitFor(() => expect(composer.canSend).toBe(true));
 
       if (action === "remove") await composer.removeAttachment("a");
@@ -465,15 +502,23 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
       );
       await composer.addAttachment(new File(["a"], "a"));
       await composer.addAttachment(new File(["b"], "b"));
-      await expect(composer.send()).rejects.toThrow("upload failed");
-      if (order === "after") {
+      const sending = composer.send();
+      if (order === "before") {
+        await expect(composer.removeAttachment("a")).rejects.toThrow(
+          "remove failed",
+        );
         upload.resolve();
+      } else {
+        upload.resolve();
+        await sending;
+        await expect(composer.removeAttachment("a")).rejects.toThrow(
+          "remove failed",
+        );
+      }
+      if (order === "after") {
         await vi.waitFor(() => expect(composer.canSend).toBe(true));
       }
-      await expect(composer.removeAttachment("a")).rejects.toThrow(
-        "remove failed",
-      );
-      upload.resolve();
+      await sending;
       await vi.waitFor(() => expect(composer.canSend).toBe(true));
       send.mockImplementation(async (attachment) => {
         if (attachment.name === "a") throw new Error("Already consumed");
@@ -490,7 +535,7 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
   );
 
   it.each(["remove", "clear", "reset"])(
-    "does not restore discarded uploads after %s during a failed send",
+    "keeps the right attachments when %s interrupts a failed send",
     async (action) => {
       const upload = deferred();
       const removal = deferred();
@@ -513,7 +558,7 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
       const { composer, append } = makeComposer(adapter);
       await composer.addAttachment(new File(["a"], "a.txt"));
       await composer.addAttachment(new File(["b"], "b.txt"));
-      await expect(composer.send()).rejects.toThrow("upload failed");
+      const sending = composer.send();
       const cleanup =
         action === "remove"
           ? composer.removeAttachment("a.txt")
@@ -522,21 +567,23 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
             : composer.reset();
       const newId = action === "remove" ? "later" : "a.txt";
       await composer.addAttachment({ id: newId, name: "later", content: [] });
-      const remaining = composer.attachments;
       upload.resolve();
-      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      await sending;
       await vi.waitFor(() => expect(composer.canSend).toBe(true));
-      expect(composer.attachments).toEqual(remaining);
       removal.resolve();
       await cleanup;
       expect(composer.attachments.map((attachment) => attachment.id)).toEqual(
-        action === "remove" ? ["b.txt", newId] : [newId],
+        action === "clear"
+          ? ["a.txt", "b.txt", newId]
+          : action === "remove"
+            ? ["b.txt", newId]
+            : [newId],
       );
       expect(append).not.toHaveBeenCalled();
     },
   );
 
-  it("restores the draft before a failed batch's stragglers settle", async () => {
+  it("keeps the submission until a failed batch's stragglers settle", async () => {
     let resolveA!: () => void;
     const adapter = makeAdapter({
       add: async ({ file }: { file: File }): Promise<PendingAttachment> => ({
@@ -564,13 +611,16 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     await composer.addAttachment(new File(["b"], "b.txt"));
 
     const sendPromise = composer.send();
-    await expect(sendPromise).rejects.toThrow("b failed");
 
-    expect(composer.text).toBe("hello");
+    await Promise.resolve();
+    expect(composer.submission).toMatchObject({ text: "hello" });
+    expect(composer.text).toBe("");
     expect(composer.canSend).toBe(false);
 
     resolveA();
+    await sendPromise;
     await vi.waitFor(() => expect(composer.canSend).toBe(true));
+    expect(composer.text).toBe("hello");
   });
 
   it("excludes a removed attachment even when the upload settles before the adapter remove", async () => {
@@ -604,15 +654,15 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     await removePromise;
   });
 
-  it("excludes cleared attachments when the upload finishes before adapter removal", async () => {
+  it("keeps in-flight attachments when clearing the draft", async () => {
     const upload = Promise.withResolvers<void>();
-    const removal = Promise.withResolvers<void>();
+    const remove = vi.fn(async () => {});
     const adapter = makeAdapter({
       send: async (attachment) => {
         await upload.promise;
         return { ...attachment, status: { type: "complete" }, content: [] };
       },
-      remove: () => removal.promise,
+      remove,
     });
     const core = new LocalRuntimeCore(
       {
@@ -636,6 +686,7 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     const sendPromise = composer.send({ startRun: false });
     const clearPromise = composer.clearAttachments();
     expect(composer.attachments).toEqual([]);
+    expect(composer.submission?.attachments).toHaveLength(2);
     await composer.addAttachment({
       id: "later",
       name: "later.txt",
@@ -645,13 +696,16 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     await sendPromise;
 
     expect(thread.messages).toMatchObject([
-      { content: [{ type: "text", text: "hello" }], attachments: [] },
+      {
+        content: [{ type: "text", text: "hello" }],
+        attachments: [{ id: "att-1" }, { id: "ready" }],
+      },
     ]);
     expect(composer.attachments.map((attachment) => attachment.id)).toEqual([
       "later",
     ]);
-    removal.resolve();
     await clearPromise;
+    expect(remove).not.toHaveBeenCalled();
   });
 
   it("releases the in-flight lock on reset so a stalled send cannot brick the composer", async () => {
@@ -996,7 +1050,7 @@ describe("BaseComposerRuntimeCore.send restore-on-undispatched", () => {
     expect(composer.text).toBe("");
   });
 
-  it("does not clobber a draft written after the send", async () => {
+  it("returns the message ahead of a draft written after the send", async () => {
     const { append, reject } = rejectableAppend();
     const { composer } = makeComposer(makeAdapter(), append);
 
@@ -1005,8 +1059,8 @@ describe("BaseComposerRuntimeCore.send restore-on-undispatched", () => {
     composer.setText("new draft");
     reject(new MessageNotSentError());
 
-    await vi.waitFor(() => expect(append).toHaveBeenCalledTimes(1));
-    expect(composer.text).toBe("new draft");
+    await vi.waitFor(() => expect(composer.text).toBe("hello\nnew draft"));
+    expect(append).toHaveBeenCalledTimes(1);
   });
 
   it("does not restore a draft a reset discarded", async () => {
@@ -1044,11 +1098,11 @@ describe("BaseComposerRuntimeCore.send restore-on-undispatched edge cases", () =
     protected handleCancel(): void {}
   }
 
-  it("restores the draft when handleSend throws synchronously", async () => {
+  it("restores the draft when handleSend throws synchronously and resolves", async () => {
     const composer = new SyncThrowComposerCore();
     composer.setText("hello");
 
-    await expect(composer.send()).rejects.toThrow(composer.error);
+    await expect(composer.send()).resolves.toBeUndefined();
 
     expect(composer.text).toBe("hello");
   });
@@ -1068,6 +1122,8 @@ describe("BaseComposerRuntimeCore.send restore-on-undispatched edge cases", () =
     composer.setText("two");
     await composer.send();
 
+    expect(composer.submission).toBeUndefined();
+    expect(rejects).toHaveLength(2);
     rejects[0]!(new MessageNotSentError());
     rejects[1]!(new MessageNotSentError());
 
