@@ -663,6 +663,37 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
     second.unmount();
   });
 
+  it("stores a run paused on an unanswered approval, so a reload still shows the request", async () => {
+    historyState.remoteId = "remote-pending-approval";
+    onTestFinished(() => {
+      historyState.remoteId = undefined;
+    });
+    const append = vi.fn(async (_item: { message: UIMessage }) => {});
+    const history = {
+      load: vi.fn(),
+      append: vi.fn(),
+      withFormat: vi.fn().mockReturnValue({
+        load: vi.fn(async () => ({ headId: null, messages: [] })),
+        append,
+        update: vi.fn(async () => {}),
+      }),
+    } as unknown as ThreadHistoryAdapter;
+    const { chat, thread } = await setup(undefined, { history });
+
+    await act(() => chat().sendMessage({ text: "deploy" }));
+    await waitFor(() => expect(chat().status).toBe("ready"));
+
+    expect(thread().getMessageByIndex(1).getState().status).toMatchObject({
+      type: "requires-action",
+      reason: "interrupt",
+    });
+    await waitFor(() =>
+      expect(append.mock.calls.map(([item]) => item.message.id)).toContain(
+        "assistant-1",
+      ),
+    );
+  });
+
   it("keeps a settled host answer in history after the run ends and reloads", async () => {
     historyState.remoteId = "remote-settled-approval";
     onTestFinished(() => {
