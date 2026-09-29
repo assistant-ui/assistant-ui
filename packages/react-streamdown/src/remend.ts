@@ -73,7 +73,7 @@ function escapeComparisonOperators(text: string): string {
   let out = "";
   let copied = 0;
   let lineStart = true;
-  let inlineCode = false;
+  let inlineCode = 0;
   let fencedCode = false;
   for (let i = 0; i < text.length; i += 1) {
     if (lineStart && !inlineCode && !fencedCode) {
@@ -86,20 +86,22 @@ function escapeComparisonOperators(text: string): string {
       }
     }
     const c = text.charCodeAt(i);
-    lineStart = c === 10 || c === CR || c === 0x2028 || c === 0x2029;
     if (c === 92 && text.charCodeAt(i + 1) === BACKTICK) {
       i += 1;
     } else if (c === BACKTICK) {
-      if (
-        text.charCodeAt(i + 1) === BACKTICK &&
-        text.charCodeAt(i + 2) === BACKTICK
-      ) {
+      let end = i + 1;
+      while (text.charCodeAt(end) === BACKTICK) end += 1;
+      const run = end - i;
+      if (inlineCode) {
+        if (run === inlineCode) inlineCode = 0;
+      } else if (lineStart && run >= 3) {
         fencedCode = !fencedCode;
-        i += 2;
       } else if (!fencedCode) {
-        inlineCode = !inlineCode;
+        inlineCode = run;
       }
+      i = end - 1;
     }
+    lineStart = c === 10 || c === CR || c === 0x2028 || c === 0x2029;
   }
   return out + text.slice(copied);
 }

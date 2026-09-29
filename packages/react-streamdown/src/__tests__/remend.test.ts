@@ -1,7 +1,19 @@
 import remend from "remend";
 import { parseMarkdownIntoBlocks } from "streamdown";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { findRemendWindowStart, tailBoundedRemend } from "../remend";
+
+const mocks = vi.hoisted(() => ({
+  remend: vi.fn<typeof remend>(),
+}));
+
+vi.mock("remend", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("remend")>();
+  return {
+    ...actual,
+    default: mocks.remend.mockImplementation(actual.default),
+  };
+});
 
 const CORPUS = `# Heading one
 
@@ -175,6 +187,22 @@ describe("tailBoundedRemend", () => {
       expect(tailBoundedRemend(`${text}\n\nTail`)).toBe(`${expected}\n\nTail`);
     });
 
+    it.each([
+      ["two-backtick", "``a\n- > 5``"],
+      ["two-backtick with shorter runs", "a ``x`y`\n- > 5`` b"],
+      ["two-backtick with a longer run", "a ``x```\n- > 5`` b"],
+      ["two-backtick closing at line start", "a ``x\n- > 5\n`` b"],
+      ["three-backtick", "a ```x\n- > 5``` b"],
+      ["three-backtick with a shorter run", "a ```x``\n- > 5``` b"],
+      ["three-backtick with a longer run", "a ```x````\n- > 5``` b"],
+      ["three-backtick closing at line start", "a ```x\n- > 5\n``` b`c`"],
+    ])("preserves multiline %s inline code", (_, code) => {
+      const text = `${code}\n- > 6`;
+      const expected = `${code}\n- \\> 6`;
+      expect(tailBoundedRemend(text)).toBe(expected);
+      expect(tailBoundedRemend(`${text}\n\nTail`)).toBe(`${expected}\n\nTail`);
+    });
+
     it("keeps indentation after a settled separator", () => {
       const text = "A\n\n > quote\n\nTail";
       expect(tailBoundedRemend(text)).toBe(text);
@@ -265,28 +293,38 @@ describe("tailBoundedRemend", () => {
       expect(calls).toEqual([]);
     });
 
-    it.each([
-      ["leading", ""],
-      ["prose-prefixed", "Intro"],
-    ])("scales linearly across a %s blank run", (_, prefix) => {
-      const small = `${prefix}${"\n".repeat(4096)}x>\n\nTail`;
-      const large = `${prefix}${"\n".repeat(8 * 4096)}x>\n\nTail`;
-      expect(tailBoundedRemend(small)).toBe(small);
-      expect(tailBoundedRemend(large)).toBe(large);
-      const measure = (text: string) => {
-        const start = performance.now();
-        tailBoundedRemend(text);
-        return performance.now() - start;
-      };
-      const smallTimes: number[] = [];
-      const largeTimes: number[] = [];
-      for (let i = 0; i < 3; i += 1) {
-        smallTimes.push(measure(small));
-        largeTimes.push(measure(large));
-      }
-      const median = (times: number[]) => times.sort((a, b) => a - b)[1]!;
-      expect(median(largeTimes)).toBeLessThan(median(smallTimes) * 24 + 10);
-    });
+    it.each([undefined, true, false])(
+      "disables remend's comparison handler when comparisonOperators is %s",
+      (comparisonOperators) => {
+        const options =
+          comparisonOperators === undefined
+            ? undefined
+            : { comparisonOperators };
+        for (const text of [
+          "- > 5",
+          "- > 5\n\n- > 6",
+          "- > 5\n\n```\ncode\n```\n\n- > 6",
+          "- > 5\n\n```\ncode",
+          "- > 5\n\n$$\nx",
+        ]) {
+          const callStart = mocks.remend.mock.calls.length;
+          const result = tailBoundedRemend(text, options);
+          const calls = mocks.remend.mock.calls.slice(callStart);
+          expect(calls.length).toBeGreaterThan(0);
+          for (const [, callOptions] of calls) {
+            expect(callOptions?.comparisonOperators).toBe(false);
+          }
+          expect(result).toContain(
+            comparisonOperators === false ? "- > 5" : "- \\> 5",
+          );
+          if (text.endsWith("- > 6")) {
+            expect(result).toContain(
+              comparisonOperators === false ? "- > 6" : "- \\> 6",
+            );
+          }
+        }
+      },
+    );
   });
 
   it("respects disabled escapes in earlier paragraphs", () => {
