@@ -26,16 +26,12 @@ jobs:
       github.event.pull_request.draft == false
       && github.event.pull_request.head.repo.full_name == github.repository
       && github.head_ref != 'changeset-release/main'
-      && (github.event.action != 'synchronize'
-        || contains(github.event.pull_request.labels.*.name, 'type/perf')
-        || github.actor == 'autofix-ci[bot]')
+      && (github.event.action != 'synchronize' || contains(github.event.pull_request.labels.*.name, 'type/perf'))
     concurrency:
       group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
       cancel-in-progress: true
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 40
-    env:
-      REPORT_MARKER: "<!-- aui-perf-report -->"
     steps:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
@@ -48,26 +44,13 @@ jobs:
         shell: bash
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          # autofix.ci cancels every run on the commit it fixes, the run this PR's open or ready event started included, so its fix commit measures the PR once more while no report exists.
-          AUTOFIX_COMMIT: ${{ github.actor == 'autofix-ci[bot]' && !contains(github.event.pull_request.labels.*.name, 'type/perf') }}
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
+          changed=$(git diff --name-only "$BASE_SHA...HEAD")
           bench=false
           trace=false
-          reported=""
-          if [ "$AUTOFIX_COMMIT" = true ]; then
-            reported=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$REPORT_MARKER\"))) | .id" | sed -n '1p')
-          fi
-          if [ -n "$reported" ]; then
-            echo "the PR already has a report; an autofix.ci commit does not measure it again"
-          else
-            changed=$(git diff --name-only "$BASE_SHA...HEAD")
-            if grep -qE '^(packages/(x-performance|tap|core|store|assistant-stream|react|react-markdown)/|\.github/workflows/perf\.yaml)' <<<"$changed"; then bench=true; fi
-            if grep -qE '^(packages/tw-shimmer/|packages/x-performance/(fixtures|lib/trace)|\.github/workflows/perf\.yaml)' <<<"$changed"; then trace=true; fi
-          fi
+          if grep -qE '^(packages/(x-performance|tap|core|store|assistant-stream|react|react-markdown)/|\.github/workflows/perf\.yaml)' <<<"$changed"; then bench=true; fi
+          if grep -qE '^(packages/tw-shimmer/|packages/x-performance/(fixtures|lib/trace)|\.github/workflows/perf\.yaml)' <<<"$changed"; then trace=true; fi
           echo "bench=$bench" >> "$GITHUB_OUTPUT"
           echo "trace=$trace" >> "$GITHUB_OUTPUT"
           echo "bench=$bench trace=$trace"
@@ -146,6 +129,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPORT_MARKER: "<!-- aui-perf-report -->"
         run: |
           set -euo pipefail
           existing=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$REPORT_MARKER\"))) | .id" | sed -n '1p')

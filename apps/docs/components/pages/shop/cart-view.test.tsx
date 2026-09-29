@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { clearCart, getCart, replaceCart } from "@/lib/catalog/cart-store";
 import { CartView } from "./cart-view";
@@ -21,9 +21,6 @@ vi.mock("next/navigation", async (importOriginal) => ({
 }));
 vi.mock("@/hooks/use-hydrated", () => ({
   useHydrated: () => mocks.hydrated,
-}));
-vi.mock("@/components/shared/checkout-provider", () => ({
-  useCheckout: () => null,
 }));
 vi.mock("@/lib/checkout/session-store", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/checkout/session-store")>()),
@@ -55,6 +52,21 @@ describe("CartView", () => {
     render(<CartView />);
 
     expect(getCart()).toEqual(["cloud"]);
+  });
+
+  it("holds Start setup while a session is stored, before its connection reports", () => {
+    replaceCart(["cloud", "agent-tools"]);
+    mocks.session = { id: "stale", products: ["react-app"], startedAt: 1 };
+
+    render(<CartView />);
+
+    expect(screen.getByRole("status").textContent).toContain(
+      "Setup is in progress",
+    );
+    const start = screen.getByRole("button", { name: "Start setup" });
+    expect(start).toHaveProperty("disabled", true);
+    fireEvent.click(start);
+    expect(getCart()).toEqual(["cloud", "agent-tools"]);
   });
 
   it("leaves the cart alone when a shared link has no known products", () => {
