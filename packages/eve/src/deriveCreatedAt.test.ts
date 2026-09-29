@@ -187,3 +187,25 @@ describe("collectTurnTimestamps", () => {
     expect(timestamps.get(TURN)?.assistant).toBe(undefined);
   });
 });
+
+describe("collectTurnTimestamps prototype-inherited event types", () => {
+  // `type` arrives off the wire, so a lookup on a plain object literal can
+  // resolve an inherited member instead of missing.
+  it.each(["__proto__", "constructor", "toString"])(
+    "ignores an event whose type is %s",
+    (type) => {
+      const cache = createTurnTimestampCache();
+      const events = [
+        {
+          type,
+          data: { sequence: 1, turnId: TURN },
+          meta: { at: "2026-01-01T00:00:00.000Z", id: "evt_x" },
+        },
+      ] as unknown as MessageStreamEvent[];
+
+      const timestamps = collectTurnTimestamps(events, cache);
+
+      expect(timestamps.get(TURN)).toBeUndefined();
+    },
+  );
+});

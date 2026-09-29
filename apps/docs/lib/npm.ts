@@ -9,18 +9,7 @@ export const NPM_REVALIDATE = {
   COLD: 2_592_000,
 } as const;
 
-// api.npmjs.org rate limits per IP, and a deploy asks it about every package at
-// once from an address it shares with every other build on the platform. A 429
-// there is transient, so a refused request is retried rather than read as no data.
-// The wait is jittered because a refusal arrives at the whole fan-out at once,
-// and an exact backoff would replay that burst intact.
-const RETRY_BACKOFF_MS = [300, 1200];
-const jittered = (backoff: number) => backoff / 2 + Math.random() * backoff;
-
 export type NpmDailyDownloads = { day: string; downloads: number };
-
-const delay = (ms: number) =>
-  new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 function npmAttempt(
   url: string,
@@ -41,26 +30,24 @@ function npmAttempt(
   );
 }
 
+// api.npmjs.org allows about forty requests a minute per IP and refuses the rest
+// of the minute, so a refused request is not retried: the data cache keeps the
+// last success and the next render asks again.
 async function npmGetJson(path: string, revalidate: number): Promise<unknown> {
   const url = `${NPM_BASE}${path}`;
 
-  for (let attempt = 0; ; attempt++) {
-    let result: Awaited<ReturnType<typeof npmAttempt>>;
-    try {
-      result = await npmAttempt(url, revalidate);
-    } catch (error) {
-      console.error(`npm ${path} could not be read.`, error);
-      return null;
-    }
-    if (result.ok) return result.body;
-
-    const backoff = RETRY_BACKOFF_MS[attempt];
-    if (result.status !== 429 || backoff === undefined) {
-      console.error(`npm ${path} answered ${result.status}.`);
-      return null;
-    }
-    await delay(jittered(backoff));
+  let result: Awaited<ReturnType<typeof npmAttempt>>;
+  try {
+    result = await npmAttempt(url, revalidate);
+  } catch (error) {
+    console.error(`npm ${path} could not be read.`, error);
+    return null;
   }
+  if (!result.ok) {
+    console.error(`npm ${path} answered ${result.status}.`);
+    return null;
+  }
+  return result.body;
 }
 
 async function npmFetch(

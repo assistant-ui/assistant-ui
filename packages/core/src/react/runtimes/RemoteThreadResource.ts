@@ -106,15 +106,18 @@ const useRemoteThreadBinder = ({
 
   const initPromiseRef = useRef<Promise<unknown> | undefined>(undefined);
   const hasInitializedRef = useRef(false);
+  // Any caller's initialize() moves the item off "new"; a thread born "new"
+  // here still joins that initialization so its title arms.
+  const bornNewRef = useRef(itemRuntime.getState().status === "new");
   const titleDisposeRef = useRef<(() => void) | undefined>(undefined);
   const titleAliveRef = useRef(false);
 
   const handleInitialize = useEffectEvent(() => {
     if (hasInitializedRef.current) return;
 
-    const state = itemRuntime.getState();
-    if (state.status !== "new") return;
+    if (itemRuntime.getState().status !== "new" && !bornNewRef.current) return;
     hasInitializedRef.current = true;
+    bornNewRef.current = false;
 
     const initPromise = itemRuntime.initialize();
     initPromiseRef.current = initPromise;

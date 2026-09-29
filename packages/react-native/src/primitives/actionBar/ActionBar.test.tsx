@@ -17,6 +17,7 @@ const h = vi.hoisted(() => ({
   reload: vi.fn<() => void>(),
   speak: vi.fn<() => Promise<void>>(),
   stopSpeaking: vi.fn<() => void>(),
+  platform: { os: "web" },
   state: {
     copy: { disabled: false, isCopied: false },
     edit: { disabled: false },
@@ -59,6 +60,21 @@ vi.mock("@assistant-ui/core/react", async (importOriginal) => {
       stopSpeaking: h.stopSpeaking,
       disabled: h.state.stopSpeaking.disabled,
     }),
+  };
+});
+
+vi.mock("react-native", async (importOriginal) => {
+  const actual = (await importOriginal()) as Record<string, unknown> & {
+    Platform: Record<string, unknown>;
+  };
+  return {
+    ...actual,
+    Platform: {
+      ...actual.Platform,
+      get OS() {
+        return h.platform.os;
+      },
+    },
   };
 });
 
@@ -177,6 +193,7 @@ describe("ActionBar", () => {
     h.reload.mockReset();
     h.speak.mockReset();
     h.stopSpeaking.mockReset();
+    h.platform.os = "web";
     h.state.copy.disabled = false;
     h.state.copy.isCopied = false;
     h.state.edit.disabled = false;
@@ -247,6 +264,65 @@ describe("ActionBar", () => {
         const el = await mount(actionBar.render("label"));
 
         expect(el.textContent).toBe("label");
+      });
+    });
+  }
+
+  const feedbackActionBars = [
+    {
+      name: "ActionBarFeedbackNegative",
+      state: h.state.feedbackNegative,
+      render: (extra: { "aria-selected"?: boolean }) => (
+        <ActionBarFeedbackNegative testID="t" {...extra}>
+          x
+        </ActionBarFeedbackNegative>
+      ),
+    },
+    {
+      name: "ActionBarFeedbackPositive",
+      state: h.state.feedbackPositive,
+      render: (extra: { "aria-selected"?: boolean }) => (
+        <ActionBarFeedbackPositive testID="t" {...extra}>
+          x
+        </ActionBarFeedbackPositive>
+      ),
+    },
+  ];
+
+  for (const { name, state, render } of feedbackActionBars) {
+    describe(name, () => {
+      it("marks submitted feedback pressed on the web", async () => {
+        state.isSubmitted = true;
+
+        const el = await mount(render({}));
+
+        expect(el.getAttribute("aria-pressed")).toBe("true");
+        expect(el.hasAttribute("aria-selected")).toBe(false);
+      });
+
+      it("does not mark unsubmitted feedback pressed on the web", async () => {
+        const el = await mount(render({}));
+
+        expect(el.getAttribute("aria-pressed")).toBe("false");
+      });
+
+      it("marks submitted feedback selected on native", async () => {
+        h.platform.os = "ios";
+        state.isSubmitted = true;
+
+        const el = await mount(render({}));
+
+        expect(el.getAttribute("aria-selected")).toBe("true");
+        expect(el.hasAttribute("aria-pressed")).toBe(false);
+      });
+
+      it("keeps a caller selected override on native", async () => {
+        h.platform.os = "ios";
+        state.isSubmitted = true;
+
+        const el = await mount(render({ "aria-selected": false }));
+
+        expect(el.getAttribute("aria-selected")).toBe("false");
       });
     });
   }

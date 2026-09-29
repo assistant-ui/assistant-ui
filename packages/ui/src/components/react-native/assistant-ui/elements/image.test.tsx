@@ -3,6 +3,15 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Image, ImagePreview } from "./image";
 
+const nativeImage = vi.hoisted(() => ({
+  loadEvent: "native" as "native" | "web",
+  getSize: vi.fn(
+    (_uri: string, success: (width: number, height: number) => void) =>
+      success(640, 320),
+  ),
+  renders: 0,
+}));
+
 vi.mock("@/components/ui/icon", async () => {
   const React = await import("react");
   return {
@@ -81,24 +90,33 @@ vi.mock("react-native", async (importOriginal) => {
       },
       children,
     );
-  const NativeImage = ({
-    accessibilityLabel,
-    className,
-    onError,
-    onLoad,
-    resizeMode: _resizeMode,
-    source,
-    ...props
-  }: any) =>
-    React.createElement("img", {
-      ...props,
-      alt: accessibilityLabel,
+  const NativeImage = Object.assign(
+    ({
+      accessibilityLabel,
       className,
-      src: source?.uri,
-      onError: () => onError?.({ nativeEvent: {} }),
-      onLoad: () =>
-        onLoad?.({ nativeEvent: { source: { width: 640, height: 320 } } }),
-    });
+      onError,
+      onLoad,
+      resizeMode: _resizeMode,
+      source,
+      ...props
+    }: any) => {
+      nativeImage.renders += 1;
+      return React.createElement("img", {
+        ...props,
+        alt: accessibilityLabel,
+        className,
+        src: source?.uri,
+        onError: () => onError?.({ nativeEvent: {} }),
+        onLoad: (event: any) =>
+          onLoad?.(
+            nativeImage.loadEvent === "native"
+              ? { nativeEvent: { source: { width: 640, height: 320 } } }
+              : { nativeEvent: event.nativeEvent },
+          ),
+      });
+    },
+    { getSize: nativeImage.getSize },
+  );
   const Modal = ({ children, visible }: any) =>
     visible ? React.createElement("div", { role: "dialog" }, children) : null;
   return {
@@ -144,6 +162,8 @@ describe("Image", () => {
       root.unmount();
     });
     container.remove();
+    nativeImage.loadEvent = "native";
+    nativeImage.renders = 0;
   });
 
   it("shows a placeholder until its image loads, then uses the loaded aspect ratio", async () => {
@@ -165,6 +185,64 @@ describe("Image", () => {
     });
 
     expect(container.querySelector('[data-testid="ImageIcon"]')).toBeNull();
+    expect(preview.style.aspectRatio).toBe("2 / 1");
+    expect(nativeImage.getSize).not.toHaveBeenCalled();
+  });
+
+  it("reads the size through Image.getSize when the load event carries no source", async () => {
+    nativeImage.loadEvent = "web";
+    await act(async () => {
+      root.render(<ImagePreview src="https://example.com/image.png" />);
+    });
+
+    const preview = container.querySelector("img") as HTMLImageElement;
+    await act(async () => {
+      preview.dispatchEvent(new Event("load", { bubbles: true }));
+    });
+
+    expect(nativeImage.getSize).toHaveBeenCalledWith(
+      "https://example.com/image.png",
+      expect.any(Function),
+    );
+    expect(container.querySelector('[data-testid="ImageIcon"]')).toBeNull();
+    expect(preview.className).not.toContain("opacity-0");
+    expect(preview.style.aspectRatio).toBe("2 / 1");
+  });
+
+  it("shows the image even when the size read never reports", async () => {
+    nativeImage.loadEvent = "web";
+    nativeImage.getSize.mockImplementationOnce(() => {});
+    await act(async () => {
+      root.render(<ImagePreview src="https://example.com/image.png" />);
+    });
+
+    const preview = container.querySelector("img") as HTMLImageElement;
+    await act(async () => {
+      preview.dispatchEvent(new Event("load", { bubbles: true }));
+    });
+
+    expect(container.querySelector('[data-testid="ImageIcon"]')).toBeNull();
+    expect(preview.className).not.toContain("opacity-0");
+    expect(preview.style.aspectRatio).toBe("");
+  });
+
+  it("does not re-render when a repeated load reports the same size", async () => {
+    nativeImage.loadEvent = "web";
+    await act(async () => {
+      root.render(<ImagePreview src="https://example.com/image.png" />);
+    });
+
+    const preview = container.querySelector("img") as HTMLImageElement;
+    await act(async () => {
+      preview.dispatchEvent(new Event("load", { bubbles: true }));
+    });
+    const rendersAfterLoad = nativeImage.renders;
+
+    await act(async () => {
+      preview.dispatchEvent(new Event("load", { bubbles: true }));
+    });
+
+    expect(nativeImage.renders).toBe(rendersAfterLoad);
     expect(preview.style.aspectRatio).toBe("2 / 1");
   });
 

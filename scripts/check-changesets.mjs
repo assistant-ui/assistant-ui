@@ -13,6 +13,7 @@ const repoRoot = path.resolve(
 );
 
 const BUMP_VALUES = new Set(["patch", "minor", "major"]);
+const RELEASE_VALUES = new Set([...BUMP_VALUES, "none"]);
 const TEST_DIRECTORIES = new Set(["__fixtures__", "__tests__", "tests"]);
 const TEST_FILE = /\.(?:bench|spec|test)\.[^/]+$/;
 const RELEASE_REWRITTEN_KEYS = new Set(["version"]);
@@ -45,6 +46,11 @@ export function parseWorkspaceGlobs(source) {
 }
 
 export function parseBumpLine(line) {
+  const release = parseReleaseLine(line);
+  return release && BUMP_VALUES.has(release.bump) ? release : null;
+}
+
+function parseReleaseLine(line) {
   const entry = line
     .trim()
     .match(/^(?:"([^"]*)"|'([^']*)'|([^#:][^:]*?))\s*:\s*(.*)$/);
@@ -54,8 +60,18 @@ export function parseBumpLine(line) {
   );
   if (!value) return null;
   const bump = value[1] ?? value[2] ?? value[3];
-  if (!BUMP_VALUES.has(bump)) return null;
+  if (!RELEASE_VALUES.has(bump)) return null;
   return { name: entry[1] ?? entry[2] ?? entry[3], bump };
+}
+
+// A copy of `mdRegex` from `@changesets/parse`, which `changeset version` uses
+// to read a changeset. The checks run in CI without installed dependencies, so
+// they cannot import it; keep the two patterns identical.
+const CHANGESET_SOURCE = /\s*---([\s\S]*?)\r?\n\s*---(\s*(?:\n|$)[\s\S]*)/;
+
+export function readChangesetSource(source) {
+  const match = CHANGESET_SOURCE.exec(source);
+  return match ? { frontmatter: match[1], body: match[2] } : null;
 }
 
 export function readWorkspacePackages(root) {
@@ -92,14 +108,13 @@ function readChangesetBumps(root, files = null) {
   for (const file of readdirSync(changesetDir).sort()) {
     if (!file.endsWith(".md") || file === "README.md") continue;
     if (files && !files.has(file)) continue;
-    const frontmatter = readFileSync(
-      path.join(changesetDir, file),
-      "utf8",
-    ).match(/^---\r?\n([\s\S]*?)\r?\n---/);
-    if (!frontmatter) continue;
-    for (const line of frontmatter[1].split("\n")) {
-      const bump = parseBumpLine(line);
-      if (bump) bumps.push({ file, name: bump.name });
+    const changeset = readChangesetSource(
+      readFileSync(path.join(changesetDir, file), "utf8"),
+    );
+    if (!changeset) continue;
+    for (const line of changeset.frontmatter.split("\n")) {
+      const release = parseReleaseLine(line);
+      if (release) bumps.push({ file, ...release });
     }
   }
   return bumps;
@@ -351,7 +366,9 @@ export function runChangedPackageCheck(root, baseSha, headSha) {
       .map((file) => path.posix.basename(file)),
   );
   const bumpedNames = new Set(
-    readChangesetBumps(root, changesetFiles).map(({ name }) => name),
+    readChangesetBumps(root, changesetFiles)
+      .filter(({ bump }) => BUMP_VALUES.has(bump))
+      .map(({ name }) => name),
   );
 
   const missing = new Map(

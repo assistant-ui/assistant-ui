@@ -1,6 +1,6 @@
 export const A2UI_SURFACE_ID = Symbol("a2uiSurfaceId");
 
-export type A2uiVersion = "v0.9" | "v1.0";
+export type A2uiVersion = "v0.9" | "v0.9.1" | "v1.0";
 
 export interface A2uiTemplateChildren {
   readonly template: {
@@ -12,7 +12,10 @@ export interface A2uiTemplateChildren {
 export interface ComponentNode extends Record<string, unknown> {
   readonly id: string;
   readonly component: string;
-  readonly children?: readonly string[] | A2uiTemplateChildren;
+  readonly children?:
+    | readonly string[]
+    | { readonly componentId: string; readonly path: string }
+    | A2uiTemplateChildren;
 }
 
 export interface A2uiCreateSurfaceV09Payload {
@@ -24,6 +27,7 @@ export interface A2uiCreateSurfaceV09Payload {
 
 export interface A2uiCreateSurfaceV10Payload {
   readonly surfaceId: string;
+  readonly catalogId?: string;
   readonly surfaceProperties?: unknown;
   readonly sendDataModel?: unknown;
   readonly components?: readonly ComponentNode[];
@@ -53,6 +57,10 @@ export type A2uiCreateSurfaceOperation =
       readonly createSurface: A2uiCreateSurfaceV09Payload;
     }
   | {
+      readonly version: "v0.9.1";
+      readonly createSurface: A2uiCreateSurfaceV09Payload;
+    }
+  | {
       readonly version: "v1.0";
       readonly createSurface: A2uiCreateSurfaceV10Payload;
     };
@@ -78,7 +86,22 @@ export type A2uiOperation =
   | A2uiUpdateDataModelOperation
   | A2uiDeleteSurfaceOperation;
 
+export type A2uiSurfaceSnapshotOperation =
+  | {
+      readonly version: "v0.9";
+      readonly createSurface: A2uiCreateSurfaceV09Payload;
+    }
+  | {
+      readonly version: "v0.9";
+      readonly updateComponents: A2uiUpdateComponentsPayload;
+    }
+  | {
+      readonly version: "v0.9";
+      readonly updateDataModel: A2uiUpdateDataModelPayload;
+    };
+
 export type A2uiSurfaceState = {
+  catalogId?: string;
   components: Map<string, Record<string, unknown>>;
   dataModel: unknown;
 };

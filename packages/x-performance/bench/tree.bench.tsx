@@ -9,7 +9,7 @@
  *   pnpm exec vitest bench --run bench/tree.bench.tsx
  */
 /* oxlint-disable react/rules-of-hooks -- fixed-count hook loops, benchmark only */
-import { describe, test } from "vitest";
+import { describe, inject, test } from "vitest";
 import { createElement, Fragment, memo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
@@ -142,7 +142,7 @@ describe(`tree mount+unmount, ${M} leaves x ${K} hooks`, () => {
     test(name, async ({ bench }) => {
       await bench(name, () => {
         make().unmount();
-      }).run();
+      }).run(inject("benchSampling"));
     });
   }
 });
@@ -164,7 +164,7 @@ describe(`tree update: one leaf dispatch, ${M} leaves x ${K} hooks`, () => {
         () => {
           host.flush(() => leafSetters[M >> 1]!((v) => v + 1));
         },
-      ).run();
+      ).run(inject("benchSampling"));
     });
   }
 });

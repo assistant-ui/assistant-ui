@@ -187,8 +187,9 @@ export class OpenCodeAttachmentAdapter implements AttachmentAdapter {
 
   public async send(
     attachment: PendingAttachment,
+    options?: { signal?: AbortSignal },
   ): Promise<CompleteAttachment> {
-    const url = await getFileDataURL(attachment.file);
+    const url = await getFileDataURL(attachment.file, options);
     return {
       ...attachment,
       status: { type: "complete" },
