@@ -25,13 +25,15 @@ The sidebar lists places, grouped by the question they answer.
 
 The Build group carries a *Preview* badge: its pages are in preview and may change without notice. The Billing and Usage pages exist only on the hosted service.
 
-The header holds the project switcher as the first crumb (it opens the Overview), the path to the current page, the id of the entity you are looking at with a copy button, and the jump box: ⌘K opens a run, a thread or a user by id, or goes to a page. Outbound links, the account page, the theme and sign out are in the menu under your name.
+The header holds the project switcher as the first crumb (it opens the Overview), the path to the current page, the id of the entity you are looking at with a copy button, and the jump box. ⌘K or Ctrl+K opens the jump box. A `run_` or `thread_` id opens its page directly. Any other id offers a user, thread or run. The box lists **Pages**, including Intelligence pages, but not Settings subpages. Outbound links, the account page, the theme and sign out are in the menu under your name.
+
+The Organizations and All projects pickers list the organizations and projects you can open. Their **Create** buttons open dialogs to create an organization or project.
 
 ## Ranges and buckets
 
-Every page reads one date range from the URL, chosen with the range picker in the page header. Tiles summarise the range and show the change against the previous range of the same length; charts draw the range in buckets the span decides: days beyond three days, then hours, minutes and down to one second for a range of seconds. A range is written as UTC days (`from=2026-09-01`) or as instants to the second (`from=2026-09-08T04:30:00Z`). Clicking a bar of a page's volume strip narrows the list to that bucket.
+Every page reads one date range from the URL, chosen with the range picker in the page header. The picker offers presets from the last 15 minutes to year to date and a calendar with a start and end time for a custom range, and it shows times in the browser's time zone or in UTC; whole days follow the zone it shows. Tiles summarise the range and show the change against the previous range of the same length; charts draw the range in buckets the span decides: days beyond three days, then hours, minutes and down to one second for a range of seconds. A range is written as UTC days (`from=2026-09-01`) or as instants to the second (`from=2026-09-08T04:30:00Z`). Clicking a bar of a page's volume strip narrows the list to that bucket.
 
-The Overview, Runs and Models pages default to the last 30 days, Intelligence to the last 28, and Billing to the current calendar month. The plan's active users are always counted per UTC calendar month, whatever range a page shows.
+The Overview, Runs and Models pages default to the last 30 days, Intelligence to the last 28, and Usage to the current calendar month. Billing has no date range. The plan's active users are always counted per UTC calendar month, whatever range a page shows.
 
 ## Filters, sorting and paging
 
@@ -47,7 +49,7 @@ A project belongs to an organization, and your role in the organization decides 
 
 | Owners and admins only | Every member |
 |---|---|
-| Allowed origins; the renderer URL; data retention, including cancelling a pending change; every alert rule action; the audit log; billing and the Stripe portal | Reading every page; API keys; auth rules and anonymous access; LLM providers, assistants and harnesses; thread titles, intelligence, evaluators and model prices; scores written from the dashboard; intelligence requests; the project name, slug, icon and trace link |
+| Allowed origins; the renderer URL; data retention, including cancelling a pending change; every alert rule action; the audit log; **Upgrade** and **Open Stripe portal** | Reading every page; the pricing dialog from a plan badge, including its **Free** choice; API keys; auth rules and anonymous access; LLM providers, assistants and harnesses; thread titles, intelligence, evaluators and model prices; scores written from the dashboard; intelligence requests; the project name, slug, icon and trace link |
 
 Every write, whichever role made it, is recorded in the [audit log](/docs/cloud/settings/audit-log) with the fields that changed and never with a secret.
 

@@ -99,6 +99,25 @@ describe("checkout session store", () => {
     expect(store.checkoutUrl("a b")).toBe("https://checkout.test/a%20b");
   });
 
+  it("keeps one agent link across setups and reloads", async () => {
+    const values = setupStorage();
+    let store = await loadStore();
+    const link = store.getAgentLinkId();
+    expect(link).toMatch(/^[A-Za-z0-9]{12}$/);
+    expect(values.get("aui-agent-link")).toBe(link);
+    expect(store.agentLinkUrl()).toBe(`https://checkout.test/${link}`);
+    store.startCheckout(["assistant-ui"]);
+    expect(store.getCheckoutSession()?.id).not.toBe(link);
+    store.endCheckout();
+    expect(store.getAgentLinkId()).toBe(link);
+    expect(values.get("aui-agent-link")).toBe(link);
+    const window = (globalThis as { window?: unknown }).window;
+    vi.resetModules();
+    vi.stubGlobal("window", window);
+    store = await import("./session-store");
+    expect(store.getAgentLinkId()).toBe(link);
+  });
+
   it("picks up a session another tab wrote before the first subscription", async () => {
     const values = setupStorage();
     const store = await loadStore();
@@ -125,5 +144,21 @@ describe("checkout session store", () => {
     expect(store.getCheckoutSession()).toBeNull();
     expect(store.startCheckout(["cloud"])).toBeNull();
     expect(store.getCheckoutSession()).toBeNull();
+  });
+});
+
+describe("license acceptance", () => {
+  it("remembers that the license was accepted across a reload", async () => {
+    setupStorage();
+    let store = await loadStore();
+    store.startCheckout(["assistant-ui"]);
+    expect(store.getCheckoutSession()?.licenseAccepted).toBeUndefined();
+    store.acceptSetupLicense();
+    expect(store.getCheckoutSession()?.licenseAccepted).toBe(true);
+    const values = (globalThis as { window?: unknown }).window;
+    vi.resetModules();
+    vi.stubGlobal("window", values);
+    store = await import("./session-store");
+    expect(store.getCheckoutSession()?.licenseAccepted).toBe(true);
   });
 });
