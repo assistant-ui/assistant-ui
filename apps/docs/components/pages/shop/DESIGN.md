@@ -2,7 +2,7 @@
 
 - The frame never resizes: every page renders in one fixed size, and only the viewport caps it.
 - Page content never scrolls. The install step list is the exception: the title and progress bar stay put while the list scrolls under a fade and follows the step in progress. The list keeps the step in progress in the middle of its area and fades the bottom `4rem`, short enough that the next step's title stays legible below the centered one; the first steps rest at the top and the last ones at the bottom instead of reaching the middle, and while the setup is live the list pads its end by `6`, so the last step clears the fade.
-- The intro page fits the frame. Its title names up to two products; a longer list moves under the title as helper text (`Setting up A, B, and C.`), so the title stays one line.
+- The intro page fits the frame. Its title names at most two products; a longer list moves under the title as helper text (`Setting up A, B, and C.`), so the title stays short. A pair of long names can still wrap once.
 - The agent-disconnected notice is a modal that hides the content until the agent reconnects. It always shows the prompt, and Copy prompt is its only visible action; a More options menu beside it carries Leave, which keeps the session running, and End setup, which asks for the same confirmation as Cancel.
 - The key step shows an explicit test result before Next.
 - Back and Leave keep the session running; only the End setup confirmation ends it, reached from Cancel or the disconnected notice.

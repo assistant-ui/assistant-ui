@@ -88,7 +88,7 @@ const listProducts = (names: string[]) =>
     names,
   );
 
-/** The most products the welcome title names; a longer list moves under it, so the title stays one line. */
+/** The most products the welcome title names; a longer list moves under it, so the title stays short. */
 const TITLE_PRODUCTS = 2;
 
 function ConnectionNotice({
