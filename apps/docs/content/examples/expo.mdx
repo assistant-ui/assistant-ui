@@ -79,6 +79,7 @@ The hosted docs endpoint issues signed anonymous sessions to browser demos. Nati
 `AssistantRuntimeProvider` wraps the Expo Router drawer layout inside a `GestureHandlerRootView`. The layout also handles theming, a "New Chat" button in the header, and tool registration via the provider's `config`. The sample is abridged: the full file also maps the theme's CSS variables onto the navigation theme and registers suggestions.
 
 ```tsx title="app/_layout.tsx"
+import "../global.css";
 import { DarkTheme, DefaultTheme, ThemeProvider } from "expo-router";
 import { Drawer, type DrawerContentComponentProps } from "expo-router/drawer";
 import { StatusBar } from "expo-status-bar";
