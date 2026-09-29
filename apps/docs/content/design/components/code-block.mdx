@@ -45,6 +45,20 @@ export function Example() {
 
 ## Examples
 
+### Collapse long code
+
+Set `maxCollapsedLines` to keep a long block compact. It measures the rendered line height after mount, so the initial viewport holds that many complete lines, then offers the full source without changing what the copy button copies.
+
+```tsx
+<CodeBlock maxCollapsedLines={12} title="generated.ts">
+  <pre>
+    <code>{source}</code>
+  </pre>
+</CodeBlock>
+```
+
+The toggle appears only when the rendered code has more than the requested number of lines.
+
 ### Without a title
 
 When there is no header, the copy button floats in the corner and appears on hover.
@@ -74,6 +88,11 @@ When there is no header, the copy button floats in the corner and appears on hov
       name: "copyText",
       type: "string",
       description: "Text for the copy button; defaults to the rendered code's text.",
+    },
+    {
+      name: "maxCollapsedLines",
+      type: "number",
+      description: "Positive line limit before the viewport collapses. The full code remains available to the copy button.",
     },
     {
       name: "className",

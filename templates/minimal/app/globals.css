@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "tw-shimmer";
 
 @custom-variant data-open (&:where([data-state="open"], [data-open]:not([data-open="false"])));
 @custom-variant data-closed (&:where([data-state="closed"], [data-closed]:not([data-closed="false"])));
@@ -63,16 +64,6 @@
   --radius-xl: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: 1.5rem;
-  --animate-shimmer: shimmer-sweep var(--shimmer-duration, 1000ms) linear
-    infinite both;
-  @keyframes shimmer-sweep {
-    from {
-      background-position: 150% 0;
-    }
-    to {
-      background-position: -100% 0;
-    }
-  }
 }
 
 :root {

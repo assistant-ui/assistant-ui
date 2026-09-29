@@ -72,6 +72,11 @@ export const collectTurnTimestamps = (
   }
   for (let i = resumesScan ? scanned.length : 0; i < events.length; i++) {
     const event = events[i]!;
+    // `type` arrives off the wire, so an inherited member such as
+    // `__proto__` would resolve here instead of missing, and be used as a
+    // timestamp key. Only the table's own entries count.
+    if (!Object.prototype.hasOwnProperty.call(ROLE_BY_EVENT_TYPE, event.type))
+      continue;
     const role = ROLE_BY_EVENT_TYPE[event.type];
     if (role === undefined) continue;
     const data: unknown = (event as { readonly data?: unknown }).data;

@@ -1,5 +1,11 @@
 # @assistant-ui/react-markdown
 
+## 0.14.17
+
+### Patch Changes
+
+- [#8039](https://github.com/assistant-ui/assistant-ui/pull/8039) [`41ec387`](https://github.com/assistant-ui/assistant-ui/commit/41ec38783a0a1ed60bf60faae7bf466ac37475e0) - fix(markdown): end quoted code fences and `$$` blocks where their own blockquote ends, so a deeper `>` line no longer closes one early and a blank or shallower line no longer leaves one open ([@rupic-app](https://github.com/apps/rupic-app))
+
 ## 0.14.16
 
 ### Patch Changes

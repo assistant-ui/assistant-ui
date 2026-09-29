@@ -276,4 +276,42 @@ describe("RemoteThreadListHookInstanceManager title generation", () => {
     expect(titledMessages).toHaveLength(1);
     expect(titledMessages[0]).toMatchObject({ role: "user" });
   });
+
+  it("titles a new thread that another caller initialized first", async () => {
+    const generateTitle = vi.fn<RemoteThreadListAdapter["generateTitle"]>(
+      async () => new ReadableStream(),
+    );
+    const adapter = makeAdapter({ generateTitle });
+    const runtimeRef: { current: AssistantRuntime | null } = { current: null };
+
+    const App = () => {
+      const runtime = useRemoteThreadListRuntime({
+        adapter,
+        runtimeHook: function useThreadRuntime() {
+          return useLocalRuntime({ run: async () => ({ content: [] }) });
+        },
+      });
+      runtimeRef.current = runtime;
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<App />);
+    await waitFor(() => {
+      expect(runtimeRef.current?.threads.mainItem.getState().id).toBeDefined();
+    });
+
+    await act(async () => {
+      await runtimeRef.current!.threads.mainItem.initialize();
+    });
+    void getThreadCore(runtimeRef.current!).append(userMessage("hello"));
+
+    await waitFor(() => {
+      expect(generateTitle).toHaveBeenCalledTimes(1);
+    });
+    expect(adapter.initialize).toHaveBeenCalledTimes(1);
+  });
 });

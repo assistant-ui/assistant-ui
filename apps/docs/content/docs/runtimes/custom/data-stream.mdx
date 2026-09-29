@@ -184,6 +184,8 @@ const runtime = useDataStreamRuntime({
 });
 ```
 
+A `body` callback receives `{ threadId }`, the remote id of the thread being run when a thread list adapter has assigned one, so a request can carry it under the field name your endpoint expects.
+
 ## Event callbacks
 
 ```tsx
@@ -272,9 +274,7 @@ const runtime = useCloudRuntime({
 });
 ```
 
-<Callout type="info">
-`useCloudRuntime` is currently under active development and not yet ready for production.
-</Callout>
+`useCloudRuntime` runs an [Assistant Cloud assistant](/docs/cloud/assistants) on the active thread. It accepts the same options as `useDataStreamRuntime` apart from `api`, `protocol`, `headers`, and `body`, which the assistant supplies.
 
 ## LocalRuntimeOptions
 

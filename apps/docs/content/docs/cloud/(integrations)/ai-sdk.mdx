@@ -119,7 +119,7 @@ export default function ChatPage() {
 }
 ```
 
-For a prototype, omit `cloud`: with `NEXT_PUBLIC_ASSISTANT_BASE_URL` set, the runtime creates an anonymous client itself.
+For a prototype on Next.js, omit `cloud`: with `NEXT_PUBLIC_ASSISTANT_BASE_URL` set, the runtime creates an anonymous client itself. Vite, React Router and TanStack Start do not expose that variable to the browser; there, create `new AssistantCloud({ baseUrl: import.meta.env.VITE_ASSISTANT_BASE_URL, anonymous: true })` once, outside the component, and pass it.
 
 </Tab>
 <Tab value="React Native">
@@ -271,7 +271,7 @@ import { openai } from "@ai-sdk/openai";
 
 export async function POST(req: Request) {
   const { messages } = await req.json();
-  const model = openai("gpt-5.6-luna");
+  const model = openai("gpt-6-luna");
   const result = streamText({
     model,
     messages: await convertToModelMessages(messages),
@@ -302,7 +302,7 @@ export async function POST(req: Request) {
 
 | `useChatRuntime` option | Default | Behaviour |
 |---|---|---|
-| `cloud` | `undefined`, then an anonymous client from `NEXT_PUBLIC_ASSISTANT_BASE_URL` when that environment variable exists | Supplies the remote list and registers the AI SDK identity with the client. Without a client or that environment variable, the thread list remains in memory. |
+| `cloud` | `undefined`, then on Next.js an anonymous client from `NEXT_PUBLIC_ASSISTANT_BASE_URL` when that environment variable exists | Supplies the remote list and registers the AI SDK identity with the client. Without a client or that environment variable, the thread list remains in memory. |
 | `onThreadIdChange` | `undefined` | Receives the settled thread id whenever the remote thread list changes selection. Use it to keep a route or another store in sync. |
 | `transport` | The per-thread AI SDK transport configuration | Is forwarded to the chat for each thread. The cloud remote id is the chat id for the cloud-backed conversation. |
 | `adapters.history` | Cloud history adapter when a cloud client is available | Persists `ai-sdk/v6` messages and produces cloud run reports. A replacement used by this runtime must implement `withFormat`. |
@@ -329,6 +329,7 @@ Telemetry is configured on the `AssistantCloud` client, not on `useChatRuntime`.
 |---|---|---|
 | `enabled` | `true` | `false` prevents both run reports and engagement events. |
 | `events` | `true` when telemetry is enabled | `false` keeps run reports but drops engagement events. |
+| `messages` | `true` when telemetry is enabled | Has no effect on this runtime, which persists its own messages. |
 | `release` | Unset | Adds the value to every run report. |
 | `environment` | Unset | Adds the value to every run report. |
 | `tags` | Unset | Trims and de-duplicates values, limits each to 64 characters and keeps at most 20. |
@@ -336,9 +337,9 @@ Telemetry is configured on the `AssistantCloud` client, not on `useChatRuntime`.
 
 ## Persist and report a run
 
-The history adapter stores the AI SDK representation as `ai-sdk/v6`. It omits the local message id while writing, restores the server id while reading and preserves the stored parent link. Loading happens once for a thread, then waits for a remote id when one is not available yet.
+The history adapter stores the AI SDK representation as `ai-sdk/v6`. It omits the local message id while writing, restores the server id while reading and preserves the stored parent link. It stores tool artifacts, recorded interactions and approval answers in `__aui_toolArtifacts`, `__aui_toolInteractions` and `__aui_toolApprovalResponses`. Loading happens once for a thread, then waits for a remote id when one is not available yet.
 
-After a run settles, the external-history layer waits one macrotask before it writes. That debounce absorbs short-lived agentic step changes. It appends each new inner message with its parent chain, and updates an already stored message only when its encoded content changed and the run has a measured duration. Writes are serialized, so a later write follows the pending one.
+After a run settles, the external-history layer waits one macrotask before it writes. That debounce absorbs short-lived agentic step changes. It appends each new inner message with its parent chain, and updates an already stored message only when its encoded content changed, the run has a measured duration and the history adapter supports `update`. Tool artifacts, recorded interactions and approval answers update the stored message as soon as they are available. A message paused for approval is stored early when the history adapter supports `update`. Writes are serialized, so a later write follows the pending one.
 
 The same settling pass reports each assistant message once it is terminal. The runtime measures the duration from the run start to its last boundary, captures time to first token from streaming timing, and records step boundaries as new tool calls appear. It sends step timestamps when more than one boundary was observed.
 
@@ -408,5 +409,5 @@ Any backend that answers with an AI SDK UI message stream can use this runtime a
 | The Models page says *No run in this period reported a model* | The route did not put `modelId` in message metadata. Provider, usage and trace data are missing for the same reason when their keys are absent. | Return the metadata in the AI SDK route, as in the setup sample. |
 | History is empty after switching runtimes | Reading is one way. The messages API converts stored `aui/v0` rows to `ai-sdk/v6`, but the local runtime does not convert stored `ai-sdk/v6` rows back to `aui/v0`. | Use the AI SDK runtime to read local-runtime history. If you switched to the local runtime, start new threads or read the stored rows through [messages](/docs/cloud/api/messages). |
 | `useAISDKRuntime` says the history adapter is missing `withFormat` | A custom history adapter does not provide the format boundary required by AI SDK persistence. | Use the cloud history adapter, or implement `ThreadHistoryAdapter.withFormat` with a message-format adapter. |
-| The thread list stays in memory | `cloud` was omitted and `NEXT_PUBLIC_ASSISTANT_BASE_URL` is not set. | Set the environment variable for the React fallback, or construct and pass an `AssistantCloud` client. |
+| The thread list stays in memory | `cloud` was omitted, and `NEXT_PUBLIC_ASSISTANT_BASE_URL` is not set or the bundler does not expose it to the browser, as on Vite, React Router and TanStack Start. | On Next.js set the environment variable; elsewhere construct and pass an `AssistantCloud` client. |
 | A report cannot say whether a run stopped or disconnected | The stored-message path does not receive a live disconnect signal. | Treat the reported outcome as the information this runtime can observe. |

@@ -6,6 +6,7 @@ import {
   ChevronRightIcon,
 } from "lucide-react-native";
 import {
+  type ComponentRef,
   createContext,
   type FC,
   type PropsWithChildren,
@@ -164,7 +165,7 @@ export const ReasoningText: FC<ReasoningTextProps> = ({
   ...props
 }) => {
   const { isPreview } = useReasoningContext();
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
   const pinnedRef = useRef(true);
   const lastScrollYRef = useRef(0);
   const lastContentHeightRef = useRef(0);

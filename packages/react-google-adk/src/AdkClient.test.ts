@@ -124,6 +124,24 @@ describe.each(["direct", "proxy", "proxy batch"] as const)(
 // ── Proxy mode ──
 
 describe("createAdkStream - proxy mode", () => {
+  it("aborts while dynamic headers are pending", async () => {
+    const controller = new AbortController();
+    const stream = createAdkStream({
+      api: "/api/adk",
+      headers: () => new Promise<Record<string, string>>(() => {}),
+    });
+    const events = await stream(
+      [{ id: "m1", type: "human", content: "Hello" }],
+      makeConfig({ abortSignal: controller.signal }),
+    );
+
+    const next = events.next();
+    controller.abort();
+
+    await expect(next).rejects.toBe(controller.signal.reason);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
   it("accumulates snake_case image and file parts from SSE", async () => {
     const event = {
       id: "media",

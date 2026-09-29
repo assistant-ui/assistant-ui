@@ -44,7 +44,7 @@ curl https://backend.assistant-api.com/v1/auth/tokens \
 | Status | Body | When |
 |---|---|---|
 | `200` | `{ "token": "<HS256 JWT>" }` | The access token was minted. |
-| `403` | `{ "error": "This endpoint may only be accessed from the backend" }` | The credential was not an API key. |
+| `403` | Plain text: `This endpoint may only be accessed from the backend` | The credential was not an API key. |
 | `401` or `403` | An authentication error. | The API key or required API key headers were not accepted. See [Conventions](/docs/cloud/api). |
 
 Minting a token does not create a user, workspace, thread, or refresh token. It may record the API key's last use in the background. Repeating the request produces another access token with a new issuance time.
@@ -80,9 +80,9 @@ curl https://proj-0ltyjcuaxpv1.assistant-api.com/v1/auth/tokens/anonymous \
 | Status | Body | When |
 |---|---|---|
 | `200` | `{ "refresh_token": { "token", "expires_at" }, "access_token" }` | An anonymous identity and its tokens were created. |
-| `403` | `{ "error": "Invalid issuer format or projectId" }` | The request host does not identify a project. |
-| `403` | `{ "error": "Anonymous access is not allowed" }` | The project does not permit anonymous sessions. |
-| `404` | `{ "error": "Project not found" }` | The host identifies no live project. |
+| `403` | Plain text: `Invalid issuer format or projectId` | The request host does not identify a project. |
+| `403` | Plain text: `Anonymous access is not allowed` | The project does not permit anonymous sessions. |
+| `404` | Plain text: `Project not found` | The host identifies no live project. |
 | `429` | `{ "error": "rate_limited" }` | The client IP exceeded 30 requests in 60 seconds. |
 
 On success, Assistant Cloud creates a `usr_anon_0…` identity and uses it as both the user id and workspace id. It creates a refresh token row that expires 30 days later, then returns a five minute access token. The project policy is checked again as the refresh token is created, so a policy change during the request still answers `Anonymous access is not allowed`.
@@ -123,11 +123,11 @@ curl https://proj-0ltyjcuaxpv1.assistant-api.com/v1/auth/tokens/refresh \
 |---|---|---|
 | `200` | `{ "refresh_token": { "token", "expires_at" }, "access_token" }` | The anonymous session was refreshed. |
 | `400` | `{ "success": false, "error": … }` | `refresh_token` is missing or empty. |
-| `403` | `{ "error": "Invalid refresh token format" }` | The token does not start with `refresh_0`. |
-| `403` | `{ "error": "Invalid refresh token" }` | No live anonymous token for an anonymous enabled project matches. |
-| `403` | `{ "error": "Invalid issuer format or projectId" }` | The request host does not identify a project. |
-| `403` | `{ "error": "Anonymous access is not allowed" }` | The project does not permit anonymous sessions. |
-| `404` | `{ "error": "Project not found" }` | The host identifies no live project. |
+| `403` | Plain text: `Invalid refresh token format` | The token does not start with `refresh_0`. |
+| `403` | Plain text: `Invalid refresh token` | No live anonymous token for an anonymous enabled project matches. |
+| `403` | Plain text: `Invalid issuer format or projectId` | The request host does not identify a project. |
+| `403` | Plain text: `Anonymous access is not allowed` | The project does not permit anonymous sessions. |
+| `404` | Plain text: `Project not found` | The host identifies no live project. |
 | `429` | `{ "error": "rate_limited" }` | The client IP exceeded 120 requests in 60 seconds. |
 
 Refresh is idempotent for identity. The refresh token is not rotated. Its expiry is moved forward to 30 days from the successful refresh, so a client that loses the response can retry without receiving a different anonymous identity.

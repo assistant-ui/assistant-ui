@@ -9,6 +9,8 @@ import { VercelIcon } from "@/components/icons/vercel";
 
 Helicone is independent of which assistant-ui runtime you use. It slots in at the LLM-client layer (OpenAI SDK, AI SDK provider, or any HTTP-based provider client) on the server, not at the assistant-ui client runtime layer. So it pairs with any backend: AI SDK, LangGraph, Mastra, custom.
 
+<AgentSetup product="guides/helicone" />
+
 ## How it works
 
 ```mermaid
@@ -57,7 +59,7 @@ const openai = createOpenAI({
 export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
   });
   return result.toUIMessageStreamResponse();
@@ -80,7 +82,7 @@ const openai = new OpenAI({
 export async function POST(req: Request) {
   const { messages } = await req.json();
   const stream = await openai.chat.completions.create({
-    model: "gpt-5.6-luna",
+    model: "gpt-6-luna",
     messages,
     stream: true,
   });
