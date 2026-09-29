@@ -90,7 +90,7 @@ The fold stamps an approval onto that tool part and sets the message status to `
 { "type": "user.tool_confirmation", "tool_use_id": "sevt_...", "result": "deny", "deny_message": "Not on this box." }
 ```
 
-Two wire details matter. The `tool_use_id` is the tool-use event id, not an Anthropic `toolu_` id. A denial reaches the agent as the tool's result, so it adjusts course instead of retrying the same command.
+Two wire details matter. The `tool_use_id` is the tool-use event id, not an Anthropic `toolu_` id. A denial reaches the agent as the tool's result, so the agent sees the rejection and can choose another action.
 
 Custom client-executed tools use the same `requires_action` stop but take a `user.custom_tool_result` instead of a confirmation; sending a confirmation for one returns a 400. The quickstart's inline chart tool is an example: the session pauses, the card renders the chart from the tool's input, and the client answers so the agent continues.
 
