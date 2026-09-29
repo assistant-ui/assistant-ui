@@ -656,6 +656,8 @@ function ButtonRender({
   $dispatch,
 }: ButtonRenderProps) {
   const bindings = React.useContext(A2uiBindingContext!)?.fields;
+  const bindingsRef = React.useRef(bindings);
+  bindingsRef.current = bindings;
   const [remaining, setRemaining] = React.useState<number | undefined>(
     undefined,
   );
@@ -688,11 +690,11 @@ function ButtonRender({
           action.$dispatch,
           undefined,
           action.source,
-          bindings,
+          bindingsRef.current,
         );
     }, 1_000);
     return () => clearTimeout(timer);
-  }, [remaining, bindings]);
+  }, [remaining]);
 
   const cancelUndo = () => {
     pendingAction.current = undefined;

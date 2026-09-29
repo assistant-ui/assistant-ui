@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 
-import { act } from "react";
+import { act, useState } from "react";
 import { createRoot, hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { convertSurfaceToUISpec } from "../a2ui/convert";
+import { A2uiBindingContext } from "../a2ui/BindingContext";
 import { applyA2uiOperations } from "../a2ui/reducer";
 import { createActionRegistry, type ActionHandler } from "../actionRegistry";
 import { AnsweredValuesProvider } from "../answeredValues";
@@ -425,6 +426,69 @@ describe("CheckboxGroup", () => {
 });
 
 describe("Button undo window", () => {
+  it("keeps counting down while a bound input changes and dispatches its latest value", async () => {
+    vi.useFakeTimers();
+    const save = vi.fn();
+    const container = document.createElement("div");
+    document.body.append(container);
+    const registry = createActionRegistry({ save });
+    const BindingContext = A2uiBindingContext!;
+    const Surface = () => {
+      const [name, setName] = useState("Initial");
+      return (
+        <BindingContext.Provider
+          value={{
+            fields: new Map([["/name", { value: name, arrayValue: false }]]),
+            update: (_path, value) => setName(String(value)),
+          }}
+        >
+          <div data-aui="root">
+            {renderGenerativeUI(
+              [
+                { $type: "Input", name: "/name", value: name },
+                {
+                  $type: "Button",
+                  label: "Save",
+                  undoable: true,
+                  $action: { type: "save", name: { $field: "/name" } },
+                },
+              ],
+              defaultGenerativeUILibrary,
+              { status: "done", dispatch: registry.dispatch },
+            )}
+          </div>
+        </BindingContext.Provider>
+      );
+    };
+    root = createRoot(container);
+    await act(async () => root!.render(<Surface />));
+    const button = container.querySelector<HTMLButtonElement>("button")!;
+    const input = container.querySelector<HTMLInputElement>("input")!;
+    await act(async () => button.click());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )!.set!.call(input, "Edited");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(button.textContent).toContain("Undo 4");
+    for (let seconds = 0; seconds < 4; seconds++) {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_000);
+      });
+    }
+    expect(save).toHaveBeenCalledWith({
+      payload: { type: "save", name: "Edited" },
+    });
+  });
+
   it("counts down for five seconds before firing once", async () => {
     vi.useFakeTimers();
     const purchase = vi.fn();

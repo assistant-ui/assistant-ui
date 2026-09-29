@@ -288,6 +288,7 @@ const sourceSurfaceId = (surface: A2uiSurfaceState): string =>
 
 type ConversionContext = {
   readonly surface: A2uiSurfaceState;
+  readonly stepModel: unknown;
   readonly surfaceId: string;
   readonly warnings: string[];
   emittedNodes: number;
@@ -757,7 +758,14 @@ const mappedProps = (
     const max = finiteNumber(props["max"]);
     if (max === undefined || max < min) return undefined;
     const value = finiteNumber(props["value"]);
-    const step = sliderStep(min, max, value, props["steps"]);
+    const step = sliderStep(
+      min,
+      max,
+      name === undefined
+        ? value
+        : finiteNumber(resolvePointer(context.stepModel, name)),
+      props["steps"],
+    );
     return {
       $type: "Slider",
       min,
@@ -1084,6 +1092,7 @@ export const createLiveSurfaceConverter = (surface: A2uiSurfaceState) => {
       bindings,
       cache,
       templates,
+      surface.dataModel,
     );
     return { ...converted, bindings };
   };
@@ -1095,6 +1104,7 @@ function convertSurface(
   bindings?: Map<string, A2uiBinding>,
   cache?: Map<string, CachedComponent>,
   templates = new Map<string, ExpressionPart[] | null>(),
+  stepModel: unknown = surface.dataModel,
 ): { spec: UIElement | null; warnings: string[] } {
   const warnings: string[] = [];
   if (!surface.components.has("root")) {
@@ -1105,6 +1115,7 @@ function convertSurface(
   }
   const context: ConversionContext = {
     surface,
+    stepModel,
     surfaceId: sourceSurfaceId(surface),
     warnings,
     emittedNodes: 0,

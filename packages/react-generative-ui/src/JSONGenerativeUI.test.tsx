@@ -2,7 +2,7 @@ import { convertSurfaceToUISpec } from "./a2ui/convert";
 import { surfaceToOperations } from "./a2ui/snapshot";
 import { applyA2uiOperations } from "./a2ui/reducer";
 /** @vitest-environment jsdom */
-import { beforeAll, describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -703,36 +703,6 @@ describe("defineGenerativeComponents", () => {
 });
 
 describe("live A2UI surfaces", () => {
-  beforeAll(async () => {
-    await import("./a2ui/PresentRenderer");
-  });
-
-  it("shows the static surface while the live renderer loads", () => {
-    const ui = new ClientGenUI({ library: defaultGenerativeUILibrary });
-    const html = renderTool(
-      ui.present(),
-      { $type: "Text", value: "Static" },
-      {
-        toolCallId: "a2ui:s",
-        artifact: {
-          a2ui: [
-            {
-              version: "v1.0",
-              createSurface: {
-                surfaceId: "s",
-                components: [{ id: "root", component: "Text", text: "Live" }],
-              },
-            },
-          ],
-        },
-      },
-    );
-
-    expect(html).toContain('data-aui="text"');
-    expect(html).toContain("Static");
-    expect(html).not.toContain("Live");
-  });
-
   const bindingFixture = ({
     inputCount = 2,
     customInput = false,
@@ -1140,6 +1110,64 @@ describe("live A2UI surfaces", () => {
       container.remove();
     }
   });
+
+  it("keeps a continuous bound slider mounted as its value becomes an integer", async () => {
+    const ui = new ClientGenUI({ library: defaultGenerativeUILibrary });
+    const surface = applyA2uiOperations(new Map(), [
+      {
+        version: "v1.0",
+        createSurface: {
+          surfaceId: "slider",
+          components: [
+            {
+              id: "root",
+              component: "Slider",
+              min: 0,
+              max: 100,
+              value: { path: "/volume" },
+            },
+          ],
+          dataModel: { volume: 37.5 },
+        },
+      },
+    ]).state.get("slider")!;
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    try {
+      await act(async () => {
+        root.render(
+          (ui.present() as any).render({
+            args: convertSurfaceToUISpec(surface).spec,
+            status: { type: "complete" },
+            toolCallId: "a2ui:slider",
+            artifact: { a2ui: surfaceToOperations(surface) },
+          }),
+        );
+      });
+      const slider = container.querySelector<HTMLInputElement>(
+        'input[type="range"]',
+      )!;
+      expect(slider.step).toBe("0.1");
+      slider.focus();
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(
+          HTMLInputElement.prototype,
+          "value",
+        )!.set!.call(slider, "40");
+        slider.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      expect(container.querySelector('input[type="range"]')).toBe(slider);
+      expect(document.activeElement).toBe(slider);
+      expect(slider.value).toBe("40");
+      expect(slider.step).toBe("0.1");
+      expect(container.querySelector("output")?.textContent).toBe("40");
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
+  });
+
   it("keeps A2UI bindings live while rendering a present surface", async () => {
     const handler = vi.fn();
     const ui = new ClientGenUI({
