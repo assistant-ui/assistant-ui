@@ -703,6 +703,32 @@ describe("defineGenerativeComponents", () => {
 });
 
 describe("live A2UI surfaces", () => {
+  it("shows the static surface while the live renderer loads", () => {
+    const ui = new ClientGenUI({ library: defaultGenerativeUILibrary });
+    const html = renderTool(
+      ui.present(),
+      { $type: "Text", value: "Static" },
+      {
+        toolCallId: "a2ui:s",
+        artifact: {
+          a2ui: [
+            {
+              version: "v1.0",
+              createSurface: {
+                surfaceId: "s",
+                components: [{ id: "root", component: "Text", text: "Live" }],
+              },
+            },
+          ],
+        },
+      },
+    );
+
+    expect(html).toContain('data-aui="text"');
+    expect(html).toContain("Static");
+    expect(html).not.toContain("Live");
+  });
+
   const bindingFixture = ({
     inputCount = 2,
     customInput = false,

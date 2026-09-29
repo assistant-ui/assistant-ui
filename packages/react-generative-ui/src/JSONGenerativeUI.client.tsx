@@ -1,6 +1,6 @@
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { getPartialJsonObjectMeta } from "assistant-stream/utils";
-import type { ReactNode } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { AnsweredValuesProvider, findAnsweredValues } from "./answeredValues";
 import { buildPresentParameters } from "./buildPresentParameters";
 import {
@@ -15,7 +15,12 @@ import {
 import { type ActionRegistry } from "./actionRegistry";
 import { renderGenerativeUI } from "./renderGenerativeUI";
 import type { GenerativeUILibrary, GenerativeUIStatus } from "./types";
-import { A2uiPresentRenderer } from "./a2ui/PresentRenderer";
+
+const A2uiPresentRenderer = lazy(() =>
+  import("./a2ui/PresentRenderer").then(({ A2uiPresentRenderer }) => ({
+    default: A2uiPresentRenderer,
+  })),
+);
 
 // A cancelled argument stream can leave a tool waiting with partial arguments.
 function uiStatus(
@@ -114,22 +119,25 @@ export class JSONGenerativeUI {
       typeof toolCallId === "string" && toolCallId.startsWith("a2ui:")
         ? toolCallId.slice("a2ui:".length)
         : undefined;
+    const staticSurface = renderGenerativeUI(args, this.library, {
+      status: uiStatus(status, args),
+      ...(dispatch ? { dispatch } : {}),
+    });
     const rendered =
       surfaceId && Array.isArray(artifactValue) ? (
-        <A2uiPresentRenderer
-          key={surfaceId}
-          surfaceId={surfaceId}
-          operations={artifactValue}
-          fallback={args}
-          library={this.library}
-          status={uiStatus(status, args)}
-          {...(dispatch ? { dispatch } : {})}
-        />
+        <Suspense fallback={staticSurface}>
+          <A2uiPresentRenderer
+            key={surfaceId}
+            surfaceId={surfaceId}
+            operations={artifactValue}
+            fallback={args}
+            library={this.library}
+            status={uiStatus(status, args)}
+            {...(dispatch ? { dispatch } : {})}
+          />
+        </Suspense>
       ) : (
-        renderGenerativeUI(args, this.library, {
-          status: uiStatus(status, args),
-          ...(dispatch ? { dispatch } : {}),
-        })
+        staticSurface
       );
 
     return (
