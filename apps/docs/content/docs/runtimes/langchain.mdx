@@ -71,7 +71,7 @@ Shared adapters (attachments, speech, feedback) work the same way described in [
 ```tsx title="@/components/MyAssistant.tsx"
 "use client";
 
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useStreamRuntime } from "@assistant-ui/react-langchain";
 
@@ -93,7 +93,7 @@ export function MyAssistant() {
 <Tab value="React Native">
 
 ```tsx title="components/MyAssistant.tsx"
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { AssistantRuntimeProvider } from "@assistant-ui/react-native";
 import { useStreamRuntime } from "@assistant-ui/react-langchain";
 
@@ -231,7 +231,7 @@ LANGGRAPH_ASSISTANT_ID=your_graph_id
 <PlatformTabs>
 <Tab value="React">
 
-Follow the [UI Components guide](/docs/ui/thread).
+Follow the [UI Components guide](/elements/thread).
 
 </Tab>
 <Tab value="React Native">
@@ -255,7 +255,11 @@ Follow the [Ink setup](/docs/ink).
 
 | Option | Type | Description |
 | --- | --- | --- |
-| `cloud` | `AssistantCloud` | Optional. Persists threads via assistant-cloud. |
+| `cloud` | `AssistantCloud` | Optional. Uses Assistant Cloud for the thread list and a copy of settled messages for the dashboard. |
+| `create` | `() => Promise<{ externalId: string \| undefined }>` | Optional. Creates a thread in your backend. |
+| `delete` | `(threadId: string) => Promise<void>` | Optional. When Cloud owns the thread list, called before a thread is deleted and given its Cloud thread id; read that thread's `external_id` to delete the backend thread, as [LangGraph](/docs/cloud/langgraph) shows. |
+| `onThreadIdChange` | `(threadId: string \| undefined) => void` | Optional. Called when the active thread's canonical ID changes. |
+| `unstable_threadListAdapter` | `RemoteThreadListAdapter` | Optional. Replaces the Cloud thread list adapter. |
 | `adapters` | `{ attachments?, speech?, feedback? }` | Optional. Attachment, speech, and feedback adapters. |
 | `messagesKey` | `string` | The state key that holds messages. Defaults to `"messages"`. |
 | `uiStateKey` | `string` | The state key that holds generative `UIMessage`s. Defaults to `"ui"`. |
@@ -648,7 +652,9 @@ function Discovered() {
 
 ## Subagent and subgraph views
 
-The discovery maps above pair with v1's scoped selector hooks to render a subagent's or subgraph's own messages and tool calls. `useLangChainStream` exposes the underlying `useStream` handle; feed it to `useMessages(stream, target)` / `useToolCalls(stream, target)` from `@langchain/react`, with a `SubagentDiscoverySnapshot` / `SubgraphDiscoverySnapshot` from `useLangChainSubagents` / `useLangChainSubgraphs` as the target. `useLangChainStream` returns `undefined` outside the runtime provider.
+Every `task` subagent transcript is attached to its spawning tool call as `ToolCallMessagePart.messages`, keyed by the `task` tool call id. It streams while the subagent runs and nests recursively up to sixteen levels deep when subagents spawn subagents. `MessagePartPrimitive.Messages` renders the transcript and `s.thread.tasks` lists it. See [Multi-agent tools](/docs/tools/multi-agent). Threads loaded from history carry these transcripts because the SDK seeds `stream.subagents` from checkpoint messages and seeds the scoped message projections from history.
+
+The discovery maps above pair with v1's scoped selector hooks to build a custom subagent or subgraph view. `useLangChainStream` exposes the underlying `useStream` handle; feed it to `useMessages(stream, target)` / `useToolCalls(stream, target)` from `@langchain/react`, with a `SubagentDiscoverySnapshot` / `SubgraphDiscoverySnapshot` from `useLangChainSubagents` / `useLangChainSubgraphs` as the target. `useLangChainStream` returns `undefined` outside the runtime provider.
 
 ```tsx
 import {
@@ -745,7 +751,7 @@ import {
   AssistantRuntimeProvider,
   makeAssistantDataUI,
 } from "@assistant-ui/react";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { useStreamRuntime } from "@assistant-ui/react-langchain";
 
 const ChartUI = makeAssistantDataUI({
@@ -796,7 +802,7 @@ import { convertLangChainBaseMessage } from "@assistant-ui/react-langchain";
 
 ## Cloud persistence
 
-Pass an `AssistantCloud` instance to persist threads across sessions. The runtime automatically wires thread list management and resumes state from the cloud.
+Pass an `AssistantCloud` instance to persist the thread list across sessions. `useStream({ threadId: externalId })` loads state from the LangGraph server, not from Assistant Cloud. The runtime copies settled messages to Assistant Cloud for the dashboard; set `telemetry: { messages: false }` on the cloud client to disable that copy.
 
 ```tsx
 // see "AssistantCloud" in /docs/runtimes/concepts/threads for cloud setup

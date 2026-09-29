@@ -50,7 +50,7 @@ export const chefAgent = new Agent({
   instructions:
     "You are Michel, a practical and experienced home chef. " +
     "You help people cook with whatever ingredients they have available.",
-  model: "openai/gpt-5.6-luna",
+  model: "openai/gpt-6-luna",
 });
 ```
 
@@ -130,7 +130,7 @@ Open the file containing `useChatRuntime` (typically `app/assistant.tsx`) and pa
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export const Assistant = () => {
   const runtime = useChatRuntime({

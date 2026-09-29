@@ -1,5 +1,7 @@
+const EMPTY = Symbol("last-valid-cache.empty");
+
 /**
- * Guards a by-index scope resolution across a collection shrink. The scope
+ * Guards a positional or id-addressed scope resolution across a collection shrink. The scope
  * re-resolves inside the store notification, before the binding's queued
  * render can unmount it, so a shrink briefly reads out of bounds; `resolve`
  * serves the last valid item for exactly that window. Every stale serve
@@ -18,14 +20,14 @@ export const createLastValidCache = <T>(
   reportStale: (() => void) | null,
   scheduleExpiry: (callback: () => void) => void,
 ) => {
-  let last: T | undefined;
+  let last: T | typeof EMPTY = EMPTY;
   let generation = 0;
   const expire = () => {
     const scheduledAt = generation;
     scheduleExpiry(() => {
       if (generation !== scheduledAt) return;
-      if (last === undefined) return;
-      last = undefined;
+      if (last === EMPTY) return;
+      last = EMPTY;
       reportStale?.();
     });
   };
@@ -36,14 +38,14 @@ export const createLastValidCache = <T>(
         last = resolveItem();
         return last;
       }
-      if (last) expire();
-      return last ?? resolveItem();
+      if (last !== EMPTY) expire();
+      return last === EMPTY ? resolveItem() : last;
     },
   };
 };
 
 /**
- * The standard `reportStale` callback for a by-index provider: skipped when
+ * The standard `reportStale` callback for a by-index or by-id provider: skipped when
  * the provider is disposed or its props moved on, re-checked against the live
  * collection (an unavailable parent scope counts as still stale), and logged
  * through `console.error` so the misuse is visible where the subsequent
@@ -52,7 +54,7 @@ export const createLastValidCache = <T>(
 export const createStaleReporter =
   (options: {
     name: string;
-    index: number;
+    index: number | string;
     isCurrent: () => boolean;
     isValid: () => boolean;
   }) =>
@@ -64,6 +66,8 @@ export const createStaleReporter =
       // the parent scope itself is unavailable; report either way
     }
     console.error(
-      `${options.name}: index ${options.index} is still out of bounds after the update settled; the scope throws on its next resolution.`,
+      typeof options.index === "string"
+        ? `${options.name}: id "${options.index}" is no longer present after the update settled; the scope throws on its next resolution.`
+        : `${options.name}: index ${options.index} is still out of bounds after the update settled; the scope throws on its next resolution.`,
     );
   };

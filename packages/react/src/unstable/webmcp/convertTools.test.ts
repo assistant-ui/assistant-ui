@@ -1,0 +1,595 @@
+import { describe, expect, it, vi } from "vitest";
+import { z } from "zod";
+import { ToolResponse, type Tool } from "assistant-stream";
+import {
+  defaultWebMcpFilter,
+  toMcpContent,
+  toWebMcpTool,
+} from "./convertTools";
+
+type WeatherArgs = { city: string; unit?: "c" | "f" | undefined };
+type FrontendTool = Extract<Tool<WeatherArgs, unknown>, { type: "frontend" }>;
+
+const jsonSchema: FrontendTool["parameters"] = {
+  type: "object",
+  properties: { city: { type: "string" } },
+  required: ["city"],
+};
+
+const frontendTool = (overrides: Partial<FrontendTool> = {}): FrontendTool => ({
+  type: "frontend",
+  description: "Get the weather for a city.",
+  parameters: jsonSchema,
+  execute: async ({ city }) => `Sunny in ${city}`,
+  ...overrides,
+});
+
+const frontendToolWithoutExecute = (): FrontendTool => ({
+  type: "frontend",
+  description: "Get the weather for a city.",
+  parameters: jsonSchema,
+});
+
+const typeLessTool = (): Tool<WeatherArgs, unknown> => ({
+  description: "Get the weather for a city.",
+  parameters: jsonSchema,
+  execute: async ({ city }) => `Sunny in ${city}`,
+});
+
+const typeLessToolWithoutExecute = (): Tool<WeatherArgs, unknown> => ({
+  type: undefined,
+});
+
+const descriptorFor = (
+  overrides: Partial<FrontendTool> = {},
+  lifecycleSignal?: AbortSignal,
+) => toWebMcpTool("t", () => frontendTool(overrides), lifecycleSignal);
+
+const text = (value: string) => ({ type: "text", text: value });
+
+describe("defaultWebMcpFilter", () => {
+  it.for([
+    ["exposes an enabled frontend tool", frontendTool(), true],
+    [
+      "hides a backend tool",
+      { ...frontendTool(), type: "backend" } as unknown as Tool<
+        WeatherArgs,
+        unknown
+      >,
+      false,
+    ],
+    [
+      "hides a frontend tool with no execute",
+      frontendToolWithoutExecute(),
+      false,
+    ],
+    ["hides a disabled frontend tool", frontendTool({ disabled: true }), false],
+    ["exposes a tool authored without a type", typeLessTool(), true],
+    [
+      "hides a type-less tool with no execute",
+      typeLessToolWithoutExecute(),
+      false,
+    ],
+  ] as const)("%s", ([, tool, expected]) => {
+    expect(defaultWebMcpFilter("t", tool)).toBe(expected);
+  });
+});
+
+describe("toWebMcpTool descriptor", () => {
+  it("projects name, description, and the input schema", () => {
+    const descriptor = toWebMcpTool("get_weather", () => frontendTool());
+    expect(descriptor.name).toBe("get_weather");
+    expect(descriptor.description).toBe("Get the weather for a city.");
+    expect(descriptor.inputSchema).toEqual(jsonSchema);
+
+    expect(
+      descriptorFor({ parameters: z.object({ city: z.string() }) }).inputSchema,
+    ).toMatchObject(jsonSchema);
+
+    const bare = toWebMcpTool("bare", () => ({ type: "backend" }));
+    expect(bare.description).toBe("");
+    expect(bare.inputSchema).toEqual({ type: "object", properties: {} });
+  });
+
+  it("throws at construction for a schema that cannot convert", () => {
+    const badSchema = {
+      "~standard": { version: 1, validate: () => ({ issues: undefined }) },
+    };
+    expect(() => descriptorFor({ parameters: badSchema as any })).toThrow();
+  });
+});
+
+describe("toWebMcpTool execute", () => {
+  it("passes the arguments through, defaulting missing arguments to {}", async () => {
+    const execute = vi.fn(async () => "Sunny in Paris");
+    const descriptor = descriptorFor({ execute });
+
+    const result = await descriptor.execute({ city: "Paris" });
+    expect(execute).toHaveBeenCalledWith(
+      { city: "Paris" },
+      expect.objectContaining({ toolCallId: expect.any(String) }),
+    );
+    expect(result).toEqual({ content: [text("Sunny in Paris")] });
+
+    await descriptor.execute(undefined);
+    expect(execute).toHaveBeenLastCalledWith({}, expect.anything());
+  });
+
+  it.for([
+    ["serializes a non-string result", { ok: true }, '{"ok":true}'],
+    [
+      "falls back to String() for an unserializable result",
+      Symbol("opaque"),
+      "Symbol(opaque)",
+    ],
+  ] as const)("%s", async ([, value, expected]) => {
+    const result = await descriptorFor({
+      execute: async () => value,
+    }).execute({});
+    expect(result).toEqual({ content: [text(expected)] });
+  });
+
+  it("reports a thrown value as an error result", async () => {
+    const throwing = (value: unknown) =>
+      descriptorFor({
+        execute: async () => {
+          throw value;
+        },
+      });
+    await expect(throwing(new Error("boom")).execute({})).resolves.toEqual({
+      isError: true,
+      content: [text("boom")],
+    });
+    await expect(throwing("raw string boom").execute({})).resolves.toEqual({
+      isError: true,
+      content: [text("raw string boom")],
+    });
+    await expect(throwing({ code: 500 }).execute({})).resolves.toEqual({
+      isError: true,
+      content: [text("[object Object]")],
+    });
+
+    const circular: Record<string, unknown> = { a: 1 };
+    circular["self"] = circular;
+    const unserializable = await descriptorFor({
+      execute: async () => circular,
+    }).execute({});
+    expect(unserializable.isError).toBe(true);
+  });
+
+  it("reports an error when a published tool has no client-side execute", async () => {
+    await expect(
+      toWebMcpTool("t", frontendToolWithoutExecute).execute({}),
+    ).resolves.toEqual({
+      isError: true,
+      content: [text('Tool "t" has no client-side implementation.')],
+    });
+  });
+
+  it("projects values JSON cannot serialize but that have a string form", async () => {
+    await expect(
+      descriptorFor({ execute: async () => 9007199254740993n }).execute({}),
+    ).resolves.toEqual({ content: [text("9007199254740993")] });
+    await expect(
+      descriptorFor({ execute: async () => Symbol("ticket") }).execute({}),
+    ).resolves.toEqual({ content: [text("Symbol(ticket)")] });
+  });
+
+  it("rejects human input requests", async () => {
+    const result = await descriptorFor({
+      execute: async (_args, context) => await context.human(undefined),
+    }).execute({});
+    expect(result).toEqual({
+      isError: true,
+      content: [text("human input not supported in WebMCP context")],
+    });
+  });
+});
+
+describe("toWebMcpTool schema validation", () => {
+  const zodTool = (overrides: Omit<Partial<FrontendTool>, "parameters"> = {}) =>
+    descriptorFor({
+      parameters: z.object({ city: z.string() }),
+      ...overrides,
+    });
+
+  it("runs execute unchanged when the arguments validate", async () => {
+    const execute = vi.fn(async () => "ok");
+    const result = await zodTool({ execute }).execute({ city: "Paris" });
+    expect(execute).toHaveBeenCalledWith({ city: "Paris" }, expect.anything());
+    expect(result).toEqual({ content: [text("ok")] });
+  });
+
+  it("uses schema output for execution and model content", async () => {
+    const args = { city: " Paris ", extra: true };
+    const result = await descriptorFor({
+      parameters: z.object({
+        city: z.string().trim(),
+        unit: z.enum(["c", "f"]).default("c"),
+      }),
+      execute: ({ city, unit }) => `Weather in ${city} (${unit})`,
+      toModelOutput: ({ input, output }) => [
+        { type: "text", text: `${JSON.stringify(input)}: ${output}` },
+      ],
+    }).execute(args);
+
+    expect(result).toEqual({
+      content: [text('{"city":"Paris","unit":"c"}: Weather in Paris (c)')],
+    });
+    expect(args).toEqual({ city: " Paris ", extra: true });
+  });
+
+  it("returns a validation error when the arguments do not validate", async () => {
+    const execute = vi.fn(async () => "ok");
+    const result = await zodTool({ execute }).execute({ city: 42 });
+    expect(execute).not.toHaveBeenCalled();
+    expect(result.isError).toBe(true);
+    expect(result.content[0]).toMatchObject({
+      text: expect.stringContaining("Function parameter validation failed."),
+    });
+  });
+
+  it("hands invalid arguments to experimental_onSchemaValidationError", async () => {
+    const execute = vi.fn(async () => "ok");
+    const result = await zodTool({
+      execute,
+      experimental_onSchemaValidationError: async (args) =>
+        `Invalid: ${JSON.stringify(args)}`,
+    }).execute({ city: 42 });
+    expect(execute).not.toHaveBeenCalled();
+    expect(result).toEqual({ content: [text('Invalid: {"city":42}')] });
+  });
+
+  it("awaits a validator that returns a non-Promise thenable", async () => {
+    const execute = vi.fn(async () => "ok");
+    const schema = z.object({ city: z.string() });
+    (schema as any)["~standard"] = {
+      ...schema["~standard"],
+      validate: () => ({
+        then: (resolve: (value: { issues: unknown[] }) => void) => {
+          resolve({ issues: [{ message: "cross-realm" }] });
+        },
+      }),
+    };
+
+    const result = await descriptorFor({ execute, parameters: schema }).execute(
+      { city: 42 },
+    );
+    expect(execute).not.toHaveBeenCalled();
+    expect(result.isError).toBe(true);
+    expect(result.content[0]).toMatchObject({
+      text: expect.stringContaining("cross-realm"),
+    });
+  });
+
+  it("awaits an async Standard Schema validation", async () => {
+    const execute = vi.fn(async () => "ok");
+    const schema = z.object({ city: z.string() });
+    const sync = schema["~standard"].validate;
+    (schema as any)["~standard"] = {
+      ...schema["~standard"],
+      validate: async (value: unknown) => sync(value),
+    };
+
+    const result = await descriptorFor({ execute, parameters: schema }).execute(
+      { city: 42 },
+    );
+    expect(execute).not.toHaveBeenCalled();
+    expect(result.isError).toBe(true);
+  });
+});
+
+describe("toWebMcpTool cancellation", () => {
+  it("refuses to run once its lifecycle signal is aborted", async () => {
+    const execute = vi.fn(async () => "never");
+    const controller = new AbortController();
+    controller.abort();
+    const result = await descriptorFor({ execute }, controller.signal).execute(
+      {},
+    );
+    expect(execute).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      isError: true,
+      content: [text('Tool "t" is no longer registered')],
+    });
+  });
+
+  it("refuses to run when the caller signal is already aborted", async () => {
+    const execute = vi.fn(async () => "never");
+    const controller = new AbortController();
+    controller.abort();
+    const result = await descriptorFor({ execute }).execute(
+      {},
+      { signal: controller.signal },
+    );
+    expect(execute).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      isError: true,
+      content: [text("Tool execution was cancelled.")],
+    });
+  });
+
+  it.for(["caller", "lifecycle"] as const)(
+    "settles while async validation is pending when the %s signal aborts",
+    async (abortedSignal) => {
+      const lifecycle = new AbortController();
+      const caller = new AbortController();
+      let finishValidation!: (result: { issues?: readonly unknown[] }) => void;
+      const schema = z.object({ city: z.string() });
+      (schema as any)["~standard"] = {
+        ...schema["~standard"],
+        validate: () =>
+          new Promise<{ issues?: readonly unknown[] }>((resolve) => {
+            finishValidation = resolve;
+          }),
+      };
+      const execute = vi.fn(async () => "never");
+      const pending = descriptorFor(
+        { execute, parameters: schema },
+        lifecycle.signal,
+      ).execute({ city: "Paris" }, { signal: caller.signal });
+
+      (abortedSignal === "caller" ? caller : lifecycle).abort();
+
+      await expect(pending).resolves.toEqual({
+        isError: true,
+        content: [text("Tool execution was cancelled.")],
+      });
+      expect(execute).not.toHaveBeenCalled();
+      finishValidation({});
+    },
+  );
+
+  it("consumes a validator rejection after cancellation", async () => {
+    const caller = new AbortController();
+    let failValidation!: (error: unknown) => void;
+    const schema = z.object({ city: z.string() });
+    (schema as any)["~standard"] = {
+      ...schema["~standard"],
+      validate: () =>
+        new Promise((_resolve, reject) => {
+          failValidation = reject;
+        }),
+    };
+    const execute = vi.fn(async () => "never");
+    const pending = descriptorFor({ execute, parameters: schema }).execute(
+      { city: "Paris" },
+      { signal: caller.signal },
+    );
+
+    caller.abort();
+
+    await expect(pending).resolves.toEqual({
+      isError: true,
+      content: [text("Tool execution was cancelled.")],
+    });
+    failValidation(new Error("late validation failure"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("prefers cancellation when validation aborts before rejecting", async () => {
+    const caller = new AbortController();
+    const schema = z.object({ city: z.string() });
+    (schema as any)["~standard"] = {
+      ...schema["~standard"],
+      validate: () => {
+        caller.abort();
+        return Promise.reject(new Error("validation failed"));
+      },
+    };
+    const execute = vi.fn(async () => "never");
+
+    const result = await descriptorFor({ execute, parameters: schema }).execute(
+      { city: "Paris" },
+      { signal: caller.signal },
+    );
+
+    expect(result).toEqual({
+      isError: true,
+      content: [text("Tool execution was cancelled.")],
+    });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("does not execute when cancellation follows validation", async () => {
+    const caller = new AbortController();
+    const schema = z.object({ city: z.string() });
+    (schema as any)["~standard"] = {
+      ...schema["~standard"],
+      validate: () => ({
+        then: (resolve: (value: { issues?: readonly unknown[] }) => void) => {
+          resolve({});
+          caller.abort();
+        },
+      }),
+    };
+    const execute = vi.fn(async () => "never");
+
+    const result = await descriptorFor({ execute, parameters: schema }).execute(
+      { city: "Paris" },
+      { signal: caller.signal },
+    );
+
+    expect(result).toEqual({
+      isError: true,
+      content: [text("Tool execution was cancelled.")],
+    });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it.for(["caller", "lifecycle"] as const)(
+    "merges signals without AbortSignal.any when the %s signal aborts",
+    async (abortedSignal) => {
+      const lifecycle = new AbortController();
+      const caller = new AbortController();
+      const abortSignalConstructor = AbortSignal as typeof AbortSignal & {
+        any?: (signals: Iterable<AbortSignal>) => AbortSignal;
+      };
+      const originalAbortSignalAny = abortSignalConstructor.any;
+      Object.defineProperty(abortSignalConstructor, "any", {
+        configurable: true,
+        value: () => {
+          throw new Error("AbortSignal.any is not available");
+        },
+      });
+      try {
+        const descriptor = descriptorFor(
+          {
+            execute: async (_args: unknown, context: any) =>
+              new Promise((_resolve, reject) => {
+                context.abortSignal.addEventListener("abort", () =>
+                  reject(new Error("aborted")),
+                );
+              }),
+          },
+          lifecycle.signal,
+        );
+
+        const pending = descriptor.execute({}, { signal: caller.signal });
+        (abortedSignal === "caller" ? caller : lifecycle).abort();
+        await expect(pending).resolves.toEqual({
+          isError: true,
+          content: [text("aborted")],
+        });
+      } finally {
+        Object.defineProperty(abortSignalConstructor, "any", {
+          configurable: true,
+          value: originalAbortSignalAny,
+        });
+      }
+    },
+  );
+
+  it("removes merged signal listeners after execution", async () => {
+    const lifecycle = new AbortController();
+    const caller = new AbortController();
+    const callerRemove = vi.spyOn(caller.signal, "removeEventListener");
+    const lifecycleRemove = vi.spyOn(lifecycle.signal, "removeEventListener");
+
+    const result = await descriptorFor(
+      { execute: async () => "ok" },
+      lifecycle.signal,
+    ).execute({}, { signal: caller.signal });
+
+    expect(result).toEqual({ content: [text("ok")] });
+    expect(callerRemove).toHaveBeenCalledTimes(1);
+    expect(lifecycleRemove).toHaveBeenCalledTimes(1);
+  });
+
+  it("merges a caller signal that is not a native AbortSignal", async () => {
+    const listeners: (() => void)[] = [];
+    const foreignSignal = {
+      aborted: false,
+      reason: new Error("host cancelled"),
+      addEventListener: (_type: string, listener: () => void) => {
+        listeners.push(listener);
+      },
+      removeEventListener: () => {},
+    } as unknown as AbortSignal;
+
+    const pending = descriptorFor(
+      {
+        execute: async (_args: unknown, context: any) =>
+          new Promise((_resolve, reject) => {
+            context.abortSignal.addEventListener("abort", () =>
+              reject(new Error("aborted")),
+            );
+          }),
+      },
+      new AbortController().signal,
+    ).execute({}, { signal: foreignSignal });
+
+    for (const listener of listeners) listener();
+
+    await expect(pending).resolves.toEqual({
+      isError: true,
+      content: [text("aborted")],
+    });
+  });
+});
+
+describe("toMcpContent", () => {
+  const options = { tool: frontendTool(), toolCallId: "1", args: {} };
+
+  it.for([
+    ["text parts", [{ type: "text", text: "hello" }], [text("hello")]],
+    [
+      "image file parts",
+      [{ type: "file", data: "AAA", mediaType: "image/png" }],
+      [{ type: "image", data: "AAA", mimeType: "image/png" }],
+    ],
+    [
+      "image file parts with no data",
+      [{ type: "file", mediaType: "image/png" }],
+      [{ type: "image", data: "", mimeType: "image/png" }],
+    ],
+    [
+      "non-image file parts",
+      [{ type: "file", data: "raw", mediaType: "text/plain" }],
+      [text("raw")],
+    ],
+    [
+      "unknown parts",
+      [{ type: "reasoning", text: "why" }],
+      [text('{"type":"reasoning","text":"why"}')],
+    ],
+  ] as const)("maps %s", async ([, modelContent, expected]) => {
+    const response = await toMcpContent(
+      new ToolResponse({ result: "r", modelContent: modelContent as any }),
+      options,
+    );
+    expect(response).toEqual({ content: expected });
+  });
+
+  it("marks an error response, with or without an explicit modelContent", async () => {
+    await expect(
+      toMcpContent(
+        new ToolResponse({
+          result: "r",
+          isError: true,
+          modelContent: [{ type: "text", text: "failed" }],
+        }),
+        options,
+      ),
+    ).resolves.toEqual({ isError: true, content: [text("failed")] });
+
+    await expect(
+      toMcpContent(
+        new ToolResponse({ result: "went wrong", isError: true }),
+        options,
+      ),
+    ).resolves.toEqual({ isError: true, content: [text("went wrong")] });
+  });
+
+  it("projects a successful result through toModelOutput", async () => {
+    const toModelOutput = vi.fn<NonNullable<FrontendTool["toModelOutput"]>>(
+      async () => [{ type: "text", text: "projected" }],
+    );
+    const response = await toMcpContent("raw", {
+      ...options,
+      tool: frontendTool({ toModelOutput }),
+    });
+    expect(toModelOutput).toHaveBeenCalledWith({
+      toolCallId: "1",
+      input: {},
+      output: "raw",
+    });
+    expect(response).toEqual({ content: [text("projected")] });
+  });
+
+  it("falls back to the default projection when toModelOutput throws", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const response = await toMcpContent("raw", {
+      ...options,
+      tool: frontendTool({
+        toModelOutput: () => {
+          throw new Error("bad projection");
+        },
+      }),
+    });
+    expect(response).toEqual({ content: [text("raw")] });
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+});

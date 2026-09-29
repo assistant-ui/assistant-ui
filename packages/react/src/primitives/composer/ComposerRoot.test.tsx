@@ -354,9 +354,11 @@ describe("ComposerPrimitiveRoot compact mode", () => {
   );
 
   it("updates compact mode when the compact context multiline latch changes", async () => {
-    let compactContext: ComposerCompactContextValue | null = null;
+    const compactContext: { current: ComposerCompactContextValue | null } = {
+      current: null,
+    };
     const Probe = () => {
-      compactContext = useComposerCompactContextOptional();
+      compactContext.current = useComposerCompactContextOptional();
       return null;
     };
 
@@ -364,7 +366,7 @@ describe("ComposerPrimitiveRoot compact mode", () => {
       compact: true,
       children: <Probe />,
     });
-    const context = compactContext;
+    const context = compactContext.current;
     expect(context).not.toBeNull();
     if (!context) throw new Error("Composer compact context was not provided");
     expect(form.hasAttribute("data-compact")).toBe(true);

@@ -36,6 +36,16 @@ describe("projectAgUiToolApprovals", () => {
     ]);
   });
 
+  it("carries the gate's message as the approval prompt", () => {
+    expect([
+      ...projectAgUiToolApprovals([
+        { ...gate("int-1", "tc-1"), message: "Delete the release branch?" },
+      ]),
+    ]).toEqual([
+      ["tc-1", { id: "int-1", prompt: "Delete the release branch?" }],
+    ]);
+  });
+
   it("gates a batch whose every tool call is rendered", () => {
     expect([
       ...projectAgUiToolApprovals(
@@ -677,5 +687,70 @@ describe("restored snapshots", () => {
       );
       expect(part.approval).toBeUndefined();
     }
+  });
+});
+
+describe("nested tool-call approval seams", () => {
+  const nestedContent = (
+    approval?: Record<string, unknown>,
+  ): ThreadAssistantMessagePart[] => [
+    {
+      ...(toolCall("tc-spawn") as any),
+      messages: [
+        {
+          id: "sub-1",
+          role: "assistant",
+          createdAt: new Date(),
+          status: { type: "requires-action", reason: "interrupt" },
+          content: [toolCall("tc-nested", approval ?? { id: "int-nested" })],
+          metadata: {
+            unstable_state: null,
+            unstable_annotations: [],
+            unstable_data: [],
+            steps: [],
+            custom: {},
+          },
+        },
+      ],
+    } as ThreadAssistantMessagePart,
+  ];
+
+  it("records a decision on a nested gate", () => {
+    const next = withToolApprovalDecision(nestedContent(), {
+      approvalId: "int-nested",
+      approved: true,
+    });
+    const nested = (next[0] as any).messages[0].content[0];
+    expect(nested.approval).toEqual({ id: "int-nested", approved: true });
+  });
+
+  it("reads a nested decision into the resume array", () => {
+    const decided = nestedContent({ id: "int-nested", approved: false });
+    const resume = buildToolApprovalResume(decided, [
+      {
+        id: "int-nested",
+        reason: "tool_call",
+        toolCallId: "tc-nested",
+        message: "Delete?",
+      },
+    ]);
+    expect(resume).toEqual([
+      expect.objectContaining({
+        interruptId: "int-nested",
+        status: "resolved",
+        payload: { approved: false },
+      }),
+    ]);
+  });
+
+  it("settles a nested gate that a cancellation resumes", () => {
+    const next = withSettledToolApprovals(nestedContent(), [
+      { interruptId: "int-nested", status: "cancelled" },
+    ]);
+    const nested = (next[0] as any).messages[0].content[0];
+    expect(nested.approval).toEqual({
+      id: "int-nested",
+      resolution: "cancelled",
+    });
   });
 });

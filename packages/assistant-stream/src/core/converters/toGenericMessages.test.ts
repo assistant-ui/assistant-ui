@@ -117,6 +117,115 @@ describe("toGenericMessages", () => {
       ]);
     });
 
+    it("preserves zero-byte file parts", () => {
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: "",
+              mimeType: "text/plain",
+              filename: "empty.txt",
+            },
+          ],
+        },
+      ]);
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: "",
+              mediaType: "text/plain",
+              filename: "empty.txt",
+            },
+          ],
+        },
+      ]);
+    });
+
+    it.each([
+      { label: "empty", mimeType: "" },
+      { label: "missing", mimeType: undefined },
+    ])("falls back when a file MIME type is $label", ({ mimeType }) => {
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: "https://cdn.example.com/untyped-file",
+              ...(mimeType !== undefined && { mimeType }),
+              filename: "untyped-file",
+            },
+          ],
+        },
+      ]);
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: new URL("https://cdn.example.com/untyped-file"),
+              mediaType: "application/octet-stream",
+              filename: "untyped-file",
+            },
+          ],
+        },
+      ]);
+    });
+
+    it("uses the data URL MIME type when the file MIME type is empty", () => {
+      const data = "data:text/plain;base64,";
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [{ type: "file", data, mimeType: "" }],
+        },
+      ]);
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: new URL(data),
+              mediaType: "text/plain",
+            },
+          ],
+        },
+      ]);
+    });
+
+    it("does not infer a MIME type from a malformed data URL", () => {
+      const data = "data:text/plain";
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [{ type: "file", data, mimeType: "" }],
+        },
+      ]);
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: new URL(data),
+              mediaType: "application/octet-stream",
+            },
+          ],
+        },
+      ]);
+    });
+
     it("handles attachments", () => {
       const result = toGenericMessages([
         {
@@ -206,7 +315,7 @@ describe("toGenericMessages", () => {
           content: [
             { type: "text", text: "Valid" },
             { type: "image" }, // missing image property
-            { type: "file", data: "some-data" }, // missing mimeType
+            { type: "file", data: null } as never,
             { type: "unknown" },
           ],
         },
@@ -350,6 +459,38 @@ describe("toGenericMessages", () => {
       ]);
     });
 
+    it("does not send a preliminary result to the model", () => {
+      const result = toGenericMessages([
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call_123",
+              toolName: "get_weather",
+              args: { city: "London" },
+              state: "call",
+              result: { temperature: 20 },
+              isPreliminary: true,
+            },
+          ],
+        },
+      ]);
+
+      expect(result.at(-1)).toEqual({
+        role: "tool",
+        content: [
+          {
+            type: "tool-result",
+            toolCallId: "call_123",
+            toolName: "get_weather",
+            result: { error: "Tool call was not completed" },
+            isError: true,
+          },
+        ],
+      });
+    });
+
     it.each([
       ["a pending approval", { approval: { id: "ap_1" } }],
       [
@@ -389,6 +530,113 @@ describe("toGenericMessages", () => {
         },
       ]);
     });
+
+    it.each(["running", "requires-action"])(
+      "leaves a pending approval untouched while its message is %s",
+      (type) => {
+        const result = toGenericMessages([
+          {
+            role: "assistant",
+            status: { type },
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "call_123",
+                toolName: "get_weather",
+                args: { city: "London" },
+                approval: { id: "ap_1" },
+              },
+            ],
+          },
+        ]);
+
+        expect(result.map((message) => message.role)).toEqual(["assistant"]);
+      },
+    );
+
+    const awaitingHost = [
+      ["a pending approval", { approval: { id: "ap_1" } }],
+      [
+        "an approved call the host never ran",
+        { approval: { id: "ap_1", approved: true } },
+      ],
+      ["an interrupted call", { interrupt: { type: "human", payload: {} } }],
+    ] as const;
+
+    const closedOut = [
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call_123",
+            toolName: "get_weather",
+            args: { city: "London" },
+          },
+        ],
+      },
+      {
+        role: "tool",
+        content: [
+          {
+            type: "tool-result",
+            toolCallId: "call_123",
+            toolName: "get_weather",
+            result: { error: "Tool call was not completed" },
+            isError: true,
+          },
+        ],
+      },
+    ];
+
+    it.each(awaitingHost)(
+      "closes out %s once its message has settled",
+      (_label, extra) => {
+        const result = toGenericMessages([
+          {
+            role: "assistant",
+            status: { type: "incomplete" },
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "call_123",
+                toolName: "get_weather",
+                args: { city: "London" },
+                ...extra,
+              },
+            ],
+          },
+        ]);
+
+        expect(result).toEqual(closedOut);
+      },
+    );
+
+    it.each(awaitingHost)(
+      "closes out %s in a message a later message follows",
+      (_label, extra) => {
+        const result = toGenericMessages([
+          {
+            role: "assistant",
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "call_123",
+                toolName: "get_weather",
+                args: { city: "London" },
+                ...extra,
+              },
+            ],
+          },
+          { role: "user", content: [{ type: "text", text: "never mind" }] },
+        ]);
+
+        expect(result).toEqual([
+          ...closedOut,
+          { role: "user", content: [{ type: "text", text: "never mind" }] },
+        ]);
+      },
+    );
 
     it.each([
       ["a cancelled approval", { id: "ap_1", resolution: "cancelled" }],

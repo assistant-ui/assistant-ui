@@ -1,0 +1,265 @@
+---
+title: "Tool call"
+description: "One tool invocation with its request and result tucked behind a disclosure."
+---
+
+A tool call collapses to one line while it works: a chevron, a shimmering label, and the tool's primary argument as a chip, with a checkmark once it settles. Clicking it reveals the raw request and result. With a runtime the request, result, and running state come from the matching tool-call part; standalone you supply them directly.
+
+## Getting started
+
+<RuntimeMode>
+
+A tool call renders through a toolkit entry's `render` field, not through a standalone primitive tree. The renderer receives the live `args`, `argsText`, `result`, and `status` for that invocation.
+
+<Steps>
+  <Step>
+
+### Render the tool call
+
+```tsx title="components/assistant-ui/elements/search-docs-tool-ui.tsx"
+"use client";
+
+import { useState } from "react";
+import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
+import { ToolCall } from "@/components/assistant-ui/elements/tool-call";
+
+type SearchDocsResult = { count: number; bestPath: string };
+
+export const SearchDocsToolUI: ToolCallMessagePartComponent<
+  { query: string },
+  SearchDocsResult
+> = ({ args, argsText, result, status }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <ToolCall
+      label="Searched the docs"
+      activeLabel="Searching the docs"
+      query={args.query ?? ""}
+      request={argsText}
+      result={result ? `${result.count} matches, best hit ${result.bestPath}` : ""}
+      running={status.type === "running"}
+      open={open}
+      onOpenChange={setOpen}
+    />
+  );
+};
+```
+
+  </Step>
+  <Step>
+
+### Register the tool
+
+```tsx title="app/toolkit.ts"
+import { defineToolkit } from "@assistant-ui/react";
+import { z } from "zod";
+import { SearchDocsToolUI } from "@/components/assistant-ui/elements/search-docs-tool-ui";
+
+export const toolkit = defineToolkit({
+  search_docs: {
+    type: "frontend",
+    description: "Search the assistant-ui documentation.",
+    parameters: z.object({ query: z.string() }),
+    execute: async ({ query }) => {
+      const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+      return res.json() as Promise<SearchDocsResult>;
+    },
+    render: SearchDocsToolUI,
+  },
+});
+```
+
+```tsx title="app/MyRuntimeProvider.tsx"
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { toolkit } from "./toolkit";
+
+export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+See [Tool UI](/docs/tools/tool-ui) for backend-defined tools, human tools, and approval gates.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the element is fully controlled: every string it shows and its open state are props you own.
+
+<Steps>
+  <Step>
+
+### Hold the open state
+
+```tsx title="app/answer.tsx"
+"use client";
+
+import { useState } from "react";
+import { ToolCall } from "@/components/assistant-ui/elements/tool-call";
+
+export function DocsSearchCall() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <ToolCall
+      label="Searched the docs"
+      activeLabel="Searching the docs"
+      query="draft persistence"
+      request='{"query": "draft persistence"}'
+      result="3 matches, best hit /docs/runtime/drafts"
+      running={false}
+      open={open}
+      onOpenChange={setOpen}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Fill it from your own request
+
+`running`, `result`, and the two labels are plain strings and a boolean, so any async call can drive them directly:
+
+```tsx
+async function search(query: string) {
+  setRunning(true);
+  const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`).then((r) =>
+    r.json(),
+  );
+  setResult(`${res.count} matches, best hit ${res.bestPath}`);
+  setRunning(false);
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="tool-call">
+  <button>
+    {/* chevron, shimmering label while running, query chip, checkmark once settled */}
+  </button>
+  <div>{/* Request block, divider, Result block — mounted only while open */}</div>
+</div>
+```
+
+The trigger is always visible; the checkmark only replaces the empty space once `running` turns false. The content panel's height animates between zero and its measured height, so opening and closing never jumps. `open` is entirely driven by `onOpenChange`: there is no internal state, no wrap-around, and no disabled state, since a tool call with an empty request or result just renders empty strings.
+
+## Examples
+
+### Restyle the disclosure
+
+Both lanes take `className` on the root. The trigger, the query chip, and the request and result blocks read from the shared `mono`, `field`, and `collapsePanel` tokens in `surfaces.tsx`, so retheming those tokens restyles every disclosure-based element at once.
+
+```tsx
+<ToolCall className="max-w-none" /* ... */ />
+```
+
+<RuntimeMode>
+
+### Registering more tools
+
+A renderer factory keeps the label pair out of the toolkit definition, so the same component backs several search-shaped tools:
+
+```tsx
+function makeSearchToolUI(label: string, activeLabel: string) {
+  const SearchToolUI: ToolCallMessagePartComponent<
+    { query: string },
+    SearchDocsResult
+  > = ({ args, argsText, result, status }) => {
+    const [open, setOpen] = useState(false);
+    return (
+      <ToolCall
+        label={label}
+        activeLabel={activeLabel}
+        query={args.query ?? ""}
+        request={argsText}
+        result={result ? `${result.count} matches, best hit ${result.bestPath}` : ""}
+        running={status.type === "running"}
+        open={open}
+        onOpenChange={setOpen}
+      />
+    );
+  };
+  return SearchToolUI;
+}
+
+const toolkit = defineToolkit({
+  search_docs: {
+    /* ... */ render: makeSearchToolUI("Searched the docs", "Searching the docs"),
+  },
+  search_issues: {
+    /* ... */ render: makeSearchToolUI("Searched issues", "Searching issues"),
+  },
+});
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### Opening on mount
+
+Pass `open` as `true` on first render (and flip it in `onOpenChange` as usual afterward) to land the disclosure already expanded, for example when replaying a past run:
+
+```tsx
+const [open, setOpen] = useState(true);
+```
+
+</StandaloneMode>
+
+## API reference
+
+<RuntimeMode>
+
+### Tool-call render props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `args` | `TArgs` | Parsed arguments. Partial while the model is still streaming them. |
+| `argsText` | `string` | Raw JSON argument text streamed by the model; feeds `request` directly. |
+| `result` | `TResult \| undefined` | The tool's return value once it completes. `undefined` while running. |
+| `status` | `ToolCallMessagePartStatus` | `status.type` is `"running"`, `"requires-action"`, `"complete"`, or `"incomplete"`. |
+| `toolName` | `string` | Name of the tool the model called. |
+| `toolCallId` | `string` | Stable id for this invocation. |
+| `isError` | `boolean \| undefined` | Whether `result` represents a tool execution error. |
+
+Register the renderer on a toolkit entry's `render` field and attach the toolkit with `Tools({ toolkit })`. See [Tool UI](/docs/tools/tool-ui) for the full render-prop surface, including `addResult`, human tools, and approval gates.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### ToolCall
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `label` | `string` | required | Text shown once the call has settled. |
+| `activeLabel` | `string` | required | Shimmering text shown while `running` is true. |
+| `query` | `string` | required | The primary argument, shown as a chip next to the label. |
+| `request` | `string` | required | Raw request text shown in the disclosure panel. |
+| `result` | `string` | required | Result text shown in the disclosure panel. |
+| `running` | `boolean` | required | Swaps the label and hides the checkmark while true. |
+| `open` | `boolean` | required | Whether the disclosure panel is expanded. |
+| `onOpenChange` | `(open: boolean) => void` | required | Called when the trigger is clicked. |
+| `className` | `string` | | Merged onto the root. |
+
+Unlike most elements in this catalog, `ToolCall` does not spread extra `div` props onto its root; only the props above are accepted.
+
+</StandaloneMode>

@@ -1,19 +1,22 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 import {
   AssistantRuntimeProvider,
   CloudFileAttachmentAdapter,
   Suggestions,
   Tools,
   unstable_Interactables,
-  useAui,
+  AuiConfig,
 } from "@assistant-ui/react";
 import { DevToolsModal } from "@assistant-ui/react-devtools";
 import { feedbackAdapter } from "@/lib/feedback-adapter";
 import docsToolkit from "@/lib/docs-toolkit";
+import usageToolkit from "@/lib/usage-toolkit";
+import { MemoryInstructions } from "@/components/shared/memory";
 import {
-  useAnonymousCloud,
+  followUpSuggestionAdapter,
+  useDocsCloud,
   useDocsChatRuntime,
   useSpeechAdapters,
 } from "./chat-runtime";
@@ -37,8 +40,19 @@ const DOCS_SUGGESTIONS = [
   },
 ];
 
-export function DocsRuntimeProvider({ children }: { children: ReactNode }) {
-  const cloud = useAnonymousCloud();
+export function DocsRuntimeProvider({
+  children,
+  devtools = true,
+  followUps = false,
+  countConversations = false,
+}: {
+  children: ReactNode;
+  devtools?: boolean;
+  followUps?: boolean;
+  /** Only the landing page demo draws on the daily conversation budget. */
+  countConversations?: boolean;
+}) {
+  const { cloud, claims } = useDocsCloud();
   const speech = useSpeechAdapters({ dictation: true });
 
   const adapters = useMemo(
@@ -46,27 +60,42 @@ export function DocsRuntimeProvider({ children }: { children: ReactNode }) {
       ...speech,
       feedback: feedbackAdapter,
       attachments: new CloudFileAttachmentAdapter(cloud),
+      ...(followUps ? { suggestion: followUpSuggestionAdapter } : {}),
     }),
-    [cloud, speech],
+    [cloud, followUps, speech],
   );
 
   const runtime = useDocsChatRuntime({
     cloud,
     adapters,
     sendAutomatically: true,
+    searchDocs: followUps,
+    countConversations,
   });
 
-  const aui = useAui({
-    tools: Tools({ toolkit: docsToolkit }),
+  const toolkit = useMemo(
+    () =>
+      countConversations ? { ...docsToolkit, ...usageToolkit } : docsToolkit,
+    [countConversations],
+  );
+
+  const config = AuiConfig({
+    tools: Tools({ toolkit }),
     unstable_interactables: unstable_Interactables(),
     suggestions: Suggestions(DOCS_SUGGESTIONS),
   });
 
+  useEffect(() => {
+    if (claims === 0) return;
+    void runtime.threads.reload();
+  }, [claims, runtime]);
+
   return (
-    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+    <AssistantRuntimeProvider config={config} runtime={runtime}>
+      <MemoryInstructions />
       {children}
 
-      <DevToolsModal />
+      {devtools ? <DevToolsModal /> : null}
     </AssistantRuntimeProvider>
   );
 }

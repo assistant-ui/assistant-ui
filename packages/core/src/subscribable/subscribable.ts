@@ -1,3 +1,4 @@
+import { shallowEqual } from "@assistant-ui/store/client";
 import type { Unsubscribe } from "../types/unsubscribe";
 import { notifyEventListeners } from "../utils/notify-event-listeners";
 
@@ -30,6 +31,13 @@ export type EventSubscribable<TEvent extends string> = {
     | undefined,
     unknown
   >;
+  /**
+   * Notifies subscribers with an empty payload when the binding swaps to a
+   * different source. For an event that reports a change to a value read off
+   * the source rather than an occurrence in time, the swap is itself such a
+   * change, and the previous source never announces it.
+   */
+  notifyOnRebind?: boolean;
 };
 
 export const notifySubscribers = <TArgs extends unknown[]>(
@@ -57,25 +65,29 @@ export const notifySubscribers = <TArgs extends unknown[]>(
   }
 };
 
-function shallowEqual<T extends object>(
-  objA: T | undefined,
-  objB: T | undefined,
-) {
-  if (objA === undefined && objB === undefined) return true;
-  if (objA === undefined) return false;
-  if (objB === undefined) return false;
+export const runCleanups = (cleanups: Iterable<Unsubscribe>): void => {
+  notifySubscribers(cleanups);
+};
 
-  const keysA = Object.keys(objA);
-  if (keysA.length !== Object.keys(objB).length) return false;
-
-  for (const key of keysA) {
-    const valueA = objA[key as keyof T];
-    const valueB = objB[key as keyof T];
-    if (!Object.is(valueA, valueB)) return false;
+const rollbackSubscription = (
+  cleanup: Unsubscribe,
+  connectionError: unknown,
+): never => {
+  try {
+    cleanup();
+  } catch (cleanupError) {
+    console.error(
+      "[assistant-ui] Subscription rollback cleanup threw",
+      cleanupError,
+    );
   }
+  throw connectionError;
+};
 
-  return true;
-}
+const shallowEqualOrUndefined = <T extends object>(
+  a: T | undefined,
+  b: T | undefined,
+) => (a === undefined || b === undefined ? a === b : shallowEqual(a, b));
 
 export class BaseSubscribable {
   private _subscribers = new Set<() => void>();
@@ -96,6 +108,32 @@ export class BaseSubscribable {
 
   protected _notifySubscribers() {
     notifySubscribers(this._subscribers);
+  }
+}
+
+export class WritableSubscribable<TState> extends BaseSubscribable {
+  private _state: TState;
+
+  constructor(state: TState) {
+    super();
+    this._state = state;
+    this.subscribe = this.subscribe.bind(this);
+    this.getState = this.getState.bind(this);
+    // Hydration has to agree with what the server rendered, so the server
+    // snapshot stays at the creation-time state rather than following writes.
+    this.getServerSnapshot = () => state;
+  }
+
+  public getState(): TState {
+    return this._state;
+  }
+
+  public getServerSnapshot: () => TState;
+
+  public setState(state: TState): void {
+    if (Object.is(state, this._state)) return;
+    this._state = state;
+    this._notifySubscribers();
   }
 }
 
@@ -124,14 +162,20 @@ export abstract class BaseSubject {
       if (this._connection) return;
       this._connection = this._connect();
     } else {
-      this._connection?.();
+      const connection = this._connection;
       this._connection = undefined;
+      connection?.();
     }
   }
 
   public subscribe(callback: (payload?: unknown) => void) {
     this._subscriptions.add(callback);
-    this._updateConnection();
+    try {
+      this._updateConnection();
+    } catch (error) {
+      this._subscriptions.delete(callback);
+      throw error;
+    }
 
     return () => {
       this._subscriptions.delete(callback);
@@ -168,7 +212,7 @@ export class ShallowMemoizeSubject<TState extends object, TPath>
   private _syncState() {
     const state = this.binding.getState();
     if (state === SKIP_UPDATE) return false;
-    if (shallowEqual(state, this._previousState)) return false;
+    if (shallowEqualOrUndefined(state, this._previousState)) return false;
     this._previousState = state;
     return true;
   }
@@ -181,8 +225,12 @@ export class ShallowMemoizeSubject<TState extends object, TPath>
     };
 
     const unsubscribe = this.binding.subscribe(callback);
-    this._syncState();
-    return unsubscribe;
+    try {
+      this._syncState();
+      return unsubscribe;
+    } catch (error) {
+      throw rollbackSubscription(unsubscribe, error);
+    }
   }
 }
 
@@ -209,7 +257,7 @@ export class LazyMemoizeSubject<TState extends object, TPath>
       if (
         newState !== SKIP_UPDATE &&
         (this._previousState === undefined ||
-          !shallowEqual(newState, this._previousState))
+          !shallowEqualOrUndefined(newState, this._previousState))
       ) {
         this._previousState = newState;
       }
@@ -272,17 +320,24 @@ export class NestedSubscriptionSubject<
       if (newState === lastState) return;
       lastState = newState;
 
-      innerUnsubscribe?.();
-      innerUnsubscribe = newState?.subscribe(callback);
-
-      callback();
+      const previousInner = innerUnsubscribe;
+      innerUnsubscribe = undefined;
+      try {
+        previousInner?.();
+      } finally {
+        innerUnsubscribe = newState?.subscribe(callback);
+        callback();
+      }
     };
 
-    const outerUnsubscribe = this.outerSubscribe(onRuntimeUpdate);
-    return () => {
-      outerUnsubscribe?.();
-      innerUnsubscribe?.();
-    };
+    let outerUnsubscribe: Unsubscribe;
+    try {
+      outerUnsubscribe = this.outerSubscribe(onRuntimeUpdate);
+    } catch (error) {
+      throw rollbackSubscription(() => innerUnsubscribe?.(), error);
+    }
+    return () =>
+      runCleanups([() => outerUnsubscribe(), () => innerUnsubscribe?.()]);
   }
 }
 
@@ -317,14 +372,23 @@ export class EventSubscriptionSubject<
       if (newState === lastState) return;
       lastState = newState;
 
-      innerUnsubscribe?.();
-      innerUnsubscribe = newState?.unstable_on(this.config.event, callback);
+      const previousInner = innerUnsubscribe;
+      innerUnsubscribe = undefined;
+      try {
+        previousInner?.();
+      } finally {
+        innerUnsubscribe = newState?.unstable_on(this.config.event, callback);
+        if (this.config.notifyOnRebind) callback({});
+      }
     };
 
-    const outerUnsubscribe = this.outerSubscribe(onRuntimeUpdate);
-    return () => {
-      outerUnsubscribe?.();
-      innerUnsubscribe?.();
-    };
+    let outerUnsubscribe: Unsubscribe;
+    try {
+      outerUnsubscribe = this.outerSubscribe(onRuntimeUpdate);
+    } catch (error) {
+      throw rollbackSubscription(() => innerUnsubscribe?.(), error);
+    }
+    return () =>
+      runCleanups([() => outerUnsubscribe(), () => innerUnsubscribe?.()]);
   }
 }

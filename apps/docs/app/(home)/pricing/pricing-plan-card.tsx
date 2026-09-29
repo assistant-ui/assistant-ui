@@ -19,14 +19,14 @@ export function PricingPlanCard({ plan }: { plan: PricingPlan }) {
   return (
     <div
       className={cn(
-        "relative flex flex-col rounded-2xl p-6 md:p-7",
-        plan.highlighted ? "bg-muted" : "bg-muted/40",
+        "rounded-document relative flex flex-col border-t pt-6",
+        plan.highlighted ? "border-foreground" : "border-foreground/10",
       )}
     >
       <div className="mb-8">
-        <h3 className="text-sm font-medium">{plan.name}</h3>
-        <div className="mt-3 flex items-baseline gap-1">
-          <span className="text-3xl font-medium tracking-tight tabular-nums">
+        <h3 className="text-base font-medium">{plan.name}</h3>
+        <div className="mt-4 flex items-baseline gap-1">
+          <span className="font-display text-4xl font-[550] tracking-[-0.01em] tabular-nums">
             {plan.price}
           </span>
           {plan.period && (

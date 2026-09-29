@@ -3,13 +3,13 @@
 import { analytics, type AnalyticsProperties } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { BotIcon, CheckIcon, CopyIcon, TerminalIcon } from "lucide-react";
-import { useState } from "react";
 import { Menu } from "@base-ui/react/menu";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { SETUP_PROMPT } from "./setup-prompt";
 
 export function CopyCommandButton({
@@ -21,27 +21,22 @@ export function CopyCommandButton({
   analyticsContext?: AnalyticsProperties;
   withPromptOption?: boolean;
 }) {
-  const [copied, setCopied] = useState(false);
-
-  const flash = () => {
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const { isCopied: copied, copyToClipboard } = useCopyToClipboard({
+    copiedDuration: 2000,
+  });
 
   const copyCommand = () => {
-    navigator.clipboard.writeText(command);
+    copyToClipboard(command);
     analytics.cta.npmCommandCopied(command, analyticsContext);
-    flash();
   };
 
   const copyPrompt = () => {
-    navigator.clipboard.writeText(SETUP_PROMPT);
+    copyToClipboard(SETUP_PROMPT);
     analytics.cta.promptCopied(analyticsContext);
-    flash();
   };
 
   const wrapperClassName =
-    "group border-border/60 bg-muted/30 hover:border-border hover:bg-muted/50 inline-flex w-fit items-center gap-1.5 rounded-md border px-3 py-1.5 font-mono text-sm transition-all";
+    "group border-border/60 bg-muted/30 hover:border-border hover:bg-muted/50 inline-flex h-8 w-fit items-center gap-1.5 rounded-control border px-3 font-mono text-sm transition-all";
 
   const copyIcon = (
     <div className="text-muted-foreground relative flex size-4 items-center justify-center">
@@ -65,7 +60,6 @@ export function CopyCommandButton({
   if (!withPromptOption) {
     return (
       <button type="button" onClick={copyCommand} className={wrapperClassName}>
-        <span className="text-muted-foreground/70">$</span>
         <span>{command}</span>
         <div className="ml-1">{copyIcon}</div>
       </button>
@@ -73,7 +67,7 @@ export function CopyCommandButton({
   }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <Menu.Trigger
         aria-label="Copy options"
         render={
@@ -83,7 +77,6 @@ export function CopyCommandButton({
           />
         }
       >
-        <span className="text-muted-foreground/70">$</span>
         <span>{command}</span>
         <div className="ml-1">{copyIcon}</div>
       </Menu.Trigger>

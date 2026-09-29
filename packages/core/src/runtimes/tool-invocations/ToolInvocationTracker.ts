@@ -14,7 +14,8 @@ import {
   type ReadonlyJSONValue,
 } from "assistant-stream/utils";
 import { isJSONValueEqual } from "../../utils/json/is-json-equal";
-import type { ThreadMessage } from "../../types/message";
+import type { ThreadMessage, ToolCallMessagePart } from "../../types/message";
+import { walkToolCallTree } from "../../runtime/utils/tool-call-tree";
 
 const TOOL_EXECUTION_ID = Symbol.for("assistant-stream.tool-execution-id");
 
@@ -54,6 +55,7 @@ type ToolCallEntry = {
       /** Active phase — chunks are flowing through `controller`. */
       controller: ToolCallStreamController;
       argsComplete: boolean;
+      clientOwned: boolean;
     }
 );
 
@@ -86,6 +88,9 @@ const isEquivalentCompleteArgsText = (previous: string, next: string) => {
   return isJSONValueEqual(previousValue, nextValue);
 };
 
+const hasFinalResult = (part: ToolCallMessagePart) =>
+  part.result !== undefined && part.isPreliminary !== true;
+
 const getToolExecutionId = (value: object): symbol | undefined =>
   (value as Record<PropertyKey, unknown>)[TOOL_EXECUTION_ID] as
     | symbol
@@ -116,6 +121,9 @@ const getToolExecutionId = (value: object): symbol | undefined =>
 export class ToolInvocationTracker {
   private readonly _getTools: () => Record<string, Tool> | undefined;
   private readonly _callbacks: ToolInvocationTracker.Callbacks;
+  private readonly _isClientToolCall:
+    | ((toolCall: ToolCallMessagePart) => boolean | undefined)
+    | undefined;
 
   private readonly _entries = new Map<string, ToolCallEntry>();
   private readonly _humanInput = new Map<
@@ -127,6 +135,13 @@ export class ToolInvocationTracker {
     }
   >();
   private readonly _executing = new Set<symbol>();
+  /**
+   * Tool calls whose turn ended before they reached the executor. Held here
+   * rather than on the entry because an entry is rebuilt whenever a snapshot
+   * re-creates the call, and this is the one reason to skip that no later
+   * snapshot carries.
+   */
+  private readonly _discardedToolCallIds = new Set<string>();
   private readonly _settledResolvers: SettledResolver[] = [];
 
   private _statuses = new Map<string, ToolExecutionStatus>();
@@ -143,10 +158,12 @@ export class ToolInvocationTracker {
   /**
    * Set when the assistant-stream pipeline has died (errored out via
    * `.pipeTo(...).catch(...)`). The next `setState` re-initializes the
-   * pipeline and demotes all active entries to restored so they survive
-   * across the restart without re-firing `streamCall` (preserves the
-   * "exactly once" contract). Capped at a single auto-restart per session
-   * — repeated failures keep the tracker dead with a more visible error.
+   * pipeline and demotes each active entry that reached the executor to
+   * restored, so it survives the restart without re-firing `streamCall`.
+   * A restart is an execution boundary like `reset()`: an entry that had
+   * not reached it starts over and fires once there (F.4). Capped at a
+   * single auto-restart per session — repeated failures keep the tracker
+   * dead with a more visible error.
    */
   private _pipelineDead = false;
   private _pipelineRestartUsed = false;
@@ -154,9 +171,11 @@ export class ToolInvocationTracker {
   constructor(
     getTools: () => Record<string, Tool> | undefined,
     callbacks: ToolInvocationTracker.Callbacks,
+    isClientToolCall?: (toolCall: ToolCallMessagePart) => boolean | undefined,
   ) {
     this._getTools = getTools;
     this._callbacks = callbacks;
+    this._isClientToolCall = isClientToolCall;
 
     this._initPipeline();
   }
@@ -222,10 +241,10 @@ export class ToolInvocationTracker {
    */
   public setState(snapshot: ToolInvocationTracker.Snapshot): void {
     try {
-      // Recover from a dead pipeline before processing anything. We demote
-      // all active entries to "restored" so the rebuilt pipeline does not
-      // re-fire `streamCall` for tool calls that already fired pre-death;
-      // preserves the "exactly once per toolCallId" contract.
+      // Recover from a dead pipeline before processing anything. Entries
+      // that reached the executor are demoted to "restored" so the rebuilt
+      // pipeline does not re-fire `streamCall` for them; the rest start over
+      // across the boundary the restart opens (F.4).
       if (this._pipelineDead) {
         if (this._pipelineRestartUsed) {
           // Already retried once and failed again. Stay dead.
@@ -291,6 +310,7 @@ export class ToolInvocationTracker {
     try {
       this._pendingRestore = true;
       this._entries.clear();
+      this._discardedToolCallIds.clear();
       this._lastSnapshot = null;
       void this.abort();
       // Statuses are cleared synchronously: discarded executions may never
@@ -310,18 +330,33 @@ export class ToolInvocationTracker {
   /**
    * Abort any in-flight `execute()` invocations. Resolves once all of them
    * have settled (or immediately if none are running).
+   *
+   * `discardPending` additionally kills the calls that never reached the
+   * executor, for a caller ending the turn rather than interrupting it. The
+   * signal cannot reach those: they are waiting on the run to settle (A.10),
+   * and the settled snapshot arrives after this installs a fresh controller.
    */
-  public abort(): Promise<void> {
+  public abort(options?: { discardPending?: boolean }): Promise<void> {
     try {
-      this._humanInput.forEach(({ reject }) => {
+      this._humanInput.forEach(({ executionId, reject }, toolCallId) => {
         try {
           reject(new Error("Tool execution aborted"));
         } catch {
           // host rejection handler threw — already in the abort path,
           // swallow so we continue cleaning up.
         }
+        this._endHumanRequest(toolCallId, executionId);
       });
       this._humanInput.clear();
+
+      if (options?.discardPending) {
+        for (const [toolCallId, entry] of this._entries) {
+          if (!entry.controller) continue;
+          if (entry.argsComplete || entry.hasResult) continue;
+          this._discardedToolCallIds.add(toolCallId);
+          entry.skipExecute = true;
+        }
+      }
 
       this._ac.abort();
       this._ac = new AbortController();
@@ -339,6 +374,19 @@ export class ToolInvocationTracker {
     }
   }
 
+  // A request from streamCall has no execution whose end would clear the
+  // status, so the call is only marked executing while one runs, and a request
+  // left behind by an earlier execution leaves a newer execution's status alone.
+  private _endHumanRequest(toolCallId: string, executionId: symbol) {
+    if (this._executing.has(executionId)) {
+      this._setStatus(toolCallId, { type: "executing" });
+      return;
+    }
+    const owner = this._entries.get(toolCallId)?.executionId;
+    if (owner === undefined || owner === executionId)
+      this._deleteStatus(toolCallId);
+  }
+
   /**
    * Resolve a pending human-input request for the given tool call. Returns
    * `true` if a pending request was resumed, `false` if the tracker has no
@@ -350,7 +398,7 @@ export class ToolInvocationTracker {
       const handlers = this._humanInput.get(toolCallId);
       if (!handlers) return false;
       this._humanInput.delete(toolCallId);
-      this._setStatus(toolCallId, { type: "executing" });
+      this._endHumanRequest(toolCallId, handlers.executionId);
       handlers.resolve(payload);
       return true;
     } catch (err) {
@@ -473,6 +521,8 @@ export class ToolInvocationTracker {
     if (entry.skipExecute) return;
 
     this._executing.add(executionId!);
+    // execute can park human() before onExecutionStart; preserve this execution's interrupt.
+    if (this._humanInput.get(toolCallId)?.executionId === executionId) return;
     this._setStatus(toolCallId, { type: "executing" });
   }
 
@@ -519,6 +569,7 @@ export class ToolInvocationTracker {
     // The host already set the result (via the live snapshot's
     // `setResponse` path). Suppress the executor's redundant emit.
     if (entry?.hasResult) return;
+    if (entry.skipExecute) return;
 
     this._invokeOnResult({
       type: "add-tool-result",
@@ -576,31 +627,40 @@ export class ToolInvocationTracker {
 
   // ──────────────── internal: snapshot processing ────────────────
 
-  private _hasExecutableTool(toolName: string): boolean {
-    const tool = this._getTools()?.[toolName];
-    return tool?.execute !== undefined || tool?.streamCall !== undefined;
+  private _warnProviderOwnedSkip(toolName: string, toolCallId: string): void {
+    if (process.env.NODE_ENV === "production") return;
+    if (this._getTools()?.[toolName]?.execute === undefined) return;
+    console.warn(
+      "[ToolInvocationTracker] the runtime reports this tool call as provider-owned, so the registered execute is skipped; the provider has to hand the call to the client for it to run (see EDGE_CASES.md A.9)",
+      { toolCallId, toolName },
+    );
   }
 
+  /**
+   * Closing the args stream hands the call to the client executor, so it may
+   * only happen once the provider can no longer speak about that call. The run
+   * ending is the only universal signal for that; an adapter that reports the
+   * call as client-owned has said it earlier, per call.
+   */
   private _shouldCloseArgsStream({
-    toolName,
     argsText,
     hasResult,
+    clientOwned,
   }: {
-    toolName: string;
     argsText: string;
     hasResult: boolean;
+    clientOwned: boolean;
   }): boolean {
     if (hasResult) return true;
-    if (!this._hasExecutableTool(toolName)) {
-      return !this._isRunning && isArgsTextComplete(argsText);
-    }
-    return isArgsTextComplete(argsText);
+    if (!isArgsTextComplete(argsText)) return false;
+    return clientOwned || !this._isRunning;
   }
 
   private _startActiveEntry(
     toolCallId: string,
     toolName: string,
     skipExecute: boolean,
+    clientOwned: boolean,
   ): ToolCallEntry {
     const toolCallController = this._controller.addToolCallPart({
       toolName,
@@ -613,6 +673,7 @@ export class ToolInvocationTracker {
       hasResult: false,
       skipExecute,
       argsComplete: false,
+      clientOwned,
     };
     this._entries.set(toolCallId, entry);
     return entry;
@@ -628,6 +689,16 @@ export class ToolInvocationTracker {
   private _demoteEntriesToRestored(): void {
     for (const [toolCallId, entry] of this._entries) {
       if (!entry.controller) continue;
+      if (!entry.argsComplete && !entry.hasResult) {
+        // The call never reached the executor. A restored entry is promoted
+        // only when its signature changes, and a call waiting on the run to
+        // settle already holds its final args, so demoting it would strand it
+        // unexecuted. Dropping it lets the next snapshot start it over; a call
+        // whose turn was discarded is held by `_discardedToolCallIds`, not by
+        // the entry, so starting over does not revive it.
+        this._entries.delete(toolCallId);
+        continue;
+      }
       this._entries.set(toolCallId, {
         toolName: entry.toolName,
         argsText: entry.argsText,
@@ -673,6 +744,7 @@ export class ToolInvocationTracker {
               },
             );
           }
+          entry.argsText = content.argsText;
           shouldWriteArgsText = false;
         }
       } else if (!content.argsText.startsWith(entry.argsText)) {
@@ -682,9 +754,9 @@ export class ToolInvocationTracker {
           isEquivalentCompleteArgsText(entry.argsText, content.argsText)
         ) {
           const shouldClose = this._shouldCloseArgsStream({
-            toolName: content.toolName,
             argsText: content.argsText,
             hasResult,
+            clientOwned: entry.clientOwned,
           });
           if (shouldClose) entry.controller.argsText.close();
           entry.argsText = content.argsText;
@@ -716,9 +788,9 @@ export class ToolInvocationTracker {
         const delta = content.argsText.slice(entry.argsText.length);
         entry.controller.argsText.append(delta);
         const shouldClose = this._shouldCloseArgsStream({
-          toolName: content.toolName,
           argsText: content.argsText,
           hasResult,
+          clientOwned: entry.clientOwned,
         });
         if (shouldClose) entry.controller.argsText.close();
         entry.argsText = content.argsText;
@@ -731,9 +803,9 @@ export class ToolInvocationTracker {
       // gates on the streamed content; a divergent snapshot (A.2) can be
       // complete while the controller still holds an incomplete stale prefix.
       const shouldClose = this._shouldCloseArgsStream({
-        toolName: content.toolName,
         argsText: entry.argsText,
         hasResult,
+        clientOwned: entry.clientOwned,
       });
       if (shouldClose) {
         entry.controller.argsText.close();
@@ -745,79 +817,90 @@ export class ToolInvocationTracker {
   private _processMessages(messages: readonly ThreadMessage[]): void {
     const isRestore = this._pendingRestore;
 
-    for (const message of messages) {
-      if (!message || !Array.isArray((message as ThreadMessage).content)) {
+    for (const { part: content } of walkToolCallTree(messages)) {
+      const existing = this._entries.get(content.toolCallId);
+
+      if (isRestore) {
+        // Don't overwrite an already-active entry (e.g. live tool-call
+        // observed before this restore snapshot landed). Restore can
+        // only seed entries the runtime has never seen.
+        if (!existing?.controller) {
+          this._entries.set(content.toolCallId, {
+            toolName: content.toolName,
+            argsText: content.argsText,
+            hasResult: hasFinalResult(content),
+          });
+        }
         continue;
       }
-      for (const content of message.content as readonly ThreadMessage["content"][number][]) {
-        if (!content || content.type !== "tool-call") continue;
 
-        const existing = this._entries.get(content.toolCallId);
+      // Live snapshot.
+      let entry = existing;
 
-        if (isRestore) {
-          // Don't overwrite an already-active entry (e.g. live tool-call
-          // observed before this restore snapshot landed). Restore can
-          // only seed entries the runtime has never seen.
-          if (!existing?.controller) {
-            this._entries.set(content.toolCallId, {
-              toolName: content.toolName,
-              argsText: content.argsText,
-              hasResult: content.result !== undefined,
-            });
-          }
-          if (content.messages) this._processMessages(content.messages);
-          continue;
-        }
+      // A discarded id is remembered only until the call is answered, which
+      // bounds the set to the open calls of a discarded turn.
+      if (hasFinalResult(content))
+        this._discardedToolCallIds.delete(content.toolCallId);
 
-        // Live snapshot.
-        let entry = existing;
-
-        if (entry && !entry.controller) {
-          // Restored entry observed in a live snapshot. Promote if its
-          // signature has changed; otherwise treat as still-historical.
-          const signatureChanged =
-            content.argsText !== entry.argsText ||
-            (content.result !== undefined) !== entry.hasResult;
-          if (!signatureChanged) {
-            if (content.messages) this._processMessages(content.messages);
-            continue;
-          }
-          this._entries.delete(content.toolCallId);
-          entry = undefined;
-        }
-
-        if (!entry) {
-          entry = this._startActiveEntry(
-            content.toolCallId,
-            content.toolName,
-            content.result !== undefined,
+      if (entry && !entry.controller) {
+        // A restored entry with a final result remains historical.
+        if (entry.hasResult) continue;
+        const argsChanged =
+          content.argsText !== entry.argsText &&
+          !(
+            isArgsTextComplete(entry.argsText) &&
+            isArgsTextComplete(content.argsText) &&
+            isEquivalentCompleteArgsText(entry.argsText, content.argsText)
           );
-        }
+        if (!argsChanged && !hasFinalResult(content)) continue;
+        this._entries.delete(content.toolCallId);
+        entry = undefined;
+      }
 
-        this._processArgsText(entry, content);
+      if (!entry) {
+        const ownership = this._isClientToolCall?.(content);
+        const providerOwned =
+          content.result === undefined && ownership === false;
+        if (providerOwned)
+          this._warnProviderOwnedSkip(content.toolName, content.toolCallId);
+        entry = this._startActiveEntry(
+          content.toolCallId,
+          content.toolName,
+          content.result !== undefined ||
+            providerOwned ||
+            this._discardedToolCallIds.has(content.toolCallId),
+          ownership === true,
+        );
+      }
 
-        if (content.result !== undefined && !entry.hasResult) {
-          // `entry` is in active phase from this point — either just
-          // created by `_startActiveEntry`, or pre-existing with a live
-          // controller. Narrow once instead of asserting at every use.
-          const { controller: activeController } = entry;
-          if (!activeController) continue;
+      if (content.result !== undefined) entry.skipExecute = true;
+
+      if (content.approval !== undefined) entry.skipExecute = true;
+
+      this._processArgsText(entry, content);
+
+      if (content.result !== undefined && !entry.hasResult) {
+        // `entry` is in active phase from this point — either just
+        // created by `_startActiveEntry`, or pre-existing with a live
+        // controller. Narrow once instead of asserting at every use.
+        const { controller: activeController } = entry;
+        if (!activeController) continue;
+        entry.argsComplete = true;
+        activeController.setResponse(
+          new ToolResponse({
+            result: content.result as ReadonlyJSONValue,
+            artifact: content.artifact as ReadonlyJSONValue | undefined,
+            isError: content.isError,
+            isPreliminary: content.isPreliminary,
+            ...(content.modelContent !== undefined
+              ? { modelContent: content.modelContent }
+              : {}),
+          }),
+        );
+        if (hasFinalResult(content)) {
           entry.hasResult = true;
-          entry.argsComplete = true;
-          activeController.setResponse(
-            new ToolResponse({
-              result: content.result as ReadonlyJSONValue,
-              artifact: content.artifact as ReadonlyJSONValue | undefined,
-              isError: content.isError,
-              ...(content.modelContent !== undefined
-                ? { modelContent: content.modelContent }
-                : {}),
-            }),
-          );
           activeController.close();
         }
-
-        if (content.messages) this._processMessages(content.messages);
       }
     }
   }

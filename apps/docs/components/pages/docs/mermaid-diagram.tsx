@@ -34,5 +34,3 @@ export function MermaidDiagram({ children = "" }: MermaidDiagramProps) {
     );
   }
 }
-
-export default MermaidDiagram;

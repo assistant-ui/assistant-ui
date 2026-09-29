@@ -1,3 +1,4 @@
+import { shallowEqual } from "@assistant-ui/store/client";
 import type { AppendMessage, ThreadMessage } from "../../types/message";
 import type { Attachment } from "../../types/attachment";
 import type {
@@ -7,6 +8,7 @@ import type {
   RespondToToolApprovalOptions,
   StartRunConfig,
   ThreadSuggestion,
+  Unstable_RecordToolInteractionOptions,
 } from "../../runtime/interfaces/thread-runtime-core";
 
 import type {
@@ -16,14 +18,19 @@ import type {
 import {
   getExternalStoreMessages,
   bindExternalStoreMessage,
+  FALLBACK_ID_PREFIX,
 } from "../../runtime/utils/external-store-message";
 import { ThreadMessageConverter } from "./thread-message-converter";
-import { getAutoStatus, isAutoStatus } from "../../runtime/utils/auto-status";
+import {
+  getContentAutoStatus,
+  isAutoStatus,
+} from "../../runtime/utils/auto-status";
 import {
   fromThreadMessageLike,
   type ThreadMessageLike,
 } from "../../runtime/utils/thread-message-like";
 import { getThreadMessageText } from "../../utils/text";
+import { shallowArrayEqual } from "../../runtime/utils/external-message-conversion";
 import type {
   RuntimeCapabilities,
   ThreadRuntimeCore,
@@ -39,18 +46,19 @@ import {
   MessageRepository,
 } from "../../runtime/utils/message-repository";
 import { generateId } from "../../utils/id";
-import { ToolInvocationTracker } from "../tool-invocations/ToolInvocationTracker";
-import { EMPTY_QUEUE_ITEMS } from "../../store/scopes/queue-item";
-import type { QuoteInfo } from "../../types/quote";
+import { walkToolCallTree } from "../../runtime/utils/tool-call-tree";
 import {
-  captureThreadRuntimeGeneration,
-  isThreadRuntimeGenerationCurrent,
-} from "../../runtime/utils/thread-runtime-lifecycle";
+  ToolInvocationTracker,
+  type ToolExecutionStatus,
+} from "../tool-invocations/ToolInvocationTracker";
+import { EMPTY_QUEUE_ITEMS } from "../../runtime/queue/queue-item";
+import type { QuoteInfo } from "../../types/quote";
+import { captureThreadRuntimeGeneration } from "../../runtime/utils/thread-runtime-lifecycle";
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
 
 const observeAdapterCallback = (
-  name: "onAddToolResult" | "onRespondToToolApproval" | "onCancel",
+  name: "onAddToolResult" | "onCancel",
   result: Promise<void> | void,
 ) => {
   void Promise.resolve(result).catch((error) => {
@@ -61,23 +69,12 @@ const observeAdapterCallback = (
   });
 };
 
-const shallowEqual = (a: object, b: object): boolean => {
-  const aKeys = Object.keys(a);
-  if (aKeys.length !== Object.keys(b).length) return false;
-  for (const key of aKeys) {
-    if ((a as any)[key] !== (b as any)[key]) return false;
-  }
-  return true;
-};
-
 export const hasUpcomingMessage = (
   isRunning: boolean,
   messages: readonly ThreadMessage[],
 ) => {
   return isRunning && messages[messages.length - 1]?.role !== "assistant";
 };
-
-const FALLBACK_ID_PREFIX = "__external_store_fallback_";
 
 export class ExternalStoreThreadRuntimeCore
   extends BaseThreadRuntimeCore
@@ -98,6 +95,7 @@ export class ExternalStoreThreadRuntimeCore
     attachments: false,
     feedback: false,
     queue: false,
+    answerToolCall: false,
   };
 
   public get capabilities() {
@@ -112,6 +110,7 @@ export class ExternalStoreThreadRuntimeCore
   }
   // Unlike `isLoading`: pass `undefined` through to preserve the `getThreadState` fallback.
   public get isRunning(): boolean | undefined {
+    if (this._hasExecutingTools(this._store)) return true;
     return this._store.isRunning;
   }
 
@@ -138,6 +137,26 @@ export class ExternalStoreThreadRuntimeCore
 
   private _converter = new ThreadMessageConverter();
 
+  // Ids the host was asked to delete via onDelete, mapped to the onDelete
+  // calls still pending for them. The snapshot pass evicts them from the
+  // repository once the host's array no longer carries them; an id the host
+  // still carries after every onDelete call for it settled, resolved or
+  // rejected, is dropped from the map without eviction.
+  // Branch-changing mutations (edit, branch switch) invalidate the map,
+  // because after them the incoming array omits off-branch ids for reasons
+  // unrelated to deletion. A reload invalidates only the ids after the parent
+  // it regenerates from: the host keeps the prefix up to that parent, so an
+  // id absent from it is still a deletion. Plain tail sends do not clear: a
+  // tail append cannot make a visible id absent, so id-absence stays
+  // unambiguous and a delete whose confirmation races a send keeps its
+  // eviction.
+  private _pendingDeleteEvictions = new Map<string, Set<symbol>>();
+
+  // Placeholder id for the upcoming assistant message, reused across snapshot
+  // passes while the same tail message awaits its response so the placeholder
+  // keeps one identity per response.
+  private _optimistic: { id: string; parentId: string | null } | null = null;
+
   private _store!: ExternalStoreAdapter<any>;
 
   private _getInitializePromise?: () => Promise<unknown> | undefined;
@@ -155,6 +174,51 @@ export class ExternalStoreThreadRuntimeCore
    * snapshot — only when `adapter.unstable_enableToolInvocations === true`.
    */
   private _toolInvocations: ToolInvocationTracker | null = null;
+  private _toolStatuses: ReadonlyMap<string, ToolExecutionStatus> = new Map();
+  private _effectiveIsRunning = false;
+  private _inTrackerUpdate = false;
+  private _pendingRunningRefresh = false;
+
+  /**
+   * Tracker mutations initiated by this class (setState, reset) can publish
+   * status changes synchronously. Re-entering the snapshot pipeline from
+   * inside them would feed the tracker a stale snapshot and consume the
+   * restore arming a reset just installed, so the running refresh is
+   * deferred until the mutation returns and stays off the tracker.
+   */
+  private _runTrackerUpdate(fn: () => void): void {
+    this._inTrackerUpdate = true;
+    try {
+      fn();
+    } finally {
+      this._inTrackerUpdate = false;
+    }
+    if (this._pendingRunningRefresh) {
+      this._pendingRunningRefresh = false;
+      this._refreshEffectiveIsRunning();
+    }
+  }
+
+  private _refreshEffectiveIsRunning(): void {
+    const isRunning = this._getEffectiveIsRunning(this._store);
+    if (this._effectiveIsRunning === isRunning) return;
+    this._effectiveIsRunning = isRunning;
+    this._notifyEventSubscribers(isRunning ? "runStart" : "runEnd", {});
+    this._notifySubscribers();
+  }
+
+  private _hasExecutingTools(store: ExternalStoreAdapter<any>): boolean {
+    if (store.unstable_enableToolInvocations !== true) return false;
+    if (this._toolInvocations === null) return false;
+    for (const status of this._toolStatuses.values()) {
+      if (status.type === "executing") return true;
+    }
+    return false;
+  }
+
+  private _getEffectiveIsRunning(store: ExternalStoreAdapter<any>): boolean {
+    return (store.isRunning ?? false) || this._hasExecutingTools(store);
+  }
 
   public override beginEdit(messageId: string) {
     if (!this._store.onEdit)
@@ -174,12 +238,32 @@ export class ExternalStoreThreadRuntimeCore
   public __internal_setAdapter(store: ExternalStoreAdapter<any>) {
     if (this._store === store) return;
 
-    const isRunning = store.isRunning ?? false;
+    this._updateStoreSnapshot(store);
+  }
+
+  private _updateStoreSnapshot(store: ExternalStoreAdapter<any>) {
+    const previousIsRunning = this._effectiveIsRunning;
     this.isDisabled = store.isDisabled ?? false;
     this.isSendDisabled = store.isSendDisabled ?? false;
 
     const oldStore = this._store as ExternalStoreAdapter<any> | undefined;
     this._store = store;
+    const isRunning = this._getEffectiveIsRunning(store);
+    const repositoryInstance = store.unstable_messageRepositoryInstance;
+    const repositoryChanged =
+      repositoryInstance !== undefined &&
+      repositoryInstance !== this.repository;
+    if (repositoryChanged) {
+      this.repository = repositoryInstance;
+      this._pendingDeleteEvictions.clear();
+      // Keep the live placeholder so resetHead cannot evict an id still used
+      // by clients rendering the previous snapshot.
+      const head = this.repository.getMessages();
+      const tail = head.at(-1);
+      this._optimistic = tail?.metadata.isOptimistic
+        ? { id: tail.id, parentId: head.at(-2)?.id ?? null }
+        : null;
+    }
     if (oldStore?.queue !== store.queue) {
       this._transformedQueue = undefined;
       store.queue?.__internal_setDispatchTransform?.((message) => {
@@ -219,6 +303,11 @@ export class ExternalStoreThreadRuntimeCore
       attachments: !!this._store.adapters?.attachments,
       feedback: !!this._store.adapters?.feedback,
       queue: this._store.queue !== undefined,
+      answerToolCall:
+        this._store.onAddToolResult !== undefined ||
+        this._store.onResumeToolCall !== undefined ||
+        this._store.onRespondToToolApproval !== undefined ||
+        this._store.unstable_enableToolInvocations === true,
     };
     if (!shallowEqual(this._capabilities, newCapabilities)) {
       this._capabilities = newCapabilities;
@@ -230,8 +319,10 @@ export class ExternalStoreThreadRuntimeCore
       // Handle messageRepository
       if (
         oldStore &&
+        !repositoryChanged &&
         oldStore.isRunning === store.isRunning &&
-        oldStore.messageRepository === store.messageRepository
+        oldStore.messageRepository === store.messageRepository &&
+        previousIsRunning === isRunning
       ) {
         this._notifySubscribers();
         return;
@@ -241,7 +332,11 @@ export class ExternalStoreThreadRuntimeCore
       const headId =
         store.messageRepository.headId ?? incoming.at(-1)?.message.id ?? null;
 
-      if (oldStore && oldStore.messageRepository === store.messageRepository) {
+      if (
+        oldStore &&
+        !repositoryChanged &&
+        oldStore.messageRepository === store.messageRepository
+      ) {
         this.repository.resetHead(headId);
         messages = this.repository.getMessages();
       } else {
@@ -254,6 +349,7 @@ export class ExternalStoreThreadRuntimeCore
             this.repository.deleteMessage(message.id);
           }
         }
+        this._pendingDeleteEvictions.clear();
         this.repository.resetHead(headId);
         messages = this.repository.getMessages();
       }
@@ -265,8 +361,10 @@ export class ExternalStoreThreadRuntimeCore
         if (oldStore.convertMessage !== store.convertMessage) {
           this._converter = new ThreadMessageConverter();
         } else if (
+          !repositoryChanged &&
           oldStore.isRunning === store.isRunning &&
-          oldStore.messages === store.messages
+          oldStore.messages === store.messages &&
+          previousIsRunning === isRunning
         ) {
           this._notifySubscribers();
           // no conversion update
@@ -280,20 +378,14 @@ export class ExternalStoreThreadRuntimeCore
             if (!store.convertMessage) return m;
 
             const isLast = idx === (store.messages?.length ?? 0) - 1;
-            const autoStatus = getAutoStatus(
-              isLast,
-              isRunning,
-              false,
-              false,
-              undefined,
-            );
             const fallbackId = `${FALLBACK_ID_PREFIX}${idx}`;
 
             if (
               cache &&
               (cache.role !== "assistant" ||
                 !isAutoStatus(cache.status) ||
-                cache.status === autoStatus)
+                cache.status ===
+                  getContentAutoStatus(cache.content, isLast, isRunning))
             ) {
               if (
                 cache.id.startsWith(FALLBACK_ID_PREFIX) &&
@@ -310,7 +402,7 @@ export class ExternalStoreThreadRuntimeCore
             const newMessage = fromThreadMessageLike(
               messageLike,
               fallbackId,
-              autoStatus,
+              getContentAutoStatus(messageLike.content, isLast, isRunning),
             );
             bindExternalStoreMessage(newMessage, m);
             return newMessage;
@@ -336,6 +428,23 @@ export class ExternalStoreThreadRuntimeCore
         const parent = messages[i - 1];
         this.repository.addOrUpdateMessage(parent?.id ?? null, message);
       }
+
+      if (this._pendingDeleteEvictions.size > 0) {
+        const incomingIds = new Set(messages.map((m) => m.id));
+        for (const [id, calls] of this._pendingDeleteEvictions) {
+          if (incomingIds.has(id)) {
+            if (calls.size === 0) this._pendingDeleteEvictions.delete(id);
+            continue;
+          }
+          this._pendingDeleteEvictions.delete(id);
+          try {
+            this.repository.getMessage(id);
+          } catch {
+            continue;
+          }
+          this.repository.deleteMessage(id);
+        }
+      }
     } else {
       throw new Error(
         "ExternalStoreAdapter must provide either 'messages' or 'messageRepository'",
@@ -345,8 +454,9 @@ export class ExternalStoreThreadRuntimeCore
     // Common logic for both paths
     if (messages.length > 0) this.ensureInitialized();
 
-    if ((oldStore?.isRunning ?? false) !== (store.isRunning ?? false)) {
-      if (store.isRunning) {
+    this._effectiveIsRunning = isRunning;
+    if (previousIsRunning !== isRunning) {
+      if (isRunning) {
         this._notifyEventSubscribers("runStart", {});
       } else {
         this._notifyEventSubscribers("runEnd", {});
@@ -358,9 +468,13 @@ export class ExternalStoreThreadRuntimeCore
     // (prior placeholders, mid-run id-swap siblings); export() never persists them.
     let optimisticId: string | null = null;
     if (hasUpcomingMessage(isRunning, messages)) {
-      optimisticId = generateId();
+      const parentId = messages.at(-1)?.id ?? null;
+      if (this._optimistic?.parentId !== parentId) {
+        this._optimistic = { id: generateId(), parentId };
+      }
+      optimisticId = this._optimistic.id;
       this.repository.addOrUpdateMessage(
-        messages.at(-1)?.id ?? null,
+        parentId,
         fromThreadMessageLike(
           { role: "assistant", content: [], metadata: { isOptimistic: true } },
           optimisticId,
@@ -369,11 +483,32 @@ export class ExternalStoreThreadRuntimeCore
       );
     }
 
+    if (optimisticId === null) this._optimistic = null;
     this.repository.resetHead(optimisticId ?? messages.at(-1)?.id ?? null);
 
-    this._messages = this.repository.getMessages();
+    const messagesSnapshot = this.repository.getMessages();
+    if (
+      !this._messages ||
+      !shallowArrayEqual(this._messages, messagesSnapshot)
+    ) {
+      this._messages = messagesSnapshot;
+    }
 
-    this._driveToolInvocations();
+    if (this._voiceMessages.length > 0) {
+      const hostIds = new Set(this._messages.map((message) => message.id));
+      const remaining = this._voiceMessages.filter(
+        (message) => !hostIds.has(message.id),
+      );
+      if (remaining.length !== this._voiceMessages.length) {
+        this._voiceMessages = remaining;
+        this._markVoiceMessagesDirty();
+      }
+    }
+
+    if (repositoryChanged) {
+      this._runTrackerUpdate(() => this._toolInvocations?.reset());
+    }
+    this._runTrackerUpdate(() => this._driveToolInvocations());
 
     this._notifySubscribers();
   }
@@ -392,6 +527,7 @@ export class ExternalStoreThreadRuntimeCore
       if (this._toolInvocations) {
         this._toolInvocations.reset();
         this._toolInvocations = null;
+        this._toolStatuses = new Map();
         this._store.setToolStatuses?.({});
       }
       return;
@@ -435,15 +571,28 @@ export class ExternalStoreThreadRuntimeCore
             }
           },
           onStatusesChange: (statuses) => {
-            this._store.setToolStatuses?.(Object.fromEntries(statuses));
+            const hadExecutingTools = this._hasExecutingTools(this._store);
+            this._toolStatuses = statuses;
+            try {
+              this._store.setToolStatuses?.(Object.fromEntries(statuses));
+            } finally {
+              if (hadExecutingTools !== this._hasExecutingTools(this._store)) {
+                if (this._inTrackerUpdate) {
+                  this._pendingRunningRefresh = true;
+                } else {
+                  this._updateStoreSnapshot(this._store);
+                }
+              }
+            }
           },
         },
+        (toolCall) => this._store.unstable_isClientToolCall?.(toolCall),
       );
     }
 
     this._toolInvocations.setState({
       messages: this._messages,
-      isRunning: this._store.isRunning ?? false,
+      isRunning: this._getEffectiveIsRunning(this._store),
       ...(this._store.isLoading !== undefined && {
         isLoading: this._store.isLoading,
       }),
@@ -466,17 +615,9 @@ export class ExternalStoreThreadRuntimeCore
   private _findMessageIdForToolCall(toolCallId: string): string | undefined {
     if (this._messagesForToolCallIndex !== this._messages) {
       this._toolCallToMessageId.clear();
-      const visit = (messages: readonly ThreadMessage[]): void => {
-        for (const message of messages) {
-          if (!Array.isArray(message.content)) continue;
-          for (const part of message.content) {
-            if (!part || part.type !== "tool-call") continue;
-            this._toolCallToMessageId.set(part.toolCallId, message.id);
-            if (part.messages) visit(part.messages);
-          }
-        }
-      };
-      visit(this._messages);
+      for (const { part, messageId } of walkToolCallTree(this._messages)) {
+        this._toolCallToMessageId.set(part.toolCallId, messageId);
+      }
       this._messagesForToolCallIndex = this._messages;
     }
     return this._toolCallToMessageId.get(toolCallId);
@@ -487,7 +628,7 @@ export class ExternalStoreThreadRuntimeCore
       throw new Error("Runtime does not support switching branches.");
 
     // Silently ignore branch switches while running
-    if (this._store.isRunning) {
+    if (this._getEffectiveIsRunning(this._store)) {
       return;
     }
 
@@ -497,6 +638,7 @@ export class ExternalStoreThreadRuntimeCore
       : null;
 
     this.repository.switchToBranch(branchId);
+    this._pendingDeleteEvictions.clear();
     this.updateMessages(this.repository.getMessages());
     if (onBranchChange) {
       this._notifyBranchChange(previousHeadId, onBranchChange);
@@ -525,21 +667,28 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public async append(rawMessage: AppendMessage): Promise<void> {
+    let message = {
+      ...rawMessage,
+      parentId: this._resolveAppendParent(rawMessage.parentId),
+    };
+    if (this.voice) return this._appendToVoiceSession(message);
+    if (this._isVoiceMessage(message.sourceId))
+      throw new Error("Voice transcript messages cannot be edited");
     // sourceId marks an edit send; the parent may coincide with the head
     // after a resync (e.g. cancelRun dropped the edited message).
     const isEdit =
-      rawMessage.sourceId != null ||
-      rawMessage.parentId !== (this.messages.at(-1)?.id ?? null);
+      message.sourceId != null ||
+      message.parentId !== (this._getBaseMessages().at(-1)?.id ?? null);
 
     // A transformed-queue send is stamped at flush; any other queue's
     // transform would gate against its own thread's messages, so those stamp
     // at send.
-    const message =
+    message =
       !isEdit &&
       this._store.queue &&
       this._store.queue === this._transformedQueue
-        ? rawMessage
-        : this.enrichAppendMetadata(rawMessage);
+        ? message
+        : this.enrichAppendMetadata(message);
 
     const generation = captureThreadRuntimeGeneration(this);
     this.ensureInitialized();
@@ -554,12 +703,12 @@ export class ExternalStoreThreadRuntimeCore
       if (initPromise) {
         await initPromise;
       }
-      if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
+      if (generation.aborted) return;
 
       // Buffering does not start a run, so the tool-abort below must wait
       // until the queue flushes. By then the prior run (and its tools) has
       // settled.
-      if (message.steer ?? this._store.isRunning ?? false)
+      if (message.steer ?? this._getEffectiveIsRunning(this._store))
         this._store.queue.steer(message);
       else this._store.queue.enqueue(message);
       return;
@@ -579,29 +728,77 @@ export class ExternalStoreThreadRuntimeCore
     // user messages — matches the satellites' historical opt-in cancel
     // behavior, which is now built in.
     if (message.startRun ?? message.role === "user") {
-      await this._toolInvocations?.abort();
+      await this._toolInvocations?.abort({ discardPending: true });
     }
-    if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
+    if (generation.aborted) return;
 
     if (isEdit) {
       if (!this._store.onEdit)
         throw new Error("Runtime does not support editing messages.");
+      this._pendingDeleteEvictions.clear();
       await this._store.onEdit(message);
     } else {
       await this._store.onNew(message);
     }
   }
 
+  protected override _commitVoiceMessage(
+    message: ThreadMessage,
+  ): void | Promise<void> {
+    const generation = captureThreadRuntimeGeneration(this);
+    if (generation.aborted) {
+      this._dropVoiceMessage(message.id, false);
+      return;
+    }
+    const barrier = this._getVoiceCommitBarrier();
+    if (!barrier) {
+      this._store.onVoiceTranscript?.(message);
+      return;
+    }
+    // A React host recreates its callbacks on the render that ends the load,
+    // so the delivery reads the adapter current then rather than the callback
+    // that produced the message. The repository is the one conversation
+    // identity that survives those renders and moves when a host routes
+    // another conversation through this runtime; a host that swaps only its
+    // messages is indistinguishable from a load finishing.
+    const repository = this.repository;
+    return barrier.then(() => {
+      if (generation.aborted || this.repository !== repository) {
+        this._dropVoiceMessage(message.id, true);
+        return;
+      }
+      this._store.onVoiceTranscript?.(message);
+    });
+  }
+
   public async deleteMessage(messageId: string): Promise<void> {
     if (this._store.onDelete) {
-      await this._store.onDelete(messageId);
+      // The host owns deletion here, and it may decline (fail a server call,
+      // cancel a confirm dialog, ignore an off-branch id). The eviction is
+      // therefore deferred to the snapshot pass, which evicts only once the
+      // host's own array no longer carries the id. Registered before the
+      // callback because an optimistic host publishes that snapshot while
+      // the callback is still awaited.
+      const wasVisible = this.repository
+        .getMessages()
+        .some((m) => m.id === messageId);
+      const call = Symbol();
+      if (wasVisible) {
+        const calls = this._pendingDeleteEvictions.get(messageId) ?? new Set();
+        this._pendingDeleteEvictions.set(messageId, calls.add(call));
+      }
+      try {
+        await this._store.onDelete(messageId);
+      } finally {
+        this._pendingDeleteEvictions.get(messageId)?.delete(call);
+      }
       return;
     }
 
     if (!this._store.setMessages)
       throw new Error("Runtime does not support deleting messages.");
 
-    if (this._store.isRunning) {
+    if (this._getEffectiveIsRunning(this._store)) {
       await this._toolInvocations?.abort();
     }
 
@@ -609,7 +806,39 @@ export class ExternalStoreThreadRuntimeCore
     const messageIndex = messages.findIndex((m) => m.id === messageId);
     if (messageIndex === -1) throw new Error("Message not found.");
 
+    this._pendingDeleteEvictions.clear();
     this.updateMessages(messages.filter((message) => message.id !== messageId));
+    this._evictDeletedMessage(messageId);
+  }
+
+  // The snapshot pass only relinks incoming messages; it never evicts, so
+  // without this the deleted message survives as a sibling branch that the
+  // branch picker can resurrect into the host store. `_messages` is refreshed
+  // before notifying so `messages` and the branch graph agree at notify time,
+  // mirroring the end of the snapshot pass.
+  private _evictDeletedMessage(messageId: string) {
+    // Positional fallback ids are remapped in the snapshot pass; evicting
+    // them first leaves the pre-renumber node as a sibling of the new head.
+    if (messageId.startsWith(FALLBACK_ID_PREFIX)) return;
+    // A synchronous host update (e.g. a setMessages that re-entered the
+    // snapshot pass) may have evicted the message already; only that case is
+    // skipped, so genuine repository errors still propagate.
+    try {
+      this.repository.getMessage(messageId);
+    } catch {
+      return;
+    }
+
+    this.repository.deleteMessage(messageId);
+    this._publishRepositoryMessages();
+  }
+
+  // Notifies even when the visible messages are unchanged: deleting an
+  // off-branch message still changes the branch counts subscribers read.
+  private _publishRepositoryMessages() {
+    const messages = this.repository.getMessages();
+    if (!shallowArrayEqual(this._messages, messages)) this._messages = messages;
+    this._notifySubscribers();
   }
 
   public getQueueItems() {
@@ -633,11 +862,25 @@ export class ExternalStoreThreadRuntimeCore
   public async startRun(config: StartRunConfig): Promise<void> {
     if (!this._store.onReload)
       throw new Error("Runtime does not support reloading messages.");
+    if (this.voice)
+      throw new Error("Cannot start a run while a voice session is connected");
+    if (this._isVoiceMessage(config.sourceId))
+      throw new Error("Voice transcript messages cannot be reloaded");
+
+    const visible = this.repository.getMessages();
+    const kept = new Set(
+      visible
+        .slice(0, visible.findIndex((m) => m.id === config.parentId) + 1)
+        .map((m) => m.id),
+    );
+    for (const id of this._pendingDeleteEvictions.keys()) {
+      if (!kept.has(id)) this._pendingDeleteEvictions.delete(id);
+    }
 
     // Auto-abort in-flight client-side tool executions when a run reloads;
     // any results that land afterward would target a turn that no longer
     // exists. See `append` above for full rationale.
-    await this._toolInvocations?.abort();
+    await this._toolInvocations?.abort({ discardPending: true });
 
     await this._store.onReload(config.parentId, config);
   }
@@ -645,6 +888,10 @@ export class ExternalStoreThreadRuntimeCore
   public async resumeRun(config: ResumeRunConfig): Promise<void> {
     if (!this._store.onResume)
       throw new Error("Runtime does not support resuming runs.");
+    if (this.voice)
+      throw new Error("Cannot start a run while a voice session is connected");
+    if (this._isVoiceMessage(config.sourceId))
+      throw new Error("Voice transcript messages cannot be reloaded");
 
     await this._store.onResume(config);
   }
@@ -667,7 +914,7 @@ export class ExternalStoreThreadRuntimeCore
     // back here via __internal_setAdapter. The tracker publishes the
     // cleared status map itself, so adapter-side statuses reset only when
     // the tracker is the source of truth.
-    this._toolInvocations?.reset();
+    this._runTrackerUpdate(() => this._toolInvocations?.reset());
 
     this._store.onLoadExternalState(state);
   }
@@ -678,7 +925,7 @@ export class ExternalStoreThreadRuntimeCore
    * without run-cancel semantics (`onCancel`, composer draft restoration).
    */
   public unstable_notifySessionReset(): void {
-    this._toolInvocations?.reset();
+    this._runTrackerUpdate(() => this._toolInvocations?.reset());
     this._store.queue?.__internal_notifyCancelled?.();
   }
 
@@ -691,7 +938,7 @@ export class ExternalStoreThreadRuntimeCore
     // Abort any in-flight client-side tool executions. Fire-and-forget —
     // the abort resolves once executions settle, but we don't gate the
     // cancel on it.
-    void this._toolInvocations?.abort();
+    void this._toolInvocations?.abort({ discardPending: true });
 
     // Before the run is aborted, so the settle it produces keeps the pending
     // items instead of dispatching the next one at the moment the user
@@ -737,7 +984,7 @@ export class ExternalStoreThreadRuntimeCore
         movedLeaf = { id: trailingUserLeaf.id, draft };
       }
     }
-    if (!movedLeaf) this._notifySubscribers();
+    this._publishRepositoryMessages();
 
     // The resync commits what the cancel left (a kept optimistic message, the
     // restored branch) back to the store a macrotask later. The store may move
@@ -745,7 +992,7 @@ export class ExternalStoreThreadRuntimeCore
     // tick. Read the repository at flush time and re-apply the rollbacks to
     // it, instead of stamping a snapshot captured above over the newer state.
     setTimeout(() => {
-      if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
+      if (generation.aborted) return;
 
       this.dropEmptyOptimisticHead();
       if (movedLeaf) {
@@ -759,7 +1006,8 @@ export class ExternalStoreThreadRuntimeCore
           this.composer.retractDraft(movedLeaf.draft);
         }
       }
-      this.updateMessages(this.repository.getMessages());
+      this._publishRepositoryMessages();
+      this.updateMessages(this._messages);
     }, 0);
   }
 
@@ -801,13 +1049,48 @@ export class ExternalStoreThreadRuntimeCore
     );
   }
 
-  public respondToToolApproval(options: RespondToToolApprovalOptions) {
+  public respondToToolApproval(
+    options: RespondToToolApprovalOptions,
+  ): Promise<void> {
     if (!this._store.onRespondToToolApproval)
       throw new Error("Runtime does not support tool approvals.");
-    observeAdapterCallback(
-      "onRespondToToolApproval",
-      this._store.onRespondToToolApproval(options),
+    const message = this.messages.findLast(
+      (candidate) =>
+        candidate.role === "assistant" &&
+        candidate.content.some(
+          (part) =>
+            part.type === "tool-call" &&
+            part.approval?.id === options.approvalId,
+        ),
     );
+    const toolCall = message?.content.find(
+      (part) =>
+        part.type === "tool-call" && part.approval?.id === options.approvalId,
+    );
+    try {
+      return Promise.resolve(this._store.onRespondToToolApproval(options)).then(
+        () => {
+          if (message && toolCall?.type === "tool-call") {
+            this._notifyToolApprovalAnswered(
+              message.id,
+              toolCall.toolCallId,
+              toolCall.toolName,
+              options.approved,
+            );
+          }
+        },
+      );
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  }
+
+  public async unstable_recordToolInteraction(
+    options: Unstable_RecordToolInteractionOptions,
+  ): Promise<void> {
+    if (!this._store.unstable_onRecordToolInteraction)
+      throw new Error("Runtime does not support recording tool interactions.");
+    await this._store.unstable_onRecordToolInteraction(options);
   }
 
   public override reset(initialMessages?: readonly ThreadMessageLike[]) {

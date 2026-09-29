@@ -12,6 +12,8 @@ Two ways a server reaches the user:
 
 Both flow through one connection lifecycle, one persisted state surface, and one tool registration path.
 
+<AgentSetup product="guides/user-managed-mcp" />
+
 ## How it works
 
 ```
@@ -103,7 +105,7 @@ You have two options:
 <InstallCommand shadcn={["mcp-config"]} />
 
 ```tsx title="app/page.tsx"
-import { McpConfigDialog } from "@/components/assistant-ui/mcp-config";
+import { McpConfigDialog } from "@/components/assistant-ui/elements/mcp-config.aui";
 
 export default function Page() {
   return (
@@ -178,9 +180,9 @@ The iteration primitives wrap each item in an `McpServerByIdProvider`, so the ne
 
 ```tsx
 <McpAddFormPrimitive.Root onSubmitted={() => closeDialog()}>
-  <McpAddFormPrimitive.NameField />
-  <McpAddFormPrimitive.UrlField />
-  <McpAddFormPrimitive.AuthSelect /> {/* none | bearer | oauth */}
+  <label>Name <McpAddFormPrimitive.NameField /></label>
+  <label>URL <McpAddFormPrimitive.UrlField /></label>
+  <label>Auth <McpAddFormPrimitive.AuthSelect /></label> {/* none | bearer | oauth */}
   <McpAddFormPrimitive.AuthFields /> {/* token or scope input depending on selection */}
   <McpAddFormPrimitive.Error />
   <McpAddFormPrimitive.Submit>Add</McpAddFormPrimitive.Submit>
@@ -188,7 +190,7 @@ The iteration primitives wrap each item in an `McpServerByIdProvider`, so the ne
 </McpAddFormPrimitive.Root>
 ```
 
-The form owns its own draft state and submits via `aui.mcp.addCustomServer(...)`. Pass a render function to `AuthFields` to fully customize it.
+The form owns its own draft state and submits via `aui.mcp.addCustomServer(...)`. Pass a render function to `AuthFields` to fully customize it, and render your inputs through `McpAddFormPrimitive.BearerTokenField` and `McpAddFormPrimitive.ScopesField` so they stay bound to the form.
 
 </Step>
 <Step>
@@ -214,7 +216,7 @@ export default function Callback() {
 }
 ```
 
-The callback reads `?state=...&code=...` from the URL, derives the target server id (encoded in the OAuth `state` parameter automatically), and calls `completeAuth` on the right server.
+The callback reads `?state=...` plus either `code` or an OAuth `error` from the URL, derives the target server id (encoded in the OAuth `state` parameter automatically), verifies the complete state value against the pending authorization request, and calls `completeAuth` on the right server.
 
 </Step>
 <Step>
@@ -297,11 +299,17 @@ Client-side validation errors keep the elicitation pending so the user can corre
 
 ## Storage
 
-All persisted state — custom server records, OAuth tokens, PKCE verifiers, DCR client info — goes through a single `MCPStorage` resource. Three built-ins:
+All persisted state — custom server records, OAuth tokens, callback state, PKCE verifiers, DCR client info — goes through a single `MCPStorage` resource. Three built-ins:
 
 - `McpLocalStorage()` — default. Stores under the `aui-mcp:` prefix in `window.localStorage`.
 - `McpMemoryStorage()` — in-process Map. Use for SSR/tests where localStorage is absent.
 - `McpCustomStorage({...})` — bring your own load/save. Use for app-controlled backends (e.g. POST to your API).
+
+A storage can declare a `scopeId` — a stable identity for its backing data (two storages sharing a `scopeId` must read and write the same persisted state). When the scope changes, the manager removes the previous scope's custom servers, sets `isHydrated` to `false`, and then loads the replacement. Servers with `bearer` or `oauth` auth also reconnect and rebind the OAuth provider instead of leaving a live connection writing auth state to the replaced store. Without a `scopeId`, a storage swap does not reload custom servers or trigger a reconnect: records from the previous storage remain loaded and the next add or remove can persist them into the replacement. Give every swappable storage a `scopeId`, or remount the manager instead of swapping its `storage`. `McpLocalStorage()` derives a scope automatically for the shared `window.localStorage` (pass `scopeId` yourself when overriding the backing `storage`); `McpMemoryStorage()` scopes each instance uniquely; `McpCustomStorage` takes whatever identity its backend already has.
+
+If `loadCustomServers` fails, the manager keeps later edits in memory but does not save them because the persisted list is unknown. It logs the failed load and the first blocked edit. Remount the manager to retry loading before making changes that must persist.
+
+Authentication records include the MCP server URL and are used only for that exact endpoint. Custom storage implementations must round-trip the `serverUrl` field passed to `saveAuthState`. Bearer records are written by the host application, so any implementation that persists `token` must write the server's configured `url` as `serverUrl` in the same record; both sides are normalized before they are compared, so any spelling of the same URL matches. A stored credential that does not match is never sent: the server does not connect and `lastError` reports that its saved authentication belongs to a different URL. OAuth records written before this binding existed carry no `serverUrl`, so they surface that message once and the user connects again.
 
 ```tsx
 import { McpManagerResource, McpCustomStorage } from "@assistant-ui/react-mcp";
@@ -310,6 +318,7 @@ AuiConfig({
   mcp: McpManagerResource({
     connectors,
     storage: McpCustomStorage({
+      scopeId: "api:/api/mcp",
       loadCustomServers: async () => fetch("/api/mcp/servers").then((r) => r.json()),
       saveCustomServers: async (records) =>
         fetch("/api/mcp/servers", { method: "PUT", body: JSON.stringify(records) }),

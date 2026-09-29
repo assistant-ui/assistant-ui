@@ -48,7 +48,7 @@ scaffolds app/assistant.tsx + app/api/chat/route.ts).
   npx assistant-ui@latest init --yes
 
 --yes is required. init scaffolds:
-- components/assistant-ui/thread.tsx (Thread UI)
+- components/assistant-ui/elements/thread.aui.tsx (Thread UI)
 - app/assistant.tsx (exports <Assistant />, already wraps Thread in
   AssistantRuntimeProvider with runtime + transport)
 - app/api/chat/route.ts (OpenAI backend)

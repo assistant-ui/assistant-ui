@@ -1,19 +1,29 @@
 import {
+  MAX_TRAVERSAL_DEPTH,
+  boundSpec,
+  clampReasonDetail,
+} from "../convert/boundSpec";
+import { copyBounded } from "../convert/copyBounded";
+import { isElement } from "../convert/isElement";
+import { takeRun } from "../convert/takeRun";
+import {
   normalizeSpec,
   type NormalizedUIElement,
   type NormalizedUINode,
 } from "../ir";
-import { boundSpec } from "./boundSpec";
+import {
+  factTrend,
+  formatFactDelta,
+  formatValue,
+} from "../vocabulary/formatValue";
 import {
   CHOICE_OPTION_CAP,
-  MAX_TRAVERSAL_DEPTH,
   PAYLOAD_SOFT_CAP,
   PRIMARY_ACTION_CAP,
   TABLE_COLUMN_CAP,
   TABLE_ROW_CAP,
   buildCard,
   buildSubmitAction,
-  clampReasonDetail,
   utf8ByteLength,
 } from "./constants";
 import type {
@@ -44,11 +54,11 @@ export interface ConversionContext {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const isElement = (node: NormalizedUINode): node is NormalizedUIElement =>
-  isRecord(node);
-
 const asString = (value: unknown): string =>
   typeof value === "string" ? value : "";
+
+const asFiniteNumber = (value: unknown): number | undefined =>
+  typeof value === "number" && Number.isFinite(value) ? value : undefined;
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -125,7 +135,7 @@ function reservedSafeId(
 }
 
 /**
- * The shared bounded-iteration primitive: slices `value` to `cap` entries
+ * The shared bounded-iteration primitive: copies `value` to `cap` entries
  * without ever reading past that many indices, so a hostile array (sparse or
  * proxied with a fabricated `length`) cannot stall the event loop.
  */
@@ -134,7 +144,7 @@ const clampArray = (
   cap: number,
 ): { readonly items: unknown[]; readonly truncated: boolean } => {
   if (!Array.isArray(value)) return { items: [], truncated: false };
-  return { items: value.slice(0, cap), truncated: value.length > cap };
+  return copyBounded(value, cap);
 };
 
 const normalizedList = (
@@ -169,7 +179,14 @@ const toChoice = (option: unknown): TeamsInputChoice | undefined => {
   if (!isRecord(option) || typeof option["value"] !== "string") {
     return undefined;
   }
-  return { title: asString(option["label"]), value: option["value"] };
+  const label = asString(option["label"]);
+  const description = asString(option["description"]);
+  return {
+    title: description
+      ? [label, description].filter(Boolean).join(": ")
+      : label,
+    value: option["value"],
+  };
 };
 
 const choicesFrom = (
@@ -204,10 +221,18 @@ const choicesFrom = (
 };
 
 function convertFacts(facts: readonly NormalizedUIElement[]): TeamsCardElement {
-  const set: TeamsFact[] = facts.map((fact) => ({
-    title: asString(fact.props["label"]),
-    value: asString(fact.props["value"]),
-  }));
+  const set: TeamsFact[] = facts.map((fact) => {
+    const value = asString(fact.props["value"]);
+    const delta = fact.props["delta"];
+    const deltaText =
+      typeof delta === "string"
+        ? formatFactDelta(delta, factTrend(delta, fact.props["trend"]))
+        : undefined;
+    return {
+      title: asString(fact.props["label"]),
+      value: deltaText === undefined ? value : `${value} (${deltaText})`,
+    };
+  });
   return { type: "FactSet", facts: set };
 }
 
@@ -275,13 +300,6 @@ const ALERT_STYLE_MAP: Record<string, TeamsContainerStyle> = {
   danger: "attention",
 };
 
-const stringifyCell = (value: unknown): string => {
-  if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean")
-    return String(value);
-  return "";
-};
-
 function convertTable(
   props: Readonly<Record<string, unknown>>,
   context: ConversionContext,
@@ -337,12 +355,22 @@ function convertTable(
     : undefined;
   const dataRows: TeamsTableRow[] = rawRows.map((row) => ({
     type: "TableRow",
-    cells: (Array.isArray(row) ? row.slice(0, TABLE_COLUMN_CAP) : []).map(
-      (cell) => ({
-        type: "TableCell" as const,
-        items: [textBlock(stringifyCell(cell))],
-      }),
-    ),
+    cells: (Array.isArray(row)
+      ? copyBounded(row, TABLE_COLUMN_CAP).items
+      : []
+    ).map((cell, index) => ({
+      type: "TableCell" as const,
+      items: [
+        textBlock(
+          formatValue(
+            cell,
+            isRecord(rawColumns[index])
+              ? rawColumns[index]["format"]
+              : undefined,
+          ),
+        ),
+      ],
+    })),
   }));
 
   return {
@@ -462,11 +490,15 @@ export function convertElement(
       const name = asString(props["name"]);
       const placeholder = asString(props["placeholder"]);
       const label = asString(props["label"]);
+      const defaultValue = props["defaultValue"];
       const input: TeamsCardElement = {
         type: "Input.ChoiceSet",
         id: reservedSafeId(name || "select", "Select", context),
         style: "compact",
         choices: choicesFrom(props["options"], "Select", context),
+        ...(typeof defaultValue === "string" && defaultValue
+          ? { value: defaultValue }
+          : {}),
         ...(placeholder ? { placeholder } : {}),
         ...(label ? { label } : {}),
       };
@@ -488,6 +520,26 @@ export function convertElement(
       };
       return withCompanionSubmit(element, input, context);
     }
+    case "CheckboxGroup": {
+      const name = asString(props["name"]);
+      const label = asString(props["label"]);
+      const checked = Array.isArray(props["defaultValue"])
+        ? props["defaultValue"].filter(
+            (value): value is string =>
+              typeof value === "string" && value !== "",
+          )
+        : [];
+      const input: TeamsCardElement = {
+        type: "Input.ChoiceSet",
+        id: reservedSafeId(name || "checkboxgroup", "CheckboxGroup", context),
+        style: "expanded",
+        isMultiSelect: true,
+        choices: choicesFrom(props["options"], "CheckboxGroup", context),
+        ...(checked.length > 0 ? { value: checked.join(",") } : {}),
+        ...(label ? { label } : {}),
+      };
+      return withCompanionSubmit(element, input, context);
+    }
     case "Checkbox": {
       const name = asString(props["name"]);
       const label = asString(props["label"]);
@@ -501,15 +553,35 @@ export function convertElement(
       };
       return withCompanionSubmit(element, input, context);
     }
+    case "Slider": {
+      const name = asString(props["name"]);
+      const label = asString(props["label"]);
+      const min = asFiniteNumber(props["min"]);
+      const max = asFiniteNumber(props["max"]);
+      const defaultValue = asFiniteNumber(props["defaultValue"]);
+      const input = {
+        type: "Input.Number",
+        id: reservedSafeId(name || "slider", "Slider", context),
+        ...(label ? { label } : {}),
+        ...(min !== undefined ? { min } : {}),
+        ...(max !== undefined ? { max } : {}),
+        ...(defaultValue !== undefined ? { value: defaultValue } : {}),
+      } as unknown as TeamsCardElement;
+      return withCompanionSubmit(element, input, context);
+    }
     case "Input": {
       const name = asString(props["name"]);
       const label = asString(props["label"]);
       const placeholder = asString(props["placeholder"]);
+      const defaultValue = props["defaultValue"];
       const input: TeamsCardElement = {
         type: "Input.Text",
         id: reservedSafeId(name || "input", "Input", context),
         ...(label ? { label } : {}),
         ...(placeholder ? { placeholder } : {}),
+        ...(typeof defaultValue === "string" && defaultValue
+          ? { value: defaultValue }
+          : {}),
         ...(props["multiline"] === true ? { isMultiline: true } : {}),
       };
       return withCompanionSubmit(element, input, context);
@@ -729,32 +801,22 @@ export function convertSequence(
       continue;
     }
     if (isElement(current) && current.type === "Fact") {
-      const facts: NormalizedUIElement[] = [];
-      while (index < nodes.length) {
-        const candidate = nodes[index];
-        if (!candidate || !isElement(candidate) || candidate.type !== "Fact") {
-          break;
-        }
-        facts.push(candidate);
-        index += 1;
-      }
+      const { run: facts, next } = takeRun(
+        nodes,
+        index,
+        (candidate) => candidate.type === "Fact",
+      );
+      index = next;
       emit([convertFacts(facts)]);
       continue;
     }
     if (isElement(current) && current.type === "Button") {
-      const buttons: NormalizedUIElement[] = [];
-      while (index < nodes.length) {
-        const candidate = nodes[index];
-        if (
-          !candidate ||
-          !isElement(candidate) ||
-          candidate.type !== "Button"
-        ) {
-          break;
-        }
-        buttons.push(candidate);
-        index += 1;
-      }
+      const { run: buttons, next } = takeRun(
+        nodes,
+        index,
+        (candidate) => candidate.type === "Button",
+      );
+      index = next;
       emit([convertButtons(buttons, context)]);
       continue;
     }
@@ -792,10 +854,11 @@ export function convertRootToCard(
  * Converts a generative-ui tree into a Microsoft Teams Adaptive Card and
  * non-fatal conversion warnings. Sizes, weights, and colors map to Adaptive
  * Card's semantic enums rather than raw values. An Input/Select/RadioGroup/
- * Checkbox/DatePicker whose id would be the reserved {@link RESERVED_INPUT_ID}
- * is renamed with a warning (see `decodeSubmitData`). Never throws: an
- * unknown `$type` is skipped with a "dropped" warning, and a malformed input
- * resolves to an empty card plus a "dropped" warning instead of throwing.
+ * CheckboxGroup/Checkbox/Slider/DatePicker whose id would be the reserved
+ * {@link RESERVED_INPUT_ID} is renamed with a warning (see `decodeSubmitData`).
+ * Never throws: an unknown `$type` is skipped with a "dropped" warning, and a
+ * malformed input resolves to an empty card plus a "dropped" warning instead
+ * of throwing.
  */
 export function toAdaptiveCard(
   node: unknown,

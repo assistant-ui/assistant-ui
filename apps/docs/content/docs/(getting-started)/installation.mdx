@@ -140,7 +140,7 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-6-luna"),
     system,
     messages: await convertToModelMessages(messages),
     tools: frontendTools(tools),
@@ -159,7 +159,7 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
   const result = streamText({
-    model: anthropic("claude-sonnet-4-6"),
+    model: anthropic("claude-sonnet-5"),
     system,
     messages: await convertToModelMessages(messages),
     tools: frontendTools(tools),
@@ -197,7 +197,7 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
   const result = streamText({
-    model: bedrock("anthropic.claude-sonnet-4-6-v1:0"),
+    model: bedrock("us.anthropic.claude-sonnet-5"),
     system,
     messages: await convertToModelMessages(messages),
     tools: frontendTools(tools),
@@ -216,7 +216,7 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
   const result = streamText({
-    model: google("gemini-2.0-flash"),
+    model: google("gemini-3.8-flash"),
     system,
     messages: await convertToModelMessages(messages),
     tools: frontendTools(tools),
@@ -235,7 +235,7 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
   const result = streamText({
-    model: vertex("gemini-2.0-flash"),
+    model: vertex("gemini-3.8-flash"),
     system,
     messages: await convertToModelMessages(messages),
     tools: frontendTools(tools),
@@ -254,7 +254,7 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
   const result = streamText({
-    model: groq("llama-3.3-70b-versatile"),
+    model: groq("openai/gpt-oss-120b"),
     system,
     messages: await convertToModelMessages(messages),
     tools: frontendTools(tools),
@@ -311,7 +311,7 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
   const result = streamText({
-    model: ollama("llama3"),
+    model: ollama("gpt-oss:20b"),
     system,
     messages: await convertToModelMessages(messages),
     tools: frontendTools(tools),
@@ -409,8 +409,8 @@ If you aren't using Next.js, you can also deploy this endpoint to Cloudflare Wor
 ```tsx title="/app/page.tsx" tab="Thread"
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/ai-sdk";
-import { ThreadList } from "@/components/assistant-ui/thread-list";
-import { Thread } from "@/components/assistant-ui/thread";
+import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export default function MyApp() {
   const runtime = useChatRuntime({
@@ -435,7 +435,7 @@ export default function MyApp() {
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/ai-sdk";
-import { AssistantModal } from "@/components/assistant-ui/assistant-modal";
+import { AssistantModal } from "@/components/assistant-ui/elements/assistant-modal.aui";
 
 export default function MyApp() {
   const runtime = useChatRuntime({

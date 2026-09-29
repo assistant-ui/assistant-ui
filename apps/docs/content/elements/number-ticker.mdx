@@ -1,0 +1,173 @@
+---
+title: "Number ticker"
+description: "Digits that roll into place as a count updates in real time."
+---
+
+A number ticker rolls each digit into place on its own short transition instead of swapping the text in place, so a changing count reads as motion rather than a flicker. With a runtime the value comes from a tool's result; standalone you pass it in directly.
+
+## Getting started
+
+<RuntimeMode>
+
+With a runtime, the ticker only needs a number and a label, so its renderer is one of the smallest in the catalog: read `result` from the tool call, and fall back to zero while it is still running.
+
+<Steps>
+  <Step>
+
+### Render the tool call
+
+```tsx title="components/assistant-ui/elements/token-count-tool-ui.tsx"
+"use client";
+
+import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
+import { NumberTicker } from "@/components/assistant-ui/elements/number-ticker";
+
+export const TokenCountToolUI: ToolCallMessagePartComponent<
+  Record<string, never>,
+  { total: number }
+> = ({ result, status }) => (
+  <NumberTicker
+    value={status.type === "complete" ? (result?.total ?? 0) : 0}
+    label="tokens generated"
+  />
+);
+```
+
+  </Step>
+  <Step>
+
+### Register the tool
+
+```tsx title="app/toolkit.ts"
+import { defineToolkit } from "@assistant-ui/react";
+import { z } from "zod";
+import { TokenCountToolUI } from "@/components/assistant-ui/elements/token-count-tool-ui";
+
+export const toolkit = defineToolkit({
+  get_token_count: {
+    type: "frontend",
+    description: "Get the number of tokens generated so far this session.",
+    parameters: z.object({}),
+    execute: async () => ({ total: currentTokenCount() }),
+    render: TokenCountToolUI,
+  },
+});
+```
+
+```tsx title="app/MyRuntimeProvider.tsx"
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { toolkit } from "./toolkit";
+
+export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+See [Tool UI](/docs/tools/tool-ui) for backend-defined tools and approval gates.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the ticker is fully controlled: it re-renders and rolls whenever `value` changes, from whatever source you like.
+
+<Steps>
+  <Step>
+
+### Hold the value
+
+```tsx title="app/token-count.tsx"
+"use client";
+
+import { useState } from "react";
+import { NumberTicker } from "@/components/assistant-ui/elements/number-ticker";
+
+export function TokenCount() {
+  const [value, setValue] = useState(0);
+  return <NumberTicker value={value} label="tokens generated" />;
+}
+```
+
+  </Step>
+  <Step>
+
+### Update it as work happens
+
+Any state update that changes `value` triggers the roll, so a poll or a socket message both work the same way.
+
+```tsx
+useEffect(() => {
+  const id = setInterval(() => {
+    setValue((v) => v + Math.round(Math.random() * 40));
+  }, 900);
+  return () => clearInterval(id);
+}, []);
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Examples
+
+### Formatting large counts
+
+`value` is formatted with `toLocaleString("en-US")` before it splits into digits, so thousands separators appear as static characters between the rolling digits rather than digits themselves. Screen readers read the same formatted string from an `aria-label` on the row, instead of parsing the individual rolling spans.
+
+```tsx
+<NumberTicker value={1234567} label="tokens generated" />
+// renders "1,234,567", with "," as plain characters between the rollers
+```
+
+### Restyle the ticker
+
+Both lanes take `className` on the root, a column flex container around the number and its label. The label reads from the shared `mono` token in `surfaces.tsx`.
+
+```tsx
+<NumberTicker className="gap-1" /* ... */ />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Tool-call render props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `args` | `TArgs` | Parsed arguments. Partial while the model is still streaming them. |
+| `argsText` | `string` | Raw JSON argument text streamed by the model. |
+| `result` | `TResult \| undefined` | The tool's return value once it completes. `undefined` while running. |
+| `status` | `ToolCallMessagePartStatus` | `status.type` is `"running"`, `"requires-action"`, `"complete"`, or `"incomplete"`. |
+| `toolName` | `string` | Name of the tool the model called. |
+| `toolCallId` | `string` | Stable id for this invocation. |
+| `isError` | `boolean \| undefined` | Whether `result` represents a tool execution error. |
+
+Register the renderer on a toolkit entry's `render` field and attach the toolkit with `Tools({ toolkit })`. See [Tool UI](/docs/tools/tool-ui) for the full render-prop surface, including `addResult`, human tools, and approval gates.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### NumberTicker
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `value` | `number` | required | The number to show, formatted with `toLocaleString("en-US")` and split into rolling digits. |
+| `label` | `string` | required | Caption below the number. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

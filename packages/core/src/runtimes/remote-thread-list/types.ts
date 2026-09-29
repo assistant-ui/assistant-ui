@@ -3,6 +3,7 @@ import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import type { AssistantStream } from "assistant-stream";
 import type { ThreadHistoryAdapter } from "../../adapters/thread-history";
 import type { AttachmentAdapter } from "../../adapters/attachment";
+import type { FeedbackAdapter } from "../../adapters/feedback";
 import type { ModelContextProvider } from "../../model-context/types";
 
 /* oxlint-disable typescript/no-explicit-any -- structural stand-in for ComponentType without depending on react types */
@@ -40,6 +41,7 @@ export type RuntimeAdapters = {
   modelContext?: ModelContextProvider | undefined;
   history?: ThreadHistoryAdapter | undefined;
   attachments?: AttachmentAdapter | undefined;
+  feedback?: FeedbackAdapter | undefined;
 };
 
 export type RemoteThreadListAdapter = {
@@ -54,6 +56,14 @@ export type RemoteThreadListAdapter = {
   unarchive(remoteId: string): Promise<void>;
   delete(remoteId: string): Promise<void>;
   initialize(threadId: string): Promise<RemoteThreadInitializeResponse>;
+  /**
+   * Generates a title for the thread and streams it back.
+   *
+   * When the generation persists the title itself, the returned stream must
+   * not complete before that write has landed. Concurrent generations are
+   * ordered by stream completion, and a run whose write outlives its stream
+   * can overwrite a newer title.
+   */
   generateTitle(
     remoteId: string,
     unstable_messages: readonly ThreadMessage[],
@@ -78,11 +88,12 @@ export type RemoteThreadListAdapter = {
   unstable_Provider?: RemoteThreadListProviderComponent | undefined;
 
   /**
-   * Hook the `RemoteThreadList` store entry calls once for the main-thread
-   * slot, then provides to the `thread` factory. This is not mounted per
-   * listed thread. `useRemoteThreadListRuntime` also calls it when
-   * `unstable_Provider` is omitted. Resolve `threadListItem` lazily on each
-   * adapter call; do not capture it at hook mount. The hook must keep a
+   * Hook the `RemoteThreadList` store entry calls once per mounted thread
+   * body (the main-thread slot by default; every started thread with
+   * `backgroundThreads`), then provides to the `thread` factory. This is not
+   * mounted per listed thread. `useRemoteThreadListRuntime` also calls it
+   * when `unstable_Provider` is omitted. Resolve `threadListItem` lazily on
+   * each adapter call; do not capture it at hook mount. The hook must keep a
    * stable hook count across adapter swaps; a different count throws.
    * Memoize the returned object.
    *

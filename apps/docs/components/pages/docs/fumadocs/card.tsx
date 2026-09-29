@@ -11,7 +11,7 @@ type CardProps = {
   external?: boolean;
 };
 
-const base = "flex flex-col gap-1.5 rounded-xl border border-fd-border/60 p-4";
+const base = "flex flex-col gap-1.5 rounded-xl border border-border/60 p-4";
 
 export function Card({
   title,
@@ -28,14 +28,14 @@ export function Card({
         <span className="flex-1">{title}</span>
         {href ? (
           external ? (
-            <ArrowUpRight className="text-fd-muted-foreground size-4 shrink-0 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            <ArrowUpRight className="text-muted-foreground size-4 shrink-0 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
           ) : (
-            <ArrowRight className="text-fd-muted-foreground size-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
+            <ArrowRight className="text-muted-foreground size-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
           )
         ) : null}
       </span>
       {(description || children) && (
-        <span className="text-fd-muted-foreground text-sm">
+        <span className="text-muted-foreground text-sm">
           {description ?? children}
         </span>
       )}
@@ -43,7 +43,7 @@ export function Card({
   );
 
   if (href) {
-    const className = `group ${base} transition-colors hover:border-fd-foreground/15 hover:bg-fd-muted/50`;
+    const className = `group ${base} transition-colors hover:border-foreground/15 hover:bg-muted/50`;
     if (external) {
       return (
         <a

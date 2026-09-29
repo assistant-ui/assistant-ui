@@ -1,5 +1,5 @@
 import type { UIMessage } from "ai";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { RESUMABLE_STREAM_ID_HEADER } from "./resumable";
 import { AssistantChatTransport } from "./AssistantChatTransport";
@@ -26,10 +26,6 @@ const sendMessagesOptions = {
 };
 
 describe("AssistantChatTransport.prepareSendMessagesRequest", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it("passes the initialized remote thread id to prepareSendMessagesRequest as options.id", async () => {
     const threadListItem = createThreadListItem("remote-thread-id");
     const captured: { id: unknown } = { id: undefined };
@@ -209,10 +205,6 @@ const wrappedFetchOf = (
   ).fetch;
 
 describe("AssistantChatTransport resumable fetch wrapper", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it("passes a 204 with a non-null empty body through untouched (WebKit)", async () => {
     const response = nullBodyStatusWithBody(204);
     const fetchMock = vi.fn(async () => response);

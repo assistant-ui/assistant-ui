@@ -16,6 +16,11 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@ai-sdk/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@ai-sdk/react")>()),
+  Chat: class MockChat {
+    constructor(config: unknown) {
+      Object.assign(this, config);
+    }
+  },
   useChat: mocks.useChat,
 }));
 
@@ -33,7 +38,7 @@ const createRuntime = (system: string) =>
       getState: () => ({ isLoading: false }),
       subscribe: () => () => {},
     },
-  }) as AssistantRuntime;
+  }) as unknown as AssistantRuntime;
 
 describe("useChatThread transport binding", () => {
   beforeEach(() => {
@@ -41,9 +46,8 @@ describe("useChatThread transport binding", () => {
     mocks.useAISDKRuntime.mockReset();
     mocks.useChat.mockReset();
     mocks.useAISDKRuntime.mockImplementation(() => createRuntime(mocks.system));
-    mocks.useChat.mockImplementation(({ id, transport }) => ({
-      id,
-      transport,
+    mocks.useChat.mockImplementation(({ chat }) => ({
+      ...chat,
       messages: [],
       status: "ready",
       error: undefined,
@@ -89,7 +93,7 @@ describe("useChatThread transport binding", () => {
           }),
         },
       );
-      const proxy = mocks.useChat.mock.lastCall?.[0].transport as
+      const proxy = mocks.useChat.mock.lastCall?.[0].chat.transport as
         | ChatTransport<UIMessage>
         | undefined;
       if (!suspend) committedProxy = proxy;

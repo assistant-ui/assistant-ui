@@ -1,5 +1,5 @@
 import debug from "debug";
-import { transform, type TransformErrors, getRelevantFiles } from "./transform";
+import { transform, getRelevantFiles } from "./transform";
 import type { TransformOptions } from "./transform-options";
 import { SingleBar, Presets } from "cli-progress";
 import installEdgeLib from "./install-edge-lib";
@@ -16,13 +16,12 @@ const bundle = [
 ];
 
 const log = debug("codemod:upgrade");
-const error = debug("codemod:upgrade:error");
 
 /**
  * Runs the upgrade cycle:
  *   - Runs each codemod in the bundle.
  *   - Displays progress using cli-progress.
- *   - After codemods run, checks if any file now imports from the new packages and prompts for install.
+ *   - Outside dry mode, checks for new package imports and prompts for install.
  */
 export async function upgrade(options: TransformOptions) {
   const cwd = process.cwd();
@@ -42,44 +41,45 @@ export async function upgrade(options: TransformOptions) {
     {
       format: "Progress |{bar}| {percentage}% | ETA: {eta}s || {status}",
       hideCursor: true,
+      gracefulExit: true,
     },
     Presets.shades_classic,
   );
 
   bar.start(totalWork, 0, { status: "Starting..." });
-  const allErrors: TransformErrors = [];
 
-  for (const codemod of bundle) {
-    bar.update(completedWork, { status: `Running ${codemod}...` });
+  try {
+    for (const codemod of bundle) {
+      bar.update(completedWork, { status: `Running ${codemod}...` });
 
-    // Use a custom progress callback to update the progress bar
-    const errors = transform(codemod, cwd, options, {
-      logStatus: false,
-      onProgress: (processedFiles: number) => {
-        completedWork = bundle.indexOf(codemod) * fileCount + processedFiles;
-        bar.update(Math.min(completedWork, totalWork), {
-          status: `Running ${codemod} (${processedFiles}/${fileCount} files)`,
-        });
-      },
-      relevantFiles, // Pass the pre-computed relevant files
+      // Use a custom progress callback to update the progress bar
+      await transform(codemod, cwd, options, {
+        logStatus: false,
+        onProgress: (processedFiles: number) => {
+          completedWork = bundle.indexOf(codemod) * fileCount + processedFiles;
+          bar.update(Math.min(completedWork, totalWork), {
+            status: `Running ${codemod} (${processedFiles}/${fileCount} files)`,
+          });
+        },
+        relevantFiles, // Pass the pre-computed relevant files
+      });
+
+      completedWork = (bundle.indexOf(codemod) + 1) * fileCount;
+      bar.update(completedWork, { status: `Completed ${codemod}` });
+    }
+
+    bar.update(totalWork, {
+      status: options.dry ? "Preview complete" : "Checking dependencies...",
     });
-
-    allErrors.push(...errors);
-    completedWork = (bundle.indexOf(codemod) + 1) * fileCount;
-    bar.update(completedWork, { status: `Completed ${codemod}` });
+  } finally {
+    bar.stop();
   }
 
-  bar.update(totalWork, { status: "Checking dependencies..." });
-  bar.stop();
-
-  if (allErrors.length > 0) {
-    log("Some codemods did not apply successfully to all files. Details:");
-    allErrors.forEach(({ transform, filename, summary }) => {
-      error(`codemod=${transform}, path=${filename}, summary=${summary}`);
-    });
+  if (options.dry) {
+    logger.success("Dry run complete. No files were changed.");
+    return;
   }
 
-  // After codemods run, check if files import from the new packages and prompt for install.
   logger.info("Checking for package dependencies...");
   await installEdgeLib();
   await installAiSdkLib();

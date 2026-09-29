@@ -162,7 +162,7 @@ Mount the component once somewhere inside the `AssistantRuntimeProvider` tree. I
 
 ```tsx title="components/MyAssistant.tsx"
 import { View } from "react-native";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 <AssistantRuntimeProvider runtime={runtime}>
   <ChartUI />
@@ -204,7 +204,7 @@ const runtime = useLangGraphRuntime({
   uiComponents: {
     renderers: {
       chart: ({ data }) => <Chart series={data.series} title={data.title} />,
-      table: ({ data }) => <DataTable rows={data.rows} />,
+      table: ({ data }) => <DataTable columns={data.columns} rows={data.rows} />,
     },
   },
 });

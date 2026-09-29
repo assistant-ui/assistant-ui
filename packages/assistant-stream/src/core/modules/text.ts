@@ -1,5 +1,10 @@
 import type { AssistantStream } from "../AssistantStream";
 import type { AssistantStreamChunk } from "../AssistantStreamChunk";
+import { closeIfOpen, enqueueIfOpen } from "../utils/stream/controller-guards";
+import {
+  createControllerStream,
+  createControllerStreamPair,
+} from "../utils/stream/createControllerStream";
 import type { UnderlyingReadable } from "../utils/stream/UnderlyingReadable";
 
 export type TextStreamController = {
@@ -31,29 +36,31 @@ class TextStreamControllerImpl implements TextStreamController {
       path: [],
       textDelta,
     };
-    if (this._strict) {
-      this._controller.enqueue(chunk);
+    if (this._isClosed) {
+      if (this._strict) {
+        throw new TypeError("Cannot append to a closed TextStreamController");
+      }
+      enqueueIfOpen(this._controller, chunk, this._warnDroppedAfterClose);
       return this;
     }
-    try {
-      this._controller.enqueue(chunk);
-    } catch (error) {
-      if (!this._warnedDropped) {
-        this._warnedDropped = true;
-        console.error(`Dropped text delta for closed stream: ${String(error)}`);
-      }
-    }
+    enqueueIfOpen(this._controller, chunk);
     return this;
   }
+
+  private _warnDroppedAfterClose = (error: TypeError) => {
+    if (this._warnedDropped) return;
+    this._warnedDropped = true;
+    console.error(`Dropped text delta for closed stream: ${String(error)}`);
+  };
 
   close() {
     if (this._isClosed) return;
     this._isClosed = true;
-    this._controller.enqueue({
+    enqueueIfOpen(this._controller, {
       type: "part-finish",
       path: [],
     });
-    this._controller.close();
+    closeIfOpen(this._controller);
   }
 }
 
@@ -61,28 +68,14 @@ export const createTextStream = (
   readable: UnderlyingReadable<TextStreamController>,
   options: TextStreamOptions = {},
 ): AssistantStream => {
-  return new ReadableStream({
-    start(c) {
-      return readable.start?.(new TextStreamControllerImpl(c, options));
-    },
-    pull(c) {
-      return readable.pull?.(new TextStreamControllerImpl(c, options));
-    },
-    cancel(c) {
-      return readable.cancel?.(c);
-    },
-  });
+  return createControllerStream(
+    readable,
+    (controller) => new TextStreamControllerImpl(controller, options),
+  );
 };
 
 export const createTextStreamController = (options: TextStreamOptions = {}) => {
-  let controller!: TextStreamController;
-  const stream = createTextStream(
-    {
-      start(c) {
-        controller = c;
-      },
-    },
-    options,
+  return createControllerStreamPair<AssistantStreamChunk, TextStreamController>(
+    (controller) => new TextStreamControllerImpl(controller, options),
   );
-  return [stream, controller] as const;
 };

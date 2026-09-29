@@ -1,4 +1,8 @@
-import type { AppendMessage, ThreadMessage } from "../../types/message";
+import type {
+  AppendMessage,
+  ThreadMessage,
+  ToolCallMessagePart,
+} from "../../types/message";
 import type { ThreadMessageLike } from "../../runtime/utils/thread-message-like";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type {
@@ -10,11 +14,15 @@ import type { FeedbackAdapter } from "../../adapters/feedback";
 import type {
   AddToolResultOptions,
   RespondToToolApprovalOptions,
+  Unstable_RecordToolInteractionOptions,
   StartRunConfig,
   ResumeRunConfig,
   ThreadSuggestion,
 } from "../../runtime/interfaces/thread-runtime-core";
-import type { ExportedMessageRepository } from "../../runtime/utils/message-repository";
+import type {
+  ExportedMessageRepository,
+  MessageRepository,
+} from "../../runtime/utils/message-repository";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { ToolExecutionStatus } from "../tool-invocations/ToolInvocationTracker";
 import type { ExternalThreadQueueAdapter } from "../../runtime/queue/external-thread-queue-adapter";
@@ -78,6 +86,11 @@ type ExternalStoreMessageConverterAdapter<T> = {
 
 type ExternalStoreAdapterBase<T> = {
   /**
+   * The runtime writes its messages to the thread list's history adapter
+   * itself, so `useExternalStoreRuntime` does not copy them.
+   */
+  unstable_persistsHistory?: boolean | undefined;
+  /**
    * Whether the entire thread is disabled. When `true`, the composer's input
    * is also disabled (the user cannot type, attach files, or submit). For a
    * narrower gate that keeps the input usable but blocks only sending, use
@@ -105,6 +118,15 @@ type ExternalStoreAdapterBase<T> = {
   isLoading?: boolean | undefined;
   messages?: readonly T[];
   messageRepository?: ExportedMessageRepository;
+  /**
+   * An externally owned message repository instance. When provided, the
+   * thread runtime adopts it as its branch store and swaps to it atomically
+   * whenever a different instance is passed, so hosts that route multiple
+   * conversations through one runtime keep each conversation's history and
+   * branches isolated in its own instance. Omit it to keep the runtime's own
+   * repository.
+   */
+  unstable_messageRepositoryInstance?: MessageRepository | undefined;
   suggestions?: readonly ThreadSuggestion[] | undefined;
   state?: ReadonlyJSONValue | undefined;
   extras?: unknown;
@@ -117,6 +139,10 @@ type ExternalStoreAdapterBase<T> = {
    * back, because the runtime cannot see a removal it did not make.
    */
   setMessages?: ((messages: readonly T[]) => void) | undefined;
+  /**
+   * Called with each message a voice session adds to the thread: every finalized transcript, and every text message typed into a session that takes typed text (it carries no `metadata.modality`). The host appends it to its own messages under the same id, which is how the runtime knows the host carries it. A message that finalizes while `isLoading` is true is delivered once loading ends, to the callback on the adapter current at that moment, and is not delivered at all when the conversation changed while it waited. A host that routes conversations through one runtime is recognized by its `unstable_messageRepositoryInstance`; one that swaps only its `messages` cannot be told apart from a load finishing. A host that does not implement this callback keeps these messages for the session only.
+   */
+  onVoiceTranscript?: ((message: ThreadMessage) => void) | undefined;
   /**
    * Fires when the user explicitly switches branches via the runtime's
    * `switchToBranch` action (e.g. a BranchPicker click). It does not fire on
@@ -144,6 +170,13 @@ type ExternalStoreAdapterBase<T> = {
   /** Opt in to message queuing. Typically produced by `createMessageQueue`. */
   queue?: ExternalThreadQueueAdapter | undefined;
   onEdit?: ((message: AppendMessage) => Promise<void>) | undefined;
+  /**
+   * Removes a message from the host's store. The runtime drops the message
+   * from its branches when `messages` stops carrying the id, and reads a
+   * `messages` update that still carries it after every call for it has
+   * settled as a declined delete. A host that accepts the delete therefore
+   * publishes the removal before the returned promise settles.
+   */
   onDelete?: ((messageId: string) => Promise<void> | void) | undefined;
   onReload?: // TODO: remove parentId in 0.12.0
     | ((parentId: string | null, config: StartRunConfig) => Promise<void>)
@@ -167,6 +200,14 @@ type ExternalStoreAdapterBase<T> = {
     | undefined;
   onRespondToToolApproval?:
     | ((options: RespondToToolApprovalOptions) => Promise<void> | void)
+    | undefined;
+  /**
+   * Stores a user interaction on a tool call part of a message this store
+   * owns and exposes it on that part's `unstable_interactions`. Without it,
+   * recording an interaction rejects and nothing is kept.
+   */
+  unstable_onRecordToolInteraction?:
+    | ((options: Unstable_RecordToolInteractionOptions) => Promise<void> | void)
     | undefined;
   convertMessage?: ExternalStoreMessageConverter<T> | undefined;
   adapters?:
@@ -207,6 +248,26 @@ type ExternalStoreAdapterBase<T> = {
    * `modelContent` populated when present.
    */
   unstable_enableToolInvocations?: boolean | undefined;
+  /**
+   * Decides whether a tool call's result is produced on the client. Only
+   * consulted when `unstable_enableToolInvocations` is `true`.
+   *
+   * A provider that runs tools itself answers its own calls, and its result
+   * arrives one or more snapshots after the call's arguments complete. In
+   * that window the call is complete and result-less, so a registered tool
+   * of the same name would otherwise execute locally and produce a result
+   * the provider never asked for. An adapter that can tell the two apart
+   * supplies this predicate; it is read once per tool call, when the call is
+   * first observed live.
+   *
+   * The predicate is also what licenses running a frontend tool while the
+   * provider's run is still open. Without it, ownership is unknown until the
+   * run ends, so a registered tool executes only once the run's outcome is
+   * known and cannot fire on a call the provider was about to answer or gate.
+   */
+  unstable_isClientToolCall?:
+    | ((toolCall: ToolCallMessagePart) => boolean)
+    | undefined;
   /**
    * Receives the current per-tool-call execution status map whenever it
    * changes. Only invoked when `unstable_enableToolInvocations` is `true`

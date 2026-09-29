@@ -1,13 +1,10 @@
 import { Command, Option } from "commander";
 import fs from "node:fs";
 import path from "node:path";
-import {
-  dlxCommand,
-  resolvePackageManager,
-  resolvePackageManagerForCwd,
-} from "../lib/create-project";
-import { runSpawn, SpawnExitError } from "../lib/run-spawn";
+import { dlxCommand, resolvePackageManager } from "../lib/create-project";
+import { runSpawn, SpawnExitError, SpawnSignalError } from "../lib/run-spawn";
 import { logger } from "../lib/utils/logger";
+import { resolvePackageManagerForCwd } from "../lib/utils/package-manager";
 import {
   getComponentsJsonStyle,
   resolveQuickStartRegistryUrl,
@@ -86,8 +83,7 @@ export const init = new Command()
         logger.break();
       }
 
-      const createArgs: string[] = [];
-      if (projectDirectory) createArgs.push(projectDirectory);
+      const createArgs = projectDirectory ? [targetDir] : ["--cwd", cwd];
       if (presetUrl) createArgs.push("--preset", presetUrl);
       if (opts.useNpm) createArgs.push("--use-npm");
       if (opts.usePnpm) createArgs.push("--use-pnpm");
@@ -135,6 +131,7 @@ export const init = new Command()
       logger.success("Project initialized successfully!");
       logger.info("You can now add more components with 'assistant-ui add'");
     } catch (error) {
+      if (error instanceof SpawnSignalError) throw error;
       if (error instanceof SpawnExitError) {
         logger.error(`Initialization failed with code ${error.code}`);
         process.exit(error.code);

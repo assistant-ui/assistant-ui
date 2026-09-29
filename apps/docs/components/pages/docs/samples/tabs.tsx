@@ -1,13 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, Settings, User, Bell, Lock } from "lucide-react";
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from "@/components/assistant-ui/tabs";
+import { Bell, FileText, Lock, Settings, User } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 
 export function TabsSample() {
@@ -45,7 +40,7 @@ export function TabsVariantsSample() {
       <div className="flex flex-col gap-2">
         <span className="text-muted-foreground text-xs">Default</span>
         <Tabs defaultValue="a">
-          <TabsList variant="default">
+          <TabsList>
             <TabsTrigger value="a">Tab A</TabsTrigger>
             <TabsTrigger value="b">Tab B</TabsTrigger>
             <TabsTrigger value="c">Tab C</TabsTrigger>
@@ -62,70 +57,6 @@ export function TabsVariantsSample() {
           </TabsList>
         </Tabs>
       </div>
-      <div className="flex flex-col gap-2">
-        <span className="text-muted-foreground text-xs">Ghost</span>
-        <Tabs defaultValue="a">
-          <TabsList variant="ghost">
-            <TabsTrigger value="a">Tab A</TabsTrigger>
-            <TabsTrigger value="b">Tab B</TabsTrigger>
-            <TabsTrigger value="c">Tab C</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-      <div className="flex flex-col gap-2">
-        <span className="text-muted-foreground text-xs">Pills</span>
-        <Tabs defaultValue="a">
-          <TabsList variant="pills">
-            <TabsTrigger value="a">Tab A</TabsTrigger>
-            <TabsTrigger value="b">Tab B</TabsTrigger>
-            <TabsTrigger value="c">Tab C</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-      <div className="flex flex-col gap-2">
-        <span className="text-muted-foreground text-xs">Outline</span>
-        <Tabs defaultValue="a">
-          <TabsList variant="outline">
-            <TabsTrigger value="a">Tab A</TabsTrigger>
-            <TabsTrigger value="b">Tab B</TabsTrigger>
-            <TabsTrigger value="c">Tab C</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-    </SampleFrame>
-  );
-}
-
-export function TabsSizesSample() {
-  return (
-    <SampleFrame className="flex h-auto flex-col items-center justify-center gap-6 p-6">
-      <div className="flex flex-col gap-2">
-        <span className="text-muted-foreground text-xs">Small</span>
-        <Tabs defaultValue="a">
-          <TabsList size="sm">
-            <TabsTrigger value="a">Tab A</TabsTrigger>
-            <TabsTrigger value="b">Tab B</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-      <div className="flex flex-col gap-2">
-        <span className="text-muted-foreground text-xs">Default</span>
-        <Tabs defaultValue="a">
-          <TabsList size="default">
-            <TabsTrigger value="a">Tab A</TabsTrigger>
-            <TabsTrigger value="b">Tab B</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-      <div className="flex flex-col gap-2">
-        <span className="text-muted-foreground text-xs">Large</span>
-        <Tabs defaultValue="a">
-          <TabsList size="lg">
-            <TabsTrigger value="a">Tab A</TabsTrigger>
-            <TabsTrigger value="b">Tab B</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
     </SampleFrame>
   );
 }
@@ -134,7 +65,7 @@ export function TabsWithIconsSample() {
   return (
     <SampleFrame className="flex h-auto items-center justify-center p-6">
       <Tabs defaultValue="profile" className="w-[400px]">
-        <TabsList variant="ghost">
+        <TabsList>
           <TabsTrigger value="profile">
             <User />
             Profile
@@ -178,7 +109,7 @@ export function TabsControlledSample() {
         onValueChange={setActiveTab}
         className="w-[400px]"
       >
-        <TabsList variant="pills">
+        <TabsList variant="line">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
@@ -215,78 +146,6 @@ export function TabsAsLinkSample() {
           </TabsTrigger>
         </TabsList>
       </Tabs>
-    </SampleFrame>
-  );
-}
-
-export function TabsAnimatedIndicatorSample() {
-  return (
-    <SampleFrame className="flex h-auto flex-col items-center justify-center gap-8 p-6">
-      <div className="flex flex-col gap-2">
-        <span className="text-muted-foreground text-xs">
-          Default - Sliding background
-        </span>
-        <Tabs defaultValue="home">
-          <TabsList variant="default">
-            <TabsTrigger value="home">Home</TabsTrigger>
-            <TabsTrigger value="about">About</TabsTrigger>
-            <TabsTrigger value="services">Services</TabsTrigger>
-            <TabsTrigger value="contact">Contact</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-      <div className="flex flex-col gap-2">
-        <span className="text-muted-foreground text-xs">
-          Line - Sliding underline
-        </span>
-        <Tabs defaultValue="home">
-          <TabsList variant="line">
-            <TabsTrigger value="home">Home</TabsTrigger>
-            <TabsTrigger value="about">About</TabsTrigger>
-            <TabsTrigger value="services">Services</TabsTrigger>
-            <TabsTrigger value="contact">Contact</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-      <div className="flex flex-col gap-2">
-        <span className="text-muted-foreground text-xs">
-          Ghost - Sliding background with hover effect
-        </span>
-        <Tabs defaultValue="dashboard">
-          <TabsList variant="ghost">
-            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-            <TabsTrigger value="projects">Projects</TabsTrigger>
-            <TabsTrigger value="tasks">Tasks</TabsTrigger>
-            <TabsTrigger value="team">Team</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-      <div className="flex flex-col gap-2">
-        <span className="text-muted-foreground text-xs">
-          Pills - Sliding pill background
-        </span>
-        <Tabs defaultValue="all">
-          <TabsList variant="pills">
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="active">Active</TabsTrigger>
-            <TabsTrigger value="completed">Completed</TabsTrigger>
-            <TabsTrigger value="archived">Archived</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-      <div className="flex flex-col gap-2">
-        <span className="text-muted-foreground text-xs">
-          Outline - Sliding border
-        </span>
-        <Tabs defaultValue="week">
-          <TabsList variant="outline">
-            <TabsTrigger value="day">Day</TabsTrigger>
-            <TabsTrigger value="week">Week</TabsTrigger>
-            <TabsTrigger value="month">Month</TabsTrigger>
-            <TabsTrigger value="year">Year</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
     </SampleFrame>
   );
 }

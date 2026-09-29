@@ -1,8 +1,7 @@
 from assistant_stream.assistant_stream_chunk import AssistantStreamChunk
+from assistant_stream.identifiers import generate_prefixed_id
 import json
 import time
-import string
-import random
 from typing import AsyncGenerator
 from assistant_stream.serialization.assistant_stream_response import (
     AssistantStreamResponse,
@@ -15,10 +14,7 @@ from assistant_stream.serialization.stream_encoder import StreamEncoder
 
 
 def generate_openai_style_id():
-    prefix = "chatcmpl-"
-    characters = string.ascii_letters + string.digits
-    random_id = "".join(random.choices(characters, k=24))
-    return prefix + random_id
+    return generate_prefixed_id("chatcmpl-")
 
 
 class OpenAIStreamEncoder(StreamEncoder):

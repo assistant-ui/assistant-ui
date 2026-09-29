@@ -9,7 +9,7 @@ export type DemoMeta = {
 };
 
 const GITHUB_EXAMPLES_BASE =
-  "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples";
+  "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/pages/examples";
 
 export const DEMO_META: DemoMeta[] = [
   {

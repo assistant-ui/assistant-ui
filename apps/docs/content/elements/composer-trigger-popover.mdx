@@ -1,0 +1,232 @@
+---
+title: "Composer trigger popover"
+description: "A character-triggered picker for mentions, slash commands, and nested composer actions."
+---
+
+Composer trigger popover is the picker UI behind a character-triggered composer feature: type the trigger character and a positioned popover offers matching items, drilling into categories when the adapter has more than one. With a runtime, an adapter resolves items from live data and one of two behaviors decides what selecting an item does; standalone, the trigger detection watches the composer's live cursor position and text, so there is no equivalent outside a runtime.
+
+## Getting started
+
+<RuntimeMode>
+
+<Steps>
+  <Step>
+
+### Wrap the composer
+
+Place `ComposerPrimitive.Unstable_TriggerPopoverRoot` around the composer. Any number of `ComposerTriggerPopover` declarations can live inside, each with its own trigger character, adapter, and behavior.
+
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+import { ComposerPrimitive } from "@assistant-ui/react";
+
+const Composer = () => (
+  <ComposerPrimitive.Unstable_TriggerPopoverRoot>
+    <ComposerPrimitive.Root>
+      <ComposerPrimitive.Input placeholder="Type @ to mention..." />
+      <ComposerPrimitive.Send />
+      {/* triggers declared here */}
+    </ComposerPrimitive.Root>
+  </ComposerPrimitive.Unstable_TriggerPopoverRoot>
+);
+```
+
+  </Step>
+  <Step>
+
+### Declare a mention trigger
+
+Pair `ComposerTriggerPopover` with `unstable_useMentionAdapter`, which spreads into an `{ adapter, directive }` bundle. Selecting an item writes a directive into the composer text.
+
+```tsx
+import { unstable_useMentionAdapter } from "@assistant-ui/react";
+import { ComposerTriggerPopover } from "@/components/assistant-ui/elements/composer-trigger-popover.aui";
+
+function MentionTrigger() {
+  const mention = unstable_useMentionAdapter();
+  return <ComposerTriggerPopover char="@" {...mention} />;
+}
+```
+
+With no `items` or `categories` passed, `unstable_useMentionAdapter` lists whatever tools are registered in model context. Render the mentions it inserts as chips in the sent message with [Directive text](/elements/directive-text).
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Trigger detection reads the composer's live text and cursor position from the runtime, so there is no standalone lane: build a character-triggered popover from your own input's `onChange` / `onKeyDown` handlers and any popover primitive.
+
+</StandaloneMode>
+
+## Anatomy
+
+<RuntimeMode>
+
+```tsx
+<div data-slot="composer-trigger-popover" role="listbox">
+  {/* categories has entries, query is empty, and no category is active */}
+  <div data-slot="composer-trigger-popover-categories" role="group">
+    <button role="option" /> {/* one per category */}
+  </div>
+
+  {/* a category is active, or the query is non-empty, or the adapter has no categories */}
+  <div data-slot="composer-trigger-popover-items" role="group">
+    <button /> {/* Back, only while a category is active and not searching */}
+    <button role="option" /> {/* one per item */}
+  </div>
+</div>
+```
+
+The two views are exclusive. Categories show only when the adapter reports at least one and the query is empty; typing narrows the visible categories by label. Anything else, from drilling into a category to a category-less adapter to a non-empty query, shows items: filtered locally against a category's items, or from `adapter.search(query)` (falling back to a manual cross-category filter when the adapter omits `search`). Backspace on an empty query returns from a drilled-into category to the list; it does nothing for a category-less adapter, since there is nothing to return to.
+
+</RuntimeMode>
+
+## Examples
+
+<RuntimeMode>
+
+### Slash command
+
+Use [`unstable_useSlashCommandAdapter`](/docs/guides/slash-commands) to bundle commands (each with its own `execute`) into `{ adapter, action }`. By default a directive chip stays in the composer as an audit trail after the command runs; pass `removeOnExecute` to strip the `/command` text instead. `iconMap` maps each item's `metadata.icon` string to a component.
+
+```tsx
+import {
+  unstable_useSlashCommandAdapter,
+  type Unstable_SlashCommand,
+} from "@assistant-ui/react";
+import { FileTextIcon, GlobeIcon, SlashIcon } from "lucide-react";
+
+const SLASH_COMMANDS: readonly Unstable_SlashCommand[] = [
+  { id: "summarize", description: "Summarize the conversation", icon: "FileText", execute: () => {} },
+  { id: "search", description: "Search the web", icon: "Globe", execute: () => {} },
+];
+
+function SlashTrigger() {
+  const slash = unstable_useSlashCommandAdapter({ commands: SLASH_COMMANDS });
+  return (
+    <ComposerTriggerPopover
+      char="/"
+      {...slash}
+      iconMap={{ FileText: FileTextIcon, Globe: GlobeIcon }}
+      fallbackIcon={SlashIcon}
+    />
+  );
+}
+```
+
+### Async items with a loading state
+
+`unstable_useLiveCompletionAdapter` bridges an async source (a server search, a gateway RPC) into the synchronous adapter shape, debouncing fetches and caching results per query. Its `isLoading` feeds the popover's own `isLoading` prop, which swaps the empty-items message for `loadingLabel` while a fetch is in flight.
+
+```tsx
+const mentions = unstable_useLiveCompletionAdapter({
+  fetcher: (query) => searchUsers(query),
+});
+
+<ComposerTriggerPopover
+  char="@"
+  adapter={mentions.adapter}
+  isLoading={mentions.isLoading}
+  directive={{ onInserted: (item) => track("mention", item.id) }}
+/>;
+```
+
+### Custom query matching
+
+Whitespace closes a trigger query by default. Pass a stable `matcher` when a picker needs different syntax, such as multi-word names; the same matcher governs both the textarea and Lexical composer inputs.
+
+```tsx
+import type { Unstable_TriggerMatcher } from "@assistant-ui/react";
+
+const matchMultiWord: Unstable_TriggerMatcher = (text, triggerChar, cursorPosition) => {
+  const upToCursor = text.slice(0, cursorPosition);
+  const offset = upToCursor.lastIndexOf(triggerChar);
+  if (offset === -1) return null;
+
+  const preceding = upToCursor[offset - 1];
+  if (preceding && !/\s/u.test(preceding)) return null;
+
+  const query = upToCursor.slice(offset + triggerChar.length);
+  if (/[\n\t]/u.test(query) || query.endsWith("  ")) return null;
+
+  return { query, offset, endOffset: cursorPosition };
+};
+
+<ComposerTriggerPopover char="@" matcher={matchMultiWord} {...mention} />;
+```
+
+### Combining triggers
+
+Multiple popovers share one `TriggerPopoverRoot`; each reads its own state from its `char`, so `@` and `/` never collide.
+
+```tsx
+<ComposerPrimitive.Unstable_TriggerPopoverRoot>
+  <ComposerPrimitive.Root>
+    <ComposerPrimitive.Input placeholder="Type @ to mention, / for commands..." />
+    <MentionTrigger />
+    <SlashTrigger />
+  </ComposerPrimitive.Root>
+</ComposerPrimitive.Unstable_TriggerPopoverRoot>
+```
+
+</RuntimeMode>
+
+## API reference
+
+<RuntimeMode>
+
+### ComposerTriggerPopover
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `char` | `string` | required | Trigger character, unique within the root. |
+| `matcher` | `Unstable_TriggerMatcher` | whitespace-terminated | Overrides trigger detection and the replaced text span. |
+| `adapter` | `Unstable_TriggerAdapter` | required | Supplies categories, items, and search. |
+| `directive` | `{ formatter?, onInserted? }` | | Inserts a directive chip on selection. Mutually exclusive with `action`. |
+| `action` | `{ formatter?, onExecute, removeOnExecute? }` | | Fires a handler on selection. Mutually exclusive with `directive`. |
+| `iconMap` | `Record<string, IconComponent>` | | Maps an item's or category's `metadata.icon` string to a component. |
+| `fallbackIcon` | `IconComponent` | `SparklesIcon` | Used when `iconMap` has no match. |
+| `backLabel` | `string` | `"Back"` | Label on the button that returns from items to categories. |
+| `emptyCategoriesLabel` | `string` | `"No items available"` | Shown when the adapter has no categories. |
+| `emptyItemsLabel` | `string` | `"No matching items"` | Shown when the current view's item list is empty. |
+| `isLoading` | `boolean` | `false` | Swaps `emptyItemsLabel` for `loadingLabel` while true. |
+| `loadingLabel` | `string` | `"Loading…"` | Shown in place of `emptyItemsLabel` while `isLoading`. |
+
+All other props forward to the popover's root `div`.
+
+### Unstable_TriggerAdapter
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `categories()` | `() => readonly Unstable_TriggerCategory[]` | Top-level categories. Return `[]` for a flat, search-only adapter. |
+| `categoryItems(id)` | `(categoryId: string) => readonly Unstable_TriggerItem[]` | Items inside a category. |
+| `search(query)` | `(query: string) => readonly Unstable_TriggerItem[]` | Optional. Without it, a category-less adapter's items come from a manual filter over `categoryItems` instead. |
+
+`Unstable_TriggerItem` is `{ id, type, label, description?, metadata? }`; the directive formatter's default serialization writes `:type[label]{name=id}`, omitting `{name=…}` when `id` equals `label`.
+
+### Adapter hooks
+
+| Hook | Returns | Description |
+|------|---------|-------------|
+| `unstable_useMentionAdapter(options?)` | `{ adapter, directive, iconMap?, fallbackIcon? }` | Flat or categorized mentions, optionally including tools registered in model context. |
+| `unstable_useSlashCommandAdapter({ commands, ... })` | `{ adapter, action, iconMap?, fallbackIcon? }` | Bundles commands with inline `execute` callbacks. |
+| `unstable_useLiveCompletionAdapter({ fetcher, ... })` | `{ adapter, isLoading }` | Debounces and caches an async source into a synchronous adapter. |
+
+### Keyboard navigation
+
+| Key | Action |
+|-----|--------|
+| `ArrowDown` / `ArrowUp` | Move the highlight, wrapping at either end |
+| `Enter` / `Tab` | Select the highlighted item, or drill into the highlighted category |
+| `Shift+Enter` | Passes through (composer inserts a newline) |
+| `Shift+Tab` | Passes through (native focus traversal) |
+| `Escape` | Close the popover |
+| `Backspace` | Return to categories, only while a category is active and the query is empty |
+
+### Accessibility
+
+The popover implements the WAI-ARIA editable combobox pattern: the list has `role="listbox"` and each entry `role="option"` with `aria-selected`. While a popover is open, the composer's `ComposerPrimitive.Input` automatically receives `aria-controls`, `aria-expanded="true"`, `aria-haspopup="listbox"`, and `aria-activedescendant` pointing at the highlighted option; these are removed when it closes. Rendering `ComposerPrimitive.Input` outside a `TriggerPopoverRoot` adds none of these attributes.
+
+</RuntimeMode>

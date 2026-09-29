@@ -1,0 +1,219 @@
+---
+title: "Diagram"
+description: "A drawn answer with zoom, reset, and a full-bleed view; you hand it the rendered graphic."
+---
+
+Diagram is chrome for a graphic someone else already rendered: a title, a zoom percentage, and zoom controls wrapped around whatever you pass as `children`. With a runtime you hand it whatever a tool rendered; standalone you own the zoom level and the graphic yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+With a runtime, `Diagram` renders whatever a tool has already turned into a graphic: an image URL, output from a charting library, or markup from a renderer like Mermaid. It owns only the zoom chrome; the zoom level itself stays with the caller, since every zoom callback is optional and the current `zoom` is a plain prop.
+
+<Steps>
+  <Step>
+
+### Render the tool call
+
+```tsx title="components/assistant-ui/elements/render-diagram-tool-ui.tsx"
+"use client";
+
+import { useState } from "react";
+import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
+import { Diagram } from "@/components/assistant-ui/elements/diagram";
+
+type RenderDiagramResult = { title: string; imageUrl: string };
+
+export const RenderDiagramToolUI: ToolCallMessagePartComponent<
+  { prompt: string },
+  RenderDiagramResult
+> = ({ result }) => {
+  const [zoom, setZoom] = useState(1);
+  if (!result) return null;
+
+  return (
+    <Diagram
+      title={result.title}
+      zoom={zoom}
+      onZoomIn={() => setZoom((z) => Math.min(2, z + 0.2))}
+      onZoomOut={() => setZoom((z) => Math.max(0.4, z - 0.2))}
+      onReset={() => setZoom(1)}
+    >
+      <img src={result.imageUrl} alt={result.title} className="max-w-none" />
+    </Diagram>
+  );
+};
+```
+
+  </Step>
+  <Step>
+
+### Register the tool
+
+```tsx title="app/toolkit.ts"
+import { defineToolkit } from "@assistant-ui/react";
+import { z } from "zod";
+import { RenderDiagramToolUI } from "@/components/assistant-ui/elements/render-diagram-tool-ui";
+
+export const toolkit = defineToolkit({
+  render_diagram: {
+    type: "frontend",
+    description: "Render a labeled diagram from a text description.",
+    parameters: z.object({ prompt: z.string() }),
+    execute: async ({ prompt }) => renderDiagramImage(prompt),
+    render: RenderDiagramToolUI,
+  },
+});
+```
+
+```tsx title="app/MyRuntimeProvider.tsx"
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { toolkit } from "./toolkit";
+
+export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+See [Tool UI](/docs/tools/tool-ui) for backend-defined tools and approval gates.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `Diagram` never touches `zoom` itself: hold it in state and clamp it yourself, the way the handlers below do.
+
+<Steps>
+  <Step>
+
+### Hold the zoom level
+
+```tsx title="app/message-flow.tsx"
+"use client";
+
+import { useState } from "react";
+import { Diagram } from "@/components/assistant-ui/elements/diagram";
+import { FlowSvg } from "./flow-svg";
+
+export function MessageFlow() {
+  const [zoom, setZoom] = useState(1);
+
+  return (
+    <Diagram
+      title="message flow"
+      zoom={zoom}
+      onZoomIn={() => setZoom((z) => Math.min(1.6, z + 0.2))}
+      onZoomOut={() => setZoom((z) => Math.max(0.6, z - 0.2))}
+      onReset={() => setZoom(1)}
+    >
+      <FlowSvg />
+    </Diagram>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Open a full-bleed view
+
+`onExpand` is disabled unless you pass a handler, so wire it up once there is somewhere for the expanded view to go, such as a dialog.
+
+```tsx
+const [open, setOpen] = useState(false);
+
+<Diagram title="message flow" zoom={zoom} onExpand={() => setOpen(true)} /* ... */>
+  <FlowSvg />
+</Diagram>;
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="diagram">
+  <div>{/* title, zoom percentage, zoom-out / zoom-in / reset / expand buttons */}</div>
+  <div>{/* children, scaled by `zoom` via a CSS transform */}</div>
+</div>
+```
+
+The expand button is the only one with a disabled state: it renders `disabled` and dimmed whenever `onExpand` is omitted, since there is nowhere for it to go. The other three buttons have no disabled state, and `Diagram` does not clamp `zoom` itself, so an out-of-range value is whatever the caller passed in. The percentage label rounds `zoom` to the nearest integer.
+
+## Examples
+
+### Restyle the frame
+
+Both lanes take `className` on the root. The header buttons read the shared `ghostButton` token and the percentage reads `mono`, both from `surfaces.tsx`.
+
+```tsx
+<Diagram className="max-w-none" /* ... */ />
+```
+
+### Clamping the zoom range
+
+`Diagram` reports button presses but never bounds `zoom` on its own, so clamp it in the same handlers that change it:
+
+```tsx
+const clamp = (z: number) => Math.min(2, Math.max(0.4, z));
+
+<Diagram
+  zoom={zoom}
+  onZoomIn={() => setZoom((z) => clamp(z + 0.2))}
+  onZoomOut={() => setZoom((z) => clamp(z - 0.2))}
+  /* ... */
+/>;
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Tool-call render props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `args` | `TArgs` | Parsed arguments. Partial while the model is still streaming them. |
+| `argsText` | `string` | Raw JSON argument text streamed by the model. |
+| `result` | `TResult \| undefined` | The tool's return value once it completes. `undefined` while running. |
+| `status` | `ToolCallMessagePartStatus` | `status.type` is `"running"`, `"requires-action"`, `"complete"`, or `"incomplete"`. |
+| `toolName` | `string` | Name of the tool the model called. |
+| `toolCallId` | `string` | Stable id for this invocation. |
+| `isError` | `boolean \| undefined` | Whether `result` represents a tool execution error. |
+
+Register the renderer on a toolkit entry's `render` field and attach the toolkit with `Tools({ toolkit })`. See [Tool UI](/docs/tools/tool-ui) for the full render-prop surface, including `addResult`, human tools, and approval gates.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### Diagram
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `title` | `string` | required | Shown at the left of the header. |
+| `zoom` | `number` | required | Scale applied to `children` with a CSS `transform`. Not clamped by the element. |
+| `children` | `React.ReactNode` | required | The rendered graphic. |
+| `onZoomIn` | `() => void` | | Called when the zoom-in button is pressed. |
+| `onZoomOut` | `() => void` | | Called when the zoom-out button is pressed. |
+| `onReset` | `() => void` | | Called when the reset button is pressed. |
+| `onExpand` | `() => void` | | Called when the full-screen button is pressed. Omitting it disables that button. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

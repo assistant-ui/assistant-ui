@@ -1,24 +1,18 @@
 import { getLLMText } from "@/lib/get-llm-text";
 import { getDistinctId } from "@/lib/posthog-server";
-import { createPrismTracer, prismAISDK } from "@/lib/prism-server";
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import { injectQuoteContext } from "@assistant-ui/ai-sdk";
 import { checkPublicAssistantRateLimit } from "@/lib/rate-limit";
 import { requirePublicAssistantSession } from "@/lib/anonymous-session";
 import { validateDocChatInput } from "@/lib/validate-input";
-import {
-  source,
-  examples as examplesSource,
-  tapDocs as tapSource,
-  getTapDocsPage,
-} from "@/lib/source";
-import { getModel } from "@/lib/ai/provider";
+import { source, examples as examplesSource } from "@/lib/source";
+import { resolveChatModel } from "@/lib/ai/provider";
 import { posthogTelemetry } from "@/lib/ai/telemetry";
 import { frontendTools } from "@assistant-ui/ai-sdk";
-import { createBashTool } from "bash-tool";
+import { createRepoSandbox } from "@/lib/repo-sandbox";
 import {
   convertToModelMessages,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
   pruneMessages,
   stepCountIs,
   streamText,
@@ -26,39 +20,8 @@ import {
   zodSchema,
 } from "ai";
 import type * as PageTree from "fumadocs-core/page-tree";
-import type { UIMessage } from "ai";
+import type { UIMessage, UIMessageChunk } from "ai";
 import z from "zod";
-
-const SOURCE_SNAPSHOT_PATH = path.join(
-  process.cwd(),
-  "generated",
-  "source-snapshot.json",
-);
-
-function loadSourceSnapshot(): Record<string, string> {
-  try {
-    return JSON.parse(readFileSync(SOURCE_SNAPSHOT_PATH, "utf-8")) as Record<
-      string,
-      string
-    >;
-  } catch (error) {
-    if (
-      error &&
-      typeof error === "object" &&
-      "code" in error &&
-      error.code === "ENOENT"
-    ) {
-      console.warn(
-        `Missing source snapshot at ${SOURCE_SNAPSHOT_PATH}; repo tools will be unavailable until generate:docs runs.`,
-      );
-      return {};
-    }
-
-    throw error;
-  }
-}
-
-const SOURCE_SNAPSHOT = loadSourceSnapshot();
 
 function normalizeSegment(name: string): string {
   return name.toLowerCase().replace(/\s+/g, "-");
@@ -151,14 +114,6 @@ function resolveDocPage(slugs: string[]) {
   if (slugs[0] === "examples") {
     return examplesSource.getPage(slugs.slice(1));
   }
-  if (slugs[0] === "tap") {
-    // "tap" is both the url prefix and a section inside the tree, so a
-    // shorthand slug like "tap/api-reference" needs the unstripped form too.
-    return (
-      getTapDocsPage(slugs.slice(slugs[1] === "docs" ? 2 : 1)) ??
-      tapSource.getPage(slugs)
-    );
-  }
   return source.getPage(slugs);
 }
 
@@ -181,23 +136,39 @@ export async function prepareDocChatMessages(messages: readonly UIMessage[]) {
   });
 }
 
-function createRepoTools() {
-  let bashToolkitPromise: Promise<
-    Awaited<ReturnType<typeof createBashTool>>
-  > | null = null;
+export async function* withReadDocSources(
+  chunks: AsyncIterable<UIMessageChunk>,
+): AsyncGenerator<UIMessageChunk> {
+  const toolNameByCall = new Map<string, string>();
+  const sourceUrls = new Set<string>();
 
-  const getBashToolkit = () => {
-    if (!bashToolkitPromise) {
-      bashToolkitPromise = createBashTool({
-        files: SOURCE_SNAPSHOT,
-        destination: "/repo",
-        maxFiles: 5000,
-        maxOutputLength: 15000,
-      });
+  for await (const chunk of chunks) {
+    yield chunk;
+
+    if (chunk.type === "tool-input-available") {
+      toolNameByCall.set(chunk.toolCallId, chunk.toolName);
     }
 
-    return bashToolkitPromise;
-  };
+    if (
+      chunk.type === "tool-output-available" &&
+      toolNameByCall.get(chunk.toolCallId) === "readDoc"
+    ) {
+      const output = chunk.output as { title?: unknown; url?: unknown };
+      if (typeof output.url === "string" && !sourceUrls.has(output.url)) {
+        sourceUrls.add(output.url);
+        yield {
+          type: "source-url",
+          sourceId: chunk.toolCallId,
+          url: output.url,
+          ...(typeof output.title === "string" ? { title: output.title } : {}),
+        };
+      }
+    }
+  }
+}
+
+function createRepoTools() {
+  const getBashToolkit = createRepoSandbox();
 
   return {
     bash: tool({
@@ -245,7 +216,6 @@ assistant-ui is a React library for building AI chat interfaces. It provides:
 - Friendly, concise, developer-focused
 - Answer the actual question - don't list documentation sections
 - Use emoji sparingly (👋 for greetings, ✅ for success, etc.)
-- Provide code snippets when they help clarify
 - Link to relevant docs naturally within answers
 </personality>
 
@@ -274,7 +244,7 @@ You have two documentation tools:
    - Returns: list of folders and pages with URLs
 
 2. **readDoc** - Read a specific documentation page
-   - Input: slug (e.g., "ui/thread") or URL (e.g., "/docs/ui/thread")
+   - Input: slug (e.g., "ui/thread") or URL (e.g., "/elements/thread")
    - Returns: full page content
 
 **Recommended patterns:**
@@ -302,6 +272,15 @@ You also have tools for exploring the actual assistant-ui source code:
 - Prefer not linking over linking to a potentially non-existent page
 - Admit uncertainty rather than guessing
 </answering>
+
+<answer_style>
+- Default to a direct answer in 3 to 5 sentences; expand only when the question genuinely needs it
+- Include code only when the user asks for code, or when a snippet under 15 lines replaces a paragraph of explanation
+- Show only the lines that matter (the prop, the hook call, the config entry), never whole files or complete documentation examples
+- When a full example already exists in the docs, link to it instead of pasting it: "Full example: [Thread](/docs/ui/thread)"
+- The pages you read are listed automatically as clickable sources under your reply, so do not append a link list at the end
+- For multi-step setups, give short prose steps with links, and expand code for at most the step the user is currently on
+</answer_style>
 
 <formatting>
 Use inline code (\`backticks\`) for:
@@ -332,21 +311,16 @@ export async function POST(req: Request): Promise<Response> {
     const inputError = validateDocChatInput(prunedMessages);
     if (inputError) return inputError;
 
-    const baseModel = getModel(config?.modelName);
+    const { model, providerOptions } = resolveChatModel({
+      modelName: config?.modelName,
+    });
     const distinctId = getDistinctId(req);
-    const prismTracer = createPrismTracer();
-
-    const prism = prismTracer
-      ? prismAISDK(prismTracer, baseModel, {
-          name: "docs_assistant",
-          endUserId: distinctId,
-        })
-      : null;
 
     const repoTools = createRepoTools();
 
     const result = streamText({
-      model: prism?.model ?? baseModel,
+      model,
+      ...(providerOptions ? { providerOptions } : {}),
       system: [SYSTEM_PROMPT, pageContext].filter(Boolean).join("\n\n"),
       messages: prunedMessages,
       maxOutputTokens: 8192,
@@ -389,12 +363,6 @@ export async function POST(req: Request): Promise<Response> {
                   description:
                     "Examples of app types users can build with assistant-ui, showing instructions, recommended patterns, and UI structure.",
                 },
-                {
-                  type: "folder",
-                  name: "tap",
-                  description:
-                    "Documentation for @assistant-ui/tap and @assistant-ui/store, the reactive primitives the runtime is built on.",
-                },
               ];
             }
 
@@ -404,16 +372,6 @@ export async function POST(req: Request): Promise<Response> {
               const target = rest
                 ? findFolderByPath(examplesSource.pageTree, rest)
                 : examplesSource.pageTree;
-              if (!target) return { error: "Path not found" };
-              return listChildren(target.children);
-            }
-            if (segments[0] === "tap") {
-              const rest = segments
-                .slice(segments[1] === "docs" ? 2 : 1)
-                .join("/");
-              const target = rest
-                ? findFolderByPath(tapSource.pageTree, rest)
-                : tapSource.pageTree;
               if (!target) return { error: "Path not found" };
               return listChildren(target.children);
             }
@@ -452,31 +410,34 @@ export async function POST(req: Request): Promise<Response> {
           },
         }),
       },
-      onFinish: async () => {
-        await prism?.end();
-      },
-      onError: async ({ error }) => {
+      onError: ({ error }) => {
         console.error(error);
-        await prism?.end({ status: "error" });
-      },
-      onAbort: async () => {
-        await prism?.end();
       },
     });
 
-    return result.toUIMessageStreamResponse({
-      originalMessages: messages,
-      // gets usage and modelId for internal telemetry
-      messageMetadata: ({ part }) => {
-        if (part.type === "finish-step") {
-          return { modelId: part.response.modelId };
+    const stream = createUIMessageStream({
+      execute: async ({ writer }) => {
+        for await (const chunk of withReadDocSources(
+          result.toUIMessageStream({
+            originalMessages: messages,
+            // gets usage and modelId for internal telemetry
+            messageMetadata: ({ part }) => {
+              if (part.type === "finish-step") {
+                return { modelId: part.response.modelId };
+              }
+              if (part.type === "finish") {
+                return { custom: { usage: part.totalUsage } };
+              }
+              return undefined;
+            },
+          }),
+        )) {
+          writer.write(chunk);
         }
-        if (part.type === "finish") {
-          return { custom: { usage: part.totalUsage } };
-        }
-        return undefined;
       },
     });
+
+    return createUIMessageStreamResponse({ stream });
   } catch (e) {
     console.error("[api/doc/chat]", e);
     return new Response("Request failed", { status: 500 });

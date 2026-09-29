@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Popover } from "@base-ui/react/popover";
 import { ChevronDown, ExternalLink, FileText } from "lucide-react";
-import { DiffViewer } from "@/components/assistant-ui/diff-viewer";
+import { DiffViewer } from "@/components/ui/diff-viewer";
 import { Button } from "@/components/ui/button";
 import type {
   LearnFileRecord,

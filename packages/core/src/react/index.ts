@@ -1,5 +1,5 @@
-/// <reference path="../store/scope-registration.ts" />
-/// <reference path="./types/store-augmentation.ts" />
+/// <reference path="../store/scope-registration.ts" preserve="true" />
+/// <reference path="./types/store-augmentation.ts" preserve="true" />
 
 // model-context
 export {
@@ -217,8 +217,12 @@ export { useExternalStoreSharedOptions } from "./runtimes/useExternalStoreShared
 export {
   useExternalMessageConverter,
   convertExternalMessages,
+  createExternalMessageConversionCache,
 } from "./runtimes/external-message-converter";
-export type { JoinStrategy } from "./runtimes/external-message-converter";
+export type {
+  ExternalMessageConversionCache,
+  JoinStrategy,
+} from "./runtimes/external-message-converter";
 export { createMessageConverter } from "./runtimes/createMessageConverter";
 export {
   useStreamingTiming,
@@ -235,6 +239,10 @@ export { RemoteThreadListHookInstanceManager } from "./runtimes/RemoteThreadList
 export { RemoteThreadListThreadListRuntimeCore } from "./runtimes/RemoteThreadListThreadListRuntimeCore";
 export { useRemoteThreadListRuntime } from "./runtimes/useRemoteThreadListRuntime";
 export { useCloudThreadListAdapter } from "./runtimes/cloud/useCloudThreadListAdapter";
+export {
+  createCloudThreadListAdapter,
+  type CloudThreadListAdapterOptions,
+} from "./runtimes/cloud/createCloudThreadListAdapter";
 export { useCloudThreadListRuntime } from "./runtimes/cloud/useCloudThreadListRuntime";
 export {
   useAssistantTransportRuntime,

@@ -54,6 +54,83 @@ const renderConverter = (initialProps: Props = {}) =>
   );
 
 describe("useExternalMessageConverter", () => {
+  it("refreshes positional fallback ids when an id-less message is prepended", () => {
+    const idlessConvert: useExternalMessageConverter.Callback<TestMessage> = (
+      message,
+    ) => ({
+      role: message.role,
+      content: [{ type: "text", text: message.text }],
+    });
+
+    const older: TestMessage = { id: "u0", role: "user", text: "older" };
+    const newer: TestMessage = { id: "u1", role: "user", text: "newer" };
+
+    const { result, rerender } = renderHook(
+      ({ messages }: { messages: TestMessage[] }) =>
+        useExternalMessageConverter<TestMessage>({
+          callback: idlessConvert,
+          messages,
+          isRunning: false,
+          metadata: EMPTY,
+        }),
+      { initialProps: { messages: [newer] } },
+    );
+
+    rerender({ messages: [older, newer] });
+
+    const ids = result.current.map((message) => message.id);
+    expect(ids).toEqual([
+      "__external_store_fallback_0",
+      "__external_store_fallback_1",
+    ]);
+    expect(
+      result.current.map((message) => (message.content[0] as any).text),
+    ).toEqual(["older", "newer"]);
+  });
+
+  it("never rewrites a caller-supplied id that matches the generated shape", () => {
+    const explicitConvert: useExternalMessageConverter.Callback<TestMessage> = (
+      message,
+    ) => ({
+      role: message.role,
+      id: message.id === "explicit" ? "__external_store_fallback_0" : undefined,
+      content: [{ type: "text", text: message.text }],
+    });
+
+    const explicit: TestMessage = {
+      id: "explicit",
+      role: "user",
+      text: "kept",
+    };
+    const older: TestMessage = { id: "u0", role: "user", text: "older" };
+
+    const { result, rerender } = renderHook(
+      ({ messages }: { messages: TestMessage[] }) =>
+        useExternalMessageConverter<TestMessage>({
+          callback: explicitConvert,
+          messages,
+          isRunning: false,
+          metadata: EMPTY,
+        }),
+      { initialProps: { messages: [explicit] } },
+    );
+
+    rerender({ messages: [older, explicit] });
+
+    // The caller-supplied id survives untouched — at the cost of colliding
+    // with the id minted for the prepended message, since the caller chose an
+    // id inside the reserved fallback namespace. The full list makes that
+    // trade-off explicit.
+    expect(result.current.map((message) => message.id)).toEqual([
+      "__external_store_fallback_0",
+      "__external_store_fallback_0",
+    ]);
+    const explicitOut = result.current.find(
+      (message) => (message.content[0] as any).text === "kept",
+    );
+    expect(explicitOut?.id).toBe("__external_store_fallback_0");
+  });
+
   it("reuses converted messages across rerenders when inputs are unchanged", () => {
     const { result, rerender } = renderConverter();
 

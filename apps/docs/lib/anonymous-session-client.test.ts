@@ -22,6 +22,39 @@ describe("anonymous session client", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("surfaces the session route's body when bootstrap is refused", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response("Anonymous session limit exceeded", { status: 429 }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const { ensureAnonymousSession } =
+      await import("./anonymous-session-client");
+
+    await expect(ensureAnonymousSession()).rejects.toThrow(
+      "Anonymous session limit exceeded",
+    );
+  });
+
+  it("unwraps the JSON error envelope of a refused bootstrap", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json(
+          { error: "Anonymous sessions are issued through the website." },
+          { status: 403 },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const { ensureAnonymousSession } =
+      await import("./anonymous-session-client");
+
+    await expect(ensureAnonymousSession()).rejects.toThrow(
+      "Anonymous sessions are issued through the website.",
+    );
+  });
+
   it("starts a browser session before a public assistant request", async () => {
     const fetchMock = vi
       .fn()

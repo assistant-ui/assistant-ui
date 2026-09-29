@@ -6,6 +6,8 @@ platforms: ["react"]
 
 Slash commands let users type `/` in the composer to open a popover, browse available commands, and execute one. Unlike [mentions](/docs/guides/mentions) (which only insert a directive into the message), slash commands additionally fire an **action callback** at the moment of selection.
 
+<AgentSetup product="guides/slash-commands" />
+
 ## How It Works
 
 ```mermaid
@@ -85,7 +87,7 @@ function MyComposer() {
 }
 ```
 
-The label defaults to `/${id}`; override via `label` on the command. Icons are strings that your `iconMap` on the picker UI resolves to components (see [ComposerTriggerPopover](/docs/ui/composer-trigger-popover)).
+The label defaults to `/${id}`; override via `label` on the command. Icons are strings that your `iconMap` on the picker UI resolves to components (see [ComposerTriggerPopover](/elements/composer-trigger-popover)).
 
 ### `unstable_useSlashCommandAdapter` options
 
@@ -341,7 +343,7 @@ function MyComposer() {
 
 ## Keyboard Navigation
 
-See [ComposerTriggerPopover keyboard navigation](/docs/ui/composer-trigger-popover#keyboard-navigation) for the full key bindings table.
+See [ComposerTriggerPopover keyboard navigation](/elements/composer-trigger-popover#keyboard-navigation) for the full key bindings table.
 
 ## Trigger Popover Architecture
 

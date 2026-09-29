@@ -276,6 +276,9 @@ export function WeatherDataOverlay({
 
   useEffect(() => {
     if (reducedMotion) {
+      // Clearing the glow also cancels a pending animation frame, which is
+      // effect work.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       clearGlowIntensity();
       return;
     }
@@ -525,7 +528,7 @@ export function WeatherDataOverlay({
                     >
                       <span
                         className={cn(
-                          "text-[10px] tracking-[0.08em] uppercase",
+                          "text-[10px] tracking-[0.08em]",
                           index === 0 ? "font-semibold" : "font-medium",
                           textPrimary,
                         )}

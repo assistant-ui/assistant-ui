@@ -10,18 +10,10 @@ import {
   type ReactNode,
 } from "react";
 
-const MIN_WIDTH = 320;
-const MAX_WIDTH = 600;
-const DEFAULT_WIDTH = 400;
-
 interface AssistantPanelContextValue {
   open: boolean;
   setOpen: (open: boolean) => void;
   toggle: () => void;
-  width: number;
-  setWidth: (width: number) => void;
-  isResizing: boolean;
-  setIsResizing: (resizing: boolean) => void;
   pendingMessage: string | null;
   clearPendingMessage: () => void;
   askAI: (message: string) => void;
@@ -60,16 +52,10 @@ export function useGlobalAskAI(): AskAIFn | null {
 
 export function AssistantPanelProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
-  const [width, setWidthState] = useState(DEFAULT_WIDTH);
-  const [isResizing, setIsResizing] = useState(false);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
 
   const toggle = useCallback(() => {
     setOpen((prev) => !prev);
-  }, []);
-
-  const setWidth = useCallback((newWidth: number) => {
-    setWidthState(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, newWidth)));
   }, []);
 
   const clearPendingMessage = useCallback(() => {
@@ -82,10 +68,11 @@ export function AssistantPanelProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    const previous = globalAskAI;
     globalAskAI = askAI;
     for (const l of askAIListeners) l();
     return () => {
-      globalAskAI = null;
+      globalAskAI = previous;
       for (const l of askAIListeners) l();
     };
   }, [askAI]);
@@ -96,10 +83,6 @@ export function AssistantPanelProvider({ children }: { children: ReactNode }) {
         open,
         setOpen,
         toggle,
-        width,
-        setWidth,
-        isResizing,
-        setIsResizing,
         pendingMessage,
         clearPendingMessage,
         askAI,

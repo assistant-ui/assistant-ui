@@ -25,17 +25,22 @@ export type ThreadListItemEventCallback<E extends ThreadListItemEventType> = (
   payload: ThreadListItemEventPayload[E],
 ) => void;
 
-import type { ThreadListItemState } from "./bindings";
+import type { ThreadListItemRuntimeState } from "./bindings";
 import type { ThreadListItemStatus } from "../interfaces/thread-list-runtime-core";
 
-export type { ThreadListItemState, ThreadListItemStatus };
+export type { ThreadListItemRuntimeState, ThreadListItemStatus };
+
+export type ThreadListItemGenerateTitleOptions = {
+  /** Marks a generation started by the automatic title trigger. */
+  automatic?: boolean;
+};
 
 export type ThreadListItemRuntime = {
   readonly path: ThreadListItemRuntimePath;
-  getState(): ThreadListItemState;
+  getState(): ThreadListItemRuntimeState;
 
   initialize(): Promise<{ remoteId: string; externalId: string | undefined }>;
-  generateTitle(): Promise<void>;
+  generateTitle(options?: ThreadListItemGenerateTitleOptions): Promise<void>;
 
   switchTo(options?: { unarchive?: boolean }): Promise<void>;
   rename(newTitle: string): Promise<void>;
@@ -57,7 +62,7 @@ export type ThreadListItemRuntime = {
 };
 
 export type ThreadListItemStateBinding = SubscribableWithState<
-  ThreadListItemState,
+  ThreadListItemRuntimeState,
   ThreadListItemRuntimePath
 >;
 
@@ -93,7 +98,7 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
     this.detach = this.detach.bind(this);
   }
 
-  public getState(): ThreadListItemState {
+  public getState(): ThreadListItemRuntimeState {
     return this._core.getState();
   }
 
@@ -147,9 +152,11 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
     return this._threadListBinding.initialize(state.id);
   }
 
-  public generateTitle(): Promise<void> {
+  public generateTitle(
+    options?: ThreadListItemGenerateTitleOptions,
+  ): Promise<void> {
     const state = this._core.getState();
-    return this._threadListBinding.generateTitle(state.id);
+    return this._threadListBinding.generateTitle(state.id, options);
   }
 
   public unstable_on<E extends ThreadListItemEventType>(

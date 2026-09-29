@@ -3,6 +3,7 @@ import { resource } from "@assistant-ui/tap";
 import {
   useAssistantContextProvider,
   useConfiguredAui,
+  useDestroySignalProvider,
 } from "@assistant-ui/store/client";
 import { ThreadListItemClient } from "../../store/internal";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
@@ -22,6 +23,7 @@ import {
   type RuntimeAdapters,
 } from "./RuntimeAdapterProvider";
 import { isSilentRuntimeAction } from "../../utils/silent-runtime-action";
+import { isTitleSourceMessage } from "../../runtimes/remote-thread-list/title";
 
 export type RemoteThreadListHook = () => AssistantRuntime;
 
@@ -37,21 +39,20 @@ export type RemoteThreadResourceProps = {
     runtime: ThreadRuntimeCore,
     generation: number,
   ) => void;
+  destroySignal: AbortSignal;
 };
-
-export const isTitleSourceMessage = (message: {
-  status?: { type: string } | undefined;
-}) => message.status?.type !== "running";
 
 export const subscribeToTitleGeneration = (
   threadRuntime: AssistantRuntime["thread"],
   itemRuntime: ThreadListItemRuntime,
 ) => {
   const generate = () =>
-    void itemRuntime.generateTitle().catch((error: unknown) => {
-      if (isSilentRuntimeAction(error)) return;
-      console.error("[assistant-ui] Thread title generation failed", error);
-    });
+    void itemRuntime
+      .generateTitle({ automatic: true })
+      .catch((error: unknown) => {
+        if (isSilentRuntimeAction(error)) return;
+        console.error("[assistant-ui] Thread title generation failed", error);
+      });
 
   const hasTitleSource = () =>
     threadRuntime.getState().messages.some(isTitleSourceMessage);
@@ -105,15 +106,18 @@ const useRemoteThreadBinder = ({
 
   const initPromiseRef = useRef<Promise<unknown> | undefined>(undefined);
   const hasInitializedRef = useRef(false);
+  // Any caller's initialize() moves the item off "new"; a thread born "new"
+  // here still joins that initialization so its title arms.
+  const bornNewRef = useRef(itemRuntime.getState().status === "new");
   const titleDisposeRef = useRef<(() => void) | undefined>(undefined);
   const titleAliveRef = useRef(false);
 
   const handleInitialize = useEffectEvent(() => {
     if (hasInitializedRef.current) return;
 
-    const state = itemRuntime.getState();
-    if (state.status !== "new") return;
+    if (itemRuntime.getState().status !== "new" && !bornNewRef.current) return;
     hasInitializedRef.current = true;
+    bornNewRef.current = false;
 
     const initPromise = itemRuntime.initialize();
     initPromiseRef.current = initPromise;
@@ -181,6 +185,7 @@ const useRemoteThreadResource = ({
   parentClient,
   adapters,
   publish,
+  destroySignal,
 }: RemoteThreadResourceProps) => {
   const itemRuntime = useMemo(
     () =>
@@ -217,14 +222,16 @@ const useRemoteThreadResource = ({
     threadListItem: ThreadListItemClient({ runtime: itemRuntime }),
   });
 
-  return useAssistantContextProvider(client, function useThreadClient() {
-    return useRuntimeAdaptersProvider(adapters, function useBoundRuntime() {
-      return useRemoteThreadBinder({
-        threadId,
-        generation,
-        runtimeHook,
-        publish,
-        itemRuntime,
+  return useDestroySignalProvider(destroySignal, function useOwnedThread() {
+    return useAssistantContextProvider(client, function useThreadClient() {
+      return useRuntimeAdaptersProvider(adapters, function useBoundRuntime() {
+        return useRemoteThreadBinder({
+          threadId,
+          generation,
+          runtimeHook,
+          publish,
+          itemRuntime,
+        });
       });
     });
   });

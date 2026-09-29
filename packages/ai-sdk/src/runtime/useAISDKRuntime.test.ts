@@ -3,6 +3,9 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { validateUIMessages } from "ai";
+import { ToolResponse } from "assistant-stream";
+import type { UIMessage } from "@ai-sdk/react";
+import type { MessageFormatRepository } from "@assistant-ui/core";
 
 // Mock only the sibling module that requires AUI store context (not available
 // in isolation). Every other dependency — useExternalStoreRuntime,
@@ -15,6 +18,8 @@ vi.mock("./useExternalHistory", async (importOriginal) => {
     useExternalHistory: vi.fn(() => ({
       isLoading: false,
       deleteMessage: vi.fn().mockResolvedValue(undefined),
+      persistToolInteractions: vi.fn().mockResolvedValue(undefined),
+      persistToolApprovalResponses: vi.fn().mockResolvedValue(undefined),
     })),
   };
 });
@@ -27,6 +32,7 @@ const createChatHelpers = (messages: any[] = []) => {
   let currentMessages = [...messages];
 
   const chatHelpers: any = {
+    id: "chat-1",
     status: "ready",
     error: null,
     messages: currentMessages,
@@ -76,10 +82,11 @@ const textOf = (message: any): string =>
 
 describe("useAISDKRuntime", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     vi.mocked(useExternalHistory).mockReturnValue({
       isLoading: false,
       deleteMessage: vi.fn().mockResolvedValue(undefined),
+      persistToolInteractions: vi.fn().mockResolvedValue(undefined),
+      persistToolApprovalResponses: vi.fn().mockResolvedValue(undefined),
     });
   });
 
@@ -119,13 +126,13 @@ describe("useAISDKRuntime", () => {
       result.current.thread.append({
         role: "user",
         content: [{ type: "text", text: "hello" }],
-        runConfig: { custom: { model: "gpt-5.6-luna" } },
+        runConfig: { custom: { model: "gpt-6-luna" } },
       });
     });
 
     await waitFor(() => {
       expect(chat.sendMessage).toHaveBeenCalledWith(expect.anything(), {
-        metadata: { custom: { model: "gpt-5.6-luna" } },
+        metadata: { custom: { model: "gpt-6-luna" } },
       });
     });
   });
@@ -135,10 +142,11 @@ describe("useAISDKRuntime", () => {
     abortError.name = "AbortError";
     const chat = createChatHelpers();
     let stopCalls = 0;
+    let rejectStop!: (error: unknown) => void;
     chat.stop = () => {
       stopCalls += 1;
       return new Promise((_, reject) => {
-        setTimeout(() => reject(abortError), 5);
+        rejectStop = reject;
       });
     };
     const consoleError = vi
@@ -147,8 +155,11 @@ describe("useAISDKRuntime", () => {
 
     try {
       const { result } = renderHook(() => useAISDKRuntime(chat));
-      const unhandledRejections = await captureUnhandledRejections(() => {
-        result.current.thread.cancelRun();
+      const unhandledRejections = await captureUnhandledRejections(async () => {
+        await act(async () => {
+          result.current.thread.cancelRun();
+          rejectStop(abortError);
+        });
       });
 
       expect(stopCalls).toBe(1);
@@ -156,6 +167,286 @@ describe("useAISDKRuntime", () => {
       expect(consoleError).not.toHaveBeenCalled();
     } finally {
       consoleError.mockRestore();
+    }
+  });
+
+  it("marks only the stopped output cancelled", async () => {
+    let resolveStop!: () => void;
+    const chat = createChatHelpers([
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [{ type: "text", text: "partial", state: "streaming" }],
+      },
+    ]);
+    chat.status = "streaming";
+    chat.stop = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveStop = resolve;
+        }),
+    );
+
+    const { result, rerender } = renderHook(() => useAISDKRuntime(chat));
+
+    act(() => {
+      result.current.thread.cancelRun();
+    });
+    rerender();
+
+    expect(
+      result.current.thread.getState().messages.at(-1)?.status,
+    ).toMatchObject({ type: "running" });
+
+    act(() => {
+      chat.status = "ready";
+      rerender();
+    });
+
+    await waitFor(() => {
+      expect(
+        result.current.thread.getState().messages.at(-1)?.status,
+      ).toMatchObject({
+        type: "incomplete",
+        reason: "cancelled",
+      });
+    });
+
+    await act(async () => {
+      resolveStop();
+      await Promise.resolve();
+    });
+
+    act(() => {
+      chat.setMessages([
+        {
+          id: "assistant-2",
+          role: "assistant",
+          parts: [{ type: "text", text: "replacement" }],
+        },
+      ]);
+      rerender();
+    });
+    await waitFor(() => {
+      expect(
+        result.current.thread.getState().messages.at(-1)?.status,
+      ).toMatchObject({ type: "complete", reason: "unknown" });
+    });
+
+    act(() => {
+      chat.setMessages([
+        {
+          id: "assistant-1",
+          role: "assistant",
+          parts: [{ type: "text", text: "partial" }],
+        },
+      ]);
+      chat.status = "streaming";
+      rerender();
+    });
+
+    expect(
+      result.current.thread.getState().messages.at(-1)?.status,
+    ).toMatchObject({ type: "running" });
+
+    act(() => {
+      chat.status = "ready";
+      rerender();
+    });
+
+    await waitFor(() => {
+      expect(
+        result.current.thread.getState().messages.at(-1)?.status,
+      ).toMatchObject({
+        type: "complete",
+        reason: "unknown",
+      });
+    });
+  });
+
+  it("keeps the stopped output cancelled through the next turn", async () => {
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [{ type: "text", text: "partial", state: "streaming" }],
+      },
+    ]);
+    chat.status = "streaming";
+
+    const { result, rerender } = renderHook(() => useAISDKRuntime(chat));
+
+    await act(async () => {
+      result.current.thread.cancelRun();
+    });
+    act(() => {
+      chat.status = "ready";
+      rerender();
+    });
+
+    await waitFor(() => {
+      expect(
+        result.current.thread.getState().messages.at(-1)?.status,
+      ).toMatchObject({ type: "incomplete", reason: "cancelled" });
+    });
+
+    act(() => {
+      chat.setMessages([
+        ...chat.messages,
+        { id: "u2", role: "user", parts: [{ type: "text", text: "next" }] },
+        {
+          id: "assistant-2",
+          role: "assistant",
+          parts: [{ type: "text", text: "answer" }],
+        },
+      ]);
+      rerender();
+    });
+
+    await waitFor(() => {
+      const messages = result.current.thread.getState().messages;
+      expect(
+        messages.find((message) => message.id === "assistant-1")?.status,
+      ).toMatchObject({ type: "incomplete", reason: "cancelled" });
+      expect(messages.at(-1)?.status).toMatchObject({
+        type: "complete",
+        reason: "unknown",
+      });
+    });
+  });
+
+  it("retracts the cancellation when the provider picks the message back up", async () => {
+    const chat = createChatHelpers([
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [{ type: "text", text: "partial", state: "streaming" }],
+      },
+    ]);
+    chat.status = "streaming";
+
+    const { result, rerender } = renderHook(() => useAISDKRuntime(chat));
+
+    await act(async () => {
+      result.current.thread.cancelRun();
+    });
+    act(() => {
+      chat.status = "ready";
+      rerender();
+    });
+
+    await waitFor(() => {
+      expect(
+        result.current.thread.getState().messages.at(-1)?.status,
+      ).toMatchObject({ type: "incomplete", reason: "cancelled" });
+    });
+
+    act(() => {
+      chat.status = "streaming";
+      rerender();
+    });
+    act(() => {
+      chat.status = "ready";
+      rerender();
+    });
+
+    await waitFor(() => {
+      expect(
+        result.current.thread.getState().messages.at(-1)?.status,
+      ).toMatchObject({ type: "complete", reason: "unknown" });
+    });
+  });
+
+  it("does not mark completed output cancelled when already idle", async () => {
+    const chat = createChatHelpers([
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [{ type: "text", text: "finished" }],
+      },
+    ]);
+
+    const { result, rerender } = renderHook(() => useAISDKRuntime(chat));
+
+    act(() => {
+      result.current.thread.cancelRun();
+      rerender();
+    });
+
+    await waitFor(() => {
+      expect(
+        result.current.thread.getState().messages.at(-1)?.status,
+      ).toMatchObject({ type: "complete", reason: "unknown" });
+    });
+  });
+
+  it("marks output cancelled while a client tool is still executing", async () => {
+    let resolveTool!: (value: string) => void;
+    const execute = vi.fn(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveTool = resolve;
+        }),
+    );
+    const chat = createChatHelpers();
+
+    const { result, rerender } = renderHook(() => useAISDKRuntime(chat));
+    const unregister = result.current.registerModelContextProvider({
+      getModelContext: () => ({
+        tools: {
+          weather: {
+            parameters: { type: "object", properties: {} },
+            execute,
+          },
+        },
+      }),
+    });
+
+    try {
+      act(() => {
+        chat.setMessages([
+          {
+            id: "assistant-1",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-weather",
+                toolCallId: "tool-1",
+                state: "input-available",
+                input: { city: "London" },
+              },
+            ],
+          },
+        ]);
+        rerender();
+      });
+
+      await waitFor(() => {
+        expect(execute).toHaveBeenCalledOnce();
+        expect(result.current.thread.getState().isRunning).toBe(true);
+      });
+
+      act(() => {
+        result.current.thread.cancelRun();
+        chat.setMessages([
+          {
+            id: "assistant-1",
+            role: "assistant",
+            parts: [{ type: "text", text: "stopped" }],
+          },
+        ]);
+        resolveTool("sunny");
+        rerender();
+      });
+
+      await waitFor(() => {
+        expect(
+          result.current.thread.getState().messages.at(-1)?.status,
+        ).toMatchObject({ type: "incomplete", reason: "cancelled" });
+      });
+    } finally {
+      unregister();
     }
   });
 
@@ -285,7 +576,65 @@ describe("useAISDKRuntime", () => {
     ).resolves.toBeDefined();
   });
 
-  it("forwards a successful tool result through addToolOutput, not the deprecated addToolResult", async () => {
+  it("cancels a pending tool call left behind a staged message", async () => {
+    const chat = createChatHelpers([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "dynamic-tool",
+            toolName: "mcp_search",
+            toolCallId: "tc-1",
+            state: "approval-requested",
+            input: { q: "hi" },
+            approval: { id: "appr-1" },
+          },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBeGreaterThan(
+        0,
+      );
+    });
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "context" }],
+        startRun: false,
+      });
+    });
+
+    await waitFor(() => {
+      expect(chat.messages).toHaveLength(2);
+    });
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "what" }],
+      });
+    });
+
+    await waitFor(() => {
+      expect(chat.sendMessage).toHaveBeenCalledTimes(1);
+    });
+
+    const part = chat.messages[0].parts[0];
+    expect(part.state).toBe("output-error");
+    expect(part.approval).toBeUndefined();
+
+    await expect(
+      validateUIMessages({ messages: chat.messages }),
+    ).resolves.toBeDefined();
+  });
+
+  it("attaches a tool artifact to the live part and forwards its result through addToolOutput", async () => {
     const chat = createChatHelpers([
       {
         id: "a1",
@@ -301,7 +650,7 @@ describe("useAISDKRuntime", () => {
       },
     ]);
 
-    const { result } = renderHook(() => useAISDKRuntime(chat));
+    const { result, rerender } = renderHook(() => useAISDKRuntime(chat));
 
     await waitFor(() => {
       expect(result.current.thread.getState().messages.length).toBeGreaterThan(
@@ -313,12 +662,25 @@ describe("useAISDKRuntime", () => {
       result.current.thread
         .getMessageById("a1")
         .getMessagePartByToolCallId("tc-1")
-        .addToolResult({ temp: 72 });
+        .addToolResult(
+          new ToolResponse({
+            result: { temp: 72 },
+            artifact: { preview: "72°F and sunny" },
+          }),
+        );
     });
 
     await waitFor(() => {
       expect(chat.addToolOutput).toHaveBeenCalledTimes(1);
     });
+
+    const livePart = result.current.thread
+      .getMessageById("a1")
+      .getMessagePartByToolCallId("tc-1")
+      .getState();
+    expect(
+      livePart.type === "tool-call" ? livePart.artifact : undefined,
+    ).toEqual({ preview: "72°F and sunny" });
 
     expect(chat.addToolOutput).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -328,7 +690,90 @@ describe("useAISDKRuntime", () => {
         options: { metadata: undefined },
       }),
     );
+    expect(chat.addToolOutput.mock.calls[0]?.[0]).not.toHaveProperty(
+      "artifact",
+    );
     expect(chat.addToolResult).not.toHaveBeenCalled();
+    expect(
+      vi.mocked(useExternalHistory).mock.calls.at(-1)?.[5]?.get("tc-1"),
+    ).toEqual({ preview: "72°F and sunny" });
+
+    chat.messages = chat.messages.map((message: UIMessage) => ({
+      ...message,
+    }));
+    rerender();
+
+    await waitFor(() => {
+      const part = result.current.thread
+        .getMessageById("a1")
+        .getMessagePartByToolCallId("tc-1")
+        .getState();
+      expect(part.type === "tool-call" ? part.artifact : undefined).toEqual({
+        preview: "72°F and sunny",
+      });
+    });
+    expect(chat.messages[0]?.metadata).toBeUndefined();
+  });
+
+  it("shows recorded tool interactions without writing them to chat messages", async () => {
+    const chat = createChatHelpers([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-weather",
+            toolCallId: "tc-1",
+            state: "input-available",
+            input: { city: "NYC" },
+          },
+        ],
+      },
+    ]);
+    const persistToolInteractions = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(useExternalHistory).mockReturnValue({
+      isLoading: false,
+      deleteMessage: vi.fn().mockResolvedValue(undefined),
+      persistToolInteractions,
+      persistToolApprovalResponses: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages).toHaveLength(1);
+    });
+
+    await act(async () => {
+      await result.current.thread
+        .getMessageById("a1")
+        .getMessagePartByToolCallId("tc-1").unstable_recordInteraction!({
+        type: "action",
+        payload: { refresh: true },
+      });
+    });
+
+    await waitFor(() => {
+      const part = result.current.thread
+        .getMessageById("a1")
+        .getMessagePartByToolCallId("tc-1")
+        .getState();
+      expect(
+        part.type === "tool-call" ? part.unstable_interactions : undefined,
+      ).toEqual({
+        entries: [
+          {
+            type: "action",
+            occurredAt: expect.any(Number),
+            payload: { refresh: true },
+          },
+        ],
+      });
+    });
+    expect(persistToolInteractions).toHaveBeenCalledExactlyOnceWith("a1");
+    expect(chat.messages[0]?.metadata).toBeUndefined();
+    expect(chat.addToolOutput).not.toHaveBeenCalled();
+    expect(chat.sendMessage).not.toHaveBeenCalled();
   });
 
   it("appends a new user message without sending when startRun is false", async () => {
@@ -418,6 +863,8 @@ describe("useAISDKRuntime", () => {
     vi.mocked(useExternalHistory).mockReturnValue({
       isLoading: false,
       deleteMessage,
+      persistToolInteractions: vi.fn().mockResolvedValue(undefined),
+      persistToolApprovalResponses: vi.fn().mockResolvedValue(undefined),
     });
     const chat = createChatHelpers([
       { id: "u1", role: "user", parts: [{ type: "text", text: "first" }] },
@@ -450,6 +897,115 @@ describe("useAISDKRuntime", () => {
       "a1",
       "a2",
     ]);
+  });
+
+  it("removes tool artifacts with their deleted message", async () => {
+    const deleteMessage = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(useExternalHistory).mockReturnValue({
+      isLoading: false,
+      deleteMessage,
+      persistToolInteractions: vi.fn().mockResolvedValue(undefined),
+      persistToolApprovalResponses: vi.fn().mockResolvedValue(undefined),
+    });
+    const chat = createChatHelpers([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-weather",
+            toolCallId: "tc-1",
+            state: "input-available",
+            input: { city: "NYC" },
+          },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages).toHaveLength(1);
+    });
+
+    act(() => {
+      result.current.thread
+        .getMessageById("a1")
+        .getMessagePartByToolCallId("tc-1")
+        .addToolResult(
+          new ToolResponse({
+            result: { temp: 72 },
+            artifact: { preview: "72°F and sunny" },
+          }),
+        );
+    });
+
+    await waitFor(() => {
+      expect(chat.addToolOutput).toHaveBeenCalledTimes(1);
+    });
+
+    const toolArtifacts = vi.mocked(useExternalHistory).mock.calls.at(-1)?.[5];
+    expect(toolArtifacts?.get("tc-1")).toEqual({
+      preview: "72°F and sunny",
+    });
+    await act(async () => {
+      await result.current.thread.getMessageById("a1").delete();
+    });
+
+    expect(deleteMessage).toHaveBeenCalledWith("a1");
+    expect(toolArtifacts?.has("tc-1")).toBe(false);
+  });
+
+  it("removes tool interactions with their deleted message", async () => {
+    const deleteMessage = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(useExternalHistory).mockReturnValue({
+      isLoading: false,
+      deleteMessage,
+      persistToolInteractions: vi.fn().mockResolvedValue(undefined),
+      persistToolApprovalResponses: vi.fn().mockResolvedValue(undefined),
+    });
+    const chat = createChatHelpers([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-weather",
+            toolCallId: "tc-1",
+            state: "output-available",
+            input: { city: "NYC" },
+            output: { temp: 72 },
+          },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages).toHaveLength(1);
+    });
+
+    await act(async () => {
+      await result.current.thread
+        .getMessageById("a1")
+        .getMessagePartByToolCallId("tc-1").unstable_recordInteraction!({
+        type: "action",
+        payload: { type: "refresh" },
+      });
+    });
+
+    const toolInteractions = vi
+      .mocked(useExternalHistory)
+      .mock.calls.at(-1)?.[7];
+    expect(toolInteractions?.has("tc-1")).toBe(true);
+
+    await act(async () => {
+      await result.current.thread.getMessageById("a1").delete();
+    });
+
+    expect(deleteMessage).toHaveBeenCalledWith("a1");
+    expect(toolInteractions?.has("tc-1")).toBe(false);
   });
 
   it("edit slices history to parentId and sends the edited message", async () => {
@@ -697,7 +1253,7 @@ describe("useAISDKRuntime", () => {
   it("imports a message tree without replacing the chat feed", async () => {
     const chat = createChatHelpers();
     const onBranchChange = vi.fn();
-    const messageRepository = {
+    const messageRepository: MessageFormatRepository<UIMessage> = {
       headId: "a2",
       messages: [
         {
@@ -793,7 +1349,7 @@ describe("useAISDKRuntime", () => {
     const chat = createChatHelpers([
       { id: "live", role: "user", parts: [{ type: "text", text: "keep me" }] },
     ]);
-    const messageRepository = {
+    const messageRepository: MessageFormatRepository<UIMessage> = {
       headId: "a1",
       messages: [
         {
@@ -831,7 +1387,9 @@ describe("useAISDKRuntime", () => {
 
   it("does not reseed when the repository object identity changes", async () => {
     const chat = createChatHelpers();
-    const makeRepository = (text: string) => ({
+    const makeRepository = (
+      text: string,
+    ): MessageFormatRepository<UIMessage> => ({
       headId: "a1",
       messages: [
         {
@@ -1200,6 +1758,45 @@ describe("useAISDKRuntime", () => {
     expect(aiSDKExtras.tryGet(extras)).toMatchObject({
       chat,
       error: chat.error,
+    });
+  });
+
+  it("keeps the error name and code on the failed message status", () => {
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      { id: "a1", role: "assistant", parts: [{ type: "text", text: "" }] },
+    ]);
+    chat.error = Object.assign(new Error("rate limited"), {
+      name: "AI_APICallError",
+      code: "rate_limited",
+    });
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    expect(
+      result.current.thread.getState().messages.at(-1)?.status,
+    ).toMatchObject({
+      type: "incomplete",
+      reason: "error",
+      error: { code: "rate_limited", message: "rate limited" },
+    });
+  });
+
+  it("uses the error name as the code when the error carries none", () => {
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      { id: "a1", role: "assistant", parts: [{ type: "text", text: "" }] },
+    ]);
+    chat.error = Object.assign(new Error("upstream failed"), {
+      name: "AI_APICallError",
+    });
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    expect(
+      result.current.thread.getState().messages.at(-1)?.status,
+    ).toMatchObject({
+      error: { code: "AI_APICallError", message: "upstream failed" },
     });
   });
 });

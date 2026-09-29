@@ -1,6 +1,13 @@
-import { cn } from "@/lib/utils";
 import Link from "next/link";
 import type { FC, ReactNode } from "react";
+import {
+  Definition,
+  DefinitionAnnotation,
+  DefinitionDetails,
+  DefinitionList,
+  DefinitionName,
+  DefinitionTerm,
+} from "@/components/ui/definition-list";
 import { StatusBadge } from "./status-badge";
 
 const DESCRIPTION_LINK_CLASSNAME =
@@ -91,10 +98,9 @@ export function renderDescription(description: string | ReactNode): ReactNode {
   return parts;
 }
 
-const Parameter: FC<{
-  parameter: ParameterDef;
-  isNested?: boolean | undefined;
-}> = ({ parameter: partialParameter, isNested }) => {
+const Parameter: FC<{ parameter: ParameterDef }> = ({
+  parameter: partialParameter,
+}) => {
   const parameter = {
     ...COMMON_PARAMS[partialParameter.name],
     ...partialParameter,
@@ -103,43 +109,25 @@ const Parameter: FC<{
   const isOptional = !parameter.required && !parameter.default;
 
   return (
-    <div
-      className={cn(
-        "group border-border/50 border-b px-4 py-3 last:border-b-0",
-        isNested && "bg-muted/30",
-      )}
-    >
-      <dt>
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <code className="text-foreground font-mono text-sm font-semibold">
-            {parameter.name}
-          </code>
-          {parameter.deprecated && <StatusBadge variant="deprecated" />}
-          {parameter.name.startsWith("unstable_") && (
-            <StatusBadge variant="unstable" />
-          )}
-          {parameter.type && (
-            <>
-              {" "}
-              <code className="text-muted-foreground font-mono text-xs">
-                {isOptional && "?"}
-                {": "}
-                {parameter.type}
-              </code>
-            </>
-          )}
-          {parameter.default && (
-            <>
-              {" "}
-              <span className="text-muted-foreground font-mono text-xs">
-                = {parameter.default}
-              </span>
-            </>
-          )}
-        </div>
-      </dt>
-      <dd className="pt-2">
-        <p className="text-muted-foreground text-sm leading-relaxed whitespace-pre-line">
+    <Definition>
+      <DefinitionTerm>
+        <DefinitionName>
+          {parameter.name}
+          {isOptional && "?"}
+        </DefinitionName>
+        {parameter.type && (
+          <DefinitionAnnotation>{parameter.type}</DefinitionAnnotation>
+        )}
+        {parameter.default && (
+          <DefinitionAnnotation>= {parameter.default}</DefinitionAnnotation>
+        )}
+        {parameter.deprecated && <StatusBadge variant="deprecated" />}
+        {parameter.name.startsWith("unstable_") && (
+          <StatusBadge variant="unstable" />
+        )}
+      </DefinitionTerm>
+      <DefinitionDetails>
+        <p className="whitespace-pre-line">
           {renderDescription(parameter.description)}
         </p>
 
@@ -150,41 +138,26 @@ const Parameter: FC<{
         )}
 
         {parameter.children?.map((child, i) => (
-          <div key={child.type ?? i} className="mt-3">
-            <ParametersBox {...child} isNested />
-          </div>
+          <ParametersGroup key={child.type ?? i} {...child} />
         ))}
-      </dd>
-    </div>
+      </DefinitionDetails>
+    </Definition>
   );
 };
 
-const ParametersBox: FC<
-  ParametersTableProps & { isNested?: boolean | undefined }
-> = ({ type, parameters, isNested }) => {
+const ParametersGroup: FC<ParametersTableProps> = ({ type, parameters }) => {
   return (
-    <div
-      className={cn(
-        "border-border/60 overflow-hidden rounded-lg border",
-        isNested && "border-border/40",
-      )}
-    >
-      {type && !isNested && (
-        <div className="border-border/60 bg-muted/50 border-b px-4 py-2">
-          <code className="text-muted-foreground font-mono text-xs font-medium">
-            {type}
-          </code>
+    <div className="border-foreground/10 mt-3 border-s ps-4">
+      {type && (
+        <div className="text-muted-foreground mb-2 font-mono text-[11px] font-medium tracking-wide">
+          {type}
         </div>
       )}
-      <dl>
+      <DefinitionList className="border-t-0 [&>div:last-child]:border-b-0 [&>div:last-child]:pb-0">
         {parameters.map((parameter) => (
-          <Parameter
-            key={parameter.name}
-            parameter={parameter}
-            isNested={isNested}
-          />
+          <Parameter key={parameter.name} parameter={parameter} />
         ))}
-      </dl>
+      </DefinitionList>
     </div>
   );
 };
@@ -199,8 +172,17 @@ export const ParametersTable: FC<ParametersTableProps> = ({
   parameters,
 }) => {
   return (
-    <div className="not-prose my-4">
-      <ParametersBox type={type} parameters={parameters} />
+    <div className="not-prose my-6">
+      {type && (
+        <div className="text-muted-foreground mb-2 font-mono text-[11px] font-medium tracking-wide">
+          {type}
+        </div>
+      )}
+      <DefinitionList>
+        {parameters.map((parameter) => (
+          <Parameter key={parameter.name} parameter={parameter} />
+        ))}
+      </DefinitionList>
     </div>
   );
 };

@@ -104,12 +104,14 @@ export type DataMessagePart<T = any> = {
  */
 export type GenerativeUINode =
   | string
+  | number
+  | readonly GenerativeUINode[]
   | {
       /** Allowlisted component name (resolved against the consumer registry). */
       readonly component: string;
       /** Props passed to the resolved component (must be JSON-serializable). */
       readonly props?: Record<string, unknown>;
-      /** Optional children — strings render as text, objects recurse. */
+      /** Optional child nodes — strings and numbers render as text; nested arrays and objects recurse. */
       readonly children?: readonly GenerativeUINode[];
       /** Optional stable key for React reconciliation. */
       readonly key?: string;
@@ -168,9 +170,9 @@ export type ToolApprovalOption = {
   readonly id: string;
   /**
    * Decision class. Drives approved-resolution and default rendering.
-   * Open union: `_`-prefixed custom kinds are never auto-resolved and the
-   * default kit skips them; they must be answered with an explicit
-   * `approved` value (optionally alongside the `optionId`).
+   * Open union: `_`-prefixed custom kinds are never auto-resolved; they must
+   * be answered with an explicit `approved` value (optionally alongside the
+   * `optionId`), which is what the default kit sends when one is chosen.
    */
   readonly kind: ToolApprovalOptionKind | (string & {});
   /** Human label. Renderers supply defaults per kind when omitted. */
@@ -182,14 +184,82 @@ export type ToolApprovalOption = {
   readonly confirm?: boolean | { title?: string; description?: string };
 };
 
+/**
+ * How an approval request should be presented, and which answers it accepts.
+ * Absent: `"decision"`.
+ *
+ * The approval seam carries a host-owned request addressed by its own id and
+ * resolved once; a request wanting an answer these modes cannot express stays
+ * on the `interrupt` seam, which hands the tool an arbitrary payload instead.
+ * Unlike {@link ToolApprovalOptionKind} the set is closed, because a renderer
+ * that cannot cover every mode exhaustively is back to guessing the affordance.
+ */
+export type ToolApprovalDisplay = "decision" | "select" | "text";
+
+/**
+ * Whether the request asks for a free-form answer, on its own or alongside its
+ * options. Renderers read this to decide whether to offer a text affordance,
+ * and the runtime reads it to reject a `text` response the host cannot record.
+ */
+export const toolApprovalAcceptsText = (approval: {
+  readonly display?: ToolApprovalDisplay;
+  readonly allowFreeform?: boolean;
+}): boolean => approval.display === "text" || approval.allowFreeform === true;
+
 export type ToolApprovalResponse =
-  | { readonly approved: boolean; readonly reason?: string }
-  | { readonly optionId: string; readonly reason?: string }
+  | {
+      readonly approved: boolean;
+      readonly text?: string;
+      readonly reason?: string;
+    }
+  | {
+      readonly optionId: string;
+      readonly text?: string;
+      readonly reason?: string;
+    }
   | {
       readonly approved: boolean;
       readonly optionId: string;
+      readonly text?: string;
+      readonly reason?: string;
+    }
+  | {
+      /** Answer to a request that asks a question rather than for a decision. */
+      readonly text: string;
       readonly reason?: string;
     };
+
+/** One thing a user did in a tool call's rendered UI, stored with the call. */
+export type Unstable_ToolInteraction =
+  | {
+      /** A generative UI action the user fired, with the user's input under `$input`. */
+      readonly type: "action";
+      /** When the user acted, in epoch milliseconds. */
+      readonly occurredAt: number;
+      readonly payload: ReadonlyJSONObject;
+    }
+  | {
+      /** The answer the user gave to the tool's request for human input. */
+      readonly type: "human-response";
+      /** When the user answered, in epoch milliseconds. */
+      readonly occurredAt: number;
+      readonly payload: ReadonlyJSONValue;
+    };
+
+/**
+ * The interactions recorded on a tool call, oldest first. `omitted` counts
+ * earlier entries dropped to keep the log within its size limit.
+ */
+export type Unstable_ToolInteractionLog = {
+  readonly entries: readonly Unstable_ToolInteraction[];
+  readonly omitted?: number;
+};
+
+/** An interaction to record; the runtime validates the payload and stamps the time. */
+export type Unstable_ToolInteractionInput = {
+  readonly type: Unstable_ToolInteraction["type"];
+  readonly payload: unknown;
+};
 
 export type ToolCallMessagePart<
   TArgs = ReadonlyJSONObject,
@@ -207,10 +277,12 @@ export type ToolCallMessagePart<
    * `useToolArgsStatus` to detect which fields are still arriving.
    */
   readonly args: TArgs;
-  /** Result returned by the tool, if it has completed. */
+  /** Result returned by the tool. Final once it has completed; an interim value while `isPreliminary` is set. */
   readonly result?: TResult | undefined;
   /** Whether the result represents a tool execution error. */
   readonly isError?: boolean | undefined;
+  /** Whether `result` is an interim value from a tool that is still running, so the call is not settled yet. */
+  readonly isPreliminary?: boolean | undefined;
   /** Raw JSON argument text streamed by the model. */
   readonly argsText: string;
   /** UI-only artifact associated with the tool result. */
@@ -228,6 +300,22 @@ export type ToolCallMessagePart<
   /** Server-side approval gate. `respondToApproval` may only be called while `approved` is undefined and no `resolution` is recorded. */
   readonly approval?: {
     readonly id: string;
+    /**
+     * The question put to the user. A request that asks for something other
+     * than permission carries it here, so a renderer can show the question
+     * rather than inferring a decision from the tool name.
+     */
+    readonly prompt?: string;
+    /** How the request should be presented. Absent: a plain decision. */
+    readonly display?: ToolApprovalDisplay;
+    /** Whether a free-form answer is accepted alongside the options. */
+    readonly allowFreeform?: boolean;
+    /**
+     * Whether the request accepts a dismissal: `approved: false` with no
+     * answer. A decision is always refusable; a question is only when its host
+     * records a dismissal, so a renderer offers one only when this is set.
+     */
+    readonly dismissible?: boolean;
     readonly approved?: boolean;
     readonly reason?: string;
     readonly isAutomatic?: boolean;
@@ -235,7 +323,9 @@ export type ToolCallMessagePart<
     readonly options?: readonly ToolApprovalOption[];
     /** The option chosen at resolution, when options were present. */
     readonly optionId?: string;
-    /** Terminal non-decision state: the request was cancelled or expired without a user decision. Set by the host. */
+    /** The free-form answer recorded at resolution, when one was given. */
+    readonly text?: string;
+    /** Terminal non-decision state: the request was cancelled or expired without a user decision. Set by the host, or by `LocalRuntime` once a later turn follows the message. */
     readonly resolution?: "cancelled" | "expired";
   };
   /** Parent message-part ID when this part belongs to a nested structure. */
@@ -245,6 +335,11 @@ export type ToolCallMessagePart<
    * conversation.
    */
   readonly messages?: readonly ThreadMessage[];
+  /**
+   * What the user did in this call's rendered UI, recorded so a stored
+   * conversation shows the answer beside the question.
+   */
+  readonly unstable_interactions?: Unstable_ToolInteractionLog;
 };
 
 export type ThreadUserMessagePart =
@@ -306,6 +401,11 @@ export type ToolCallMessagePartStatus =
       /** Reason the tool call requires action. */
       readonly reason: "tool-calls" | "interrupt";
     }
+  | {
+      readonly type: "incomplete";
+      readonly reason: "tool-calls";
+      readonly error?: ReadonlyJSONValue;
+    }
   | MessagePartStatus;
 
 export type MessageStatus =
@@ -342,6 +442,8 @@ export type MessageTiming = {
   readonly toolCallCount: number;
 };
 
+export type MessageModality = "voice";
+
 export type ThreadStep = {
   readonly messageId?: string;
   readonly usage?:
@@ -367,6 +469,7 @@ export type ThreadSystemMessage = MessageCommonProps & {
     readonly steps?: undefined;
     readonly submittedFeedback?: undefined;
     readonly timing?: undefined;
+    readonly modality?: undefined;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -383,6 +486,8 @@ export type ThreadUserMessage = MessageCommonProps & {
     readonly submittedFeedback?: undefined;
     readonly timing?: undefined;
     readonly isOptimistic?: boolean;
+    /** Set when the message was produced by a voice session rather than typed. */
+    readonly modality?: MessageModality;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -396,13 +501,18 @@ export type ThreadAssistantMessage = MessageCommonProps & {
     readonly unstable_annotations: readonly ReadonlyJSONValue[];
     readonly unstable_data: readonly ReadonlyJSONValue[];
     readonly steps: readonly ThreadStep[];
-    readonly submittedFeedback?: { readonly type: "positive" | "negative" };
+    readonly submittedFeedback?: {
+      readonly type: "positive" | "negative";
+      readonly comment?: string;
+    };
     readonly timing?: MessageTiming;
     /**
      * Marks a client-side optimistic placeholder. Such messages are evicted
      * once off the head branch and are never persisted.
      */
     readonly isOptimistic?: boolean;
+    /** Set when the message was produced by a voice session rather than typed. */
+    readonly modality?: MessageModality;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -410,13 +520,19 @@ export type ThreadAssistantMessage = MessageCommonProps & {
 type BaseThreadMessage = {
   readonly status?: ThreadAssistantMessage["status"];
   readonly metadata: {
-    readonly unstable_state?: ReadonlyJSONValue;
-    readonly unstable_annotations?: readonly ReadonlyJSONValue[];
-    readonly unstable_data?: readonly ReadonlyJSONValue[];
-    readonly steps?: readonly ThreadStep[];
-    readonly submittedFeedback?: { readonly type: "positive" | "negative" };
-    readonly timing?: MessageTiming;
+    readonly unstable_state?: ReadonlyJSONValue | undefined;
+    readonly unstable_annotations?: readonly ReadonlyJSONValue[] | undefined;
+    readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
+    readonly steps?: readonly ThreadStep[] | undefined;
+    readonly submittedFeedback?:
+      | {
+          readonly type: "positive" | "negative";
+          readonly comment?: string;
+        }
+      | undefined;
+    readonly timing?: MessageTiming | undefined;
     readonly isOptimistic?: boolean;
+    readonly modality?: MessageModality | undefined;
     readonly custom: Record<string, unknown>;
   };
   readonly attachments?: ThreadUserMessage["attachments"];

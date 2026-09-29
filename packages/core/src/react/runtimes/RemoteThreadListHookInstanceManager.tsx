@@ -10,17 +10,32 @@ import {
   type ComponentType,
   Fragment,
 } from "react";
-import { create } from "zustand";
-import { useResources, withKey } from "@assistant-ui/tap";
+import { useResources, useTapHost, withKey } from "@assistant-ui/tap";
 import type { AssistantClient } from "@assistant-ui/store";
 import { ThreadListItemRuntimeProvider } from "../providers/ThreadListItemRuntimeProvider";
-import type { ThreadRuntimeCore } from "../../runtime/interfaces/thread-runtime-core";
-import type { ThreadListRuntimeCore } from "../../runtime/interfaces/thread-list-runtime-core";
+import type {
+  ThreadRuntimeCore,
+  ThreadRuntimeEventType,
+} from "../../runtime/interfaces/thread-runtime-core";
+import type {
+  ThreadListRuntimeCore,
+  ThreadListRuntimeEvent,
+} from "../../runtime/interfaces/thread-list-runtime-core";
 import type { Unsubscribe } from "../../types/unsubscribe";
-import { BaseSubscribable } from "../../subscribable/subscribable";
+import {
+  BaseSubscribable,
+  notifySubscribers,
+  runCleanups,
+  WritableSubscribable,
+} from "../../subscribable/subscribable";
+import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
 import { getThreadRuntimeCoreIsRunning } from "../../runtime/api/thread-runtime";
 import { ThreadListRuntimeImpl } from "../../runtime/api/thread-list-runtime";
-import { invalidateThreadRuntime } from "../../runtime/utils/thread-runtime-lifecycle";
+import {
+  disposeThreadRuntime,
+  supersedeThreadRuntime,
+} from "../../runtime/utils/thread-runtime-lifecycle";
+import { notifyEventListeners } from "../../utils/notify-event-listeners";
 import {
   useRuntimeAdapters,
   type RuntimeAdapters,
@@ -30,12 +45,22 @@ import {
   type RemoteThreadListHook,
 } from "./RemoteThreadResource";
 
+const THREAD_EVENTS = [
+  "runStart",
+  "runEnd",
+  "initialize",
+  "modelContextUpdate",
+] as const satisfies readonly ThreadRuntimeEventType[];
+
 type RemoteThreadListHookInstance = {
   runtime?: ThreadRuntimeCore | undefined;
   publishedGeneration?: number | undefined;
   generation: number;
   isRunning: boolean;
   unsubscribeRunning?: Unsubscribe | undefined;
+  // Permanent teardown of the thread's runtime, aborted when the thread is
+  // stopped or its runtime restarted. A soft unmount leaves it armed.
+  destroy: AbortController;
 };
 
 type AdapterSnapshot = {
@@ -44,7 +69,11 @@ type AdapterSnapshot = {
 };
 
 type HostSnapshot = {
-  threads: readonly { id: string; generation: number }[];
+  threads: readonly {
+    id: string;
+    generation: number;
+    destroySignal: AbortSignal;
+  }[];
   hookEpoch: number;
 };
 
@@ -59,14 +88,14 @@ const ProviderRenderDetector: FC<{
 
 export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   private runtimeHook: RemoteThreadListHook;
-  private readonly adapterStore = create<AdapterSnapshot>(() => ({
+  private readonly adapterStore = new WritableSubscribable<AdapterSnapshot>({
     defaultAdapters: null,
     threadAdapters: new Map(),
-  }));
-  private readonly hostStore = create<HostSnapshot>(() => ({
+  });
+  private readonly hostStore = new WritableSubscribable<HostSnapshot>({
     threads: [],
     hookEpoch: 0,
-  }));
+  });
   private readonly pendingThreadAdapters = new Map<
     string,
     RuntimeAdapters | null
@@ -112,6 +141,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
       this.instances.set(threadId, {
         generation,
         isRunning: false,
+        destroy: new AbortController(),
       });
       this._syncHostThreads();
     }
@@ -123,10 +153,21 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     const instance = this.instances.get(threadId);
     if (!instance) return this.startThreadRuntime(threadId);
 
-    if (instance.runtime) invalidateThreadRuntime(instance.runtime);
-    instance.generation = this.nextGeneration++;
-    this._syncHostThreads();
-    this._notifySubscribers();
+    // Detach before superseding and aborting, as stopThreadRuntime does: both
+    // tear the outgoing runtime down synchronously, and its terminal events
+    // would otherwise reach the subscription the next generation is about to
+    // reuse.
+    try {
+      instance.unsubscribeRunning?.();
+    } finally {
+      instance.unsubscribeRunning = undefined;
+      if (instance.runtime) supersedeThreadRuntime(instance.runtime);
+      instance.destroy.abort();
+      instance.destroy = new AbortController();
+      instance.generation = this.nextGeneration++;
+      this._syncHostThreads();
+      this._notifySubscribers();
+    }
 
     return this._whenRuntimeAttached(threadId);
   }
@@ -146,6 +187,17 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   public __internal_subscribeRunningChanged(callback: () => void): Unsubscribe {
     this.runningSubscribers.add(callback);
     return () => this.runningSubscribers.delete(callback);
+  }
+
+  private threadEventSubscribers = new Set<
+    (event: ThreadListRuntimeEvent) => void
+  >();
+
+  public __internal_subscribeThreadEvents(
+    callback: (event: ThreadListRuntimeEvent) => void,
+  ): Unsubscribe {
+    this.threadEventSubscribers.add(callback);
+    return () => this.threadEventSubscribers.delete(callback);
   }
 
   private _publish = (
@@ -169,12 +221,15 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     const previousRuntime = instance.runtime;
     instance.runtime = runtime;
     instance.publishedGeneration = generation;
-    if (previousRuntime !== runtime) {
-      this._trackRunning(instance);
-    }
-    this._notifySubscribers();
-    if (previousRuntime !== undefined && previousRuntime !== runtime) {
-      for (const callback of this.replacedSubscribers) callback();
+    try {
+      if (previousRuntime !== runtime) {
+        this._trackRunning(threadId, instance);
+      }
+    } finally {
+      this._notifySubscribers();
+      if (previousRuntime !== undefined && previousRuntime !== runtime) {
+        notifySubscribers(this.replacedSubscribers);
+      }
     }
   }
 
@@ -187,20 +242,42 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     return () => this.replacedSubscribers.delete(callback);
   }
 
-  private _trackRunning(instance: RemoteThreadListHookInstance) {
-    instance.unsubscribeRunning?.();
-
-    const runtime = instance.runtime;
-    if (!runtime) {
-      instance.unsubscribeRunning = undefined;
-      this._setRunning(instance, false);
-      return;
+  private _trackRunning(
+    threadId: string,
+    instance: RemoteThreadListHookInstance,
+  ) {
+    const previousCleanup = instance.unsubscribeRunning;
+    instance.unsubscribeRunning = undefined;
+    try {
+      previousCleanup?.();
+    } finally {
+      const runtime = instance.runtime;
+      if (!runtime) {
+        this._setRunning(instance, false);
+      } else {
+        // A publish can run inside the thread resource's render, where a synchronous notify would re-enter store consumers mid-render.
+        const isRunning = getThreadRuntimeCoreIsRunning(runtime);
+        if (instance.isRunning !== isRunning) {
+          instance.isRunning = isRunning;
+          queueMicrotask(() => notifySubscribers(this.runningSubscribers));
+        }
+        const unsubscribers = [
+          runtime.subscribe(() => {
+            this._setRunning(instance, getThreadRuntimeCoreIsRunning(runtime));
+          }),
+          ...THREAD_EVENTS.map((type) =>
+            runtime.unstable_on(type, () => {
+              notifyEventListeners(
+                this.threadEventSubscribers,
+                { threadId, type },
+                `Thread event "${type}"`,
+              );
+            }),
+          ),
+        ];
+        instance.unsubscribeRunning = () => runCleanups(unsubscribers);
+      }
     }
-
-    this._setRunning(instance, getThreadRuntimeCoreIsRunning(runtime));
-    instance.unsubscribeRunning = runtime.subscribe(() => {
-      this._setRunning(instance, getThreadRuntimeCoreIsRunning(runtime));
-    });
   }
 
   private _setRunning(
@@ -209,32 +286,34 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   ) {
     if (instance.isRunning === isRunning) return;
     instance.isRunning = isRunning;
-    for (const callback of this.runningSubscribers) callback();
+    notifySubscribers(this.runningSubscribers);
   }
 
   public stopThreadRuntime(threadId: string) {
     const instance = this.instances.get(threadId);
-    if (instance?.runtime) invalidateThreadRuntime(instance.runtime);
-    instance?.unsubscribeRunning?.();
-    this.instances.delete(threadId);
-    this.pendingThreadAdapters.delete(threadId);
-    this._syncHostThreads();
-    this._notifySubscribers();
+    try {
+      instance?.unsubscribeRunning?.();
+    } finally {
+      if (instance?.runtime) disposeThreadRuntime(instance.runtime);
+      instance?.destroy.abort();
+      this.instances.delete(threadId);
+      this.pendingThreadAdapters.delete(threadId);
+      this._syncHostThreads();
+      this._notifySubscribers();
+    }
   }
 
   public setRuntimeHook(newRuntimeHook: RemoteThreadListHook) {
     if (this.runtimeHook === newRuntimeHook) return;
     this.runtimeHook = newRuntimeHook;
-    this.hostStore.setState(
-      (state) => ({ ...state, hookEpoch: state.hookEpoch + 1 }),
-      true,
-    );
+    const host = this.hostStore.getState();
+    this.hostStore.setState({ ...host, hookEpoch: host.hookEpoch + 1 });
   }
 
   public __internal_setDefaultAdapters(adapters: RuntimeAdapters | null) {
     const current = this.adapterStore.getState();
     if (current.defaultAdapters === adapters) return;
-    this.adapterStore.setState({ ...current, defaultAdapters: adapters }, true);
+    this.adapterStore.setState({ ...current, defaultAdapters: adapters });
   }
 
   public __internal_setThreadAdapters(
@@ -245,56 +324,73 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     const next = new Map(current.threadAdapters);
     if (adapters === null) next.delete(threadId);
     else next.set(threadId, adapters);
-    this.adapterStore.setState({ ...current, threadAdapters: next }, true);
+    this.adapterStore.setState({ ...current, threadAdapters: next });
   }
 
   public __internal_dispose() {
     for (const threadId of [...this.instances.keys()]) {
-      this.stopThreadRuntime(threadId);
+      try {
+        this.stopThreadRuntime(threadId);
+      } catch (error) {
+        console.error(
+          "[assistant-ui] Thread runtime cleanup threw while stopping a thread",
+          error,
+        );
+      }
     }
   }
 
   private _syncHostThreads() {
-    this.hostStore.setState(
-      (state) => ({
-        ...state,
-        threads: Array.from(this.instances.entries()).map(
-          ([id, { generation }]) => ({ id, generation }),
-        ),
-      }),
-      true,
-    );
+    const host = this.hostStore.getState();
+    this.hostStore.setState({
+      ...host,
+      threads: Array.from(this.instances.entries()).map(
+        ([id, { generation, destroy }]) => ({
+          id,
+          generation,
+          destroySignal: destroy.signal,
+        }),
+      ),
+    });
   }
 
-  public __internal_useHost(parentClient: AssistantClient) {
-    const { threads, hookEpoch } = this.hostStore();
-    const adapters = this.adapterStore();
+  private _threadElements(
+    parentClient: AssistantClient,
+    { threads, hookEpoch }: HostSnapshot,
+    adapters: AdapterSnapshot,
+  ) {
     const runtimeHook = this.runtimeHook;
-    return useResources(
-      threads.map(({ id, generation }) => {
-        const threadAdapters = this.pendingThreadAdapters.has(id)
-          ? this.pendingThreadAdapters.get(id)!
-          : (adapters.threadAdapters.get(id) ?? adapters.defaultAdapters);
-        return withKey(
-          `${id}:${generation}:${hookEpoch}`,
-          RemoteThreadResource({
-            threadId: id,
-            generation,
-            parentList: this.parent,
-            runtimeHook,
-            parentClient,
-            adapters: threadAdapters,
-            publish: this._publish,
-          }),
-        );
-      }),
-    );
+    return threads.map(({ id, generation, destroySignal }) => {
+      const threadAdapters = this.pendingThreadAdapters.has(id)
+        ? this.pendingThreadAdapters.get(id)!
+        : (adapters.threadAdapters.get(id) ?? adapters.defaultAdapters);
+      return withKey(
+        `${id}:${generation}:${hookEpoch}`,
+        RemoteThreadResource({
+          threadId: id,
+          generation,
+          parentList: this.parent,
+          runtimeHook,
+          parentClient,
+          adapters: threadAdapters,
+          publish: this._publish,
+          destroySignal,
+        }),
+      );
+    });
+  }
+
+  /** @deprecated Commits the hosted threads after descendant layout effects; render `__internal_Host` instead. */
+  public __internal_useHost(parentClient: AssistantClient) {
+    const host = useSubscribable(this.hostStore);
+    const adapters = useSubscribable(this.adapterStore);
+    return useResources(this._threadElements(parentClient, host, adapters));
   }
 
   public __internal_RenderThreadRuntimes: FC<{
     provider: ComponentType<PropsWithChildren>;
   }> = ({ provider }) => {
-    this.hostStore();
+    useSubscribable(this.hostStore);
 
     return Array.from(this.instances.entries()).map(
       ([threadId, { generation }]) => (
@@ -310,7 +406,15 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   public __internal_Host: FC<{ parentClient: AssistantClient }> = ({
     parentClient,
   }) => {
-    this.__internal_useHost(parentClient);
+    const host = useSubscribable(this.hostStore);
+    const adapters = useSubscribable(this.adapterStore);
+    const elements = this._threadElements(parentClient, host, adapters);
+    const { effects } = useTapHost(function RemoteThreadResources() {
+      return useResources(elements);
+    });
+    // Descendant layout effects may already dispatch to the thread resources,
+    // and tap commits a hosted resource only when its host effects run.
+    useLayoutEffect(effects);
     return null;
   };
 

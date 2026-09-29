@@ -1,7 +1,8 @@
 import { getDistinctId } from "@/lib/posthog-server";
 import { createPrismTracer, prismAISDK } from "@/lib/prism-server";
 import { injectQuoteContext, type FrontendTools } from "@assistant-ui/ai-sdk";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkPublicAssistantRateLimit } from "@/lib/rate-limit";
+import { requirePublicAssistantSession } from "@/lib/anonymous-session";
 import { validateDocChatInput } from "@/lib/validate-input";
 import { posthogTelemetry } from "@/lib/ai/telemetry";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
@@ -21,7 +22,7 @@ import {
   getLatestUserMessageId,
 } from "@/lib/xulux/turn-outcome";
 import type { XuluxAgentDefinition } from "./agents";
-import { resolveXuluxModel } from "./resolve-model";
+import { resolveChatModel } from "@/lib/ai/provider";
 
 const PRUNE_OPTIONS = {
   toolCalls: "before-last-2-messages",
@@ -172,7 +173,13 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
     }
 
     try {
-      const rateLimitResponse = await checkRateLimit(req);
+      const publicSession = requirePublicAssistantSession(req);
+      if (publicSession instanceof Response) return publicSession;
+
+      const rateLimitResponse = await checkPublicAssistantRateLimit(
+        req,
+        publicSession.id,
+      );
       if (rateLimitResponse) return rateLimitResponse;
 
       const body = await req.json().catch(() => null);
@@ -235,6 +242,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
         );
       }
       const sessionId = resolvedSessionId.trim();
+      const budgetSessionId = `${publicSession.id}:${sessionId}`;
 
       const isFirstUserTurn =
         prunedMessages.filter((m) => m.role === "user").length === 1 &&
@@ -270,7 +278,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
       const xuluxTools: ToolSet = preparedTools;
 
       const distinctId = getDistinctId(req);
-      const budget = await beginTurn(sessionId, distinctId);
+      const budget = await beginTurn(budgetSessionId, publicSession.id);
       if (budget.denied) {
         const payload = await budget.denied
           .clone()
@@ -301,7 +309,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
 
       const evalRunId = req.headers.get("x-agent-eval-run-id");
       const localTraceUrl = req.headers.get("x-agent-eval-trace-url");
-      const modelConfig = resolveXuluxModel(
+      const modelConfig = resolveChatModel(
         agent.modelName ? { modelName: agent.modelName } : config,
       );
       const baseModel = modelConfig.model;
@@ -349,7 +357,8 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
           : undefined),
         system: [agent.systemPrompt, pageContext].filter(Boolean).join("\n\n"),
         messages: prunedMessages,
-        maxOutputTokens: agent.maxOutputTokens ?? 8192,
+        maxOutputTokens:
+          agent.maxOutputTokens ?? (modelConfig.reasoning ? 16384 : 8192),
         stopWhen: stepCountIs(agent.maxSteps),
         tools: xuluxTools,
         ...posthogTelemetry({
@@ -368,8 +377,8 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
           : {}),
         onFinish: async ({ usage, response }) => {
           await finishTurn(
-            sessionId,
-            distinctId,
+            budgetSessionId,
+            publicSession.id,
             usage,
             response.modelId,
             budgetDate,
@@ -386,6 +395,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
       });
 
       return result.toUIMessageStreamResponse({
+        sendReasoning: modelConfig.reasoning,
         originalMessages: uiMessages,
         messageMetadata: ({ part }) => {
           if (part.type === "finish-step") {

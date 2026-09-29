@@ -124,6 +124,12 @@ export const cliSurface: CliSurfaceSnapshot = {
           "description": "skip adding assistant-ui agent skills"
         },
         {
+          "flags": "--cwd <cwd>",
+          "description": "the working directory. defaults to the current directory.",
+          "required": true,
+          "hidden": true
+        },
+        {
           "flags": "--debug-source-root <path>",
           "description": "copy templates/examples from a local assistant-ui repo root",
           "required": true,
@@ -191,7 +197,7 @@ export const cliSurface: CliSurfaceSnapshot = {
     },
     {
       "name": "mcp",
-      "description": "install assistant-ui MCP docs server for your IDE",
+      "description": "connect your IDE to the assistant-ui MCP server",
       "usage": "[options]",
       "arguments": [],
       "options": [

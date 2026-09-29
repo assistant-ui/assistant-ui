@@ -5,6 +5,7 @@ import {
   mergeProps,
   type PropType,
   type SlotsType,
+  type VNodeChild,
 } from "vue";
 import { isDevelopment } from "@assistant-ui/core/store/internal";
 import { isAttrDisabled } from "./attrDisabled";
@@ -30,7 +31,7 @@ export const ThreadPrimitiveScrollToBottom = defineComponent({
       default: "auto",
     },
   },
-  slots: Object as SlotsType<{ default?: () => unknown }>,
+  slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(props, { attrs, slots }) {
     const viewport = inject(viewportInjectionKey, null);
     if (isDevelopment && !viewport && !warnedOutsideViewport) {

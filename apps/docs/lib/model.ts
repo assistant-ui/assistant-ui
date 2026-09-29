@@ -1,35 +1,36 @@
 export const MODELS = [
   // OpenAI
   {
-    name: "GPT-5.6 Luna",
-    value: "gpt-5.6-luna",
+    name: "GPT-6 Luna",
+    value: "gpt-6-luna",
     icon: "/icons/openai.svg",
     disabled: false,
     contextWindow: 1_050_000,
+    reasoning: true,
   },
   // Google
   {
-    name: "Gemini 3.1 Flash Lite",
-    value: "google-ai-studio/gemini-3.1-flash-lite",
+    name: "Gemini 3.5 Flash Lite",
+    value: "google-ai-studio/gemini-3.5-flash-lite",
     icon: "/icons/google.svg",
     disabled: false,
     contextWindow: 1_048_576,
   },
   // xAI
   {
-    name: "Grok 4.1 Fast",
-    value: "grok/grok-4-1-fast",
+    name: "Grok 4.3",
+    value: "grok/grok-4.3",
     icon: "/icons/xai.svg",
     disabled: false,
-    contextWindow: 2_000_000,
+    contextWindow: 1_000_000,
   },
   // DeepSeek
   {
-    name: "DeepSeek V4 Flash",
-    value: "deepseek/deepseek-v4-flash",
+    name: "DeepSeek V4.1 Flash",
+    value: "deepseek/deepseek-flash",
     icon: "/icons/deepseek.svg",
     disabled: false,
-    contextWindow: 1_000_000,
+    contextWindow: 1_048_576,
   },
   // Groq
   {
@@ -58,6 +59,27 @@ export const DEFAULT_CONTEXT_WINDOW = DEFAULT_MODEL.contextWindow;
 export function getContextWindow(modelId: string): number {
   const model = MODELS.find((m) => m.value === modelId);
   return model?.contextWindow ?? DEFAULT_CONTEXT_WINDOW;
+}
+
+export const REASONING_EFFORTS = [
+  "none",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+] as const;
+export type ReasoningEffort = (typeof REASONING_EFFORTS)[number];
+
+export function isReasoningEffort(value: unknown): value is ReasoningEffort {
+  return REASONING_EFFORTS.includes(value as ReasoningEffort);
+}
+
+export function supportsReasoningEffort(modelId: string): boolean {
+  const model = MODELS.find((m) => m.value === modelId);
+  return (
+    model !== undefined && "reasoning" in model && model.reasoning === true
+  );
 }
 
 const ACTIVE_MODELS = MODELS.filter((m) => !m.disabled);

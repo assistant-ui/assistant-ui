@@ -117,7 +117,7 @@ After clicking Copy, the button gets a `data-copied` attribute for a configurabl
 
 ### Feedback Buttons
 
-Feedback buttons track submission state with `data-submitted`:
+Feedback buttons track submission state with `data-submitted` and expose it to assistive technology with `aria-pressed`:
 
 ```tsx
 <ActionBarPrimitive.FeedbackPositive className="data-[submitted]:text-green-500">
@@ -340,7 +340,7 @@ See the [ActionBarMorePrimitive API Reference](/docs/api-reference/primitives/ac
 
 ## Relationship to Components
 
-The shadcn [Thread](/docs/ui/thread) component uses `ActionBarPrimitive` inside its `AssistantMessage` (with Copy, Reload, and an export dropdown) and `UserMessage` (with Edit). If those defaults work, use the component. Reach for `ActionBarPrimitive` directly when you need different actions, custom layout, or actions outside the standard thread UI.
+The shadcn [Thread](/elements/thread) component uses `ActionBarPrimitive` inside its `AssistantMessage` (with Copy, Reload, and an export dropdown) and `UserMessage` (with Edit). If those defaults work, use the component. Reach for `ActionBarPrimitive` directly when you need different actions, custom layout, or actions outside the standard thread UI.
 
 ActionBar is commonly paired with [BranchPicker](/docs/primitives/branch-picker) for navigating between alternative responses on assistant messages.
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { ModelSelector } from "@/components/assistant-ui/model-selector";
+import { ModelSelector } from "@/components/assistant-ui/elements/model-selector.aui";
 import { Button } from "@/components/ui/button";
 import { AssistantComposer } from "@/components/pages/docs/assistant/composer";
 import { AssistantActionBar } from "@/components/pages/docs/assistant/assistant-action-bar";
@@ -8,8 +8,8 @@ import { XuluxMarkdownText } from "./XuluxMarkdownText";
 import { AssistantFooter } from "@/components/pages/docs/assistant/footer";
 import { UserMessage } from "@/components/pages/docs/assistant/messages";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
-import { Reasoning } from "@/components/assistant-ui/reasoning";
-import { DotMatrix } from "@/components/assistant-ui/dot-matrix";
+import { Reasoning } from "@/components/assistant-ui/elements/reasoning.aui";
+import { DotMatrix } from "@/components/ui/dot-matrix";
 import { analytics } from "@/lib/analytics";
 import { getComposerMessageMetrics } from "@/lib/assistant-analytics-helpers";
 import {
@@ -34,13 +34,13 @@ import { LearnCourseResultFooter, XuluxToolCall } from "./XuluxToolCall";
 import { XuluxUsageLimitBanner } from "./XuluxUsageLimitBanner";
 
 const XULUX_CONTEXT_WINDOW = 1_050_000;
-const XULUX_DEFAULT_MODEL_ID = "gpt-5.6-luna";
+const XULUX_DEFAULT_MODEL_ID = "gpt-6-luna";
 
 const XULUX_MODELS = [
   {
-    id: "gpt-5.6-luna",
-    name: "GPT-5.6 Luna",
-    modelName: "gpt-5.6-luna",
+    id: "gpt-6-luna",
+    name: "GPT-6 Luna",
+    modelName: "gpt-6-luna",
   },
 ] as const;
 

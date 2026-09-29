@@ -14,8 +14,8 @@ import {
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 
 const responses = [
-  "assistant-ui is a set of React components for building AI chat interfaces. It provides unstyled primitives that handle state management, streaming, and accessibility — you bring the design.",
-  "assistant-ui is an open-source library of headless, composable React primitives for AI chat UIs. Style them with any CSS framework — Tailwind, CSS modules, or plain CSS.",
+  "assistant-ui is a set of React components for building AI chat interfaces. It provides unstyled primitives that handle state management, streaming, and accessibility; you bring the design.",
+  "assistant-ui is an open-source library of headless, composable React primitives for AI chat UIs. Style them with any CSS framework: Tailwind, CSS modules, or plain CSS.",
 ];
 
 const adapter: ChatModelAdapter = {

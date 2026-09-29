@@ -42,7 +42,7 @@ async function ghFetch(
 ): Promise<Response> {
   const { next: initNext, ...rest } = init ?? {};
   const cache = cacheInit(revalidate);
-  return withTimeout(
+  const res = await withTimeout(
     fetch(`${base}${path}`, {
       ...rest,
       headers: ghHeaders(init?.headers),
@@ -51,6 +51,11 @@ async function ghFetch(
         : cache),
     }),
   );
+  // Every caller degrades to a placeholder, so an outage is otherwise invisible.
+  if (!res.ok) {
+    console.warn(`GitHub responded ${res.status} for ${base}${path}.`);
+  }
+  return res;
 }
 
 function parseLastPage(linkHeader: string | null): number | null {
@@ -357,26 +362,55 @@ export async function getContributors(
   return all;
 }
 
-export type StargazerEntry = { starred_at: string };
+export type StarHistoryWeek = { week: number; total: number; days: number[] };
 
-export async function getStargazersPage(
-  page: number,
+// The endpoint caps per_page at 30 and clamps anything larger without saying so.
+const STAR_HISTORY_PAGE_SIZE = 30;
+const MAX_STAR_HISTORY_PAGES = 60;
+
+/** Privacy-safe weekly star counts, newest first, back to the creation week. */
+export async function getStarHistory(
   revalidate: number = REVALIDATE.COOL,
-): Promise<{
-  data: StargazerEntry[];
-  lastPage: number | null;
-}> {
+): Promise<StarHistoryWeek[] | null> {
+  const path = (page: number) =>
+    `/stargazers/history?per_page=${STAR_HISTORY_PAGE_SIZE}&page=${page}`;
+  // A 200 carrying anything but real buckets would otherwise reach the caller
+  // and throw, on the one path where every other fetcher degrades.
+  const parse = (value: unknown): StarHistoryWeek[] | null =>
+    Array.isArray(value) &&
+    value.every(
+      (bucket) =>
+        typeof bucket?.week === "number" && typeof bucket?.total === "number",
+    )
+      ? (value as StarHistoryWeek[])
+      : null;
+
   try {
-    const res = await ghFetch(
-      `/stargazers?per_page=100&page=${page}`,
-      revalidate,
-      { headers: { Accept: "application/vnd.github.star+json" } },
+    const first = await ghFetch(path(1), revalidate);
+    if (!first.ok) return null;
+    const weeks = parse(await withTimeout(first.json()));
+    if (!weeks) return null;
+    const linked = parseLastPage(first.headers.get("Link"));
+    // Page 1 holds the newest weeks while the series accumulates from the oldest,
+    // so a listing truncated here is a rebased curve, not a shorter one.
+    if (linked === null && weeks.length >= STAR_HISTORY_PAGE_SIZE) return null;
+    if (linked !== null && linked > MAX_STAR_HISTORY_PAGES) return null;
+    const lastPage = linked ?? 1;
+
+    const rest = await Promise.all(
+      Array.from({ length: Math.max(0, lastPage - 1) }, async (_, i) => {
+        const res = await ghFetch(path(i + 2), revalidate);
+        if (!res.ok) return null;
+        return parse(await withTimeout(res.json()));
+      }),
     );
-    if (!res.ok) return { data: [], lastPage: null };
-    const data = (await withTimeout(res.json())) as StargazerEntry[];
-    return { data, lastPage: parseLastPage(res.headers.get("Link")) };
+    // A lost page would flatten the curve across the weeks it covers rather
+    // than fail, so the series is all or nothing.
+    if (rest.some((page) => page === null)) return null;
+    for (const page of rest) weeks.push(...page!);
+    return weeks;
   } catch {
-    return { data: [], lastPage: null };
+    return null;
   }
 }
 

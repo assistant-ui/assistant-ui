@@ -11,7 +11,6 @@ import {
   type ReactNode,
 } from "react";
 import { cn } from "@/lib/utils";
-import { useAnimatedTabs } from "@/hooks/use-animated-tabs";
 
 type CollectionKey = string | symbol;
 
@@ -92,19 +91,6 @@ export function Tabs({
   );
   const collection = useMemo<CollectionKey[]>(() => [], []);
 
-  const activeIndex = items
-    ? items.findIndex((item) => escapeValue(item) === value)
-    : -1;
-
-  const {
-    containerRef,
-    tabRefs,
-    hoveredIndex,
-    setHoveredIndex,
-    activeStyle,
-    hoverStyle,
-  } = useAnimatedTabs({ activeIndex });
-
   return (
     <div
       className={cn("my-4 flex min-w-0 flex-col", className)}
@@ -112,52 +98,24 @@ export function Tabs({
       {...props}
     >
       {items && (
-        <div
-          ref={containerRef}
-          className="relative flex scrollbar-none items-center gap-1 overflow-x-auto"
-        >
+        <div className="border-foreground/10 flex scrollbar-none items-center gap-5 overflow-x-auto border-b">
           {label && (
             <span className="my-auto me-auto text-sm font-medium">{label}</span>
           )}
 
-          {hoveredIndex !== null && hoverStyle.width > 0 && (
-            <div
-              className="bg-fd-accent pointer-events-none absolute top-0 h-7.5 rounded-md transition-all duration-200 ease-out"
-              style={{
-                left: `${hoverStyle.left}px`,
-                width: `${hoverStyle.width}px`,
-              }}
-            />
-          )}
-
-          {activeStyle.width > 0 && (
-            <div
-              className="bg-fd-accent pointer-events-none absolute top-0 h-7.5 rounded-md transition-all duration-200 ease-out"
-              style={{
-                left: `${activeStyle.left}px`,
-                width: `${activeStyle.width}px`,
-              }}
-            />
-          )}
-
-          {items.map((item, index) => (
+          {items.map((item) => (
             <button
               key={item}
-              ref={(el) => {
-                tabRefs.current[index] = el;
-              }}
               type="button"
               role="tab"
               aria-selected={escapeValue(item) === value}
               data-state={escapeValue(item) === value ? "active" : "inactive"}
               className={cn(
-                "relative z-10 flex h-7.5 cursor-pointer items-center justify-center rounded-md px-3 text-sm whitespace-nowrap transition-colors",
-                "text-fd-muted-foreground hover:text-fd-foreground",
-                "data-[state=active]:text-fd-foreground data-[state=active]:font-medium",
+                "after:bg-foreground relative -mb-px cursor-pointer pb-2 text-sm font-medium whitespace-nowrap transition-colors after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:opacity-0 after:transition-opacity",
+                "text-muted-foreground hover:text-foreground",
+                "data-[state=active]:text-foreground data-[state=active]:after:opacity-100",
               )}
               onClick={() => setValue(escapeValue(item))}
-              onMouseEnter={() => setHoveredIndex(index)}
-              onMouseLeave={() => setHoveredIndex(null)}
             >
               {item}
             </button>
@@ -209,7 +167,7 @@ export function Tab({
       hidden={!isActive}
       className={cn(
         "prose-no-margin mt-4 min-w-0 text-sm",
-        "[&_a]:text-fd-primary hover:[&_a]:text-fd-primary/80 [&_a]:font-medium [&_a]:underline [&_a]:underline-offset-2",
+        "[&_a]:text-foreground hover:[&_a]:text-foreground/80 [&_a]:font-medium [&_a]:underline [&_a]:underline-offset-2",
         "data-[state=inactive]:hidden",
         className,
       )}

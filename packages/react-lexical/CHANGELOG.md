@@ -1,5 +1,53 @@
 # @assistant-ui/react-lexical
 
+## 0.2.15
+
+### Patch Changes
+
+- [#8011](https://github.com/assistant-ui/assistant-ui/pull/8011) [`53dceec`](https://github.com/assistant-ui/assistant-ui/commit/53dceecae1cd7fbcd4e1ecd211ba96bd885d1050) - fix: allow Lexical composer submission while a queued run is active. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7830](https://github.com/assistant-ui/assistant-ui/pull/7830) [`039c3c3`](https://github.com/assistant-ui/assistant-ui/commit/039c3c32822632f2a564164f089f538926886124) - fix: build the composer with `LexicalExtensionComposer` instead of the deprecated `LexicalComposer`, with `PlainTextExtension` and `HistoryExtension` replacing the legacy plugins. The editable textbox now carries `aria-placeholder`, and the visual placeholder is hidden from assistive technology. ([@okisdev](https://github.com/okisdev))
+
+- [#7621](https://github.com/assistant-ui/assistant-ui/pull/7621) [`bb12d41`](https://github.com/assistant-ui/assistant-ui/commit/bb12d41c6619ff80a01cfd282770250a2c06465b) - chore: migrate to Lexical 0.51 ([@samdickson22](https://github.com/samdickson22))
+
+- [#7841](https://github.com/assistant-ui/assistant-ui/pull/7841) [`b1b9691`](https://github.com/assistant-ui/assistant-ui/commit/b1b96912a8529aa33d14dd48be5f15a7aa2ccbc2) - fix: declare `lexical` and the `@lexical/*` packages as peer dependencies, so the app resolves one copy of lexical and custom plugins passed as `LexicalComposerInput` children find the composer context. npm, pnpm and bun install the peers on their own; a yarn app adds `lexical`, `@lexical/react`, `@lexical/utils`, `@lexical/history` and `@lexical/plain-text` itself ([@okisdev](https://github.com/okisdev))
+
+## 0.2.14
+
+### Patch Changes
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+## 0.2.13
+
+### Patch Changes
+
+- [#7331](https://github.com/assistant-ui/assistant-ui/pull/7331) [`cc7bbec`](https://github.com/assistant-ui/assistant-ui/commit/cc7bbec443eb5a9f3627382705e4903e39bf8a60) - fix: skip rebuilding unchanged drafts on selection-only Lexical updates while preserving deferred parser retries ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7295](https://github.com/assistant-ui/assistant-ui/pull/7295) [`66ec382`](https://github.com/assistant-ui/assistant-ui/commit/66ec3829b4d7b52b5e89363eda6890ac064b42c0) - fix: keep composer plugin cursor positions in sync after selection changes and edits before the caret. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7333](https://github.com/assistant-ui/assistant-ui/pull/7333) [`f7c5cb5`](https://github.com/assistant-ui/assistant-ui/commit/f7c5cb5f2447c9e3cf01bbd843d095ed90dbcf7a) - fix: report the runtime cursor offset for collapsed element selections, including empty paragraphs after text ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7296](https://github.com/assistant-ui/assistant-ui/pull/7296) [`ef288b9`](https://github.com/assistant-ui/assistant-ui/commit/ef288b94e517484b11924b47ca0d95ba73814ae6) - fix: forward accessibility labels and description references to the Lexical composer textbox instead of its wrapper. ([@Kinfe123](https://github.com/Kinfe123))
+
+## 0.2.12
+
+### Patch Changes
+
+- [#6688](https://github.com/assistant-ui/assistant-ui/pull/6688) [`8135d16`](https://github.com/assistant-ui/assistant-ui/commit/8135d16dfb871e807d94a427e958d2b957b19f1e) - fix: peer ranges on the packages this workspace releases now track the release train ([@okisdev](https://github.com/okisdev))
+  
+  changesets rewrites a peer range only when the new version falls outside it, so the hand-written floors had drifted below the code they describe. core declared `@assistant-ui/store: ^0.3.0` while importing `@assistant-ui/store/internal`, a subpath store did not export until 0.3.10, and react-lexical declared `*`. these peers are now `workspace:^`, which publishes as the version released alongside them.
+
+## 0.2.11
+
+### Patch Changes
+
+- [#6226](https://github.com/assistant-ui/assistant-ui/pull/6226) [`fd2fc2b`](https://github.com/assistant-ui/assistant-ui/commit/fd2fc2b1110dee79015a1b0d472d2dbd43cfe9db) - fix: keep leading blank lines when reading composer text back from the editor ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6305](https://github.com/assistant-ui/assistant-ui/pull/6305) [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#6284](https://github.com/assistant-ui/assistant-ui/pull/6284) [`1424afb`](https://github.com/assistant-ui/assistant-ui/commit/1424afb52b1139af5233c1b905d1cee4a951f131) - feat: allow trigger popovers to override query matching ([@dawNotPoi](https://github.com/dawNotPoi))
+
 ## 0.2.10
 
 ### Patch Changes

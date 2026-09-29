@@ -14,14 +14,14 @@ import {
   ToolGroupRoot,
   ToolGroupTrigger,
   ToolGroupContent,
-} from "@/components/assistant-ui/tool-group";
+} from "@/components/assistant-ui/elements/tool-group.aui";
 import {
   ToolFallbackRoot,
   ToolFallbackTrigger,
   ToolFallbackContent,
   ToolFallbackArgs,
   ToolFallbackResult,
-} from "@/components/assistant-ui/tool-fallback";
+} from "@/components/assistant-ui/elements/tool-fallback.aui";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -214,18 +214,28 @@ function ToolGroupStreamingDemo() {
   const toolCount =
     phase === "idle" ? 0 : phase === "tool1" ? 1 : phase === "tool2" ? 2 : 3;
 
-  useEffect(() => {
-    if (phase === "idle" || phase === "done") return;
+  const [syncedPhase, setSyncedPhase] = useState<typeof phase | null>(null);
 
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-
+  if (syncedPhase !== phase) {
+    setSyncedPhase(phase);
     if (phase === "tool1") {
       setIsOpen(true);
       setWeather1({});
       setWeather2({});
       setSearchArgs("");
       setSearchResult(undefined);
+    }
+    if (phase === "tool3") {
+      setSearchStatus({ type: "running" });
+    }
+  }
 
+  useEffect(() => {
+    if (phase === "idle" || phase === "done") return;
+
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+
+    if (phase === "tool1") {
       // Simulate streaming weather data
       const steps = [
         () => setWeather1({ location: "Paris" }),
@@ -277,7 +287,6 @@ function ToolGroupStreamingDemo() {
     }
 
     // phase === "tool3" - Search with ToolFallback
-    setSearchStatus({ type: "running" });
     const fullArgs = JSON.stringify({ query: "weather comparison" }, null, 2);
 
     let index = 0;

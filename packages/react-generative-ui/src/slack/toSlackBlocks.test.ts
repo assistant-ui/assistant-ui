@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { CHILDREN_CAP, NODE_BUDGET } from "../convert/boundSpec";
 import { toSlackBlocks } from "./toSlackBlocks";
 import {
   ACTION_ID_CAP,
@@ -9,7 +10,7 @@ import {
   CARD_SUBTEXT_CAP,
   CARD_TITLE_CAP,
   CAROUSEL_CARD_CAP,
-  CHILDREN_CAP,
+  CHECKBOX_OPTION_CAP,
   CONTEXT_ELEMENT_CAP,
   CONTEXT_TEXT_CAP,
   DATA_TABLE_CHAR_BUDGET,
@@ -23,7 +24,6 @@ import {
   MARKDOWN_TEXT_BUDGET,
   MESSAGE_BLOCK_CAP,
   MODAL_BLOCK_CAP,
-  NODE_BUDGET,
   PLACEHOLDER_TEXT_CAP,
   RADIO_OPTION_CAP,
   SECTION_TEXT_CAP,
@@ -43,6 +43,32 @@ import type {
   SlackSectionBlock,
   SlackStaticSelectElement,
 } from "./types";
+
+const hostileSpecies = <T>(
+  source: T[],
+  injected: unknown[],
+  onDispatch: () => void,
+): T[] => {
+  function HostileCtor() {
+    return {
+      map: () => {
+        onDispatch();
+        return injected;
+      },
+      [Symbol.iterator]: function* () {
+        onDispatch();
+        yield* injected;
+      },
+    };
+  }
+  const constructor = { [Symbol.species]: HostileCtor };
+  return new Proxy(source, {
+    get: (target, prop, receiver) =>
+      prop === "constructor"
+        ? constructor
+        : Reflect.get(target, prop, receiver),
+  });
+};
 
 describe("toSlackBlocks", () => {
   describe("Header", () => {
@@ -145,6 +171,19 @@ describe("toSlackBlocks", () => {
       );
       expect((blocks[1] as SlackSectionBlock).fields).toHaveLength(2);
       expect(warnings).toEqual([]);
+    });
+
+    it("appends a directional fact delta to the value text", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Fact",
+        label: "Revenue",
+        value: "$12.4k",
+        delta: "8%",
+        trend: "down",
+      });
+      expect((blocks[0] as SlackSectionBlock).fields?.[0]?.text).toBe(
+        "*Revenue*\n$12.4k (↓ 8%)",
+      );
     });
 
     it("breaks Fact merging on a non-Fact sibling", () => {
@@ -309,6 +348,32 @@ describe("toSlackBlocks", () => {
       });
     });
 
+    it("turns $field references in value into their fallback and warns", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Button",
+        label: "Save",
+        $action: {
+          type: "save",
+          note: { $field: "note" },
+          form: {
+            id: 7,
+            name: { $field: "name", fallback: "Ada" },
+            plan: [{ $field: "plan" }],
+          },
+        },
+      });
+      expect((blocks[0] as SlackActionsBlock).elements[0]).toMatchObject({
+        action_id: "save",
+        value: JSON.stringify({ form: { id: 7, name: "Ada", plan: [] } }),
+      });
+      expect(warnings).toContainEqual({
+        code: "fallback",
+        component: "Button",
+        detail:
+          "field references in value became their fallback, or were dropped without one, because Slack sends no other control's value with a button click.",
+      });
+    });
+
     it(`omits value instead of truncating and warns when the serialized action payload exceeds ${BUTTON_VALUE_CAP} characters`, () => {
       const { blocks, warnings } = toSlackBlocks({
         $type: "Button",
@@ -369,6 +434,51 @@ describe("toSlackBlocks", () => {
       });
     });
 
+    it("sets initial_option from a matching defaultValue", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Select",
+        defaultValue: "b",
+        options: [
+          { label: "Alpha", value: "a" },
+          { label: "Beta", value: "b" },
+        ],
+      });
+      expect(
+        (
+          (blocks[0] as SlackActionsBlock)
+            .elements[0] as SlackStaticSelectElement
+        ).initial_option,
+      ).toEqual({ text: { type: "plain_text", text: "Beta" }, value: "b" });
+    });
+
+    it("sets initial_option from a matching empty defaultValue", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Select",
+        defaultValue: "",
+        options: [{ label: "No preference", value: "" }],
+      });
+      expect(
+        (
+          (blocks[0] as SlackActionsBlock)
+            .elements[0] as SlackStaticSelectElement
+        ).initial_option,
+      ).toEqual({
+        text: { type: "plain_text", text: "No preference" },
+        value: "",
+      });
+    });
+
+    it("omits initial_option when defaultValue has no matching option", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Select",
+        defaultValue: "missing",
+        options: [{ label: "Alpha", value: "a" }],
+      });
+      expect((blocks[0] as SlackActionsBlock).elements[0]).not.toHaveProperty(
+        "initial_option",
+      );
+    });
+
     it(`clamps options past ${SELECT_OPTION_CAP} entries and warns`, () => {
       const options = Array.from({ length: SELECT_OPTION_CAP + 5 }, (_, i) => ({
         label: `L${i}`,
@@ -387,6 +497,32 @@ describe("toSlackBlocks", () => {
         component: "Select",
         detail: `options were clamped to ${SELECT_OPTION_CAP} entries.`,
       });
+    });
+
+    it("does not dispatch a prop array through Symbol.species", () => {
+      let dispatches = 0;
+      const injected = Array.from(
+        { length: SELECT_OPTION_CAP + 1 },
+        (_, i) => ({ label: `injected-${i}`, value: `injected-${i}` }),
+      );
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Select",
+        options: hostileSpecies(
+          [{ label: "kept", value: "kept" }],
+          injected,
+          () => {
+            dispatches += 1;
+          },
+        ),
+        $action: { type: "pick" },
+      });
+      const element = (blocks[0] as SlackActionsBlock)
+        .elements[0] as SlackStaticSelectElement;
+      expect(element.options).toEqual([
+        { text: { type: "plain_text", text: "kept" }, value: "kept" },
+      ]);
+      expect(dispatches).toBe(0);
+      expect(warnings).toEqual([]);
     });
 
     it(`clamps an option label to ${INTERACTIVE_TEXT_CAP} characters and warns`, () => {
@@ -456,6 +592,28 @@ describe("toSlackBlocks", () => {
       });
       expect((blocks[0] as SlackInputBlock).element).not.toHaveProperty(
         "multiline",
+      );
+    });
+
+    it("sets initial_value from a non-empty defaultValue", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Input",
+        label: "Notes",
+        defaultValue: "Draft reply",
+      });
+      expect((blocks[0] as SlackInputBlock).element.initial_value).toBe(
+        "Draft reply",
+      );
+    });
+
+    it("omits initial_value when defaultValue is empty", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Input",
+        label: "Notes",
+        defaultValue: "",
+      });
+      expect((blocks[0] as SlackInputBlock).element).not.toHaveProperty(
+        "initial_value",
       );
     });
 
@@ -533,6 +691,63 @@ describe("toSlackBlocks", () => {
     });
   });
 
+  describe("Slider", () => {
+    it("renders a number input block with its numeric bounds", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Slider",
+        label: "Quantity",
+        min: 1,
+        max: 12,
+        step: 0.5,
+        defaultValue: 3.5,
+        $action: { type: "set_quantity" },
+      });
+
+      expect(blocks).toEqual([
+        {
+          type: "input",
+          label: { type: "plain_text", text: "Quantity" },
+          element: {
+            type: "number_input",
+            action_id: "set_quantity",
+            min_value: 1,
+            max_value: 12,
+            initial_value: 3.5,
+            is_decimal_allowed: true,
+          },
+        },
+      ]);
+    });
+
+    it.each([
+      ["minimum", { min: 0.5, max: 2, step: 1 }],
+      ["maximum", { min: 0, max: 2.5 }],
+      ["default value", { min: 0, max: 2, step: 1, defaultValue: 0.5 }],
+    ])("allows decimals when the %s is fractional", (_property, values) => {
+      const { blocks } = toSlackBlocks({
+        $type: "Slider",
+        label: "Quantity",
+        ...values,
+      });
+
+      expect(blocks[0]).toMatchObject({
+        element: { type: "number_input", is_decimal_allowed: true },
+      });
+    });
+
+    it("uses the same input block when nested in a Form", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Form",
+        children: { $type: "Slider", label: "Quantity", min: 1, max: 12 },
+      });
+
+      expect(blocks[0]).toMatchObject({
+        type: "input",
+        element: { type: "number_input", min_value: 1, max_value: 12 },
+      });
+    });
+  });
+
   describe("Checkbox", () => {
     it("emits a single-option checkboxes element", () => {
       const { blocks } = toSlackBlocks({
@@ -591,9 +806,42 @@ describe("toSlackBlocks", () => {
         "initial_options",
       );
     });
+
+    it("maps a switch like a checkbox", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Checkbox",
+        label: "Agree",
+        variant: "switch",
+      });
+      expect((blocks[0] as SlackActionsBlock).elements[0]).toMatchObject({
+        type: "checkboxes",
+        options: [{ value: "Agree" }],
+      });
+    });
   });
 
   describe("RadioGroup", () => {
+    it("maps option descriptions to Slack option descriptions", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "RadioGroup",
+        options: [
+          {
+            label: "Free",
+            description: "For personal projects",
+            value: "free",
+          },
+        ],
+      });
+
+      expect((blocks[0] as SlackActionsBlock).elements[0]).toMatchObject({
+        options: [
+          {
+            description: { type: "plain_text", text: "For personal projects" },
+          },
+        ],
+      });
+    });
+
     it("names RadioGroup when the same option loss happens there", () => {
       const { warnings } = toSlackBlocks({
         $type: "RadioGroup",
@@ -667,6 +915,89 @@ describe("toSlackBlocks", () => {
     });
   });
 
+  describe("CheckboxGroup", () => {
+    const options = [
+      { label: "Small", value: "s" },
+      { label: "Large", value: "l" },
+    ];
+
+    it("emits a multi-option checkboxes element", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "CheckboxGroup",
+        options,
+        $action: { type: "sizes" },
+      });
+      expect(blocks[0]).toEqual({
+        type: "actions",
+        elements: [
+          {
+            type: "checkboxes",
+            action_id: "sizes",
+            options: [
+              { text: { type: "plain_text", text: "Small" }, value: "s" },
+              { text: { type: "plain_text", text: "Large" }, value: "l" },
+            ],
+          },
+        ],
+      });
+    });
+
+    it("sets initial_options from matching defaultValue entries", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "CheckboxGroup",
+        options,
+        defaultValue: ["l", "missing"],
+        $action: { type: "sizes" },
+      });
+      expect(
+        ((blocks[0] as SlackActionsBlock).elements[0] as SlackCheckboxesElement)
+          .initial_options,
+      ).toEqual([{ text: { type: "plain_text", text: "Large" }, value: "l" }]);
+
+      const { blocks: withoutInitialOptions } = toSlackBlocks({
+        $type: "CheckboxGroup",
+        options,
+        defaultValue: ["missing"],
+        $action: { type: "sizes" },
+      });
+      expect(
+        (withoutInitialOptions[0] as SlackActionsBlock).elements[0],
+      ).not.toHaveProperty("initial_options");
+    });
+
+    it("names CheckboxGroup when malformed options are dropped", () => {
+      const { warnings } = toSlackBlocks({
+        $type: "CheckboxGroup",
+        options: [{ label: "ok", value: "a" }, { label: "bad" }],
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "CheckboxGroup",
+        detail: "1 option was dropped for want of a string label and value.",
+      });
+    });
+
+    it(`clamps options past ${CHECKBOX_OPTION_CAP} entries and warns`, () => {
+      const manyOptions = Array.from(
+        { length: CHECKBOX_OPTION_CAP + 3 },
+        (_, i) => ({ label: `L${i}`, value: `v${i}` }),
+      );
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "CheckboxGroup",
+        options: manyOptions,
+        $action: { type: "sizes" },
+      });
+      const element = (blocks[0] as SlackActionsBlock)
+        .elements[0] as SlackCheckboxesElement;
+      expect(element.options).toHaveLength(CHECKBOX_OPTION_CAP);
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "CheckboxGroup",
+        detail: `options were clamped to ${CHECKBOX_OPTION_CAP} entries.`,
+      });
+    });
+  });
+
   describe("interactive grouping", () => {
     it("groups consecutive interactive siblings into one actions block, split by a non-interactive sibling", () => {
       const root = [
@@ -676,6 +1007,11 @@ describe("toSlackBlocks", () => {
           options: [{ label: "X", value: "x" }],
           $action: { type: "b" },
         },
+        {
+          $type: "CheckboxGroup",
+          options: [{ label: "Y", value: "y" }],
+          $action: { type: "checkbox" },
+        },
         { $type: "Text", value: "gap" },
         { $type: "Button", label: "C", $action: { type: "c" } },
       ];
@@ -683,7 +1019,11 @@ describe("toSlackBlocks", () => {
       expect(blocks).toHaveLength(3);
       expect(blocks[0]).toMatchObject({
         type: "actions",
-        elements: [{ type: "button" }, { type: "static_select" }],
+        elements: [
+          { type: "button" },
+          { type: "static_select" },
+          { type: "checkboxes" },
+        ],
       });
       expect(blocks[1]).toMatchObject({ type: "section" });
       expect(blocks[2]).toMatchObject({
@@ -1644,6 +1984,29 @@ describe("toSlackBlocks", () => {
       ]);
     });
 
+    it("formats table cells from their columns", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Table",
+        columns: [
+          { label: "Number", format: { kind: "number", decimals: 1 } },
+          {
+            label: "Revenue",
+            format: { kind: "currency", currency: "USD", decimals: 2 },
+          },
+          { label: "Share", format: { kind: "percent", decimals: 0 } },
+          { label: "Date", format: { kind: "date" } },
+        ],
+        rows: [[1234.5, 12.4, 0.08, "2024-01-02"]],
+      });
+      const table = blocks[0] as SlackDataTableBlock;
+      expect(table.rows[1]?.map((cell) => cell.text)).toEqual([
+        "1,234.5",
+        "$12.40",
+        "8%",
+        "Jan 2, 2024",
+      ]);
+    });
+
     it("requires a caption on every emitted table", () => {
       const { blocks } = toSlackBlocks({
         $type: "Table",
@@ -1683,6 +2046,35 @@ describe("toSlackBlocks", () => {
       expect(warnings.some((w) => w.detail.includes("table budget"))).toBe(
         false,
       );
+    });
+
+    it("does not dispatch columns, rows, or row arrays through Symbol.species", () => {
+      const dispatches = { columns: 0, rows: 0, row: 0 };
+      const row = hostileSpecies(
+        ["kept"],
+        ["injected", "also-injected"],
+        () => {
+          dispatches.row += 1;
+        },
+      );
+      const { blocks } = toSlackBlocks({
+        $type: "Table",
+        columns: hostileSpecies(
+          [{ label: "Kept" }],
+          [{ label: "Injected" }, { label: "Also injected" }],
+          () => {
+            dispatches.columns += 1;
+          },
+        ),
+        rows: hostileSpecies([row], [row, row], () => {
+          dispatches.rows += 1;
+        }),
+      });
+      const table = blocks[0] as SlackDataTableBlock;
+      expect(table.rows).toHaveLength(2);
+      expect(table.rows[0]).toEqual([{ type: "raw_text", text: "Kept" }]);
+      expect(table.rows[1]).toEqual([{ type: "raw_text", text: "kept" }]);
+      expect(dispatches).toEqual({ columns: 0, rows: 0, row: 0 });
     });
 
     it(`clamps rows to fit the ${DATA_TABLE_CHAR_BUDGET}-character table budget, always keeping the header row`, () => {
@@ -2266,9 +2658,10 @@ describe("toSlackBlocks data_table integrity", () => {
       columns: [{ label: "A" }, { label: "B" }],
       rows: [[{ nested: true }, "kept"]],
     });
-    const table = blocks[0] as {
-      rows: { type: string; text: string }[][];
-    };
+    const table = blocks[0];
+    if (table?.type !== "data_table") {
+      throw new Error("Expected a data table block.");
+    }
     expect(table.rows[1]).toEqual([
       { type: "raw_text", text: "" },
       { type: "raw_text", text: "kept" },
@@ -2281,7 +2674,10 @@ describe("toSlackBlocks data_table integrity", () => {
       columns: [{ label: "A" }, { label: "B" }, { label: "C" }],
       rows: [["x"], ["x", "y", "z"]],
     });
-    const table = blocks[0] as { rows: unknown[][] };
+    const table = blocks[0];
+    if (table?.type !== "data_table") {
+      throw new Error("Expected a data table block.");
+    }
     expect(new Set(table.rows.map((row) => row.length))).toEqual(new Set([3]));
   });
 

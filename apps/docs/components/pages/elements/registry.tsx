@@ -3,123 +3,180 @@ import {
   GenerationLoaderDemo,
   GenerationLoaderRoundedDemo,
   GenerationLoaderSquaresDemo,
-} from "@/components/pages/elements/demos/loading-state";
-import { DataTableDemo } from "@/components/pages/elements/demos/data-table";
-import { RecommendationCardDemo } from "@/components/pages/elements/demos/recommendation-card";
-import { NumberTickerDemo } from "@/components/pages/elements/demos/number-ticker";
-import { ChatPanelDemo } from "@/components/pages/elements/demos/chat-panel";
-import { ThinkingIndicatorDemo } from "@/components/pages/elements/demos/thinking-indicator";
-import { ReasoningPanelDemo } from "@/components/pages/elements/demos/reasoning-panel";
-import { StreamingTextDemo } from "@/components/pages/elements/demos/streaming-text";
+} from "@/components/demo/elements/loading-state";
+import { DataTableDemo } from "@/components/demo/elements/data-table";
+import { RecommendationCardDemo } from "@/components/demo/elements/recommendation-card";
+import { NumberTickerDemo } from "@/components/demo/elements/number-ticker";
+import { ChatPanelDemo } from "@/components/demo/elements/chat-panel";
+import { ThinkingIndicatorDemo } from "@/components/demo/elements/thinking-indicator";
+import { ReasoningPanelDemo } from "@/components/demo/elements/reasoning-panel";
+import { StreamingTextDemo } from "@/components/demo/elements/streaming-text";
 import {
   TypingIndicatorBareDemo,
   TypingIndicatorDemo,
-} from "@/components/pages/elements/demos/typing-indicator";
+} from "@/components/demo/elements/typing-indicator";
 import {
   MessagePairDemo,
   MessagePairFlatDemo,
-} from "@/components/pages/elements/demos/message-pair";
-import { MessageBranchesDemo } from "@/components/pages/elements/demos/message-branches";
-import { MessageActionsDemo } from "@/components/pages/elements/demos/message-actions";
+} from "@/components/demo/elements/message-pair";
+import { MessageBranchesDemo } from "@/components/demo/elements/message-branches";
+import { MessageActionsDemo } from "@/components/demo/elements/message-actions";
 import {
   SuggestionsDemo,
   SuggestionsListDemo,
-} from "@/components/pages/elements/demos/suggestions";
-import { ErrorStateDemo } from "@/components/pages/elements/demos/error-state";
-import { ToolCallDemo } from "@/components/pages/elements/demos/tool-call";
-import { ToolTimelineDemo } from "@/components/pages/elements/demos/tool-timeline";
+} from "@/components/demo/elements/suggestions";
+import { ErrorStateDemo } from "@/components/demo/elements/error-state";
+import { ToolCallDemo } from "@/components/demo/elements/tool-call";
+import { ToolTimelineDemo } from "@/components/demo/elements/tool-timeline";
 import {
   TerminalBlockDemo,
+  TerminalBlockFailedDemo,
   TerminalBlockInkDemo,
-} from "@/components/pages/elements/demos/terminal-block";
-import { CodeDiffDemo } from "@/components/pages/elements/demos/code-diff";
-import { WebSearchDemo } from "@/components/pages/elements/demos/web-search";
-import { SourcesDemo } from "@/components/pages/elements/demos/sources";
-import { InlineCitationDemo } from "@/components/pages/elements/demos/inline-citation";
-import { ImageGenerationDemo } from "@/components/pages/elements/demos/image-generation";
-import { AgentPlanDemo } from "@/components/pages/elements/demos/agent-plan";
-import { SubagentListDemo } from "@/components/pages/elements/demos/subagent-list";
-import { AgentStatusDemo } from "@/components/pages/elements/demos/agent-status";
-import { ApprovalCardDemo } from "@/components/pages/elements/demos/approval-card";
-import { ArtifactCardDemo } from "@/components/pages/elements/demos/artifact-card";
-import { ComposerDemo } from "@/components/pages/elements/demos/composer";
-import { ComposerSlashDemo } from "@/components/pages/elements/demos/composer-slash";
-import { ComposerMentionsDemo } from "@/components/pages/elements/demos/composer-mentions";
-import { ComposerAttachmentsDemo } from "@/components/pages/elements/demos/composer-attachments";
-import { ComposerModelsDemo } from "@/components/pages/elements/demos/composer-models";
-import { ComposerVoiceDemo } from "@/components/pages/elements/demos/composer-voice";
-import { ComposerContextDemo } from "@/components/pages/elements/demos/composer-context";
-import { EmptyStateDemo } from "@/components/pages/elements/demos/empty-state";
-import { ThreadListDemo } from "@/components/pages/elements/demos/thread-list";
-import { ScrollAnchorDemo } from "@/components/pages/elements/demos/scroll-anchor";
-import { TodoListDemo } from "@/components/pages/elements/demos/todo-list";
-import { MessageQueueDemo } from "@/components/pages/elements/demos/message-queue";
-import { MessageAttachmentDemo } from "@/components/pages/elements/demos/message-attachment";
-import { ReviewableDiffDemo } from "@/components/pages/elements/demos/reviewable-diff";
-import { FileTreeDemo } from "@/components/pages/elements/demos/file-tree";
-import { ElicitationFormDemo } from "@/components/pages/elements/demos/elicitation-form";
-import { RetrievalChunksDemo } from "@/components/pages/elements/demos/retrieval-chunks";
+} from "@/components/demo/elements/terminal-block";
+import { CodeDiffDemo } from "@/components/demo/elements/code-diff";
+import { WebSearchDemo } from "@/components/demo/elements/web-search";
+import { SourcesDemo } from "@/components/demo/elements/sources";
+import { InlineCitationDemo } from "@/components/demo/elements/inline-citation";
+import {
+  LinkPreviewCompactDemo,
+  LinkPreviewDemo,
+} from "@/components/demo/elements/link-preview";
+import { ImageGenerationDemo } from "@/components/demo/elements/image-generation";
+import { ImageGalleryDemo } from "@/components/demo/elements/image-gallery";
+import { AgentPlanDemo } from "@/components/demo/elements/agent-plan";
+import { SubagentListDemo } from "@/components/demo/elements/subagent-list";
+import { AgentStatusDemo } from "@/components/demo/elements/agent-status";
+import { TaskCardDemo } from "@/components/demo/elements/task-card";
+import {
+  ApprovalCardDemo,
+  ApprovalCardDestructiveDemo,
+} from "@/components/demo/elements/approval-card";
+import {
+  OptionListDemo,
+  OptionListMultipleDemo,
+} from "@/components/demo/elements/option-list";
+import { QuestionFlowDemo } from "@/components/demo/elements/question-flow";
+import { ArtifactCardDemo } from "@/components/demo/elements/artifact-card";
+import { ComposerDemo } from "@/components/demo/elements/composer";
+import { ComposerSlashDemo } from "@/components/demo/elements/composer-slash";
+import { ComposerMentionsDemo } from "@/components/demo/elements/composer-mentions";
+import { ComposerAttachmentsDemo } from "@/components/demo/elements/composer-attachments";
+import { ComposerModelsDemo } from "@/components/demo/elements/composer-models";
+import { ComposerVoiceDemo } from "@/components/demo/elements/composer-voice";
+import { ComposerContextDemo } from "@/components/demo/elements/composer-context";
+import { EmptyStateDemo } from "@/components/demo/elements/empty-state";
+import { ThreadListDemo } from "@/components/demo/elements/thread-list";
+import { ScrollAnchorDemo } from "@/components/demo/elements/scroll-anchor";
+import { ConversationMapDemo } from "@/components/demo/elements/conversation-map";
+import { TodoListDemo } from "@/components/demo/elements/todo-list";
+import { MessageQueueDemo } from "@/components/demo/elements/message-queue";
+import { MessageAttachmentDemo } from "@/components/demo/elements/message-attachment";
+import { ReviewableDiffDemo } from "@/components/demo/elements/reviewable-diff";
+import { FileTreeDemo } from "@/components/demo/elements/file-tree";
+import { ElicitationFormDemo } from "@/components/demo/elements/elicitation-form";
+import { RetrievalChunksDemo } from "@/components/demo/elements/retrieval-chunks";
 import {
   ChartBarsDemo,
   ChartDemo,
   ChartLineDemo,
-} from "@/components/pages/elements/demos/chart";
-import { TraceWaterfallDemo } from "@/components/pages/elements/demos/trace-waterfall";
-import { CanvasSplitDemo } from "@/components/pages/elements/demos/canvas-split";
-import { VoiceConversationDemo } from "@/components/pages/elements/demos/voice-conversation";
-import { ReadAloudDemo } from "@/components/pages/elements/demos/read-aloud";
-import { McpServerPanelDemo } from "@/components/pages/elements/demos/mcp-server-panel";
-import { FeedbackDialogDemo } from "@/components/pages/elements/demos/feedback-dialog";
-import { QuoteReplyDemo } from "@/components/pages/elements/demos/quote-reply";
-import { EditMessageDemo } from "@/components/pages/elements/demos/edit-message";
-import { ConnectionStateDemo } from "@/components/pages/elements/demos/connection-state";
-import { StoppedRunDemo } from "@/components/pages/elements/demos/stopped-run";
-import { AgentCardDemo } from "@/components/pages/elements/demos/agent-card";
-import { WebPreviewDemo } from "@/components/pages/elements/demos/web-preview";
-import { MessageTimingDemo } from "@/components/pages/elements/demos/message-timing";
-import { DraftRestoreDemo } from "@/components/pages/elements/demos/draft-restore";
-import { DiagramDemo } from "@/components/pages/elements/demos/diagram";
-import { FlowGraphDemo } from "@/components/pages/elements/demos/flow-graph";
-import { ActivityGraphDemo } from "@/components/pages/elements/demos/activity-graph";
-import { ToolGroupDemo } from "@/components/pages/elements/demos/tool-group";
-import { ContextBreakdownDemo } from "@/components/pages/elements/demos/context-breakdown";
-import { ModelPickerDemo } from "@/components/pages/elements/demos/model-picker";
-import { ReasoningEffortDemo } from "@/components/pages/elements/demos/reasoning-effort";
-import { GuardrailNoticeDemo } from "@/components/pages/elements/demos/guardrail-notice";
-import { DaySeparatorDemo } from "@/components/pages/elements/demos/day-separator";
-import { SpeakerIdentityDemo } from "@/components/pages/elements/demos/speaker-identity";
-import { RegenerateMenuDemo } from "@/components/pages/elements/demos/regenerate-menu";
-import { ConfidenceMarkerDemo } from "@/components/pages/elements/demos/confidence-marker";
-import { ToolErrorDemo } from "@/components/pages/elements/demos/tool-error";
-import { PermissionGrantDemo } from "@/components/pages/elements/demos/permission-grant";
-import { ComputerUseDemo } from "@/components/pages/elements/demos/computer-use";
-import { CodeRunnerDemo } from "@/components/pages/elements/demos/code-runner";
-import { DocumentReferenceDemo } from "@/components/pages/elements/demos/document-reference";
-import { MemoryChipsDemo } from "@/components/pages/elements/demos/memory-chips";
-import { ResearchReportDemo } from "@/components/pages/elements/demos/research-report";
-import { MapAnswerDemo } from "@/components/pages/elements/demos/map-answer";
-import { MathBlockDemo } from "@/components/pages/elements/demos/math-block";
-import { SpecSheetDemo } from "@/components/pages/elements/demos/spec-sheet";
-import { ComparisonCardDemo } from "@/components/pages/elements/demos/comparison-card";
-import { TimelineDemo } from "@/components/pages/elements/demos/timeline";
-import { JobProgressDemo } from "@/components/pages/elements/demos/job-progress";
-import { ScoreBreakdownDemo } from "@/components/pages/elements/demos/score-breakdown";
-import { CostMeterDemo } from "@/components/pages/elements/demos/cost-meter";
-import { QuotaBannerDemo } from "@/components/pages/elements/demos/quota-banner";
-import { AgentHandoffDemo } from "@/components/pages/elements/demos/agent-handoff";
-import { BackgroundInboxDemo } from "@/components/pages/elements/demos/background-inbox";
-import { CheckpointHistoryDemo } from "@/components/pages/elements/demos/checkpoint-history";
-import { ScheduleCardDemo } from "@/components/pages/elements/demos/schedule-card";
-import { PromptLibraryDemo } from "@/components/pages/elements/demos/prompt-library";
-import { CommandPaletteDemo } from "@/components/pages/elements/demos/command-palette";
-import { SharedConversationDemo } from "@/components/pages/elements/demos/shared-conversation";
-import { ConversationSearchDemo } from "@/components/pages/elements/demos/conversation-search";
-import { ThreadSearchDemo } from "@/components/pages/elements/demos/thread-search";
-import { LauncherBubbleDemo } from "@/components/pages/elements/demos/launcher-bubble";
-import { SettingsPanelDemo } from "@/components/pages/elements/demos/settings-panel";
-import { OnboardingDemo } from "@/components/pages/elements/demos/onboarding";
-import { MobileComposerDemo } from "@/components/pages/elements/demos/mobile-composer";
-import * as generativeDemos from "@/components/pages/elements/demos/generative-demos";
+} from "@/components/demo/elements/chart";
+import {
+  AudioPlayerDemo,
+  VideoPlayerDemo,
+} from "@/components/demo/elements/media-player";
+import { TraceWaterfallDemo } from "@/components/demo/elements/trace-waterfall";
+import { CanvasSplitDemo } from "@/components/demo/elements/canvas-split";
+import { VoiceConversationDemo } from "@/components/demo/elements/voice-conversation";
+import { ReadAloudDemo } from "@/components/demo/elements/read-aloud";
+import { McpServerPanelDemo } from "@/components/demo/elements/mcp-server-panel";
+import { FeedbackDialogDemo } from "@/components/demo/elements/feedback-dialog";
+import { QuoteReplyDemo } from "@/components/demo/elements/quote-reply";
+import { EditMessageDemo } from "@/components/demo/elements/edit-message";
+import { ConnectionStateDemo } from "@/components/demo/elements/connection-state";
+import { StoppedRunDemo } from "@/components/demo/elements/stopped-run";
+import { AgentCardDemo } from "@/components/demo/elements/agent-card";
+import { WebPreviewDemo } from "@/components/demo/elements/web-preview";
+import { MessageTimingDemo } from "@/components/demo/elements/message-timing";
+import { DraftRestoreDemo } from "@/components/demo/elements/draft-restore";
+import { DiagramDemo } from "@/components/demo/elements/diagram";
+import { FlowGraphDemo } from "@/components/demo/elements/flow-graph";
+import { ActivityGraphDemo } from "@/components/demo/elements/activity-graph";
+import { ToolGroupDemo } from "@/components/demo/elements/tool-group";
+import { ContextBreakdownDemo } from "@/components/demo/elements/context-breakdown";
+import { ModelPickerDemo } from "@/components/demo/elements/model-picker";
+import { ReasoningEffortDemo } from "@/components/demo/elements/reasoning-effort";
+import { GuardrailNoticeDemo } from "@/components/demo/elements/guardrail-notice";
+import { DaySeparatorDemo } from "@/components/demo/elements/day-separator";
+import { SpeakerIdentityDemo } from "@/components/demo/elements/speaker-identity";
+import { RegenerateMenuDemo } from "@/components/demo/elements/regenerate-menu";
+import { ConfidenceMarkerDemo } from "@/components/demo/elements/confidence-marker";
+import { ToolErrorDemo } from "@/components/demo/elements/tool-error";
+import { PermissionGrantDemo } from "@/components/demo/elements/permission-grant";
+import { ComputerUseDemo } from "@/components/demo/elements/computer-use";
+import { CodeRunnerDemo } from "@/components/demo/elements/code-runner";
+import { DocumentReferenceDemo } from "@/components/demo/elements/document-reference";
+import { MemoryChipsDemo } from "@/components/demo/elements/memory-chips";
+import { ResearchReportDemo } from "@/components/demo/elements/research-report";
+import { MapAnswerDemo } from "@/components/demo/elements/map-answer";
+import { GeoMapDemo } from "@/components/demo/elements/geo-map";
+import { MathBlockDemo } from "@/components/demo/elements/math-block";
+import { SpecSheetDemo } from "@/components/demo/elements/spec-sheet";
+import { ComparisonCardDemo } from "@/components/demo/elements/comparison-card";
+import { TimelineDemo } from "@/components/demo/elements/timeline";
+import { JobProgressDemo } from "@/components/demo/elements/job-progress";
+import { ScoreBreakdownDemo } from "@/components/demo/elements/score-breakdown";
+import { CostMeterDemo } from "@/components/demo/elements/cost-meter";
+import { QuotaBannerDemo } from "@/components/demo/elements/quota-banner";
+import { AgentHandoffDemo } from "@/components/demo/elements/agent-handoff";
+import { BackgroundInboxDemo } from "@/components/demo/elements/background-inbox";
+import { CheckpointHistoryDemo } from "@/components/demo/elements/checkpoint-history";
+import { ScheduleCardDemo } from "@/components/demo/elements/schedule-card";
+import { PromptLibraryDemo } from "@/components/demo/elements/prompt-library";
+import { CommandPaletteDemo } from "@/components/demo/elements/command-palette";
+import { SharedConversationDemo } from "@/components/demo/elements/shared-conversation";
+import { ConversationSearchDemo } from "@/components/demo/elements/conversation-search";
+import { ThreadSearchDemo } from "@/components/demo/elements/thread-search";
+import { LauncherBubbleDemo } from "@/components/demo/elements/launcher-bubble";
+import { SettingsPanelDemo } from "@/components/demo/elements/settings-panel";
+import { OnboardingDemo } from "@/components/demo/elements/onboarding";
+import { MobileComposerDemo } from "@/components/demo/elements/mobile-composer";
+import {
+  AuiAssistantModalDemo,
+  AuiAssistantSidebarDemo,
+  AuiAttachmentDemo,
+  AuiComposerTriggerPopoverDemo,
+  AuiContextDisplayDemo,
+  AuiConversationMapDemo,
+  AuiDirectiveTextDemo,
+  AuiFileDemo,
+  AuiFollowUpSuggestionsDemo,
+  AuiGenerativeUIDemo,
+  AuiHeatGraphDemo,
+  AuiImageDemo,
+  AuiLogosDemo,
+  AuiMarkdownTextDemo,
+  AuiMcpConfigDemo,
+  AuiMermaidDiagramDemo,
+  AuiMessageTimingDemo,
+  AuiModelSelectorDemo,
+  AuiQuoteDemo,
+  AuiReasoningDemo,
+  AuiShikiHighlighterDemo,
+  AuiSourcesDemo,
+  AuiSourcesVariantsDemo,
+  AuiSyntaxHighlighterDemo,
+  AuiThreadDemo,
+  AuiThreadListDemo,
+  AuiThreadListSidebarDemo,
+  AuiToolFallbackDemo,
+  AuiToolFallbackReceiptDemo,
+  AuiToolGroupDemo,
+  AuiTooltipIconButtonDemo,
+  AuiVoiceDemo,
+  AuiVoiceStatesDemo,
+  AuiVoicePalettesDemo,
+} from "@/components/demo/elements/aui-demos";
+import * as generativeDemos from "@/components/demo/elements/generative-demos";
 import { GENERATIVE_ELEMENTS } from "@/lib/generative-elements";
 
 export interface ElementVariant {
@@ -134,6 +191,10 @@ export interface ElementEntry {
   description: string;
   file?: string;
   installName?: string;
+  registryName?: string;
+  connection?: "AUI";
+  counterpart?: string;
+  standaloneItem?: string;
   wide?: boolean;
   replay?: boolean;
   generative?: boolean;
@@ -167,7 +228,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
       {
         slug: "loading-state",
         replay: false,
-        title: "Loading state",
+        title: "Loader",
         description:
           "A pixel matrix that keeps time while the model has nothing to show yet.",
         file: "loading-state.tsx",
@@ -193,14 +254,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
           "A live status line that names what the agent is doing right now, with elapsed time.",
         file: "thinking-indicator.tsx",
         Component: ThinkingIndicatorDemo,
-      },
-      {
-        slug: "reasoning-panel",
-        title: "Reasoning panel",
-        description:
-          "A collapsible trace that streams reasoning steps along a timeline, then settles into a summary.",
-        file: "reasoning-panel.tsx",
-        Component: ReasoningPanelDemo,
       },
       {
         slug: "streaming-text",
@@ -281,19 +334,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         Component: MessageActionsDemo,
       },
       {
-        slug: "suggestions",
-        replay: false,
-        title: "Follow-up suggestions",
-        description:
-          "Prompt pills that stagger in after a reply and invite the next turn.",
-        file: "suggestions.tsx",
-        Component: SuggestionsDemo,
-        variants: [
-          { key: "pills", label: "Pills", Component: SuggestionsDemo },
-          { key: "list", label: "List", Component: SuggestionsListDemo },
-        ],
-      },
-      {
         slug: "error-state",
         replay: false,
         title: "Error state",
@@ -312,15 +352,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         Component: MessageQueueDemo,
       },
       {
-        slug: "message-attachment",
-        replay: false,
-        title: "Attachments in a message",
-        description:
-          "Files as received rather than staged: an image to open, a document with its page count.",
-        file: "message-attachment.tsx",
-        Component: MessageAttachmentDemo,
-      },
-      {
         slug: "edit-message",
         replay: false,
         title: "Edit a sent message",
@@ -328,14 +359,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
           "Rewrite a turn in place, told up front how many replies the edit throws away.",
         file: "edit-message.tsx",
         Component: EditMessageDemo,
-      },
-      {
-        slug: "quote-reply",
-        title: "Quote reply",
-        description:
-          "Select a phrase in an answer and a toolbar offers to quote, explain, or rewrite it.",
-        file: "quote-reply.tsx",
-        Component: QuoteReplyDemo,
       },
       {
         slug: "feedback-dialog",
@@ -353,14 +376,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
           "You pressed stop. The half-written answer stays, and continuing is one tap away.",
         file: "stopped-run.tsx",
         Component: StoppedRunDemo,
-      },
-      {
-        slug: "message-timing",
-        title: "Timing footer",
-        description:
-          "What the turn cost: time to first token, throughput, tokens, money.",
-        file: "message-timing.tsx",
-        Component: MessageTimingDemo,
       },
       {
         slug: "day-separator",
@@ -430,6 +445,11 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         variants: [
           { key: "paper", label: "Paper", Component: TerminalBlockDemo },
           { key: "ink", label: "Ink", Component: TerminalBlockInkDemo },
+          {
+            key: "failed",
+            label: "Failed",
+            Component: TerminalBlockFailedDemo,
+          },
         ],
       },
       {
@@ -474,14 +494,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
           "Which servers are connected, what each one brought, and which is still waiting on you.",
         file: "mcp-server-panel.tsx",
         Component: McpServerPanelDemo,
-      },
-      {
-        slug: "tool-group",
-        title: "Parallel tools",
-        description:
-          "Calls that went out together, collapsed to one row until you want the detail.",
-        file: "tool-group.tsx",
-        Component: ToolGroupDemo,
       },
       {
         slug: "tool-error",
@@ -533,15 +545,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         Component: WebSearchDemo,
       },
       {
-        slug: "sources",
-        replay: false,
-        title: "Sources",
-        description:
-          "Citations collapsed into a pill, expanding into scannable source cards.",
-        file: "sources.tsx",
-        Component: SourcesDemo,
-      },
-      {
         slug: "inline-citation",
         replay: false,
         title: "Inline citation",
@@ -551,12 +554,37 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         Component: InlineCitationDemo,
       },
       {
+        slug: "link-preview",
+        title: "Link preview",
+        description:
+          "A returned URL unfurled into a card with enough context to decide whether to open it.",
+        file: "link-preview.tsx",
+        Component: LinkPreviewDemo,
+        variants: [
+          { key: "card", label: "Card", Component: LinkPreviewDemo },
+          {
+            key: "compact",
+            label: "Compact",
+            Component: LinkPreviewCompactDemo,
+          },
+        ],
+      },
+      {
         slug: "image-generation",
         title: "Image generation",
         description:
           "A dot grid holds the frame while the image resolves out of a blur.",
         file: "image-generation.tsx",
         Component: ImageGenerationDemo,
+      },
+      {
+        slug: "image-gallery",
+        replay: false,
+        title: "Image gallery",
+        description:
+          "A compact grid of returned images that opens each one in a shared lightbox.",
+        file: "image-gallery.tsx",
+        Component: ImageGalleryDemo,
       },
       {
         slug: "retrieval-chunks",
@@ -600,6 +628,15 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         file: "map-answer.tsx",
         Component: MapAnswerDemo,
       },
+      {
+        slug: "geo-map",
+        replay: false,
+        title: "Geo map",
+        description:
+          "Places and routes on a real tiled map, with an accessible list of every place.",
+        file: "geo-map.tsx",
+        Component: GeoMapDemo,
+      },
     ],
   },
   {
@@ -610,7 +647,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         slug: "data-table",
         title: "Data table",
         description:
-          "A small comparison table the model can answer with directly.",
+          "A tool's rows and columns with formatting, sorting, and a card layout in narrow columns.",
         file: "data-table.tsx",
         Component: DataTableDemo,
       },
@@ -633,6 +670,19 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
           { key: "area", label: "Area", Component: ChartDemo },
           { key: "line", label: "Line", Component: ChartLineDemo },
           { key: "bars", label: "Bars", Component: ChartBarsDemo },
+        ],
+      },
+      {
+        slug: "media-player",
+        replay: false,
+        title: "Media player",
+        description:
+          "Audio and video a tool returned, played inline without leaving the thread.",
+        file: "media-player.tsx",
+        Component: AudioPlayerDemo,
+        variants: [
+          { key: "audio", label: "Audio", Component: AudioPlayerDemo },
+          { key: "video", label: "Video", Component: VideoPlayerDemo },
         ],
       },
       {
@@ -704,7 +754,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
       },
       {
         slug: "job-progress",
-        title: "Long job",
+        title: "Job progress",
         description:
           "Work measured in minutes: weighted stages, an ETA, and a way out.",
         file: "job-progress.tsx",
@@ -741,7 +791,21 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         Component: SubagentListDemo,
       },
       {
+        slug: "task-card",
+        standaloneItem: "elements-task-card",
+        registryName: "task-card",
+        connection: "AUI",
+        title: "Task card",
+        description:
+          "A delegated task with its state, timing, result, and transcript in one card.",
+        file: "task-card.tsx",
+        Component: TaskCardDemo,
+      },
+      {
         slug: "agent-status",
+        standaloneItem: "elements-agent-status",
+        registryName: "agent-status",
+        connection: "AUI",
         title: "Agent status",
         description:
           "One pill that always answers: what is it doing, and for how long.",
@@ -756,6 +820,40 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
           "Human in the loop: the agent asks before it runs anything with side effects.",
         file: "approval-card.tsx",
         Component: ApprovalCardDemo,
+        variants: [
+          { key: "command", label: "Command", Component: ApprovalCardDemo },
+          {
+            key: "destructive",
+            label: "Destructive",
+            Component: ApprovalCardDestructiveDemo,
+          },
+        ],
+      },
+      {
+        slug: "option-list",
+        replay: false,
+        title: "Option list",
+        description:
+          "The agent asks a question with a few answers; the pick returns to it and stays as a receipt.",
+        file: "option-list.tsx",
+        Component: OptionListDemo,
+        variants: [
+          { key: "single", label: "Single", Component: OptionListDemo },
+          {
+            key: "multiple",
+            label: "Multiple",
+            Component: OptionListMultipleDemo,
+          },
+        ],
+      },
+      {
+        slug: "question-flow",
+        replay: false,
+        title: "Question flow",
+        description:
+          "A few short questions asked one at a time, answered together and kept as a receipt.",
+        file: "question-flow.tsx",
+        Component: QuestionFlowDemo,
       },
       {
         slug: "recommendation-card",
@@ -850,7 +948,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
       },
       {
         slug: "quota-banner",
-        title: "Quota",
+        title: "Quota banner",
         description:
           "How much is left, when it comes back, and the way to get more.",
         file: "quota-banner.tsx",
@@ -904,7 +1002,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
       {
         slug: "composer-model-picker",
         replay: false,
-        title: "Model picker",
+        title: "Models",
         description:
           "The model lives in the composer rail, one tap away with context at a glance.",
         file: "composer.tsx",
@@ -913,7 +1011,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
       },
       {
         slug: "composer-voice",
-        title: "Voice",
+        title: "Dictation",
         description:
           "The mic morphs the input into a live waveform, then lands the transcript as text.",
         file: "composer.tsx",
@@ -937,15 +1035,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
           "Come back to a thread and the sentence you never sent is still waiting.",
         file: "draft-restore.tsx",
         Component: DraftRestoreDemo,
-      },
-      {
-        slug: "model-picker",
-        replay: false,
-        title: "Model picker",
-        description:
-          "The full list rather than the rail: grouped by family, priced, with what each one can do.",
-        file: "model-picker.tsx",
-        Component: ModelPickerDemo,
       },
       {
         slug: "context-breakdown",
@@ -981,10 +1070,14 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
     elements: [
       {
         slug: "voice-conversation",
+        standaloneItem: "elements-voice-conversation",
+        counterpart: "orb",
         title: "Voice conversation",
         description:
           "A live call: the orb tracks your voice, the caption names the turn, the transcript follows.",
         file: "voice-conversation.tsx",
+        registryName: "voice-conversation",
+        connection: "AUI",
         Component: VoiceConversationDemo,
       },
       {
@@ -1019,15 +1112,6 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         file: "empty-state.tsx",
         wide: true,
         Component: EmptyStateDemo,
-      },
-      {
-        slug: "thread-list",
-        replay: false,
-        title: "Thread list",
-        description:
-          "Conversation history with unread marks and actions that wait for hover.",
-        file: "thread-list.tsx",
-        Component: ThreadListDemo,
       },
       {
         slug: "scroll-anchor",
@@ -1114,6 +1198,444 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
           "The bottom sheet: keyboard-aware, quick actions above, thumb-sized targets.",
         file: "mobile-composer.tsx",
         Component: MobileComposerDemo,
+      },
+    ],
+  },
+  {
+    label: "AUI connected",
+    description: "Elements that read directly from assistant-ui runtime state.",
+    elements: [
+      {
+        slug: "thread",
+        replay: false,
+        title: "Thread",
+        description:
+          "A complete chat container with messages, composer, auto-scroll, and accessibility built in.",
+        file: "thread.aui.tsx",
+        registryName: "thread",
+        connection: "AUI",
+        wide: true,
+        Component: AuiThreadDemo,
+      },
+      {
+        slug: "assistant-modal",
+        replay: false,
+        title: "Assistant modal",
+        description:
+          "A floating chat bubble for support widgets, help desks, and embedded assistants, with a thread list and a resizable window.",
+        file: "assistant-modal.aui.tsx",
+        registryName: "assistant-modal",
+        connection: "AUI",
+        wide: true,
+        Component: AuiAssistantModalDemo,
+      },
+      {
+        slug: "assistant-sidebar",
+        replay: false,
+        title: "Assistant sidebar",
+        description:
+          "A resizable side panel for copilot experiences and contextual assistance.",
+        file: "assistant-sidebar.aui.tsx",
+        registryName: "assistant-sidebar",
+        connection: "AUI",
+        wide: true,
+        Component: AuiAssistantSidebarDemo,
+      },
+      {
+        slug: "thread-list",
+        standaloneItem: "elements-thread-list",
+        replay: false,
+        title: "Thread list",
+        description:
+          "Runtime-backed conversation switching with search, active selection, and thread actions.",
+        file: "thread-list.aui.tsx",
+        registryName: "thread-list",
+        connection: "AUI",
+        Component: AuiThreadListDemo,
+        variants: [
+          { key: "runtime", label: "Runtime", Component: AuiThreadListDemo },
+          { key: "static", label: "Static", Component: ThreadListDemo },
+        ],
+      },
+      {
+        slug: "thread-list-sidebar",
+        replay: false,
+        title: "Thread list sidebar",
+        description:
+          "A complete sidebar shell that places the runtime thread list beside the active conversation.",
+        file: "threadlist-sidebar.aui.tsx",
+        registryName: "threadlist-sidebar",
+        connection: "AUI",
+        wide: true,
+        Component: AuiThreadListSidebarDemo,
+      },
+      {
+        slug: "orb",
+        standaloneItem: "elements-voice",
+        counterpart: "voice-conversation",
+        replay: false,
+        title: "Orb",
+        description:
+          "The realtime voice orb, with connection, mute, and speaking state controls.",
+        file: "voice.aui.tsx",
+        registryName: "voice",
+        connection: "AUI",
+        Component: AuiVoiceDemo,
+        variants: [
+          { key: "session", label: "Session", Component: AuiVoiceDemo },
+          { key: "states", label: "States", Component: AuiVoiceStatesDemo },
+          {
+            key: "palettes",
+            label: "Palettes",
+            Component: AuiVoicePalettesDemo,
+          },
+        ],
+      },
+      {
+        slug: "reasoning",
+        standaloneItem: "elements-reasoning",
+        replay: false,
+        title: "Reasoning",
+        description:
+          "A collapsible renderer for assistant reasoning that follows the active message part.",
+        file: "reasoning.aui.tsx",
+        registryName: "reasoning",
+        connection: "AUI",
+        Component: AuiReasoningDemo,
+        variants: [
+          { key: "runtime", label: "Runtime", Component: AuiReasoningDemo },
+          { key: "static", label: "Static", Component: ReasoningPanelDemo },
+        ],
+      },
+      {
+        slug: "message-timing",
+        standaloneItem: "elements-message-timing",
+        replay: false,
+        title: "Message timing",
+        description:
+          "Streaming statistics for the current message, including first token, total time, and speed.",
+        file: "message-timing.aui.tsx",
+        registryName: "message-timing",
+        connection: "AUI",
+        Component: AuiMessageTimingDemo,
+        variants: [
+          { key: "runtime", label: "Runtime", Component: AuiMessageTimingDemo },
+          { key: "static", label: "Static", Component: MessageTimingDemo },
+        ],
+      },
+      {
+        slug: "conversation-map",
+        standaloneItem: "elements-conversation-map",
+        replay: false,
+        title: "Conversation map",
+        description:
+          "A rail of the whole thread: one tick per turn, the turn being read marked and the ones on screen deepened, a hover preview, and a click that jumps there.",
+        file: "conversation-map.aui.tsx",
+        registryName: "conversation-map",
+        connection: "AUI",
+        wide: true,
+        Component: AuiConversationMapDemo,
+        variants: [
+          {
+            key: "runtime",
+            label: "Runtime",
+            Component: AuiConversationMapDemo,
+          },
+          { key: "static", label: "Static", Component: ConversationMapDemo },
+        ],
+      },
+      {
+        slug: "context-display",
+        standaloneItem: "elements-context-display",
+        replay: false,
+        title: "Context display",
+        description:
+          "Model context usage as a ring, bar, or text value with a detailed hover view.",
+        file: "context-display.aui.tsx",
+        registryName: "context-display",
+        connection: "AUI",
+        Component: AuiContextDisplayDemo,
+      },
+      {
+        slug: "mcp-config",
+        replay: false,
+        title: "MCP config dialog",
+        description:
+          "A dialog for connectors and custom MCP servers, including authentication and connection state.",
+        file: "mcp-config.aui.tsx",
+        registryName: "mcp-config",
+        connection: "AUI",
+        Component: AuiMcpConfigDemo,
+      },
+      {
+        slug: "attachment",
+        standaloneItem: "elements-message-attachment",
+        replay: false,
+        title: "Attachment",
+        description:
+          "Runtime attachments for the composer and messages, with previews, progress, and removal.",
+        file: "attachment.aui.tsx",
+        registryName: "attachment",
+        connection: "AUI",
+        Component: AuiAttachmentDemo,
+        variants: [
+          { key: "runtime", label: "Runtime", Component: AuiAttachmentDemo },
+          { key: "static", label: "Static", Component: MessageAttachmentDemo },
+        ],
+      },
+      {
+        slug: "follow-up-suggestions",
+        standaloneItem: "elements-suggestions",
+        replay: false,
+        title: "Follow-up suggestions",
+        description:
+          "Prompt chips populated from the runtime's generated follow-up suggestions.",
+        file: "follow-up-suggestions.aui.tsx",
+        registryName: "follow-up-suggestions",
+        connection: "AUI",
+        wide: true,
+        Component: AuiFollowUpSuggestionsDemo,
+        variants: [
+          {
+            key: "runtime",
+            label: "Runtime",
+            Component: AuiFollowUpSuggestionsDemo,
+          },
+          { key: "pills", label: "Pills", Component: SuggestionsDemo },
+          { key: "list", label: "List", Component: SuggestionsListDemo },
+        ],
+      },
+      {
+        slug: "tool-fallback",
+        replay: false,
+        title: "Tool fallback",
+        description:
+          "The default runtime renderer for tool calls that do not have dedicated UI.",
+        file: "tool-fallback.aui.tsx",
+        registryName: "tool-fallback",
+        connection: "AUI",
+        Component: AuiToolFallbackDemo,
+        variants: [
+          { key: "runtime", label: "Runtime", Component: AuiToolFallbackDemo },
+          {
+            key: "receipt",
+            label: "Receipt",
+            Component: AuiToolFallbackReceiptDemo,
+          },
+        ],
+      },
+      {
+        slug: "tool-group",
+        standaloneItem: "elements-tool-group",
+        replay: false,
+        title: "Tool group",
+        description:
+          "A collapsible runtime wrapper around consecutive tool calls in one assistant turn.",
+        file: "tool-group.aui.tsx",
+        registryName: "tool-group",
+        connection: "AUI",
+        Component: AuiToolGroupDemo,
+        variants: [
+          { key: "runtime", label: "Runtime", Component: AuiToolGroupDemo },
+          { key: "static", label: "Static", Component: ToolGroupDemo },
+        ],
+      },
+      {
+        slug: "quote",
+        standaloneItem: "elements-quote-reply",
+        replay: false,
+        title: "Quote",
+        description:
+          "Select message text, quote it from a floating toolbar, and carry it into the composer.",
+        file: "quote.aui.tsx",
+        registryName: "quote",
+        connection: "AUI",
+        Component: AuiQuoteDemo,
+        variants: [
+          { key: "runtime", label: "Runtime", Component: AuiQuoteDemo },
+          { key: "static", label: "Static", Component: QuoteReplyDemo },
+        ],
+      },
+      {
+        slug: "sources",
+        standaloneItem: "elements-sources",
+        replay: false,
+        title: "Sources",
+        description:
+          "Runtime sources with favicon links for URLs and file badges for documents.",
+        file: "sources.aui.tsx",
+        registryName: "sources",
+        connection: "AUI",
+        Component: AuiSourcesDemo,
+        variants: [
+          { key: "runtime", label: "Runtime", Component: AuiSourcesDemo },
+          {
+            key: "variants",
+            label: "Variants",
+            Component: AuiSourcesVariantsDemo,
+          },
+          { key: "static", label: "Static", Component: SourcesDemo },
+        ],
+      },
+      {
+        slug: "image",
+        replay: false,
+        title: "Image",
+        description:
+          "Image message parts with preview, loading states, actions, and a fullscreen view.",
+        file: "image.tsx",
+        registryName: "image",
+        connection: "AUI",
+        Component: AuiImageDemo,
+      },
+      {
+        slug: "file",
+        replay: false,
+        title: "File",
+        description:
+          "File message parts with type-aware icons, filename, size, and download actions.",
+        file: "file.tsx",
+        registryName: "file",
+        connection: "AUI",
+        Component: AuiFileDemo,
+      },
+      {
+        slug: "model-selector",
+        standaloneItem: "elements-model-selector",
+        replay: false,
+        title: "Model selector",
+        description:
+          "A searchable runtime model picker with grouped providers and reasoning effort controls.",
+        file: "model-selector.aui.tsx",
+        registryName: "model-selector",
+        connection: "AUI",
+        Component: AuiModelSelectorDemo,
+        variants: [
+          { key: "runtime", label: "Runtime", Component: AuiModelSelectorDemo },
+          { key: "static", label: "Static", Component: ModelPickerDemo },
+        ],
+      },
+      {
+        slug: "composer-trigger-popover",
+        replay: false,
+        title: "Composer trigger popover",
+        description:
+          "A character-triggered picker for mentions, slash commands, and nested composer actions.",
+        file: "composer-trigger-popover.aui.tsx",
+        registryName: "composer-trigger-popover",
+        connection: "AUI",
+        Component: AuiComposerTriggerPopoverDemo,
+      },
+      {
+        slug: "directive-text",
+        standaloneItem: "elements-directive-text",
+        replay: false,
+        title: "Directive text",
+        description:
+          "A message renderer that turns mention directives into inline, runtime-aware chips.",
+        file: "directive-text.aui.tsx",
+        registryName: "directive-text",
+        connection: "AUI",
+        Component: AuiDirectiveTextDemo,
+      },
+    ],
+  },
+  {
+    label: "Renderers",
+    description: "Rich content renderers that plug into assistant messages.",
+    elements: [
+      {
+        slug: "markdown-text",
+        replay: false,
+        title: "Markdown text",
+        description:
+          "Assistant markdown with headings, lists, links, tables, and code blocks.",
+        file: "markdown-text.tsx",
+        registryName: "markdown-text",
+        connection: "AUI",
+        wide: true,
+        Component: AuiMarkdownTextDemo,
+      },
+      {
+        slug: "syntax-highlighter",
+        replay: false,
+        title: "Syntax highlighter",
+        description:
+          "Prism-based code highlighting for assistant markdown code blocks.",
+        file: "syntax-highlighter.tsx",
+        registryName: "syntax-highlighter",
+        Component: AuiSyntaxHighlighterDemo,
+      },
+      {
+        slug: "shiki-highlighter",
+        standaloneItem: "elements-shiki-highlighter",
+        replay: false,
+        title: "Shiki highlighter",
+        description:
+          "Shiki code highlighting that defers tokenization until a message part settles.",
+        file: "shiki-highlighter.aui.tsx",
+        registryName: "shiki-highlighter",
+        connection: "AUI",
+        Component: AuiShikiHighlighterDemo,
+      },
+      {
+        slug: "mermaid-diagram",
+        standaloneItem: "elements-mermaid-diagram",
+        replay: false,
+        title: "Mermaid diagram",
+        description:
+          "Mermaid diagrams rendered inside messages, including partial streaming input.",
+        file: "mermaid-diagram.aui.tsx",
+        registryName: "mermaid-diagram",
+        Component: AuiMermaidDiagramDemo,
+      },
+      {
+        slug: "generative-ui",
+        replay: false,
+        title: "Generative UI",
+        description:
+          "A styled component library for rendering structured generative UI output.",
+        file: "generative-ui.tsx",
+        registryName: "generative-ui",
+        wide: true,
+        Component: AuiGenerativeUIDemo,
+      },
+    ],
+  },
+  {
+    label: "Primitives",
+    description: "Small building blocks shared across the assistant UI kit.",
+    elements: [
+      {
+        slug: "tooltip-icon-button",
+        replay: false,
+        title: "Tooltip icon button",
+        description:
+          "An accessible icon button with a tooltip label and shared interaction states.",
+        file: "tooltip-icon-button.tsx",
+        registryName: "tooltip-icon-button",
+        Component: AuiTooltipIconButtonDemo,
+      },
+      {
+        slug: "logos",
+        replay: false,
+        title: "Model logos",
+        description:
+          "Inline SVG marks for OpenAI, Anthropic, and Google model providers.",
+        file: "logos.tsx",
+        registryName: "logos",
+        Component: AuiLogosDemo,
+      },
+      {
+        slug: "heat-graph",
+        replay: false,
+        title: "Heat graph",
+        description:
+          "An activity heat map with month labels, weekday labels, legend, and tooltip.",
+        file: "heat-graph.tsx",
+        registryName: "heat-graph",
+        wide: true,
+        Component: AuiHeatGraphDemo,
       },
     ],
   },

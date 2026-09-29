@@ -1,6 +1,7 @@
 "use client";
 
-import { useChat, type Chat, type UIMessage } from "@ai-sdk/react";
+import { Chat, useChat, type UIMessage } from "@ai-sdk/react";
+import type { MessageRepository } from "@assistant-ui/core/internal";
 import {
   pickExternalStoreSharedOptions,
   type AssistantRuntime,
@@ -24,6 +25,7 @@ import {
   useInsertionEffect,
   useMemo,
   useRef,
+  useState,
   useSyncExternalStore,
 } from "react";
 import { useResourceCleanup } from "./useResourceCleanup";
@@ -39,6 +41,7 @@ export type ChatThreadOptions<UI_MESSAGE extends UIMessage = UIMessage> =
       toCreateMessage?: CustomToCreateMessageFunction;
       onResume?: AISDKRuntimeAdapter["onResume"];
       onResumeToolCall?: AISDKRuntimeAdapter["onResumeToolCall"];
+      onRespondToToolApproval?: AISDKRuntimeAdapter["onRespondToToolApproval"];
       /**
        * Called when an automatic resumable stream reconnect fails. Use this to
        * surface a toast, report telemetry, or mark the thread as needing a
@@ -57,11 +60,23 @@ export type ChatThreadEnvironment<UI_MESSAGE extends UIMessage = UIMessage> = {
   getThreadListItem: () => InitializableThreadListItem | undefined;
   stopOnClientDestroy?: boolean;
   /**
+   * Aborts when the React component hosting the runtime is deleted. A nested
+   * runtime resolves the destroy signal of the provider above it, which
+   * outlives the nested component, so this stops the chat on its own unmount.
+   */
+  hostDestroySignal?: AbortSignal | undefined;
+  /**
    * An externally owned chat instance. State lives on the instance, so it
    * survives the hosting resource unmounting; construction options are read
    * from the instance.
    */
   chat?: Chat<UI_MESSAGE> | undefined;
+  /**
+   * An externally owned per-thread message repository. Hosts that route
+   * multiple threads through one mounting pass a distinct instance per
+   * thread so histories and branches stay isolated.
+   */
+  messageRepositoryInstance?: MessageRepository | undefined;
 };
 
 type ChatThreadTransportBinding = {
@@ -105,6 +120,7 @@ export const splitChatThreadOptions = <UI_MESSAGE extends UIMessage>(
     suggestions: _suggestions,
     onResume,
     onResumeToolCall,
+    onRespondToToolApproval,
     onResumeError,
     joinStrategy,
     messageRepository,
@@ -123,6 +139,7 @@ export const splitChatThreadOptions = <UI_MESSAGE extends UIMessage>(
     toCreateMessage,
     onResume,
     onResumeToolCall,
+    onRespondToToolApproval,
     onResumeError,
     joinStrategy,
     messageRepository,
@@ -130,6 +147,30 @@ export const splitChatThreadOptions = <UI_MESSAGE extends UIMessage>(
     chatInit,
   };
 };
+
+type ChatCallbacks<UI_MESSAGE extends UIMessage> = Pick<
+  ChatInit<UI_MESSAGE>,
+  "onToolCall" | "onData" | "onFinish" | "onError" | "sendAutomaticallyWhen"
+>;
+
+/**
+ * Constructs a `Chat` whose callbacks read the latest options through
+ * `callbacksRef`, the forwarding `useChat` applies only to a chat it
+ * constructs itself.
+ */
+export const createChat = <UI_MESSAGE extends UIMessage>(
+  init: ChatInit<UI_MESSAGE>,
+  callbacksRef: { readonly current: ChatCallbacks<UI_MESSAGE> | undefined },
+): Chat<UI_MESSAGE> =>
+  new Chat<UI_MESSAGE>({
+    ...init,
+    onToolCall: (arg) => callbacksRef.current?.onToolCall?.(arg),
+    onData: (arg) => callbacksRef.current?.onData?.(arg),
+    onFinish: (arg) => callbacksRef.current?.onFinish?.(arg),
+    onError: (arg) => callbacksRef.current?.onError?.(arg),
+    sendAutomaticallyWhen: (arg) =>
+      callbacksRef.current?.sendAutomaticallyWhen?.(arg) ?? false,
+  });
 
 export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
   options: ChatThreadOptions<UI_MESSAGE> | undefined,
@@ -142,6 +183,7 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     toCreateMessage,
     onResume,
     onResumeToolCall,
+    onRespondToToolApproval,
     onResumeError,
     joinStrategy,
     messageRepository,
@@ -153,8 +195,10 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     id,
     isMainThread,
     getThreadListItem,
-    stopOnClientDestroy = false,
+    stopOnClientDestroy = true,
+    hostDestroySignal,
     chat: externalChat,
+    messageRepositoryInstance,
   } = env;
 
   const defaultTransport = useMemo(() => new AssistantChatTransport(), []);
@@ -211,17 +255,33 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     [initialTransportBinding, transport, transportContextOwner],
   );
 
+  const latestChatOptionsRef = useRef(chatOptions);
+  useEffect(() => {
+    latestChatOptionsRef.current = chatOptions;
+  });
+  // `useChat` stops a chat it constructs whenever it unmounts, and a
+  // resource's soft unmount runs that cleanup, so the thread owns its chat.
+  const [ownedChat] = useState(
+    () =>
+      externalChat ??
+      createChat(
+        { ...chatOptions, id, transport: chatTransport },
+        latestChatOptionsRef,
+      ),
+  );
+
   const chat = useChat({
-    ...chatOptions,
-    id,
-    transport: chatTransport,
+    chat: externalChat ?? ownedChat,
     ...(throttle !== undefined && { throttle }),
-    ...(externalChat !== undefined && { chat: externalChat }),
   });
 
-  useResourceCleanup(stopOnClientDestroy, () => {
-    void chat.stop().catch(() => {});
-  });
+  useResourceCleanup(
+    stopOnClientDestroy,
+    () => {
+      void chat.stop().catch(() => {});
+    },
+    hostDestroySignal,
+  );
 
   const runtime = useAISDKRuntime(chat, {
     adapters,
@@ -229,8 +289,12 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(toCreateMessage && { toCreateMessage }),
     ...(onResume && { onResume }),
     ...(onResumeToolCall && { onResumeToolCall }),
+    ...(onRespondToToolApproval && { onRespondToToolApproval }),
     ...(joinStrategy && { joinStrategy }),
     ...(messageRepository && { messageRepository }),
+    ...(messageRepositoryInstance && {
+      unstable_messageRepositoryInstance: messageRepositoryInstance,
+    }),
     ...(unstable_onBranchChange && { unstable_onBranchChange }),
   });
   initialTransportBinding = {

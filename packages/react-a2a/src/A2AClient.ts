@@ -7,6 +7,7 @@ import type {
   A2AListTasksRequest,
   A2AListTasksResponse,
   A2AMessage,
+  A2APart,
   A2ARole,
   A2ASendMessageConfiguration,
   A2AStreamEvent,
@@ -63,6 +64,57 @@ const OPAQUE_FIELDS = new Set([
   "scopes",
 ]);
 
+const JSONRPC_STATE_MAP: Record<string, string> = {
+  "input-required": "input_required",
+  "auth-required": "auth_required",
+  unknown: "unspecified",
+};
+
+const PART_STRING_FIELDS = [
+  "text",
+  "raw",
+  "url",
+  "filename",
+  "mediaType",
+] as const;
+
+const NULLABLE_PART_FIELDS = [...PART_STRING_FIELDS, "metadata"] as const;
+
+function normalizePartNulls(
+  part: Record<string, unknown>,
+): Record<string, unknown> {
+  const normalized = { ...part };
+  for (const field of NULLABLE_PART_FIELDS) {
+    if (normalized[field] === null) delete normalized[field];
+  }
+  return normalized;
+}
+
+// JSON-RPC file parts nest the payload under `file`; the internal A2APart is
+// flat, so the nested fields map onto url/raw/mediaType/filename.
+function normalizeParts(value: unknown[]): unknown[] {
+  return value.map((raw) => {
+    const part = normalizeKeys(raw, false);
+    if (part === null || typeof part !== "object" || Array.isArray(part))
+      return part;
+    const record = normalizePartNulls(part as Record<string, unknown>);
+    if (record.kind === undefined) return record;
+    const { kind, ...rest } = record;
+    const file = rest.file;
+    if (kind !== "file" || file === null || typeof file !== "object")
+      return rest;
+    const { file: _file, ...others } = rest;
+    const nested = file as Record<string, unknown>;
+    return {
+      ...others,
+      ...(nested.uri != null ? { url: nested.uri } : {}),
+      ...(nested.bytes != null ? { raw: nested.bytes } : {}),
+      ...(nested.mimeType != null ? { mediaType: nested.mimeType } : {}),
+      ...(nested.name != null ? { filename: nested.name } : {}),
+    };
+  });
+}
+
 function normalizeKeys(obj: unknown, opaque = false): unknown {
   if (Array.isArray(obj)) return obj.map((v) => normalizeKeys(v, opaque));
   if (obj !== null && typeof obj === "object") {
@@ -80,12 +132,15 @@ function normalizeKeys(obj: unknown, opaque = false): unknown {
       const camelKey = toCamelCase(key);
       const isOpaqueChild = OPAQUE_FIELDS.has(camelKey);
 
-      if (
-        camelKey === "state" &&
-        typeof value === "string" &&
-        value.startsWith("TASK_STATE_")
-      ) {
-        result[camelKey] = value.slice(11).toLowerCase();
+      if (camelKey === "state" && typeof value === "string") {
+        // Proto-style (TASK_STATE_WORKING) and the JSON-RPC state names map
+        // onto the internal snake_case states; anything unrecognized is
+        // preserved verbatim.
+        if (value.startsWith("TASK_STATE_")) {
+          result[camelKey] = value.slice(11).toLowerCase();
+        } else {
+          result[camelKey] = JSONRPC_STATE_MAP[value] ?? value;
+        }
       } else if (
         camelKey === "role" &&
         typeof value === "string" &&
@@ -94,9 +149,11 @@ function normalizeKeys(obj: unknown, opaque = false): unknown {
         result[camelKey] = value.slice(5).toLowerCase();
       } else if (camelKey === "content" && Array.isArray(value)) {
         // v0.3 servers used "content" for message/artifact parts; normalize to "parts" for backward compat
-        result.parts = normalizeKeys(value, false);
-      } else if (camelKey !== "parts" || !("parts" in result)) {
+        result.parts = normalizeParts(value);
+      } else if (camelKey === "parts" && Array.isArray(value)) {
         // dedup: "content" was already mapped to parts above; don't overwrite
+        if (!("parts" in result)) result.parts = normalizeParts(value);
+      } else if (camelKey !== "parts" || !("parts" in result)) {
         result[camelKey] = isOpaqueChild ? value : normalizeKeys(value, false);
       }
     }
@@ -123,33 +180,78 @@ function toWireMessage(msg: A2AMessage): unknown {
 function discriminateStreamResponse(
   data: Record<string, unknown>,
 ): A2AStreamEvent | null {
-  if ("task" in data && data.task) {
-    return { type: "task", task: data.task as A2ATask };
+  if ("task" in data) {
+    const task = toWrappedTask(data.task);
+    if (task) return { type: "task", task };
   }
-  if ("message" in data && data.message) {
-    return { type: "message", message: data.message as A2AMessage };
+  if ("message" in data) {
+    const message = toWrappedMessage(data.message);
+    if (message) return { type: "message", message };
   }
-  if ("statusUpdate" in data && data.statusUpdate) {
-    return {
-      type: "statusUpdate",
-      event: data.statusUpdate as A2AStreamEvent extends {
-        type: "statusUpdate";
-        event: infer E;
-      }
-        ? E
-        : never,
-    };
+  if ("statusUpdate" in data) {
+    const statusUpdate = toWrappedStatusUpdate(data.statusUpdate);
+    if (statusUpdate) {
+      return {
+        type: "statusUpdate",
+        event: statusUpdate as A2AStreamEvent extends {
+          type: "statusUpdate";
+          event: infer E;
+        }
+          ? E
+          : never,
+      };
+    }
   }
-  if ("artifactUpdate" in data && data.artifactUpdate) {
-    return {
-      type: "artifactUpdate",
-      event: data.artifactUpdate as A2AStreamEvent extends {
-        type: "artifactUpdate";
-        event: infer E;
-      }
-        ? E
-        : never,
-    };
+  if ("artifactUpdate" in data) {
+    const artifactUpdate = toWrappedArtifactUpdate(data.artifactUpdate);
+    if (artifactUpdate) {
+      return {
+        type: "artifactUpdate",
+        event: artifactUpdate as A2AStreamEvent extends {
+          type: "artifactUpdate";
+          event: infer E;
+        }
+          ? E
+          : never,
+      };
+    }
+  }
+  // JSON-RPC streaming results are the event itself, flat, discriminated by
+  // `kind` (per the A2A JSON-RPC schema), rather than wrapped in a
+  // REST-style single-key envelope. The field sets cannot collide with the
+  // wrapper keys above, so this is a pure fallthrough.
+  const { kind, ...flat } = data;
+  switch (kind) {
+    case "task":
+      if (!isTask(flat)) break;
+      return { type: "task", task: flat };
+    case "message":
+      if (!isMessage(flat)) break;
+      return { type: "message", message: flat };
+    case "status-update": {
+      if (!isStatusUpdate(flat)) break;
+      const { final: _final, ...event } = flat;
+      return {
+        type: "statusUpdate",
+        event: event as unknown as A2AStreamEvent extends {
+          type: "statusUpdate";
+          event: infer E;
+        }
+          ? E
+          : never,
+      };
+    }
+    case "artifact-update":
+      if (!isArtifactUpdate(flat)) break;
+      return {
+        type: "artifactUpdate",
+        event: flat as unknown as A2AStreamEvent extends {
+          type: "artifactUpdate";
+          event: infer E;
+        }
+          ? E
+          : never,
+      };
   }
   return null;
 }
@@ -182,23 +284,189 @@ const ROLES: ReadonlySet<string> = new Set(
 const isRole = (value: unknown): value is A2ARole =>
   typeof value === "string" && ROLES.has(value);
 
+// Ids reach task state and the next request body unchecked by anything
+// downstream, so an id that is present and not null must be a string.
+// An omitted or null id keeps the acceptance each path already had.
+const hasOptionalStringIds = (
+  value: Record<string, unknown>,
+  keys: readonly string[],
+): boolean =>
+  keys.every((key) => value[key] == null || typeof value[key] === "string");
+
+const hasOptionalStringFields = (
+  value: Record<string, unknown>,
+  keys: readonly string[],
+): boolean =>
+  keys.every(
+    (key) => value[key] === undefined || typeof value[key] === "string",
+  );
+
+const isPart = (value: unknown): value is A2APart =>
+  isRecord(value) &&
+  hasOptionalStringFields(value, PART_STRING_FIELDS) &&
+  (value.metadata === undefined || isRecord(value.metadata));
+
+const hasValidNestedParts = (value: unknown): boolean =>
+  !isRecord(value) || !Array.isArray(value.parts) || value.parts.every(isPart);
+
+const hasValidNestedPartsInCollection = (value: unknown): boolean =>
+  !Array.isArray(value) || value.every(hasValidNestedParts);
+
 const isTask = (value: unknown): value is A2ATask =>
   isRecord(value) &&
   typeof value.id === "string" &&
   value.id.length > 0 &&
+  hasOptionalStringIds(value, ["contextId"]) &&
   isRecord(value.status) &&
-  isTaskState(value.status.state);
+  isTaskState(value.status.state) &&
+  hasValidNestedParts(value.status.message) &&
+  hasValidNestedPartsInCollection(value.artifacts) &&
+  hasValidNestedPartsInCollection(value.history);
 
 const isMessage = (value: unknown): value is A2AMessage =>
   isRecord(value) &&
   typeof value.messageId === "string" &&
   value.messageId.length > 0 &&
+  hasOptionalStringIds(value, ["contextId", "taskId"]) &&
   isRole(value.role) &&
   Array.isArray(value.parts) &&
-  value.parts.every(isRecord);
+  value.parts.every(isPart);
+
+// Legacy wrappers use ProtoJSON, where omitted and null fields decode to proto
+// defaults. Normalize those defaults before enforcing semantic requirements.
+// Filling a null id with the ProtoJSON default does not make it a string, and
+// the shape guards below check the fields they name rather than the ids. The
+// runtime reads these straight into task state and the next request body.
+const hasStringIds = (
+  value: Record<string, unknown>,
+  keys: readonly string[],
+): boolean => keys.every((key) => typeof value[key] === "string");
+
+const toWrappedTaskStatus = (
+  value: unknown,
+): Record<string, unknown> | null => {
+  if (!isRecord(value)) return null;
+  return {
+    ...value,
+    state: value.state == null ? "unspecified" : value.state,
+  };
+};
+
+const toWrappedTask = (value: unknown): A2ATask | null => {
+  if (!isRecord(value)) return null;
+  const status = toWrappedTaskStatus(value.status);
+  if (!status) return null;
+
+  const task = {
+    ...value,
+    contextId: value.contextId == null ? "" : value.contextId,
+    status,
+  };
+  return isTask(task) && hasStringIds(task, ["contextId"]) ? task : null;
+};
+
+const toWrappedMessage = (value: unknown): A2AMessage | null => {
+  if (!isRecord(value)) return null;
+
+  const message = {
+    ...value,
+    contextId: value.contextId == null ? "" : value.contextId,
+    taskId: value.taskId == null ? "" : value.taskId,
+    role: value.role == null ? "unspecified" : value.role,
+    parts: value.parts == null ? [] : value.parts,
+  };
+  return isMessage(message) && hasStringIds(message, ["contextId", "taskId"])
+    ? message
+    : null;
+};
+
+const isStatusUpdate = (
+  value: unknown,
+  allowEmptyTaskId = false,
+): value is Record<string, unknown> =>
+  isRecord(value) &&
+  typeof value.taskId === "string" &&
+  (allowEmptyTaskId || value.taskId.length > 0) &&
+  hasOptionalStringIds(value, ["contextId"]) &&
+  isRecord(value.status) &&
+  isTaskState(value.status.state) &&
+  hasValidNestedParts(value.status.message);
+
+const toWrappedStatusUpdate = (
+  value: unknown,
+): Record<string, unknown> | null => {
+  if (!isRecord(value) || !isRecord(value.status)) return null;
+
+  const statusUpdate = {
+    ...value,
+    taskId: value.taskId == null ? "" : value.taskId,
+    contextId: value.contextId == null ? "" : value.contextId,
+    status: toWrappedTaskStatus(value.status),
+  };
+  return isStatusUpdate(statusUpdate, true) &&
+    hasStringIds(statusUpdate, ["taskId", "contextId"])
+    ? statusUpdate
+    : null;
+};
+
+const isArtifact = (value: unknown): value is Record<string, unknown> =>
+  isRecord(value) &&
+  typeof value.artifactId === "string" &&
+  Array.isArray(value.parts) &&
+  value.parts.every(isPart);
+
+const isArtifactUpdate = (value: unknown): value is Record<string, unknown> =>
+  isRecord(value) &&
+  hasOptionalStringIds(value, ["contextId", "taskId"]) &&
+  isArtifact(value.artifact);
+
+const toWrappedArtifact = (value: unknown): Record<string, unknown> | null => {
+  if (!isRecord(value)) return null;
+
+  const artifact = {
+    ...value,
+    artifactId: value.artifactId == null ? "" : value.artifactId,
+    parts: value.parts == null ? [] : value.parts,
+  };
+  return isArtifact(artifact) ? artifact : null;
+};
+
+const toWrappedArtifactUpdate = (
+  value: unknown,
+): Record<string, unknown> | null => {
+  if (!isRecord(value)) return null;
+  const artifact = toWrappedArtifact(value.artifact);
+  if (!artifact) return null;
+
+  const artifactUpdate = {
+    ...value,
+    taskId: value.taskId == null ? "" : value.taskId,
+    contextId: value.contextId == null ? "" : value.contextId,
+    artifact,
+  };
+  return isArtifactUpdate(artifactUpdate) &&
+    hasStringIds(artifactUpdate, ["taskId", "contextId"])
+    ? artifactUpdate
+    : null;
+};
 
 const isStringArray = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((item) => typeof item === "string");
+
+const toJsonRpcError = (error: unknown): A2AError => {
+  const rpcError = error as { code?: number; message?: string; data?: unknown };
+  return new A2AError({
+    code: rpcError.code ?? -1,
+    status: "JSONRPC_ERROR",
+    message: rpcError.message ?? "A2A JSON-RPC error",
+    details:
+      rpcError.data === undefined
+        ? undefined
+        : Array.isArray(rpcError.data)
+          ? rpcError.data
+          : [rpcError.data],
+  });
+};
 
 const invalidAgentCard = (): never => {
   throw new Error(
@@ -412,6 +680,49 @@ function signalInit(signal?: AbortSignal): RequestInit {
   return signal ? { signal } : {};
 }
 
+const getAbortReason = (signal: AbortSignal): unknown => {
+  if (signal.reason !== undefined) return signal.reason;
+  const error = new Error("The operation was aborted");
+  error.name = "AbortError";
+  return error;
+};
+
+const raceWithAbortSignal = <T>(
+  signal: AbortSignal | undefined,
+  operation: () => T | PromiseLike<T>,
+): Promise<T> => {
+  if (!signal) return Promise.resolve().then(operation);
+  if (signal.aborted) return Promise.reject(getAbortReason(signal));
+
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => signal.removeEventListener("abort", handleAbort);
+    const resolveOnce = (value: T) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(value);
+    };
+    const rejectOnce = (error: unknown) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(error);
+    };
+    const handleAbort = () => rejectOnce(getAbortReason(signal));
+
+    signal.addEventListener("abort", handleAbort, { once: true });
+    let result: T | PromiseLike<T>;
+    try {
+      result = operation();
+    } catch (error) {
+      rejectOnce(error);
+      return;
+    }
+    Promise.resolve(result).then(resolveOnce, rejectOnce);
+  });
+};
+
 const SKIPPED_FRAME_SNIPPET_LENGTH = 120;
 
 function describeSkippedFrame(data: string, reason: string): string {
@@ -460,10 +771,11 @@ export class A2AClient {
 
   private async getHeaders(
     includeContentType = true,
+    signal?: AbortSignal,
   ): Promise<Record<string, string>> {
     const custom =
       typeof this.headersFn === "function"
-        ? await this.headersFn()
+        ? await raceWithAbortSignal(signal, this.headersFn)
         : this.headersFn;
     const headers: Record<string, string> = {
       Accept: "application/a2a+json, application/json",
@@ -509,7 +821,7 @@ export class A2AClient {
     options: RequestInit = {},
   ): Promise<T> {
     const isGet = !options.method || options.method.toUpperCase() === "GET";
-    const headers = await this.getHeaders(!isGet);
+    const headers = await this.getHeaders(!isGet, options.signal ?? undefined);
     const response = await fetch(`${this.baseUrl}${path}`, {
       ...this.fetchOptions,
       ...options,
@@ -522,13 +834,26 @@ export class A2AClient {
       await this.throwResponseError(response);
     }
     const json = await response.json();
+    if (json && typeof json === "object" && "jsonrpc" in json) {
+      if ("error" in json && json.error) {
+        throw toJsonRpcError(json.error);
+      }
+      if ("result" in json) {
+        const result = normalizeKeys(json.result);
+        if (isRecord(result) && typeof result.kind === "string") {
+          const { kind: _kind, ...rest } = result;
+          return rest as T;
+        }
+        return result as T;
+      }
+    }
     return normalizeKeys(json) as T;
   }
 
   // --- Agent Card ---
 
   async getAgentCard(signal?: AbortSignal): Promise<A2AAgentCard> {
-    const headers = await this.getHeaders(false); // GET: no Content-Type
+    const headers = await this.getHeaders(false, signal); // GET: no Content-Type
     const url = `${this.baseUrl}/.well-known/agent-card.json`;
     const response = await fetch(url, {
       ...this.fetchOptions,
@@ -582,7 +907,7 @@ export class A2AClient {
     metadata?: Record<string, unknown>,
     signal?: AbortSignal,
   ): AsyncGenerator<A2AStreamEvent> {
-    const headers = await this.getHeaders(true);
+    const headers = await this.getHeaders(true, signal);
     headers.Accept = "text/event-stream";
 
     const body: Record<string, unknown> = {
@@ -673,7 +998,7 @@ export class A2AClient {
     taskId: string,
     signal?: AbortSignal,
   ): AsyncGenerator<A2AStreamEvent> {
-    const headers = await this.getHeaders(false); // GET: no Content-Type
+    const headers = await this.getHeaders(false, signal); // GET: no Content-Type
     headers.Accept = "text/event-stream";
 
     const response = await fetch(
@@ -751,7 +1076,7 @@ export class A2AClient {
     signal?: AbortSignal,
   ): Promise<void> {
     const isGet = false;
-    const headers = await this.getHeaders(!isGet);
+    const headers = await this.getHeaders(!isGet, signal);
     const response = await fetch(
       `${this.baseUrl}${this.getBasePath()}/tasks/${encodeURIComponent(taskId)}/pushNotificationConfigs/${encodeURIComponent(configId)}`,
       {
@@ -798,13 +1123,13 @@ export class A2AClient {
       try {
         let parsed = JSON.parse(event.data);
 
-        if (
-          parsed &&
-          typeof parsed === "object" &&
-          "jsonrpc" in parsed &&
-          "result" in parsed
-        ) {
-          parsed = parsed.result;
+        if (parsed && typeof parsed === "object" && "jsonrpc" in parsed) {
+          if ("error" in parsed && parsed.error) {
+            throw toJsonRpcError(parsed.error);
+          }
+          if ("result" in parsed) {
+            parsed = parsed.result;
+          }
         }
 
         const normalized = normalizeKeys(parsed) as Record<string, unknown>;
@@ -812,6 +1137,7 @@ export class A2AClient {
         if (!streamEvent) noteSkip(event.data, "unrecognized event shape");
         return streamEvent;
       } catch (error) {
+        if (error instanceof A2AError) throw error;
         noteSkip(
           event.data,
           error instanceof Error ? error.message : String(error),

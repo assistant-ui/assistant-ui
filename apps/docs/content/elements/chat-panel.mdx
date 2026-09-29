@@ -1,0 +1,226 @@
+---
+title: "Chat panel"
+description: "The whole family working together: a message, a pause, a streamed reply."
+---
+
+A chat panel is the smallest complete slice of a thread: a scrollable message list, a bubble per role, a beat while the reply is in flight, and a composer that sends. With a runtime the pieces wire to live thread state; standalone you arrange the same pieces around whatever messages and handlers you pass in.
+
+## Getting started
+
+<RuntimeMode>
+
+assistant-ui's `Thread` element already ships a complete version of this composition, wired end to end from viewport to composer. Build it from these pieces yourself only when you want a smaller, custom shell instead of the full `Thread`.
+
+<Steps>
+  <Step>
+
+### Render the message list
+
+`ThreadPrimitive.Viewport` takes over scrolling from `ChatPanelMessages`; pass it as the `asChild` target so the panel keeps `ChatPanelMessages`'s look while the viewport owns the behavior:
+
+```tsx title="components/assistant-ui/elements/chat-panel.tsx"
+"use client";
+
+import { ThreadPrimitive, MessagePrimitive } from "@assistant-ui/react";
+import { ChatPanel, ChatPanelMessages, ChatPanelUserMessage, ChatPanelAssistantMessage } from "./chat-panel";
+
+export function LiveChatPanel() {
+  return (
+    <ChatPanel>
+      <ThreadPrimitive.Viewport asChild>
+        <ChatPanelMessages>
+          <ThreadPrimitive.Messages>
+            {({ message }) =>
+              message.role === "user" ? (
+                <ChatPanelUserMessage>
+                  <MessagePrimitive.Parts />
+                </ChatPanelUserMessage>
+              ) : (
+                <ChatPanelAssistantMessage>
+                  <MessagePrimitive.Parts />
+                </ChatPanelAssistantMessage>
+              )
+            }
+          </ThreadPrimitive.Messages>
+        </ChatPanelMessages>
+      </ThreadPrimitive.Viewport>
+    </ChatPanel>
+  );
+}
+```
+
+`ThreadPrimitive.Messages`'s render function is called once per message, already scoped to it, so `MessagePrimitive.Parts` and `message.role` inside resolve to that message.
+
+  </Step>
+  <Step>
+
+### Add a composer and a running state
+
+```tsx
+import { AuiIf, ComposerPrimitive } from "@assistant-ui/react";
+import { ChatPanelComposer, ChatPanelTyping } from "./chat-panel";
+
+<AuiIf condition={(s) => s.thread.isRunning}>
+  <ChatPanelTyping />
+</AuiIf>
+
+<ComposerPrimitive.Root className="mx-3 mb-3 flex h-10 shrink-0 items-center rounded-full">
+  <ComposerPrimitive.Input placeholder="Message..." />
+  <ComposerPrimitive.Send />
+</ComposerPrimitive.Root>
+```
+
+`s.thread.isRunning` is `true` for as long as a stream is connected to the backend, which is when `ChatPanelTyping`'s bounce reads as thinking. `ComposerPrimitive.Send` disables itself the same way `ChatPanelComposer`'s button does, whenever the composer has nothing to send.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, you hold the transcript yourself and hand each turn to the matching piece.
+
+<Steps>
+  <Step>
+
+### Assemble the panel
+
+```tsx title="app/panel.tsx"
+"use client";
+
+import {
+  ChatPanel,
+  ChatPanelMessages,
+  ChatPanelUserMessage,
+  ChatPanelAssistantMessage,
+  ChatPanelTyping,
+  ChatPanelComposer,
+} from "@/components/assistant-ui/elements/chat-panel";
+
+export function Panel() {
+  return (
+    <ChatPanel>
+      <ChatPanelMessages>
+        <ChatPanelUserMessage>What's the capital of France?</ChatPanelUserMessage>
+        <ChatPanelAssistantMessage>Paris.</ChatPanelAssistantMessage>
+        <ChatPanelTyping />
+      </ChatPanelMessages>
+      <ChatPanelComposer placeholder="Message..." onSend={() => {}} />
+    </ChatPanel>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Handle the send
+
+`ChatPanelComposer` shows `placeholder` as static text and calls `onSend` on click; it holds no text value of its own, so pair it with your own input state if you need a working field:
+
+```tsx
+const [sending, setSending] = useState(false);
+
+<ChatPanelComposer
+  placeholder={sending ? "Sending..." : "Message..."}
+  onSend={!sending ? () => setSending(true) : undefined}
+/>
+```
+
+The send button disables itself whenever `onSend` is left `undefined`.
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="chat-panel">
+  <div data-slot="chat-panel-messages">
+    <div data-slot="chat-panel-user-message" />
+    <p data-slot="chat-panel-assistant-message" />
+    <div data-slot="chat-panel-typing" />
+  </div>
+  <div data-slot="chat-panel-composer">
+    <span>{/* placeholder text */}</span>
+    <button aria-label="Send" />
+  </div>
+</div>
+```
+
+`ChatPanelComposer` is a shell, not a text field: `placeholder` is text it displays, not a bound value, and the send button's only behavior is calling `onSend` when present. It renders disabled whenever `onSend` is `undefined`, the same rule `EmptyStateComposer` follows. `ChatPanelTyping` and `ChatPanelUserMessage` both fade and slide in on mount; change their `key` if you want that entrance to replay for a new message.
+
+## Examples
+
+### Reuse pieces individually
+
+Every part, `ChatPanel`, `ChatPanelMessages`, `ChatPanelUserMessage`, `ChatPanelAssistantMessage`, `ChatPanelTyping`, and `ChatPanelComposer`, accepts `className` and forwards the rest of its element's props, so pieces recombine outside the default card shape, for example a full-height page shell instead of the fixed `h-[270px]` card:
+
+```tsx
+<ChatPanel className="h-full max-w-none rounded-none border-none">
+  {/* ... */}
+</ChatPanel>
+```
+
+### Typing state
+
+<RuntimeMode>
+
+Gate `ChatPanelTyping` on the thread's running flag so it only shows while a reply is in flight:
+
+```tsx
+<AuiIf condition={(s) => s.thread.isRunning}>
+  <ChatPanelTyping />
+</AuiIf>
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, render it whenever your own state says a reply is pending; nothing inside the component reads elapsed time or message state on its own.
+
+</StandaloneMode>
+
+## API reference
+
+<RuntimeMode>
+
+### Primitive parts
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `ThreadPrimitive.Viewport` | `div` | Scrollable message area; auto-scrolls to the bottom on new messages by default. Accepts `asChild`. |
+| `ThreadPrimitive.Messages` | children | Calls its `children` render function once per message, already scoped to that message. |
+| `MessagePrimitive.Parts` | children | Renders the active message's content. |
+| `ComposerPrimitive.Root` / `.Input` / `.Send` | `form` / `textarea` / `button` | The real composer; `.Send` disables itself when the composer can't send. |
+| `AuiIf` | children | Renders `children` while `condition` selects `true` from state. |
+
+### Thread state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.thread.isRunning` | `boolean` | `true` while a stream is connected to the backend. |
+| `s.message.role` | `"user" \| "assistant" \| "system"` | Read inside `ThreadPrimitive.Messages`'s render function to pick a bubble. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### ChatPanel family
+
+| Part | Renders | Props | Description |
+|------|---------|-------|-------------|
+| `ChatPanel` | `div` | `className` | Root card. Fixed `h-[270px]`, `max-w-md`. |
+| `ChatPanelMessages` | `div` | `className` | Scrollable, bottom-anchored message list. |
+| `ChatPanelUserMessage` | `div` | `className` | A right-aligned bubble. Fades and slides in on mount. |
+| `ChatPanelAssistantMessage` | `p` | `className` | A left-aligned, unbubbled line of text. |
+| `ChatPanelTyping` | `div` | `className` (no `children`) | Three bouncing dots. |
+| `ChatPanelComposer` | `div` | `placeholder` (required `string`), `onSend?: () => void`, `className` | Shows static placeholder text and a send button; `onSend` fires on click and the button disables without it. |
+
+All other props for each part forward to its root element.
+
+</StandaloneMode>

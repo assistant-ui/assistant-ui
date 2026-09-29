@@ -1,0 +1,124 @@
+---
+title: Badge
+description: A small label component for displaying status, categories, or metadata.
+links:
+  - label: Radix UI Slot (Radix styles)
+    url: https://www.radix-ui.com/primitives/docs/utilities/slot
+  - label: Base UI useRender (base styles)
+    url: https://base-ui.com/react/utils/use-render
+---
+
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import {
+  BadgeSample,
+  BadgeWithIconSample,
+  BadgeAsLinkSample,
+  BadgeAnimatedSample,
+} from "@/components/pages/docs/samples/badge";
+import * as BadgeRadixSamples from "@/components/pages/docs/samples/badge.radix";
+import { Flavored, FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
+
+<FlavorSwitcher />
+
+<Flavored radix={<BadgeRadixSamples.BadgeSample />} base={<BadgeSample />} />
+
+## Installation
+
+<InstallCommand shadcn={["badge"]} />
+
+## Usage
+
+```tsx
+import { Badge } from "@/components/ui/badge";
+
+export function Example() {
+  return <Badge>Label</Badge>;
+}
+```
+
+## Examples
+
+### Variants
+
+Use the `variant` prop to change the visual style.
+
+<Flavored radix={<BadgeRadixSamples.BadgeSample />} base={<BadgeSample />} />
+
+```tsx
+<Badge variant="default" />
+<Badge variant="secondary" />
+<Badge variant="destructive" />
+<Badge variant="outline" />
+<Badge variant="ghost" />
+<Badge variant="link" />
+```
+
+### With icons
+
+Badges automatically style SVG icons.
+
+<PreviewCode file="components/pages/docs/samples/badge" name="BadgeWithIconSample" base={<BadgeWithIconSample />}>
+  <BadgeRadixSamples.BadgeWithIconSample />
+</PreviewCode>
+
+### As link
+
+Compose with `render` in Base UI or `asChild` in Radix to render a badge as a link.
+
+<PreviewCode file="components/pages/docs/samples/badge" name="BadgeAsLinkSample" base={<BadgeAsLinkSample />}>
+  <BadgeRadixSamples.BadgeAsLinkSample />
+</PreviewCode>
+
+### Animated
+
+Combine the badge with CSS transitions for state changes.
+
+<PreviewCode file="components/pages/docs/samples/badge" name="BadgeAnimatedSample" base={<BadgeAnimatedSample />}>
+  <BadgeRadixSamples.BadgeAnimatedSample />
+</PreviewCode>
+
+## API Reference
+
+### Badge
+
+<ParametersTable
+  type="BadgeProps"
+  parameters={[
+    {
+      name: "variant",
+      type: '"default" | "secondary" | "destructive" | "outline" | "ghost" | "link"',
+      default: '"default"',
+      description: "The visual style of the badge.",
+    },
+    {
+      name: "render",
+      type: "ReactElement | function",
+      description: "Base UI: compose as a different element.",
+    },
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Radix: merge props with a child element.",
+    },
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes.",
+    },
+  ]}
+/>
+
+### Style variants
+
+| Export | Description |
+|--------|-------------|
+| `badgeVariants` | Styles for the badge component. |
+
+```tsx
+import { badgeVariants } from "@/components/ui/badge";
+
+<span className={badgeVariants({ variant: "secondary" })}>
+  Custom badge
+</span>
+```

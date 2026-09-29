@@ -1,0 +1,183 @@
+---
+title: "Onboarding"
+description: "First run: three moves that teach what this assistant is actually for."
+---
+
+A short, dismissible tour: one step at a time, each with a line of body copy and a worked example, a progress dot per step, and Skip next to Next. With a runtime the one thing worth wiring is what happens when the tour ends; standalone every transition is a callback you already control.
+
+## Getting started
+
+<RuntimeMode>
+
+The steps themselves, their copy and their order, are content you write, not state the runtime holds; there is nothing to read from `useAuiState` here. The one real touchpoint is what "Skip" and the final "Next" actually do: hand off to the thread.
+
+<Steps>
+  <Step>
+
+### Hand off to the thread when the tour ends
+
+```tsx title="components/assistant-ui/elements/first-run.tsx"
+"use client";
+
+import { useState } from "react";
+import { useAui } from "@assistant-ui/react";
+import {
+  Onboarding,
+  type OnboardingStep,
+} from "@/components/assistant-ui/elements/onboarding";
+
+const STEPS: OnboardingStep[] = [
+  { title: "Ask anything", body: "Type a question, it answers in place.", example: "Summarize this PDF" },
+  { title: "It can act, not just answer", body: "Grant a tool and it can search, run code, or call your API.", example: "Check the weather in Tokyo" },
+  { title: "Every answer is a branch", body: "Regenerating never loses the original; step between versions.", example: "n / m stepper on any reply" },
+];
+
+export function FirstRun({ onFinish }: { onFinish: () => void }) {
+  const aui = useAui();
+  const [index, setIndex] = useState(0);
+  const last = index >= STEPS.length - 1;
+
+  const finish = () => {
+    aui.threads.switchToNewThread();
+    onFinish();
+  };
+
+  return (
+    <Onboarding
+      steps={STEPS}
+      index={index}
+      onNext={() => (last ? finish() : setIndex((i) => i + 1))}
+      onSkip={finish}
+    />
+  );
+}
+```
+
+`switchToNewThread()` only matters if your app defers creating a thread until the tour is dismissed; if the thread and composer already exist behind the overlay, `finish` can just call `onFinish()` and let them take over.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the tour is entirely local: `index` is state you hold, and `onNext` deciding whether to advance or finish is the only logic involved.
+
+<Steps>
+  <Step>
+
+### Hold the step index
+
+```tsx title="app/tour.tsx"
+"use client";
+
+import { useState } from "react";
+import {
+  Onboarding,
+  type OnboardingStep,
+} from "@/components/assistant-ui/elements/onboarding";
+
+const steps: OnboardingStep[] = [
+  { title: "Welcome", body: "Three quick things before you start.", example: "…" },
+  { title: "Ask in plain language", body: "No special syntax needed.", example: "What changed in v4?" },
+];
+
+export function Tour({ onDone }: { onDone: () => void }) {
+  const [index, setIndex] = useState(0);
+  const last = index >= steps.length - 1;
+
+  return (
+    <Onboarding
+      steps={steps}
+      index={index}
+      onNext={() => (last ? onDone() : setIndex(index + 1))}
+      onSkip={onDone}
+    />
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="onboarding">
+  <div>
+    {/* keyed on the current step, so it fades in fresh every change */}
+    <span>{/* "n of m" */}</span>
+    <span>{/* step title */}</span>
+    <p>{/* step body */}</p>
+    <span>{/* step example */}</span>
+  </div>
+  <div>
+    <span>{/* one dot per step, decorative only */}</span>
+    <button>{/* Skip */}</button>
+    <button>{/* Next, or Start on the last step */}</button>
+  </div>
+</div>
+```
+
+With zero steps the element renders nothing at all, not an empty shell; `steps[0]` being undefined is the signal it checks. `index` is floored and clamped into `0…steps.length - 1` before use, so a value outside that range, or a fractional one, still resolves to a real step instead of rendering blank. The element owns no progression: `onNext` and `onSkip` are pure signals, not state changes, so nothing advances until the caller moves `index` itself, as in both examples above. The progress dots are `aria-hidden` and purely visual; they are not buttons, so nothing lets a user jump back to an earlier step by clicking one.
+
+## Examples
+
+### Adding a way back
+
+Since `index` is a plain controlled prop and the element never advances it, a back control is exactly as valid as `onNext`, even though nothing built in renders one:
+
+```tsx
+<button type="button" onClick={() => setIndex((i) => Math.max(0, i - 1))}>
+  Back
+</button>
+```
+
+### Restyle the tour
+
+Both lanes take `className` on the root. The example block sits on the `field` surface and the final button on `inkButton`, so retheming those two tokens covers the card's two accent surfaces together.
+
+```tsx
+<Onboarding className="max-w-xs" /* ... */ />
+```
+
+## API reference
+
+<RuntimeMode>
+
+This element has no dedicated primitive; the only runtime call involved is finishing the tour, as in Getting started.
+
+### Threads
+
+| Method | Type | Description |
+|--------|------|-------------|
+| `aui.threads.switchToNewThread()` | `() => void` | Selects a fresh, unsent thread as the open one. Only needed when thread creation is deferred until onboarding completes. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### Onboarding
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `steps` | `readonly OnboardingStep[]` | required | The tour's steps, in order. An empty array renders nothing. |
+| `index` | `number` | required | The step to show. Floored and clamped into `0…steps.length - 1`. |
+| `onNext` | `() => void` | | Called when "Next" (or "Start", on the last step) is pressed. Does not change `index` itself. |
+| `onSkip` | `() => void` | | Called when "Skip" is pressed. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+### OnboardingStep
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `title` | `string` | Step heading. |
+| `body` | `string` | One paragraph of explanation. |
+| `example` | `string` | A worked example shown in its own field below the body. |
+
+</StandaloneMode>

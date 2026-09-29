@@ -1,6 +1,6 @@
 "use client";
 
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 import { SampleRuntimeProvider } from "@/components/pages/docs/samples/sample-runtime-provider";
 

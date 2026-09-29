@@ -38,12 +38,10 @@ export function CodeCollapsible({
           onClick={() => setIsOpen(true)}
           aria-expanded={isOpen}
           aria-controls={previewId}
-          className="from-fd-background via-fd-background/90 text-muted-foreground absolute inset-x-0 bottom-0 flex h-24 cursor-pointer items-end justify-center rounded-b-lg bg-linear-to-t to-transparent pb-2 text-sm"
+          className="border-foreground/10 bg-background text-muted-foreground hover:text-foreground absolute inset-x-0 bottom-0 flex h-9 cursor-pointer items-center justify-center gap-1.5 border-t font-mono text-[11px] tracking-wide transition-colors"
         >
-          <span className="flex items-center gap-1">
-            <ChevronDownIcon className="size-4" />
-            Show more
-          </span>
+          <ChevronDownIcon className="size-3.5" />
+          Show more
         </button>
       )}
     </div>

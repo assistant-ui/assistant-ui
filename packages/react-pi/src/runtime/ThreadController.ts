@@ -26,6 +26,7 @@ import { projectPiThreadMessagesShared } from "./messageProjection";
 import {
   responseForApproval,
   responseForInterrupt,
+  responseForToolApproval,
   type PiInterruptAnswer,
 } from "./hostUi";
 import type {
@@ -48,8 +49,17 @@ export type PiSendOptions = {
 
 export type PiNotificationScheduler = (flush: () => void) => void;
 
+/** `getStateSnapshot` (or `getState` where it is absent) and
+ * `getMessageRepository` are read as `useSyncExternalStore` snapshots, so an
+ * implementation must return a reference that changes only when a subscribed
+ * channel notifies; a freshly built value per call loops React. */
 export interface PiThreadControllerLike {
   getState(): PiThreadState;
+  /** The state as of the last listener notification. `getState()` can run
+   * ahead of it while a coalesced message frame is pending, so only this is a
+   * valid `useSyncExternalStore` snapshot. Optional for backwards
+   * compatibility; callers fall back to `getState()`. */
+  getStateSnapshot?(): PiThreadState;
   getProjectedMessages(): readonly ThreadMessageLike[];
   getMessageRepository(): ExportedMessageRepository;
   getVersion(): number;
@@ -66,9 +76,11 @@ export interface PiThreadControllerLike {
   clearQueue(): Promise<{ steering: string[]; followUp: string[] }>;
   setModel(input: { provider: string; modelId: string }): Promise<void>;
   setThinkingLevel(level: PiThinkingLevel): Promise<void>;
-  /** Answer a native tool-call approval (`confirm`). */
+  /** Answer a request by its id with a decision alone: a `confirm` takes it as
+   * is, a refusal dismisses any other kind, and accepting one without its
+   * option or text rejects. */
   respondToToolApproval(approvalId: string, approved: boolean): Promise<void>;
-  /** Resolve a native tool-call interrupt (`select`/`input`/`editor`). */
+  /** Answer the host-UI request raised during a tool call, by `toolCallId`. */
   resumeToolCall(toolCallId: string, payload: unknown): Promise<void>;
   /** Answer a side-channel (free-standing) host-UI request directly. */
   respondToHostUiRequest(response: PiHostUiResponse): Promise<void>;
@@ -228,6 +240,7 @@ const markStateRunning = (state: PiThreadState): PiThreadState => {
 
 export class PiThreadController implements PiThreadControllerLike {
   private state: PiThreadState;
+  private stateSnapshot: PiThreadState;
   private projectedMessages: readonly ThreadMessageLike[] = [];
   private messageRepository = ExportedMessageRepository.fromArray([]);
   private version = 0;
@@ -237,11 +250,11 @@ export class PiThreadController implements PiThreadControllerLike {
   private connectionRetainers = 0;
   private readonly optimisticUserMessages: OptimisticUserMessage[] = [];
   private unsubscribeFromEvents: (() => void) | null = null;
+  private eventSubscriptionGeneration = 0;
   private disconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private loadPromise: Promise<void> | null = null;
   private messageFlushScheduled = false;
-  /** Synthetic seq for snapshots produced locally (via `getThread`), kept below
-   * the supervisor's live seqs so they never suppress real events. */
+  /** Fallback sequence for snapshots without a supervisor-provided sequence. */
   private readonly localSnapshotSeq = 0;
 
   private readonly client: PiClient;
@@ -261,10 +274,15 @@ export class PiThreadController implements PiThreadControllerLike {
     this.threadId = threadId;
     this.options = options;
     this.state = createPiThreadState(threadId);
+    this.stateSnapshot = this.state;
   }
 
   public getState() {
     return this.state;
+  }
+
+  public getStateSnapshot() {
+    return this.stateSnapshot;
   }
 
   public getProjectedMessages() {
@@ -317,24 +335,33 @@ export class PiThreadController implements PiThreadControllerLike {
   public dispose() {
     // React StrictMode can detach then resubscribe the same controller.
     this.clearDisconnectTimer();
-    this.unsubscribeFromEvents?.();
-    this.unsubscribeFromEvents = null;
     this.allListeners.clear();
     this.metadataListeners.clear();
     this.messageListeners.clear();
+    this.disconnectFromEvents();
   }
 
   private ensureEventSubscription(options?: { includeSnapshot?: boolean }) {
     this.clearDisconnectTimer();
     if (this.unsubscribeFromEvents) return;
+    const generation = ++this.eventSubscriptionGeneration;
     this.unsubscribeFromEvents = this.client.subscribe(
       this.threadId,
       (event: PiClientEvent) => {
+        if (generation !== this.eventSubscriptionGeneration) return;
         if (event.threadId !== this.threadId) return;
         this.dispatch(event);
       },
       options,
     );
+  }
+
+  private disconnectFromEvents() {
+    const unsubscribe = this.unsubscribeFromEvents;
+    if (!unsubscribe) return;
+    this.unsubscribeFromEvents = null;
+    this.eventSubscriptionGeneration += 1;
+    unsubscribe();
   }
 
   private hasConsumers(): boolean {
@@ -352,8 +379,7 @@ export class PiThreadController implements PiThreadControllerLike {
     this.disconnectTimer = setTimeout(() => {
       this.disconnectTimer = null;
       if (this.hasConsumers()) return;
-      this.unsubscribeFromEvents?.();
-      this.unsubscribeFromEvents = null;
+      this.disconnectFromEvents();
     }, 30_000);
   }
 
@@ -367,12 +393,13 @@ export class PiThreadController implements PiThreadControllerLike {
     if (this.loadPromise && !force) return this.loadPromise;
 
     this.setState({ ...this.state, loadState: "loading" });
+    const sequenceAtStart = this.state.lastSeq;
 
     const request = this.client
       .getThread(this.threadId)
       .then((snapshot: PiThreadSnapshot) => {
         if (this.loadPromise !== request) return;
-        this.applySnapshot(snapshot);
+        this.applySnapshot(snapshot, sequenceAtStart);
       })
       .catch((error: unknown) => {
         if (this.loadPromise !== request) throw error;
@@ -455,20 +482,24 @@ export class PiThreadController implements PiThreadControllerLike {
     behavior: "followUp" | "steer",
   ) {
     const mode = behavior === "steer" ? "steering" : "followUp";
-    this.setState({
-      ...this.state,
-      queue: {
-        ...this.state.queue,
-        [mode]: [...this.state.queue[mode], input.content],
-      },
-    });
+    const optimisticQueue = {
+      ...this.state.queue,
+      [mode]: [...this.state.queue[mode], input.content],
+    };
+    this.setState({ ...this.state, queue: optimisticQueue });
 
     try {
       await this.client.sendMessage(this.threadId, input);
     } catch (error) {
-      // Roll back only our optimistic entry; the run itself is unaffected.
+      // Roll back only while our optimistic mirror is still exactly what we
+      // set. Any queue write since — a `queue_update`, a snapshot on
+      // (re)connect/refresh, a clear, or a sibling send — replaces the queue
+      // object, and the entry is then no longer ours to match by content:
+      // removing by `lastIndexOf` could delete a surviving identical message.
+      // A later `queue_update` self-heals the stale entry instead.
+      const reconciled = this.state.queue !== optimisticQueue;
       const entries = this.state.queue[mode];
-      const index = entries.lastIndexOf(input.content);
+      const index = reconciled ? -1 : entries.lastIndexOf(input.content);
       this.setState({
         ...this.state,
         lastError: errorText(error),
@@ -486,12 +517,21 @@ export class PiThreadController implements PiThreadControllerLike {
   }
 
   public async clearQueue() {
+    // Snapshot the queue we are clearing. Every queue write allocates a fresh
+    // object — sendQueued, the `queue_update` reducer, and a reconnect/refresh
+    // snapshot (applySnapshot, even when the contents are unchanged) — so a
+    // changed reference means some write landed while the request was in
+    // flight, which may be a refresh rather than a newer message. Bias toward
+    // skipping the local empty when it changed: leaving a stale entry is
+    // self-healed by the next `queue_update`, whereas emptying could drop a
+    // message the server still holds.
+    const queueBefore = this.state.queue;
     const cleared = await this.client.clearQueue(this.threadId);
     // Optimistically empty the local mirror; Pi's own `queue_update` (emitted
     // by `session.clearQueue`) confirms it.
     if (
-      this.state.queue.steering.length > 0 ||
-      this.state.queue.followUp.length > 0
+      this.state.queue === queueBefore &&
+      (queueBefore.steering.length > 0 || queueBefore.followUp.length > 0)
     ) {
       this.setState({
         ...this.state,
@@ -531,7 +571,12 @@ export class PiThreadController implements PiThreadControllerLike {
   }
 
   public async respondToToolApproval(approvalId: string, approved: boolean) {
-    await this.respond(responseForApproval(approvalId, approved));
+    const request = this.state.hostUiRequests.find((r) => r.id === approvalId);
+    await this.respond(
+      request
+        ? responseForToolApproval(request, { approvalId, approved })
+        : responseForApproval(approvalId, approved),
+    );
   }
 
   public async resumeToolCall(toolCallId: string, payload: unknown) {
@@ -574,12 +619,28 @@ export class PiThreadController implements PiThreadControllerLike {
     }
   }
 
-  private applySnapshot(snapshot: PiThreadSnapshot) {
+  private applySnapshot(snapshot: PiThreadSnapshot, sequenceAtStart: number) {
+    const currentSequence = this.state.lastSeq;
+    // Live records stamp snapshots at handle time, so an uncontested snapshot
+    // behind the request-start watermark belongs to a rebuilt record.
+    const sequenceResetWhileLoading = currentSequence < sequenceAtStart;
+    const responseWasOvertaken =
+      snapshot.seq !== undefined &&
+      currentSequence > sequenceAtStart &&
+      snapshot.seq < currentSequence;
+
+    if (sequenceResetWhileLoading || responseWasOvertaken) {
+      if (this.state.loadState !== "loaded") {
+        this.setState({ ...this.state, loadState: "loaded" });
+      }
+      return;
+    }
+
     this.dispatch({
       type: "snapshot",
       snapshot,
       threadId: this.threadId,
-      seq: this.localSnapshotSeq,
+      seq: snapshot.seq ?? this.localSnapshotSeq,
     });
   }
 
@@ -654,7 +715,10 @@ export class PiThreadController implements PiThreadControllerLike {
 
   private recomputeProjectedMessagesAndNotify() {
     const next = this.projectMessages();
-    if (next === this.projectedMessages) return;
+    if (next === this.projectedMessages) {
+      if (this.state !== this.stateSnapshot) this.publishState();
+      return;
+    }
     this.projectedMessages = next;
     // `fromArray` chains messages linearly and keeps their stable `pi-msg:N`
     // ids (its generated id is only a fallback for id-less messages).
@@ -676,13 +740,25 @@ export class PiThreadController implements PiThreadControllerLike {
     this.version += 1;
   }
 
+  /** `message_end` advances state without moving the projection, so neither
+   * the metadata nor the message channel describes what changed. Publishing on
+   * `all` alone reaches every state subscriber without redefining what
+   * `subscribeMetadata` fires for. */
+  private publishState() {
+    this.stateSnapshot = this.state;
+    this.bumpVersion();
+    notifyListeners(this.allListeners);
+  }
+
   private notifyMetadataListeners() {
+    this.stateSnapshot = this.state;
     this.bumpVersion();
     notifyListeners(this.metadataListeners);
     notifyListeners(this.allListeners);
   }
 
   private notifyMessageListeners() {
+    this.stateSnapshot = this.state;
     this.bumpVersion();
     notifyListeners(this.messageListeners);
     notifyListeners(this.allListeners);

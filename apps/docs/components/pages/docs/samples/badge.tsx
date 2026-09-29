@@ -2,40 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { ArrowUpRight, Check, X, AlertCircle, Loader2 } from "lucide-react";
-import { Badge } from "@/components/assistant-ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 import { cn } from "@/lib/utils";
 
 export function BadgeSample() {
   return (
     <SampleFrame className="flex h-auto flex-wrap items-center justify-center gap-3 p-6">
-      <Badge variant="outline">Outline</Badge>
+      <Badge>Default</Badge>
       <Badge variant="secondary">Secondary</Badge>
-      <Badge variant="muted">Muted</Badge>
-      <Badge variant="ghost">Ghost</Badge>
-      <Badge variant="info">Info</Badge>
-      <Badge variant="warning">Warning</Badge>
-      <Badge variant="success">Success</Badge>
       <Badge variant="destructive">Destructive</Badge>
-    </SampleFrame>
-  );
-}
-
-export function BadgeSizesSample() {
-  return (
-    <SampleFrame className="flex h-auto items-center justify-center gap-4 p-6">
-      <div className="flex flex-col items-center gap-2">
-        <span className="text-muted-foreground text-xs">Small</span>
-        <Badge size="sm">Label</Badge>
-      </div>
-      <div className="flex flex-col items-center gap-2">
-        <span className="text-muted-foreground text-xs">Default</span>
-        <Badge size="default">Label</Badge>
-      </div>
-      <div className="flex flex-col items-center gap-2">
-        <span className="text-muted-foreground text-xs">Large</span>
-        <Badge size="lg">Label</Badge>
-      </div>
+      <Badge variant="outline">Outline</Badge>
+      <Badge variant="ghost">Ghost</Badge>
+      <Badge variant="link">Link</Badge>
     </SampleFrame>
   );
 }
@@ -51,7 +30,7 @@ export function BadgeWithIconSample() {
         <X />
         Failed
       </Badge>
-      <Badge variant="muted">
+      <Badge variant="secondary">
         <AlertCircle />
         Pending
       </Badge>
@@ -63,7 +42,7 @@ export function BadgeAsLinkSample() {
   return (
     <SampleFrame className="flex h-auto items-center justify-center gap-3 p-6">
       <Badge
-        variant="muted"
+        variant="secondary"
         render={
           <a
             href="https://github.com/assistant-ui/assistant-ui"
@@ -105,7 +84,7 @@ export function BadgeAnimatedSample() {
   return (
     <SampleFrame className="flex h-auto items-center justify-center p-6">
       <Badge
-        variant={status === "loading" ? "muted" : "success"}
+        variant={status === "loading" ? "secondary" : "default"}
         className="overflow-hidden"
       >
         <span className="relative inline-flex h-4 overflow-hidden">

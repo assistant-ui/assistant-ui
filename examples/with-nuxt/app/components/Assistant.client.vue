@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { AuiConfig, AuiProvider } from "@assistant-ui/vue";
 import { Suggestions } from "@assistant-ui/core/store";
-import { AISDKChat } from "@assistant-ui/ai-sdk";
+import { AISDKThreads } from "@assistant-ui/ai-sdk";
 
 const config = AuiConfig({
-  threads: AISDKChat(),
+  threads: AISDKThreads(),
   suggestions: Suggestions([
     {
-      title: "Plan a weekend trip",
-      label: "three stops, one day each",
-      prompt: "Plan a weekend trip with three stops, one day each.",
+      title: "Check the weather",
+      label: "tool UI demo",
+      prompt: "What is the weather in San Francisco right now?",
     },
     {
       title: "Explain streaming",
@@ -27,6 +27,11 @@ const config = AuiConfig({
 
 <template>
   <AuiProvider :config="config">
-    <Thread />
+    <RegisterToolUIs>
+      <div class="bg-background flex h-full">
+        <ThreadListSidebar />
+        <Thread class="min-w-0 flex-1 flex-col" />
+      </div>
+    </RegisterToolUIs>
   </AuiProvider>
 </template>

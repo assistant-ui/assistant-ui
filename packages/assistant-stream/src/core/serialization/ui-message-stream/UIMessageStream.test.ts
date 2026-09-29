@@ -896,6 +896,29 @@ describe("UIMessageStreamDecoder", () => {
       expect(result?.result).toEqual({ temp: 20 });
     });
 
+    it("serializes successful string input as a JSON string", async () => {
+      const events = [
+        JSON.stringify({
+          type: "tool-input-available",
+          toolCallId: "call_abc",
+          toolName: "weather",
+          input: "Berlin",
+        }),
+        "[DONE]",
+      ];
+
+      const chunks = await collectChunks(
+        createUIMessageStream(events).pipeThrough(new UIMessageStreamDecoder()),
+      );
+
+      const argsText = chunks
+        .filter((c) => c.type === "text-delta")
+        .map((c) => c.textDelta)
+        .join("");
+      expect(argsText).toBe('"Berlin"');
+      expect(JSON.parse(argsText)).toBe("Berlin");
+    });
+
     it("prefers tool-input-available.input over earlier deltas", async () => {
       const events = [
         JSON.stringify({ type: "start", messageId: "msg_123" }),
@@ -1050,7 +1073,7 @@ describe("UIMessageStreamDecoder", () => {
       expect(result?.isError).toBe(true);
     });
 
-    it("skips preliminary tool outputs and settles on the final one", async () => {
+    it("surfaces preliminary tool outputs before the final one", async () => {
       const events = [
         JSON.stringify({ type: "start", messageId: "msg_123" }),
         JSON.stringify({
@@ -1063,6 +1086,12 @@ describe("UIMessageStreamDecoder", () => {
           type: "tool-output-available",
           toolCallId: "call_abc",
           output: { temp: 0 },
+          preliminary: true,
+        }),
+        JSON.stringify({
+          type: "tool-output-available",
+          toolCallId: "call_abc",
+          output: { temp: 10 },
           preliminary: true,
         }),
         JSON.stringify({
@@ -1081,8 +1110,75 @@ describe("UIMessageStreamDecoder", () => {
         (c): c is AssistantStreamChunk & { type: "result" } =>
           c.type === "result",
       );
-      expect(results).toHaveLength(1);
-      expect(results[0]?.result).toEqual({ temp: 20 });
+      expect(results).toHaveLength(3);
+      expect(results.map((result) => result.result)).toEqual([
+        { temp: 0 },
+        { temp: 10 },
+        { temp: 20 },
+      ]);
+      expect(results.map((result) => result.isPreliminary)).toEqual([
+        true,
+        true,
+        undefined,
+      ]);
+    });
+
+    it("holds preliminary outputs until the tool input is available", async () => {
+      const events = [
+        JSON.stringify({ type: "start", messageId: "msg_123" }),
+        JSON.stringify({
+          type: "tool-input-start",
+          toolCallId: "call_abc",
+          toolName: "weather",
+        }),
+        JSON.stringify({
+          type: "tool-output-available",
+          toolCallId: "call_abc",
+          output: { temp: 0 },
+          preliminary: true,
+        }),
+        JSON.stringify({
+          type: "tool-output-available",
+          toolCallId: "call_abc",
+          output: { temp: 10 },
+          preliminary: true,
+        }),
+        JSON.stringify({
+          type: "tool-input-available",
+          toolCallId: "call_abc",
+          toolName: "weather",
+          input: { city: "Berlin" },
+        }),
+        JSON.stringify({
+          type: "tool-output-available",
+          toolCallId: "call_abc",
+          output: { temp: 20 },
+        }),
+        "[DONE]",
+      ];
+
+      const chunks = await collectChunks(
+        createUIMessageStream(events).pipeThrough(new UIMessageStreamDecoder()),
+      );
+
+      const types = chunks.map((c) => c.type);
+      expect(types.indexOf("tool-call-args-text-finish")).toBeLessThan(
+        types.indexOf("result"),
+      );
+      const results = chunks.filter(
+        (c): c is AssistantStreamChunk & { type: "result" } =>
+          c.type === "result",
+      );
+      expect(results.map((result) => result.result)).toEqual([
+        { temp: 0 },
+        { temp: 10 },
+        { temp: 20 },
+      ]);
+      expect(results.map((result) => result.isPreliminary)).toEqual([
+        true,
+        true,
+        undefined,
+      ]);
     });
 
     it("decodes parallel tool input streams independently", async () => {

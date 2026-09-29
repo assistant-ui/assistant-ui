@@ -2,7 +2,7 @@
 
 import { resource, useResource, withKey } from "@assistant-ui/tap";
 import { useEffect, useMemo, useState } from "react";
-import { Chat, type UIMessage } from "@ai-sdk/react";
+import type { Chat, UIMessage } from "@ai-sdk/react";
 import type { ChatTransport } from "ai";
 import type { AssistantCloud } from "assistant-cloud";
 import {
@@ -20,11 +20,14 @@ import {
 import { useAui } from "@assistant-ui/store";
 import { AssistantChatTransport } from "../transport/AssistantChatTransport";
 import {
+  createChat,
   splitChatThreadOptions,
   useChatThread,
   type ChatThreadOptions,
 } from "./useChatThread";
+import { MessageRepository } from "@assistant-ui/core/internal";
 import { useResourceCleanup } from "./useResourceCleanup";
+import { AI_SDK_SDK } from "./sdkIdentity";
 
 export type AISDKThreadsOptions<UI_MESSAGE extends UIMessage = UIMessage> =
   Omit<ChatThreadOptions<UI_MESSAGE>, "id" | "transport" | "messages"> & {
@@ -41,9 +44,9 @@ export type AISDKThreadsOptions<UI_MESSAGE extends UIMessage = UIMessage> =
       | undefined;
     /**
      * When set, the thread list is a `RemoteThreadList` backed by this
-     * assistant-cloud. Omit it to keep the in-memory list. The thread
-     * factory is keyed so cloud history reloads on a switch, and an
-     * in-flight run does not continue in the background.
+     * assistant-cloud. Omit it to keep the in-memory list. Every visited
+     * cloud thread stays mounted, so an in-flight run continues after a
+     * switch and stops on delete; per-thread history loads once per thread.
      */
     cloud?: AssistantCloud | undefined;
     /**
@@ -61,15 +64,22 @@ type AISDKThreadChatOptions<UI_MESSAGE extends UIMessage = UIMessage> = Omit<
   "cloud" | "threadId" | "onThreadIdChange"
 >;
 
+type ChatOptionsRef<UI_MESSAGE extends UIMessage> = {
+  current: AISDKThreadChatOptions<UI_MESSAGE> | undefined;
+};
+
 type ChatEntry<UI_MESSAGE extends UIMessage> = {
   chat: Chat<UI_MESSAGE>;
   transport: ChatTransport<UI_MESSAGE>;
+  repository: MessageRepository;
+  optionsRef: ChatOptionsRef<UI_MESSAGE>;
 };
 
 const createChatEntry = <UI_MESSAGE extends UIMessage>(
   threadId: string,
   options: AISDKThreadChatOptions<UI_MESSAGE> | undefined,
 ): ChatEntry<UI_MESSAGE> => {
+  const optionsRef: ChatOptionsRef<UI_MESSAGE> = { current: options };
   const { chatInit } = splitChatThreadOptions(
     options as ChatThreadOptions<UI_MESSAGE> | undefined,
   );
@@ -82,8 +92,10 @@ const createChatEntry = <UI_MESSAGE extends UIMessage>(
           ? options.transport.__internal_clone()
           : options.transport;
   return {
-    chat: new Chat<UI_MESSAGE>({ ...chatInit, id: threadId, transport }),
+    chat: createChat({ ...chatInit, id: threadId, transport }, optionsRef),
     transport,
+    repository: new MessageRepository(),
+    optionsRef,
   };
 };
 
@@ -113,8 +125,12 @@ const useAISDKChatThread = <UI_MESSAGE extends UIMessage = UIMessage>({
   const [owned] = useState(() =>
     cloud ? createChatEntry(threadId, options) : undefined,
   );
-  const { chat, transport } =
+  const { chat, transport, repository, optionsRef } =
     owned ?? getOrCreateChatEntry(threadId, options, chats);
+
+  useEffect(() => {
+    if (cloud) optionsRef.current = options;
+  });
 
   useEffect(() => {
     if (!cloud) return undefined;
@@ -145,7 +161,8 @@ const useAISDKChatThread = <UI_MESSAGE extends UIMessage = UIMessage>({
             : undefined
           : fallbackItem,
       chat,
-      stopOnClientDestroy: cloud,
+      messageRepositoryInstance: repository,
+      stopOnClientDestroy: false,
     },
   );
 
@@ -169,13 +186,19 @@ const useAISDKThreads = <UI_MESSAGE extends UIMessage = UIMessage>(
   const [chats] = useState(() => new Map<string, ChatEntry<UI_MESSAGE>>());
   const bindCloud = cloud !== undefined;
 
+  useEffect(() => {
+    for (const { optionsRef } of chats.values()) {
+      optionsRef.current = threadOptions;
+    }
+  });
+
   useResourceCleanup(true, () => {
     for (const { chat } of chats.values()) {
       void chat.stop().catch(() => {});
     }
   });
 
-  const cloudAdapter = useCloudThreadListAdapter({ cloud });
+  const cloudAdapter = useCloudThreadListAdapter({ cloud, sdk: AI_SDK_SDK });
   const thread = (id: string) => {
     const element = AISDKChatThread({
       threadId: id,
@@ -190,6 +213,7 @@ const useAISDKThreads = <UI_MESSAGE extends UIMessage = UIMessage>(
     bindCloud
       ? RemoteThreadList({
           adapter: cloudAdapter,
+          backgroundThreads: true,
           thread,
           threadId,
           onThreadIdChange,
@@ -212,11 +236,13 @@ const useAISDKThreads = <UI_MESSAGE extends UIMessage = UIMessage>(
  * per-thread orchestration as {@link AISDKChat} inside the client's own
  * resource tree, so it works with any `AssistantClient` host, React or not.
  * Without `cloud`, threads live in memory for the client's lifetime and keep
- * their history across switches; each thread's chat id is its thread id.
- * With `cloud`, the list is a `RemoteThreadList` and the factory is keyed so
- * cloud history reloads on a switch. The store entry mounts only the visible
- * thread, so a switch cancels an in-flight run. Model context is
- * registered on the visible thread only.
+ * their history across switches; only the visible thread is mounted, and a
+ * switched-away chat keeps streaming into its stored state until it settles
+ * or the thread is deleted. With `cloud`, the list is a
+ * `RemoteThreadList` with `backgroundThreads`: every visited thread stays
+ * mounted with its own history, a run continues after a switch and stops on
+ * delete, and a freshly created thread titles itself. Model context is
+ * registered on every mounted thread.
  */
 export const AISDKThreads = resource(useAISDKThreads);
 

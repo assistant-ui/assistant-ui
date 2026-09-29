@@ -21,7 +21,7 @@ function MyThreadWithSuggestions() {
         title: "Calculate Fibonacci(20)",
         label: "with chain of thought",
         prompt:
-          "Calculate the 20th Fibonacci number using JavaScript and show your reasoning.",
+          "Calculate Fibonacci(20) with the Fibonacci calculator tool and explain the result.",
       },
       {
         title: "Research with citations",

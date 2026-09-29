@@ -1,0 +1,235 @@
+---
+title: "Dictation"
+description: "The mic morphs the input into a live waveform, then lands the transcript as text."
+---
+
+Tapping the mic swaps the text input for a live waveform while a person talks, then settles into a brief "Transcribing" state before the words land as text. With a runtime this is backed by a `DictationAdapter`, most commonly the browser's own speech recognition; standalone you drive the recording flag and the elapsed timer yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+Dictation is opt-in, the same way attachments are: without a `DictationAdapter` configured, `s.thread.capabilities.dictation` is `false` and `ComposerPrimitive.Dictate` renders disabled.
+
+<Steps>
+  <Step>
+
+### Configure a dictation adapter
+
+assistant-ui ships a `WebSpeechDictationAdapter` over the browser's `SpeechRecognition` API; check `.isSupported()` before relying on it, since it is not available in every browser:
+
+```tsx title="app/chat-provider.tsx"
+import { useLocalRuntime, WebSpeechDictationAdapter } from "@assistant-ui/react";
+
+const runtime = useLocalRuntime(chatModel, {
+  adapters: {
+    dictation: WebSpeechDictationAdapter.isSupported()
+      ? new WebSpeechDictationAdapter({ interimResults: true })
+      : undefined,
+  },
+});
+```
+
+  </Step>
+  <Step>
+
+### Start, show, and stop
+
+```tsx title="components/assistant-ui/elements/composer-voice.tsx"
+"use client";
+
+import { AuiIf, ComposerPrimitive } from "@assistant-ui/react";
+import { MicIcon, SquareIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ghostButton, inkButton } from "@/components/assistant-ui/elements/surfaces";
+
+export function DictationControl() {
+  return (
+    <AuiIf condition={(s) => s.thread.capabilities.dictation}>
+      <AuiIf condition={(s) => s.composer.dictation == null}>
+        <ComposerPrimitive.Dictate aria-label="Start voice input" className={cn(ghostButton, "size-8")}>
+          <MicIcon className="size-4" />
+        </ComposerPrimitive.Dictate>
+      </AuiIf>
+      <AuiIf condition={(s) => s.composer.dictation != null}>
+        <ComposerPrimitive.StopDictation
+          aria-label="Stop voice input"
+          className={cn(inkButton, "flex size-8 items-center justify-center rounded-full")}
+        >
+          <SquareIcon className="size-3 fill-current" />
+        </ComposerPrimitive.StopDictation>
+      </AuiIf>
+    </AuiIf>
+  );
+}
+```
+
+`StopDictation` only renders enabled while `s.composer.dictation` is non-null (like `Send` and `Cancel`, it never unmounts on its own); the `AuiIf` pair above mounts only the relevant button, the same swap `Thread`'s own composer makes. `Dictate` starts a session through the configured adapter and writes recognized speech straight into `s.composer.text` as it arrives.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `ComposerVoice` and `ComposerVoiceButton` only render a recording state you already hold; nothing here touches the microphone. You own starting the browser's recognition API (or any other capture) and feeding `recording` and `seconds` from it.
+
+<Steps>
+  <Step>
+
+### Hold the recording state
+
+```tsx title="app/chat-box.tsx"
+"use client";
+
+import { useEffect, useState } from "react";
+import { ComposerVoice, ComposerVoiceButton, ComposerInput } from "@/components/assistant-ui/elements/composer";
+
+export function VoiceInput() {
+  const [active, setActive] = useState(false); // from the first tap until the final transcript lands
+  const [recording, setRecording] = useState(false);
+  const [seconds, setSeconds] = useState(0);
+
+  useEffect(() => {
+    if (!recording) return;
+    setSeconds(0);
+    const id = setInterval(() => setSeconds((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, [recording]);
+
+  const start = () => {
+    setActive(true);
+    setRecording(true);
+    startBrowserRecognition({
+      onFinal: (text) => {
+        setRecording(false); // waveform settles into "Transcribing"
+        commitTranscript(text).finally(() => setActive(false));
+      },
+    });
+  };
+
+  return active ? (
+    <div className="flex items-center gap-2">
+      <ComposerVoice recording={recording} seconds={seconds} className="flex-1" />
+      <ComposerVoiceButton active={recording} onClick={stopBrowserRecognition} />
+    </div>
+  ) : (
+    <div className="flex items-center gap-2">
+      <ComposerInput className="flex-1" />
+      <ComposerVoiceButton active={false} onClick={start} />
+    </div>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Swap the input for the waveform
+
+`ComposerVoice` is meant to replace `ComposerInput` while active, not sit beside it, as above; `active` stays `true` through the settling phase so the timer's "Transcribing" state has somewhere to render before the view falls back to plain text.
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="composer-voice" data-recording={/* true while capturing */}>
+  {/* a pulsing dot, only while recording */}
+  <div>{/* 14 bars, animated only while recording */}</div>
+  {/* a mono "0:SS" timer while recording, or a "Transcribing" shimmer once stopped */}
+</div>
+```
+
+The two states are not "recording" and "idle": they are "recording" and "settling". `ComposerVoice` has no third, blank state, so mounting it always implies a capture is either happening or just finished; the bars themselves ripple from a sine wave seeded by the bar's index and the elapsed seconds, so the pattern shifts continuously rather than looping.
+
+## Examples
+
+### Checking support before offering the mic
+
+<RuntimeMode>
+
+```tsx
+const dictationAvailable = WebSpeechDictationAdapter.isSupported();
+```
+
+Configuring the adapter only when this is `true` (as in Getting started) is enough; `s.thread.capabilities.dictation` then reflects it automatically, so the mic button never needs its own support check.
+
+</RuntimeMode>
+
+### Overlaying the live transcript
+
+<RuntimeMode>
+
+`ComposerVoice` shows a timer, not the words being spoken; layer `ComposerPrimitive.DictationTranscript` on top (or beside it) to show the interim transcript as it streams in, before it commits to `s.composer.text`:
+
+```tsx
+<ComposerPrimitive.DictationTranscript className="text-foreground/55 absolute inset-x-3 bottom-full text-sm" />
+```
+
+</RuntimeMode>
+
+### Restyle the waveform
+
+Both lanes render the same shape; the pulsing dot, the bars, the timer, and the shimmer label each take their own classes, so recoloring the recording state does not require touching the settling state.
+
+```tsx
+<ComposerVoice recording={recording} seconds={seconds} className="gap-4" />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### ComposerPrimitive
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `Dictate` | `button` | Starts a session via the configured `DictationAdapter`; disabled without one. |
+| `StopDictation` | `button` | Only renders enabled while `s.composer.dictation` is non-null. |
+| `DictationTranscript` | `span` | Renders the live interim transcript; renders nothing while there is none. |
+
+### WebSpeechDictationAdapter
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `language` | `string` | `navigator.language` | BCP 47 language tag passed to `SpeechRecognition`. |
+| `continuous` | `boolean` | `true` | Keeps listening across pauses instead of stopping after one utterance. |
+| `interimResults` | `boolean` | `true` | Emits partial results as speech is recognized, not only final ones. |
+
+`WebSpeechDictationAdapter.isSupported()` is a static method; the adapter itself throws if constructed and used where `SpeechRecognition` is unavailable.
+
+### Composer state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.composer.dictation` | `{ status; transcript?: string; inputDisabled?: boolean } \| undefined` | Non-null exactly while a dictation session is active or finishing. |
+| `s.thread.capabilities.dictation` | `boolean` | Whether a `DictationAdapter` is configured. |
+| `aui.composer.startDictation()` | `() => void` | Starts a session; throws if no adapter is configured. |
+| `aui.composer.stopDictation()` | `() => void` | Stops the current session and commits the final transcript. |
+
+`status` is `{ type: "starting" \| "running" }` while listening, or `{ type: "ended", reason: "stopped" \| "cancelled" \| "error" }` once it finishes; there is no elapsed-seconds field, so a live counter like `ComposerVoice`'s is timed separately from `status` (a `setInterval` gated on `s.composer.dictation != null`, mirroring the standalone example).
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### ComposerVoice
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `recording` | `boolean` | required | Selects the animated-bars-and-timer state versus the flat-bars-and-shimmer state. |
+| `seconds` | `number` | required | Shown as `0:SS` while `recording` is `true`. |
+| `className` | `string` | | Merged onto the root. |
+
+### ComposerVoiceButton
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `active` | `boolean` | required | Swaps the mic icon for a filled stop icon and the ghost style for the ink style. |
+
+</StandaloneMode>

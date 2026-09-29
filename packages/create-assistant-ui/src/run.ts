@@ -1,6 +1,7 @@
 import { spawn } from "cross-spawn";
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
+import { constants } from "node:os";
 import path from "node:path";
 
 const require = createRequire(import.meta.url);
@@ -14,14 +15,58 @@ class SpawnExitError extends Error {
   }
 }
 
-function runSpawn(command: string, args: string[]): Promise<void> {
+class SpawnSignalError extends Error {
+  signal: NodeJS.Signals;
+  forwarded: boolean;
+
+  constructor(signal: NodeJS.Signals, forwarded: boolean) {
+    super(`Process terminated by ${signal}`);
+    this.signal = signal;
+    this.forwarded = forwarded;
+  }
+}
+
+export function runSpawn(command: string, args: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       stdio: "inherit",
     });
+    let forwardedSignal: NodeJS.Signals | null = null;
 
-    child.on("error", (error) => reject(error));
-    child.on("close", (code) => {
+    const forwardSignal = (signal: NodeJS.Signals) => {
+      if (forwardedSignal !== null) {
+        child.kill("SIGKILL");
+        cleanup();
+        reject(new SpawnSignalError(signal, true));
+        return;
+      }
+      forwardedSignal = signal;
+      child.kill(signal);
+    };
+    const onSigint = () => forwardSignal("SIGINT");
+    const onSigterm = () => forwardSignal("SIGTERM");
+    const cleanup = () => {
+      process.off("SIGINT", onSigint);
+      process.off("SIGTERM", onSigterm);
+    };
+
+    process.on("SIGINT", onSigint);
+    process.on("SIGTERM", onSigterm);
+
+    child.on("error", (error) => {
+      cleanup();
+      reject(error);
+    });
+    child.on("close", (code, signal) => {
+      cleanup();
+      if (forwardedSignal !== null) {
+        reject(new SpawnSignalError(forwardedSignal, true));
+        return;
+      }
+      if (signal !== null) {
+        reject(new SpawnSignalError(signal, false));
+        return;
+      }
       if (code !== 0) {
         reject(new SpawnExitError(code || 1));
       } else {
@@ -61,6 +106,14 @@ export async function main(): Promise<void> {
 
     await runSpawn(process.execPath, [assistantUiBinPath, ...args]);
   } catch (error) {
+    if (error instanceof SpawnSignalError) {
+      if (error.forwarded) {
+        process.removeAllListeners(error.signal);
+        process.kill(process.pid, error.signal);
+      }
+      process.exit(128 + (constants.signals[error.signal] ?? 0));
+    }
+
     if (error instanceof SpawnExitError) {
       process.exit(error.code);
     }

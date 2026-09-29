@@ -9,7 +9,7 @@ assistant-ui also ships `@assistant-ui/react-langgraph`, which integrates with `
 ## Installation
 
 ```bash
-npm install @assistant-ui/react @assistant-ui/react-langchain @langchain/react
+npm install @assistant-ui/react @assistant-ui/react-langchain @langchain/react @langchain/langgraph-sdk
 ```
 
 ## Usage
@@ -17,7 +17,7 @@ npm install @assistant-ui/react @assistant-ui/react-langchain @langchain/react
 ```tsx
 import { useStreamRuntime } from "@assistant-ui/react-langchain";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export function App() {
   const runtime = useStreamRuntime({

@@ -1,25 +1,38 @@
 import assert from "node:assert/strict";
+import { access, readFile, writeFile, mkdir } from "node:fs/promises";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import "tsx/esm";
 
 const {
+  buildRegistry,
   collectAttributeSelectorValues,
+  createRegistryPayload,
+  writePackagedFiles,
+  createRegistryDependencyUsageExemptions,
   createBaseRegistryItem,
   createRadixRegistryItem,
   expandBundledRegistryDependencies,
   getRadixVariantSourcePath,
   getRelativeImportCandidates,
+  pinWorkspaceDependencies,
+  readWorkspacePackageVersions,
+  shadcnInstallPath,
   validateRegistryInstallMetadata,
   validateBasePassDidNotReadRadixSources,
   validateBaseTreeRadixImports,
   validateBaseVariantContent,
   validateEmittedSpecifierHygiene,
+  validateNativeFlavorContent,
   validateStyleScopedDependencies,
   validateUniversalItems,
+  validateVueFlavorContent,
   validateVariantExportParity,
   validateVariantSlotParity,
   validateVariantTreesDiffer,
 } = await import("./build-registry.ts");
+
+const workspaceVersions = readWorkspacePackageVersions();
 
 const { generativeUiVocabularyCss } =
   await import("../../../packages/ui/src/lib/generative-ui-vocabulary-css.ts");
@@ -60,6 +73,454 @@ const createBuilt = (
     new Map(files.map(([filePath, content]) => [filePath, content])),
 });
 
+test("packaged file routes are served as text", async () => {
+  const config = JSON.parse(
+    await readFile(new URL("../vercel.json", import.meta.url), "utf8"),
+  );
+
+  for (const source of [
+    "/files/(.*)",
+    "/base/files/(.*)",
+    "/native/files/(.*)",
+  ]) {
+    const rule = config.headers?.find((entry) => entry.source === source);
+    assert.ok(rule, `missing header rule for ${source}`);
+    assert.deepEqual(rule.headers, [
+      { key: "Content-Type", value: "text/plain; charset=utf-8" },
+    ]);
+  }
+});
+
+test("the CLI and the registry agree on the shared native items", async () => {
+  const { NATIVE_SHARED_REGISTRY_ITEMS } = await import("./build-registry.ts");
+  const { SHARED_REGISTRY_ITEMS } =
+    await import("../../../packages/cli/src/lib/utils/registry.ts");
+  assert.deepEqual(
+    [...SHARED_REGISTRY_ITEMS].sort(),
+    [...NATIVE_SHARED_REGISTRY_ITEMS].sort(),
+  );
+});
+
+test("the native registry serves every component the Expo example imports", async () => {
+  const { scanRequiredComponents } =
+    await import("../../../packages/cli/src/lib/create-project.ts");
+  const { SHARED_REGISTRY_ITEMS } =
+    await import("../../../packages/cli/src/lib/utils/registry.ts");
+  const { nativeRegistry } = await import("../src/registry.ts");
+  const served = new Set([
+    ...nativeRegistry.map((item) => item.name),
+    ...SHARED_REGISTRY_ITEMS,
+  ]);
+  const { assistantUI, shadcnUI } = scanRequiredComponents(
+    fileURLToPath(new URL("../../../examples/with-expo", import.meta.url)),
+  );
+  assert.ok(assistantUI.length > 0);
+  for (const name of [...assistantUI, ...shadcnUI]) {
+    assert.ok(served.has(name), `${name} is not a native registry item`);
+  }
+});
+
+test("native flavor content validation rejects web packages and accepts the kit", async () => {
+  assert.throws(
+    () =>
+      validateNativeFlavorContent([
+        createBuilt("thread", [
+          [
+            "components/assistant-ui/elements/thread.aui.tsx",
+            'import { createRoot } from "react-dom/client";\n',
+          ],
+        ]),
+      ]),
+    /thread: native tree file components\/assistant-ui\/elements\/thread\.aui\.tsx imports forbidden "react-dom\/client"/,
+  );
+
+  for (const dependency of [
+    "https://r.assistant-ui.com/attachment.json",
+    "https://r.assistant-ui.com/native/utils.json",
+    "button",
+  ]) {
+    const built = createBuilt("thread", []);
+    built.payload.registryDependencies = [dependency];
+    assert.throws(
+      () => validateNativeFlavorContent([built]),
+      (error) =>
+        error instanceof Error &&
+        error.message.includes(
+          `thread: registry dependency "${dependency}" is not a native item`,
+        ),
+    );
+  }
+
+  const { nativeRegistry } = await import("../src/registry.ts");
+  assert.doesNotThrow(() =>
+    validateNativeFlavorContent(
+      nativeRegistry.map((item) => createRegistryPayload(item)),
+    ),
+  );
+});
+
+test("native registry build emits the React Native kit", async () => {
+  const { nativeRegistry, registry, stagedVueRegistry } =
+    await import("../src/registry.ts");
+  await buildRegistry(registry, stagedVueRegistry, nativeRegistry);
+
+  const [registryContent, threadContent] = await Promise.all([
+    readFile("dist/native/registry.json", "utf8"),
+    readFile("dist/native/thread.json", "utf8"),
+  ]);
+  const nativeIndex = JSON.parse(registryContent);
+  const thread = JSON.parse(threadContent);
+
+  assert.equal(
+    thread.files[0].path,
+    "components/assistant-ui/elements/thread.aui.tsx",
+  );
+  assert.ok(
+    thread.dependencies.includes(
+      `@assistant-ui/react-native@^${workspaceVersions.get("@assistant-ui/react-native")}`,
+    ),
+  );
+  assert.ok(
+    thread.registryDependencies.includes(
+      "https://r.assistant-ui.com/native/attachment.json",
+    ),
+  );
+  assert.ok(
+    thread.registryDependencies.includes(
+      "https://r.assistant-ui.com/native/icon.json",
+    ),
+  );
+  assert.deepEqual(
+    nativeIndex.items.map((item) => item.name),
+    [
+      "thread",
+      "markdown-text",
+      "reasoning",
+      "attachment",
+      "thread-list",
+      "icon",
+      "elements-surfaces",
+      "elements-range",
+      "elements-task",
+      "elements-icon-button",
+      "elements-typing-indicator",
+      "elements-reasoning",
+      "elements-error-state",
+      "elements-stopped-run",
+      "elements-message-queue",
+      "elements-tool-fallback",
+      "file",
+      "image",
+      "elements-approval-card",
+      "elements-agent-status",
+      "elements-task-card",
+      "elements-tool-timeline",
+      "elements-conversation-map",
+      "elements-voice-conversation",
+      "conversation-map",
+      "voice-conversation",
+      "task-card",
+      "agent-status",
+    ],
+  );
+});
+
+test("vue registry build emits self-contained staged items", async () => {
+  const { registry, stagedVueRegistry } = await import("../src/registry.ts");
+  await buildRegistry(registry, stagedVueRegistry);
+
+  const [registryContent, threadContent, threadListContent] = await Promise.all(
+    [
+      readFile("dist/vue/registry.json", "utf8"),
+      readFile("dist/vue/thread.json", "utf8"),
+      readFile("dist/vue/thread-list.json", "utf8"),
+    ],
+  );
+  const vueIndex = JSON.parse(registryContent);
+  const thread = JSON.parse(threadContent);
+  const threadList = JSON.parse(threadListContent);
+  const threadFile = thread.files.find(
+    (file) => file.path === "components/assistant-ui/thread.vue",
+  );
+  const threadListFile = threadList.files.find(
+    (file) => file.path === "components/assistant-ui/thread-list.vue",
+  );
+
+  assert.ok(
+    threadFile,
+    "vue thread registry output includes components/assistant-ui/thread.vue",
+  );
+  assert.ok(
+    threadListFile,
+    "vue thread list registry output includes components/assistant-ui/thread-list.vue",
+  );
+  assert.deepEqual(
+    vueIndex.items.map((item) => item.name),
+    ["thread-list", "thread"],
+  );
+  assert.deepEqual(thread.dependencies, [
+    `@assistant-ui/core@^${workspaceVersions.get("@assistant-ui/core")}`,
+    "@assistant-ui/vue",
+    "@lucide/vue",
+    "markdown-it",
+  ]);
+  assert.deepEqual(thread.devDependencies, ["@types/markdown-it"]);
+  assert.equal("target" in threadFile, false);
+  assert.deepEqual(threadList.dependencies, [
+    "@assistant-ui/vue",
+    "reka-ui",
+    "@lucide/vue",
+  ]);
+  assert.equal("target" in threadListFile, false);
+  assert.match(threadFile.content, /import Message from "\.\/message\.vue"/);
+  assert.match(threadListFile.content, /from "reka-ui"/);
+});
+
+test("workspace dependencies are pinned to the caret range of the built version", () => {
+  const versions = new Map([
+    ["@assistant-ui/react", "0.15.22"],
+    ["tw-shimmer", "0.4.13"],
+    ["@assistant-ui/vue", null],
+  ]);
+  const item = pinWorkspaceDependencies(
+    {
+      name: "thread",
+      type: "registry:component",
+      dependencies: [
+        "@assistant-ui/react",
+        "@assistant-ui/vue",
+        "tw-shimmer",
+        "lucide-react",
+      ],
+      devDependencies: ["@assistant-ui/react"],
+    },
+    versions,
+  );
+
+  assert.deepEqual(item.dependencies, [
+    "@assistant-ui/react@^0.15.22",
+    "@assistant-ui/vue",
+    "tw-shimmer@^0.4.13",
+    "lucide-react",
+  ]);
+  assert.deepEqual(item.devDependencies, ["@assistant-ui/react@^0.15.22"]);
+  assert.equal(
+    "dependencies" in
+      pinWorkspaceDependencies(
+        { name: "utils", type: "registry:lib" },
+        versions,
+      ),
+    false,
+  );
+  assert.throws(
+    () =>
+      pinWorkspaceDependencies(
+        {
+          name: "thread",
+          type: "registry:component",
+          dependencies: ["@assistant-ui/missing"],
+        },
+        versions,
+      ),
+    /"@assistant-ui\/missing" is not a workspace package/,
+  );
+});
+
+test("web registry build pins every published assistant-ui dependency", async () => {
+  const { registry, stagedVueRegistry } = await import("../src/registry.ts");
+  await buildRegistry(registry, stagedVueRegistry);
+
+  const reactRange = `@assistant-ui/react@^${workspaceVersions.get("@assistant-ui/react")}`;
+  for (const file of [
+    "dist/thread.json",
+    "dist/base/thread.json",
+    "dist/registry.json",
+    "dist/base/registry.json",
+  ]) {
+    const parsed = JSON.parse(await readFile(file, "utf8"));
+    const items = parsed.items ?? [parsed];
+    const thread = items.find((item) => item.name === "thread");
+    assert.ok(thread.dependencies.includes(reactRange), file);
+    for (const item of items) {
+      for (const dependency of [
+        ...(item.dependencies ?? []),
+        ...(item.devDependencies ?? []),
+      ]) {
+        assert.doesNotMatch(
+          dependency,
+          /^@assistant-ui\/[^@]+$/,
+          `${file}: ${item.name} declares unpinned "${dependency}"`,
+        );
+      }
+    }
+  }
+});
+
+test("emitted vue artifacts compile as SFCs and pass the vue purity gate", async () => {
+  const { parse, compileScript } = await import("@vue/compiler-sfc");
+  const [thread, threadList] = await Promise.all([
+    readFile("dist/vue/thread.json", "utf8").then(JSON.parse),
+    readFile("dist/vue/thread-list.json", "utf8").then(JSON.parse),
+  ]);
+  const threadEmitted = thread.files.map((file) => [file.path, file.content]);
+  const threadListEmitted = threadList.files.map((file) => [
+    file.path,
+    file.content,
+  ]);
+  assert.deepEqual(threadEmitted.map(([outputPath]) => outputPath).sort(), [
+    "components/assistant-ui/markdown-text.vue",
+    "components/assistant-ui/message.vue",
+    "components/assistant-ui/thread.vue",
+  ]);
+  assert.deepEqual(
+    threadListEmitted.map(([outputPath]) => outputPath),
+    ["components/assistant-ui/thread-list.vue"],
+  );
+
+  for (const [outputPath, content] of [
+    ...threadEmitted,
+    ...threadListEmitted,
+  ]) {
+    const { descriptor, errors } = parse(content, { filename: outputPath });
+    assert.deepEqual(errors, []);
+    const compiled = compileScript(descriptor, { id: outputPath });
+    assert.ok(compiled.content.length > 0);
+  }
+
+  validateVueFlavorContent([
+    createBuilt("thread", threadEmitted),
+    createBuilt("thread-list", threadListEmitted),
+  ]);
+});
+
+test("the production vue registry stays empty until the publish flip", async () => {
+  const { registry, vueRegistry } = await import("../src/registry.ts");
+  assert.deepEqual(vueRegistry, []);
+  await buildRegistry(registry, vueRegistry);
+  const vueIndex = JSON.parse(await readFile("dist/vue/registry.json", "utf8"));
+  assert.deepEqual(vueIndex.items, []);
+});
+
+test("vue payload parsing fails on a malformed sfc", () => {
+  assert.throws(
+    () =>
+      validateVueFlavorContent([
+        {
+          name: "broken",
+          payload: {
+            files: [
+              {
+                path: "components/assistant-ui/broken.vue",
+                content:
+                  "<script setup>const a = 1</script>\n<script setup>const b = 2</script>",
+              },
+            ],
+          },
+        },
+      ]),
+    /Failed to parse/,
+  );
+});
+
+test("vue registry build removes stale output", async () => {
+  await mkdir("dist/vue", { recursive: true });
+  await writeFile("dist/vue/stale.json", "{}", "utf8");
+  await buildRegistry([], []);
+  await assert.rejects(() => access("dist/vue/stale.json"));
+});
+
+test("vue flavor content validation rejects forbidden package subpaths", () => {
+  assert.throws(
+    () =>
+      validateVueFlavorContent([
+        createBuilt("thread", [
+          [
+            "components/assistant-ui/thread.vue",
+            '<script setup lang="ts">\nimport { jsx } from "react/jsx-runtime";\nimport "react-dom/client";\nimport "@assistant-ui/react/runtime";\nimport { CopyIcon } from "lucide-react";\nimport "@assistant-ui/react";\n</script>',
+          ],
+        ]),
+      ]),
+    (error) => {
+      assert.equal(error instanceof Error, true);
+      assert.match(error.message, /^Invalid vue flavor content:/);
+      assert.ok(
+        error.message.includes(
+          '- thread: vue tree file components/assistant-ui/thread.vue imports forbidden "react/jsx-runtime"',
+        ),
+      );
+      assert.ok(
+        error.message.includes(
+          '- thread: vue tree file components/assistant-ui/thread.vue imports forbidden "react-dom/client"',
+        ),
+      );
+      assert.ok(
+        error.message.includes(
+          '- thread: vue tree file components/assistant-ui/thread.vue imports forbidden "@assistant-ui/react/runtime"',
+        ),
+      );
+      assert.ok(
+        error.message.includes(
+          '- thread: vue tree file components/assistant-ui/thread.vue imports forbidden "lucide-react"',
+        ),
+      );
+      assert.ok(
+        error.message.includes(
+          '- thread: vue tree file components/assistant-ui/thread.vue imports forbidden "@assistant-ui/react"',
+        ),
+      );
+      return true;
+    },
+  );
+});
+
+test("vue flavor content validation scans script tags closed with whitespace", () => {
+  assert.throws(
+    () =>
+      validateVueFlavorContent([
+        createBuilt("thread", [
+          [
+            "components/assistant-ui/thread.vue",
+            '<script setup lang="ts">\nimport { createElement } from "react";\n</script \t\nbar>',
+          ],
+        ]),
+      ]),
+    (error) => {
+      assert.equal(error instanceof Error, true);
+      assert.match(error.message, /^Invalid vue flavor content:/);
+      assert.ok(
+        error.message.includes(
+          '- thread: vue tree file components/assistant-ui/thread.vue imports forbidden "react"',
+        ),
+      );
+      return true;
+    },
+  );
+});
+
+test("vue flavor content validation rejects unsupported script languages", () => {
+  assert.throws(
+    () =>
+      validateVueFlavorContent([
+        createBuilt("thread", [
+          [
+            "components/assistant-ui/thread.vue",
+            '<script setup lang="tsx">\nconst thread = <div />;\n</script>',
+          ],
+        ]),
+      ]),
+    (error) => {
+      assert.equal(error instanceof Error, true);
+      assert.match(error.message, /^Invalid vue flavor content:/);
+      assert.ok(
+        error.message.includes(
+          '- thread: vue tree file components/assistant-ui/thread.vue has unsupported script lang "tsx"',
+        ),
+      );
+      return true;
+    },
+  );
+});
+
 test("base registry item merges, rewrites, and deduplicates dependencies in order", () => {
   const item = {
     name: "example",
@@ -75,6 +536,10 @@ test("base registry item merges, rewrites, and deduplicates dependencies in orde
       "popover",
       "https://r.assistant-ui.com/message.json",
     ],
+    radixRegistryDependencies: ["input"],
+    registryDependencyUsageExemptions: {
+      "https://example.com/foreign.json": "Installs external theme metadata.",
+    },
   };
 
   assert.deepEqual(createBaseRegistryItem(item), {
@@ -105,7 +570,7 @@ test("base registry item rewriting is idempotent", () => {
   ]);
 });
 
-test("radix registry item removes base-only dependencies without rewriting", () => {
+test("radix registry item merges radix-only registry dependencies and removes base-only ones", () => {
   assert.deepEqual(
     createRadixRegistryItem({
       name: "example",
@@ -114,7 +579,11 @@ test("radix registry item removes base-only dependencies without rewriting", () 
         "https://r.assistant-ui.com/thread.json",
         "tooltip",
       ],
+      radixRegistryDependencies: ["tooltip", "input"],
       baseRegistryDependencies: ["https://r.assistant-ui.com/popover.json"],
+      registryDependencyUsageExemptions: {
+        tooltip: "Installs tooltip styles selected at runtime.",
+      },
     }),
     {
       name: "example",
@@ -122,6 +591,7 @@ test("radix registry item removes base-only dependencies without rewriting", () 
       registryDependencies: [
         "https://r.assistant-ui.com/thread.json",
         "tooltip",
+        "input",
       ],
     },
   );
@@ -539,7 +1009,8 @@ const bundleFixtures = () => {
       {
         type: "registry:component",
         path: "components/assistant-ui/thread.tsx",
-        sourcePath: "../../packages/ui/src/components/assistant-ui/thread.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/thread.tsx",
       },
     ],
     dependencies: ["@assistant-ui/react"],
@@ -548,6 +1019,8 @@ const bundleFixtures = () => {
       "button",
       "https://r.assistant-ui.com/reasoning.json",
     ],
+    radixRegistryDependencies: ["input"],
+    baseRegistryDependencies: ["popover"],
   };
   const reasoning = {
     name: "reasoning",
@@ -600,18 +1073,23 @@ test("bundling inlines the closure as targeted files and merges its dependencies
       [
         "registry:file",
         "components/assistant-ui/thread.tsx",
-        "../../packages/ui/src/components/assistant-ui/thread.tsx",
+        "../../packages/ui/src/components/react/assistant-ui/thread.tsx",
       ],
       ["registry:file", "components/assistant-ui/reasoning.tsx", undefined],
       [
         "registry:file",
         "components/ui/button.tsx",
-        "../../packages/ui/src/components/ui/radix/button.tsx",
+        "../../packages/ui/src/components/react/ui/radix/button.tsx",
       ],
       [
         "registry:file",
         "components/ui/collapsible.tsx",
-        "../../packages/ui/src/components/ui/radix/collapsible.tsx",
+        "../../packages/ui/src/components/react/ui/radix/collapsible.tsx",
+      ],
+      [
+        "registry:file",
+        "components/ui/input.tsx",
+        "../../packages/ui/src/components/react/ui/radix/input.tsx",
       ],
     ],
   );
@@ -634,8 +1112,9 @@ test("bundling sources ui primitives and their package from the requested flavor
       .filter((file) => file.target.startsWith("components/ui/"))
       .map((file) => file.sourcePath),
     [
-      "../../packages/ui/src/components/ui/base/button.tsx",
-      "../../packages/ui/src/components/ui/base/collapsible.tsx",
+      "../../packages/ui/src/components/react/ui/base/button.tsx",
+      "../../packages/ui/src/components/react/ui/base/collapsible.tsx",
+      "../../packages/ui/src/components/react/ui/base/popover.tsx",
     ],
   );
   assert.deepEqual(expanded.baseDependencies, ["@base-ui/react"]);
@@ -1147,6 +1626,34 @@ const GENERATIVE_UI_EXEMPT_ATTRIBUTES = new Map([
     "chart:color",
     "free string, not sourced from a shared enum; supports the same color tokens as Text's color prop as a convention",
   ],
+  [
+    "chart-series:color",
+    "free string, not sourced from a shared enum; supports the same color tokens as Text's color prop as a convention",
+  ],
+  [
+    "chart-legend-item:color",
+    "free string, not sourced from a shared enum; mirrors its series' color token for the swatch",
+  ],
+  [
+    "checkbox:variant",
+    "schema enum of checkbox or switch; the default checkbox renders unstyled, so only switch has rules",
+  ],
+  [
+    "table-col:align",
+    "schema enum of start or end; start is the default and needs no rule",
+  ],
+  [
+    "table:align",
+    "body cells repeat their column's start or end alignment; start is the default and needs no rule",
+  ],
+  [
+    "fact-delta:tone",
+    "derived by the renderer from trend and upIsGood, not a model prop; only good, bad, or neutral is emitted",
+  ],
+  [
+    "button:state",
+    "derived by the renderer during an undo countdown, not a model prop; only pending is emitted",
+  ],
 ]);
 
 test("every enum value of every attribute-mapped generative-ui prop is styled by at least one css rule", () => {
@@ -1213,7 +1720,7 @@ test("every element's sibling imports are declared as registry dependencies", as
   const { join } = await import("node:path");
   const { registry } = await import("../src/registry.ts");
 
-  const dir = "packages/ui/src/components/elements";
+  const dir = "packages/ui/src/components/react/assistant-ui/elements";
   const declared = new Map(
     registry
       .filter((item) => item.name.startsWith("elements-"))
@@ -1292,7 +1799,6 @@ test("a dotted basename without a recognized extension probes module and index f
   const from = "components/assistant-ui/thread.tsx";
 
   assert.deepEqual(getRelativeImportCandidates("./tool.config", from), [
-    "components/assistant-ui/tool.config",
     "components/assistant-ui/tool.config.tsx",
     "components/assistant-ui/tool.config.ts",
     "components/assistant-ui/tool.config.jsx",
@@ -1304,7 +1810,6 @@ test("a dotted basename without a recognized extension probes module and index f
   ]);
 
   assert.deepEqual(getRelativeImportCandidates("./thread.v2", from), [
-    "components/assistant-ui/thread.v2",
     "components/assistant-ui/thread.v2.tsx",
     "components/assistant-ui/thread.v2.ts",
     "components/assistant-ui/thread.v2.jsx",
@@ -1364,9 +1869,9 @@ const componentItem = (files, extra = {}) => ({
   ...extra,
 });
 
-const findingsFrom = (payloads) => {
+const findingsFrom = (payloads, usageExemptions) => {
   try {
-    validateRegistryInstallMetadata(payloads);
+    validateRegistryInstallMetadata(payloads, usageExemptions);
   } catch (error) {
     return error.message;
   }
@@ -1390,12 +1895,12 @@ test("install validation flags a relative import with no providing file", () => 
 test("install validation resolves a sibling through file.target, not file.path", () => {
   const files = [
     {
-      path: "packages/ui/src/components/assistant-ui/thread.tsx",
+      path: "packages/ui/src/components/react/assistant-ui/thread.tsx",
       target: "components/assistant-ui/thread.tsx",
       content: 'import { Badge } from "./badge";\n',
     },
     {
-      path: "packages/ui/src/components/assistant-ui/badge.tsx",
+      path: "packages/ui/src/components/react/assistant-ui/badge.tsx",
       target: "components/assistant-ui/badge.tsx",
       content: "export const Badge = () => null;\n",
     },
@@ -1403,10 +1908,13 @@ test("install validation resolves a sibling through file.target, not file.path",
 
   assert.equal(findingsFrom([componentItem(files)]), null);
 
-  // Without targets both paths fall back to their authored locations, which are
-  // still siblings, so only a mismatched target proves the target is what wins.
   const withoutTargets = files.map(({ path, content }) => ({ path, content }));
-  assert.equal(findingsFrom([componentItem(withoutTargets)]), null);
+  const untargetedFindings = findingsFrom([componentItem(withoutTargets)]);
+  assert.match(
+    untargetedFindings,
+    /thread\.tsx lands at components\/react\/assistant-ui\/thread\.tsx/,
+  );
+  assert.doesNotMatch(untargetedFindings, /imports "\.\/badge"/);
 
   const targetMismatch = [
     files[0],
@@ -1416,6 +1924,110 @@ test("install validation resolves a sibling through file.target, not file.path",
     findingsFrom([componentItem(targetMismatch)]),
     /imports "\.\/badge"/,
   );
+});
+
+test("install validation places an untargeted lib file where shadcn does", () => {
+  const dependency = "https://r.assistant-ui.com/elements-surfaces.json";
+  const consumer = componentItem(
+    [
+      {
+        path: "components/assistant-ui/elements/error-state.tsx",
+        type: "registry:component",
+        content: 'import { surface } from "./surfaces";\n',
+      },
+    ],
+    { registryDependencies: [dependency] },
+  );
+  const surfaces = {
+    path: "components/assistant-ui/elements/surfaces.tsx",
+    type: "registry:lib",
+    content: "export const surface = {};\n",
+  };
+  const provider = (file) => ({
+    name: "elements-surfaces",
+    type: "registry:component",
+    files: [file],
+  });
+
+  assert.match(
+    findingsFrom([consumer, provider(surfaces)]),
+    /surfaces\.tsx lands at lib\/surfaces\.tsx/,
+  );
+  assert.equal(
+    findingsFrom([
+      consumer,
+      provider({ ...surfaces, type: "registry:component" }),
+    ]),
+    null,
+  );
+  assert.equal(
+    findingsFrom([consumer, provider({ ...surfaces, target: surfaces.path })]),
+    null,
+  );
+});
+
+test("install validation rejects a target written with the ~/ prefix", () => {
+  const findings = findingsFrom([
+    componentItem([
+      {
+        path: "components/assistant-ui/demo.tsx",
+        type: "registry:component",
+        target: "~/components/assistant-ui/demo.tsx",
+        content: "export const Demo = () => null;\n",
+      },
+    ]),
+  ]);
+
+  assert.match(
+    findings,
+    /declares the target "~\/components\/assistant-ui\/demo\.tsx"/,
+  );
+  assert.doesNotMatch(findings, /lands at/);
+});
+
+test("shadcn install paths follow the type directory, keep the nested tail, and take a target as given", () => {
+  for (const [file, expected] of [
+    [
+      {
+        type: "registry:lib",
+        path: "components/assistant-ui/elements/surfaces.tsx",
+      },
+      "lib/surfaces.tsx",
+    ],
+    [
+      { type: "registry:lib", path: "lib/cloud/client.ts" },
+      "lib/cloud/client.ts",
+    ],
+    [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/surfaces.tsx",
+      },
+      "components/assistant-ui/elements/surfaces.tsx",
+    ],
+    [
+      { type: "registry:ui", path: "components/ui/button.tsx" },
+      "components/ui/button.tsx",
+    ],
+    [
+      { type: "registry:hook", path: "hooks/use-thing.ts" },
+      "hooks/use-thing.ts",
+    ],
+    [
+      {
+        type: "registry:file",
+        path: "source/route.ts",
+        target: "app/api/chat/route.ts",
+      },
+      "app/api/chat/route.ts",
+    ],
+  ]) {
+    assert.equal(
+      shadcnInstallPath(file),
+      expected,
+      `${file.type} ${file.path}`,
+    );
+  }
 });
 
 test("install validation reports an import that escapes the installed tree", () => {
@@ -1456,7 +2068,7 @@ test("install validation resolves a dotted alias basename to its shipped source"
 
   assert.match(
     findingsFrom([componentItem([importer])]),
-    /provides components\/assistant-ui\/tool\.config or components\/assistant-ui\/tool\.config\.tsx/,
+    /provides components\/assistant-ui\/tool\.config\.tsx/,
   );
 });
 
@@ -1482,6 +2094,69 @@ test("install validation resolves an alias asset import behind a query suffix", 
   );
 });
 
+test("install validation resolves direct dependencies through any local alias target", () => {
+  for (const [specifier, providedPath] of [
+    ["@/lib/feature", "lib/feature.ts"],
+    ["@/server/config.js", "server/config.ts"],
+    ["@/data/client", "data/client/index.ts"],
+    ["@/assets/logo.svg?url", "assets/logo.svg"],
+  ]) {
+    const dependency = "https://r.assistant-ui.com/provider.json";
+    const findings = findingsFrom([
+      componentItem(
+        [
+          {
+            path: "components/assistant-ui/demo.tsx",
+            content: `import value from "${specifier}";\n`,
+          },
+        ],
+        { registryDependencies: [dependency] },
+      ),
+      {
+        name: "provider",
+        type: "registry:lib",
+        files: [
+          {
+            path: `source/${providedPath}`,
+            target: providedPath,
+            content: "export default true;\n",
+          },
+        ],
+      },
+    ]);
+
+    assert.equal(findings, null, `${specifier} resolves to ${providedPath}`);
+  }
+});
+
+test("install validation rejects an unresolved non-ambient local alias", () => {
+  const findings = findingsFrom([
+    componentItem([
+      {
+        path: "components/assistant-ui/demo.tsx",
+        content: 'import value from "@/lib/feature";\n',
+      },
+    ]),
+  ]);
+
+  assert.match(findings, /imports "@\/lib\/feature"/);
+  assert.match(findings, /provides lib\/feature\.tsx or lib\/feature\.ts/);
+});
+
+test("install validation allows the ambient lib/utils alias", () => {
+  assert.equal(
+    findingsFrom([
+      componentItem([
+        {
+          path: "components/assistant-ui/demo.tsx",
+          content: 'import { cn } from "@/lib/utils";\n',
+        },
+      ]),
+    ]),
+    null,
+  );
+});
+
 test("install validation resolves a sibling against the registryDependency install path", () => {
   // A shadcn registryDependency installs to components/ui/<name>.tsx, so it
   // satisfies a sibling import only from inside that directory.
@@ -1495,5 +2170,752 @@ test("install validation resolves a sibling against the registryDependency insta
   assert.match(
     findingsFrom([importing("components/assistant-ui/thread.tsx")]),
     /imports "\.\/badge", but no file or registryDependency provides/,
+  );
+});
+
+test("cli scanner element mapping names a real registry item for every element file", async () => {
+  const { registry } = await import("../src/registry.ts");
+
+  const cliSource = await readFile(
+    new URL("../../../packages/cli/src/lib/create-project.ts", import.meta.url),
+    "utf8",
+  );
+  const setMatch = cliSource.match(
+    /BARE_ELEMENT_ITEMS = new Set\(\[([^\]]*)\]/,
+  );
+  assert.ok(setMatch, "BARE_ELEMENT_ITEMS not found in create-project.ts");
+  const cliBare = new Set(
+    [...setMatch[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]),
+  );
+
+  const itemNames = new Set(registry.map((item) => item.name));
+  for (const name of cliBare) {
+    assert.ok(
+      itemNames.has(name),
+      `BARE_ELEMENT_ITEMS entry "${name}" is not a registry item`,
+    );
+  }
+
+  const expectedItems = new Set(
+    registry.flatMap((item) =>
+      (item.files ?? []).flatMap((file) => {
+        const match = file.sourcePath?.match(
+          /react\/assistant-ui\/elements\/([a-z0-9-]+)(\.aui(?:\.radix)?)?\.tsx$/,
+        );
+        if (!match) return [];
+        const base = match[1];
+        if (match[2]) return [base];
+        return [cliBare.has(base) ? base : `elements-${base}`];
+      }),
+    ),
+  );
+  for (const expected of expectedItems) {
+    assert.ok(
+      itemNames.has(expected),
+      `the scanner maps a shipped element file to "${expected}", which is not a registry item`,
+    );
+  }
+});
+
+test("install validation rejects a stale shadcn UI registry dependency", () => {
+  const findings = findingsFrom([
+    componentItem(
+      [
+        {
+          path: "components/assistant-ui/demo.tsx",
+          content: "export const Demo = () => null;\n",
+        },
+      ],
+      { registryDependencies: ["button"] },
+    ),
+  ]);
+
+  assert.match(
+    findings,
+    /demo: registry dependency "button" is not imported directly by this item/,
+  );
+});
+
+test("install validation recognizes a shadcn UI dependency used through an alias", () => {
+  const findings = findingsFrom([
+    componentItem(
+      [
+        {
+          path: "components/assistant-ui/demo.tsx",
+          content: 'import { Button } from "@/components/ui/button";\n',
+        },
+      ],
+      { registryDependencies: ["button"] },
+    ),
+  ]);
+
+  assert.equal(findings, null);
+});
+
+test("install validation recognizes a direct assistant URL used through an alias", () => {
+  const findings = findingsFrom([
+    componentItem(
+      [
+        {
+          path: "components/assistant-ui/demo.tsx",
+          content: 'import { Badge } from "@/components/assistant-ui/badge";\n',
+        },
+      ],
+      {
+        registryDependencies: ["https://r.assistant-ui.com/badge.json"],
+      },
+    ),
+    {
+      name: "badge",
+      type: "registry:component",
+      files: [
+        {
+          path: "components/assistant-ui/badge.tsx",
+          content: "export const Badge = () => null;\n",
+        },
+      ],
+    },
+  ]);
+
+  assert.equal(findings, null);
+});
+
+test("install validation recognizes a direct assistant dependency through relative imports and targets", () => {
+  const findings = findingsFrom([
+    componentItem(
+      [
+        {
+          path: "packages/ui/src/components/thread.tsx",
+          target: "components/assistant-ui/thread.tsx",
+          content: 'import { Badge } from "./badge";\n',
+        },
+      ],
+      {
+        registryDependencies: ["https://r.assistant-ui.com/badge.json"],
+      },
+    ),
+    {
+      name: "badge",
+      type: "registry:component",
+      files: [
+        {
+          path: "packages/ui/src/components/badge.tsx",
+          target: "components/assistant-ui/badge.tsx",
+          content: "export const Badge = () => null;\n",
+        },
+      ],
+    },
+  ]);
+
+  assert.equal(findings, null);
+});
+
+test("install validation does not count a transitive install as direct dependency usage", () => {
+  const findings = findingsFrom([
+    componentItem(
+      [
+        {
+          path: "components/assistant-ui/demo.tsx",
+          content: 'import { Badge } from "@/components/assistant-ui/badge";\n',
+        },
+      ],
+      {
+        registryDependencies: ["https://r.assistant-ui.com/thread.json"],
+      },
+    ),
+    {
+      name: "thread",
+      type: "registry:component",
+      files: [
+        {
+          path: "components/assistant-ui/thread.tsx",
+          content: 'import { Badge } from "@/components/assistant-ui/badge";\n',
+        },
+      ],
+      registryDependencies: ["https://r.assistant-ui.com/badge.json"],
+    },
+    {
+      name: "badge",
+      type: "registry:component",
+      files: [
+        {
+          path: "components/assistant-ui/badge.tsx",
+          content: "export const Badge = () => null;\n",
+        },
+      ],
+    },
+  ]);
+
+  assert.match(
+    findings,
+    /demo: registry dependency "https:\/\/r\.assistant-ui\.com\/thread\.json" is not imported directly by this item/,
+  );
+});
+
+test("install validation accepts an explicitly documented non-imported style dependency", () => {
+  const style = {
+    name: "generative-ui-style",
+    type: "registry:style",
+  };
+  const item = {
+    ...componentItem([], {
+      registryDependencies: [
+        "https://r.assistant-ui.com/generative-ui-style.json",
+      ],
+      registryDependencyUsageExemptions: {
+        "https://r.assistant-ui.com/generative-ui-style.json":
+          "Installs CSS variables and vocabulary rules consumed through class names.",
+      },
+    }),
+    name: "generative-ui",
+  };
+
+  assert.equal(
+    findingsFrom(
+      [item, style],
+      createRegistryDependencyUsageExemptions([item, style], "radix"),
+    ),
+    null,
+  );
+
+  assert.match(
+    findingsFrom([
+      componentItem([], {
+        registryDependencies: [
+          "https://r.assistant-ui.com/generative-ui-style.json",
+        ],
+      }),
+      style,
+    ]),
+    /demo: registry dependency "https:\/\/r\.assistant-ui\.com\/generative-ui-style\.json" is not imported directly by this item/,
+  );
+});
+
+test("install validation accepts an explicitly documented page sidecar", () => {
+  const backend = {
+    name: "backend",
+    type: "registry:page",
+    files: [
+      {
+        path: "app/api/chat/route.ts",
+        target: "app/api/chat/route.ts",
+        content: "export const POST = () => null;\n",
+      },
+    ],
+  };
+  const quickStart = {
+    name: "quick-start",
+    type: "registry:page",
+    registryDependencies: ["https://r.assistant-ui.com/backend.json"],
+    registryDependencyUsageExemptions: {
+      "https://r.assistant-ui.com/backend.json":
+        "Installs the API route used by the page without importing it into the client bundle.",
+    },
+  };
+
+  assert.equal(
+    findingsFrom(
+      [quickStart, backend],
+      createRegistryDependencyUsageExemptions([quickStart, backend], "radix"),
+    ),
+    null,
+  );
+
+  assert.match(
+    findingsFrom([
+      componentItem([], {
+        registryDependencies: ["https://r.assistant-ui.com/backend.json"],
+      }),
+      backend,
+    ]),
+    /demo: registry dependency "https:\/\/r\.assistant-ui\.com\/backend\.json" is not imported directly by this item/,
+  );
+
+  assert.match(
+    findingsFrom([
+      {
+        name: "quick-start",
+        type: "registry:page",
+        registryDependencies: ["https://r.assistant-ui.com/thread.json"],
+      },
+      {
+        name: "thread",
+        type: "registry:component",
+        files: [
+          {
+            path: "components/assistant-ui/thread.tsx",
+            content: "export const Thread = () => null;\n",
+          },
+        ],
+      },
+    ]),
+    /quick-start: registry dependency "https:\/\/r\.assistant-ui\.com\/thread\.json" is not imported directly by this item/,
+  );
+});
+
+test("install validation requires foreign registry URLs to be explicitly documented", () => {
+  const item = componentItem([], {
+    registryDependencies: ["https://example.com/foreign.json"],
+    registryDependencyUsageExemptions: {
+      "https://example.com/foreign.json":
+        "Installs metadata whose foreign payload is unavailable to this build.",
+    },
+  });
+
+  assert.equal(
+    findingsFrom(
+      [item],
+      createRegistryDependencyUsageExemptions([item], "radix"),
+    ),
+    null,
+  );
+
+  assert.match(
+    findingsFrom([
+      componentItem([], {
+        registryDependencies: ["https://example.com/foreign.json"],
+      }),
+    ]),
+    /foreign\.json" is not imported directly by this item/,
+  );
+});
+
+test("registry dependency usage exemptions reject misspelled dependencies", () => {
+  const item = componentItem([], {
+    registryDependencies: ["button"],
+    registryDependencyUsageExemptions: {
+      buton: "Installs a component used outside this item's module graph.",
+    },
+  });
+
+  assert.throws(
+    () => createRegistryDependencyUsageExemptions([item], "radix"),
+    /demo: registryDependencyUsageExemptions entry "buton" does not match a declared registry dependency/,
+  );
+});
+
+test("registry dependency usage exemptions reject stale entries", () => {
+  const item = componentItem([], {
+    registryDependencies: [],
+    registryDependencyUsageExemptions: {
+      button: "Installs a component used outside this item's module graph.",
+    },
+  });
+
+  assert.throws(
+    () => createRegistryDependencyUsageExemptions([item], "base"),
+    /demo: registryDependencyUsageExemptions entry "button" does not match a declared registry dependency/,
+  );
+});
+
+test("registry dependency usage exemptions require a reviewable reason", async () => {
+  const item = componentItem([], {
+    registryDependencies: ["button"],
+    registryDependencyUsageExemptions: { button: "   " },
+  });
+
+  await assert.rejects(
+    () => buildRegistry([item], []),
+    /Invalid registry metadata:[\s\S]*registryDependencyUsageExemptions\.button/,
+  );
+});
+
+test("registry dependency usage exemptions do not hide missing local items", () => {
+  const dependency = "https://r.assistant-ui.com/missing.json";
+  const item = componentItem([], {
+    registryDependencies: [dependency],
+    registryDependencyUsageExemptions: {
+      [dependency]: "Installs runtime-selected metadata.",
+    },
+  });
+
+  const findings = findingsFrom(
+    [item],
+    createRegistryDependencyUsageExemptions([item], "radix"),
+  );
+  assert.match(findings, /does not match a local registry item/);
+});
+
+test("registry dependency usage exemptions reject directly imported dependencies", () => {
+  const item = componentItem(
+    [
+      {
+        path: "components/assistant-ui/demo.tsx",
+        content: 'import { Button } from "@/components/ui/button";\n',
+      },
+    ],
+    {
+      registryDependencies: ["button"],
+      registryDependencyUsageExemptions: {
+        button: "Installs a component selected at runtime.",
+      },
+    },
+  );
+
+  const findings = findingsFrom(
+    [item],
+    createRegistryDependencyUsageExemptions([item], "radix"),
+  );
+  assert.match(
+    findings,
+    /registryDependencyUsageExemptions entry "button" is unnecessary because the dependency is imported directly/,
+  );
+});
+
+test("registry dependency usage exemptions include only the active flavor", () => {
+  const commonDependency = "https://r.assistant-ui.com/theme.json";
+  const item = componentItem([], {
+    registryDependencies: [commonDependency],
+    radixRegistryDependencies: ["input"],
+    baseRegistryDependencies: ["popover"],
+    registryDependencyUsageExemptions: {
+      [commonDependency]: "Installs shared theme metadata.",
+      input: "Installs the Radix input for runtime composition.",
+      popover: "Installs the Base popover for runtime composition.",
+    },
+  });
+
+  const radixExemptions = createRegistryDependencyUsageExemptions(
+    [item],
+    "radix",
+  ).get("demo");
+  const baseExemptions = createRegistryDependencyUsageExemptions(
+    [item],
+    "base",
+  ).get("demo");
+
+  assert.deepEqual([...radixExemptions], [commonDependency, "input"]);
+  assert.deepEqual(
+    [...baseExemptions],
+    ["https://r.assistant-ui.com/base/theme.json", "popover"],
+  );
+});
+
+test("internal usage exemptions do not leak into Vue payloads or indexes", async () => {
+  const dependency = "https://example.com/theme.json";
+  const vueItem = {
+    name: "vue-theme",
+    type: "registry:style",
+    registryDependencies: [dependency],
+    registryDependencyUsageExemptions: {
+      [dependency]: "Installs foreign theme metadata.",
+    },
+  };
+
+  await buildRegistry([], [vueItem]);
+
+  for (const outputPath of [
+    "dist/vue/registry.json",
+    "dist/vue/vue-theme.json",
+  ]) {
+    const output = await readFile(outputPath, "utf8");
+    assert.equal(
+      output.includes("registryDependencyUsageExemptions"),
+      false,
+      `${outputPath} excludes internal validation metadata`,
+    );
+  }
+});
+
+test("the real registry build satisfies the emitted install metadata contract", async () => {
+  const { registry, vueRegistry } = await import("../src/registry.ts");
+
+  await assert.doesNotReject(() => buildRegistry(registry, vueRegistry));
+
+  for (const outputPath of [
+    "dist/registry.json",
+    "dist/base/registry.json",
+    "dist/generative-ui.json",
+    "dist/base/generative-ui.json",
+  ]) {
+    const output = await readFile(outputPath, "utf8");
+    assert.equal(
+      output.includes("registryDependencyUsageExemptions"),
+      false,
+      `${outputPath} excludes internal validation metadata`,
+    );
+  }
+});
+
+test("emitted files carry a repo-root sourcePath for source links", () => {
+  const kit = createRegistryPayload({
+    name: "sourcepath-kit",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/thread.aui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/thread.aui.tsx",
+      },
+    ],
+  });
+  assert.equal(
+    kit.payload.files[0].sourcePath,
+    "packages/ui/src/components/react/assistant-ui/elements/thread.aui.tsx",
+  );
+
+  const radix = createRegistryPayload(
+    {
+      name: "sourcepath-radix",
+      type: "registry:component",
+      files: [
+        {
+          type: "registry:component",
+          path: "components/assistant-ui/elements/threadlist-sidebar.aui.tsx",
+          sourcePath:
+            "../../packages/ui/src/components/react/assistant-ui/elements/threadlist-sidebar.aui.tsx",
+        },
+      ],
+    },
+    true,
+  );
+  assert.equal(
+    radix.payload.files[0].sourcePath,
+    "packages/ui/src/components/react/assistant-ui/elements/threadlist-sidebar.aui.radix.tsx",
+  );
+
+  const template = createRegistryPayload({
+    name: "sourcepath-template",
+    type: "registry:page",
+    files: [
+      {
+        type: "registry:page",
+        path: "app/api/chat/route.ts",
+        sourcePath: "templates/ai-sdk-backend-resumable/app/api/chat/route.ts",
+        target: "app/api/chat/route.ts",
+      },
+    ],
+  });
+  assert.equal(
+    template.payload.files[0].sourcePath,
+    "apps/registry/templates/ai-sdk-backend-resumable/app/api/chat/route.ts",
+  );
+});
+
+test("every emitted sourcePath exists at the repo root", async () => {
+  const { existsSync, readFileSync, readdirSync } = await import("node:fs");
+  const { join, resolve } = await import("node:path");
+
+  // Build inside the test so it neither ENOENTs in isolation nor validates a
+  // stale dist from an earlier run.
+  const { registry, stagedVueRegistry } = await import("../src/registry.ts");
+  await buildRegistry(registry, stagedVueRegistry);
+
+  const repoRoot = resolve(process.cwd(), "../..");
+  const jsonPaths = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name === "files") continue;
+        walk(full);
+      } else if (entry.name.endsWith(".json")) {
+        jsonPaths.push(full);
+      }
+    }
+  };
+  walk("dist");
+
+  assert.ok(
+    jsonPaths.length > 50,
+    `unexpectedly few items: ${jsonPaths.length}`,
+  );
+
+  const missing = [];
+  for (const jsonPath of jsonPaths) {
+    let item;
+    try {
+      item = JSON.parse(readFileSync(jsonPath, "utf8"));
+    } catch {
+      continue;
+    }
+    if (!item || typeof item !== "object" || !Array.isArray(item.files)) {
+      continue;
+    }
+    for (const file of item.files) {
+      if (typeof file.sourcePath !== "string") {
+        missing.push(`${jsonPath}: ${file.path} has no sourcePath`);
+      } else if (!existsSync(join(repoRoot, file.sourcePath))) {
+        missing.push(`${jsonPath}: ${file.sourcePath}`);
+      }
+    }
+  }
+  assert.deepEqual(missing, [], `emitted sourcePaths missing from the repo`);
+});
+
+test("packaged file contents are written per item at the install target", async () => {
+  const { mkdtemp, readFile: readTmp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+
+  const root = await mkdtemp(join(tmpdir(), "aui-registry-files-"));
+  try {
+    await writePackagedFiles(root, [
+      {
+        name: "alpha",
+        type: "registry:page",
+        files: [
+          {
+            type: "registry:page",
+            path: "app/api/chat/route.ts",
+            content: "alpha content",
+          },
+        ],
+      },
+      {
+        name: "beta",
+        type: "registry:page",
+        files: [
+          {
+            type: "registry:page",
+            path: "app/api/chat/route.ts",
+            content: "beta content",
+          },
+        ],
+      },
+      {
+        name: "gamma",
+        type: "registry:page",
+        files: [
+          {
+            type: "registry:page",
+            path: "app/ai-sdk/assistant.tsx",
+            target: "app/assistant.tsx",
+            content: "gamma content",
+          },
+        ],
+      },
+      {
+        name: "chat/b/delta",
+        type: "registry:page",
+        files: [
+          {
+            type: "registry:page",
+            path: "app/api/chat/resume/[streamId]/route.ts",
+            content: "delta content",
+          },
+        ],
+      },
+    ]);
+
+    assert.equal(
+      await readTmp(join(root, "files/alpha/app/api/chat/route.ts"), "utf8"),
+      "alpha content",
+    );
+    assert.equal(
+      await readTmp(join(root, "files/beta/app/api/chat/route.ts"), "utf8"),
+      "beta content",
+    );
+    // Keyed on target ?? path: the location shadcn installs to, which is the
+    // path the docs' packaged-file URLs and curl -o both use.
+    assert.equal(
+      await readTmp(join(root, "files/gamma/app/assistant.tsx"), "utf8"),
+      "gamma content",
+    );
+    // A slash-bearing item name nests as directories, and a bracketed route
+    // segment is preserved verbatim on disk — the URL side percent-encodes it.
+    assert.equal(
+      await readTmp(
+        join(
+          root,
+          "files/chat/b/delta/app/api/chat/resume/[streamId]/route.ts",
+        ),
+        "utf8",
+      ),
+      "delta content",
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("the built dist serves every packaged file at the docs' URL convention", async () => {
+  const { readFile: readJson, readdir } = await import("node:fs/promises");
+  const { join } = await import("node:path");
+
+  // Build inside the test so it neither ENOENTs in isolation nor validates a
+  // stale dist from an earlier run.
+  const { registry, stagedVueRegistry } = await import("../src/registry.ts");
+  await buildRegistry(registry, stagedVueRegistry);
+
+  // The consumer half of the convention. Both sides derive the same key
+  // independently, so the docs' own builder runs against the real dist here
+  // rather than against fixtures that could agree with neither.
+  const { buildDownloadCommand, packagedFileUrl } =
+    await import("../../docs/components/pages/docs/fumadocs/install/packaged-file-url.ts");
+
+  // Item names may contain slashes, so the walk is recursive. files/ holds the
+  // packaged bytes themselves, base/ is walked as its own root, and vue/ and
+  // native/ are flavors the docs' packaged-file URLs do not serve yet.
+  const collectItemJsons = async (dir, out) => {
+    for (const entry of await readdir(dir, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        if (
+          entry.name === "files" ||
+          entry.name === "base" ||
+          entry.name === "vue" ||
+          entry.name === "native"
+        ) {
+          continue;
+        }
+        await collectItemJsons(join(dir, entry.name), out);
+      } else if (entry.name.endsWith(".json")) {
+        out.push(join(dir, entry.name));
+      }
+    }
+  };
+
+  for (const [distRoot, flavor, origin] of [
+    ["dist", "radix", "https://r.assistant-ui.com/files/"],
+    ["dist/base", "base", "https://r.assistant-ui.com/base/files/"],
+  ]) {
+    const jsonPaths = [];
+    await collectItemJsons(distRoot, jsonPaths);
+    for (const jsonPath of jsonPaths) {
+      let item;
+      try {
+        item = JSON.parse(await readJson(jsonPath, "utf8"));
+      } catch {
+        continue;
+      }
+      if (!item || typeof item !== "object" || !Array.isArray(item.files)) {
+        continue;
+      }
+      for (const file of item.files) {
+        const url = packagedFileUrl(flavor, {
+          name: item.name,
+          path: file.target ?? file.path,
+        });
+        assert.equal(url.slice(0, origin.length), origin);
+        const served = await readJson(
+          join(
+            distRoot,
+            "files",
+            url
+              .slice(origin.length)
+              .split("/")
+              .map(decodeURIComponent)
+              .join("/"),
+          ),
+          "utf8",
+        );
+        assert.equal(served, file.content);
+      }
+    }
+  }
+
+  const resumable = JSON.parse(
+    await readJson("dist/ai-sdk-backend-resumable.json", "utf8"),
+  );
+  const bracketed = resumable.files.find((file) =>
+    (file.target ?? file.path).includes("[streamId]"),
+  );
+  assert.equal(
+    buildDownloadCommand(
+      [{ name: resumable.name, path: bracketed.target ?? bracketed.path }],
+      "radix",
+    ),
+    "curl -fsSL --create-dirs \\\n  -o 'app/api/chat/resume/[streamId]/route.ts' https://r.assistant-ui.com/files/ai-sdk-backend-resumable/app/api/chat/resume/%5BstreamId%5D/route.ts",
   );
 });

@@ -1,0 +1,168 @@
+---
+title: "Directive text"
+description: "A message renderer that turns mention directives into inline, runtime-aware chips."
+---
+
+Directive text parses a message's plain text for directive syntax and renders each one as an inline chip instead of raw markup, leaving ordinary text untouched. With a runtime it plugs into `MessagePrimitive.Parts` as the text renderer and understands assistant-ui's own directive format out of the box; standalone you supply your own parser and get the same chip rendering with no runtime underneath it.
+
+## Getting started
+
+<RuntimeMode>
+
+<Steps>
+  <Step>
+
+### Register the renderer
+
+`DirectiveText` is pre-wired with assistant-ui's default directive format. Pass it as the `Text` renderer on `MessagePrimitive.Parts` wherever directive chips should appear.
+
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+import { DirectiveText } from "@/components/assistant-ui/elements/directive-text.aui";
+import { MessagePrimitive } from "@assistant-ui/react";
+
+function UserMessage() {
+  return (
+    <MessagePrimitive.Root>
+      <MessagePrimitive.Parts components={{ Text: DirectiveText }} />
+    </MessagePrimitive.Root>
+  );
+}
+```
+
+A message with no directive syntax renders exactly as plain text; nothing extra is added when there's nothing to parse.
+
+  </Step>
+</Steps>
+
+Pair this with [Composer trigger popover](/elements/composer-trigger-popover): a mention or slash command selected there inserts the same directive syntax into the sent message, and `DirectiveText` renders it back as a chip.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `createDirectiveText` is a factory: give it your own parser and it returns a component that renders the parsed segments, no runtime involved.
+
+<Steps>
+  <Step>
+
+### Build a component from your own format
+
+```tsx title="app/message.tsx"
+import {
+  createDirectiveText,
+  type DirectiveTextFormatter,
+  type DirectiveTextSegment,
+} from "@/components/assistant-ui/elements/directive-text";
+
+const bracketFormatter: DirectiveTextFormatter = {
+  parse(text) {
+    const segments: DirectiveTextSegment[] = [];
+    const re = /@\[([^\]]+)\]\(([^)]+)\)/g;
+    let last = 0;
+    for (const m of text.matchAll(re)) {
+      if (m.index > last) segments.push({ kind: "text" as const, text: text.slice(last, m.index) });
+      segments.push({ kind: "mention" as const, type: "user", label: m[1]!, id: m[2]! });
+      last = m.index + m[0].length;
+    }
+    if (last < text.length) segments.push({ kind: "text" as const, text: text.slice(last) });
+    return segments;
+  },
+};
+
+const MentionText = createDirectiveText(bracketFormatter);
+
+export function Message({ text }: { text: string }) {
+  return <MentionText text={text} />;
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+A message whose text has no directive matches renders as the bare string, with no wrapper element. Once there is at least one match, the text splits into a sequence of runs:
+
+```tsx
+<>
+  <span>{textBetweenDirectives}</span>
+  <span data-slot="directive-text-chip" data-directive-type={type} data-directive-id={id} aria-label={`${type}: ${label}`}>
+    <Icon />
+    {label}
+  </span>
+  {/* repeated per segment, in order */}
+</>
+```
+
+Each chip's icon comes from `iconMap[type]`, falling back to `fallbackIcon` when the map has no entry for that type, or no icon at all when neither is given. The chip is a fixed, secondary-styled badge with no `className` override; a renderer that needs different styling calls `formatter.parse` itself and maps the segments to its own markup instead of using `createDirectiveText`.
+
+## Examples
+
+### Assistant-ui's default directive format
+
+With no custom parser, both `DirectiveText` and a `createDirectiveText` call with `unstable_defaultDirectiveFormatter` understand `:type[label]{name=id}`; the `{name=…}` attribute is omitted when `id` equals `label`, so `:tool[Search]` and `:tool[Search]{name=web-search}` both parse, the second with a different `id`.
+
+```tsx
+"Ask :tool[Search]{name=web-search} to look this up."
+// → "Ask ", a chip labeled "Search" (type "tool", id "web-search"), " to look this up."
+```
+
+### Map directive types to icons
+
+`iconMap` and `fallbackIcon` work the same whether the formatter is the default or your own; keys match each segment's `type`.
+
+```tsx
+import { WrenchIcon, SlashIcon, SparklesIcon } from "lucide-react";
+
+createDirectiveText(unstable_defaultDirectiveFormatter, {
+  iconMap: { tool: WrenchIcon, command: SlashIcon },
+  fallbackIcon: SparklesIcon,
+});
+```
+
+`unstable_useMentionAdapter`'s model-context tools default to `type: "tool"`, and `unstable_useSlashCommandAdapter`'s commands default to `type: "command"`, so this pair of keys covers both out of the box.
+
+## API reference
+
+<RuntimeMode>
+
+### DirectiveText
+
+| Export | Type | Description |
+|--------|------|-------------|
+| `DirectiveText` | `TextMessagePartComponent` | Ready to use; parses assistant-ui's default `:type[label]{name=id}` syntax. Pass as `MessagePrimitive.Parts`'s `components.Text`. |
+| `createDirectiveText(formatter, options?)` | `(formatter, options?) => TextMessagePartComponent` | Builds a `Text` renderer around any formatter, for a custom `iconMap` or `fallbackIcon`. |
+
+### Directive segment
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `kind` | `"text" \| "mention"` | Which shape the segment is. |
+| `text` | `string` | The literal run, for `kind: "text"`. |
+| `type` | `string` | The directive's type, for `kind: "mention"`; used to look up an icon. |
+| `label` | `string` | Shown inside the chip. |
+| `id` | `string` | Not shown; carried in `data-directive-id`. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### createDirectiveText
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `formatter` | `DirectiveTextFormatter` | Object with a `parse(text): readonly DirectiveTextSegment[]` method. |
+| `options.iconMap` | `Record<string, IconComponent>` | Maps a segment's `type` to an icon. |
+| `options.fallbackIcon` | `IconComponent` | Used when `iconMap` has no entry for a segment's `type`. |
+
+Returns a component with a single prop, `text: string`.
+
+### DirectiveTextFormatter
+
+| Method | Type | Description |
+|--------|------|-------------|
+| `parse` | `(text: string) => readonly DirectiveTextSegment[]` | The only method the standalone renderer needs; write any syntax you want. `Unstable_DirectiveFormatter` (which also has `serialize`) satisfies this type, so `unstable_defaultDirectiveFormatter` works here too. |
+
+</StandaloneMode>

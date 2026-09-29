@@ -1,0 +1,243 @@
+---
+title: "Tool timeline"
+description: "A whole working session summarized as verbs, targets, and file stats."
+---
+
+A tool timeline turns everything one assistant turn did into a single collapsed line that expands into a vertical trace: a verb, an icon, and a chip per step, ending in a row of file-change stats. With a runtime you derive the steps from the message's own parts; standalone you hold the step list yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+A single tool call renders through that tool's own `render` field, but a timeline summarizes every call in the message at once, so it reads `s.message.parts` directly instead of registering as one tool's renderer.
+
+<Steps>
+  <Step>
+
+### Derive steps from the message's parts
+
+```tsx title="components/assistant-ui/elements/session-timeline.tsx"
+"use client";
+
+import { useState } from "react";
+import {
+  FileSearchIcon,
+  PenLineIcon,
+  TerminalIcon,
+  type LucideIcon,
+} from "lucide-react";
+import { useAuiState, type ToolCallMessagePart } from "@assistant-ui/react";
+import {
+  ToolTimeline,
+  type TimelineStat,
+  type TimelineStep,
+} from "@/components/assistant-ui/elements/tool-timeline";
+
+const TOOL_META: Record<string, { verb: string; icon: LucideIcon }> = {
+  read_file: { verb: "Read", icon: FileSearchIcon },
+  run_command: { verb: "Ran", icon: TerminalIcon },
+  edit_file: { verb: "Edited", icon: PenLineIcon },
+};
+
+function toStep(part: ToolCallMessagePart): TimelineStep {
+  const meta = TOOL_META[part.toolName];
+  const args = part.args as Record<string, unknown>;
+  return {
+    verb: meta?.verb ?? part.toolName,
+    chip: String(args.path ?? args.command ?? part.toolCallId),
+    icon: meta?.icon ?? TerminalIcon,
+  };
+}
+
+function toStats(parts: readonly ToolCallMessagePart[]): TimelineStat[] {
+  return parts
+    .filter((part) => part.toolName === "edit_file" && part.result)
+    .map((part) => {
+      const result = part.result as { file: string; added: number; removed: number };
+      return { file: result.file, added: result.added, removed: result.removed };
+    });
+}
+
+export function SessionTimeline() {
+  const [open, setOpen] = useState(false);
+  const toolCalls = useAuiState((s) =>
+    s.message.parts.filter(
+      (part): part is ToolCallMessagePart => part.type === "tool-call",
+    ),
+  );
+  const streaming = useAuiState((s) => s.message.status?.type === "running");
+  const steps = toolCalls.map(toStep);
+  const stats = toStats(toolCalls);
+
+  if (steps.length === 0) return null;
+
+  return (
+    <ToolTimeline
+      steps={steps}
+      visibleSteps={steps.length}
+      streaming={streaming}
+      open={open}
+      onOpenChange={setOpen}
+      restingLabel={`${steps.length} steps · ${stats.length} files changed`}
+      activeLabel="Working"
+      stats={stats}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Place it beside the message parts, not inside them
+
+`SessionTimeline` replaces the per-part rendering for tool calls and reasoning, so silence those in `MessagePrimitive.Parts` to avoid showing the same steps twice:
+
+```tsx
+<MessagePrimitive.Root>
+  <SessionTimeline />
+  <MessagePrimitive.Parts
+    components={{ tools: { Fallback: () => null }, Reasoning: () => null }}
+  />
+</MessagePrimitive.Root>
+```
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, you hold the step and stat arrays as state and grow them as work happens.
+
+<Steps>
+  <Step>
+
+### Hold the step list
+
+```tsx title="app/session.tsx"
+"use client";
+
+import { useState } from "react";
+import { FileSearchIcon, PenLineIcon, TerminalIcon } from "lucide-react";
+import {
+  ToolTimeline,
+  type TimelineStat,
+  type TimelineStep,
+} from "@/components/assistant-ui/elements/tool-timeline";
+
+const STEPS: TimelineStep[] = [
+  { verb: "Read", chip: "thread.tsx", icon: FileSearchIcon },
+  { verb: "Ran", chip: "pnpm vitest", icon: TerminalIcon },
+  { verb: "Edited", chip: "composer.tsx", icon: PenLineIcon },
+];
+
+const STATS: TimelineStat[] = [{ file: "composer.tsx", added: 14, removed: 3 }];
+
+export function Session() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <ToolTimeline
+      steps={STEPS}
+      visibleSteps={STEPS.length}
+      streaming={false}
+      open={open}
+      onOpenChange={setOpen}
+      restingLabel="3 steps · 1 file changed"
+      activeLabel="Working"
+      stats={STATS}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Reveal steps as work happens
+
+`visibleSteps` is independent of the array length, so a step can exist in `steps` before it is shown:
+
+```tsx
+const [visibleSteps, setVisibleSteps] = useState(0);
+
+useEffect(() => {
+  if (visibleSteps >= STEPS.length) return;
+  const id = setTimeout(() => setVisibleSteps((n) => n + 1), 1000);
+  return () => clearTimeout(id);
+}, [visibleSteps]);
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="tool-timeline">
+  <button>{/* chevron, shimmering activeLabel while streaming, else restingLabel */}</button>
+  <div>
+    {/* one row per visible step: icon, verb, chip */}
+    {/* a wrapped row of file chips, only when stats.length > 0 */}
+  </div>
+</div>
+```
+
+`visibleSteps` clamps to the length of `steps` and floors a fractional or negative value to zero, so a step can be queued before it is shown. Only the last visible step shimmers, and only while `streaming` is true; every earlier step reads as settled even mid-run. The stats row is omitted entirely when `stats` is empty, and a stat missing `added` or `removed` omits that half of the count rather than showing it as zero.
+
+## Examples
+
+### Restyle the timeline
+
+Both lanes take `className` on the root. Rows, chips, and the shimmering label all read from the shared tokens in `surfaces.tsx`.
+
+```tsx
+<ToolTimeline className="max-w-none" /* ... */ />
+```
+
+### Showing only the recent tail
+
+The panel reveals steps from the start of the array, so cap the array itself, not just `visibleSteps`, to show only the most recent steps of a long run:
+
+```tsx
+<ToolTimeline steps={steps.slice(-6)} visibleSteps={6} /* ... */ />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Message state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.message.parts` | `readonly ThreadAssistantMessagePart[]` | Every part in the message. Filter for `part.type === "tool-call"` to build the step list. |
+| `s.message.status` | `MessageStatus \| undefined` | `status?.type === "running"` while the message is still streaming. |
+
+There is no dedicated timeline primitive: you write the mapping from `parts` to `steps` and `stats` yourself, the way `toStep` and `toStats` do above. See [Tool UI](/docs/tools/tool-ui) for the full `ToolCallMessagePart` shape.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### ToolTimeline
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `steps` | `readonly TimelineStep[]` | required | The full step list, in order. |
+| `visibleSteps` | `number` | required | How many steps from the start of `steps` to render. |
+| `streaming` | `boolean` | required | Shimmers the trigger label and the last visible step while true. |
+| `open` | `boolean` | required | Whether the disclosure panel is expanded. |
+| `onOpenChange` | `(open: boolean) => void` | required | Called when the trigger is clicked. |
+| `restingLabel` | `string` | required | Trigger text shown once `streaming` is false. |
+| `activeLabel` | `string` | required | Shimmering trigger text shown while `streaming` is true. |
+| `stats` | `TimelineStat[]` | required | File-change chips rendered below the steps. Pass `[]` to omit the row. |
+| `className` | `string` | | Merged onto the root. |
+
+`TimelineStep` is `{ verb: string; chip: string; icon: LucideIcon }`. `TimelineStat` is `{ file: string; added?: number; removed?: number }`.
+
+</StandaloneMode>

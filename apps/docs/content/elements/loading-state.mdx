@@ -1,0 +1,156 @@
+---
+title: "Loader"
+description: "A pixel matrix that keeps time while the model has nothing to show yet."
+---
+
+Nine cells cycle through a moving band while a label underneath names what is happening, filling the gap before any real content exists. With a runtime you mount it only for that gap and drive its clock yourself; standalone you own the tick and the label outright.
+
+## Getting started
+
+<RuntimeMode>
+
+Nothing in the runtime ticks a clock for you, and no selector hands you a status string. What the runtime does give you is the one fact that decides whether this belongs on screen at all: a run is active and the newest message has not produced a single part yet.
+
+<Steps>
+  <Step>
+
+### Gate it on an empty run
+
+```tsx title="components/assistant-ui/elements/loading-state.tsx"
+"use client";
+
+import { useAuiState } from "@assistant-ui/react";
+
+function useIsAwaitingFirstToken() {
+  return useAuiState((s) => {
+    if (!s.thread.isRunning) return false;
+    const last = s.thread.messages.at(-1);
+    return last?.role === "assistant" && last.parts.length === 0;
+  });
+}
+```
+
+`s.thread.messages` is the branch currently on screen, so checking its last entry is enough; you do not need a message scope to ask "is anyone waiting on the model right now".
+
+  </Step>
+  <Step>
+
+### Drive the tick locally
+
+```tsx
+import { useEffect, useState } from "react";
+import { GenerationLoader } from "@/components/assistant-ui/elements/loading-state";
+
+function useTick(active: boolean) {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    const id = setInterval(() => setTick((t) => t + 1), 120);
+    return () => clearInterval(id);
+  }, [active]);
+  return tick;
+}
+
+function AwaitingFirstToken() {
+  const waiting = useIsAwaitingFirstToken();
+  const tick = useTick(waiting);
+  if (!waiting) return null;
+  return <GenerationLoader label="Generating" tick={tick} />;
+}
+```
+
+Place `AwaitingFirstToken` wherever the assistant's next message will render. Once a part arrives, `waiting` flips to `false`, the interval clears, and your real content takes over.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, both `label` and `tick` are yours: the component only turns a tick number into a moving band of lit cells and prints the label underneath.
+
+<Steps>
+  <Step>
+
+### Hold tick and label in state
+
+```tsx title="app/loader.tsx"
+"use client";
+
+import { useEffect, useState } from "react";
+import { GenerationLoader } from "@/components/assistant-ui/elements/loading-state";
+
+export function Loader({ label }: { label: string }) {
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 120);
+    return () => clearInterval(id);
+  }, []);
+
+  return <GenerationLoader label={label} tick={tick} />;
+}
+```
+
+  </Step>
+  <Step>
+
+### Stop the timer when it settles
+
+Unmount `Loader` once your own async work resolves; there is no `active` or `done` prop, the interval keeps advancing `tick` for as long as the component stays mounted.
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Examples
+
+### Cell shapes
+
+`variant` only changes the corner radius of the nine cells: `"dots"` rounds them into circles, `"squares"` keeps sharp corners, `"rounded"` sits between the two.
+
+```tsx
+<GenerationLoader label="Generating" tick={tick} variant="squares" />
+```
+
+### Restyle the grid
+
+The cells paint with a flat `bg-foreground` at two opacity levels (lit and dim); there is no color prop, so retinting the grid means overriding that utility through `className` or wrapping the element in a `text-*`/color scope your own CSS reads. The label alone uses the shared `ShimmerLabel` treatment from `surfaces.tsx`.
+
+```tsx
+<GenerationLoader
+  label="Generating"
+  tick={tick}
+  className="[&_[aria-hidden]_span]:bg-blue-500"
+/>
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Thread state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.thread.isRunning` | `boolean` | Whether a run is active. |
+| `s.thread.messages` | `readonly MessageState[]` | The branch on screen; `.at(-1)` is the newest message, whose `role` and `parts.length` decide whether the assistant has produced anything visible yet. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### GenerationLoader
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `label` | `string` | required | Text shown under the grid, rendered with a shimmer. |
+| `tick` | `number` | required | Advances the moving band of lit cells; the component does not advance it for you. |
+| `variant` | `"dots" \| "squares" \| "rounded"` | `"dots"` | Corner radius of the nine cells. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props except `children` are forwarded to the root.
+
+</StandaloneMode>

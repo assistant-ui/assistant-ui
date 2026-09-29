@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { DynamicCodeBlock } from "fumadocs-ui/components/dynamic-codeblock";
+import { Highlight } from "@/components/shared/highlight";
+import { CodeBlock } from "@/components/ui/code-block";
 import { CodeCollapsible } from "@/components/pages/docs/fumadocs/code-collapsible";
 
 type RegistryFile = {
@@ -8,6 +9,7 @@ type RegistryFile = {
   type: string;
   path: string;
   target?: string;
+  sourcePath: string;
 };
 
 type RegistryItem = {
@@ -22,6 +24,8 @@ export type ResolvedFile = {
   name: string;
   path: string;
   content: string;
+  /** Repo-root-relative location of the shipped content. */
+  sourcePath: string;
 };
 
 export type ResolvedGroup = {
@@ -69,33 +73,40 @@ async function readLocalRegistry(
 async function readLocalShadcnComponent(
   name: string,
   flavor: RegistryFlavor,
-): Promise<string | null> {
-  const uiPath = path.join(
-    process.cwd(),
-    "../../packages/ui/src/components/ui/radix",
-    `${name}.tsx`,
-  );
+): Promise<{ content: string; sourcePath: string } | null> {
+  const radixSourcePath = `packages/ui/src/components/react/ui/radix/${name}.tsx`;
+  const uiPath = path.join(process.cwd(), "../..", radixSourcePath);
 
   if (flavor === "base") {
-    const vendoredPath = path.join(
-      process.cwd(),
-      "../../packages/ui/src/components/ui/base",
-      `${name}.tsx`,
+    const baseSourcePath = `packages/ui/src/components/react/ui/base/${name}.tsx`;
+    const vendoredContent = await readFile(
+      path.join(process.cwd(), "../..", baseSourcePath),
     );
-    const vendoredContent = await readFile(vendoredPath);
     if (vendoredContent !== null) {
-      return vendoredContent;
+      return { content: vendoredContent, sourcePath: baseSourcePath };
     }
 
     const fallbackContent = await readFile(uiPath);
     return fallbackContent !== null && !RADIX_IMPORT.test(fallbackContent)
-      ? fallbackContent.replaceAll("@/components/ui/radix/", "@/components/ui/")
+      ? {
+          content: fallbackContent.replaceAll(
+            "@/components/ui/radix/",
+            "@/components/ui/",
+          ),
+          sourcePath: radixSourcePath,
+        }
       : null;
   }
 
   const radixContent = await readFile(uiPath);
   return radixContent !== null
-    ? radixContent.replaceAll("@/components/ui/radix/", "@/components/ui/")
+    ? {
+        content: radixContent.replaceAll(
+          "@/components/ui/radix/",
+          "@/components/ui/",
+        ),
+        sourcePath: radixSourcePath,
+      }
     : null;
 }
 
@@ -210,6 +221,7 @@ export async function resolveAllComponents(
           name,
           path: filePath,
           content: file.content,
+          sourcePath: file.sourcePath,
         });
       }
     }
@@ -231,8 +243,8 @@ export async function resolveAllComponents(
     if (visited.has(key)) return;
     visited.add(key);
 
-    const content = await readLocalShadcnComponent(name, flavor);
-    if (!content) return;
+    const local = await readLocalShadcnComponent(name, flavor);
+    if (!local) return;
 
     const deps = shadcnDependencies(name, flavor);
     if (deps) {
@@ -244,7 +256,8 @@ export async function resolveAllComponents(
     result.shadcn.files.push({
       name,
       path: `components/ui/${name}.tsx`,
-      content,
+      content: local.content,
+      sourcePath: local.sourcePath,
     });
   }
 
@@ -297,14 +310,13 @@ export async function ComponentSource({
   const displayTitle = title ?? filePath;
 
   const content = (
-    <DynamicCodeBlock
-      lang={lang}
-      code={code}
-      codeblock={{
-        title: displayTitle,
-        className: "[&_pre]:max-h-[450px]",
-      }}
-    />
+    <CodeBlock
+      title={displayTitle}
+      copyText={code}
+      viewportClassName="max-h-[450px]"
+    >
+      <Highlight language={lang} code={code} />
+    </CodeBlock>
   );
 
   if (!collapsible) {
@@ -318,7 +330,7 @@ export function ComponentSourceFromFile({
   file,
   collapsible = true,
 }: {
-  file: ResolvedFile;
+  file: Pick<ResolvedFile, "name" | "path" | "content">;
   collapsible?: boolean;
 }) {
   let code = file.content;
@@ -328,14 +340,13 @@ export function ComponentSourceFromFile({
   const lang = (file.path.split(".").pop() ?? "tsx") as "tsx" | "ts" | "js";
 
   const content = (
-    <DynamicCodeBlock
-      lang={lang}
-      code={code}
-      codeblock={{
-        title: file.path,
-        className: "[&_pre]:max-h-[450px]",
-      }}
-    />
+    <CodeBlock
+      title={file.path}
+      copyText={code}
+      viewportClassName="max-h-[450px]"
+    >
+      <Highlight language={lang} code={code} />
+    </CodeBlock>
   );
 
   if (!collapsible) {

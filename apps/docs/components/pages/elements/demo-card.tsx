@@ -3,14 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRightIcon } from "lucide-react";
+import { demoCanvasClass } from "@/components/demo/utils/canvas";
 import { cn } from "@/lib/utils";
-import { inkButton, mono } from "@/components/elements/surfaces";
 
 export function DemoCard({
   href,
   index,
   title,
   description,
+  connection,
   wide = false,
   children,
 }: {
@@ -18,6 +19,7 @@ export function DemoCard({
   index: number;
   title: string;
   description: string;
+  connection?: string;
   wide?: boolean;
   children: React.ReactNode;
 }) {
@@ -41,34 +43,50 @@ export function DemoCard({
   }, []);
 
   return (
-    <div ref={rootRef} className={cn("flex flex-col", wide && "md:col-span-2")}>
-      <div className="bg-foreground/[0.025] dark:bg-foreground/[0.04] relative flex h-[360px] items-center justify-center overflow-hidden rounded-[20px] p-6 md:p-10">
+    <div
+      ref={rootRef}
+      className={cn(
+        "group/plate flex flex-col",
+        wide && "md:col-span-2 xl:col-span-3",
+      )}
+    >
+      <div
+        className={cn(
+          demoCanvasClass,
+          "group-hover/plate:border-foreground/25 h-[340px] transition-colors",
+          wide && "md:h-[420px]",
+        )}
+      >
         {mounted ? (
           <div className="flex h-full min-h-0 w-full items-center justify-center">
             {children}
           </div>
         ) : null}
-        <Link
-          href={href}
-          aria-label={`View ${title}`}
-          className={cn(
-            inkButton,
-            "focus-visible:ring-foreground/20 absolute right-3 bottom-3 z-10 flex h-8 items-center gap-1.5 rounded-full px-3.5 text-[12.5px] font-medium focus-visible:ring-1",
-          )}
-        >
-          View
-          <ArrowUpRightIcon className="size-3.5" />
-        </Link>
       </div>
-      <Link href={href} className="group/link mt-4 flex items-baseline gap-2.5">
-        <span className={cn(mono, "text-foreground/30 tabular-nums")}>
+      <Link
+        href={href}
+        aria-label={title}
+        className="group/caption mt-3.5 flex items-baseline gap-2.5"
+      >
+        <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
           {String(index).padStart(2, "0")}
         </span>
-        <h3 className="text-[13.5px] font-medium group-hover/link:underline group-hover/link:underline-offset-4">
+        <h3 className="text-[13.5px] font-medium underline-offset-4 group-hover/caption:underline">
           {title}
         </h3>
+        {connection ? (
+          <span className="text-muted-foreground font-mono text-[11px]">
+            {connection}
+          </span>
+        ) : null}
+        <span
+          aria-hidden
+          className="text-muted-foreground ms-auto self-center opacity-0 transition-opacity group-hover/plate:opacity-100 motion-reduce:transition-none"
+        >
+          <ArrowUpRightIcon className="size-3.5" />
+        </span>
       </Link>
-      <p className="text-foreground/50 mt-1 text-[13px] leading-relaxed">
+      <p className="text-muted-foreground mt-1 text-[13px] leading-relaxed">
         {description}
       </p>
     </div>

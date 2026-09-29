@@ -77,6 +77,16 @@ describe("defineToolkit (runtime)", () => {
     expect(tool["render"]).toBe(render);
   });
 
+  it("preserves a tool named __proto__ as an own property", () => {
+    const toolkit = defineToolkit({
+      ["__proto__"]: { type: "backend", render } as never,
+    });
+
+    expect(Object.hasOwn(toolkit, "__proto__")).toBe(true);
+    expect(toolkit["__proto__"]).toEqual({ type: "backend", render });
+    expect(Object.getPrototypeOf(toolkit)).toBe(Object.prototype);
+  });
+
   it("throws when a frontend tool has no render or renderText", () => {
     expect(() =>
       defineToolkit({

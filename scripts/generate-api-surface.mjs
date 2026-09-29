@@ -13,7 +13,12 @@ import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { optionArgs, optionValues } from "./lib/script-options.mjs";
+import { optionValues } from "./lib/script-options.mjs";
+import {
+  collectPackages,
+  collectTurboFilteredPackageNames,
+  posixPath,
+} from "./lib/workspace.mjs";
 
 const repoRoot = process.cwd();
 const packagesRoot = path.join(repoRoot, "packages");
@@ -28,20 +33,12 @@ const requireFromBuildUtils = createRequire(
 const { build } = await import(requireFromBuildUtils.resolve("tsdown"));
 const ts = requireFromBuildUtils("typescript");
 
-function readJson(file) {
-  return JSON.parse(readFileSync(file, "utf8"));
-}
-
 function packageFileName(packageName) {
   return `${packageName.replace(/^@/, "").replaceAll("/", "__")}.ts`;
 }
 
 function packageEntryName(packageName) {
   return packageFileName(packageName).replace(/\.ts$/, "");
-}
-
-function posixPath(file) {
-  return file.replaceAll("\\", "/");
 }
 
 function relativeImport(fromDir, toFile) {
@@ -113,62 +110,6 @@ function declarationFilesForTarget(packageDir, typePath) {
     );
   }
   return files;
-}
-
-function collectPackages(filteredPackageNames) {
-  return readdirSync(packagesRoot, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => path.join(packagesRoot, entry.name, "package.json"))
-    .filter((packageJsonPath) => existsSync(packageJsonPath))
-    .map((packageJsonPath) => {
-      const pkg = readJson(packageJsonPath);
-      return {
-        packageDir: path.dirname(packageJsonPath),
-        pkg,
-      };
-    })
-    .filter(({ pkg }) => !pkg.private)
-    .filter(
-      ({ pkg }) => !filteredPackageNames || filteredPackageNames.has(pkg.name),
-    )
-    .sort((a, b) => compareStrings(a.pkg.name, b.pkg.name));
-}
-
-function collectTurboFilteredPackageNames(filters) {
-  const result = spawnSync(
-    "pnpm",
-    [
-      "exec",
-      "turbo",
-      "ls",
-      ...optionArgs("--filter", filters),
-      "--output=json",
-    ],
-    {
-      cwd: repoRoot,
-      encoding: "utf8",
-    },
-  );
-  if (result.status !== 0) {
-    throw new Error(
-      `Failed to list packages for API surface filter:\n${result.stdout}${result.stderr}`,
-    );
-  }
-
-  const jsonStart = result.stdout.indexOf("{");
-  if (jsonStart === -1) {
-    throw new Error(`Turbo did not return JSON output:\n${result.stdout}`);
-  }
-
-  const output = JSON.parse(result.stdout.slice(jsonStart));
-  return new Set(
-    output.packages.items.map((item) => {
-      if (typeof item.name !== "string") {
-        throw new Error("Turbo package list included an item without a name.");
-      }
-      return item.name;
-    }),
-  );
 }
 
 function collectDeclarationEntries(packageDir, pkg) {
@@ -748,7 +689,7 @@ export function normalizeBundledDeclaration(content) {
   return `${printed.trim()}\n`;
 }
 
-async function bundlePackageSurface(packageInfo) {
+async function bundlePackageSurface(packageInfo, workspacePackagePatterns) {
   const { packageDir, pkg } = packageInfo;
   const entries = collectDeclarationEntries(packageDir, pkg);
   if (entries.length === 0) return undefined;
@@ -782,11 +723,13 @@ async function bundlePackageSurface(packageInfo) {
     cwd: repoRoot,
     platform: "neutral",
     format: "esm",
-    dts: true,
+    // The declaration plugin's shared context keeps every TypeScript program it creates alive for the whole process; an isolated context is released when its build ends.
+    dts: { newContext: true },
     sourcemap: false,
     clean: true,
     logLevel: "silent",
-    deps: { neverBundle: /^node:/, skipNodeModulesBundle: true },
+    // Workspace packages are inlined so a distribution package's surface carries the declarations it re-exports; every other package stays an import.
+    deps: { neverBundle: true, alwaysBundle: workspacePackagePatterns },
   });
 
   const outputFile = path.join(tempOut, `${entryName}.d.mts`);
@@ -934,10 +877,19 @@ export function selectStaleSurfaceFiles({
 }
 
 async function main() {
-  const allPackages = collectPackages(undefined);
+  const allPackages = collectPackages(repoRoot, undefined, compareStrings);
   const packages = turboFilters.length
-    ? collectPackages(collectTurboFilteredPackageNames(turboFilters))
+    ? collectPackages(
+        repoRoot,
+        collectTurboFilteredPackageNames(repoRoot, turboFilters, {
+          failureMessage: "Failed to list packages for API surface filter",
+        }),
+        compareStrings,
+      )
     : allPackages;
+  const workspacePackagePatterns = allPackages.map(
+    ({ pkg }) => new RegExp(`^${escapeRegExp(pkg.name)}(?:/|$)`),
+  );
   const generatedFiles = new Set();
   const changedFiles = [];
 
@@ -953,7 +905,10 @@ async function main() {
 
     for (const packageInfo of packages) {
       const { pkg } = packageInfo;
-      const bundledSurface = await bundlePackageSurface(packageInfo);
+      const bundledSurface = await bundlePackageSurface(
+        packageInfo,
+        workspacePackagePatterns,
+      );
       const cliPackageSurface = cliSurface[pkg.name];
       if (!bundledSurface && !cliPackageSurface) continue;
       const content = bundledSurface ?? renderCliSurface(cliPackageSurface);

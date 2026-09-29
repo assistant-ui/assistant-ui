@@ -236,6 +236,48 @@ describe("createAgUiSubscriber", () => {
     });
   });
 
+  it("does not dispatch malformed message snapshots", () => {
+    const dispatch = vi.fn();
+    const subscriber = createAgUiSubscriber({ dispatch, runId: "run" });
+
+    subscriber.onMessagesSnapshotEvent?.({
+      event: { type: "MESSAGES_SNAPSHOT", messages: {} },
+    });
+
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it("does not dispatch malformed state snapshots", () => {
+    const dispatch = vi.fn();
+    const subscriber = createAgUiSubscriber({ dispatch, runId: "run" });
+
+    subscriber.onStateSnapshotEvent?.({
+      event: { type: "STATE_SNAPSHOT" },
+    });
+
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it("logs malformed events received by the untyped callback", () => {
+    const debug = vi.fn();
+    const dispatch = vi.fn();
+    const subscriber = createAgUiSubscriber({
+      dispatch,
+      runId: "run",
+      logger: { debug } as any,
+    });
+    const event = { type: 42, payload: "bad" };
+
+    subscriber.onEvent?.({ event });
+
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(debug).toHaveBeenCalledTimes(1);
+    expect(debug).toHaveBeenCalledWith(
+      expect.stringContaining("unknown"),
+      event,
+    );
+  });
+
   it("dispatches reasoning handlers without duplication", () => {
     const events: AgUiEvent[] = [];
     const subscriber = createAgUiSubscriber({
@@ -260,5 +302,51 @@ describe("createAgUiSubscriber", () => {
       messageId: "m1",
       delta: "think",
     });
+  });
+
+  it("dispatches SUBAGENT_STARTED via the typed callback", () => {
+    const events: AgUiEvent[] = [];
+    const subscriber = createAgUiSubscriber({
+      dispatch: (event) => events.push(event),
+      runId: "run-1",
+    });
+    subscriber.onSubagentStartedEvent?.({
+      event: {
+        type: "SUBAGENT_STARTED",
+        subagentRunId: "sub-1",
+        name: "investigate",
+        parentToolCallId: "t1",
+      },
+    });
+    expect(events).toEqual([
+      {
+        type: "SUBAGENT_STARTED",
+        subagentRunId: "sub-1",
+        name: "investigate",
+        parentToolCallId: "t1",
+      },
+    ]);
+  });
+
+  it("dispatches SUBAGENT_FINISHED and SUBAGENT_ERROR via typed callbacks", () => {
+    const events: AgUiEvent[] = [];
+    const subscriber = createAgUiSubscriber({
+      dispatch: (event) => events.push(event),
+      runId: "run-1",
+    });
+    subscriber.onSubagentFinishedEvent?.({
+      event: { type: "SUBAGENT_FINISHED", subagentRunId: "sub-1" },
+    });
+    subscriber.onSubagentErrorEvent?.({
+      event: {
+        type: "SUBAGENT_ERROR",
+        subagentRunId: "sub-1",
+        message: "boom",
+      },
+    });
+    expect(events).toEqual([
+      { type: "SUBAGENT_FINISHED", subagentRunId: "sub-1" },
+      { type: "SUBAGENT_ERROR", subagentRunId: "sub-1", message: "boom" },
+    ]);
   });
 });

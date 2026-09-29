@@ -1,9 +1,9 @@
 import {
   ThreadList,
   ThreadListNew,
-} from "@/lib/xulux/learn/courses/build-generative-ui-assistant/stages/S6/project/components/assistant-ui/thread-list";
+} from "@/lib/xulux/learn/courses/build-generative-ui-assistant/stages/S6/project/components/assistant-ui/elements/thread-list.aui";
 import { ToolProvider } from "@/lib/xulux/learn/courses/build-generative-ui-assistant/stages/S5/project/components/tool-provider";
-import { Thread } from "../components/assistant-ui/thread";
+import { Thread } from "../components/assistant-ui/elements/thread.aui";
 
 export default function Page() {
   return (

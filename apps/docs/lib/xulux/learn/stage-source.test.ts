@@ -1,18 +1,58 @@
+import path from "node:path";
+import { createRepoSourceReader } from "@/lib/repo-source";
 import {
   DEFAULT_LEARN_COURSE_ID,
   getLearnCourse,
   getLearnStage,
   LearnRegistryError,
+  listLearnStageIds,
 } from "./registry";
 import { listZipEntries } from "../demo-downloads/zip";
 import {
   createLearnStageZipFromSnapshot,
   getLearnStageArchiveFilename,
+  resolveStageFilesFromReader,
   resolveStageFilesFromSnapshot,
 } from "./stage-source";
 
+const REPO_ROOT = path.resolve(__dirname, "../../../../..");
+
 describe("resolveStageFiles", () => {
-  it("materializes shared files and selects only the registered project root", () => {
+  it.each(listLearnStageIds(DEFAULT_LEARN_COURSE_ID))(
+    "materializes %s with every local import inside the project",
+    async (stageId) => {
+      const files = await resolveStageFilesFromReader(
+        DEFAULT_LEARN_COURSE_ID,
+        stageId,
+        createRepoSourceReader(REPO_ROOT),
+      );
+      const paths = Object.keys(files);
+
+      for (const [file, source] of Object.entries(files)) {
+        if (!/\.tsx?$/.test(file)) continue;
+        for (const match of source.matchAll(
+          /(?:from|import) "((?:@\/|\.\.?\/)[^"]+)"/g,
+        )) {
+          const specifier = match[1]!;
+          const target = specifier.startsWith("@/")
+            ? specifier.slice(2)
+            : path.posix.join(path.posix.dirname(file), specifier);
+          const resolved = paths.some(
+            (candidate) =>
+              candidate === target ||
+              candidate === `${target}.ts` ||
+              candidate === `${target}.tsx` ||
+              candidate.startsWith(`${target}/index.`),
+          );
+          expect
+            .soft(resolved, `${file} imports unresolved ${specifier}`)
+            .toBe(true);
+        }
+      }
+    },
+  );
+
+  it("materializes shared files and selects only the registered project root", async () => {
     const course = getLearnCourse(DEFAULT_LEARN_COURSE_ID);
     const stage = getLearnStage(DEFAULT_LEARN_COURSE_ID, "S0");
     const snapshot = {
@@ -24,9 +64,9 @@ describe("resolveStageFiles", () => {
       "apps/docs/lib/xulux/learn/registry.ts": "unrelated monorepo source",
     };
 
-    expect(
+    await expect(
       resolveStageFilesFromSnapshot(DEFAULT_LEARN_COURSE_ID, "S0", snapshot),
-    ).toEqual({
+    ).resolves.toEqual({
       ".env.example": "course shared",
       "README.md": "course shared",
       "app/page.tsx": "export default function Page() {}",
@@ -38,7 +78,7 @@ describe("resolveStageFiles", () => {
     });
   });
 
-  it("lets stage-local source override a shared file", () => {
+  it("lets stage-local source override a shared file", async () => {
     const course = getLearnCourse(DEFAULT_LEARN_COURSE_ID);
     const stage = getLearnStage(DEFAULT_LEARN_COURSE_ID, "S0");
     const snapshot = {
@@ -47,14 +87,16 @@ describe("resolveStageFiles", () => {
       [`${stage.sourceRoot}/next.config.ts`]: "stage local",
     };
 
-    expect(
-      resolveStageFilesFromSnapshot(DEFAULT_LEARN_COURSE_ID, "S0", snapshot)[
-        "next.config.ts"
-      ],
-    ).toBe("stage local");
+    const files = await resolveStageFilesFromSnapshot(
+      DEFAULT_LEARN_COURSE_ID,
+      "S0",
+      snapshot,
+    );
+
+    expect(files["next.config.ts"]).toBe("stage local");
   });
 
-  it("inherits and overlays each earlier stage", () => {
+  it("inherits and overlays each earlier stage", async () => {
     const course = getLearnCourse(DEFAULT_LEARN_COURSE_ID);
     const snapshot = {
       ...sharedSourceSnapshot(course.sharedFiles, "course shared"),
@@ -70,7 +112,7 @@ describe("resolveStageFiles", () => {
       ),
     };
 
-    const files = resolveStageFilesFromSnapshot(
+    const files = await resolveStageFilesFromSnapshot(
       DEFAULT_LEARN_COURSE_ID,
       "S7",
       snapshot,
@@ -82,7 +124,7 @@ describe("resolveStageFiles", () => {
     expect(files["next.config.ts"]).toBe("config S7");
   });
 
-  it("normalizes preview-only cross-stage imports in materialized source", () => {
+  it("normalizes preview-only cross-stage imports in materialized source", async () => {
     const course = getLearnCourse(DEFAULT_LEARN_COURSE_ID);
     const stageS0 = getLearnStage(DEFAULT_LEARN_COURSE_ID, "S0");
     const stageS1 = getLearnStage(DEFAULT_LEARN_COURSE_ID, "S1");
@@ -95,44 +137,48 @@ describe("resolveStageFiles", () => {
         'import { tool } from "@/lib/xulux/learn/courses/build-generative-ui-assistant/stages/S0/project/components/tool";',
     };
 
-    expect(
-      resolveStageFilesFromSnapshot(DEFAULT_LEARN_COURSE_ID, "S1", snapshot)[
-        "app/page.tsx"
-      ],
-    ).toBe('import { tool } from "../components/tool";');
+    const files = await resolveStageFilesFromSnapshot(
+      DEFAULT_LEARN_COURSE_ID,
+      "S1",
+      snapshot,
+    );
+
+    expect(files["app/page.tsx"]).toBe(
+      'import { tool } from "../components/tool";',
+    );
   });
 
-  it("rejects unregistered IDs before reading the snapshot", () => {
-    expect(() =>
+  it("rejects unregistered IDs before reading the snapshot", async () => {
+    await expect(
       resolveStageFilesFromSnapshot("missing-course", "S0", {}),
-    ).toThrow(/Unregistered Learn course/);
-    expect(() =>
+    ).rejects.toThrow(/Unregistered Learn course/);
+    await expect(
       resolveStageFilesFromSnapshot(
         DEFAULT_LEARN_COURSE_ID,
         "missing-stage",
         {},
       ),
-    ).toThrow(/Unregistered Learn stage/);
+    ).rejects.toThrow(/Unregistered Learn stage/);
   });
 
-  it("fails when a registered stage has no tracked source", () => {
+  it("fails when a registered stage has no tracked source", async () => {
     const course = getLearnCourse(DEFAULT_LEARN_COURSE_ID);
     const stage = getLearnStage(DEFAULT_LEARN_COURSE_ID, "S0");
-    expect(() =>
+    await expect(
       resolveStageFilesFromSnapshot(DEFAULT_LEARN_COURSE_ID, "S0", {
         ...sharedSourceSnapshot(course.sharedFiles, "shared"),
         ...sharedSourceSnapshot(stage.sharedFiles, "shared"),
       }),
-    ).toThrow(/No source snapshot files found/);
+    ).rejects.toThrow(/No source snapshot files found/);
   });
 
-  it("fails when a registered shared source is missing", () => {
-    expect(() =>
+  it("fails when a registered shared source is missing", async () => {
+    await expect(
       resolveStageFilesFromSnapshot(DEFAULT_LEARN_COURSE_ID, "S0", {}),
-    ).toThrow(/Missing shared Learn source snapshot file/);
+    ).rejects.toThrow(/Missing shared Learn source snapshot file/);
   });
 
-  it("packages the exact materialized stage file map", () => {
+  it("packages the exact materialized stage file map", async () => {
     const course = getLearnCourse(DEFAULT_LEARN_COURSE_ID);
     const stage = getLearnStage(DEFAULT_LEARN_COURSE_ID, "S7");
     const snapshot = {
@@ -148,12 +194,12 @@ describe("resolveStageFiles", () => {
       ),
       [`${stage.sourceRoot}/app/page.tsx`]: "page",
     };
-    const files = resolveStageFilesFromSnapshot(
+    const files = await resolveStageFilesFromSnapshot(
       DEFAULT_LEARN_COURSE_ID,
       "S7",
       snapshot,
     );
-    const zip = createLearnStageZipFromSnapshot(
+    const zip = await createLearnStageZipFromSnapshot(
       DEFAULT_LEARN_COURSE_ID,
       "S7",
       snapshot,
@@ -165,14 +211,14 @@ describe("resolveStageFiles", () => {
     );
   });
 
-  it("rejects unregistered stage downloads", () => {
-    expect(() =>
+  it("rejects unregistered stage downloads", async () => {
+    await expect(
       createLearnStageZipFromSnapshot(
         DEFAULT_LEARN_COURSE_ID,
         "missing-stage",
         {},
       ),
-    ).toThrow(LearnRegistryError);
+    ).rejects.toThrow(LearnRegistryError);
   });
 });
 

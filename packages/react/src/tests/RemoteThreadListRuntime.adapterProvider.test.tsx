@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, render, waitFor } from "@testing-library/react";
-import type { FC, PropsWithChildren } from "react";
+import { useState, type FC, type PropsWithChildren } from "react";
 import { describe, expect, it } from "vitest";
 import {
   RuntimeAdapterProvider,
@@ -105,6 +105,36 @@ describe("RemoteThreadListAdapter.unstable_Provider", () => {
     await renderAndWaitForBinder(adapter, capture);
 
     expect(capture.adapters?.history).toBe(dummyHistory);
+  });
+
+  it("picks up a post-mount useAdapters bag", async () => {
+    const capture: { adapters: CapturedAdapters } = { adapters: null };
+    const firstHistory: ThreadHistoryAdapter = {
+      load: async () => ({ messages: [] }),
+      append: async () => {},
+    };
+    const secondHistory: ThreadHistoryAdapter = {
+      load: async () => ({ messages: [] }),
+      append: async () => {},
+    };
+
+    let bump: (() => void) | undefined;
+    const adapter = makeAdapter({
+      unstable_useAdapters: function useTestAdapters() {
+        const [swapped, setSwapped] = useState(false);
+        bump = () => setSwapped(true);
+        return { history: swapped ? secondHistory : firstHistory };
+      },
+    });
+
+    await renderAndWaitForBinder(adapter, capture);
+    expect(capture.adapters?.history).toBe(firstHistory);
+
+    await act(async () => {
+      bump!();
+    });
+
+    expect(capture.adapters?.history).toBe(secondHistory);
   });
 
   it("picks up a swapped Provider on re-render", async () => {

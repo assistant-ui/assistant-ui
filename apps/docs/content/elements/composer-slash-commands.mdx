@@ -1,0 +1,240 @@
+---
+title: "Slash commands"
+description: "Type a slash and the command menu floats above the input, filtering as you continue."
+---
+
+Typing `/` at the start of the draft opens a floating menu of commands above the composer; each keystroke narrows the list, and picking one runs it. With a runtime the menu is driven by a trigger primitive wired to a command adapter; standalone you filter a plain list yourself with `useSlashMatches`.
+
+## Getting started
+
+<RuntimeMode>
+
+assistant-ui's composer has a trigger system for character-activated popovers: a character like `/` opens a scoped popover with its own search, keyboard navigation, and selection, without touching the rest of the input. These primitives are marked `Unstable_`: the shape may still change in a future release.
+
+<Steps>
+  <Step>
+
+### Define the commands
+
+`unstable_useSlashCommandAdapter` bundles a command list into the `{ adapter, action }` pair the trigger needs. Each command's `execute` stays in the hook's closure, so it never has to be serializable:
+
+```tsx title="components/assistant-ui/elements/composer-commands.tsx"
+"use client";
+
+import { unstable_useSlashCommandAdapter } from "@assistant-ui/react";
+
+export function useComposerCommands() {
+  return unstable_useSlashCommandAdapter({
+    commands: [
+      { id: "summarize", description: "Summarize this thread", icon: "FileText", execute: () => runSummarize() },
+      { id: "translate", description: "Translate the last reply", icon: "Languages", execute: () => runTranslate() },
+    ],
+  });
+}
+```
+
+  </Step>
+  <Step>
+
+### Open the popover on `/`
+
+```tsx title="components/assistant-ui/elements/composer-bar.tsx"
+"use client";
+
+import { ComposerPrimitive } from "@assistant-ui/react";
+import { cn } from "@/lib/utils";
+import { floating } from "@/components/assistant-ui/elements/surfaces";
+import { useComposerCommands } from "./composer-commands";
+
+export function ComposerBar() {
+  const slash = useComposerCommands();
+
+  return (
+    <ComposerPrimitive.Unstable_TriggerPopoverRoot>
+      <ComposerPrimitive.Unstable_TriggerPopover char="/" adapter={slash.adapter}>
+        <ComposerPrimitive.Unstable_TriggerPopover.Action
+          onExecute={slash.action.onExecute}
+          removeOnExecute={slash.action.removeOnExecute}
+        />
+        <ComposerPrimitive.Unstable_TriggerPopoverItems>
+          {(items) => (
+            <div className={cn(floating, "absolute bottom-full z-10 mb-2 w-72 rounded-2xl p-1.5")}>
+              {items.map((item, index) => (
+                <ComposerPrimitive.Unstable_TriggerPopoverItem
+                  key={item.id}
+                  item={item}
+                  index={index}
+                  className="data-[highlighted]:bg-foreground/[0.04] flex w-full flex-col items-start gap-0.5 rounded-[10px] px-2.5 py-2 text-start outline-none"
+                >
+                  <span className="text-[13.5px] font-medium">/{item.id}</span>
+                  {item.description && <span className="text-foreground/45 text-xs">{item.description}</span>}
+                </ComposerPrimitive.Unstable_TriggerPopoverItem>
+              ))}
+            </div>
+          )}
+        </ComposerPrimitive.Unstable_TriggerPopoverItems>
+      </ComposerPrimitive.Unstable_TriggerPopover>
+      <ComposerPrimitive.Root className="flex w-full flex-col gap-2 rounded-[24px] p-2.5">
+        <ComposerPrimitive.Input placeholder="Message, or / for commands..." rows={1} className="min-h-11 w-full resize-none bg-transparent px-3 outline-none" />
+      </ComposerPrimitive.Root>
+    </ComposerPrimitive.Unstable_TriggerPopoverRoot>
+  );
+}
+```
+
+`Unstable_TriggerPopoverRoot` wraps the whole bar, not just the input; `Unstable_TriggerPopover` and `ComposerPrimitive.Root` sit side by side inside it. The `.Action` behavior fires `onExecute` at the moment a command is picked; pass `removeOnExecute` from the adapter so the `/summarize` text clears when `false` would otherwise leave it behind as an audit trail. `Unstable_TriggerPopoverItem` sets `data-highlighted` on whichever row keyboard navigation has reached, so the active tint is a plain `data-[highlighted]:` class rather than state you track. assistant-ui ships this whole composition pre-built: installing [Composer trigger popover](/elements/composer-trigger-popover) gives you the categories, search-empty, and loading states without assembling them by hand.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, nothing detects the `/` for you. `useSlashMatches` filters a command list against the current draft text and returns the matches to render into a menu; you hold which one is highlighted.
+
+<Steps>
+  <Step>
+
+### Filter as the draft changes
+
+```tsx title="app/chat-box.tsx"
+"use client";
+
+import { useState } from "react";
+import { useSlashMatches, ComposerMenu, ComposerCommandItem, type ComposerCommand } from "@/components/assistant-ui/elements/composer";
+import { FileTextIcon, LanguagesIcon } from "lucide-react";
+
+const commands: ComposerCommand[] = [
+  { name: "summarize", description: "Summarize this thread", icon: FileTextIcon },
+  { name: "translate", description: "Translate the last reply", icon: LanguagesIcon },
+];
+
+export function ChatBox() {
+  const [text, setText] = useState("");
+  const matches = useSlashMatches(text, commands);
+
+  return (
+    <div className="relative">
+      <ComposerMenu open={matches.length > 0}>
+        {matches.map((command) => (
+          <ComposerCommandItem key={command.name} command={command} active={false} onClick={() => runCommand(command.name)} />
+        ))}
+      </ComposerMenu>
+      {/* ComposerInput below */}
+    </div>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Track the highlighted row
+
+`useSlashMatches` only returns the filtered list; arrow-key highlighting and Enter-to-run are yours to add, typically as a `highlightedIndex` state that clamps to `matches.length` on every keystroke and marks that row `active`.
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="composer-menu" data-open={/* true while a "/query" is being typed */}>
+  <button data-slot="composer-menu-item" data-active={/* the highlighted row */}>
+    {/* icon, /name, description, and a "↵" hint on the active row */}
+  </button>
+</div>
+```
+
+The menu only opens while the draft starts with `/`; anything typed after the slash is the filter query, matched against the start of each command's id. `ComposerCommandItem`'s `active` prop is purely visual (background tint plus the trailing `↵` hint); which row counts as active is state the caller tracks, in both lanes.
+
+## Examples
+
+### Filtering as you type
+
+<RuntimeMode>
+
+The adapter's `search` is called with the text after the slash on every keystroke; `unstable_useSlashCommandAdapter` matches against each command's `id`, `label`, and `description`, case-insensitively.
+
+```tsx
+slash.adapter.search("sum"); // → [{ id: "summarize", ... }]
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+`useSlashMatches` runs the same prefix match against the command's `name`:
+
+```tsx
+const matches = useSlashMatches("/sum", commands); // → [commands[0]]
+```
+
+</StandaloneMode>
+
+### Restyle the menu
+
+Both lanes render into `ComposerMenu`, which takes `className` and reads `open` to animate in from `scale-[0.97] opacity-0`. `ComposerMenuItem`'s active state is the `field` surface token; the description text and the `↵` hint each take their own utility classes if you want to hide or re-theme them independently.
+
+```tsx
+<ComposerMenu className="w-96" open={open}>
+  {/* items */}
+</ComposerMenu>
+```
+
+## API reference
+
+<RuntimeMode>
+
+### ComposerPrimitive (trigger)
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `Unstable_TriggerPopoverRoot` | provider | Wraps the composer once per bar; groups every trigger char registered inside it. |
+| `Unstable_TriggerPopover` | `div` (when open) | `char="/"`, `adapter`; renders nothing until a behavior child registers and the trigger is active. |
+| `Unstable_TriggerPopover.Action` | behavior | `onExecute(item)`, `formatter?`, `removeOnExecute?` (default `false`, keeps the `/id` text). |
+| `Unstable_TriggerPopoverItems` | render prop | `{(items) => ReactNode}`; renders only while a category is active or search mode is on. |
+| `Unstable_TriggerPopoverItem` | `button` | `item`, `index?`; gets `data-highlighted` under keyboard navigation. |
+| `Unstable_TriggerPopoverCategories` / `CategoryItem` / `Back` | render prop / `button` / `button` | Only needed when the adapter groups commands into categories. |
+
+### unstable_useSlashCommandAdapter
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `commands` | `Unstable_SlashCommand[]` | `{ id, label?, description?, icon?, execute }`. |
+| `removeOnExecute` | `boolean` | Strips the `/id` text after running. @default `false` |
+
+Returns `{ adapter, action, iconMap?, fallbackIcon? }`; spread `action` onto `Unstable_TriggerPopover.Action`.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### useSlashMatches
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `value` | `string` | The current draft text. |
+| `commands` | `readonly ComposerCommand[] \| undefined` | The full command list. |
+
+Returns the commands whose `name` starts with the text after `/`, or `[]` when `value` does not start with `/`.
+
+### ComposerCommand
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `string` | Matched against the query; shown as `/name`. |
+| `description` | `string` | Shown beside the name. |
+| `icon` | `LucideIcon` | Rendered at the start of the row. |
+
+### ComposerCommandItem
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `command` | `ComposerCommand` | required | The command to render. |
+| `active` | `boolean` | required | Tints the row and shows the `↵` hint. |
+
+</StandaloneMode>

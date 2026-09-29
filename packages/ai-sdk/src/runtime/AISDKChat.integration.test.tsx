@@ -1,16 +1,74 @@
+import { flushTapSync } from "@assistant-ui/tap";
 // @vitest-environment jsdom
 
-import { useEffect, useLayoutEffect } from "react";
-import { render, waitFor } from "@testing-library/react";
-import { StrictMode } from "react";
+import { StrictMode, useLayoutEffect, type ReactNode } from "react";
+import { act, render, waitFor } from "@testing-library/react";
 import { AuiConfig, AuiProvider, useAui } from "@assistant-ui/store";
-import { flushTapSync } from "@assistant-ui/tap";
 import type { ChatTransport, UIMessage } from "ai";
 import { describe, expect, it, vi } from "vitest";
 import { AISDKChat } from "./AISDKChat";
-import { createCancellableTransport } from "./__tests__/controlled-transport";
+import {
+  createCancellableTransport,
+  createStreamHarness,
+} from "./__tests__/controlled-transport";
 
 describe("AISDKChat React integration", () => {
+  it("aborts the in-flight transport after a real unmount", async () => {
+    const { transport, getCancelCount } = createCancellableTransport();
+    const { Probe, send, isRunning } = createStreamHarness();
+
+    const view = render(
+      <StrictMode>
+        <AuiProvider config={AuiConfig({ threads: AISDKChat({ transport }) })}>
+          <Probe />
+        </AuiProvider>
+      </StrictMode>,
+    );
+
+    await act(async () => send());
+    await waitFor(() => expect(isRunning()).toBe(true));
+    // the Strict Mode double mount already ran a host cleanup by now
+    expect(getCancelCount()).toBe(0);
+
+    view.unmount();
+    await waitFor(() => expect(getCancelCount()).toBe(1));
+  });
+});
+
+describe("AISDKChat legacy useAui host integration", () => {
+  const LegacyProvider = ({
+    transport,
+    children,
+  }: {
+    transport: ChatTransport<UIMessage>;
+    children: ReactNode;
+  }) => {
+    const aui = useAui(AuiConfig({ threads: AISDKChat({ transport }) }));
+    return <AuiProvider value={aui}>{children}</AuiProvider>;
+  };
+
+  it("aborts the in-flight transport after a real unmount", async () => {
+    const { transport, getCancelCount } = createCancellableTransport();
+    const { Probe, send, isRunning } = createStreamHarness();
+
+    const view = render(
+      <StrictMode>
+        <LegacyProvider transport={transport}>
+          <Probe />
+        </LegacyProvider>
+      </StrictMode>,
+    );
+
+    await act(async () => send());
+    await waitFor(() => expect(isRunning()).toBe(true));
+    expect(getCancelCount()).toBe(0);
+
+    view.unmount();
+    await waitFor(() => expect(getCancelCount()).toBe(1));
+  });
+});
+
+describe("replacement transports", () => {
   it("routes sends through a replacement transport", async () => {
     const emptyStream = () =>
       new ReadableStream({ start: (controller) => controller.close() });
@@ -61,40 +119,5 @@ describe("AISDKChat React integration", () => {
     await waitFor(() => expect(sendB).toHaveBeenCalledOnce());
     expect(sendA).not.toHaveBeenCalled();
     expect(currentClient).toBe(initialClient);
-  });
-
-  it("does not treat React provider unmount as client destruction", async () => {
-    const { transport, getCancelCount, close } = createCancellableTransport();
-    let started = false;
-    let isRunning = () => false;
-
-    const SendOnMount = () => {
-      const aui = useAui();
-      isRunning = () => aui.thread.getState().isRunning;
-      useEffect(() => {
-        if (started) return;
-        started = true;
-        flushTapSync(() => aui.composer.setText("keep streaming"));
-        flushTapSync(() => aui.composer.send());
-      }, [aui]);
-      return null;
-    };
-
-    const view = render(
-      <StrictMode>
-        <AuiProvider config={AuiConfig({ threads: AISDKChat({ transport }) })}>
-          <SendOnMount />
-        </AuiProvider>
-      </StrictMode>,
-    );
-
-    await waitFor(() => {
-      expect(isRunning()).toBe(true);
-    });
-
-    view.unmount();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(getCancelCount()).toBe(0);
-    close();
   });
 });

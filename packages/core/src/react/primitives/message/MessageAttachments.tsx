@@ -1,4 +1,4 @@
-import type { CompleteAttachment } from "../../../types/attachment";
+import type { Attachment } from "../../../types/attachment";
 import {
   type ComponentType,
   type FC,
@@ -7,6 +7,7 @@ import {
   useMemo,
 } from "react";
 import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
+import { useShallowSelector } from "@assistant-ui/store/internal";
 import { MessageAttachmentByIndexProvider } from "../../providers/AttachmentByIndexProvider";
 
 type MessageAttachmentsComponentConfig = {
@@ -24,15 +25,19 @@ export namespace MessagePrimitiveAttachments {
         children?: never;
       }
     | {
-        /** Render function called for each attachment. Receives the attachment. */
-        children: (value: { attachment: CompleteAttachment }) => ReactNode;
+        /**
+         * Render function called for each attachment. Receives the attachment,
+         * which is still being prepared while the message is the composer's
+         * submission.
+         */
+        children: (value: { attachment: Attachment }) => ReactNode;
         components?: never;
       };
 }
 
 const getComponent = (
   components: MessageAttachmentsComponentConfig | undefined,
-  attachment: CompleteAttachment,
+  attachment: Attachment,
 ) => {
   const type = attachment.type;
   switch (type) {
@@ -53,7 +58,7 @@ const AttachmentComponent: FC<{
   const attachment = useAuiState((s) => s.attachment);
   if (!attachment) return null;
 
-  const Component = getComponent(components, attachment as CompleteAttachment);
+  const Component = getComponent(components, attachment);
   if (!Component) return null;
   return <Component />;
 };
@@ -89,31 +94,35 @@ MessagePrimitiveAttachmentByIndex.displayName =
   "MessagePrimitive.AttachmentByIndex";
 
 const MessagePrimitiveAttachmentsInner: FC<{
-  children: (value: { attachment: CompleteAttachment }) => ReactNode;
+  children: (value: { attachment: Attachment }) => ReactNode;
 }> = ({ children }) => {
-  const attachmentsCount = useAuiState((s) => {
-    if (s.message.role !== "user") return 0;
-    return (s.message.attachments ?? []).length;
-  });
+  const attachmentIds = useAuiState(
+    useShallowSelector((s) => {
+      if (s.message.role !== "user") return [];
+      const attachments =
+        s.message.submission?.attachments ?? s.message.attachments;
+      return (attachments ?? []).map((attachment) => attachment.id);
+    }),
+  );
 
   return useMemo(
     () =>
-      Array.from({ length: attachmentsCount }, (_, index) => (
-        <MessageAttachmentByIndexProvider key={index} index={index}>
+      attachmentIds.map((attachmentId, index) => (
+        <MessageAttachmentByIndexProvider key={attachmentId} index={index}>
           <RenderChildrenWithAccessor
             getItemState={(aui) => aui.message.attachment({ index }).getState()}
           >
             {(getItem) =>
               children({
                 get attachment() {
-                  return getItem() as CompleteAttachment;
+                  return getItem();
                 },
               })
             }
           </RenderChildrenWithAccessor>
         </MessageAttachmentByIndexProvider>
       )),
-    [attachmentsCount, children],
+    [attachmentIds, children],
   );
 };
 

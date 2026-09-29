@@ -346,7 +346,7 @@ import { MessagePrimitive, AuiIf } from "@assistant-ui/react";
 
 function MyComponent() {
   return (
-    <AuiIf condition={(s) => !s.message.speech != null}>
+    <AuiIf condition={(s) => !(s.message.speech != null)}>
       <SpeakIcon />
     </AuiIf>
   );
@@ -835,5 +835,152 @@ function MyComponent() {
 
       expect(applyTransform(input)?.trim()).toBe(expected.trim());
     });
+  });
+});
+
+describe("elements that cannot be migrated stay intact", () => {
+  it.each([
+    [
+      "spread attributes",
+      `<ThreadPrimitive.If {...props}>
+      <div>Content</div>
+    </ThreadPrimitive.If>`,
+    ],
+    [
+      "unknown props",
+      `<MessagePrimitive.If user asChild>
+      <div>Content</div>
+    </MessagePrimitive.If>`,
+    ],
+    [
+      "no props",
+      `<ThreadPrimitive.If>
+      <div>Content</div>
+    </ThreadPrimitive.If>`,
+    ],
+    [
+      "dynamic prop values",
+      `<ThreadPrimitive.If running={someFlag}>
+      <div>Content</div>
+    </ThreadPrimitive.If>`,
+    ],
+    [
+      "namespaced attributes",
+      `<ThreadPrimitive.If empty xml:lang="en">
+      <div>Content</div>
+    </ThreadPrimitive.If>`,
+    ],
+    [
+      "fixed-condition components with props",
+      `<ThreadPrimitive.Empty asChild>
+      <div>Content</div>
+    </ThreadPrimitive.Empty>`,
+    ],
+  ])("leaves an element with %s unchanged", (_label, jsx) => {
+    const input = `
+import { ThreadPrimitive, MessagePrimitive } from "@assistant-ui/react";
+
+function MyComponent({ someFlag }: { someFlag: boolean }) {
+  return (
+    ${jsx}
+  );
+}
+`;
+
+    expect(applyTransform(input)).toBeNull();
+  });
+
+  it("converts only the migratable element and keeps the output parseable", () => {
+    const input = `
+import { ThreadPrimitive } from "@assistant-ui/react";
+
+function MyComponent(props: Record<string, unknown>) {
+  return (
+    <>
+      <ThreadPrimitive.If empty>
+        <div>Empty</div>
+      </ThreadPrimitive.If>
+      <ThreadPrimitive.If {...props}>
+        <div>Dynamic</div>
+      </ThreadPrimitive.If>
+    </>
+  );
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).not.toBeNull();
+    expect(() => j(output!)).not.toThrow();
+    expect(output).toContain("</AuiIf>");
+    expect(output).toContain("</ThreadPrimitive.If>");
+    expect(output).toContain("<ThreadPrimitive.If {...props}>");
+  });
+});
+
+describe("null literal prop values", () => {
+  it("maps submittedFeedback={null} to the null comparison", () => {
+    const input = `
+import { MessagePrimitive } from "@assistant-ui/react";
+
+function MyComponent() {
+  return (
+    <MessagePrimitive.If submittedFeedback={null}>
+      <div>Content</div>
+    </MessagePrimitive.If>
+  );
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain(
+      "(s.message.metadata.submittedFeedback?.type ?? null) === null",
+    );
+  });
+});
+
+describe("condition precedence", () => {
+  const compileCondition = (jsx: string) => {
+    const output = applyTransform(`
+import { MessagePrimitive, ComposerPrimitive } from "@assistant-ui/react";
+
+const view = ${jsx};
+`);
+    const arrow = j(output!).find(j.ArrowFunctionExpression).nodes()[0]!;
+    return new Function("s", `return ${j(arrow.body).toSource()};`) as (
+      s: unknown,
+    ) => boolean;
+  };
+
+  it.each([
+    {
+      jsx: "<MessagePrimitive.If speaking={false} />",
+      hidden: { message: { speech: { status: "running" } } },
+      visible: { message: { speech: null } },
+    },
+    {
+      jsx: "<ComposerPrimitive.If dictation={false} />",
+      hidden: { composer: { dictation: { status: "running" } } },
+      visible: { composer: { dictation: null } },
+    },
+    {
+      jsx: "<MessagePrimitive.If hasContent={false} />",
+      hidden: { message: { parts: [{}] } },
+      visible: { message: { parts: [] } },
+    },
+    {
+      jsx: "<MessagePrimitive.If lastOrHover copied />",
+      hidden: { message: { isHovering: true, isLast: false, isCopied: false } },
+      visible: { message: { isHovering: true, isLast: false, isCopied: true } },
+    },
+    {
+      jsx: "<MessagePrimitive.If hasAttachments={false} copied />",
+      hidden: { message: { role: "assistant", isCopied: false } },
+      visible: { message: { role: "assistant", isCopied: true } },
+    },
+  ])("keeps every filter in $jsx", ({ jsx, hidden, visible }) => {
+    const condition = compileCondition(jsx);
+
+    expect(condition(hidden)).toBe(false);
+    expect(condition(visible)).toBe(true);
   });
 });

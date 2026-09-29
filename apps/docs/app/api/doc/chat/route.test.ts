@@ -1,9 +1,9 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   requireSession: vi.fn(),
   checkRateLimit: vi.fn(),
-  getModel: vi.fn(),
+  resolveChatModel: vi.fn(),
 }));
 
 vi.mock("@/lib/anonymous-session", async (importOriginal) => ({
@@ -18,7 +18,7 @@ vi.mock("@/lib/rate-limit", async (importOriginal) => ({
 
 vi.mock("@/lib/ai/provider", async (importOriginal) => ({
   ...(await importOriginal()),
-  getModel: mocks.getModel,
+  resolveChatModel: mocks.resolveChatModel,
 }));
 
 // @/lib/source and @/lib/llm-components import the build-generated
@@ -35,16 +35,11 @@ vi.mock("@/lib/source", () => {
   return {
     source: emptySource,
     examples: emptySource,
-    tapDocs: emptySource,
-    getTapDocsPage: vi.fn(),
   };
 });
 
-import { POST } from "./route";
-
-afterEach(() => {
-  vi.clearAllMocks();
-});
+import type { UIMessageChunk } from "ai";
+import { POST, withReadDocSources } from "./route";
 
 describe("POST /api/doc/chat access boundary", () => {
   it("rejects a direct request before rate limiting or model selection", async () => {
@@ -60,7 +55,7 @@ describe("POST /api/doc/chat access boundary", () => {
 
     expect(response.status).toBe(403);
     expect(mocks.checkRateLimit).not.toHaveBeenCalled();
-    expect(mocks.getModel).not.toHaveBeenCalled();
+    expect(mocks.resolveChatModel).not.toHaveBeenCalled();
   });
 
   it("lets a valid session reach ordinary input validation", async () => {
@@ -83,6 +78,95 @@ describe("POST /api/doc/chat access boundary", () => {
       expect.any(Request),
       "session_1234567890",
     );
-    expect(mocks.getModel).not.toHaveBeenCalled();
+    expect(mocks.resolveChatModel).not.toHaveBeenCalled();
+  });
+});
+
+describe("withReadDocSources", () => {
+  const run = async (chunks: UIMessageChunk[]) => {
+    const out: UIMessageChunk[] = [];
+    for await (const chunk of withReadDocSources(
+      (async function* () {
+        yield* chunks;
+      })(),
+    )) {
+      out.push(chunk);
+    }
+    return out;
+  };
+
+  it("emits one source-url per distinct readDoc result", async () => {
+    const out = await run([
+      {
+        type: "tool-input-available",
+        toolCallId: "a",
+        toolName: "readDoc",
+        input: {},
+      },
+      {
+        type: "tool-output-available",
+        toolCallId: "a",
+        output: { title: "Thread", url: "/docs/ui/thread" },
+      },
+      {
+        type: "tool-input-available",
+        toolCallId: "b",
+        toolName: "readDoc",
+        input: {},
+      },
+      {
+        type: "tool-output-available",
+        toolCallId: "b",
+        output: { title: "Thread", url: "/docs/ui/thread" },
+      },
+    ] as UIMessageChunk[]);
+
+    expect(out.filter((chunk) => chunk.type === "source-url")).toEqual([
+      {
+        type: "source-url",
+        sourceId: "a",
+        url: "/docs/ui/thread",
+        title: "Thread",
+      },
+    ]);
+    expect(out).toHaveLength(5);
+  });
+
+  it("ignores error results and non-readDoc tools", async () => {
+    const out = await run([
+      {
+        type: "tool-input-available",
+        toolCallId: "a",
+        toolName: "readDoc",
+        input: {},
+      },
+      {
+        type: "tool-output-available",
+        toolCallId: "a",
+        output: { error: "Page not found: nope" },
+      },
+      {
+        type: "tool-input-available",
+        toolCallId: "b",
+        toolName: "bash",
+        input: {},
+      },
+      {
+        type: "tool-output-available",
+        toolCallId: "b",
+        output: { url: "/repo" },
+      },
+      {
+        type: "message-metadata",
+        messageMetadata: { custom: { usage: { totalTokens: 42 } } },
+      },
+    ] as UIMessageChunk[]);
+
+    expect(out.filter((chunk) => chunk.type === "source-url")).toEqual([]);
+    expect(out).toHaveLength(5);
+    expect(out).toContainEqual({
+      type: "message-metadata",
+      messageMetadata: { custom: { usage: { totalTokens: 42 } } },
+    });
   });
 });

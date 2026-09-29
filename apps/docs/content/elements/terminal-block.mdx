@@ -1,0 +1,281 @@
+---
+title: "Terminal block"
+description: "Command output that streams line by line and ends with an exit status."
+---
+
+A terminal block echoes a command and reveals its output one line at a time. A finished command carries its real exit code, duration, and error output, while a running command keeps its cursor. With a runtime the command and result come from a tool call; standalone you supply them directly.
+
+## Getting started
+
+<RuntimeMode>
+
+<Steps>
+  <Step>
+
+### Render the tool call
+
+```tsx title="components/assistant-ui/elements/run-command-tool-ui.tsx"
+"use client";
+
+import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
+import { TerminalBlock } from "@/components/assistant-ui/elements/terminal-block";
+
+type RunCommandArgs = { command: string; cwd?: string };
+type RunCommandResult = {
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+  durationMs?: number;
+  truncated?: boolean;
+};
+
+export const RunCommandToolUI: ToolCallMessagePartComponent<
+  RunCommandArgs,
+  RunCommandResult
+> = ({ args, result, status }) => {
+  const lines = result?.stdout ? result.stdout.split("\n") : [];
+  const stderr = result?.stderr ? result.stderr.split("\n") : [];
+  return (
+    <TerminalBlock
+      command={args.command ?? ""}
+      lines={lines}
+      stderr={stderr}
+      cwd={args.cwd}
+      exitCode={result?.exitCode}
+      durationMs={result?.durationMs}
+      truncated={result?.truncated}
+      visibleCount={lines.length + stderr.length}
+      maxCollapsedLines={12}
+      done={status.type !== "running"}
+    />
+  );
+};
+```
+
+  </Step>
+  <Step>
+
+### Register the tool
+
+```tsx title="app/toolkit.ts"
+import { defineToolkit } from "@assistant-ui/react";
+import { RunCommandToolUI } from "@/components/assistant-ui/elements/run-command-tool-ui";
+
+export const toolkit = defineToolkit({
+  run_command: {
+    type: "backend",
+    render: RunCommandToolUI,
+  },
+});
+```
+
+```tsx title="app/MyRuntimeProvider.tsx"
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { toolkit } from "./toolkit";
+
+export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+The backend that owns `run_command` supplies its schema and executor; see [Backend tools](/docs/tools/backend).
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+<Steps>
+  <Step>
+
+### Hold the command and its result
+
+```tsx title="app/run.tsx"
+"use client";
+
+import { TerminalBlock } from "@/components/assistant-ui/elements/terminal-block";
+
+const RESULT = {
+  stdout: "RUN v4.0.5\n✓ 3 tests passed",
+  stderr: "",
+  exitCode: 0,
+};
+
+export function TestRun() {
+  return (
+    <TerminalBlock
+      command="pnpm vitest run"
+      lines={RESULT.stdout.split("\n")}
+      stderr={RESULT.stderr ? RESULT.stderr.split("\n") : []}
+      exitCode={RESULT.exitCode}
+      visibleCount={2}
+      done
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Show it running
+
+Flip `done` to `false` while the process is in flight; the header swaps its checkmark for a spinner and a cursor blinks after the last visible line:
+
+```tsx
+<TerminalBlock command="pnpm vitest run" lines={["RUN v4.0.5"]} visibleCount={1} done={false} />
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="terminal-block" data-state="done">
+  <header>~/app $ pnpm build. exit 0. 840ms. Copy output.</header>
+  <div>stdout. stderr. Show all N lines. output truncated.</div>
+</div>
+```
+
+The root reports `data-state="running"`, `"done"`, or `"failed"`. While it runs, the header shows a spinner and the body keeps a blinking cursor. Once done, it shows `exit 0` by default or the supplied `exitCode`; a nonzero code uses a red X. `durationMs` adds a compact duration, and the copy action appears when there is output.
+
+`cwd` renders as a dimmed `${cwd} $` prompt before `command`. `lines` are stdout and `stderr` follows them in the failure tone, so `visibleCount` traverses stdout before stderr. The body reserves a minimum height, the latest revealed line stays bright, and every line can contain supported ANSI foreground colors, bold, and dim styling. Other escape sequences are removed before rendering.
+
+After completion, `maxCollapsedLines` can initially show only the first revealed lines. `truncated` adds a final `output truncated` line without changing the output count.
+
+## Examples
+
+### Render a command result
+
+Pass a result shape directly when the command does not come from a tool call. This failed result shows a prompt, ANSI-colored stdout, stderr, its real exit code, duration, and a truncation notice:
+
+```tsx
+const result = {
+  stdout: "\u001b[94mBuilding package\u001b[0m\n\u001b[2mChecking types\u001b[0m",
+  stderr: "Error: package entry was not found",
+  exitCode: 1,
+  durationMs: 64_000,
+  truncated: true,
+};
+
+<TerminalBlock
+  cwd="~/app"
+  command="pnpm build"
+  lines={result.stdout.split("\n")}
+  stderr={result.stderr.split("\n")}
+  exitCode={result.exitCode}
+  durationMs={result.durationMs}
+  truncated={result.truncated}
+  visibleCount={3}
+  done
+/>
+```
+
+### Collapse a completed result
+
+`maxCollapsedLines` only applies after the process finishes. The control reads `Show all N lines` until expanded, then `Show less`; it never hides output that is still streaming. The copy button copies stdout followed by stderr, joined with a newline.
+
+```tsx
+<TerminalBlock
+  command="pnpm test"
+  lines={allStdout}
+  stderr={allStderr}
+  visibleCount={allStdout.length + allStderr.length}
+  maxCollapsedLines={8}
+  done
+/>
+```
+
+### Ink variant
+
+`variant="ink"` inverts the block to a solid dark panel and keeps ANSI colors legible against it. Every result behavior stays the same.
+
+```tsx
+<TerminalBlock variant="ink" command="pnpm vitest run" lines={["✓ 3 tests passed"]} visibleCount={1} done />
+```
+
+### Restyle the terminal
+
+Both lanes take `className` on the root. The paper variant's background and border come from the shared `paper` token in `surfaces.tsx`; the ink variant sets its own background directly.
+
+```tsx
+<TerminalBlock
+  className="max-w-none"
+  command="pnpm test"
+  lines={["✓ 3 tests passed"]}
+  visibleCount={1}
+  done
+/>
+```
+
+<StandaloneMode>
+
+### Replaying output
+
+Grow `visibleCount` on a timer to replay a captured run line by line, the way the catalog's own preview does:
+
+```tsx
+const lines = ["RUN v4.0.5", "✓ 3 tests passed"];
+const [visibleCount, setVisibleCount] = useState(0);
+
+useEffect(() => {
+  if (visibleCount >= lines.length) return;
+  const id = setTimeout(() => setVisibleCount((n) => n + 1), 700);
+  return () => clearTimeout(id);
+}, [visibleCount]);
+```
+
+</StandaloneMode>
+
+## API reference
+
+<RuntimeMode>
+
+### Tool-call render props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `args` | `{ command: string; cwd?: string }` | The command and optional working-directory prompt. |
+| `result` | `{ stdout: string; stderr: string; exitCode: number; durationMs?: number; truncated?: boolean } \| undefined` | The completed command result. `stdout` becomes `lines`; `stderr`, `exitCode`, `durationMs`, and `truncated` pass through to TerminalBlock. |
+| `status` | `ToolCallMessagePartStatus` | `status.type === "running"` while the process is still executing. |
+| `visibleCount` | `number` | Pass the number of revealed stdout and stderr lines, in that order. |
+| `maxCollapsedLines` | `number \| undefined` | A local render setting that bounds a completed result before the user expands it. |
+
+See [Tool UI](/docs/tools/tool-ui) for the full render-prop surface and for backend tool registration.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### TerminalBlock
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `command` | `string` | required | The command line shown in the header. |
+| `lines` | `readonly string[]` | required | Output lines, in order. |
+| `visibleCount` | `number` | required | How many lines from the start of `lines` to render. |
+| `done` | `boolean` | required | Settles the header, showing a success check or the failed exit code, and hides the blinking cursor. |
+| `exitCode` | `number` | `0` | The completed process code. A nonzero value sets the failed state and red exit label. |
+| `stderr` | `readonly string[]` | | Failure output appended after `lines`; it shares `visibleCount`. |
+| `cwd` | `string` | | The working directory shown as a dimmed `${cwd} $` prompt. |
+| `durationMs` | `number` | | Completed duration, formatted as milliseconds, seconds, or minutes and seconds. |
+| `truncated` | `boolean` | | Adds the final `output truncated` line. |
+| `maxCollapsedLines` | `number` | | Completed revealed output to show before the accessible expand control. |
+| `variant` | `"paper" \| "ink"` | `"paper"` | Visual surface. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

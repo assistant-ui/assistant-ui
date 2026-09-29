@@ -30,12 +30,22 @@ import { readRawResponseSchema } from "./runtime/interrupt-internals";
 
 type Subscriber = Record<string, ((payload: any) => void) | undefined>;
 
+const GATE_PROMPT = "Delete /tmp/a?";
+
 const GATE: AgUiInterrupt = {
   id: "int-1",
   reason: "tool_call",
   toolCallId: "tc-1",
-  message: "Delete /tmp/a?",
+  message: GATE_PROMPT,
 };
+
+// The gate's message reaches the renderer as the approval's prompt, so every
+// projection of GATE carries it.
+const gateApproval = (rest: Record<string, unknown> = {}) => ({
+  id: "int-1",
+  prompt: GATE_PROMPT,
+  ...rest,
+});
 
 // Gates the first run on an interrupt and lets every later run settle, so a
 // resumed run is observable as a second call rather than a second gate.
@@ -145,7 +155,7 @@ describe("useAgUiRuntime tool approvals", () => {
   it("gates the tool call a tool_call interrupt names", async () => {
     const { runtime } = await gatedThread();
 
-    expect(allToolCalls(runtime.current)[0]!.approval).toEqual({ id: "int-1" });
+    expect(allToolCalls(runtime.current)[0]!.approval).toEqual(gateApproval());
     expect(gatedPart(runtime.current).getState().status).toMatchObject({
       type: "requires-action",
     });
@@ -200,10 +210,9 @@ describe("useAgUiRuntime tool approvals", () => {
     });
     expect(runAgent).toHaveBeenCalledTimes(1);
     // The first decision survives the rerender the second gate triggers.
-    expect(allToolCalls(runtime.current)[0]!.approval).toEqual({
-      id: "int-1",
-      approved: true,
-    });
+    expect(allToolCalls(runtime.current)[0]!.approval).toEqual(
+      gateApproval({ approved: true }),
+    );
 
     await act(async () => {
       gatedPart(runtime.current, "tc-2").respondToToolApproval({
@@ -222,10 +231,9 @@ describe("useAgUiRuntime tool approvals", () => {
       },
     ]);
     // Settlement consumes the resume array, so the approved gate stays approved.
-    expect(allToolCalls(runtime.current)[0]!.approval).toEqual({
-      id: "int-1",
-      approved: true,
-    });
+    expect(allToolCalls(runtime.current)[0]!.approval).toEqual(
+      gateApproval({ approved: true }),
+    );
     expect(
       allToolCalls(runtime.current).every((part) => part.result === undefined),
     ).toBe(true);
@@ -255,7 +263,7 @@ describe("useAgUiRuntime tool approvals", () => {
     // The wire cancelled both, so the gate approved while its sibling was
     // still open cannot keep displaying an approval that was never sent.
     expect(allToolCalls(runtime.current).map((part) => part.approval)).toEqual([
-      { id: "int-1", resolution: "cancelled" },
+      gateApproval({ resolution: "cancelled" }),
       { id: "int-2", resolution: "cancelled" },
     ]);
   });
@@ -286,7 +294,7 @@ describe("useAgUiRuntime tool approvals", () => {
     expect(
       allToolCalls(runtime.current).find((p) => p.approval?.id === "int-1")
         ?.approval,
-    ).toEqual({ id: "int-1", resolution: "cancelled" });
+    ).toEqual(gateApproval({ resolution: "cancelled" }));
   });
 
   it("shows a bespoke resolved override as the decision it carried", async () => {
@@ -305,7 +313,7 @@ describe("useAgUiRuntime tool approvals", () => {
     expect(
       allToolCalls(runtime.current).find((p) => p.approval?.id === "int-1")
         ?.approval,
-    ).toEqual({ id: "int-1", approved: true });
+    ).toEqual(gateApproval({ approved: true }));
   });
 
   it("leaves the tool call ungated when the live interrupt carries a rejecting schema", async () => {
@@ -344,7 +352,7 @@ describe("useAgUiRuntime tool approvals", () => {
     ]);
     const [interrupt] = interruptsRef.current;
 
-    expect(allToolCalls(runtime.current)[0]!.approval).toEqual({ id: "int-1" });
+    expect(allToolCalls(runtime.current)[0]!.approval).toEqual(gateApproval());
     expect(interrupt?.responseSchema).toBeUndefined();
     expect(interrupt && readRawResponseSchema(interrupt)).toBeUndefined();
   });
@@ -412,7 +420,7 @@ describe("useAgUiRuntime tool approvals", () => {
     // `{answer:42}` went out for the first gate, so the approval recorded while
     // its sibling was still open cannot keep displaying a decision never sent.
     expect(allToolCalls(runtime.current).map((part) => part.approval)).toEqual([
-      { id: "int-1", resolution: "cancelled" },
+      gateApproval({ resolution: "cancelled" }),
       { id: "int-2", resolution: "cancelled" },
     ]);
   });
@@ -469,7 +477,7 @@ describe("useAgUiRuntime tool approvals", () => {
       type: "requires-action",
       reason: "interrupt",
     });
-    expect(allToolCalls(runtime.current)[0]!.approval).toEqual({ id: "int-1" });
+    expect(allToolCalls(runtime.current)[0]!.approval).toEqual(gateApproval());
     expect(execute).not.toHaveBeenCalled();
 
     await act(async () => {
@@ -542,14 +550,14 @@ describe("useAgUiRuntime tool approvals under an unsettled run", () => {
       content: [{ type: "text", text: "delete it" }],
     });
     await waitFor(() =>
-      expect(allToolCalls(result.current)[0]?.approval).toEqual({
-        id: "int-1",
-      }),
+      expect(allToolCalls(result.current)[0]?.approval).toEqual(gateApproval()),
     );
     expect(result.current.thread.getState().isRunning).toBe(true);
 
     await act(async () => {
-      gatedPart(result.current).respondToToolApproval({ approved: true });
+      await expect(
+        gatedPart(result.current).respondToToolApproval({ approved: true }),
+      ).rejects.toThrow("a run is already in progress");
     });
     await waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
     expect((onError.mock.calls[0]![0] as Error).message).toContain(
@@ -557,7 +565,7 @@ describe("useAgUiRuntime tool approvals under an unsettled run", () => {
     );
     // The rejected click must not have recorded a decision, or the retry
     // below would report the approval as already decided.
-    expect(allToolCalls(result.current)[0]!.approval).toEqual({ id: "int-1" });
+    expect(allToolCalls(result.current)[0]!.approval).toEqual(gateApproval());
 
     await act(async () => {
       release();
@@ -662,7 +670,7 @@ describe("useAgUiRuntime tool approvals across a messages snapshot", () => {
     const gated = allToolCalls(result.current).filter(
       (part) => part.approval !== undefined,
     );
-    expect(gated.map((part) => part.approval)).toEqual([{ id: "int-1" }]);
+    expect(gated.map((part) => part.approval)).toEqual([gateApproval()]);
 
     await act(async () => {
       await gatedPart(result.current).respondToToolApproval({ approved: true });
@@ -795,7 +803,9 @@ describe("useAgUiRuntime approvals on a run that fails after the interrupt", () 
     await waitFor(() => expect(runAgent).toHaveBeenCalledTimes(1));
 
     await act(async () => {
-      gatedPart(result.current).respondToToolApproval({ approved: true });
+      await expect(
+        gatedPart(result.current).respondToToolApproval({ approved: true }),
+      ).rejects.toThrow("resume failed");
     });
     await waitFor(() => expect(runAgent).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(onError).toHaveBeenCalled());
@@ -879,7 +889,7 @@ describe("useAgUiRuntime approvals that cannot be completed through the seam", (
     // The interrupt is closed, so the gate must not stay actionable: a click
     // would find no pending interrupt on the thread.
     expect(allToolCalls(runtime.current).map((part) => part.approval)).toEqual([
-      { id: "int-1", resolution: "cancelled" },
+      gateApproval({ resolution: "cancelled" }),
     ]);
   });
 });

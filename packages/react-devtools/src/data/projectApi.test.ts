@@ -77,6 +77,45 @@ describe("projectApi", () => {
     expect(result.modelContext).toEqual({ system: "be nice" });
   });
 
+  it("keeps readable model-context fields when others are unreadable", () => {
+    const tools = new Proxy(
+      {},
+      {
+        ownKeys: () => {
+          throw new Error("tools unavailable");
+        },
+      },
+    );
+    const modelContext = {
+      tools,
+      config: { model: "test-model" },
+    };
+    Object.defineProperty(modelContext, "system", {
+      get: () => {
+        throw new Error("system unavailable");
+      },
+    });
+    const thread = scope(
+      "root",
+      {},
+      {
+        getState: () => ({ messages: [], isRunning: false }),
+        getModelContext: () => modelContext,
+      },
+    );
+
+    const projected = projectApi(1, {
+      api: { thread },
+      logs: [],
+    } as unknown as Parameters<typeof projectApi>[1]);
+
+    expect(projected.modelContext).toEqual({
+      system: "[Unserializable]",
+      tools: [{ name: "[Unserializable]" }],
+      config: { model: "test-model" },
+    });
+  });
+
   it("keeps event-log timestamps as Date instances", () => {
     expect(result.logs[0]?.time).toBeInstanceOf(Date);
     expect(result.logs[0]?.event).toBe("thread.run-start");
@@ -96,5 +135,46 @@ describe("projectApi", () => {
     } as unknown as Parameters<typeof projectApi>[1]);
     const scopes = result.scopes as Array<{ name: string }>;
     expect(scopes.map((s) => s.name)).toEqual(["broken", "throwing"]);
+  });
+
+  it("collects snapshots for prototype-named thread ids", () => {
+    const threads = scope(
+      "root",
+      {},
+      {
+        getState: () => ({
+          threadIds: ["__proto__"],
+          archivedThreadIds: [],
+        }),
+        __internal_getAssistantRuntime: () => ({
+          threads: {
+            getById: () => ({
+              getState: () => ({
+                messages: [],
+                suggestions: [],
+                capabilities: {},
+              }),
+              composer: { getState: () => ({ text: "" }) },
+            }),
+          },
+        }),
+      },
+    );
+
+    const projected = projectApi(1, {
+      api: { threads },
+      logs: [],
+    } as unknown as Parameters<typeof projectApi>[1]);
+
+    expect(Object.hasOwn(projected.threadSnapshots ?? {}, "__proto__")).toBe(
+      true,
+    );
+    expect(Object.getPrototypeOf(projected.threadSnapshots)).toBe(
+      Object.prototype,
+    );
+    expect(projected.threadSnapshots?.["__proto__"]).toMatchObject({
+      messages: [],
+      composer: { text: "" },
+    });
   });
 });

@@ -1,85 +1,38 @@
 "use client";
 
 import { useState } from "react";
-import { CreditCard, Settings, User, HelpCircle } from "lucide-react";
+import { CreditCard, HelpCircle, Settings, User } from "lucide-react";
 import {
   Accordion,
+  AccordionContent,
   AccordionItem,
   AccordionTrigger,
-  AccordionContent,
-} from "@/components/assistant-ui/accordion";
+} from "@/components/ui/accordion";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 
 export function AccordionSample() {
   return (
     <SampleFrame className="flex h-auto items-center justify-center p-6">
-      <Accordion className="w-[400px]">
+      <Accordion defaultValue={["item-1"]} className="w-[400px]">
         <AccordionItem value="item-1">
           <AccordionTrigger>Is it accessible?</AccordionTrigger>
           <AccordionContent>
-            Yes. It adheres to the WAI-ARIA design pattern for accordions.
+            Yes. It follows the WAI-ARIA accordion pattern.
           </AccordionContent>
         </AccordionItem>
         <AccordionItem value="item-2">
           <AccordionTrigger>Is it styled?</AccordionTrigger>
           <AccordionContent>
-            Yes. It comes with default styles that match the other components'
-            aesthetic.
+            Yes. It comes with styles that match the design system.
           </AccordionContent>
         </AccordionItem>
         <AccordionItem value="item-3">
           <AccordionTrigger>Is it animated?</AccordionTrigger>
           <AccordionContent>
-            Yes. It's animated by default, but you can disable it if you prefer.
+            Yes. The panel animates when it opens and closes.
           </AccordionContent>
         </AccordionItem>
       </Accordion>
-    </SampleFrame>
-  );
-}
-
-export function AccordionVariantsSample() {
-  return (
-    <SampleFrame className="flex h-auto flex-col items-center justify-center gap-8 p-6">
-      <div className="flex w-[400px] flex-col gap-2">
-        <span className="text-muted-foreground text-xs">Default</span>
-        <Accordion variant="default">
-          <AccordionItem value="a">
-            <AccordionTrigger>Section A</AccordionTrigger>
-            <AccordionContent>Content for section A.</AccordionContent>
-          </AccordionItem>
-          <AccordionItem value="b">
-            <AccordionTrigger>Section B</AccordionTrigger>
-            <AccordionContent>Content for section B.</AccordionContent>
-          </AccordionItem>
-        </Accordion>
-      </div>
-      <div className="flex w-[400px] flex-col gap-2">
-        <span className="text-muted-foreground text-xs">Outline</span>
-        <Accordion variant="outline">
-          <AccordionItem value="a">
-            <AccordionTrigger>Section A</AccordionTrigger>
-            <AccordionContent>Content for section A.</AccordionContent>
-          </AccordionItem>
-          <AccordionItem value="b">
-            <AccordionTrigger>Section B</AccordionTrigger>
-            <AccordionContent>Content for section B.</AccordionContent>
-          </AccordionItem>
-        </Accordion>
-      </div>
-      <div className="flex w-[400px] flex-col gap-2">
-        <span className="text-muted-foreground text-xs">Ghost</span>
-        <Accordion variant="ghost">
-          <AccordionItem value="a">
-            <AccordionTrigger>Section A</AccordionTrigger>
-            <AccordionContent>Content for section A.</AccordionContent>
-          </AccordionItem>
-          <AccordionItem value="b">
-            <AccordionTrigger>Section B</AccordionTrigger>
-            <AccordionContent>Content for section B.</AccordionContent>
-          </AccordionItem>
-        </Accordion>
-      </div>
     </SampleFrame>
   );
 }
@@ -89,20 +42,20 @@ export function AccordionMultipleSample() {
     <SampleFrame className="flex h-auto items-center justify-center p-6">
       <Accordion multiple className="w-[400px]">
         <AccordionItem value="item-1">
-          <AccordionTrigger>First Section</AccordionTrigger>
+          <AccordionTrigger>First section</AccordionTrigger>
           <AccordionContent>
             This section can be open at the same time as others.
           </AccordionContent>
         </AccordionItem>
         <AccordionItem value="item-2">
-          <AccordionTrigger>Second Section</AccordionTrigger>
+          <AccordionTrigger>Second section</AccordionTrigger>
           <AccordionContent>
             Multiple sections can be expanded simultaneously.
           </AccordionContent>
         </AccordionItem>
         <AccordionItem value="item-3">
-          <AccordionTrigger>Third Section</AccordionTrigger>
-          <AccordionContent>Try opening all three at once!</AccordionContent>
+          <AccordionTrigger>Third section</AccordionTrigger>
+          <AccordionContent>Try opening all three at once.</AccordionContent>
         </AccordionItem>
       </Accordion>
     </SampleFrame>
@@ -112,12 +65,12 @@ export function AccordionMultipleSample() {
 export function AccordionWithIconsSample() {
   return (
     <SampleFrame className="flex h-auto items-center justify-center p-6">
-      <Accordion variant="outline" className="w-[400px]">
+      <Accordion className="w-[400px]">
         <AccordionItem value="account">
           <AccordionTrigger>
             <span className="flex items-center gap-2">
               <User className="size-4" />
-              Account Settings
+              Account settings
             </span>
           </AccordionTrigger>
           <AccordionContent>
@@ -133,7 +86,7 @@ export function AccordionWithIconsSample() {
             </span>
           </AccordionTrigger>
           <AccordionContent>
-            View your billing history, manage payment methods, and update
+            View your billing history, manage payment methods, and update your
             subscription.
           </AccordionContent>
         </AccordionItem>
@@ -154,15 +107,11 @@ export function AccordionWithIconsSample() {
 }
 
 export function AccordionControlledSample() {
-  const [value, setValue] = useState<string[]>(["item-1"]);
+  const [value, setValue] = useState(["item-1"]);
 
   return (
     <SampleFrame className="flex h-auto flex-col items-center justify-center gap-4 p-6">
-      <Accordion
-        value={value}
-        onValueChange={(next) => setValue(next as string[])}
-        className="w-[400px]"
-      >
+      <Accordion value={value} onValueChange={setValue} className="w-[400px]">
         <AccordionItem value="item-1">
           <AccordionTrigger>Overview</AccordionTrigger>
           <AccordionContent>
@@ -183,7 +132,7 @@ export function AccordionControlledSample() {
         </AccordionItem>
       </Accordion>
       <p className="text-muted-foreground text-sm">
-        Current value: <code className="font-mono">{value ?? "none"}</code>
+        Current value: <code className="font-mono">{value[0] ?? "none"}</code>
       </p>
     </SampleFrame>
   );
@@ -195,7 +144,7 @@ export function AccordionFAQSample() {
       <div className="w-[500px]">
         <div className="mb-4 flex items-center gap-2">
           <HelpCircle className="size-5" />
-          <h3 className="text-lg font-semibold">Frequently Asked Questions</h3>
+          <h3 className="text-lg font-semibold">Frequently asked questions</h3>
         </div>
         <Accordion>
           <AccordionItem value="faq-1">
@@ -203,8 +152,8 @@ export function AccordionFAQSample() {
               What payment methods do you accept?
             </AccordionTrigger>
             <AccordionContent>
-              We accept all major credit cards (Visa, MasterCard, American
-              Express), PayPal, and bank transfers for annual subscriptions.
+              We accept all major credit cards, PayPal, and bank transfers for
+              annual subscriptions.
             </AccordionContent>
           </AccordionItem>
           <AccordionItem value="faq-2">
@@ -212,22 +161,14 @@ export function AccordionFAQSample() {
               Can I cancel my subscription anytime?
             </AccordionTrigger>
             <AccordionContent>
-              Yes, you can cancel your subscription at any time. Your access
-              will continue until the end of your current billing period.
+              Yes. Your access continues until the end of the current billing
+              period.
             </AccordionContent>
           </AccordionItem>
           <AccordionItem value="faq-3">
             <AccordionTrigger>Do you offer refunds?</AccordionTrigger>
             <AccordionContent>
-              We offer a 30-day money-back guarantee for all new subscriptions.
-              Contact our support team to request a refund.
-            </AccordionContent>
-          </AccordionItem>
-          <AccordionItem value="faq-4">
-            <AccordionTrigger>How do I contact support?</AccordionTrigger>
-            <AccordionContent>
-              You can reach our support team via email at support@example.com or
-              through the live chat feature in the bottom right corner.
+              We offer a 30-day money-back guarantee for new subscriptions.
             </AccordionContent>
           </AccordionItem>
         </Accordion>

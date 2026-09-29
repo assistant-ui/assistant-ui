@@ -17,13 +17,13 @@ Three options. Choose based on what you want to own.
 
 | Path | Runtime | Who owns thread metadata | Best for |
 | --- | --- | --- | --- |
-| AssistantCloud | LocalRuntime and adapters built on it | assistant-cloud | You want it managed; auth, sync, persistence handled |
+| AssistantCloud | LocalRuntime and runtime adapters that accept `cloud` | assistant-cloud | You want the thread list managed; auth and sync handled |
 | RemoteThreadListRuntime | LocalRuntime and adapters built on it | Your database | You have your own backend and want full control |
 | ExternalStoreThreadListAdapter | ExternalStoreRuntime only | Your store | You keep state in redux, zustand, etc. |
 
 ## AssistantCloud
 
-`AssistantCloud` is the managed multi-thread service. Pass an instance to `useLocalRuntime` (or any adapter built on it) and threads, persistence, sync, and titles are handled for you.
+`AssistantCloud` is the managed multi-thread service. Pass an instance to `useLocalRuntime` or a runtime adapter that accepts `cloud`, and the thread list, sync and titles are handled for you. Where messages are stored depends on the runtime: `useLocalRuntime` and the AI SDK runtime, plus AG-UI and A2A through `useCloudThreadListRuntime`, store and load them in the cloud, while LangGraph, LangChain, ADK and other runtimes whose backend keeps the transcript load it from that backend and store a copy in the cloud for the dashboard, as [Runtimes](/docs/cloud/runtimes) lists.
 
 ```tsx
 import { useLocalRuntime } from "@assistant-ui/react";
@@ -37,12 +37,16 @@ const cloud = new AssistantCloud({
 const runtime = useLocalRuntime(modelAdapter, { cloud });
 ```
 
-Framework adapters take `cloud` directly. `AISDKThreads({ cloud })` is the store-entry list for `AuiConfig` hosts. It mounts only the visible thread, so a switch cancels an in-flight run and that exchange is not persisted.
+Framework adapters take `cloud` directly. `AISDKThreads({ cloud })` is the store-entry list for `AuiConfig` hosts. With `cloud` it is a `RemoteThreadList` with background threads: every visited thread stays mounted with its own history, a run keeps streaming after a switch and stops on delete, and a freshly created thread titles itself. Without `cloud`, only the visible thread is mounted, and a switched-away chat keeps streaming into its stored state until it settles.
 
 ```tsx
 const runtime = useChatRuntime({ cloud });
 const threads = AISDKThreads({ cloud });
 const runtime = useLangGraphRuntime({ cloud /* stream, load, ... */ });
+const runtime = useStreamRuntime({ cloud /* LangGraph server options */ });
+const runtime = useOpenCodeRuntime({ cloud /* OpenCode options */ });
+const runtime = usePiRuntime({ cloud /* Pi options */ });
+const runtime = useAssistantTransportRuntime({ cloud /* transport options */ });
 const runtime = useAdkRuntime({ cloud, stream });
 ```
 
@@ -268,7 +272,7 @@ How the refetch happens depends on the runtime, in one of three ways. When it de
 
 `useAuiState((s) => s.thread.capabilities.refetchThread)` reports which of those you would get, in place or not. It is not a signal for whether to offer a refresh at all: it is false on the remount path, where the call still does the work, and false again where the call does nothing.
 
-Both the LangGraph and Google ADK adapters register the in-place refetch capability when their runtime hook receives a `load` function; without one they fall back to the remount path. Other remote adapters take the remount path unless they provide the capability themselves.
+Both the LangGraph and Google ADK adapters register the in-place refetch capability when their runtime hook receives a `load` function; without one they fall back to the remount path. The Eve adapter registers it when the installed `eve` exposes `resume()` (0.44.1 and later), with no option to pass; on older releases it falls back like any other adapter, which for the single and in-memory thread lists it is usually paired with means the call resolves without doing anything. A refetch that lands during a run also settles differently across the three: LangGraph and Google ADK issue the load right away, so the promise settles at fetch latency and each decides on arrival how much of the snapshot a racing run leaves standing, while Eve queues the replay behind the in-flight turn, so its promise settles only once that turn parks. Other remote adapters take the remount path unless they provide the capability themselves.
 
 For an external store runtime, declare it with `onRefetchThread`, which is unrelated to `onReload` (that one re-generates an assistant message); the tap `ExternalThread` accepts the same prop:
 

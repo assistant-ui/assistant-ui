@@ -159,7 +159,7 @@ export function DownloadsChart({ timeline }: { timeline: TimelineSeries }) {
                   return (
                     <>
                       <div
-                        className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
+                        className="h-2.5 w-2.5 shrink-0"
                         style={{ backgroundColor: color }}
                       />
                       <div className="flex flex-1 items-center justify-between gap-3 leading-none">
@@ -190,6 +190,9 @@ export function DownloadsChart({ timeline }: { timeline: TimelineSeries }) {
               fill={
                 isHidden ? "transparent" : `url(#${gradientPrefix}-${s.key})`
               }
+              // A month npm could not be read for is absent from the row rather
+              // than zero, and the curve bridges it instead of breaking in two.
+              connectNulls
               isAnimationActive={false}
             />
           );
@@ -249,7 +252,7 @@ export function DownloadsChart({ timeline }: { timeline: TimelineSeries }) {
                     )}
                   >
                     <div
-                      className="h-2 w-2 shrink-0 rounded-[2px]"
+                      className="h-2 w-2 shrink-0"
                       style={{ backgroundColor: `var(--color-${key})` }}
                     />
                     <span>{series.label}</span>

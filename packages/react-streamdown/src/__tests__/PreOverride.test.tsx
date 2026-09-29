@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, renderHook, screen, cleanup } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import type { Element } from "hast";
 import {
   PreContext,
@@ -80,6 +80,64 @@ describe("useStreamdownPreProps", () => {
 });
 
 describe("PreOverride component", () => {
+  it("does not compare the node of a pre without a code child", () => {
+    let nodeKeyReads = 0;
+    const rawPre = () =>
+      new Proxy<Element>(
+        { type: "element", tagName: "pre", properties: {}, children: [] },
+        {
+          ownKeys: (target) => {
+            nodeKeyReads += 1;
+            return Reflect.ownKeys(target);
+          },
+        },
+      );
+    const view = () => (
+      <PreOverride node={rawPre()}>
+        <span>raw</span>
+      </PreOverride>
+    );
+
+    const { rerender } = render(view());
+    rerender(view());
+
+    expect(nodeKeyReads).toBe(0);
+  });
+
+  it("keeps the context value while the pre props are equal by value", () => {
+    const values: unknown[] = [];
+    const Consumer = memo(function Consumer() {
+      values.push(useStreamdownPreProps());
+      return null;
+    });
+    const preNode = (meta: string): Element => ({
+      type: "element",
+      tagName: "pre",
+      properties: {},
+      children: [
+        {
+          type: "element",
+          tagName: "code",
+          properties: { metastring: meta },
+          children: [],
+        },
+      ],
+    });
+    const view = (meta: string) => (
+      <PreOverride node={preNode(meta)} className="pre">
+        <Consumer />
+      </PreOverride>
+    );
+
+    const { rerender } = render(view("a.ts"));
+    rerender(view("a.ts"));
+    expect(values).toHaveLength(1);
+
+    rerender(view("b.ts"));
+    expect(values).toHaveLength(2);
+    expect(values[1]).not.toBe(values[0]);
+  });
+
   it("does not render an extra pre wrapper", () => {
     render(
       <PreOverride>
@@ -158,13 +216,31 @@ describe("PreOverride component", () => {
     expect(screen.getByText("plain text")).toBeDefined();
   });
 
-  it("is memoized and does not re-render unnecessarily", () => {
+  it("updates child text and props without a node prop", () => {
     const { rerender } = render(
-      <PreOverride className="test">content</PreOverride>,
+      <PreOverride>
+        <code key="same" className="language-js">
+          old
+        </code>
+      </PreOverride>,
     );
 
-    // Same props should not cause issues
-    rerender(<PreOverride className="test">content</PreOverride>);
-    expect(screen.getByText("content")).toBeDefined();
+    rerender(
+      <PreOverride>
+        <code key="same" className="language-js">
+          new
+        </code>
+      </PreOverride>,
+    );
+    expect(screen.getByText("new").className).toBe("language-js");
+
+    rerender(
+      <PreOverride>
+        <code key="same" className="language-ts">
+          new
+        </code>
+      </PreOverride>,
+    );
+    expect(screen.getByText("new").className).toBe("language-ts");
   });
 });

@@ -312,13 +312,13 @@ Options:
 
 ## mcp
 
-Use the `mcp` command to install the assistant-ui MCP docs server for your IDE.
+Use the `mcp` command to connect your IDE to the assistant-ui MCP server.
 
 ```bash
 npx assistant-ui@latest mcp
 ```
 
-This command configures the [Model Context Protocol](/docs/llm#mcp) server, giving your AI assistant direct access to assistant-ui documentation.
+The command registers the hosted [Model Context Protocol](/docs/llm#mcp) endpoint (`https://www.assistant-ui.com/mcp`) for Cursor, Windsurf, VSCode, and Claude Code. Zed and Claude Desktop only launch local stdio servers, so for those it configures the `@assistant-ui/mcp-docs-server` package instead.
 
 **Examples**
 
@@ -340,7 +340,7 @@ npx assistant-ui mcp --claude-desktop
 ```bash
 Usage: assistant-ui mcp [options]
 
-install assistant-ui MCP docs server for your IDE
+connect your IDE to the assistant-ui MCP server
 
 Options:
   --cursor          install for Cursor
@@ -350,6 +350,31 @@ Options:
   --claude-code     install for Claude Code
   --claude-desktop  install for Claude Desktop
   -h, --help        display help for command
+```
+
+## agent
+
+Use the `agent` command to open Claude Code with the assistant-ui skills loaded and a prompt already sent.
+
+```bash
+npx assistant-ui@latest agent "add a chat sidebar to this app"
+```
+
+The command fetches the [assistant-ui skills](/docs/llm#skills) plugin pinned to this CLI release into `~/.cache/assistant-ui/skills/<commit>` (under `$XDG_CACHE_HOME` when set), then runs `claude` with `--plugin-dir` for that session only. Nothing is written into your project; run `npx skills add assistant-ui/skills` to install the skills permanently. The `claude` CLI must be on your `PATH`, and a `GITHUB_TOKEN` avoids GitHub's unauthenticated rate limit on the first fetch.
+
+**Options**
+
+```bash
+Usage: assistant-ui agent [options] <prompt...>
+
+launch Claude Code with assistant-ui skills
+
+Arguments:
+  prompt      prompt for the agent
+
+Options:
+  --dry       print the command instead of running it
+  -h, --help  display help for command
 ```
 
 ## info

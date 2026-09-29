@@ -13,6 +13,7 @@ import {
 } from "../core/helpers/root";
 import { cloneCurrentTapContext, withTapContextRoot } from "../core/context";
 import { isThenable } from "../core/helpers/thenable";
+import { throwAggregated } from "../core/helpers/throwAggregated";
 import type { ResourceContext, ResourceFiber } from "../core/types";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDevStrictMode } from "./utils/useDevStrictMode";
@@ -34,6 +35,21 @@ export namespace useTapRoot {
 }
 
 const useHostRoot = <R>(render: () => R): R => render();
+
+const notifySubscribers = (subscribers: Iterable<() => void>): void => {
+  const errors: unknown[] = [];
+  for (const listener of subscribers) {
+    try {
+      listener();
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  throwAggregated(
+    errors,
+    "Errors occurred while notifying Tap root subscribers",
+  );
+};
 
 type Instance<R> = {
   readonly scheduler: UpdateScheduler;
@@ -103,7 +119,7 @@ const createInstance = <R>(
       )
         return;
       inst.value = output;
-      scheduleNotify(() => inst.subscribers.forEach((listener) => listener()));
+      scheduleNotify(() => notifySubscribers(inst.subscribers));
     },
 
     finishFlush: (output, version, drained) => {

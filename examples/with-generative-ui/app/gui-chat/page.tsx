@@ -5,7 +5,7 @@ import { AssistantMessageGui } from "@/components/assistant-message-gui";
 import {
   Thread,
   type ThreadComponents,
-} from "@/components/assistant-ui/thread";
+} from "@/components/assistant-ui/elements/thread.aui";
 import {
   AssistantRuntimeProvider,
   AuiConfig,

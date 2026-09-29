@@ -1,0 +1,275 @@
+---
+title: "Composer"
+description: "The unified input: attachments, commands, mentions, models, voice, and context in one surface."
+---
+
+The composer is the rounded bar where a person writes the next message: a growing text field with a toolbar underneath for attachments, the active model, and a send button that swaps to a stop button mid-run. With a runtime the bar reads and writes the thread's live composer state; standalone you hold that state yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+Every assistant-ui runtime carries a composer scoped to the active thread (or to a message being edited): a place to hold the draft text, staged attachments, and the send and cancel actions. Build the bar from `ComposerPrimitive`, the same primitives the `Thread` element renders internally, and pair them with the shared surface tokens from `surfaces.tsx` to match this catalog's look.
+
+<Steps>
+  <Step>
+
+### Compose the bar
+
+```tsx title="components/assistant-ui/elements/composer-bar.tsx"
+"use client";
+
+import { AuiIf, ComposerPrimitive } from "@assistant-ui/react";
+import { ArrowUpIcon, PlusIcon, SquareIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ghostButton, inkButton, paper } from "@/components/assistant-ui/elements/surfaces";
+
+export function ComposerBar() {
+  return (
+    <ComposerPrimitive.Root className={cn(paper, "flex w-full max-w-lg flex-col gap-2 rounded-[24px] p-2.5")}>
+      <ComposerPrimitive.Input
+        placeholder="Message..."
+        rows={1}
+        className="placeholder:text-foreground/35 min-h-11 w-full resize-none bg-transparent px-3 text-[15px] outline-none"
+      />
+      <div className="flex items-center justify-between">
+        <ComposerPrimitive.AddAttachment
+          aria-label="Add attachment"
+          className={cn(ghostButton, "size-8 disabled:pointer-events-none disabled:opacity-30")}
+        >
+          <PlusIcon className="size-4" />
+        </ComposerPrimitive.AddAttachment>
+        <AuiIf condition={(s) => !s.thread.isRunning}>
+          <ComposerPrimitive.Send
+            aria-label="Send message"
+            className={cn(inkButton, "grid size-8 place-items-center rounded-full")}
+          >
+            <ArrowUpIcon className="size-4" />
+          </ComposerPrimitive.Send>
+        </AuiIf>
+        <AuiIf condition={(s) => s.thread.isRunning}>
+          <ComposerPrimitive.Cancel
+            aria-label="Stop generating"
+            className={cn(inkButton, "grid size-8 place-items-center rounded-full")}
+          >
+            <SquareIcon className="size-3 fill-current" />
+          </ComposerPrimitive.Cancel>
+        </AuiIf>
+      </div>
+    </ComposerPrimitive.Root>
+  );
+}
+```
+
+`ComposerPrimitive.Root` renders a `<form>` that submits on Enter (Shift+Enter for a newline) and sends whatever text and attachments are staged. `AuiIf` swaps `Send` for `Cancel` the moment the thread starts running, the same swap `Thread`'s own composer makes.
+
+  </Step>
+  <Step>
+
+### Add the rest as you need it
+
+Attachments, the `/` and `@` menus, the model trigger, and dictation are each their own primitives layered onto this same bar. See [Attachments](/elements/composer-attachments), [Slash commands](/elements/composer-slash-commands), [Mentions](/elements/composer-mentions), [Models](/elements/composer-model-picker), and [Dictation](/elements/composer-voice) for each piece's own wiring. The `Thread` element ships a complete composer built from these same primitives, so installing [Thread](/elements/thread) gives you a working bar without assembling one yourself; this element is for building your own bar, or for a surface `Thread` does not cover, such as a compact inline composer.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `Composer` and its children are presentational: they render the shape and animate the visible states, but hold no text, attachments, or run status of their own. You own that state and pass it down as props and event handlers.
+
+<Steps>
+  <Step>
+
+### Hold the composer state
+
+```tsx title="app/chat-box.tsx"
+"use client";
+
+import { useState } from "react";
+import { Composer, ComposerBar, ComposerInput, ComposerToolbar, ComposerActions, ComposerAttachButton, ComposerSend } from "@/components/assistant-ui/elements/composer";
+
+export function ChatBox() {
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const send = () => {
+    if (!text.trim()) return;
+    setSending(true);
+    submitMessage(text).finally(() => setSending(false));
+    setText("");
+  };
+
+  return (
+    <Composer>
+      <ComposerBar>
+        <ComposerInput
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onSubmit={send}
+          placeholder="Message..."
+        />
+        <ComposerToolbar>
+          <ComposerAttachButton onClick={() => addAttachment()} />
+          <ComposerActions>
+            <ComposerSend streaming={sending} idle={!sending && text.trim().length > 0} onClick={send} />
+          </ComposerActions>
+        </ComposerToolbar>
+      </ComposerBar>
+    </Composer>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Read the toolbar's own behavior
+
+`ComposerAttachButton` disables itself automatically when it receives no `onClick`, so an unwired button never renders as clickable. `ComposerSend` never disables itself; it only changes appearance between an inert-looking fill (`!idle`), the ink send button (`idle`), and the ink stop button (`streaming`), so a caller that wants an actually-disabled send button passes `disabled` through `...props`.
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="composer">
+  <div data-slot="composer-bar" data-drag-active={/* true while a file is dragged over */}>
+    <div data-slot="composer-attachments">{/* staged files, when any */}</div>
+    <input data-slot="composer-input" />
+    <div data-slot="composer-toolbar">
+      <button data-slot="composer-attach" />
+      <div data-slot="composer-actions">
+        {/* model trigger, voice button, context ring, ... */}
+        <button data-slot="composer-send" />
+      </div>
+    </div>
+  </div>
+</div>
+```
+
+`ComposerBar` is the only piece with real visual state of its own: `dragActive` tints it and rounds its corners into a drop target. Every other piece here is a plain, unstyled-by-default building block; the composition (what sits in the toolbar, whether the model trigger or voice button appears) is up to the page that assembles them.
+
+## Examples
+
+### Swapping send for cancel
+
+<RuntimeMode>
+
+`AuiIf` mounts exactly one of the two, matching how `Thread`'s own composer switches them; a runtime with the queue capability enabled would still let a send reach the queue while running, so that composition unmounts `Send` a beat before the button's own `canSend` logic would otherwise have kept it live:
+
+```tsx
+<ComposerActions>
+  <AuiIf condition={(s) => !s.thread.isRunning}>
+    <ComposerPrimitive.Send className={cn(inkButton, "grid size-8 place-items-center rounded-full")}>
+      <ArrowUpIcon className="size-4" />
+    </ComposerPrimitive.Send>
+  </AuiIf>
+  <AuiIf condition={(s) => s.thread.isRunning}>
+    <ComposerPrimitive.Cancel className={cn(inkButton, "grid size-8 place-items-center rounded-full")}>
+      <SquareIcon className="size-3 fill-current" />
+    </ComposerPrimitive.Cancel>
+  </AuiIf>
+</ComposerActions>
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+A single `ComposerSend` swaps its own icon; drive `streaming` from whatever you consider "in flight":
+
+```tsx
+<ComposerActions>
+  <ComposerSend streaming={isSending} idle={!isSending} onClick={isSending ? cancel : send} />
+</ComposerActions>
+```
+
+</StandaloneMode>
+
+### Restyle the bar
+
+Every piece here takes `className`, and the rounded corners, borders, and hover states all come from the shared `paper`, `ghostButton`, and `inkButton` tokens in `surfaces.tsx`. Restyling those tokens restyles every element in the catalog that uses them, not just the composer.
+
+```tsx
+<ComposerBar className="max-w-2xl rounded-2xl p-4" />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### ComposerPrimitive
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `Root` | `form` | Sends on submit, which `Input` triggers on Enter; `compact` collapses it to a single row while the text holds at most one line and there are no attachments, quote, queued messages, or active dictation. |
+| `Input` | auto-resizing `textarea` | Controlled by the runtime; disabled while the thread is disabled or dictation is active. `submitMode` (`"enter"` \| `"ctrlEnter"` \| `"none"`) controls Enter's behavior. |
+| `Send` | `button` | Disabled while `!s.composer.canSend`, and also while the thread is running unless it has the queue capability. |
+| `Cancel` | `button` | Disabled while `!s.composer.canCancel`. |
+| `AddAttachment` | `button` | Opens a native file picker filtered by `attachmentAccept`; disabled only while the composer is not editable, so a pick made with no adapter configured opens the picker but silently fails to add the file. |
+| `AttachmentDropzone` | `div` (or `asChild`) | Sets `data-dragging="true"` while a file is dragged over; drops call `addAttachment` per file. |
+
+### Composer state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.composer.text` | `string` | The current draft text. |
+| `s.composer.isEmpty` | `boolean` | Whether the composer has no text and no attachments. |
+| `s.composer.canSend` | `boolean` | Whether `send()` would do anything right now. |
+| `s.composer.canCancel` | `boolean` | Whether `cancel()` would do anything right now. |
+| `s.composer.attachments` | `readonly Attachment[]` | Files staged on this composer; see [Attachments](/elements/composer-attachments). |
+| `s.thread.isRunning` | `boolean` | Whether the thread has a run in flight. |
+| `aui.composer.send(options?)` | `(options?: { startRun?: boolean; steer?: boolean }) => void` | Sends the staged text and attachments. |
+| `aui.composer.cancel()` | `() => void` | Cancels the current run, or exits edit mode. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### Composer
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `className` | `string` | | Merged onto the root `div`. |
+
+All other `div` props are forwarded.
+
+### ComposerBar
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `dragActive` | `boolean` | `false` | Tints the bar and dashes its border for a drop target. |
+| `className` | `string` | | Merged onto the root. |
+
+### ComposerInput
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `onSubmit` | `() => void` | | Called on Enter (not Shift+Enter, and not mid-IME composition). |
+| `className` | `string` | | Merged onto the `input`. |
+
+All other `input` props are forwarded.
+
+### ComposerToolbar / ComposerActions
+
+Plain `div`s (`data-slot="composer-toolbar"` and `data-slot="composer-actions"`) that lay out their children in a row; both forward every `div` prop.
+
+### ComposerAttachButton
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `onClick` | `() => void` | | Required for the button to render enabled; omitting it renders it disabled. |
+
+### ComposerSend
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `streaming` | `boolean` | required | Shows the stop icon and the ink fill. |
+| `idle` | `boolean` | required | Shows the ink fill when not streaming; a dim fill otherwise. |
+
+</StandaloneMode>

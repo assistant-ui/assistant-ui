@@ -94,7 +94,7 @@ export default function PricingPage() {
           </p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-10 md:grid-cols-3 md:gap-8">
           {pricingPlans.map((plan) => (
             <PricingPlanCard key={plan.name} plan={plan} />
           ))}

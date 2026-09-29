@@ -122,7 +122,7 @@ export function MyRuntimeProvider({
 <Tab value="React">
 
 ```tsx title="app/page.tsx"
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { MyRuntimeProvider } from "./MyRuntimeProvider";
 
 export default function Page() {
@@ -139,7 +139,7 @@ export default function Page() {
 
 ```tsx title="app/index.tsx"
 import { View } from "react-native";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { MyRuntimeProvider } from "@/runtime/MyRuntimeProvider";
 
 export default function Page() {
@@ -183,7 +183,7 @@ export function App() {
 <PlatformTabs>
 <Tab value="React">
 
-Follow the [UI Components guide](/docs/ui/thread) to wire up the Thread, composer, and supporting primitives.
+Follow the [UI Components guide](/elements/thread) to wire up the Thread, composer, and supporting primitives.
 
 </Tab>
 <Tab value="React Native">

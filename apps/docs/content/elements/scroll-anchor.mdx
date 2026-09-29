@@ -1,0 +1,185 @@
+---
+title: "Scroll anchor"
+description: "Streaming never steals your scroll position; a pill offers the way back down."
+---
+
+A scroll anchor keeps a message list pinned to the bottom while it grows, then gets out of the way the moment someone scrolls up to read something older. With a runtime the pin and the jump-back button are the viewport's own behavior; standalone you track the pin state and the unseen count yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+<Steps>
+  <Step>
+
+### Let the viewport pin itself
+
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+"use client";
+
+import { ThreadPrimitive } from "@assistant-ui/react";
+
+function Viewport() {
+  return (
+    <ThreadPrimitive.Viewport className="relative h-64 w-full max-w-sm overflow-hidden rounded-2xl">
+      <ThreadPrimitive.Messages>{({ message }) => null}</ThreadPrimitive.Messages>
+    </ThreadPrimitive.Viewport>
+  );
+}
+```
+
+`autoScroll` defaults to `true` (unless `turnAnchor="top"`), so the viewport scrolls to the newest content on its own; a reader who scrolls up interrupts that until they scroll back down themselves.
+
+  </Step>
+  <Step>
+
+### Add the jump-back pill
+
+```tsx
+import { ThreadPrimitive } from "@assistant-ui/react";
+import { ArrowDownIcon } from "lucide-react";
+
+<ThreadPrimitive.ScrollToBottom className="absolute inset-x-0 bottom-3 mx-auto flex w-fit items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs">
+  <ArrowDownIcon className="size-3 opacity-60" />
+  New messages
+</ThreadPrimitive.ScrollToBottom>
+```
+
+`ThreadPrimitive.ScrollToBottom` renders `null` on its own while the viewport is already at the bottom, so it needs no manual pinned check. It has no built-in count of how many messages were missed; track that yourself from `s.thread.messages.length` if you want the "n new messages" label `ScrollAnchor` shows standalone.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `ScrollAnchor` owns the whole simulation: it appends `messages` on a timer, decides when it's pinned, and shows the pill itself.
+
+<Steps>
+  <Step>
+
+### Feed it a growing list
+
+```tsx title="app/scroll-demo.tsx"
+"use client";
+
+import { useState } from "react";
+import { ScrollAnchor, type ScrollAnchorMessage } from "@/components/assistant-ui/elements/scroll-anchor";
+
+const messages: ScrollAnchorMessage[] = [
+  { role: "user", text: "Keep summarizing as you go." },
+  { role: "assistant", text: "Starting now." },
+  { role: "assistant", text: "Here's the first section..." },
+];
+
+export function ScrollDemo() {
+  const [paused, setPaused] = useState(false);
+  return <ScrollAnchor messages={messages} paused={paused} onSettled={() => setPaused(true)} />;
+}
+```
+
+  </Step>
+  <Step>
+
+### React once it catches up
+
+`onSettled` fires once every message in the array has been appended and the viewport is still pinned to the bottom, the standalone equivalent of a stream finishing while the reader never scrolled away:
+
+```tsx
+<ScrollAnchor messages={messages} onSettled={() => console.log("caught up")} />
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="scroll-anchor">
+  <div>{/* viewport: messages, newest last */}</div>
+  <button>{/* jump to bottom, only rendered while unpinned */}</button>
+</div>
+```
+
+Standalone, appending a message only auto-scrolls while pinned; scrolling away flips `pinned` to `false` on the next appended message and the count of unseen messages grows from there. Once two or more messages arrive unseen, it jumps back on its own after 2.4 seconds unless `paused`; pressing the pill jumps immediately. `onSettled` only fires when the whole array has landed and the view is still pinned, so it never fires while the reader is scrolled away reading.
+
+## Examples
+
+### Pausing the feed
+
+<StandaloneMode>
+
+Set `paused` while the reader is doing something a new message would interrupt, a text selection, an open menu:
+
+```tsx
+<ScrollAnchor messages={messages} paused={isMenuOpen} />
+```
+
+</StandaloneMode>
+
+<RuntimeMode>
+
+There's no equivalent pause on the runtime viewport: new messages always arrive as fast as the model streams them. What you can do instead is drop `autoScroll` to stop the automatic pin without stopping the stream itself:
+
+```tsx
+<ThreadPrimitive.Viewport autoScroll={false}>
+  {/* ... */}
+</ThreadPrimitive.Viewport>
+```
+
+</RuntimeMode>
+
+### Scroll to a specific message instead of the bottom
+
+<RuntimeMode>
+
+`turnAnchor="top"` changes what pinned means: instead of tracking the bottom, the viewport keeps the newest user turn pinned near the top of the visible area, useful for a focused reading layout instead of a classic chat scroll:
+
+```tsx
+<ThreadPrimitive.Viewport turnAnchor="top">
+  {/* ... */}
+</ThreadPrimitive.Viewport>
+```
+
+</RuntimeMode>
+
+## API reference
+
+<RuntimeMode>
+
+### Primitive parts
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `ThreadPrimitive.Viewport` | `div` | Scrollable container. `autoScroll`, `turnAnchor`, and the `scrollToBottomOn*` flags control when it pins. |
+| `ThreadPrimitive.ScrollToBottom` | `button` | Renders `null` while already at the bottom. Accepts `asChild` and a `behavior` prop (`"smooth" \| "auto"`). |
+
+### Viewport props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `autoScroll` | `boolean` | `true` (`false` when `turnAnchor="top"`) | Scroll to the bottom automatically as content arrives. |
+| `turnAnchor` | `"top" \| "bottom"` | `"bottom"` | `"top"` anchors each new user turn near the top instead of pinning the bottom. |
+| `scrollToBottomOnRunStart` | `boolean` | `true` | Scroll to the bottom when a new run starts. |
+| `scrollToBottomOnInitialize` | `boolean` | `true` | Scroll to the bottom when thread history first loads. |
+| `scrollToBottomOnThreadSwitch` | `boolean` | `true` | Scroll to the bottom when switching to a different thread. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### ScrollAnchor
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `messages` | `ScrollAnchorMessage[]` (`{ role: "user" \| "assistant"; text: string }`) | required | Appended one at a time on a 1300ms timer. |
+| `paused` | `boolean` | `false` | Stops appending further messages while `true`. |
+| `onSettled` | `() => void` | | Fires once every message has appended while still pinned to the bottom. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

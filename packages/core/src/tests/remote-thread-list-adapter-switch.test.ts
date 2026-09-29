@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import {
   createCore,
   deferred,
@@ -49,6 +49,27 @@ describe("RemoteThreadList adapter changes", () => {
       'Thread "thread-a" not found',
     );
     expect(adapterB.rename).not.toHaveBeenCalled();
+  });
+
+  it("clears loading when the replaced adapter's list never settles", async () => {
+    const adapterA = makeAdapter({
+      list: vi.fn(() => new Promise<never>(() => {})),
+    });
+    const adapterB = makeAdapter({
+      list: vi.fn(async () => ({ threads: [thread("thread-b")] })),
+    });
+    const core = createCore(adapterA);
+
+    void core.getLoadThreadsPromise();
+
+    core.__internal_setOptions({
+      adapter: adapterB,
+      runtimeHook: () => ({}) as never,
+    });
+    await core.getLoadThreadsPromise();
+
+    expect(core.threadIds).toEqual(["thread-b"]);
+    expect(core.isLoading).toBe(false);
   });
 
   it("does not resume an old adapter mutation through the new adapter", async () => {
@@ -227,6 +248,50 @@ describe("RemoteThreadList adapter changes", () => {
     expect(stopped).not.toContain(core.mainThreadId);
   });
 
+  it("keeps stopping the threads missing from the replacement list when one stop throws", async () => {
+    const adapterA = makeAdapter({
+      list: async () => ({
+        threads: [thread("thread-a"), thread("thread-c")],
+      }),
+    });
+    const adapterB = makeAdapter({
+      list: async () => ({ threads: [thread("thread-b")] }),
+    });
+    const core = createCore(adapterA);
+    const stopped: string[] = [];
+    const error = new Error("cleanup failed");
+    const hookManager = (
+      core as unknown as {
+        _hookManager: { stopThreadRuntime: (id: string) => void };
+      }
+    )._hookManager;
+    const originalStop = hookManager.stopThreadRuntime.bind(hookManager);
+    hookManager.stopThreadRuntime = (id: string) => {
+      stopped.push(id);
+      originalStop(id);
+      if (stopped.length === 1) throw error;
+    };
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+
+    await core.getLoadThreadsPromise();
+    core.__internal_setOptions({
+      adapter: adapterB,
+      runtimeHook: () => ({}) as never,
+    });
+    await core.getLoadThreadsPromise();
+
+    expect(stopped).toEqual(expect.arrayContaining(["thread-a", "thread-c"]));
+    expect(core.getItemById("thread-a")).toBeUndefined();
+    expect(core.getItemById("thread-b")).toBeDefined();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] Thread runtime cleanup threw while stopping a thread",
+      error,
+    );
+  });
+
   it("does not reject when a controlled thread is missing from the replacement adapter", async () => {
     const adapterA = makeAdapter({
       list: async () => ({ threads: [thread("thread-a")] }),
@@ -378,6 +443,50 @@ describe("RemoteThreadList adapter changes", () => {
 
     expect(core.getItemById(draftId!)?.remoteId).toBe("created-on-b");
     expect(core.mainThreadId).toBe(draftId);
-    expect(core.threadIds).toContain("created-on-b");
+    expect(core.threadIds).toContain(draftId);
+    expect(core.getItemById("created-on-b")?.id).toBe(draftId);
+  });
+
+  it("keeps one slot when the replacement list already carries the initialized thread", async () => {
+    const adapterA = makeAdapter({
+      list: async () => ({ threads: [thread("thread-a")] }),
+    });
+    const listB = deferred<{ threads: ReturnType<typeof thread>[] }>();
+    const adapterB = makeAdapter({
+      list: vi.fn(() => listB.promise),
+      initialize: vi.fn(async () => ({
+        remoteId: "created-on-b",
+        externalId: "created-on-b",
+      })),
+    });
+    const core = createCore(adapterA);
+
+    await core.getLoadThreadsPromise();
+    const draftId = core.newThreadId;
+
+    core.__internal_setOptions({
+      adapter: adapterB,
+      runtimeHook: () => ({}) as never,
+    });
+    await core.initialize(draftId!);
+
+    listB.resolve({
+      threads: [thread("created-on-b"), thread("thread-b")],
+    });
+    await core.getLoadThreadsPromise();
+
+    expect(
+      Object.values(core.threadItems).filter(
+        (item) => item.remoteId === "created-on-b",
+      ),
+    ).toHaveLength(1);
+    expect(core.threadIds).toEqual([draftId, "thread-b"]);
+    expect(core.getItemById("created-on-b")?.id).toBe(draftId);
+
+    await core.delete("created-on-b");
+
+    expect(core.getItemById("created-on-b")).toBeUndefined();
+    expect(core.getItemById(draftId!)).toBeUndefined();
+    expect(core.threadIds).toEqual(["thread-b"]);
   });
 });

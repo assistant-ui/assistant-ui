@@ -52,17 +52,27 @@ export function FeedbackPopover({
   };
 
   return (
-    <Popover.Root open={open} onOpenChange={handleOpenChange}>
+    <Popover.Root
+      open={open}
+      onOpenChange={handleOpenChange}
+      modal="trap-focus"
+    >
       {isValidElement(children) ? (
         <Popover.Trigger render={children as ReactElement} />
       ) : (
         <Popover.Trigger>{children}</Popover.Trigger>
       )}
       <Popover.Portal>
-        <Popover.Positioner sideOffset={5} align="start">
+        <Popover.Positioner
+          sideOffset={5}
+          align="start"
+          className="isolate z-50"
+        >
           <Popover.Popup className="border-border bg-popover z-50 w-72 rounded-lg border p-4">
             <div className="space-y-3">
-              <p className="text-sm font-medium">What went wrong?</p>
+              <Popover.Title className="text-sm font-medium">
+                What went wrong?
+              </Popover.Title>
               <div className="space-y-2">
                 {CATEGORIES.map((cat) => (
                   <label
@@ -91,18 +101,23 @@ export function FeedbackPopover({
                 )}
                 rows={2}
               />
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={!category}
-                className={cn(
-                  "bg-primary text-primary-foreground w-full rounded-md px-3 py-1.5 text-sm font-medium",
-                  "disabled:cursor-not-allowed disabled:opacity-50",
-                  "hover:bg-primary/90",
-                )}
-              >
-                Submit
-              </button>
+              <div className="flex items-center gap-2">
+                <Popover.Close className="text-muted-foreground hover:text-foreground rounded-md px-3 py-1.5 text-sm transition-colors">
+                  Cancel
+                </Popover.Close>
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={!category}
+                  className={cn(
+                    "bg-primary text-primary-foreground flex-1 rounded-md px-3 py-1.5 text-sm font-medium",
+                    "disabled:cursor-not-allowed disabled:opacity-50",
+                    "hover:bg-primary/90",
+                  )}
+                >
+                  Submit
+                </button>
+              </div>
             </div>
             <Popover.Arrow className="fill-popover" />
           </Popover.Popup>

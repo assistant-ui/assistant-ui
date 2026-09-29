@@ -40,7 +40,7 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const { messages }: { messages: Message[] } = await req.json();
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai.responses("gpt-6-luna"),
     messages,
     tools: {
       get_current_weather: tool({
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
 ```tsx title="@/app/page.tsx"
 "use client";
 
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 

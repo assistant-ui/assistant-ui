@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 
 const pads = {
   hero: "pt-20 pb-8 md:pt-28",
+  heroBody: "pt-20 pb-24 md:pt-28 md:pb-32",
   sub: "pt-16 pb-32 md:pt-20",
 } as const;
 

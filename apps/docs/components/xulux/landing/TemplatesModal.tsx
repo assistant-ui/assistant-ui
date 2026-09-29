@@ -45,12 +45,22 @@ export function TemplatesModal({
   );
   const openTrackedRef = useRef(false);
 
-  useEffect(() => {
+  const [openState, setOpenState] = useState<{
+    open: boolean;
+    initialCategoryId: typeof initialCategoryId;
+  } | null>(null);
+
+  if (
+    openState === null ||
+    openState.open !== open ||
+    openState.initialCategoryId !== initialCategoryId
+  ) {
+    setOpenState({ open, initialCategoryId });
     if (open) {
       setActiveCategory(initialCategoryId ?? "all");
       setQuery("");
     }
-  }, [open, initialCategoryId]);
+  }
 
   useEffect(() => {
     if (!open) {

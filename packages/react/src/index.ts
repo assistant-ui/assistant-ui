@@ -1,4 +1,4 @@
-/// <reference types="@assistant-ui/core/react" />
+/// <reference types="@assistant-ui/core/react" preserve="true" />
 
 // Re-export from @assistant-ui/store
 export {
@@ -22,11 +22,13 @@ export type {
   AssistantRuntime,
   ThreadRuntime,
   ThreadState,
+  ThreadRuntimeState,
   CreateAppendMessage,
   CreateStartRunConfig,
   CreateResumeRunConfig,
   MessageRuntime,
   MessageState,
+  MessageRuntimeState,
   MessagePartRuntime,
   MessagePartState,
   ComposerRuntime,
@@ -35,16 +37,21 @@ export type {
   EditComposerState,
   ThreadComposerState,
   ComposerState,
+  ComposerRuntimeState,
   AttachmentRuntime,
   AttachmentState,
+  AttachmentRuntimeState,
   ThreadListRuntime,
   ThreadListState,
   ThreadListItemRuntime,
   ThreadListItemState,
+  ThreadListItemRuntimeState,
 } from "@assistant-ui/core";
 
+export { toolApprovalAcceptsText } from "@assistant-ui/core";
+
 export { useCloudThreadListRuntime } from "@assistant-ui/core/react";
-export { AssistantCloud } from "assistant-cloud";
+export { AssistantCloud, readAnonymousRefreshToken } from "assistant-cloud";
 
 // --- adapters/attachment ---
 export type { AttachmentAdapter } from "@assistant-ui/core";
@@ -83,7 +90,12 @@ export {
 } from "@assistant-ui/core";
 
 // --- adapters/suggestion ---
-export type { SuggestionAdapter } from "@assistant-ui/core";
+export type {
+  SuggestionAdapter,
+  SuggestionAdapterGenerateOptions,
+  CreateSuggestionAdapterOptions,
+} from "@assistant-ui/core";
+export { createSuggestionAdapter } from "@assistant-ui/core";
 
 // --- adapters/RuntimeAdapterProvider ---
 export {
@@ -120,6 +132,7 @@ export type {
   AddToolResultOptions,
   SubmitFeedbackOptions,
   ThreadSuggestion,
+  ComposerSubmission,
   DictationState,
 } from "@assistant-ui/core";
 
@@ -152,6 +165,8 @@ export { useExternalStoreSharedOptions } from "@assistant-ui/core/react";
 export {
   useExternalMessageConverter,
   convertExternalMessages as unstable_convertExternalMessages,
+  createExternalMessageConversionCache as unstable_createExternalMessageConversionCache,
+  type ExternalMessageConversionCache as Unstable_ExternalMessageConversionCache,
 } from "./legacy-runtime/runtime-cores/external-store/external-message-converter";
 export { createMessageConverter as unstable_createMessageConverter } from "./legacy-runtime/runtime-cores/external-store/createMessageConverter";
 
@@ -271,6 +286,8 @@ export { tool } from "@assistant-ui/core";
 export { Suggestions, type SuggestionConfig } from "@assistant-ui/core/store";
 export type {
   QueueItemState,
+  TaskState,
+  TaskMethods,
   QueueItemMethods,
 } from "@assistant-ui/core/store";
 export type { ComposerSendOptions } from "@assistant-ui/core/store";
@@ -355,6 +372,7 @@ export type {
   GenerativeUISpec,
   Unstable_AudioMessagePart,
   RespondToToolApprovalOptions,
+  ToolApprovalDisplay,
   ToolApprovalOption,
   ToolApprovalOptionKind,
   ToolApprovalResponse,
@@ -366,6 +384,7 @@ export type {
   MessagePartStreamStatus,
   ToolCallMessagePartStatus,
   MessageTiming,
+  MessageModality,
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
   ThreadSystemMessage,
@@ -475,6 +494,8 @@ export {
   useTriggerPopoverTriggers as unstable_useTriggerPopoverTriggers,
   useTriggerPopoverTriggersOptional as unstable_useTriggerPopoverTriggersOptional,
   type RegisteredTrigger as Unstable_RegisteredTrigger,
+  type TriggerMatch as Unstable_TriggerMatch,
+  type TriggerMatcher as Unstable_TriggerMatcher,
   type TriggerBehavior as Unstable_TriggerBehavior,
 } from "./primitives/composer/trigger";
 export type {
@@ -503,11 +524,17 @@ export type { Assistant } from "./augmentations";
 
 // --- mcp-apps ---
 export {
+  CloudRendererHost,
+  type CloudRendererHostProps,
+} from "./cloud-renderer/CloudRendererHost";
+
+export {
   McpAppRenderer,
   McpAppsRemoteHost,
   getMcpAppFromToolPart,
 } from "./mcp-apps";
 export type {
+  McpAppPartOptions,
   McpAppRendererOptions,
   McpAppMetadata,
   McpAppResource,
@@ -524,3 +551,29 @@ export type {
   ToolCallMessagePartMcpMetadata,
 } from "./mcp-apps";
 export type { McpAppResourceOutput } from "@assistant-ui/core/react";
+export type { ShimLoadError, ShimLoadErrorCode } from "safe-content-frame";
+
+// Unstable - WebMCP provider (exposes frontend tools to a WebMCP-capable browser)
+export {
+  unstable_useWebMcpProvider,
+  type Unstable_WebMcpProviderOptions,
+  type Unstable_WebMcpProviderResult,
+} from "./unstable/webmcp/useWebMcpProvider";
+export { defaultWebMcpFilter as unstable_defaultWebMcpFilter } from "./unstable/webmcp/convertTools";
+
+// Shared surface carried by every distribution (scripts/check-distribution-barrels.mjs)
+export type {
+  JoinStrategy,
+  TitleGenerationAdapter,
+} from "@assistant-ui/core/react";
+export {
+  ChainOfThoughtPartByIndexProvider,
+  createSimpleTitleAdapter,
+} from "@assistant-ui/core/react";
+export type { ThreadsState } from "@assistant-ui/core/store";
+export type {
+  MessageRole,
+  RemoteThreadListOptions,
+  RunConfig,
+  RuntimeCapabilities,
+} from "@assistant-ui/core";

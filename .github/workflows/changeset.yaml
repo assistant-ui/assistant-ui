@@ -19,28 +19,26 @@ env:
 jobs:
   version:
     name: Create Version PR
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
-
-      - name: Setup node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
         with:
-          node-version: 24
-          cache: "pnpm"
+          runtime: node@24
+          cache: true
+          install: false
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Create version PR
         id: changesets
-        uses: changesets/action@198f833dd7d863100ea6e28967bc9a9fdefadb0a # v2.1.0
+        uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # ratchet:changesets/action@v2.1.2
         with:
           commit-message: "chore: update versions"
           pr-title: "chore: update versions"
@@ -50,7 +48,7 @@ jobs:
       - name: Detect release packages
         id: release_plan
         if: steps.changesets.outputs.has-changesets == 'false'
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
         with:
           script: |
             const { execFileSync } = require("node:child_process");
@@ -125,7 +123,7 @@ jobs:
 
       - name: Trigger npm publish
         if: steps.changesets.outputs.has-changesets == 'false' && steps.release_plan.outputs.hasReleasePackages == 'true'
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
         with:
           script: |
             await github.rest.repos.createDispatchEvent({

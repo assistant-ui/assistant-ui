@@ -1,3 +1,5 @@
+import { AUI_ELEMENT_DOCS } from "./aui-element-docs";
+
 export interface ElementPropRow {
   name: string;
   type: string;
@@ -18,7 +20,7 @@ export interface ElementDoc {
 
 export const ELEMENT_DOCS: Record<string, ElementDoc> = {
   "loading-state": {
-    usage: `import { GenerationLoader } from "@/components/elements/loading-state";
+    usage: `import { GenerationLoader } from "@/components/assistant-ui/elements/loading-state";
 
 <GenerationLoader label="Generating" tick={24} />`,
     props: [
@@ -55,7 +57,7 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
     ],
   },
   "thinking-indicator": {
-    usage: `import { ThinkingIndicator } from "@/components/elements/thinking-indicator";
+    usage: `import { ThinkingIndicator } from "@/components/assistant-ui/elements/thinking-indicator";
 
 <ThinkingIndicator label="Reading thread.tsx" elapsed="12s" />`,
     props: [
@@ -85,7 +87,7 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
     ],
   },
   "reasoning-panel": {
-    usage: `import { ReasoningPanel } from "@/components/elements/reasoning-panel";
+    usage: `import { ReasoningPanel } from "@/components/assistant-ui/elements/reasoning-panel";
 
 <ReasoningPanel
   steps={[{ title: "Scope", body: "Find the failing path." }]}
@@ -155,7 +157,7 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
     ],
   },
   "streaming-text": {
-    usage: `import { StreamingText } from "@/components/elements/streaming-text";
+    usage: `import { StreamingText } from "@/components/assistant-ui/elements/streaming-text";
 
 <StreamingText
   segments={[{ text: "Hello world" }, { text: "thread.tsx", mono: true }]}
@@ -197,7 +199,7 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
     ],
   },
   "typing-indicator": {
-    usage: `import { TypingIndicator } from "@/components/elements/typing-indicator";
+    usage: `import { TypingIndicator } from "@/components/assistant-ui/elements/typing-indicator";
 
 <TypingIndicator />`,
     props: [
@@ -221,13 +223,14 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
     ],
   },
   "message-pair": {
-    usage: `import { MessagePair } from "@/components/elements/message-pair";
+    usage: `import { MessagePair } from "@/components/assistant-ui/elements/message-pair";
 
 <MessagePair
   userMessage="Explain the composer."
   words={["Here", "is", "a", "short", "reply."]}
   visibleWords={5}
   streaming={false}
+  onCopy={() => navigator.clipboard.writeText("Here is a short reply.")}
 />`,
     props: [
       {
@@ -266,6 +269,18 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
               "bubble wraps the user message in a surface; flat renders it as plain right-aligned text.",
           },
           {
+            name: "onCopy",
+            type: "() => void",
+            description:
+              "Shows the copy button and runs when the user activates it.",
+          },
+          {
+            name: "onRegenerate",
+            type: "() => void",
+            description:
+              "Shows the regenerate button and runs when the user activates it.",
+          },
+          {
             name: "className",
             type: "string",
             description: "Extra classes merged onto the root.",
@@ -275,7 +290,7 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
     ],
   },
   "message-branches": {
-    usage: `import { MessageBranches } from "@/components/elements/message-branches";
+    usage: `import { MessageBranches } from "@/components/assistant-ui/elements/message-branches";
 
 <MessageBranches
   variants={["First answer.", "Second answer."]}
@@ -316,7 +331,7 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
     ],
   },
   "message-actions": {
-    usage: `import { MessageActions } from "@/components/elements/message-actions";
+    usage: `import { MessageActions } from "@/components/assistant-ui/elements/message-actions";
 
 <MessageActions
   copied={false}
@@ -387,7 +402,7 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
     ],
   },
   suggestions: {
-    usage: `import { Suggestions } from "@/components/elements/suggestions";
+    usage: `import { Suggestions } from "@/components/assistant-ui/elements/suggestions";
 
 <Suggestions
   suggestions={["Explain more", "Show an example"]}
@@ -442,7 +457,7 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
     ],
   },
   "error-state": {
-    usage: `import { ErrorState } from "@/components/elements/error-state";
+    usage: `import { ErrorState } from "@/components/assistant-ui/elements/error-state";
 
 <ErrorState
   title="Request failed"
@@ -490,7 +505,7 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
     ],
   },
   "tool-call": {
-    usage: `import { ToolCall } from "@/components/elements/tool-call";
+    usage: `import { ToolCall } from "@/components/assistant-ui/elements/tool-call";
 
 <ToolCall
   label="Searched"
@@ -570,7 +585,7 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
   },
   "tool-timeline": {
     usage: `import { FileSearchIcon } from "lucide-react";
-import { ToolTimeline } from "@/components/elements/tool-timeline";
+import { ToolTimeline } from "@/components/assistant-ui/elements/tool-timeline";
 
 <ToolTimeline
   steps={[{ verb: "Read", chip: "thread.tsx", icon: FileSearchIcon }]}
@@ -648,63 +663,8 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
       },
     ],
   },
-  "terminal-block": {
-    usage: `import { TerminalBlock } from "@/components/elements/terminal-block";
-
-<TerminalBlock
-  command="pnpm test"
-  lines={["PASS  thread.test.ts", "Tests: 2 passed"]}
-  visibleCount={2}
-  done
-/>`,
-    props: [
-      {
-        component: "TerminalBlock",
-        rows: [
-          {
-            name: "command",
-            type: "string",
-            required: true,
-            description: "Command string shown in the terminal header.",
-          },
-          {
-            name: "lines",
-            type: "readonly string[]",
-            required: true,
-            description: "Output lines available to stream into the body.",
-          },
-          {
-            name: "visibleCount",
-            type: "number",
-            required: true,
-            description:
-              "How many output lines from the start are currently shown.",
-          },
-          {
-            name: "variant",
-            type: '"paper" | "ink"',
-            defaultValue: '"paper"',
-            description:
-              "paper matches the surrounding surfaces; ink renders the classic dark terminal slab.",
-          },
-          {
-            name: "done",
-            type: "boolean",
-            required: true,
-            description:
-              "When true the header shows exit 0; otherwise a spinner keeps spinning.",
-          },
-          {
-            name: "className",
-            type: "string",
-            description: "Extra classes merged onto the root.",
-          },
-        ],
-      },
-    ],
-  },
   "code-diff": {
-    usage: `import { CodeDiff } from "@/components/elements/code-diff";
+    usage: `import { CodeDiff } from "@/components/assistant-ui/elements/code-diff";
 
 <CodeDiff
   filename="thread.tsx"
@@ -763,7 +723,7 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
     ],
   },
   "web-search": {
-    usage: `import { WebSearch } from "@/components/elements/web-search";
+    usage: `import { WebSearch } from "@/components/assistant-ui/elements/web-search";
 
 <WebSearch
   query="assistant-ui composer"
@@ -817,8 +777,8 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
       },
     ],
   },
-  sources: {
-    usage: `import { Sources } from "@/components/elements/sources";
+  "source-cards": {
+    usage: `import { Sources } from "@/components/assistant-ui/elements/sources";
 
 <Sources
   sources={[{ domain: "docs.example.com", title: "Composer guide" }]}
@@ -858,56 +818,8 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
       },
     ],
   },
-  "inline-citation": {
-    usage: `import { InlineCitation } from "@/components/elements/inline-citation";
-
-<InlineCitation
-  sources={[
-    {
-      domain: "docs.example.com",
-      title: "Optimistic updates",
-      snippet: "Confirm writes after paint.",
-    },
-  ]}
-  openIndex={0}
-  onOpenIndexChange={setOpenIndex}
-/>`,
-    props: [
-      {
-        component: "InlineCitation",
-        rows: [
-          {
-            name: "sources",
-            type: "Source[]",
-            required: true,
-            description:
-              "Sources attached to the numbered reference markers in the sentence.",
-          },
-          {
-            name: "openIndex",
-            type: "number | null",
-            required: true,
-            description:
-              "Which citation preview is open, or null when none is open.",
-          },
-          {
-            name: "onOpenIndexChange",
-            type: "(index: number | null) => void",
-            required: true,
-            description:
-              "Called when a citation marker opens or closes its preview.",
-          },
-          {
-            name: "className",
-            type: "string",
-            description: "Extra classes merged onto the root.",
-          },
-        ],
-      },
-    ],
-  },
   "image-generation": {
-    usage: `import { ImageGeneration } from "@/components/elements/image-generation";
+    usage: `import { ImageGeneration } from "@/components/assistant-ui/elements/image-generation";
 
 <ImageGeneration prompt="A calm blue abstract" generating={false} />`,
     props: [
@@ -928,38 +840,10 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
               "When true the frame holds a pulsing dot grid; otherwise the image resolves.",
           },
           {
-            name: "className",
-            type: "string",
-            description: "Extra classes merged onto the root.",
-          },
-        ],
-      },
-    ],
-  },
-  "data-table": {
-    usage: `import { DataTable } from "@/components/elements/data-table";
-
-<DataTable
-  rows={[{ name: "Sonnet", context: "200k", cost: "$3" }]}
-  cycle={0}
-/>`,
-    props: [
-      {
-        component: "DataTable",
-        rows: [
-          {
-            name: "rows",
-            type: "readonly ModelUsage[]",
-            required: true,
+            name: "onRegenerate",
+            type: "() => void",
             description:
-              "Table rows with model name, context window, and cost.",
-          },
-          {
-            name: "cycle",
-            type: "number",
-            required: true,
-            description:
-              "Identity key that remounts the body so row entrance can replay.",
+              "Shows the regenerate button and runs when generation is restarted.",
           },
           {
             name: "className",
@@ -971,7 +855,7 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
     ],
   },
   "number-ticker": {
-    usage: `import { NumberTicker } from "@/components/elements/number-ticker";
+    usage: `import { NumberTicker } from "@/components/assistant-ui/elements/number-ticker";
 
 <NumberTicker value={1284} label="tokens / sec" />`,
     props: [
@@ -1000,41 +884,8 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
       },
     ],
   },
-  "agent-plan": {
-    usage: `import { AgentPlan } from "@/components/elements/agent-plan";
-
-<AgentPlan
-  steps={["Read the file", "Draft the fix", "Run tests"]}
-  activeIndex={1}
-/>`,
-    props: [
-      {
-        component: "AgentPlan",
-        rows: [
-          {
-            name: "steps",
-            type: "readonly string[]",
-            required: true,
-            description: "Checklist items the agent works through in order.",
-          },
-          {
-            name: "activeIndex",
-            type: "number",
-            required: true,
-            description:
-              "Index of the step currently running. Values past the end mark every step done, and values before the start mark none.",
-          },
-          {
-            name: "className",
-            type: "string",
-            description: "Extra classes merged onto the root.",
-          },
-        ],
-      },
-    ],
-  },
   "subagent-list": {
-    usage: `import { SubagentList } from "@/components/elements/subagent-list";
+    usage: `import { SubagentList } from "@/components/assistant-ui/elements/subagent-list";
 
 <SubagentList
   agents={[{ name: "Researcher", model: "Sonnet" }]}
@@ -1090,7 +941,7 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
     ],
   },
   "agent-status": {
-    usage: `import { AgentStatus } from "@/components/elements/agent-status";
+    usage: `import { AgentStatus } from "@/components/assistant-ui/elements/agent-status";
 
 <AgentStatus state="working" label="Editing composer.tsx" elapsed="8s" />`,
     props: [
@@ -1125,74 +976,8 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
       },
     ],
   },
-  "approval-card": {
-    usage: `import { ApprovalCard } from "@/components/elements/approval-card";
-
-<ApprovalCard
-  state="request"
-  command="pnpm db:migrate"
-  title="Run migration"
-  subtitle="Needs your approval"
-  onAllowOnce={() => approve()}
-  onDeny={() => deny()}
-/>`,
-    props: [
-      {
-        component: "ApprovalCard",
-        rows: [
-          {
-            name: "state",
-            type: '"request" | "running" | "done" | "denied"',
-            required: true,
-            description:
-              "Lifecycle of the card: request with actions, running spinner, done check, or denied.",
-          },
-          {
-            name: "command",
-            type: "string",
-            required: true,
-            description:
-              "Command shown in the mono field the agent wants to run.",
-          },
-          {
-            name: "title",
-            type: "string",
-            required: true,
-            description: "Headline naming the action that needs approval.",
-          },
-          {
-            name: "subtitle",
-            type: "string",
-            required: true,
-            description:
-              "Supporting line under the title explaining the request.",
-          },
-          {
-            name: "onAllowOnce",
-            type: "() => void",
-            description: "Called when the user clicks Allow once.",
-          },
-          {
-            name: "onAlwaysAllow",
-            type: "() => void",
-            description: "Called when the user clicks Always allow.",
-          },
-          {
-            name: "onDeny",
-            type: "() => void",
-            description: "Called when the user clicks Deny.",
-          },
-          {
-            name: "className",
-            type: "string",
-            description: "Extra classes merged onto the root.",
-          },
-        ],
-      },
-    ],
-  },
   "recommendation-card": {
-    usage: `import { RecommendationCard } from "@/components/elements/recommendation-card";
+    usage: `import { RecommendationCard } from "@/components/assistant-ui/elements/recommendation-card";
 
 <RecommendationCard
   state="idle"
@@ -1265,7 +1050,7 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
     ],
   },
   "artifact-card": {
-    usage: `import { ArtifactCard } from "@/components/elements/artifact-card";
+    usage: `import { ArtifactCard } from "@/components/assistant-ui/elements/artifact-card";
 
 <ArtifactCard
   title="Draft persistence RFC"
@@ -1321,7 +1106,7 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
   ComposerInput,
   ComposerSend,
   ComposerToolbar,
-} from "@/components/elements/composer";
+} from "@/components/assistant-ui/elements/composer";
 
 <Composer>
   <ComposerBar>
@@ -1403,7 +1188,7 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
     ],
   },
   "composer-slash-commands": {
-    usage: `import { ComposerMenu, ComposerCommandItem, useSlashMatches } from "@/components/elements/composer";
+    usage: `import { ComposerMenu, ComposerCommandItem, useSlashMatches } from "@/components/assistant-ui/elements/composer";
 
 const matches = useSlashMatches(value, commands);
 
@@ -1466,7 +1251,7 @@ const matches = useSlashMatches(value, commands);
     ],
   },
   "composer-mentions": {
-    usage: `import { ComposerMenu, ComposerPersonItem, applyMention, useMentionMatches } from "@/components/elements/composer";
+    usage: `import { ComposerMenu, ComposerPersonItem, applyMention, useMentionMatches } from "@/components/assistant-ui/elements/composer";
 
 const matches = useMentionMatches(value, people);
 
@@ -1496,7 +1281,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "composer-attachments": {
-    usage: `import { ComposerAttachments, ComposerAttachmentChip } from "@/components/elements/composer";
+    usage: `import { ComposerAttachments, ComposerAttachmentChip } from "@/components/assistant-ui/elements/composer";
 
 <ComposerAttachments>
   {files.map((file) => (
@@ -1525,7 +1310,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "composer-model-picker": {
-    usage: `import { ComposerMenu, ComposerModelItem, ComposerModelTrigger } from "@/components/elements/composer";
+    usage: `import { ComposerMenu, ComposerModelItem, ComposerModelTrigger } from "@/components/assistant-ui/elements/composer";
 
 <div className="relative">
   <ComposerMenu open={open}>
@@ -1575,7 +1360,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "composer-voice": {
-    usage: `import { ComposerVoice, ComposerVoiceButton } from "@/components/elements/composer";
+    usage: `import { ComposerVoice, ComposerVoiceButton } from "@/components/assistant-ui/elements/composer";
 
 {active
   ? <ComposerVoice recording={recording} seconds={seconds} />
@@ -1617,7 +1402,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "composer-context": {
-    usage: `import { ComposerContext } from "@/components/elements/composer";
+    usage: `import { ComposerContext } from "@/components/assistant-ui/elements/composer";
 
 <ComposerContext usage={{ system: 12, tools: 8, messages: 54, total: 200 }} />`,
     props: [
@@ -1643,7 +1428,7 @@ const matches = useMentionMatches(value, people);
   ChatPanelMessages,
   ChatPanelTyping,
   ChatPanelUserMessage,
-} from "@/components/elements/chat-panel";
+} from "@/components/assistant-ui/elements/chat-panel";
 
 <ChatPanel>
   <ChatPanelMessages>
@@ -1717,7 +1502,7 @@ const matches = useMentionMatches(value, people);
   EmptyStateGreeting,
   EmptyStateSuggestion,
   EmptyStateSuggestions,
-} from "@/components/elements/empty-state";
+} from "@/components/assistant-ui/elements/empty-state";
 
 <EmptyState>
   <EmptyStateGreeting>What are we building?</EmptyStateGreeting>
@@ -1780,12 +1565,12 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "thread-list": {
-    usage: `import { ThreadList } from "@/components/elements/thread-list";
+    usage: `import { ThreadList } from "@/components/assistant-ui/elements/thread-list";
 
 <ThreadList
   threads={[
-    { title: "Composer polish", time: "2m", unread: true },
-    { title: "Runtime migration", time: "1h" },
+    { id: "composer", title: "Composer polish", time: "2m", unread: true },
+    { id: "runtime", title: "Runtime migration", time: "1h" },
   ]}
   activeIndex={activeIndex}
   onActiveIndexChange={setActiveIndex}
@@ -1799,7 +1584,7 @@ const matches = useMentionMatches(value, people);
             type: "readonly ThreadItem[]",
             required: true,
             description:
-              "Conversation rows with title, time, and optional unread mark.",
+              "Conversation rows with a stable id, title, time, and optional unread mark.",
           },
           {
             name: "activeIndex",
@@ -1811,7 +1596,20 @@ const matches = useMentionMatches(value, people);
           {
             name: "onActiveIndexChange",
             type: "(index: number) => void",
-            description: "Called when the user clicks a thread row.",
+            description:
+              "Called when the user clicks a thread row. Without it, rows render as non-interactive list items.",
+          },
+          {
+            name: "onRename",
+            type: "(index: number) => void",
+            description:
+              "Shows a labelled rename button and reports the clicked row.",
+          },
+          {
+            name: "onDelete",
+            type: "(index: number) => void",
+            description:
+              "Shows a labelled delete button and reports the clicked row.",
           },
           {
             name: "className",
@@ -1823,7 +1621,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "scroll-anchor": {
-    usage: `import { ScrollAnchor } from "@/components/elements/scroll-anchor";
+    usage: `import { ScrollAnchor } from "@/components/assistant-ui/elements/scroll-anchor";
 
 <ScrollAnchor
   messages={[
@@ -1864,70 +1662,8 @@ const matches = useMentionMatches(value, people);
       },
     ],
   },
-  "todo-list": {
-    usage: `import { TodoList } from "@/components/elements/todo-list";
-
-<TodoList
-  items={[
-    { id: "read", text: "Read the failing test", status: "done" },
-    { id: "fix", text: "Fix the converter", status: "active" },
-    { id: "verify", text: "Re-run the suite", status: "pending" },
-  ]}
-  revision={2}
-/>`,
-    props: [
-      {
-        component: "TodoList",
-        rows: [
-          {
-            name: "items",
-            type: "TodoItem[]",
-            required: true,
-            description:
-              "The list as it stands right now. Each item carries its own status, so the agent can add, reorder, and complete items in any order between renders.",
-          },
-          {
-            name: "revision",
-            type: "number",
-            description:
-              "Which rewrite of the list this is. Omit to show a plain done/total count instead.",
-          },
-          {
-            name: "className",
-            type: "string",
-            description: "Extra classes merged onto the root.",
-          },
-        ],
-      },
-      {
-        component: "TodoItem",
-        rows: [
-          {
-            name: "id",
-            type: "string",
-            required: true,
-            description:
-              "Stable identity across revisions. Reusing an id keeps an item in place while its text or status changes.",
-          },
-          {
-            name: "text",
-            type: "string",
-            required: true,
-            description: "The item as the agent phrased it.",
-          },
-          {
-            name: "status",
-            type: '"pending" | "active" | "done"',
-            required: true,
-            description:
-              "Per-item state. More than one item may be active if the agent works in parallel.",
-          },
-        ],
-      },
-    ],
-  },
   "message-queue": {
-    usage: `import { MessageQueue } from "@/components/elements/message-queue";
+    usage: `import { MessageQueue } from "@/components/assistant-ui/elements/message-queue";
 
 <MessageQueue
   running="Fix the converter and add a guard"
@@ -1955,7 +1691,7 @@ const matches = useMentionMatches(value, people);
             name: "onCancel",
             type: "(id: string) => void",
             description:
-              "Called when a queued turn is removed before it ever sends.",
+              "Called when a queued turn is removed before it ever sends. The remove button renders only for queued turns when this is supplied.",
           },
           {
             name: "className",
@@ -1967,7 +1703,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "message-attachment": {
-    usage: `import { MessageAttachments } from "@/components/elements/message-attachment";
+    usage: `import { MessageAttachments } from "@/components/assistant-ui/elements/message-attachment";
 
 <MessageAttachments
   attachments={[
@@ -1989,7 +1725,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onOpen",
             type: "(id: string) => void",
-            description: "Called when an attachment is opened for preview.",
+            description:
+              "Called when an attachment is opened for preview. Without it, attachments render as non-interactive file details.",
           },
           {
             name: "className",
@@ -2044,7 +1781,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "reviewable-diff": {
-    usage: `import { ReviewableDiff } from "@/components/elements/reviewable-diff";
+    usage: `import { ReviewableDiff } from "@/components/assistant-ui/elements/reviewable-diff";
 
 <ReviewableDiff
   filename="composer.tsx"
@@ -2073,18 +1810,20 @@ const matches = useMentionMatches(value, people);
           {
             name: "onKeep",
             type: "(id: string) => void",
-            description: "Called when a hunk is accepted.",
+            description:
+              "Called when a hunk is accepted. Keep buttons render only when this is supplied.",
           },
           {
             name: "onDiscard",
             type: "(id: string) => void",
-            description: "Called when a hunk is rejected.",
+            description:
+              "Called when a hunk is rejected. Discard buttons render only when this is supplied.",
           },
           {
             name: "onApply",
             type: "() => void",
             description:
-              "Called when the reviewed set is committed. Only kept hunks should be written.",
+              "Called when the reviewed set is committed. The button renders only when this is supplied and stays disabled while a hunk is pending.",
           },
           {
             name: "className",
@@ -2128,7 +1867,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "file-tree": {
-    usage: `import { FileTree } from "@/components/elements/file-tree";
+    usage: `import { FileTree } from "@/components/assistant-ui/elements/file-tree";
 
 <FileTree
   nodes={nodes}
@@ -2176,7 +1915,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "elicitation-form": {
-    usage: `import { ElicitationForm } from "@/components/elements/elicitation-form";
+    usage: `import { ElicitationForm } from "@/components/assistant-ui/elements/elicitation-form";
 
 <ElicitationForm
   server="github-mcp"
@@ -2278,7 +2017,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "retrieval-chunks": {
-    usage: `import { RetrievalChunks } from "@/components/elements/retrieval-chunks";
+    usage: `import { RetrievalChunks } from "@/components/assistant-ui/elements/retrieval-chunks";
 
 <RetrievalChunks
   query="how does draft restore work"
@@ -2364,7 +2103,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   chart: {
-    usage: `import { Chart } from "@/components/elements/chart";
+    usage: `import { Chart } from "@/components/assistant-ui/elements/chart";
 
 <Chart
   label="Runs this week"
@@ -2427,7 +2166,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "trace-waterfall": {
-    usage: `import { TraceWaterfall } from "@/components/elements/trace-waterfall";
+    usage: `import { TraceWaterfall } from "@/components/assistant-ui/elements/trace-waterfall";
 
 <TraceWaterfall spans={spans} totalMs={1840} visibleCount={spans.length} />`,
     props: [
@@ -2517,7 +2256,7 @@ const matches = useMentionMatches(value, people);
   CanvasSplitLine,
   CanvasSplitMessage,
   CanvasSplitThread,
-} from "@/components/elements/canvas-split";
+} from "@/components/assistant-ui/elements/canvas-split";
 
 <CanvasSplit>
   <CanvasSplitThread>
@@ -2614,7 +2353,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "voice-conversation": {
-    usage: `import { VoiceConversation } from "@/components/elements/voice-conversation";
+    usage: `import { VoiceConversation } from "@/components/assistant-ui/elements/voice-conversation";
 
 <VoiceConversation
   mode="listening"
@@ -2679,7 +2418,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "read-aloud": {
-    usage: `import { ReadAloud } from "@/components/elements/read-aloud";
+    usage: `import { ReadAloud } from "@/components/assistant-ui/elements/read-aloud";
 
 <ReadAloud
   words={words}
@@ -2754,7 +2493,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "mcp-server-panel": {
-    usage: `import { McpServerPanel } from "@/components/elements/mcp-server-panel";
+    usage: `import { McpServerPanel } from "@/components/assistant-ui/elements/mcp-server-panel";
 
 <McpServerPanel
   servers={servers}
@@ -2782,13 +2521,14 @@ const matches = useMentionMatches(value, people);
           {
             name: "onToggle",
             type: "(id: string) => void",
-            description: "Called when a server row is expanded or collapsed.",
+            description:
+              "Called when a server row is expanded or collapsed. Without it, rows render as non-interactive status content.",
           },
           {
             name: "onAuthorize",
             type: "(id: string) => void",
             description:
-              "Called from the Authorize button, shown only while a server needs auth.",
+              "Called from the Authorize button, shown only when this is supplied and a server needs auth.",
           },
           {
             name: "className",
@@ -2839,7 +2579,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "feedback-dialog": {
-    usage: `import { FeedbackDialog } from "@/components/elements/feedback-dialog";
+    usage: `import { FeedbackDialog } from "@/components/assistant-ui/elements/feedback-dialog";
 
 <FeedbackDialog
   reasons={["Not factual", "Too long"]}
@@ -2884,7 +2624,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onToggleReason",
             type: "(reason: string) => void",
-            description: "Called when a reason chip is picked or unpicked.",
+            description:
+              "Called when a reason chip is picked or unpicked. Without it, reasons render as non-interactive selected-state chips.",
           },
           {
             name: "onNoteChange",
@@ -2894,7 +2635,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onSubmit",
             type: "() => void",
-            description: "Called when the report is sent.",
+            description:
+              "Called when the report is sent. The submit button renders only when this is supplied.",
           },
           {
             name: "className",
@@ -2906,7 +2648,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "quote-reply": {
-    usage: `import { QuoteReply } from "@/components/elements/quote-reply";
+    usage: `import { QuoteReply } from "@/components/assistant-ui/elements/quote-reply";
 
 <QuoteReply
   before="The regression happens because "
@@ -2950,7 +2692,7 @@ const matches = useMentionMatches(value, people);
             type: "boolean",
             required: true,
             description:
-              "Whether the floating toolbar is showing. Drive it from your own selection handler.",
+              "Whether the floating toolbar may show. It renders only when this is true and onAction is supplied.",
           },
           {
             name: "quoted",
@@ -2961,7 +2703,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onAction",
             type: "(key: string) => void",
-            description: "Called with the key of the action that was chosen.",
+            description:
+              "Called with the key of the action that was chosen. The toolbar renders only when this is supplied.",
           },
           {
             name: "className",
@@ -2973,7 +2716,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "edit-message": {
-    usage: `import { EditMessage } from "@/components/elements/edit-message";
+    usage: `import { EditMessage } from "@/components/assistant-ui/elements/edit-message";
 
 <EditMessage
   value={value}
@@ -3040,7 +2783,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "stopped-run": {
-    usage: `import { StoppedRun } from "@/components/elements/stopped-run";
+    usage: `import { StoppedRun } from "@/components/assistant-ui/elements/stopped-run";
 
 <StoppedRun words={words} reason="stopped by you" onContinue={resume} />`,
     props: [
@@ -3080,8 +2823,8 @@ const matches = useMentionMatches(value, people);
       },
     ],
   },
-  "message-timing": {
-    usage: `import { MessageTiming } from "@/components/elements/message-timing";
+  "timing-footer": {
+    usage: `import { MessageTiming } from "@/components/assistant-ui/elements/message-timing";
 
 <MessageTiming
   stats={[
@@ -3116,7 +2859,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "connection-state": {
-    usage: `import { ConnectionState } from "@/components/elements/connection-state";
+    usage: `import { ConnectionState } from "@/components/assistant-ui/elements/connection-state";
 
 <ConnectionState phase="reconnecting" attempt={2} onRetry={reconnect} />`,
     props: [
@@ -3156,7 +2899,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "agent-card": {
-    usage: `import { AgentCard } from "@/components/elements/agent-card";
+    usage: `import { AgentCard } from "@/components/assistant-ui/elements/agent-card";
 
 <AgentCard
   name="Maintainer"
@@ -3237,7 +2980,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "web-preview": {
-    usage: `import { WebPreview } from "@/components/elements/web-preview";
+    usage: `import { WebPreview } from "@/components/assistant-ui/elements/web-preview";
 
 <WebPreview origin="scf.auiusercontent.com" loading={false} onReload={reload}>
   <iframe title="Preview" src={sandboxUrl} sandbox="allow-scripts" />
@@ -3287,7 +3030,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "draft-restore": {
-    usage: `import { DraftRestore } from "@/components/elements/draft-restore";
+    usage: `import { DraftRestore } from "@/components/assistant-ui/elements/draft-restore";
 
 <DraftRestore
   draft="Add a regression test for draft restore"
@@ -3331,7 +3074,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   diagram: {
-    usage: `import { Diagram } from "@/components/elements/diagram";
+    usage: `import { Diagram } from "@/components/assistant-ui/elements/diagram";
 
 <Diagram title="message flow" zoom={zoom} onZoomIn={zoomIn} onReset={reset}>
   <MermaidSvg chart={chart} />
@@ -3391,7 +3134,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "flow-graph": {
-    usage: `import { FlowGraph } from "@/components/elements/flow-graph";
+    usage: `import { FlowGraph } from "@/components/assistant-ui/elements/flow-graph";
 
 <FlowGraph nodes={nodes} edges={edges} visibleCount={nodes.length} />`,
     props: [
@@ -3467,7 +3210,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "activity-graph": {
-    usage: `import { ActivityGraph } from "@/components/elements/activity-graph";
+    usage: `import { ActivityGraph } from "@/components/assistant-ui/elements/activity-graph";
 
 <ActivityGraph
   data={data}
@@ -3522,8 +3265,8 @@ const matches = useMentionMatches(value, people);
       },
     ],
   },
-  "tool-group": {
-    usage: `import { ToolGroup } from "@/components/elements/tool-group";
+  "parallel-tools": {
+    usage: `import { ToolGroup } from "@/components/assistant-ui/elements/tool-group";
 
 <ToolGroup
   label="Read 4 files in parallel"
@@ -3557,7 +3300,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onOpenChange",
             type: "(open: boolean) => void",
-            description: "Called when the group is expanded or collapsed.",
+            description:
+              "Called when the group is expanded or collapsed. Without it, the trigger renders as a non-interactive header.",
           },
           {
             name: "className",
@@ -3603,7 +3347,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "context-breakdown": {
-    usage: `import { ContextBreakdown } from "@/components/elements/context-breakdown";
+    usage: `import { ContextBreakdown } from "@/components/assistant-ui/elements/context-breakdown";
 
 <ContextBreakdown segments={segments} limit={128000} />`,
     props: [
@@ -3659,7 +3403,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "model-picker": {
-    usage: `import { ModelPicker } from "@/components/elements/model-picker";
+    usage: `import { ModelPicker } from "@/components/assistant-ui/elements/model-picker";
 
 <ModelPicker models={models} selectedId={selectedId} onSelect={setSelectedId} />`,
     props: [
@@ -3682,7 +3426,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onSelect",
             type: "(id: string) => void",
-            description: "Called when a model is picked.",
+            description:
+              "Called when a model is picked. Without it, model rows render as non-interactive options.",
           },
           {
             name: "className",
@@ -3737,7 +3482,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "reasoning-effort": {
-    usage: `import { ReasoningEffort } from "@/components/elements/reasoning-effort";
+    usage: `import { ReasoningEffort } from "@/components/assistant-ui/elements/reasoning-effort";
 
 <ReasoningEffort
   levels={levels}
@@ -3773,7 +3518,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onSelect",
             type: "(key: string) => void",
-            description: "Called when a tier is picked.",
+            description:
+              "Called when a tier is picked. Without it, effort levels render as non-interactive labels.",
           },
           {
             name: "className",
@@ -3785,7 +3531,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "guardrail-notice": {
-    usage: `import { GuardrailNotice } from "@/components/elements/guardrail-notice";
+    usage: `import { GuardrailNotice } from "@/components/assistant-ui/elements/guardrail-notice";
 
 <GuardrailNotice
   title="I can't help with that"
@@ -3826,7 +3572,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onPick",
             type: "(alternative: string) => void",
-            description: "Called when an alternative is chosen.",
+            description:
+              "Called when an alternative is chosen. Without it, alternatives render as non-interactive suggestions.",
           },
           {
             name: "className",
@@ -3838,7 +3585,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "day-separator": {
-    usage: `import { DaySeparator } from "@/components/elements/day-separator";
+    usage: `import { DaySeparator } from "@/components/assistant-ui/elements/day-separator";
 
 <DaySeparator messages={messages} />`,
     props: [
@@ -3899,7 +3646,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "speaker-identity": {
-    usage: `import { SpeakerIdentity } from "@/components/elements/speaker-identity";
+    usage: `import { SpeakerIdentity } from "@/components/assistant-ui/elements/speaker-identity";
 
 <SpeakerIdentity turns={turns} />`,
     props: [
@@ -3958,7 +3705,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "regenerate-menu": {
-    usage: `import { RegenerateMenu } from "@/components/elements/regenerate-menu";
+    usage: `import { RegenerateMenu } from "@/components/assistant-ui/elements/regenerate-menu";
 
 <RegenerateMenu
   options={options}
@@ -3993,12 +3740,14 @@ const matches = useMentionMatches(value, people);
           {
             name: "onOpenChange",
             type: "(open: boolean) => void",
-            description: "Called when the trigger is toggled.",
+            description:
+              "Called when the trigger is toggled. The trigger renders only when this is supplied.",
           },
           {
             name: "onPick",
             type: "(id: string) => void",
-            description: "Called with the chosen option.",
+            description:
+              "Called with the chosen option. Without it, options render as non-interactive rows.",
           },
           {
             name: "className",
@@ -4010,7 +3759,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "confidence-marker": {
-    usage: `import { ConfidenceMarker } from "@/components/elements/confidence-marker";
+    usage: `import { ConfidenceMarker } from "@/components/assistant-ui/elements/confidence-marker";
 
 <ConfidenceMarker claims={claims} hoveredId={hoveredId} onHover={setHoveredId} />`,
     props: [
@@ -4078,7 +3827,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "tool-error": {
-    usage: `import { ToolError } from "@/components/elements/tool-error";
+    usage: `import { ToolError } from "@/components/assistant-ui/elements/tool-error";
 
 <ToolError
   name="fetch"
@@ -4152,7 +3901,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "permission-grant": {
-    usage: `import { PermissionGrant } from "@/components/elements/permission-grant";
+    usage: `import { PermissionGrant } from "@/components/assistant-ui/elements/permission-grant";
 
 <PermissionGrant
   capability="Filesystem access"
@@ -4195,7 +3944,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onGrant",
             type: "(scope: GrantScope) => void",
-            description: "Called with the scope the user chose.",
+            description:
+              "Called with the scope the user chose. Pending grant buttons render only when this is supplied.",
           },
           {
             name: "className",
@@ -4207,7 +3957,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "computer-use": {
-    usage: `import { ComputerUse } from "@/components/elements/computer-use";
+    usage: `import { ComputerUse } from "@/components/assistant-ui/elements/computer-use";
 
 <ComputerUse url="github.com/..." steps={steps} activeIndex={2}>
   <iframe title="Session" src={streamUrl} />
@@ -4290,7 +4040,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "code-runner": {
-    usage: `import { CodeRunner } from "@/components/elements/code-runner";
+    usage: `import { CodeRunner } from "@/components/assistant-ui/elements/code-runner";
 
 <CodeRunner
   language="typescript"
@@ -4338,7 +4088,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onRun",
             type: "() => void",
-            description: "Called when the run control is pressed.",
+            description:
+              "Renders the run control and is called when it is pressed.",
           },
           {
             name: "className",
@@ -4350,7 +4101,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "document-reference": {
-    usage: `import { DocumentReference } from "@/components/elements/document-reference";
+    usage: `import { DocumentReference } from "@/components/assistant-ui/elements/document-reference";
 
 <DocumentReference
   title="migration-0.14.pdf"
@@ -4392,7 +4143,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onJump",
             type: "(page: number) => void",
-            description: "Called with the page to open.",
+            description:
+              "Called with the page to open. Without it, anchors render as non-interactive reference rows.",
           },
           {
             name: "className",
@@ -4404,7 +4156,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "memory-chips": {
-    usage: `import { MemoryChips } from "@/components/elements/memory-chips";
+    usage: `import { MemoryChips } from "@/components/assistant-ui/elements/memory-chips";
 
 <MemoryChips chips={chips} onForget={forget} />`,
     props: [
@@ -4422,7 +4174,7 @@ const matches = useMentionMatches(value, people);
             name: "onForget",
             type: "(id: string) => void",
             description:
-              "Called to drop a fact. Every chip is removable, including ones it just learned.",
+              "Called to drop a fact. Every chip is removable, including newly learned chips, when this handler is supplied; otherwise forget buttons are omitted.",
           },
           {
             name: "className",
@@ -4458,7 +4210,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "research-report": {
-    usage: `import { ResearchReport } from "@/components/elements/research-report";
+    usage: `import { ResearchReport } from "@/components/assistant-ui/elements/research-report";
 
 <ResearchReport title="Draft ownership in 0.14" sections={sections} sourcesRead={12} />`,
     props: [
@@ -4530,7 +4282,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "map-answer": {
-    usage: `import { MapAnswer } from "@/components/elements/map-answer";
+    usage: `import { MapAnswer } from "@/components/assistant-ui/elements/map-answer";
 
 <MapAnswer pins={pins} activeId="b" route onSelect={setActive} />`,
     props: [
@@ -4561,7 +4313,7 @@ const matches = useMentionMatches(value, people);
             name: "onSelect",
             type: "(id: string) => void",
             description:
-              "Called when a pin or its list row is chosen. Both surfaces report the same id.",
+              "Called when a pin or its list row is chosen. Without it, both surfaces render as non-interactive map content.",
           },
           {
             name: "className",
@@ -4610,7 +4362,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "math-block": {
-    usage: `import { MathBlock, Frac, Sup } from "@/components/elements/math-block";
+    usage: `import { MathBlock, Frac, Sup } from "@/components/assistant-ui/elements/math-block";
 
 <MathBlock label="derivation" steps={steps} visibleSteps={2} />`,
     props: [
@@ -4620,7 +4372,7 @@ const matches = useMentionMatches(value, people);
           {
             name: "label",
             type: "string",
-            description: "Optional eyebrow above the working.",
+            description: "Optional label above the working.",
           },
           {
             name: "steps",
@@ -4662,9 +4414,9 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "spec-sheet": {
-    usage: `import { SpecSheet } from "@/components/elements/spec-sheet";
+    usage: `import { SpecSheet } from "@/components/assistant-ui/elements/spec-sheet";
 
-<SpecSheet title="Opus 5" subtitle="claude-opus-5" rows={rows} visibleCount={6} />`,
+<SpecSheet title="Opus 5.5" subtitle="claude-opus-5-5" rows={rows} visibleCount={6} />`,
     props: [
       {
         component: "SpecSheet",
@@ -4728,7 +4480,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "comparison-card": {
-    usage: `import { ComparisonCard } from "@/components/elements/comparison-card";
+    usage: `import { ComparisonCard } from "@/components/assistant-ui/elements/comparison-card";
 
 <ComparisonCard
   traitLabels={traits}
@@ -4808,7 +4560,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   timeline: {
-    usage: `import { Timeline } from "@/components/elements/timeline";
+    usage: `import { Timeline } from "@/components/assistant-ui/elements/timeline";
 
 <Timeline events={events} visibleCount={events.length} />`,
     props: [
@@ -4872,69 +4624,8 @@ const matches = useMentionMatches(value, people);
       },
     ],
   },
-  "job-progress": {
-    usage: `import { JobProgress } from "@/components/elements/job-progress";
-
-<JobProgress
-  title="Verify the fix on CI"
-  stages={stages}
-  stageIndex={1}
-  stageProgress={0.6}
-  eta="about 3 min"
-/>`,
-    props: [
-      {
-        component: "JobProgress",
-        rows: [
-          {
-            name: "title",
-            type: "string",
-            required: true,
-            description: "What the job is doing.",
-          },
-          {
-            name: "stages",
-            type: "JobStage[]",
-            required: true,
-            description:
-              "Stages with relative weights, so a long install does not read the same as a fast clone.",
-          },
-          {
-            name: "stageIndex",
-            type: "number",
-            required: true,
-            description:
-              "Which stage is running. Passing stages.length marks the job finished, and the bar never runs past its track.",
-          },
-          {
-            name: "stageProgress",
-            type: "number",
-            required: true,
-            description: "Progress inside the current stage, 0 to 1.",
-          },
-          {
-            name: "eta",
-            type: "string",
-            required: true,
-            description:
-              "Pre-formatted estimate. Replaced by done once finished.",
-          },
-          {
-            name: "onCancel",
-            type: "() => void",
-            description: "Called to stop the job. Hidden once it finishes.",
-          },
-          {
-            name: "className",
-            type: "string",
-            description: "Extra classes merged onto the root.",
-          },
-        ],
-      },
-    ],
-  },
   "score-breakdown": {
-    usage: `import { ScoreBreakdown } from "@/components/elements/score-breakdown";
+    usage: `import { ScoreBreakdown } from "@/components/assistant-ui/elements/score-breakdown";
 
 <ScoreBreakdown
   verdict="approve"
@@ -5020,7 +4711,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "cost-meter": {
-    usage: `import { CostMeter } from "@/components/elements/cost-meter";
+    usage: `import { CostMeter } from "@/components/assistant-ui/elements/cost-meter";
 
 <CostMeter runCost="$2.76" sessionCost="$18.40" lines={lines} />`,
     props: [
@@ -5093,7 +4784,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "quota-banner": {
-    usage: `import { QuotaBanner } from "@/components/elements/quota-banner";
+    usage: `import { QuotaBanner } from "@/components/assistant-ui/elements/quota-banner";
 
 <QuotaBanner used={47} limit={50} unit="messages" resetsIn="3h 12m" upgradeLabel="Upgrade" />`,
     props: [
@@ -5145,7 +4836,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "agent-handoff": {
-    usage: `import { AgentHandoff } from "@/components/elements/agent-handoff";
+    usage: `import { AgentHandoff } from "@/components/assistant-ui/elements/agent-handoff";
 
 <AgentHandoff from="Triage" to="Maintainer" reason={reason} carried={carried} settled />`,
     props: [
@@ -5195,7 +4886,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "background-inbox": {
-    usage: `import { BackgroundInbox } from "@/components/elements/background-inbox";
+    usage: `import { BackgroundInbox } from "@/components/assistant-ui/elements/background-inbox";
 
 <BackgroundInbox runs={runs} onCollect={collect} />`,
     props: [
@@ -5213,7 +4904,7 @@ const matches = useMentionMatches(value, people);
             name: "onCollect",
             type: "(id: string) => void",
             description:
-              "Called to pull a finished run back into the thread. Running rows are not clickable.",
+              "Called to pull a finished run back into the thread. Without it, every row renders as non-interactive status content.",
           },
           {
             name: "className",
@@ -5259,7 +4950,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "checkpoint-history": {
-    usage: `import { CheckpointHistory } from "@/components/elements/checkpoint-history";
+    usage: `import { CheckpointHistory } from "@/components/assistant-ui/elements/checkpoint-history";
 
 <CheckpointHistory checkpoints={checkpoints} currentId="3" onRestore={restore} />`,
     props: [
@@ -5283,7 +4974,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onRestore",
             type: "(id: string) => void",
-            description: "Called with the checkpoint to return to.",
+            description:
+              "Called with the checkpoint to return to. Restore buttons render only when this is supplied.",
           },
           {
             name: "className",
@@ -5325,7 +5017,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "schedule-card": {
-    usage: `import { ScheduleCard } from "@/components/elements/schedule-card";
+    usage: `import { ScheduleCard } from "@/components/assistant-ui/elements/schedule-card";
 
 <ScheduleCard
   name="Triage the issue queue"
@@ -5386,7 +5078,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "prompt-library": {
-    usage: `import { PromptLibrary } from "@/components/elements/prompt-library";
+    usage: `import { PromptLibrary } from "@/components/assistant-ui/elements/prompt-library";
 
 <PromptLibrary
   prompts={prompts}
@@ -5427,13 +5119,14 @@ const matches = useMentionMatches(value, people);
           {
             name: "onSelect",
             type: "(id: string) => void",
-            description: "Called when a prompt is highlighted.",
+            description:
+              "Called when a prompt is highlighted. Without it, rows insert directly when onInsert is supplied and are non-interactive otherwise.",
           },
           {
             name: "onInsert",
             type: "(id: string) => void",
             description:
-              "Called on double click, to drop the prompt into the composer.",
+              "Called on double click or Enter with onSelect; without onSelect, called on one pointer or keyboard activation.",
           },
           {
             name: "className",
@@ -5477,7 +5170,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "command-palette": {
-    usage: `import { CommandPalette } from "@/components/elements/command-palette";
+    usage: `import { CommandPalette } from "@/components/assistant-ui/elements/command-palette";
 
 <CommandPalette
   commands={commands}
@@ -5519,12 +5212,13 @@ const matches = useMentionMatches(value, people);
             name: "onActiveChange",
             type: "(id: string) => void",
             description:
-              "Called as the arrow keys walk the list. The element owns the key handling and reports where it landed, so activeId stays yours to hold.",
+              "Called as the arrow keys walk the list. Arrow-key navigation changes the active command only when this is supplied.",
           },
           {
             name: "onRun",
             type: "(id: string) => void",
-            description: "Called when a command is chosen.",
+            description:
+              "Called when a command is chosen. Without it, command rows render as non-interactive options and Enter does not run a command.",
           },
           {
             name: "className",
@@ -5566,7 +5260,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "shared-conversation": {
-    usage: `import { SharedConversation } from "@/components/elements/shared-conversation";
+    usage: `import { SharedConversation } from "@/components/assistant-ui/elements/shared-conversation";
 
 <SharedConversation
   title="Draft restore across threads"
@@ -5619,7 +5313,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "conversation-search": {
-    usage: `import { ConversationSearch } from "@/components/elements/conversation-search";
+    usage: `import { ConversationSearch } from "@/components/assistant-ui/elements/conversation-search";
 
 <ConversationSearch
   query={query}
@@ -5661,7 +5355,7 @@ const matches = useMentionMatches(value, people);
             name: "onStep",
             type: "(delta: number) => void",
             description:
-              "Called with -1 or 1 to walk the matches. Wrap the index yourself.",
+              "Called with -1 or 1 to walk the matches. Wrap the index yourself. The step buttons render only when this is supplied.",
           },
           {
             name: "className",
@@ -5710,7 +5404,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "thread-search": {
-    usage: `import { ThreadSearch } from "@/components/elements/thread-search";
+    usage: `import { ThreadSearch } from "@/components/assistant-ui/elements/thread-search";
 
 <ThreadSearch
   threads={threads}
@@ -5750,7 +5444,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onSelect",
             type: "(id: string) => void",
-            description: "Called when a thread is opened.",
+            description:
+              "Called when a thread is opened. Without it, rows render as non-interactive results and arrow keys do not select.",
           },
           {
             name: "className",
@@ -5800,7 +5495,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "launcher-bubble": {
-    usage: `import { LauncherBubble } from "@/components/elements/launcher-bubble";
+    usage: `import { LauncherBubble } from "@/components/assistant-ui/elements/launcher-bubble";
 
 <LauncherBubble
   open={open}
@@ -5843,18 +5538,20 @@ const matches = useMentionMatches(value, people);
           {
             name: "onToggle",
             type: "() => void",
-            description: "Called when the bubble is pressed.",
+            description:
+              "Called when the bubble is pressed. Without it, a closed launcher renders a non-interactive bubble.",
           },
           {
             name: "onPick",
             type: "(prompt: string) => void",
-            description: "Called when a starter prompt is chosen.",
+            description:
+              "Called when a starter prompt is chosen. Without it, prompts render as non-interactive suggestions.",
           },
           {
             name: "onStart",
             type: "() => void",
             description:
-              "Called from the Start a conversation action, for opening an empty thread.",
+              "Called from the Start a conversation action. The button renders only when this is supplied.",
           },
           {
             name: "className",
@@ -5866,7 +5563,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "settings-panel": {
-    usage: `import { SettingsPanel } from "@/components/elements/settings-panel";
+    usage: `import { SettingsPanel } from "@/components/assistant-ui/elements/settings-panel";
 
 <SettingsPanel
   model={model}
@@ -5915,7 +5612,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onModelChange",
             type: "(model: string) => void",
-            description: "Called when the model changes.",
+            description:
+              "Called when the model changes. Without it, model choices render as non-interactive labels.",
           },
           {
             name: "onSystemPromptChange",
@@ -5930,7 +5628,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onToggle",
             type: "(key: string) => void",
-            description: "Called with the switched capability's key.",
+            description:
+              "Called with the switched capability's key. Without it, switch states render as non-interactive indicators.",
           },
           {
             name: "className",
@@ -5942,7 +5641,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   onboarding: {
-    usage: `import { Onboarding } from "@/components/elements/onboarding";
+    usage: `import { Onboarding } from "@/components/assistant-ui/elements/onboarding";
 
 <Onboarding steps={steps} index={index} onNext={next} onSkip={skip} />`,
     props: [
@@ -6007,7 +5706,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "mobile-composer": {
-    usage: `import { MobileComposer } from "@/components/elements/mobile-composer";
+    usage: `import { MobileComposer } from "@/components/assistant-ui/elements/mobile-composer";
 
 <MobileComposer
   value={value}
@@ -6064,17 +5763,20 @@ const matches = useMentionMatches(value, people);
           {
             name: "onValueChange",
             type: "(value: string) => void",
-            description: "Called as the message is typed.",
+            description:
+              "Called as the message is typed. Without it, typing does not update the controlled value.",
           },
           {
             name: "onSend",
             type: "() => void",
-            description: "Called to send.",
+            description:
+              "Called to send. The send button renders only when a send or stop handler is supplied and is disabled when this handler is absent.",
           },
           {
             name: "onStop",
             type: "() => void",
-            description: "Called to stop a run in flight.",
+            description:
+              "Called to stop a run in flight. The stop button renders only when a send or stop handler is supplied and is disabled when this handler is absent.",
           },
           {
             name: "onFocus",
@@ -6091,4 +5793,5 @@ const matches = useMentionMatches(value, people);
       },
     ],
   },
+  ...AUI_ELEMENT_DOCS,
 };

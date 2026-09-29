@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
-import { DiffViewer } from "@/components/assistant-ui/diff-viewer";
+import { DiffViewer } from "@/components/ui/diff-viewer";
 import { cn } from "@/lib/utils";
 
 const SAMPLE_PATCH = `--- a/example.ts

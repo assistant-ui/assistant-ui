@@ -3,9 +3,11 @@
  */
 import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { LexicalComposer } from "@lexical/react/LexicalComposer";
+import { LexicalExtensionComposer } from "@lexical/react/LexicalExtensionComposer";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import { HistoryExtension } from "@lexical/history";
 import {
+  $createParagraphNode,
   $createTextNode,
   $getRoot,
   $getSelection,
@@ -13,9 +15,16 @@ import {
   $isRangeSelection,
   $isTextNode,
   $setCompositionKey,
+  defineExtension,
+  HISTORY_PUSH_TAG,
+  REDO_COMMAND,
+  SKIP_DOM_SELECTION_TAG,
+  TextNode,
+  UNDO_COMMAND,
   type LexicalEditor,
 } from "lexical";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createRenderCounter } from "@assistant-ui/x-performance";
 import type { Unstable_DirectiveFormatter } from "@assistant-ui/core";
 import {
   $createDirectiveNode,
@@ -25,7 +34,7 @@ import {
 import { SyncPlugin } from "./SyncPlugin";
 
 const mocks = vi.hoisted(() => ({
-  aui: undefined as unknown,
+  aui: undefined as unknown as ReturnType<typeof createAui>,
 }));
 
 vi.mock("@assistant-ui/store", async (importOriginal) => {
@@ -60,7 +69,7 @@ const readEditorText = (editor: LexicalEditor) =>
 
 const $getParagraph = () => {
   const paragraph = $getRoot().getFirstChild();
-  if (paragraph === null) throw new Error("Expected a paragraph");
+  if (!$isElementNode(paragraph)) throw new Error("Expected a paragraph");
   return paragraph;
 };
 
@@ -130,21 +139,19 @@ describe("SyncPlugin", () => {
   });
 
   it("clears the editor when switching to a composer with an empty draft", async () => {
-    const initialConfig = {
+    const extension = defineExtension({
+      name: "sync-plugin-test",
       namespace: "sync-plugin-test",
-      onError: (error: Error) => {
-        throw error;
-      },
-    };
+    });
     const capture = (capturedEditor: LexicalEditor) => {
       editor = capturedEditor;
     };
     const render = () =>
       root.render(
-        <LexicalComposer initialConfig={initialConfig}>
+        <LexicalExtensionComposer extension={extension} contentEditable={null}>
           <SyncPlugin />
           <EditorProbe capture={capture} />
-        </LexicalComposer>,
+        </LexicalExtensionComposer>,
       );
 
     mocks.aui = createAui("draft from thread A");
@@ -161,24 +168,203 @@ describe("SyncPlugin", () => {
     expect(readEditorText(editor)).toBe("");
   });
 
+  it("adds no text-node reads for selection-only updates in a 1,000-paragraph draft", async () => {
+    const counter = createRenderCounter();
+    const extension = defineExtension({
+      name: "selection-work",
+      namespace: "selection-work",
+    });
+    for (const withSync of [false, true]) {
+      const aui = createAui("");
+      mocks.aui = aui;
+      await act(async () => {
+        root.render(
+          <LexicalExtensionComposer
+            key={String(withSync)}
+            extension={extension}
+            contentEditable={null}
+          >
+            <EditorProbe
+              capture={(value) => {
+                editor = value;
+              }}
+            />
+            {withSync && <SyncPlugin />}
+          </LexicalExtensionComposer>,
+        );
+      });
+      let last!: TextNode;
+      await act(async () => {
+        editor.update(
+          () => {
+            $getRoot().clear();
+            for (let i = 0; i < 1_000; i++) {
+              last = $createTextNode("paragraph text");
+              $getRoot().append($createParagraphNode().append(last));
+            }
+            last.select(1, 1);
+          },
+          { discrete: true, tag: SKIP_DOM_SELECTION_TAG },
+        );
+      });
+      aui.composer.setText.mockClear();
+      const getText = TextNode.prototype.getTextContent;
+      const reads = vi
+        .spyOn(TextNode.prototype, "getTextContent")
+        .mockImplementation(function (this: TextNode) {
+          counter.useRender(withSync ? "sync" : "control");
+          return getText.call(this);
+        });
+      try {
+        await act(async () => {
+          editor.update(() => last.select(2, 2), {
+            discrete: true,
+            tag: SKIP_DOM_SELECTION_TAG,
+          });
+        });
+        expect(aui.composer.setText).not.toHaveBeenCalled();
+      } finally {
+        reads.mockRestore();
+      }
+    }
+    // The control accounts for Lexical's own development-mode text reads.
+    expect(counter.renders("control")).toBeGreaterThan(0);
+    expect(counter.renders("sync") - counter.renders("control")).toBe(0);
+  });
+
+  it("synchronizes content edits, saved states, undo and redo", async () => {
+    const aui = createAui("hello");
+    mocks.aui = aui;
+    const extension = defineExtension({
+      name: "sync-history",
+      namespace: "sync-history",
+      dependencies: [HistoryExtension],
+    });
+    await act(async () => {
+      root.render(
+        <LexicalExtensionComposer extension={extension} contentEditable={null}>
+          <SyncPlugin />
+          <EditorProbe
+            capture={(value) => {
+              editor = value;
+            }}
+          />
+        </LexicalExtensionComposer>,
+      );
+    });
+    const before = editor.getEditorState();
+    await act(async () => {
+      editor.update(
+        () => {
+          const paragraph = $getParagraph();
+          const text = paragraph.getFirstChild();
+          if (!$isTextNode(text)) throw new Error("Expected text");
+          text.setTextContent("hello!");
+          $getRoot().append($createParagraphNode());
+          text.selectEnd();
+        },
+        { discrete: true, tag: [HISTORY_PUSH_TAG, SKIP_DOM_SELECTION_TAG] },
+      );
+    });
+    expect(aui.composer.setText).toHaveBeenLastCalledWith("hello!\n");
+    const after = editor.getEditorState();
+    await act(async () => {
+      editor.dispatchCommand(UNDO_COMMAND, undefined);
+    });
+    expect(aui.composer.setText).toHaveBeenLastCalledWith("hello");
+    await act(async () => {
+      editor.dispatchCommand(REDO_COMMAND, undefined);
+    });
+    expect(aui.composer.setText).toHaveBeenLastCalledWith("hello!\n");
+    await act(async () => {
+      editor.setEditorState(before, { tag: SKIP_DOM_SELECTION_TAG });
+    });
+    expect(aui.composer.setText).toHaveBeenLastCalledWith("hello");
+    await act(async () => {
+      editor.setEditorState(after, { tag: SKIP_DOM_SELECTION_TAG });
+    });
+    expect(aui.composer.setText).toHaveBeenLastCalledWith("hello!\n");
+  });
+
+  it("retries a deferred parser on a clean selection update after composition", async () => {
+    mocks.aui = createAui("[[alice]]");
+    const formatter = createBracketFormatter();
+    const extension = defineExtension({
+      name: "parser-clean-update",
+      namespace: "parser-clean-update",
+      nodes: [DirectiveNode],
+    });
+    const render = (registered: boolean) =>
+      root.render(
+        <LexicalExtensionComposer extension={extension} contentEditable={null}>
+          <SyncPlugin formatter={registered ? formatter : undefined} />
+          <EditorProbe
+            capture={(value) => {
+              editor = value;
+            }}
+          />
+        </LexicalExtensionComposer>,
+      );
+    await act(async () => {
+      render(false);
+    });
+    const composing = vi.spyOn(editor, "isComposing").mockReturnValue(true);
+    await act(async () => {
+      render(true);
+    });
+    expect(
+      editor
+        .getEditorState()
+        .read(() => $isTextNode($getParagraph().getFirstChild())),
+    ).toBe(true);
+    composing.mockReturnValue(false);
+    const selectionTag = "selection-only-parser-retry";
+    const cleanUpdates: boolean[] = [];
+    const unregister = editor.registerUpdateListener(
+      ({ dirtyElements, dirtyLeaves, tags }) => {
+        if (tags.has(selectionTag)) {
+          cleanUpdates.push(dirtyElements.size === 0 && dirtyLeaves.size === 0);
+        }
+      },
+    );
+    try {
+      await act(async () => {
+        editor.update(
+          () => {
+            const text = $getParagraph().getFirstChild();
+            if (!$isTextNode(text)) throw new Error("Expected text");
+            text.select(1, 1);
+          },
+          { discrete: true, tag: [SKIP_DOM_SELECTION_TAG, selectionTag] },
+        );
+      });
+      expect(cleanUpdates).toEqual([true]);
+      expect(
+        editor
+          .getEditorState()
+          .read(() => $isDirectiveNode($getParagraph().getFirstChild())),
+      ).toBe(true);
+    } finally {
+      unregister();
+    }
+  });
+
   it("reparses a restored draft when a formatter registers", async () => {
-    const initialConfig = {
+    const extension = defineExtension({
+      name: "sync-plugin-formatter-test",
       namespace: "sync-plugin-formatter-test",
       nodes: [DirectiveNode],
-      onError: (error: Error) => {
-        throw error;
-      },
-    };
+    });
     const capture = (capturedEditor: LexicalEditor) => {
       editor = capturedEditor;
     };
     const formatter = createBracketFormatter();
     const render = (registered: boolean) =>
       root.render(
-        <LexicalComposer initialConfig={initialConfig}>
+        <LexicalExtensionComposer extension={extension} contentEditable={null}>
           <SyncPlugin formatter={registered ? formatter : undefined} />
           <EditorProbe capture={capture} />
-        </LexicalComposer>,
+        </LexicalExtensionComposer>,
       );
 
     mocks.aui = createAui("[[alice]]");
@@ -203,23 +389,21 @@ describe("SyncPlugin", () => {
   });
 
   it("still reparses after the caret moves", async () => {
-    const initialConfig = {
+    const extension = defineExtension({
+      name: "sync-plugin-selection-test",
       namespace: "sync-plugin-selection-test",
       nodes: [DirectiveNode],
-      onError: (error: Error) => {
-        throw error;
-      },
-    };
+    });
     const capture = (capturedEditor: LexicalEditor) => {
       editor = capturedEditor;
     };
     const formatter = createBracketFormatter();
     const render = (registered: boolean) =>
       root.render(
-        <LexicalComposer initialConfig={initialConfig}>
+        <LexicalExtensionComposer extension={extension} contentEditable={null}>
           <SyncPlugin formatter={registered ? formatter : undefined} />
           <EditorProbe capture={capture} />
-        </LexicalComposer>,
+        </LexicalExtensionComposer>,
       );
 
     mocks.aui = createAui("hello [[alice]] world");
@@ -262,23 +446,21 @@ describe("SyncPlugin", () => {
   });
 
   it("does not reparse text the user edited before a formatter registers", async () => {
-    const initialConfig = {
+    const extension = defineExtension({
+      name: "sync-plugin-edit-test",
       namespace: "sync-plugin-edit-test",
       nodes: [DirectiveNode],
-      onError: (error: Error) => {
-        throw error;
-      },
-    };
+    });
     const capture = (capturedEditor: LexicalEditor) => {
       editor = capturedEditor;
     };
     const formatter = createBracketFormatter();
     const render = (registered: boolean) =>
       root.render(
-        <LexicalComposer initialConfig={initialConfig}>
+        <LexicalExtensionComposer extension={extension} contentEditable={null}>
           <SyncPlugin formatter={registered ? formatter : undefined} />
           <EditorProbe capture={capture} />
-        </LexicalComposer>,
+        </LexicalExtensionComposer>,
       );
 
     mocks.aui = createAui("hello");
@@ -308,23 +490,21 @@ describe("SyncPlugin", () => {
   });
 
   it("does not reparse while the editor is composing", async () => {
-    const initialConfig = {
+    const extension = defineExtension({
+      name: "sync-plugin-compose-test",
       namespace: "sync-plugin-compose-test",
       nodes: [DirectiveNode],
-      onError: (error: Error) => {
-        throw error;
-      },
-    };
+    });
     const capture = (capturedEditor: LexicalEditor) => {
       editor = capturedEditor;
     };
     const formatter = createBracketFormatter();
     const render = (registered: boolean) =>
       root.render(
-        <LexicalComposer initialConfig={initialConfig}>
+        <LexicalExtensionComposer extension={extension} contentEditable={null}>
           <SyncPlugin formatter={registered ? formatter : undefined} />
           <EditorProbe capture={capture} />
-        </LexicalComposer>,
+        </LexicalExtensionComposer>,
       );
 
     mocks.aui = createAui("[[alice]]");
@@ -362,23 +542,21 @@ describe("SyncPlugin", () => {
   });
 
   it("keeps chips when the formatter that created them is removed", async () => {
-    const initialConfig = {
+    const extension = defineExtension({
+      name: "sync-plugin-remove-test",
       namespace: "sync-plugin-remove-test",
       nodes: [DirectiveNode],
-      onError: (error: Error) => {
-        throw error;
-      },
-    };
+    });
     const capture = (capturedEditor: LexicalEditor) => {
       editor = capturedEditor;
     };
     const formatter = createBracketFormatter();
     const render = (registered: boolean) =>
       root.render(
-        <LexicalComposer initialConfig={initialConfig}>
+        <LexicalExtensionComposer extension={extension} contentEditable={null}>
           <SyncPlugin formatter={registered ? formatter : undefined} />
           <EditorProbe capture={capture} />
-        </LexicalComposer>,
+        </LexicalExtensionComposer>,
       );
 
     mocks.aui = createAui("[[alice]]");
@@ -404,23 +582,21 @@ describe("SyncPlugin", () => {
   });
 
   it("keeps mixed-format chips when one formatter is removed", async () => {
-    const initialConfig = {
+    const extension = defineExtension({
+      name: "sync-plugin-mixed-remove-test",
       namespace: "sync-plugin-mixed-remove-test",
       nodes: [DirectiveNode],
-      onError: (error: Error) => {
-        throw error;
-      },
-    };
+    });
     const capture = (capturedEditor: LexicalEditor) => {
       editor = capturedEditor;
     };
     const formatter = createBracketFormatter();
     const render = (registered: boolean) =>
       root.render(
-        <LexicalComposer initialConfig={initialConfig}>
+        <LexicalExtensionComposer extension={extension} contentEditable={null}>
           <SyncPlugin formatter={registered ? formatter : undefined} />
           <EditorProbe capture={capture} />
-        </LexicalComposer>,
+        </LexicalExtensionComposer>,
       );
 
     mocks.aui = createAui("[[alice]]\n:user[bob]");
@@ -460,23 +636,21 @@ describe("SyncPlugin", () => {
   });
 
   it("keeps same-key chips when a formatter would drop one occurrence", async () => {
-    const initialConfig = {
+    const extension = defineExtension({
+      name: "sync-plugin-same-key-remove-test",
       namespace: "sync-plugin-same-key-remove-test",
       nodes: [DirectiveNode],
-      onError: (error: Error) => {
-        throw error;
-      },
-    };
+    });
     const capture = (capturedEditor: LexicalEditor) => {
       editor = capturedEditor;
     };
     const formatter = createBracketFormatter();
     const render = (registered: boolean) =>
       root.render(
-        <LexicalComposer initialConfig={initialConfig}>
+        <LexicalExtensionComposer extension={extension} contentEditable={null}>
           <SyncPlugin formatter={registered ? formatter : undefined} />
           <EditorProbe capture={capture} />
-        </LexicalComposer>,
+        </LexicalExtensionComposer>,
       );
 
     mocks.aui = createAui("[[alice]]\n:user[alice]");
@@ -516,22 +690,20 @@ describe("SyncPlugin", () => {
   });
 
   it("keeps hydrated metadata when a formatter only changes the label", async () => {
-    const initialConfig = {
+    const extension = defineExtension({
+      name: "sync-plugin-metadata-test",
       namespace: "sync-plugin-metadata-test",
       nodes: [DirectiveNode],
-      onError: (error: Error) => {
-        throw error;
-      },
-    };
+    });
     const capture = (capturedEditor: LexicalEditor) => {
       editor = capturedEditor;
     };
     const render = (labelForId: (id: string) => string) =>
       root.render(
-        <LexicalComposer initialConfig={initialConfig}>
+        <LexicalExtensionComposer extension={extension} contentEditable={null}>
           <SyncPlugin formatter={createBracketFormatter(labelForId)} />
           <EditorProbe capture={capture} />
-        </LexicalComposer>,
+        </LexicalExtensionComposer>,
       );
 
     mocks.aui = createAui("[[alice]]");
@@ -574,12 +746,10 @@ describe("SyncPlugin", () => {
   });
 
   it("preserves leading blank lines through an editor readback", async () => {
-    const initialConfig = {
+    const extension = defineExtension({
+      name: "sync-plugin-test",
       namespace: "sync-plugin-test",
-      onError: (error: Error) => {
-        throw error;
-      },
-    };
+    });
     const capture = (capturedEditor: LexicalEditor) => {
       editor = capturedEditor;
     };
@@ -587,10 +757,10 @@ describe("SyncPlugin", () => {
     mocks.aui = aui;
     await act(async () => {
       root.render(
-        <LexicalComposer initialConfig={initialConfig}>
+        <LexicalExtensionComposer extension={extension} contentEditable={null}>
           <SyncPlugin />
           <EditorProbe capture={capture} />
-        </LexicalComposer>,
+        </LexicalExtensionComposer>,
       );
     });
     expect(
@@ -609,12 +779,10 @@ describe("SyncPlugin", () => {
   });
 
   it("preserves multiple leading blank lines", async () => {
-    const initialConfig = {
+    const extension = defineExtension({
+      name: "sync-plugin-test",
       namespace: "sync-plugin-test",
-      onError: (error: Error) => {
-        throw error;
-      },
-    };
+    });
     const capture = (capturedEditor: LexicalEditor) => {
       editor = capturedEditor;
     };
@@ -622,10 +790,10 @@ describe("SyncPlugin", () => {
     mocks.aui = aui;
     await act(async () => {
       root.render(
-        <LexicalComposer initialConfig={initialConfig}>
+        <LexicalExtensionComposer extension={extension} contentEditable={null}>
           <SyncPlugin />
           <EditorProbe capture={capture} />
-        </LexicalComposer>,
+        </LexicalExtensionComposer>,
       );
     });
 

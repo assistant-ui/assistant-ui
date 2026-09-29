@@ -303,8 +303,7 @@ const portfolio: GalleryTemplate = {
       {
         $type: "Markdown",
         $key: "footnote",
-        value:
-          "Prices delayed by 15 minutes. See the [disclosure](/legal/disclosure) for details.",
+        value: "Prices delayed by 15 minutes.",
       },
     ],
   },
@@ -1735,7 +1734,7 @@ export function getGalleryTemplate(slug: string): GalleryTemplate | undefined {
 }
 
 export const GALLERY_USAGE_SNIPPET = `import { JSONGenerativeUI } from "@assistant-ui/react-generative-ui";
-import { styledGenerativeUILibrary } from "@/components/assistant-ui/generative-ui";
+import { styledGenerativeUILibrary } from "@/components/assistant-ui/elements/generative-ui";
 import { defineToolkit } from "@assistant-ui/react";
 
 const generative = new JSONGenerativeUI({
@@ -1755,7 +1754,7 @@ import {
   defaultGenerativeUILibrary,
   defineGenerativeComponents,
 } from "@assistant-ui/react-generative-ui";
-import { styledGenerativeUILibrary } from "@/components/assistant-ui/generative-ui";
+import { styledGenerativeUILibrary } from "@/components/assistant-ui/elements/generative-ui";
 import { defineToolkit } from "@assistant-ui/react";
 
 const markdown = defaultGenerativeUILibrary.Markdown!;

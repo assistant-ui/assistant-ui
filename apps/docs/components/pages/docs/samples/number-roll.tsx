@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { MinusIcon, PauseIcon, PlayIcon, PlusIcon } from "lucide-react";
-import { NumberRoll } from "@/components/assistant-ui/number-roll";
+import { NumberRoll } from "@/components/ui/number-roll";
 import { Button } from "@/components/ui/button";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 

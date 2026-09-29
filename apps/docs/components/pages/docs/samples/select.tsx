@@ -3,15 +3,14 @@
 import { useState } from "react";
 import {
   Select,
-  SelectRoot,
-  SelectTrigger,
   SelectContent,
-  SelectItem,
   SelectGroup,
+  SelectItem,
   SelectLabel,
-  SelectValue,
   SelectSeparator,
-} from "@/components/assistant-ui/select";
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 
 const fruits = [
@@ -31,23 +30,32 @@ const backends = [
   { value: "python", label: "Python" },
 ];
 
-const northAmericaTimezones = [
-  { value: "est", label: "Eastern Standard Time (EST)" },
-  { value: "cst", label: "Central Standard Time (CST)" },
-  { value: "mst", label: "Mountain Standard Time (MST)" },
-  { value: "pst", label: "Pacific Standard Time (PST)" },
-];
-
-const europeTimezones = [
-  { value: "gmt", label: "Greenwich Mean Time (GMT)" },
-  { value: "cet", label: "Central European Time (CET)" },
-  { value: "eet", label: "Eastern European Time (EET)" },
-];
-
-const asiaTimezones = [
-  { value: "ist", label: "India Standard Time (IST)" },
-  { value: "cst_china", label: "China Standard Time (CST)" },
-  { value: "jst", label: "Japan Standard Time (JST)" },
+const timezoneGroups = [
+  {
+    label: "North America",
+    items: [
+      { value: "est", label: "Eastern Standard Time (EST)" },
+      { value: "cst", label: "Central Standard Time (CST)" },
+      { value: "mst", label: "Mountain Standard Time (MST)" },
+      { value: "pst", label: "Pacific Standard Time (PST)" },
+    ],
+  },
+  {
+    label: "Europe",
+    items: [
+      { value: "gmt", label: "Greenwich Mean Time (GMT)" },
+      { value: "cet", label: "Central European Time (CET)" },
+      { value: "eet", label: "Eastern European Time (EET)" },
+    ],
+  },
+  {
+    label: "Asia",
+    items: [
+      { value: "ist", label: "India Standard Time (IST)" },
+      { value: "cst_china", label: "China Standard Time (CST)" },
+      { value: "jst", label: "Japan Standard Time (JST)" },
+    ],
+  },
 ];
 
 export function SelectSample() {
@@ -57,72 +65,108 @@ export function SelectSample() {
     <SampleFrame className="flex h-auto items-center justify-center p-6">
       <Select
         value={value}
-        onValueChange={setValue}
-        options={fruits}
-        placeholder="Select a fruit..."
-        className="w-fit"
-      />
+        onValueChange={(nextValue) => nextValue !== null && setValue(nextValue)}
+        items={fruits}
+      >
+        <SelectTrigger className="w-44">
+          <SelectValue placeholder="Select a fruit..." />
+        </SelectTrigger>
+        <SelectContent>
+          {fruits.map((fruit) => (
+            <SelectItem key={fruit.value} value={fruit.value}>
+              {fruit.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </SampleFrame>
   );
 }
 
 export function SelectDisabledItemsSample() {
   const [value, setValue] = useState("free");
+  const plans = [
+    { value: "free", label: "Free" },
+    { value: "pro", label: "Pro" },
+    { value: "enterprise", label: "Enterprise", disabled: true },
+  ];
 
   return (
     <SampleFrame className="flex h-auto items-center justify-center p-6">
       <Select
         value={value}
-        onValueChange={setValue}
-        options={[
-          { value: "free", label: "Free" },
-          { value: "pro", label: "Pro" },
-          { value: "enterprise", label: "Enterprise", disabled: true },
-        ]}
-      />
+        onValueChange={(nextValue) => nextValue !== null && setValue(nextValue)}
+        items={plans}
+      >
+        <SelectTrigger className="w-44">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {plans.map((plan) => (
+            <SelectItem
+              key={plan.value}
+              value={plan.value}
+              disabled={plan.disabled === true}
+            >
+              {plan.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </SampleFrame>
   );
 }
 
 export function SelectPlaceholderSample() {
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState<string | null>(null);
 
   return (
     <SampleFrame className="flex h-auto items-center justify-center p-6">
-      <Select
-        value={value}
-        onValueChange={setValue}
-        options={fruits}
-        placeholder="Choose an option..."
-      />
+      <Select value={value} onValueChange={setValue} items={fruits}>
+        <SelectTrigger className="w-44">
+          <SelectValue placeholder="Choose an option..." />
+        </SelectTrigger>
+        <SelectContent>
+          {fruits.map((fruit) => (
+            <SelectItem key={fruit.value} value={fruit.value}>
+              {fruit.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </SampleFrame>
   );
 }
 
 export function SelectDisabledSample() {
-  const [value, setValue] = useState("apple");
-
   return (
     <SampleFrame className="flex h-auto items-center justify-center p-6">
-      <Select
-        value={value}
-        onValueChange={setValue}
-        options={fruits}
-        disabled
-      />
+      <Select value="apple" items={fruits} disabled>
+        <SelectTrigger className="w-44">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {fruits.map((fruit) => (
+            <SelectItem key={fruit.value} value={fruit.value}>
+              {fruit.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </SampleFrame>
   );
 }
 
 export function SelectGroupsSample() {
   const [value, setValue] = useState("react");
+  const items = [...frameworks, ...backends];
 
   return (
     <SampleFrame className="flex h-auto items-center justify-center p-6">
-      <SelectRoot
+      <Select
         value={value}
-        onValueChange={(value) => value !== null && setValue(value)}
-        items={[...frameworks, ...backends]}
+        onValueChange={(nextValue) => nextValue !== null && setValue(nextValue)}
+        items={items}
       >
         <SelectTrigger className="w-48">
           <SelectValue placeholder="Select a framework..." />
@@ -146,167 +190,69 @@ export function SelectGroupsSample() {
             ))}
           </SelectGroup>
         </SelectContent>
-      </SelectRoot>
-    </SampleFrame>
-  );
-}
-
-export function SelectVariantsSample() {
-  const [outlineValue, setOutlineValue] = useState("react");
-  const [ghostValue, setGhostValue] = useState("vue");
-  const [mutedValue, setMutedValue] = useState("svelte");
-
-  return (
-    <SampleFrame className="flex h-auto items-center justify-center gap-4 p-6">
-      <div className="flex flex-col gap-2">
-        <span className="text-muted-foreground text-xs">Quiet fill</span>
-        <SelectRoot
-          value={outlineValue}
-          onValueChange={(value) => value !== null && setOutlineValue(value)}
-          items={frameworks}
-        >
-          <SelectTrigger variant="outline" className="w-32">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {frameworks.map((item) => (
-              <SelectItem key={item.value} value={item.value}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </SelectRoot>
-      </div>
-      <div className="flex flex-col gap-2">
-        <span className="text-muted-foreground text-xs">Ghost</span>
-        <SelectRoot
-          value={ghostValue}
-          onValueChange={(value) => value !== null && setGhostValue(value)}
-          items={frameworks}
-        >
-          <SelectTrigger variant="ghost" className="w-32">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {frameworks.map((item) => (
-              <SelectItem key={item.value} value={item.value}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </SelectRoot>
-      </div>
-      <div className="flex flex-col gap-2">
-        <span className="text-muted-foreground text-xs">Muted</span>
-        <SelectRoot
-          value={mutedValue}
-          onValueChange={(value) => value !== null && setMutedValue(value)}
-          items={frameworks}
-        >
-          <SelectTrigger variant="muted" className="w-32">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {frameworks.map((item) => (
-              <SelectItem key={item.value} value={item.value}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </SelectRoot>
-      </div>
+      </Select>
     </SampleFrame>
   );
 }
 
 export function SelectSizesSample() {
-  const [defaultValue, setDefaultValue] = useState("react");
-  const [smValue, setSmValue] = useState("vue");
-
   return (
     <SampleFrame className="flex h-auto items-center justify-center gap-4 p-6">
-      <div className="flex flex-col gap-2">
-        <span className="text-muted-foreground text-xs">Default</span>
-        <SelectRoot
-          value={defaultValue}
-          onValueChange={(value) => value !== null && setDefaultValue(value)}
-          items={frameworks}
-        >
-          <SelectTrigger size="default" className="w-36">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {frameworks.map((item) => (
-              <SelectItem key={item.value} value={item.value}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </SelectRoot>
-      </div>
-      <div className="flex flex-col gap-2">
-        <span className="text-muted-foreground text-xs">Small</span>
-        <SelectRoot
-          value={smValue}
-          onValueChange={(value) => value !== null && setSmValue(value)}
-          items={frameworks}
-        >
-          <SelectTrigger size="sm" className="w-36">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {frameworks.map((item) => (
-              <SelectItem key={item.value} value={item.value}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </SelectRoot>
-      </div>
+      <Select defaultValue="react" items={frameworks}>
+        <SelectTrigger size="default" className="w-36">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {frameworks.map((item) => (
+            <SelectItem key={item.value} value={item.value}>
+              {item.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select defaultValue="vue" items={frameworks}>
+        <SelectTrigger size="sm" className="w-36">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {frameworks.map((item) => (
+            <SelectItem key={item.value} value={item.value}>
+              {item.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </SampleFrame>
   );
 }
 
 export function SelectScrollableSample() {
   const [value, setValue] = useState("est");
+  const items = timezoneGroups.flatMap((group) => group.items);
 
   return (
     <SampleFrame className="flex h-auto items-center justify-center p-6">
-      <SelectRoot
+      <Select
         value={value}
-        onValueChange={(value) => value !== null && setValue(value)}
-        items={[...northAmericaTimezones, ...europeTimezones, ...asiaTimezones]}
+        onValueChange={(nextValue) => nextValue !== null && setValue(nextValue)}
+        items={items}
       >
         <SelectTrigger className="w-64">
           <SelectValue placeholder="Select a timezone..." />
         </SelectTrigger>
         <SelectContent>
-          <SelectGroup>
-            <SelectLabel>North America</SelectLabel>
-            {northAmericaTimezones.map((item) => (
-              <SelectItem key={item.value} value={item.value}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-          <SelectGroup>
-            <SelectLabel>Europe</SelectLabel>
-            {europeTimezones.map((item) => (
-              <SelectItem key={item.value} value={item.value}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-          <SelectGroup>
-            <SelectLabel>Asia</SelectLabel>
-            {asiaTimezones.map((item) => (
-              <SelectItem key={item.value} value={item.value}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectGroup>
+          {timezoneGroups.map((group) => (
+            <SelectGroup key={group.label}>
+              <SelectLabel>{group.label}</SelectLabel>
+              {group.items.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          ))}
         </SelectContent>
-      </SelectRoot>
+      </Select>
     </SampleFrame>
   );
 }

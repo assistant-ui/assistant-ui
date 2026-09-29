@@ -1,16 +1,17 @@
-import fs from "node:fs";
-import path from "node:path";
 import { Tab, Tabs } from "@/components/pages/docs/fumadocs/tabs";
 import { Flavored } from "@/components/pages/docs/contexts/flavor.server";
 import type { LLMRenderContext } from "@/lib/get-llm-text";
 import {
   resolveAllComponents,
   ComponentSourceFromFile,
-  type RegistryFlavor,
   type ResolvedComponents,
   type ResolvedFile,
   type ResolvedGroup,
 } from "@/components/pages/docs/fumadocs/install/component-source";
+import {
+  buildDownloadCommand,
+  packagedFileUrl,
+} from "@/components/pages/docs/fumadocs/install/packaged-file-url";
 import { SetupInstructions } from "@/components/pages/docs/fumadocs/install/setup-instructions";
 import {
   ExpoInstallTabs,
@@ -115,11 +116,8 @@ export async function InstallCommand(props: InstallCommandProps) {
   );
 }
 
-// Every resolvable file is an assistant-ui component, sourced from packages/ui.
 const REPO = "assistant-ui/assistant-ui";
-const UI_SRC = "packages/ui/src";
-const GITHUB_BLOB = `https://github.com/${REPO}/blob/main/${UI_SRC}`;
-const GITHUB_RAW = `https://raw.githubusercontent.com/${REPO}/main/${UI_SRC}`;
+const GITHUB_BLOB = `https://github.com/${REPO}/blob/main`;
 
 const CommandBlock = ({ command }: { command: string }) => (
   <pre>
@@ -127,28 +125,9 @@ const CommandBlock = ({ command }: { command: string }) => (
   </pre>
 );
 
-function githubSourcePath(filePath: string, flavor: RegistryFlavor): string {
-  if (flavor !== "radix") return filePath;
-  const radixPath = filePath.replace(/\.tsx$/, ".radix.tsx");
-  return fs.existsSync(
-    path.join(process.cwd(), "../../packages/ui/src", radixPath),
-  )
-    ? radixPath
-    : filePath;
-}
-
-type LinkedFile = ResolvedFile & { sourcePath: string };
-
-function buildDownloadCommand(files: LinkedFile[]): string {
-  const args = files
-    .map((file) => `  -o ${file.path} ${GITHUB_RAW}/${file.sourcePath}`)
-    .join(" \\\n");
-  return `curl -sSL --create-dirs \\\n${args}`;
-}
-
 // Instead of dumping each component's full source (the visual Manual tab), give
 // the CLI command plus a manual path: npm deps, shadcn components, and the
-// GitHub-linked aui files with one curl to fetch them all.
+// registry-served aui files with one curl to fetch them all.
 export const InstallCommandLLM = async (
   props: InstallCommandProps,
   ctx?: LLMRenderContext,
@@ -170,13 +149,10 @@ export const InstallCommandLLM = async (
       : `https://r.assistant-ui.com/${c}.json`,
   );
   const resolved = await resolveAllComponents(props.shadcn, flavor);
-  const files: LinkedFile[] = [
+  const files: ResolvedFile[] = [
     ...resolved.main.files,
     ...resolved.auiDeps.files,
-  ].map((file) => ({
-    ...file,
-    sourcePath: githubSourcePath(file.path, flavor),
-  }));
+  ];
   // npm packages the copied files import. shadcn deps (e.g. radix-ui) are
   // omitted here — they install with the shadcn components below.
   const npmDeps = [
@@ -185,7 +161,7 @@ export const InstallCommandLLM = async (
       ...resolved.auiDeps.dependencies,
     ]),
   ];
-  // shadcn/ui components can't be GitHub-linked (not under packages/ui/src), so
+  // shadcn/ui components are not part of the aui registry payloads, so
   // the manual path adds them via the shadcn CLI instead.
   const shadcnComponents = resolved.shadcn.files.map((file) => file.name);
 
@@ -211,15 +187,19 @@ export const InstallCommandLLM = async (
               command={`npx shadcn@latest add ${shadcnComponents.join(" ")}`}
             />
           )}
-          <p>Then copy these source files from GitHub:</p>
+          <p>
+            Then copy these files (packaged registry content; the source links
+            show where each ships from):
+          </p>
           <ul>
             {files.map((file) => (
               <li key={file.path}>
-                <a href={`${GITHUB_BLOB}/${file.sourcePath}`}>{file.path}</a>
+                <a href={packagedFileUrl(flavor, file)}>{file.path}</a> (
+                <a href={`${GITHUB_BLOB}/${file.sourcePath}`}>source</a>)
               </li>
             ))}
           </ul>
-          <CommandBlock command={buildDownloadCommand(files)} />
+          <CommandBlock command={buildDownloadCommand(files, flavor)} />
         </>
       )}
     </>

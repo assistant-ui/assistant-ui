@@ -1,12 +1,33 @@
 export const httpUrlPattern = /^https?:\/\//i;
 
+export type FilePartSource =
+  | { kind: "url"; url: string }
+  | { kind: "data"; data: string; mimeType: string };
+
 export function parseDataUrl(
   value: string,
 ): { mimeType: string; data: string } | null {
-  const match = value.match(/^data:([^;,]+)(?:;[^;,]+)*;base64,(.*)$/i);
+  const match = value.match(/^data:([^;,]*)(?:;[^;,]+)*;base64,(.*)$/i);
   if (!match) return null;
-  return { mimeType: match[1]!.toLowerCase(), data: match[2]! };
+  return { mimeType: match[1]!.toLowerCase() || "text/plain", data: match[2]! };
 }
+
+export const resolveFilePartSource = (part: {
+  data: string;
+  mimeType: string;
+  sourceType?: string | undefined;
+}): FilePartSource => {
+  if (part.sourceType === "url" || httpUrlPattern.test(part.data)) {
+    return { kind: "url", url: part.data };
+  }
+
+  const parsed = parseDataUrl(part.data);
+  return {
+    kind: "data",
+    data: parsed?.data ?? part.data,
+    mimeType: (parsed && dataUrlMediaType(part.data)) ?? part.mimeType,
+  };
+};
 
 /**
  * Whether a payload is something `new URL()` accepts. Adapters that place a

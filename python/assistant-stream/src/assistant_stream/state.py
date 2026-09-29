@@ -88,7 +88,7 @@ class AssistantState:
     """Authoritative state container. Applies ops; hands out mutation proxies."""
 
     def __init__(self, initial_state: Any | None = None):
-        self._state = initial_state
+        self._state = _detach_value(initial_state)
 
     @property
     def state(self) -> Any:
@@ -116,12 +116,13 @@ class StateDraft:
         return self._state.lookup(path)
 
     def add_operations(self, operations: List[StateOperation]) -> None:
-        operations = [op for op in operations if not self._is_writeback(op)]
+        operations = [
+            {**op, "value": _detach_value(op["value"])} if op["type"] == "set" else op
+            for op in operations
+            if not self._is_writeback(op)
+        ]
         if not operations:
             return
-        for op in operations:
-            if op["type"] == "set":
-                _ensure_no_proxy(op["value"])
         self._state.apply(operations)
         self._on_operations(operations)
 
@@ -185,17 +186,19 @@ class Flusher:
             self._emit(operations)
 
 
-def _ensure_no_proxy(value: Any) -> None:
+def _detach_value(value: Any) -> Any:
+    """Rebuild containers so state never aliases a value the caller retains."""
     if isinstance(value, StateProxy):
         raise ValueError(
             "Cannot store a StateProxy in state; assign a plain value instead"
         )
     if isinstance(value, dict):
-        for item in value.values():
-            _ensure_no_proxy(item)
-    elif isinstance(value, list):
-        for item in value:
-            _ensure_no_proxy(item)
+        return {key: _detach_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_detach_value(item) for item in value]
+    if isinstance(value, tuple):
+        return [_detach_value(item) for item in value]
+    return value
 
 
 class StateProxy:
@@ -486,7 +489,7 @@ class StateProxy:
             return self[key]
 
         self[key] = default
-        return default
+        return self[key]
 
     # Unsupported operations that would be inefficient
     def insert(self, index: int, item: Any) -> None:

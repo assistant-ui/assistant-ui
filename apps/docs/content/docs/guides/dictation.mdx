@@ -12,6 +12,8 @@ Dictation is the push-to-talk input mode. For a live duplex conversation, see [R
 
 <DictationSample />
 
+<AgentSetup product="guides/dictation" />
+
 ## WebSpeechDictationAdapter
 
 The zero-config built-in adapter uses the browser's Web Speech API (`SpeechRecognition` / `webkitSpeechRecognition`). It works in Chrome, Edge, and Safari. Check [browser compatibility](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition#browser_compatibility) for details.
@@ -157,7 +159,7 @@ export async function POST(req: Request) {
   }
 
   const result = await transcribe({
-    model: openai.transcription("whisper-1"),
+    model: openai.transcription("gpt-4o-mini-transcribe"),
     audio: new Uint8Array(await audio.arrayBuffer()),
   });
 
@@ -290,6 +292,12 @@ npx assistant-ui create my-app -e with-elevenlabs-scribe
 ```
 
 Cumulative transcript services should set `disableInputDuringDictation: true` so interim text does not fight the user's keyboard.
+
+The example keeps the ElevenLabs API key server-side, and its token route accepts a request only when `Sec-Fetch-Site` is `same-origin` or `none`, falling back to comparing the `Origin` header against the request URL for clients that omit Fetch Metadata.
+
+<Callout type="warn">
+  A request-context check is not authentication. Before deploying, require your application session in the token route and apply a durable rate limit, so anonymous callers cannot consume transcription capacity.
+</Callout>
 
 ## Related guides
 

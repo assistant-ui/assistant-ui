@@ -7,28 +7,56 @@ import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import { AssistantRuntimeImpl } from "../../runtime/internal";
 import { invalidateThreadRuntime } from "../../runtime/utils/thread-runtime-lifecycle";
 import { useRuntimeAdapters } from "./RuntimeAdapterProvider";
+import { ExternalStoreHistoryCopy } from "./external-store-history-copy";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 
 export const useExternalStoreRuntime = <T>(
   store: ExternalStoreAdapter<T>,
 ): AssistantRuntime => {
-  const [runtime] = useState(() => new ExternalStoreRuntimeCore(store));
+  const { modelContext, feedback, history } = useRuntimeAdapters() ?? {};
+  const [historyCopy] = useState(() => new ExternalStoreHistoryCopy());
+  const copiesHistory =
+    !!history?.unstable_copy &&
+    !store.unstable_persistsHistory &&
+    !store.adapters?.threadList;
+  const adaptedStore = useMemo(() => {
+    const withFeedback =
+      feedback && !store.adapters?.feedback
+        ? { ...store, adapters: { ...store.adapters, feedback } }
+        : store;
+    if (!copiesHistory || store.unstable_onRecordToolInteraction) {
+      return withFeedback;
+    }
+    return {
+      ...withFeedback,
+      unstable_onRecordToolInteraction: historyCopy.recordInteraction,
+    };
+  }, [copiesHistory, feedback, historyCopy, store]);
+  const [runtime] = useState(() => new ExternalStoreRuntimeCore(adaptedStore));
 
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     return () => {
       invalidateThreadRuntime(runtime.threads.getMainThreadRuntimeCore());
     };
   }, [runtime]);
 
   useEffect(() => {
-    runtime.setAdapter(store);
+    runtime.setAdapter(adaptedStore);
   });
 
-  const { modelContext } = useRuntimeAdapters() ?? {};
+  useReplaySafeEffect(() => {
+    if (!copiesHistory || !history) return;
+    return historyCopy.attach(
+      runtime.threads.getMainThreadRuntimeCore(),
+      history,
+    );
+  }, [copiesHistory, history, historyCopy, runtime]);
 
   useEffect(() => {
     if (!modelContext) return undefined;
     return runtime.registerModelContextProvider(modelContext);
   }, [modelContext, runtime]);
 
-  return useMemo(() => new AssistantRuntimeImpl(runtime), [runtime]);
+  const [assistantRuntime] = useState(() => new AssistantRuntimeImpl(runtime));
+  return assistantRuntime;
 };

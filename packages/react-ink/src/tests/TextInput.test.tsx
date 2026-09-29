@@ -49,7 +49,6 @@ const settle = async () => {
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
   inputHandler = undefined;
 });
 
@@ -176,6 +175,41 @@ describe("TextInput", () => {
 
     expect(onChange).toHaveBeenLastCalledWith("foo\nbar");
   });
+
+  it("keeps CRLF intact when editing at the end of a line", async () => {
+    const onChange = vi.fn();
+    render(<Controlled initial={"a\r\nb"} multiLine onChange={onChange} />);
+    await flush();
+
+    inputHandler?.("", { home: true });
+    inputHandler?.("", { upArrow: true });
+    inputHandler?.("", { end: true });
+    inputHandler?.("x", {});
+
+    expect(onChange).toHaveBeenLastCalledWith("ax\r\nb");
+  });
+
+  it.each([
+    { direction: "upArrow", meta: true, expected: "Hello\nworldX" },
+    { direction: "downArrow", meta: true, expected: "HelloX\nworld" },
+    { direction: "upArrow", meta: false, expected: "HelloX\nworld" },
+    { direction: "downArrow", meta: false, expected: "Hello\nworldX" },
+  ] as const)(
+    "edits at the correct cursor after $direction with meta=$meta",
+    async ({ direction, meta, expected }) => {
+      const onChange = vi.fn();
+      render(
+        <Controlled initial={"Hello\nworld"} multiLine onChange={onChange} />,
+      );
+      await flush();
+
+      if (direction === "downArrow") inputHandler?.("", { upArrow: true });
+      inputHandler?.("", { [direction]: true, meta });
+      inputHandler?.("X", {});
+
+      expect(onChange).toHaveBeenLastCalledWith(expected);
+    },
+  );
 
   it("shows the placeholder only while empty", async () => {
     const onChange = vi.fn();
@@ -322,5 +356,16 @@ describe("TextInput", () => {
     await settle();
 
     expect(onSubmit).toHaveBeenCalledWith("helxlo");
+  });
+
+  it("renders a visible cursor cell on a zero-width grapheme", async () => {
+    const { lastFrame } = render(<Controlled initial={"a\u200bb"} />);
+    await flush();
+
+    inputHandler?.("", { leftArrow: true });
+    inputHandler?.("", { leftArrow: true });
+    await flush();
+
+    expect(lastFrame()).toContain("a b");
   });
 });

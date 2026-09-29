@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { LiveDot } from "@/components/shared/live-dot";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { createOgMetadata } from "@/lib/og";
@@ -29,6 +31,13 @@ const title = "Traction";
 const description =
   "Stars, downloads, and shipping cadence behind assistant-ui. Live from GitHub and npm.";
 
+// A cold render fans out across every package on npm and a year of commits.
+export const maxDuration = 60;
+
+// api.npmjs.org allows about forty requests a minute per IP, which a build
+// shares with every other build on the platform, so npm is read at request time.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title,
   description,
@@ -36,12 +45,14 @@ export const metadata: Metadata = {
 };
 
 export default async function TractionPage() {
-  const repo = await getRepo();
-
+  // The chart's five packages are read before the rest of the catalogue competes
+  // for npm's window. Everything outside npm starts immediately.
+  const timeline = fetchTimelineSeries(TIMELINE_PACKAGES);
   const [
-    npm,
-    starHistory,
     downloadsTimeline,
+    npm,
+    repo,
+    starHistory,
     contributors,
     botCoAuthors,
     dependents,
@@ -49,9 +60,10 @@ export default async function TractionPage() {
     releaseActivity,
     commitStats,
   ] = await Promise.all([
-    fetchNpmDownloads(),
-    fetchStarHistory(repo?.stars ?? 0),
-    fetchTimelineSeries(TIMELINE_PACKAGES),
+    timeline,
+    timeline.then(() => fetchNpmDownloads()),
+    getRepo(),
+    fetchStarHistory(),
     fetchContributors(),
     fetchBotCoAuthors(),
     getDependents(),
@@ -108,15 +120,20 @@ export default async function TractionPage() {
   ];
 
   return (
-    <PageFrame pad="sub" className="flex flex-col gap-20 md:gap-28">
+    <PageFrame pad="sub">
       <header className="max-w-2xl">
-        <h1 className={typePage}>The receipts behind assistant-ui.</h1>
+        <h1 className={typePage}>The numbers.</h1>
         <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
-          Stars, downloads, and shipping cadence. Live from GitHub and npm.
+          Stars, downloads, and shipping cadence, pulled straight from GitHub
+          and npm.
+        </p>
+        <p className="text-muted-foreground mt-6 flex items-center gap-2 font-mono text-[11px] tracking-wide">
+          <LiveDot />
+          live · refreshes through the day
         </p>
       </header>
 
-      <section className="grid grid-cols-2 gap-x-8 gap-y-10 md:grid-cols-4 md:gap-x-12">
+      <section className="mt-12 grid grid-cols-2 gap-x-8 gap-y-10 md:mt-16 md:grid-cols-4 md:gap-x-12">
         <Stat
           value={repo ? formatCompact(repo.stars) : "—"}
           label="GitHub stars"
@@ -142,101 +159,105 @@ export default async function TractionPage() {
         ))}
       </section>
 
-      <section className="grid gap-16 lg:grid-cols-2">
-        <div className="flex flex-col gap-6">
-          <div>
-            <h2 className="text-sm font-medium">Stars over time</h2>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Sampled from the GitHub stargazers API.
-            </p>
+      <div className="border-foreground/10 mt-16 border-t md:mt-20">
+        <section className="border-foreground/10 border-b py-10 md:py-12">
+          <h2 className="text-sm font-medium">The curves</h2>
+          <div className="mt-6 grid gap-6 lg:grid-cols-2">
+            <Plate
+              fig="01"
+              caption="stars over time · weekly, from the star history api"
+            >
+              <StarHistoryChart data={starHistory} />
+            </Plate>
+            <Plate
+              fig="02"
+              caption={`monthly npm downloads · ${TIMELINE_PACKAGES.length} core packages`}
+            >
+              <DownloadsChart timeline={downloadsTimeline} />
+            </Plate>
           </div>
-          <StarHistoryChart data={starHistory} />
-        </div>
-        <div className="flex flex-col gap-6">
-          <div>
-            <h2 className="text-sm font-medium">Ecosystem downloads</h2>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Monthly npm downloads for the {TIMELINE_PACKAGES.length} core
-              packages.
-            </p>
+        </section>
+
+        <section className="border-foreground/10 border-b py-10 md:py-12">
+          <h2 className="text-sm font-medium">The cadence</h2>
+          <div className="mt-6">
+            <Plate
+              fig="03"
+              caption="a year of commits · a dot marks a release day"
+            >
+              <ActivityHeatmap
+                commits={commitActivity}
+                releases={releaseActivity}
+              />
+            </Plate>
           </div>
-          <DownloadsChart timeline={downloadsTimeline} />
-        </div>
-      </section>
+        </section>
 
-      <section className="flex flex-col gap-6">
-        <div>
-          <h2 className="text-sm font-medium">Shipping cadence</h2>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Daily commits over the last year. A dot marks a release day.
-          </p>
-        </div>
-        <ActivityHeatmap commits={commitActivity} releases={releaseActivity} />
-      </section>
-
-      {contributors && contributors.length > 0 ? (
-        <section className="flex flex-col gap-6">
-          <div>
-            <h2 className="text-sm font-medium">
-              Built by {contributors.length} contributors
-            </h2>
-            <p className="text-muted-foreground mt-1 text-sm">
+        {contributors && contributors.length > 0 ? (
+          <section className="border-foreground/10 border-b py-10 md:py-12">
+            <div className="flex items-baseline justify-between">
+              <h2 className="text-sm font-medium">The people</h2>
+              <span className="text-muted-foreground text-sm tabular-nums">
+                {contributors.length}
+              </span>
+            </div>
+            <p className="text-muted-foreground mt-6 text-sm">
               Everyone who has shipped code to assistant-ui.
             </p>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {contributors.map((c) => (
-              <a
-                key={c.login}
-                href={c.htmlUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={`${c.login} · ${c.contributions.toLocaleString()} commit${c.contributions === 1 ? "" : "s"}`}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={c.avatarUrl}
-                  alt={c.login}
-                  width={32}
-                  height={32}
-                  loading="lazy"
-                  className="size-8 rounded-full"
-                />
-              </a>
-            ))}
-          </div>
-          {botCoAuthors.length > 0 ? (
-            <div className="flex flex-col gap-3">
-              <p className="text-muted-foreground text-sm">
-                Also co-authored by
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {botCoAuthors.map((c) => (
-                  <a
-                    key={c.login}
-                    href={c.htmlUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title={`${c.login} · co-authored ${c.contributions.toLocaleString()} commit${c.contributions === 1 ? "" : "s"}`}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={c.avatarUrl}
-                      alt={c.login}
-                      width={32}
-                      height={32}
-                      loading="lazy"
-                      className="size-8 rounded-full"
-                    />
-                  </a>
-                ))}
-              </div>
+            <div className="mt-5 flex flex-wrap gap-1.5">
+              {contributors.map((c) => (
+                <a
+                  key={c.login}
+                  href={c.htmlUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`${c.login} · ${c.contributions.toLocaleString()} commit${c.contributions === 1 ? "" : "s"}`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={c.avatarUrl}
+                    alt={c.login}
+                    width={32}
+                    height={32}
+                    loading="lazy"
+                    className="size-8"
+                  />
+                </a>
+              ))}
             </div>
-          ) : null}
-        </section>
-      ) : null}
+            {botCoAuthors.length > 0 ? (
+              <div className="mt-8 flex flex-col gap-3">
+                <p className="text-muted-foreground/70 font-mono text-[11px] tracking-wide">
+                  also co-authored by
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {botCoAuthors.map((c) => (
+                    <a
+                      key={c.login}
+                      href={c.htmlUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={`${c.login} · co-authored ${c.contributions.toLocaleString()} commit${c.contributions === 1 ? "" : "s"}`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={c.avatarUrl}
+                        alt={c.login}
+                        width={32}
+                        height={32}
+                        loading="lazy"
+                        className="size-8"
+                      />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
+      </div>
 
-      <footer className="flex flex-wrap items-center gap-x-8 gap-y-3">
+      <footer className="mt-16 flex flex-wrap items-center gap-x-8 gap-y-3">
         <Link
           href="/packages"
           className="text-muted-foreground hover:text-foreground group inline-flex items-center gap-1.5 text-sm transition-colors"
@@ -271,7 +292,28 @@ function Stat({
         {value}
       </div>
       <div className="mt-2 text-sm">{label}</div>
-      <div className="text-muted-foreground mt-0.5 text-xs">{caption}</div>
+      <div className="text-muted-foreground/70 mt-1 font-mono text-[11px] tracking-wide">
+        {caption}
+      </div>
     </div>
+  );
+}
+
+function Plate({
+  fig,
+  caption,
+  children,
+}: {
+  fig: string;
+  caption: string;
+  children: ReactNode;
+}) {
+  return (
+    <figure className="flex flex-col gap-3">
+      <div className="border-foreground/10 border p-4 md:p-5">{children}</div>
+      <figcaption className="text-muted-foreground/70 font-mono text-[11px] tracking-wide">
+        fig. {fig} · {caption}
+      </figcaption>
+    </figure>
   );
 }

@@ -1,8 +1,22 @@
 import {
+  MAX_TRAVERSAL_DEPTH,
+  boundSpec,
+  clampReasonDetail,
+} from "../convert/boundSpec";
+import { copyBounded } from "../convert/copyBounded";
+import { isElement } from "../convert/isElement";
+import { takeRun } from "../convert/takeRun";
+import { hasFieldReference, resolveFieldReferences } from "../fieldReferences";
+import {
   normalizeSpec,
   type NormalizedUIElement,
   type NormalizedUINode,
 } from "../ir";
+import {
+  factTrend,
+  formatFactDelta,
+  formatValue,
+} from "../vocabulary/formatValue";
 import {
   ACTION_ID_CAP,
   ACTIONS_ELEMENT_CAP,
@@ -14,7 +28,7 @@ import {
   CARD_TITLE_CAP,
   CAROUSEL_CARD_CAP,
   CAROUSEL_CARD_MIN,
-  CHILDREN_CAP,
+  CHECKBOX_OPTION_CAP,
   CONTEXT_ELEMENT_CAP,
   CONTEXT_TEXT_CAP,
   DATA_TABLE_CHAR_BUDGET,
@@ -26,11 +40,8 @@ import {
   INPUT_LABEL_CAP,
   INTERACTIVE_TEXT_CAP,
   MARKDOWN_TEXT_BUDGET,
-  MAX_ELEMENT_DEPTH,
-  MAX_TRAVERSAL_DEPTH,
   MESSAGE_BLOCK_CAP,
   MODAL_BLOCK_CAP,
-  NODE_BUDGET,
   PLACEHOLDER_TEXT_CAP,
   RADIO_OPTION_CAP,
   SECTION_TEXT_CAP,
@@ -71,6 +82,7 @@ const INTERACTIVE_TYPES = new Set([
   "Select",
   "DatePicker",
   "Checkbox",
+  "CheckboxGroup",
   "RadioGroup",
 ]);
 
@@ -80,18 +92,23 @@ const INTERACTIVE_TYPES = new Set([
  * block rather than an actions element, but a reshape loses them the same way,
  * and a `Form` gets a Submit button whether or not it carries an action.
  */
-const CONTROL_TYPES = new Set([...INTERACTIVE_TYPES, "Input", "Form"]);
+const CONTROL_TYPES = new Set([
+  ...INTERACTIVE_TYPES,
+  "Input",
+  "Slider",
+  "Form",
+]);
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const isElement = (node: NormalizedUINode): node is NormalizedUIElement =>
-  isRecord(node);
-
 const asString = (value: unknown): string =>
   typeof value === "string" ? value : "";
+
+const asFiniteNumber = (value: unknown): number | undefined =>
+  typeof value === "number" && Number.isFinite(value) ? value : undefined;
 
 const warn = (
   context: ConversionContext,
@@ -158,7 +175,17 @@ const buttonElement = (
   component: string,
   context: ConversionContext,
 ): SlackButtonElement => {
-  const serializedValue = actionValue(action);
+  let payload = action;
+  if (hasFieldReference(action)) {
+    warn(
+      context,
+      "fallback",
+      component,
+      "field references in value became their fallback, or were dropped without one, because Slack sends no other control's value with a button click.",
+    );
+    payload = resolveFieldReferences(action, {});
+  }
+  const serializedValue = actionValue(payload);
   let value = serializedValue;
   if (value !== undefined && value.length > BUTTON_VALUE_CAP) {
     warn(
@@ -196,6 +223,7 @@ const optionFrom = (
   ) {
     return undefined;
   }
+  const description = asString(value["description"]);
   return {
     text: plainText(
       clampText(
@@ -207,7 +235,20 @@ const optionFrom = (
       ),
     ),
     value: value["value"],
-  };
+    ...(description
+      ? {
+          description: plainText(
+            clampText(
+              description,
+              INTERACTIVE_TEXT_CAP,
+              component,
+              "option description",
+              context,
+            ),
+          ),
+        }
+      : {}),
+  } as SlackOption;
 };
 
 const warnDroppedOptions = (
@@ -244,7 +285,11 @@ const toActionElement = (
       const rawOptions = Array.isArray(props["options"])
         ? props["options"]
         : [];
-      if (rawOptions.length > SELECT_OPTION_CAP) {
+      const { items: takenOptions, truncated } = copyBounded(
+        rawOptions,
+        SELECT_OPTION_CAP,
+      );
+      if (truncated) {
         warn(
           context,
           "clamped",
@@ -252,7 +297,6 @@ const toActionElement = (
           `options were clamped to ${SELECT_OPTION_CAP} entries.`,
         );
       }
-      const takenOptions = rawOptions.slice(0, SELECT_OPTION_CAP);
       const options = takenOptions
         .map((option) => optionFrom(option, "Select", context))
         .filter((option): option is SlackOption => option !== undefined);
@@ -269,10 +313,18 @@ const toActionElement = (
         "placeholder",
         context,
       );
+      const defaultValue = props["defaultValue"];
+      const initialOption =
+        typeof defaultValue === "string"
+          ? options.find((option) => option.value === defaultValue)
+          : undefined;
       return {
         type: "static_select",
         action_id: asActionId(action, "Select", context),
         options,
+        ...(initialOption !== undefined
+          ? { initial_option: initialOption }
+          : {}),
         ...(placeholder ? { placeholder: plainText(placeholder) } : {}),
       };
     }
@@ -315,11 +367,55 @@ const toActionElement = (
           : {}),
       };
     }
+    case "CheckboxGroup": {
+      const rawOptions = Array.isArray(props["options"])
+        ? props["options"]
+        : [];
+      const { items: takenOptions, truncated } = copyBounded(
+        rawOptions,
+        CHECKBOX_OPTION_CAP,
+      );
+      if (truncated) {
+        warn(
+          context,
+          "clamped",
+          "CheckboxGroup",
+          `options were clamped to ${CHECKBOX_OPTION_CAP} entries.`,
+        );
+      }
+      const options = takenOptions
+        .map((option) => optionFrom(option, "CheckboxGroup", context))
+        .filter((option): option is SlackOption => option !== undefined);
+      warnDroppedOptions(
+        options.length,
+        takenOptions.length,
+        "CheckboxGroup",
+        context,
+      );
+      const defaultValue = Array.isArray(props["defaultValue"])
+        ? props["defaultValue"]
+        : [];
+      const initialOptions = options.filter((option) =>
+        defaultValue.includes(option.value),
+      );
+      return {
+        type: "checkboxes",
+        action_id: asActionId(action, "CheckboxGroup", context),
+        options,
+        ...(initialOptions.length > 0
+          ? { initial_options: initialOptions }
+          : {}),
+      };
+    }
     case "RadioGroup": {
       const rawOptions = Array.isArray(props["options"])
         ? props["options"]
         : [];
-      if (rawOptions.length > RADIO_OPTION_CAP) {
+      const { items: takenOptions, truncated } = copyBounded(
+        rawOptions,
+        RADIO_OPTION_CAP,
+      );
+      if (truncated) {
         warn(
           context,
           "clamped",
@@ -327,7 +423,6 @@ const toActionElement = (
           `options were clamped to ${RADIO_OPTION_CAP} entries.`,
         );
       }
-      const takenOptions = rawOptions.slice(0, RADIO_OPTION_CAP);
       const options = takenOptions
         .map((option) => optionFrom(option, "RadioGroup", context))
         .filter((option): option is SlackOption => option !== undefined);
@@ -373,10 +468,15 @@ const convertFacts = (
   const fields = facts.map((fact) => {
     const label = asString(fact.props["label"]);
     const value = asString(fact.props["value"]);
+    const delta = fact.props["delta"];
+    const deltaText =
+      typeof delta === "string"
+        ? formatFactDelta(delta, factTrend(delta, fact.props["trend"]))
+        : undefined;
     return {
       type: "mrkdwn" as const,
       text: clampText(
-        `*${label}*\n${value}`,
+        `*${label}*\n${deltaText === undefined ? value : `${value} (${deltaText})`}`,
         FACT_FIELD_TEXT_CAP,
         "Fact",
         "field",
@@ -548,7 +648,11 @@ const assembleCleanCard = (
           ),
         }
       : undefined;
-  if (buttons.length > CARD_ACTIONS_CAP) {
+  const { items: boundedButtons, truncated } = copyBounded(
+    buttons,
+    CARD_ACTIONS_CAP,
+  );
+  if (truncated) {
     warn(
       context,
       "clamped",
@@ -563,9 +667,7 @@ const assembleCleanCard = (
       : {}),
     ...(body !== undefined ? { body } : {}),
     ...(subtext !== undefined ? { subtext } : {}),
-    ...(buttons.length > 0
-      ? { actions: buttons.slice(0, CARD_ACTIONS_CAP) }
-      : {}),
+    ...(boundedButtons.length > 0 ? { actions: boundedButtons } : {}),
   });
 };
 
@@ -758,7 +860,11 @@ const contextRow = (
   if (allChildren.length === 0 || children.length !== allChildren.length) {
     return undefined;
   }
-  if (children.length > CONTEXT_ELEMENT_CAP) {
+  const { items: boundedChildren, truncated } = copyBounded(
+    children,
+    CONTEXT_ELEMENT_CAP,
+  );
+  if (truncated) {
     warn(
       context,
       "clamped",
@@ -769,7 +875,7 @@ const contextRow = (
   return [
     {
       type: "context",
-      elements: children.slice(0, CONTEXT_ELEMENT_CAP).map((child) => ({
+      elements: boundedChildren.map((child) => ({
         type: "mrkdwn",
         text: clampText(
           asString(child.props["value"]),
@@ -874,7 +980,11 @@ const convertCarousel = (
       `${droppedCards} non-card ${droppedCards === 1 ? "child was" : "children were"} dropped.`,
     );
   }
-  if (cardChildren.length > CAROUSEL_CARD_CAP) {
+  const { items: boundedCards, truncated } = copyBounded(
+    cardChildren,
+    CAROUSEL_CARD_CAP,
+  );
+  if (truncated) {
     warn(
       context,
       "clamped",
@@ -882,8 +992,7 @@ const convertCarousel = (
       `cards were clamped to ${CAROUSEL_CARD_CAP} entries.`,
     );
   }
-  const cards = cardChildren
-    .slice(0, CAROUSEL_CARD_CAP)
+  const cards = boundedCards
     .map((card) => convertCarouselCard(card, context, depth + 1))
     .filter((card): card is SlackCardBlock => card !== undefined);
   if (cards.length < CAROUSEL_CARD_MIN) {
@@ -898,12 +1007,18 @@ const convertCarousel = (
   return [buildCarouselBlock(cards)];
 };
 
-const toDataTableCell = (value: unknown): SlackDataTableCell | undefined => {
-  if (typeof value === "number") {
+const toDataTableCell = (
+  value: unknown,
+  format: unknown,
+): SlackDataTableCell | undefined => {
+  if (typeof value === "number" && format === undefined) {
     return { type: "raw_number", text: String(value) };
   }
   if (typeof value === "string" || typeof value === "boolean") {
-    return { type: "raw_text", text: String(value) };
+    return { type: "raw_text", text: formatValue(value, format) };
+  }
+  if (typeof value === "number") {
+    return { type: "raw_text", text: formatValue(value, format) };
   }
   return undefined;
 };
@@ -921,7 +1036,15 @@ const convertTable = (
   const rawRows = Array.isArray(element.props["rows"])
     ? element.props["rows"]
     : [];
-  if (rawColumns.length > DATA_TABLE_COLUMN_CAP) {
+  const { items: takenColumns, truncated: columnsTruncated } = copyBounded(
+    rawColumns,
+    DATA_TABLE_COLUMN_CAP,
+  );
+  const { items: takenRows, truncated: rowsTruncated } = copyBounded(
+    rawRows,
+    DATA_TABLE_ROW_CAP,
+  );
+  if (columnsTruncated) {
     warn(
       context,
       "clamped",
@@ -929,7 +1052,7 @@ const convertTable = (
       `columns were clamped to ${DATA_TABLE_COLUMN_CAP} entries.`,
     );
   }
-  if (rawRows.length > DATA_TABLE_ROW_CAP) {
+  if (rowsTruncated) {
     warn(
       context,
       "clamped",
@@ -938,7 +1061,6 @@ const convertTable = (
     );
   }
 
-  const takenColumns = rawColumns.slice(0, DATA_TABLE_COLUMN_CAP);
   const unlabeled = takenColumns.filter(
     (column) => !isRecord(column) || typeof column["label"] !== "string",
   ).length;
@@ -954,16 +1076,20 @@ const convertTable = (
     type: "raw_text" as const,
     text: isRecord(column) ? asString(column["label"]) : "",
   }));
-  const dataRows: SlackDataTableCell[][] = rawRows
-    .slice(0, DATA_TABLE_ROW_CAP)
-    .map((row) =>
-      (Array.isArray(row) ? row : [])
-        .slice(0, DATA_TABLE_COLUMN_CAP)
-        .map(
-          (value) =>
-            toDataTableCell(value) ?? { type: "raw_text" as const, text: "" },
-        ),
-    );
+  const dataRows: SlackDataTableCell[][] = takenRows.map((row) =>
+    (Array.isArray(row)
+      ? copyBounded(row, DATA_TABLE_COLUMN_CAP).items
+      : []
+    ).map(
+      (value, index) =>
+        toDataTableCell(
+          value,
+          isRecord(takenColumns[index])
+            ? takenColumns[index]["format"]
+            : undefined,
+        ) ?? { type: "raw_text" as const, text: "" },
+    ),
+  );
   const width = Math.max(
     columnHeaderRow.length,
     0,
@@ -1093,8 +1219,42 @@ const convertElement = (
     case "Select":
     case "DatePicker":
     case "Checkbox":
+    case "CheckboxGroup":
     case "RadioGroup":
       return convertActions([element], context);
+    case "Slider": {
+      const label = clampText(
+        asString(props["label"]),
+        INPUT_LABEL_CAP,
+        "Slider",
+        "label",
+        context,
+      );
+      const min = asFiniteNumber(props["min"]);
+      const max = asFiniteNumber(props["max"]);
+      const step = asFiniteNumber(props["step"]);
+      const defaultValue = asFiniteNumber(props["defaultValue"]);
+      return [
+        {
+          type: "input",
+          label: plainText(label),
+          element: {
+            type: "number_input",
+            action_id: asActionId(element.action, "Slider", context),
+            ...(min !== undefined ? { min_value: min } : {}),
+            ...(max !== undefined ? { max_value: max } : {}),
+            ...(defaultValue !== undefined
+              ? { initial_value: defaultValue }
+              : {}),
+            ...([step, min, max, defaultValue].some(
+              (value) => value !== undefined && !Number.isInteger(value),
+            )
+              ? { is_decimal_allowed: true }
+              : {}),
+          },
+        } as unknown as SlackBlock,
+      ];
+    }
     case "Input": {
       const label = clampText(
         asString(props["label"]),
@@ -1110,6 +1270,7 @@ const convertElement = (
         "placeholder",
         context,
       );
+      const defaultValue = props["defaultValue"];
       return [
         {
           type: "input",
@@ -1118,6 +1279,9 @@ const convertElement = (
             type: "plain_text_input",
             action_id: asActionId(element.action, "Input", context),
             ...(props["multiline"] === true ? { multiline: true } : {}),
+            ...(typeof defaultValue === "string" && defaultValue
+              ? { initial_value: defaultValue }
+              : {}),
             ...(placeholder ? { placeholder: plainText(placeholder) } : {}),
           },
         },
@@ -1265,32 +1429,20 @@ function convertSequence(
       continue;
     }
     if (isElement(current) && current.type === "Fact") {
-      const facts: NormalizedUIElement[] = [];
-      while (index < nodes.length) {
-        const candidate = nodes[index];
-        if (!candidate || !isElement(candidate) || candidate.type !== "Fact") {
-          break;
-        }
-        facts.push(candidate);
-        index += 1;
-      }
+      const { run: facts, next } = takeRun(
+        nodes,
+        index,
+        (candidate) => candidate.type === "Fact",
+      );
+      index = next;
       blocks.push(...convertFacts(facts, context));
       continue;
     }
     if (isElement(current) && INTERACTIVE_TYPES.has(current.type)) {
-      const controls: NormalizedUIElement[] = [];
-      while (index < nodes.length) {
-        const candidate = nodes[index];
-        if (
-          !candidate ||
-          !isElement(candidate) ||
-          !INTERACTIVE_TYPES.has(candidate.type)
-        ) {
-          break;
-        }
-        controls.push(candidate);
-        index += 1;
-      }
+      const { run: controls, next } = takeRun(nodes, index, (candidate) =>
+        INTERACTIVE_TYPES.has(candidate.type),
+      );
+      index = next;
       blocks.push(...convertActions(controls, context));
       continue;
     }
@@ -1320,104 +1472,6 @@ function convertSequence(
   return blocks;
 }
 
-interface BoundState {
-  remaining: number;
-  exhausted: boolean;
-}
-
-type ClampReason = "children" | "budget" | "cycle" | "depth";
-
-function boundNode(
-  value: unknown,
-  depth: number,
-  onClamp: (reason: ClampReason) => void,
-  state: BoundState,
-  ancestors: WeakSet<object>,
-): unknown {
-  if (state.remaining <= 0) {
-    if (!state.exhausted) {
-      state.exhausted = true;
-      onClamp("budget");
-    }
-    return null;
-  }
-  state.remaining -= 1;
-  if (depth > MAX_TRAVERSAL_DEPTH) {
-    onClamp("depth");
-    return null;
-  }
-  if (Array.isArray(value)) {
-    if (ancestors.has(value)) {
-      onClamp("cycle");
-      return null;
-    }
-    ancestors.add(value);
-    const bounded = Array.prototype.slice.call(
-      value,
-      0,
-      CHILDREN_CAP,
-    ) as unknown[];
-    if (value.length > CHILDREN_CAP) onClamp("children");
-    const result = bounded.map((item) =>
-      boundNode(item, depth + 1, onClamp, state, ancestors),
-    );
-    ancestors.delete(value);
-    return result;
-  }
-  if (
-    value !== null &&
-    typeof value === "object" &&
-    "children" in (value as Record<string, unknown>)
-  ) {
-    if (ancestors.has(value)) {
-      onClamp("cycle");
-      return null;
-    }
-    ancestors.add(value);
-    const record = value as Record<string, unknown>;
-    const result = {
-      ...record,
-      children: boundNode(
-        record["children"],
-        depth + 1,
-        onClamp,
-        state,
-        ancestors,
-      ),
-    };
-    ancestors.delete(value);
-    return result;
-  }
-  return value;
-}
-
-/**
- * Produces a bounded plain copy of a raw generative-ui spec before it
- * reaches `normalizeSpec`, whose own traversal of the root array or any
- * `children` array walks the full reported length of a hostile proxied
- * array before any per-field cap downstream ever applies. Every array
- * (root, or `children` at any depth) is capped to {@link CHILDREN_CAP}
- * entries via `Array.prototype.slice`, which bounds even a proxy with a
- * fabricated `length`; recursion itself is capped at
- * {@link MAX_TRAVERSAL_DEPTH}. `onClamp` fires once per level that was
- * truncated, receiving the reason for that truncation: `"children"`,
- * `"depth"`, `"budget"`, or `"cycle"`. The walk also spends a total budget of
- * {@link NODE_BUDGET} nodes, so shared references cannot multiply work
- * exponentially, and a node that is its own ancestor is cut to `null`.
- */
-function boundSpec(
-  spec: unknown,
-  onClamp: (reason: ClampReason) => void,
-): unknown {
-  return boundNode(
-    spec,
-    0,
-    onClamp,
-    { remaining: NODE_BUDGET, exhausted: false },
-    new WeakSet(),
-  );
-}
-
 /** Converts a generative-UI tree into Slack Block Kit JSON and downgrade warnings. */
 export function toSlackBlocks(
   node: unknown,
@@ -1433,17 +1487,9 @@ export function toSlackBlocks(
     dataTableCharacters: 0,
   };
   try {
-    const bounded = boundSpec(node, (reason) => {
-      const detail =
-        reason === "budget"
-          ? `the tree was truncated after ${NODE_BUDGET} nodes.`
-          : reason === "cycle"
-            ? "a self-referencing node was dropped."
-            : reason === "depth"
-              ? `nodes deeper than ${MAX_ELEMENT_DEPTH} levels were dropped.`
-              : `children were clamped to ${CHILDREN_CAP} entries.`;
-      warn(context, "clamped", "Root", detail);
-    });
+    const bounded = boundSpec(node, (reason) =>
+      warn(context, "clamped", "Root", clampReasonDetail(reason)),
+    );
     const { root } = normalizeSpec(bounded as never);
     const converted = convertSequence(root, context, 0);
     if (converted.length <= context.blockCap) {

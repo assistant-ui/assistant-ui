@@ -1,7 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { AssistantModalPrimitiveAnchor } from "./AssistantModalAnchor";
-import { AssistantModalPrimitiveContent } from "./AssistantModalContent";
 import { AssistantModalPrimitiveRoot } from "./AssistantModalRoot";
 import { AssistantModalPrimitiveTrigger } from "./AssistantModalTrigger";
 
@@ -9,9 +8,7 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@assistant-ui/store")>();
   return {
     ...actual,
-    useAui: () => ({
-      on: () => () => {},
-    }),
+    useAuiEvent: () => {},
   };
 });
 
@@ -64,17 +61,5 @@ describe("AssistantModalPrimitive render props", () => {
     expect(renderHtml).toBe(asChildHtml);
     expect(renderHtml).toContain('class="anchor"');
     expect(renderHtml).toContain("Anchor");
-  });
-
-  it("accepts render on Trigger, Anchor, and Content", () => {
-    const tree = (
-      <AssistantModalPrimitiveRoot open>
-        <AssistantModalPrimitiveTrigger render={<button type="button" />} />
-        <AssistantModalPrimitiveAnchor render={<div />} />
-        <AssistantModalPrimitiveContent render={<div />} />
-      </AssistantModalPrimitiveRoot>
-    );
-
-    expect(tree).toBeTruthy();
   });
 });

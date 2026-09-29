@@ -72,7 +72,7 @@ export const collapse: AnnotationHandler[] = [
         render={
           <InnerLine
             merge={props}
-            className="ch-collapse-trigger not-data-[panel-open]:after:text-fd-muted-foreground/60 cursor-pointer select-none not-data-[panel-open]:whitespace-nowrap not-data-[panel-open]:after:ml-2 not-data-[panel-open]:after:content-['⋯']"
+            className="ch-collapse-trigger not-data-[panel-open]:after:text-muted-foreground/60 cursor-pointer select-none not-data-[panel-open]:whitespace-nowrap not-data-[panel-open]:after:ml-2 not-data-[panel-open]:after:content-['⋯']"
           />
         }
       />

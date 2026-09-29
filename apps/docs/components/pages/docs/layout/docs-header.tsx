@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type * as PageTree from "fumadocs-core/page-tree";
 import { ArrowUpRight, LayoutGrid, Menu, Search, X } from "lucide-react";
-import { useSearchContext } from "fumadocs-ui/contexts/search";
+import { useSearchContext } from "@/components/shared/search-provider";
 import { NAV_ITEMS, CLOUD_URL, type NavItem } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
@@ -13,23 +13,25 @@ import { MoreDropdown } from "@/components/shared/more-dropdown";
 import { NavItems, NavItemsRoot } from "@/components/shared/nav-items";
 import { useDocsSidebar } from "@/components/pages/docs/contexts/sidebar";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
-import { getPanelWidth } from "@/components/pages/docs/layout/docs-layout";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { HeaderBrandLink } from "@/components/shared/header-brand-link";
+import { CartButton } from "@/components/shared/shop-entry";
 import { headerBarClassName } from "@/components/shared/header-chrome";
 import { useScrolled } from "@/hooks/use-scrolled";
 import { analytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { usePlatform } from "@/components/pages/docs/platform/context";
+import { PlatformSwitcher } from "@/components/pages/docs/platform/switcher";
 import {
   buildPlatformSections,
   findPathToNode,
+  getPlatformHomeUrl,
 } from "@/components/pages/docs/platform/tree";
 
 interface DocsHeaderProps {
   section: string;
   sectionHref: string;
-  mobileSectionTree?: PageTree.Root | undefined;
+  tree: PageTree.Root;
 }
 
 function AskAIButton() {
@@ -126,11 +128,7 @@ function MobileSectionBreadcrumb({
   );
 }
 
-export function DocsHeader({
-  section,
-  sectionHref,
-  mobileSectionTree,
-}: DocsHeaderProps) {
+export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
   const { setOpenSearch } = useSearchContext();
   const {
     open: sidebarOpen,
@@ -138,8 +136,12 @@ export function DocsHeader({
     toggle: toggleSidebar,
   } = useDocsSidebar();
   const [navMenuOpen, setNavMenuOpen] = useState(false);
-  const { open, width, isResizing } = useAssistantPanel();
   const scrolled = useScrolled();
+  const { platform } = usePlatform();
+  const homeHref = useMemo(
+    () => getPlatformHomeUrl(tree, platform) ?? sectionHref,
+    [tree, platform, sectionHref],
+  );
 
   const sectionFilter = (item: (typeof NAV_ITEMS)[number]) =>
     item.type !== "link" || item.href !== sectionHref;
@@ -163,18 +165,7 @@ export function DocsHeader({
   };
 
   return (
-    <header
-      className={cn(
-        "sticky top-0 z-50 md:mr-(--chat-panel-width)",
-        !isResizing &&
-          "transition-[margin] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]",
-      )}
-      style={
-        {
-          "--chat-panel-width": getPanelWidth(open, width),
-        } as React.CSSProperties
-      }
-    >
+    <header className="sticky top-0 z-50">
       <NavItemsRoot>
         <div
           className={headerBarClassName(
@@ -184,23 +175,25 @@ export function DocsHeader({
         >
           <div className="flex min-w-0 flex-1 items-center">
             <HeaderBrandLink labelClassName="hidden sm:inline" />
-            <span className="text-muted-foreground/40 mx-3">/</span>
+            <span className="text-muted-foreground/40 mx-3 max-md:hidden">
+              /
+            </span>
             <Link
-              href={sectionHref}
-              className="text-foreground hover:text-foreground/80 text-sm font-medium transition-colors"
+              href={homeHref}
+              className="text-foreground hover:text-foreground/80 text-sm font-medium transition-colors max-md:hidden"
             >
               {section}
             </Link>
-            {mobileSectionTree && (
-              <MobileSectionBreadcrumb
-                tree={mobileSectionTree}
-                section={section}
-              />
-            )}
+            <span className="flex items-center max-lg:hidden">
+              <span className="text-muted-foreground mx-1.5 text-sm">for</span>
+              <PlatformSwitcher tree={tree} />
+            </span>
+            <MobileSectionBreadcrumb tree={tree} section={section} />
           </div>
 
           {/* Mobile controls */}
           <div className="ml-auto flex shrink-0 items-center gap-1 md:hidden">
+            <CartButton />
             <AskAIButton />
             <button
               type="button"
@@ -213,7 +206,6 @@ export function DocsHeader({
             >
               <Search className="size-4" />
             </button>
-            <ThemeToggle />
             <button
               type="button"
               onClick={handleNavMenuToggle}
@@ -221,9 +213,9 @@ export function DocsHeader({
               aria-label="Site navigation"
             >
               {navMenuOpen ? (
-                <X className="size-5" />
+                <X className="size-4" />
               ) : (
-                <LayoutGrid className="size-4.5" />
+                <LayoutGrid className="size-4" />
               )}
             </button>
             <button
@@ -233,9 +225,9 @@ export function DocsHeader({
               aria-label="Toggle sidebar"
             >
               {sidebarOpen ? (
-                <X className="size-5" />
+                <X className="size-4" />
               ) : (
-                <Menu className="size-5" />
+                <Menu className="size-4" />
               )}
             </button>
           </div>
@@ -243,6 +235,7 @@ export function DocsHeader({
           {/* Condensed nav: md to lg */}
           <div className="ml-auto hidden items-center gap-4 md:flex lg:hidden">
             <div className="flex items-center gap-2">
+              <CartButton />
               <AskAIButton />
               <button
                 type="button"
@@ -257,7 +250,10 @@ export function DocsHeader({
               </button>
             </div>
             <div className="flex shrink-0 items-center">
-              <NavItems items={condensedItems} menuAlign="end" />
+              <NavItems
+                items={condensedItems}
+                contentClassName="mx-auto max-w-7xl"
+              />
               {moreItems.length > 0 && <MoreDropdown items={moreItems} />}
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -281,10 +277,14 @@ export function DocsHeader({
           {/* Full nav: lg+ */}
           <div className="ml-auto hidden items-center gap-4 lg:flex">
             <div className="flex min-w-0 items-center gap-2">
+              <CartButton />
               <AskAIButton />
               <HeaderSearch />
             </div>
-            <NavItems items={filteredItems} menuAlign="end" />
+            <NavItems
+              items={filteredItems}
+              contentClassName="mx-auto max-w-7xl"
+            />
             <div className="flex shrink-0 items-center gap-2">
               <Button
                 size="sm"
@@ -376,7 +376,7 @@ export function DocsHeader({
                 </div>
               );
             })}
-            <div className="mt-auto border-t py-6">
+            <div className="mt-auto flex items-center justify-between border-t py-6">
               <Button
                 size="sm"
                 nativeButton={false}
@@ -392,6 +392,7 @@ export function DocsHeader({
               >
                 Cloud
               </Button>
+              <ThemeToggle />
             </div>
           </div>
         </div>

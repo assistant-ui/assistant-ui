@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { describe, expect, it } from "vitest";
 import { normalizeToolList } from "./toolNormalization";
 
@@ -64,8 +65,73 @@ describe("normalizeToolList", () => {
     expect(tools[1]?.disabled).toBe(true);
   });
 
+  it("preserves array entries around an unreadable slot", () => {
+    const tools = [
+      { name: "first", type: "frontend" },
+      { name: "hidden-one", type: "frontend" },
+      { name: "hidden-two", type: "frontend" },
+      { name: "last", type: "backend" },
+    ];
+    Object.defineProperty(tools, 1, {
+      get: () => {
+        throw new Error("tool unavailable");
+      },
+    });
+    Object.defineProperty(tools, 2, {
+      get: () => {
+        throw new Error("tool unavailable");
+      },
+    });
+
+    expect(normalizeToolList(tools)).toEqual([
+      { name: "first", type: "frontend" },
+      { name: "[Unserializable]" },
+      { name: "[Unserializable]" },
+      { name: "last", type: "backend" },
+    ]);
+  });
+
+  it("keeps Zod schemas that cannot be converted to JSON Schema", () => {
+    const parameters = z.object({ when: z.date() });
+
+    expect(normalizeToolList({ schedule: { parameters } })[0]?.parameters).toBe(
+      parameters,
+    );
+  });
+
   it("returns an empty list for non-objects", () => {
     expect(normalizeToolList(undefined)).toEqual([]);
     expect(normalizeToolList(null)).toEqual([]);
+  });
+
+  it("preserves readable tool properties when another getter throws", () => {
+    const tool = { description: "Search documents" };
+    Object.defineProperty(tool, "type", {
+      enumerable: true,
+      get: () => {
+        throw new Error("type unavailable");
+      },
+    });
+
+    expect(normalizeToolList({ search: tool })).toEqual([
+      {
+        name: "search",
+        type: "[Unserializable]",
+        description: "Search documents",
+      },
+    ]);
+  });
+
+  it("represents a tool collection that rejects enumeration", () => {
+    const tools = new Proxy(
+      {},
+      {
+        ownKeys: () => {
+          throw new Error("enumeration unavailable");
+        },
+      },
+    );
+
+    expect(normalizeToolList(tools)).toEqual([{ name: "[Unserializable]" }]);
   });
 });

@@ -1,5 +1,95 @@
 # @assistant-ui/react-generative-ui
 
+## 0.0.21
+
+### Patch Changes
+
+- [#8375](https://github.com/assistant-ui/assistant-ui/pull/8375) [`b20a7bc`](https://github.com/assistant-ui/assistant-ui/commit/b20a7bcb199ae6cfed9fed5951645fa3d8516071) - fix: the A2UI converter follows v0.9 and v1.0 `child` references, so a spec `Card` keeps its content and a spec `Button` takes its label from its child `Text` (any other child, such as an `Icon`, renders inside the button); a button action written as `{ event: { name, context } }` dispatches like the bare `{ name, context }` form; with `keepUnknownComponents`, a kept `Modal` or `Tabs` keeps the components it references as children, and a child reference the converter cannot follow is reported as a warning ([@okisdev](https://github.com/okisdev))
+
+## 0.0.20
+
+### Patch Changes
+
+- [#8059](https://github.com/assistant-ui/assistant-ui/pull/8059) [`bc3f835`](https://github.com/assistant-ui/assistant-ui/commit/bc3f835989feefc5252243602fb21948ae3a335c) - feat: `surfaceToOperations` turns a reduced A2UI surface into operations that replay it, `convertSurfaceToUISpec` can keep unknown components with `keepUnknownComponents`, and `Icon`, `List`, `ChoicePicker` and `DateTimeInput` now render ([@okisdev](https://github.com/okisdev))
+
+- [#7739](https://github.com/assistant-ui/assistant-ui/pull/7739) [`a9a5978`](https://github.com/assistant-ui/assistant-ui/commit/a9a5978a2c9b10bf12ada704bea7fd6cf46d959c) - fix: preserve model-provided children when rendering `RadioGroup` ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#8066](https://github.com/assistant-ui/assistant-ui/pull/8066) [`981eec1`](https://github.com/assistant-ui/assistant-ui/commit/981eec19def73df8341cb51bc88a612858d2d544) - feat: an action fired in `present` or `prompt_user` output is recorded on its tool call, and a value returned by a `prompt_user` action handler becomes the tool result ([@okisdev](https://github.com/okisdev))
+
+- [#7375](https://github.com/assistant-ui/assistant-ui/pull/7375) [`36da8b7`](https://github.com/assistant-ui/assistant-ui/commit/36da8b72c88586cfc42d3ac2f21757702952a2be) - fix: preserve recursive component schema references in generative UI tool parameters. ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`9619b42`](https://github.com/assistant-ui/assistant-ui/commit/9619b4207b96cad96ec649856454db2a937aea79), [`dcd43fd`](https://github.com/assistant-ui/assistant-ui/commit/dcd43fd08ea0194425ed9148e7ae0ce64a1e67d5), [`e046327`](https://github.com/assistant-ui/assistant-ui/commit/e04632746cee8bc3fbc29b58cf23df4e12b12990), [`e525f14`](https://github.com/assistant-ui/assistant-ui/commit/e525f14b0bd7acbd1f3b4d268aa21d175afa9a94), [`4b069f9`](https://github.com/assistant-ui/assistant-ui/commit/4b069f90fbcb58953ebc7b9c4becca0bf4607842)]:
+  - assistant-stream@0.3.45
+
+## 0.0.19
+
+### Patch Changes
+
+- [#7613](https://github.com/assistant-ui/assistant-ui/pull/7613) [`0f6ef69`](https://github.com/assistant-ui/assistant-ui/commit/0f6ef69f38273dde77b5056985d7c198f15ac1eb) - fix: exclude controls disabled by an ancestor fieldset from form payloads ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7614](https://github.com/assistant-ui/assistant-ui/pull/7614) [`fd31eda`](https://github.com/assistant-ui/assistant-ui/commit/fd31eda583b94d7aec5efb48e0ba384014d34e5c) - fix: keep internal radio-group names out of submitted form payloads ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#7591](https://github.com/assistant-ui/assistant-ui/pull/7591) [`408d5f4`](https://github.com/assistant-ui/assistant-ui/commit/408d5f43a69baa9df723b395eaafba7a501f8884) - fix: keep package imports external in `aui-build` output without resolving them, and fail the build when anything from `node_modules` would be bundled. `assistant-stream` and `@assistant-ui/react-generative-ui` now depend on `@types/json-schema` instead of shipping a copy of it under `dist/node_modules`. ([@okisdev](https://github.com/okisdev))
+
+- [#7548](https://github.com/assistant-ui/assistant-ui/pull/7548) [`fdca3dd`](https://github.com/assistant-ui/assistant-ui/commit/fdca3dd2fff9d383ee14c337a5cb5980670bde0f) - fix: declare the injected `$status` on the RadioGroup render props, matching what the renderer passes to every vocabulary component ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`562e495`](https://github.com/assistant-ui/assistant-ui/commit/562e495139605d5279e9bd39abc223ef52b79a94), [`99c9988`](https://github.com/assistant-ui/assistant-ui/commit/99c9988951b5c469b2706bc3c85116a65660836a), [`37a5a95`](https://github.com/assistant-ui/assistant-ui/commit/37a5a955d4d51a1b7013232a358e5e7461879d28), [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc), [`408d5f4`](https://github.com/assistant-ui/assistant-ui/commit/408d5f43a69baa9df723b395eaafba7a501f8884), [`70b633f`](https://github.com/assistant-ui/assistant-ui/commit/70b633f378deff6c693f2720ceb9cbb5b8677d8c)]:
+  - assistant-stream@0.3.44
+
+## 0.0.18
+
+### Patch Changes
+
+- [#7092](https://github.com/assistant-ui/assistant-ui/pull/7092) [`d078061`](https://github.com/assistant-ui/assistant-ui/commit/d078061491d40abc0d5089d000891420620c48db) - fix: preserve prototype-named A2UI action context fields ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7078](https://github.com/assistant-ui/assistant-ui/pull/7078) [`bc28f59`](https://github.com/assistant-ui/assistant-ui/commit/bc28f59ae79e3ce3e12adf2bc2d0158b04c5fe5e) - fix: bound A2UI data model array expansion ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7130](https://github.com/assistant-ui/assistant-ui/pull/7130) [`83122bc`](https://github.com/assistant-ui/assistant-ui/commit/83122bc9054d4e78c8453860e79a2e21fe1f1fe4) - fix: treat inherited library properties as unknown component names ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7086](https://github.com/assistant-ui/assistant-ui/pull/7086) [`52ee9df`](https://github.com/assistant-ui/assistant-ui/commit/52ee9df98f523e421d45c3807d6ac4d97b90ec79) - fix: preserve prototype-named A2UI data model paths ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7131](https://github.com/assistant-ui/assistant-ui/pull/7131) [`efebf22`](https://github.com/assistant-ui/assistant-ui/commit/efebf22ed3dcfb075d19d234bb5477152495ff99) - fix: tolerate malformed Select and Table collection props while ignoring invalid entries ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7153](https://github.com/assistant-ui/assistant-ui/pull/7153) [`c46251c`](https://github.com/assistant-ui/assistant-ui/commit/c46251c1d6797eda7627738a403efd3c0adb2354) - fix: tolerate malformed text properties while rendering generated UI ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7072](https://github.com/assistant-ui/assistant-ui/pull/7072) [`bcc621f`](https://github.com/assistant-ui/assistant-ui/commit/bcc621f3a9f633ae11f7e53882f82f996edf8af9) - fix: apply A2UI null updates as data model deletions ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6991](https://github.com/assistant-ui/assistant-ui/pull/6991) [`873ca16`](https://github.com/assistant-ui/assistant-ui/commit/873ca169f6271fc247e317eb24fd5d897b96d657) - fix: preserve prototype-named properties in generated component schemas ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`3bcd6db`](https://github.com/assistant-ui/assistant-ui/commit/3bcd6dbacd4ac0d13c30cf82b974e98aaa514ad9), [`a16b990`](https://github.com/assistant-ui/assistant-ui/commit/a16b9908d0a4ee74573ee94228b4d87aa4f977f8), [`253c80d`](https://github.com/assistant-ui/assistant-ui/commit/253c80de81d07ee556978d99e342f8bc1b57cb0a), [`e6158c8`](https://github.com/assistant-ui/assistant-ui/commit/e6158c8af3306f9af4af2fea8987ded698d6393e), [`623d5ff`](https://github.com/assistant-ui/assistant-ui/commit/623d5ff90ef93a892152f8f1219b0560ea124d97), [`07eeb54`](https://github.com/assistant-ui/assistant-ui/commit/07eeb54de16fed4b7a1afc7de0b2aa264c51a299), [`12c5447`](https://github.com/assistant-ui/assistant-ui/commit/12c54477a18b0ebd2b9cf397da1a1427704ea0c9), [`9b9d5e9`](https://github.com/assistant-ui/assistant-ui/commit/9b9d5e936395ce878464c9c50a75e8344aaeb067), [`afac9e0`](https://github.com/assistant-ui/assistant-ui/commit/afac9e02911f05684309087b4e2d9e0ee9b2bc1f), [`4cdcabb`](https://github.com/assistant-ui/assistant-ui/commit/4cdcabb1a914b48af214da59896fe3c716465321), [`23d2865`](https://github.com/assistant-ui/assistant-ui/commit/23d286573f68875ade98b2fd01ed3e36c0d629f4), [`b505555`](https://github.com/assistant-ui/assistant-ui/commit/b505555a7a8c98e09bdcb718dd74aaa48eb57bee), [`01fdd4b`](https://github.com/assistant-ui/assistant-ui/commit/01fdd4b204f4c3d2c151f7a0ac356706de5b923b), [`59a8251`](https://github.com/assistant-ui/assistant-ui/commit/59a825190f80f6036984650bc36c5aa260e7e332)]:
+  - assistant-stream@0.3.42
+
+## 0.0.17
+
+### Patch Changes
+
+- [#6695](https://github.com/assistant-ui/assistant-ui/pull/6695) [`d746b30`](https://github.com/assistant-ui/assistant-ui/commit/d746b30d2cf47648eb9b4db2a7776df174da3719) - refactor: cap the Teams carousel through the shared bounded copy ([@okisdev](https://github.com/okisdev))
+
+- [#6691](https://github.com/assistant-ui/assistant-ui/pull/6691) [`56ce8cc`](https://github.com/assistant-ui/assistant-ui/commit/56ce8ccaa2fe5b2b2a7e724b7b99e99d8801c043) - fix: bound a node whose `has` trap hides `children` from the pre-pass ([@okisdev](https://github.com/okisdev))
+  
+  `boundSpec` gated its record branch on `"children" in value`, a `[[HasProperty]]`, while every consumer reads `children` with `[[Get]]`. A record whose `has` trap answered `false` for `"children"` was returned untouched, and `normalizeSpec` then pulled the array through the `get` trap and walked its full reported length, skipping the children cap, the node budget, and the depth ceiling. Every object is now returned as a plain copy whose `children` comes from the same read the bound used.
+
+- [#6639](https://github.com/assistant-ui/assistant-ui/pull/6639) [`05e3e6d`](https://github.com/assistant-ui/assistant-ui/commit/05e3e6d3971dac4ce20fc7e2a87d187d78b0e449) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`46fad14`](https://github.com/assistant-ui/assistant-ui/commit/46fad145974a890cd18f7fc2df54e9d0bf36b0fb), [`f0d0aa2`](https://github.com/assistant-ui/assistant-ui/commit/f0d0aa2f87b9d881f7003bf6132bbb519509b36b), [`5bdd416`](https://github.com/assistant-ui/assistant-ui/commit/5bdd416af4379a2cc86c12292e06a6e3ce5fcdb9), [`e53299b`](https://github.com/assistant-ui/assistant-ui/commit/e53299be07fd69bd5d64a2f50bd3561d85dc47cc)]:
+  - assistant-stream@0.3.41
+
+## 0.0.16
+
+### Patch Changes
+
+- [#6289](https://github.com/assistant-ui/assistant-ui/pull/6289) [`fd42628`](https://github.com/assistant-ui/assistant-ui/commit/fd42628727e34723cc4f627352cc0fed70863ad7) - fix: allow ListViewItem actions to fire from the row trigger ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6392](https://github.com/assistant-ui/assistant-ui/pull/6392) [`e3bbc32`](https://github.com/assistant-ui/assistant-ui/commit/e3bbc322286eb251c22bbc1ccf0c24136deb9e6a) - refactor: share one contiguous-run helper and one element predicate across the converters ([@samdickson22](https://github.com/samdickson22))
+
+- [#6436](https://github.com/assistant-ui/assistant-ui/pull/6436) [`ae40ac8`](https://github.com/assistant-ui/assistant-ui/commit/ae40ac88368843034ed9ceb2b1a28451513c99e4) - fix: bound outbound prop arrays by index before conversion ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6305](https://github.com/assistant-ui/assistant-ui/pull/6305) [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#6397](https://github.com/assistant-ui/assistant-ui/pull/6397) [`563fd25`](https://github.com/assistant-ui/assistant-ui/commit/563fd2518cf64288fe0ccb71394d4ff37d5cf40a) - refactor: share one spec-bounding pre-pass between the Slack and Teams converters ([@samdickson22](https://github.com/samdickson22))
+
+- [#6426](https://github.com/assistant-ui/assistant-ui/pull/6426) [`4b98f3b`](https://github.com/assistant-ui/assistant-ui/commit/4b98f3b59ce55e5563e2025c54105283e5f2cc28) - fix: bound the Slack decoder and the spec pre-pass by index so a replaced slice or Symbol.species cannot defeat their caps ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`8626c1f`](https://github.com/assistant-ui/assistant-ui/commit/8626c1ffe1c6d56ec75073e795aa9fbf7493c3ed), [`531f61a`](https://github.com/assistant-ui/assistant-ui/commit/531f61a4d2f5fcee16821a6401d9d11394bf8339), [`dfaa94f`](https://github.com/assistant-ui/assistant-ui/commit/dfaa94fca3ecdd8b0b0ab202f08dafd03c1e2ed5), [`a4bc54a`](https://github.com/assistant-ui/assistant-ui/commit/a4bc54afa976423b6310a2d5be350df0f3b41e42), [`fd471e9`](https://github.com/assistant-ui/assistant-ui/commit/fd471e94babf7b6580e06bbea2b7a8cdd4882869), [`ac7ec15`](https://github.com/assistant-ui/assistant-ui/commit/ac7ec15e118a9279dd60521b839ecc38983675c5), [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d), [`f96e22f`](https://github.com/assistant-ui/assistant-ui/commit/f96e22ffa8c85cbfc4a878db4f371c510070066d), [`bfc8bef`](https://github.com/assistant-ui/assistant-ui/commit/bfc8bef9f1ee6cb4cb25f83488a0e4ce1a393ff3), [`2cd5cbc`](https://github.com/assistant-ui/assistant-ui/commit/2cd5cbcf78c586b7557421b00e9c996c62bd7f43), [`105af3e`](https://github.com/assistant-ui/assistant-ui/commit/105af3eaea2093df271d9c44642e1c04d5f5cf7c), [`4c3194a`](https://github.com/assistant-ui/assistant-ui/commit/4c3194aca4470753a2a37e244cb5e3fb27cbc76b)]:
+  - assistant-stream@0.3.40
+
 ## 0.0.15
 
 ### Patch Changes

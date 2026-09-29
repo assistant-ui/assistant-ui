@@ -1,9 +1,14 @@
 import type { Metadata } from "next";
-import { DocsPage, DocsBody } from "fumadocs-ui/page";
+import {
+  DocsBody,
+  DocsPageShell,
+} from "@/components/pages/docs/layout/docs-page";
 import { notFound, redirect } from "next/navigation";
 import { createOgMetadata } from "@/lib/og";
 import { getMDXComponents } from "@/mdx-components";
 import { source } from "@/lib/source";
+import { DEFAULT_PLATFORM, PLATFORM_LABELS } from "@/lib/constants";
+import { getPagePlatform } from "@/components/pages/docs/platform/tree";
 import { getPageTreePeers } from "fumadocs-core/page-tree";
 import { getDocsNeighbours } from "@/lib/docs-neighbours";
 import { Card, Cards } from "@/components/pages/docs/fumadocs/card";
@@ -11,7 +16,7 @@ import { TableOfContents } from "@/components/pages/docs/layout/table-of-content
 import { DocsFooter } from "@/components/pages/docs/layout/docs-footer";
 import { DocsPager } from "@/components/pages/docs/layout/docs-pager";
 import { ArrowUpRight } from "lucide-react";
-import { Badge } from "@/components/assistant-ui/badge";
+import { Badge } from "@/components/ui/badge";
 
 function DocsCategory({ url }: { url?: string }) {
   const effectiveUrl = url ?? "";
@@ -40,6 +45,7 @@ export default async function Page(props: {
     notFound();
   }
 
+  const { body: MdxBody, toc } = await page.data.load();
   const mdxComponents = getMDXComponents({
     DocsCategory,
   });
@@ -53,25 +59,15 @@ export default async function Page(props: {
   const footerNext = neighbours.next;
 
   return (
-    <DocsPage
-      toc={page.data.toc}
-      full
-      tableOfContent={{
-        enabled: true,
-        component: (
-          <TableOfContents
-            items={page.data.toc}
-            githubEditUrl={githubEditUrl}
-            markdownUrl={markdownUrl}
-          />
-        ),
-      }}
-      tableOfContentPopover={{
-        enabled: false,
-      }}
-      footer={{
-        enabled: false,
-      }}
+    <DocsPageShell
+      toc={
+        <TableOfContents
+          items={toc}
+          githubEditUrl={githubEditUrl}
+          markdownUrl={markdownUrl}
+          platformAwareMarkdown
+        />
+      }
     >
       <DocsBody data-page-content="">
         <header className="not-prose mb-8">
@@ -83,6 +79,8 @@ export default async function Page(props: {
               {...(footerPrevious && { previous: { url: footerPrevious.url } })}
               {...(footerNext && { next: { url: footerNext.url } })}
               markdownUrl={markdownUrl}
+              title={page.data.title}
+              platformAwareMarkdown
             />
           </div>
           {page.data.description && (
@@ -95,7 +93,7 @@ export default async function Page(props: {
               {page.data.links.map((link) => (
                 <Badge
                   key={link.url}
-                  variant="muted"
+                  variant="secondary"
                   render={
                     <a
                       href={link.url}
@@ -111,10 +109,10 @@ export default async function Page(props: {
             </div>
           )}
         </header>
-        <page.data.body components={mdxComponents} />
+        <MdxBody components={mdxComponents} />
         <DocsFooter previous={footerPrevious} next={footerNext} />
       </DocsBody>
-    </DocsPage>
+    </DocsPageShell>
   );
 }
 
@@ -129,9 +127,15 @@ export async function generateMetadata(
   const page = source.getPage(slug);
   if (!page) return { title: "Not Found" };
 
+  const platform = getPagePlatform(source.pageTree, page.url);
+  const title =
+    platform === DEFAULT_PLATFORM
+      ? page.data.title
+      : `${page.data.title} · ${PLATFORM_LABELS[platform]}`;
+
   return {
-    title: page.data.title,
+    title,
     description: page.data.description,
-    ...createOgMetadata(page.data.title, page.data.description),
+    ...createOgMetadata(title, page.data.description),
   };
 }

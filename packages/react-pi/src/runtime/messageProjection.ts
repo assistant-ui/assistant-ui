@@ -13,10 +13,11 @@
  *   `toolCallId` (parallel tools finish out of source order — pairing is by id,
  *   not position).
  * - Live streaming tool output (`toolExecutions[id].partialResult`) fills a
- *   tool-call's `result` until the final `toolResult` message lands.
- * - Tool-associated host-UI requests project onto the tool-call as native
- *   `approval` (confirm) / `interrupt` (select/input/editor). Free-standing
- *   requests stay on the side channel (not projected here).
+ *   tool-call's `result`, flagged `isPreliminary` while the tool still runs,
+ *   until the final `toolResult` message lands.
+ * - Tool-associated host-UI requests project onto the tool-call's `approval`
+ *   (`approvalForRequest`). Free-standing requests stay on the side channel
+ *   (not projected here).
  * - Every other Pi role (`bashExecution`, `custom`, `branchSummary`,
  *   `compactionSummary`, unknown) becomes a standalone `DataMessagePart`.
  *
@@ -24,7 +25,13 @@
  */
 
 import { ExportedMessageRepository } from "@assistant-ui/react";
-import type { ThreadMessageLike } from "@assistant-ui/react";
+import { parseDataUrl } from "@assistant-ui/core/internal";
+import type {
+  ThreadMessageLike,
+  ToolCallMessagePart,
+  ToolModelContentPart,
+} from "@assistant-ui/react";
+import { approvalForRequest, splitHostUiRequests } from "./hostUi";
 import type { PiThreadState } from "./threadState";
 import type {
   PiAgentMessage,
@@ -41,7 +48,8 @@ import type {
 } from "../types";
 
 type ContentPart = Exclude<ThreadMessageLike["content"], string>[number];
-type ToolCallPart = Extract<ContentPart, { type: "tool-call" }>;
+type ToolCallPart = Extract<ContentPart, { type: "tool-call" }> &
+  Pick<ToolCallMessagePart, "modelContent">;
 type Step = NonNullable<
   NonNullable<ThreadMessageLike["metadata"]>["steps"]
 >[number];
@@ -62,22 +70,52 @@ const toDataUrl = (data: string, mimeType: string) =>
 const createdAtOf = (message: { timestamp?: number }): Date =>
   new Date(typeof message.timestamp === "number" ? message.timestamp : 0);
 
-/** Join the renderable text of a tool result / partial result content array. */
-const extractResultText = (value: unknown): string | undefined => {
+const projectToolResult = (
+  content: readonly PiToolResultContent[] | undefined,
+): Pick<ToolCallPart, "result" | "modelContent"> => {
+  if (!content) return {};
+  const result = content
+    .filter(
+      (part): part is Extract<PiToolResultContent, { type: "text" }> =>
+        part.type === "text",
+    )
+    .map((part) => part.text)
+    .join("");
+  if (content.every((part) => part.type === "text")) return { result };
+
+  const modelContent = content.flatMap<ToolModelContentPart>((part) => {
+    if (part.type === "text") {
+      return [{ type: "text" as const, text: part.text }];
+    }
+    const parsed = parseDataUrl(part.data);
+    return [
+      {
+        type: "file" as const,
+        data: parsed?.data ?? part.data,
+        mediaType: parsed?.mimeType ?? part.mimeType,
+      },
+    ];
+  });
+
+  return { result, modelContent };
+};
+
+const readToolResultContent = (
+  value: unknown,
+): readonly PiToolResultContent[] | undefined => {
   if (value == null) return undefined;
   const content = (value as { content?: unknown }).content;
   if (!Array.isArray(content)) return undefined;
-  const text = content
-    .filter(
-      (p): p is { type: "text"; text: string } =>
-        typeof p === "object" &&
-        p !== null &&
-        (p as { type?: unknown }).type === "text" &&
-        typeof (p as { text?: unknown }).text === "string",
-    )
-    .map((p) => p.text)
-    .join("");
-  return text;
+  return content.filter(
+    (part): part is PiToolResultContent =>
+      typeof part === "object" &&
+      part !== null &&
+      (((part as { type?: unknown }).type === "text" &&
+        typeof (part as { text?: unknown }).text === "string") ||
+        ((part as { type?: unknown }).type === "image" &&
+          typeof (part as { data?: unknown }).data === "string" &&
+          typeof (part as { mimeType?: unknown }).mimeType === "string")),
+  );
 };
 
 const projectUserContent = (
@@ -86,11 +124,12 @@ const projectUserContent = (
   if (typeof content === "string") {
     return [{ type: "text", text: content }];
   }
-  return content.map((part: PiUserContent): ContentPart => {
+  return content.flatMap((part: PiUserContent): ContentPart[] => {
     if (part.type === "image") {
-      return { type: "image", image: toDataUrl(part.data, part.mimeType) };
+      return [{ type: "image", image: toDataUrl(part.data, part.mimeType) }];
     }
-    return { type: "text", text: part.text };
+    if (part.type === "text") return [{ type: "text", text: part.text }];
+    return [];
   });
 };
 
@@ -108,13 +147,16 @@ const dataPart = (
 const buildToolResultMap = (messages: readonly PiAgentMessage[]) => {
   const map = new Map<
     string,
-    { result: string | undefined; isError: boolean; details: unknown }
+    Pick<ToolCallPart, "result" | "modelContent"> & {
+      isError: boolean;
+      details: unknown;
+    }
   >();
   for (const message of messages) {
     if (message.role !== "toolResult") continue;
     const m = message as PiToolResultMessage;
     map.set(m.toolCallId, {
-      result: extractResultText({ content: m.content }),
+      ...projectToolResult(readToolResultContent({ content: m.content })),
       isError: m.isError,
       details: m.details,
     });
@@ -129,7 +171,6 @@ type GroupAccumulator = {
   /** The most recent assistant message in the group (drives final status). */
   lastAssistant: PiAssistantMessage;
   hasPendingHostUi: boolean;
-  hostUiReason: "tool-calls" | "interrupt";
 };
 
 const projectAssistantInto = (
@@ -138,6 +179,7 @@ const projectAssistantInto = (
   index: number,
   input: PiProjectionInput,
   toolResults: ReturnType<typeof buildToolResultMap>,
+  hostUiByToolCall: ReadonlyMap<string, PiHostUiRequest>,
 ) => {
   const parentId = stepId(index);
   group.lastAssistant = message;
@@ -159,12 +201,12 @@ const projectAssistantInto = (
     } else if (part.type === "toolCall") {
       const paired = toolResults.get(part.id);
       const live = input.toolExecutions[part.id];
-      const result =
-        paired?.result ??
-        (live ? extractResultText(live.partialResult) : undefined);
+      const output =
+        paired ?? projectToolResult(readToolResultContent(live?.partialResult));
       const isError = paired?.isError ?? live?.status === "error";
 
-      const hostUi = input.hostUiRequests.find((r) => r.toolCallId === part.id);
+      const hostUi = hostUiByToolCall.get(part.id);
+      const approval = hostUi && approvalForRequest(hostUi);
 
       const toolCall: ToolCallPart = {
         type: "tool-call",
@@ -175,34 +217,25 @@ const projectAssistantInto = (
         >,
         argsText: JSON.stringify(part.arguments ?? {}),
         parentId,
-        ...(result !== undefined ? { result } : {}),
+        ...(output.result !== undefined ? { result: output.result } : {}),
+        ...(output.modelContent !== undefined
+          ? { modelContent: output.modelContent }
+          : {}),
         ...(isError ? { isError: true } : {}),
-        ...(hostUi ? hostUiToToolField(hostUi) : {}),
+        ...(paired === undefined &&
+        output.result !== undefined &&
+        live?.status === "running"
+          ? { isPreliminary: true }
+          : {}),
+        ...(approval ? { approval } : {}),
       };
 
-      if (hostUi) {
-        group.hasPendingHostUi = true;
-        group.hostUiReason =
-          hostUi.kind === "confirm" ? "tool-calls" : "interrupt";
-      }
+      if (approval) group.hasPendingHostUi = true;
       group.parts.push(toolCall);
     }
     // unknown assistant content parts are dropped (open union forward-compat:
     // the transcript remains canonical; the snapshot self-heals).
   }
-};
-
-const hostUiToToolField = (request: PiHostUiRequest): Partial<ToolCallPart> => {
-  if (request.kind === "confirm") {
-    // Pending approval: omit `approved` (undefined = awaiting answer).
-    return { approval: { id: request.id } };
-  }
-  return {
-    interrupt: {
-      type: "human",
-      payload: { requestId: request.id, ...request },
-    },
-  };
 };
 
 const buildAssistantMessage = (
@@ -241,7 +274,7 @@ const assistantStatus = (
   isLastMessageInTranscript: boolean,
 ): ThreadMessageLike["status"] => {
   if (group.hasPendingHostUi) {
-    return { type: "requires-action", reason: group.hostUiReason };
+    return { type: "requires-action", reason: "interrupt" };
   }
   const last = group.lastAssistant;
   if (
@@ -273,6 +306,9 @@ export const projectPiThreadMessages = (
 ): ThreadMessageLike[] => {
   const { messages } = input;
   const toolResults = buildToolResultMap(messages);
+  const hostUiByToolCall = splitHostUiRequests(
+    input.hostUiRequests,
+  ).toolAssociated;
   const out: ThreadMessageLike[] = [];
   let group: GroupAccumulator | null = null;
 
@@ -293,7 +329,6 @@ export const projectPiThreadMessages = (
             steps: [],
             lastAssistant: message as PiAssistantMessage,
             hasPendingHostUi: false,
-            hostUiReason: "tool-calls",
           };
         }
         projectAssistantInto(
@@ -302,6 +337,7 @@ export const projectPiThreadMessages = (
           index,
           input,
           toolResults,
+          hostUiByToolCall,
         );
         // If this is the final transcript message, the group's status reflects
         // the live run; flush so that propagates.

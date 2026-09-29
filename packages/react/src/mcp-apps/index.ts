@@ -1,4 +1,8 @@
-export { McpAppRenderer, type McpAppRendererOptions } from "./McpAppRenderer";
+export {
+  McpAppRenderer,
+  type McpAppPartOptions,
+  type McpAppRendererOptions,
+} from "./McpAppRenderer";
 export { McpAppsRemoteHost } from "./McpAppsRemoteHost";
 export { getMcpAppFromToolPart } from "./utils";
 export type {

@@ -1,4 +1,7 @@
-import type { ThreadListItemRuntime } from "../../runtime/api/thread-list-item-runtime";
+import type {
+  ThreadListItemGenerateTitleOptions,
+  ThreadListItemRuntime,
+} from "../../runtime/api/thread-list-item-runtime";
 import type { ThreadListItemStatus } from "../../runtime/interfaces/thread-list-runtime-core";
 
 export type ThreadListItemState = {
@@ -26,7 +29,7 @@ export type ThreadListItemMethods = {
   archive(): void;
   unarchive(): void;
   delete(): void;
-  generateTitle(): void;
+  generateTitle(options?: ThreadListItemGenerateTitleOptions): void;
   initialize(): Promise<{ remoteId: string; externalId: string | undefined }>;
   detach(): void;
   __internal_getRuntime?(): ThreadListItemRuntime;

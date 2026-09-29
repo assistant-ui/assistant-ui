@@ -1,11 +1,13 @@
-import { McpServer } from "@modelcontextprotocol/server";
-
 declare namespace entry_root_exports {
-  export { runServer, server };
+  export { runProxy, runServer };
 }
 
-declare function runServer(): Promise<void>;
+declare function runProxy(_param0?: {
+  url?: URL;
+  stdin?: NodeJS.ReadableStream;
+  stdout?: NodeJS.WritableStream;
+}): Promise<void>;
 
-declare const server: McpServer;
+declare function runServer(): Promise<void>;
 
 export { entry_root_exports as entry_root };

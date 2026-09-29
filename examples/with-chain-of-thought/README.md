@@ -36,6 +36,7 @@ Open [http://localhost:3000](http://localhost:3000).
 |---|---|
 | Real chat flow with `useChatRuntime` | `app/page.tsx` |
 | Reasoning, tool calls, source citations streamed as message parts | `app/api/chat/route.ts` |
+| Type-safe client-side Fibonacci tool | `app/toolkit.tsx` |
 | Nested adjacency-based grouping with `MessagePrimitive.GroupedParts` | `app/MyThread.tsx` |
 | `Sources` component rendering `source` parts | `app/MyThread.tsx` |
 | Fallback path that runs without an API key | `app/api/chat/route.ts` (`streamFallback`) |

@@ -1,5 +1,5 @@
-/// <reference path="./scope-registration.ts" />
-/// <reference path="../react/types/store-augmentation.ts" />
+/// <reference path="./scope-registration.ts" preserve="true" />
+/// <reference path="../react/types/store-augmentation.ts" preserve="true" />
 
 // scopes
 export type {
@@ -49,6 +49,12 @@ export type {
   QueueItemClientSchema,
 } from "./scopes/queue-item";
 export type {
+  TaskState,
+  TaskMethods,
+  TaskMeta,
+  TaskClientSchema,
+} from "./scopes/task";
+export type {
   AttachmentState,
   AttachmentMethods,
   AttachmentMeta,
@@ -96,6 +102,8 @@ export {
 export {
   useExternalMessageConverter,
   convertExternalMessages,
+  createExternalMessageConversionCache,
+  type ExternalMessageConversionCache,
   type JoinStrategy,
 } from "../react/runtimes/external-message-converter";
 export {
@@ -108,6 +116,10 @@ export {
   createRuntimeExtrasBrand,
   type RuntimeExtrasBrand,
 } from "../runtime/utils/runtime-extras-brand";
+export {
+  resolveToolCallText,
+  type ToolCallText,
+} from "../model-context/tool-call-text";
 export { defineToolkit } from "../react/model-context/define-toolkit";
 export {
   defineMcpToolkit,

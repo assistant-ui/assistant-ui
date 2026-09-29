@@ -4,6 +4,7 @@ import {
   mergeProps,
   onScopeDispose,
   type SlotsType,
+  type VNodeChild,
 } from "vue";
 import { flushTapSync } from "@assistant-ui/tap";
 import {
@@ -19,7 +20,7 @@ import { useAuiState } from "../useAuiState";
 export const ActionBarPrimitiveEdit = defineComponent({
   name: "ActionBarPrimitiveEdit",
   inheritAttrs: false,
-  slots: Object as SlotsType<{ default?: () => unknown }>,
+  slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(_, { attrs, slots }) {
     const aui = useAui();
     const disabled = useAuiState(actionBarEditDisabled);
@@ -49,7 +50,7 @@ export const ActionBarPrimitiveEdit = defineComponent({
 export const ActionBarPrimitiveReload = defineComponent({
   name: "ActionBarPrimitiveReload",
   inheritAttrs: false,
-  slots: Object as SlotsType<{ default?: () => unknown }>,
+  slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(_, { attrs, slots }) {
     const aui = useAui();
     const disabled = useAuiState(actionBarReloadDisabled);
@@ -93,7 +94,7 @@ export const ActionBarPrimitiveCopy = defineComponent({
       default: 3000,
     },
   },
-  slots: Object as SlotsType<{ default?: () => unknown }>,
+  slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(props, { attrs, slots }) {
     const aui = useAui();
     const disabled = useAuiState(actionBarCopyDisabled);

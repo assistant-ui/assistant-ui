@@ -31,11 +31,16 @@ function greet(name: string) {
 export const StreamdownSample = () => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamedText, setStreamedText] = useState("");
+  const [syncedStreaming, setSyncedStreaming] = useState(isStreaming);
+
+  if (syncedStreaming !== isStreaming) {
+    setSyncedStreaming(isStreaming);
+    if (isStreaming) setStreamedText("");
+  }
 
   useEffect(() => {
     if (!isStreaming) return;
 
-    setStreamedText("");
     let index = 0;
     const interval = setInterval(() => {
       if (index < sampleMarkdown.length) {

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { resource, withKey, type ResourceElement } from "@assistant-ui/tap";
 import type {
   AssistantClient,
@@ -10,7 +10,9 @@ import {
   Derived,
   attachTransformScopes,
   useClientResource,
+  useDestroySignalProvider,
 } from "@assistant-ui/store/client";
+import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
 import { useThreadSelectionEvents } from "../../store/internal";
 import { generateId } from "../../utils/id";
 import { ModelContext } from "../../store/clients/model-context-client";
@@ -20,6 +22,10 @@ import { DataRenderers } from "./DataRenderers";
 const RESOLVED_PROMISE = Promise.resolve();
 
 export type InMemoryThreadListProps = {
+  /**
+   * Creates the selected thread resource. The list keys the returned element
+   * by `threadId`, so thread-owned state does not survive a selection change.
+   */
   thread: (threadId: string) => ResourceElement<ClientOutput<"thread">>;
   onSwitchToThread?: (threadId: string) => void;
   onSwitchToNewThread?: () => void;
@@ -83,6 +89,60 @@ const useThreadListItemClient = (props: {
 
 const ThreadListItemClient = resource(useThreadListItemClient);
 
+const createThreadLifetimes = () => {
+  const controllers = new Map<string, AbortController>();
+  let owner: AbortSignal | undefined;
+  let unlinkOwner: (() => void) | undefined;
+  const abortAll = () => {
+    unlinkOwner?.();
+    unlinkOwner = undefined;
+    for (const controller of controllers.values()) {
+      controller.abort(owner?.reason);
+    }
+  };
+  return {
+    signalFor(threadId: string, ownerSignal: AbortSignal | undefined) {
+      let controller = controllers.get(threadId);
+      if (!controller) {
+        controller = new AbortController();
+        if (ownerSignal?.aborted) controller.abort(ownerSignal.reason);
+        controllers.set(threadId, controller);
+      }
+      return controller.signal;
+    },
+    release(threadId: string) {
+      controllers.get(threadId)?.abort();
+      controllers.delete(threadId);
+    },
+    bindOwner(signal: AbortSignal | undefined) {
+      if (owner === signal) return;
+      unlinkOwner?.();
+      unlinkOwner = undefined;
+      owner = signal;
+      if (!signal) return;
+      if (signal.aborted) {
+        abortAll();
+        return;
+      }
+      signal.addEventListener("abort", abortAll);
+      unlinkOwner = () => signal.removeEventListener("abort", abortAll);
+    },
+  };
+};
+
+const useOwnedThread = ({
+  destroySignal,
+  thread,
+}: {
+  destroySignal: AbortSignal;
+  thread: ResourceElement<ClientOutput<"thread">>;
+}): ClientOutput<"thread"> =>
+  useDestroySignalProvider(destroySignal, function useSelectedThread() {
+    return useClientResource(thread).methods;
+  });
+
+const OwnedThread = resource(useOwnedThread);
+
 // InMemoryThreadList Client
 const useInMemoryThreadList = (
   props: InMemoryThreadListProps,
@@ -93,6 +153,13 @@ const useInMemoryThreadList = (
     onSwitchToNewThread,
     onDelete,
   } = props;
+  const ownerDestroySignal = useAssistantClientDestroySignal();
+  const [lifetimes] = useState(createThreadLifetimes);
+
+  // No cleanup: a hidden list must still abort its threads' sends when the owner is destroyed.
+  useEffect(() => {
+    lifetimes.bindOwner(ownerDestroySignal);
+  }, [lifetimes, ownerDestroySignal]);
 
   const [{ threads, mainThreadId }, setListState] = useState<{
     threads: readonly ThreadData[];
@@ -144,6 +211,7 @@ const useInMemoryThreadList = (
   };
 
   const handleDelete = (threadId: string) => {
+    lifetimes.release(threadId);
     // Deleting the last thread starts a fresh one; the removed id must not
     // stay selected. The fallback id is minted eagerly so the updater stays
     // pure under batched deletes.
@@ -181,7 +249,15 @@ const useInMemoryThreadList = (
   };
 
   // Only the main thread is mounted, so it is the only thread that can run.
-  const mainThreadClient = useClientResource(threadFactory(mainThreadId));
+  const mainThreadClient = useClientResource(
+    withKey(
+      mainThreadId,
+      OwnedThread({
+        destroySignal: lifetimes.signalFor(mainThreadId, ownerDestroySignal),
+        thread: threadFactory(mainThreadId),
+      }),
+    ),
+  );
 
   const threadListItems = useClientLookup(
     threads.map((t) =>
@@ -209,6 +285,7 @@ const useInMemoryThreadList = (
       mainThreadId,
       newThreadId: null,
       isLoading: false,
+      loadError: undefined,
       isLoadingMore: false,
       hasMore: false,
       threadIds: regularThreads.map((t) => t.id),

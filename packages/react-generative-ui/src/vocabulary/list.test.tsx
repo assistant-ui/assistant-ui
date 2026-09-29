@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { renderGenerativeUI } from "../renderGenerativeUI";
 import { createActionRegistry } from "../actionRegistry";
+import type { GenerativeUIDispatch } from "../types";
 import { listVocabulary } from "./list";
 
 const render = (node: unknown) =>
@@ -55,13 +56,13 @@ describe("listVocabulary", () => {
 });
 
 describe("listVocabulary $action dispatch", () => {
-  const rowOut = (dispatch: (a: unknown) => unknown) =>
+  const rowOut = (dispatch: GenerativeUIDispatch) =>
     listVocabulary.ListViewItem.render({
       $status: "done",
       $action: { type: "open" },
       $dispatch: dispatch,
       children: "row",
-    }) as ReactElement;
+    }) as ReactElement<{ children: ReactElement }>;
 
   it("clicking the trigger fires $action with no $input", () => {
     const handler = vi.fn();
@@ -69,18 +70,22 @@ describe("listVocabulary $action dispatch", () => {
     const trigger = rowOut(registry.dispatch).props.children as ReactElement;
     const onClick = (trigger.props as { onClick: (e: unknown) => void })
       .onClick;
-    onClick({ target: { closest: () => null } });
+    onClick({
+      target: { closest: () => trigger },
+      currentTarget: trigger,
+    });
     expect(handler).toHaveBeenCalledWith({ payload: { type: "open" } });
   });
 
   type KeyDownEvent = {
     key: string;
     target: { closest: (selector: string) => unknown };
+    currentTarget: unknown;
     preventDefault: () => void;
   };
 
-  const getOnKeyDown = (dispatch: (a: unknown) => unknown) => {
-    const trigger = rowOut(dispatch).props.children as ReactElement;
+  const getOnKeyDown = (dispatch: GenerativeUIDispatch) => {
+    const trigger = rowOut(dispatch).props.children;
     return (trigger.props as { onKeyDown: (e: KeyDownEvent) => void })
       .onKeyDown;
   };
@@ -89,14 +94,17 @@ describe("listVocabulary $action dispatch", () => {
     const handler = vi.fn();
     const registry = createActionRegistry({ open: handler });
     const onKeyDown = getOnKeyDown(registry.dispatch);
+    const currentTarget = {};
     onKeyDown({
       key: "Enter",
-      target: { closest: () => null },
+      target: { closest: () => currentTarget },
+      currentTarget,
       preventDefault: vi.fn(),
     });
     onKeyDown({
       key: " ",
-      target: { closest: () => null },
+      target: { closest: () => currentTarget },
+      currentTarget,
       preventDefault: vi.fn(),
     });
     expect(handler).toHaveBeenCalledTimes(2);
@@ -109,6 +117,7 @@ describe("listVocabulary $action dispatch", () => {
     onKeyDown({
       key: "Tab",
       target: { closest: () => null },
+      currentTarget: {},
       preventDefault: vi.fn(),
     });
     expect(handler).not.toHaveBeenCalled();
@@ -124,7 +133,7 @@ describe("listVocabulary $action dispatch", () => {
       closest: (selector: string) =>
         selector.includes("button") ? nestedButton : null,
     };
-    onClick({ target: nestedButton });
+    onClick({ target: nestedButton, currentTarget: {} });
     expect(handler).not.toHaveBeenCalled();
   });
 
@@ -137,7 +146,12 @@ describe("listVocabulary $action dispatch", () => {
         selector.includes("input") ? nestedInput : null,
     };
     const preventDefault = vi.fn();
-    onKeyDown({ key: "Enter", target: nestedInput, preventDefault });
+    onKeyDown({
+      key: "Enter",
+      target: nestedInput,
+      currentTarget: {},
+      preventDefault,
+    });
     expect(handler).not.toHaveBeenCalled();
     expect(preventDefault).not.toHaveBeenCalled();
   });
@@ -152,7 +166,7 @@ describe("listVocabulary $action dispatch", () => {
       closest: (selector: string) =>
         selector.includes('[role="button"]') ? nestedRoleButton : null,
     };
-    onClick({ target: nestedRoleButton });
+    onClick({ target: nestedRoleButton, currentTarget: {} });
     expect(handler).not.toHaveBeenCalled();
   });
 
@@ -165,7 +179,12 @@ describe("listVocabulary $action dispatch", () => {
         selector.includes('[role="button"]') ? nestedRoleButton : null,
     };
     const preventDefault = vi.fn();
-    onKeyDown({ key: "Enter", target: nestedRoleButton, preventDefault });
+    onKeyDown({
+      key: "Enter",
+      target: nestedRoleButton,
+      currentTarget: {},
+      preventDefault,
+    });
     expect(handler).not.toHaveBeenCalled();
   });
 
@@ -173,8 +192,14 @@ describe("listVocabulary $action dispatch", () => {
     const handler = vi.fn();
     const registry = createActionRegistry({ open: handler });
     const onKeyDown = getOnKeyDown(registry.dispatch);
+    const currentTarget = {};
     const preventDefault = vi.fn();
-    onKeyDown({ key: " ", target: { closest: () => null }, preventDefault });
+    onKeyDown({
+      key: " ",
+      target: { closest: () => currentTarget },
+      currentTarget,
+      preventDefault,
+    });
     expect(handler).toHaveBeenCalledWith({ payload: { type: "open" } });
     expect(preventDefault).toHaveBeenCalledTimes(1);
   });
@@ -183,10 +208,12 @@ describe("listVocabulary $action dispatch", () => {
     const handler = vi.fn();
     const registry = createActionRegistry({ open: handler });
     const onKeyDown = getOnKeyDown(registry.dispatch);
+    const currentTarget = {};
     const preventDefault = vi.fn();
     onKeyDown({
       key: "Enter",
-      target: { closest: () => null },
+      target: { closest: () => currentTarget },
+      currentTarget,
       preventDefault,
     });
     expect(handler).toHaveBeenCalledWith({ payload: { type: "open" } });

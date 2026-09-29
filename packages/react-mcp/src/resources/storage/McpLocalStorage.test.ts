@@ -1,8 +1,10 @@
-import { createTapRoot, useResource } from "@assistant-ui/tap";
+import { createTapRoot, resource, useResource } from "@assistant-ui/tap";
+import { useState } from "react";
 import { auth, type FetchLike } from "@modelcontextprotocol/client";
 import { describe, expect, it } from "vitest";
 import { createOAuthProvider } from "../../auth/createOAuthProvider";
 
+import type { MCPStorage } from "./types";
 import {
   McpLocalStorage,
   normalizeCustomServerRecords,
@@ -125,11 +127,34 @@ describe("normalizePersistedAuthState", () => {
       normalizePersistedAuthState({
         token: "bearer-token",
         codeVerifier: "pkce-verifier",
+        state: "aui-mcp:ZG9jcw.nonce",
       }),
     ).toEqual({
       token: "bearer-token",
       codeVerifier: "pkce-verifier",
+      state: "aui-mcp:ZG9jcw.nonce",
     });
+  });
+
+  it("keeps valid server URL bindings", () => {
+    expect(
+      normalizePersistedAuthState({
+        serverUrl: "http://mcp.example.com/docs",
+        token: "bearer-token",
+      }),
+    ).toEqual({
+      serverUrl: "http://mcp.example.com/docs",
+      token: "bearer-token",
+    });
+  });
+
+  it("rejects auth state with an unsafe server URL binding", () => {
+    expect(
+      normalizePersistedAuthState({
+        serverUrl: "javascript:alert(1)",
+        token: "bearer-token",
+      }),
+    ).toBeNull();
   });
 
   it("keeps valid OAuth tokens and client information", () => {
@@ -149,11 +174,15 @@ describe("normalizePersistedAuthState", () => {
     expect(
       normalizePersistedAuthState({
         tokens,
+        tokensClientId: "client-id",
         clientInformation,
+        clientInformationSource: "registered",
       }),
     ).toEqual({
       tokens,
+      tokensClientId: "client-id",
       clientInformation,
+      clientInformationSource: "registered",
     });
   });
 
@@ -210,6 +239,8 @@ describe("normalizePersistedAuthState", () => {
 
   it.each([
     "http://auth.example.com",
+    "http://127.example.com",
+    "http://127.0.0.1.example.com",
     "data:text/plain,auth",
     "file:///tmp/auth",
   ])("drops discovery state with an unsafe URL: %s", (url) => {
@@ -373,6 +404,7 @@ describe("McpLocalStorage auth state", () => {
     const createProvider = () =>
       createOAuthProvider({
         serverId: "docs",
+        serverUrl: "https://mcp.example.com/mcp",
         config: { type: "oauth", clientId: "client-id" },
         storage: loadStorage(storage),
         redirectUri: "http://localhost/callback",
@@ -394,6 +426,7 @@ describe("McpLocalStorage auth state", () => {
       JSON.parse(storage.getItem("test-mcp:auth:docs") ?? "null"),
     ).toMatchObject({
       codeVerifier: expect.any(String),
+      state: authorizationUrls[0]!.searchParams.get("state"),
       discoveryState: {
         authorizationServerUrl: "https://auth.example.com",
       },
@@ -416,5 +449,70 @@ describe("McpLocalStorage auth state", () => {
     ).resolves.toMatchObject({
       tokens: { access_token: "access-token" },
     });
+  });
+});
+
+describe("McpLocalStorage instance identity", () => {
+  it("derives a scope from the prefix for the shared default backing", () => {
+    let storage!: MCPStorage;
+
+    createTapRoot(function McpStorageScopeRoot() {
+      storage = useResource(McpLocalStorage({ keyPrefix: "test-mcp" }));
+      return storage;
+    });
+
+    expect(storage.scopeId).toBe("local-storage:test-mcp");
+  });
+
+  it("declares no scope for a custom backing store unless one is named", () => {
+    const backing = createStorage();
+    let unnamed!: MCPStorage;
+    let named!: MCPStorage;
+
+    createTapRoot(function McpStorageCustomScopeRoot() {
+      unnamed = useResource(
+        McpLocalStorage({ keyPrefix: "test-mcp", storage: backing }),
+      );
+      return unnamed;
+    });
+    createTapRoot(function McpStorageNamedScopeRoot() {
+      named = useResource(
+        McpLocalStorage({
+          keyPrefix: "test-mcp",
+          storage: backing,
+          scopeId: "session:alpha",
+        }),
+      );
+      return named;
+    });
+
+    expect(unnamed.scopeId).toBeUndefined();
+    expect(named.scopeId).toBe("session:alpha");
+  });
+
+  it("returns the same instance across re-renders", () => {
+    const backing = createStorage();
+    const seen: MCPStorage[] = [];
+    let rerender!: () => void;
+
+    const useHost = () => {
+      const [, setTick] = useState(0);
+      rerender = () => setTick((n) => n + 1);
+      const storage = useResource(
+        McpLocalStorage({ keyPrefix: "test-mcp", storage: backing }),
+      );
+      seen.push(storage);
+      return storage;
+    };
+    const Host = resource(useHost);
+
+    createTapRoot(function McpStorageIdentityRoot() {
+      return useResource(Host());
+    });
+    rerender();
+    rerender();
+
+    expect(seen.length).toBeGreaterThan(1);
+    expect(new Set(seen).size).toBe(1);
   });
 });

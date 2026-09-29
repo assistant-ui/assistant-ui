@@ -1,4 +1,4 @@
-import { getTapDocsPages, source, standalone } from "@/lib/source";
+import { searchablePages } from "./corpus";
 import type { SearchHeading, SearchRecord } from "./types";
 
 type StructuredHeading = {
@@ -6,7 +6,7 @@ type StructuredHeading = {
   content?: string;
 };
 
-function headingsFrom(structuredData: {
+export function headingsFrom(structuredData: {
   headings?: StructuredHeading[];
 }): SearchHeading[] {
   const headings: SearchHeading[] = [];
@@ -23,15 +23,13 @@ function headingsFrom(structuredData: {
   return headings;
 }
 
-export function buildSearchIndex(): SearchRecord[] {
-  return [
-    ...source.getPages(),
-    ...getTapDocsPages(),
-    ...standalone.getPages(),
-  ].map((page) => ({
-    url: page.url,
-    title: page.data.title,
-    description: page.data.description ?? "",
-    headings: headingsFrom(page.data.structuredData),
-  }));
+export function buildSearchIndex(): Promise<SearchRecord[]> {
+  return Promise.all(
+    searchablePages().map(async (page) => ({
+      url: page.url,
+      title: page.data.title,
+      description: page.data.description ?? "",
+      headings: headingsFrom(await page.data.structuredData()),
+    })),
+  );
 }

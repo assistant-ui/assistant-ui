@@ -16,7 +16,7 @@ export function WaterfallRow() {
       <SpanPrimitive.Indent
         baseIndent={8}
         indentPerLevel={12}
-        className="border-border bg-background group-hover:bg-accent/50 sticky left-0 z-10 flex shrink-0 items-center gap-1 overflow-hidden border-r px-2"
+        className="border-foreground/10 bg-background group-hover:bg-foreground/[0.03] sticky left-0 z-10 flex shrink-0 items-center gap-1.5 overflow-hidden border-r px-2"
         style={{ width: LABEL_WIDTH, height: barHeight }}
       >
         <AuiIf condition={(s) => s.span.hasChildren}>
@@ -34,13 +34,13 @@ export function WaterfallRow() {
         <AuiIf condition={(s) => !s.span.hasChildren}>
           <span className="w-4.5 shrink-0" />
         </AuiIf>
-        <SpanPrimitive.StatusIndicator className="size-1.5 shrink-0 rounded-full bg-current" />
-        <SpanPrimitive.TypeBadge className="border-border text-muted-foreground shrink-0 rounded border px-1 text-[10px]" />
-        <SpanPrimitive.Name className="truncate text-sm" />
+        <SpanPrimitive.StatusIndicator className="size-1.5 shrink-0 rounded-full data-[span-status=completed]:bg-green-500 data-[span-status=failed]:bg-red-500 data-[span-status=running]:animate-pulse data-[span-status=running]:bg-yellow-500 data-[span-status=skipped]:bg-zinc-400 data-[span-status=running]:motion-reduce:animate-none" />
+        <SpanPrimitive.TypeBadge className="text-muted-foreground/70 shrink-0 font-mono text-[10px] tracking-wide" />
+        <SpanPrimitive.Name className="truncate text-[13px]" />
       </SpanPrimitive.Indent>
 
       <div
-        className="group-hover:bg-accent/30 relative"
+        className="group-hover:bg-foreground/[0.02] relative"
         style={{ width: barWidth, height: barHeight }}
       >
         <WaterfallBar />

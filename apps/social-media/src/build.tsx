@@ -1,7 +1,8 @@
 import { readdir } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { renderCard } from "./render";
 
-const LAUNCHES_DIR = new URL("./launches", import.meta.url).pathname;
+const LAUNCHES_DIR = fileURLToPath(new URL("./launches", import.meta.url));
 
 async function main() {
   const files = await readdir(LAUNCHES_DIR);

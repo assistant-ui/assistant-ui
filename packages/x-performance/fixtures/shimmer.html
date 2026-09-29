@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>tw-shimmer trace fixture</title>
+    <link rel="stylesheet" href="./shimmer.css" />
+    <style>
+      body {
+        margin: 40px;
+        font: 16px/1.6 system-ui, sans-serif;
+        color: #1a1a1a;
+        background: #fafafa;
+      }
+      p {
+        margin: 0 0 8px;
+        max-width: 640px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>tw-shimmer fixture: one-node markup</h1>
+    <script>
+      const LINE =
+        "Assistant is reasoning about the request and drafting a reply, token by token, while this line shimmers.";
+      for (let i = 0; i < 20; i++) {
+        const p = document.createElement("p");
+        p.className = "shimmer";
+        p.textContent = LINE;
+        document.body.appendChild(p);
+      }
+    </script>
+  </body>
+</html>

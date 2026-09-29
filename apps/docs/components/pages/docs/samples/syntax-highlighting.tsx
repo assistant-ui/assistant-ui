@@ -1,7 +1,7 @@
 "use client";
 
 import { CopyIcon } from "lucide-react";
-import { SyntaxHighlighter } from "@/components/assistant-ui/shiki-highlighter";
+import { SyntaxHighlighter } from "@/components/assistant-ui/elements/shiki-highlighter.aui";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 
 const sampleCode = `function greet(name: string) {

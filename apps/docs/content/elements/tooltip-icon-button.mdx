@@ -1,0 +1,157 @@
+---
+title: "Tooltip icon button"
+description: "An accessible icon button with a tooltip label and shared interaction states."
+---
+
+TooltipIconButton wraps a single icon in a button that always carries an accessible name and a hover tooltip, both driven by the same `tooltip` string. With a runtime it's the button most kit elements reach for whenever a primitive needs a trigger; standalone you drive it with your own `onClick` and `disabled`.
+
+## Getting started
+
+<RuntimeMode>
+
+Every action button across the runtime-connected kit elements, thread, voice, attachment, the assistant modal, is a `TooltipIconButton`, usually composed with a primitive through `render` so the primitive owns the click handling and the disabled or hidden state.
+
+<Steps>
+  <Step>
+
+### Compose it with a primitive
+
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+"use client";
+
+import { ThreadPrimitive } from "@assistant-ui/react";
+import { ArrowDownIcon } from "lucide-react";
+import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
+
+function ScrollToBottom() {
+  return (
+    <ThreadPrimitive.ScrollToBottom
+      render={<TooltipIconButton tooltip="Scroll to bottom" variant="outline" />}
+    >
+      <ArrowDownIcon />
+    </ThreadPrimitive.ScrollToBottom>
+  );
+}
+```
+
+The primitive supplies the click handler and hides itself, `ScrollToBottom` in particular renders nothing once the thread is already at the bottom; `TooltipIconButton` only supplies the look, the tooltip, and the accessible name.
+
+  </Step>
+  <Step>
+
+### Install a kit element for it pre-wired
+
+`@assistant-ui/thread` alone wires up scroll-to-bottom, send, voice dictation start and stop, copy, refresh, edit, and branch previous and next, all as `TooltipIconButton`s. `@assistant-ui/voice`, `@assistant-ui/attachment`, and `@assistant-ui/assistant-modal` each add a few more of their own. None of that composition lives in this file, so you rarely reach for `TooltipIconButton` directly once those are installed.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, there's no primitive to compose it with, so you own the click handler, the disabled state, and, if the action can fail or take time, any loading state yourself.
+
+<Steps>
+  <Step>
+
+### Use it like any icon button
+
+```tsx title="app/toolbar.tsx"
+"use client";
+
+import { useState } from "react";
+import { SparklesIcon } from "lucide-react";
+import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
+
+export function GenerateButton() {
+  const [busy, setBusy] = useState(false);
+  return (
+    <TooltipIconButton
+      tooltip="Generate"
+      variant="outline"
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        await generate();
+        setBusy(false);
+      }}
+    >
+      <SparklesIcon />
+    </TooltipIconButton>
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<button data-slot="button">
+  {/* the icon you pass as children */}
+  <span className="sr-only">{/* tooltip text, as the accessible name */}</span>
+</button>
+```
+
+A tooltip provider and a floating content panel wrap the button but render nothing of their own until it's hovered or focused. `tooltip` does double duty: it's both the floating label and, through the sr-only span, the button's only accessible name, there's no separate `aria-label` prop. `side` positions the floating tooltip and defaults to `"bottom"`.
+
+## Examples
+
+### Every prop `Button` takes, still works
+
+`TooltipIconButtonProps` extends `Button`'s own props, so `variant` (`"default" | "outline" | "secondary" | "ghost" | "destructive" | "link"`), `size`, and `disabled` all pass straight through. The component itself only fixes `variant="ghost"` and `size="icon"` as defaults, both overridable the normal way:
+
+```tsx
+<TooltipIconButton tooltip="Delete" variant="destructive">
+  <TrashIcon />
+</TooltipIconButton>
+```
+
+### Restyle the button
+
+`className` merges onto the rendered `Button`, on top of this file's own `size-6 p-1` default. It does not read from `surfaces.tsx`, unlike most of the catalog, its look comes from the shadcn-style `Button` and tooltip primitives in `components/ui`.
+
+```tsx
+<TooltipIconButton tooltip="Copy" className="size-8">
+  <CopyIcon />
+</TooltipIconButton>
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Composition sites
+
+| File | Tooltip text |
+|------|--------------|
+| `thread.aui.tsx` | "Scroll to bottom", "Send message", "Voice input", "Stop dictation" |
+| `thread.aui.tsx` | "Copy", "Refresh", "More", "Edit", "Previous", "Next" |
+| `voice.aui.tsx` | "Mute" / "Unmute", "Disconnect" |
+| `attachment.aui.tsx` | "Add Attachment", "Remove file" |
+| `assistant-modal.aui.tsx` | "Open Assistant" / "Close Assistant" |
+| `markdown-text.tsx` | "Copy", on a rendered code block |
+
+There's no state selector of its own: it renders whatever the primitive it wraps decides, through `render`.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### TooltipIconButton
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `tooltip` | `string` | required | Floating label on hover or focus, and the button's accessible name. |
+| `side` | `"top" \| "bottom" \| "left" \| "right"` | `"bottom"` | Side the tooltip opens toward. |
+| `variant` | `"default" \| "outline" \| "secondary" \| "ghost" \| "destructive" \| "link"` | `"ghost"` | Inherited from `Button`. |
+| `size` | `"default" \| "xs" \| "sm" \| "lg" \| "icon" \| "icon-xs" \| "icon-sm" \| "icon-lg"` | `"icon"` | Inherited from `Button`. |
+| `className` | `string` | | Merged onto the rendered button. |
+
+All other `Button` props (`disabled`, `onClick`, `type`, and so on) are forwarded.
+
+</StandaloneMode>

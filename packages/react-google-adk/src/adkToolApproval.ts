@@ -1,9 +1,9 @@
+import { generateId } from "@assistant-ui/core";
 import type {
   RespondToToolApprovalOptions,
   ToolCallMessagePart,
 } from "@assistant-ui/core";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
-import { v4 as uuidv4 } from "uuid";
 import type { AdkMessage } from "./types";
 
 export type AdkToolApproval = NonNullable<ToolCallMessagePart["approval"]>;
@@ -85,9 +85,7 @@ const sourceEventOf = (toolMessageId: string): string =>
   toolMessageId.replace(/:\d+$/, "");
 
 /**
- * ADK builds the confirmation request around the call it gates, carrying that
- * call verbatim in `originalFunctionCall` — spelled `original_function_call` by
- * ADK Python, which the accumulator reads the same way.
+ * ADK builds the confirmation request around the call it gates, carrying that call verbatim in `originalFunctionCall`; `original_function_call` is accepted as well, matching the accumulator.
  */
 const gatedCallIdOf = (args: unknown): string | undefined => {
   if (typeof args !== "object" || args === null) return undefined;
@@ -185,7 +183,7 @@ export const toAdkConfirmationReply = (
   confirmed: boolean,
   payload?: ReadonlyJSONValue,
 ): AdkMessage & { type: "tool" } => ({
-  id: uuidv4(),
+  id: generateId(),
   type: "tool",
   tool_call_id: toolCallId,
   name: ADK_REQUEST_CONFIRMATION,

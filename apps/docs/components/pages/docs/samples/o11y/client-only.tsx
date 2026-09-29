@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
+import { useHydrated } from "@/hooks/use-hydrated";
 
 export function ClientOnly({
   children,
@@ -9,8 +10,7 @@ export function ClientOnly({
   children: ReactNode;
   minHeight: number;
 }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useHydrated();
 
   if (!mounted) {
     return (

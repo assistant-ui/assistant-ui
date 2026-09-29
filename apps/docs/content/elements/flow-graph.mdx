@@ -1,0 +1,235 @@
+---
+title: "Flow graph"
+description: "Work as a graph rather than a list: branches that fan out and rejoin."
+---
+
+Flow graph draws work as a small dependency graph instead of a flat list: nodes sit in columns, and curved edges connect the ones that depend on each other. With a runtime you lay it out from a tool call's arguments as the model writes them; standalone you hold the node and edge arrays yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+With a runtime, a flow graph is usually one tool call whose arguments describe an entire plan: a list of steps, each naming what it depends on. A small layout function turns that list into the columns, rows, and edges `FlowGraph` expects.
+
+<Steps>
+  <Step>
+
+### Lay out the plan from the tool call
+
+```tsx title="components/assistant-ui/elements/plan-graph-tool-ui.tsx"
+"use client";
+
+import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
+import {
+  FlowGraph,
+  type FlowEdge,
+  type FlowNode,
+} from "@/components/assistant-ui/elements/flow-graph";
+
+type PlanStep = { id: string; label: string; dependsOn?: string[] };
+type PlanArgs = { steps: PlanStep[] };
+
+function layout(steps: PlanStep[], done: boolean) {
+  const columnOf = new Map<string, number>();
+  const rowsUsed = new Map<number, number>();
+  const nodes: FlowNode[] = steps.map((step, index) => {
+    const deps = step.dependsOn ?? [];
+    const column = deps.length
+      ? Math.max(...deps.map((id) => columnOf.get(id) ?? 0)) + 1
+      : 0;
+    columnOf.set(step.id, column);
+    const row = rowsUsed.get(column) ?? 0;
+    rowsUsed.set(column, row + 1);
+    const state = done || index < steps.length - 1 ? "done" : "active";
+    return { id: step.id, label: step.label, column, row, state };
+  });
+  const edges: FlowEdge[] = steps.flatMap((step) =>
+    (step.dependsOn ?? []).map((from) => ({ from, to: step.id })),
+  );
+  return { nodes, edges };
+}
+
+export const PlanGraphToolUI: ToolCallMessagePartComponent<
+  PlanArgs,
+  unknown
+> = ({ args, status }) => {
+  const steps = args.steps ?? [];
+  if (steps.length === 0) return null;
+  const { nodes, edges } = layout(steps, status.type === "complete");
+  return <FlowGraph nodes={nodes} edges={edges} visibleCount={nodes.length} />;
+};
+```
+
+  </Step>
+  <Step>
+
+### Register the tool
+
+```tsx title="app/toolkit.ts"
+import { defineToolkit } from "@assistant-ui/react";
+import { z } from "zod";
+import { PlanGraphToolUI } from "@/components/assistant-ui/elements/plan-graph-tool-ui";
+
+const step = z.object({
+  id: z.string(),
+  label: z.string(),
+  dependsOn: z.array(z.string()).optional(),
+});
+
+export const toolkit = defineToolkit({
+  propose_plan: {
+    type: "frontend",
+    description: "Propose a dependency-ordered plan for the work ahead.",
+    parameters: z.object({ steps: z.array(step) }),
+    execute: async ({ steps }) => runPlan(steps),
+    render: PlanGraphToolUI,
+  },
+});
+```
+
+```tsx title="app/MyRuntimeProvider.tsx"
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { toolkit } from "./toolkit";
+
+export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+See [Tool UI](/docs/tools/tool-ui) for backend-defined tools and approval gates.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, you already hold `nodes` and `edges` with their layout decided; `visibleCount` is the one thing that changes over time.
+
+<Steps>
+  <Step>
+
+### Hold the graph
+
+```tsx title="app/plan.tsx"
+"use client";
+
+import { useState } from "react";
+import {
+  FlowGraph,
+  type FlowEdge,
+  type FlowNode,
+} from "@/components/assistant-ui/elements/flow-graph";
+
+const NODES: readonly FlowNode[] = [
+  { id: "intake", label: "intake", column: 0, row: 1, state: "done" },
+  { id: "plan", label: "plan", column: 1, row: 1, state: "done" },
+  { id: "search", label: "search", column: 2, row: 0, state: "done" },
+  { id: "patch", label: "patch", column: 2, row: 2, state: "active" },
+  { id: "verify", label: "verify", column: 3, row: 1, state: "pending" },
+];
+
+const EDGES: readonly FlowEdge[] = [
+  { from: "intake", to: "plan" },
+  { from: "plan", to: "search" },
+  { from: "plan", to: "patch" },
+  { from: "search", to: "verify" },
+  { from: "patch", to: "verify" },
+];
+
+export function Plan() {
+  const [visibleCount, setVisibleCount] = useState(NODES.length);
+  return <FlowGraph nodes={NODES} edges={EDGES} visibleCount={visibleCount} />;
+}
+```
+
+  </Step>
+  <Step>
+
+### Reveal nodes as work happens
+
+```tsx
+useEffect(() => {
+  if (visibleCount >= NODES.length) return;
+  const id = setTimeout(() => setVisibleCount((n) => n + 1), 520);
+  return () => clearTimeout(id);
+}, [visibleCount]);
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="flow-graph">
+  <svg>{/* one curved path per edge */}</svg>
+  <div>{/* one absolutely positioned node per visible node, fading and scaling in */}</div>
+</div>
+```
+
+`visibleCount` slices `nodes` from the start of the array. An edge draws with a bright stroke only once both its `from` and `to` ids are inside that slice, and reads as a faint stroke otherwise; an edge naming an id that isn't in `nodes` is skipped entirely. `state` drives each node's border and fill: `"done"` is a muted filled box, `"active"` is a blue outline, and `"pending"` is a dashed, dimmer box.
+
+## Examples
+
+### Positioning nodes
+
+`column` and `row` are grid coordinates you choose, not derived from `edges`; two nodes can share a column, and the graph does not try to avoid overlaps for you.
+
+```tsx
+{ id: "search", label: "search", column: 2, row: 0, state: "done" },
+{ id: "patch", label: "patch", column: 2, row: 2, state: "active" },
+```
+
+### Restyle the graph
+
+Both lanes take `className` on the root. Node labels read the shared `mono` token and the root reads `paper`, both from `surfaces.tsx`.
+
+```tsx
+<FlowGraph className="max-w-none" /* ... */ />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Tool-call render props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `args` | `TArgs` | Parsed arguments. Partial while the model is still streaming them. |
+| `argsText` | `string` | Raw JSON argument text streamed by the model. |
+| `result` | `TResult \| undefined` | The tool's return value once it completes. `undefined` while running. |
+| `status` | `ToolCallMessagePartStatus` | `status.type` is `"running"`, `"requires-action"`, `"complete"`, or `"incomplete"`. |
+| `toolName` | `string` | Name of the tool the model called. |
+| `toolCallId` | `string` | Stable id for this invocation. |
+| `isError` | `boolean \| undefined` | Whether `result` represents a tool execution error. |
+
+There is no dedicated plan-to-graph primitive: `layout` above is a plain function you write, turning whatever shape your tool's arguments take into the `FlowNode[]` and `FlowEdge[]` that `FlowGraph` expects. Register the renderer on a toolkit entry's `render` field and attach the toolkit with `Tools({ toolkit })`. See [Tool UI](/docs/tools/tool-ui) for the full render-prop surface.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### FlowGraph
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `nodes` | `readonly FlowNode[]` | required | Every node in the graph, with its own layout position. |
+| `edges` | `readonly FlowEdge[]` | required | Connections between node ids. |
+| `visibleCount` | `number` | required | How many nodes from the start of `nodes` to show. |
+| `className` | `string` | | Merged onto the root. |
+
+`FlowNode` is `{ id: string; label: string; column: number; row: number; state: "done" | "active" | "pending" }`. `FlowEdge` is `{ from: string; to: string }`, referencing node ids. All other `div` props are forwarded to the root.
+
+</StandaloneMode>

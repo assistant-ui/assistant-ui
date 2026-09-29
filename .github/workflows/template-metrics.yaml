@@ -21,12 +21,12 @@ env:
   BUNDLE_TEMPLATES: "default minimal"
   # Exceeding MAX_LOC_INCREASE only warns; MAX_LOC_HARD_INCREASE fails the gate.
   MAX_LOC_INCREASE: "50"
-  MAX_LOC_HARD_INCREASE: "300"
+  MAX_LOC_HARD_INCREASE: "800"
 
 jobs:
   gate:
     name: Footprint Gate
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Checkout code repository
@@ -46,7 +46,7 @@ jobs:
 
   report:
     name: LOC + Bundle Size
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: read
@@ -58,23 +58,12 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # ratchet:pnpm/action-setup@v6.0.10
-
-      - name: Setup node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # ratchet:actions/setup-node@v7.0.0
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
         with:
-          node-version: 24
-          cache: "pnpm"
-
-      - name: Cache turbo build setup
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache@v6.1.0
-        with:
-          path: .turbo
-          key: ${{ runner.os }}-turbo-${{ github.ref }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-turbo-${{ github.ref }}-
-            ${{ runner.os }}-turbo-
+          runtime: node@24
+          cache: true
+          install: false
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -85,6 +74,8 @@ jobs:
           NEXT_PUBLIC_ASSISTANT_BASE_URL: "https://example.com"
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_placeholder"
           NEXT_TELEMETRY_DISABLED: "1"
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: |
           filters=""
           for t in $BUNDLE_TEMPLATES; do

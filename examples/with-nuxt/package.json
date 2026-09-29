@@ -7,25 +7,28 @@
     "postinstall": "nuxt prepare",
     "dev": "nuxt dev --port 3000",
     "build": "nuxt build",
-    "preview": "nuxt preview"
+    "preview": "nuxt preview",
+    "typecheck": "nuxi typecheck"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.42",
+    "@ai-sdk/openai": "^4.0.66",
     "@assistant-ui/ai-sdk": "workspace:*",
     "@assistant-ui/core": "workspace:*",
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/vue": "workspace:*",
-    "@lucide/vue": "^1.31.0",
-    "ai": "^7.0.66",
+    "@lucide/vue": "^1.46.0",
+    "ai": "^7.0.101",
+    "markdown-it": "^15.0.2",
     "nuxt": "^4.5.2",
-    "react": "^19.2.8",
-    "vue": "^3.5.41"
+    "react": "^19.3.0",
+    "vue": "^3.5.42"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
-    "@types/react": "^19.2.18",
+    "@types/react": "^19.3.0",
     "tailwindcss": "^4.3.3",
-    "typescript": "^7.0.2"
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vue-tsc": "^3.3.11"
   }
 }

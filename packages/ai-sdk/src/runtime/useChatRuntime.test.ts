@@ -1,7 +1,7 @@
+import type { ChatTransport, UIMessage } from "ai";
 // @vitest-environment jsdom
 
 import { act, renderHook, waitFor } from "@testing-library/react";
-import type { ChatTransport, UIMessage } from "ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
@@ -17,7 +17,9 @@ const mocks = vi.hoisted(() => {
       getModelContext: () => ({}),
       subscribe: (callback: () => void) => {
         subscribers.add(callback);
-        return () => subscribers.delete(callback);
+        return () => {
+          subscribers.delete(callback);
+        };
       },
     },
     threads: {
@@ -53,7 +55,16 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock("@ai-sdk/react", () => ({
-  useChat: mocks.useChat,
+  useChat: (...args: unknown[]) => {
+    const chat = mocks.useChat(...args);
+    if (chat) chat.stop ??= vi.fn(async () => {});
+    return chat;
+  },
+  Chat: class MockChat {
+    constructor(config: unknown) {
+      Object.assign(this, config);
+    }
+  },
 }));
 
 vi.mock("@assistant-ui/core/react", async (importOriginal) => ({
@@ -89,7 +100,6 @@ const sendMessagesOptions = {
 
 describe("useChatRuntime", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     mocks.useAISDKRuntime.mockImplementation(() => mocks.runtime);
     mocks.state.isLoadingHistory = false;
     mocks.state.threadId = "thread-id";
@@ -124,7 +134,7 @@ describe("useChatRuntime", () => {
       status: "ready",
     });
     const { rerender } = renderHook(() => useChatRuntime({ transport }));
-    const dynamicTransport = mocks.useChat.mock.lastCall?.[0]
+    const dynamicTransport = mocks.useChat.mock.lastCall?.[0].chat
       .transport as ChatTransport<UIMessage>;
 
     await dynamicTransport.sendMessages(sendMessagesOptions as never);
@@ -138,6 +148,51 @@ describe("useChatRuntime", () => {
     ]);
   });
 
+  it("forwards a callback through a ref, so a later render's callback fires instead of the mounted one", () => {
+    mocks.useChat.mockReturnValue({
+      resumeStream: vi.fn(),
+      status: "ready",
+    });
+
+    const onToolCallA = vi.fn();
+    const onToolCallB = vi.fn();
+
+    const { rerender } = renderHook(
+      ({ onToolCall }: { onToolCall: typeof onToolCallA }) =>
+        useChatRuntime({ onToolCall }),
+      { initialProps: { onToolCall: onToolCallA } },
+    );
+
+    const chat = mocks.useChat.mock.calls[0]?.[0]?.chat as {
+      onToolCall?: (arg: unknown) => void;
+      sendAutomaticallyWhen?: (arg: unknown) => boolean;
+    };
+
+    chat.onToolCall?.("first");
+    expect(onToolCallA).toHaveBeenCalledExactlyOnceWith("first");
+
+    rerender({ onToolCall: onToolCallB });
+    chat.onToolCall?.("second");
+
+    expect(onToolCallB).toHaveBeenCalledExactlyOnceWith("second");
+    expect(onToolCallA).toHaveBeenCalledOnce();
+  });
+
+  it("coerces an unset sendAutomaticallyWhen to false, matching useChat's own default", () => {
+    mocks.useChat.mockReturnValue({
+      resumeStream: vi.fn(),
+      status: "ready",
+    });
+
+    renderHook(() => useChatRuntime());
+
+    const chat = mocks.useChat.mock.calls[0]?.[0]?.chat as {
+      sendAutomaticallyWhen?: (arg: unknown) => boolean;
+    };
+
+    expect(chat.sendAutomaticallyWhen?.({})).toBe(false);
+  });
+
   it("forwards a defined chat update throttle to useChat", () => {
     mocks.useChat.mockReturnValue({
       resumeStream: vi.fn(),
@@ -145,13 +200,31 @@ describe("useChatRuntime", () => {
     });
 
     renderHook(() => useChatRuntime({ throttle: 50 }));
-    expect(mocks.useChat).toHaveBeenLastCalledWith(
+    renderHook(() => useChatRuntime({ throttle: undefined }));
+
+    expect(mocks.useChat).toHaveBeenNthCalledWith(
+      1,
       expect.objectContaining({ throttle: 50 }),
     );
+    expect(mocks.useChat.mock.calls[1]?.[0]).not.toHaveProperty("throttle");
+  });
 
-    mocks.useChat.mockClear();
-    renderHook(() => useChatRuntime({ throttle: undefined }));
-    expect(mocks.useChat.mock.lastCall?.[0]).not.toHaveProperty("throttle");
+  it("forwards a custom approval handler to the runtime only", () => {
+    const onRespondToToolApproval = vi.fn();
+    mocks.useChat.mockReturnValue({
+      resumeStream: vi.fn(),
+      status: "ready",
+    });
+
+    renderHook(() => useChatRuntime({ onRespondToToolApproval }));
+
+    expect(mocks.useAISDKRuntime).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ onRespondToToolApproval }),
+    );
+    expect(mocks.useChat.mock.calls[0]?.[0]).not.toHaveProperty(
+      "onRespondToToolApproval",
+    );
   });
 
   it("waits for external history to load before resuming a stream", async () => {
@@ -326,8 +399,8 @@ describe("useChatRuntime", () => {
       resumeStream: vi.fn().mockResolvedValue(undefined),
       status: "streaming",
     };
-    mocks.useChat.mockImplementation(({ id }: { id: string }) =>
-      id === "thread-a" ? threadA : threadB,
+    mocks.useChat.mockImplementation(({ chat }: { chat: { id: string } }) =>
+      chat.id === "thread-a" ? threadA : threadB,
     );
 
     mocks.state.threadId = "thread-a";
@@ -364,8 +437,8 @@ describe("useChatRuntime", () => {
       resumeStream: vi.fn().mockResolvedValue(undefined),
       status: "ready",
     };
-    mocks.useChat.mockImplementation(({ id }: { id: string }) =>
-      id === "__LOCALID_background" ? backgroundThread : mainThread,
+    mocks.useChat.mockImplementation(({ chat }: { chat: { id: string } }) =>
+      chat.id === "__LOCALID_background" ? backgroundThread : mainThread,
     );
     const transport = {
       getResumableAdapter: () => ({

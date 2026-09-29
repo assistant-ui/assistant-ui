@@ -5,12 +5,18 @@ export const AGENT_DISCOVERY_ROUTES = {
   agentsWellKnown: "/.well-known/AGENTS.md",
   skill: "/skill.md",
   skillWellKnown: "/.well-known/skill.md",
+  design: "/design.md",
+  designWellKnown: "/.well-known/design.md",
   apiCatalog: "/.well-known/api-catalog",
   skillsIndex: "/.well-known/agent-skills/index.json",
+  skillsRoot: "/.well-known/agent-skills",
   siteSkill: "/.well-known/agent-skills/assistant-ui-docs/SKILL.md",
   sitemap: "/sitemap.md",
   sitemapWellKnown: "/.well-known/sitemap.md",
 } as const;
+
+export const agentSkillPath = (name: string) =>
+  `${AGENT_DISCOVERY_ROUTES.skillsRoot}/${name}/SKILL.md`;
 
 export const API_CATALOG_PROFILE = "https://www.rfc-editor.org/info/rfc9727";
 
@@ -24,6 +30,10 @@ export const AGENT_DISCOVERY_REWRITES = [
   {
     source: AGENT_DISCOVERY_ROUTES.skillWellKnown,
     destination: AGENT_DISCOVERY_ROUTES.skill,
+  },
+  {
+    source: AGENT_DISCOVERY_ROUTES.designWellKnown,
+    destination: AGENT_DISCOVERY_ROUTES.design,
   },
   {
     source: AGENT_DISCOVERY_ROUTES.sitemapWellKnown,

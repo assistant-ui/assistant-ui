@@ -1,0 +1,8 @@
+{
+  "title": "Vue",
+  "description": "Build streaming AI chat UIs with Vue and Nuxt",
+  "icon": "PanelsTopLeft",
+  "root": true,
+  "pages": ["index", "quickstart", "runtimes", "ssr", "tool-ui"],
+  "platforms": ["vue"]
+}

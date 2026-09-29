@@ -8,7 +8,6 @@ import {
 import { rehypeCodeDefaultOptions } from "fumadocs-core/mdx-plugins";
 import { transformerMetaHighlight } from "@shikijs/transformers";
 import { z } from "zod";
-import lastModified from "fumadocs-mdx/plugins/last-modified";
 import type { ShikiTransformer } from "shiki";
 import { remarkMermaid } from "./lib/remark-mermaid";
 
@@ -25,7 +24,7 @@ function transformerLineNumbers(): ShikiTransformer {
 // filter content based on the user's selected platform in the header dropdown.
 // Pages / folders with no `platforms` field are universal.
 // fumadocs-mdx forbids non-collection exports here, so this is local-only.
-const platformSchema = z.enum(["react", "rn", "ink"]);
+const platformSchema = z.enum(["react", "rn", "ink", "vue", "tap", "cloud"]);
 
 export const docs = defineDocs({
   docs: {
@@ -40,9 +39,7 @@ export const docs = defineDocs({
         .optional(),
       platforms: z.array(platformSchema).optional(),
     }),
-    postprocess: {
-      includeProcessedMarkdown: true,
-    },
+    async: true,
   },
   meta: {
     schema: metaSchema.extend({
@@ -53,33 +50,23 @@ export const docs = defineDocs({
   },
 });
 
-export const tapDocs = defineDocs({
-  dir: "content/tap-docs",
-  docs: {
-    schema: frontmatterSchema,
-    postprocess: {
-      includeProcessedMarkdown: true,
-    },
-  },
-  meta: {
-    schema: metaSchema.extend({
-      description: z.string().optional(),
-    }),
-  },
-});
-
 export const examples = defineCollections({
   type: "doc",
   dir: "content/examples",
   schema: frontmatterSchema,
-  postprocess: {
-    includeProcessedMarkdown: true,
-  },
+  async: true,
 });
 
-export const standalone = defineCollections({
+export const elements = defineCollections({
   type: "doc",
-  dir: "content/standalone",
+  dir: "content/elements",
+  schema: frontmatterSchema,
+  async: true,
+});
+
+export const design = defineCollections({
+  type: "doc",
+  dir: "content/design",
   schema: frontmatterSchema.extend({
     links: z
       .array(
@@ -89,11 +76,8 @@ export const standalone = defineCollections({
         }),
       )
       .optional(),
-    platforms: z.array(platformSchema).optional(),
   }),
-  postprocess: {
-    includeProcessedMarkdown: true,
-  },
+  async: true,
 });
 
 export const blog = defineCollections({
@@ -122,7 +106,6 @@ export const careers = defineCollections({
 });
 
 export default defineConfig({
-  plugins: [lastModified()],
   mdxOptions: {
     remarkPlugins: [remarkMermaid],
     rehypeCodeOptions: {

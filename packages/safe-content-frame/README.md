@@ -50,7 +50,7 @@ Each renderer returns a `RenderedFrame`:
 | `iframe`                             | The created `<iframe>` element.                                            |
 | `origin`                             | The hashed origin the frame was loaded from.                               |
 | `sendMessage(data, transfer?)`       | `postMessage` to the frame, scoped to its origin.                          |
-| `fullyLoadedPromiseWithTimeout(ms)`  | Resolves once the frame signals it is fully loaded; rejects on timeout.    |
+| `fullyLoadedPromiseWithTimeout(ms)`  | Resolves once the frame signals full load. Rejects with the shim's own message when the shim reports a startup failure, with an error naming the shim URL when no readiness acknowledgment arrives before the timeout, and with `Timeout` when the shim started but rendering is slow. |
 | `dispose()`                          | Remove the iframe from the DOM.                                            |
 
 ## Options

@@ -12,6 +12,7 @@ import type {
   ToolApprovalResponse,
   ToolCallMessagePart,
   Unstable_AudioMessagePart,
+  Unstable_ToolInteractionInput,
   QuoteInfo,
 } from "../..";
 import type { MessagePartState } from "../..";
@@ -83,10 +84,23 @@ export type ToolCallMessagePartProps<
     /**
      * Responds to a server-side tool approval gate. Only valid while
      * `approval` is set on the part, `approval.approved === undefined`, and
-     * no `approval.resolution` is recorded. Accepts a boolean decision or the
-     * id of one of `approval.options`; option kinds resolve to the boolean.
+     * no `approval.resolution` is recorded. Accepts a boolean decision, the
+     * id of one of `approval.options` (option kinds resolve to the boolean),
+     * or a free-form answer when the request accepts one.
+     *
+     * Resolves once the runtime has accepted the response, and rejects when
+     * it could not be recorded, so the controls can stay retryable.
      */
-    respondToApproval: (response: ToolApprovalResponse) => void;
+    respondToApproval: (response: ToolApprovalResponse) => Promise<void>;
+    /**
+     * Records what the user did in this call's UI on the part, so a stored
+     * conversation keeps it. Resolves once recorded, and rejects when the
+     * payload is not plain JSON, is over the size limit, or the runtime
+     * cannot record interactions; the user's action itself is unaffected.
+     */
+    unstable_recordInteraction?:
+      | ((input: Unstable_ToolInteractionInput) => Promise<void>)
+      | undefined;
   };
 
 /** Component used to render a tool-call message part. */

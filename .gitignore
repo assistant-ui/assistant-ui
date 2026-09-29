@@ -38,8 +38,6 @@ out/
 .eve
 
 # agent rules `next dev` generates in each app it runs from
-/apps/*/AGENTS.md
-/apps/*/CLAUDE.md
 /examples/**/AGENTS.md
 /examples/**/CLAUDE.md
 /templates/*/AGENTS.md
@@ -68,6 +66,7 @@ packages/react-devtools/src/styles/panel.generated.ts
 # turbo
 .turbo
 .api-surface-tmp/
+.strict-libcheck-*/
 
 # python
 __pycache__/

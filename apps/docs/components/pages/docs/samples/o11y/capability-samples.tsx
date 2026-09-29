@@ -2,7 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ChevronRightIcon } from "lucide-react";
-import { useAui, AuiProvider, useAuiState, AuiIf } from "@assistant-ui/store";
+import {
+  AuiConfig,
+  useAui,
+  AuiProvider,
+  useAuiState,
+  AuiIf,
+} from "@assistant-ui/store";
 import {
   SpanPrimitive,
   SpanResource,
@@ -13,7 +19,7 @@ import { ClientOnly } from "./client-only";
 function SpanLatency() {
   const latencyMs = useAuiState((s) => s.span.latencyMs) as number | null;
   return (
-    <span className="text-muted-foreground ml-auto pl-3 font-mono text-xs tabular-nums">
+    <span className="text-muted-foreground/70 ml-auto pl-3 font-mono text-[11px] tracking-wide tabular-nums">
       {latencyMs == null ? "" : `${latencyMs} ms`}
     </span>
   );
@@ -21,7 +27,7 @@ function SpanLatency() {
 
 function TreeSpanRow() {
   return (
-    <SpanPrimitive.Root className="hover:bg-accent/40 flex items-center rounded-md">
+    <SpanPrimitive.Root className="hover:bg-foreground/[0.03] flex items-center">
       <SpanPrimitive.Indent
         baseIndent={8}
         indentPerLevel={18}
@@ -35,9 +41,9 @@ function TreeSpanRow() {
         <AuiIf condition={(s) => !s.span.hasChildren}>
           <span className="size-4 shrink-0" />
         </AuiIf>
-        <SpanPrimitive.StatusIndicator className="size-2 shrink-0 rounded-full data-[span-status=completed]:bg-green-500 data-[span-status=failed]:bg-red-500 data-[span-status=running]:animate-pulse data-[span-status=running]:bg-yellow-500 data-[span-status=skipped]:bg-zinc-400" />
-        <SpanPrimitive.TypeBadge className="border-border text-muted-foreground shrink-0 rounded border px-1.5 py-0.5 font-mono text-[10px]" />
-        <SpanPrimitive.Name className="truncate text-sm" />
+        <SpanPrimitive.StatusIndicator className="size-1.5 shrink-0 rounded-full data-[span-status=completed]:bg-green-500 data-[span-status=failed]:bg-red-500 data-[span-status=running]:animate-pulse data-[span-status=running]:bg-yellow-500 data-[span-status=skipped]:bg-zinc-400 data-[span-status=running]:motion-reduce:animate-none" />
+        <SpanPrimitive.TypeBadge className="text-muted-foreground/70 shrink-0 font-mono text-[10px] tracking-wide" />
+        <SpanPrimitive.Name className="truncate text-[13px]" />
         <SpanLatency />
       </SpanPrimitive.Indent>
     </SpanPrimitive.Root>
@@ -45,10 +51,11 @@ function TreeSpanRow() {
 }
 
 function Tree({ spans }: { spans: SpanData[] }) {
-  const aui = useAui({ span: SpanResource({ spans }) });
+  const aui = useAui();
+  const config = AuiConfig({ span: SpanResource({ spans }) });
   return (
-    <AuiProvider value={aui}>
-      <div className="border-border bg-background w-full max-w-md rounded-lg border p-2">
+    <AuiProvider extends={aui} config={config}>
+      <div className="border-foreground/10 bg-background w-full max-w-md border p-1.5">
         <SpanPrimitive.Children components={{ Span: TreeSpanRow }} />
       </div>
     </AuiProvider>

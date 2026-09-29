@@ -2,30 +2,65 @@ import { type NextRequest, NextResponse } from "next/server";
 
 export const runtime = "edge";
 
-function getCorsHeaders() {
-  return {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "*",
-  };
+const ALLOWED_METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
+
+function isAllowedRequestContext(req: NextRequest) {
+  const fetchSite = req.headers.get("sec-fetch-site");
+  if (fetchSite !== null) {
+    return fetchSite === "same-origin" || fetchSite === "none";
+  }
+
+  const origin = req.headers.get("origin");
+  if (origin === null) return true;
+
+  try {
+    return new URL(origin).origin === req.nextUrl.origin;
+  } catch {
+    return false;
+  }
+}
+
+function crossOriginResponse() {
+  return NextResponse.json(
+    { error: "Cross-origin requests are not allowed." },
+    { status: 403 },
+  );
 }
 
 async function handleRequest(req: NextRequest, method: string) {
+  if (!isAllowedRequestContext(req)) return crossOriginResponse();
+
   try {
+    const apiUrl = process.env.LANGGRAPH_API_URL?.trim();
+    if (!apiUrl) {
+      return NextResponse.json(
+        { error: "LANGGRAPH_API_URL is not configured." },
+        { status: 503 },
+      );
+    }
+
     const path = req.nextUrl.pathname.replace(/^\/?api\//, "");
-    const url = new URL(req.url);
-    const searchParams = new URLSearchParams(url.search);
+    const searchParams = new URLSearchParams(req.nextUrl.search);
     searchParams.delete("_path");
     searchParams.delete("nxtP_path");
     const queryString = searchParams.toString()
       ? `?${searchParams.toString()}`
       : "";
 
+    const headers = new Headers();
+    const apiKey = process.env.LANGCHAIN_API_KEY?.trim();
+    if (apiKey) headers.set("x-api-key", apiKey);
+
+    const accept = req.headers.get("accept");
+    if (accept) headers.set("accept", accept);
+
+    const contentType = req.headers.get("content-type");
+    if (contentType) headers.set("content-type", contentType);
+
     const options: RequestInit = {
       method,
-      headers: {
-        "x-api-key": process.env.LANGCHAIN_API_KEY || "",
-      },
+      headers,
+      redirect: "manual",
       signal: req.signal,
     };
 
@@ -33,24 +68,39 @@ async function handleRequest(req: NextRequest, method: string) {
       options.body = await req.text();
     }
 
-    const res = await fetch(
-      `${process.env.LANGGRAPH_API_URL}/${path}${queryString}`,
-      options,
-    );
+    const res = await fetch(`${apiUrl}/${path}${queryString}`, options);
 
-    const headers = new Headers(res.headers);
-    headers.delete("content-encoding");
-    headers.delete("content-length");
-    headers.delete("transfer-encoding");
-    const corsHeaders = getCorsHeaders();
-    for (const [key, value] of Object.entries(corsHeaders)) {
-      headers.set(key, value);
+    if (
+      res.status === 0 ||
+      (res.status >= 300 && res.status < 400 && res.status !== 304) ||
+      res.type === "opaqueredirect"
+    ) {
+      await res.body?.cancel().catch(() => undefined);
+      return NextResponse.json(
+        { error: "LangGraph returned an unexpected redirect." },
+        { status: 502 },
+      );
     }
+
+    const responseHeaders = new Headers(res.headers);
+    for (const name of [
+      "access-control-allow-credentials",
+      "access-control-allow-headers",
+      "access-control-allow-methods",
+      "access-control-allow-origin",
+      "content-encoding",
+      "content-length",
+      "set-cookie",
+      "transfer-encoding",
+    ]) {
+      responseHeaders.delete(name);
+    }
+    responseHeaders.set("Cache-Control", "no-store");
 
     return new NextResponse(res.body, {
       status: res.status,
       statusText: res.statusText,
-      headers,
+      headers: responseHeaders,
     });
   } catch (e: unknown) {
     if (e instanceof Error) {
@@ -69,8 +119,10 @@ export const POST = (req: NextRequest) => handleRequest(req, "POST");
 export const PUT = (req: NextRequest) => handleRequest(req, "PUT");
 export const PATCH = (req: NextRequest) => handleRequest(req, "PATCH");
 export const DELETE = (req: NextRequest) => handleRequest(req, "DELETE");
-export const OPTIONS = () =>
-  new NextResponse(null, {
-    status: 204,
-    headers: getCorsHeaders(),
-  });
+export const OPTIONS = (req: NextRequest) =>
+  isAllowedRequestContext(req)
+    ? new NextResponse(null, {
+        status: 204,
+        headers: { Allow: ALLOWED_METHODS },
+      })
+    : crossOriginResponse();

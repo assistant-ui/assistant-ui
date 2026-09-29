@@ -1,8 +1,21 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from "react";
-import { v4 as uuidv4 } from "uuid";
+import {
+  useState,
+  useCallback,
+  useInsertionEffect,
+  useRef,
+  useMemo,
+} from "react";
+import { generateId } from "@assistant-ui/core";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import { useAui } from "@assistant-ui/store";
+import {
+  abortableIterable,
+  invokeUserCallback,
+  openAbortableIterable,
+} from "@assistant-ui/core/internal";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
 import { contentToParts } from "./contentToParts";
+import { toAdkFunctionResponse } from "./toAdkFunctionResponse";
 import type {
   AdkEvent,
   AdkMessage,
@@ -28,24 +41,12 @@ export type UseAdkMessagesOptions = {
 
 type AdkRuntimeCallbackName = "onError" | "onCustomEvent" | "onAgentTransfer";
 
-const reportCallbackError = (name: AdkRuntimeCallbackName, error: unknown) => {
-  console.error(`[react-google-adk] ${name} callback threw an error`, error);
-};
-
-const invokeAdkRuntimeCallback = <TArgs extends unknown[]>(
+const invokeAdkRuntimeCallback = <TArgs extends readonly unknown[]>(
   name: AdkRuntimeCallbackName,
-  callback: ((...args: TArgs) => void | Promise<void>) | undefined,
+  callback: ((...args: TArgs) => unknown) | undefined,
   ...args: TArgs
-) => {
-  if (!callback) return;
-
-  try {
-    void Promise.resolve(callback(...args)).catch((error) => {
-      reportCallbackError(name, error);
-    });
-  } catch (error) {
-    reportCallbackError(name, error);
-  }
+): void => {
+  void invokeUserCallback("react-google-adk", name, callback, ...args);
 };
 
 export const useAdkMessages = ({
@@ -58,7 +59,7 @@ export const useAdkMessages = ({
     name?: string | undefined;
     branch?: string | undefined;
   }>({});
-  const [longRunningToolIds, setLongRunningToolIds] = useState<string[]>([]);
+  const [longRunningToolIds, _setLongRunningToolIds] = useState<string[]>([]);
   const [artifactDelta, setArtifactDelta] = useState<Record<string, number>>(
     {},
   );
@@ -70,19 +71,29 @@ export const useAdkMessages = ({
   const [messageMetadata, setMessageMetadata] = useState<
     Map<string, AdkMessageMetadata>
   >(new Map());
-  const lastTransferToAgentRef = useRef<string | undefined>(undefined);
+  // setMessagesImmediate and setLongRunningToolIds are the only writers of their state and publish these refs with it, so neither ref trails a commit.
   const messagesRef = useRef(messages);
-  messagesRef.current = messages;
+  const longRunningToolIdsRef = useRef(longRunningToolIds);
   const stateDeltaRef = useRef(stateDelta);
-  stateDeltaRef.current = stateDelta;
+  useInsertionEffect(() => {
+    stateDeltaRef.current = stateDelta;
+  }, [stateDelta]);
   const artifactDeltaRef = useRef(artifactDelta);
-  artifactDeltaRef.current = artifactDelta;
+  useInsertionEffect(() => {
+    artifactDeltaRef.current = artifactDelta;
+  }, [artifactDelta]);
   const messageMetadataRef = useRef(messageMetadata);
-  messageMetadataRef.current = messageMetadata;
+  useInsertionEffect(() => {
+    messageMetadataRef.current = messageMetadata;
+  }, [messageMetadata]);
 
   const setMessagesImmediate = useCallback((msgs: AdkMessage[]) => {
     messagesRef.current = msgs;
     _setMessages(msgs);
+  }, []);
+  const setLongRunningToolIds = useCallback((ids: string[]) => {
+    longRunningToolIdsRef.current = ids;
+    _setLongRunningToolIds(ids);
   }, []);
 
   /**
@@ -103,7 +114,7 @@ export const useAdkMessages = ({
       setArtifactDelta(snapshot.artifactDelta ?? {});
       setAgentInfo(snapshot.agentInfo ?? {});
     },
-    [setMessagesImmediate],
+    [setLongRunningToolIds, setMessagesImmediate],
   );
 
   // Replace the message list AND reset derived per-turn HITL state.
@@ -119,7 +130,7 @@ export const useAdkMessages = ({
       setEscalated(false);
       setMessageMetadata(new Map());
     },
-    [setMessagesImmediate],
+    [setLongRunningToolIds, setMessagesImmediate],
   );
 
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -133,7 +144,7 @@ export const useAdkMessages = ({
   const sendMessage = useCallback(
     async (newMessages: AdkMessage[], config: AdkSendMessageConfig) => {
       const newMessagesWithId = newMessages.map((m) =>
-        m.id ? m : { ...m, id: uuidv4() },
+        m.id ? m : { ...m, id: generateId() },
       ) as AdkMessage[];
 
       // A staged message is already in the thread under its own id, and the
@@ -141,27 +152,55 @@ export const useAdkMessages = ({
       // with the originals would leave every later staged id beside the merged
       // copy of itself.
       const resentIds = new Set(newMessagesWithId.map((m) => m.id));
+      // The optimistic event for a tool-only batch carries no author, so the accumulator cannot settle the calls this send answers.
+      const answeredToolCallIds = new Set(
+        newMessagesWithId.flatMap((m) =>
+          m.type === "tool" ? [m.tool_call_id] : [],
+        ),
+      );
       const accumulator = new AdkEventAccumulator(
         messagesRef.current.filter((m) => !resentIds.has(m.id)),
+        longRunningToolIdsRef.current.filter(
+          (id) => !answeredToolCallIds.has(id),
+        ),
       );
       for (const event of messagesToEvents(newMessagesWithId)) {
         accumulator.processEvent(event);
       }
       setMessagesImmediate(accumulator.getMessages());
+      setLongRunningToolIds(accumulator.getLongRunningToolIds());
+      setToolConfirmations(accumulator.getToolConfirmations());
+      setAuthRequests(accumulator.getAuthRequests());
+      let lastTransferToAgent: string | undefined;
 
+      // Google ADK replaces active runs, while React LangGraph queues sends.
+      abortControllerRef.current?.abort();
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
 
       try {
-        const response = await stream(newMessagesWithId, {
-          ...config,
-          abortSignal: abortController.signal,
-          initialize: async () => {
-            return await aui.threadListItem.initialize();
-          },
-        });
+        const response = await openAbortableIterable(
+          stream(newMessagesWithId, {
+            ...config,
+            abortSignal: abortController.signal,
+            initialize: async () => {
+              return await aui.threadListItem.initialize();
+            },
+          }),
+          abortController.signal,
+        );
+        if (!response) return;
 
-        for await (const event of response) {
+        for await (const event of abortableIterable(
+          response,
+          abortController.signal,
+        )) {
+          if (
+            abortController.signal.aborted ||
+            abortControllerRef.current !== abortController
+          ) {
+            break;
+          }
           const updatedMessages = accumulator.processEvent(event);
           setMessagesImmediate(updatedMessages);
           setStateDelta({
@@ -187,8 +226,8 @@ export const useAdkMessages = ({
           }
 
           const transfer = accumulator.getLastTransferToAgent();
-          if (transfer && transfer !== lastTransferToAgentRef.current) {
-            lastTransferToAgentRef.current = transfer;
+          if (transfer && transfer !== lastTransferToAgent) {
+            lastTransferToAgent = transfer;
             invokeAdkRuntimeCallback(
               "onAgentTransfer",
               onAgentTransfer,
@@ -219,6 +258,7 @@ export const useAdkMessages = ({
       } catch (error) {
         if (
           !abortController.signal.aborted &&
+          abortControllerRef.current === abortController &&
           !(error instanceof Error && error.name === "AbortError")
         ) {
           throw error;
@@ -232,6 +272,7 @@ export const useAdkMessages = ({
     [
       aui,
       setMessagesImmediate,
+      setLongRunningToolIds,
       stream,
       onError,
       onCustomEvent,
@@ -245,7 +286,7 @@ export const useAdkMessages = ({
     }
   }, []);
 
-  useEffect(() => cancel, [cancel]);
+  useReplaySafeEffect(() => cancel, []);
 
   return {
     messages,
@@ -306,7 +347,7 @@ export const messagesToEvents = (messages: AdkMessage[]): AdkEvent[] => {
   // message. Emitting it here keeps the optimistic view equal to that replay.
   if (parts.length === 0) parts.push({ text: "" });
 
-  const event: AdkEvent = { id: (human ?? run[0])?.id ?? uuidv4() };
+  const event: AdkEvent = { id: (human ?? run[0])?.id ?? generateId() };
   if (human || run.length === 0) event.author = "user";
   event.content = { role: "user", parts };
   events.splice(run.length > 0 ? runIndex : events.length, 0, event);
@@ -318,7 +359,7 @@ export const messagesToEvents = (messages: AdkMessage[]): AdkEvent[] => {
 export const messageToEvent = (msg: AdkMessage): AdkEvent => {
   if (msg.type === "human") {
     return {
-      id: msg.id ?? uuidv4(),
+      id: msg.id ?? generateId(),
       author: "user",
       content: { role: "user", parts: contentToParts(msg.content) },
     };
@@ -332,7 +373,7 @@ export const messageToEvent = (msg: AdkMessage): AdkEvent => {
       response = msg.content;
     }
     return {
-      id: msg.id ?? uuidv4(),
+      id: msg.id ?? generateId(),
       content: {
         role: "user",
         parts: [
@@ -340,7 +381,7 @@ export const messageToEvent = (msg: AdkMessage): AdkEvent => {
             functionResponse: {
               name: msg.name,
               id: msg.tool_call_id,
-              response,
+              response: toAdkFunctionResponse(response, msg.status === "error"),
             },
           },
         ],
@@ -348,7 +389,7 @@ export const messageToEvent = (msg: AdkMessage): AdkEvent => {
     };
   }
 
-  const result: AdkEvent = { id: msg.id ?? uuidv4() };
+  const result: AdkEvent = { id: msg.id ?? generateId() };
   if (msg.author != null) result.author = msg.author;
   result.content = {
     role: "model",

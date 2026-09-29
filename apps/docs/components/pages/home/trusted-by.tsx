@@ -3,14 +3,17 @@
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 
-const LOGOS: {
+type Logo = {
   src: string;
   alt: string;
   href: string;
   invert?: boolean;
   darkSrc?: string;
-}[] = [
+};
+
+const LOGOS: Logo[] = [
   {
     src: "/icons/cust/anthropic.svg",
     alt: "Anthropic",
@@ -21,6 +24,25 @@ const LOGOS: {
     darkSrc: "/icons/cust/google-cloud-white.svg",
     alt: "Google Cloud",
     href: "https://cloud.google.com?ref=assistant-ui",
+    invert: false,
+  },
+  {
+    src: "/icons/cust/aws.svg",
+    darkSrc: "/icons/cust/aws-white.svg",
+    alt: "AWS",
+    href: "https://aws.amazon.com?ref=assistant-ui",
+  },
+  {
+    src: "/icons/cust/neon.svg",
+    darkSrc: "/icons/cust/neon-dark.svg",
+    alt: "Neon",
+    href: "https://neon.tech?ref=assistant-ui",
+    invert: false,
+  },
+  {
+    src: "/icons/yc_logo.png",
+    alt: "Y Combinator",
+    href: "https://www.ycombinator.com/companies/assistant-ui",
     invert: false,
   },
   {
@@ -52,9 +74,9 @@ const LOGOS: {
     invert: false,
   },
   {
-    src: "/icons/cust/athenaintel.png",
+    src: "/icons/cust/athenaintel.svg",
     alt: "Athena Intelligence",
-    href: "https://athenaintelligence.ai?ref=assistant-ui",
+    href: "https://athenaintel.com?ref=assistant-ui",
   },
   {
     src: "/icons/cust/browseruse.svg",
@@ -71,69 +93,342 @@ const LOGOS: {
     alt: "Mastra",
     href: "https://mastra.ai?ref=assistant-ui",
   },
+  {
+    src: "/icons/cust/salesforce.svg",
+    alt: "Salesforce",
+    href: "https://www.salesforce.com?ref=assistant-ui",
+    invert: false,
+  },
+  {
+    src: "/icons/cust/vtex.svg",
+    alt: "VTEX",
+    href: "https://vtex.com?ref=assistant-ui",
+    invert: false,
+  },
+  {
+    src: "/icons/cust/onlyoffice.svg",
+    alt: "ONLYOFFICE",
+    href: "https://www.onlyoffice.com?ref=assistant-ui",
+  },
+  {
+    src: "/icons/cust/agentops.svg",
+    alt: "AgentOps",
+    href: "https://agentops.ai?ref=assistant-ui",
+  },
+  {
+    src: "/icons/cust/openops.svg",
+    alt: "OpenOps",
+    href: "https://www.openops.com?ref=assistant-ui",
+  },
+  {
+    src: "/icons/cust/thesys.svg",
+    alt: "Thesys",
+    href: "https://www.thesys.dev?ref=assistant-ui",
+  },
+  {
+    src: "/icons/cust/helicone.svg",
+    alt: "Helicone",
+    href: "https://www.helicone.ai?ref=assistant-ui",
+  },
+  {
+    src: "/icons/cust/voltagent.png",
+    alt: "VoltAgent",
+    href: "https://voltagent.dev?ref=assistant-ui",
+    invert: false,
+  },
+  {
+    src: "/icons/cust/memobase.svg",
+    alt: "Memobase",
+    href: "https://www.memobase.io?ref=assistant-ui",
+  },
 ];
 
-const COPIES = 3;
+const SLOTS = 9;
+export const ALL_SLOTS = Array.from({ length: SLOTS }, (_, index) => index);
+export const MOBILE_SLOTS = [0, 1, 2, 5, 6];
+export const HOLD_MIN_MS = 1600;
+const HOLD_SPAN_MS = 900;
+const CROSSFADE_MS = 500;
 
-function LogoList({ copy }: { copy: number }) {
+function shuffle(slots: readonly number[]) {
+  const order = slots.slice();
+  for (let index = order.length - 1; index > 0; index -= 1) {
+    const pick = Math.floor(Math.random() * (index + 1));
+    [order[index], order[pick]] = [order[pick]!, order[index]!];
+  }
+  return order;
+}
+
+export function takeSlot(queue: readonly number[], visible: readonly number[]) {
+  const remaining = queue.filter((slot) => visible.includes(slot));
+  const source = remaining.length > 0 ? remaining : shuffle(visible);
+  return { slot: source[source.length - 1]!, queue: source.slice(0, -1) };
+}
+
+export function rotateSlot(
+  catalogue: readonly Logo[],
+  shown: readonly Logo[],
+  visible: readonly number[],
+  target: number,
+  pick: (count: number) => number,
+): readonly Logo[] {
+  const onScreen = new Set(visible.map((slot) => shown[slot]!.alt));
+  const pool = catalogue.filter((logo) => !onScreen.has(logo.alt));
+  const next = pool[pick(pool.length)];
+  if (!next) return shown;
+  // A logo parked in a slot the narrow layout hides is in the pool, so it trades
+  // places with the outgoing one; that keeps all nine distinct at every breakpoint.
+  const parked = shown.findIndex((logo) => logo.alt === next.alt);
+  const outgoing = shown[target]!;
+  return shown.map((logo, index) =>
+    index === target ? next : index === parked ? outgoing : logo,
+  );
+}
+
+type SlotState = {
+  current: Logo;
+  previous: Logo | null;
+  entered: boolean;
+};
+
+// A slot adopts the incoming logo outright when it is not painting a cross fade:
+// a hidden slot never loads its images, and a breakpoint change would otherwise
+// reveal a stale layer holding a logo another slot now shows.
+export function slotState(
+  state: SlotState,
+  logo: Logo,
+  layout: { hidden: boolean; changed: boolean },
+): SlotState {
+  if (layout.hidden || layout.changed) {
+    return { current: logo, previous: null, entered: true };
+  }
+  if (!state.entered && logo.alt === state.previous?.alt) {
+    return { current: logo, previous: null, entered: true };
+  }
+  if (logo.alt === state.current.alt) return state;
+  return {
+    current: logo,
+    previous: state.entered ? state.current : state.previous,
+    entered: false,
+  };
+}
+
+function LogoMark({
+  logo,
+  onSettle,
+}: {
+  logo: Logo;
+  onSettle?: (() => void) | undefined;
+}) {
   return (
-    <>
-      {LOGOS.map((logo) => (
+    <span className="relative block h-6 w-full">
+      <Image
+        src={logo.src}
+        alt={logo.alt}
+        fill
+        sizes="144px"
+        onLoad={onSettle}
+        onError={onSettle}
+        className={cn(
+          "object-contain opacity-40 transition-opacity duration-150 ease-out hover:opacity-100",
+          logo.darkSrc
+            ? "dark:hidden"
+            : logo.invert === false
+              ? undefined
+              : "invert dark:invert-0",
+        )}
+      />
+      {logo.darkSrc ? (
+        <Image
+          src={logo.darkSrc}
+          alt=""
+          fill
+          sizes="144px"
+          onLoad={onSettle}
+          onError={onSettle}
+          className="hidden object-contain opacity-40 transition-opacity duration-150 ease-out hover:opacity-100 dark:block"
+        />
+      ) : null}
+    </span>
+  );
+}
+
+function LogoSlot({
+  logo,
+  hideOnMobile,
+  wide,
+}: {
+  logo: Logo;
+  hideOnMobile: boolean;
+  wide: boolean;
+}) {
+  const [current, setCurrent] = useState(logo);
+  const [previous, setPrevious] = useState<Logo | null>(null);
+  const [entered, setEntered] = useState(true);
+  const [wasWide, setWasWide] = useState(wide);
+  const mark = useRef<HTMLAnchorElement>(null);
+
+  // Readiness only counts rendered images because the theme-hidden half of a
+  // light/dark pair is display:none and never loads.
+  const settle = () => {
+    for (const image of mark.current?.querySelectorAll("img") ?? []) {
+      if (getComputedStyle(image).display === "none") continue;
+      if (!image.complete) return;
+    }
+    setEntered(true);
+  };
+
+  if (wasWide !== wide) setWasWide(wide);
+  const next = slotState({ current, previous, entered }, logo, {
+    hidden: hideOnMobile && !wide,
+    changed: wasWide !== wide,
+  });
+  if (next.current !== current) setCurrent(next.current);
+  if (next.previous !== previous) setPrevious(next.previous);
+  if (next.entered !== entered) setEntered(next.entered);
+
+  useEffect(() => {
+    if (previous === null || !entered) return;
+    const drop = window.setTimeout(() => setPrevious(null), CROSSFADE_MS + 100);
+    return () => window.clearTimeout(drop);
+  }, [entered, previous]);
+
+  return (
+    <div
+      className={cn(
+        "relative flex h-8 w-full items-center justify-center",
+        hideOnMobile && "hidden sm:flex",
+      )}
+    >
+      {previous ? (
         <Link
-          key={`${copy}-${logo.alt}`}
-          href={logo.href}
+          key={previous.alt}
+          href={previous.href}
           target="_blank"
           rel="noopener noreferrer"
-          tabIndex={copy === 0 ? undefined : -1}
-          className="inline-flex h-8 shrink-0 items-center"
+          inert={entered}
+          className={cn(
+            "absolute inset-0 mx-auto flex w-full max-w-[9rem] items-center justify-center",
+            entered &&
+              "animate-out fade-out fill-mode-forwards duration-500 ease-out",
+          )}
         >
-          <Image
-            src={logo.src}
-            alt={copy === 0 ? logo.alt : ""}
-            width={120}
-            height={24}
-            className={cn(
-              "h-6 w-auto shrink-0 object-contain opacity-40 transition-opacity hover:opacity-100",
-              logo.darkSrc
-                ? "dark:hidden"
-                : logo.invert === false
-                  ? undefined
-                  : "invert dark:invert-0",
-            )}
-          />
-          {logo.darkSrc ? (
-            <Image
-              src={logo.darkSrc}
-              alt=""
-              width={120}
-              height={24}
-              className="hidden h-6 w-auto shrink-0 object-contain opacity-40 transition-opacity hover:opacity-100 dark:block"
-            />
-          ) : null}
+          <LogoMark logo={previous} />
         </Link>
-      ))}
-    </>
+      ) : null}
+      <Link
+        key={current.alt}
+        ref={mark}
+        href={current.href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={cn(
+          "inline-flex h-8 w-full max-w-[9rem] items-center justify-center",
+          previous !== null &&
+            (entered
+              ? "animate-in fade-in duration-500 ease-out"
+              : "opacity-0"),
+        )}
+        inert={previous !== null && !entered}
+      >
+        <LogoMark logo={current} onSettle={settle} />
+      </Link>
+    </div>
   );
 }
 
 export function TrustedBy() {
+  const root = useRef<HTMLDivElement>(null);
+  const [shown, setShown] = useState<readonly Logo[]>(() =>
+    LOGOS.slice(0, SLOTS),
+  );
+  const [hovered, setHovered] = useState(false);
+  const [pageHidden, setPageHidden] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
+  const [nearViewport, setNearViewport] = useState(false);
+  const [wide, setWide] = useState(true);
+  const order = useRef<number[]>([]);
+  const frozen = reduceMotion || hovered || pageHidden || !nearViewport;
+  const slots = wide ? ALL_SLOTS : MOBILE_SLOTS;
+
+  useEffect(() => {
+    const element = root.current;
+    if (!element || typeof IntersectionObserver === "undefined") {
+      setNearViewport(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setNearViewport(entry?.isIntersecting ?? false),
+      { rootMargin: "200px 0px" },
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const desktop = window.matchMedia("(min-width: 640px)");
+    const applyMotion = () => setReduceMotion(motion.matches);
+    const applyWide = () => setWide(desktop.matches);
+    applyMotion();
+    applyWide();
+    motion.addEventListener("change", applyMotion);
+    desktop.addEventListener("change", applyWide);
+
+    const applyVisibility = () => setPageHidden(document.hidden);
+    applyVisibility();
+    document.addEventListener("visibilitychange", applyVisibility);
+
+    return () => {
+      motion.removeEventListener("change", applyMotion);
+      desktop.removeEventListener("change", applyWide);
+      document.removeEventListener("visibilitychange", applyVisibility);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (frozen) return;
+    const wait = HOLD_MIN_MS + Math.random() * HOLD_SPAN_MS;
+    const hold = window.setTimeout(() => {
+      const taken = takeSlot(order.current, slots);
+      order.current = taken.queue;
+      setShown((current) =>
+        rotateSlot(LOGOS, current, slots, taken.slot, (count) =>
+          Math.floor(Math.random() * count),
+        ),
+      );
+    }, wait);
+    return () => window.clearTimeout(hold);
+  }, [frozen, shown, slots]);
+
   return (
-    <section className="flex flex-col items-center gap-4">
-      <div className="hidden w-full flex-wrap items-center justify-center gap-x-12 gap-y-8 motion-reduce:flex">
-        <LogoList copy={0} />
-      </div>
-      <div className="group flex w-full gap-(--gap) overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_6%,black_94%,transparent)] [--duration:48s] [--gap:3rem] motion-reduce:hidden">
-        {Array.from({ length: COPIES }).map((_, copy) => (
-          <div
-            key={copy}
-            aria-hidden={copy === 0 ? undefined : true}
-            className="animate-marquee flex shrink-0 items-center gap-(--gap) group-hover:[animation-play-state:paused]"
-          >
-            <LogoList copy={copy} />
-          </div>
+    <div
+      ref={root}
+      className="flex flex-col gap-8"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <div className="grid w-full grid-cols-3 sm:grid-cols-5">
+        {shown.slice(0, 5).map((logo, index) => (
+          <LogoSlot
+            key={index}
+            logo={logo}
+            hideOnMobile={!MOBILE_SLOTS.includes(index)}
+            wide={wide}
+          />
         ))}
       </div>
-      <p className="text-muted-foreground text-sm">and teams everywhere</p>
-    </section>
+      <div className="mx-auto grid w-full grid-cols-2 sm:w-4/5 sm:grid-cols-4">
+        {shown.slice(5, SLOTS).map((logo, offset) => (
+          <LogoSlot
+            key={offset + 5}
+            logo={logo}
+            hideOnMobile={!MOBILE_SLOTS.includes(offset + 5)}
+            wide={wide}
+          />
+        ))}
+      </div>
+    </div>
   );
 }

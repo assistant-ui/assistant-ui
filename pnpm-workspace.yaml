@@ -14,22 +14,30 @@ strictDepBuilds: true
 
 verifyDepsBeforeRun: install
 
+# Metro, Expo and React Native run Babel 7. A Babel 8 copy of these packages lands where react-native-worklets 0.10 requires them undeclared and breaks native bundles, and babel-plugin-react-compiler 1.0 fails under @babel/core 8. taze reads this list too.
+update:
+  ignoreDeps:
+    - '@babel/core'
+    - '@babel/generator'
+    - '@babel/parser'
+    - '@babel/traverse'
+    - '@babel/types'
+
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   - '@assistant-ui/*'
   - '@next/*'
   - '@openuidev/assistant-ui'
-  - '@openuidev/react-headless@0.9.8'
   - '@typescript/typescript-*'
   - assistant-cloud
   - assistant-stream
   - assistant-ui
+  - aui-auth
   - create-assistant-ui
   - eve
   - heat-graph
   - next
   - safe-content-frame
-  - tw-glass
   - tw-shimmer
   - typescript
 
@@ -41,8 +49,10 @@ allowBuilds:
   '@parcel/watcher': false
   '@tailwindcss/oxide': false
   core-js: false
+  esbuild@0.27.0: true
+  esbuild@0.28.1: true
   esbuild@0.28.2: true
   node-liblzma: false
   protobufjs: false
   react-grab: false
-  sqlite3@5.1.7: true
+  vue-demi: false

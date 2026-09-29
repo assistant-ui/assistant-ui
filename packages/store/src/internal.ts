@@ -1,2 +1,8 @@
-export { useAssistantClientDestroySignal } from "./utils/tap-assistant-context";
-export { useShallowStable } from "./utils/useShallowStable";
+export { useAssistantClientDestroySignal } from "./utils/destroy-signal-context";
+export { useHostDestroySignal } from "./utils/useHostDestroySignal";
+export { useReplaySafeEffect } from "./utils/useReplaySafeEffect";
+export {
+  shallowEqual,
+  useShallowSelector,
+  useShallowStable,
+} from "./utils/useShallowStable";

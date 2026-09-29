@@ -1,9 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AppendMessage } from "@assistant-ui/core";
+import { convertExternalMessages } from "@assistant-ui/core/react";
 import {
   convertLangChainBaseMessage,
   getMessageContent,
+  getMessageType,
 } from "./convertMessages";
+import { createLangChainStreamingTimingAccessors } from "./converter";
 import type { LangChainBaseMessage, UIMessage } from "./types";
 
 const humanMessage = (content: unknown): LangChainBaseMessage => ({
@@ -23,6 +26,27 @@ const contentOf = (result: ReturnType<typeof convertLangChainBaseMessage>) => {
     throw new Error("expected a content-bearing message");
   return result.content;
 };
+
+describe("convertLangChainBaseMessage modality", () => {
+  it("lifts voice modality onto human and ai messages and ignores unknown values", () => {
+    for (const message of [humanMessage("Question"), aiMessage("Answer")]) {
+      const spoken = convertLangChainBaseMessage({
+        ...message,
+        additional_kwargs: { modality: "voice" },
+      });
+      const unknown = convertLangChainBaseMessage({
+        ...message,
+        additional_kwargs: { modality: "video" },
+      });
+
+      expect(spoken).toHaveProperty("metadata", {
+        custom: {},
+        modality: "voice",
+      });
+      expect(unknown).toHaveProperty("metadata", { custom: {} });
+    }
+  });
+});
 
 describe("convertLangChainBaseMessage file content parts", () => {
   it("converts a base64 file block", () => {
@@ -736,13 +760,55 @@ describe("convertLangChainBaseMessage reasoning content parts", () => {
     ]);
   });
 
-  it("does not throw when a reasoning block omits both summary and reasoning", () => {
+  it("falls back to the reasoning string when summary is empty", () => {
     const result = convertLangChainBaseMessage(
-      aiMessage([{ type: "reasoning" }]),
+      aiMessage([
+        {
+          type: "reasoning",
+          summary: [],
+          reasoning: "thinking out loud",
+        },
+      ]),
       {},
     );
 
-    expect(contentOf(result)).toEqual([{ type: "reasoning", text: "" }]);
+    expect(contentOf(result)).toEqual([
+      { type: "reasoning", text: "thinking out loud" },
+    ]);
+  });
+
+  it("omits reasoning parts that contain only provider metadata", () => {
+    const result = convertLangChainBaseMessage(
+      aiMessage([
+        { type: "reasoning", signature: "signed", index: 0 },
+        { type: "reasoning", summary: [{ type: "summary_text" }], index: 1 },
+        { type: "text", text: "Answer." },
+      ]),
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([{ type: "text", text: "Answer." }]);
+  });
+
+  it("renders the summary, falling back to the reasoning string when it is blank", () => {
+    const convert = (summary: string) =>
+      contentOf(
+        convertLangChainBaseMessage(
+          aiMessage([
+            {
+              type: "reasoning",
+              reasoning: "Check net",
+              summary: [{ type: "summary_text", text: summary }],
+            },
+          ]),
+          {},
+        ),
+      );
+
+    expect(convert("temperature")).toEqual([
+      { type: "reasoning", text: "temperature" },
+    ]);
+    expect(convert("  ")).toEqual([{ type: "reasoning", text: "Check net" }]);
   });
 
   it("tolerates null entries inside the summary array", () => {
@@ -945,6 +1011,294 @@ describe("convertLangChainBaseMessage audio transcripts", () => {
     ]) {
       const result = convertLangChainBaseMessage(audioMessage("", audio), {});
       expect(contentOf(result)).toEqual([{ type: "text", text: "" }]);
+    }
+  });
+});
+
+describe("convertLangChainBaseMessage tool messages", () => {
+  const toolCall = {
+    type: "tool_call",
+    id: "call-1",
+    name: "search",
+    args: { query: "hello" },
+  };
+
+  const aiWithToolCall = (): LangChainBaseMessage =>
+    ({
+      _getType: () => "ai",
+      id: "msg-ai",
+      content: [],
+      tool_calls: [toolCall],
+    }) as LangChainBaseMessage;
+
+  const toolResult = (name?: string): LangChainBaseMessage =>
+    ({
+      _getType: () => "tool",
+      id: "msg-tool",
+      content: "3 results",
+      tool_call_id: "call-1",
+      ...(name !== undefined && { name }),
+    }) as LangChainBaseMessage;
+
+  it("leaves toolName absent when the message has no name", () => {
+    const result = convertLangChainBaseMessage(toolResult(), {});
+
+    expect(result.role).toBe("tool");
+    if (result.role !== "tool") throw new Error("expected a tool message");
+    expect(result.toolName).toBeUndefined();
+  });
+
+  it("keeps the name when the message carries one", () => {
+    const result = convertLangChainBaseMessage(toolResult("search"), {});
+
+    if (result.role !== "tool") throw new Error("expected a tool message");
+    expect(result.toolName).toBe("search");
+  });
+
+  it("merges a nameless tool result into its call instead of throwing", () => {
+    const messages = convertExternalMessages(
+      [aiWithToolCall(), toolResult()],
+      (message) => convertLangChainBaseMessage(message, {}),
+      false,
+      {},
+    );
+
+    expect(messages).toHaveLength(1);
+    const part = messages[0]!.content[0]!;
+    expect(part.type).toBe("tool-call");
+    if (part.type !== "tool-call") throw new Error("expected a tool call part");
+    expect(part.toolName).toBe("search");
+    expect(part.result).toBe("3 results");
+  });
+
+  it("treats an empty name as no name", () => {
+    const messages = convertExternalMessages(
+      [aiWithToolCall(), toolResult("")],
+      (message) => convertLangChainBaseMessage(message, {}),
+      false,
+      {},
+    );
+
+    const part = messages[0]!.content[0]!;
+    if (part.type !== "tool-call") throw new Error("expected a tool call part");
+    expect(part.toolName).toBe("search");
+  });
+
+  it("still rejects a result naming a different tool", () => {
+    expect(() =>
+      convertExternalMessages(
+        [aiWithToolCall(), toolResult("other_tool")],
+        (message) => convertLangChainBaseMessage(message, {}),
+        false,
+        {},
+      ),
+    ).toThrow(/does not match existing tool call/);
+  });
+});
+
+describe("convertLangChainBaseMessage malformed messages", () => {
+  it("reports an unknown type for a message without _getType or type", () => {
+    const message = { id: "msg-3", content: "hello" } as LangChainBaseMessage;
+
+    expect(getMessageType(message)).toBe("unknown");
+    expect(convertLangChainBaseMessage(message, {})).toEqual({
+      role: "system",
+      id: "msg-3",
+      content: [{ type: "text", text: "hello" }],
+    });
+  });
+
+  it("converts a human message with null content to empty content", () => {
+    expect(
+      contentOf(convertLangChainBaseMessage(humanMessage(null), {})),
+    ).toEqual([]);
+  });
+
+  it("keeps tool calls when an ai message carries object content", () => {
+    const result = convertLangChainBaseMessage(
+      {
+        ...aiMessage({ text: "not an array" }),
+        tool_calls: [{ id: "call-1", name: "lookup", args: { q: "x" } }],
+      },
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "lookup",
+        args: { q: "x" },
+        argsText: '{"q":"x"}',
+      },
+    ]);
+  });
+
+  it("normalizes missing, string, and array tool-call args to an object", () => {
+    for (const args of [undefined, "not-json", ["x"], null]) {
+      const result = convertLangChainBaseMessage(
+        {
+          ...aiMessage([]),
+          tool_calls: [{ id: "call-1", name: "lookup", args }],
+        } as unknown as LangChainBaseMessage,
+        {},
+      );
+      expect(contentOf(result)).toEqual([
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "lookup",
+          args: {},
+          argsText: "{}",
+        },
+      ]);
+    }
+  });
+
+  it("normalizes unsafe object tool-call args to an empty object", () => {
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    class CustomArgs {
+      query = "x";
+    }
+
+    for (const args of [new Date(0), new Map(), new CustomArgs(), cyclic]) {
+      const result = convertLangChainBaseMessage(
+        {
+          ...aiMessage([]),
+          tool_calls: [{ id: "call-1", name: "lookup", args }],
+        } as unknown as LangChainBaseMessage,
+        {},
+      );
+      expect(contentOf(result)).toEqual([
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "lookup",
+          args: {},
+          argsText: "{}",
+        },
+      ]);
+    }
+  });
+
+  it("converts a system message with null content to empty text", () => {
+    const result = convertLangChainBaseMessage(
+      { _getType: () => "system", id: "msg-4", content: null },
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([{ type: "text", text: "" }]);
+  });
+
+  it("renders a message without a type or content as empty system text", () => {
+    const result = convertLangChainBaseMessage(
+      { id: "msg-6" } as LangChainBaseMessage,
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([{ type: "text", text: "" }]);
+  });
+
+  it("skips null entries inside a content array", () => {
+    const result = convertLangChainBaseMessage(
+      humanMessage([null, { type: "text", text: "kept" }, undefined]),
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([{ type: "text", text: "kept" }]);
+  });
+
+  it("coalesces a text block without a text field to empty text", () => {
+    const result = convertLangChainBaseMessage(
+      humanMessage([{ type: "text" }]),
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([{ type: "text", text: "" }]);
+  });
+
+  it("skips null entries when measuring streamed text length", () => {
+    const { getTextLength } = createLangChainStreamingTimingAccessors<{
+      id?: string | undefined;
+      content?: unknown;
+      _getType: () => string;
+    }>((message) => message._getType());
+
+    expect(
+      getTextLength(
+        [
+          {
+            _getType: () => "ai",
+            id: "ai-1",
+            content: [null, { type: "text", text: "abc" }, undefined],
+          },
+        ],
+        "ai-1",
+      ),
+    ).toBe(3);
+  });
+
+  it("renders a textless block as empty system text", () => {
+    const result = convertLangChainBaseMessage(
+      {
+        _getType: () => "system",
+        id: "msg-7",
+        content: [{ type: "text" }, { type: "text", text: "kept" }],
+      },
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([{ type: "text", text: "kept" }]);
+  });
+
+  it("skips null entries when collecting system text", () => {
+    const result = convertLangChainBaseMessage(
+      {
+        _getType: () => "system",
+        id: "msg-7",
+        content: [null, { type: "text", text: "kept" }],
+      },
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([{ type: "text", text: "kept" }]);
+  });
+
+  it("converts a system message with object content to empty text", () => {
+    const result = convertLangChainBaseMessage(
+      { _getType: () => "system", id: "msg-5", content: { text: "x" } },
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([{ type: "text", text: "" }]);
+  });
+
+  it("stays silent about non-array content outside development", () => {
+    vi.stubEnv("NODE_ENV", "test");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      convertLangChainBaseMessage(humanMessage(true), {});
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("warns once in development about non-array content", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      convertLangChainBaseMessage(humanMessage(42), {});
+      convertLangChainBaseMessage(humanMessage(42), {});
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(
+        "Ignoring message content that is neither a string nor an array: number",
+      );
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllEnvs();
     }
   });
 });

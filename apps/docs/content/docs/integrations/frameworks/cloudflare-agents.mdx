@@ -69,7 +69,7 @@ export type Env = {
 export class Chat extends AIChatAgent<Env> {
   async onChatMessage(onFinish: Parameters<typeof streamText>[0]["onFinish"]) {
     return streamText({
-      model: openai("gpt-5.6-luna"),
+      model: openai("gpt-6-luna"),
       messages: await convertToModelMessages(this.messages),
       onFinish,
     });
@@ -200,7 +200,7 @@ import { useAgent } from "agents/react";
 import { useAgentChat } from "@cloudflare/ai-chat/react";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useAISDKRuntime } from "@assistant-ui/ai-sdk";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export const Assistant = () => {
   const agent = useAgent({

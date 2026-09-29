@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   REDACTED,
   redactSensitive,
+  sanitizeAndRedact,
   sanitizeForMessage,
   serializeModelContext,
 } from "./serialization";
@@ -58,6 +59,103 @@ describe("sanitizeForMessage", () => {
 
   it("sanitizes invalid dates without throwing", () => {
     expect(sanitizeForMessage(new Date(Number.NaN))).toBe("Invalid Date");
+  });
+
+  it("preserves readable properties when an enumerable getter throws", () => {
+    const value = { readable: "value" };
+    Object.defineProperty(value, "broken", {
+      enumerable: true,
+      get: () => {
+        throw new Error("getter failed");
+      },
+    });
+
+    expect(sanitizeForMessage(value)).toEqual({
+      readable: "value",
+      broken: "[Unserializable]",
+    });
+  });
+
+  it("handles proxies that reject key enumeration", () => {
+    const value = new Proxy(
+      {},
+      {
+        ownKeys: () => {
+          throw new Error("enumeration failed");
+        },
+      },
+    );
+
+    expect(sanitizeForMessage(value)).toBe("[Unserializable]");
+  });
+
+  it("preserves readable array entries when an indexed getter throws", () => {
+    const value = ["first", "second", "third"];
+    Object.defineProperty(value, 1, {
+      get: () => {
+        throw new Error("getter failed");
+      },
+    });
+
+    expect(sanitizeForMessage(value)).toEqual([
+      "first",
+      "[Unserializable]",
+      "third",
+    ]);
+  });
+
+  it("snapshots proxy array length before reading entries", () => {
+    let lengthReads = 0;
+    const value = new Proxy(["first", "second"], {
+      get: (target, property, receiver) => {
+        if (property === "length") return lengthReads++ === 0 ? 2 : 0;
+        return Reflect.get(target, property, receiver);
+      },
+    });
+
+    expect(sanitizeForMessage(value)).toEqual(["first", "second"]);
+  });
+
+  it("preserves map entries when a key cannot be converted to a string", () => {
+    const brokenKey = {
+      toString: () => {
+        throw new Error("key conversion failed");
+      },
+    };
+    const secondBrokenKey = {
+      toString: () => {
+        throw new Error("key conversion failed");
+      },
+    };
+    const value = new Map<unknown, unknown>([
+      [brokenKey, "broken key value"],
+      [secondBrokenKey, "second broken key value"],
+      ["readable", "readable value"],
+    ]);
+
+    expect(sanitizeForMessage(value)).toEqual({
+      "[Unserializable]": "broken key value",
+      "[Unserializable] (2)": "second broken key value",
+      readable: "readable value",
+    });
+  });
+
+  it("preserves prototype-named object and map entries as own properties", () => {
+    const objectResult = sanitizeAndRedact(
+      JSON.parse('{"__proto__":{"visible":true}}'),
+    ) as Record<string, unknown>;
+    const mapResult = sanitizeForMessage(
+      new Map([["__proto__", "map value"]]),
+    ) as Record<string, unknown>;
+
+    expect(Object.hasOwn(objectResult, "__proto__")).toBe(true);
+    expect(objectResult["__proto__"]).toEqual({ visible: true });
+    expect(Object.getPrototypeOf(objectResult)).toBe(Object.prototype);
+    expect(JSON.stringify(objectResult)).toBe('{"__proto__":{"visible":true}}');
+
+    expect(Object.hasOwn(mapResult, "__proto__")).toBe(true);
+    expect(mapResult["__proto__"]).toBe("map value");
+    expect(Object.getPrototypeOf(mapResult)).toBe(Object.prototype);
   });
 });
 
@@ -180,5 +278,113 @@ describe("serializeModelContext", () => {
 
   it("returns undefined when there is no context", () => {
     expect(serializeModelContext(undefined)).toBeUndefined();
+  });
+
+  it("preserves readable fields when a model-context getter throws", () => {
+    const context = {
+      tools: {
+        search: { type: "frontend", description: "Search documents" },
+      },
+      config: { model: "test-model" },
+    };
+    Object.defineProperty(context, "system", {
+      enumerable: true,
+      get: () => {
+        throw new Error("system unavailable");
+      },
+    });
+
+    expect(serializeModelContext(context as never)).toEqual({
+      system: "[Unserializable]",
+      tools: [
+        {
+          name: "search",
+          type: "frontend",
+          description: "Search documents",
+        },
+      ],
+      config: { model: "test-model" },
+    });
+  });
+});
+
+describe("sanitizeForMessage errors", () => {
+  it("keeps the name, message and stack an Error hides behind non-enumerable properties", () => {
+    const result = sanitizeForMessage(new Error("boom")) as Record<
+      string,
+      unknown
+    >;
+
+    expect(result["name"]).toBe("Error");
+    expect(result["message"]).toBe("boom");
+    expect(typeof result["stack"]).toBe("string");
+  });
+
+  it("keeps custom fields and the error subclass name", () => {
+    class HttpError extends Error {
+      override name = "HttpError";
+      status = 503;
+    }
+
+    const result = sanitizeForMessage(new HttpError("unavailable")) as Record<
+      string,
+      unknown
+    >;
+
+    expect(result["name"]).toBe("HttpError");
+    expect(result["message"]).toBe("unavailable");
+    expect(result["status"]).toBe(503);
+  });
+
+  it("serializes a cause chain", () => {
+    const result = sanitizeForMessage(
+      new Error("outer", { cause: new Error("inner") }),
+    ) as Record<string, unknown>;
+
+    expect(result["cause"]).toMatchObject({ name: "Error", message: "inner" });
+  });
+
+  it("serializes an error nested in a value", () => {
+    const result = sanitizeForMessage({
+      status: { reason: "error", error: new Error("nested") },
+    }) as { status: { error: Record<string, unknown> } };
+
+    expect(result.status.error["message"]).toBe("nested");
+  });
+
+  it("sanitizes non-JSON values assigned to name, message or stack", () => {
+    const error = new Error("boom");
+    Object.defineProperty(error, "name", { value: Symbol("weird") });
+    Object.defineProperty(error, "message", { value: 10n });
+    Object.defineProperty(error, "stack", { value: { nested: 1n } });
+
+    const result = sanitizeForMessage(error) as Record<string, unknown>;
+
+    expect(result["name"]).toBe("Symbol(weird)");
+    expect(result["message"]).toBe("10");
+    expect(result["stack"]).toEqual({ nested: "1" });
+    expect(() => JSON.stringify(result)).not.toThrow();
+  });
+
+  it("serializes an error from another realm", () => {
+    // a cross-realm Error fails instanceof; both it and this stand-in answer
+    // the Object.prototype.toString brand check the same way
+    // a real cross-realm Error keeps name/message non-enumerable, so only the
+    // brand check can surface them; both answer Object.prototype.toString alike
+    const foreign = { [Symbol.toStringTag]: "Error" };
+    Object.defineProperty(foreign, "name", { value: "ForeignError" });
+    Object.defineProperty(foreign, "message", { value: "from an iframe" });
+
+    const result = sanitizeForMessage(foreign) as Record<string, unknown>;
+
+    expect(result["name"]).toBe("ForeignError");
+    expect(result["message"]).toBe("from an iframe");
+  });
+
+  it("does not recurse forever on a self-referencing cause", () => {
+    const error = new Error("loop") as Error & { cause?: unknown };
+    error.cause = error;
+
+    expect(() => sanitizeForMessage(error)).not.toThrow();
   });
 });

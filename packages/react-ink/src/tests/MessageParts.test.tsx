@@ -20,7 +20,6 @@ const { MessagePrimitive } = await import("../index");
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
 });
 
 const lastComponents = () => {
@@ -86,6 +85,20 @@ describe("MessagePrimitive.Parts", () => {
       (components.data as { by_name: Record<string, unknown> }).by_name.weather,
     ).toBe(WeatherCard);
     expect(components.ChainOfThought).toBeUndefined();
+  });
+
+  it("forwards generativeUI in both grouping modes", async () => {
+    const generativeUI = { components: { Card: () => null } };
+
+    await renderFrame(<MessagePrimitive.Parts components={{ generativeUI }} />);
+    expect(lastComponents().generativeUI).toBe(generativeUI);
+
+    await renderFrame(
+      <MessagePrimitive.Parts
+        components={{ generativeUI, ChainOfThought: () => null }}
+      />,
+    );
+    expect(lastComponents().generativeUI).toBe(generativeUI);
   });
 
   it("injects ink data.Fallback when components is omitted", async () => {

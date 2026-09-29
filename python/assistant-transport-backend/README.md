@@ -15,18 +15,14 @@ A simple Python server that demonstrates the assistant-transport protocol using 
 ## Prerequisites
 
 - Python 3.9 or higher
-- pip package manager
+- uv
 
 ## Quick Start
 
 ### 1. Install Dependencies
 
 ```bash
-# Install the package and dependencies
-pip install -e .
-
-# Or install dependencies directly
-pip install -r requirements.txt
+uv sync
 ```
 
 ### 2. Configure Environment (Optional)
@@ -126,8 +122,6 @@ This backend works with the `with-assistant-transport` frontend example:
 python/assistant-transport-backend/
 ├── main.py                    # FastAPI server and main entry point
 ├── pyproject.toml            # Project configuration and dependencies
-├── requirements.txt          # Pip requirements file
-├── setup.py                  # Automated setup script
 ├── .env.example             # Environment variables template
 └── README.md               # This file
 ```

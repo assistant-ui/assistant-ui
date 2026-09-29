@@ -3,10 +3,12 @@ import {
   a2aPartToContent,
   a2aPartsToContent,
   a2aMessageToContent,
+  isA2uiDataPart,
   taskStateToMessageStatus,
   contentPartsToA2AParts,
   isTerminalTaskState,
   isInterruptedTaskState,
+  threadMessageToA2AMessage,
 } from "./conversions";
 import type { A2APart, A2AMessage, A2ATaskState } from "./types";
 
@@ -153,6 +155,82 @@ describe("a2aPartToContent", () => {
   it("returns empty text for empty part", () => {
     const part: A2APart = {};
     expect(a2aPartToContent(part)).toEqual({ type: "text", text: "" });
+  });
+});
+
+describe("A2UI data parts", () => {
+  it.each([
+    [
+      "media type",
+      {
+        mediaType: "application/vnd.A2UI+json",
+        data: { value: "from media type" },
+      },
+    ],
+    [
+      "metadata",
+      {
+        metadata: { mimeType: "application/a2ui+json" },
+        data: { value: "from metadata" },
+      },
+    ],
+    [
+      "metadata media type",
+      {
+        metadata: { mediaType: "application/a2ui+json" },
+        data: { value: "from metadata media type" },
+      },
+    ],
+    [
+      "operation shape",
+      {
+        data: {
+          version: "v0.9",
+          createSurface: { surfaceId: "surface" },
+        },
+      },
+    ],
+    [
+      "operation array",
+      {
+        data: [
+          {
+            version: "v0.9",
+            createSurface: { surfaceId: "surface" },
+          },
+          {
+            version: "v0.9",
+            deleteSurface: { surfaceId: "surface" },
+          },
+        ],
+      },
+    ],
+  ] as const)("detects A2UI by %s", (_source, part) => {
+    expect(isA2uiDataPart(part)).toBe(true);
+    expect(a2aPartsToContent([part])).toEqual([]);
+  });
+
+  it("does not detect an operation array containing a non-operation", () => {
+    const part = {
+      data: [
+        {
+          version: "v0.9",
+          createSurface: { surfaceId: "surface" },
+        },
+        { value: "not an operation" },
+      ],
+    };
+
+    expect(isA2uiDataPart(part)).toBe(false);
+  });
+
+  it("keeps ordinary data parts as JSON text", () => {
+    expect(a2aPartsToContent([{ data: { value: "plain" } }])).toEqual([
+      {
+        type: "text",
+        text: '{\n  "value": "plain"\n}',
+      },
+    ]);
   });
 });
 
@@ -513,6 +591,20 @@ describe("contentPartsToA2AParts", () => {
     expect(result).toEqual([{ raw: "ZmlsZQ==", mediaType: "text/csv" }]);
   });
 
+  it("preserves raw zero-byte file data", () => {
+    const result = contentPartsToA2AParts([
+      {
+        type: "file",
+        data: "",
+        mimeType: "text/plain",
+        filename: "empty.txt",
+      },
+    ]);
+    expect(result).toEqual([
+      { raw: "", mediaType: "text/plain", filename: "empty.txt" },
+    ]);
+  });
+
   it("falls back to the attachment MIME type when the file part MIME is empty", () => {
     const result = contentPartsToA2AParts(
       [{ type: "file", data: "ZmlsZQ==", mimeType: "" }],
@@ -626,5 +718,92 @@ describe("contentPartsToA2AParts", () => {
 
   it("handles empty input", () => {
     expect(contentPartsToA2AParts([])).toEqual([]);
+  });
+});
+
+describe("threadMessageToA2AMessage", () => {
+  const userMessage = {
+    id: "msg-1",
+    role: "user",
+    createdAt: new Date(),
+    content: [{ type: "text" as const, text: "hello" }],
+    attachments: [
+      {
+        id: "att-1",
+        type: "file" as const,
+        name: "notes.txt",
+        contentType: "text/plain",
+        status: { type: "complete" as const },
+        content: [{ type: "text" as const, text: "attached" }],
+      },
+    ],
+    metadata: { custom: {} },
+  } as any;
+
+  it("converts user content and appends attachment parts", () => {
+    const result = threadMessageToA2AMessage(userMessage);
+    expect(result.messageId).toBe("msg-1");
+    expect(result.role).toBe("user");
+    expect(result.parts).toEqual([{ text: "hello" }, { text: "attached" }]);
+    expect(result.contextId).toBeUndefined();
+    expect(result.taskId).toBeUndefined();
+  });
+
+  it("attaches contextId and taskId when provided", () => {
+    const result = threadMessageToA2AMessage(userMessage, {
+      contextId: "ctx-1",
+      taskId: "task-1",
+    });
+    expect(result.contextId).toBe("ctx-1");
+    expect(result.taskId).toBe("task-1");
+  });
+
+  it("skips undefined options and non-user content", () => {
+    const result = threadMessageToA2AMessage(
+      { ...userMessage, role: "assistant" },
+      { contextId: undefined, taskId: undefined },
+    );
+    expect(result.parts).toEqual([]);
+    expect(result.contextId).toBeUndefined();
+    expect(result.taskId).toBeUndefined();
+  });
+
+  it("keeps tool interactions out of outbound messages", () => {
+    const result = threadMessageToA2AMessage({
+      ...userMessage,
+      role: "user",
+      attachments: [],
+      content: [
+        { type: "text", text: "hello" },
+        {
+          type: "file",
+          data: "ZmlsZQ==",
+          mimeType: "text/plain",
+          filename: "file.txt",
+        },
+        {
+          type: "tool-call",
+          toolCallId: "tool-1",
+          toolName: "present",
+          args: {},
+          argsText: "{}",
+          result: {},
+          unstable_interactions: {
+            entries: [
+              {
+                type: "action",
+                occurredAt: 1_700_000_000_000,
+                payload: { value: "selected" },
+              },
+            ],
+          },
+        },
+      ],
+    } as any);
+
+    expect(result.parts).toEqual([
+      { text: "hello" },
+      { raw: "ZmlsZQ==", mediaType: "text/plain", filename: "file.txt" },
+    ]);
   });
 });

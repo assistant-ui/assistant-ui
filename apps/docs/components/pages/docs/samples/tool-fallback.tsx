@@ -8,9 +8,9 @@ import {
   ToolFallbackTrigger,
   ToolFallbackContent,
   ToolFallbackArgs,
-  ToolFallbackResult,
   ToolFallbackApproval,
-} from "@/components/assistant-ui/tool-fallback";
+  ToolFallbackResult,
+} from "@/components/assistant-ui/elements/tool-fallback.aui";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 import { Button } from "@/components/ui/button";
 
@@ -35,24 +35,56 @@ export function ToolFallbackSample() {
   );
 }
 
-export function ToolFallbackRunningSample() {
+export function ToolFallbackReceiptSample() {
   return (
     <SampleFrame className="flex h-auto items-center p-6">
-      <ToolFallbackRoot>
+      <ToolFallbackRoot defaultOpen>
         <ToolFallbackTrigger
-          toolName="search_web"
-          status={{ type: "running" }}
+          toolName="send_email"
+          status={{ type: "complete" }}
         />
         <ToolFallbackContent>
           <ToolFallbackArgs
-            argsText={JSON.stringify({ query: "latest news" }, null, 2)}
+            argsText={JSON.stringify(
+              { to: "team@example.com", subject: "Weekly summary" },
+              null,
+              2,
+            )}
           />
+          <ToolFallbackApproval
+            approval={{
+              id: "send-weekly-summary",
+              prompt: "Send the weekly summary to team@example.com?",
+              approved: true,
+            }}
+          />
+          <ToolFallbackResult result={{ sent: true }} />
         </ToolFallbackContent>
       </ToolFallbackRoot>
     </SampleFrame>
   );
 }
 
+export function ToolFallbackCompletedSample() {
+  return (
+    <SampleFrame className="flex h-auto items-center p-6">
+      <ToolFallbackRoot defaultOpen>
+        <ToolFallbackTrigger
+          toolName="get_weather"
+          status={{ type: "complete" }}
+        />
+        <ToolFallbackContent>
+          <ToolFallbackArgs
+            argsText={JSON.stringify({ location: "San Francisco" }, null, 2)}
+          />
+          <ToolFallbackResult
+            result={{ temperature: 72, condition: "Sunny", humidity: 45 }}
+          />
+        </ToolFallbackContent>
+      </ToolFallbackRoot>
+    </SampleFrame>
+  );
+}
 export function ToolFallbackCancelledSample() {
   return (
     <SampleFrame className="flex h-auto items-center p-6">
@@ -72,33 +104,6 @@ export function ToolFallbackCancelledSample() {
   );
 }
 
-export function ToolFallbackRequiresActionSample() {
-  return (
-    <SampleFrame className="flex h-auto items-center p-6">
-      <ToolFallbackRoot defaultOpen>
-        <ToolFallbackTrigger
-          toolName="delete_file"
-          status={{ type: "requires-action", reason: "interrupt" }}
-        />
-        <ToolFallbackContent>
-          <ToolFallbackArgs
-            argsText={JSON.stringify(
-              { path: "/tmp/work-in-progress.txt" },
-              null,
-              2,
-            )}
-          />
-          <ToolFallbackApproval
-            addResult={() => {}}
-            resume={() => {}}
-            interrupt={{ type: "human", payload: {} }}
-          />
-        </ToolFallbackContent>
-      </ToolFallbackRoot>
-    </SampleFrame>
-  );
-}
-
 function ToolFallbackStreamingDemo() {
   const [status, setStatus] = useState<ToolCallMessagePartStatus>({
     type: "complete",
@@ -111,12 +116,19 @@ function ToolFallbackStreamingDemo() {
 
   const isRunning = status.type === "running";
 
+  const [syncedRunning, setSyncedRunning] = useState<boolean | null>(null);
+
+  if (syncedRunning !== isRunning) {
+    setSyncedRunning(isRunning);
+    if (isRunning) {
+      setIsOpen(true);
+      setStreamedArgs("");
+      setResult(undefined);
+    }
+  }
+
   useEffect(() => {
     if (!isRunning) return;
-
-    setIsOpen(true);
-    setStreamedArgs("");
-    setResult(undefined);
 
     let index = 0;
     const argsInterval = setInterval(() => {

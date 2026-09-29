@@ -42,7 +42,7 @@ export function QuoteComposerSample() {
       <p className="text-muted-foreground/60 absolute end-4 bottom-2.5 text-[11px]">
         Built-in{" "}
         <a
-          href="/docs/ui/quote"
+          href="/elements/quote"
           className="hover:text-foreground underline underline-offset-2"
         >
           Quote component

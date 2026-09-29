@@ -2,7 +2,14 @@
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { createElement, StrictMode, useRef } from "react";
+import {
+  createElement,
+  StrictMode,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+} from "react";
+import { createRoot } from "react-dom/client";
 import { useCommandQueue } from "./commandQueue";
 import { useRunManager } from "./runManager";
 import type { AssistantTransportCommand } from "./types";
@@ -85,6 +92,73 @@ const useTransportSchedulingHarness = (
 };
 
 describe("assistant transport scheduling contracts", () => {
+  it("reads the committed callbacks when a run settles inside a yielded commit", async () => {
+    // A render past the scheduler's 5 ms frame budget yields before passive
+    // effects, and act would drain them first, so this renders outside act.
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", false);
+    try {
+      const events: string[] = [];
+      const pendingRuns: (() => void)[] = [];
+      let schedule!: () => void;
+      const settleRun = () => {
+        pendingRuns.shift()?.();
+        schedule();
+      };
+
+      const Settle = ({ onLayout }: { onLayout: (() => void) | undefined }) => {
+        useLayoutEffect(() => {
+          onLayout?.();
+        }, [onLayout]);
+        return null;
+      };
+      const Probe = ({
+        label,
+        renderMs,
+        onLayout,
+      }: {
+        label: string;
+        renderMs: number;
+        onLayout?: () => void;
+      }) => {
+        const runManager = useRunManager({
+          onRun: () => {
+            events.push(`run:${label}`);
+            return new Promise<void>((resolve) => pendingRuns.push(resolve));
+          },
+          onFinish: () => events.push(`finish:${label}`),
+        });
+        schedule = runManager.schedule;
+        useEffect(() => {
+          events.push(`passive:${label}`);
+        }, [label]);
+        const renderEnd = performance.now() + renderMs;
+        while (performance.now() < renderEnd) {}
+        return createElement(Settle, { onLayout });
+      };
+
+      const root = createRoot(document.createElement("div"));
+      root.render(createElement(Probe, { label: "A", renderMs: 0 }));
+      await vi.waitFor(() => expect(events).toEqual(["passive:A"]));
+      schedule();
+      await vi.waitFor(() => expect(events).toEqual(["passive:A", "run:A"]));
+      root.render(
+        createElement(Probe, { label: "B", renderMs: 30, onLayout: settleRun }),
+      );
+      await vi.waitFor(() => expect(events).toContain("passive:B"));
+      root.unmount();
+
+      expect(events).toEqual([
+        "passive:A",
+        "run:A",
+        "finish:B",
+        "run:B",
+        "passive:B",
+      ]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("runs in single-flight mode and schedules exactly one follow-up run", async () => {
     const gate = createDeferred();
     const { result } = renderHook(() =>
@@ -147,7 +221,9 @@ describe("assistant transport scheduling contracts", () => {
         onRun: () => {
           throw new Error("network error");
         },
-        onError: (commands) => seen.push(commands),
+        onError: (commands) => {
+          seen.push(commands);
+        },
       }),
     );
 

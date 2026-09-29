@@ -65,4 +65,4 @@ export const MarkdownText = () => (
 );
 ```
 
-Full prop reference, plugin docs, performance guide, and `react-markdown` migration notes at [assistant-ui.com/docs/ui/streamdown](https://www.assistant-ui.com/docs/ui/streamdown).
+Full prop reference, plugin docs, performance guide, and `react-markdown` migration notes at [assistant-ui.com/docs/guides/streamdown](https://www.assistant-ui.com/docs/guides/streamdown).

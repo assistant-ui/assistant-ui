@@ -13,7 +13,7 @@ import {
   type A2ATaskState,
   type A2APart,
 } from "@assistant-ui/react-a2a";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 const STATE_CONFIG: Record<
   string,

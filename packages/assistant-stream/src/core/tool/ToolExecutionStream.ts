@@ -5,6 +5,7 @@ import {
   AssistantMetaTransformStream,
 } from "../utils/stream/AssistantMetaTransformStream";
 import { PipeableTransformStream } from "../utils/stream/PipeableTransformStream";
+import { enqueueIfOpen } from "../utils/stream/controller-guards";
 import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
@@ -106,18 +107,6 @@ const withExecutionId = <T extends object>(
   return result;
 };
 
-const enqueueIfOpen = (
-  controller: TransformStreamDefaultController<AssistantStreamChunk>,
-  chunk: AssistantStreamChunk,
-) => {
-  try {
-    controller.enqueue(chunk);
-  } catch (error) {
-    // enqueue() throwing TypeError is the portable termination signal for TransformStream controllers.
-    if (!(error instanceof TypeError)) throw error;
-  }
-};
-
 export class ToolExecutionStream extends PipeableTransformStream<
   AssistantStreamChunk,
   AssistantStreamChunk
@@ -196,15 +185,17 @@ export class ToolExecutionStream extends PipeableTransformStream<
                 : undefined;
               if (!controller)
                 throw new Error("No controller found for tool call");
+              toolCallIdsWithBackendResult.add(executionId!);
+              if (chunk.isPreliminary) break;
               controller.setResponse(
                 new ToolResponse({
                   result: chunk.result,
                   artifact: chunk.artifact,
                   isError: chunk.isError,
                   modelContent: chunk.modelContent,
+                  messages: chunk.messages,
                 }),
               );
-              toolCallIdsWithBackendResult.add(executionId!);
               break;
             }
             case "tool-call-args-text-finish": {

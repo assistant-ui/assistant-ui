@@ -1,14 +1,15 @@
+import { boundSpec, clampReasonDetail } from "../convert/boundSpec";
+import { copyBounded } from "../convert/copyBounded";
+import { isElement } from "../convert/isElement";
 import {
   normalizeSpec,
   type NormalizedUIElement,
   type NormalizedUINode,
 } from "../ir";
-import { boundSpec } from "./boundSpec";
 import {
   CAROUSEL_ATTACHMENT_CAP,
   PAYLOAD_SOFT_CAP,
   buildAttachment,
-  clampReasonDetail,
   utf8ByteLength,
 } from "./constants";
 import {
@@ -23,12 +24,6 @@ import type {
   ToAdaptiveCardOptions,
 } from "./types";
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
-const isElement = (node: NormalizedUINode): node is NormalizedUIElement =>
-  isRecord(node);
-
 const normalizedList = (
   node: NormalizedUINode | undefined,
 ): NormalizedUINode[] => {
@@ -36,14 +31,6 @@ const normalizedList = (
   if (!Array.isArray(node)) return [node];
   return node.flatMap((child) => normalizedList(child));
 };
-
-const clampArray = <T>(
-  value: readonly T[],
-  cap: number,
-): { readonly items: T[]; readonly truncated: boolean } => ({
-  items: value.slice(0, cap),
-  truncated: value.length > cap,
-});
 
 /**
  * Recognizes a root that is a single `Carousel` element, returning its `Card`
@@ -102,7 +89,7 @@ export function toTeamsAttachments(
     const { root } = normalizeSpec(bounded as never);
     const carouselCards = rootCarouselCards(root, context);
     if (carouselCards !== undefined) {
-      const { items, truncated } = clampArray(
+      const { items, truncated } = copyBounded(
         carouselCards,
         CAROUSEL_ATTACHMENT_CAP,
       );

@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import { type FC, useState } from "react";
 import { useAttachmentSrc } from "./use-attachment-src";
-import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import { CloneThreadShell } from "./clone-thread-shell";
 import {
   DropdownMenu,
@@ -48,9 +48,9 @@ export const Gemini: FC = () => {
           <div className="relative flex grow flex-col">
             <div className="flex grow flex-col items-center justify-center px-4">
               <div className="flex w-full max-w-3xl flex-col">
-                <h1 className="fade-in slide-in-from-bottom-3 motion-safe:animate-in fill-mode-both relative z-10 mb-6 text-center text-4xl font-normal text-[#1f1f1f] delay-500 duration-400 ease-[cubic-bezier(0.22,1,0.36,1)] dark:text-white">
+                <p className="fade-in slide-in-from-bottom-3 motion-safe:animate-in fill-mode-both relative z-10 mb-6 text-center text-4xl font-normal text-[#1f1f1f] delay-500 duration-400 ease-[cubic-bezier(0.22,1,0.36,1)] dark:text-white">
                   How can I help you today?
-                </h1>
+                </p>
                 <div className="relative">
                   <div
                     aria-hidden="true"
