@@ -1922,6 +1922,7 @@ const matches = useMentionMatches(value, people);
   message="Confirm where the release notes should be published."
   fields={fields}
   state="request"
+  onFieldChange={setFieldValue}
   onAccept={send}
   onDecline={decline}
 />`,
@@ -1954,6 +1955,12 @@ const matches = useMentionMatches(value, people);
             required: true,
             description:
               "Swaps the action row for the outcome once the user answers.",
+          },
+          {
+            name: "onFieldChange",
+            type: "(name: string, value: string) => void",
+            description:
+              "Makes request-state fields editable and reports each controlled value change.",
           },
           {
             name: "onAccept",
