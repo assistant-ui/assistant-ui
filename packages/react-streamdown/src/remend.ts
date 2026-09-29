@@ -509,8 +509,8 @@ function scanBlocks(text: string): BlockScan {
       text,
       lineStart,
       lineEnd,
-      listIndent,
-      listQuoteDepth,
+      inFence || inMath ? itemIndent : listIndent,
+      inFence || inMath ? blockQuoteDepth : listQuoteDepth,
       inHtml ? htmlQuoteDepth : Infinity,
       !inHtml && !inFence && !inMath,
     );
