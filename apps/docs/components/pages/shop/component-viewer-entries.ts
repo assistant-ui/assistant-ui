@@ -378,20 +378,6 @@ export const ENTRIES: readonly Entry[] = [
     }),
   },
   {
-    id: "license",
-    label: "License",
-    group: "Frame",
-    controls: [{ kind: "toggle", key: "accepted", label: "Accepted earlier" }],
-    defaults: { accepted: false },
-    scene: (values) =>
-      on(values, "accepted")
-        ? {
-            state: stateOf({ status: "waiting", agent: agentOf("", false) }),
-            initialPage: "license",
-          }
-        : { state: undefined, session: { licenseAccepted: false } },
-  },
-  {
     id: "connect",
     label: "Connect",
     group: "Frame",

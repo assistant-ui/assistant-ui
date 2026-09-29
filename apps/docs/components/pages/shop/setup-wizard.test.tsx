@@ -21,13 +21,11 @@ import {
 } from "../../../lib/checkout/protocol";
 import type { CheckoutContextValue } from "../../shared/checkout-provider";
 
-const { push, finishCheckout, abandonCheckout, acceptSetupLicense } =
-  vi.hoisted(() => ({
-    push: vi.fn(),
-    finishCheckout: vi.fn(),
-    abandonCheckout: vi.fn(),
-    acceptSetupLicense: vi.fn(),
-  }));
+const { push, finishCheckout, abandonCheckout } = vi.hoisted(() => ({
+  push: vi.fn(),
+  finishCheckout: vi.fn(),
+  abandonCheckout: vi.fn(),
+}));
 
 vi.mock("@vercel/analytics", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@vercel/analytics")>()),
@@ -43,13 +41,6 @@ vi.mock("../../../lib/checkout/flow", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../../lib/checkout/flow")>()),
   finishCheckout,
   abandonCheckout,
-}));
-
-vi.mock("../../../lib/checkout/session-store", async (importOriginal) => ({
-  ...(await importOriginal<
-    typeof import("../../../lib/checkout/session-store")
-  >()),
-  acceptSetupLicense,
 }));
 
 const scrollIntoView = vi.fn();
@@ -71,9 +62,7 @@ const context = (
   state: Checkout.State,
   agentPresent = true,
   fromCart = false,
-  session: Partial<CheckoutContextValue["session"]> = {
-    licenseAccepted: true,
-  },
+  session: Partial<CheckoutContextValue["session"]> = {},
 ): CheckoutContextValue => ({
   state,
   session: {
@@ -146,32 +135,6 @@ describe("SetupWizard", () => {
     );
   });
 
-  it("holds the setup on the license until the terms are accepted from the footer", () => {
-    render(
-      <SetupWizard
-        checkout={context(
-          { ...initialCheckoutState(), status: "planning" },
-          true,
-          false,
-          { introSeen: true },
-        )}
-      />,
-    );
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "License agreement",
-    );
-    const next = footer().getByRole("button", { name: "Next" });
-    expect(next).toHaveProperty("disabled", true);
-    fireEvent.click(
-      screen.getByRole("radio", {
-        name: "I accept the terms of the license agreement",
-      }),
-    );
-    expect(next).toHaveProperty("disabled", false);
-    fireEvent.click(next);
-    expect(acceptSetupLicense).toHaveBeenCalledTimes(1);
-  });
-
   it("keeps the frame at one fixed size on every page", () => {
     const frame = () =>
       document.querySelector('section[aria-labelledby="setup-wizard-title"]')!
@@ -182,21 +145,6 @@ describe("SetupWizard", () => {
     expect(intro).toContain("max-h-full");
     expect(intro).toContain("sm:aspect-[16/10]");
     expect(intro).toContain("sm:min-h-[min(38rem,100%)]");
-    cleanup();
-    render(
-      <SetupWizard
-        checkout={context(
-          { ...initialCheckoutState(), status: "planning" },
-          true,
-          false,
-          { introSeen: true },
-        )}
-      />,
-    );
-    expect(frame()).toBe(intro);
-    const license = document.querySelector('[aria-label="License agreement"]')!;
-    expect(license.className).toContain("h-40");
-    expect(license.className).not.toContain("flex-1");
     cleanup();
     render(
       <SetupWizard
@@ -728,11 +676,8 @@ describe("SetupWizard", () => {
     fireEvent.click(footer().getByRole("button", { name: "Back" }));
     expect(heading()).toBe("Claude Code is connected");
     fireEvent.click(footer().getByRole("button", { name: "Back" }));
-    expect(heading()).toBe("License agreement");
-    fireEvent.click(footer().getByRole("button", { name: "Back" }));
     expect(heading()).toBe("Welcome to the setup wizard for assistant-ui");
     expect(screen.queryByRole("button", { name: "Continue" })).toBeNull();
-    fireEvent.click(footer().getByRole("button", { name: "Next" }));
     fireEvent.click(footer().getByRole("button", { name: "Next" }));
     fireEvent.click(footer().getByRole("button", { name: "Next" }));
     fireEvent.click(footer().getByRole("button", { name: "Next" }));
@@ -1032,7 +977,7 @@ describe("SetupWizard analytics", () => {
     );
     expect(events("setup_step_viewed")).toEqual([
       { step: "welcome" },
-      { step: "license" },
+      { step: "connect" },
     ]);
   });
 
