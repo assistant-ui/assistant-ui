@@ -84,6 +84,7 @@ const previous = (): Checkout.State => ({
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   cleanup();
   wire.state = undefined;
   wire.addProduct.mockClear();

@@ -18,11 +18,13 @@ vi.mock("@/lib/session", async (importOriginal) => ({
   useSession: () => ({ status: "anonymous" }),
 }));
 
-vi.mock("@/lib/cloud-projects-client", () => ({
+vi.mock("@/lib/cloud-projects-client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/cloud-projects-client")>()),
   useCloudProjects: () => ({ status: "unavailable" }),
 }));
 
-vi.mock("next/navigation", () => ({
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
   usePathname: () => "/components/setup",
 }));
 
@@ -126,6 +128,25 @@ describe("InputCard cloud project", () => {
     );
     expect(screen.getByRole("textbox", { name: "Which port?" })).toBeTruthy();
     expect(screen.queryByRole("link", { name: "Sign in" })).toBeNull();
+  });
+
+  it("guards a cloud project question that asks for a key instead of offering the account", () => {
+    render(
+      <WizardHost>
+        <InputCard
+          input={text("Paste the API key for your Assistant Cloud project.")}
+          checkout={checkout}
+        />
+      </WizardHost>,
+    );
+    expect(
+      screen.getByRole("button", {
+        name: /Ask .* for it the safe way instead/,
+      }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("textbox", { name: "Frontend API URL" }),
+    ).toBeNull();
   });
 });
 

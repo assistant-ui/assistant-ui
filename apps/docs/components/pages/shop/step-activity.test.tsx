@@ -24,9 +24,18 @@ const expanded = () => toggle().getAttribute("aria-expanded");
 describe("StepActivity", () => {
   it("opens while the step runs, reads its lines out live, and folds once the step is done", () => {
     const { rerender } = render(
-      <StepActivity entries={lines} live agentName="Codex" />,
+      <StepActivity
+        entries={lines}
+        live
+        agentName="Codex"
+        stepTitle="Add the route"
+      />,
     );
-    expect(toggle().textContent).toBe("2 lines from Codex");
+    expect(
+      screen.getByRole("button", {
+        name: "2 lines from Codex for Add the route",
+      }),
+    ).toBeTruthy();
     expect(expanded()).toBe("true");
     const log = screen.getByRole("log", { name: "What Codex did" });
     expect(log.getAttribute("aria-live")).toBe("polite");
@@ -34,32 +43,74 @@ describe("StepActivity", () => {
       Array.from(log.querySelectorAll("li")).map((item) => item.textContent),
     ).toEqual(["Reading app/api", "Writing route.ts"]);
 
-    rerender(<StepActivity entries={lines} live={false} agentName="Codex" />);
+    rerender(
+      <StepActivity
+        entries={lines}
+        live={false}
+        agentName="Codex"
+        stepTitle="Add the route"
+      />,
+    );
     expect(expanded()).toBe("false");
     expect(screen.queryByRole("log")).toBeNull();
   });
 
   it("keeps the user's choice over the step's state", () => {
     const { rerender } = render(
-      <StepActivity entries={[lines[0]!]} live agentName="Codex" />,
+      <StepActivity
+        entries={[lines[0]!]}
+        live
+        agentName="Codex"
+        stepTitle="Add the route"
+      />,
     );
     fireEvent.click(toggle());
     expect(expanded()).toBe("false");
-    rerender(<StepActivity entries={lines} live agentName="Codex" />);
+    rerender(
+      <StepActivity
+        entries={lines}
+        live
+        agentName="Codex"
+        stepTitle="Add the route"
+      />,
+    );
     expect(expanded()).toBe("false");
-    expect(toggle().textContent).toBe("2 lines from Codex");
+    expect(
+      screen.getByRole("button", {
+        name: "2 lines from Codex for Add the route",
+      }),
+    ).toBeTruthy();
 
-    rerender(<StepActivity entries={lines} live={false} agentName="Codex" />);
+    rerender(
+      <StepActivity
+        entries={lines}
+        live={false}
+        agentName="Codex"
+        stepTitle="Add the route"
+      />,
+    );
     fireEvent.click(toggle());
     expect(expanded()).toBe("true");
     expect(screen.getByRole("log").getAttribute("aria-live")).toBe("off");
-    rerender(<StepActivity entries={lines} live={false} agentName="Codex" />);
+    rerender(
+      <StepActivity
+        entries={lines}
+        live={false}
+        agentName="Codex"
+        stepTitle="Add the route"
+      />,
+    );
     expect(expanded()).toBe("true");
   });
 
   it("follows the newest line while open", () => {
     const { rerender } = render(
-      <StepActivity entries={[lines[0]!]} live agentName="Codex" />,
+      <StepActivity
+        entries={[lines[0]!]}
+        live
+        agentName="Codex"
+        stepTitle="Add the route"
+      />,
     );
     const log = screen.getByRole("log");
     const scrolled = vi.fn();
@@ -72,7 +123,14 @@ describe("StepActivity", () => {
       set: scrolled,
       configurable: true,
     });
-    rerender(<StepActivity entries={lines} live agentName="Codex" />);
+    rerender(
+      <StepActivity
+        entries={lines}
+        live
+        agentName="Codex"
+        stepTitle="Add the route"
+      />,
+    );
     expect(scrolled).toHaveBeenLastCalledWith(480);
   });
 });

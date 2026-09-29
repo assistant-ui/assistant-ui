@@ -1634,7 +1634,11 @@ describe("SetupWizard messages", () => {
   it("cycles the exploring verbs back to the first", () => {
     vi.useFakeTimers();
     render(
-      <SetupWizard checkout={context(connected({ status: "planning" }))} />,
+      <SetupWizard
+        checkout={context(connected({ status: "planning" }), true, false, {
+          id: "exploring-cycle",
+        })}
+      />,
     );
     const verb = () =>
       screen.getByRole("heading", { level: 1 }).querySelector("[aria-hidden]")!

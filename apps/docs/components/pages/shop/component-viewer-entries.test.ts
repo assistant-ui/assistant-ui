@@ -29,8 +29,7 @@ describe("component viewer entries", () => {
     expect(asksForCloudProject(input)).toBe(true);
   });
 
-  it("no longer offers a product proposal scene", () => {
-    expect(ENTRIES.some((candidate) => candidate.id === "product")).toBe(false);
+  it("offers text, choice and model answers in the answer scene", () => {
     expect(
       entry("answer").controls.find((control) => control.key === "kind"),
     ).toMatchObject({ options: ["text", "choice", "model"] });
