@@ -245,7 +245,7 @@ describe("appendLangChainChunk incremental tool arguments", () => {
 
     expect(left.tool_calls?.[0]?.args).toMatchObject({ choice: "left" });
     expect(right.tool_calls?.[0]?.args).toMatchObject({ choice: "right" });
-    expect(prefix.tool_calls?.[0]?.args).toMatchObject({ choice: "" });
+    expect(prefix?.tool_calls?.[0]?.args).toMatchObject({ choice: "" });
   });
 
   it("retains the last parsed arguments after a malformed delta", () => {

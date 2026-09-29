@@ -1,4 +1,4 @@
-import { bench, describe } from "vitest";
+import { describe, inject, test } from "vitest";
 import {
   appendLangChainChunk,
   convertLangChainMessages,
@@ -32,8 +32,12 @@ const runDeltas = (deltas: string[]) => {
 describe("react-langgraph: streamed tool argument accumulation", () => {
   for (const size of [1_000, 10_000, 50_000]) {
     const deltas = makeDeltas({ text: "x".repeat(size) });
-    bench(`${size} character argument in 16-character deltas`, () => {
-      runDeltas(deltas);
+    test(`${size} character argument in 16-character deltas`, async ({
+      bench,
+    }) => {
+      await bench(`${size} character argument in 16-character deltas`, () => {
+        runDeltas(deltas);
+      }).run(inject("benchSampling"));
     });
   }
 
@@ -43,7 +47,9 @@ describe("react-langgraph: streamed tool argument accumulation", () => {
       text: `replacement-${index}`,
     })),
   });
-  bench("500 short object entries in 16-character deltas", () => {
-    runDeltas(wideDeltas);
+  test("500 short object entries in 16-character deltas", async ({ bench }) => {
+    await bench("500 short object entries in 16-character deltas", () => {
+      runDeltas(wideDeltas);
+    }).run(inject("benchSampling"));
   });
 });

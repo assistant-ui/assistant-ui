@@ -102,29 +102,38 @@ it("keeps the full-parser fallback for externally constructed messages", () => {
   const partialJson = '{"query":"pizza';
   mocks.parsePartialJsonObject.mockClear();
 
-  const result = convertLangChainMessages({
-    type: "ai",
-    id: "ai-1",
-    content: "",
-    tool_calls: [
-      {
-        id: "call-1",
-        index: 0,
-        name: "search",
-        args: {},
-        partial_json: partialJson,
-      },
-    ],
-  });
+  const result = convertLangChainMessages(
+    {
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [
+        {
+          id: "call-1",
+          index: 0,
+          name: "search",
+          args: {},
+          partial_json: partialJson,
+        },
+      ],
+    },
+    {},
+  );
 
   expect(mocks.parsePartialJsonObject).toHaveBeenCalledWith(partialJson);
-  expect(
-    result.content.find((part) => part.type === "tool-call"),
-  ).toMatchObject({
-    type: "tool-call",
-    args: { query: "pizza" },
-    argsText: partialJson,
-  });
+  const message = Array.isArray(result) ? result[0] : result;
+  if (!message || message.role !== "assistant") {
+    throw new Error("Expected an assistant message");
+  }
+  expect(message.content).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        type: "tool-call",
+        args: expect.objectContaining({ query: "pizza" }),
+        argsText: partialJson,
+      }),
+    ]),
+  );
 });
 
 it("keeps incremental state when an updates event replaces the streamed message", () => {
