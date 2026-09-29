@@ -849,7 +849,7 @@ Container `View` for the thread list.
 
 ### ThreadListPrimitive.New
 
-`Pressable` that creates a new thread.
+`Pressable` that creates a new thread. While the new thread is the current one, it is marked for assistive technology: `accessibilityState.selected` on native, `aria-current` on the web.
 
 ```tsx
 <ThreadListPrimitive.New style={styles.newThreadButton}>
@@ -889,7 +889,7 @@ Renders the thread title text. Falls back to the provided fallback when title is
 
 ### ThreadListItemPrimitive.Trigger
 
-`Pressable` that switches to the thread.
+`Pressable` that switches to the thread. The current thread's trigger is marked for assistive technology: `accessibilityState.selected` on native, `aria-current` on the web.
 
 ```tsx
 <ThreadListItemPrimitive.Trigger>

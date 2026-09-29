@@ -5,6 +5,7 @@ import type { AssistantCloud } from "assistant-cloud";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ThreadAssistantMessage } from "../../../types/message";
 import { useAssistantCloudThreadHistoryAdapter } from "./AssistantCloudThreadHistoryAdapter";
+import { auiV0Encode } from "./auiV0";
 
 const mocks = vi.hoisted(() => {
   const makeClient = (
@@ -107,6 +108,23 @@ const makeAssistantMessage = (id: string): ThreadAssistantMessage => ({
     steps: [],
     custom: {},
   },
+});
+
+const makeToolCallMessage = (
+  id: string,
+  result?: unknown,
+): ThreadAssistantMessage => ({
+  ...makeAssistantMessage(id),
+  content: [
+    {
+      type: "tool-call",
+      toolCallId: "call-1",
+      toolName: "lookup_weather",
+      args: {},
+      argsText: "{}",
+      ...(result !== undefined && { result }),
+    },
+  ],
 });
 
 afterEach(() => {
@@ -1208,6 +1226,208 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
       "m1",
       expect.anything(),
     );
+  });
+
+  it("reports a run once when its settled message is rewritten", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+
+    await result.current.append({
+      parentId: null,
+      message: makeToolCallMessage("local-message-1"),
+    });
+    await result.current.update!({
+      parentId: null,
+      message: makeToolCallMessage("local-message-1", { temperature: 21 }),
+    });
+
+    expect(cloud.threads.messages.update).toHaveBeenCalledOnce();
+    expect(cloud.runs.report).toHaveBeenCalledOnce();
+  });
+
+  it("reports a paused run from the write that settles it", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const settled = makeToolCallMessage("local-message-1", {
+      temperature: 21,
+    });
+
+    await result.current.update!({
+      parentId: null,
+      message: {
+        ...makeToolCallMessage("local-message-1"),
+        status: { type: "requires-action", reason: "tool-calls" },
+      },
+    });
+    expect(cloud.runs.report).not.toHaveBeenCalled();
+
+    await result.current.update!({ parentId: null, message: settled });
+    await result.current.update!({ parentId: null, message: settled });
+
+    expect(cloud.runs.report).toHaveBeenCalledOnce();
+  });
+
+  it("does not report a loaded settled message again when it is rewritten", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const row = (id: string, parentId: string | null, content: unknown) => ({
+      id,
+      thread_id: "thread-1",
+      format: "aui/v0" as const,
+      parent_id: parentId,
+      created_at: new Date(0),
+      content,
+    });
+    cloud.threads.messages.list = vi.fn().mockResolvedValue({
+      messages: [
+        row(
+          "msg-2",
+          "msg-1",
+          auiV0Encode({
+            ...makeToolCallMessage("msg-2"),
+            status: { type: "requires-action", reason: "tool-calls" },
+          }),
+        ),
+        row("msg-1", null, auiV0Encode(makeToolCallMessage("msg-1"))),
+      ],
+    });
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    await result.current.load();
+
+    await result.current.update!({
+      parentId: null,
+      message: makeToolCallMessage("msg-1", { temperature: 21 }),
+    });
+    expect(cloud.runs.report).not.toHaveBeenCalled();
+
+    await result.current.update!({
+      parentId: "msg-1",
+      message: makeToolCallMessage("msg-2", { temperature: 21 }),
+    });
+    expect(cloud.threads.messages.update).toHaveBeenCalledTimes(2);
+    expect(cloud.runs.report).toHaveBeenCalledOnce();
+  });
+
+  it("reports a run whose settling write a concurrent load reads back", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const paused: ThreadAssistantMessage = {
+      ...makeToolCallMessage("msg-1"),
+      status: { type: "requires-action", reason: "tool-calls" },
+    };
+    const settled = makeToolCallMessage("msg-1", { temperature: 21 });
+    const row = (message: ThreadAssistantMessage) => ({
+      id: "msg-1",
+      thread_id: "thread-1",
+      format: "aui/v0" as const,
+      parent_id: null,
+      created_at: new Date(0),
+      content: auiV0Encode(message),
+    });
+    cloud.threads.messages.list = vi
+      .fn()
+      .mockResolvedValueOnce({ messages: [row(paused)] })
+      .mockResolvedValueOnce({ messages: [row(settled)] });
+    let commitUpdate!: () => void;
+    cloud.threads.messages.update = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          commitUpdate = resolve;
+        }),
+    );
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    await result.current.load();
+
+    const updating = result.current.update!({
+      parentId: null,
+      message: settled,
+    });
+    await waitFor(() =>
+      expect(cloud.threads.messages.update).toHaveBeenCalled(),
+    );
+    await result.current.load();
+    commitUpdate();
+    await updating;
+
+    expect(cloud.runs.report).toHaveBeenCalledOnce();
+  });
+
+  it("reports a run once when overlapping writes store one settled message", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    let commitCreate!: (value: { message_id: string }) => void;
+    cloud.threads.messages.create = vi.fn(
+      () =>
+        new Promise<{ message_id: string }>((resolve) => {
+          commitCreate = resolve;
+        }),
+    );
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const message = makeToolCallMessage("local-message-1");
+
+    const writes = [
+      result.current.append({ parentId: null, message }),
+      result.current.append({ parentId: null, message }),
+    ];
+    await waitFor(() =>
+      expect(cloud.threads.messages.create).toHaveBeenCalled(),
+    );
+    commitCreate({ message_id: "remote-message-1" });
+    await Promise.all(writes);
+
+    expect(cloud.threads.messages.create).toHaveBeenCalledOnce();
+    expect(cloud.runs.report).toHaveBeenCalledOnce();
+  });
+
+  it("marks a settled message on the thread its write started on", async () => {
+    const threadA = mocks.makeClient("thread-a");
+    const threadB = mocks.makeClient("thread-b");
+    mocks.aui = threadA;
+    const cloud = makeCloud();
+    let commitCreate!: (value: { message_id: string }) => void;
+    cloud.threads.messages.create = vi.fn(
+      () =>
+        new Promise<{ message_id: string }>((resolve) => {
+          commitCreate = resolve;
+        }),
+    );
+    const { result, rerender } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+
+    const appending = result.current.append({
+      parentId: null,
+      message: makeToolCallMessage("local-message-1"),
+    });
+    await waitFor(() =>
+      expect(cloud.threads.messages.create).toHaveBeenCalled(),
+    );
+    mocks.aui = threadB;
+    rerender();
+    commitCreate({ message_id: "remote-message-1" });
+    await appending;
+
+    mocks.aui = threadA;
+    rerender();
+    await result.current.update!({
+      parentId: null,
+      message: makeToolCallMessage("local-message-1", { temperature: 21 }),
+    });
+
+    expect(cloud.threads.messages.update).toHaveBeenCalledOnce();
+    expect(cloud.runs.report).toHaveBeenCalledOnce();
   });
 
   it("attempts every engagement cleanup when one unsubscribe throws", async () => {

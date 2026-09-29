@@ -18,6 +18,7 @@ import type {
 } from "../interfaces/thread-runtime-core";
 import { BaseThreadRuntimeCore } from "./base-thread-runtime-core";
 import { LocalRuntimeCore } from "../../runtimes/local/local-runtime-core";
+import { disposeThreadRuntime } from "../utils/thread-runtime-lifecycle";
 
 const createVoiceAdapter = ({
   sendText,
@@ -134,6 +135,7 @@ class TestRuntime extends BaseThreadRuntimeCore {
       attachments: false,
       feedback: false,
       queue: false,
+      answerToolCall: false,
     };
   }
 
@@ -1382,6 +1384,78 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     }
   });
 
+  it("resolves a typed voice turn after a paused branch once the settled pause is stored", async () => {
+    let runs = 0;
+    let pausedId: string | undefined;
+    let releasePause: (() => void) | undefined;
+    const voiceAdapter = createVoiceAdapter({ sendText: async () => {} });
+    const runtime = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            run: async () =>
+              ++runs === 1
+                ? {
+                    content: [
+                      {
+                        type: "tool-call",
+                        toolCallId: "call-deploy",
+                        toolName: "deploy",
+                        args: {},
+                        argsText: "{}",
+                        approval: { id: "a1" },
+                      },
+                    ],
+                    status: { type: "requires-action", reason: "tool-calls" },
+                  }
+                : { content: [{ type: "text", text: "done" }] },
+          },
+          history: {
+            load: async () => ({ messages: [] }),
+            append: async (item) => {
+              if (item.message.id !== pausedId) return;
+              await new Promise<void>((resolve) => {
+                releasePause = resolve;
+              });
+            },
+          },
+          voice: voiceAdapter.adapter,
+        },
+      },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    await thread.__internal_load();
+    await thread.append(typedMessage(thread, "deploy the app"));
+    const [question, paused] = thread.messages;
+    await thread.startRun({
+      parentId: question!.id,
+      sourceId: paused!.id,
+      runConfig: {},
+    });
+    thread.connectVoice();
+    thread.switchToBranch(paused!.id);
+    pausedId = paused!.id;
+
+    try {
+      let sent = false;
+      const typed = thread.append(typedMessage(thread)).then(() => {
+        sent = true;
+      });
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(thread.messages[1]).toMatchObject({
+        id: paused!.id,
+        status: { type: "incomplete", reason: "cancelled" },
+      });
+      expect(sent).toBe(false);
+      releasePause?.();
+      await typed;
+    } finally {
+      thread.disconnectVoice();
+    }
+  });
+
   it("finishes the reply being spoken before a typed turn", async () => {
     const sendText = vi.fn();
     const { thread, voiceAdapter } = await createLocalVoiceThread({
@@ -2136,7 +2210,7 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     unsubscribe();
   });
 
-  it("drops a deferred voice commit after detach", async () => {
+  it("drops a deferred voice commit at detach without waiting for the load", async () => {
     const voiceAdapter = createVoiceAdapter();
     let release!: () => void;
     const loadBarrier = new Promise<void>((resolve) => {
@@ -2169,13 +2243,112 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
       text: "Hello",
       isFinal: true,
     });
+    expect(thread.messages).toHaveLength(1);
     thread.detach();
+
+    await vi.waitFor(() => {
+      expect(thread.messages).toEqual([]);
+    });
+    expect(thread.isLoading).toBe(true);
+
     release();
     await load;
     await Promise.resolve();
 
     expect(history.append).not.toHaveBeenCalled();
     expect(thread.messages).toEqual([]);
+
+    thread.disconnectVoice();
+  });
+
+  it("drops a typed turn still sending when the thread detaches", async () => {
+    let finishSend!: () => void;
+    const sendText = vi.fn(
+      (_text: string) =>
+        new Promise<void>((resolve) => {
+          finishSend = resolve;
+        }),
+    );
+    const voiceAdapter = createVoiceAdapter({ sendText });
+    const history = {
+      load: vi.fn(async () => ({ messages: [] })),
+      append: vi.fn(async () => {}),
+    };
+    const runtime = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            async run() {
+              return {};
+            },
+          },
+          history,
+          voice: voiceAdapter.adapter,
+        },
+      },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    await thread.__internal_load();
+    thread.connectVoice();
+
+    const append = thread.append(typedMessage(thread, "Typed"));
+    expect(sendText).toHaveBeenCalledExactlyOnceWith("Typed");
+    thread.detach();
+    finishSend();
+
+    await expect(append).resolves.toBeUndefined();
+    expect(history.append).not.toHaveBeenCalled();
+    expect(thread.messages).toEqual([]);
+
+    thread.disconnectVoice();
+  });
+
+  it("disconnects without committing the unfinished reply when the thread is disposed", async () => {
+    const voiceAdapter = createVoiceAdapter();
+    const onTranscript = voiceAdapter.session.onTranscript;
+    let staleTranscript!: (
+      transcript: RealtimeVoiceAdapter.TranscriptItem,
+    ) => void;
+    voiceAdapter.session.onTranscript = (callback) => {
+      staleTranscript = callback;
+      return onTranscript(callback);
+    };
+    const history = {
+      load: vi.fn(async () => ({ messages: [] })),
+      append: vi.fn(async () => {}),
+    };
+    const runtime = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            async run() {
+              return {};
+            },
+          },
+          history,
+          voice: voiceAdapter.adapter,
+        },
+      },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    await thread.__internal_load();
+    thread.connectVoice();
+    voiceAdapter.emitTranscript({ role: "assistant", text: "Unfinished" });
+    expect(thread.messages).toHaveLength(1);
+
+    disposeThreadRuntime(thread);
+
+    expect(voiceAdapter.session.disconnect).toHaveBeenCalledOnce();
+    expect(thread.voice).toBeUndefined();
+    expect(thread.messages).toEqual([]);
+
+    staleTranscript({ role: "assistant", text: "Late" });
+    await Promise.resolve();
+
+    expect(thread.messages).toEqual([]);
+    expect(history.append).not.toHaveBeenCalled();
   });
 
   it("propagates a typed turn history rejection after the barrier", async () => {

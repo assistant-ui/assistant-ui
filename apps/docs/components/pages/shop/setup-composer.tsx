@@ -1,31 +1,35 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  useImperativeHandle,
+  useRef,
+  useState,
+  type FormEvent,
+  type Ref,
+} from "react";
 import {
   Composer,
   ComposerBar,
   ComposerSend,
-  ComposerToolbar,
 } from "@/components/assistant-ui/elements/composer";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 
 export function SetupComposer({
   checkout,
+  ref,
 }: {
   checkout: CheckoutContextValue;
+  ref?: Ref<HTMLTextAreaElement>;
 }) {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string>();
   const textarea = useRef<HTMLTextAreaElement>(null);
+  useImperativeHandle(ref, () => textarea.current!, []);
   const closed =
     checkout.state?.status === "done" || checkout.state?.status === "cancelled";
   const disabled =
     closed || checkout.degraded || checkout.state?.createdAt == null;
-
-  useEffect(() => {
-    textarea.current?.focus();
-  }, []);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -44,34 +48,34 @@ export function SetupComposer({
     }
   };
 
-  if (closed) return null;
-
   return (
     <Composer className="max-w-none shrink-0">
-      <ComposerBar className="focus-within:border-foreground/30 gap-0">
+      <ComposerBar className="focus-within:border-foreground/30 bg-muted gap-0 border-transparent p-1.5">
         <form onSubmit={(event) => void submit(event)}>
-          <textarea
-            ref={textarea}
-            name="message"
-            aria-label="Message your agent"
-            placeholder="Message your agent…"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            disabled={sending}
-            rows={2}
-            onKeyDown={(event) => {
-              if (
-                event.key === "Enter" &&
-                !event.shiftKey &&
-                !event.nativeEvent.isComposing
-              ) {
-                event.preventDefault();
-                event.currentTarget.form?.requestSubmit();
+          <div className="flex items-end gap-1.5">
+            <textarea
+              ref={textarea}
+              name="message"
+              aria-label="Message your agent"
+              placeholder={
+                closed ? "The setup is closed." : "Message your agent…"
               }
-            }}
-            className="placeholder:text-muted-foreground field-sizing-content max-h-[min(25dvh,12rem)] min-h-20 w-full resize-none bg-transparent px-3 py-3 text-base outline-none sm:text-sm"
-          />
-          <ComposerToolbar className="justify-end px-1 pb-1">
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              disabled={sending || closed}
+              rows={1}
+              onKeyDown={(event) => {
+                if (
+                  event.key === "Enter" &&
+                  !event.shiftKey &&
+                  !event.nativeEvent.isComposing
+                ) {
+                  event.preventDefault();
+                  event.currentTarget.form?.requestSubmit();
+                }
+              }}
+              className="placeholder:text-muted-foreground field-sizing-content max-h-[min(25dvh,12rem)] min-w-0 flex-1 resize-none bg-transparent px-3 py-1.5 text-base leading-5 outline-none sm:text-sm"
+            />
             <ComposerSend
               type="submit"
               streaming={false}
@@ -79,7 +83,7 @@ export function SetupComposer({
               disabled={disabled || sending || !draft.trim()}
               aria-label={sending ? "Sending message" : "Send message"}
             />
-          </ComposerToolbar>
+          </div>
           {error ? (
             <p
               role="alert"
