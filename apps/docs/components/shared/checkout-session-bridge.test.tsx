@@ -13,6 +13,8 @@ const wire = vi.hoisted(() => ({
   state: undefined as Checkout.State | undefined,
   listeners: new Set<() => void>(),
   create: vi.fn().mockResolvedValue(undefined),
+  addProduct: vi.fn().mockResolvedValue(undefined),
+  dismiss: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("statewire", async (importOriginal) => ({
@@ -30,7 +32,11 @@ vi.mock("statewire", async (importOriginal) => ({
     return {
       state: wire.state,
       connection: { status: "open", degraded: false, attempt: 0 },
-      commands: { "checkout/create": wire.create },
+      commands: {
+        "checkout/create": wire.create,
+        "checkout/add-product": wire.addProduct,
+        "checkout/dismiss": wire.dismiss,
+      },
     };
   },
 }));
@@ -73,6 +79,19 @@ const previous = (): Checkout.State => ({
 afterEach(() => {
   cleanup();
   wire.state = undefined;
+  wire.addProduct.mockClear();
+  wire.dismiss.mockClear();
+});
+
+const proposal = (id: string, product: string): Checkout.Input => ({
+  id,
+  kind: "product",
+  product,
+  prompt: `Add ${product}?`,
+  phase: "planning",
+  optional: false,
+  status: "open",
+  createdAt: 1,
 });
 
 describe("CheckoutSessionBridge", () => {
@@ -112,6 +131,46 @@ describe("CheckoutSessionBridge", () => {
     expect(wire.create).toHaveBeenCalledOnce();
     expect(onChange.mock.lastCall?.[0]?.state).toBe(created);
     expect(onChange.mock.lastCall?.[0]?.agentPresent).toBe(true);
+  });
+
+  it("adds a product the agent proposes as soon as it arrives, declines one the catalog lacks, and shows neither as a question", () => {
+    const onChange = vi.fn<(value: CheckoutContextValue | null) => void>();
+    wire.state = {
+      ...previous(),
+      id: "s2",
+      status: "planning",
+      inputs: [proposal("p1", "assistant-ui"), proposal("p2", "nope")],
+    };
+    render(<CheckoutSessionBridge session={session} onChange={onChange} />);
+    expect(wire.addProduct).toHaveBeenCalledOnce();
+    expect(wire.addProduct).toHaveBeenCalledWith({
+      inputId: "p1",
+      product: {
+        slug: "assistant-ui",
+        name: "assistant-ui",
+        guide: `${window.location.origin}/install.md?items=assistant-ui`,
+      },
+    });
+    expect(wire.dismiss).toHaveBeenCalledOnce();
+    expect(wire.dismiss).toHaveBeenCalledWith({ inputId: "p2" });
+    expect(onChange.mock.lastCall?.[0]?.openInputs).toEqual([]);
+    expect(onChange.mock.lastCall?.[0]?.attentionKey).toBe("");
+
+    setWire({ ...wire.state!, log: [] });
+    expect(wire.addProduct).toHaveBeenCalledOnce();
+    expect(wire.dismiss).toHaveBeenCalledOnce();
+  });
+
+  it("leaves a proposal alone once the checkout is closed", () => {
+    wire.state = {
+      ...previous(),
+      id: "s2",
+      status: "cancelled",
+      inputs: [proposal("p1", "assistant-ui")],
+    };
+    render(<CheckoutSessionBridge session={session} onChange={vi.fn()} />);
+    expect(wire.addProduct).not.toHaveBeenCalled();
+    expect(wire.dismiss).not.toHaveBeenCalled();
   });
 
   it("does not create again when the link already carries this session's checkout", () => {

@@ -877,35 +877,6 @@ export const ENTRIES: readonly Entry[] = [
       ),
   },
   {
-    id: "product",
-    label: "Product",
-    group: "Questions",
-    controls: [
-      { kind: "text", key: "prompt", label: "Prompt" },
-      {
-        kind: "select",
-        key: "product",
-        label: "Product",
-        options: ["assistant-ui", "cloud", "react-app", "unknown-product"],
-      },
-      { kind: "toggle", key: "optional", label: "Optional" },
-    ],
-    defaults: {
-      prompt: "Assistant Cloud needs the assistant-ui packages. Add them?",
-      product: "assistant-ui",
-      optional: false,
-    },
-    scene: (values) =>
-      question(
-        inputOf({
-          kind: "product",
-          prompt: str(values, "prompt"),
-          product: str(values, "product"),
-          optional: on(values, "optional"),
-        }),
-      ),
-  },
-  {
     id: "answer",
     label: "Answer review",
     group: "Questions",
@@ -914,7 +885,7 @@ export const ENTRIES: readonly Entry[] = [
         kind: "select",
         key: "kind",
         label: "Kind",
-        options: ["text", "choice", "model", "product"],
+        options: ["text", "choice", "model"],
       },
       {
         kind: "select",
@@ -948,7 +919,6 @@ export const ENTRIES: readonly Entry[] = [
               ...(str(values, "note") && { note: str(values, "note") }),
               ...(kind === "choice" && { options: framework.options }),
               ...(kind === "model" && { options: llm.options }),
-              ...(kind === "product" && { product: "assistant-ui" }),
             }),
           ],
         }),

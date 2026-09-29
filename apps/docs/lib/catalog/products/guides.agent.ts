@@ -1,6 +1,6 @@
 import "server-only";
 
-const needsRuntime = `This guide assumes assistant-ui is already installed and an AssistantRuntimeProvider renders a thread. If it is not, do not scaffold it as a side effect. In a setup session, propose adding it (\`ask "<why>" --product assistant-ui --wait\`) and install it first once the user accepts; otherwise stop and tell the user to set up assistant-ui first.`;
+const needsRuntime = `This guide assumes assistant-ui is already installed and an AssistantRuntimeProvider renders a thread. If it is not, do not scaffold it as a side effect. In a setup session, add it (\`ask "<why>" --product assistant-ui --wait\`; the browser accepts the product and answers at once) and install it first; outside one, stop and tell the user to set up assistant-ui first.`;
 
 const needsAiSdkRoute = `This guide changes the server route that calls the AI SDK (usually app/api/chat/route.ts). Find it first. If the backend is not an AI SDK route handler (LangGraph, Mastra server, custom API), stop and tell the user this guide covers the AI SDK path only.`;
 
