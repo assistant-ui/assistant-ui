@@ -28,6 +28,10 @@ Implement the change in its own git worktree, open a PR, monitor CI and reviews,
 
 Add a patch changeset only if a published package changed. Private packages such as `@assistant-ui/docs` and `@assistant-ui/shadcn-registry` are exempt.
 
+## Changes in the main worktree
+
+When the user asks for it and the change already sits uncommitted in the main worktree (the primary checkout), open the PR from that change instead of writing it again; never infer this from a dirty main worktree. In step 4, carry the intended hunks into the new worktree with `git -C <main-worktree> diff origin/main -- <file>... | git apply`, and leave out any hunk that belongs to other work. Leave the main worktree as it is.
+
 ## Cleanup
 
 Keep the worktree while the PR is open, because follow-up fixes land from it. After the PR merges, run these from the primary checkout:
