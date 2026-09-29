@@ -200,7 +200,7 @@ type ThreadHistoryAdapter = {
 };
 ```
 
-`load` runs when a thread opens. `append` runs after each message completes. `update` rewrites a stored message in place, which lets the runtime store a run paused for tool approval and a tool result that arrives after its message settled; without it, a paused run is stored only once it ends, for example when a later turn cancels it.
+`load` runs when a thread opens. `append` runs after each message completes, or earlier when a later turn follows a message whose run is still open. `update` rewrites a stored message in place, which lets the runtime store a run paused for tool approval and a tool result that arrives after its message settled; without it, a paused run is stored once it ends or once a later turn follows it, and anything the run adds after that append is not stored.
 
 <Callout type="info">
 `ai-sdk` requires `withFormat` so messages round-trip as AI SDK `UIMessage` objects. An adapter without `withFormat` throws at runtime in the AI SDK path. See the [AI SDK history docs](/docs/runtimes/ai-sdk/v7) for the full pattern.
