@@ -6662,10 +6662,10 @@ describe("LocalThreadRuntimeCore message queue with other runs", () => {
         parentId: thread.messages.at(-1)?.id ?? null,
         ...(steer !== undefined && { steer }),
       });
-    const enableQueue = () =>
+    const enableQueue = (enabled = true) =>
       thread.__internal_setOptions({
         ...runtimeOptions,
-        unstable_enableMessageQueue: true,
+        unstable_enableMessageQueue: enabled,
       });
     return { thread, dispatched, send, enableQueue };
   };
@@ -7056,5 +7056,37 @@ describe("LocalThreadRuntimeCore message queue with other runs", () => {
     await flush();
     expect(dispatched).toEqual(["first", "second", "third"]);
     pending.shift()!();
+  });
+
+  it("holds a send behind a regenerate that replaces a cancelled run after the queue was re-enabled", async () => {
+    const pending: (() => void)[] = [];
+    const { thread, dispatched, send, enableQueue } = createThread({
+      history: true,
+      clearOnCancel: false,
+      wait: () => new Promise<void>((r) => pending.push(r)),
+    });
+
+    send("first");
+    send("second");
+    await flush();
+    thread.cancelRun();
+    enableQueue(false);
+    enableQueue();
+    send("third");
+    send("fourth");
+    await flush();
+    expect(dispatched).toEqual(["first"]);
+    void thread.startRun({ parentId: "u0", sourceId: "a0", runConfig: {} });
+    await flush();
+    expect(dispatched).toEqual(["first", "hi"]);
+
+    pending[1]!();
+    await flush();
+    expect(dispatched).toEqual(["first", "hi", "third"]);
+
+    pending[2]!();
+    await flush();
+    expect(dispatched).toEqual(["first", "hi", "third", "fourth"]);
+    for (const release of pending) release();
   });
 });

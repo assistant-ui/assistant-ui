@@ -157,7 +157,9 @@ const withoutToolInteractions = (message: ThreadMessage): ThreadMessage => {
 
 type QueueDispatch = { started: boolean; cancelled: boolean };
 type LocalRun = {
-  cancelled: boolean;
+  // A cancelled run's settle is owed only to the queue whose notifyCancelled
+  // reserved it; a queue created since never counts on it.
+  cancelledBy: MessageQueueController | null;
   settled: boolean;
   resumedFromPause: boolean;
 };
@@ -693,6 +695,14 @@ export class LocalThreadRuntimeCore
     return this._pendingAppends > 0 || super._isRunActive();
   }
 
+  private _owesCancelSettle(run: LocalRun): boolean {
+    return (
+      run.cancelledBy !== null &&
+      run.cancelledBy === this._queue &&
+      !run.settled
+    );
+  }
+
   private async _runAppend(
     rawMessage: AppendMessage,
     dispatch?: QueueDispatch,
@@ -782,6 +792,8 @@ export class LocalThreadRuntimeCore
     const startRun =
       (message.startRun ?? message.role === "user") && !dispatch?.cancelled;
     if (startRun) {
+      // startRun must reach _runLoop with no await in between, because only
+      // _runLoop marks the dispatch started.
       this._startingDispatch = dispatch ?? null;
       const runPromise = this.startRun({
         parentId: newMessage.id,
@@ -939,7 +951,7 @@ export class LocalThreadRuntimeCore
 
     const replaced = this._activeRun;
     const run: LocalRun = {
-      cancelled: false,
+      cancelledBy: null,
       settled: false,
       resumedFromPause: message.status.type === "requires-action",
     };
@@ -953,10 +965,10 @@ export class LocalThreadRuntimeCore
       // A cancelled run replaced before it settles settles now, once this run
       // is busy, so the queue neither counts this run's settle in its place
       // nor dispatches in between. This notifyIdle is always swallowed:
-      // cancelRun marks a run cancelled only after notifyCancelled reserved
-      // its settle, and notifyBusy above turned that reservation into
-      // suppressIdle.
-      if (replaced?.cancelled && !replaced.settled) {
+      // cancelRun tags a run with the queue only after that queue's
+      // notifyCancelled reserved its settle, and notifyBusy above turned that
+      // reservation into suppressIdle.
+      if (replaced && this._owesCancelSettle(replaced)) {
         replaced.settled = true;
         this._queue?.notifyIdle();
       }
@@ -995,7 +1007,7 @@ export class LocalThreadRuntimeCore
       const pendingDispatch = this._queueRunInFlight;
       // a queued send that has not started its run carries the settle instead
       if (
-        (active || (run.cancelled && !run.settled)) &&
+        (active || this._owesCancelSettle(run)) &&
         (pendingDispatch === null || pendingDispatch.started)
       ) {
         const generation = this._runGeneration;
@@ -1005,7 +1017,7 @@ export class LocalThreadRuntimeCore
           // a run or queued send started since carries the settle, except a
           // cancelled run's, which the queue counts on
           if (
-            (run.cancelled && !run.settled) ||
+            this._owesCancelSettle(run) ||
             (this._runGeneration === generation &&
               (this._queueRunInFlight === null ||
                 this._queueRunInFlight === pendingDispatch))
@@ -1045,7 +1057,7 @@ export class LocalThreadRuntimeCore
     parentId: string | null,
     message: ThreadAssistantMessage,
     runConfig: RunConfig | undefined,
-    run: { cancelled: boolean; resumedFromPause: boolean },
+    run: LocalRun,
     runCallback?: ChatModelAdapter["run"],
   ) {
     const messages = parentId ? this.repository.getMessages(parentId) : [];
@@ -1423,8 +1435,9 @@ export class LocalThreadRuntimeCore
         this._queue.clear();
       } else {
         this._queue.notifyCancelled();
-        if (this._activeRun) this._activeRun.cancelled = true;
-        else for (const run of this._settlingRuns) run.cancelled = true;
+        if (this._activeRun) this._activeRun.cancelledBy = this._queue;
+        else
+          for (const run of this._settlingRuns) run.cancelledBy = this._queue;
       }
       const dispatch = this._queueRunInFlight;
       if (dispatch && !dispatch.started) {
