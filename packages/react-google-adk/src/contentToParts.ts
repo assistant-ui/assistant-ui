@@ -31,6 +31,8 @@ export const contentToParts = (
         return {
           codeExecutionResult: { output: part.output, outcome: part.outcome },
         };
+      case "activity":
+        return { text: part.message };
       default:
         return { text: "" };
     }

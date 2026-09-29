@@ -133,11 +133,23 @@ class RunController:
         self._stream_tasks_to_drain.append(task)
         return controller
 
-    def add_tool_result(self, tool_call_id: str, result: Any) -> None:
-        """Add a tool result to the stream."""
+    def add_tool_result(
+        self,
+        tool_call_id: str,
+        result: Any,
+        *,
+        artifact: Any | None = None,
+        is_error: bool = False,
+        is_preliminary: bool = False,
+    ) -> None:
+        """Add a tool result to the stream, optionally marked as an error, as
+        preliminary, or carrying a UI-only artifact."""
         chunk = ToolResultChunk(
             tool_call_id=tool_call_id,
             result=result,
+            artifact=artifact,
+            is_error=is_error,
+            is_preliminary=is_preliminary,
         )
         self._flush_and_put_chunk(chunk)
 
@@ -333,15 +345,13 @@ async def create_run(
 
             async def finish_stream_task_cancellation():
                 cleanup_task = asyncio.create_task(cancel_stream_tasks())
-                while True:
+                while not cleanup_task.done():
                     try:
-                        await asyncio.shield(cleanup_task)
-                        return
+                        await asyncio.wait({cleanup_task})
                     except asyncio.CancelledError:
                         # Cleanup remains uncancellable so nested readers cannot be orphaned.
-                        if cleanup_task.done():
-                            cleanup_task.result()
-                            return
+                        pass
+                cleanup_task.result()
 
             drain_dispose_callbacks()
             try:
@@ -376,50 +386,22 @@ async def create_run(
             task.result()
         else:
             controller._mark_cancelled()
-            # Yield to the event loop to allow the cancel signal to propagate.
             try:
-                await asyncio.sleep(0)
+                # Callbacks get 50ms to observe `is_cancelled` and stop on their own.
+                # `asyncio.wait` rather than `shield`: Python 3.14 reports the late
+                # failure of an interrupted shield to the loop's exception handler.
+                await asyncio.wait({task}, timeout=0.05)
+                if not task.done():
+                    task.cancel()
+                    await asyncio.wait({task})
             except asyncio.CancelledError:
                 _cancel_detached_task(task)
                 raise
-            if not task.done():
-                # Give callbacks a brief chance to observe `is_cancelled`
-                # and exit cooperatively before forcing cancellation.
-                # 50ms keeps disconnect cleanup responsive without immediately
-                # interrupting callbacks that can stop themselves quickly.
-                try:
-                    await asyncio.wait_for(asyncio.shield(task), timeout=0.05)
-                except asyncio.TimeoutError:
-                    # Timeout means cooperative shutdown did not finish in time.
-                    pass
-                except asyncio.CancelledError:
-                    _cancel_detached_task(task)
-                    raise
-                except Exception:
-                    # The stream consumer already disconnected, so suppress callback errors
-                    # but keep a log signal for postmortem debugging.
-                    logger.warning(
-                        "Suppressed callback exception during early-close grace period",
-                        exc_info=True,
-                    )
-            if not task.done():
-                task.cancel()
-            try:
-                # `shield()` lets caller-initiated cancellation interrupt `aclose()`
-                # without conflating it with our own forced `task.cancel()`.
-                await asyncio.shield(task)
-            except asyncio.CancelledError:
-                if task.cancelled():
-                    # Expected forced cancellation for early-close cleanup.
-                    pass
-                else:
-                    # Preserve caller-initiated cancellation (e.g. wait_for timeout).
-                    _cancel_detached_task(task)
-                    raise
-            except Exception:
-                # The stream consumer already disconnected, so suppress callback errors
-                # but keep a log signal for postmortem debugging.
+            error = None if task.cancelled() else task.exception()
+            if error is not None:
+                if not isinstance(error, Exception):
+                    raise error
                 logger.warning(
-                    "Suppressed callback exception after forced early-close cancellation",
-                    exc_info=True,
+                    "Suppressed callback exception during early-close cleanup",
+                    exc_info=error,
                 )

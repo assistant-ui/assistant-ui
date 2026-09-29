@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { typeEyebrow } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 
 export function Register({
@@ -19,7 +18,7 @@ export function Register({
         <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
           {String(index).padStart(2, "0")}
         </span>
-        <h2 className={cn(typeEyebrow, "text-foreground")}>{label}</h2>
+        <h2 className="text-sm font-medium">{label}</h2>
       </div>
       <p className="mt-6 max-w-[46ch] text-[15px] leading-relaxed text-pretty">
         {claim}

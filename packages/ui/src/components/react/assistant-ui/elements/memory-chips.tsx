@@ -50,14 +50,16 @@ export function MemoryChips({
             )}
           >
             {chip.text}
-            <button
-              type="button"
-              aria-label={`Forget "${chip.text}"`}
-              onClick={() => onForget?.(chip.id)}
-              className={cn(ghostButton, "size-4")}
-            >
-              <XIcon className="size-2.5" />
-            </button>
+            {onForget && (
+              <button
+                type="button"
+                aria-label={`Forget "${chip.text}"`}
+                onClick={() => onForget(chip.id)}
+                className={cn(ghostButton, "size-4")}
+              >
+                <XIcon className="size-2.5" />
+              </button>
+            )}
           </span>
         ))}
       </div>

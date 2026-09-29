@@ -10,7 +10,7 @@ import { BlogTOC } from "@/components/pages/blog/blog-toc";
 import { GlyphPlate } from "@/components/shared/glyph-scene";
 import { sceneFor } from "@/components/pages/blog/scenes";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";
+import { typeDeck, typePage } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 
 interface Param {
@@ -143,10 +143,7 @@ function NeighborCell({
     >
       <GlyphPlate scene={scene} fit className="w-24 shrink-0" />
       <span className={cn("min-w-0", direction === "newer" && "md:text-right")}>
-        <span className={typeEyebrow}>
-          {direction === "older" ? "Older" : "Newer"}
-        </span>
-        <span className="mt-1.5 block truncate text-sm font-medium">
+        <span className="block truncate text-sm font-medium">
           {post.data.title}
         </span>
       </span>

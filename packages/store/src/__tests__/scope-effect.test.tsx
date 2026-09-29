@@ -83,7 +83,7 @@ describe("useAssistantScopeEffect", () => {
         target: targetDerived(),
         registrar: RegistrarClient({ tag }),
       } as never);
-      return <AuiProvider value={aui as never} />;
+      return <AuiProvider value={aui as never}>{null}</AuiProvider>;
     };
     const view = render(<Harness tag="a" />);
 
@@ -129,7 +129,7 @@ describe("useAssistantScopeEffect", () => {
         target: targetDerived(),
         registrar: FlakyRegistrarClient({ tag: "a" }),
       } as never);
-      return <AuiProvider value={aui as never} />;
+      return <AuiProvider value={aui as never}>{null}</AuiProvider>;
     };
     render(<Harness />);
     expect(log).toEqual(["+t0:a"]);
@@ -161,7 +161,7 @@ describe("useAssistantScopeEffect", () => {
         ),
         registrar: RegistrarClient({ tag: "a" }),
       } as never);
-      return <AuiProvider value={aui as never} />;
+      return <AuiProvider value={aui as never}>{null}</AuiProvider>;
     };
     const view = render(<Harness generation={0} />);
     expect(log).toEqual(["+t0:a"]);
@@ -187,7 +187,7 @@ describe("useAssistantScopeEffect", () => {
               registrar: RegistrarClient({ tag: "a" }),
             }) as never,
       );
-      return <AuiProvider value={aui as never} />;
+      return <AuiProvider value={aui as never}>{null}</AuiProvider>;
     };
     const view = render(<Harness hasTarget={false} />);
     expect(log).toEqual([]);

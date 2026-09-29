@@ -308,9 +308,9 @@ The toolbar here is entirely presentational: `selection` and `toolbarVisible` ar
 | `selection` | `string` | required | The highlighted phrase. |
 | `after` | `string` | required | Text after the selected phrase. |
 | `actions` | `readonly QuoteAction[]` | required | The toolbar's buttons. |
-| `toolbarVisible` | `boolean` | required | Shows the toolbar. |
+| `toolbarVisible` | `boolean` | required | Shows the toolbar when `onAction` is also supplied. |
 | `quoted` | `string` | | Shown in the "replying to" block when set. |
-| `onAction` | `(key: string) => void` | | Called with the pressed action's `key`. |
+| `onAction` | `(key: string) => void` | | Called with the pressed action's `key`. The entire toolbar renders only when this is supplied. |
 | `className` | `string` | | Merged onto the root. |
 
 `QuoteAction` is `{ key: string; label: string; icon: "quote" | "explain" | "rewrite" }`. All other `div` props are forwarded to the root.

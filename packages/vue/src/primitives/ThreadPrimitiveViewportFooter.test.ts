@@ -88,8 +88,10 @@ const installResizeObserver = () => {
   const observers = new Set<ResizeObserverMock>();
   class ResizeObserverMock {
     element: Element | null = null;
+    readonly callback: ResizeObserverCallback;
 
-    constructor(private readonly callback: ResizeObserverCallback) {
+    constructor(callback: ResizeObserverCallback) {
+      this.callback = callback;
       observers.add(this);
     }
 

@@ -47,6 +47,54 @@ describe("CloudEngagementReporter", () => {
     });
   });
 
+  it("drops an event its resolver declines", async () => {
+    const { cloud, track } = createCloud();
+    const reporter = new CloudEngagementReporter(cloud, (threadId) =>
+      threadId === "known" ? { thread_id: "remote-known" } : undefined,
+    );
+
+    reporter.messageSent("unknown", { chars: 3, attachments: 0 });
+    reporter.messageSent("known", { chars: 5, attachments: 0 });
+    await flush();
+
+    expect(track).toHaveBeenCalledOnce();
+    expect(track).toHaveBeenCalledWith({
+      kind: "message_sent",
+      thread_id: "remote-known",
+      props: { chars: 5, attachments: 0 },
+    });
+  });
+
+  it("reports tool approval decisions with their resolved message IDs", async () => {
+    const { cloud, track } = createCloud();
+    const reporter = new CloudEngagementReporter(
+      cloud,
+      (threadId, messageId) => ({
+        thread_id: `remote-${threadId}`,
+        ...(messageId !== undefined
+          ? { message_id: `remote-${messageId}` }
+          : {}),
+      }),
+    );
+
+    reporter.toolApproved("t1", "m1", "tool-1", "send_email");
+    reporter.toolRejected("t1", "m2", "tool-2", "delete_account");
+    await flush();
+
+    expect(track).toHaveBeenNthCalledWith(1, {
+      kind: "tool_approved",
+      thread_id: "remote-t1",
+      message_id: "remote-m1",
+      props: { toolCallId: "tool-1", toolName: "send_email" },
+    });
+    expect(track).toHaveBeenNthCalledWith(2, {
+      kind: "tool_rejected",
+      thread_id: "remote-t1",
+      message_id: "remote-m2",
+      props: { toolCallId: "tool-2", toolName: "delete_account" },
+    });
+  });
+
   it("measures a stop against the run start and reports it once per run", async () => {
     const { cloud, track } = createCloud();
     const reporter = new CloudEngagementReporter(cloud);
@@ -81,6 +129,33 @@ describe("CloudEngagementReporter", () => {
     expect(track).toHaveBeenCalledWith(
       expect.objectContaining({ kind: "message_sent", value: 4000 }),
     );
+  });
+
+  it("measures the next send from a stopped run, not the last completed one", async () => {
+    const { cloud, track } = createCloud();
+    const reporter = new CloudEngagementReporter(cloud);
+
+    vi.setSystemTime(new Date("2023-01-01T00:00:00.000Z"));
+    reporter.runStarted("t1");
+    vi.setSystemTime(new Date("2023-01-01T00:01:40.000Z"));
+    reporter.runEnded("t1");
+
+    // a second run the user stops rather than lets finish
+    vi.setSystemTime(new Date("2023-01-01T00:03:20.000Z"));
+    reporter.runStarted("t1");
+    vi.setSystemTime(new Date("2023-01-01T00:05:00.000Z"));
+    reporter.runStopped("t1");
+
+    vi.setSystemTime(new Date("2023-01-01T00:05:10.000Z"));
+    reporter.messageSent("t1", { chars: 3, attachments: 0 });
+    await flush();
+
+    // a stopped run is still a run that ended, so the idle gap is the 10s
+    // since the stop, not the 210s since the last completed run
+    const sent = track.mock.calls
+      .map(([event]) => event as { kind: string; value?: number })
+      .find((event) => event.kind === "message_sent");
+    expect(sent?.value).toBe(10_000);
   });
 
   it("shows one error per run and one suggestion list per thread", async () => {

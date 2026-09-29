@@ -1,4 +1,9 @@
+import type { Channel } from "@langchain/react";
+import { isJSONValueEqual } from "@assistant-ui/core/internal";
 import type { RemoveUIMessage, UIMessage } from "./types";
+
+/** Channels the generative-UI fold reads, at the root and per subagent. */
+export const UI_CUSTOM_CHANNELS: readonly Channel[] = ["custom"];
 
 export type UIUpdate = UIMessage | RemoveUIMessage;
 
@@ -62,13 +67,83 @@ export const extractUIUpdate = (
   return undefined;
 };
 
-export const foldUIUpdates = (events: readonly unknown[]): UIMessage[] => {
-  let acc: UIMessage[] = [];
-  for (const event of events) {
-    const update = extractUIUpdate(event);
+export type UIFoldMemo = {
+  events: readonly unknown[];
+  messages: UIMessage[];
+};
+
+export const createUIFoldMemo = (): UIFoldMemo => ({
+  events: [],
+  messages: [],
+});
+
+/**
+ * Folds `custom`-channel events into UI messages, continuing the fold held in
+ * `memo`. The channel buffer holds each event object once, appends new events
+ * and drops its oldest ones once full, so only events after the previously
+ * folded last event are applied, and entries no later event touches keep
+ * their identity. A buffer that no longer contains that event was replaced
+ * and is folded from scratch.
+ */
+export const foldUIUpdates = (
+  events: readonly unknown[],
+  memo: UIFoldMemo = createUIFoldMemo(),
+): UIMessage[] => {
+  const previous = memo.events;
+  const resumeAt =
+    previous.length === 0
+      ? 0
+      : events.lastIndexOf(previous.at(-1), previous.length - 1) + 1;
+  let acc = previous.length > 0 && resumeAt === 0 ? [] : memo.messages;
+  for (let i = resumeAt; i < events.length; i++) {
+    const update = extractUIUpdate(events[i]);
     if (update) acc = applyUIUpdate(acc, update);
   }
+  memo.events = events;
+  memo.messages = acc;
   return acc;
+};
+
+export type UISnapshotMemo = {
+  snapshot: unknown;
+  entries: readonly UIMessage[];
+};
+
+export const createUISnapshotMemo = (): UISnapshotMemo => ({
+  snapshot: undefined,
+  entries: [],
+});
+
+/**
+ * Recovers entry identity across `values` events. The SDK rebuilds the
+ * `values` object from every snapshot and reconciles only the messages slot by
+ * id, so an unchanged UI list arrives as a new array of new objects on every
+ * superstep. An entry structurally equal to the previous entry with its id is
+ * replaced by that previous object, and a list whose entries all survive in
+ * place is replaced by the previous list.
+ */
+export const reconcileUISnapshot = (
+  snapshot: unknown,
+  memo: UISnapshotMemo,
+): readonly UIMessage[] => {
+  if (snapshot === memo.snapshot) return memo.entries;
+  memo.snapshot = snapshot;
+  if (!Array.isArray(snapshot)) {
+    if (memo.entries.length > 0) memo.entries = [];
+    return memo.entries;
+  }
+  const previous = memo.entries;
+  const previousById = new Map(previous.map((ui) => [ui.id, ui]));
+  let same = snapshot.length === previous.length;
+  const entries = (snapshot as UIMessage[]).map((ui, index) => {
+    const before = previousById.get(ui.id);
+    const entry =
+      before !== undefined && isJSONValueEqual(before, ui) ? before : ui;
+    if (entry !== previous[index]) same = false;
+    return entry;
+  });
+  if (!same) memo.entries = entries;
+  return memo.entries;
 };
 
 /**

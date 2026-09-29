@@ -1,0 +1,173 @@
+---
+title: Reading State Outside the Thread
+description: Bind a header, a sidebar, a status tray, or code in another React root to thread state without lifting it into a second store.
+platforms: ["react"]
+---
+
+Thread state does not live in `<Thread />`. `AssistantRuntimeProvider` installs the store, and the `thread`, `threadListItem`, and `composer` scopes are derived from `threads` at that level. Any component rendered under the provider reads them, inside the thread or next to it. The primitives are ordinary consumers of the same store.
+
+## Put the provider above the chrome
+
+The only requirement for a header, a sidebar, or a status tray is that it renders under the provider. A component rendered outside it receives a default client whose scope accessors throw on use.
+
+```tsx title="/app/page.tsx"
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { Thread } from "@/components/assistant-ui/thread";
+import { Header } from "@/components/header";
+
+export default function Page() {
+  const runtime = useChatRuntime();
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Header />
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+```tsx title="/components/header.tsx"
+import { AuiIf, useAui, useAuiState } from "@assistant-ui/react";
+
+export function Header() {
+  const aui = useAui();
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+
+  return (
+    <header className="flex items-center gap-2">
+      <span className="font-medium">Assistant</span>
+      {isRunning && (
+        <span className="text-muted-foreground text-xs">Running</span>
+      )}
+      <AuiIf
+        condition={(s) => s.thread.isRunning && s.thread.capabilities.cancel}
+      >
+        <button type="button" onClick={() => aui.thread.cancelRun()}>
+          Stop
+        </button>
+      </AuiIf>
+    </header>
+  );
+}
+```
+
+Lifting `isRunning` into your own store from inside the thread and reading it back in the header is not needed. Both components subscribe to the same client.
+
+## One value per selector
+
+`useAuiState` compares the selector result by reference. Return one primitive per call, or select an array whole and derive from it in `useMemo`; the array reference only changes when its contents change. Fold a condition over several fields into a boolean with `AuiIf`, as the header above does. The [Context API guide](/docs/guides/context-api#troubleshooting) lists the failure modes of a selector that allocates.
+
+```tsx title="/components/thread-activity.tsx"
+import { useAuiState } from "@assistant-ui/react";
+import { useMemo } from "react";
+
+export function ThreadActivity() {
+  const items = useAuiState((s) => s.threads.threadItems);
+  const runningCount = useMemo(
+    () => items.filter((item) => item.isRunning).length,
+    [items],
+  );
+
+  if (runningCount === 0) return null;
+  return <span>{runningCount} threads running</span>;
+}
+```
+
+`threadItems[i].isRunning` includes a run that continues after the user switched to another thread, when the thread list keeps that thread mounted. A thread list that mounts only the open thread reports the others as not running.
+
+## React to events from anywhere
+
+Render from state and use events for side effects such as a toast, a sound, or an analytics call. A plain `useAuiEvent("thread.runEnd", ...)` resolves the `thread` scope in the subscriber's own context, which under the provider is the selected thread, so it stays silent for a run that finishes on a thread the user switched away from. `{ scope: "*", event }` listens at the root client and receives the event from any thread; the payload's `threadId` says which one.
+
+```tsx title="/components/run-toasts.tsx"
+import { useAuiEvent } from "@assistant-ui/react";
+import { toast } from "sonner";
+
+export function RunToasts() {
+  useAuiEvent({ scope: "*", event: "thread.runEnd" }, ({ threadId }) => {
+    toast(`Run finished on ${threadId}`);
+  });
+  return null;
+}
+```
+
+`thread.runStart` and `thread.runEnd` are also visible as `isRunning` flipping, so a badge reads state and only the toast listens.
+
+## Another React root or plain code
+
+A devtools overlay, a browser extension panel, or an analytics module cannot call `useAui`. Publish the client from a null-rendering child of the provider, and let outside code subscribe to it. `aui.subscribe` fires on every state change and `aui.thread.getState()` reads the current snapshot. Compute the projection inside the subscription callback and cache it: `useSyncExternalStore` requires `getSnapshot` to return a referentially stable value, so building a fresh object on each call would loop.
+
+```ts title="/lib/assistant-client-store.ts"
+import type { AssistantClient } from "@assistant-ui/react";
+
+type Snapshot = { isRunning: boolean };
+
+let client: AssistantClient | null = null;
+let snapshot: Snapshot = { isRunning: false };
+const listeners = new Set<() => void>();
+
+const project = () => {
+  const isRunning = client?.thread.getState().isRunning ?? false;
+  if (isRunning === snapshot.isRunning) return;
+  snapshot = { isRunning };
+  for (const listener of listeners) listener();
+};
+
+export const assistantClientStore = {
+  subscribe(listener: () => void) {
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
+  },
+  getSnapshot: () => snapshot,
+  publish(next: AssistantClient | null) {
+    client = next;
+    project();
+    return next?.subscribe(project);
+  },
+};
+```
+
+```tsx title="/components/publish-assistant-client.tsx"
+import { useAui } from "@assistant-ui/react";
+import { useEffect } from "react";
+import { assistantClientStore } from "@/lib/assistant-client-store";
+
+export function PublishAssistantClient() {
+  const aui = useAui();
+
+  useEffect(() => {
+    const unsubscribe = assistantClientStore.publish(aui);
+    return () => {
+      unsubscribe?.();
+      assistantClientStore.publish(null);
+    };
+  }, [aui]);
+
+  return null;
+}
+```
+
+Mount `<PublishAssistantClient />` anywhere under the provider. The effect re-runs when the client identity changes, which happens on a structural change such as a thread switch; a value-only update keeps the identity and reaches the store through the subscription.
+
+Code in the other root reads the cached snapshot:
+
+```tsx title="/overlay/run-indicator.tsx"
+import { useSyncExternalStore } from "react";
+import { assistantClientStore } from "@/lib/assistant-client-store";
+
+export function RunIndicator() {
+  const { isRunning } = useSyncExternalStore(
+    assistantClientStore.subscribe,
+    assistantClientStore.getSnapshot,
+    assistantClientStore.getSnapshot,
+  );
+
+  return isRunning ? <span>Running</span> : null;
+}
+```
+
+This is the mechanism the assistant-ui devtools overlay uses to observe every runtime on the page from its own React root. Keep the projection small and compare fields before replacing the snapshot, so consumers only re-render when a value they show has changed.

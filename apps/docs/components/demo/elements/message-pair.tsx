@@ -8,9 +8,12 @@ const ASSISTANT_MESSAGE =
   "Key the draft by thread id inside the runtime, hydrate the composer when a thread becomes active, and drop the entry after the message sends.";
 
 function MessagePairStory({ variant }: { variant: "bubble" | "flat" }) {
-  const { words, count, streaming } = useWordStream(ASSISTANT_MESSAGE, {
-    interval: 82,
-  });
+  const { words, count, streaming, restart } = useWordStream(
+    ASSISTANT_MESSAGE,
+    {
+      interval: 82,
+    },
+  );
 
   return (
     <MessagePair
@@ -19,6 +22,8 @@ function MessagePairStory({ variant }: { variant: "bubble" | "flat" }) {
       visibleWords={count}
       streaming={streaming}
       variant={variant}
+      onCopy={() => void navigator.clipboard?.writeText(ASSISTANT_MESSAGE)}
+      onRegenerate={restart}
     />
   );
 }

@@ -14,21 +14,31 @@ import {
   useClientResource,
 } from "@assistant-ui/store/client";
 import { ComposerClient } from "./composer-runtime-client";
+import { ThreadMessageClient } from "../clients/thread-message-client";
+import { submissionThreadMessage } from "../clients/submission-message";
 import { MessageClient } from "./message-runtime-client";
 import { ThreadSuggestions } from "../clients/suggestions";
+import {
+  createTaskDeriver,
+  getTaskKey,
+  TaskClient,
+} from "../clients/thread-tasks";
 import { useSubscribable } from "./useSubscribable";
 import type { ThreadState } from "../scopes/thread";
+import { runCleanups } from "../../subscribable/subscribable";
 
 const useMessageClientById = ({
   runtime,
   id,
   threadIdRef,
   threadId,
+  isLast,
 }: {
   runtime: ThreadRuntime;
   id: string;
   threadIdRef: RefObject<string>;
   threadId: string;
+  isLast: false | undefined;
 }) => {
   const messageRuntime = useMemo(
     () => runtime.getMessageById(id),
@@ -36,7 +46,7 @@ const useMessageClientById = ({
   );
 
   return useResource(
-    MessageClient({ runtime: messageRuntime, threadIdRef, threadId }),
+    MessageClient({ runtime: messageRuntime, threadIdRef, threadId, isLast }),
   );
 };
 
@@ -70,9 +80,14 @@ const useThreadClient = ({
       unsubscribers.push(unsubscribe);
     }
 
-    return () => {
-      for (const unsub of unsubscribers) unsub();
-    };
+    unsubscribers.push(
+      runtime.unstable_on("toolApprovalAnswered", (payload) => {
+        const threadId = runtime.getState()?.threadId || "unknown";
+        emit("thread.toolApprovalAnswered", { threadId, ...payload });
+      }),
+    );
+
+    return () => runCleanups(unsubscribers);
   }, [runtime, emit]);
 
   const threadIdRef = useMemo(
@@ -102,20 +117,64 @@ const useThreadClient = ({
   const suggestions = useClientResource(
     ThreadSuggestions(runtimeState.suggestions),
   );
-  const messages = useClientLookup(
-    runtimeState.messages.map((m) =>
-      withKey(
+  const taskDeriver = useMemo(() => createTaskDeriver(), []);
+  const tasks = useMemo(
+    () => taskDeriver(runtimeState.messages),
+    [taskDeriver, runtimeState.messages],
+  );
+  const taskClients = useClientLookup(
+    tasks.map((task) =>
+      withKey(getTaskKey(task), TaskClient({ task }), [task]),
+    ),
+  );
+  const submission = composer.state.submission;
+  const inTransit = composer.state.inTransit;
+  // Messages the composer sent that the runtime does not show yet render after
+  // the thread's own, oldest first, so a send never leaves the conversation.
+  const pending = useMemo(
+    () => [...(inTransit ?? []), ...(submission ? [submission] : [])],
+    [inTransit, submission],
+  );
+  const pendingMessages = useMemo(
+    () => pending.map(submissionThreadMessage),
+    [pending],
+  );
+  const lastIndex = runtimeState.messages.length - 1;
+  const messages = useClientLookup([
+    ...runtimeState.messages.map((m, index) => {
+      const isLast =
+        index === lastIndex && pending.length > 0 ? false : undefined;
+      return withKey(
         m.id,
         MessageClientById({
           runtime,
           id: m.id,
           threadIdRef,
           threadId: runtimeState.threadId,
+          isLast,
         }),
-        [runtime, m.id, threadIdRef, runtimeState.threadId],
+        [runtime, m.id, threadIdRef, runtimeState.threadId, isLast],
+      );
+    }),
+    ...pending.map((row, index) =>
+      withKey(
+        row.id,
+        ThreadMessageClient({
+          message: pendingMessages[index]!,
+          submission: row,
+          index: runtimeState.messages.length + index,
+          isLast: index === pending.length - 1,
+        }),
+        [
+          pendingMessages[index],
+          row,
+          runtimeState.messages.length,
+          index,
+          pending.length,
+        ],
       ),
     ),
-  );
+  ]);
 
   const state = useMemo<ThreadState>(() => {
     return {
@@ -132,13 +191,21 @@ const useThreadClient = ({
 
       composer: composer.state,
       messages: messages.state,
+      tasks,
     };
-  }, [runtimeState, messages, composer.state]);
+  }, [runtimeState, messages, composer.state, tasks]);
 
   return {
     getState: () => state,
     composer: () => composer.methods,
     suggestions: () => suggestions.methods,
+    task: (selector) => {
+      if ("id" in selector) {
+        const task = tasks.find((candidate) => candidate.id === selector.id);
+        return taskClients.get({ key: task ? getTaskKey(task) : selector.id });
+      }
+      return taskClients.get(selector);
+    },
     append: (message) => {
       const appended: Exclude<CreateAppendMessage, string> =
         typeof message === "string"

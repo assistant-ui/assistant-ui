@@ -35,11 +35,11 @@ function ComposerAction() {
   return (
     <ModelSelector
       models={[
-        { id: "gpt-5.6-luna", name: "GPT-5.6 Luna", description: "Fast and efficient" },
-        { id: "gpt-5.6-terra", name: "GPT-5.6 Terra", description: "Balanced performance" },
-        { id: "gpt-5.6-sol", name: "GPT-5.6 Sol", description: "Most capable", efforts: true },
+        { id: "gpt-6-luna", name: "GPT-6 Luna", description: "Fast and efficient" },
+        { id: "gpt-6-sol", name: "GPT-6 Sol", description: "Balanced performance" },
+        { id: "gpt-6-astra", name: "GPT-6 Astra", description: "Most capable", efforts: true },
       ]}
-      defaultValue="gpt-5.6-luna"
+      defaultValue="gpt-6-luna"
       defaultEffort="medium"
       size="sm"
     />
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
   const { messages, config } = await req.json();
 
   const result = streamText({
-    model: openai(config?.modelName ?? "gpt-5.6-luna"),
+    model: openai(config?.modelName ?? "gpt-6-luna"),
     providerOptions: {
       openai:
         config?.reasoningEffort !== undefined
@@ -175,7 +175,7 @@ Render it inside `Content` in place of `Effort`.
 Each model's `icon` accepts any `ReactNode` and renders in both the trigger and the dropdown item. [Model logos](/elements/logos) ships ready-made `OpenAILogo`, `ClaudeLogo`, and `GeminiLogo` marks for this.
 
 ```tsx
-{ id: "claude-opus-4.5", name: "Claude Opus 4.5", icon: <ClaudeLogo /> }
+{ id: "claude-opus-5-5", name: "Claude Opus 5.5", icon: <ClaudeLogo /> }
 ```
 
 ### Capability metadata
@@ -206,7 +206,7 @@ Open the picker and search for a model or provider. Select a result to update th
 
 ### Provider groups and availability
 
-Use `ModelSelectorGroup` to group the models by provider. A model with `disabled` shows in the list, but you cannot select it. In this example, Claude Opus 5 is disabled, thus a click on it does not change the selection.
+Use `ModelSelectorGroup` to group the models by provider. A model with `disabled` shows in the list, but you cannot select it. In this example, Claude Opus 5.5 is disabled, thus a click on it does not change the selection.
 
 <PreviewCode file="components/pages/docs/samples/model-selector/provider-groups-and-availability" name="ModelAvailabilitySelector" base={<ModelSelectorGroupedSample />}>
   <ModelSelectorGroupedRadixSample.ModelSelectorGroupedSample />
@@ -366,8 +366,8 @@ import {
 } from "@/components/assistant-ui/elements/model-picker";
 
 const MODELS: PickableModel[] = [
-  { id: "sonnet", name: "Claude Sonnet", family: "Anthropic", context: "200k", price: "$3 / 1M", capabilities: ["vision", "tools"] },
-  { id: "gpt-5", name: "GPT-5", family: "OpenAI", context: "400k", price: "$5 / 1M", capabilities: ["tools", "thinking"] },
+  { id: "sonnet", name: "Claude Sonnet 5", family: "Anthropic", context: "1M", price: "$2 / 1M", capabilities: ["vision", "tools"] },
+  { id: "gpt-6-sol", name: "GPT-6 Sol", family: "OpenAI", context: "1M", price: "$2 / 1M", capabilities: ["tools", "thinking"] },
 ];
 
 export function ModelPickerPanel() {
@@ -388,5 +388,5 @@ Families are derived from `models` with `[...new Set(models.map((m) => m.family)
 |------|------|---------|-------------|
 | `models` | `PickableModel[]` | required | `{ id, name, family, context, price, capabilities }[]`. Families keep first-seen order; `context` and `price` are pre-formatted strings (the element does no currency math), `capabilities` renders as chip labels. |
 | `selectedId` | `string` | required | Which model is active. |
-| `onSelect` | `(id: string) => void` | | Called when a model is picked. |
+| `onSelect` | `(id: string) => void` | | Called when a model is picked. Without it, model rows render as non-interactive options. |
 | `className` | `string` | | Merged onto the root. |

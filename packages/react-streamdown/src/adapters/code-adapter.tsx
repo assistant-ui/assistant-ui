@@ -4,11 +4,14 @@ import type { Element } from "hast";
 import {
   type ComponentPropsWithoutRef,
   type ComponentType,
+  createContext,
   isValidElement,
   memo,
   type ReactNode,
+  useContext,
 } from "react";
 import { parseLanguageClass } from "@assistant-ui/react-markdown/code-fence";
+import { isSameHastNode } from "../memoization";
 import { useCallbackRef } from "../useCallbackRef";
 import type {
   CodeHeaderProps,
@@ -35,8 +38,14 @@ export interface CodeAdapterOptions {
 
 export type CodeAdapterProps = CodeProps & {
   "data-block"?: string;
-  adapter: CodeAdapterOptions;
 };
+
+/**
+ * Carries the adapter components past streamdown's memo boundaries: its root
+ * memo ignores `components`, so a settled block never re-renders for a new
+ * highlighter, while a context change reaches every mounted code adapter.
+ */
+export const CodeAdapterContext = createContext<CodeAdapterOptions>({});
 
 function joinClassNames(...names: (string | undefined)[]): string | undefined {
   const joined = names.filter(Boolean).join(" ");
@@ -63,12 +72,9 @@ function DefaultCode({ node: _, ...props }: CodeProps): ReactNode {
 /**
  * Bridges the assistant-ui SyntaxHighlighter/CodeHeader API to streamdown's
  * code component, using streamdown's data-block marker for inline/block
- * detection. The options travel as a prop rather than a closure so the
- * component type stays the same across renders and a fresh `components` object
- * updates the code block instead of remounting it.
+ * detection.
  */
 function CodeAdapterInner({
-  adapter,
   node,
   className,
   children,
@@ -81,7 +87,7 @@ function CodeAdapterInner({
     componentsByLanguage = {},
     Pre = DefaultPre,
     Code = DefaultCode,
-  } = adapter;
+  } = useContext(CodeAdapterContext);
 
   const preProps = useStreamdownPreProps();
   const WrappedPre = useCallbackRef(
@@ -154,14 +160,21 @@ function CodeAdapterInner({
   );
 }
 
+// Streamdown re-creates the hast `node` on every parse, so it compares by value,
+// and only once every other prop matches by identity: a code element with
+// element children never matches, so nested code skips the subtree walk.
 export const CodeAdapter = memo(CodeAdapterInner, (prev, next) => {
+  const prevProps: Record<string, unknown> = prev;
+  const nextProps: Record<string, unknown> = next;
+  const keys = Object.keys(prevProps);
   return (
-    prev.adapter === next.adapter &&
-    prev.className === next.className &&
-    prev["data-block"] === next["data-block"] &&
-    prev.children === next.children &&
-    prev.node?.position?.start.line === next.node?.position?.start.line &&
-    prev.node?.position?.end.line === next.node?.position?.end.line
+    keys.length === Object.keys(nextProps).length &&
+    keys.every(
+      (key) =>
+        Object.hasOwn(nextProps, key) &&
+        (key === "node" || prevProps[key] === nextProps[key]),
+    ) &&
+    isSameHastNode(prev.node, next.node)
   );
 });
 CodeAdapter.displayName = "CodeAdapter";
