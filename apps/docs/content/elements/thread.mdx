@@ -186,7 +186,7 @@ See the [Suggestions guide](/docs/guides/suggestions) for the full configuration
 | Selector | Type | Description |
 |----------|------|--------------|
 | `s.thread.capabilities.dictation` | `boolean` | Whether the composer's mic button can render at all. |
-| `s.composer.canCancel` | `boolean` | Swaps the composer's send action for cancel. |
+| `s.composer.canCancel` | `boolean` | Shows Cancel when true, except during a voice session without a pending submission, when Send remains visible. |
 | `s.composer.isEmpty` | `boolean` | Gates the welcome suggestions: shown only for a new chat with nothing typed. |
 | `s.composer.dictation` | `DictationState \| undefined` | Non-null while dictation is active; swaps the mic button for a stop button. |
 | `s.message.role` | `"user" \| "assistant" \| "system"` | Picks the message component to render. |
