@@ -110,7 +110,6 @@ export class ExternalStoreThreadRuntimeCore
     return this._store.isLoading ?? false;
   }
   private _pendingResumes = new Set<{
-    coalesce: boolean;
     config: ResumeRunConfig;
     onResume: (config: ResumeRunConfig) => Promise<void>;
     promise: Promise<void>;
@@ -914,7 +913,6 @@ export class ExternalStoreThreadRuntimeCore
     const onResume = this._store.onResume;
     for (const pending of this._pendingResumes) {
       if (
-        pending.coalesce &&
         pending.onResume === onResume &&
         pending.config.parentId === config.parentId &&
         pending.config.sourceId === config.sourceId &&
@@ -923,6 +921,7 @@ export class ExternalStoreThreadRuntimeCore
       )
         return pending.promise;
     }
+    if (this._store.canResume !== true) return onResume(config);
     let start!: () => void;
     const promise = new Promise<void>((resolve, reject) => {
       start = () => {
@@ -937,7 +936,6 @@ export class ExternalStoreThreadRuntimeCore
       this._notifySubscribers();
     });
     const pending = {
-      coalesce: this._store.canResume === true,
       config,
       onResume,
       promise,

@@ -3,16 +3,16 @@
 import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { AuiProvider, useAui } from "@assistant-ui/store";
-import { ExternalThread } from "../store/clients/external-thread";
-import { useComposerResume } from "../react/primitive-hooks/useComposerResume";
-import { ExternalStoreThreadRuntimeCore } from "../runtimes/external-store/external-store-thread-runtime-core";
-import type { ThreadMessage } from "../types/message";
-import { AssistantRuntimeProvider } from "../react/AssistantRuntimeProvider";
-import { AssistantRuntimeImpl } from "../runtime/api/assistant-runtime";
-import { ExternalStoreRuntimeCore } from "../runtimes/external-store/external-store-runtime-core";
-import { getThreadRuntimeCoreIsRunning } from "../runtime/api/thread-runtime";
-import type { ThreadRuntimeState } from "../runtime/api/thread-runtime";
-import type { ThreadState } from "../store/scopes/thread";
+import { ExternalThread } from "../../store/clients/external-thread";
+import { useComposerResume } from "./useComposerResume";
+import { ExternalStoreThreadRuntimeCore } from "../../runtimes/external-store/external-store-thread-runtime-core";
+import type { ThreadMessage } from "../../types/message";
+import { AssistantRuntimeProvider } from "../AssistantRuntimeProvider";
+import { AssistantRuntimeImpl } from "../../runtime/api/assistant-runtime";
+import { ExternalStoreRuntimeCore } from "../../runtimes/external-store/external-store-runtime-core";
+import { getThreadRuntimeCoreIsRunning } from "../../runtime/api/thread-runtime";
+import type { ThreadRuntimeState } from "../../runtime/api/thread-runtime";
+import type { ThreadState } from "../../store/scopes/thread";
 
 let action!: ReturnType<typeof useComposerResume>;
 let aui!: ReturnType<typeof useAui>;

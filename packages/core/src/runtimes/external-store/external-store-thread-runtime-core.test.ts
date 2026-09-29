@@ -47,3 +47,47 @@ describe("ExternalStoreThreadRuntimeCore interaction recording", () => {
     ).rejects.toThrow("Runtime does not support recording tool interactions.");
   });
 });
+
+describe("ExternalStoreThreadRuntimeCore resume compatibility", () => {
+  it.each([undefined, false])(
+    "does not notify subscribers for a successful resume without opt-in: %s",
+    async (canResume) => {
+      const onResume = vi.fn(async () => {});
+      const runtime = createRuntime({ canResume, onResume });
+      const subscriber = vi.fn();
+      runtime.subscribe(subscriber);
+
+      const pending = runtime.resumeRun({
+        parentId: null,
+        sourceId: null,
+        runConfig: {},
+      });
+      expect(onResume).toHaveBeenCalledOnce();
+      await pending;
+
+      expect(subscriber).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([undefined, false])(
+    "does not notify subscribers for a failed resume without opt-in: %s",
+    async (canResume) => {
+      const onResume = vi.fn(() => {
+        throw new Error("resume failed");
+      });
+      const runtime = createRuntime({ canResume, onResume });
+      const subscriber = vi.fn();
+      runtime.subscribe(subscriber);
+
+      const pending = runtime.resumeRun({
+        parentId: null,
+        sourceId: null,
+        runConfig: {},
+      });
+      expect(onResume).toHaveBeenCalledOnce();
+      await expect(pending).rejects.toThrow("resume failed");
+
+      expect(subscriber).not.toHaveBeenCalled();
+    },
+  );
+});

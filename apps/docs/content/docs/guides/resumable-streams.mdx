@@ -161,7 +161,8 @@ satisfies both requirements. When the server emits `finish`, storage is cleared.
 
 Typing a new draft keeps Send available. With manual Resume enabled, starting a
 new send, edit, or regeneration request clears the previous checkpoint, so a failed
-request cannot replay an older answer into the new turn.
+request cannot replay an older answer into the new turn. Switching message branches
+also clears the checkpoint to prevent replaying an answer from another branch.
 Resumable storage alone does not
 expose manual Resume. Custom adapters can opt in with
 `canResume` and `onResume`; they own checkpoint expiry and error state. A
