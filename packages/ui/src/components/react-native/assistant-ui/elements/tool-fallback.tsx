@@ -2,6 +2,7 @@ import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 import {
   toolApprovalAcceptsText,
+  useAuiState,
   type ToolApprovalOption,
   type ToolCallMessagePart,
   type ToolCallMessagePartComponent,
@@ -48,6 +49,87 @@ const approvalOptionLabel = (option: ToolApprovalOption) =>
 
 const isQuestion = (approval: ToolCallMessagePart["approval"]) =>
   approval?.display === "select" || approval?.display === "text";
+
+const isSettled = (approval: ToolCallMessagePart["approval"]) =>
+  approval != null &&
+  (approval.approved !== undefined || approval.resolution !== undefined);
+
+/**
+ * A settled request reads as a past-tense record of what happened to it, so
+ * scrolling back never shows a live control for a decision already made.
+ */
+const approvalReceipt = (
+  approval: NonNullable<ToolCallMessagePart["approval"]>,
+) => {
+  if (approval.resolution !== undefined)
+    return {
+      label:
+        approval.resolution === "cancelled"
+          ? "Cancelled before a decision"
+          : "Expired before a decision",
+      option: undefined,
+    };
+
+  const chosen =
+    approval.optionId === undefined
+      ? undefined
+      : approval.options?.find((option) => option.id === approval.optionId);
+  const answered =
+    isQuestion(approval) || (chosen !== undefined && !isKnownKind(chosen.kind));
+  const verb = approval.approved
+    ? answered
+      ? "Answered"
+      : "Allowed"
+    : answered
+      ? "Dismissed"
+      : "Denied";
+
+  return {
+    label: `${verb}${approval.isAutomatic ? " automatically" : ""}`,
+    option:
+      chosen !== undefined ? approvalOptionLabel(chosen) : approval.optionId,
+  };
+};
+
+const ToolFallbackApprovalReceipt: FC<{
+  approval: NonNullable<ToolCallMessagePart["approval"]>;
+  className?: string;
+}> = ({ approval, className }) => {
+  const receipt = approvalReceipt(approval);
+  const notes = [
+    ...new Set(
+      [approval.text, approval.reason].filter(
+        (value): value is string => typeof value === "string" && value !== "",
+      ),
+    ),
+  ];
+
+  return (
+    <View className={cn("aui-tool-fallback-approval-receipt gap-1", className)}>
+      {approval.prompt ? (
+        <Text className="aui-tool-fallback-approval-prompt text-muted-foreground text-sm">
+          {approval.prompt}
+        </Text>
+      ) : null}
+      <Text className="aui-tool-fallback-approval-receipt-label text-foreground text-sm font-medium">
+        {receipt.label}
+        {receipt.option !== undefined ? (
+          <Text className="text-muted-foreground font-normal">
+            {` · ${receipt.option}`}
+          </Text>
+        ) : null}
+      </Text>
+      {notes.map((text) => (
+        <Text
+          key={text}
+          className="aui-tool-fallback-approval-receipt-note text-muted-foreground text-sm"
+        >
+          {text}
+        </Text>
+      ))}
+    </View>
+  );
+};
 
 export const offersInterruptAction = (
   status: ToolCallMessagePartStatus | undefined,
@@ -110,19 +192,34 @@ export const ToolFallbackApproval: FC<
   className,
 }) => {
   const hydrated = useHydrated();
+  const canAnswer = useAuiState(
+    (s) => s.optional.thread?.capabilities.answerToolCall !== false,
+  );
   const [submitted, setSubmitted] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [answer, setAnswer] = useState("");
   const [error, setError] = useState<string | null>(null);
   useAnnounce(error ?? undefined);
 
-  if (
-    approval != null &&
-    (approval.approved !== undefined || approval.resolution !== undefined)
-  )
-    return null;
+  if (approval != null && isSettled(approval))
+    return (
+      <ToolFallbackApprovalReceipt approval={approval} className={className} />
+    );
 
   if (!offersInterruptAction(status, approval, interrupt)) return null;
+
+  const promptText = approval?.prompt ? (
+    <Text className="aui-tool-fallback-approval-prompt text-foreground text-sm">
+      {approval.prompt}
+    </Text>
+  ) : null;
+
+  if (!canAnswer)
+    return promptText ? (
+      <View className={cn("aui-tool-fallback-approval gap-2", className)}>
+        {promptText}
+      </View>
+    ) : null;
 
   // A declared option list is a host constraint: the kit never adds an
   // approval path beyond it, and keeps a refusal path only for an action.
@@ -227,12 +324,6 @@ export const ToolFallbackApproval: FC<
         {argsText}
       </Text>
     </View>
-  ) : null;
-
-  const promptText = approval?.prompt ? (
-    <Text className="aui-tool-fallback-approval-prompt text-foreground text-sm">
-      {approval.prompt}
-    </Text>
   ) : null;
 
   const errorText = error ? (
@@ -453,7 +544,7 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
           </Text>
         </View>
       )}
-      {shouldRenderApproval && (
+      {(shouldRenderApproval || isSettled(approval)) && (
         <ToolFallbackApproval
           className="ps-6"
           argsText={argsText}
