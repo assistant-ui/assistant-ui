@@ -76,9 +76,15 @@ export function activityStatus(status: MessageStatus): RunActivityStatus {
 const LABELS: Record<RunActivityStatus, string> = {
   running: "Working",
   "requires-action": "Needs your input",
+  complete: "Completed",
+  cancelled: "Stopped",
+  incomplete: "Incomplete",
+  error: "Failed",
+};
+
+const TIMED_LABELS: Partial<Record<RunActivityStatus, string>> = {
   complete: "Worked for",
   cancelled: "Stopped after",
-  incomplete: "Incomplete",
   error: "Failed after",
 };
 
@@ -161,6 +167,8 @@ export function ActivityRunMessage() {
   const rootRef = useRef<HTMLDivElement>(null);
   const lockScroll = useScrollLock(rootRef, 200);
   const status = activityStatus(messageStatus!);
+  const hasDuration =
+    status === "running" || presentation.timing.completedAt !== undefined;
   const parts = messageParts.map((part, index) => {
     const entry = presentation.entries[index];
     const id =
@@ -198,7 +206,11 @@ export function ActivityRunMessage() {
     <MessagePrimitive.Root ref={rootRef}>
       <RunActivity
         status={status}
-        statusLabel={LABELS[status]}
+        statusLabel={
+          hasDuration
+            ? (TIMED_LABELS[status] ?? LABELS[status])
+            : LABELS[status]
+        }
         durationLabel={<RunDuration timing={presentation.timing} />}
         entries={parts.flatMap((entry) =>
           !entry.attention &&

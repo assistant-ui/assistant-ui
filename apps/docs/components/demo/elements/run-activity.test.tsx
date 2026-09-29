@@ -372,4 +372,22 @@ describe("run activity external-store recipe", () => {
     ).toBeTruthy();
     expect(screen.getByText("The final answer.")).toBeTruthy();
   });
+
+  it.each([
+    [{ type: "complete", reason: "stop" }, "Completed"],
+    [{ type: "incomplete", reason: "cancelled" }, "Stopped"],
+    [{ type: "incomplete", reason: "error" }, "Failed"],
+  ] as const)(
+    "uses a complete label for %j without a recorded end time",
+    async (status, label) => {
+      render(
+        <ActivityRunExample
+          run={{ ...RUN, status, timing: { startedAt: 1000 } }}
+        />,
+      );
+      expect(await screen.findByRole("button", { name: label })).toBeTruthy();
+      expect(screen.getByRole("status").textContent).toBe(label);
+      expect(screen.queryByText("2m 13s")).toBeNull();
+    },
+  );
 });
