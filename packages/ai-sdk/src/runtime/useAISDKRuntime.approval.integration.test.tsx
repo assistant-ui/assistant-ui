@@ -688,8 +688,15 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
       reason: "interrupt",
     });
     await waitFor(() =>
-      expect(append.mock.calls.map(([item]) => item.message.id)).toContain(
-        "assistant-1",
+      expect(
+        append.mock.calls.find(
+          ([item]) => item.message.id === "assistant-1",
+        )?.[0].message.parts,
+      ).toContainEqual(
+        expect.objectContaining({
+          state: "approval-requested",
+          approval: { id: "approval-1" },
+        }),
       ),
     );
   });
