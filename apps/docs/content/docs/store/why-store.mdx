@@ -12,7 +12,7 @@ const Counter = () => {
 };
 ```
 
-This works when the component that creates the state is the same one that displays it. But what happens when they're far apart?
+This works when the component that creates the state is the same one that displays it, but not when they are far apart.
 
 ## The gap
 
@@ -49,4 +49,4 @@ const Message = () => {
 };
 ```
 
-`AuiProvider` creates the state from its `config` and makes it available to the tree. `useAuiState` reads from it — the component re-renders only when the selected value changes.
+`AuiProvider` creates the state from its `config` and makes it available to the tree. `useAuiState` reads from it, and the component re-renders only when the selected value changes.

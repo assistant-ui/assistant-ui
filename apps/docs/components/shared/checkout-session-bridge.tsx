@@ -11,7 +11,7 @@ import {
 import { StatewireWebsocket, useStatewire } from "statewire";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import { isProductSlug, resolveProducts } from "@/lib/catalog";
-import { cartUrl } from "@/lib/catalog/install-prompt";
+import { installGuideUrl } from "@/lib/catalog/install-guide";
 import {
   currentPlan,
   isAgentPresent,
@@ -117,7 +117,7 @@ function CheckoutSessionBridge({
       products: products.map((product) => ({
         slug: product.slug,
         name: product.name,
-        guide: `${window.location.origin}${cartUrl([product.slug], { markdown: true })}`,
+        guide: `${window.location.origin}${installGuideUrl([product.slug])}`,
       })),
     }).catch(() => {
       creating.current = false;

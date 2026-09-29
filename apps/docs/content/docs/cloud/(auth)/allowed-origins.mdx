@@ -27,7 +27,7 @@ Open **Settings › Access**. The **Allowed origins** field accepts one origin p
 |---|---|---|---|
 | **Allowed origins** | Empty | One normalized browser origin per line, up to 32 entries | Defines which frontend browser origins receive a CORS response. Empty allows every origin. |
 
-Each submitted entry is normalized and deduplicated before it is stored. An invalid entry refuses the save with the same message.
+Each submitted entry is normalized and deduplicated before it is stored. An invalid entry refuses the save with this message:
 
 ```text title="Invalid origin refusal"
 Invalid allowed origin: {origin}
@@ -49,7 +49,7 @@ A list of more than 32 entries is refused with:
 At most 32 allowed origins are permitted
 ```
 
-Saving creates an audit entry for the project configuration change. Use **Settings › Audit log** to review project configuration changes.
+Saving creates an audit entry, which you can review in **Settings › Audit log**.
 
 ## Recipes
 
@@ -79,7 +79,7 @@ Ports must match exactly. `https://app.example.com:3000` does not allow `https:/
 
 ## What a refused browser request sees
 
-The frontend host still receives the request, but a nonmatching origin does not get `Access-Control-Allow-Origin`. Browser CORS then prevents your application from reading the response. This is distinct from API key authentication: API key clients use the backend host, which the allowed origins list does not restrict.
+The frontend host still receives the request, but a nonmatching origin does not get `Access-Control-Allow-Origin`. Browser CORS then prevents your application from reading the response.
 
 ## Costs and limits
 

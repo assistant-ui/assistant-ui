@@ -19,6 +19,7 @@ A cancelled message settles into `status.type === "incomplete"` with `status.rea
 ```tsx title="components/assistant-ui/elements/thread.aui.tsx"
 "use client";
 
+import { useMemo } from "react";
 import { useAui, useAuiState } from "@assistant-ui/react";
 import { StoppedRun } from "@/components/assistant-ui/elements/stopped-run";
 
@@ -27,12 +28,13 @@ function CancelledNotice() {
   const status = useAuiState((s) =>
     s.message.role === "assistant" ? s.message.status : undefined,
   );
-  const words = useAuiState((s) =>
-    s.message.role === "assistant"
-      ? s.message.content
-          .filter((part): part is { type: "text"; text: string } => part.type === "text")
-          .flatMap((part) => part.text.split(" "))
-      : [],
+  const content = useAuiState((s) => s.message.content);
+  const words = useMemo(
+    () =>
+      content
+        .filter((part): part is { type: "text"; text: string } => part.type === "text")
+        .flatMap((part) => part.text.split(" ")),
+    [content],
   );
 
   if (status?.type !== "incomplete" || status.reason !== "cancelled") return null;
@@ -113,7 +115,7 @@ Neither prop has a default behavior; both are no-ops until you pass a handler. `
 
 ```tsx
 <div data-slot="stopped-run">
-  <p>{/* words joined by a space, with a blinking cursor after them */}</p>
+  <p>{/* words joined by a space, with a static cursor after them */}</p>
   <div>
     <span>{/* the reason badge, e.g. "stopped by you" */}</span>
     <button>Continue</button>

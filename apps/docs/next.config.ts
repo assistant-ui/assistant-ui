@@ -162,6 +162,11 @@ const config: NextConfig = {
       permanent: true,
     },
     {
+      source: "/shop/cart.md",
+      destination: "/install.md",
+      permanent: true,
+    },
+    {
       source: "/cloud-ai-sdk",
       destination: "/docs/cloud/migrate-cloud-ai-sdk",
       permanent: true,
@@ -174,6 +179,11 @@ const config: NextConfig = {
     {
       source: "/docs/cloud/ai-sdk-assistant-ui",
       destination: "/docs/cloud/ai-sdk",
+      permanent: true,
+    },
+    {
+      source: "/docs/integrations/observability/helicone",
+      destination: "/docs/integrations",
       permanent: true,
     },
     {
