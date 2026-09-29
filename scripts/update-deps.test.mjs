@@ -55,7 +55,7 @@ for (const failureStage of ["install", "expo-repin", "none"]) {
               "unrelated-package": "1.0.0",
             },
             devDependencies: {
-              "@react-native/metro-config": "0.86.3",
+              "@react-native/metro-config": "0.81.5",
               expo: "54.0.0",
             },
           },
@@ -95,7 +95,7 @@ node -e '
   manifest.dependencies["react-native-screens"] = "4.18.0";
   manifest.dependencies["react-native-worklets"] = "0.7.1";
   manifest.dependencies["unrelated-package"] = "2.0.0";
-  manifest.devDependencies["@react-native/metro-config"] = "0.87.0";
+  manifest.devDependencies["@react-native/metro-config"] = "0.82.0";
   manifest.devDependencies.expo = "55.0.0";
   fs.writeFileSync(file, JSON.stringify(manifest, null, 2) + "\\n");
 '
@@ -182,7 +182,7 @@ printf '%s\n' generate-deps-changeset >> "$COMPLETION_MARKER"
       );
       assert.deepEqual(manifest.devDependencies, {
         "@react-native/metro-config":
-          failureStage === "none" ? "0.87.0" : "0.86.3",
+          failureStage === "none" ? "0.82.0" : "0.81.5",
         expo: failureStage === "none" ? "55.0.0" : "54.0.0",
       });
     } finally {
