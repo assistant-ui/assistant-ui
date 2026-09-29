@@ -92,6 +92,8 @@ const client = createOpencodeClient({
 const runtime = useOpenCodeRuntime({ client });
 ```
 
+Create the client once, outside the component or in `useState`. The runtime keeps its connection and thread list per client, so a client built inline on every render never settles.
+
 ## Resuming a session
 
 Pass `initialSessionId` to open the runtime against an existing session on first load:

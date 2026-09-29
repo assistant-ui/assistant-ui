@@ -58,26 +58,8 @@ const ROLE_LABELS = {
   system: "system",
 } as const;
 
-// A transcript is a readonly snapshot, so a call waiting inside it is answered
-// where its run is live, and renders here as paused on something else.
-const NestedToolCall: ToolCallMessagePartComponent = ({
-  approval,
-  interrupt,
-  ...rest
-}) => {
-  const part =
-    rest.status.type === "requires-action"
-      ? {
-          ...rest,
-          status: { type: "requires-action", reason: "interrupt" } as const,
-        }
-      : rest;
-  return isTaskPart(part) ? (
-    <TaskCard part={part} />
-  ) : (
-    <ToolFallback {...part} />
-  );
-};
+const NestedToolCall: ToolCallMessagePartComponent = (part) =>
+  isTaskPart(part) ? <TaskCard part={part} /> : <ToolFallback {...part} />;
 
 const NestedMessage: FC = () => {
   const role = useAuiState((s) => s.message.role);
@@ -162,6 +144,7 @@ export const TaskCard: FC<{ part: TaskPart; className?: string }> = ({
     part.timing,
     part.status.type === "running" || part.status.type === "requires-action",
   );
+  const canAnswer = useAuiState((s) => s.thread.capabilities.answerToolCall);
   const messages = part.messages ?? [];
   const showError =
     part.status.type === "incomplete" &&
@@ -181,7 +164,8 @@ export const TaskCard: FC<{ part: TaskPart; className?: string }> = ({
   const actions =
     part.status.type === "requires-action" &&
     approvalPending &&
-    offersInterruptAction(part.status, part.approval, part.interrupt) ? (
+    offersInterruptAction(part.status, part.approval, part.interrupt) &&
+    (canAnswer || part.approval?.prompt) ? (
       <ToolFallbackApproval
         status={part.status}
         {...(part.approval !== undefined && { approval: part.approval })}

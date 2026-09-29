@@ -2,10 +2,10 @@
 
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import {
   inputCardClassName,
+  inputLinkClassName,
   useInputActions,
 } from "@/components/pages/shop/input-shared";
 import {
@@ -15,7 +15,7 @@ import {
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import { getCatalogItem } from "@/lib/catalog";
 import { cartUrl } from "@/lib/catalog/install-prompt";
-import type { Checkout } from "@/lib/checkout/protocol";
+import { inputPrompt, type Checkout } from "@/lib/checkout/protocol";
 
 export function ProductInputCard({
   input,
@@ -28,7 +28,7 @@ export function ProductInputCard({
   const [adding, setAdding] = useState(false);
   const { busy, dismiss } = useInputActions(input, checkout);
   const formId = useWizardFormId();
-  const wizard = useWizardNext({
+  useWizardNext({
     label: "Add",
     disabled: busy || adding || !product,
     submit: true,
@@ -61,14 +61,12 @@ export function ProductInputCard({
         disabled={busy || adding}
         className="flex min-w-0 flex-col gap-3"
       >
-        <legend className="mb-3 max-w-full text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
-          {input.prompt}
-        </legend>
+        <legend className="sr-only">{inputPrompt(input)}</legend>
         {product ? (
-          <div className="border-foreground/15 bg-background flex items-center gap-3 rounded-lg border px-3 py-2.5">
+          <div className="border-foreground/10 flex items-center gap-3 rounded-lg border p-3">
             <NavGlyph kind={product.glyph} size="sm" />
             <div className="min-w-0">
-              <p className="text-base font-medium sm:text-sm">{product.name}</p>
+              <p className="text-sm font-medium">{product.name}</p>
               <p className="text-muted-foreground text-sm">{product.tagline}</p>
             </div>
           </div>
@@ -78,32 +76,14 @@ export function ProductInputCard({
           </p>
         )}
       </fieldset>
-      {wizard ? (
-        <button
-          type="button"
-          disabled={busy || adding}
-          onClick={dismiss}
-          className="text-muted-foreground hover:text-foreground mt-4 self-start text-sm underline-offset-4 hover:underline disabled:opacity-50"
-        >
-          {product ? "Not now" : "Dismiss"}
-        </button>
-      ) : (
-        <div className="mt-4 flex gap-2">
-          {product ? (
-            <Button type="submit" disabled={busy || adding}>
-              Add to this setup
-            </Button>
-          ) : null}
-          <Button
-            type="button"
-            variant="outline"
-            disabled={busy || adding}
-            onClick={dismiss}
-          >
-            {product ? "Not now" : "Dismiss"}
-          </Button>
-        </div>
-      )}
+      <button
+        type="button"
+        disabled={busy || adding}
+        onClick={dismiss}
+        className={inputLinkClassName}
+      >
+        {product ? "Not now" : "Dismiss"}
+      </button>
     </form>
   );
 }

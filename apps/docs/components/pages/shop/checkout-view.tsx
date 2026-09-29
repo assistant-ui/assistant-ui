@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { SetupWizard } from "@/components/pages/shop/setup-wizard";
 import {
   useCheckout,
   useCheckoutFailed,
+  type CheckoutContextValue,
 } from "@/components/shared/checkout-provider";
 import { typeDeck, typePage } from "@/components/shared/type";
 import { useCart } from "@/lib/catalog/cart-store";
@@ -75,10 +77,18 @@ export function CheckoutView() {
   const session = useCheckoutSession();
   const checkout = useCheckout();
   const failed = useCheckoutFailed();
+  const [exiting, setExiting] = useState<CheckoutContextValue | null>(null);
 
   if (!hydrated) return null;
-  if (checkout !== null)
-    return <SetupWizard key={checkout.session.id} checkout={checkout} />;
+  const shown = checkout ?? (session === null ? exiting : null);
+  if (shown !== null)
+    return (
+      <SetupWizard
+        key={shown.session.id}
+        checkout={shown}
+        onExit={() => setExiting(shown)}
+      />
+    );
   if (session !== null && !failed) {
     return (
       <p role="status" className="text-muted-foreground">

@@ -1361,6 +1361,7 @@ describe("useLangGraphMessages", {}, () => {
     await started;
 
     unmount();
+    await act(async () => {});
 
     expect(runSignal?.aborted).toBe(true);
     await expect(sendMessagePromise).resolves.toBeUndefined();
