@@ -12,6 +12,7 @@ import type {
   GenerativeUILibrary,
   GenerativeUIStatus,
 } from "../types";
+import { A2uiBindingContext, useA2uiBinding } from "../a2ui/BindingContext";
 import { useAnsweredValue } from "../answeredValues";
 import { actionAttr, fire } from "./dispatch";
 import { toTextContent } from "./toTextContent";
@@ -74,7 +75,8 @@ function RadioGroupRender({
 }: RadioGroupRenderProps) {
   const groupName = useRadioGroupName(name);
   const answeredValue = useAnsweredValue(name);
-  const isBound = $action?.type === "a2ui:binding";
+  const updateBinding = useA2uiBinding(name);
+  const isBound = updateBinding !== undefined;
   const initialValue =
     typeof answeredValue === "string" ? answeredValue : defaultValue;
   return (
@@ -95,9 +97,10 @@ function RadioGroupRender({
             {...(isBound
               ? { checked: (answeredValue ?? value) === option.value }
               : { defaultChecked: initialValue === option.value })}
-            onChange={(e) =>
-              fire($action, $dispatch, option.value, e.currentTarget)
-            }
+            onChange={(e) => {
+              updateBinding?.(option.value);
+              fire($action, $dispatch, option.value, e.currentTarget);
+            }}
           />
           {option.description ? (
             <span data-aui="option-content">
@@ -149,7 +152,8 @@ function CheckboxGroupRender({
   const generatedName = React.useId();
   const fieldName = name ?? generatedName;
   const answeredValue = useAnsweredValue(name);
-  const isBound = $action?.type === "a2ui:binding";
+  const updateBinding = useA2uiBinding(name);
+  const isBound = updateBinding !== undefined;
   const checkedValues =
     Array.isArray(answeredValue) &&
     answeredValue.every((value): value is string => typeof value === "string")
@@ -180,14 +184,11 @@ function CheckboxGroupRender({
                   ).includes(option.value),
                 }
               : { defaultChecked: checkedValues.includes(option.value) })}
-            onChange={(e) =>
-              fire(
-                $action,
-                $dispatch,
-                checkedGroupValues(e.currentTarget),
-                e.currentTarget,
-              )
-            }
+            onChange={(e) => {
+              const selected = checkedGroupValues(e.currentTarget);
+              updateBinding?.(selected);
+              fire($action, $dispatch, selected, e.currentTarget);
+            }}
           />
           {option.description ? (
             <span data-aui="option-content">
@@ -229,7 +230,8 @@ function SelectRender({
   children,
 }: SelectRenderProps) {
   const answeredValue = useAnsweredValue(name);
-  const isBound = $action?.type === "a2ui:binding";
+  const updateBinding = useA2uiBinding(name);
+  const isBound = updateBinding !== undefined;
   const placeholderText = toTextContent(placeholder);
   const initialValue =
     typeof answeredValue === "string"
@@ -250,9 +252,10 @@ function SelectRender({
               typeof answeredValue === "string" ? answeredValue : (value ?? ""),
           }
         : { defaultValue: initialValue })}
-      onChange={(e) =>
-        fire($action, $dispatch, e.currentTarget.value, e.currentTarget)
-      }
+      onChange={(e) => {
+        updateBinding?.(e.currentTarget.value);
+        fire($action, $dispatch, e.currentTarget.value, e.currentTarget);
+      }}
     >
       {placeholderText ? (
         <option value="" disabled>
@@ -292,7 +295,8 @@ function InputRender({
   $dispatch,
 }: InputRenderProps) {
   const answeredValue = useAnsweredValue(name);
-  const isBound = $action?.type === "a2ui:binding";
+  const updateBinding = useA2uiBinding(name);
+  const isBound = updateBinding !== undefined;
   const initialValue =
     typeof answeredValue === "string" ? answeredValue : defaultValue;
   const submit = (control: HTMLInputElement | HTMLTextAreaElement) =>
@@ -313,10 +317,7 @@ function InputRender({
           }
         : { defaultValue: initialValue })}
       onChange={
-        isBound
-          ? (e) =>
-              fire($action, $dispatch, e.currentTarget.value, e.currentTarget)
-          : undefined
+        updateBinding ? (e) => updateBinding(e.currentTarget.value) : undefined
       }
       onKeyDown={(e) => {
         if (
@@ -348,10 +349,7 @@ function InputRender({
           }
         : { defaultValue: initialValue })}
       onChange={
-        isBound
-          ? (e) =>
-              fire($action, $dispatch, e.currentTarget.value, e.currentTarget)
-          : undefined
+        updateBinding ? (e) => updateBinding(e.currentTarget.value) : undefined
       }
       onKeyDown={(e) => {
         if (
@@ -386,7 +384,8 @@ function DatePickerRender({
   $dispatch,
 }: DatePickerRenderProps) {
   const answeredValue = useAnsweredValue(name);
-  const isBound = $action?.type === "a2ui:binding";
+  const updateBinding = useA2uiBinding(name);
+  const isBound = updateBinding !== undefined;
   const initialValue =
     typeof answeredValue === "string" ? answeredValue : value;
   return (
@@ -405,9 +404,10 @@ function DatePickerRender({
         : { defaultValue: initialValue })}
       min={min}
       max={max}
-      onChange={(e) =>
-        fire($action, $dispatch, e.currentTarget.value, e.currentTarget)
-      }
+      onChange={(e) => {
+        updateBinding?.(e.currentTarget.value);
+        fire($action, $dispatch, e.currentTarget.value, e.currentTarget);
+      }}
     />
   );
 }
@@ -433,7 +433,8 @@ function CheckboxRender({
   $dispatch,
 }: CheckboxRenderProps) {
   const answeredValue = useAnsweredValue(name);
-  const isBound = $action?.type === "a2ui:binding";
+  const updateBinding = useA2uiBinding(name);
+  const isBound = updateBinding !== undefined;
   const initialChecked =
     typeof answeredValue === "boolean" ? answeredValue : defaultChecked;
   return (
@@ -455,9 +456,10 @@ function CheckboxRender({
                   : checked === true,
             }
           : { defaultChecked: initialChecked })}
-        onChange={(e) =>
-          fire($action, $dispatch, e.currentTarget.checked, e.currentTarget)
-        }
+        onChange={(e) => {
+          updateBinding?.(e.currentTarget.checked);
+          fire($action, $dispatch, e.currentTarget.checked, e.currentTarget);
+        }}
       />
       <span data-aui="checkbox-label">{toTextContent(label)}</span>
     </label>
@@ -509,6 +511,7 @@ function SliderControl({
   $action,
   $dispatch,
 }: SliderControlProps) {
+  const updateBinding = useA2uiBinding(name);
   const [localValue, setValue] = React.useState(initialValue);
   const value = controlledValue ?? localValue;
   const pointerActive = React.useRef(false);
@@ -543,8 +546,7 @@ function SliderControl({
           : { defaultValue: initialValue })}
         onInput={(e) => {
           const nextValue = currentValue(e.currentTarget);
-          if (controlledValue !== undefined)
-            fire($action, $dispatch, nextValue, e.currentTarget);
+          if (controlledValue !== undefined) updateBinding?.(nextValue);
           else setValue(nextValue);
         }}
         onPointerDown={() => {
@@ -597,7 +599,8 @@ function SliderRender({
   $dispatch,
 }: SliderRenderProps) {
   const answeredValue = useAnsweredValue(name);
-  const isBound = $action?.type === "a2ui:binding";
+  const updateBinding = useA2uiBinding(name);
+  const isBound = updateBinding !== undefined;
   const safeMin = finiteNumber(min) ? min : 0;
   const safeMax = finiteNumber(max) ? Math.max(max, safeMin) : safeMin + 100;
   const safeStep = finiteNumber(step) && step > 0 ? step : 1;
@@ -652,6 +655,7 @@ function ButtonRender({
   $action,
   $dispatch,
 }: ButtonRenderProps) {
+  const bindings = React.useContext(A2uiBindingContext!)?.fields;
   const [remaining, setRemaining] = React.useState<number | undefined>(
     undefined,
   );
@@ -679,10 +683,16 @@ function ButtonRender({
       pendingAction.current = undefined;
       setRemaining(undefined);
       if (action)
-        fire(action.$action, action.$dispatch, undefined, action.source);
+        fire(
+          action.$action,
+          action.$dispatch,
+          undefined,
+          action.source,
+          bindings,
+        );
     }, 1_000);
     return () => clearTimeout(timer);
-  }, [remaining]);
+  }, [remaining, bindings]);
 
   const cancelUndo = () => {
     pendingAction.current = undefined;
@@ -721,7 +731,8 @@ function ButtonRender({
                 };
                 setRemaining(UNDO_WINDOW_SECONDS);
               }
-            : (e) => fire($action, $dispatch, undefined, e.currentTarget)
+            : (e) =>
+                fire($action, $dispatch, undefined, e.currentTarget, bindings)
       }
       onKeyDown={
         canUndo

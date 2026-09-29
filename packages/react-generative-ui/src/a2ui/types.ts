@@ -1,5 +1,4 @@
 export const A2UI_SURFACE_ID = Symbol("a2uiSurfaceId");
-export const A2UI_BINDING_ACTION_TYPE = "a2ui:binding";
 
 export type A2uiVersion = "v0.9" | "v0.9.1" | "v1.0";
 

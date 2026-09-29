@@ -15,6 +15,21 @@ import { createActionRegistry, type ActionRegistry } from "./actionRegistry";
 import type { GenerativeUIDispatch, GenerativeUILibrary } from "./types";
 import { defaultGenerativeUILibrary } from "./vocabulary";
 
+const { evaluateValue } = vi.hoisted(() => ({ evaluateValue: vi.fn() }));
+vi.mock("./a2ui/valueFunctions", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("./a2ui/valueFunctions")>();
+  return {
+    ...original,
+    evaluateA2uiValueFunction: (
+      ...args: Parameters<typeof original.evaluateA2uiValueFunction>
+    ) => {
+      evaluateValue(...args);
+      return original.evaluateA2uiValueFunction(...args);
+    },
+  };
+});
+
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
@@ -688,6 +703,311 @@ describe("defineGenerativeComponents", () => {
 });
 
 describe("live A2UI surfaces", () => {
+  const bindingFixture = ({
+    inputCount = 2,
+    customInput = false,
+    path = "/profile/name",
+    dataModel = { profile: { name: "Initial" }, other: "Other" },
+    template = false,
+  }: {
+    inputCount?: number;
+    customInput?: boolean;
+    path?: string;
+    dataModel?: unknown;
+    template?: boolean;
+  } = {}) => {
+    const handler = vi.fn();
+    const ui = new ClientGenUI({
+      library: {
+        ...defaultGenerativeUILibrary,
+        ...(customInput
+          ? {
+              Input: {
+                ...defaultGenerativeUILibrary["Input"]!,
+                render: ({ name, value, defaultValue }: any) => (
+                  <input name={name} defaultValue={value ?? defaultValue} />
+                ),
+              },
+            }
+          : {}),
+      },
+      actions: createActionRegistry({ "a2ui:action": handler }),
+    });
+    const fields = Array.from({ length: inputCount }, (_, index) => ({
+      id: `field${index}`,
+      component: "TextField",
+      text: { path },
+    }));
+    const surface = applyA2uiOperations(new Map(), [
+      {
+        version: "v1.0",
+        createSurface: {
+          surfaceId: "s",
+          components: [
+            {
+              id: "root",
+              component: "Column",
+              children: template
+                ? { componentId: "row", path: "/items" }
+                : [...fields.map(({ id }) => id), "preview", "submit"],
+            },
+            {
+              id: "row",
+              component: "Column",
+              children: [...fields.map(({ id }) => id), "preview", "submit"],
+            },
+            ...fields,
+            {
+              id: "preview",
+              component: "Text",
+              text: { call: "formatString", args: { value: "${/other}" } },
+            },
+            {
+              id: "submit",
+              component: "Button",
+              label: "Submit",
+              action: {
+                name: "submit",
+                context: { name: { path } },
+              },
+            },
+          ],
+          dataModel,
+        },
+      },
+    ]).state.get("s")!;
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    const render = async (dataModel = surface.dataModel) => {
+      const next = { ...surface, dataModel };
+      await act(async () => {
+        root.render(
+          (ui.present() as any).render({
+            args: convertSurfaceToUISpec(next).spec,
+            status: { type: "complete" },
+            toolCallId: "a2ui:s",
+            artifact: {
+              a2ui: structuredClone(surfaceToOperations(next, "s")),
+            },
+          }),
+        );
+      });
+    };
+    const inputs = () => [
+      ...container.querySelectorAll<HTMLInputElement>("input"),
+    ];
+    const edit = async (value: string, notify = true, index = 0) => {
+      await act(async () => {
+        const input = inputs()[index]!;
+        Object.getOwnPropertyDescriptor(
+          HTMLInputElement.prototype,
+          "value",
+        )!.set!.call(input, value);
+        if (notify) input.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+    };
+    const close = async () => {
+      await act(async () => root.unmount());
+      container.remove();
+    };
+    return { handler, container, render, inputs, edit, close };
+  };
+
+  it("preserves edits across unchanged snapshots with new operation identities", async () => {
+    const fixture = bindingFixture();
+    try {
+      await fixture.render();
+      await fixture.edit("Edited");
+      await fixture.render();
+      await fixture.render();
+      expect(fixture.inputs().map((input) => input.value)).toEqual([
+        "Edited",
+        "Edited",
+      ]);
+    } finally {
+      await fixture.close();
+    }
+  });
+
+  it("preserves edits when the agent updates a different path", async () => {
+    const fixture = bindingFixture();
+    try {
+      await fixture.render();
+      await fixture.edit("Edited");
+      await fixture.render({ profile: { name: "Initial" }, other: "Remote" });
+      expect(fixture.inputs().map((input) => input.value)).toEqual([
+        "Edited",
+        "Edited",
+      ]);
+      expect(
+        fixture.container.querySelector('[data-aui="markdown"]')?.textContent,
+      ).toBe("Remote");
+    } finally {
+      await fixture.close();
+    }
+  });
+
+  it.each([
+    {
+      label: "array index",
+      path: "/names/0",
+      dataModel: { names: ["Initial", "Other"] },
+      incoming: { names: ["Initial", "Remote"] },
+    },
+    {
+      label: "escaped pointer",
+      path: "/profile/na~1me~0",
+      dataModel: { profile: { "na/me~": "Initial", other: "Other" } },
+      incoming: { profile: { "na/me~": "Initial", other: "Remote" } },
+    },
+    {
+      label: "missing data",
+      path: "/profile/name",
+      dataModel: null,
+      incoming: { other: "Remote" },
+    },
+    {
+      label: "template scope",
+      path: "name",
+      template: true,
+      dataModel: { items: [{ name: "Initial", other: "Other" }] },
+      incoming: { items: [{ name: "Initial", other: "Remote" }] },
+    },
+  ])(
+    "preserves edits at a $label during unrelated agent updates",
+    async ({ incoming, ...options }) => {
+      const fixture = bindingFixture(options);
+      try {
+        await fixture.render();
+        await fixture.edit("Edited");
+        await fixture.render(incoming);
+        expect(fixture.inputs().map((input) => input.value)).toEqual([
+          "Edited",
+          "Edited",
+        ]);
+        await act(async () =>
+          fixture.container.querySelector("button")!.click(),
+        );
+        expect(fixture.handler).toHaveBeenCalledWith({
+          payload: {
+            type: "a2ui:action",
+            name: "submit",
+            surfaceId: "s",
+            sourceComponentId: "submit",
+            context: { name: "Edited" },
+          },
+        });
+      } finally {
+        await fixture.close();
+      }
+    },
+  );
+
+  it("lets an agent change to the edited path win after unrelated updates", async () => {
+    const fixture = bindingFixture();
+    try {
+      await fixture.render();
+      await fixture.edit("Edited");
+      await fixture.render({ profile: { name: "Initial" }, other: "Remote" });
+      expect(fixture.inputs().map((input) => input.value)).toEqual([
+        "Edited",
+        "Edited",
+      ]);
+      await fixture.render({ profile: { name: "Agent" }, other: "Remote" });
+      expect(fixture.inputs().map((input) => input.value)).toEqual([
+        "Agent",
+        "Agent",
+      ]);
+      await fixture.edit("Again");
+      await fixture.render({ profile: { name: "Agent" }, other: "Remote" });
+      expect(fixture.inputs().map((input) => input.value)).toEqual([
+        "Again",
+        "Again",
+      ]);
+    } finally {
+      await fixture.close();
+    }
+  });
+
+  it.each([
+    { count: 1, customInput: false },
+    { count: 2, customInput: false },
+    { count: 1, customInput: true },
+    { count: 2, customInput: true },
+  ])(
+    "resolves a DOM-only edit through $field with $count bound inputs (custom: $customInput)",
+    async ({ count, customInput }) => {
+      const fixture = bindingFixture({ inputCount: count, customInput });
+      try {
+        await fixture.render();
+        await fixture.edit("Autofilled", false, count - 1);
+        await act(async () =>
+          fixture.container.querySelector("button")!.click(),
+        );
+        expect(fixture.handler).toHaveBeenCalledWith({
+          payload: {
+            type: "a2ui:action",
+            name: "submit",
+            surfaceId: "s",
+            sourceComponentId: "submit",
+            context: { name: "Autofilled" },
+          },
+        });
+      } finally {
+        await fixture.close();
+      }
+    },
+  );
+
+  it("renders bound input names without actions and retains button field references", async () => {
+    const fixture = bindingFixture();
+    try {
+      await fixture.render();
+      expect(fixture.inputs().map((input) => input.name)).toEqual([
+        "/profile/name",
+        "/profile/name",
+      ]);
+      expect(
+        fixture
+          .inputs()
+          .every((input) => !input.hasAttribute("data-aui-action")),
+      ).toBe(true);
+      expect(
+        JSON.parse(
+          fixture.container
+            .querySelector("button")!
+            .getAttribute("data-aui-action")!,
+        ),
+      ).toMatchObject({
+        context: { name: { $field: "/profile/name", fallback: "Initial" } },
+      });
+    } finally {
+      await fixture.close();
+    }
+  });
+
+  it("does not reevaluate unrelated function values while typing", async () => {
+    const fixture = bindingFixture();
+    try {
+      const before = evaluateValue.mock.calls.length;
+      await fixture.render();
+      expect(evaluateValue.mock.calls.length - before).toBe(2);
+      await fixture.edit("One");
+      await fixture.edit("Two");
+      expect(evaluateValue.mock.calls.length - before).toBe(2);
+      expect(fixture.inputs().map((input) => input.value)).toEqual([
+        "Two",
+        "Two",
+      ]);
+      expect(
+        fixture.container.querySelector('[data-aui="markdown"]')?.textContent,
+      ).toBe("Other");
+    } finally {
+      await fixture.close();
+    }
+  });
+
   it("keeps choice arrays and slider focus while updating live bindings", async () => {
     const handler = vi.fn();
     const ui = new ClientGenUI({

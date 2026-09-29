@@ -1,14 +1,14 @@
 import { useMemo, useState } from "react";
 import { renderGenerativeUI } from "../renderGenerativeUI";
-import type { Action } from "../ir";
 import type {
   GenerativeUIDispatch,
   GenerativeUILibrary,
   GenerativeUIStatus,
 } from "../types";
-import { A2UI_BINDING_ACTION_TYPE, type A2uiState } from "./types";
-import { applyA2uiOperations } from "./reducer";
-import { convertSurfaceToUISpec } from "./convert";
+import { A2uiBindingContext } from "./BindingContext";
+import { equalData, reconcileDataModel, resolvePointer } from "./dataModel";
+import { applyA2uiOperations, setAtPointer } from "./reducer";
+import { createLiveSurfaceConverter } from "./convert";
 
 export function A2uiPresentRenderer({
   surfaceId,
@@ -25,56 +25,59 @@ export function A2uiPresentRenderer({
   status: GenerativeUIStatus;
   dispatch?: GenerativeUIDispatch;
 }) {
-  const incomingState = useMemo(
-    () => applyA2uiOperations(new Map(), operations).state,
-    [operations],
+  const surface = useMemo(
+    () => applyA2uiOperations(new Map(), operations).state.get(surfaceId),
+    [operations, surfaceId],
   );
-  const [state, setState] = useState<A2uiState>(incomingState);
-  const [previousOperations, setPreviousOperations] = useState(operations);
-
-  if (operations !== previousOperations) {
-    setPreviousOperations(operations);
-    setState(incomingState);
-  }
-
-  const surface = state.get(surfaceId);
-  const { spec } = surface
-    ? convertSurfaceToUISpec(surface, { liveBindings: true })
-    : { spec: null };
-  const node = spec ?? fallback;
-
-  const dispatchWithBindings: GenerativeUIDispatch = (action: Action) => {
-    if (
-      action.type === A2UI_BINDING_ACTION_TYPE &&
-      action["surfaceId"] === surfaceId
-    ) {
-      const path = action["path"];
-      if (typeof path === "string" && Object.hasOwn(action, "$input")) {
-        setState(
-          (current) =>
-            applyA2uiOperations(current, [
-              {
-                version: "v1.0",
-                updateDataModel: {
-                  surfaceId,
-                  path,
-                  value:
-                    action["arrayValue"] === true
-                      ? [action["$input"]]
-                      : action["$input"],
-                },
-              },
-            ]).state,
-        );
+  const incoming = surface?.dataModel;
+  const [local, setLocal] = useState(() => ({
+    incoming,
+    value: incoming,
+    editedPaths: new Set<string>(),
+  }));
+  const model = Object.is(incoming, local.incoming)
+    ? local
+    : reconcileDataModel(
+        local.incoming,
+        incoming,
+        local.value,
+        local.editedPaths,
+      );
+  if (model !== local) setLocal(model);
+  const convert = useMemo(
+    () => surface && createLiveSurfaceConverter(surface),
+    [surface],
+  );
+  const converted = useMemo(
+    () => convert?.(model.value),
+    [convert, model.value],
+  );
+  const BindingContext = A2uiBindingContext!;
+  return (
+    <BindingContext.Provider
+      value={
+        converted
+          ? {
+              fields: converted.bindings,
+              update: (path, value) =>
+                setLocal((current) =>
+                  equalData(resolvePointer(current.value, path), value)
+                    ? current
+                    : {
+                        ...current,
+                        value: setAtPointer(current.value, path, value, false)
+                          .value,
+                        editedPaths: new Set([...current.editedPaths, path]),
+                      },
+                ),
+            }
+          : undefined
       }
-      return;
-    }
-
-    return dispatch?.(action);
-  };
-
-  return renderGenerativeUI(node, library, {
-    status,
-    dispatch: dispatchWithBindings,
-  });
+    >
+      {renderGenerativeUI(converted?.spec ?? fallback, library, {
+        status,
+        ...(dispatch ? { dispatch } : {}),
+      })}
+    </BindingContext.Provider>
+  );
 }

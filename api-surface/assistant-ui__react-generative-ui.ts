@@ -1490,7 +1490,6 @@ declare function buildPresentParameters(library: GenerativeUILibrary): JSONSchem
 
 declare function convertSurfaceToUISpec(surface: A2uiSurfaceState, options?: {
   readonly keepUnknownComponents?: boolean;
-  readonly liveBindings?: boolean;
 }): {
   spec: UIElement | null;
   warnings: string[];

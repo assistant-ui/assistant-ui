@@ -117,6 +117,7 @@ export class JSONGenerativeUI {
     const rendered =
       surfaceId && Array.isArray(artifactValue) ? (
         <A2uiPresentRenderer
+          key={surfaceId}
           surfaceId={surfaceId}
           operations={artifactValue}
           fallback={args}

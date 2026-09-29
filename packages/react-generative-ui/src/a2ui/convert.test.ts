@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { UIElement } from "../ir";
-import { convertSurfaceToUISpec } from "./convert";
+import { convertSurfaceToUISpec, createLiveSurfaceConverter } from "./convert";
 import { applyA2uiOperations } from "./reducer";
 import { surfaceToOperations } from "./snapshot";
 import type { A2uiSurfaceState } from "./types";
@@ -2377,7 +2377,7 @@ describe("convertSurfaceToUISpec", () => {
   });
 });
 
-it("opts live controls into model bindings while keeping plain conversion uncontrolled", () => {
+it("keeps live controls internal and action-free while plain conversion stays uncontrolled", () => {
   const surface = applyA2uiOperations(new Map(), [
     {
       version: "v1.0",
@@ -2415,25 +2415,46 @@ it("opts live controls into model bindings while keeping plain conversion uncont
       { $type: "Slider", defaultValue: 2 },
     ],
   });
-  expect(
-    convertSurfaceToUISpec(surface, { liveBindings: true }).spec,
-  ).toMatchObject({
+  const convert = createLiveSurfaceConverter(surface);
+  const live = convert(surface.dataModel);
+  expect(live.spec).toEqual({
+    $type: "Col",
     children: [
       {
         $type: "Input",
         value: "Ada",
-        $action: { type: "a2ui:binding", path: "/name" },
+        name: "/name",
       },
       {
         $type: "RadioGroup",
         value: "a",
-        $action: { type: "a2ui:binding", path: "/choices", arrayValue: true },
+        name: "/choices",
+        options: [{ label: "A", value: "a" }],
       },
       {
         $type: "Slider",
         value: 2,
-        $action: { type: "a2ui:binding", path: "/count" },
+        name: "/count",
+        min: 0,
+        max: 10,
+        step: 0.1,
       },
     ],
   });
+  expect(live.bindings).toEqual(
+    new Map([
+      ["/name", { value: "Ada", arrayValue: false }],
+      ["/choices", { value: "a", arrayValue: true }],
+      ["/count", { value: 2, arrayValue: false }],
+    ]),
+  );
+  const updated = convert({ name: "Grace", choices: ["a"], count: 2 });
+  expect((updated.spec!.children as UIElement[])[0]).toEqual({
+    $type: "Input",
+    name: "/name",
+    value: "Grace",
+  });
+  expect((updated.spec!.children as UIElement[])[2]).toBe(
+    (live.spec!.children as UIElement[])[2],
+  );
 });
