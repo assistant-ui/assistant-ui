@@ -75,7 +75,6 @@ function ParentComponent() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const aui = useAui();
 
-  // Register the iframe's model context with the assistant
   const register = useCallback(
     (frameHost: AssistantFrameHost) => aui.modelContext.register(frameHost),
     [aui],
