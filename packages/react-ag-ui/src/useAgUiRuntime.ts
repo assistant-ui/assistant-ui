@@ -14,6 +14,7 @@ import {
   useExternalStoreSharedOptions,
   useRuntimeAdapters,
 } from "@assistant-ui/core/react";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import { createMessageQueue } from "@assistant-ui/core";
 import type {
   MessageQueueController,
@@ -309,16 +310,26 @@ export function useAgUiRuntime(
 
   const baseRuntime = useExternalStoreRuntime(store);
 
-  const runtime = useMemo<AgUiAssistantRuntime>(() => {
+  const createRuntime = (): AgUiAssistantRuntime => {
     const wrapper = Object.create(baseRuntime) as AgUiAssistantRuntime;
     wrapper.unstable_getPendingInterrupts = () =>
       core.getPendingInterrupts()?.interrupts ?? [];
     wrapper.unstable_submitInterruptResponses = (responses) =>
       core.submitInterruptResponses(responses);
     return wrapper;
-  }, [baseRuntime, core]);
+  };
+  const [pinnedRuntime, setPinnedRuntime] = useState(() => ({
+    baseRuntime,
+    runtime: createRuntime(),
+  }));
+  let currentRuntime = pinnedRuntime;
+  if (pinnedRuntime.baseRuntime !== baseRuntime) {
+    currentRuntime = { baseRuntime, runtime: createRuntime() };
+    setPinnedRuntime(currentRuntime);
+  }
+  const runtime = currentRuntime.runtime;
 
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     core.attachRuntime(runtime);
     return () => {
       core.detachRuntime();
