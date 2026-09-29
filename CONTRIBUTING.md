@@ -80,6 +80,8 @@ Every pull request that changes packages must include a changeset, otherwise you
 
 Note, this does not apply to packages like `@assistant-ui/docs` or `@assistant-ui/shadcn-registry` which are not published to npm, they are deployed on Vercel.
 
+Python packages under `python/` take no changeset. Leave their `pyproject.toml` version alone too: a maintainer bumps it in a release pull request right before publishing to PyPI, and the Changeset Semver Check fails a pull request that changes it alongside other package files.
+
 Create a changeset by running:
 
 ```sh
