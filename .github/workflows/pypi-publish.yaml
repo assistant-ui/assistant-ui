@@ -181,11 +181,17 @@ jobs:
           esac
 
           if [ -n "$latest" ] && [ "$version" != "$latest" ]; then
-            highest=$(printf '%s\n%s\n' "$latest" "$version" | sort -V | tail -n1)
-            if [ "$highest" != "$version" ]; then
-              echo "Refusing to publish $PYTHON_PACKAGE_NAME@$version: lower than current PyPI latest ($latest)" >&2
-              exit 1
-            fi
+            IFS=. read -r major minor patch <<< "$latest"
+            next_patch="$major.$minor.$((patch + 1))"
+            next_minor="$major.$((minor + 1)).0"
+            next_major="$((major + 1)).0.0"
+            case "$version" in
+              "$next_patch" | "$next_minor" | "$next_major") ;;
+              *)
+                echo "Refusing to publish $PYTHON_PACKAGE_NAME@$version: PyPI latest is $latest, so the next release is $next_patch, $next_minor, or $next_major" >&2
+                exit 1
+                ;;
+            esac
           fi
 
           if [ "$exists" = "true" ]; then
