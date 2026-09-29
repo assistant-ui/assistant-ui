@@ -769,7 +769,7 @@ function App() {
 }
 ```
 
-This covers two paths. The **state-snapshot** path renders whatever UI the graph has committed to its state. The **live** path renders UI streamed over the `custom` channel by `push_ui_message` / `remove_ui_message` before (or instead of) it lands in state, so components appear as the graph emits them. The runtime accumulates the live events and merges them with the state snapshot, with the snapshot authoritative once a UI lands in state. Both feed the same `makeAssistantDataUI` renderers.
+This covers two paths. The **state-snapshot** path renders whatever UI the graph has committed to its state. The **live** path renders UI streamed over the `custom` channel by `push_ui_message` / `delete_ui_message` before (or instead of) it lands in state, so components appear as the graph emits them. The runtime accumulates the live events and merges them with the state snapshot, with the snapshot authoritative once a UI lands in state. Both feed the same `makeAssistantDataUI` renderers.
 
 The live path requires the graph's `streamMode` to include `"custom"` so the UI events reach the client.
 
