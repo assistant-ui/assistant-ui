@@ -9,7 +9,7 @@ Two options set side by side, each with its own traits and one of them marked as
 
 <RuntimeMode>
 
-This element has no assistant-ui primitive of its own, so the runtime wiring is a tool renderer rather than a primitive composition. A comparison has no natural row by row reveal: watching option cards fill in out of order as JSON streams in would read as broken rather than progressive, so this is one of the cases worth waiting for the call to finish before mounting anything at all.
+This element has no assistant-ui primitive of its own, so the runtime wiring is a tool renderer rather than a primitive composition. A comparison has no natural row by row reveal, and option cards filling in out of order as JSON streams in would read as broken, so wait for the call to finish before mounting the card.
 
 <Steps>
   <Step>
@@ -64,7 +64,7 @@ export function MyRuntimeProvider({
 }
 ```
 
-Once the toolkit is registered, `Thread` and any custom message list built on assistant-ui's message part primitives (`MessagePrimitive.Parts` or `MessagePrimitive.GroupedParts`) render the registered UI automatically wherever the `compare_options` call appears in the message, so nothing needs to be placed by hand.
+Once the toolkit is registered, `Thread` and any custom message list built on assistant-ui's message part primitives (`MessagePrimitive.Parts` or `MessagePrimitive.GroupedParts`) render the registered UI wherever the `compare_options` call appears in the message, so nothing needs to be placed by hand.
 
   </Step>
 </Steps>
@@ -73,7 +73,7 @@ Once the toolkit is registered, `Thread` and any custom message list built on as
 
 <StandaloneMode>
 
-Standalone, the element is a plain display component: it owns no state of its own. Unlike the other structured output elements it has no reveal prop at all; every option and every trait renders as soon as you pass it.
+Standalone, the element is a plain display component: it owns no state of its own. Unlike the other structured output elements it has no reveal prop; every option and every trait renders as soon as you pass it.
 
 <Steps>
   <Step>
@@ -122,7 +122,7 @@ export function RuntimeChoice() {
 
 ### Point the pick at a different option
 
-Recompute `recommendedId` and `reason` from whatever decided the comparison, the card itself has no memory of a previous pick.
+Recompute `recommendedId` and `reason` from whatever decided the comparison; the card has no memory of a previous pick.
 
 ```tsx
 export function RuntimeChoice({ selfHostedOnly }: { selfHostedOnly: boolean }) {
@@ -174,7 +174,7 @@ Unlike the other structured output elements, this one takes no `visibleCount` an
 
 ### Marking a trait as absent
 
-An absent trait is not an empty string, it is `false` or a missing array slot. Either one falls back to the shared `traitLabels` entry, dimmed, so the row still names what the option lacks instead of leaving a blank.
+An absent trait is `false`, an empty string, or a missing array slot. Each one falls back to the shared `traitLabels` entry, dimmed, so the row still names what the option lacks instead of leaving a blank.
 
 ```tsx
 const options: readonly ComparisonOption[] = [

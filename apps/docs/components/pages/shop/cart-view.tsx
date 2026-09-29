@@ -14,14 +14,13 @@ import {
 } from "@/components/ui/select";
 import { SetupLink } from "@/components/shared/setup-navigation";
 import { NavGlyph } from "@/components/shared/nav-glyph";
-import { useCheckout } from "@/components/shared/checkout-provider";
 import { typeDeck, typePage } from "@/components/shared/type";
 import {
   estimateAgentMinutes,
   formatMinutes,
   resolveProducts,
 } from "@/lib/catalog";
-import { parseCartItems } from "@/lib/catalog/install-prompt";
+import { parseItemSlugs } from "@/lib/catalog/install-guide";
 import {
   removeFromCart,
   replaceCart,
@@ -71,7 +70,6 @@ export function CartView() {
   const params = useSearchParams();
   const linkedItems = params.get("items");
   const slugs = useCart();
-  const checkout = useCheckout();
   const session = useCheckoutSession();
   const products = resolveProducts(slugs);
   const shipping = useShippingMethod();
@@ -81,7 +79,7 @@ export function CartView() {
   // so removing an item here does not resurrect it on the next render.
   useEffect(() => {
     if (!hydrated || session !== null) return;
-    const linked = resolveProducts(parseCartItems(linkedItems)).map(
+    const linked = resolveProducts(parseItemSlugs(linkedItems)).map(
       (product) => product.slug,
     );
     if (linked.length > 0) replaceCart(linked);
@@ -92,18 +90,19 @@ export function CartView() {
   if (products.length === 0) {
     return (
       <div className="max-w-xl">
-        {checkout ? <ActiveCheckoutBanner /> : null}
+        {session !== null ? <ActiveCheckoutBanner /> : null}
         <h1 className={typePage}>Your cart is empty.</h1>
         <p className={cn("mt-4", typeDeck)}>
-          Open a product in the shop and add it here. Everything is free.
+          Open a product on the Components page and add it here. Everything is
+          free.
         </p>
         <Button
           nativeButton={false}
           className="mt-8"
-          render={<Link href="/shop" />}
+          render={<Link href="/components" />}
         >
           <ArrowLeftIcon data-icon="inline-start" />
-          Browse the shop
+          Browse components
         </Button>
       </div>
     );
@@ -114,7 +113,7 @@ export function CartView() {
   return (
     <div className="grid gap-12 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-16">
       <div>
-        {checkout ? <ActiveCheckoutBanner /> : null}
+        {session !== null ? <ActiveCheckoutBanner /> : null}
         <h1 className={typePage}>Cart</h1>
         <ul
           role="list"
@@ -243,7 +242,7 @@ export function CartView() {
             <dd className="tabular-nums">$0.00</dd>
           </div>
         </dl>
-        {checkout ? (
+        {session !== null ? (
           <Button disabled className="mt-4 w-full">
             Start setup
           </Button>
@@ -257,7 +256,7 @@ export function CartView() {
           </Button>
         )}
         <p className="text-muted-foreground mt-3 text-center text-sm">
-          {checkout
+          {session !== null
             ? "Finish the current setup to start another."
             : "Your coding agent handles the setup."}
         </p>

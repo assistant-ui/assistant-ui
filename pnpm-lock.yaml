@@ -506,6 +506,9 @@ importers:
       katex:
         specifier: ^0.16.47
         version: 0.16.47
+      leaflet:
+        specifier: ^1.9.4
+        version: 1.9.4
       leva:
         specifier: ^0.10.1
         version: 0.10.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -3754,19 +3757,19 @@ importers:
         specifier: ^4.0.104
         version: 4.0.104(react@19.3.0)(zod@4.6.5)
       '@assistant-ui/core':
-        specifier: ^0.3.20
+        specifier: ^0.3.21
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.14
+        specifier: ^0.3.15
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.9.18
+        specifier: ^0.9.19
         version: link:../tap
       assistant-cloud:
         specifier: workspace:^
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.44
+        specifier: ^0.3.45
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -3901,7 +3904,7 @@ importers:
   packages/cloud:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.44
+        specifier: ^0.3.45
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -3935,7 +3938,7 @@ importers:
   packages/core:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.44
+        specifier: ^0.3.45
         version: link:../assistant-stream
       nanoid:
         specifier: ^6.0.1
@@ -4000,11 +4003,14 @@ importers:
   packages/eve:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.20
+        specifier: ^0.3.21
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.14
+        specifier: ^0.3.15
         version: link:../store
+      assistant-cloud:
+        specifier: '*'
+        version: link:../cloud
     devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
@@ -4143,19 +4149,19 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.20
+        specifier: ^0.3.21
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.14
+        specifier: ^0.3.15
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.9.18
+        specifier: ^0.9.19
         version: link:../tap
       assistant-cloud:
-        specifier: ^0.2.2
+        specifier: ^0.2.3
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.44
+        specifier: ^0.3.45
         version: link:../assistant-stream
       radix-ui:
         specifier: ^1.6.7
@@ -4210,16 +4216,16 @@ importers:
   packages/react-a2a:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.20
+        specifier: ^0.3.21
         version: link:../core
       '@assistant-ui/react-generative-ui':
-        specifier: ^0.0.19
+        specifier: ^0.0.21
         version: link:../react-generative-ui
       '@assistant-ui/store':
-        specifier: ^0.3.14
+        specifier: ^0.3.15
         version: link:../store
       assistant-stream:
-        specifier: ^0.3.44
+        specifier: ^0.3.45
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -4253,16 +4259,16 @@ importers:
         specifier: ^0.0.59
         version: 0.0.59
       '@assistant-ui/core':
-        specifier: ^0.3.20
+        specifier: ^0.3.21
         version: link:../core
       '@assistant-ui/react-generative-ui':
-        specifier: ^0.0.19
+        specifier: ^0.0.21
         version: link:../react-generative-ui
       '@assistant-ui/store':
-        specifier: ^0.3.14
+        specifier: ^0.3.15
         version: link:../store
       assistant-stream:
-        specifier: ^0.3.44
+        specifier: ^0.3.45
         version: link:../assistant-stream
       fast-json-patch:
         specifier: ^3.1.1
@@ -4296,7 +4302,7 @@ importers:
   packages/react-ai-sdk:
     dependencies:
       '@assistant-ui/ai-sdk':
-        specifier: ^0.0.7
+        specifier: ^0.0.8
         version: link:../ai-sdk
       '@types/react':
         specifier: '*'
@@ -4318,13 +4324,13 @@ importers:
         specifier: ^4.0.14
         version: 4.0.14
       '@assistant-ui/core':
-        specifier: ^0.3.20
+        specifier: ^0.3.21
         version: link:../core
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.44
+        specifier: ^0.3.45
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -4407,7 +4413,7 @@ importers:
         specifier: ^7.0.15
         version: 7.0.15
       assistant-stream:
-        specifier: ^0.3.44
+        specifier: ^0.3.45
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/react':
@@ -4438,10 +4444,10 @@ importers:
   packages/react-google-adk:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.20
+        specifier: ^0.3.21
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.14
+        specifier: ^0.3.15
         version: link:../store
       '@google/adk':
         specifier: '>=0.5.0'
@@ -4450,7 +4456,7 @@ importers:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.44
+        specifier: ^0.3.45
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -4478,10 +4484,10 @@ importers:
   packages/react-hook-form:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.20
+        specifier: ^0.3.21
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.14
+        specifier: ^0.3.15
         version: link:../store
       zod:
         specifier: ^4.6.5
@@ -4515,19 +4521,19 @@ importers:
   packages/react-ink:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.20
+        specifier: ^0.3.21
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.14
+        specifier: ^0.3.15
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.9.18
+        specifier: ^0.9.19
         version: link:../tap
       assistant-cloud:
         specifier: workspace:^
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.44
+        specifier: ^0.3.45
         version: link:../assistant-stream
       diff:
         specifier: ^9.0.0
@@ -4573,10 +4579,10 @@ importers:
   packages/react-ink-markdown:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.20
+        specifier: ^0.3.21
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.14
+        specifier: ^0.3.15
         version: link:../store
       markdansi:
         specifier: ^0.3.4
@@ -4613,16 +4619,16 @@ importers:
   packages/react-langchain:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.20
+        specifier: ^0.3.21
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.14
+        specifier: ^0.3.15
         version: link:../store
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.44
+        specifier: ^0.3.45
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -4656,19 +4662,19 @@ importers:
   packages/react-langgraph:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.20
+        specifier: ^0.3.21
         version: link:../core
       '@assistant-ui/react-langchain':
-        specifier: ^0.0.32
+        specifier: ^0.0.33
         version: link:../react-langchain
       '@assistant-ui/store':
-        specifier: ^0.3.14
+        specifier: ^0.3.15
         version: link:../store
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.44
+        specifier: ^0.3.45
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -4833,19 +4839,19 @@ importers:
   packages/react-native:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.20
+        specifier: ^0.3.21
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.14
+        specifier: ^0.3.15
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.9.18
+        specifier: ^0.9.19
         version: link:../tap
       assistant-cloud:
         specifier: workspace:^
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.44
+        specifier: ^0.3.45
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -4913,14 +4919,17 @@ importers:
   packages/react-opencode:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.20
+        specifier: ^0.3.21
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.14
+        specifier: ^0.3.15
         version: link:../store
       '@opencode-ai/sdk':
         specifier: ^1.18.31
         version: 1.18.31
+      assistant-cloud:
+        specifier: '*'
+        version: link:../cloud
     devDependencies:
       '@assistant-ui/react':
         specifier: workspace:*
@@ -4953,16 +4962,19 @@ importers:
   packages/react-pi:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.20
+        specifier: ^0.3.21
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.14
+        specifier: ^0.3.15
         version: link:../store
       '@standard-schema/spec':
         specifier: ^1.1.0
         version: 1.1.0
+      assistant-cloud:
+        specifier: '*'
+        version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.44
+        specifier: ^0.3.45
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/react':
@@ -4999,7 +5011,7 @@ importers:
   packages/react-streamdown:
     dependencies:
       '@assistant-ui/react-markdown':
-        specifier: ^0.14.16
+        specifier: ^0.14.17
         version: link:../react-markdown
       '@streamdown/cjk':
         specifier: ^1.0.0
@@ -5129,13 +5141,13 @@ importers:
   packages/svelte:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.20
+        specifier: ^0.3.21
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.14
+        specifier: ^0.3.15
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.9.18
+        specifier: ^0.9.19
         version: link:../tap
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -5319,6 +5331,9 @@ importers:
       '@testing-library/react':
         specifier: ^16.3.3
         version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@types/leaflet':
+        specifier: ^1.9.22
+        version: 1.9.22
       '@types/markdown-it':
         specifier: ^14.2.0
         version: 14.2.0
@@ -5346,6 +5361,9 @@ importers:
       jsdom:
         specifier: ^30.0.1
         version: 30.0.1
+      leaflet:
+        specifier: ^1.9.4
+        version: 1.9.4
       lucide-react-native:
         specifier: ^1.46.0
         version: 1.46.0(react-native-svg@15.15.5(react-native@0.87.1(@babel/core@7.29.7(supports-color@10.2.2))(@react-native/metro-config@0.87.1(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(react@19.3.0))(react-native@0.87.1(@babel/core@7.29.7(supports-color@10.2.2))(@react-native/metro-config@0.87.1(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(react@19.3.0)
@@ -5408,13 +5426,13 @@ importers:
   packages/vue:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.20
+        specifier: ^0.3.21
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.14
+        specifier: ^0.3.15
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.9.18
+        specifier: ^0.9.19
         version: link:../tap
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -5426,6 +5444,9 @@ importers:
       '@types/react':
         specifier: ^19.3.0
         version: 19.3.0
+      assistant-cloud:
+        specifier: workspace:*
+        version: link:../cloud
       jsdom:
         specifier: ^30.0.1
         version: 30.0.1
@@ -12178,6 +12199,9 @@ packages:
   '@types/katex@0.16.8':
     resolution: {integrity: sha512-trgaNyfU+Xh2Tc+ABIb44a5AYUpicB3uwirOioeOkNPPbmgRNtcWyDeeFRzjPZENO9Vq8gvVqfhaaXWLlevVwg==}
 
+  '@types/leaflet@1.9.22':
+    resolution: {integrity: sha512-h3lhECYEKDasG7LFHu+GiHqAvsgLuQvlJvVZzJDGONo3sEL+wUOqSFLnwkZlK0qVxnxbuGFW8iBlJNYs5wgndA==}
+
   '@types/linkify-it@5.0.0':
     resolution: {integrity: sha512-sVDA58zAw4eWAffKOaQH5/5j3XeayukzDk+ewSsnv3p4yJEZHCCzMDiZM8e0OUrRvmpGZ85jf4yDHkHsgBNr9Q==}
 
@@ -16361,6 +16385,9 @@ packages:
   lazystream@1.0.1:
     resolution: {integrity: sha512-b94GiNHQNy6JNTrt5w6zNyffMrNkXZb3KTkCZJb2V1xaEGCk093vkZ2jk3tpaeP33/OiXC+WvK9AxUebnf5nbw==}
     engines: {node: '>= 0.6.3'}
+
+  leaflet@1.9.4:
+    resolution: {integrity: sha512-nxS1ynzJOmOlHp+iL3FyWqK89GtNL8U8rvlMOsQdTTssxZwCXh8N2NB3GDQOL+YR3XnWyZAxwQixURb+FA74PA==}
 
   leva@0.10.1:
     resolution: {integrity: sha512-BcjnfUX8jpmwZUz2L7AfBtF9vn4ggTH33hmeufDULbP3YgNZ/C+ss/oO3stbrqRQyaOmRwy70y7BGTGO81S3rA==}
@@ -28396,6 +28423,10 @@ snapshots:
 
   '@types/katex@0.16.8': {}
 
+  '@types/leaflet@1.9.22':
+    dependencies:
+      '@types/geojson': 7946.0.16
+
   '@types/linkify-it@5.0.0': {}
 
   '@types/markdown-it@14.2.0':
@@ -33019,6 +33050,8 @@ snapshots:
   lazystream@1.0.1:
     dependencies:
       readable-stream: 2.3.8
+
+  leaflet@1.9.4: {}
 
   leva@0.10.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0):
     dependencies:

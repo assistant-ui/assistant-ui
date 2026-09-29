@@ -24,7 +24,7 @@ When a user selects text in an assistant message, a floating toolbar appears wit
 
 When the message is sent, the composer runtime automatically writes the quote to `message.metadata.custom.quote` and clears it from the composer.
 
-On the backend, the route handler extracts the quote from metadata and surfaces it to the LLM. We export a helper called `injectQuoteContext` that handles this automatically for AI-SDK. Without this step, the quote appears in the UI but is not sent to the model as context. See [Backend Handling](#backend-handling) for more info and alternatives.
+On the backend, the route handler extracts the quote from metadata and surfaces it to the LLM. For the AI SDK, `@assistant-ui/ai-sdk` exports the `injectQuoteContext` helper, which does this. Without this step, the quote appears in the UI but is not sent to the model as context. See [Backend Handling](#backend-handling) for more info and alternatives.
 
 ### Data Shape
 
@@ -39,7 +39,7 @@ type QuoteInfo = {
 
 ## Backend Handling
 
-Quote data travels in message metadata, not content, so the LLM will not see it unless your backend extracts and surfaces it. The simplest path is [`injectQuoteContext`](/elements/quote#forward-quote-context-to-the-llm), which prepends quoted text as a markdown blockquote before the message parts.
+Quote data travels in message metadata, not content, so the LLM will not see it unless your backend extracts and surfaces it. With the AI SDK, use [`injectQuoteContext`](/elements/quote#forward-the-quote-to-the-model), which prepends quoted text as a markdown blockquote before the message parts.
 
 For provider-specific handling, work with the quote metadata directly.
 
@@ -79,7 +79,7 @@ export async function POST(req: Request) {
   });
 
   const response = await client.messages.create({
-    model: "claude-sonnet-4-6",
+    model: "claude-sonnet-5",
     max_tokens: 1024,
     messages: claudeMessages,
   });

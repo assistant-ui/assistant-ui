@@ -36,9 +36,10 @@ import { useConvertedState } from "./useConvertedState";
 import type { ToolExecutionStatus } from "../../../runtimes/tool-invocations/ToolInvocationTracker";
 import { createRequestHeaders } from "../../../runtimes/assistant-transport/utils";
 import { useRemoteThreadListRuntime } from "../useRemoteThreadListRuntime";
-import { InMemoryThreadListAdapter } from "../../../runtimes/remote-thread-list/adapter/in-memory";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import type { UserExternalState } from "../../../types/augmentations";
+import { useCloudThreadListAdapter } from "../cloud/useCloudThreadListAdapter";
+import { generateId } from "../../../utils/id";
 
 const convertAppendMessageToCommand = (
   message: AppendMessage,
@@ -65,6 +66,7 @@ const convertAppendMessageToCommand = (
     type: "add-message",
     message: {
       role: "user",
+      id: generateId(),
       parts,
     },
     parentId: message.parentId,
@@ -364,6 +366,7 @@ const useAssistantTransportThreadRuntime = <T>(
       ];
 
       commandQueue.reset();
+      parentIdRef.current = undefined;
 
       options.onCancel?.({
         commands: cmds,
@@ -380,6 +383,7 @@ const useAssistantTransportThreadRuntime = <T>(
       const queuedCmds = [...commandQueue.state.queued];
 
       commandQueue.reset();
+      parentIdRef.current = undefined;
 
       try {
         await options.onError?.(error as Error, {
@@ -419,10 +423,29 @@ const useAssistantTransportThreadRuntime = <T>(
     runManager.isRunning,
     toolStatuses,
   );
+  const messages = useMemo(() => {
+    const pendingIds = new Set(
+      pendingCommands.flatMap((command) =>
+        command.type === "add-message" && command.message.role === "user"
+          ? [command.message.id]
+          : [],
+      ),
+    );
+    if (!converted.messages.some((message) => pendingIds.has(message.id)))
+      return converted.messages;
+    return converted.messages.map((message) =>
+      pendingIds.has(message.id)
+        ? {
+            ...message,
+            metadata: { ...message.metadata, isOptimistic: true },
+          }
+        : message,
+    );
+  }, [converted.messages, pendingCommands]);
 
   // Create runtime
   const runtime = useExternalStoreRuntime({
-    messages: converted.messages,
+    messages,
     state: converted.state,
     isRunning: converted.isRunning,
     isLoading: isReplaying,
@@ -432,7 +455,17 @@ const useAssistantTransportThreadRuntime = <T>(
     extras: {
       [symbolAssistantTransportExtras]: true,
       sendCommand: (command: AssistantTransportCommand) => {
-        commandQueue.enqueue(command);
+        commandQueue.enqueue(
+          command.type === "add-message" && command.message.role === "user"
+            ? {
+                ...command,
+                message: {
+                  ...command.message,
+                  id: command.message.id ?? generateId(),
+                },
+              }
+            : command,
+        );
       },
       state: agentStateRef.current as UserExternalState,
     } satisfies AssistantTransportExtras,
@@ -493,7 +526,7 @@ const useAssistantTransportThreadRuntime = <T>(
 export const useAssistantTransportRuntime = <T>(
   options: AssistantTransportOptions<T>,
 ): AssistantRuntime => {
-  const [adapter] = useState(() => new InMemoryThreadListAdapter());
+  const adapter = useCloudThreadListAdapter({ cloud: options.cloud });
   const runtime = useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
       return useAssistantTransportThreadRuntime(options);

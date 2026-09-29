@@ -282,6 +282,11 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(messageRepositoryInstance && {
       unstable_messageRepositoryInstance: messageRepositoryInstance,
     }),
+    // The chat outlives this runtime when a host mounts only the visible
+    // thread, so a host approval answer is kept with it. This is the Chat
+    // instance, not the useChat helpers, which are re-minted every render and
+    // would be a dead WeakMap key by the next one.
+    unstable_hostApprovalOwner: externalChat ?? ownedChat,
     ...(unstable_onBranchChange && { unstable_onBranchChange }),
   });
 

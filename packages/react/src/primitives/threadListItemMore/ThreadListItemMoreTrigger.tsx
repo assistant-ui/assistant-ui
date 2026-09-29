@@ -46,6 +46,8 @@ export const ThreadListItemMorePrimitiveTrigger = forwardRef<
         {...rest}
         onKeyDown={composeEventHandlers(rest.onKeyDown, (event) => {
           if (!sharedFocusGroup || event.key !== openKey) return;
+          if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey)
+            return;
           event.preventDefault();
           setOpen(true);
         })}

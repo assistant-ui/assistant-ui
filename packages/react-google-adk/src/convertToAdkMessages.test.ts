@@ -156,6 +156,12 @@ describe("getPendingCancellations", () => {
 });
 
 describe("getMessageContent", () => {
+  it("sends activity messages as text parts", () => {
+    expect(
+      contentToParts([{ type: "activity", message: "Working on it" }]),
+    ).toEqual([{ text: "Working on it" }]);
+  });
+
   it("serializes data URL images as inline data", () => {
     const content = getMessageContent(
       makeAppendMessage([

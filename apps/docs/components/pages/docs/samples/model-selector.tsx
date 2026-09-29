@@ -13,7 +13,11 @@ import {
   ModelSelectorEffort,
   type ModelOption,
 } from "@/components/assistant-ui/elements/model-selector";
-import { DEFAULT_MODEL_ID, getContextWindow } from "@/lib/model";
+import {
+  DEFAULT_MODEL_ID,
+  getContextWindow,
+  supportsReasoningEffort,
+} from "@/lib/model";
 import { docsModelOptions } from "@/components/pages/docs/assistant/docs-model-options";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 import { cn } from "@/lib/utils";
@@ -34,8 +38,6 @@ function providerOf(modelId: string): string {
 
 const compactNumber = new Intl.NumberFormat("en", { notation: "compact" });
 
-const EFFORT_SUPPORTED_MODELS = new Set(["gpt-5.6-luna"]);
-
 const models: ModelOption[] = [];
 const modelsByProvider = new Map<string, ModelOption[]>();
 for (const option of docsModelOptions()) {
@@ -44,7 +46,7 @@ for (const option of docsModelOptions()) {
     ...option,
     description: `${compactNumber.format(getContextWindow(option.id))} context window`,
     keywords: [provider],
-    ...(EFFORT_SUPPORTED_MODELS.has(option.id) ? { efforts: true } : undefined),
+    ...(supportsReasoningEffort(option.id) ? { efforts: true } : undefined),
   };
   models.push(model);
   const group = modelsByProvider.get(provider);

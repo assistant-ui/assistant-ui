@@ -3,13 +3,13 @@ title: "Read aloud"
 description: "An answer played back, the spoken word lit as it goes, speed under your thumb."
 ---
 
-Read aloud plays a message back while lighting up the word it's on, with a progress bar and a speed control. With a runtime this rides assistant-ui's speech adapter for the coarse play state; standalone every number, the word index, the elapsed time, the rate, comes from you.
+Read aloud plays a message back while lighting up the word it's on, with a progress bar and a speed control. With a runtime the play state comes from assistant-ui's speech adapter; standalone the word index, the elapsed time, and the rate all come from you.
 
 ## Getting started
 
 <RuntimeMode>
 
-Text-to-speech in assistant-ui is a speech adapter on the runtime and a coarse `status` on the message it's reading; there's no word-level boundary or elapsed-time field in the runtime state itself, so the fine detail this element shows, which word is lit, elapsed against duration, a rate you can change, is something your adapter or your app supplies on top. This part of the runtime is still experimental and may change.
+Text-to-speech in assistant-ui is a speech adapter on the runtime plus a coarse `status` on the message being read. The runtime state has no word boundary or elapsed-time field, so the highlighted word, the elapsed and total time, and the rate come from your adapter or your app. This part of the runtime is experimental and may change.
 
 <Steps>
   <Step>
@@ -38,7 +38,7 @@ Render this inside the message, its action row, alongside copy and regenerate, s
 
 ```tsx
 import { useAui, useAuiState } from "@assistant-ui/react";
-import { ReadAloud } from "./read-aloud";
+import { ReadAloud } from "@/components/assistant-ui/elements/read-aloud";
 
 function Playback() {
   const aui = useAui();
@@ -129,7 +129,7 @@ If you're using the browser's native speech synthesis, its utterance fires a bou
 </div>
 ```
 
-Progress is computed purely from `spokenIndex` divided by `words.length`, there's no separate progress prop, so the bar and the highlighted word always agree. The bar is a named progressbar with a `0…100` value matching that width, and its value text reads the same `elapsed` and `duration` the row prints. Words before `spokenIndex` dim, the current word gets a highlight background, and the rest stay at full opacity, so `spokenIndex` alone determines all three states across the whole sentence.
+Progress is `spokenIndex` divided by `words.length`. There is no separate progress prop, so the bar and the highlighted word always agree. The bar is a named progressbar with a `0…100` value matching that width, and its value text reads the same `elapsed` and `duration` the row prints. Words before `spokenIndex` dim, the current word gets a highlight background, and the words after it keep the regular text color, so `spokenIndex` alone determines all three states.
 
 ## Examples
 
@@ -153,7 +153,7 @@ Progress is computed purely from `spokenIndex` divided by `words.length`, there'
 
 <StandaloneMode>
 
-At `spokenIndex={0}` with `playing={false}`, the whole sentence renders at full opacity except the first word, which still gets the highlight background; start the progress bar at 0% by also holding `elapsed` at `"0:00"`.
+At `spokenIndex={0}` with `playing={false}`, no word is dimmed, the first word still gets the highlight background, and the progress bar is at 0%. Hold `elapsed` at `"0:00"` to match.
 
 </StandaloneMode>
 

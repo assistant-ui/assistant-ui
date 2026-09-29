@@ -23,12 +23,28 @@ const open = () => {
 };
 
 describe("start setup dialog", () => {
-  it("enables Continue only once a method is chosen", () => {
+  it("opens with the recommended method chosen", () => {
     const confirm = open();
-    expect(confirm).toHaveProperty("disabled", true);
-    expect(mocks.beginSetup).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("radio", { name: /Coding agent/ }));
+    expect(screen.getByRole("radio", { name: /Coding agent/ })).toHaveProperty(
+      "checked",
+      true,
+    );
     expect(confirm).toHaveProperty("disabled", false);
+    expect(mocks.beginSetup).not.toHaveBeenCalled();
+  });
+
+  it("preselects the recommended method again when reopened after another choice", () => {
+    open();
+    fireEvent.click(screen.getByRole("radio", { name: /Manual/ }));
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: "Escape",
+    });
+    expect(screen.queryByRole("radio", { name: /Manual/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Start setup" }));
+    expect(screen.getByRole("radio", { name: /Coding agent/ })).toHaveProperty(
+      "checked",
+      true,
+    );
   });
 
   it("starts an assistant-ui setup session for the coding agent", () => {
