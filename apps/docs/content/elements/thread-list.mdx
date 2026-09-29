@@ -93,7 +93,7 @@ export function Sidebar() {
 </div>
 ```
 
-Runtime, the search box only renders once at least one thread exists, and it filters case-insensitively against each thread's title, falling back to matching "New Chat" for untitled ones; no match shows "No threads found" instead of the list. Rows group under Today, Yesterday, and Earlier by `lastMessageAt`, but only when at least one visible thread actually carries a timestamp, otherwise the list renders flat with no group labels. The active thread carries `data-active` and `aria-current`. Rename swaps a row's trigger for an inline input in place (Enter commits, Escape cancels, blur commits); it never navigates away from the list.
+Runtime, the search box only renders once at least one thread exists, and it filters case-insensitively against each thread's title, falling back to matching "New Chat" for untitled ones; no match shows "No threads found" instead of the list. Rows group under Today, Yesterday, and Earlier by `lastMessageAt`, but only when at least one visible thread carries a timestamp, otherwise the list renders flat with no group labels. The active thread carries `data-active` and `aria-current`. Rename swaps a row's trigger for an inline input in place (Enter commits, Escape cancels, blur commits); it never navigates away from the list.
 
 Standalone, the element renders a single static "Today" label above every row regardless of the actual dates, since it has no timestamps to group by, and it has no new-thread control or search of its own. Rename and delete are controlled actions: each button renders only when its matching callback is provided.
 
@@ -138,7 +138,7 @@ aui.threads.item({ id: threadId }).rename("Q3 planning");
 
 <StandaloneMode>
 
-Use `onRename` to open your own inline editor or dialog. The callback receives the row index, just like selection and deletion:
+Use `onRename` to open your own inline editor or dialog. The callback receives the row index, as selection and deletion do:
 
 ```tsx
 <ThreadList
@@ -159,7 +159,7 @@ Use `onRename` to open your own inline editor or dialog. The callback receives t
 
 ### Restyle
 
-Both lanes take `className` on the root. Standalone, the active row's fill and the trailing timestamp use the shared `field` and `mono` tokens from `surfaces.tsx`, so restyling those two tokens restyles every element that uses them.
+Standalone, `ThreadList` takes `className` on the root; the runtime `ThreadList` takes no props, so size it from a wrapper element. Standalone, the active row's fill and the trailing timestamp use the shared `field` and `mono` tokens from `surfaces.tsx`, so restyling those two tokens restyles every element that uses them.
 
 ```tsx
 <ThreadList className="max-w-[280px]" /* ... */ />

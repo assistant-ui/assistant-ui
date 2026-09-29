@@ -97,7 +97,7 @@ Thread has no props-driven counterpart: the welcome screen, message list, stream
 </ThreadPrimitive.Root>
 ```
 
-The welcome screen's condition is narrower than "no messages": at startup the whole thread list can still be loading before this particular thread's history has resolved, and showing the history skeleton for that instant would just flash before turning into the welcome screen anyway. Thread treats "no messages, and either not loading or the whole list is still loading" as the new-chat view, and reserves the skeleton for a thread switch whose history alone is still in flight. Each assistant message's action bar hides while that response is running and, once idle, always shows on the last response (`hideWhenRunning`, `autohide="not-last"`); the branch picker beside it hides entirely with a single branch, exactly as on [Message branches](/elements/message-branches). Editing a user message swaps it for a composer in place rather than opening a dialog.
+The welcome screen's condition is narrower than "no messages": at startup the whole thread list can still be loading before this particular thread's history has resolved, and showing the history skeleton for that instant would flash it before the welcome screen replaces it. Thread treats "no messages, and either not loading or the whole list is still loading" as the new-chat view, and reserves the skeleton for a thread switch whose history alone is still in flight. Each assistant message's action bar hides while that response is running and, once idle, always shows on the last response (`hideWhenRunning`, `autohide="not-last"`); the branch picker beside it hides entirely with a single branch, exactly as on [Message branches](/elements/message-branches). Editing a user message swaps it for a composer in place rather than opening a dialog.
 
 ## Examples
 
@@ -186,7 +186,7 @@ See the [Suggestions guide](/docs/guides/suggestions) for the full configuration
 | Selector | Type | Description |
 |----------|------|--------------|
 | `s.thread.capabilities.dictation` | `boolean` | Whether the composer's mic button can render at all. |
-| `s.thread.isRunning` | `boolean` | Swaps the composer's send action for cancel. |
+| `s.composer.canCancel` | `boolean` | Swaps the composer's send action for cancel. |
 | `s.composer.isEmpty` | `boolean` | Gates the welcome suggestions: shown only for a new chat with nothing typed. |
 | `s.composer.dictation` | `DictationState \| undefined` | Non-null while dictation is active; swaps the mic button for a stop button. |
 | `s.message.role` | `"user" \| "assistant" \| "system"` | Picks the message component to render. |
