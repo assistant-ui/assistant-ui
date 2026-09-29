@@ -40,7 +40,6 @@ import {
   useExternalMessageConverter,
   useExternalStoreRuntime,
 } from "@assistant-ui/core/react";
-import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import { useAui } from "@assistant-ui/store";
 import {
   convertLangChainMessages,
@@ -749,7 +748,7 @@ const useLangGraphRuntimeImpl = (
     ],
   );
 
-  useReplaySafeEffect(() => {
+  useEffect(() => {
     runLoad();
     return () => {
       // Whatever is current, not this effect's own controller: a refetch swaps
@@ -759,7 +758,7 @@ const useLangGraphRuntimeImpl = (
     };
   }, [loadController, runLoad]);
 
-  useReplaySafeEffect(() => cancelActiveRun, [cancelActiveRun]);
+  useEffect(() => cancelActiveRun, [cancelActiveRun]);
 
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),

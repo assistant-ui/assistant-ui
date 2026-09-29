@@ -1343,7 +1343,6 @@ describe("useLangGraphRuntime", () => {
     expect(reloadSignal.aborted).toBe(false);
 
     unmount();
-    await act(async () => {});
 
     expect(reloadSignal.aborted).toBe(true);
     reloadPending.resolve({ messages: [] });
@@ -1649,7 +1648,6 @@ describe("useLangGraphRuntime", () => {
     expect(signal?.aborted).toBe(false);
 
     unmount();
-    await act(async () => {});
 
     expect(signal?.aborted).toBe(true);
   });

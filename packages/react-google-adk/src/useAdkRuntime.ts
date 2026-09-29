@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   useInsertionEffect,
   useMemo,
   useRef,
@@ -28,7 +29,6 @@ import {
   useExternalMessageConverter,
   useExternalStoreRuntime,
 } from "@assistant-ui/core/react";
-import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import { useAui } from "@assistant-ui/store";
 import type { AssistantCloud } from "assistant-cloud";
 import type { RemoteThreadListAdapter } from "@assistant-ui/core";
@@ -325,7 +325,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     [threadListItem, loadController, applySnapshot],
   );
 
-  useReplaySafeEffect(() => {
+  useEffect(() => {
     runLoad();
     return () => {
       // Whatever is current, not this effect's own controller: a refetch swaps
