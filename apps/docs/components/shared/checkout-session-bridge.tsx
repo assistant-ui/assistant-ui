@@ -9,6 +9,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { StatewireWebsocket, useStatewire } from "statewire";
+import { toast } from "sonner";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import { getCatalogItem, isProductSlug, resolveProducts } from "@/lib/catalog";
 import { installGuideUrl } from "@/lib/catalog/install-guide";
@@ -147,6 +148,7 @@ function CheckoutSessionBridge({
     [state],
   );
   const settling = useRef(new Set<string>());
+  const warned = useRef(new Set<string>());
   useEffect(() => {
     for (const input of proposals) {
       if (settling.current.has(input.id)) continue;
@@ -164,6 +166,11 @@ function CheckoutSessionBridge({
         : commands["checkout/dismiss"]({ inputId: input.id });
       settled.catch(() => {
         settling.current.delete(input.id);
+        if (warned.current.has(input.id)) return;
+        warned.current.add(input.id);
+        toast.error(
+          `Could not add ${product?.name ?? "the product"} to this setup. Trying again.`,
+        );
       });
     }
   }, [proposals, commands, tick]);

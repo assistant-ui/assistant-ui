@@ -17,6 +17,8 @@ const wire = vi.hoisted(() => ({
   dismiss: vi.fn().mockResolvedValue(undefined),
 }));
 
+const mocks = vi.hoisted(() => ({ toastError: vi.fn() }));
+
 vi.mock("statewire", async (importOriginal) => ({
   ...(await importOriginal<typeof import("statewire")>()),
   StatewireWebsocket: vi.fn(),
@@ -40,6 +42,11 @@ vi.mock("statewire", async (importOriginal) => ({
     };
   },
 }));
+
+vi.mock("sonner", async (importOriginal) => {
+  const sonner = await importOriginal<typeof import("sonner")>();
+  return { ...sonner, toast: { ...sonner.toast, error: mocks.toastError } };
+});
 
 vi.mock("./use-wake-reconnect", () => ({ useWakeReconnect: () => {} }));
 
@@ -81,6 +88,7 @@ afterEach(() => {
   wire.state = undefined;
   wire.addProduct.mockClear();
   wire.dismiss.mockClear();
+  mocks.toastError.mockClear();
 });
 
 const proposal = (id: string, product: string): Checkout.Input => ({
@@ -159,6 +167,38 @@ describe("CheckoutSessionBridge", () => {
     setWire({ ...wire.state!, log: [] });
     expect(wire.addProduct).toHaveBeenCalledOnce();
     expect(wire.dismiss).toHaveBeenCalledOnce();
+  });
+
+  it("says once that a proposed product could not be added and keeps retrying every tick", async () => {
+    vi.useFakeTimers();
+    try {
+      wire.addProduct
+        .mockRejectedValueOnce(new Error("refused"))
+        .mockRejectedValueOnce(new Error("refused"));
+      wire.state = {
+        ...previous(),
+        id: "s2",
+        status: "planning",
+        inputs: [proposal("p1", "assistant-ui")],
+      };
+      render(<CheckoutSessionBridge session={session} onChange={vi.fn()} />);
+      expect(wire.addProduct).toHaveBeenCalledOnce();
+
+      await act(() => Promise.resolve());
+      act(() => vi.advanceTimersByTime(5000));
+      expect(wire.addProduct).toHaveBeenCalledTimes(2);
+
+      await act(() => Promise.resolve());
+      act(() => vi.advanceTimersByTime(5000));
+      expect(wire.addProduct).toHaveBeenCalledTimes(3);
+
+      expect(mocks.toastError).toHaveBeenCalledOnce();
+      expect(mocks.toastError).toHaveBeenCalledWith(
+        "Could not add assistant-ui to this setup. Trying again.",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("leaves a proposal alone once the checkout is closed", () => {
