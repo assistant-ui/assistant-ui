@@ -1,122 +1,220 @@
 ---
 title: "Inline citation"
-description: "Numbered references inside a sentence, each with a hover preview of its source."
+description: "A compact, numbered source marker you place beside any claim in prose."
 ---
 
-Inline citation drops small numbered markers into a sentence; hovering one opens a preview card with the source's domain, title, and snippet. This element has no runtime composition: assistant-ui has no positional link between a citation marker and an offset inside streamed message text, so it ships as a standalone specimen and you adapt the sentence it wraps directly in the installed file.
+Inline citation keeps the sentence in your hands. Wrap the prose in `InlineCitation`, then place a `Citation` marker beside each claim it supports. Hovering or focusing a marker opens a compact preview with the source details.
 
 ## Getting started
+
+<RuntimeMode>
+
+When a runtime receives source parts or a tool result, map each source to a `Citation` at the position it belongs in the rendered answer. The element does not infer offsets from streamed text.
 
 <Steps>
   <Step>
 
-### Render the citations
+### Map source parts
 
 ```tsx title="app/answer.tsx"
 "use client";
 
-import { useState } from "react";
 import {
+  Citation,
   InlineCitation,
   type Source,
 } from "@/components/assistant-ui/elements/inline-citation";
 
-const SOURCES: Source[] = [
-  {
-    domain: "assistant-ui.com",
-    title: "Optimistic updates in the runtime",
-    snippet:
-      "The runtime applies local edits immediately and reconciles them once the server acknowledges the write.",
-  },
-  {
-    domain: "react.dev",
-    title: "useSyncExternalStore reference",
-    snippet:
-      "Subscribes a component to an external store, re-rendering on every store change with a consistent snapshot.",
-  },
-];
+type AnswerPart =
+  | { type: "text"; text: string }
+  | { type: "source"; id: string; index: number; source: Source };
 
-export function Answer() {
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
-
+export function Answer({ parts }: { parts: readonly AnswerPart[] }) {
   return (
-    <InlineCitation
-      sources={SOURCES}
-      openIndex={openIndex}
-      onOpenIndexChange={setOpenIndex}
-    />
+    <InlineCitation>
+      {parts.map((part) =>
+        part.type === "text" ? (
+          part.text
+        ) : (
+          <Citation key={part.id} index={part.index} source={part.source} />
+        ),
+      )}
+    </InlineCitation>
   );
 }
 ```
 
-This renders the element's own fixed sentence with markers `1` and `2` attached at its two anchor points, previewing `SOURCES[0]` and `SOURCES[1]`.
+Keep the text and source parts in display order. `index` starts at zero, while the marker shows the reader `index + 1`.
 
   </Step>
   <Step>
 
-### Replace the fixed sentence
+### Map a tool result
 
-The paragraph text is written directly into the source, not passed as a prop. Edit the installed file to wrap your own sentence and place `<Citation index={n} source={...} open={...} onOpenChange={...} />` wherever a claim needs one:
+Convert a completed tool result to the same parts before rendering it. The source URL supplies a displayed domain when `domain` is absent:
 
-```tsx title="components/assistant-ui/elements/inline-citation.tsx"
-<p data-slot="inline-citation" className={cn("...", className)} {...props}>
-  Revenue grew 12 percent year over year
-  {sources[0] && (
-    <Citation
-      index={0}
-      source={sources[0]}
-      open={openIndex === 0}
-      onOpenChange={(open) => onOpenIndexChange(open ? 0 : null)}
-    />
-  )}
-  , driven mostly by the enterprise tier.
-</p>
+```tsx
+const parts: AnswerPart[] = [
+  { type: "text", text: "The latest release supports structured outputs" },
+  ...result.sources.map((source, index) => ({
+    type: "source" as const,
+    id: source.id,
+    index,
+    source: {
+      title: source.title,
+      snippet: source.summary,
+      url: source.url,
+      publishedAt: source.publishedAt,
+    },
+  })),
+  { type: "text", text: "." },
+];
 ```
 
   </Step>
 </Steps>
 
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, place a marker directly inside the prose. Omit `open` for the built-in hover and focus behavior.
+
+<Steps>
+  <Step>
+
+### Place markers in prose
+
+```tsx title="app/answer.tsx"
+import {
+  Citation,
+  InlineCitation,
+  type Source,
+} from "@/components/assistant-ui/elements/inline-citation";
+
+const RUNTIME_SOURCE: Source = {
+  title: "Optimistic updates in the runtime",
+  snippet:
+    "The runtime applies local edits immediately and reconciles them once the server acknowledges the write.",
+  url: "https://www.assistant-ui.com",
+  publishedAt: "2025-03-01T12:00:00.000Z",
+};
+
+export function Answer() {
+  return (
+    <InlineCitation>
+      Optimistic updates keep the thread responsive
+      <Citation index={0} source={RUNTIME_SOURCE} />.
+    </InlineCitation>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Control a marker
+
+Pass `open` and `onOpenChange` when another interaction owns which preview is open. A single index keeps a group of markers mutually exclusive:
+
+```tsx
+const [openIndex, setOpenIndex] = useState<number | null>(null);
+
+<Citation
+  index={0}
+  source={RUNTIME_SOURCE}
+  open={openIndex === 0}
+  onOpenChange={(open) => setOpenIndex(open ? 0 : null)}
+/>
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
 ## Anatomy
 
 ```tsx
-<p data-slot="inline-citation">
-  {/* fixed sentence text, with a numbered marker after each of two anchor points */}
-</p>
+<InlineCitation>
+  A supported claim
+  <Citation index={0} source={source} />.
+</InlineCitation>
 ```
 
-The sentence itself never changes: only which of its two built-in anchor points gets a marker depends on `sources`. Passing zero or one source omits the corresponding marker (`sources[0] &&` and `sources[1] &&` guard each one); passing more than two sources, the rest have nowhere to attach and are simply unused. `openIndex` admits only one open preview at a time: setting it to `0` implies index `1` is closed, since each `Citation`'s `open` reads `openIndex === <its own index>`. Passing `null` closes every marker.
+`InlineCitation` is the paragraph and forwards its `p` props. Each `Citation` is a button marker that opens its own preview card. The marker's accessible name includes the source title, so the numbered label never has to carry the source context alone.
 
 ## Examples
 
-### Restyle the markers
+### Include publication details
 
-The root takes `className`. Each marker and its preview popup read the shared `floating` surface and `mono` tokens from `surfaces.tsx`.
+`publishedAt` is formatted as a month and year when it is a valid date. A safe `url` adds an `Open source` link that opens in a new tab. An invalid date or unsafe URL is omitted from the preview.
 
 ```tsx
-<InlineCitation className="max-w-none" /* ... */ />
+const SOURCE: Source = {
+  title: "React useSyncExternalStore reference",
+  snippet: "Subscribes to an external store with a consistent snapshot.",
+  url: "https://react.dev/reference/react/useSyncExternalStore",
+  publishedAt: "2024-12-05T12:00:00.000Z",
+};
 ```
 
-### Keeping previews mutually exclusive across citations
+### Give the paragraph more room
 
-Because `openIndex` is a single value, opening one marker already closes any other. A "close on scroll" or "close on send" affordance only needs to reset it once:
+The default paragraph stays compact. Pass `className` or any other paragraph prop when the surrounding layout needs a different width or label:
 
 ```tsx
-useEffect(() => {
-  const onScroll = () => setOpenIndex(null);
-  window.addEventListener("scroll", onScroll, true);
-  return () => window.removeEventListener("scroll", onScroll, true);
-}, []);
+<InlineCitation className="max-w-none" aria-label="Sources for the answer">
+  The deployment completed successfully
+  <Citation index={0} source={SOURCE} />.
+</InlineCitation>
 ```
 
 ## API reference
+
+<RuntimeMode>
+
+### Runtime mapping
+
+| Value | Type | Description |
+|-------|------|-------------|
+| Text part | `{ type: "text"; text: string }` | Renders directly inside `InlineCitation`. |
+| Source part | `{ type: "source"; id: string; index: number; source: Source }` | Renders a keyed `Citation` at that point in the prose. |
+| Tool result | Application-defined | Convert source records from a completed result to source parts before rendering. |
+
+</RuntimeMode>
+
+<StandaloneMode>
 
 ### InlineCitation
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `sources` | `Source[]` | required | Citation targets. Only indices `0` and `1` are ever attached to a marker. |
-| `openIndex` | `number \| null` | required | Which citation's preview is open. `null` closes every marker. |
-| `onOpenIndexChange` | `(index: number \| null) => void` | required | Called with the marker's index when it opens, or `null` when it closes. |
-| `className` | `string` | | Merged onto the root. |
+| `children` | `ReactNode` | required | Prose and `Citation` markers to render inside the paragraph. |
+| `className` | `string` | | Merged onto the paragraph. |
 
-`Source` is `{ domain: string; title: string; snippet: string }`. All other `p` props are forwarded to the root.
+All other `p` props are forwarded to the root.
+
+### Citation
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `index` | `number` | required | Zero-based source position. The marker shows this value plus one. |
+| `source` | `Source` | required | Content for the preview and accessible marker name. |
+| `open` | `boolean` | | Controls whether this preview is open. Omit it for hover and focus behavior. |
+| `onOpenChange` | `(open: boolean) => void` | | Receives preview state changes. |
+| `className` | `string` | | Merged onto the marker button. |
+
+Other sensible button props, such as `data-*`, `disabled`, and `onClick`, are forwarded to the marker button.
+
+### Source
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `title` | `string` | Source title shown in the preview and marker name. |
+| `snippet` | `string` | Supporting text shown below the title. |
+| `domain` | `string` | Domain label. When omitted, the host of `url` is used. |
+| `url` | `string` | Safe URLs add the `Open source` link. |
+| `publishedAt` | `string` | A parseable date shown as a month and year. |
+
+</StandaloneMode>

@@ -1,6 +1,7 @@
 import { type ReactNode, useMemo, useRef, useState } from "react";
 import { Box, Text } from "ink";
 import Spinner from "ink-spinner";
+import { useAuiState } from "@assistant-ui/store";
 import { Pressable } from "../internal/Pressable";
 import type { ToolCallMessagePartStatus } from "@assistant-ui/core";
 import type { ToolCallMessagePartProps } from "@assistant-ui/core/react";
@@ -163,6 +164,9 @@ export const ToolFallback = ({
       ? formatResult(result)
       : "";
   const argsDisplay = useMemo(() => prettyPrintArgs(argsText), [argsText]);
+  const canAnswer = useAuiState(
+    (s) => s.optional.thread?.capabilities.answerToolCall !== false,
+  );
   const approvalPendingRef = useRef(false);
   const [approvalPending, setApprovalPending] = useState(false);
   const [approvalError, setApprovalError] = useState<string | null>(null);
@@ -239,7 +243,8 @@ export const ToolFallback = ({
           {displayStatus === "running" && <Text dimColor>Running...</Text>}
 
           {displayStatus === "requires-action" &&
-            (respondToApproval &&
+            (canAnswer &&
+            respondToApproval &&
             approval &&
             approval.approved === undefined &&
             approval.resolution === undefined &&
@@ -272,6 +277,15 @@ export const ToolFallback = ({
                     )}
                   </Pressable>
                 </Box>
+              </Box>
+            ) : !canAnswer &&
+              approval &&
+              approval.approved === undefined &&
+              approval.resolution === undefined &&
+              approval.prompt ? (
+              <Box flexDirection="column">
+                <Text>{approval.prompt}</Text>
+                <Text color="cyan">Waiting for approval...</Text>
               </Box>
             ) : (
               <Text color="cyan">Waiting for approval...</Text>

@@ -66,7 +66,7 @@ export default function ChatPage() {
 }
 ```
 
-On React, `useLocalRuntime(adapter)` with `NEXT_PUBLIC_ASSISTANT_BASE_URL` set and no `cloud` uses an anonymous client, like the AI SDK runtime. On React Native and Ink construct the client from `assistant-cloud` and pass it.
+On Next.js, `useLocalRuntime(adapter)` with `NEXT_PUBLIC_ASSISTANT_BASE_URL` set and no `cloud` uses an anonymous client, like the AI SDK runtime. On Vite, React Router and TanStack Start construct the client from `import.meta.env.VITE_ASSISTANT_BASE_URL` and pass it; on React Native and Ink construct the client from `assistant-cloud` and pass it.
 
 ## What the cloud adds
 
@@ -152,7 +152,7 @@ const runtime = useCloudThreadListRuntime({
 |---|---|---|
 | `cloud` | Required | The client backing the remote list. |
 | `runtimeHook` | Required | The hook returning a runtime for each mounted thread. |
-| `create` | `undefined` | Runs before the cloud thread is created. Its `externalId` becomes the cloud thread's `external_id`. |
+| `create` | `undefined` | Runs before the cloud thread is created and receives the thread list item's `id`. Its `externalId` becomes the cloud thread's `external_id`. |
 | `delete` | `undefined` | Runs with the remote thread id before the cloud thread is deleted. |
 
 `useAgUiRuntime` and `useA2ARuntime` can be the `runtimeHook`. They read history and attachment adapters from this context, so they gain the cloud list, title action, `aui/v0` persistence, engagement, feedback, attachments and reports from stored assistant messages. AG-UI stores its final agent state in `metadata.unstable_state`, activity values as `agui-activity/<type>` data parts, and A2UI `present` calls with `artifact.a2ui`. A2A stores the same A2UI calls and its artifacts in `metadata.custom.a2a.artifacts`, without bytes from inline files. See [Stored message formats](/docs/cloud/formats).
@@ -173,7 +173,7 @@ For a custom stored-message shape, use `ThreadHistoryAdapter.withFormat` with a 
 
 | What you see | Why | What to do |
 |---|---|---|
-| The thread list stays in memory | No client was passed and `NEXT_PUBLIC_ASSISTANT_BASE_URL` is not set. | Set the React environment variable, or construct and pass an `AssistantCloud` client. |
+| The thread list stays in memory | No client was passed, and `NEXT_PUBLIC_ASSISTANT_BASE_URL` is not set or the bundler does not expose it to the browser, as on Vite, React Router and TanStack Start. | On Next.js set the environment variable; elsewhere construct and pass an `AssistantCloud` client. |
 | Encoding throws for a message part | `aui/v0` does not recognize that message or attachment part type. | Convert the part to one of the supported `aui/v0` types before it reaches the history adapter. |
 | Existing AI SDK history is empty | `useLocalRuntime` does not convert `ai-sdk/v6` rows back into `aui/v0`. | Start a new local-runtime thread, or read the rows through [messages](/docs/cloud/api/messages). |
 | A run paused for approval is not on the Runs page | A `requires-action` message is stored but intentionally not reported before it becomes terminal. | Answer the tool approval and let the run settle. |

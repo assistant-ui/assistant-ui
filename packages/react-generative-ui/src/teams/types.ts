@@ -141,6 +141,7 @@ export interface TeamsInputText {
   readonly id: string;
   readonly label?: string;
   readonly placeholder?: string;
+  readonly value?: string;
   readonly isMultiline?: true;
   readonly separator?: true;
   readonly spacing?: "large";

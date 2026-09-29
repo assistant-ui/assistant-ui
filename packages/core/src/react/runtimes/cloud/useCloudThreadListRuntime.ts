@@ -15,7 +15,7 @@ type CloudThreadListAdapter = {
   runtimeHook: () => AssistantRuntime;
 
   upsert?: boolean | undefined;
-  create?(): Promise<ThreadData>;
+  create?(threadId: string): Promise<ThreadData>;
   delete?(threadId: string): Promise<void>;
 };
 

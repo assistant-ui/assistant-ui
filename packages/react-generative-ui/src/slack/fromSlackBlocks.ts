@@ -213,10 +213,20 @@ const selectFrom = (
     "Select",
     `options were clamped to ${SELECT_OPTION_CAP} entries.`,
   );
+  const convertedOptions = options.map(optionFrom).filter(isDefined);
+  const initialOption = element["initial_option"];
+  const defaultValue =
+    isRecord(initialOption) && typeof initialOption["value"] === "string"
+      ? initialOption["value"]
+      : undefined;
   const placeholder = element["placeholder"];
   return {
     $type: "Select",
-    options: options.map(optionFrom).filter(isDefined),
+    options: convertedOptions,
+    ...(defaultValue !== undefined &&
+    convertedOptions.some((option) => option.value === defaultValue)
+      ? { defaultValue }
+      : {}),
     ...(isRecord(placeholder) ? { placeholder: textOf(placeholder) } : {}),
     $action: decodeAction(element["action_id"], element["value"]),
   };
@@ -378,6 +388,9 @@ const inputFrom = (
       label: textOf(block["label"]),
       ...(isRecord(placeholder) ? { placeholder: textOf(placeholder) } : {}),
       ...(element["multiline"] === true ? { multiline: true } : {}),
+      ...(typeof element["initial_value"] === "string"
+        ? { defaultValue: element["initial_value"] }
+        : {}),
       $action: decodeAction(element["action_id"], undefined),
     },
   ];
