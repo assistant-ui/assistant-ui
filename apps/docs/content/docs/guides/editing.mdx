@@ -93,7 +93,7 @@ const EditButton = () => {
 
 ## Editing While Streaming
 
-If a user triggers edit mode while the assistant is still generating a response, the in-progress run is cancelled and a new branch is started from the edited message. `ActionBarPrimitive.Edit` does not block this. If your UI should prevent editing during streaming, gate the edit button on the thread run state before rendering `ActionBarPrimitive.Edit` or calling `beginEdit()`.
+Entering edit mode while the assistant is still generating a response does not cancel the in-progress run: `beginEdit()` only opens the edit composer, and `ActionBarPrimitive.Edit` stays enabled during streaming. If your UI should prevent editing during streaming, gate the edit button on `s.thread.isRunning` before rendering `ActionBarPrimitive.Edit` or calling `beginEdit()`.
 
 ## References
 
