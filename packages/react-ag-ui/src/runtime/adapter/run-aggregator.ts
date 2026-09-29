@@ -325,6 +325,9 @@ export class RunAggregator {
         break;
       }
       case "RUN_CANCELLED": {
+        // A cancel can land after RUN_FINISHED while the response is still
+        // closing, and the answer it finished is already persisted as complete.
+        if (this.status?.type === "complete") break;
         this.status = { type: "incomplete", reason: "cancelled" };
         this.closeOpenSubagentRuns(this.status);
         this.emit();
