@@ -24,7 +24,7 @@ Implement the change in its own git worktree, open a PR, monitor CI and reviews,
 8. Open the PR with `gh pr create --title "<title>" --body "<body>"` or another non-interactive form such as `--fill`.
 9. Schedule a 2-minute recurring monitor using the environment's native automation mechanism. In Claude Code, use the available `schedule` or `loop` skill.
 10. Monitor checks and review threads until the merge gate is satisfied, committing and pushing follow-up fixes from the same worktree.
-11. Finish per the mode: in default mode, stop the monitor and report the PR as ready; in `auto` mode, merge with `gh pr merge <n> --squash --admin`, then clean up.
+11. Stop the monitor, then finish per the mode: in default mode, report the PR as ready; in `auto` mode, merge with `gh pr merge <n> --squash --admin`, then clean up.
 
 Add a patch changeset only if a published package changed. Private packages such as `@assistant-ui/docs` and `@assistant-ui/shadcn-registry` are exempt.
 
