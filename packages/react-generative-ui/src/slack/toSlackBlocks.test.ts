@@ -1,6 +1,10 @@
 import { decodeBlockAction } from "./decodeBlockAction";
 import { describe, expect, it } from "vitest";
-import { CHILDREN_CAP, NODE_BUDGET } from "../convert/boundSpec";
+import {
+  CHILDREN_CAP,
+  MAX_TRAVERSAL_DEPTH,
+  NODE_BUDGET,
+} from "../convert/boundSpec";
 import { toSlackBlocks } from "./toSlackBlocks";
 import {
   ACTION_ID_CAP,
@@ -657,6 +661,30 @@ describe("toSlackBlocks", () => {
         ],
       });
       expect(JSON.stringify(blocks)).not.toContain("secret");
+    });
+
+    it("drops a button value that nests a password reference past the traversal limit", () => {
+      let nested: unknown = { $field: "password", fallback: "secret" };
+      for (let depth = 0; depth <= MAX_TRAVERSAL_DEPTH; depth++) {
+        nested = { nested };
+      }
+      const { blocks } = toSlackBlocks({
+        $type: "Col",
+        children: [
+          { $type: "Input", name: "password", inputType: "password" },
+          {
+            $type: "Button",
+            label: "Submit",
+            $action: { type: "submit", nested },
+          },
+        ],
+      });
+      expect(JSON.stringify(blocks)).not.toContain("secret");
+      const button = blocks[1];
+      if (button?.type !== "actions" || button.elements[0]?.type !== "button") {
+        throw new Error("Expected a submit button");
+      }
+      expect(button.elements[0].value).toBeUndefined();
     });
 
     it("carries a named control in its block_id", () => {

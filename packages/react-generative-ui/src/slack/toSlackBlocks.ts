@@ -225,7 +225,9 @@ const withoutOmittedPasswordFallbacks = (
   names: ReadonlySet<string>,
   depth = 0,
 ): unknown => {
-  if (depth > MAX_TRAVERSAL_DEPTH) return value;
+  if (depth > MAX_TRAVERSAL_DEPTH) {
+    throw new RangeError("Action payload nests too deeply to sanitize.");
+  }
   if (Array.isArray(value)) {
     return value.map((item) =>
       withoutOmittedPasswordFallbacks(item, names, depth + 1),
