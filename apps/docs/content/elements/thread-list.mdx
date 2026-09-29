@@ -159,7 +159,7 @@ Use `onRename` to open your own inline editor or dialog. The callback receives t
 
 ### Restyle
 
-Standalone, `ThreadList` takes `className` on the root; the runtime `ThreadList` takes no props, so size it from a wrapper element. Standalone, the active row's fill and the trailing timestamp use the shared `field` and `mono` tokens from `surfaces.tsx`, so restyling those two tokens restyles every element that uses them.
+Standalone, `ThreadList` takes `className` on the root; the runtime `ThreadList` takes no props, so size it from a wrapper element. The standalone active row's fill and trailing timestamp use the shared `field` and `mono` tokens from `surfaces.tsx`, so restyling those two tokens restyles every element that uses them.
 
 ```tsx
 <ThreadList className="max-w-[280px]" /* ... */ />
