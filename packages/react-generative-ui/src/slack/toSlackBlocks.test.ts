@@ -668,7 +668,7 @@ describe("toSlackBlocks", () => {
       for (let depth = 0; depth <= MAX_TRAVERSAL_DEPTH; depth++) {
         nested = { nested };
       }
-      const { blocks } = toSlackBlocks({
+      const { blocks, warnings } = toSlackBlocks({
         $type: "Col",
         children: [
           { $type: "Input", name: "password", inputType: "password" },
@@ -680,6 +680,12 @@ describe("toSlackBlocks", () => {
         ],
       });
       expect(JSON.stringify(blocks)).not.toContain("secret");
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Button",
+        detail:
+          "value was dropped because the action payload could not be serialized.",
+      });
       const button = blocks[1];
       if (button?.type !== "actions" || button.elements[0]?.type !== "button") {
         throw new Error("Expected a submit button");
@@ -2848,11 +2854,19 @@ describe("toSlackBlocks", () => {
       expect(() =>
         toSlackBlocks({ $type: "Button", label: "Go", $action: circular }),
       ).not.toThrow();
-      const { blocks } = toSlackBlocks({
+      const { blocks, warnings } = toSlackBlocks({
         $type: "Button",
         label: "Go",
         $action: circular,
       });
+      expect(warnings).toEqual([
+        {
+          code: "dropped",
+          component: "Button",
+          detail:
+            "value was dropped because the action payload could not be serialized.",
+        },
+      ]);
       expect(blocks[0]).toEqual({
         type: "actions",
         elements: [

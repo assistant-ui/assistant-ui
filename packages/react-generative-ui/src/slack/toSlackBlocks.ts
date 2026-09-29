@@ -256,19 +256,12 @@ const actionValue = (
   if (!isRecord(action)) return undefined;
   const { type: _type, ...payload } = action;
   if (Object.keys(payload).length === 0) return undefined;
-  try {
-    const serialized = JSON.stringify(
-      context.omittedPasswordNames.size === 0
-        ? payload
-        : withoutOmittedPasswordFallbacks(
-            payload,
-            context.omittedPasswordNames,
-          ),
-    );
-    return serialized === "{}" ? undefined : serialized;
-  } catch {
-    return undefined;
-  }
+  const serialized = JSON.stringify(
+    context.omittedPasswordNames.size === 0
+      ? payload
+      : withoutOmittedPasswordFallbacks(payload, context.omittedPasswordNames),
+  );
+  return serialized === "{}" ? undefined : serialized;
 };
 
 const buttonElement = (
@@ -278,8 +271,17 @@ const buttonElement = (
   component: string,
   context: ConversionContext,
 ): SlackButtonElement => {
-  const serializedValue = actionValue(action, context);
-  let value = serializedValue;
+  let value: string | undefined;
+  try {
+    value = actionValue(action, context);
+  } catch {
+    warn(
+      context,
+      "dropped",
+      component,
+      "value was dropped because the action payload could not be serialized.",
+    );
+  }
   if (value !== undefined && value.length > BUTTON_VALUE_CAP) {
     warn(
       context,
