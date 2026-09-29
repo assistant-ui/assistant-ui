@@ -1631,6 +1631,7 @@ describe.each([
       await submit(edited);
 
       await edit("");
+      expect(input().type).toBe(type);
       expect(input().value).toBe("");
       if (live) expect(preview()).toBe("");
       await submit("");

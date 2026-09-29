@@ -805,9 +805,13 @@ const mappedProps = (
 
   if (component === "DateTimeInput") {
     const value = stringProp(props, ["value"]);
+    const shapeValue =
+      name === undefined ? value : resolvePointer(context.stepModel, name);
     if (
       props["enableTime"] === true ||
-      (value !== undefined && value !== "" && !DATE_PATTERN.test(value))
+      (typeof shapeValue === "string" &&
+        shapeValue !== "" &&
+        !DATE_PATTERN.test(shapeValue))
     ) {
       return {
         $type: "Input",
