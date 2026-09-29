@@ -4088,7 +4088,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onRun",
             type: "() => void",
-            description: "Called when the run control is pressed.",
+            description:
+              "Renders the run control and is called when it is pressed.",
           },
           {
             name: "className",
@@ -5119,13 +5120,13 @@ const matches = useMentionMatches(value, people);
             name: "onSelect",
             type: "(id: string) => void",
             description:
-              "Called when a prompt is highlighted. Without it, clicking reports nothing; rows become non-interactive only when onInsert is also absent.",
+              "Called when a prompt is highlighted. Without it, rows insert directly when onInsert is supplied and are non-interactive otherwise.",
           },
           {
             name: "onInsert",
             type: "(id: string) => void",
             description:
-              "Called on double click to drop the prompt into the composer. Insertion is enabled only when this is supplied.",
+              "Called on double click or Enter with onSelect; without onSelect, called on one pointer or keyboard activation.",
           },
           {
             name: "className",

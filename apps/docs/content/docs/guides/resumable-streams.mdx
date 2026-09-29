@@ -82,7 +82,7 @@ export async function GET(
 }
 ```
 
-The context exposes two more verbs: `ctx.status(streamId)` returns `"streaming" | "done" | "error" | "missing"`, and `ctx.delete(streamId)` removes all persisted state for a stream and terminates active readers. The remaining options on `createResumableStreamContext` (`onAcquire`, `onAppend`, `onFinalize`, `onError`) are observability hooks covered in [Resumable Stream Deployment](/docs/guides/resumable-stream-deployment).
+The context has two more methods: `ctx.status(streamId)` returns `"streaming" | "done" | "error" | "missing"`, and `ctx.delete(streamId)` removes all persisted state for a stream and terminates active readers. The remaining options on `createResumableStreamContext` (`onAcquire`, `onAppend`, `onFinalize`, `onError`) are observability hooks covered in [Resumable Stream Deployment](/docs/guides/resumable-stream-deployment).
 
 ## Client side: native integration
 
@@ -133,7 +133,13 @@ export default function Page() {
 
 With `canResume: true`, errors other than 204/404 retain the checkpoint. If a custom endpoint reports a terminal failure with another status, clear that thread's checkpoint in `onResumeError` using `storage.clear(threadId)`; otherwise Resume and reloads keep retrying it.
 
-`createResumableSessionStorage` returns a `ResumableClientStorage` backed by `window.sessionStorage`. Pass `{ key }` to namespace per route or chat surface; `key` also accepts a getter that is read lazily on every access, so you can derive it from the active thread's identity (see [Multiple threads](#multiple-threads)). While the getter returns `undefined`, reads report no pending stream and writes are dropped. Reuse one storage instance per key, because separate instances do not synchronize their in-memory caches. The persisted entry survives reloads, while in-memory ownership prevents one mounted thread from attaching to another thread's pending stream. An idle follower that learns a stream id from its backend can call `storage.setStreamId(streamId, threadId)` after the corresponding message exists in local history; the runtime attaches when that thread is current, without requiring a remount. The built-in storage holds one pending stream id per key; the [Multiple threads](#multiple-threads) pattern gives each thread its own key, so several threads stay resumable at once. A custom `ResumableClientStorage` can instead key its records by the optional `threadId` arguments and implement `subscribe(listener, threadId)` for post-mount updates, or replace the storage methods entirely. If you are running on a transport that already wraps `fetch` or `prepareReconnectToStreamRequest`, the `resumable` option composes with your existing handlers.
+`createResumableSessionStorage` returns a `ResumableClientStorage` backed by `window.sessionStorage`. Pass `{ key }` to namespace per route or chat surface; `key` also accepts a getter that is read lazily on every access, so you can derive it from the active thread's identity (see [Multiple threads](#multiple-threads)). While the getter returns `undefined`, reads report no pending stream and writes are dropped. Reuse one storage instance per key, because separate instances do not synchronize their in-memory caches. The persisted entry survives reloads, while in-memory ownership prevents one mounted thread from attaching to another thread's pending stream.
+
+The built-in storage holds one pending stream id per key; the [Multiple threads](#multiple-threads) pattern gives each thread its own key, so several threads stay resumable at once. A custom `ResumableClientStorage` can instead key its records by the optional `threadId` arguments and implement `subscribe(listener, threadId)` for post-mount updates.
+
+An idle follower that learns a stream id from its backend can call `storage.setStreamId(streamId, threadId)` after the corresponding message exists in local history. The runtime attaches when that thread is current, without a remount.
+
+If your transport already wraps `fetch` or `prepareReconnectToStreamRequest`, the `resumable` option composes with your existing handlers.
 
 The default finish detector scans the SSE body for the AI SDK `"type":"finish"` marker. Override `isFinishEvent` on the `resumable` option when you ship a custom encoder. Without a matching finish event, storage retains the stream ID after an otherwise completed response, so the composer can continue offering a stale Resume action.
 
@@ -162,7 +168,7 @@ hook to expose the same action.
 
 ### Multiple threads
 
-The snippet above stores the pending stream id under one `sessionStorage` key, which is correct for a single chat surface. Under a thread list runtime (`useRemoteThreadListRuntime`, which `useChatRuntime` wraps) with more than one alive thread, a single shared key is written and cleared by whichever thread acts last: switch threads while a response is in flight and the response header writes its stream id to the shared key, which the thread you switched to reads on mount and resumes — replaying the other conversation's stream into this one. An unscoped clear when a stream finishes can also drop another thread's pending id. And after a reload, a pending id under the shared key is claimed by whichever thread is main at mount, which with a thread list is a fresh empty thread rather than the one that started the stream.
+The snippet above stores the pending stream id under one `sessionStorage` key, which is correct for a single chat surface. Under a thread list runtime (`useRemoteThreadListRuntime`, which `useChatRuntime` wraps) with more than one alive thread, a single shared key is written and cleared by whichever thread acts last. If you switch threads while a response is in flight, the response header writes its stream id to the shared key, and the thread you switched to reads that key on mount and replays the other conversation's stream. An unscoped clear when a stream finishes can also drop another thread's pending id. After a reload, a pending id under the shared key is claimed by whichever thread is main at mount, which with a thread list is a fresh empty thread rather than the one that started the stream.
 
 Scope the key to the thread, and construct the transport and storage per thread inside the per-thread runtime hook rather than once at module level. Derive the key from the thread's identity with a getter so it is read lazily on every access:
 
@@ -235,7 +241,7 @@ Key by `remoteId ?? id` under a recognizable prefix, read lazily. A brand-new th
 
 The core package ships `createInMemoryResumableStreamStore` for development and tests. State lives in a process-local `Map`, so it does not survive a server restart. Useful options include `defaultTtlMs`, `maxChunkBytes`, `maxEntriesPerStream`, `maxStreams`, and `gcIntervalMs` for periodic eviction.
 
-For production, use one of the optional Redis adapters via the `assistant-stream/resumable/redis` (node-redis v5) or `assistant-stream/resumable/ioredis` sub-paths. Both adapters store chunk values as binary and accept the same `keyPrefix`, `defaultTtlMs`, `pollIntervalMs`, and `maxChunkBytes` options. Cluster routing works because each stream's keys share a `{streamId}` hash tag. In the bundled adapters, appends, finalization, and deletion run as server-side scripts so a metadata change between a mutation's read and write prevents that stale mutation from affecting the replacement generation. The endpoint must allow `EVALSHA` and `EVAL`; a Redis-compatible service with scripting disabled needs a custom `ResumableStreamStore` instead.
+For production, use one of the optional Redis adapters via the `assistant-stream/resumable/redis` (node-redis v5) or `assistant-stream/resumable/ioredis` sub-paths. Both adapters store chunk values as binary and accept the same `keyPrefix`, `defaultTtlMs`, `pollIntervalMs`, and `maxChunkBytes` options. Cluster routing works because each stream's keys share a `{streamId}` hash tag. In the bundled adapters, appends, finalization, and deletion run as server-side scripts that compare the stream's metadata before they write, so a stale producer cannot change a stream that was reacquired under the same id. The endpoint must allow `EVALSHA` and `EVAL`; a Redis-compatible service with scripting disabled needs a custom `ResumableStreamStore` instead.
 
 ```ts title="/lib/resumable-context.ts"
 import {
@@ -271,11 +277,11 @@ For Postgres, Cloudflare Durable Objects, Upstash REST, or any other backend, im
 - **Auth.** The resume route in the snippets above will serve any caller that knows the stream id. Bind `streamId` to the requesting user at acquire time and verify the binding inside the resume handler. Treat the id as opaque, not as a credential; it leaks via response headers, `sessionStorage`, browser history, and access logs.
 - **`waitUntil` on serverless.** On Vercel and Cloudflare the request handler is killed once the response returns, which interrupts the producer task. Pass `after` from `next/server` (or your platform's `ctx.waitUntil`) when constructing the context so the task survives past the response: `createResumableStreamContext({ store, waitUntil: after })`.
 - **TTL.** Streams expire 24 hours after the last write by default. Configure with `defaultTtlMs` on the store, or override per deployment via `ttlMs` on the context. Match TTLs across the store, any owner-binding key, and any signed cookie that references a `streamId`.
-- **Stream id format.** The Redis adapters validate `streamId` against `/^[A-Za-z0-9_.:-]{1,256}$/` to keep keys well-formed. UUIDv4 is fine.
+- **Stream id format.** The built-in stores validate `streamId` against `/^[A-Za-z0-9_.:-]{1,256}$/` to keep keys well-formed. UUIDv4 is fine.
 
 For the full treatment of authorization, multi-tenant key prefixes, observability hooks, resource limits, and incident response, see [Resumable Stream Deployment](/docs/guides/resumable-stream-deployment).
 
-A new `ResumableStreamError` class is exported from `assistant-stream/resumable` with codes `"missing" | "exists" | "finalized" | "invalid-id"`; catch it in the resume route to distinguish "stream gone" from other failures.
+`assistant-stream/resumable` exports `ResumableStreamError` with codes `"missing" | "exists" | "finalized" | "invalid-id"`. Catch it in the resume route to tell a missing stream apart from other failures.
 
 ## Helpers for `AssistantStreamController` callbacks
 
@@ -308,7 +314,7 @@ Both helpers default to the data-stream encoder; pass `encoder: () => new Assist
 
 ## Example app
 
-[`examples/with-resumable-stream`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-resumable-stream) is a runnable Next.js app that uses `useChat`, the `resumable` transport option, and `useChatRuntime`. It falls back to a built-in mock when `OPENAI_API_KEY` is unset, and switches the store from in-memory to Redis when `REDIS_URL` is set.
+[`examples/with-resumable-stream`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-resumable-stream) is a runnable Next.js app that uses the `resumable` transport option with `useChatRuntime`. It falls back to a built-in mock when `OPENAI_API_KEY` is unset, and switches the store from in-memory to Redis when `REDIS_URL` is set.
 
 The example demonstrates automatic reconnection after a reload. It does not enable manual Resume in the composer.
 

@@ -18,6 +18,9 @@ type A2uiCreateSurfaceOperation = {
   readonly version: "v0.9";
   readonly createSurface: A2uiCreateSurfaceV09Payload;
 } | {
+  readonly version: "v0.9.1";
+  readonly createSurface: A2uiCreateSurfaceV09Payload;
+} | {
   readonly version: "v1.0";
   readonly createSurface: A2uiCreateSurfaceV10Payload;
 };
@@ -103,7 +106,7 @@ interface A2uiUpdateDataModelPayload {
   readonly data?: unknown;
 }
 
-type A2uiVersion = "v0.9" | "v1.0";
+type A2uiVersion = "v0.9" | "v0.9.1" | "v1.0";
 
 declare const ALERT_TONES: readonly [
   "info",
@@ -302,7 +305,10 @@ type CompleteAttachmentStatus = {
 interface ComponentNode extends Record<string, unknown> {
   readonly id: string;
   readonly component: string;
-  readonly children?: readonly string[] | A2uiTemplateChildren;
+  readonly children?: readonly string[] | {
+    readonly componentId: string;
+    readonly path: string;
+  } | A2uiTemplateChildren;
 }
 
 type DataMessagePart<T = any> = {
@@ -670,6 +676,7 @@ type SlackActionElement = SlackButtonElement | SlackStaticSelectElement | SlackD
 
 interface SlackActionsBlock {
   readonly type: "actions";
+  readonly block_id?: string;
   readonly elements: readonly SlackActionElement[];
 }
 
@@ -771,6 +778,7 @@ interface SlackImageBlock {
 
 interface SlackInputBlock {
   readonly type: "input";
+  readonly block_id?: string;
   readonly label: SlackPlainText;
   readonly element: SlackPlainTextInputElement;
 }
@@ -1007,6 +1015,7 @@ interface TeamsInputDate {
 interface TeamsInputText {
   readonly type: "Input.Text";
   readonly id: string;
+  readonly style?: "password";
   readonly label?: string;
   readonly placeholder?: string;
   readonly value?: string;
@@ -1491,7 +1500,7 @@ declare function convertSurfaceToUISpec(surface: A2uiSurfaceState, options?: {
 
 declare function createActionRegistry(handlers: Readonly<Record<string, ActionHandler>>): ActionRegistry;
 
-declare function decodeBlockAction(action: unknown): Action | undefined;
+declare function decodeBlockAction(action: unknown, stateValues?: unknown): Action | undefined;
 
 declare function decodeSubmitData(value: unknown): Action | undefined;
 

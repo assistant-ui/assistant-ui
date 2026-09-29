@@ -30,7 +30,7 @@ afterEach(() => {
 
 describe("catalog registry", () => {
   it("keeps only the main installer when the shop is closed", async () => {
-    vi.stubEnv("NEXT_PUBLIC_SHOP_ENABLED", "");
+    vi.stubEnv("NEXT_PUBLIC_CHECKOUT_URL", "");
     vi.stubEnv("NODE_ENV", "production");
     vi.resetModules();
     const closed = await import("./index");

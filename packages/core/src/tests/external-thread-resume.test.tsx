@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, cleanup, render, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { AuiProvider, useAui } from "@assistant-ui/store";
 import { ExternalThread } from "../store/clients/external-thread";
 import { useComposerResume } from "../react/primitive-hooks/useComposerResume";
@@ -11,6 +11,8 @@ import { AssistantRuntimeProvider } from "../react/AssistantRuntimeProvider";
 import { AssistantRuntimeImpl } from "../runtime/api/assistant-runtime";
 import { ExternalStoreRuntimeCore } from "../runtimes/external-store/external-store-runtime-core";
 import { getThreadRuntimeCoreIsRunning } from "../runtime/api/thread-runtime";
+import type { ThreadRuntimeState } from "../runtime/api/thread-runtime";
+import type { ThreadState } from "../store/scopes/thread";
 
 let action!: ReturnType<typeof useComposerResume>;
 let aui!: ReturnType<typeof useAui>;
@@ -34,6 +36,13 @@ const App = ({
 afterEach(cleanup);
 
 describe("checkpoint resume", () => {
+  it("accepts thread state from clients without checkpoint support", () => {
+    expectTypeOf<Omit<ThreadState, "canResume">>().toExtend<ThreadState>();
+    expectTypeOf<
+      Omit<ThreadRuntimeState, "canResume">
+    >().toExtend<ThreadRuntimeState>();
+  });
+
   it.each([undefined, false])(
     "preserves synchronous repeated ExternalThread calls without opt-in: %s",
     (canResume) => {

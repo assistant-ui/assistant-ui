@@ -35,7 +35,7 @@ import type {
 import type { ThreadListItemRuntimeState } from "./bindings";
 import type { AppendMessage, ThreadMessage } from "../../types/message";
 import type { Unsubscribe } from "../../types/unsubscribe";
-import { isMessageNotSentError } from "../../types/error";
+import { reportRunFailure } from "../../utils/report-run-failure";
 import type { RunConfig } from "../../types/message";
 import { EventSubscriptionSubject } from "../../subscribable/subscribable";
 import { symbolInnerMessage } from "../utils/external-store-message";
@@ -167,7 +167,7 @@ export type ThreadRuntimeState = {
    */
   readonly isRunning: boolean;
   /** Whether the adapter can resume the current interrupted run from its checkpoint. */
-  readonly canResume: boolean;
+  readonly canResume?: boolean;
 
   /**
    * The capabilities of the thread, such as whether the thread supports editing, branch switching, etc.
@@ -444,17 +444,14 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
   }
 
   public append(message: CreateAppendMessage) {
-    const task = this._threadBinding
-      .getState()
-      .append(
-        toAppendMessage(this._threadBinding.getState().messages, message),
-      );
-    // An undispatched send is reported to the composer, so it is a control
-    // signal rather than a failure to surface; every other rejection keeps
-    // reaching the host untouched.
-    void Promise.resolve(task).catch((error) => {
-      if (!isMessageNotSentError(error)) throw error;
-    });
+    reportRunFailure(
+      "Message append",
+      this._threadBinding
+        .getState()
+        .append(
+          toAppendMessage(this._threadBinding.getState().messages, message),
+        ),
+    );
   }
 
   public deleteMessage(messageId: string) {

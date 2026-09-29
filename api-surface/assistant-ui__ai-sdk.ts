@@ -19,6 +19,7 @@ type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = Externa
   }) | undefined;
   toCreateMessage?: CustomToCreateMessageFunction;
   unstable_messageRepositoryInstance?: MessageRepository | undefined;
+  unstable_hostApprovalOwner?: object | undefined;
   cancelPendingToolCallsOnSend?: boolean | undefined;
   onResume?: ExternalStoreAdapter["onResume"];
   canResume?: ExternalStoreAdapter["canResume"];
@@ -1961,7 +1962,7 @@ type ThreadRuntimeState = {
   readonly isDisabled: boolean;
   readonly isLoading: boolean;
   readonly isRunning: boolean;
-  readonly canResume: boolean;
+  readonly canResume?: boolean;
   readonly capabilities: RuntimeCapabilities;
   readonly messages: readonly ThreadMessage[];
   readonly state: ReadonlyJSONValue;

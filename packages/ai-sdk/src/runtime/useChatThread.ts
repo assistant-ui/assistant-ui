@@ -397,6 +397,8 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(messageRepositoryInstance && {
       unstable_messageRepositoryInstance: messageRepositoryInstance,
     }),
+    // Host approval answers must survive runtime remounts with the same Chat.
+    unstable_hostApprovalOwner: externalChat ?? ownedChat,
     ...(((canResume && resumableStorage) || unstable_onBranchChange) && {
       unstable_onBranchChange: handleBranchChange,
     }),

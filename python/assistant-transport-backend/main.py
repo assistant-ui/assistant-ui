@@ -34,6 +34,7 @@ class MessagePart(BaseModel):
 class UserMessage(BaseModel):
     """A user message."""
     role: str = Field(default="user", description="Message role")
+    id: str | None = Field(None, description="Client message ID")
     parts: List[MessagePart] = Field(..., description="Message parts")
 
 

@@ -28,6 +28,84 @@ const UNDERSCORE = 95;
 const isSpace = (c: number) => c === SPACE || c === TAB || c === CR;
 const isDigit = (c: number) => c >= 48 && c <= 57;
 
+const isComparisonSpace = (c: number) =>
+  c === SPACE ||
+  c === TAB ||
+  c === 0x0b ||
+  c === 0x0c ||
+  c === 0xa0 ||
+  c === 0x1680 ||
+  (c >= 0x2000 && c <= 0x200a) ||
+  c === 0x2028 ||
+  c === 0x2029 ||
+  c === 0x202f ||
+  c === 0x205f ||
+  c === 0x3000 ||
+  c === 0xfeff;
+
+function matchComparisonOperator(
+  text: string,
+  from: number,
+): { operator: number; end: number } | undefined {
+  let i = from;
+  while (isDigit(text.charCodeAt(i))) i += 1;
+  const marker = text.charCodeAt(i);
+  if (
+    i === from
+      ? marker !== DASH && marker !== ASTERISK && marker !== PLUS
+      : marker !== DOT && marker !== CLOSE_PAREN
+  ) {
+    return;
+  }
+  i += 1;
+  const spaceStart = i;
+  while (text.charCodeAt(i) === SPACE) i += 1;
+  if (i === spaceStart || text.charCodeAt(i) !== GT) return;
+  const operator = i;
+  i += 1;
+  if (text.charCodeAt(i) === EQUALS) i += 1;
+  while (isComparisonSpace(text.charCodeAt(i))) i += 1;
+  if (text.charCodeAt(i) === DOLLAR) i += 1;
+  return isDigit(text.charCodeAt(i)) ? { operator, end: i + 1 } : undefined;
+}
+
+function escapeComparisonOperators(text: string): string {
+  let out = "";
+  let copied = 0;
+  let lineStart = true;
+  let inlineCode = 0;
+  let fencedCode = false;
+  for (let i = 0; i < text.length; i += 1) {
+    if (lineStart && !inlineCode && !fencedCode) {
+      while (isComparisonSpace(text.charCodeAt(i))) i += 1;
+      const match = matchComparisonOperator(text, i);
+      if (match) {
+        out += text.slice(copied, match.operator) + "\\";
+        copied = match.operator;
+        i = match.end - 1;
+      }
+    }
+    const c = text.charCodeAt(i);
+    if (c === 92 && text.charCodeAt(i + 1) === BACKTICK) {
+      i += 1;
+    } else if (c === BACKTICK) {
+      let end = i + 1;
+      while (text.charCodeAt(end) === BACKTICK) end += 1;
+      const run = end - i;
+      if (inlineCode) {
+        if (run === inlineCode) inlineCode = 0;
+      } else if (lineStart && run >= 3) {
+        fencedCode = !fencedCode;
+      } else if (!fencedCode) {
+        inlineCode = run;
+      }
+      i = end - 1;
+    }
+    lineStart = c === 10 || c === CR || c === 0x2028 || c === 0x2029;
+  }
+  return out + text.slice(copied);
+}
+
 function includesChar(
   text: string,
   code: number,
@@ -87,24 +165,96 @@ function listMarkerEnd(text: string, from: number, lineEnd: number): number {
   return !isMarker || next === end + 1 ? from : next;
 }
 
-function skipListMarkers(text: string, from: number, lineEnd: number): number {
-  let content = from;
-  for (;;) {
-    const next = listMarkerEnd(text, content, lineEnd);
-    if (next === content) return content;
-    content = next;
-  }
-}
-
-function columns(text: string, from: number, to: number): number {
-  let column = 0;
+function columns(text: string, from: number, to: number, column = 0): number {
   for (let i = from; i < to; i += 1) {
     column += text.charCodeAt(i) === TAB ? 4 - (column % 4) : 1;
   }
   return column;
 }
 
-const HTML_CLOSERS = ["", "", "-->", "?>", ">", "]]>"];
+function skipListMarkers(
+  text: string,
+  from: number,
+  lineEnd: number,
+  itemIndent: number,
+  itemQuoteDepth: number,
+  quoteLimit = Infinity,
+  lists = true,
+) {
+  let blockStart = from;
+  let column = 0;
+  let contentStart = from;
+  let contentColumn = 0;
+  let quoteColumn = 0;
+  let quoteDepth = 0;
+  let inItem = false;
+  let checkedItem = false;
+  let marker = -1;
+  let markerIndent = 0;
+  let markerQuoteDepth = 0;
+  let blockItemIndent = 0;
+  let listShallow = false;
+  let shallow = true;
+  while (blockStart < lineEnd) {
+    const c = text.charCodeAt(blockStart);
+    if (isSpace(c)) {
+      column += c === TAB ? 4 - (column % 4) : 1;
+      blockStart += 1;
+      continue;
+    }
+    if (!checkedItem && itemIndent && quoteDepth === itemQuoteDepth) {
+      inItem = column - contentColumn >= itemIndent;
+      if (inItem) contentColumn += itemIndent;
+      checkedItem = true;
+    }
+    if (c === GT && quoteDepth < quoteLimit) {
+      if (quoteLimit !== Infinity && column - contentColumn > 3) break;
+      shallow &&= column - contentColumn < 4;
+      quoteDepth += 1;
+      blockStart += 1;
+      column += 1;
+      const next = text.charCodeAt(blockStart);
+      const space = next === SPACE || next === TAB ? 1 : 0;
+      contentStart = blockStart + space;
+      contentColumn = quoteColumn = column + space;
+      continue;
+    }
+    if (!lists || marker !== -1) break;
+    let next = listMarkerEnd(text, blockStart, lineEnd);
+    if (next === blockStart) break;
+    marker = blockStart;
+    markerIndent = column - quoteColumn;
+    markerQuoteDepth = quoteDepth;
+    listShallow = shallow && column - contentColumn < 4;
+    shallow = listShallow;
+    do {
+      let paddingStart = blockStart;
+      while (isDigit(text.charCodeAt(paddingStart))) paddingStart += 1;
+      paddingStart += 1;
+      const paddingColumn = column + paddingStart - blockStart;
+      column = columns(text, blockStart, next, column);
+      contentColumn = column - paddingColumn > 4 ? paddingColumn + 1 : column;
+      blockItemIndent = contentColumn - quoteColumn;
+      blockStart = next;
+      if (column !== contentColumn) break;
+      next = listMarkerEnd(text, blockStart, lineEnd);
+    } while (next !== blockStart);
+  }
+  return {
+    i: marker === -1 ? blockStart : marker,
+    blockStart,
+    contentStart,
+    quoteDepth,
+    inItem,
+    blockItemIndent,
+    listShallow,
+    markerIndent,
+    markerQuoteDepth,
+    shallow: shallow && column - contentColumn < 4,
+  };
+}
+
+const HTML_CLOSERS = ["", "", "-->", "?>", ">"];
 const RAW_END_TAGS = htmlRawNames.map((name) => `</${name}>`);
 
 const isAsciiAlpha = (c: number) =>
@@ -286,6 +436,15 @@ function htmlBlockEnds(
   from: number,
   lineEnd: number,
 ): boolean {
+  if (kind === 5) {
+    let brackets = 0;
+    for (let i = from; i < lineEnd; i += 1) {
+      const c = text.charCodeAt(i);
+      if (c === GT && brackets > 0 && brackets % 2 === 0) return true;
+      brackets = c === 93 ? brackets + 1 : 0;
+    }
+    return false;
+  }
   const line = text.slice(from, lineEnd);
   if (kind !== 1) return line.includes(HTML_CLOSERS[kind]!);
   const lower = line.toLowerCase();
@@ -304,7 +463,7 @@ type BlockScan = {
  *
  * A fence opens at any indentation, since a marker indented four or more columns is either a fence nested in a list item or an indented code block. It closes on a marker at its opener's blockquote depth indented at most three characters past the opener, counting a tab as one, as `fenceEnd` in preprocess reads them, so a deeper marker stays body as CommonMark reads it. A fence or `$$` block also opens after the list markers of its line, and then ends with that list item at the first line indented fewer columns than the item's content, with a tab stop every four columns as CommonMark sets them. A block opened in a blockquote ends with it, at the first line carrying fewer quote markers than its opener, a blank one included, while a marker past the opener's depth is body, so a list item's content column is measured up to the first such marker and a deeper marker closes nothing. A bare `>` line is blank inside a blockquote but opens a new block after a blank line.
  *
- * An HTML block opens at a line whose content, indented less than four columns past quote markers themselves indented less than four, starts one of the seven kinds micromark reads, and its body is raw, so a fence or math marker inside it opens nothing. A `pre`, `script`, `style` or `textarea` tag runs to the first line holding any of their end tags, a comment, processing instruction, declaration or CDATA section to the first line holding its closer, and a known block tag or any other complete tag alone on its line to the next blank line at its blockquote depth. A block opened after list markers ends with that item like a fence, and one opened on an indented line without them ends at the first line indented less, which stands in for the item it continues. A lone complete tag of any other name cannot interrupt a paragraph, so it opens a block only after a blank line, a block's last line, a heading, a thematic break, also one opening a list item, or a setext underline in the same blockquote, or where its line starts a blockquote or a list item, and list markers of an ordered item numbered other than 1 continue a paragraph unless they sit left of the content column of the list item that paragraph started in, so nothing opens after them there. The scan reads a table row or an indented code line as paragraph text, so a tag line right after one stays prose.
+ * An HTML block opens at a line whose content, indented less than four columns past quote markers themselves indented less than four, starts one of the seven kinds micromark reads, and its body is raw, so a fence or math marker inside it opens nothing. A `pre`, `script`, `style` or `textarea` tag runs to the first line holding any of their end tags, a comment, processing instruction, declaration or CDATA section to the first line holding its closer, and a known block tag or any other complete tag alone on its line to the next blank line at its blockquote depth. A block opened after list markers ends with that item like a fence. A lone complete tag of any other name cannot interrupt a paragraph, so it opens a block only after a blank line, a block's last line, a heading, a thematic break, also one opening a list item, or a setext underline in the same blockquote, or where its line starts a blockquote or a list item, and list markers of an ordered item numbered other than 1 continue a paragraph unless they sit left of the content column of the list item that paragraph started in, so nothing opens after them there. The scan reads a table row or an indented code line as paragraph text, so a tag line right after one stays prose.
  *
  * Dollars follow remark-math. A run of two or more that starts the content of a line opens a `$$` block when no other dollar follows it on that line, and the block closes like a fence, on a line holding only a dollar run at least as long. Its body is raw, so a fence marker inside it opens nothing. Any other such run opens inline math, which is protected up to the next run of exactly its length on the same line, even one after a backslash, since math reads a backslash as content rather than an escape. Inline math that starts anywhere else or closes on a later line stays in the prose, because pairing it takes the paragraph structure this scan does not track.
  */
@@ -326,9 +485,12 @@ function scanBlocks(text: string): BlockScan {
   let htmlStart = 0;
   let htmlQuoteDepth = 0;
   let itemIndent = 0;
+  let itemQuoteDepth = 0;
+  let listIndent = 0;
+  let listQuoteDepth = 0;
   let inParagraph = false;
   let paragraphItemIndent = 0;
-  let lastQuoteDepth = 0;
+  let paragraphQuoteDepth = 0;
   let boundary = 0;
   let pending = -1;
   const protectedRanges: number[] = [];
@@ -344,34 +506,19 @@ function scanBlocks(text: string): BlockScan {
         : inFence
           ? fenceQuoteDepth
           : 0;
-    let i = lineStart;
-    let quoteDepth = 0;
-    let quoteStart = lineStart;
-    let blockContentStart = lineStart;
-    let contentStart = lineStart;
-    let indentedMarker = false;
-    while (i < lineEnd) {
-      const c = text.charCodeAt(i);
-      if (c === GT) {
-        if (columns(text, contentStart, i) > 3) indentedMarker = true;
-        if (quoteDepth === blockQuoteDepth) quoteStart = i;
-        quoteDepth += 1;
-        contentStart = text.charCodeAt(i + 1) === SPACE ? i + 2 : i + 1;
-        if (quoteDepth === blockQuoteDepth) blockContentStart = contentStart;
-      } else if (!isSpace(c)) {
-        break;
-      }
-      i += 1;
-    }
-
-    const first = i < lineEnd ? text.charCodeAt(i) : -1;
+    let prefix = skipListMarkers(
+      text,
+      lineStart,
+      lineEnd,
+      inFence || inMath ? itemIndent : listIndent,
+      inFence || inMath ? itemQuoteDepth : listQuoteDepth,
+      inHtml ? htmlQuoteDepth : Infinity,
+      !inHtml && !inFence && !inMath,
+    );
+    const blank = prefix.blockStart === lineEnd;
     const leavesQuote =
-      quoteDepth < blockQuoteDepth && (first !== -1 || lineEnd < n);
-    const leavesItem =
-      itemIndent !== 0 &&
-      (quoteDepth > blockQuoteDepth
-        ? columns(text, blockContentStart, quoteStart) < itemIndent
-        : first !== -1 && columns(text, contentStart, i) < itemIndent);
+      prefix.quoteDepth < blockQuoteDepth && (!blank || lineEnd < n);
+    const leavesItem = itemIndent !== 0 && !blank && !prefix.inItem;
 
     if ((inFence || inMath || inHtml) && (leavesQuote || leavesItem)) {
       protectedRanges.push(
@@ -383,34 +530,63 @@ function scanBlocks(text: string): BlockScan {
       inHtml = false;
       boundary = lineStart;
       pending = -1;
+      prefix = skipListMarkers(
+        text,
+        lineStart,
+        lineEnd,
+        listIndent,
+        listQuoteDepth,
+      );
     }
+
+    const {
+      i,
+      blockStart,
+      contentStart,
+      quoteDepth,
+      blockItemIndent,
+      shallow,
+    } = prefix;
+    const first = i < lineEnd ? text.charCodeAt(i) : -1;
 
     let closesBlock = false;
     if (inHtml) {
       if (htmlKind > 5) {
-        if (lineEnd < n && onlyWhitespace(text, blockContentStart, lineEnd)) {
+        if (lineEnd < n && onlyWhitespace(text, contentStart, lineEnd)) {
           protectedRanges.push(htmlStart, lineStart - 1);
           inHtml = false;
         }
-      } else if (htmlBlockEnds(text, htmlKind, blockContentStart, lineEnd)) {
+      } else if (htmlBlockEnds(text, htmlKind, contentStart, lineEnd)) {
         protectedRanges.push(htmlStart, lineEnd);
         inHtml = false;
         closesBlock = true;
       }
     }
 
-    const blockStart =
-      inFence || inMath || inHtml ? i : skipListMarkers(text, i, lineEnd);
-    const blockItemIndent =
-      blockStart === i ? 0 : columns(text, contentStart, blockStart);
     const blockFirst = blockStart < lineEnd ? text.charCodeAt(blockStart) : -1;
-    const shallow = !indentedMarker && columns(text, contentStart, i) < 4;
     const markersInProse: boolean =
       blockStart !== i &&
       inParagraph &&
-      columns(text, contentStart, i) >= paragraphItemIndent &&
+      prefix.markerQuoteDepth === paragraphQuoteDepth &&
+      prefix.markerIndent >= paragraphItemIndent &&
       isDigit(first) &&
       (first !== DIGIT_ONE || isDigit(text.charCodeAt(i + 1)));
+
+    if (!inFence && !inMath && !inHtml) {
+      if (
+        prefix.listShallow &&
+        !markersInProse &&
+        !isRuleLine(text, i, lineEnd, false)
+      ) {
+        listIndent = blockItemIndent;
+        listQuoteDepth = prefix.markerQuoteDepth;
+      } else if (
+        !prefix.inItem &&
+        (first !== -1 || (lineEnd < n && quoteDepth < listQuoteDepth))
+      ) {
+        listIndent = 0;
+      }
+    }
 
     if (
       !closesBlock &&
@@ -434,6 +610,7 @@ function scanBlocks(text: string): BlockScan {
           fenceIndent = blockStart - contentStart;
           fenceQuoteDepth = quoteDepth;
           itemIndent = blockItemIndent;
+          itemQuoteDepth = prefix.markerQuoteDepth;
         } else if (
           blockFirst === fenceChar &&
           quoteDepth === fenceQuoteDepth &&
@@ -461,7 +638,7 @@ function scanBlocks(text: string): BlockScan {
         text,
         blockStart,
         lineEnd,
-        !inParagraph || quoteDepth > lastQuoteDepth || blockStart !== i,
+        !inParagraph || quoteDepth > paragraphQuoteDepth || blockStart !== i,
       );
       if (
         htmlKind !== 0 &&
@@ -474,8 +651,7 @@ function scanBlocks(text: string): BlockScan {
         inHtml = true;
         htmlStart = lineStart;
         htmlQuoteDepth = quoteDepth;
-        itemIndent =
-          blockStart === i ? columns(text, contentStart, i) : blockItemIndent;
+        itemIndent = listIndent;
       }
     }
 
@@ -503,6 +679,7 @@ function scanBlocks(text: string): BlockScan {
           mathIndent = blockStart - contentStart;
           mathQuoteDepth = quoteDepth;
           itemIndent = blockItemIndent;
+          itemQuoteDepth = prefix.markerQuoteDepth;
         } else if (dollars >= 2) {
           const end = sizedDollarRunEnd(text, openEnd, lineEnd, dollars);
           if (end !== -1) protectedRanges.push(lineStart, end);
@@ -538,21 +715,22 @@ function scanBlocks(text: string): BlockScan {
             text,
             i,
             lineEnd,
-            inParagraph && quoteDepth === lastQuoteDepth,
+            inParagraph && quoteDepth === paragraphQuoteDepth,
           ) ||
           (blockStart !== i &&
             !markersInProse &&
             isRuleLine(text, listMarkerEnd(text, i, lineEnd), lineEnd, false)))
       );
     if (inParagraph) {
-      paragraphItemIndent =
-        blockStart !== i && !markersInProse
-          ? blockItemIndent
-          : continued
-            ? paragraphItemIndent
-            : 0;
+      if (
+        !continued ||
+        quoteDepth > paragraphQuoteDepth ||
+        (blockItemIndent && !markersInProse)
+      ) {
+        paragraphItemIndent = quoteDepth === listQuoteDepth ? listIndent : 0;
+        paragraphQuoteDepth = quoteDepth;
+      }
     }
-    lastQuoteDepth = quoteDepth;
     lineStart = lineEnd + 1;
   }
 
@@ -616,6 +794,20 @@ export function tailBoundedRemend(
   text: string,
   options?: RemendOptions,
 ): string {
+  if (options?.comparisonOperators !== false) {
+    options = {
+      ...options,
+      comparisonOperators: false,
+      handlers: [
+        {
+          name: "comparisonOperators",
+          priority: 5,
+          handle: escapeComparisonOperators,
+        },
+        ...(options?.handlers ?? []),
+      ],
+    };
+  }
   const { boundary, protectedRanges, openStart, katexCloses } =
     scanBlocks(text);
   if (boundary <= 0 && protectedRanges.length === 0 && openStart === -1) {
