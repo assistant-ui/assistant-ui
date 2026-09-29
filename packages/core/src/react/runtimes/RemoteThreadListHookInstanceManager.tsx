@@ -255,7 +255,12 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
       if (!runtime) {
         this._setRunning(instance, false);
       } else {
-        this._setRunning(instance, getThreadRuntimeCoreIsRunning(runtime));
+        // A publish can run inside the thread resource's render, where a synchronous notify would re-enter store consumers mid-render.
+        const isRunning = getThreadRuntimeCoreIsRunning(runtime);
+        if (instance.isRunning !== isRunning) {
+          instance.isRunning = isRunning;
+          queueMicrotask(() => notifySubscribers(this.runningSubscribers));
+        }
         const unsubscribers = [
           runtime.subscribe(() => {
             this._setRunning(instance, getThreadRuntimeCoreIsRunning(runtime));

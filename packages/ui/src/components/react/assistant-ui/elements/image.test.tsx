@@ -8,7 +8,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ImageMessagePart } from "@assistant-ui/react";
 
-import { ImageActions, ImagePreview, ImageZoom } from "./image";
+import { ImageActions, ImagePreview, ImageSource, ImageZoom } from "./image";
 
 class FakeClipboardItem {
   constructor(public readonly items: Record<string, Blob>) {}
@@ -104,6 +104,51 @@ afterEach(() => {
 });
 
 describe("ImagePreview loading states", () => {
+  it("keeps the default auto framing path", () => {
+    const { container } = render(<ImagePreview src="image.png" />);
+
+    expect(
+      container.querySelector('[data-slot="image-preview"]')?.className,
+    ).toBe("relative min-h-32");
+    expect(screen.getByRole("img").className).toContain(
+      "block h-auto w-full object-contain",
+    );
+  });
+
+  it.each([
+    ["1:1", "aspect-square"],
+    ["4:3", "aspect-[4/3]"],
+    ["16:9", "aspect-video"],
+    ["9:16", "aspect-[9/16]"],
+  ] as const)("adds the %s ratio box class", (ratio, ratioClassName) => {
+    const { container } = render(
+      <ImagePreview src="image.png" ratio={ratio} />,
+    );
+
+    expect(
+      container.querySelector('[data-slot="image-preview"]')?.className,
+    ).toContain(ratioClassName);
+  });
+
+  it("fills a fixed ratio box with the selected fit", () => {
+    const { container } = render(
+      <ImagePreview src="image.png" ratio="16:9" fit="cover" />,
+    );
+
+    expect(screen.getByRole("img").className).toContain(
+      "block h-full w-full object-cover",
+    );
+    expect(
+      container.querySelector('[data-slot="image-preview-loading"]')?.className,
+    ).toContain("absolute inset-0");
+
+    fireEvent.error(screen.getByRole("img"));
+
+    expect(
+      container.querySelector('[data-slot="image-preview-error"]')?.className,
+    ).toContain("absolute inset-0");
+  });
+
   it("shows the error state when a failed image completed before hydration", async () => {
     setImageState(true, 0);
     render(<ImagePreview src="https://example.test/missing.png" />);
@@ -167,6 +212,57 @@ describe("ImagePreview loading states", () => {
       document.querySelector('[data-slot="image-preview-loading"]'),
     ).not.toBeNull();
     expect(screen.getByRole("img").className).toContain("invisible");
+  });
+});
+
+describe("ImageSource", () => {
+  it("links a source label with a safe URL", () => {
+    render(
+      <ImageSource label="Example reference" url="https://example.com/page" />,
+    );
+
+    const link = screen.getByRole("link", {
+      name: /Example reference.*opens in a new tab/,
+    });
+    expect(link.getAttribute("href")).toBe("https://example.com/page");
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+  });
+
+  it("renders a source label as text when its URL is unsafe", () => {
+    render(<ImageSource label="Example reference" url="javascript:alert(1)" />);
+
+    expect(screen.getByText("Example reference")).toBeTruthy();
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  it("shows an icon URL or an initial fallback", () => {
+    const { container, rerender } = render(
+      <ImageSource label="Example" iconUrl="https://example.com/favicon.png" />,
+    );
+
+    expect(
+      container.querySelector('[data-slot="image-source-icon"]'),
+    ).toBeTruthy();
+
+    rerender(<ImageSource label="Example" />);
+
+    expect(
+      container.querySelector('[data-slot="image-source-icon-fallback"]')
+        ?.textContent,
+    ).toBe("E");
+  });
+
+  it("uses the URL host when a source has no label", () => {
+    render(<ImageSource url="https://www.example.com/page" />);
+
+    expect(screen.getByText("example.com")).toBeTruthy();
+  });
+
+  it("renders nothing without a label or a displayable host", () => {
+    const { container } = render(<ImageSource url="javascript:alert(1)" />);
+
+    expect(container.innerHTML).toBe("");
   });
 });
 

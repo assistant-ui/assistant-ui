@@ -250,6 +250,7 @@ export class PiThreadController implements PiThreadControllerLike {
   private connectionRetainers = 0;
   private readonly optimisticUserMessages: OptimisticUserMessage[] = [];
   private unsubscribeFromEvents: (() => void) | null = null;
+  private eventSubscriptionGeneration = 0;
   private disconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private loadPromise: Promise<void> | null = null;
   private messageFlushScheduled = false;
@@ -334,24 +335,33 @@ export class PiThreadController implements PiThreadControllerLike {
   public dispose() {
     // React StrictMode can detach then resubscribe the same controller.
     this.clearDisconnectTimer();
-    this.unsubscribeFromEvents?.();
-    this.unsubscribeFromEvents = null;
     this.allListeners.clear();
     this.metadataListeners.clear();
     this.messageListeners.clear();
+    this.disconnectFromEvents();
   }
 
   private ensureEventSubscription(options?: { includeSnapshot?: boolean }) {
     this.clearDisconnectTimer();
     if (this.unsubscribeFromEvents) return;
+    const generation = ++this.eventSubscriptionGeneration;
     this.unsubscribeFromEvents = this.client.subscribe(
       this.threadId,
       (event: PiClientEvent) => {
+        if (generation !== this.eventSubscriptionGeneration) return;
         if (event.threadId !== this.threadId) return;
         this.dispatch(event);
       },
       options,
     );
+  }
+
+  private disconnectFromEvents() {
+    const unsubscribe = this.unsubscribeFromEvents;
+    if (!unsubscribe) return;
+    this.unsubscribeFromEvents = null;
+    this.eventSubscriptionGeneration += 1;
+    unsubscribe();
   }
 
   private hasConsumers(): boolean {
@@ -369,8 +379,7 @@ export class PiThreadController implements PiThreadControllerLike {
     this.disconnectTimer = setTimeout(() => {
       this.disconnectTimer = null;
       if (this.hasConsumers()) return;
-      this.unsubscribeFromEvents?.();
-      this.unsubscribeFromEvents = null;
+      this.disconnectFromEvents();
     }, 30_000);
   }
 

@@ -16,6 +16,7 @@ import type {
   ThreadMessageLike,
 } from "@assistant-ui/react";
 import { invokeUserCallback } from "@assistant-ui/core/internal";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import {
   useEffect,
   useEffectEvent,
@@ -41,6 +42,7 @@ import type { PiClient, PiThreadMetadata } from "../types";
 import { piExtras } from "./piExtras";
 import type { PiRuntimeExtrasInternal, PiRuntimeOptions } from "./runtimeTypes";
 import { PI_SDK } from "../sdkIdentity";
+import { disposeControllers } from "./disposeControllers";
 
 const EMPTY_THREAD_STATE = createPiThreadState("__pending__");
 const EMPTY_PROJECTED_MESSAGES: readonly ThreadMessageLike[] = [];
@@ -73,7 +75,7 @@ const createRegistry = (client: PiClient): PiControllerRegistry => {
     },
     dispose() {
       disposed = true;
-      for (const controller of controllers.values()) controller.dispose();
+      disposeControllers(controllers.values());
       // Controllers stay cached so a StrictMode cleanup/remount reuses them;
       // a real unmount drops this whole registry.
     },
@@ -261,7 +263,7 @@ const usePiThreadStore = (
   // run server-side inside `createThread`. The supervisor already holds a live
   // record for a running thread, so subscribing attaches to it; idle threads
   // never connect and the cold-read path stays cheap.
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     if (controller === NOOP_CONTROLLER) return;
     if (!isRunning) return;
     return controller.connect();
@@ -544,64 +546,86 @@ const mapThreadMetadata = (metadata: PiThreadMetadata) => ({
 
 export const usePiRuntime = (options: PiRuntimeOptions): AssistantRuntime => {
   const { client, cloud } = options;
-  const registry = useMemo(() => createRegistry(client), [client]);
+  const [pinnedRegistry, setPinnedRegistry] = useState(() => ({
+    client,
+    registry: createRegistry(client),
+  }));
+  let currentRegistry = pinnedRegistry;
+  if (pinnedRegistry.client !== client) {
+    currentRegistry = { client, registry: createRegistry(client) };
+    setPinnedRegistry(currentRegistry);
+  }
+  const { registry } = currentRegistry;
 
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     registry.activate();
     return () => registry.dispose();
   }, [registry]);
 
-  const piAdapter = useMemo(
-    () => ({
-      list: async () => {
-        const threads = await client.listThreads({
-          ...(options.workspacePath !== undefined
-            ? { workspacePath: options.workspacePath }
-            : {}),
-          ...(options.includeArchived !== undefined
-            ? { includeArchived: options.includeArchived }
-            : {}),
-        });
-        return { threads: threads.map(mapThreadMetadata) };
-      },
-      rename: async (remoteId: string, newTitle: string) => {
-        await client.renameThread(remoteId, newTitle);
-      },
-      archive: async (remoteId: string) => {
-        await client.archiveThread?.(remoteId);
-      },
-      unarchive: async (remoteId: string) => {
-        await client.unarchiveThread?.(remoteId);
-      },
-      delete: async (remoteId: string) => {
-        await client.deleteThread?.(remoteId);
-      },
-      initialize: async () => {
-        const snapshot = await client.createThread({
-          ...(options.workspacePath !== undefined
-            ? { workspacePath: options.workspacePath }
-            : {}),
-        });
-        return {
-          remoteId: snapshot.metadata.id,
-          externalId: snapshot.metadata.id,
-        };
-      },
-      generateTitle: async () =>
-        // Pi has no server-side title summarization; titles come from
-        // `session_info_changed`. Satisfy the contract with an empty stream.
-        new ReadableStream({
-          start(streamController) {
-            streamController.close();
-          },
-        }) as never,
-      fetch: async (threadId: string) => {
-        const snapshot = await client.getThread(threadId);
-        return mapThreadMetadata(snapshot.metadata);
-      },
-    }),
-    [client, options.workspacePath, options.includeArchived],
-  );
+  const { workspacePath, includeArchived } = options;
+  const createAdapter = () => ({
+    list: async () => {
+      const threads = await client.listThreads({
+        ...(workspacePath !== undefined ? { workspacePath } : {}),
+        ...(includeArchived !== undefined ? { includeArchived } : {}),
+      });
+      return { threads: threads.map(mapThreadMetadata) };
+    },
+    rename: async (remoteId: string, newTitle: string) => {
+      await client.renameThread(remoteId, newTitle);
+    },
+    archive: async (remoteId: string) => {
+      await client.archiveThread?.(remoteId);
+    },
+    unarchive: async (remoteId: string) => {
+      await client.unarchiveThread?.(remoteId);
+    },
+    delete: async (remoteId: string) => {
+      await client.deleteThread?.(remoteId);
+    },
+    initialize: async () => {
+      const snapshot = await client.createThread({
+        ...(workspacePath !== undefined ? { workspacePath } : {}),
+      });
+      return {
+        remoteId: snapshot.metadata.id,
+        externalId: snapshot.metadata.id,
+      };
+    },
+    generateTitle: async () =>
+      // Pi has no server-side title summarization; titles come from
+      // `session_info_changed`. Satisfy the contract with an empty stream.
+      new ReadableStream({
+        start(streamController) {
+          streamController.close();
+        },
+      }) as never,
+    fetch: async (threadId: string) => {
+      const snapshot = await client.getThread(threadId);
+      return mapThreadMetadata(snapshot.metadata);
+    },
+  });
+  const [pinnedAdapter, setPinnedAdapter] = useState(() => ({
+    client,
+    workspacePath,
+    includeArchived,
+    adapter: createAdapter(),
+  }));
+  let currentAdapter = pinnedAdapter;
+  if (
+    pinnedAdapter.client !== client ||
+    pinnedAdapter.workspacePath !== workspacePath ||
+    pinnedAdapter.includeArchived !== includeArchived
+  ) {
+    currentAdapter = {
+      client,
+      workspacePath,
+      includeArchived,
+      adapter: createAdapter(),
+    };
+    setPinnedAdapter(currentAdapter);
+  }
+  const piAdapter = currentAdapter.adapter;
 
   const cloudAdapter = useCloudThreadListAdapter({
     cloud,
