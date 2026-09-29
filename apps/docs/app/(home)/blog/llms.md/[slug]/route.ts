@@ -1,5 +1,6 @@
-import { type NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { AGENT_DOCS_DIRECTIVE_MARKDOWN } from "@/lib/agent-docs-directive";
+import { createMarkdownResponse } from "@/lib/markdown-response";
 import { blog, type BlogPage } from "@/lib/source";
 import { notFound } from "next/navigation";
 import { remark } from "remark";
@@ -31,13 +32,7 @@ ${AGENT_DOCS_DIRECTIVE_MARKDOWN}
 
 ${processed.value}`;
 
-  return new NextResponse(text, {
-    headers: {
-      "Content-Type": "text/markdown; charset=utf-8",
-      "Cache-Control": "no-cache, must-revalidate",
-      "X-Robots-Tag": "noindex, follow",
-    },
-  });
+  return createMarkdownResponse(text);
 }
 
 export function generateStaticParams() {

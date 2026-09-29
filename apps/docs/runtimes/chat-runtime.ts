@@ -20,6 +20,15 @@ import { useSession } from "@/lib/session";
 
 type Adapters = UseChatRuntimeOptions["adapters"];
 
+const cloudTelemetry = {
+  ...(process.env.NEXT_PUBLIC_VERCEL_ENV
+    ? { environment: process.env.NEXT_PUBLIC_VERCEL_ENV }
+    : {}),
+  ...(process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA
+    ? { release: process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA.slice(0, 7) }
+    : {}),
+};
+
 export const followUpSuggestionAdapter = createSuggestionAdapter({
   count: 3,
   maxMessages: 6,
@@ -113,6 +122,7 @@ export function useDocsCloud() {
       accountOwned
         ? new AssistantCloud({
             baseUrl,
+            telemetry: cloudTelemetry,
             authToken: async () => {
               try {
                 const response = await fetch("/api/assistant-token", {
@@ -127,7 +137,11 @@ export function useDocsCloud() {
               }
             },
           })
-        : new AssistantCloud({ baseUrl, anonymous: true }),
+        : new AssistantCloud({
+            baseUrl,
+            anonymous: true,
+            telemetry: cloudTelemetry,
+          }),
     [accountOwned, baseUrl],
   );
 

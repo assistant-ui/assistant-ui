@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { type Unstable_InteractableToolRenderProps as InteractableToolRenderProps } from "@assistant-ui/react";
 import {
   CheckIcon,
@@ -52,15 +53,9 @@ const titleClass =
   "text-foreground focus:bg-accent min-w-0 max-w-full truncate rounded-md bg-transparent px-1 py-0.5 -mx-1 text-sm font-semibold outline-none";
 
 const CopyButton: FC<{ content: string }> = ({ content }) => {
-  const [copied, setCopied] = useState(false);
-  const copyTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
-
-  const copy = () => {
-    navigator.clipboard?.writeText(content).catch(() => {});
-    setCopied(true);
-    clearTimeout(copyTimeout.current);
-    copyTimeout.current = setTimeout(() => setCopied(false), 1400);
-  };
+  const { isCopied: copied, copyToClipboard } = useCopyToClipboard({
+    copiedDuration: 1400,
+  });
 
   return (
     <TooltipIconButton
@@ -69,7 +64,7 @@ const CopyButton: FC<{ content: string }> = ({ content }) => {
         "text-muted-foreground hover:text-foreground size-8 rounded-md",
         copied && "text-green-600 hover:text-green-600",
       )}
-      onClick={copy}
+      onClick={() => copyToClipboard(content)}
     >
       {copied ? (
         <CheckIcon className="size-4" />

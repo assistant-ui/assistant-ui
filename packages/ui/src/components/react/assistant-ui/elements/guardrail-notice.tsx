@@ -53,16 +53,25 @@ export function GuardrailNotice({
       {alternatives.length > 0 && (
         <div className="flex flex-col gap-1.5">
           <span className={cn(mono, "text-foreground/30")}>try instead</span>
-          {alternatives.map((alternative) => (
-            <button
-              key={alternative}
-              type="button"
-              onClick={() => onPick?.(alternative)}
-              className="hover:bg-foreground/[0.04] text-foreground/70 hover:text-foreground/95 -mx-1.5 rounded-lg px-1.5 py-1 text-start text-[13px] transition-colors"
-            >
-              {alternative}
-            </button>
-          ))}
+          {alternatives.map((alternative) =>
+            onPick ? (
+              <button
+                key={alternative}
+                type="button"
+                onClick={() => onPick(alternative)}
+                className="hover:bg-foreground/[0.04] text-foreground/70 hover:text-foreground/95 -mx-1.5 rounded-lg px-1.5 py-1 text-start text-[13px] transition-colors"
+              >
+                {alternative}
+              </button>
+            ) : (
+              <span
+                key={alternative}
+                className="text-foreground/70 -mx-1.5 rounded-lg px-1.5 py-1 text-start text-[13px]"
+              >
+                {alternative}
+              </span>
+            ),
+          )}
         </div>
       )}
     </div>

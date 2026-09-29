@@ -8,6 +8,7 @@ const standaloneShim = "@assistant-ui/tap/standalone-shim";
 
 export default defineConfig({
   test: {
+    fsModuleCache: true,
     projects: [
       {
         resolve: {

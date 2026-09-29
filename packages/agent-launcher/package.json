@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/agent-launcher",
-  "version": "0.1.14",
+  "version": "0.1.16",
   "description": "Spawn the Claude Code CLI with a chosen plugin directory, skill, and prompt",
   "keywords": [
     "claude",
@@ -28,7 +28,8 @@
   "sideEffects": false,
   "scripts": {
     "build": "aui-build",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "cross-spawn": "^7.0.6"
@@ -36,8 +37,8 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/cross-spawn": "^6.0.6",
-    "@types/node": "^26.4.1",
-    "vitest": "^4.1.11"
+    "@types/node": "^26.5.1",
+    "vitest": "^5.0.1"
   },
   "publishConfig": {
     "access": "public",

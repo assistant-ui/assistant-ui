@@ -3,7 +3,7 @@ title: LangGraph UI Runtime
 description: Build a chat UI for LangGraph agents in React with assistant-ui — streaming, subgraph events, UI messages, interrupts, and end-to-end cancellation supported.
 ---
 
-`@assistant-ui/react-langgraph` integrates with [`@langchain/langgraph-sdk`](https://docs.langchain.com/oss/javascript/langgraph-sdk) directly, exposing the full LangGraph Cloud feature set in assistant-ui: streaming, subgraph events, UI messages, message metadata, interrupts, and end-to-end cancellation.
+`@assistant-ui/react-langgraph` integrates with [`@langchain/langgraph-sdk`](https://github.com/langchain-ai/langgraphjs/tree/main/libs/sdk) directly, exposing the full LangGraph Cloud feature set in assistant-ui: streaming, subgraph events, UI messages, message metadata, interrupts, and end-to-end cancellation.
 
 <Callout type="info">
 **Migrating from LangServe?** LangChain has deprecated `RemoteRunnable` upstream and consolidated the chain and agent execution stories under LangGraph. Rebuild your chain as a LangGraph graph (LangChain's [LangServe → LangGraph migration guide](https://github.com/langchain-ai/langserve/blob/main/MIGRATION.md) covers the shape change), deploy via LangGraph Cloud or self-host LangGraph Studio, and use this runtime on the frontend. The runtime ships streaming, interrupts, generative UI, message metadata, and end-to-end cancellation out of the box.

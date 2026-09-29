@@ -13,14 +13,19 @@ import {
 import { DocsRuntimeProvider } from "@/runtimes/docs";
 import { CurrentPageProvider } from "@/components/pages/docs/contexts/current-page";
 import { PlatformProvider } from "@/components/pages/docs/platform/context";
+import { PLATFORMS } from "@/lib/constants";
+
+// Platform-bound content rendered for a platform other than the one the
+// browser will hydrate to stays hidden until hydration replaces it.
+const PLATFORM_HINT_STYLE = PLATFORMS.map(
+  (platform) =>
+    `html[data-docs-platform-hint="${platform}"] [data-docs-platform]:not([data-docs-platform="${platform}"]){visibility:hidden}`,
+).join("");
 
 type DocsRootLayoutProps = {
   tree: PageTree.Root;
   section: string;
   sectionHref: string;
-  showMobileSectionBreadcrumb?: boolean;
-  /** Set false for sections that don't share the main docs' React / RN / Ink platform tree. */
-  platformAware?: boolean;
   children: ReactNode;
 };
 
@@ -28,26 +33,23 @@ export function DocsRootLayout({
   tree,
   section,
   sectionHref,
-  showMobileSectionBreadcrumb = false,
-  platformAware = true,
   children,
 }: DocsRootLayoutProps) {
   return (
     <CurrentPageProvider>
       <DocsRuntimeProvider>
-        <PlatformProvider>
+        <PlatformProvider tree={tree}>
+          <style>{PLATFORM_HINT_STYLE}</style>
           <DocsSidebarProvider>
             <DocsShell>
               <DocsHeader
                 section={section}
                 sectionHref={sectionHref}
-                mobileSectionTree={
-                  showMobileSectionBreadcrumb ? tree : undefined
-                }
+                tree={tree}
               />
               <DocsContent>{children}</DocsContent>
               <DocsSidebar>
-                <SidebarContent tree={tree} platformAware={platformAware} />
+                <SidebarContent tree={tree} />
               </DocsSidebar>
             </DocsShell>
           </DocsSidebarProvider>

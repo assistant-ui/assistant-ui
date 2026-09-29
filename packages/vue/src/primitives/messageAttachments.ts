@@ -12,7 +12,10 @@ export const MessagePrimitiveAttachments = defineComponent({
   slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(_, { slots }) {
     const count = useAuiState((s) =>
-      s.message.role === "user" ? (s.message.attachments?.length ?? 0) : 0,
+      s.message.role === "user"
+        ? ((s.message.submission?.attachments ?? s.message.attachments)
+            ?.length ?? 0)
+        : 0,
     );
     return () =>
       Array.from({ length: count.value }, (_, index) =>

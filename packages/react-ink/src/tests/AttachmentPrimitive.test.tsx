@@ -51,7 +51,6 @@ const setAttachmentState = (attachment: unknown) => {
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
   inputHandler = undefined;
 });
 

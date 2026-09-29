@@ -1,4 +1,5 @@
 import { AGENT_DOCS_DIRECTIVE_MARKDOWN } from "@/lib/agent-docs-directive";
+import { createMarkdownResponse } from "@/lib/markdown-response";
 import {
   cloudHighlights,
   faqs,
@@ -61,11 +62,5 @@ export function GET() {
     ...faqs.flatMap((faq) => [`### ${faq.question}`, "", faq.answer, ""]),
   ].join("\n");
 
-  return new Response(`${markdown}\n`, {
-    headers: {
-      "Cache-Control": "no-cache, must-revalidate",
-      "Content-Type": "text/markdown; charset=utf-8",
-      "X-Robots-Tag": "noindex, follow",
-    },
-  });
+  return createMarkdownResponse(`${markdown}\n`);
 }

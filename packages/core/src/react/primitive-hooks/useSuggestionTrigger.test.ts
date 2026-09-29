@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => {
       isDisabled: false,
       isRunning: false,
       capabilities: { queue: false },
+      voice: undefined as { canSendText: boolean } | undefined,
     },
   };
   const composerState = {
@@ -47,10 +48,10 @@ import { useSuggestionTrigger } from "./useSuggestionTrigger";
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
   mocks.state.thread.isDisabled = false;
   mocks.state.thread.isRunning = false;
   mocks.state.thread.capabilities = { queue: false };
+  mocks.state.thread.voice = undefined;
   mocks.composerState.text = "";
 });
 
@@ -99,6 +100,37 @@ describe("useSuggestionTrigger", () => {
       content: [{ type: "text", text: "Hello" }],
       runConfig: { custom: { model: "gpt-test" } },
     });
+    expect(mocks.setText).not.toHaveBeenCalled();
+  });
+
+  it("sends into a voice session that takes typed text while a spoken reply is running", () => {
+    mocks.state.thread.isRunning = true;
+    mocks.state.thread.voice = { canSendText: true };
+    mocks.composerState.text = "my draft";
+    const { result } = renderHook(() =>
+      useSuggestionTrigger({ prompt: "Hello", send: true }),
+    );
+
+    result.current.trigger();
+
+    expect(result.current.disabled).toBe(false);
+    expect(mocks.append).toHaveBeenCalledWith({
+      content: [{ type: "text", text: "Hello" }],
+      runConfig: { custom: { model: "gpt-test" } },
+    });
+    expect(mocks.setText).toHaveBeenCalledWith("");
+  });
+
+  it("disables and no-ops while a voice session cannot take typed text", () => {
+    mocks.state.thread.voice = { canSendText: false };
+    const { result } = renderHook(() =>
+      useSuggestionTrigger({ prompt: "Hello", send: true }),
+    );
+
+    result.current.trigger();
+
+    expect(result.current.disabled).toBe(true);
+    expect(mocks.append).not.toHaveBeenCalled();
     expect(mocks.setText).not.toHaveBeenCalled();
   });
 

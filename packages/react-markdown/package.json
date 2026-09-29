@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-markdown",
-  "version": "0.14.14",
+  "version": "0.14.17",
   "description": "Markdown rendering for assistant-ui",
   "keywords": [
     "markdown",
@@ -47,6 +47,7 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -69,10 +70,10 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/react": "^19.2.18",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "vitest": "^4.1.11"
+    "@types/react": "^19.3.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "vitest": "^5.0.1"
   },
   "publishConfig": {
     "access": "public",

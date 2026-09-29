@@ -230,6 +230,7 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
   words={["Here", "is", "a", "short", "reply."]}
   visibleWords={5}
   streaming={false}
+  onCopy={() => navigator.clipboard.writeText("Here is a short reply.")}
 />`,
     props: [
       {
@@ -266,6 +267,18 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
             defaultValue: '"bubble"',
             description:
               "bubble wraps the user message in a surface; flat renders it as plain right-aligned text.",
+          },
+          {
+            name: "onCopy",
+            type: "() => void",
+            description:
+              "Shows the copy button and runs when the user activates it.",
+          },
+          {
+            name: "onRegenerate",
+            type: "() => void",
+            description:
+              "Shows the regenerate button and runs when the user activates it.",
           },
           {
             name: "className",
@@ -650,61 +663,6 @@ import { ToolTimeline } from "@/components/assistant-ui/elements/tool-timeline";
       },
     ],
   },
-  "terminal-block": {
-    usage: `import { TerminalBlock } from "@/components/assistant-ui/elements/terminal-block";
-
-<TerminalBlock
-  command="pnpm test"
-  lines={["PASS  thread.test.ts", "Tests: 2 passed"]}
-  visibleCount={2}
-  done
-/>`,
-    props: [
-      {
-        component: "TerminalBlock",
-        rows: [
-          {
-            name: "command",
-            type: "string",
-            required: true,
-            description: "Command string shown in the terminal header.",
-          },
-          {
-            name: "lines",
-            type: "readonly string[]",
-            required: true,
-            description: "Output lines available to stream into the body.",
-          },
-          {
-            name: "visibleCount",
-            type: "number",
-            required: true,
-            description:
-              "How many output lines from the start are currently shown.",
-          },
-          {
-            name: "variant",
-            type: '"paper" | "ink"',
-            defaultValue: '"paper"',
-            description:
-              "paper matches the surrounding surfaces; ink renders the classic dark terminal slab.",
-          },
-          {
-            name: "done",
-            type: "boolean",
-            required: true,
-            description:
-              "When true the header shows exit 0; otherwise a spinner keeps spinning.",
-          },
-          {
-            name: "className",
-            type: "string",
-            description: "Extra classes merged onto the root.",
-          },
-        ],
-      },
-    ],
-  },
   "code-diff": {
     usage: `import { CodeDiff } from "@/components/assistant-ui/elements/code-diff";
 
@@ -860,54 +818,6 @@ import { ToolTimeline } from "@/components/assistant-ui/elements/tool-timeline";
       },
     ],
   },
-  "inline-citation": {
-    usage: `import { InlineCitation } from "@/components/assistant-ui/elements/inline-citation";
-
-<InlineCitation
-  sources={[
-    {
-      domain: "docs.example.com",
-      title: "Optimistic updates",
-      snippet: "Confirm writes after paint.",
-    },
-  ]}
-  openIndex={0}
-  onOpenIndexChange={setOpenIndex}
-/>`,
-    props: [
-      {
-        component: "InlineCitation",
-        rows: [
-          {
-            name: "sources",
-            type: "Source[]",
-            required: true,
-            description:
-              "Sources attached to the numbered reference markers in the sentence.",
-          },
-          {
-            name: "openIndex",
-            type: "number | null",
-            required: true,
-            description:
-              "Which citation preview is open, or null when none is open.",
-          },
-          {
-            name: "onOpenIndexChange",
-            type: "(index: number | null) => void",
-            required: true,
-            description:
-              "Called when a citation marker opens or closes its preview.",
-          },
-          {
-            name: "className",
-            type: "string",
-            description: "Extra classes merged onto the root.",
-          },
-        ],
-      },
-    ],
-  },
   "image-generation": {
     usage: `import { ImageGeneration } from "@/components/assistant-ui/elements/image-generation";
 
@@ -930,38 +840,10 @@ import { ToolTimeline } from "@/components/assistant-ui/elements/tool-timeline";
               "When true the frame holds a pulsing dot grid; otherwise the image resolves.",
           },
           {
-            name: "className",
-            type: "string",
-            description: "Extra classes merged onto the root.",
-          },
-        ],
-      },
-    ],
-  },
-  "data-table": {
-    usage: `import { DataTable } from "@/components/assistant-ui/elements/data-table";
-
-<DataTable
-  rows={[{ name: "Sonnet", context: "200k", cost: "$3" }]}
-  cycle={0}
-/>`,
-    props: [
-      {
-        component: "DataTable",
-        rows: [
-          {
-            name: "rows",
-            type: "readonly ModelUsage[]",
-            required: true,
+            name: "onRegenerate",
+            type: "() => void",
             description:
-              "Table rows with model name, context window, and cost.",
-          },
-          {
-            name: "cycle",
-            type: "number",
-            required: true,
-            description:
-              "Identity key that remounts the body so row entrance can replay.",
+              "Shows the regenerate button and runs when generation is restarted.",
           },
           {
             name: "className",
@@ -992,39 +874,6 @@ import { ToolTimeline } from "@/components/assistant-ui/elements/tool-timeline";
             type: "string",
             required: true,
             description: "Mono caption rendered under the rolling number.",
-          },
-          {
-            name: "className",
-            type: "string",
-            description: "Extra classes merged onto the root.",
-          },
-        ],
-      },
-    ],
-  },
-  "agent-plan": {
-    usage: `import { AgentPlan } from "@/components/assistant-ui/elements/agent-plan";
-
-<AgentPlan
-  steps={["Read the file", "Draft the fix", "Run tests"]}
-  activeIndex={1}
-/>`,
-    props: [
-      {
-        component: "AgentPlan",
-        rows: [
-          {
-            name: "steps",
-            type: "readonly string[]",
-            required: true,
-            description: "Checklist items the agent works through in order.",
-          },
-          {
-            name: "activeIndex",
-            type: "number",
-            required: true,
-            description:
-              "Index of the step currently running. Values past the end mark every step done, and values before the start mark none.",
           },
           {
             name: "className",
@@ -1117,72 +966,6 @@ import { ToolTimeline } from "@/components/assistant-ui/elements/tool-timeline";
             name: "elapsed",
             type: "string",
             description: "Elapsed time shown in mono when provided.",
-          },
-          {
-            name: "className",
-            type: "string",
-            description: "Extra classes merged onto the root.",
-          },
-        ],
-      },
-    ],
-  },
-  "approval-card": {
-    usage: `import { ApprovalCard } from "@/components/assistant-ui/elements/approval-card";
-
-<ApprovalCard
-  state="request"
-  command="pnpm db:migrate"
-  title="Run migration"
-  subtitle="Needs your approval"
-  onAllowOnce={() => approve()}
-  onDeny={() => deny()}
-/>`,
-    props: [
-      {
-        component: "ApprovalCard",
-        rows: [
-          {
-            name: "state",
-            type: '"request" | "running" | "done" | "denied"',
-            required: true,
-            description:
-              "Lifecycle of the card: request with actions, running spinner, done check, or denied.",
-          },
-          {
-            name: "command",
-            type: "string",
-            required: true,
-            description:
-              "Command shown in the mono field the agent wants to run.",
-          },
-          {
-            name: "title",
-            type: "string",
-            required: true,
-            description: "Headline naming the action that needs approval.",
-          },
-          {
-            name: "subtitle",
-            type: "string",
-            required: true,
-            description:
-              "Supporting line under the title explaining the request.",
-          },
-          {
-            name: "onAllowOnce",
-            type: "() => void",
-            description: "Called when the user clicks Allow once.",
-          },
-          {
-            name: "onAlwaysAllow",
-            type: "() => void",
-            description: "Called when the user clicks Always allow.",
-          },
-          {
-            name: "onDeny",
-            type: "() => void",
-            description: "Called when the user clicks Deny.",
           },
           {
             name: "className",
@@ -1786,8 +1569,8 @@ const matches = useMentionMatches(value, people);
 
 <ThreadList
   threads={[
-    { title: "Composer polish", time: "2m", unread: true },
-    { title: "Runtime migration", time: "1h" },
+    { id: "composer", title: "Composer polish", time: "2m", unread: true },
+    { id: "runtime", title: "Runtime migration", time: "1h" },
   ]}
   activeIndex={activeIndex}
   onActiveIndexChange={setActiveIndex}
@@ -1801,7 +1584,7 @@ const matches = useMentionMatches(value, people);
             type: "readonly ThreadItem[]",
             required: true,
             description:
-              "Conversation rows with title, time, and optional unread mark.",
+              "Conversation rows with a stable id, title, time, and optional unread mark.",
           },
           {
             name: "activeIndex",
@@ -1813,7 +1596,20 @@ const matches = useMentionMatches(value, people);
           {
             name: "onActiveIndexChange",
             type: "(index: number) => void",
-            description: "Called when the user clicks a thread row.",
+            description:
+              "Called when the user clicks a thread row. Without it, rows render as non-interactive list items.",
+          },
+          {
+            name: "onRename",
+            type: "(index: number) => void",
+            description:
+              "Shows a labelled rename button and reports the clicked row.",
+          },
+          {
+            name: "onDelete",
+            type: "(index: number) => void",
+            description:
+              "Shows a labelled delete button and reports the clicked row.",
           },
           {
             name: "className",
@@ -1866,68 +1662,6 @@ const matches = useMentionMatches(value, people);
       },
     ],
   },
-  "todo-list": {
-    usage: `import { TodoList } from "@/components/assistant-ui/elements/todo-list";
-
-<TodoList
-  items={[
-    { id: "read", text: "Read the failing test", status: "done" },
-    { id: "fix", text: "Fix the converter", status: "active" },
-    { id: "verify", text: "Re-run the suite", status: "pending" },
-  ]}
-  revision={2}
-/>`,
-    props: [
-      {
-        component: "TodoList",
-        rows: [
-          {
-            name: "items",
-            type: "TodoItem[]",
-            required: true,
-            description:
-              "The list as it stands right now. Each item carries its own status, so the agent can add, reorder, and complete items in any order between renders.",
-          },
-          {
-            name: "revision",
-            type: "number",
-            description:
-              "Which rewrite of the list this is. Omit to show a plain done/total count instead.",
-          },
-          {
-            name: "className",
-            type: "string",
-            description: "Extra classes merged onto the root.",
-          },
-        ],
-      },
-      {
-        component: "TodoItem",
-        rows: [
-          {
-            name: "id",
-            type: "string",
-            required: true,
-            description:
-              "Stable identity across revisions. Reusing an id keeps an item in place while its text or status changes.",
-          },
-          {
-            name: "text",
-            type: "string",
-            required: true,
-            description: "The item as the agent phrased it.",
-          },
-          {
-            name: "status",
-            type: '"pending" | "active" | "done"',
-            required: true,
-            description:
-              "Per-item state. More than one item may be active if the agent works in parallel.",
-          },
-        ],
-      },
-    ],
-  },
   "message-queue": {
     usage: `import { MessageQueue } from "@/components/assistant-ui/elements/message-queue";
 
@@ -1957,7 +1691,7 @@ const matches = useMentionMatches(value, people);
             name: "onCancel",
             type: "(id: string) => void",
             description:
-              "Called when a queued turn is removed before it ever sends.",
+              "Called when a queued turn is removed before it ever sends. The remove button renders only for queued turns when this is supplied.",
           },
           {
             name: "className",
@@ -1991,7 +1725,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onOpen",
             type: "(id: string) => void",
-            description: "Called when an attachment is opened for preview.",
+            description:
+              "Called when an attachment is opened for preview. Without it, attachments render as non-interactive file details.",
           },
           {
             name: "className",
@@ -2075,18 +1810,20 @@ const matches = useMentionMatches(value, people);
           {
             name: "onKeep",
             type: "(id: string) => void",
-            description: "Called when a hunk is accepted.",
+            description:
+              "Called when a hunk is accepted. Keep buttons render only when this is supplied.",
           },
           {
             name: "onDiscard",
             type: "(id: string) => void",
-            description: "Called when a hunk is rejected.",
+            description:
+              "Called when a hunk is rejected. Discard buttons render only when this is supplied.",
           },
           {
             name: "onApply",
             type: "() => void",
             description:
-              "Called when the reviewed set is committed. Only kept hunks should be written.",
+              "Called when the reviewed set is committed. The button renders only when this is supplied and stays disabled while a hunk is pending.",
           },
           {
             name: "className",
@@ -2784,13 +2521,14 @@ const matches = useMentionMatches(value, people);
           {
             name: "onToggle",
             type: "(id: string) => void",
-            description: "Called when a server row is expanded or collapsed.",
+            description:
+              "Called when a server row is expanded or collapsed. Without it, rows render as non-interactive status content.",
           },
           {
             name: "onAuthorize",
             type: "(id: string) => void",
             description:
-              "Called from the Authorize button, shown only while a server needs auth.",
+              "Called from the Authorize button, shown only when this is supplied and a server needs auth.",
           },
           {
             name: "className",
@@ -2886,7 +2624,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onToggleReason",
             type: "(reason: string) => void",
-            description: "Called when a reason chip is picked or unpicked.",
+            description:
+              "Called when a reason chip is picked or unpicked. Without it, reasons render as non-interactive selected-state chips.",
           },
           {
             name: "onNoteChange",
@@ -2896,7 +2635,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onSubmit",
             type: "() => void",
-            description: "Called when the report is sent.",
+            description:
+              "Called when the report is sent. The submit button renders only when this is supplied.",
           },
           {
             name: "className",
@@ -2952,7 +2692,7 @@ const matches = useMentionMatches(value, people);
             type: "boolean",
             required: true,
             description:
-              "Whether the floating toolbar is showing. Drive it from your own selection handler.",
+              "Whether the floating toolbar may show. It renders only when this is true and onAction is supplied.",
           },
           {
             name: "quoted",
@@ -2963,7 +2703,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onAction",
             type: "(key: string) => void",
-            description: "Called with the key of the action that was chosen.",
+            description:
+              "Called with the key of the action that was chosen. The toolbar renders only when this is supplied.",
           },
           {
             name: "className",
@@ -3559,7 +3300,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onOpenChange",
             type: "(open: boolean) => void",
-            description: "Called when the group is expanded or collapsed.",
+            description:
+              "Called when the group is expanded or collapsed. Without it, the trigger renders as a non-interactive header.",
           },
           {
             name: "className",
@@ -3684,7 +3426,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onSelect",
             type: "(id: string) => void",
-            description: "Called when a model is picked.",
+            description:
+              "Called when a model is picked. Without it, model rows render as non-interactive options.",
           },
           {
             name: "className",
@@ -3775,7 +3518,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onSelect",
             type: "(key: string) => void",
-            description: "Called when a tier is picked.",
+            description:
+              "Called when a tier is picked. Without it, effort levels render as non-interactive labels.",
           },
           {
             name: "className",
@@ -3828,7 +3572,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onPick",
             type: "(alternative: string) => void",
-            description: "Called when an alternative is chosen.",
+            description:
+              "Called when an alternative is chosen. Without it, alternatives render as non-interactive suggestions.",
           },
           {
             name: "className",
@@ -3995,12 +3740,14 @@ const matches = useMentionMatches(value, people);
           {
             name: "onOpenChange",
             type: "(open: boolean) => void",
-            description: "Called when the trigger is toggled.",
+            description:
+              "Called when the trigger is toggled. The trigger renders only when this is supplied.",
           },
           {
             name: "onPick",
             type: "(id: string) => void",
-            description: "Called with the chosen option.",
+            description:
+              "Called with the chosen option. Without it, options render as non-interactive rows.",
           },
           {
             name: "className",
@@ -4197,7 +3944,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onGrant",
             type: "(scope: GrantScope) => void",
-            description: "Called with the scope the user chose.",
+            description:
+              "Called with the scope the user chose. Pending grant buttons render only when this is supplied.",
           },
           {
             name: "className",
@@ -4340,7 +4088,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onRun",
             type: "() => void",
-            description: "Called when the run control is pressed.",
+            description:
+              "Renders the run control and is called when it is pressed.",
           },
           {
             name: "className",
@@ -4394,7 +4143,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onJump",
             type: "(page: number) => void",
-            description: "Called with the page to open.",
+            description:
+              "Called with the page to open. Without it, anchors render as non-interactive reference rows.",
           },
           {
             name: "className",
@@ -4424,7 +4174,7 @@ const matches = useMentionMatches(value, people);
             name: "onForget",
             type: "(id: string) => void",
             description:
-              "Called to drop a fact. Every chip is removable, including ones it just learned.",
+              "Called to drop a fact. Every chip is removable, including newly learned chips, when this handler is supplied; otherwise forget buttons are omitted.",
           },
           {
             name: "className",
@@ -4563,7 +4313,7 @@ const matches = useMentionMatches(value, people);
             name: "onSelect",
             type: "(id: string) => void",
             description:
-              "Called when a pin or its list row is chosen. Both surfaces report the same id.",
+              "Called when a pin or its list row is chosen. Without it, both surfaces render as non-interactive map content.",
           },
           {
             name: "className",
@@ -4622,7 +4372,7 @@ const matches = useMentionMatches(value, people);
           {
             name: "label",
             type: "string",
-            description: "Optional eyebrow above the working.",
+            description: "Optional label above the working.",
           },
           {
             name: "steps",
@@ -4666,7 +4416,7 @@ const matches = useMentionMatches(value, people);
   "spec-sheet": {
     usage: `import { SpecSheet } from "@/components/assistant-ui/elements/spec-sheet";
 
-<SpecSheet title="Opus 5" subtitle="claude-opus-5" rows={rows} visibleCount={6} />`,
+<SpecSheet title="Opus 5.5" subtitle="claude-opus-5-5" rows={rows} visibleCount={6} />`,
     props: [
       {
         component: "SpecSheet",
@@ -4869,67 +4619,6 @@ const matches = useMentionMatches(value, people);
             name: "detail",
             type: "string",
             description: "Optional second line under the title.",
-          },
-        ],
-      },
-    ],
-  },
-  "job-progress": {
-    usage: `import { JobProgress } from "@/components/assistant-ui/elements/job-progress";
-
-<JobProgress
-  title="Verify the fix on CI"
-  stages={stages}
-  stageIndex={1}
-  stageProgress={0.6}
-  eta="about 3 min"
-/>`,
-    props: [
-      {
-        component: "JobProgress",
-        rows: [
-          {
-            name: "title",
-            type: "string",
-            required: true,
-            description: "What the job is doing.",
-          },
-          {
-            name: "stages",
-            type: "JobStage[]",
-            required: true,
-            description:
-              "Stages with relative weights, so a long install does not read the same as a fast clone.",
-          },
-          {
-            name: "stageIndex",
-            type: "number",
-            required: true,
-            description:
-              "Which stage is running. Passing stages.length marks the job finished, and the bar never runs past its track.",
-          },
-          {
-            name: "stageProgress",
-            type: "number",
-            required: true,
-            description: "Progress inside the current stage, 0 to 1.",
-          },
-          {
-            name: "eta",
-            type: "string",
-            required: true,
-            description:
-              "Pre-formatted estimate. Replaced by done once finished.",
-          },
-          {
-            name: "onCancel",
-            type: "() => void",
-            description: "Called to stop the job. Hidden once it finishes.",
-          },
-          {
-            name: "className",
-            type: "string",
-            description: "Extra classes merged onto the root.",
           },
         ],
       },
@@ -5215,7 +4904,7 @@ const matches = useMentionMatches(value, people);
             name: "onCollect",
             type: "(id: string) => void",
             description:
-              "Called to pull a finished run back into the thread. Running rows are not clickable.",
+              "Called to pull a finished run back into the thread. Without it, every row renders as non-interactive status content.",
           },
           {
             name: "className",
@@ -5285,7 +4974,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onRestore",
             type: "(id: string) => void",
-            description: "Called with the checkpoint to return to.",
+            description:
+              "Called with the checkpoint to return to. Restore buttons render only when this is supplied.",
           },
           {
             name: "className",
@@ -5429,13 +5119,14 @@ const matches = useMentionMatches(value, people);
           {
             name: "onSelect",
             type: "(id: string) => void",
-            description: "Called when a prompt is highlighted.",
+            description:
+              "Called when a prompt is highlighted. Without it, rows insert directly when onInsert is supplied and are non-interactive otherwise.",
           },
           {
             name: "onInsert",
             type: "(id: string) => void",
             description:
-              "Called on double click, to drop the prompt into the composer.",
+              "Called on double click or Enter with onSelect; without onSelect, called on one pointer or keyboard activation.",
           },
           {
             name: "className",
@@ -5521,12 +5212,13 @@ const matches = useMentionMatches(value, people);
             name: "onActiveChange",
             type: "(id: string) => void",
             description:
-              "Called as the arrow keys walk the list. The element owns the key handling and reports where it landed, so activeId stays yours to hold.",
+              "Called as the arrow keys walk the list. Arrow-key navigation changes the active command only when this is supplied.",
           },
           {
             name: "onRun",
             type: "(id: string) => void",
-            description: "Called when a command is chosen.",
+            description:
+              "Called when a command is chosen. Without it, command rows render as non-interactive options and Enter does not run a command.",
           },
           {
             name: "className",
@@ -5663,7 +5355,7 @@ const matches = useMentionMatches(value, people);
             name: "onStep",
             type: "(delta: number) => void",
             description:
-              "Called with -1 or 1 to walk the matches. Wrap the index yourself.",
+              "Called with -1 or 1 to walk the matches. Wrap the index yourself. The step buttons render only when this is supplied.",
           },
           {
             name: "className",
@@ -5752,7 +5444,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onSelect",
             type: "(id: string) => void",
-            description: "Called when a thread is opened.",
+            description:
+              "Called when a thread is opened. Without it, rows render as non-interactive results and arrow keys do not select.",
           },
           {
             name: "className",
@@ -5845,18 +5538,20 @@ const matches = useMentionMatches(value, people);
           {
             name: "onToggle",
             type: "() => void",
-            description: "Called when the bubble is pressed.",
+            description:
+              "Called when the bubble is pressed. Without it, a closed launcher renders a non-interactive bubble.",
           },
           {
             name: "onPick",
             type: "(prompt: string) => void",
-            description: "Called when a starter prompt is chosen.",
+            description:
+              "Called when a starter prompt is chosen. Without it, prompts render as non-interactive suggestions.",
           },
           {
             name: "onStart",
             type: "() => void",
             description:
-              "Called from the Start a conversation action, for opening an empty thread.",
+              "Called from the Start a conversation action. The button renders only when this is supplied.",
           },
           {
             name: "className",
@@ -5917,7 +5612,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onModelChange",
             type: "(model: string) => void",
-            description: "Called when the model changes.",
+            description:
+              "Called when the model changes. Without it, model choices render as non-interactive labels.",
           },
           {
             name: "onSystemPromptChange",
@@ -5932,7 +5628,8 @@ const matches = useMentionMatches(value, people);
           {
             name: "onToggle",
             type: "(key: string) => void",
-            description: "Called with the switched capability's key.",
+            description:
+              "Called with the switched capability's key. Without it, switch states render as non-interactive indicators.",
           },
           {
             name: "className",
@@ -6066,17 +5763,20 @@ const matches = useMentionMatches(value, people);
           {
             name: "onValueChange",
             type: "(value: string) => void",
-            description: "Called as the message is typed.",
+            description:
+              "Called as the message is typed. Without it, typing does not update the controlled value.",
           },
           {
             name: "onSend",
             type: "() => void",
-            description: "Called to send.",
+            description:
+              "Called to send. The send button renders only when a send or stop handler is supplied and is disabled when this handler is absent.",
           },
           {
             name: "onStop",
             type: "() => void",
-            description: "Called to stop a run in flight.",
+            description:
+              "Called to stop a run in flight. The stop button renders only when a send or stop handler is supplied and is disabled when this handler is absent.",
           },
           {
             name: "onFocus",

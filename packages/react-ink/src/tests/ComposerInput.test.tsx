@@ -69,7 +69,6 @@ const flush = async () => {
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
   inputHandler = undefined;
 });
 
@@ -178,6 +177,37 @@ describe("ComposerInput", () => {
     inputHandler?.("", { return: true });
 
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it("sends on enter while a spoken reply runs during a voice session", async () => {
+    const send = vi.fn(() => undefined);
+    const buffer = createBuffer("hello");
+
+    mockUseAuiState.mockImplementation((selector: UseAuiStateSelector) =>
+      selector({ composer: { text: "hello" } } as never),
+    );
+    mockUseTextBuffer.mockReturnValue(buffer);
+    mockUseAui.mockReturnValue({
+      composer: {
+        send,
+        setText: vi.fn(),
+      },
+      thread: {
+        getState: () => ({
+          isRunning: true,
+          capabilities: { queue: false },
+          voice: { status: { type: "running" }, canSendText: true },
+        }),
+      },
+    });
+    mockUseFocus.mockReturnValue({ isFocused: true });
+
+    render(<ComposerInput submitOnEnter />);
+    await flush();
+
+    inputHandler?.("", { return: true });
+
+    expect(send).toHaveBeenCalledTimes(1);
   });
 
   it("sends on enter while running when the runtime supports queueing", async () => {

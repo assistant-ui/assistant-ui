@@ -1,7 +1,7 @@
 declare const process: { env: Record<string, string | undefined> };
 
 import { type RefObject, useMemo, useState } from "react";
-import { AssistantCloud } from "assistant-cloud";
+import { AssistantCloud, type SdkIdentity } from "assistant-cloud";
 import type {
   RemoteThreadListAdapter,
   RuntimeAdapters,
@@ -10,6 +10,7 @@ import { InMemoryThreadListAdapter } from "../../../runtimes/remote-thread-list/
 import { useAssistantCloudThreadHistoryAdapter } from "./AssistantCloudThreadHistoryAdapter";
 import { CloudFileAttachmentAdapter } from "./CloudFileAttachmentAdapter";
 import { isRecord } from "../../../utils/json/is-json";
+import { CORE_SDK } from "./sdkIdentity";
 
 type ThreadData = {
   externalId: string | undefined;
@@ -17,17 +18,22 @@ type ThreadData = {
 
 export type CloudThreadListAdapterOptions = {
   cloud?: AssistantCloud | undefined;
+  sdk?: SdkIdentity | undefined;
 
-  create?: (() => Promise<ThreadData>) | undefined;
+  /** Returns the external id for a new cloud thread, which is created once this resolves; `threadId` is the `id` of the thread list item being saved. */
+  create?: ((threadId: string) => Promise<ThreadData>) | undefined;
   delete?: ((threadId: string) => Promise<void>) | undefined;
+  /** Creates each cloud thread with `upsert`, so a retried create reuses the thread that already has the external id `create` returned; set it when that id names exactly one conversation. */
+  upsert?: boolean | undefined;
 };
 
 const toCustom = (value: unknown): Record<string, unknown> | undefined =>
   isRecord(value) ? value : undefined;
 
 const baseUrl =
-  typeof process !== "undefined" &&
-  process?.env?.NEXT_PUBLIC_ASSISTANT_BASE_URL;
+  typeof process !== "undefined"
+    ? process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL
+    : undefined;
 export const autoCloud = baseUrl
   ? new AssistantCloud({ baseUrl, anonymous: true })
   : undefined;
@@ -110,11 +116,15 @@ export const createCloudThreadListAdapter = (
   if (!cloud) {
     const inMemory = new InMemoryThreadListAdapter();
     inMemory.initialize = async (threadId: string) => {
-      const result = await getOptions().create?.();
+      const result = await getOptions().create?.(threadId);
       return { remoteId: threadId, externalId: result?.externalId };
     };
     return inMemory;
   }
+
+  cloud.registerSdk?.(CORE_SDK);
+  const sdk = getOptions().sdk;
+  if (sdk) cloud.registerSdk?.(sdk);
 
   return {
     list: async ({ after } = {}) => {
@@ -172,13 +182,16 @@ export const createCloudThreadListAdapter = (
       };
     },
 
-    initialize: async () => {
-      const createTask = getOptions().create?.() ?? Promise.resolve();
+    initialize: async (threadId) => {
+      const createTask = getOptions().create?.(threadId) ?? Promise.resolve();
       const t = await createTask;
       const external_id = t ? t.externalId : undefined;
       const { thread_id: remoteId } = await cloud.threads.create({
         last_message_at: new Date(),
         external_id,
+        ...(external_id !== undefined && getOptions().upsert
+          ? { upsert: true }
+          : {}),
       });
 
       return { externalId: external_id, remoteId: remoteId };

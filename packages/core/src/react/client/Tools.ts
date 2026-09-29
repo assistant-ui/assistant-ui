@@ -22,6 +22,7 @@ import {
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 import { ModelContext } from "../../store/clients/model-context-client";
 import { nullProtoRecord } from "../../utils/record";
+import { runCleanups } from "../../subscribable/subscribable";
 
 export type { McpAppResourceOutput };
 
@@ -45,7 +46,9 @@ const useTools = ({
   const mcpAppOutputs = useResources(mcpApp ? [withKey("mcpApp", mcpApp)] : []);
   const mcpAppOutput = mcpAppOutputs[0];
 
-  const [toolUIs, setToolUIs] = useState<ToolsState["toolUIs"]>(() => ({}));
+  const [toolUIs, setToolUIs] = useState<ToolsState["toolUIs"]>(() =>
+    nullProtoRecord(),
+  );
 
   const state = useMemo(
     (): ToolsState => ({
@@ -74,20 +77,25 @@ const useTools = ({
         standalone: options?.standalone ?? false,
       };
 
-      setToolUIs((prev) => ({
-        ...prev,
-        [toolName]: [...(prev[toolName] ?? []), registration],
-      }));
+      setToolUIs((prev) => {
+        const next = nullProtoRecord(prev);
+        next[toolName] = [...(next[toolName] ?? []), registration];
+        return next;
+      });
 
       return () => {
         setToolUIs((prev) => {
-          const next = prev[toolName]?.filter((r) => r !== registration) ?? [];
-          if (next.length > 0) return { ...prev, [toolName]: next };
+          const registrations =
+            prev[toolName]?.filter((r) => r !== registration) ?? [];
+          const next = nullProtoRecord(prev);
+          if (registrations.length > 0) {
+            next[toolName] = registrations;
+            return next;
+          }
           // Drop the key entirely so repeatedly mounted/unmounted tools
           // don't leave empty arrays accumulating across a long session.
-          const rest = { ...prev };
-          delete rest[toolName];
-          return rest;
+          delete next[toolName];
+          return next;
         });
       };
     },
@@ -120,9 +128,7 @@ const useTools = ({
       }
     }
 
-    return () => {
-      unsubscribes.forEach((fn) => fn());
-    };
+    return () => runCleanups(unsubscribes);
   }, [toolkit, setToolUI]);
 
   useAssistantScopeEffect(

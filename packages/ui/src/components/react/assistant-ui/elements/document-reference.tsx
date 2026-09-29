@@ -57,27 +57,46 @@ export function DocumentReference({
       </div>
 
       <div className="flex flex-col gap-1.5">
-        {anchors.map((anchor, i) => (
-          <button
-            key={`${anchor.page}-${i}`}
-            type="button"
-            aria-current={i === currentIndex || undefined}
-            onClick={() => onJump?.(anchor.page)}
-            className={cn(
-              "flex flex-col gap-1 rounded-xl px-2.5 py-2 text-start transition-colors",
-              anchor.page === activePage
-                ? field
-                : "hover:bg-foreground/[0.035]",
-            )}
-          >
-            <span className={cn(mono, "text-foreground/30")}>
-              p. {anchor.page}
-            </span>
-            <span className="text-foreground/65 border-foreground/15 border-s-2 ps-2 text-xs leading-relaxed break-words">
-              {anchor.quote}
-            </span>
-          </button>
-        ))}
+        {anchors.map((anchor, i) => {
+          const className = cn(
+            "flex flex-col gap-1 rounded-xl px-2.5 py-2 text-start transition-colors",
+            anchor.page === activePage
+              ? field
+              : onJump
+                ? "hover:bg-foreground/[0.035]"
+                : undefined,
+          );
+          const content = (
+            <>
+              <span className={cn(mono, "text-foreground/30")}>
+                p. {anchor.page}
+              </span>
+              <span className="text-foreground/65 border-foreground/15 border-s-2 ps-2 text-xs leading-relaxed break-words">
+                {anchor.quote}
+              </span>
+            </>
+          );
+
+          return onJump ? (
+            <button
+              key={`${anchor.page}-${i}`}
+              type="button"
+              aria-current={i === currentIndex || undefined}
+              onClick={() => onJump(anchor.page)}
+              className={className}
+            >
+              {content}
+            </button>
+          ) : (
+            <div
+              key={`${anchor.page}-${i}`}
+              aria-current={i === currentIndex || undefined}
+              className={className}
+            >
+              {content}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
