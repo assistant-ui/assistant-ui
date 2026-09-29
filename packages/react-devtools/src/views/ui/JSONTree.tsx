@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import clsx from "clsx";
 import { CopyButton } from "./CopyButton";
+import { getInlineJson } from "./getInlineJson";
 
 const ENTRY_LIMIT = 100;
 const INLINE_MAX = 88;
@@ -10,28 +11,19 @@ const isContainer = (value: unknown): value is object =>
 
 type Entry = { key: string; value: unknown };
 
-const entriesOf = (value: unknown): Entry[] => {
+const entriesOf = (value: object, keys: string[], limit: number): Entry[] => {
   if (Array.isArray(value)) {
-    return value.map((item, index) => ({ key: String(index), value: item }));
+    return value
+      .slice(0, limit)
+      .map((item, index) => ({ key: String(index), value: item }));
   }
-  return Object.entries(value as Record<string, unknown>).map(
-    ([key, value]) => ({ key, value }),
-  );
-};
-
-const summaryOf = (value: unknown): string => {
-  if (Array.isArray(value)) return `[${value.length}]`;
-  return `{${Object.keys(value as object).length}}`;
+  return keys
+    .slice(0, limit)
+    .map((key) => ({ key, value: (value as Record<string, unknown>)[key] }));
 };
 
 const serialize = (value: unknown, compact: boolean) =>
   JSON.stringify(value, null, compact ? 0 : 2);
-
-const isInline = (value: unknown, compact: boolean) => {
-  if (!compact) return false;
-  if (!isContainer(value)) return true;
-  return serialize(value, true).length <= INLINE_MAX;
-};
 
 const Leaf = ({ value }: { value: unknown }) => {
   if (typeof value === "string") {
@@ -78,9 +70,12 @@ const TreeNode = ({
     );
   }
 
-  const entries = entriesOf(value);
-  const shown = showAll ? entries : entries.slice(0, ENTRY_LIMIT);
-  const hidden = entries.length - shown.length;
+  const keys = Array.isArray(value) ? [] : Object.keys(value);
+  const count = Array.isArray(value) ? value.length : keys.length;
+  const shown = open
+    ? entriesOf(value, keys, showAll ? count : ENTRY_LIMIT)
+    : [];
+  const hidden = count - shown.length;
 
   return (
     <div className="min-w-0">
@@ -101,7 +96,9 @@ const TreeNode = ({
           ›
         </span>
         {name !== undefined ? <span>{name}</span> : null}
-        <span className="opacity-60">{summaryOf(value)}</span>
+        <span className="opacity-60">
+          {Array.isArray(value) ? `[${count}]` : `{${count}}`}
+        </span>
       </button>
       {open ? (
         <div
@@ -141,7 +138,7 @@ const InlineJson = ({
   compact,
 }: {
   serialized: string;
-  copyText: string;
+  copyText: () => string;
   compact: boolean;
 }) => (
   <div className="flex min-w-0 items-start gap-0.5">
@@ -171,7 +168,7 @@ const TreeWithCopy = ({
 }: {
   value: unknown;
   openDepth: number;
-  copyText: string;
+  copyText: () => string;
   compact: boolean;
 }) => (
   <div className="flex min-w-0 items-start gap-0.5">
@@ -212,14 +209,18 @@ export const JSONTree = ({
   openDepth?: number;
   compact?: boolean;
 }) => {
-  const isLeaf = isInline(value, compact) || !isContainer(value);
   const serialized = useMemo(
-    () => (isLeaf ? serialize(value, compact) : ""),
-    [value, compact, isLeaf],
+    () =>
+      !isContainer(value)
+        ? serialize(value, compact)
+        : compact
+          ? getInlineJson(value, INLINE_MAX)
+          : undefined,
+    [value, compact],
   );
-  const copyText = useMemo(() => JSON.stringify(value, null, 2), [value]);
+  const copyText = useCallback(() => JSON.stringify(value, null, 2), [value]);
 
-  if (isLeaf) {
+  if (serialized !== undefined) {
     return (
       <InlineJson
         serialized={serialized}

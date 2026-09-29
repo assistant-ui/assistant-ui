@@ -9,10 +9,11 @@ import {
   useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
 import remarkGfm from "remark-gfm";
-import { type FC, memo, useEffect, useRef, useState } from "react";
+import { type FC, memo } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { cn } from "@/lib/utils";
 
 const MarkdownTextImpl = () => {
@@ -50,48 +51,6 @@ const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
       </TooltipIconButton>
     </div>
   );
-};
-
-const useCopyToClipboard = ({
-  copiedDuration = 3000,
-}: {
-  copiedDuration?: number;
-} = {}) => {
-  const [isCopied, setIsCopied] = useState<boolean>(false);
-  const copiedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
-    undefined,
-  );
-  const isMounted = useRef(true);
-
-  useEffect(() => {
-    isMounted.current = true;
-    return () => {
-      isMounted.current = false;
-      clearTimeout(copiedTimer.current);
-    };
-  }, []);
-
-  const copyToClipboard = (value: string) => {
-    if (!value || typeof navigator === "undefined" || !navigator.clipboard) {
-      return;
-    }
-
-    navigator.clipboard.writeText(value).then(
-      () => {
-        if (!isMounted.current) return;
-
-        clearTimeout(copiedTimer.current);
-        setIsCopied(true);
-        copiedTimer.current = setTimeout(() => {
-          copiedTimer.current = undefined;
-          setIsCopied(false);
-        }, copiedDuration);
-      },
-      () => {},
-    );
-  };
-
-  return { isCopied, copyToClipboard };
 };
 
 const defaultComponents = memoizeMarkdownComponents({

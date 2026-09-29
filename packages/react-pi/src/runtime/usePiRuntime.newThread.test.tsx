@@ -99,7 +99,6 @@ afterEach(() => {
   act(() => root?.unmount());
   root = undefined;
   mocks.adapters.length = 0;
-  vi.clearAllMocks();
 });
 
 describe("usePiRuntime new-thread first message", () => {

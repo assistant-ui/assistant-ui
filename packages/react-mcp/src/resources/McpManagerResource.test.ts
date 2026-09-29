@@ -92,6 +92,51 @@ describe("McpManagerResource server ids", () => {
     expect(() => assertUniqueServerIds(["docs", "linear"])).not.toThrow();
   });
 
+  it("keeps the first persisted custom server when ids are duplicated", async () => {
+    const docsServer: MCPCustomServerRecord = {
+      id: "docs",
+      name: "Docs",
+      url: "https://example.com/docs/mcp",
+      auth: { type: "none" },
+      createdAt: 1,
+    };
+    const saveCustomServers = vi.fn(async () => {});
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const root = mount(
+      [],
+      McpCustomStorage({
+        loadCustomServers: vi.fn(async () => [
+          docsServer,
+          { ...docsServer, name: "Duplicate Docs", createdAt: 2 },
+        ]),
+        saveCustomServers,
+        loadAuthState: vi.fn(async () => null),
+        saveAuthState: vi.fn(async () => {}),
+        clearAuthState: vi.fn(async () => {}),
+      }),
+    );
+
+    try {
+      await vi.waitFor(() =>
+        expect(root.getValue().getState().isHydrated).toBe(true),
+      );
+      expect(root.getValue().getState().customServers).toHaveLength(1);
+      expect(root.getValue().getState().customServers[0]).toMatchObject({
+        id: "docs",
+        name: "Docs",
+      });
+      expect(saveCustomServers).not.toHaveBeenCalled();
+      expect(consoleError).toHaveBeenCalledWith(
+        '[assistant-ui/react-mcp] ignored duplicate custom server id "docs" loaded from storage',
+      );
+    } finally {
+      consoleError.mockRestore();
+      root.unmount();
+    }
+  });
+
   it("passes connector cache configuration to its client", async () => {
     mocks.Client.mockClear();
     const root = mount([
@@ -374,6 +419,46 @@ describe("McpManagerResource storage failures", () => {
 });
 
 describe("McpManagerResource storage ordering", () => {
+  it("preserves a removal made before custom server hydration finishes", async () => {
+    const docsServer: MCPCustomServerRecord = {
+      id: "docs",
+      name: "Docs",
+      url: "https://example.com/docs/mcp",
+      auth: { type: "none" },
+      createdAt: 1,
+    };
+    let resolveLoad!: (records: MCPCustomServerRecord[]) => void;
+    const load = new Promise<MCPCustomServerRecord[]>((resolve) => {
+      resolveLoad = resolve;
+    });
+    const saveCustomServers = vi.fn(async () => {});
+    const root = mount(
+      [],
+      McpCustomStorage({
+        loadCustomServers: vi.fn(() => load),
+        saveCustomServers,
+        loadAuthState: vi.fn(async () => null),
+        saveAuthState: vi.fn(async () => {}),
+        clearAuthState: vi.fn(async () => {}),
+      }),
+    );
+
+    try {
+      await root.getValue().removeServer("docs");
+      resolveLoad([docsServer]);
+
+      await vi.waitFor(() =>
+        expect(root.getValue().getState().isHydrated).toBe(true),
+      );
+      expect(root.getValue().getState().customServers).toHaveLength(0);
+      await vi.waitFor(() =>
+        expect(saveCustomServers).toHaveBeenCalledWith([]),
+      );
+    } finally {
+      root.unmount();
+    }
+  });
+
   it("persists custom server updates in invocation order", async () => {
     let resolveFirstSave: (() => void) | undefined;
     const firstSave = new Promise<void>((resolve) => {

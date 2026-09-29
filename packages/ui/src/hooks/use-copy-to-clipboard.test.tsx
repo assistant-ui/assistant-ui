@@ -1,80 +1,86 @@
-import { act, renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
+import { Activity } from "react";
+import { act, render, renderHook } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCopyToClipboard } from "./use-copy-to-clipboard";
 
-const mockClipboard = (writeText: (value: string) => Promise<void>) => {
-  const descriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
-  Object.defineProperty(navigator, "clipboard", {
-    configurable: true,
-    value: { writeText: vi.fn(writeText) },
-  });
-  onTestFinished(() => {
-    if (descriptor) {
-      Object.defineProperty(navigator, "clipboard", descriptor);
-    } else {
-      delete (navigator as { clipboard?: unknown }).clipboard;
-    }
-  });
+const stubClipboard = (writeText: (value: string) => Promise<void>) => {
+  vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
 };
 
 describe("useCopyToClipboard", () => {
-  afterEach(() => {
-    vi.useRealTimers();
+  beforeEach(() => {
+    vi.useFakeTimers();
   });
 
-  it("keeps copied feedback for the full duration after the latest success", async () => {
-    vi.useFakeTimers();
-    mockClipboard(() => Promise.resolve());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it("keeps copy success visible for the full duration after copying again", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    stubClipboard(writeText);
     const { result } = renderHook(() =>
-      useCopyToClipboard({ copiedDuration: 1_000 }),
+      useCopyToClipboard({ copiedDuration: 1800 }),
     );
 
     await act(async () => {
       result.current.copyToClipboard("first");
       await Promise.resolve();
     });
-    act(() => vi.advanceTimersByTime(500));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
     await act(async () => {
       result.current.copyToClipboard("second");
       await Promise.resolve();
     });
 
-    act(() => vi.advanceTimersByTime(500));
     expect(result.current.isCopied).toBe(true);
-
-    act(() => vi.advanceTimersByTime(500));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1799);
+    });
+    expect(result.current.isCopied).toBe(true);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
     expect(result.current.isCopied).toBe(false);
+    expect(writeText).toHaveBeenNthCalledWith(1, "first");
+    expect(writeText).toHaveBeenNthCalledWith(2, "second");
   });
 
-  it("keeps an earlier successful write when a newer write rejects", async () => {
-    vi.useFakeTimers();
-    let resolveFirst!: () => void;
-    const firstWrite = new Promise<void>((resolve) => {
-      resolveFirst = resolve;
-    });
-    mockClipboard(
-      vi
-        .fn()
-        .mockReturnValueOnce(firstWrite)
-        .mockRejectedValueOnce(new Error("denied")),
-    );
+  it("does not show copied when the clipboard write fails", async () => {
+    const writeText = vi
+      .fn()
+      .mockRejectedValue(new Error("clipboard permission denied"));
+    stubClipboard(writeText);
     const { result } = renderHook(() => useCopyToClipboard());
 
-    result.current.copyToClipboard("first");
-    result.current.copyToClipboard("second");
-    await act(async () => Promise.resolve());
-    expect(result.current.isCopied).toBe(false);
-
     await act(async () => {
-      resolveFirst();
-      await firstWrite;
+      result.current.copyToClipboard("value");
+      await Promise.resolve();
     });
-    expect(result.current.isCopied).toBe(true);
+
+    expect(result.current.isCopied).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(writeText).toHaveBeenCalledWith("value");
   });
 
-  it("clears active feedback timers when unmounted", async () => {
-    vi.useFakeTimers();
-    mockClipboard(() => Promise.resolve());
+  it("does not show copied when the clipboard is unavailable", async () => {
+    vi.stubGlobal("navigator", { ...navigator, clipboard: undefined });
+    const { result } = renderHook(() => useCopyToClipboard());
+
+    await act(async () => {
+      result.current.copyToClipboard("value");
+      await Promise.resolve();
+    });
+
+    expect(result.current.isCopied).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("clears its timer on unmount", async () => {
+    stubClipboard(vi.fn().mockResolvedValue(undefined));
     const { result, unmount } = renderHook(() => useCopyToClipboard());
 
     await act(async () => {
@@ -84,23 +90,60 @@ describe("useCopyToClipboard", () => {
     expect(vi.getTimerCount()).toBe(1);
 
     unmount();
+
     expect(vi.getTimerCount()).toBe(0);
   });
 
   it("ignores clipboard success after unmount", async () => {
-    vi.useFakeTimers();
-    let resolveWrite!: () => void;
-    const write = new Promise<void>((resolve) => {
-      resolveWrite = resolve;
-    });
-    mockClipboard(() => write);
+    let resolveCopy!: () => void;
+    stubClipboard(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveCopy = resolve;
+        }),
+    );
     const { result, unmount } = renderHook(() => useCopyToClipboard());
 
     result.current.copyToClipboard("value");
     unmount();
-    resolveWrite();
-    await write;
+    resolveCopy();
+    await act(async () => {
+      await Promise.resolve();
+    });
 
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("resets the confirmation when a hidden Activity cancels its timer", async () => {
+    stubClipboard(vi.fn().mockResolvedValue(undefined));
+    let copy!: ReturnType<typeof useCopyToClipboard>;
+    const Probe = () => {
+      copy = useCopyToClipboard();
+      return null;
+    };
+    const App = ({ mode }: { mode: "visible" | "hidden" }) => (
+      <Activity mode={mode}>
+        <Probe />
+      </Activity>
+    );
+    const view = render(<App mode="visible" />);
+
+    await act(async () => {
+      copy.copyToClipboard("first");
+      await Promise.resolve();
+    });
+    expect(copy.isCopied).toBe(true);
+
+    view.rerender(<App mode="hidden" />);
+    view.rerender(<App mode="visible" />);
+
+    expect(copy.isCopied).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+
+    await act(async () => {
+      copy.copyToClipboard("second");
+      await Promise.resolve();
+    });
+    expect(copy.isCopied).toBe(true);
   });
 });

@@ -105,6 +105,9 @@ const useMcpServerResourceInstance = (
   const pendingTransportRef = useRef<StreamableHTTPClientTransport | null>(
     null,
   );
+  const transportGenerationRef = useRef(
+    new WeakMap<StreamableHTTPClientTransport, { current: number }>(),
+  );
   const connectionGenerationRef = useRef(0);
   const pendingAuthValidationRef = useRef<{
     count: number;
@@ -254,19 +257,29 @@ const useMcpServerResourceInstance = (
   });
 
   const buildTransport = useEffectEvent(
-    async (): Promise<StreamableHTTPClientTransport> => {
+    async (generation: number): Promise<StreamableHTTPClientTransport> => {
       if (props.auth.type === "oauth") {
+        const generationOwner = { current: generation };
         const authProvider = createOAuthProvider({
           serverId: props.id,
           serverUrl: props.url,
           config: props.auth,
           storage: props.storage,
           redirectUri: props.redirectUri,
-          onAuthorizationUrl: (url) => setAuthorizationUrl(url.toString()),
+          onAuthorizationUrl: (url) => {
+            if (isCurrentConnection(generationOwner.current)) {
+              setAuthorizationUrl(url.toString());
+            }
+          },
         });
-        return new StreamableHTTPClientTransport(new URL(props.url), {
-          authProvider,
-        });
+        const transport = new StreamableHTTPClientTransport(
+          new URL(props.url),
+          {
+            authProvider,
+          },
+        );
+        transportGenerationRef.current.set(transport, generationOwner);
+        return transport;
       }
       if (props.auth.type === "bearer") {
         const { state, unbound } = await loadAuthState();
@@ -380,7 +393,7 @@ const useMcpServerResourceInstance = (
               };
               elicitationResolversRef.current.set(id, {
                 resolve,
-                signal: context.signal,
+                signal: context.mcpReq.signal,
                 onAbort,
                 requestedSchema,
               });
@@ -395,10 +408,10 @@ const useMcpServerResourceInstance = (
             ]);
             const entry = elicitationResolversRef.current.get(id);
             if (entry) {
-              if (context.signal.aborted) {
+              if (context.mcpReq.signal.aborted) {
                 entry.onAbort();
               } else {
-                context.signal.addEventListener("abort", entry.onAbort, {
+                context.mcpReq.signal.addEventListener("abort", entry.onAbort, {
                   once: true,
                 });
               }
@@ -443,7 +456,7 @@ const useMcpServerResourceInstance = (
     setTools([]);
     let transport: StreamableHTTPClientTransport | null = null;
     try {
-      transport = await buildTransport();
+      transport = await buildTransport(generation);
       if (!isCurrentConnection(generation)) {
         await closeQueuedTransports([transport]);
         return;
@@ -536,12 +549,14 @@ const useMcpServerResourceInstance = (
     try {
       let transport = transportRef.current;
       if (!transport) {
-        transport = await buildTransport();
+        transport = await buildTransport(generation);
         if (!isCurrentConnection(generation)) {
           await closeQueuedTransports([transport]);
           throw createInterruptedAuthError();
         }
       }
+      const generationOwner = transportGenerationRef.current.get(transport);
+      if (generationOwner) generationOwner.current = generation;
       transportRef.current = null;
       clientRef.current = null;
       pendingTransportRef.current = transport;
@@ -712,7 +727,7 @@ const useMcpServerResourceInstance = (
     ): readonly { property: string; message: string }[] | undefined => {
       if (response.action === "accept") {
         const entry = elicitationResolversRef.current.get(id);
-        if (!entry) return;
+        if (!entry) return undefined;
 
         if (
           typeof response.content !== "object" ||
@@ -752,10 +767,11 @@ const useMcpServerResourceInstance = (
           content: response.content as ElicitResult["content"],
         };
         resolvePendingElicitation(id, result);
-        return;
+        return undefined;
       }
 
       resolvePendingElicitation(id, { action: response.action });
+      return undefined;
     },
   };
 };

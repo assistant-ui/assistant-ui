@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { computeGrid } from "../utils/grid";
+import { dateToKey } from "../utils/date-utils";
 
 describe("computeGrid", () => {
   it("generates cells for date range", () => {
@@ -28,6 +29,20 @@ describe("computeGrid", () => {
     const nonZero = result.cells.find((c) => c.count === 5);
     expect(nonZero).toBeDefined();
     expect(nonZero!.date.getDate()).toBe(15);
+  });
+
+  it("accepts full ISO timestamps", () => {
+    const result = computeGrid({
+      data: [{ date: new Date(2025, 0, 15, 12).toISOString(), count: 5 }],
+      start: new Date(2025, 0, 13, 12).toISOString(),
+      end: new Date(2025, 0, 19, 12).toISOString(),
+      weekStart: "monday",
+    });
+
+    expect(result.cells).toHaveLength(7);
+    expect(result.cells.find((cell) => cell.date.getDate() === 15)?.count).toBe(
+      5,
+    );
   });
 
   it("computes correct column and row for monday start", () => {
@@ -121,5 +136,45 @@ describe("computeGrid", () => {
     // Should be roughly a year (364 days + alignment to week start)
     expect(diffDays).toBeGreaterThanOrEqual(364);
     expect(diffDays).toBeLessThanOrEqual(371);
+  });
+});
+
+describe("computeGrid across a midnight DST transition", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  // Zones whose spring-forward lands at 00:00, so local midnight does not exist
+  // on that day and a date built from calendar fields resolves to 01:00.
+  it.each(["America/Santiago", "Asia/Beirut", "America/Havana"])(
+    "keeps the end day in %s",
+    (timeZone) => {
+      vi.stubEnv("TZ", timeZone);
+
+      const result = computeGrid({
+        data: [
+          { date: "2025-09-20", count: 50 },
+          { date: "2025-09-19", count: 10 },
+        ],
+        end: "2025-09-20",
+      });
+
+      const last = result.cells[result.cells.length - 1];
+      expect(dateToKey(last!.date)).toBe("2025-09-20");
+      expect(last!.count).toBe(50);
+    },
+  );
+
+  it("keeps the end day in a zone that transitions away from midnight", () => {
+    vi.stubEnv("TZ", "America/New_York");
+
+    const result = computeGrid({
+      data: [{ date: "2025-09-20", count: 50 }],
+      end: "2025-09-20",
+    });
+
+    expect(dateToKey(result.cells[result.cells.length - 1]!.date)).toBe(
+      "2025-09-20",
+    );
   });
 });

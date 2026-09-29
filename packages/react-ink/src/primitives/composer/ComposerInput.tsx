@@ -30,7 +30,12 @@ export const ComposerInput = ({
     }
 
     const threadState = aui.thread.getState();
-    if (threadState.isRunning && !threadState.capabilities.queue) return;
+    if (
+      threadState.isRunning &&
+      !threadState.capabilities.queue &&
+      threadState.voice === undefined
+    )
+      return;
 
     aui.composer.send();
   };

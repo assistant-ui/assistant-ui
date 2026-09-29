@@ -52,8 +52,18 @@ export function FlowCanvas({
       ? box.height / container.offsetHeight
       : 1;
 
+    const elementsById = new Map<string, Element>();
+    if (edges.length > 0) {
+      for (const element of container.querySelectorAll("[data-flow-id]")) {
+        const id = element.getAttribute("data-flow-id");
+        if (id !== null && !elementsById.has(id)) {
+          elementsById.set(id, element);
+        }
+      }
+    }
+
     const rect = (id: string) => {
-      const element = container.querySelector(`[data-flow-id="${id}"]`);
+      const element = elementsById.get(id);
       if (!element) return undefined;
 
       const r = element.getBoundingClientRect();
@@ -132,6 +142,47 @@ export function FlowCanvas({
     const observer = new ResizeObserver(measure);
     observer.observe(container);
 
+    const observedNodes = new Set<Element>();
+    const syncObservedNodes = () => {
+      const currentNodes = new Set(
+        container.querySelectorAll("[data-flow-id]"),
+      );
+      let changed = false;
+
+      for (const element of observedNodes) {
+        if (currentNodes.has(element)) continue;
+        observer.unobserve(element);
+        observedNodes.delete(element);
+        changed = true;
+      }
+
+      for (const element of currentNodes) {
+        if (observedNodes.has(element)) continue;
+        observer.observe(element);
+        observedNodes.add(element);
+        changed = true;
+      }
+
+      return changed;
+    };
+
+    syncObservedNodes();
+    const mutationObserver = new MutationObserver((mutations) => {
+      const changed = syncObservedNodes();
+      if (
+        changed ||
+        mutations.some((mutation) => mutation.type === "attributes")
+      ) {
+        measure();
+      }
+    });
+    mutationObserver.observe(container, {
+      attributes: true,
+      attributeFilter: ["data-flow-id"],
+      childList: true,
+      subtree: true,
+    });
+
     let mounted = true;
     document.fonts?.ready.then(() => {
       if (mounted) measure();
@@ -139,6 +190,7 @@ export function FlowCanvas({
 
     return () => {
       mounted = false;
+      mutationObserver.disconnect();
       observer.disconnect();
     };
   }, [measure]);

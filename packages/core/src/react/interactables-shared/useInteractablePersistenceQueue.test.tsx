@@ -23,10 +23,15 @@ const createDeferred = () => {
   return { promise, resolve, reject };
 };
 
-const renderQueue = (save: (state: TestState) => void | Promise<void>) => {
+const renderQueue = (
+  save: ((state: TestState) => void | Promise<void>) | undefined,
+) => {
   let snapshot: TestState = {};
   let persistence: PersistenceStatusMap = {};
-  const adapterRef = { current: { save } };
+  const adapterRef: {
+    current: { save: (state: TestState) => void | Promise<void> } | undefined;
+  } = { current: save ? { save } : undefined };
+  const adapterGenerationRef = { current: 0 };
   const updatePersistenceStatus = (
     updater: (prev: PersistenceStatusMap) => PersistenceStatusMap,
   ) => {
@@ -35,6 +40,7 @@ const renderQueue = (save: (state: TestState) => void | Promise<void>) => {
   const hook = renderHook(() =>
     useInteractablePersistenceQueue({
       adapterRef,
+      adapterGenerationRef,
       snapshot: () => snapshot,
       updatePersistenceStatus,
     }),
@@ -68,6 +74,20 @@ afterEach(() => {
 });
 
 describe("useInteractablePersistenceQueue", () => {
+  it("resolves flush while edits wait for an adapter", async () => {
+    const queue = renderQueue(undefined);
+
+    queue.setState("a", 1);
+    act(() => queue.result.current.schedulePersistence("a"));
+
+    let flushPromise!: Promise<void>;
+    act(() => {
+      flushPromise = queue.result.current.flush();
+    });
+
+    await expect(flushPromise).resolves.toBeUndefined();
+  });
+
   it("coalesces dirty marks inside the debounce window into one save", async () => {
     const save = vi.fn<(state: TestState) => void>();
     const queue = renderQueue(save);

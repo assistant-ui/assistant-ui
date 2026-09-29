@@ -1,5 +1,13 @@
 # safe-content-frame
 
+## 0.0.31
+
+### Patch Changes
+
+- [#7680](https://github.com/assistant-ui/assistant-ui/pull/7680) [`e8cf372`](https://github.com/assistant-ui/assistant-ui/commit/e8cf372a3ba08f937149dc924e807228324b45f7) - fix: support multibyte pathnames when deriving browser cache salts ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.30
 
 ### Patch Changes

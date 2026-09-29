@@ -23,7 +23,7 @@ describe("Expo anonymous session fetch", () => {
 
   it("retries bootstrap on the next request after issuance fails", async () => {
     const fetchMock = vi
-      .fn<typeof fetch>()
+      .fn<(input: URL | RequestInfo, init?: RequestInit) => Promise<Response>>()
       .mockRejectedValueOnce(new Error("temporary network failure"))
       .mockResolvedValueOnce(new Response(null, { status: 403 }))
       .mockResolvedValueOnce(Response.json({ token: "signed-session" }))
@@ -59,7 +59,7 @@ describe("Expo anonymous session fetch", () => {
 
   it("accepts a same-origin 204 cookie bootstrap", async () => {
     const fetchMock = vi
-      .fn<typeof fetch>()
+      .fn<(input: URL | RequestInfo, init?: RequestInit) => Promise<Response>>()
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(new Response("ok"));
     const sessionFetch = createAnonymousSessionFetch(

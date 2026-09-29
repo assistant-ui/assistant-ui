@@ -8,7 +8,7 @@ const h = vi.hoisted(() => ({
   sendSpy: vi.fn<() => void>(),
   flushTapSyncSpy: vi.fn(<T,>(fn: () => T) => fn()),
   composerState: { text: "" },
-  threadState: { isRunning: false, queue: false },
+  threadState: { isRunning: false, queue: false, voice: false },
   platform: { os: "web" as "web" | "ios" | "android" },
 }));
 
@@ -21,6 +21,7 @@ vi.mock("@assistant-ui/store", () => {
     getState: () => ({
       isRunning: h.threadState.isRunning,
       capabilities: { queue: h.threadState.queue },
+      voice: h.threadState.voice ? { status: { type: "running" } } : undefined,
     }),
   };
   const aui = { composer, thread };
@@ -109,6 +110,7 @@ describe("ComposerInput", () => {
     h.composerState.text = "";
     h.threadState.isRunning = false;
     h.threadState.queue = false;
+    h.threadState.voice = false;
     h.platform.os = "web";
 
     container = document.createElement("div");
@@ -201,6 +203,20 @@ describe("ComposerInput", () => {
       });
 
       expect(h.sendSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("submits while a spoken reply runs during a voice session", async () => {
+      h.threadState.isRunning = true;
+      h.threadState.voice = true;
+      const input = await mount();
+
+      let event!: KeyboardEvent;
+      await act(async () => {
+        event = fireKeyDown(input, { key: "Enter" });
+      });
+
+      expect(h.sendSpy).toHaveBeenCalledTimes(1);
+      expect(event.defaultPrevented).toBe(true);
     });
 
     it("blocks submission when the thread starts running after mount", async () => {

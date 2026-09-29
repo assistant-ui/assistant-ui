@@ -32,15 +32,6 @@ const mocks = vi.hoisted(() => {
         ["Render a thread beside your composer."],
       ),
     ],
-    tap: [
-      page(
-        "/tap/docs/overview/introduction",
-        "Introduction",
-        "Run React hooks as headless resources.",
-        [],
-        ["A resource runs the hooks you already know."],
-      ),
-    ],
     design: [
       page(
         "/design/components/sheet",
@@ -86,7 +77,6 @@ vi.mock("@/lib/source", () => ({
   design: { getPages: () => mocks.design },
   elementsDocs: { getPages: () => mocks.elements },
   examples: { getPages: () => mocks.examples },
-  getTapDocsPages: () => mocks.tap,
 }));
 
 import { buildContentIndex } from "./content-index";

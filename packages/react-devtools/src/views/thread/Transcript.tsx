@@ -169,12 +169,7 @@ const metricSeries = (messages: readonly MessagePreview[]): MetricSeries[] =>
     },
     {
       label: "TTFT",
-      values: collect(messages, (message) =>
-        message.timing?.firstTokenTime !== undefined &&
-        message.timing?.streamStartTime !== undefined
-          ? message.timing.firstTokenTime - message.timing.streamStartTime
-          : undefined,
-      ),
+      values: collect(messages, (message) => message.timing?.firstTokenTime),
       format: (value: number) => `${Math.round(value)}ms`,
     },
     {

@@ -1,8 +1,15 @@
 // @vitest-environment jsdom
 
-import { act, render, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { createElement, StrictMode, useLayoutEffect, useRef } from "react";
+import {
+  createElement,
+  StrictMode,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+} from "react";
+import { createRoot } from "react-dom/client";
 import { useCommandQueue } from "./commandQueue";
 import { useRunManager } from "./runManager";
 import type { AssistantTransportCommand } from "./types";
@@ -85,52 +92,70 @@ const useTransportSchedulingHarness = (
 };
 
 describe("assistant transport scheduling contracts", () => {
-  it("uses current callbacks when scheduled by a descendant layout effect", async () => {
-    const onRunA = vi.fn(async () => {});
-    const onRunB = vi.fn(async () => {});
-    // act flushes passive effects before real microtasks, so preserve the
-    // browser's microtask-before-passive-effect ordering at the layout boundary.
-    const queueMicrotaskSpy = vi
-      .spyOn(globalThis, "queueMicrotask")
-      .mockImplementation((callback) => callback());
-
-    const Scheduler = ({
-      schedule,
-      enabled,
-    }: {
-      schedule: () => void;
-      enabled: boolean;
-    }) => {
-      useLayoutEffect(() => {
-        if (enabled) schedule();
-      }, [enabled, schedule]);
-      return null;
-    };
-    const Probe = ({
-      enabled,
-      onRun,
-    }: {
-      enabled: boolean;
-      onRun: (signal: AbortSignal) => Promise<void>;
-    }) => {
-      const runManager = useRunManager({ onRun });
-      return createElement(Scheduler, {
-        enabled,
-        schedule: runManager.schedule,
-      });
-    };
-
+  it("reads the committed callbacks when a run settles inside a yielded commit", async () => {
+    // A render past the scheduler's 5 ms frame budget yields before passive
+    // effects, and act would drain them first, so this renders outside act.
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", false);
     try {
-      const view = render(
-        createElement(Probe, { enabled: false, onRun: onRunA }),
-      );
-      view.rerender(createElement(Probe, { enabled: true, onRun: onRunB }));
-      await act(async () => {});
+      const events: string[] = [];
+      const pendingRuns: (() => void)[] = [];
+      let schedule!: () => void;
+      const settleRun = () => {
+        pendingRuns.shift()?.();
+        schedule();
+      };
 
-      expect(onRunB).toHaveBeenCalledTimes(1);
-      expect(onRunA).not.toHaveBeenCalled();
+      const Settle = ({ onLayout }: { onLayout: (() => void) | undefined }) => {
+        useLayoutEffect(() => {
+          onLayout?.();
+        }, [onLayout]);
+        return null;
+      };
+      const Probe = ({
+        label,
+        renderMs,
+        onLayout,
+      }: {
+        label: string;
+        renderMs: number;
+        onLayout?: () => void;
+      }) => {
+        const runManager = useRunManager({
+          onRun: () => {
+            events.push(`run:${label}`);
+            return new Promise<void>((resolve) => pendingRuns.push(resolve));
+          },
+          onFinish: () => events.push(`finish:${label}`),
+        });
+        schedule = runManager.schedule;
+        useEffect(() => {
+          events.push(`passive:${label}`);
+        }, [label]);
+        const renderEnd = performance.now() + renderMs;
+        while (performance.now() < renderEnd) {}
+        return createElement(Settle, { onLayout });
+      };
+
+      const root = createRoot(document.createElement("div"));
+      root.render(createElement(Probe, { label: "A", renderMs: 0 }));
+      await vi.waitFor(() => expect(events).toEqual(["passive:A"]));
+      schedule();
+      await vi.waitFor(() => expect(events).toEqual(["passive:A", "run:A"]));
+      root.render(
+        createElement(Probe, { label: "B", renderMs: 30, onLayout: settleRun }),
+      );
+      await vi.waitFor(() => expect(events).toContain("passive:B"));
+      root.unmount();
+
+      expect(events).toEqual([
+        "passive:A",
+        "run:A",
+        "finish:B",
+        "run:B",
+        "passive:B",
+      ]);
     } finally {
-      queueMicrotaskSpy.mockRestore();
+      vi.unstubAllGlobals();
     }
   });
 
@@ -196,7 +221,9 @@ describe("assistant transport scheduling contracts", () => {
         onRun: () => {
           throw new Error("network error");
         },
-        onError: (commands) => seen.push(commands),
+        onError: (commands) => {
+          seen.push(commands);
+        },
       }),
     );
 

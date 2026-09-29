@@ -1,0 +1,129 @@
+---
+title: Composition
+description: Combine Resources into reusable state trees.
+---
+
+Resources combine small stateful behaviors into larger ones. A parent Resource
+renders a child and receives its public API directly. It can read the child's
+state, call its methods, combine it with other Resources, or expose a new API of
+its own.
+
+The result is a tree of focused Resources rather than one monolithic store.
+
+## useResource
+
+A Hook call fixes its implementation at the call site. A `ResourceElement`
+makes that implementation an input, so a Resource can receive another Resource
+as configuration and render whichever implementation was provided:
+
+```ts
+import {
+  resource,
+  useResource,
+  type ResourceElement,
+} from "@assistant-ui/tap";
+
+type CounterState = ReturnType<typeof useCounter>;
+
+const useMockCounter = (count: number): CounterState => ({
+  count,
+  increment: () => undefined,
+});
+
+const MockCounter = resource(useMockCounter);
+
+const useLimitedCounter = ({
+  counter,
+  max,
+}: {
+  counter: ResourceElement<CounterState>;
+  max: number;
+}) => {
+  const state = useResource(counter);
+  const isAtLimit = state.count >= max;
+
+  return {
+    count: state.count,
+    isAtLimit,
+    increment: () => {
+      if (!isAtLimit) state.increment();
+    },
+  };
+};
+
+const LimitedCounter = resource(useLimitedCounter);
+```
+
+The caller chooses the counter implementation:
+
+```ts
+const counter = isDemo
+  ? MockCounter(5)
+  : Counter({ initialValue: 0 });
+
+const limitedCounter = LimitedCounter({ counter, max: 10 });
+```
+
+`LimitedCounter` owns the limiting behavior while its caller decides where the
+count comes from. It accepts any Resource that returns `CounterState`.
+
+When the configured Resource changes, `useResource` unmounts the previous
+implementation and mounts the next one. The `useResource` call itself stays in
+the same place, so the choice can remain dynamic without making Hook calls
+conditional.
+
+## useResources
+
+Use `useResources` when a Resource owns a dynamic collection:
+
+```ts
+import { resource, withKey, useResources } from "@assistant-ui/tap";
+
+const useCounterList = (ids: readonly string[]) => {
+  const counters = useResources(
+    ids.map((id) => withKey(id, Counter({ initialValue: 0 }))),
+  );
+
+  return {
+    counters,
+    total: counters.reduce((sum, counter) => sum + counter.count, 0),
+  };
+};
+
+const CounterList = resource(useCounterList);
+```
+
+Every element in the collection needs a unique key. `withKey` gives each child a
+stable identity, so state follows the key when the collection is reordered:
+
+```ts
+CounterList(["a", "b", "c"]);
+CounterList(["c", "a", "b"]);
+```
+
+Removing a key unmounts that Resource. Reusing a key with a different Resource
+implementation replaces the old Resource and its state.
+
+## Composition creates ownership
+
+Rendering a Resource makes it a child of the current Resource:
+
+```text
+LimitedCounter
+└── Counter or MockCounter
+
+CounterList
+├── Counter key="a"
+├── Counter key="b"
+└── Counter key="c"
+```
+
+Children mount and unmount with their parent. Effects run in the order Resources
+are rendered. See
+[Effect ordering](/docs/tap/differences-from-react#effects-run-in-call-order)
+for details.
+
+Composition does not create a new scheduler. `useResource` and `useResources`
+remain part of the current Resource tree, so an update can propagate to its
+root. To introduce a separate scheduling boundary, use
+[`useTapRoot`](/docs/tap/trees-and-rerenders#separate-scheduling-with-usetaproot).

@@ -62,10 +62,12 @@ describe("useAdkRuntime replacement runs", () => {
     },
   ])("ignores superseded run $label", async ({ cancelFirst, failFirst }) => {
     const gates = [deferred(), deferred()];
+    const resumed = [deferred(), deferred()];
     let calls = 0;
     const stream = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
       const call = calls++;
       await gates[call]!.promise;
+      resumed[call]!.resolve();
       if (call === 0 && failFirst) throw new Error("stale run failed");
       yield {
         id: `event-${call}`,
@@ -84,7 +86,11 @@ describe("useAdkRuntime replacement runs", () => {
         unstable_allowCancellation: true,
       });
       capture.runtime = runtime;
-      return <AssistantRuntimeProvider runtime={runtime} />;
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
     };
 
     await act(async () => {
@@ -95,19 +101,17 @@ describe("useAdkRuntime replacement runs", () => {
       await capture.runtime!.threads.switchToThread("adk-1");
     });
 
-    let firstSend!: Promise<void>;
     act(() => {
-      firstSend = capture.runtime!.thread.append({
+      capture.runtime!.thread.append({
         role: "user",
         content: [{ type: "text", text: "first" }],
       });
     });
     await waitFor(() => expect(stream).toHaveBeenCalledTimes(1));
 
-    let secondSend!: Promise<void>;
     await act(async () => {
       if (cancelFirst) await capture.runtime!.thread.cancelRun();
-      secondSend = capture.runtime!.thread.append({
+      capture.runtime!.thread.append({
         role: "user",
         content: [{ type: "text", text: "second" }],
       });
@@ -116,7 +120,7 @@ describe("useAdkRuntime replacement runs", () => {
 
     await act(async () => {
       gates[0]!.resolve();
-      await firstSend;
+      await resumed[0]!.promise;
     });
 
     const messagesAfterFirstSettles = JSON.stringify(
@@ -128,7 +132,7 @@ describe("useAdkRuntime replacement runs", () => {
 
     await act(async () => {
       gates[1]!.resolve();
-      await secondSend;
+      await resumed[1]!.promise;
     });
     expect(
       JSON.stringify(capture.runtime!.thread.getState().messages),

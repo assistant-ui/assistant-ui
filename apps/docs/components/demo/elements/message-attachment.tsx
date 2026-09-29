@@ -25,5 +25,7 @@ const ATTACHMENTS: readonly MessageAttachmentItem[] = [
 ];
 
 export function MessageAttachmentDemo() {
-  return <MessageAttachments attachments={ATTACHMENTS} />;
+  return (
+    <MessageAttachments attachments={ATTACHMENTS} onOpen={() => undefined} />
+  );
 }

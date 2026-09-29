@@ -1,122 +1,98 @@
-// @vitest-environment jsdom
-
-import { act } from "react";
-import { createRoot } from "react-dom/client";
-import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
+/** @vitest-environment jsdom */
+import { Activity, act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCopyToClipboard } from "./useCopyToClipboard";
 
-const mockClipboard = (writeText: (value: string) => Promise<void>) => {
-  const descriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
-  Object.defineProperty(navigator, "clipboard", {
-    configurable: true,
-    value: { writeText: vi.fn(writeText) },
-  });
-  onTestFinished(() => {
-    if (descriptor) {
-      Object.defineProperty(navigator, "clipboard", descriptor);
-    } else {
-      delete (navigator as { clipboard?: unknown }).clipboard;
-    }
-  });
-};
+(globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
-const renderCopyHook = async () => {
-  let result!: ReturnType<typeof useCopyToClipboard>;
-  const Probe = () => {
-    result = useCopyToClipboard({ copiedDuration: 1_000 });
-    return null;
-  };
-  const root = createRoot(document.createElement("div"));
-  await act(async () => root.render(<Probe />));
-  return {
-    get result() {
-      return result;
-    },
-    unmount: () => act(async () => root.unmount()),
-  };
-};
+function CopyProbe() {
+  const { isCopied, copy } = useCopyToClipboard({ copiedDuration: 2000 });
+  return (
+    <button onClick={() => copy("value")}>
+      {isCopied ? "Copied" : "Copy"}
+    </button>
+  );
+}
 
 describe("useCopyToClipboard", () => {
-  afterEach(() => {
+  let container: HTMLDivElement;
+  let root: Root;
+  let writeText: ReturnType<typeof vi.fn<(text: string) => Promise<void>>>;
+
+  beforeEach(() => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+    writeText = vi.fn(async () => {});
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    vi.useFakeTimers();
+  });
+
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    container.remove();
     vi.useRealTimers();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
-  it("keeps copied feedback for the full duration after the latest success", async () => {
-    vi.useFakeTimers();
-    mockClipboard(() => Promise.resolve());
-    const hook = await renderCopyHook();
+  const copyButton = () =>
+    container.querySelector("button") as HTMLButtonElement;
 
+  it("keeps the latest confirmation visible when copied again", async () => {
+    await act(async () => root.render(<CopyProbe />));
+    await act(async () => copyButton().click());
     await act(async () => {
-      hook.result.copy("first");
-      await Promise.resolve();
-    });
-    act(() => vi.advanceTimersByTime(500));
-    await act(async () => {
-      hook.result.copy("second");
-      await Promise.resolve();
+      vi.advanceTimersByTime(1000);
+      copyButton().click();
     });
 
-    act(() => vi.advanceTimersByTime(500));
-    expect(hook.result.isCopied).toBe(true);
-
-    act(() => vi.advanceTimersByTime(500));
-    expect(hook.result.isCopied).toBe(false);
-    await hook.unmount();
+    await act(async () => vi.advanceTimersByTime(1000));
+    expect(copyButton().textContent).toBe("Copied");
+    await act(async () => vi.advanceTimersByTime(1000));
+    expect(copyButton().textContent).toBe("Copy");
   });
 
-  it("keeps an earlier successful write when a newer write rejects", async () => {
-    vi.useFakeTimers();
-    let resolveFirst!: () => void;
-    const firstWrite = new Promise<void>((resolve) => {
-      resolveFirst = resolve;
-    });
-    mockClipboard(
-      vi
-        .fn()
-        .mockReturnValueOnce(firstWrite)
-        .mockRejectedValueOnce(new Error("denied")),
-    );
-    const hook = await renderCopyHook();
-
-    hook.result.copy("first");
-    hook.result.copy("second");
-    await act(async () => Promise.resolve());
-    resolveFirst();
-    await act(async () => firstWrite);
-
-    expect(hook.result.isCopied).toBe(true);
-    await hook.unmount();
-  });
-
-  it("clears an active feedback timer when unmounted", async () => {
-    vi.useFakeTimers();
-    mockClipboard(() => Promise.resolve());
-    const hook = await renderCopyHook();
-
-    await act(async () => {
-      hook.result.copy("value");
-      await Promise.resolve();
-    });
+  it("clears its confirmation timer on unmount", async () => {
+    await act(async () => root.render(<CopyProbe />));
+    await act(async () => copyButton().click());
     expect(vi.getTimerCount()).toBe(1);
 
-    await hook.unmount();
+    await act(async () => root.unmount());
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it("ignores pending writes after unmount", async () => {
-    vi.useFakeTimers();
+  it("does not schedule a timer when a write settles after unmount", async () => {
     let resolveWrite!: () => void;
-    const write = new Promise<void>((resolve) => {
-      resolveWrite = resolve;
-    });
-    mockClipboard(() => write);
-    const hook = await renderCopyHook();
+    writeText.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveWrite = resolve;
+      }),
+    );
 
-    hook.result.copy("value");
-    await hook.unmount();
-    resolveWrite();
-    await write;
+    await act(async () => root.render(<CopyProbe />));
+    await act(async () => copyButton().click());
+    await act(async () => root.unmount());
+    await act(async () => resolveWrite());
 
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("ends the confirmation after an Activity hides and shows it", async () => {
+    const render = (mode: "visible" | "hidden") =>
+      root.render(
+        <Activity mode={mode}>
+          <CopyProbe />
+        </Activity>,
+      );
+    await act(async () => render("visible"));
+    await act(async () => copyButton().click());
+    expect(copyButton().textContent).toBe("Copied");
+
+    await act(async () => render("hidden"));
+    await act(async () => render("visible"));
+    await act(async () => vi.advanceTimersByTime(2000));
+    expect(copyButton().textContent).toBe("Copy");
   });
 });

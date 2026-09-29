@@ -1,5 +1,25 @@
 # heat-graph
 
+## 0.0.21
+
+### Patch Changes
+
+- [#7927](https://github.com/assistant-ui/assistant-ui/pull/7927) [`e8477bf`](https://github.com/assistant-ui/assistant-ui/commit/e8477bf27101bfc2aca1da6b7c9fce4003c509c2) - fix(heat-graph): keep the last day of the range in a midnight-DST timezone ([@Kinfe123](https://github.com/Kinfe123))
+
+## 0.0.20
+
+### Patch Changes
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+## 0.0.19
+
+### Patch Changes
+
+- [#7334](https://github.com/assistant-ui/assistant-ui/pull/7334) [`b6fabc0`](https://github.com/assistant-ui/assistant-ui/commit/b6fabc015cd0881f67f8cdf8d2fe3894f998b677) - fix: accept full ISO timestamps in heat graph date inputs ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7247](https://github.com/assistant-ui/assistant-ui/pull/7247) [`b23c505`](https://github.com/assistant-ui/assistant-ui/commit/b23c50501cb03a40d6b72201ee04b9ce08bd9663) - fix: preserve tooltip behavior when cells define hover handlers ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.0.18
 
 ### Patch Changes
