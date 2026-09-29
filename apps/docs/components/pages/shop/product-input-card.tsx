@@ -14,7 +14,7 @@ import {
 } from "@/components/pages/shop/wizard-actions";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import { getCatalogItem } from "@/lib/catalog";
-import { cartUrl } from "@/lib/catalog/install-prompt";
+import { installGuideUrl } from "@/lib/catalog/install-guide";
 import { inputPrompt, type Checkout } from "@/lib/checkout/protocol";
 
 export function ProductInputCard({
@@ -43,7 +43,7 @@ export function ProductInputCard({
         product: {
           slug: product.slug,
           name: product.name,
-          guide: `${window.location.origin}${cartUrl([product.slug], { markdown: true })}`,
+          guide: `${window.location.origin}${installGuideUrl([product.slug])}`,
         },
       });
     } catch {

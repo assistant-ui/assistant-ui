@@ -53,7 +53,7 @@ describe("ProductInputCard", () => {
         product: {
           slug: "assistant-ui",
           name: "assistant-ui",
-          guide: `${window.location.origin}/shop/cart.md?items=assistant-ui`,
+          guide: `${window.location.origin}/install.md?items=assistant-ui`,
         },
       }),
     );

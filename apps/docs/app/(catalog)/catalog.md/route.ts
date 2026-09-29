@@ -5,7 +5,7 @@ import {
   CATALOG_KIND_LABELS,
   formatMinutes,
 } from "@/lib/catalog";
-import { cartUrl } from "@/lib/catalog/install-prompt";
+import { installGuideUrl } from "@/lib/catalog/install-guide";
 import { shopEnabled } from "@/lib/checkout/config";
 import { BASE_URL } from "@/lib/constants";
 import { createMarkdownResponse } from "@/lib/markdown-response";
@@ -18,7 +18,7 @@ const formatProduct = (product: (typeof CATALOG)[number]) =>
     "",
     `Slug: ${product.slug}`,
     `Kind: ${CATALOG_KIND_LABELS[product.kind]}`,
-    `Price: Free (${product.license}${product.oss ? ", open source" : ""})`,
+    `License: ${product.license}${product.oss ? ", open source" : ""}`,
     `For: ${product.audience}`,
     `Docs: ${BASE_URL}${product.docs}.md`,
     `Packages: ${product.packages.join(", ")}`,
@@ -36,16 +36,13 @@ const formatProduct = (product: (typeof CATALOG)[number]) =>
 export function GET() {
   if (!shopEnabled) return new Response("Not found", { status: 404 });
   const markdown = [
-    "# assistant-ui shop",
+    "# assistant-ui catalog",
     "",
     AGENT_DOCS_DIRECTIVE_MARKDOWN,
     "",
-    "Everything you can add to an assistant-ui project. Every product is free. To install a set of products, fetch the cart as markdown with their slugs, for example:",
+    "Everything you can add to an assistant-ui project. To install a set of products, fetch the install guide with their slugs, for example:",
     "",
-    `${BASE_URL}${cartUrl(
-      CATALOG.map((product) => product.slug),
-      { markdown: true },
-    )}`,
+    `${BASE_URL}${installGuideUrl(CATALOG.map((product) => product.slug))}`,
     "",
     ...CATALOG.map(formatProduct),
     "",

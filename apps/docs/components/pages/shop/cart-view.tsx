@@ -20,7 +20,7 @@ import {
   formatMinutes,
   resolveProducts,
 } from "@/lib/catalog";
-import { parseCartItems } from "@/lib/catalog/install-prompt";
+import { parseItemSlugs } from "@/lib/catalog/install-guide";
 import {
   removeFromCart,
   replaceCart,
@@ -79,7 +79,7 @@ export function CartView() {
   // so removing an item here does not resurrect it on the next render.
   useEffect(() => {
     if (!hydrated || session !== null) return;
-    const linked = resolveProducts(parseCartItems(linkedItems)).map(
+    const linked = resolveProducts(parseItemSlugs(linkedItems)).map(
       (product) => product.slug,
     );
     if (linked.length > 0) replaceCart(linked);

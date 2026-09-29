@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const get = async (query: string) => {
   vi.resetModules();
   const { GET } = await import("./route");
-  return GET(new NextRequest(`https://docs.test/shop/cart.md${query}`));
+  return GET(new NextRequest(`https://docs.test/install.md${query}`));
 };
 
 afterEach(() => {
@@ -12,7 +12,7 @@ afterEach(() => {
   vi.resetModules();
 });
 
-describe("cart markdown route", () => {
+describe("install guide route", () => {
   it("serves the install prompt for known products", async () => {
     const response = await get("?items=cloud");
     expect(response.status).toBe(200);
