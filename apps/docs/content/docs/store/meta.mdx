@@ -3,7 +3,7 @@ title: Meta
 description: Track scope origin with source and query.
 ---
 
-Every scope accessor has three metadata properties: `source` and `query` describe where a scope comes from, and `name` is the scope's own name. They are reserved — scope methods cannot use these names.
+Every scope accessor has three metadata properties: `source` and `query` describe where a scope comes from, and `name` is the scope's own name. They are reserved: scope methods cannot use these names.
 
 ```tsx
 aui.thread.source; // "root" | "parentScope" | null
@@ -24,7 +24,7 @@ aui.thread.source; // "root"
 aui.thread.query; // {}
 ```
 
-This is the default — the scope was provided directly, not derived from another scope.
+This is the default: the scope was provided directly, not derived from another scope.
 
 ## Derived scopes
 
@@ -61,7 +61,7 @@ declare module "@assistant-ui/store" {
 }
 ```
 
-This makes the `source` and `query` types precise — TypeScript will enforce that any `Derived` providing the `message` scope uses the correct source and query shape.
+This makes the `source` and `query` types precise: TypeScript will enforce that any `Derived` providing the `message` scope uses the correct source and query shape.
 
 ## Unavailable scopes
 
