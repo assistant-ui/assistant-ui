@@ -3,9 +3,14 @@ import { createRoot, type Root } from "react-dom/client";
 import { Text } from "react-native";
 import {
   AssistantRuntimeProvider,
+  AuiConfig,
+  defineToolkit,
   MessageByIndexProvider,
   MessagePrimitive,
+  Tools,
+  useAuiState,
   useExternalStoreRuntime,
+  type ExternalStoreAdapter,
   type ThreadMessage,
   type ThreadMessageLike,
 } from "@assistant-ui/react-native";
@@ -37,7 +42,10 @@ const nestedUser = (id: string, text: string) =>
 const nestedAssistant = (
   id: string,
   content: ThreadMessageLike["content"],
-  status: { type: "running" } | { type: "complete"; reason: "stop" },
+  status:
+    | { type: "running" }
+    | { type: "complete"; reason: "stop" }
+    | { type: "requires-action"; reason: "interrupt" | "tool-calls" },
 ) =>
   ({
     id,
@@ -61,6 +69,8 @@ const task = (
     messages: readonly ThreadMessage[];
     result?: unknown;
     isError?: boolean;
+    interrupt?: { type: "human"; payload: unknown };
+    approval?: { id: string; prompt?: string };
   },
 ) => ({
   type: "tool-call" as const,
@@ -70,6 +80,8 @@ const task = (
   messages: options.messages,
   ...(options.result !== undefined && { result: options.result }),
   ...(options.isError && { isError: true }),
+  ...(options.interrupt !== undefined && { interrupt: options.interrupt }),
+  ...(options.approval !== undefined && { approval: options.approval }),
 });
 
 const settled = (id: string, text: string) => [
@@ -127,16 +139,31 @@ const fanOut = (): ThreadMessageLike[] => [
   },
 ];
 
-const GroupHarness = ({ messages }: { messages: ThreadMessageLike[] }) => {
+type ToolHandlers = Pick<
+  ExternalStoreAdapter<ThreadMessageLike>,
+  "onResumeToolCall" | "onRespondToToolApproval"
+>;
+
+const GroupHarness = ({
+  messages,
+  handlers,
+  config,
+}: {
+  messages: ThreadMessageLike[];
+  handlers: ToolHandlers;
+  config?: ReturnType<typeof AuiConfig>;
+}) => {
   const runtime = useExternalStoreRuntime({
     messages,
     convertMessage: (message) => message,
     isRunning: false,
     onNew: async () => {},
+    onAddToolResult: () => {},
+    ...handlers,
   });
 
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
       <MessageByIndexProvider index={1}>
         <MessagePrimitive.GroupedParts
           indicator="never"
@@ -180,9 +207,19 @@ describe("TaskGroup", () => {
     container.remove();
   });
 
-  const render = async (messages: ThreadMessageLike[]) => {
+  const render = async (
+    messages: ThreadMessageLike[],
+    handlers: ToolHandlers = {},
+    config?: ReturnType<typeof AuiConfig>,
+  ) => {
     await act(async () => {
-      root.render(<GroupHarness messages={messages} />);
+      root.render(
+        <GroupHarness
+          messages={messages}
+          handlers={handlers}
+          config={config}
+        />,
+      );
     });
   };
 
@@ -317,6 +354,178 @@ describe("TaskGroup", () => {
 
     expect(cardHeaders()).toHaveLength(1);
     expect(container.textContent).not.toContain("1 tasks");
+  });
+
+  it("answers a waiting task through the runtime", async () => {
+    const onResumeToolCall = vi.fn();
+    const onRespondToToolApproval = vi.fn();
+    await render(
+      [
+        { role: "user", content: "Look into it" },
+        {
+          role: "assistant",
+          status: { type: "requires-action", reason: "interrupt" },
+          content: [
+            task("paused", "Ship the release", {
+              messages: settled("paused", "Ready to ship"),
+              interrupt: { type: "human", payload: {} },
+            }),
+            task("gated", "Tag the release", {
+              messages: settled("gated", "Ready to tag"),
+              approval: { id: "tag-approval" },
+            }),
+          ],
+        },
+      ],
+      { onResumeToolCall, onRespondToToolApproval },
+    );
+
+    const allows = [
+      ...container.querySelectorAll<HTMLElement>(
+        '[role="button"][aria-label="Allow"]',
+      ),
+    ];
+    expect(allows).toHaveLength(2);
+    for (const allow of allows) {
+      await act(async () => {
+        click(allow);
+      });
+    }
+
+    expect(onResumeToolCall).toHaveBeenCalledExactlyOnceWith({
+      toolCallId: "paused",
+      payload: { approved: true },
+    });
+    expect(onRespondToToolApproval).toHaveBeenCalledExactlyOnceWith({
+      approvalId: "tag-approval",
+      approved: true,
+    });
+  });
+
+  it("renders a call waiting inside a transcript with its prompt and without controls", async () => {
+    await render([
+      { role: "user", content: "Look into it" },
+      {
+        role: "assistant",
+        content: [
+          task("outer", "Coordinate the release", {
+            messages: [
+              nestedUser("outer-user", "Go"),
+              nestedAssistant(
+                "outer-assistant",
+                [
+                  task("gated", "Tag the release", {
+                    messages: [],
+                    approval: {
+                      id: "nested-approval",
+                      prompt: "Tag v1.2.0?",
+                    },
+                  }),
+                  {
+                    type: "tool-call",
+                    toolCallId: "deploy",
+                    toolName: "deploy",
+                    args: {},
+                    argsText: "{}",
+                    approval: {
+                      id: "deploy-approval",
+                      prompt: "Deploy to production?",
+                    },
+                  },
+                  {
+                    type: "tool-call",
+                    toolCallId: "lookup",
+                    toolName: "lookup",
+                    args: {},
+                    argsText: "{}",
+                  },
+                  {
+                    type: "tool-call",
+                    toolCallId: "confirm",
+                    toolName: "confirm",
+                    args: {},
+                    argsText: "{}",
+                    interrupt: { type: "human", payload: {} },
+                  },
+                ],
+                { type: "requires-action", reason: "tool-calls" },
+              ),
+            ],
+            result: "handed back",
+          }),
+        ],
+      },
+    ]);
+
+    await act(async () => {
+      click(cardHeaders()[0]!);
+    });
+
+    const nested = container.querySelector<HTMLElement>(
+      '[aria-label="Tag the release, waiting"]',
+    );
+    expect(nested).not.toBeNull();
+    expect(nested?.nextElementSibling?.textContent).toBe("Tag v1.2.0?");
+    expect(container.textContent).toContain("Deploy to production?");
+    expect(container.textContent).toContain("Waiting on lookup");
+    expect(container.textContent).toContain("Waiting on confirm");
+    expect(
+      container.querySelectorAll(
+        '[role="button"][aria-label="Allow"], [role="button"][aria-label="Deny"]',
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("tells a tool UI inside the transcript that the thread cannot answer", async () => {
+    const CanAnswer = () => (
+      <Text>{`can answer: ${useAuiState((s) => s.thread.capabilities.answerToolCall)}`}</Text>
+    );
+    const config = AuiConfig({
+      tools: Tools({
+        toolkit: defineToolkit({
+          lookup: { type: "backend", render: CanAnswer },
+        }),
+      }),
+    });
+
+    await render(
+      [
+        { role: "user", content: "Look into it" },
+        {
+          role: "assistant",
+          content: [
+            task("outer", "Coordinate the release", {
+              messages: [
+                nestedUser("outer-user", "Go"),
+                nestedAssistant(
+                  "outer-assistant",
+                  [
+                    {
+                      type: "tool-call",
+                      toolCallId: "inner-lookup",
+                      toolName: "lookup",
+                      args: {},
+                      argsText: "{}",
+                      result: "found",
+                    },
+                  ],
+                  { type: "complete", reason: "stop" },
+                ),
+              ],
+              result: "handed back",
+            }),
+          ],
+        },
+      ],
+      {},
+      config,
+    );
+
+    await act(async () => {
+      click(cardHeaders()[0]!);
+    });
+
+    expect(container.textContent).toContain("can answer: false");
   });
 
   it("keeps an open transcript rendering while it grows", async () => {

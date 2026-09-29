@@ -10,6 +10,7 @@ import { configMatchesPreset } from "./presets";
 import { encodeConfig } from "@/lib/playground-url-state";
 import { BASE_URL } from "@/lib/constants";
 import { analytics } from "@/lib/analytics";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 
 interface CreateDialogProps {
   config: BuilderConfig;
@@ -133,16 +134,16 @@ function CommandBlock({
   command?: string;
   commandType?: "create" | "shadcn" | "manual_init" | "manual_add";
 }) {
-  const [copied, setCopied] = useState(false);
+  const { isCopied: copied, copyToClipboard } = useCopyToClipboard({
+    copiedDuration: 2000,
+  });
 
-  const handleCopy = async () => {
+  const handleCopy = () => {
     if (!command) return;
     if (commandType) {
       analytics.builder.commandCopied(commandType);
     }
-    await navigator.clipboard.writeText(command);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    copyToClipboard(command);
   };
 
   return (

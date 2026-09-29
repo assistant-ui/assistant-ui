@@ -79,7 +79,7 @@ describe("extractAISDKRunTelemetry", () => {
           {},
         ],
         samplingCalls: { call_2: [{ duration_ms: 20 }] },
-        modelId: "gpt-5.6-luna",
+        modelId: "gpt-6-luna",
       },
     );
 
@@ -119,7 +119,7 @@ describe("extractAISDKRunTelemetry", () => {
       totalSteps: 3,
       outputText: "Cold.",
       usage: { inputTokens: 10, outputTokens: 5 },
-      modelId: "gpt-5.6-luna",
+      modelId: "gpt-6-luna",
       metadata: message.metadata,
     });
   });

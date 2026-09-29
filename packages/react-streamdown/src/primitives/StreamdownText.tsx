@@ -225,23 +225,23 @@ export const StreamdownTextPrimitive = forwardRef<
   ) => {
     const messagePart = useMessagePartText();
 
-    const processedPart = useMemo(
-      () =>
-        preprocess
-          ? { ...messagePart, text: preprocess(messagePart.text) }
-          : messagePart,
-      [messagePart, preprocess],
+    const { text: revealedText, status } = useSmooth(messagePart, smooth);
+
+    // Smoothing tracks what it has already revealed and restarts from empty when
+    // the text it receives stops extending that prefix. A preprocess rewrite
+    // fires on a closing token and so rewrites already-revealed characters, so it
+    // runs on the revealed text rather than ahead of the reveal.
+    const text = useMemo(
+      () => (preprocess ? preprocess(revealedText) : revealedText),
+      [preprocess, revealedText],
     );
 
-    const { text, status } = useSmooth(processedPart, smooth);
-
+    const repairDisabled =
+      parseIncompleteMarkdown === false || status.type === "complete";
     const shouldTailRemend =
-      mode === "streaming" &&
-      parseIncompleteMarkdown !== false &&
-      !parseMarkdownIntoBlocksFn;
-    const resolvedParseIncomplete = shouldTailRemend
-      ? false
-      : parseIncompleteMarkdown;
+      mode === "streaming" && !repairDisabled && !parseMarkdownIntoBlocksFn;
+    const resolvedParseIncomplete =
+      repairDisabled || shouldTailRemend ? false : parseIncompleteMarkdown;
 
     const resolvedPlugins = useMemo(() => {
       const merged = mergePlugins(userPlugins, {});

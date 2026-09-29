@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently -n frontend,backend -c cyan,magenta \"pnpm dev:frontend\" \"pnpm dev:backend\"",
+    "dev": "concurrently -n frontend,backend -c cyan,magenta npm:dev:frontend npm:dev:backend",
     "dev:frontend": "next dev --turbopack",
     "dev:backend": "langgraphjs dev",
     "build": "next build",

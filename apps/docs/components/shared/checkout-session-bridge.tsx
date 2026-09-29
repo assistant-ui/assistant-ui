@@ -10,9 +10,8 @@ import {
 } from "react";
 import { StatewireWebsocket, useStatewire } from "statewire";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
-import { resolveProducts } from "@/lib/catalog";
+import { isProductSlug, resolveProducts } from "@/lib/catalog";
 import { cartUrl } from "@/lib/catalog/install-prompt";
-import { notifyCheckout } from "@/lib/checkout/notifications";
 import {
   currentPlan,
   isAgentPresent,
@@ -22,11 +21,13 @@ import {
   type Checkout,
 } from "@/lib/checkout/protocol";
 import {
-  checkoutUrl,
+  agentLinkUrl,
   type CheckoutSession,
+  addCheckoutProducts,
   endCheckout,
 } from "@/lib/checkout/session-store";
 import { parseCheckoutState } from "@/lib/checkout/wire-state";
+import { useWakeReconnect } from "@/components/shared/use-wake-reconnect";
 
 const tickListeners = new Set<() => void>();
 let ticker: ReturnType<typeof setInterval> | null = null;
@@ -71,49 +72,7 @@ const useDegradedAfterGrace = (degraded: boolean) => {
   return degraded && since !== null && remaining <= 0;
 };
 
-/** Notifies once per new question, plan revision and completion, skipping whatever the first snapshot already held. */
-const useCheckoutNotifications = (state: Checkout.State | undefined) => {
-  const seen = useRef<{ inputs: Set<string>; plans: number } | null>(null);
-  useEffect(() => {
-    if (state === undefined) return;
-    if (seen.current === null) {
-      seen.current = {
-        inputs: new Set(state.inputs.map((input) => input.id)),
-        plans: state.plans.length,
-      };
-      return;
-    }
-    for (const input of state.inputs) {
-      if (seen.current.inputs.has(input.id)) continue;
-      seen.current.inputs.add(input.id);
-      if (input.status === "open") {
-        notifyCheckout("Your agent has a question", input.prompt);
-      }
-    }
-    if (state.plans.length > seen.current.plans) {
-      seen.current.plans = state.plans.length;
-      notifyCheckout(
-        "Your agent has a plan",
-        "Review it and approve, or ask for changes.",
-      );
-    }
-  }, [state]);
-
-  const status = state?.status;
-  const previousStatus = useRef<Checkout.Status | undefined>(undefined);
-  useEffect(() => {
-    if (
-      status === "done" &&
-      previousStatus.current !== undefined &&
-      previousStatus.current !== "done"
-    ) {
-      notifyCheckout("Everything is installed", "Your setup is complete.");
-    }
-    previousStatus.current = status;
-  }, [status]);
-};
-
-/** Holds the connection for one session and reports what it knows. */
+/** Holds the browser's agent link for one session and reports what it knows. The link outlives the session, so the wire may still carry the previous checkout until this session's create lands; only this session's checkout is reported. */
 function CheckoutSessionBridge({
   session,
   onChange,
@@ -121,17 +80,17 @@ function CheckoutSessionBridge({
   session: CheckoutSession;
   onChange: (value: CheckoutContextValue | null) => void;
 }) {
-  const url = checkoutUrl(session.id);
+  const [url] = useState(agentLinkUrl);
   const wire = useStatewire<unknown, Checkout.Commands>({
     transport: StatewireWebsocket({ url }),
   });
   const { connection, commands } = wire;
-  const state = useMemo(() => parseCheckoutState(wire.state), [wire.state]);
+  const linked = useMemo(() => parseCheckoutState(wire.state), [wire.state]);
+  const state = linked?.id === session.id ? linked : undefined;
   const creating = useRef(false);
   const [refocusCount, setRefocusCount] = useState(0);
   const degraded = useDegradedAfterGrace(connection.degraded);
   useTick();
-  useCheckoutNotifications(state);
 
   const products = useMemo(
     () => resolveProducts(session.products),
@@ -141,13 +100,19 @@ function CheckoutSessionBridge({
     if (products.length === 0) endCheckout();
   }, [products]);
 
+  const joined = state?.products.map((product) => product.slug).join(",");
+  useEffect(() => {
+    if (joined) addCheckoutProducts(joined.split(",").filter(isProductSlug));
+  }, [joined]);
+
   const connectionStatus = connection.status;
   useEffect(() => {
-    if (state === undefined || state.createdAt !== null || creating.current) {
+    if (linked === undefined || linked.id === session.id || creating.current) {
       return;
     }
     creating.current = true;
     commands["checkout/create"]({
+      id: session.id,
       ...(session.instructions && { instructions: session.instructions }),
       products: products.map((product) => ({
         slug: product.slug,
@@ -157,7 +122,14 @@ function CheckoutSessionBridge({
     }).catch(() => {
       creating.current = false;
     });
-  }, [state, connectionStatus, products, session.instructions, commands]);
+  }, [
+    linked,
+    connectionStatus,
+    products,
+    session.id,
+    session.instructions,
+    commands,
+  ]);
 
   const open = useMemo(() => (state ? openInputs(state) : []), [state]);
   const planPending = state ? planNeedsReview(state) : false;
@@ -173,6 +145,8 @@ function CheckoutSessionBridge({
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [wanted]);
+
+  useWakeReconnect(connection);
 
   const agentPresent = state ? isAgentPresent(state) : false;
   const value = useMemo<CheckoutContextValue>(() => {

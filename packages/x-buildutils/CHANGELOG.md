@@ -1,5 +1,29 @@
 # @assistant-ui/x-buildutils
 
+## 0.0.29
+
+### Patch Changes
+
+- [#7746](https://github.com/assistant-ui/assistant-ui/pull/7746) [`05a1f0d`](https://github.com/assistant-ui/assistant-ui/commit/05a1f0d264d12bac243fc795a99a1bc7cd1326ba) - fix: fail the build when emitted output imports an undeclared package ([@okisdev](https://github.com/okisdev))
+  
+  `aui-build` kept package imports external without checking them against the manifest, so emitted JavaScript or declarations could import a package a consumer cannot resolve. A build now allows only the package's own name, its declared dependencies, peers and optional dependencies (with a `@types/*` package standing in for the module it types), its `imports` map and node builtins. tsdown's `deps.onlyImport` covers import statements; a pass over the finished declarations covers the two shapes it does not visit, an inline `import("pkg").Type` and a `/// <reference types="pkg" />` directive.
+  
+  Test helpers, `testUtils` modules and benches under `src` are no longer build entries. They were unreachable through every exports map and carried `vitest` and `ink-testing-library` imports into published output.
+  
+  `@assistant-ui/react-streamdown` declares `remark-rehype`, whose `Options` type it re-exports as `RemarkRehypeOptions`.
+
+- [#7752](https://github.com/assistant-ui/assistant-ui/pull/7752) [`6d74c3f`](https://github.com/assistant-ui/assistant-ui/commit/6d74c3fcb3fe7b13e212917ab5c653875eb4bbb7) - chore: cover the undeclared-import guard with tests ([@okisdev](https://github.com/okisdev))
+  
+  The allowlist and declaration scan behind the undeclared-import guard move unchanged to `src/declared-imports.ts`, where `node --test` pins the `@types/*` mapping, specifier splitting, builtin listing and the two declaration shapes the scan reports. Test files stay out of the published tarball.
+
+- [#7920](https://github.com/assistant-ui/assistant-ui/pull/7920) [`546bf4c`](https://github.com/assistant-ui/assistant-ui/commit/546bf4cadcea6b40c5516a84c7db53782cceac55) - fix(build): catch statement-level type imports in published declarations ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7760](https://github.com/assistant-ui/assistant-ui/pull/7760) [`84e0cf4`](https://github.com/assistant-ui/assistant-ui/commit/84e0cf4c9b7fc92a85d1360b37e2e20b73bed650) - fix: emit declarations from one TypeScript program so two builds of the same commit produce the same `.d.ts` ([@okisdev](https://github.com/okisdev))
+  
+  `aui-build` now emits the unbundled `.d.ts` output in one TypeScript pass over the whole package, so two builds of the same commit produce identical declarations; the per-module emit it replaced followed the bundler's load order and let union member order, alias visibility and import specifiers move between builds. Declarations import barrels as the source does and keep `import type`; the exported types are unchanged. A `/// <reference>` directive that must reach the published declarations now carries `preserve="true"` in the source.
+
+- [#7722](https://github.com/assistant-ui/assistant-ui/pull/7722) [`4910704`](https://github.com/assistant-ui/assistant-ui/commit/4910704c29ec7db5573d3d0fe0aea6bcabab7874) - fix: sort the entry list so two builds of the same commit emit identical javascript ([@okisdev](https://github.com/okisdev))
+
 ## 0.0.28
 
 ### Patch Changes

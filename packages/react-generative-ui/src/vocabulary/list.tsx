@@ -30,7 +30,7 @@ export const listVocabulary = {
               const target = event.target as Element;
               const hit = target.closest(INTERACTIVE_DESCENDANT_SELECTOR);
               if (hit !== null && hit !== event.currentTarget) return;
-              fire($action, $dispatch);
+              fire($action, $dispatch, undefined, event.currentTarget);
             }}
             onKeyDown={(event) => {
               if (event.key !== "Enter" && event.key !== " ") return;
@@ -38,7 +38,7 @@ export const listVocabulary = {
               const hit = target.closest(INTERACTIVE_DESCENDANT_SELECTOR);
               if (hit !== null && hit !== event.currentTarget) return;
               if (event.key === " ") event.preventDefault();
-              fire($action, $dispatch);
+              fire($action, $dispatch, undefined, event.currentTarget);
             }}
           >
             {children}

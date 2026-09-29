@@ -1,17 +1,57 @@
+import path from "node:path";
+import { createRepoSourceReader } from "@/lib/repo-source";
 import {
   DEFAULT_LEARN_COURSE_ID,
   getLearnCourse,
   getLearnStage,
   LearnRegistryError,
+  listLearnStageIds,
 } from "./registry";
 import { listZipEntries } from "../demo-downloads/zip";
 import {
   createLearnStageZipFromSnapshot,
   getLearnStageArchiveFilename,
+  resolveStageFilesFromReader,
   resolveStageFilesFromSnapshot,
 } from "./stage-source";
 
+const REPO_ROOT = path.resolve(__dirname, "../../../../..");
+
 describe("resolveStageFiles", () => {
+  it.each(listLearnStageIds(DEFAULT_LEARN_COURSE_ID))(
+    "materializes %s with every local import inside the project",
+    async (stageId) => {
+      const files = await resolveStageFilesFromReader(
+        DEFAULT_LEARN_COURSE_ID,
+        stageId,
+        createRepoSourceReader(REPO_ROOT),
+      );
+      const paths = Object.keys(files);
+
+      for (const [file, source] of Object.entries(files)) {
+        if (!/\.tsx?$/.test(file)) continue;
+        for (const match of source.matchAll(
+          /(?:from|import) "((?:@\/|\.\.?\/)[^"]+)"/g,
+        )) {
+          const specifier = match[1]!;
+          const target = specifier.startsWith("@/")
+            ? specifier.slice(2)
+            : path.posix.join(path.posix.dirname(file), specifier);
+          const resolved = paths.some(
+            (candidate) =>
+              candidate === target ||
+              candidate === `${target}.ts` ||
+              candidate === `${target}.tsx` ||
+              candidate.startsWith(`${target}/index.`),
+          );
+          expect
+            .soft(resolved, `${file} imports unresolved ${specifier}`)
+            .toBe(true);
+        }
+      }
+    },
+  );
+
   it("materializes shared files and selects only the registered project root", async () => {
     const course = getLearnCourse(DEFAULT_LEARN_COURSE_ID);
     const stage = getLearnStage(DEFAULT_LEARN_COURSE_ID, "S0");

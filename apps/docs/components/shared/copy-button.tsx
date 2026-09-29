@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { cn } from "@/lib/utils";
 import {
   ghostButton,
@@ -17,22 +17,15 @@ export function CopyButton({
   text: string;
   className?: string;
 }) {
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    if (!copied) return;
-    const id = setTimeout(() => setCopied(false), 1600);
-    return () => clearTimeout(id);
-  }, [copied]);
+  const { isCopied: copied, copyToClipboard } = useCopyToClipboard({
+    copiedDuration: 1600,
+  });
 
   return (
     <button
       type="button"
       aria-label={copied ? "Copied" : "Copy source"}
-      onClick={() => {
-        void navigator.clipboard.writeText(text);
-        setCopied(true);
-      }}
+      onClick={() => copyToClipboard(text)}
       className={cn(
         ghostButton,
         "grid size-7 place-items-center",
