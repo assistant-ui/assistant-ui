@@ -83,7 +83,7 @@ POST   /threads/:id/model       → 204                   (body: { provider, mod
 POST   /threads/:id/thinking    → 204                   (body: { level })
 POST   /threads/:id/archive     → 204
 POST   /threads/:id/unarchive   → 204
-DELETE /threads/:id             → 204
+DELETE /threads/:id             → 204                   (also when the thread is already gone)
 POST   /threads/:id/host-ui     → 204                   (body: { response })
 GET    /threads/:id/events      → SSE of PiClientEvent  (?snapshot=false skips initial snapshot)
 ```
@@ -110,6 +110,16 @@ export function PiRuntimeProvider({ children }: { children: React.ReactNode }) {
 
 `usePiRuntime` requires `options.client` — there is no implicit transport. Drop
 the provider above any assistant-ui thread UI (`Thread`, `ThreadList`, …).
+
+## Assistant Cloud
+
+Pass `cloud` to back the thread list with [Assistant Cloud](https://www.assistant-ui.com/docs/cloud) instead of the Pi server's thread list. `cloud` is the only switch: unlike the runtimes whose list lives in the browser, `NEXT_PUBLIC_ASSISTANT_BASE_URL` alone keeps the Pi server's list, so setting it never moves an existing app's threads.
+
+```tsx
+const runtime = usePiRuntime({ client, cloud });
+```
+
+Each cloud thread maps to a Pi thread through its external id: a new thread creates a Pi thread in `workspacePath`, and deleting the thread deletes its Pi thread first, where a Pi thread that is already gone does not block it. The list holds every thread of the cloud project, archived ones in their own section, so `workspacePath` only places new threads and `includeArchived` is not used. A cloud thread that no Pi runtime created has no Pi thread: it opens empty, and sending in it rejects. With `cloud`, `threadId` and `initialThreadId` take cloud thread ids, so a link that names a Pi thread id no longer opens it. Renaming and archiving change the cloud thread only; the Pi thread keeps its own title and archive state, which is what the list shows again if `cloud` is removed.
 
 ## Environment / model resolution
 
@@ -186,12 +196,8 @@ extensions/tools calling `ctx.ui.confirm / select / input / editor`. This packag
 implements and binds the `ExtensionUIContext` on the server and routes the four
 blocking dialogs to the UI, split by causality:
 
-- **Tool-associated** (a dialog raised while exactly one tool is executing) →
-  rendered as a native `ToolCallMessagePart.approval` (confirm) or
-  `.interrupt` (select/input/editor), wired through the runtime's
-  `onRespondToToolApproval` / `onResumeToolCall`.
-- **Free-standing** (extension commands, or any request raised while multiple
-  tools are in flight) → a side channel:
+- **Tool-associated** (a dialog raised while exactly one tool is executing) → rendered as the tool call's `ToolCallMessagePart.approval` and answered through the runtime's `onRespondToToolApproval`. `confirm` asks for a decision, `select` offers one option per choice (option ids are the choice indexes), and `input` / `editor` ask for a text answer, so the default tool fallback renders the matching controls. A custom tool UI answers with `respondToApproval({ approved })`, `respondToApproval({ optionId, approved: true })` or `respondToApproval({ text })`, and `approved: false` dismisses a `select`, `input` or `editor` request; those requests are projected `dismissible`, so the default tool fallback offers a Dismiss control for them. The fallback does not show an `input` placeholder or an `editor` prefill; a custom tool UI reads them from `usePiRuntimeExtras().allHostUiRequests`.
+- **Free-standing** (extension commands, any request raised while multiple tools are in flight, and any request the tool call's approval cannot answer, such as a `select` without choices or a kind this client does not know) → a side channel:
 
 ```tsx
 import { usePiHostUiRequests } from "@assistant-ui/react-pi";

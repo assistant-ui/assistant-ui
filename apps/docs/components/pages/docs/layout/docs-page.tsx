@@ -1,4 +1,5 @@
 import type { ComponentProps, ReactNode } from "react";
+import { LegalLinks } from "@/components/shared/legal-links";
 import { cn } from "@/lib/utils";
 
 export function DocsPageShell({
@@ -14,6 +15,11 @@ export function DocsPageShell({
         {children}
       </main>
       {toc}
+      <footer className="mx-auto w-full max-w-(--docs-article-width) justify-self-center px-4 pb-10 md:px-6">
+        <div className="border-t pt-6">
+          <LegalLinks />
+        </div>
+      </footer>
     </div>
   );
 }

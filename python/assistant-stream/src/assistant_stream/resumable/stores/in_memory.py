@@ -248,7 +248,7 @@ class _InMemoryResumableStreamStore:
         status: Literal["done", "error"],
         error: str | None = None,
         lease: ResumableStreamLease | None = None,
-    ) -> None:
+    ) -> bool:
         self._ensure_gc()
         validate_stream_id(stream_id)
         self._evict_expired()
@@ -256,9 +256,9 @@ class _InMemoryResumableStreamStore:
         if state is None:
             raise RuntimeError(f"Stream not found: {stream_id}")
         if lease is not None and state.lease != lease:
-            return
+            return False
         if state.final is not None:
-            return
+            return False
         if status == "done":
             state.final = _FinalizeMarker(kind="done")
         else:
@@ -267,6 +267,7 @@ class _InMemoryResumableStreamStore:
             )
         state.expires_at = self._now() + state.ttl_ms
         self._notify(state)
+        return True
 
     async def read(
         self, stream_id: str, cursor: str, signal: CancellationSignal

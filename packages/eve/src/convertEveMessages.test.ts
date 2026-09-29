@@ -1326,7 +1326,6 @@ describe("convertEveMessages", () => {
             stepIndex: 0,
             sequence: 2,
             messageDelta: "Let me th",
-            messageSoFar: "Let me th",
           },
         },
       ];
@@ -1519,7 +1518,6 @@ describe("convertEveMessages", () => {
               stepIndex: 0,
               sequence: 2,
               reasoningDelta: "Think",
-              reasoningSoFar: "Think",
             },
           },
           {
@@ -1570,7 +1568,6 @@ describe("convertEveMessages", () => {
               stepIndex: 0,
               sequence: 2,
               reasoningDelta: "Think",
-              reasoningSoFar: "Think",
             },
           },
           {
@@ -1633,7 +1630,6 @@ describe("convertEveMessages", () => {
               stepIndex: 0,
               sequence: 2,
               messageDelta: "First",
-              messageSoFar: "First",
             },
           },
           {
@@ -1675,7 +1671,6 @@ describe("convertEveMessages", () => {
               stepIndex: 1,
               sequence: 6,
               messageDelta: "Sec",
-              messageSoFar: "Sec",
             },
           },
         ]);

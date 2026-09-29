@@ -7,10 +7,9 @@ import { DesignRail } from "@/components/pages/design/design-rail";
 import {
   DESIGN_COMPONENTS,
   getDesignComponentMeta,
-  getDesignSectionLabel,
 } from "@/components/pages/design/registry-meta";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeEyebrow, typePage } from "@/components/shared/type";
+import { typePage } from "@/components/shared/type";
 import { design } from "@/lib/source";
 import { getMDXComponents } from "@/mdx-components";
 import { cn } from "@/lib/utils";
@@ -50,7 +49,6 @@ export default async function DesignComponentPage({
   const page = meta ? getPage(slug) : undefined;
   if (!meta || !page) notFound();
 
-  const section = getDesignSectionLabel(slug);
   const mdxComponents = getMDXComponents({});
   const links = page.data.links;
   const { body: MdxBody, toc: fullToc } = await page.data.load();
@@ -67,23 +65,7 @@ export default async function DesignComponentPage({
 
         <div className="min-w-0">
           <header>
-            <p className={typeEyebrow}>
-              <Link
-                href="/design"
-                className="hover:text-foreground transition-colors"
-              >
-                Design
-              </Link>
-              {" · "}
-              <Link
-                href="/design/components"
-                className="hover:text-foreground transition-colors"
-              >
-                Components
-              </Link>
-              {section ? ` · ${section}` : null}
-            </p>
-            <h1 className={cn("mt-4", typePage)}>{page.data.title}</h1>
+            <h1 className={typePage}>{page.data.title}</h1>
             {page.data.description ? (
               <p className="text-muted-foreground mt-4 max-w-md text-[15px] leading-relaxed">
                 {page.data.description}
@@ -128,7 +110,7 @@ export default async function DesignComponentPage({
         <aside className="hidden xl:block">
           {toc.length > 0 ? (
             <div className="bg-background fixed top-12 bottom-0 flex w-44 flex-col gap-2 overflow-y-auto pt-20 pb-8">
-              <p className={typeEyebrow}>On this page</p>
+              <p className="text-sm font-medium">On this page</p>
               <div className="flex flex-col gap-1">
                 {toc.map((item) => (
                   <a

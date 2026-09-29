@@ -3,6 +3,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   AssistantCloudEvents,
+  clearPendingAssistantCloudEvents,
   type AssistantCloudEvent,
 } from "./AssistantCloudEvents";
 import type { AssistantCloudAPI } from "./AssistantCloudAPI";
@@ -84,6 +85,121 @@ describe("AssistantCloudEvents", () => {
     expect(makeRequest).toHaveBeenCalledOnce();
   });
 
+  it("retries a failed event batch with bounded backoff", async () => {
+    vi.useFakeTimers();
+    const { events, makeRequest } = createEvents();
+    makeRequest.mockRejectedValueOnce(new Error("temporary failure"));
+
+    for (let index = 0; index < 20; index++) events.track(event(index));
+    await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledOnce());
+
+    await vi.advanceTimersByTimeAsync(249);
+    expect(makeRequest).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(makeRequest).toHaveBeenCalledTimes(2);
+    expect(makeRequest.mock.calls[1]).toEqual(makeRequest.mock.calls[0]);
+  });
+
+  it("does not retry a cleared batch", async () => {
+    vi.useFakeTimers();
+    const { events, makeRequest } = createEvents();
+    makeRequest.mockRejectedValueOnce(new Error("temporary failure"));
+
+    for (let index = 0; index < 20; index++) events.track(event(index));
+    await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledOnce());
+
+    clearPendingAssistantCloudEvents(events);
+    await vi.runAllTimersAsync();
+
+    expect(makeRequest).toHaveBeenCalledOnce();
+  });
+
+  it("does not let an invalidated flush consume new events", async () => {
+    vi.useFakeTimers();
+    let resolveFirstRequest!: (value: { accepted: number }) => void;
+    const { events, makeRequest } = createEvents();
+    makeRequest
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveFirstRequest = resolve;
+          }),
+      )
+      .mockRejectedValueOnce(new Error("temporary failure"));
+
+    for (let index = 0; index < 20; index++) events.track(event(index));
+    await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledOnce());
+
+    window.dispatchEvent(new Event("pagehide"));
+    clearPendingAssistantCloudEvents(events);
+    events.track(event(20));
+    resolveFirstRequest({ accepted: 20 });
+
+    await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledTimes(2));
+    await vi.advanceTimersByTimeAsync(250);
+
+    expect(makeRequest).toHaveBeenCalledTimes(3);
+    expect(makeRequest.mock.calls[1]?.[1].body.events).toEqual([event(20)]);
+    expect(makeRequest.mock.calls[2]).toEqual(makeRequest.mock.calls[1]);
+  });
+
+  it("stops retrying an event batch after three attempts", async () => {
+    vi.useFakeTimers();
+    const { events, makeRequest } = createEvents();
+    makeRequest.mockRejectedValue(new Error("persistent failure"));
+
+    for (let index = 0; index < 20; index++) events.track(event(index));
+    await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledOnce());
+
+    await vi.advanceTimersByTimeAsync(250);
+    expect(makeRequest).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(999);
+    expect(makeRequest).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(makeRequest).toHaveBeenCalledTimes(3);
+    await vi.runAllTimersAsync();
+
+    expect(makeRequest).toHaveBeenCalledTimes(3);
+  });
+
+  it("keeps dispose delivery best effort", async () => {
+    vi.useFakeTimers();
+    const { events, makeRequest } = createEvents();
+    makeRequest.mockRejectedValue(new Error("offline"));
+
+    events.track(event(1));
+    events.dispose();
+    await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledOnce());
+    await vi.runAllTimersAsync();
+
+    expect(makeRequest).toHaveBeenCalledOnce();
+  });
+
+  it.each(["dispose", "pagehide"] as const)(
+    "interrupts retry backoff on %s and drains buffered events once",
+    async (trigger) => {
+      vi.useFakeTimers();
+      const { events, makeRequest } = createEvents();
+      makeRequest.mockRejectedValue(new Error("offline"));
+
+      for (let index = 0; index < 20; index++) events.track(event(index));
+      await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledOnce());
+      events.track(event(20));
+
+      if (trigger === "dispose") {
+        events.dispose();
+      } else {
+        window.dispatchEvent(new Event("pagehide"));
+      }
+      await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledTimes(2));
+      await vi.runAllTimersAsync();
+
+      expect(makeRequest).toHaveBeenCalledTimes(2);
+      expect(makeRequest.mock.calls[1]?.[1].body.events).toEqual([event(20)]);
+    },
+  );
+
   it("flushes when the document becomes hidden", async () => {
     const { events, makeRequest } = createEvents();
     events.track(event(1));
@@ -145,5 +261,46 @@ describe("AssistantCloudEvents", () => {
     for (const [, options] of makeRequest.mock.calls) {
       expect(options.body.events.length).toBeLessThanOrEqual(50);
     }
+  });
+
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
+    "drops props containing the non-finite number %s",
+    async (value) => {
+      const { events, makeRequest } = createEvents();
+
+      events.track({ kind: "message_sent", props: { value } });
+      events.dispose();
+
+      await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledOnce());
+      expect(makeRequest).toHaveBeenCalledWith("/events", {
+        method: "POST",
+        body: { events: [{ kind: "message_sent" }] },
+        keepalive: true,
+      });
+    },
+  );
+
+  it("keeps finite numeric props", async () => {
+    const { events, makeRequest } = createEvents();
+
+    events.track({
+      kind: "message_sent",
+      props: { negative: -1.5, zero: 0, positive: 2.5 },
+    });
+    events.dispose();
+
+    await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledOnce());
+    expect(makeRequest).toHaveBeenCalledWith("/events", {
+      method: "POST",
+      body: {
+        events: [
+          {
+            kind: "message_sent",
+            props: { negative: -1.5, zero: 0, positive: 2.5 },
+          },
+        ],
+      },
+      keepalive: true,
+    });
   });
 });

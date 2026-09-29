@@ -142,7 +142,8 @@
     {
       "files": [
         "packages/react/src/primitives/thread/useThreadViewportAutoScroll.test.tsx",
-        "packages/store/src/createAssistantClient.test.ts"
+        "packages/store/src/createAssistantClient.test.ts",
+        "packages/tap/src/__tests__/react/useResource.noop-effect-dispatch.test.tsx"
       ],
       "rules": {
         "react/set-state-in-effect": "off"

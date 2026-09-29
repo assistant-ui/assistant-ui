@@ -352,6 +352,39 @@ describe("useNotification", () => {
     w.mockRestore();
   });
 
+  it("observes a running task when notifications are enabled mid-run", async () => {
+    snapshot = {
+      isRunning: true,
+      messages: [makeAssistantMessage("m1", { type: "running" })],
+    };
+    const custom = vi.fn();
+    const disabledConfig: NotificationConfig = {
+      enabled: false,
+      onTaskComplete: { custom },
+    };
+    const enabledConfig: NotificationConfig = {
+      enabled: true,
+      onTaskComplete: { custom },
+    };
+
+    const instance = renderNotifier(<Notifier config={disabledConfig} />);
+    await flush();
+
+    instance.rerender(<Notifier config={enabledConfig} />);
+    await flush();
+
+    snapshot = {
+      isRunning: false,
+      messages: [
+        makeAssistantMessage("m1", { type: "complete", reason: "stop" }),
+      ],
+    };
+    instance.rerender(<Notifier config={enabledConfig} />);
+    await flush();
+
+    expect(custom).toHaveBeenCalledOnce();
+  });
+
   it("does not fire a completion notification after switching to a different thread mid-run", async () => {
     snapshot = {
       isRunning: true,

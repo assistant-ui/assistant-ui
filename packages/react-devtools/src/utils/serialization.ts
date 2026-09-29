@@ -20,6 +20,12 @@ const setOwnProperty = (
   }
 };
 
+// An Error from an iframe or worker fails `instanceof`, so the brand check is
+// what keeps a cross-realm error from serializing as an empty object.
+const isErrorLike = (value: object): boolean =>
+  value instanceof Error ||
+  Object.prototype.toString.call(value) === "[object Error]";
+
 export const sanitizeForMessage = (
   value: unknown,
   seen = new WeakSet<object>(),
@@ -97,6 +103,36 @@ export const sanitizeForMessage = (
           }
         }
         return result;
+      }
+
+      // `name`, `message` and `stack` are not enumerable, so the branch below
+      // would render every Error as an empty object. Each is sanitized like any
+      // other value, since an Error carries whatever its author assigned.
+      if (isErrorLike(value)) {
+        const error: Record<string, unknown> = {
+          name: sanitizeForMessage(readProperty(value, "name"), seen),
+          message: sanitizeForMessage(readProperty(value, "message"), seen),
+        };
+        const stack = readProperty(value, "stack");
+        if (stack !== undefined) {
+          error["stack"] = sanitizeForMessage(stack, seen);
+        }
+        const cause = readProperty(value, "cause");
+        if (cause !== undefined) {
+          error["cause"] = sanitizeForMessage(cause, seen);
+        }
+        for (const key of Object.keys(value)) {
+          try {
+            setOwnProperty(
+              error,
+              key,
+              sanitizeForMessage(readProperty(value, key), seen),
+            );
+          } catch {
+            setOwnProperty(error, key, UNSERIALIZABLE);
+          }
+        }
+        return error;
       }
 
       const result: Record<string, unknown> = {};

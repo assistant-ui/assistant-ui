@@ -1,4 +1,4 @@
-import { createElement, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { PlatformOnlyLLM, PlatformTabsLLM } from "./mdx.llm";
@@ -8,17 +8,15 @@ function Tab({ children }: { value: string; children: ReactNode }) {
 }
 
 const platformTabs = [
-  createElement(Tab, { value: "React", key: "react" }, "Web instructions"),
-  createElement(
-    Tab,
-    { value: "React Native", key: "rn" },
-    "Native instructions",
-  ),
-  createElement(
-    Tab,
-    { value: "React Ink", key: "ink" },
-    "Terminal instructions",
-  ),
+  <Tab value="React" key="react">
+    Web instructions
+  </Tab>,
+  <Tab value="React Native" key="rn">
+    Native instructions
+  </Tab>,
+  <Tab value="React Ink" key="ink">
+    Terminal instructions
+  </Tab>,
 ];
 
 describe("platform markdown components", () => {
@@ -49,7 +47,7 @@ describe("platform markdown components", () => {
     const html = renderToStaticMarkup(
       PlatformTabsLLM(
         {
-          children: createElement(Tab, { value: "React" }, "Web instructions"),
+          children: <Tab value="React">Web instructions</Tab>,
         },
         { flavor: "base", platform: "ink" },
       ),

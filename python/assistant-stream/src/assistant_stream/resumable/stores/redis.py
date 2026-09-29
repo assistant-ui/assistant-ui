@@ -248,7 +248,7 @@ class RedisResumableStreamStore:
         status: Literal["done", "error"],
         error: str | None = None,
         lease: ResumableStreamLease | None = None,
-    ) -> None:
+    ) -> bool:
         validate_stream_id(stream_id)
         meta_key = self._meta_key(stream_id)
         existing_raw = await self._client.get(meta_key)
@@ -258,9 +258,9 @@ class RedisResumableStreamStore:
         if existing is None:
             raise RuntimeError(f"Stream not found: {stream_id}")
         if existing.get("status") != "streaming":
-            return
+            return False
         if self._is_superseded_generation(stream_id, existing, lease):
-            return
+            return False
         ttl_sec = existing.get("ttlSec")
         if not isinstance(ttl_sec, int):
             ttl_sec = _ms_to_sec(self._default_ttl_ms)
@@ -291,8 +291,10 @@ class RedisResumableStreamStore:
                 "ttl_sec": ttl_sec,
             }
         )
-        if finalized:
-            self._clear_acquired_generation(stream_id, generation)
+        if not finalized:
+            return False
+        self._clear_acquired_generation(stream_id, generation)
+        return True
 
     async def read(
         self, stream_id: str, cursor: str, signal: CancellationSignal

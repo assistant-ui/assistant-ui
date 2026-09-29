@@ -12,7 +12,7 @@ import {
 } from "../../subscribable/subscribable";
 import {
   type AttachmentRuntime,
-  type AttachmentState,
+  type AttachmentRuntimeState,
   MessageAttachmentRuntimeImpl,
 } from "./attachment-runtime";
 import {
@@ -29,7 +29,7 @@ import type { ThreadRuntimeCoreBinding } from "./thread-runtime";
 import type { MessageStateBinding } from "./bindings";
 
 const getMessagePartState = (
-  message: MessageState,
+  message: MessageRuntimeState,
   partIndex: number,
 ): MessagePartState | SKIP_UPDATE => {
   const part = message.content[partIndex];
@@ -46,7 +46,7 @@ const getMessagePartState = (
   });
 };
 
-export type MessageState = ThreadMessage & {
+export type MessageRuntimeState = ThreadMessage & {
   readonly parentId: string | null;
   /** The position of this message in the thread (0 for first message) */
   readonly index: number;
@@ -61,6 +61,11 @@ export type MessageState = ThreadMessage & {
   readonly speech: SpeechState | undefined;
 };
 
+/**
+ * @deprecated Use `MessageRuntimeState`. From `@assistant-ui/react` 0.16, `MessageState` names the message state read through `useAuiState`.
+ */
+export type MessageState = MessageRuntimeState;
+
 export type { MessageStateBinding } from "./bindings";
 
 type ReloadConfig = {
@@ -72,7 +77,7 @@ export type MessageRuntime = {
 
   readonly composer: EditComposerRuntime;
 
-  getState(): MessageState;
+  getState(): MessageRuntimeState;
   delete(): void | Promise<void>;
   reload(config?: ReloadConfig): void;
   /**
@@ -83,7 +88,13 @@ export type MessageRuntime = {
    * @deprecated This API is still under active development and might change without notice.
    */
   stopSpeaking(): void;
-  submitFeedback({ type }: { type: "positive" | "negative" }): void;
+  submitFeedback({
+    type,
+    comment,
+  }: {
+    type: "positive" | "negative";
+    comment?: string;
+  }): void;
   switchToBranch({
     position,
     branchId,
@@ -197,11 +208,18 @@ export class MessageRuntimeImpl implements MessageRuntime {
     }
   }
 
-  public submitFeedback({ type }: { type: "positive" | "negative" }) {
+  public submitFeedback({
+    type,
+    comment,
+  }: {
+    type: "positive" | "negative";
+    comment?: string;
+  }) {
     const state = this._core.getState();
     this._threadBinding.getState().submitFeedback({
       messageId: state.id,
       type,
+      ...(comment !== undefined ? { comment } : undefined),
     });
   }
 
@@ -300,7 +318,7 @@ export class MessageRuntimeImpl implements MessageRuntime {
           return {
             ...attachment,
             source: "message",
-          } satisfies AttachmentState & { source: "message" };
+          } satisfies AttachmentRuntimeState & { source: "message" };
         },
         subscribe: (callback) => this._core.subscribe(callback),
       }),

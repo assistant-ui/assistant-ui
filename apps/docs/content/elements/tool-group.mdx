@@ -144,7 +144,7 @@ The trigger's label always reads the plural "tool calls" except for a group of e
 |------|------|---------|-------------|
 | `variant` | `"outline" \| "ghost" \| "muted"` | `"outline"` | Visual chrome. |
 | `open` | `boolean` | | Controlled open state. |
-| `onOpenChange` | `(open: boolean) => void` | | Called on toggle. |
+| `onOpenChange` | `(open: boolean) => void` | | Called on toggle. Without it, an uncontrolled group still toggles using its own `defaultOpen`-seeded state. A controlled `open` value without this handler cannot be changed by the trigger. |
 | `defaultOpen` | `boolean` | `false` | Initial state when uncontrolled. |
 
 ### ToolGroupTrigger props
@@ -270,7 +270,7 @@ The trigger's trailing text and icon come from `tools`, not from a prop: while a
 | `label` | `string` | required | Text shown next to the chevron. |
 | `tools` | `readonly GroupedTool[]` | required | The calls in this group, in order. |
 | `open` | `boolean` | required | Whether the list is expanded. |
-| `onOpenChange` | `(open: boolean) => void` | | Called when the trigger is clicked. |
+| `onOpenChange` | `(open: boolean) => void` | | Called when the trigger is clicked. Without it, the trigger renders as a non-interactive header. |
 | `className` | `string` | | Merged onto the root. |
 
 ### GroupedTool

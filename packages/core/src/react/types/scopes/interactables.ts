@@ -59,6 +59,9 @@ export type Unstable_InteractablePersistenceAdapter = {
    * Restores previously saved state. Called when the adapter is attached;
    * loaded state seeds app-scoped interactables that have not been locally
    * edited yet (a local edit always wins over a slow load).
+   *
+   * A different adapter instance represents a different persistence scope.
+   * Switching adapters resets app-scoped state before loading the replacement.
    */
   load?():
     | Unstable_InteractablePersistedState

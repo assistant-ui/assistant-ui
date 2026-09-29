@@ -306,7 +306,7 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     status: "done" | "error",
     error?: string,
     lease?: ResumableStreamLease,
-  ): Promise<void> {
+  ): Promise<boolean> {
     validateStreamId(streamId);
     const metaKey = this.metaKey(streamId);
     const existingRaw = await this.client.get(metaKey);
@@ -319,8 +319,8 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     }
     // A second finalize must not append a duplicate FIN entry. A generation
     // change observed by this store must not finalize the replacement stream.
-    if (existing.status !== "streaming") return;
-    if (this.isSupersededGeneration(streamId, existing, lease)) return;
+    if (existing.status !== "streaming") return false;
+    if (this.isSupersededGeneration(streamId, existing, lease)) return false;
     const ttlSec = existing.ttlSec ?? msToSec(this.defaultTtlMs);
     const meta = JSON.stringify({
       status,
@@ -348,8 +348,9 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     // Keeping the fencing token when the compare-and-finalize loses is what
     // makes a later append from this superseded producer throw instead of
     // writing into the replacement generation.
-    if (!finalized) return;
+    if (!finalized) return false;
     this.clearAcquiredGeneration(streamId, existing.generation);
+    return true;
   }
 
   async *read(

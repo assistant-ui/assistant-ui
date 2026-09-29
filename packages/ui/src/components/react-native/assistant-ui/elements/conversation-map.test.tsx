@@ -176,6 +176,13 @@ describe("ConversationMap", () => {
     expect(onSelect).toHaveBeenCalledWith("t2");
   });
 
+  it("keeps preview ticks available without a selection handler", async () => {
+    await render();
+
+    expect(ticks()).toHaveLength(ENTRIES.length);
+    expect(ticks()[1]!.getAttribute("aria-label")).toBe("Got it");
+  });
+
   it("opens the preview beside the tick while it is hovered or held", async () => {
     await render();
     const preview = () =>

@@ -31,6 +31,7 @@ describe("File inline size", () => {
     ["data:application/octet-stream;base64,+/8=", "2 B"],
     ["data:text/plain;BASE64,aGVsbG8=", "5 B"],
     ["aGVsbG8=", "5 B"],
+    ["aGVs\tbG8=\n", "5 B"],
   ])("counts decoded bytes for %s", (data, size) => {
     render(
       <File
@@ -70,6 +71,21 @@ describe("File inline size", () => {
     expect(screen.getByText("0 B")).toBeTruthy();
   });
 
+  it.each(["====", "Y===", "YQ=", "YQ===", "Y", "Y=Q=", "-_8=", "YQ,AA=="])(
+    "uses a zero-byte fallback for malformed raw base64 %s",
+    (data) => {
+      render(
+        <File
+          type="file"
+          status={{ type: "complete" }}
+          data={data}
+          mimeType="text/plain"
+        />,
+      );
+      expect(screen.getByText("0 B")).toBeTruthy();
+    },
+  );
+
   it("recognizes a data URL explicitly marked as a URL", () => {
     render(
       <File
@@ -98,4 +114,79 @@ describe("File inline size", () => {
       expect(container.querySelector('[data-slot="file-size"]')).toBeNull();
     },
   );
+});
+
+describe("File media players", () => {
+  it("renders a playable audio URL with its download", () => {
+    render(
+      <File
+        type="file"
+        status={{ type: "complete" }}
+        data="https://example.com/briefing.mp3"
+        mimeType="audio/mpeg"
+        filename="briefing.mp3"
+      />,
+    );
+
+    expect(document.querySelector('[data-slot="audio-player"]')).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "Download briefing.mp3" }),
+    ).toBeTruthy();
+  });
+
+  it("renders a playable video data URI with its download", () => {
+    render(
+      <File
+        type="file"
+        status={{ type: "complete" }}
+        data="data:video/mp4;base64,AAAA"
+        mimeType="video/mp4"
+        filename="clip.mp4"
+      />,
+    );
+
+    expect(document.querySelector('[data-slot="video-player"]')).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "Download clip.mp4" }),
+    ).toBeTruthy();
+  });
+
+  it("turns base64 audio into a data URI player with its download", () => {
+    render(
+      <File
+        type="file"
+        status={{ type: "complete" }}
+        data="YXVkaW8="
+        mimeType="audio/wav"
+        filename="tone.wav"
+      />,
+    );
+
+    expect(document.querySelector("audio")?.getAttribute("src")).toBe(
+      "data:audio/wav;base64,YXVkaW8=",
+    );
+    expect(
+      screen.getByRole("link", { name: "Download tone.wav" }),
+    ).toBeTruthy();
+  });
+
+  it.each([
+    ["file-123", "id"],
+    ["javascript:alert(1)", undefined],
+  ] as const)("keeps an %s source as a plain row", (data, sourceType) => {
+    const { container } = render(
+      <File
+        type="file"
+        status={{ type: "complete" }}
+        data={data}
+        mimeType="audio/mpeg"
+        filename="briefing.mp3"
+        {...(sourceType !== undefined && { sourceType })}
+      />,
+    );
+
+    expect(container.querySelector('[data-slot="file-root"]')).toBeTruthy();
+    expect(container.querySelector('[data-slot="file-player"]')).toBeNull();
+    expect(screen.queryByRole("link")).toBeNull();
+  });
 });

@@ -1,5 +1,5 @@
-/// <reference path="../store/scope-registration.ts" />
-/// <reference path="./types/store-augmentation.ts" />
+/// <reference path="../store/scope-registration.ts" preserve="true" />
+/// <reference path="./types/store-augmentation.ts" preserve="true" />
 
 // model-context
 export {

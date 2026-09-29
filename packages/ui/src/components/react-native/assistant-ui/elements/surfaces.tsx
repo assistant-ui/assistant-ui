@@ -43,6 +43,14 @@ export const useAnnounce = (
   }, [message]);
 };
 
+const subscribeHydration = () => () => {};
+const getHydrated = () => true;
+const getServerHydrated = () => false;
+
+// Uniwind resolves class to prop mappings and CSS variables through the CSSOM, which a static web export renders without, and React hydration never patches the resulting attribute or style mismatch. A value that comes from the CSSOM therefore applies from the first render after hydration; a client-only render is hydrated from its first render.
+export const useHydrated = () =>
+  useSyncExternalStore(subscribeHydration, getHydrated, getServerHydrated);
+
 export const monoStyle: TextStyle = {
   fontFamily: Platform.select({
     ios: "Menlo",
@@ -64,9 +72,12 @@ const setReduceMotion = (reduced: boolean) => {
 const subscribeMotion = (listener: () => void) => {
   if (motionListeners.size === 0) {
     const query = ++reduceMotionQuery;
-    void AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
-      if (query === reduceMotionQuery) setReduceMotion(reduced);
-    });
+    void AccessibilityInfo.isReduceMotionEnabled().then(
+      (reduced) => {
+        if (query === reduceMotionQuery) setReduceMotion(reduced);
+      },
+      () => {},
+    );
     reduceMotionSubscription = AccessibilityInfo.addEventListener(
       "reduceMotionChanged",
       setReduceMotion,

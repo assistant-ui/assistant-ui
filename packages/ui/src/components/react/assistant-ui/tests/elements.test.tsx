@@ -13,19 +13,30 @@ import { CommandPalette } from "../elements/command-palette";
 import { ComputerUse } from "../elements/computer-use";
 import { ContextBreakdown } from "../elements/context-breakdown";
 import { CostMeter } from "../elements/cost-meter";
+import { DataTable } from "../elements/data-table";
 import { DocumentReference } from "../elements/document-reference";
 import { FeedbackDialog } from "../elements/feedback-dialog";
 import { File } from "../elements/file";
 import { FileTree } from "../elements/file-tree";
 import { FlowGraph } from "../elements/flow-graph";
+import { GeoMap } from "../elements/geo-map";
 import { JobProgress } from "../elements/job-progress";
+import { LauncherBubble } from "../elements/launcher-bubble";
+import { LinkPreview } from "../elements/link-preview";
 import { GenerationLoader } from "../elements/loading-state";
+import { ImageGallery } from "../elements/image-gallery";
 import { MapAnswer } from "../elements/map-answer";
 import { MathBlock } from "../elements/math-block";
 import { McpServerPanel } from "../elements/mcp-server-panel";
+import { AudioPlayer } from "../elements/media-player";
 import { MessagePair } from "../elements/message-pair";
+import { MobileComposer } from "../elements/mobile-composer";
+import { ModelPicker } from "../elements/model-picker";
 import { Onboarding } from "../elements/onboarding";
+import { OptionList } from "../elements/option-list";
+import { PermissionGrant } from "../elements/permission-grant";
 import { PromptLibrary } from "../elements/prompt-library";
+import { QuestionFlow } from "../elements/question-flow";
 import { QuotaBanner } from "../elements/quota-banner";
 import { ReadAloud } from "../elements/read-aloud";
 import { ReasoningEffort } from "../elements/reasoning-effort";
@@ -143,12 +154,38 @@ const CASES: Record<string, Case> = {
       }))}
     />
   ),
+  "data-table": (n, items) => (
+    <DataTable
+      caption="Rows"
+      columns={[
+        { key: "name", label: "Name", priority: "primary" },
+        {
+          key: "count",
+          label: "Count",
+          format: { kind: "number", decimals: n },
+        },
+        {
+          key: "share",
+          label: "Share",
+          format: { kind: "percent", decimals: n },
+        },
+      ]}
+      rows={list(items, (i) => ({
+        id: `r${i}`,
+        name: `Row ${i}`,
+        count: i * n,
+        share: i / 10,
+      }))}
+      rowKey="id"
+    />
+  ),
   "document-reference": (n, items) => (
     <DocumentReference
       title="Spec"
       pages={items}
       anchors={list(items, (i) => ({ page: i, quote: "q".repeat(300) }))}
       activePage={n}
+      onJump={() => undefined}
     />
   ),
   "feedback-dialog": (_n, items) => (
@@ -185,6 +222,26 @@ const CASES: Record<string, Case> = {
       visibleCount={n}
     />
   ),
+  "geo-map": (_n, items) => (
+    <GeoMap
+      places={list(items, (i) => ({
+        id: `p${i}`,
+        lat: 1.29 + i / 1000,
+        lng: 103.77 + i / 1000,
+        label: `Place ${i}`,
+      }))}
+    />
+  ),
+  "image-gallery": (n, items) => (
+    <ImageGallery
+      images={list(items, (i) => ({
+        id: `image-${i}`,
+        src: `https://example.com/${i}.png`,
+        alt: `Image ${i}`,
+      }))}
+      maxVisible={n}
+    />
+  ),
   "job-progress": (n, items) => (
     <JobProgress
       title="Indexing"
@@ -192,6 +249,14 @@ const CASES: Record<string, Case> = {
       stageIndex={n}
       stageProgress={n}
       eta="2m"
+    />
+  ),
+  "link-preview": () => (
+    <LinkPreview
+      href="https://example.com/guide"
+      title={"t".repeat(200)}
+      description={"d".repeat(400)}
+      siteName="Example"
     />
   ),
   "map-answer": (_n, items) => (
@@ -221,6 +286,14 @@ const CASES: Record<string, Case> = {
         status: "connected" as const,
         tools: ["read"],
       }))}
+      onToggle={() => undefined}
+    />
+  ),
+  "media-player": () => (
+    <AudioPlayer
+      src="https://example.com/briefing.mp3"
+      title={"t".repeat(200)}
+      durationMs={64_000}
     />
   ),
   "message-pair": (n, items) => (
@@ -241,6 +314,17 @@ const CASES: Record<string, Case> = {
       index={n}
     />
   ),
+  "option-list": (n, items) => (
+    <OptionList
+      aria-label="Pick"
+      options={list(items, (i) => ({ id: `o${i}`, label: `Option ${i}` }))}
+      selectionMode="multiple"
+      defaultValue={["o0", "o1"]}
+      minSelections={n}
+      maxSelections={n}
+      onConfirm={() => {}}
+    />
+  ),
   "prompt-library": (_n, items) => (
     <PromptLibrary
       prompts={list(items, (i) => ({
@@ -251,6 +335,25 @@ const CASES: Record<string, Case> = {
       }))}
       query={"q".repeat(200)}
       selectedId="p0"
+    />
+  ),
+  "question-flow": (n, items) => (
+    <QuestionFlow
+      aria-label="Questions"
+      steps={[
+        {
+          id: "checks",
+          question: "Which checks should run?",
+          selectionMode: "multiple",
+          minSelections: n,
+          maxSelections: n,
+          options: list(items, (i) => ({
+            id: `check-${i}`,
+            label: `Check ${i}`,
+          })),
+        },
+      ]}
+      onComplete={() => {}}
     />
   ),
   "quota-banner": (n) => (
@@ -375,11 +478,13 @@ const CASES: Record<string, Case> = {
   "thread-list": (n, items) => (
     <ThreadList
       threads={list(items, (i) => ({
+        id: `t${i}`,
         title: `t${i}`,
         time: "1m",
         unread: true,
       }))}
       activeIndex={n}
+      onActiveIndexChange={() => undefined}
     />
   ),
   timeline: (n, items) => (
@@ -391,6 +496,16 @@ const CASES: Record<string, Case> = {
         title: "t".repeat(300),
       }))}
       visibleCount={n}
+    />
+  ),
+  "todo-list": (n, items) => (
+    <TodoList
+      items={list(items, (i) => ({
+        id: `t${i}`,
+        text: `Todo ${i}`,
+        status: i === 0 ? ("active" as const) : ("pending" as const),
+      }))}
+      maxVisible={n}
     />
   ),
   "tool-timeline": (n, items) => (
@@ -468,10 +583,13 @@ const COUNT_SHAPED = new Set([
   "cost-meter",
   "file-tree",
   "flow-graph",
+  "image-gallery",
   "job-progress",
   "math-block",
   "message-pair",
   "onboarding",
+  "option-list",
+  "question-flow",
   "reasoning-panel",
   "retrieval-chunks",
   "score-breakdown",
@@ -480,6 +598,7 @@ const COUNT_SHAPED = new Set([
   "streaming-text",
   "terminal-block",
   "timeline",
+  "todo-list",
   "tool-timeline",
   "trace-waterfall",
   "voice-conversation",
@@ -1264,6 +1383,169 @@ describe("state that is carried by more than colour", () => {
       "true",
       null,
     ]);
+  });
+
+  it("keeps the pressed state on static feedback reasons", () => {
+    const { container } = render(
+      <FeedbackDialog
+        reasons={["Wrong answer", "Too slow"]}
+        selected={["Wrong answer"]}
+        note=""
+        sent={false}
+      />,
+    );
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector('[aria-pressed="true"]')?.textContent).toBe(
+      "Wrong answer",
+    );
+    expect(
+      container
+        .querySelector('[aria-pressed="true"]')
+        ?.getAttribute("aria-disabled"),
+    ).toBe("true");
+  });
+
+  it("keeps a send-only mobile composer control mounted while running", () => {
+    const props = {
+      value: "Draft",
+      keyboardOpen: false,
+      actions: [],
+      onSend: () => undefined,
+    };
+    const { container, rerender } = render(
+      <MobileComposer {...props} running={false} />,
+    );
+    const send = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Send"]',
+    );
+
+    rerender(<MobileComposer {...props} running />);
+    const stop = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Stop"]',
+    );
+
+    expect(
+      container.querySelectorAll('[aria-label="Send"], [aria-label="Stop"]'),
+    ).toHaveLength(1);
+    expect(stop).toBe(send);
+    expect(stop?.disabled).toBe(true);
+  });
+
+  it("labels a pending grant without an action handler", () => {
+    const { container } = render(
+      <PermissionGrant
+        capability="Filesystem access"
+        requester="filesystem-mcp"
+        reach={["Read files"]}
+        scope="pending"
+      />,
+    );
+    const pending = [...container.querySelectorAll<HTMLElement>("span")].find(
+      (element) => element.textContent === "pending",
+    );
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(pending?.className).toContain("rounded-full");
+  });
+
+  it("labels a pending hunk without decision handlers", () => {
+    const { container } = render(
+      <ReviewableDiff
+        filename="composer.tsx"
+        hunks={[
+          {
+            id: "hunk",
+            range: "@@ -1 +1 @@",
+            decision: "pending",
+            lines: [{ kind: "added", text: "const draft = useDraft();" }],
+          },
+        ]}
+      />,
+    );
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.textContent).toContain("pending");
+  });
+
+  it("marks the selected static model current", () => {
+    const { container } = render(
+      <ModelPicker
+        models={[
+          {
+            id: "small",
+            name: "Small",
+            family: "A",
+            context: "32k",
+            price: "$0.10",
+            capabilities: [],
+          },
+          {
+            id: "large",
+            name: "Large",
+            family: "A",
+            context: "128k",
+            price: "$0.50",
+            capabilities: [],
+          },
+        ]}
+        selectedId="large"
+      />,
+    );
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector('[aria-current="true"]')?.textContent).toBe(
+      "Large128k$0.50",
+    );
+  });
+
+  it("marks the selected static effort level current", () => {
+    const { container } = render(
+      <ReasoningEffort
+        levels={[
+          { key: "low", label: "Low", budget: 1_000 },
+          { key: "high", label: "High", budget: 2_000 },
+        ]}
+        selectedKey="high"
+        spent={250}
+      />,
+    );
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector('[aria-current="true"]')?.textContent).toBe(
+      "High",
+    );
+  });
+
+  it("marks the selected static setting model current and exposes its switch", () => {
+    const { container } = render(
+      <SettingsPanel
+        model="large"
+        models={["small", "large"]}
+        systemPrompt=""
+        temperature={1}
+        toggles={[
+          { key: "web", label: "Web search", detail: "Use web", on: true },
+        ]}
+      />,
+    );
+    const toggle = container.querySelector<HTMLElement>('[role="switch"]')!;
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector('[aria-current="true"]')?.textContent).toBe(
+      "large",
+    );
+    expect(toggle.getAttribute("aria-checked")).toBe("true");
+    expect(toggle.getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it("keeps the unread count on a static closed launcher", () => {
+    const { container } = render(
+      <LauncherBubble open={false} unread={3} greeting="Hello" prompts={[]} />,
+    );
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.textContent).toContain("3");
   });
 
   it("keeps feedback's live region mounted before it has anything to say", () => {

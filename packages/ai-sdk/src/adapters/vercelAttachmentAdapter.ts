@@ -15,7 +15,7 @@ export const vercelAttachmentAdapter: AttachmentAdapter = {
       status: { type: "requires-action", reason: "composer-send" },
     };
   },
-  async send(attachment) {
+  async send(attachment, options) {
     // noop
     return {
       ...attachment,
@@ -25,7 +25,7 @@ export const vercelAttachmentAdapter: AttachmentAdapter = {
           type: "file",
           mimeType: attachment.contentType ?? "",
           filename: attachment.name,
-          data: await getFileDataURL(attachment.file),
+          data: await getFileDataURL(attachment.file, options),
         },
       ],
     };

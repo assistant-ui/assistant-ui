@@ -3,6 +3,7 @@
 import {
   forwardRef,
   useCallback,
+  useEffect,
   useState,
   type ReactElement,
   isValidElement,
@@ -30,14 +31,20 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
   const [isDragging, setIsDragging] = useState(false);
   const aui = useAui();
 
+  useEffect(() => {
+    if (!disabled) return;
+    // Disabled handlers cannot clear the latch, so reset it when the enabled period ends.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsDragging(false);
+  }, [disabled]);
+
   // An unprevented file drop navigates the tab to the file, so file drags are
   // claimed via preventDefault even when the runtime does not support attachments.
   const handleDragEnterCapture = useCallback(
     (e: React.DragEvent) => {
-      if (disabled) return;
       if (!e.dataTransfer.types.includes("Files")) return;
       e.preventDefault();
-      if (!aui.thread.getState().capabilities.attachments) {
+      if (disabled || !aui.thread.getState().capabilities.attachments) {
         e.dataTransfer.dropEffect = "none";
         return;
       }
@@ -48,10 +55,9 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
 
   const handleDragOverCapture = useCallback(
     (e: React.DragEvent) => {
-      if (disabled) return;
       if (!e.dataTransfer.types.includes("Files")) return;
       e.preventDefault();
-      if (!aui.thread.getState().capabilities.attachments) {
+      if (disabled || !aui.thread.getState().capabilities.attachments) {
         e.dataTransfer.dropEffect = "none";
         return;
       }
@@ -75,10 +81,10 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
 
   const handleDrop = useCallback(
     async (e: React.DragEvent) => {
-      if (disabled) return;
       setIsDragging(false);
       if (!e.dataTransfer.types.includes("Files")) return;
       e.preventDefault();
+      if (disabled) return;
       const files = Array.from(e.dataTransfer.files);
       if (!aui.thread.getState().capabilities.attachments || files.length === 0)
         return;
@@ -97,7 +103,7 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
   );
 
   const mergedProps = {
-    ...(isDragging ? { "data-dragging": "true" } : null),
+    ...(isDragging && !disabled ? { "data-dragging": "true" } : null),
     ...rest,
     onDragEnterCapture: composeEventHandlers(
       rest.onDragEnterCapture,

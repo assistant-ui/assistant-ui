@@ -66,6 +66,9 @@ describe("JSONTree interactions", () => {
     await click("Copy JSON");
     expect(writeText).toHaveBeenLastCalledWith(JSON.stringify(value, null, 2));
     expect(button("Copied")).toBeDefined();
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
     value = [...value, { id: 103 }];
     await act(async () =>
       root.render(<JSONTree value={value} openDepth={0} />),
@@ -74,7 +77,11 @@ describe("JSONTree interactions", () => {
     expect(writeText).toHaveBeenLastCalledWith(JSON.stringify(value, null, 2));
     expect(container.textContent).not.toContain("id");
     await act(async () => {
-      vi.advanceTimersByTime(2000);
+      vi.advanceTimersByTime(1000);
+    });
+    expect(button("Copied")).toBeDefined();
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
     });
     expect(button("Copy JSON")).toBeDefined();
   });
@@ -114,5 +121,30 @@ describe("JSONTree interactions", () => {
     await click("Lazy");
     expect(getValue).toHaveBeenCalledTimes(1);
     expect(writeText).toHaveBeenCalledWith("lazy value");
+  });
+
+  it("shows feedback for any successful overlapping copy", async () => {
+    let resolveFirst!: () => void;
+    let rejectSecond!: (error: Error) => void;
+    writeText
+      .mockReturnValueOnce(
+        new Promise<void>((resolve) => {
+          resolveFirst = resolve;
+        }),
+      )
+      .mockReturnValueOnce(
+        new Promise<void>((_resolve, reject) => {
+          rejectSecond = reject;
+        }),
+      );
+    await act(async () => root.render(<CopyButton value="copy me" />));
+
+    await click("Copy");
+    await click("Copy");
+    await act(async () => resolveFirst());
+    expect(button("Copied")).toBeDefined();
+
+    await act(async () => rejectSecond(new Error("copy failed")));
+    expect(button("Copied")).toBeDefined();
   });
 });
