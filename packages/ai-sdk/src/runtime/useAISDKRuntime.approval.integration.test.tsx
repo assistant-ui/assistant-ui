@@ -764,6 +764,93 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
     second.unmount();
   });
 
+  it("persists a successful host answer after the owner changes", async () => {
+    historyState.remoteId = "remote-owner-change";
+    onTestFinished(() => {
+      historyState.remoteId = undefined;
+    });
+    const stored = [
+      { parentId: null, message: userMessage },
+      {
+        parentId: "user-1",
+        message: approvalMessage("assistant-1", "tool-1", "approval-1"),
+      },
+    ];
+    const load = vi.fn(async () => ({
+      headId: "assistant-1",
+      messages: stored,
+    }));
+    const update = vi.fn(async (item: (typeof stored)[number], id: string) => {
+      const index = stored.findIndex(({ message }) => message.id === id);
+      stored[index] = item;
+    });
+    const history = {
+      load: vi.fn(),
+      append: vi.fn(),
+      withFormat: vi.fn().mockReturnValue({ load, append: vi.fn(), update }),
+    } as unknown as ThreadHistoryAdapter;
+    const chatA = new Chat<UIMessage>({
+      id: "chat-owner-a",
+      transport: {
+        sendMessages: async () => streamOf([]),
+        reconnectToStream: async () => null,
+      },
+    });
+    const ownerB = {};
+    let owner: object = chatA;
+    let resolveHandler!: () => void;
+    const handler = vi.fn<ApprovalHandler>(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveHandler = resolve;
+        }),
+    );
+    const view = renderHook(() => {
+      const chat = useChat({ chat: chatA });
+      return {
+        chat,
+        runtime: useAISDKRuntime(chat, {
+          adapters: { history },
+          onRespondToToolApproval: handler,
+          unstable_hostApprovalOwner: owner,
+        }),
+      };
+    });
+    const part = () =>
+      view.result.current.runtime.thread
+        .getMessageByIndex(1)
+        .getMessagePartByToolCallId("tool-1");
+
+    await waitFor(() =>
+      expect(view.result.current.chat.messages).toHaveLength(2),
+    );
+    const responding = part().respondToToolApproval({ approved: true });
+    await waitFor(() => expect(handler).toHaveBeenCalledOnce());
+
+    owner = ownerB;
+    view.rerender();
+    await act(async () => {
+      resolveHandler();
+      await responding;
+    });
+
+    expect(stored[1]?.message.metadata).toMatchObject({
+      __aui_toolApprovalResponses: { "approval-1": { approved: true } },
+    });
+    view.unmount();
+
+    const reloaded = await setup(() => async () => {}, {
+      history,
+      hostApprovalOwner: true,
+    });
+    await waitFor(() => expect(reloaded.chat().messages).toHaveLength(2));
+    expect(reloaded.approval()).toMatchObject({
+      id: "approval-1",
+      approved: true,
+    });
+    reloaded.unmount();
+  });
+
   it("rolls a rejected answer back to its own owner after the owner changes", async () => {
     const sendMessages = vi.fn<ChatTransport<UIMessage>["sendMessages"]>(
       async () => streamOf(approvalStep()),
