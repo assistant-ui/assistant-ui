@@ -36,16 +36,17 @@ If you already have an assistant-ui web app, most of your code transfers directl
 
 ### Keep your runtime hook
 
-Your `useChatRuntime` setup works as-is:
+Your `useChatRuntime` setup stays the same except for the `api` URL. A native build has no page origin to resolve `/api/chat` against, so pass an absolute URL:
 
 ```tsx title="hooks/use-app-runtime.ts"
-// This file is identical to your web version
 import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/ai-sdk";
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
 
 export function useAppRuntime() {
   return useChatRuntime({
     transport: new AssistantChatTransport({
-      api: "/api/chat",
+      api: `${API_URL}/api/chat`,
     }),
   });
 }
