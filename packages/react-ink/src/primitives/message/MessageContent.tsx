@@ -4,10 +4,10 @@ import {
   Fragment,
   useMemo,
 } from "react";
-import type {
-  ThreadUserMessagePart,
-  ThreadAssistantMessagePart,
-  MessagePartState,
+import {
+  type ThreadUserMessagePart,
+  type ThreadAssistantMessagePart,
+  type MessagePartState,
 } from "@assistant-ui/core";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import type {
@@ -17,6 +17,7 @@ import type {
 import { PartByIndexProvider } from "@assistant-ui/core/react";
 import { ToolFallback } from "../toolCall/ToolFallback";
 import * as MessagePartPrimitive from "../messagePart";
+import { resolveToolRender } from "@assistant-ui/core/internal";
 
 type MessageContentPart = ThreadUserMessagePart | ThreadAssistantMessagePart;
 type MessageContentStatePart = MessagePartState;
@@ -84,9 +85,7 @@ const ToolUIDisplay = ({
   index: number;
 }) => {
   const aui = useAui();
-  const Render = useAuiState(
-    (s) => s.tools.toolUIs[part.toolName]?.[0]?.render,
-  );
+  const Render = useAuiState((s) => resolveToolRender(s.tools, part));
 
   const partMethods = useMemo(() => aui.message.part({ index }), [aui, index]);
   const toolProps = {

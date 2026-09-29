@@ -150,8 +150,9 @@ Tool call parts resolve in this order:
 1. **`tools.Override`**: if provided inline through the deprecated `components` prop, handles **all** tool calls
 2. **Globally registered tools**: tools registered via `Tools({ toolkit })`
 3. **`tools.by_name[toolName]`**: per-`MessagePrimitive.Parts` inline overrides from the deprecated `components` prop
-4. **`tools.Fallback`**: catch-all for unmatched tool calls from the deprecated `components` prop
-5. **`part.toolUI`**: the resolved tool UI exposed directly in the children render function
+4. **`tools.mcpApp`**: the generic MCP App renderer registered via `Tools({ mcpApp })`, which claims only a call whose `mcp.app.resourceUri` is a `ui://` app
+5. **`tools.Fallback`**: catch-all for unmatched tool calls from the deprecated `components` prop
+6. **`part.toolUI`**: the resolved tool UI exposed directly in the children render function
 
 In the children API, tool and data parts expose resolved UI helpers directly:
 

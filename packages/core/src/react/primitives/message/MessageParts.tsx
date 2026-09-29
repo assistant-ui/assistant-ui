@@ -34,13 +34,12 @@ import type {
 } from "../../types/MessagePartComponentTypes";
 import { GenerativeUIRender } from "../generativeUI/GenerativeUI";
 import {
-  isMcpAppUri,
   type MessagePartStatus,
   type GenerativeUIMessagePart,
 } from "../../../types/message";
 import type { DataRenderersState } from "../../types/scopes/dataRenderers";
-import type { ToolsState } from "../../types/scopes/tools";
 import { useShallowSelector } from "@assistant-ui/store/internal";
+import { resolveToolRender } from "../../../utils/resolveToolRender";
 
 type MessagePartRange =
   | { type: "single"; index: number }
@@ -348,13 +347,15 @@ export namespace MessagePrimitiveParts {
 }
 
 const ToolUIDisplay = ({
+  ByName,
   Fallback,
   ...props
 }: {
+  ByName: ToolCallMessagePartComponent | undefined;
   Fallback: ToolCallMessagePartComponent | undefined;
 } & ToolCallMessagePartProps) => {
   const Render = useAuiState(
-    (s) => s.tools.toolUIs[props.toolName]?.[0]?.render ?? Fallback,
+    (s) => resolveToolRender(s.tools, props, ByName) ?? Fallback,
   );
   if (!Render) return null;
   return <Render {...props} />;
@@ -434,14 +435,15 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
           {...(unstable_recordInteraction && { unstable_recordInteraction })}
         />
       );
-    const Tool =
-      (tools.by_name && Object.hasOwn(tools.by_name, part.toolName)
+    const ByName =
+      tools.by_name && Object.hasOwn(tools.by_name, part.toolName)
         ? tools.by_name[part.toolName]
-        : undefined) ?? tools.Fallback;
+        : undefined;
     return (
       <ToolUIDisplay
         {...part}
-        Fallback={Tool}
+        ByName={ByName}
+        Fallback={tools.Fallback}
         addResult={addResult}
         resume={resume}
         respondToApproval={respondToApproval}
@@ -623,18 +625,6 @@ const QuoteRendererImpl: FC<{ Quote: QuoteMessagePartComponent }> = ({
 };
 
 const QuoteRenderer = memo(QuoteRendererImpl);
-
-function resolveToolRender(
-  toolsState: ToolsState,
-  part: Extract<PartState, { type: "tool-call" }>,
-): ToolCallMessagePartComponent | null {
-  const named = toolsState.toolUIs[part.toolName]?.[0]?.render ?? null;
-  if (named) return named;
-  if (isMcpAppUri(part.mcp?.app?.resourceUri) && toolsState.mcpApp) {
-    return toolsState.mcpApp.render;
-  }
-  return null;
-}
 
 /**
  * Stable propless component that renders the registered tool UI for the
