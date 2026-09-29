@@ -17,6 +17,7 @@ assistant-ui exposes runtime integrations at three layers. Understanding which l
       A5[react-a2a]
       A6[react-ag-ui]
       A7[react-opencode]
+      A8[react-flue]
     end
     subgraph Protocol["Protocol layers"]
       P1[DataStream]
@@ -33,6 +34,7 @@ assistant-ui exposes runtime integrations at three layers. Understanding which l
     A5 --> C2
     A6 --> C2
     A7 --> C2
+    A8 --> C2
     P1 --> C1
     P2 --> C2`}
 >
@@ -65,6 +67,7 @@ assistant-ui exposes runtime integrations at three layers. Understanding which l
           <Flow.Node>react-a2a</Flow.Node>
           <Flow.Node>react-ag-ui</Flow.Node>
           <Flow.Node>react-opencode</Flow.Node>
+          <Flow.Node>react-flue</Flow.Node>
         </Flow.Row>
       </Flow.Group>
     </div>
@@ -125,6 +128,7 @@ The fastest path. Each adapter wraps one of the core or protocol layers and adds
 | `react-a2a` | `ExternalStoreRuntime` | Any A2A v1.0 protocol server |
 | `react-ag-ui` | `ExternalStoreRuntime` | AG-UI protocol agents (CopilotKit, custom servers) |
 | `react-opencode` | `ExternalStoreRuntime` | OpenCode coding-agent server (experimental) |
+| `react-flue` | `ExternalStoreRuntime` | Durable Flue agent conversations |
 
 When an adapter exposes a feature like attachments, speech, or feedback, it does so through the same [adapter interfaces](/docs/runtimes/concepts/adapters) the core runtimes use. A feature implemented once works the same way across runtimes.
 

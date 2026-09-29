@@ -1,0 +1,142 @@
+---
+title: Quickstart
+description: Run the assistant-ui and Flue chat app or wire useFlueRuntime into an existing React app.
+---
+
+import { FlueIcon } from "@/components/icons/flue";
+
+## Run the demo
+
+The repository includes a complete assistant-ui chat backed by a Flue agent and OpenAI:
+
+```sh
+pnpm install
+cp examples/with-flue/.env.example examples/with-flue/.env.local
+# Add your OPENAI_API_KEY to examples/with-flue/.env.local
+pnpm --filter with-flue dev
+```
+
+Open [http://localhost:5173](http://localhost:5173) and start chatting. Reload the page to confirm the conversation reconnects to its durable history. The API key remains in the server environment; the browser only receives the Flue conversation URL.
+
+## Add it to a Flue app
+
+This path assumes the project already has Flue, Hono, and the `flue()` Vite plugin configured. If it does not, start with [Flue's installation guide](https://flueframework.com/docs/guide/getting-started/) and return here after the agent server runs.
+
+<Steps>
+<Step>
+
+### Install the adapter
+
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-flue"]} />
+
+</Step>
+<Step>
+
+### Create the Flue agent
+
+```ts title="src/agents/chat.ts"
+"use agent";
+
+import { useModel } from "@flue/runtime";
+
+export function ChatAgent() {
+  useModel(process.env.MODEL_SPECIFIER ?? "openai/gpt-4o-mini");
+  return "You are a helpful assistant.";
+}
+```
+
+Put `OPENAI_API_KEY` in the server environment. It is resolved by Flue and never sent to the browser.
+
+</Step>
+<Step>
+
+### Mount the Flue agent
+
+Mount your agent under a stable route and let the caller append its conversation id:
+
+```ts title="src/app.ts"
+import { createAgentRouter } from "@flue/runtime/routing";
+import { Hono } from "hono";
+import { ChatAgent } from "./agents/chat";
+
+const app = new Hono();
+app.route("/api/agents/chat", createAgentRouter(ChatAgent));
+
+export default app;
+```
+
+</Step>
+<Step>
+
+### Connect assistant-ui
+
+```tsx title="chat.tsx"
+"use client";
+
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+import {
+  AssistantRuntimeProvider,
+  SimpleImageAttachmentAdapter,
+} from "@assistant-ui/react";
+import { useFlueRuntime } from "@assistant-ui/react-flue";
+import { useMemo } from "react";
+
+export function Chat({ conversationId }: { conversationId: string }) {
+  const adapters = useMemo(
+    () => ({ attachments: new SimpleImageAttachmentAdapter() }),
+    [],
+  );
+  const runtime = useFlueRuntime({
+    url: `/api/agents/chat/${conversationId}`,
+    adapters,
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+The image adapter reads supported browser images as base64 and keeps provider credentials out of the client bundle. Omit it if the composer should be text-only.
+
+</Step>
+<Step>
+
+### Add the thread UI
+
+The example above expects the standard assistant-ui `Thread`. Follow the [UI Components guide](/elements/thread) to add the thread, composer, tool fallback, and supporting primitives to an existing app.
+
+</Step>
+</Steps>
+
+## What runs where
+
+- The browser renders `Thread` and calls `useFlueRuntime()` with one conversation URL.
+- The adapter maps Flue history, live text, reasoning, tool calls, files, and `data-*` parts into assistant-ui.
+- The server-side agent selects the model and holds provider credentials.
+- Flue persists the conversation by id, so reconnecting to the same URL restores its history.
+
+The runnable example also enables image attachments and includes a server-side tool that the real model can call when users ask about the integration.
+
+## Production note
+
+Protect the mounted Flue route with your application authentication and authorize the caller against the requested conversation id. The repository demo intentionally leaves it unauthenticated for local development only. See [Flue's React guide](https://flueframework.com/docs/guide/react/) for custom clients and [routing](https://flueframework.com/docs/guide/routing/) for middleware placement.
+
+## Next
+
+<Cards>
+  <Card
+    icon={<FlueIcon width={20} height={20} />}
+    title="Flue overview"
+    description="Architecture, requirements, lifecycle mapping, and authentication."
+    href="/docs/runtimes/flue/overview"
+  />
+  <Card
+    icon={<FlueIcon width={20} height={20} />}
+    title="API reference"
+    description="useFlueRuntime, converters, send options, and runtime extras."
+    href="/docs/api-reference/integrations/react-flue"
+  />
+</Cards>

@@ -11,6 +11,8 @@
     "@ai-sdk/provider": "^4.0.14",
     "@ai-sdk/react": "^4.0.104",
     "@earendil-works/pi-coding-agent": "^0.85.1",
+    "@flue/react": "^2.1.0",
+    "@flue/sdk": "^2.1.0",
     "@langchain/langgraph-sdk": "^1.11.0",
     "@langchain/react": "^1.1.0",
     "@modelcontextprotocol/client": "^2.0.0",

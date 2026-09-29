@@ -180,6 +180,11 @@ export const PACKAGES: PackageInfo[] = [
     category: "frameworks",
   },
   {
+    name: "@assistant-ui/react-flue",
+    description: "Flue durable-conversation runtime adapter.",
+    category: "frameworks",
+  },
+  {
     name: "@assistant-ui/react-langgraph",
     description: "LangGraph adapter.",
     category: "frameworks",
