@@ -21,7 +21,7 @@ This will:
 - Use `shadcn add` to install the assistant-ui quick-start component
 - Add the default assistant-ui components (thread, composer, etc.) to your project
 
-In a non-interactive shell such as CI, pass `--yes`. Without it, `init` exits with an error because it cannot prompt.
+When `init` sets up an existing project in a non-interactive shell such as CI, pass `--yes`. Without it, `init` exits with an error because it cannot prompt.
 
 **When to use:**
 - Adding assistant-ui to an **existing** Next.js project
@@ -232,6 +232,8 @@ Options:
   -c, --cwd <cwd>  the working directory. defaults to the current directory.
   -h, --help       display help for command
 ```
+
+The command matches `@assistant-ui/*`, `assistant-stream`, and `assistant-cloud` in `dependencies` and `devDependencies`.
 
 ## upgrade
 
