@@ -11,4 +11,4 @@
 "@assistant-ui/react-google-adk": patch
 ---
 
-fix: runtime hooks keep their clients, runs, queued sends and history loads across a fast refresh or a StrictMode replay instead of rebuilding or tearing them down
+fix: runtime hooks keep their clients, runs, streams, queued sends and pending history copies across a fast refresh or a StrictMode replay instead of rebuilding or tearing them down

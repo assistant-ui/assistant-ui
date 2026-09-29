@@ -240,8 +240,9 @@ describe("usePiRuntime new-thread store", () => {
     };
     mocks.mainThreadId = "__LOCALID_new";
 
+    const client = {} as PiClient;
     const App = () => {
-      usePiRuntime({ client: {} as PiClient });
+      usePiRuntime({ client });
       return null;
     };
 
