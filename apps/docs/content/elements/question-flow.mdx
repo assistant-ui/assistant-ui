@@ -74,6 +74,8 @@ export const toolkit = defineToolkit({
 ### Register the toolkit
 
 ```tsx title="app/MyRuntimeProvider.tsx"
+"use client";
+
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/ai-sdk";
 import { toolkit } from "./toolkit";

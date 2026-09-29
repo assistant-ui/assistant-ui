@@ -34,7 +34,7 @@ export const toolkit = defineToolkit({
       acceptedLabel: z.string(),
     }),
     render: ({ args, status, result, addResult }) => {
-      if (status.type === "running") return null;
+      if (status.type === "running" || status.type === "incomplete") return null;
 
       return (
         <RecommendationCard
@@ -53,7 +53,7 @@ export const toolkit = defineToolkit({
 });
 ```
 
-`status.type` is `"running"` while the arguments stream in, so the card renders once they are complete. Call `addResult` exactly once to resolve the call and let the model continue. The result shape is yours; `{ accepted: false }` here is a convention for "show me something else", not a fixed protocol value. An app that wants the model to keep proposing without resolving the call yet could instead leave it pending and send a follow-up user message.
+`status.type` is `"running"` while the arguments stream in and `"incomplete"` when the call was cut short, so the card renders only once the arguments are complete. Call `addResult` exactly once to resolve the call and let the model continue. The result shape is yours; `{ accepted: false }` here is a convention for "show me something else", not a fixed protocol value. An app that wants the model to keep proposing without resolving the call yet could instead leave it pending and send a follow-up user message.
 
   </Step>
   <Step>
@@ -61,6 +61,8 @@ export const toolkit = defineToolkit({
 ### Register the toolkit
 
 ```tsx title="app/MyRuntimeProvider.tsx"
+"use client";
+
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/ai-sdk";
 import { toolkit } from "./toolkit";

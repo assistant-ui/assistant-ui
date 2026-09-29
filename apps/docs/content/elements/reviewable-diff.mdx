@@ -39,7 +39,7 @@ export const ReviewPatchToolUI: ToolCallMessagePartComponent<
 > = ({ args, status, result, addResult }) => {
   const [decisions, setDecisions] = useState<Record<string, HunkDecision>>({});
 
-  if (status.type === "running") return null;
+  if (status.type === "running" || status.type === "incomplete") return null;
 
   if (result) {
     return (
@@ -255,7 +255,7 @@ function discardAll() {
 |------|------|-------------|
 | `args` | `{ filename: string; hunks: readonly Omit<DiffHunk, "decision">[] }` | The filename and the unreviewed hunks the model is proposing. |
 | `result` | `{ kept: readonly string[] } \| undefined` | Set once `addResult` is called; the ids of the hunks the user kept. |
-| `status` | `ToolCallMessagePartStatus` | `status.type` is `"running"` while the arguments stream in. |
+| `status` | `ToolCallMessagePartStatus` | `status.type` is `"running"` while the arguments stream in, and `"incomplete"` when the call was cut short; the arguments can be partial in both. |
 | `addResult` | `(result: ReviewPatchResult) => void` | Call once, after the user has decided every hunk, to resolve the call. |
 
 See [Tool UI](/docs/tools/tool-ui) for the full render-prop surface and human-tool registration.
