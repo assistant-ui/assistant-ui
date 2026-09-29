@@ -2,6 +2,20 @@
 
 import { cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { Unstable_InteractableStateSchema } from "../types/scopes/interactables";
+
+type JsonSchema = Exclude<
+  Unstable_InteractableStateSchema,
+  { "~standard": unknown }
+>;
+type StandardSchemaWithJsonSchema = Extract<
+  Unstable_InteractableStateSchema,
+  { "~standard": unknown }
+> & {
+  "~standard": {
+    jsonSchema: { input: () => JsonSchema; output: () => JsonSchema };
+  };
+};
 
 const mocks = vi.hoisted(() => {
   const unregister = vi.fn();
@@ -42,17 +56,20 @@ afterEach(() => {
 describe("unstable_useInteractable", () => {
   it("refreshes the registration when its JSON schema changes", async () => {
     const schemaA = {
-      type: "object" as const,
+      type: "object",
       properties: { first: { type: "string" } },
-    };
+    } satisfies Unstable_InteractableStateSchema;
     const schemaB = {
-      type: "object" as const,
+      type: "object",
       properties: { second: { type: "number" } },
-    };
+    } satisfies Unstable_InteractableStateSchema;
     const initialA = { first: "one" };
     const initialB = { second: 2 };
 
-    const hook = renderHook(
+    const hook = renderHook<
+      unknown,
+      { stateSchema: Unstable_InteractableStateSchema; initialState: unknown }
+    >(
       ({ stateSchema, initialState }) =>
         unstable_useInteractable("panel", {
           id: "panel-1",
@@ -83,20 +100,26 @@ describe("unstable_useInteractable", () => {
   });
 
   it("stabilizes equivalent rebuilt standard schemas", async () => {
-    const createSchema = (property: string) => ({
+    const createSchema = (property: string): StandardSchemaWithJsonSchema => ({
       "~standard": {
-        version: 1 as const,
+        version: 1,
         vendor: "test",
-        validate: (value: unknown) => ({ value }),
-        toJSONSchema: () => ({
-          type: "object" as const,
-          properties: { [property]: { type: "string" as const } },
-        }),
+        validate: () => ({ value: {} }),
+        jsonSchema: {
+          input: () => ({
+            type: "object",
+            properties: { [property]: { type: "string" } },
+          }),
+          output: () => ({ type: "object" }),
+        },
       },
     });
     const firstSchema = createSchema("value");
 
-    const hook = renderHook(
+    const hook = renderHook<
+      unknown,
+      { stateSchema: Unstable_InteractableStateSchema }
+    >(
       ({ stateSchema }) =>
         unstable_useInteractable("panel", {
           id: "panel-1",
@@ -120,15 +143,19 @@ describe("unstable_useInteractable", () => {
   });
 
   it("keeps unsupported standard schemas from failing during render", async () => {
-    const createSchema = () => ({
-      "~standard": {
-        version: 1 as const,
-        vendor: "test",
-        validate: (value: unknown) => ({ value }),
-      },
-    });
+    const createSchema = () =>
+      ({
+        "~standard": {
+          version: 1 as const,
+          vendor: "test",
+          validate: () => ({ value: {} }),
+        },
+      }) satisfies Unstable_InteractableStateSchema;
 
-    const hook = renderHook(
+    const hook = renderHook<
+      unknown,
+      { stateSchema: Unstable_InteractableStateSchema }
+    >(
       ({ stateSchema }) =>
         unstable_useInteractable("panel", {
           id: "panel-1",
@@ -145,20 +172,20 @@ describe("unstable_useInteractable", () => {
   });
 
   it("converts a referentially stable schema only once", async () => {
-    const toJSONSchema = vi.fn(() => ({
+    const convert = vi.fn(() => ({
       type: "object" as const,
       properties: { value: { type: "string" as const } },
     }));
-    const stateSchema = {
+    const stateSchema: StandardSchemaWithJsonSchema = {
       "~standard": {
-        version: 1 as const,
+        version: 1,
         vendor: "test",
-        validate: (value: unknown) => ({ value }),
-        toJSONSchema,
+        validate: () => ({ value: {} }),
+        jsonSchema: { input: convert, output: convert },
       },
     };
 
-    const hook = renderHook(
+    const hook = renderHook<unknown, { initialState: Record<string, unknown> }>(
       ({ initialState }) =>
         unstable_useInteractable("panel", {
           id: "panel-1",
@@ -171,7 +198,7 @@ describe("unstable_useInteractable", () => {
     await waitFor(() => expect(mocks.register).toHaveBeenCalledTimes(1));
 
     hook.rerender({ initialState: { value: "second" } });
-    expect(toJSONSchema).toHaveBeenCalledTimes(1);
+    expect(convert).toHaveBeenCalledTimes(1);
     expect(mocks.register).toHaveBeenCalledTimes(1);
   });
 });

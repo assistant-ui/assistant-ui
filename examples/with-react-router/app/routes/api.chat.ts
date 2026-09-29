@@ -68,7 +68,8 @@ export async function action({ request }: Route.ActionArgs) {
 
       while (continueLoop) {
         const response = await openai.chat.completions.create({
-          model: "gpt-5.6-luna",
+          model: "gpt-6-luna",
+          reasoning_effort: "none",
           messages: openaiMessages,
           tools,
           stream: true,

@@ -203,6 +203,40 @@ describe("ExternalThread part status", () => {
   });
 });
 
+describe("ExternalThread tasks", () => {
+  it("derives nested conversations and resolves their task scope", () => {
+    const { aui } = renderThread({
+      messages: [
+        assistantMessageWithContent({ type: "running" }, [
+          {
+            type: "tool-call",
+            toolCallId: "delegate-1",
+            toolName: "delegate",
+            args: {},
+            argsText: "{}",
+            messages: [
+              assistantMessageWithContent(
+                { type: "running" },
+                [],
+                "nested-message-1",
+              ),
+            ],
+          },
+        ]),
+      ],
+      isRunning: true,
+    });
+
+    const [task] = aui().thread.getState().tasks;
+    expect(task).toMatchObject({
+      id: "delegate-1",
+      toolName: "delegate",
+      messageId: "a1",
+    });
+    expect(aui().thread.task({ id: "delegate-1" }).getState()).toBe(task);
+  });
+});
+
 describe("ExternalThread unset optional callbacks", () => {
   it("throws a capability error when the callback prop is not set", () => {
     const { aui } = renderThread({
@@ -220,7 +254,7 @@ describe("ExternalThread unset optional callbacks", () => {
     expect(() => part().resumeToolCall(undefined)).toThrow(
       "Runtime does not support resuming tool calls (onResumeToolCall is not set).",
     );
-    expect(() => aui().thread.resumeRun()).toThrow(
+    expect(() => aui().thread.resumeRun({ parentId: null })).toThrow(
       "Runtime does not support resuming runs (onResume is not set).",
     );
     expect(() => aui().thread.importExternalState({})).toThrow(
@@ -354,6 +388,20 @@ describe("ExternalThread composer", () => {
     expect(notifyCancelled).not.toHaveBeenCalled();
     expect(aui().thread.getState().capabilities.cancel).toBe(false);
     expect(aui().thread.composer().getState().canCancel).toBe(false);
+  });
+
+  it("reports answerToolCall once a tool answer handler is set", () => {
+    const { aui, rerender } = renderThread({ messages: [] });
+    expect(aui().thread.getState().capabilities.answerToolCall).toBe(false);
+
+    for (const handler of [
+      { onAddToolResult: vi.fn() },
+      { onResumeToolCall: vi.fn() },
+      { onRespondToToolApproval: vi.fn() },
+    ]) {
+      rerender({ messages: [], ...handler });
+      expect(aui().thread.getState().capabilities.answerToolCall).toBe(true);
+    }
   });
 
   it("routes edit-composer sends to onEdit with sourceId, bypassing the queue", async () => {

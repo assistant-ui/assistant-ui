@@ -1,4 +1,7 @@
 {
   "extends": "./ts/base-node",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true
+  },
   "include": ["src", "bin"]
 }

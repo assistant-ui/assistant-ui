@@ -25,6 +25,8 @@ export type MessageQueueDriver = {
 
 export type MessageQueueController = {
   readonly adapter: ExternalThreadQueueAdapter;
+  hold: () => void;
+  release: () => void;
   /** Mark a run as in flight so concurrent sends buffer; call on the rising edge. */
   notifyBusy: () => void;
   /** Advances to the next pending message; call on the run's falling edge. */
@@ -87,7 +89,9 @@ export const createMessageQueue = (
   const subscribers = new Set<() => void>();
 
   let running = false;
+  let dispatchPending = false;
   let paused = false;
+  let held = false;
   let dispatchTransform: (message: AppendMessage) => AppendMessage = (m) => m;
   // swallow the cancelled run's settle when steering so it does not double-advance
   let suppressIdle = 0;
@@ -133,16 +137,18 @@ export const createMessageQueue = (
   };
 
   const advance = () => {
-    if (running || paused) return;
+    if (running || paused || held) return;
     const lane: Lane = lanes.steer.length > 0 ? "steer" : "queue";
     const head = lanes[lane][0];
     if (!head) return;
     const message = messages.get(head.id);
-    messages.delete(head.id);
-    setLanes({ ...lanes, [lane]: lanes[lane].slice(1) });
     if (!message) return;
-    const dispatch = { id: head.id, item: head, message };
     running = true;
+    messages.delete(head.id);
+    dispatchPending = true;
+    setLanes({ ...lanes, [lane]: lanes[lane].slice(1) });
+    dispatchPending = false;
+    const dispatch = { id: head.id, item: head, message };
     const busyEdgesBeforeRun = busyEdges;
     try {
       driver.run(dispatchTransform(message), { steer: false });
@@ -211,7 +217,7 @@ export const createMessageQueue = (
   };
 
   const steer = (message: AppendMessage) => {
-    if (running && driver.cancel) {
+    if (running && !dispatchPending && driver.cancel) {
       const id = generateId();
       interrupt({ id, item: toItem(id, message), message });
       return;
@@ -270,6 +276,7 @@ export const createMessageQueue = (
       toLane === "steer" &&
       fromLane !== "steer" &&
       running &&
+      !dispatchPending &&
       driver.cancel
     ) {
       const message = messages.get(queueItemId)!;
@@ -311,7 +318,7 @@ export const createMessageQueue = (
   };
 
   const notifyCancelled = () => {
-    if (interrupting) return;
+    if (interrupting || dispatchPending) return;
     if (running && cancelSettles === 0) {
       paused = true;
       cancelSettles = 1;
@@ -334,6 +341,13 @@ export const createMessageQueue = (
 
   return {
     adapter,
+    hold: () => {
+      held = true;
+    },
+    release: () => {
+      held = false;
+      advance();
+    },
     notifyBusy: () => {
       paused = false;
       // a cancelled run's settle that is still outstanding belongs to a run

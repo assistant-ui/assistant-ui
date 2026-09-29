@@ -74,14 +74,16 @@ export function MessageQueue({
               {message.text}
             </span>
             <ArrowUpIcon className="text-foreground/25 size-3 shrink-0" />
-            <button
-              type="button"
-              aria-label={`Remove "${message.text}" from the queue`}
-              onClick={() => onCancel?.(message.id)}
-              className={cn(ghostButton, "size-6 shrink-0")}
-            >
-              <XIcon className="size-3.5" />
-            </button>
+            {onCancel && (
+              <button
+                type="button"
+                aria-label={`Remove "${message.text}" from the queue`}
+                onClick={() => onCancel(message.id)}
+                className={cn(ghostButton, "size-6 shrink-0")}
+              >
+                <XIcon className="size-3.5" />
+              </button>
+            )}
           </li>
         ))}
       </ul>

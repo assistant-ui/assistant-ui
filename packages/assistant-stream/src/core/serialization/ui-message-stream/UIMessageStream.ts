@@ -161,6 +161,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               toolCallPartRegistry.setResponse(toolCallController, {
                 result: chunk.result,
                 isError: chunk.isError ?? false,
+                ...(chunk.isPreliminary ? { isPreliminary: true } : {}),
                 ...(chunk.messages !== undefined
                   ? { messages: chunk.messages }
                   : {}),

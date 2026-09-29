@@ -75,9 +75,9 @@ const EmptyState: FC = () => {
   return (
     <div className="flex grow flex-col items-center justify-center px-4 pb-[16vh]">
       <div className="mx-auto flex w-full max-w-3xl flex-col items-stretch gap-6">
-        <h1 className="text-center text-2xl leading-7 font-normal text-[#0d0d0d] dark:text-[#ececec]">
+        <p className="text-center text-2xl leading-7 font-normal text-[#0d0d0d] dark:text-[#ececec]">
           Where should we begin?
-        </h1>
+        </p>
         <Composer placeholder="Ask anything" />
       </div>
     </div>

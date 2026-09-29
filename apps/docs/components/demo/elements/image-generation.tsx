@@ -6,11 +6,12 @@ import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 const PHASES = [3600, 4000] as const;
 
 export function ImageGenerationDemo() {
-  const { phase } = useStoryPhases(PHASES);
+  const { phase, replay } = useStoryPhases(PHASES);
   return (
     <ImageGeneration
       prompt="A calm mountain lake at dawn"
       generating={phase === 0}
+      onRegenerate={replay}
     />
   );
 }

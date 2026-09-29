@@ -1,5 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
-import { createMessageQueue } from "../runtime/queue/message-queue";
+import {
+  createMessageQueue,
+  type MessageQueueDriver,
+} from "../runtime/queue/message-queue";
 import type { AppendMessage } from "../types/message";
 
 const msg = (text: string, extra?: Partial<AppendMessage>): AppendMessage => ({
@@ -18,6 +21,78 @@ const prompts = (items: readonly { prompt: string }[]) =>
   items.map((i) => i.prompt);
 
 describe("createMessageQueue", () => {
+  it.each(["steer", "move"])(
+    "queues a reentrant %s until the reserved run settles",
+    (mode) => {
+      const run = vi.fn();
+      const cancel = vi.fn();
+      const queue = createMessageQueue({ run, cancel });
+      const first = msg("first");
+      const second = msg("second");
+      queue.hold();
+      queue.adapter.enqueue(first);
+      if (mode === "move") queue.adapter.enqueue(second);
+      let steered = false;
+      queue.subscribe(() => {
+        if (steered) return;
+        steered = true;
+        if (mode === "steer") queue.adapter.steer!(second);
+        else queue.adapter.move!(queue.adapter.items[0]!.id, { lane: "steer" });
+      });
+      queue.release();
+      expect(cancel).not.toHaveBeenCalled();
+      expect(run).toHaveBeenCalledExactlyOnceWith(first, { steer: false });
+      expect(prompts(queue.adapter.steerItems!)).toEqual(["second"]);
+      queue.notifyIdle();
+      expect(run).toHaveBeenNthCalledWith(2, second, { steer: false });
+      queue.notifyIdle();
+      expect(run).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it("keeps messages enqueued by a removal subscriber behind the pending run", () => {
+    const run = vi.fn();
+    const queue = createMessageQueue({ run });
+    const first = msg("first");
+    const second = msg("second");
+    queue.hold();
+    queue.adapter.enqueue(first);
+    let enqueued = false;
+    queue.subscribe(() => {
+      if (!enqueued && queue.adapter.items.length === 0) {
+        enqueued = true;
+        queue.adapter.enqueue(second);
+      }
+    });
+    queue.release();
+    expect(run).toHaveBeenCalledExactlyOnceWith(first, { steer: false });
+    expect(prompts(queue.adapter.items)).toEqual(["second"]);
+    queue.notifyIdle();
+    expect(run).toHaveBeenNthCalledWith(2, second, { steer: false });
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(queue.adapter.items).toEqual([]);
+  });
+
+  it("keeps draining after a subscriber cancels while the queue dispatches", () => {
+    const run = vi.fn(() => queue.notifyBusy());
+    const queue = createMessageQueue({ run });
+    queue.adapter.enqueue(msg("first"));
+    queue.adapter.enqueue(msg("second"));
+
+    let cancelled = false;
+    queue.subscribe(() => {
+      if (cancelled || queue.adapter.items.length !== 0) return;
+      cancelled = true;
+      queue.notifyCancelled();
+    });
+    queue.notifyIdle();
+    queue.notifyIdle();
+    queue.adapter.enqueue(msg("third"));
+
+    expect(run).toHaveBeenCalledTimes(3);
+    expect(run).toHaveBeenLastCalledWith(msg("third"), { steer: false });
+  });
+
   it("runs immediately when idle and holds while running", () => {
     const run = vi.fn();
     const { adapter, notifyIdle } = createMessageQueue({ run });
@@ -32,6 +107,32 @@ describe("createMessageQueue", () => {
 
     notifyIdle();
     expect(run).toHaveBeenCalledTimes(2);
+    expect(adapter.items).toHaveLength(0);
+  });
+
+  it("does not advance a held queue when a run settles", () => {
+    const run = vi.fn();
+    const { adapter, hold, notifyIdle } = createMessageQueue({ run });
+
+    adapter.enqueue(msg("first"));
+    adapter.enqueue(msg("second"));
+    hold();
+    notifyIdle();
+
+    expect(run).toHaveBeenCalledOnce();
+    expect(prompts(adapter.items)).toEqual(["second"]);
+  });
+
+  it("advances a held queue once when released", () => {
+    const run = vi.fn();
+    const { adapter, hold, release } = createMessageQueue({ run });
+
+    hold();
+    adapter.enqueue(msg("first"));
+    release();
+    release();
+
+    expect(run).toHaveBeenCalledOnce();
     expect(adapter.items).toHaveLength(0);
   });
 
@@ -438,7 +539,7 @@ describe("createMessageQueue", () => {
   describe("synchronous dispatch failures", () => {
     it("restores a message when the driver throws", () => {
       const error = new Error("dispatch failed");
-      const run = vi.fn(() => {
+      const run = vi.fn<MessageQueueDriver["run"]>(() => {
         throw error;
       });
       const { adapter } = createMessageQueue({ run });
@@ -446,7 +547,7 @@ describe("createMessageQueue", () => {
       expect(() => adapter.enqueue(msg("first"))).toThrow(error);
       expect(prompts(adapter.items)).toEqual(["first"]);
 
-      run.mockImplementation(() => undefined);
+      run.mockImplementation(() => {});
       adapter.enqueue(msg("second"));
 
       expect(run).toHaveBeenCalledTimes(2);
@@ -490,7 +591,10 @@ describe("createMessageQueue", () => {
       const error = new Error("transform failed");
       const run = vi.fn();
       const { adapter } = createMessageQueue({ run });
-      adapter.__internal_setDispatchTransform(() => {
+      const setDispatchTransform = adapter.__internal_setDispatchTransform;
+      if (setDispatchTransform === undefined)
+        throw new Error("expected dispatch transform support");
+      setDispatchTransform(() => {
         throw error;
       });
 
@@ -498,7 +602,7 @@ describe("createMessageQueue", () => {
       expect(run).not.toHaveBeenCalled();
       expect(prompts(adapter.items)).toEqual(["first"]);
 
-      adapter.__internal_setDispatchTransform((message) => message);
+      setDispatchTransform((message) => message);
       adapter.enqueue(msg("second"));
 
       expect(run).toHaveBeenCalledWith(
@@ -511,7 +615,7 @@ describe("createMessageQueue", () => {
     it("restores a steer when cancellation throws", () => {
       const error = new Error("cancel failed");
       const run = vi.fn();
-      const cancel = vi.fn(() => {
+      const cancel = vi.fn<NonNullable<MessageQueueDriver["cancel"]>>(() => {
         throw error;
       });
       const { adapter, notifyIdle } = createMessageQueue({ run, cancel });
@@ -523,7 +627,7 @@ describe("createMessageQueue", () => {
       notifyIdle();
       expect(run).toHaveBeenCalledOnce();
 
-      cancel.mockImplementation(() => undefined);
+      cancel.mockImplementation(() => {});
       adapter.enqueue(msg("later"));
       expect(run).toHaveBeenLastCalledWith(
         expect.objectContaining({
@@ -541,7 +645,10 @@ describe("createMessageQueue", () => {
       const { adapter, notifyIdle } = createMessageQueue({ run, cancel });
 
       adapter.enqueue(msg("active"));
-      adapter.__internal_setDispatchTransform(() => {
+      const setDispatchTransform = adapter.__internal_setDispatchTransform;
+      if (setDispatchTransform === undefined)
+        throw new Error("expected dispatch transform support");
+      setDispatchTransform(() => {
         throw error;
       });
 
@@ -550,7 +657,7 @@ describe("createMessageQueue", () => {
       expect(prompts(adapter.steerItems)).toEqual(["urgent"]);
 
       notifyIdle();
-      adapter.__internal_setDispatchTransform((message) => message);
+      setDispatchTransform((message) => message);
       adapter.enqueue(msg("later"));
 
       expect(run).toHaveBeenLastCalledWith(
@@ -880,7 +987,7 @@ describe("createMessageQueue", () => {
     subscribe(laterSubscriber);
 
     try {
-      expect(() => adapter.enqueue(msg("a"), { steer: false })).not.toThrow();
+      expect(() => adapter.enqueue(msg("a"))).not.toThrow();
       expect(run).toHaveBeenCalledTimes(1);
       expect(adapter.items).toHaveLength(0);
       expect(laterSubscriber).toHaveBeenCalledTimes(2);

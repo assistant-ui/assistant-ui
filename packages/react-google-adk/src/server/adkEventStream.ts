@@ -133,31 +133,38 @@ export const adkEventStream = (
   const encoder = new TextEncoder();
   let cancelled = false;
   const stream = new ReadableStream({
-    async start(controller) {
+    start(controller) {
       // Initial SSE comment to keep connection alive through proxies
       controller.enqueue(encoder.encode(":ok\n\n"));
+    },
+    async pull(controller) {
       try {
-        for await (const event of events) {
-          if (cancelled) break;
-          const wireEvent = convertSdkEvent(event);
-          controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify(wireEvent)}\n\n`),
-          );
+        const { done, value } = await events.next();
+        if (cancelled) return;
+        if (done) {
+          controller.close();
+          return;
         }
+        const wireEvent = convertSdkEvent(value);
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify(wireEvent)}\n\n`),
+        );
       } catch (e) {
-        if (!cancelled) {
-          notifyError(options?.onError, e);
-          const errorEvent: AdkEvent = {
-            id: "",
-            errorCode: "STREAM_ERROR",
-            errorMessage:
-              e instanceof Error ? e.message : "Unknown stream error",
-          };
-          controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify(errorEvent)}\n\n`),
-          );
-        }
-      } finally {
+        if (cancelled) return;
+        try {
+          await events.return?.(undefined as any);
+        } catch {}
+        if (cancelled) return;
+        notifyError(options?.onError, e);
+        if (cancelled) return;
+        const errorEvent: AdkEvent = {
+          id: "",
+          errorCode: "STREAM_ERROR",
+          errorMessage: e instanceof Error ? e.message : "Unknown stream error",
+        };
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify(errorEvent)}\n\n`),
+        );
         controller.close();
       }
     },

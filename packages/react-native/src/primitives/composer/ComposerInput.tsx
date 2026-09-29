@@ -103,7 +103,12 @@ export const ComposerInput = ({
       if (nativeEvent.isComposing || nativeEvent.keyCode === 229) return;
       if (nativeEvent.key === "Enter" && !nativeEvent.shiftKey) {
         const threadState = aui.thread.getState();
-        if (threadState.isRunning && !threadState.capabilities.queue) return;
+        if (
+          threadState.isRunning &&
+          !threadState.capabilities.queue &&
+          threadState.voice === undefined
+        )
+          return;
         (e as unknown as Event).preventDefault?.();
         aui.composer.send();
       }

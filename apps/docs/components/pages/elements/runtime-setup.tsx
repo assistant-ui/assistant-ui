@@ -22,7 +22,7 @@ export async function RuntimeSetup() {
 
   return (
     <details className="border-foreground/10 group mt-4 rounded-lg border">
-      <summary className="text-muted-foreground hover:text-foreground cursor-pointer px-4 py-2.5 font-mono text-[11px] font-medium tracking-wide uppercase transition-colors select-none">
+      <summary className="text-muted-foreground hover:text-foreground cursor-pointer px-4 py-2.5 font-mono text-[11px] font-medium transition-colors select-none">
         First time? Set up a runtime
       </summary>
       <div className="border-foreground/10 space-y-4 border-t px-4 py-4 text-sm">

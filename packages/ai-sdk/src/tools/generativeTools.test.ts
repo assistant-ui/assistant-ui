@@ -623,8 +623,14 @@ describe("AISDKToolkit", () => {
       toolCallId: "call-docs-search",
       messages: [],
     };
+    const execute = toolSet.docs_search?.execute as
+      | ((
+          args: { query: string },
+          options: typeof executeOptions,
+        ) => Promise<string>)
+      | undefined;
     await expect(
-      toolSet.docs_search?.execute?.({ query: "assistant-ui" }, executeOptions),
+      execute?.({ query: "assistant-ui" }, executeOptions),
     ).resolves.toBe("docs result");
     expect(docsExecute).toHaveBeenCalledWith(
       { query: "assistant-ui" },

@@ -3,7 +3,6 @@ import { act, createElement, StrictMode, useEffect, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RespondToToolApprovalOptions } from "@assistant-ui/react";
-import type { createOpencodeClient } from "@opencode-ai/sdk/v2/client";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -98,9 +97,10 @@ type RuntimeAdapter = ApprovalAdapter & {
   messageRepository?: { messages: unknown[] };
 };
 
-const stubClient = {
-  session: { create: mocks.sessionCreate },
-} as ReturnType<typeof createOpencodeClient>;
+const createStubClient = () =>
+  ({ session: { create: mocks.sessionCreate } }) as never;
+
+const stubClient = createStubClient();
 
 let root: Root | undefined;
 
@@ -142,7 +142,10 @@ describe("useOpenCodeRuntime", () => {
       isDisabled?: boolean;
       isLoading?: boolean;
     };
-    const message = { role: "user" as const, content: [] };
+    const message: Parameters<NonNullable<RuntimeAdapter["onNew"]>>[0] = {
+      role: "user",
+      content: [],
+    };
 
     expect(adapter.isDisabled).toBe(false);
     expect(adapter.isLoading).toBe(false);
@@ -214,7 +217,10 @@ describe("useOpenCodeRuntime", () => {
     await act(async () => root!.render(createElement(App)));
 
     const adapter = mocks.adapters.at(-1) as RuntimeAdapter;
-    const message = { role: "user" as const, content: [] };
+    const message: Parameters<NonNullable<RuntimeAdapter["onNew"]>>[0] = {
+      role: "user",
+      content: [],
+    };
 
     await expect(adapter.onNew!(message)).rejects.toBe(initializationError);
     expect(mocks.controller.sendMessage).not.toHaveBeenCalled();
@@ -271,9 +277,7 @@ describe("useOpenCodeRuntime", () => {
     const sendPromise = adapter.onNew!({ role: "user", content: [] });
     await vi.waitFor(() => expect(mocks.sessionCreate).toHaveBeenCalledOnce());
 
-    const replacementClient = {
-      ...stubClient,
-    } as ReturnType<typeof createOpencodeClient>;
+    const replacementClient = createStubClient();
     await act(async () =>
       root!.render(createElement(App, { client: replacementClient })),
     );

@@ -2,7 +2,6 @@
 
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { typeEyebrow } from "@/components/shared/type";
 import { Button } from "@/components/ui/button";
 import { analytics } from "@/lib/analytics";
 import type { PricingPlan } from "./pricing-data";
@@ -25,7 +24,7 @@ export function PricingPlanCard({ plan }: { plan: PricingPlan }) {
       )}
     >
       <div className="mb-8">
-        <h3 className={typeEyebrow}>{plan.name}</h3>
+        <h3 className="text-base font-medium">{plan.name}</h3>
         <div className="mt-4 flex items-baseline gap-1">
           <span className="font-display text-4xl font-[550] tracking-[-0.01em] tabular-nums">
             {plan.price}
