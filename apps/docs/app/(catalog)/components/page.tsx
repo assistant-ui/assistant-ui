@@ -13,7 +13,7 @@ import { CATALOG, formatMinutes } from "@/lib/catalog";
 import { assistantUi } from "@/lib/catalog/products/assistant-ui";
 import { ELEMENT_PRODUCTS } from "@/lib/catalog/products/elements";
 import { GUIDE_PRODUCTS } from "@/lib/catalog/products/guides";
-import { shopEnabled } from "@/lib/checkout/config";
+import { checkoutEnabled } from "@/lib/checkout/config";
 import { createOgMetadata } from "@/lib/og";
 import { cn } from "@/lib/utils";
 
@@ -51,7 +51,7 @@ const navArrow =
   "size-3.5 transition-[translate] group-hover/navlink:translate-x-0.5 motion-reduce:transition-none";
 
 export default function ShopPage() {
-  if (!shopEnabled) notFound();
+  if (!checkoutEnabled) notFound();
   return (
     <PageFrame pad="sub">
       <h1 className="sr-only">Components</h1>

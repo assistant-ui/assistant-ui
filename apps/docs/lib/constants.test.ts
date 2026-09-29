@@ -19,7 +19,7 @@ describe("NAV_ITEMS", () => {
   });
 
   it("opens with Docs when the shop is closed", async () => {
-    vi.stubEnv("NEXT_PUBLIC_SHOP_ENABLED", "");
+    vi.stubEnv("NEXT_PUBLIC_CHECKOUT_URL", "");
     vi.resetModules();
     const closed = await import("./constants");
     expect(closed.NAV_ITEMS[0]).toEqual({

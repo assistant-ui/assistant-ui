@@ -4,13 +4,13 @@ import { cloud } from "./products/cloud";
 import { ELEMENT_PRODUCTS } from "./products/elements";
 import { GUIDE_PRODUCTS } from "./products/guides";
 import { reactApp } from "./products/react-app";
-import { shopEnabled } from "@/lib/checkout/config";
+import { checkoutEnabled } from "@/lib/checkout/config";
 import type { CatalogItem, CatalogProduct } from "./types";
 
 export type { CatalogInstallStep, CatalogItem, CatalogProduct } from "./types";
 
-/** The products with a page under /components, in the order the shop lists them. Without the shop, only the main installer exists. */
-export const CATALOG: readonly CatalogProduct[] = shopEnabled
+/** The products with a page under /components, in the order the page lists them. Without a checkout worker, only the main installer exists. */
+export const CATALOG: readonly CatalogProduct[] = checkoutEnabled
   ? [assistantUi, cloud, agentTools]
   : [assistantUi];
 
@@ -18,7 +18,7 @@ export const CATALOG: readonly CatalogProduct[] = shopEnabled
 export const CATALOG_ITEMS: readonly CatalogItem[] = [
   reactApp,
   ...CATALOG,
-  ...(shopEnabled ? [...GUIDE_PRODUCTS, ...ELEMENT_PRODUCTS] : []),
+  ...(checkoutEnabled ? [...GUIDE_PRODUCTS, ...ELEMENT_PRODUCTS] : []),
 ];
 
 const bySlug = new Map(CATALOG_ITEMS.map((item) => [item.slug, item]));
