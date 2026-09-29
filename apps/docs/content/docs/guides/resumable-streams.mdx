@@ -42,7 +42,9 @@ export async function POST(req: Request) {
   const streamId = crypto.randomUUID();
 
   const result = streamText({ /* model, messages, tools, ... */ });
-  const sourceBody = result.toUIMessageStreamResponse().body!;
+  const sourceBody = result.toUIMessageStreamResponse({
+    generateMessageId: () => crypto.randomUUID(),
+  }).body!;
 
   const stream = await resumableContext.run(streamId, () => sourceBody);
 
@@ -153,6 +155,10 @@ client disconnects. Leave manual Resume disabled if aborting the request also
 ends that server-side continuation.
 For a manual **Resume generating** control, pass `canResume: true` only when
 the server replays the full interrupted message with the same `start.messageId`.
+Set `generateMessageId: () => crypto.randomUUID()` on the initial
+`toUIMessageStreamResponse()` call, as in the server example. This writes the
+message ID into the persisted `start` chunk; replay those bytes from the beginning
+so every reconnect retains that ID.
 [AI SDK 7 starts a resume with fresh message state](https://github.com/vercel/ai/blob/ai%407.0.101/packages/ai/src/ui/chat.ts#L733-L740)
 and replaces the last message only when their IDs match. An omitted or different
 ID appends a second answer; a replay containing only the remaining text loses
