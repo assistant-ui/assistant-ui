@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   AssistantRuntime,
   ChatModelAdapter,
@@ -11,6 +11,7 @@ import { useRemoteThreadListRuntime } from "./useRemoteThreadListRuntime";
 import { useCloudThreadListAdapter } from "./cloud/useCloudThreadListAdapter";
 import { useRuntimeAdapters } from "./RuntimeAdapterProvider";
 import type { AssistantCloud } from "assistant-cloud";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 
 export type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
   cloud?: AssistantCloud | undefined;
@@ -47,7 +48,7 @@ const useLocalThreadRuntime = (
       );
   }, [aui, runtime]);
 
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     return () => {
       runtime.threads.getMainThreadRuntimeCore().detach();
     };
@@ -74,7 +75,8 @@ const useLocalThreadRuntime = (
     return runtime.registerModelContextProvider(modelContext);
   }, [modelContext, runtime]);
 
-  return useMemo(() => new AssistantRuntimeImpl(runtime), [runtime]);
+  const [assistantRuntime] = useState(() => new AssistantRuntimeImpl(runtime));
+  return assistantRuntime;
 };
 
 export const splitLocalRuntimeOptions = <T extends LocalRuntimeOptions>(

@@ -9,6 +9,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FinishProposal } from "./finish-proposal";
+import { WizardHost } from "./test/wizard-host";
 import {
   initialCheckoutState,
   type Checkout,
@@ -25,21 +26,24 @@ const proposed = (log: Checkout.LogEntry[] = []): Checkout.State => ({
   log,
 });
 
-const setup = (state: Checkout.State) => {
+const setup = (state: Checkout.State, summary = false) => {
   const finish = vi.fn().mockResolvedValue(undefined);
   const onClosed = vi.fn();
   render(
-    <FinishProposal
-      agentName="Test agent"
-      onClosed={onClosed}
-      checkout={
-        {
-          state,
-          degraded: false,
-          commands: { "checkout/finish": finish },
-        } as unknown as CheckoutContextValue
-      }
-    />,
+    <WizardHost>
+      <FinishProposal
+        agentName="Test agent"
+        onClosed={onClosed}
+        summary={summary}
+        checkout={
+          {
+            state,
+            degraded: false,
+            commands: { "checkout/finish": finish },
+          } as unknown as CheckoutContextValue
+        }
+      />
+    </WizardHost>,
   );
   return { finish, onClosed };
 };
@@ -47,8 +51,7 @@ const setup = (state: Checkout.State) => {
 describe("FinishProposal", () => {
   it("closes in one click when the user has not followed up", async () => {
     const { finish, onClosed } = setup(proposed());
-    expect(screen.getByText("Test agent finished")).toBeDefined();
-    fireEvent.click(screen.getByRole("button", { name: "Close setup" }));
+    fireEvent.click(screen.getByRole("button", { name: "Finish" }));
     await waitFor(() => expect(onClosed).toHaveBeenCalledTimes(1));
     expect(finish).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -66,20 +69,20 @@ describe("FinishProposal", () => {
         },
       ]),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Close setup" }));
+    fireEvent.click(screen.getByRole("button", { name: "Finish" }));
     expect(finish).not.toHaveBeenCalled();
     const dialog = await screen.findByRole("dialog");
-    expect(dialog.textContent).toContain("You sent a message after");
+    expect(dialog.textContent).toContain("has not picked up your last message");
     fireEvent.click(
       Array.from(dialog.querySelectorAll("button")).find(
-        (button) => button.textContent === "Close setup",
+        (button) => button.textContent === "Finish anyway",
       )!,
     );
     await waitFor(() => expect(onClosed).toHaveBeenCalledTimes(1));
     expect(finish).toHaveBeenCalledTimes(1);
   });
 
-  it("does not ask when the message came before the proposal", async () => {
+  it("does not ask when the message came before the proposal or the agent picked it up", async () => {
     const { finish } = setup(
       proposed([
         {
@@ -89,9 +92,17 @@ describe("FinishProposal", () => {
           at: 9,
           text: "Use pnpm",
         },
+        {
+          id: "l2",
+          role: "user",
+          phase: "installing",
+          at: 11,
+          acknowledgedAt: 12,
+          text: "Add dark mode",
+        },
       ]),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Close setup" }));
+    fireEvent.click(screen.getByRole("button", { name: "Finish" }));
     await waitFor(() => expect(finish).toHaveBeenCalledTimes(1));
   });
 
@@ -103,9 +114,6 @@ describe("FinishProposal", () => {
     const link = screen.getByRole("link", { name: /localhost:3000\/chat/ });
     expect(link.getAttribute("href")).toBe("http://localhost:3000/chat");
     expect(link.getAttribute("target")).toBe("_blank");
-    expect(
-      screen.getByRole("button", { name: "Looks good, close setup" }),
-    ).toBeDefined();
   });
 
   it("ignores a preview that does not point at this machine", () => {
@@ -114,6 +122,42 @@ describe("FinishProposal", () => {
       completion: { proposedAt: 10, preview: "https://example.com" },
     });
     expect(screen.queryByRole("link")).toBeNull();
-    expect(screen.getByRole("button", { name: "Close setup" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Finish" })).toBeDefined();
+  });
+
+  it("lists the installed products behind a disclosure", () => {
+    setup(
+      {
+        ...proposed(),
+        products: [
+          { slug: "assistant-ui", name: "assistant-ui" },
+          { slug: "cloud", name: "Assistant Cloud" },
+          { slug: "custom", name: "Custom product" },
+        ],
+      },
+      true,
+    );
+    expect(screen.queryByText("Assistant Cloud")).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "See what was added in this session.",
+      }),
+    );
+    expect(screen.getByText("assistant-ui")).toBeDefined();
+    expect(screen.getByText("Assistant Cloud")).toBeDefined();
+    expect(screen.getByText("assistant-cloud")).toBeDefined();
+    expect(screen.getByText("Custom product")).toBeDefined();
+  });
+
+  it("keeps the product list off the banner above the install steps", () => {
+    setup({
+      ...proposed(),
+      steps: [
+        { id: "s1", title: "Add the route", status: "active", createdAt: 1 },
+      ],
+    });
+    expect(
+      screen.queryByRole("button", { name: /See what was added/ }),
+    ).toBeNull();
   });
 });

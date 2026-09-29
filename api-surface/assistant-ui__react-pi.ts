@@ -372,6 +372,7 @@ type AssistantCloudThreadsCreateBody = {
   last_message_at: Date;
   metadata?: unknown | undefined;
   external_id?: string | undefined;
+  upsert?: boolean | undefined;
 };
 
 type AssistantCloudThreadsCreateResponse = {
@@ -1211,6 +1212,7 @@ declare class MessageRepository {
     index: number;
   };
   deleteMessage(messageId: string, replacementId?: string | null | undefined): void;
+  hasChildren(messageId: string): boolean;
   getBranches(messageId: string): string[];
   switchToBranch(messageId: string): void;
   resetHead(messageId: string | null): void;
@@ -2230,6 +2232,7 @@ type RuntimeCapabilities = {
   readonly attachments: boolean;
   readonly feedback: boolean;
   readonly queue: boolean;
+  readonly answerToolCall: boolean;
 };
 
 type SamplingCallData = {

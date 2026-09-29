@@ -204,7 +204,7 @@ const runtime = useLangGraphRuntime({
   uiComponents: {
     renderers: {
       chart: ({ data }) => <Chart series={data.series} title={data.title} />,
-      table: ({ data }) => <DataTable rows={data.rows} />,
+      table: ({ data }) => <DataTable columns={data.columns} rows={data.rows} />,
     },
   },
 });
