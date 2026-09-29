@@ -151,7 +151,7 @@ Flip `done` to `false` while the process is in flight; the header swaps its chec
 
 The root reports `data-state="running"`, `"done"`, or `"failed"`. While it runs, the header shows a spinner and the body keeps a blinking cursor. Once done, it shows `exit 0` by default or the supplied `exitCode`; a nonzero code uses a red X. `durationMs` adds a compact duration, and the copy action appears when there is output.
 
-`cwd` renders as a dimmed `${cwd} $` prompt before `command`. `lines` are stdout and `stderr` follows them in the failure tone, so `visibleCount` traverses stdout before stderr. The body reserves a minimum height, the latest revealed line stays bright, and every line can contain supported ANSI foreground colors, bold, and dim styling. Other escape sequences are removed before rendering.
+`cwd` renders as a dimmed `${cwd} $` prompt before `command`. `lines` are stdout and `stderr` follows them in the failure tone, so `visibleCount` traverses stdout before stderr. The body reserves a minimum height, the latest revealed line stays bright, and every line can contain supported ANSI foreground colors, bold, and dim styling; stderr lines keep the failure tone in place of ANSI colors. Other escape sequences are removed before rendering.
 
 After completion, `maxCollapsedLines` can initially show only the first revealed lines. `truncated` adds a final `output truncated` line without changing the output count.
 

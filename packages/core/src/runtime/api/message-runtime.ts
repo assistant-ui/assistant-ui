@@ -5,6 +5,7 @@ import type { Unsubscribe } from "../../types/unsubscribe";
 import type { MessagePartStatus, RunConfig } from "../../types/message";
 import { toMessagePartStatus } from "../../utils/normalizePartStatus";
 import { getThreadMessageText } from "../../utils/text";
+import { reportRunFailure } from "../../utils/report-run-failure";
 import { NestedSubscriptionSubject } from "../../subscribable/subscribable";
 import {
   SKIP_UPDATE,
@@ -186,11 +187,14 @@ export class MessageRuntimeImpl implements MessageRuntime {
     if (state.role !== "assistant")
       throw new Error("Can only reload assistant messages");
 
-    this._threadBinding.getState().startRun({
-      parentId: state.parentId,
-      sourceId: state.id,
-      runConfig,
-    });
+    reportRunFailure(
+      "Message reload",
+      this._threadBinding.getState().startRun({
+        parentId: state.parentId,
+        sourceId: state.id,
+        runConfig,
+      }),
+    );
   }
 
   public speak() {

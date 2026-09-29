@@ -29,7 +29,7 @@ await slack.chat.postMessage({ channel: "#orders", blocks });
 
 ## Warnings
 
-Conversion is total. Every downgrade is reported rather than thrown, so one unsupported node never costs you the whole message:
+Conversion is total. Every downgrade is reported rather than thrown, so one unsupported node does not fail the whole message:
 
 ```ts
 type SlackConversionWarning = {
@@ -39,7 +39,7 @@ type SlackConversionWarning = {
 };
 ```
 
-`clamped` means content was truncated to fit a Slack limit, `dropped` means a node or one of its props was discarded and may have left a placeholder note behind (an oversized button payload is dropped while the button itself is kept, a `Chart` becomes an omission note), and `fallback` means the node rendered through a different construct than requested. Warnings arrive in traversal order and are not deduplicated. Logging them in development is the fastest way to see why a composition looks different on Slack than in the browser.
+`clamped` means content was truncated to fit a Slack limit, `dropped` means a node or one of its props was discarded and may have left a placeholder note behind (an oversized button payload is dropped while the button itself is kept, a `Chart` becomes an omission note), and `fallback` means the node rendered through a different construct than requested. Warnings arrive in traversal order and are not deduplicated. Log them in development to see why a composition looks different on Slack than in the browser.
 
 ## Component mapping
 
@@ -167,7 +167,7 @@ Converting and posting a tree needs only a bot token with `chat:write`. Making i
 - **An acknowledgement within 3 seconds.** Return HTTP 200 first and do the work afterwards; the payload's `response_url` accepts up to five follow-up posts within 30 minutes if you need to update or replace the message.
 - **[Request signature verification](https://docs.slack.dev/authentication/verifying-requests-from-slack)** on that endpoint, using your signing secret.
 
-Receiving the webhook, verifying it, and routing the decoded action to your handler stay your application's responsibility. The converter only speaks JSON in and JSON out.
+Receiving the webhook, verifying it, and routing the decoded action to your handler stay your application's responsibility. The converter only maps JSON to JSON.
 
 ## Reference
 

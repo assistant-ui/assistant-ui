@@ -12,7 +12,6 @@ export default {
     globals: true,
     env: {
       NEXT_PUBLIC_CHECKOUT_URL: "https://checkout.test",
-      NEXT_PUBLIC_SHOP_ENABLED: "1",
     },
     // The generated repo source tree is a verbatim copy of the monorepo, and
     // vitest discovers dotted directories, so its tests would be collected here.

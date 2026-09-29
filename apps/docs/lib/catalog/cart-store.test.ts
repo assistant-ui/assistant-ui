@@ -55,7 +55,7 @@ describe("cart store", () => {
   });
 
   it("drops every stored product when the shop is closed", async () => {
-    vi.stubEnv("NEXT_PUBLIC_SHOP_ENABLED", "");
+    vi.stubEnv("NEXT_PUBLIC_CHECKOUT_URL", "");
     vi.stubEnv("NODE_ENV", "production");
     const values = setupStorage();
     values.set(storageKey, JSON.stringify(["cloud", "elements/thread-list"]));
