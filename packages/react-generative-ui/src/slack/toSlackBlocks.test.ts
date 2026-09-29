@@ -570,7 +570,7 @@ describe("toSlackBlocks", () => {
   });
 
   describe("Input", () => {
-    it("keeps number text and replaces a password input while retaining its field fallback", () => {
+    it("keeps number text and drops the omitted password's field fallback", () => {
       const { blocks, warnings } = toSlackBlocks([
         {
           $type: "Input",
@@ -592,7 +592,7 @@ describe("toSlackBlocks", () => {
           $action: {
             type: "submit",
             quantity: { $field: "quantity" },
-            password: { $field: "password", fallback: "agent-value" },
+            password: { $field: "password", fallback: "secret" },
           },
         },
       ]);
@@ -632,8 +632,31 @@ describe("toSlackBlocks", () => {
       ).toEqual({
         type: "submit",
         quantity: "3.5",
-        password: "agent-value",
       });
+    });
+
+    it("drops nested password fallbacks from button values", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Col",
+        children: [
+          {
+            $type: "Input",
+            name: "password",
+            inputType: "password",
+          },
+          {
+            $type: "Button",
+            label: "Submit",
+            $action: {
+              type: "submit",
+              fields: [
+                { password: { $field: "password", fallback: "secret" } },
+              ],
+            },
+          },
+        ],
+      });
+      expect(JSON.stringify(blocks)).not.toContain("secret");
     });
 
     it("carries a named control in its block_id", () => {
@@ -689,6 +712,17 @@ describe("toSlackBlocks", () => {
         $type: "Input",
         label: "Name",
         $action: { type: "name" },
+      });
+      expect((blocks[0] as SlackInputBlock).element).not.toHaveProperty(
+        "multiline",
+      );
+    });
+
+    it("omits multiline for a number input", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Input",
+        inputType: "number",
+        multiline: true,
       });
       expect((blocks[0] as SlackInputBlock).element).not.toHaveProperty(
         "multiline",
