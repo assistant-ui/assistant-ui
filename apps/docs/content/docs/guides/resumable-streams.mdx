@@ -173,8 +173,8 @@ Resumable storage alone does not
 expose manual Resume. Custom adapters can opt in with
 `canResume` and `onResume`; they own checkpoint expiry and error state. A
 cancelled run without a retained checkpoint cannot be resumed. Custom composer
-layouts can use `ComposerPrimitive.Resume` or the headless `useComposerResume`
-hook to expose the same action.
+layouts can use `ComposerPrimitive.Resume` or import the headless
+`useComposerResume` hook from `@assistant-ui/core/react` to expose the same action.
 
 ### Multiple threads
 
