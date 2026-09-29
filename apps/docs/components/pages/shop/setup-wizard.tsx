@@ -548,7 +548,7 @@ export function SetupWizard({
     onExit?.();
     if (finished) finishCheckout();
     else abandonCheckout();
-    if (fromCart) router.push(finished ? "/shop" : "/shop/cart");
+    if (fromCart) router.push(finished ? "/components" : "/components/cart");
     else leaveSetup();
   };
   const leave = () => exit(done);

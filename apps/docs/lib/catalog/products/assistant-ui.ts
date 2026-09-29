@@ -2,7 +2,7 @@ import type { CatalogProduct } from "../types";
 
 export const assistantUi: CatalogProduct = {
   slug: "assistant-ui",
-  href: "/shop/assistant-ui",
+  href: "/components/assistant-ui",
   purchase: "setup",
   name: "assistant-ui",
   tagline: "A streaming chat UI wired to the agent framework you already use.",
@@ -21,6 +21,28 @@ export const assistantUi: CatalogProduct = {
     "A runtime for the Vercel AI SDK, Mastra or LangGraph",
     "A streaming chat route with tool calling",
     "Markdown rendering, attachments, and frontend tools",
+  ],
+  features: [
+    "Replies that stream token by token, with a stop control",
+    "Markdown rendering with code blocks",
+    "Message editing, with branches to switch between versions",
+    "Copy, regenerate, and export to Markdown on every reply",
+    "Tool calls rendered in the thread, grouped while they run",
+    "Collapsible reasoning",
+    "Scrolling that follows the stream, with a jump to the latest message",
+  ],
+  preview: "thread",
+  bundle: [
+    "thread",
+    "markdown-text",
+    "reasoning",
+    "tool-fallback",
+    "tool-group",
+    "attachment",
+    "file",
+    "image",
+    "follow-up-suggestions",
+    "tooltip-icon-button",
   ],
   requires: [
     "React 18 or newer",

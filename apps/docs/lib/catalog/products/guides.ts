@@ -2,7 +2,7 @@ import type { CatalogItem } from "../types";
 
 type Guide = Pick<
   CatalogItem,
-  "slug" | "name" | "tagline" | "docs" | "agentMinutes"
+  "slug" | "name" | "tagline" | "docs" | "agentMinutes" | "preview"
 >;
 
 const guide = (entry: Guide): CatalogItem => ({
@@ -20,6 +20,7 @@ const GUIDES: readonly Guide[] = [
       "Users attach images and files to messages by picker, drag-drop, or paste.",
     docs: "/docs/guides/attachments",
     agentMinutes: [3, 10],
+    preview: "attachment",
   },
   {
     slug: "guides/speech",
@@ -27,6 +28,7 @@ const GUIDES: readonly Guide[] = [
     tagline: "A read-aloud button on every assistant message.",
     docs: "/docs/guides/speech",
     agentMinutes: [3, 8],
+    preview: "read-aloud",
   },
   {
     slug: "guides/dictation",
@@ -34,6 +36,7 @@ const GUIDES: readonly Guide[] = [
     tagline: "A microphone button that transcribes speech into the composer.",
     docs: "/docs/guides/dictation",
     agentMinutes: [3, 12],
+    preview: "composer-voice",
   },
   {
     slug: "guides/latex",
@@ -41,6 +44,7 @@ const GUIDES: readonly Guide[] = [
     tagline: "Render LaTeX equations in chat messages with KaTeX.",
     docs: "/docs/guides/latex",
     agentMinutes: [3, 8],
+    preview: "math-block",
   },
   {
     slug: "guides/streamdown",
@@ -57,6 +61,7 @@ const GUIDES: readonly Guide[] = [
       "Starter prompts on the empty thread, with optional generated follow-ups.",
     docs: "/docs/guides/suggestions",
     agentMinutes: [3, 10],
+    preview: "follow-up-suggestions",
   },
   {
     slug: "guides/mentions",
@@ -65,6 +70,7 @@ const GUIDES: readonly Guide[] = [
       "Type @ in the composer to pick a tool or custom item and send it as a directive.",
     docs: "/docs/guides/mentions",
     agentMinutes: [5, 15],
+    preview: "composer-mentions",
   },
   {
     slug: "guides/slash-commands",
@@ -73,6 +79,7 @@ const GUIDES: readonly Guide[] = [
       "Type / in the composer to open a command palette that runs your callbacks.",
     docs: "/docs/guides/slash-commands",
     agentMinutes: [5, 15],
+    preview: "composer-slash-commands",
   },
   {
     slug: "guides/chain-of-thought",
@@ -89,6 +96,7 @@ const GUIDES: readonly Guide[] = [
       "A response keeps streaming after a reload or dropped connection and the client picks it back up.",
     docs: "/docs/guides/resumable-streams",
     agentMinutes: [10, 20],
+    preview: "connection-state",
   },
   {
     slug: "guides/devtools",
@@ -128,6 +136,7 @@ const GUIDES: readonly Guide[] = [
       "End users connect, authenticate, and add MCP servers from a dialog in the browser.",
     docs: "/docs/tools/user-managed-mcp",
     agentMinutes: [10, 20],
+    preview: "mcp-config",
   },
   {
     slug: "guides/rtl",

@@ -118,7 +118,7 @@ describe("CheckoutView", () => {
       }),
     );
     expect(sessions.get()).toBeNull();
-    expect(push).toHaveBeenCalledWith("/shop");
+    expect(push).toHaveBeenCalledWith("/components");
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
       "Setup complete",
     );

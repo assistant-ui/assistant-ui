@@ -22,7 +22,7 @@ const mock = vi.hoisted(() => ({
 vi.mock("next/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
-  usePathname: () => "/shop/setup",
+  usePathname: () => "/components/setup",
 }));
 
 vi.mock("statewire", async (importOriginal) => ({

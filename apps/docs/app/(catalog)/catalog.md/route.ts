@@ -29,6 +29,13 @@ const formatProduct = (product: (typeof CATALOG)[number]) =>
     "Includes:",
     ...product.includes.map((item) => `- ${item}`),
     "",
+    ...(product.features
+      ? [
+          "Works out of the box:",
+          ...product.features.map((item) => `- ${item}`),
+          "",
+        ]
+      : []),
     "Requires:",
     ...product.requires.map((item) => `- ${item}`),
   ].join("\n");

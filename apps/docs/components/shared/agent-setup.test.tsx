@@ -2,6 +2,8 @@
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { clearCart } from "../../lib/catalog/cart-store";
+import { endCheckout, startCheckout } from "../../lib/checkout/session-store";
 import { AgentSetup } from "./agent-setup";
 
 const mocks = vi.hoisted(() => ({ beginSetup: vi.fn() }));
@@ -12,6 +14,8 @@ vi.mock("./setup-navigation", async (importOriginal) => ({
 
 afterEach(() => {
   cleanup();
+  endCheckout();
+  clearCart();
   localStorage.clear();
 });
 
@@ -19,10 +23,10 @@ describe("agent setup banner", () => {
   it("offers the cart and a direct setup for a cart product", () => {
     render(<AgentSetup product="elements/thread-list" />);
     fireEvent.click(
-      screen.getByRole("button", { name: "Add Thread list to cart" }),
+      screen.getByRole("button", { name: "Add Thread list to setup" }),
     );
     expect(
-      screen.getByRole("button", { name: "Remove Thread list from cart" }),
+      screen.getByRole("button", { name: "Remove Thread list from setup" }),
     ).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Begin setup" }));
     expect(mocks.beginSetup).toHaveBeenCalledWith(["elements/thread-list"]);
@@ -32,6 +36,31 @@ describe("agent setup banner", () => {
     render(<AgentSetup product="assistant-ui" />);
     expect(screen.queryByRole("button", { name: /cart/ })).toBeNull();
     expect(screen.getByRole("button", { name: "Begin setup" })).toBeTruthy();
+  });
+
+  it("leads with adding to the setup where the agent is the main way to install", () => {
+    render(<AgentSetup product="elements/thread-list" prominent />);
+    const buttons = screen.getAllByRole("button");
+    expect(buttons.map((button) => button.textContent)).toEqual([
+      "Add to setup",
+      "Begin setup",
+    ]);
+  });
+
+  it("offers no way into the running setup from a product it does not hold", () => {
+    startCheckout(["assistant-ui"]);
+    render(<AgentSetup product="elements/thread-list" prominent />);
+    expect(
+      screen.getByRole("button", { name: "Add Thread list to setup" }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Continue setup" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Begin setup" })).toBeNull();
+  });
+
+  it("returns to the running setup from a product that starts one", () => {
+    startCheckout(["assistant-ui"]);
+    render(<AgentSetup product="assistant-ui" />);
+    expect(screen.getByRole("button", { name: "Continue setup" })).toBeTruthy();
   });
 
   it("renders nothing for an unknown product", () => {

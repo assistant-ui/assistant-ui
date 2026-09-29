@@ -4,7 +4,7 @@ import { ComponentViewer } from "@/components/pages/shop/component-viewer";
 import { checkoutEnabled } from "@/lib/checkout/config";
 
 export const metadata: Metadata = {
-  title: "Wizard components | Shop",
+  title: "Wizard components | Components",
   robots: { index: false, follow: false },
 };
 

@@ -237,7 +237,7 @@ function CartPopoverButton({ checkoutActive }: { checkoutActive: boolean }) {
               "animate-in fade-in-0 zoom-in-95 duration-200",
               checkoutActive && "rounded-r-none",
             )}
-            render={<Link ref={anchorRef} href="/shop/cart" />}
+            render={<Link ref={anchorRef} href="/components/cart" />}
           />
         }
       >
@@ -253,12 +253,12 @@ function CartPopoverButton({ checkoutActive }: { checkoutActive: boolean }) {
             <NavGlyph kind={added.glyph} />
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{added.name}</p>
-              <p className="text-muted-foreground text-sm">Added to cart</p>
+              <p className="text-muted-foreground text-sm">Added to setup</p>
             </div>
           </div>
           <dl className="border-foreground/10 flex flex-col gap-2 border-t p-4 text-sm">
             <div className="flex justify-between gap-4">
-              <dt className="text-muted-foreground">In cart</dt>
+              <dt className="text-muted-foreground">In setup</dt>
               <dd className="tabular-nums">{countLabel}</dd>
             </div>
             <div className="flex justify-between gap-4 font-medium">
@@ -275,7 +275,7 @@ function CartPopoverButton({ checkoutActive }: { checkoutActive: boolean }) {
             <Button
               variant="outline"
               nativeButton={false}
-              render={<Link href="/shop/cart" onClick={close} />}
+              render={<Link href="/components/cart" onClick={close} />}
             >
               View cart
             </Button>

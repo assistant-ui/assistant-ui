@@ -6,7 +6,7 @@ import { SetupBackdropButton } from "@/components/pages/shop/setup-back-button";
 import { checkoutEnabled } from "@/lib/checkout/config";
 
 export const metadata: Metadata = {
-  title: "Setup | Shop",
+  title: "Setup | Components",
   description: "Follow your coding agent as it sets up your project.",
   robots: { index: false, follow: true },
 };

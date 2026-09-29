@@ -72,7 +72,7 @@ export function ProductInputCard({
           </div>
         ) : (
           <p className="text-muted-foreground text-sm">
-            The shop has no product named “{input.product}”.
+            The Components page has no product named “{input.product}”.
           </p>
         )}
       </fieldset>

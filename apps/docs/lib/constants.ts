@@ -1,3 +1,4 @@
+import { shopEnabled } from "./checkout/config";
 import { isAiPlaygroundEnabled } from "./feature-flags";
 
 export const BASE_URL = "https://www.assistant-ui.com";
@@ -147,6 +148,9 @@ export type NavItem =
     };
 
 export const NAV_ITEMS: NavItem[] = [
+  ...(shopEnabled
+    ? [{ type: "link" as const, label: "Components", href: "/components" }]
+    : []),
   { type: "link", label: "Docs", href: "/docs" },
   {
     type: "mega",

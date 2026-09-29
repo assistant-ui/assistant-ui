@@ -2,7 +2,7 @@ import type { CatalogProduct } from "../types";
 
 export const agentTools: CatalogProduct = {
   slug: "agent-tools",
-  href: "/shop/agent-tools",
+  href: "/components/agent-tools",
   purchase: "cart",
   name: "Agent tools",
   tagline: "Tools the model can call, each with its own UI in the thread.",
@@ -22,6 +22,7 @@ export const agentTools: CatalogProduct = {
     "Registration on the assistant and in the chat route",
   ],
   requires: ["An assistant-ui app with a chat route on the AI SDK"],
+  preview: "tool-call",
   agentMinutes: [5, 15],
   steps: [
     {

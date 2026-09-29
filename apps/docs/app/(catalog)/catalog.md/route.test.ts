@@ -17,6 +17,7 @@ describe("catalog markdown route", () => {
     expect(response.status).toBe(200);
     const body = await response.text();
     expect(body).toContain("Slug: cloud");
+    expect(body).toContain("Works out of the box:");
     expect(body).toContain("/install.md?items=");
     expect(body).not.toMatch(/\b(?:cart|shop|checkout)\b/i);
   });

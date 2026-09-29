@@ -9,7 +9,7 @@ import type { CatalogItem, CatalogProduct } from "./types";
 
 export type { CatalogInstallStep, CatalogItem, CatalogProduct } from "./types";
 
-/** The products with a page under /shop, in the order the shop lists them. Without the shop, only the main installer exists. */
+/** The products with a page under /components, in the order the shop lists them. Without the shop, only the main installer exists. */
 export const CATALOG: readonly CatalogProduct[] = shopEnabled
   ? [assistantUi, cloud, agentTools]
   : [assistantUi];

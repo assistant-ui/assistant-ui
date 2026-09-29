@@ -608,7 +608,7 @@ describe("SetupWizard", () => {
     await waitFor(() => expect(commands["checkout/cancel"]).toHaveBeenCalled());
     await waitFor(() => expect(abandonCheckout).toHaveBeenCalled());
     expect(finishCheckout).not.toHaveBeenCalled();
-    expect(push).toHaveBeenCalledWith("/shop/cart");
+    expect(push).toHaveBeenCalledWith("/components/cart");
   });
 
   it("asks before ending the setup on Escape, unless the key was pressed inside a dialog", async () => {
@@ -638,7 +638,7 @@ describe("SetupWizard", () => {
     });
     fireEvent.click(within(again).getByRole("button", { name: "End setup" }));
     await waitFor(() => expect(cancel).toHaveBeenCalled());
-    expect(push).toHaveBeenCalledWith("/shop/cart");
+    expect(push).toHaveBeenCalledWith("/components/cart");
   });
 
   it("keeps Cancel disabled while looking back at a finished setup", () => {
@@ -688,7 +688,7 @@ describe("SetupWizard", () => {
     await waitFor(() => expect(commands["checkout/finish"]).toHaveBeenCalled());
     await waitFor(() => expect(finishCheckout).toHaveBeenCalled());
     expect(abandonCheckout).not.toHaveBeenCalled();
-    expect(push).toHaveBeenCalledWith("/shop");
+    expect(push).toHaveBeenCalledWith("/components");
   });
 
   it("installs the plan from the footer and moves change requests into the body", async () => {

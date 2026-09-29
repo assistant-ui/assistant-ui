@@ -6,7 +6,7 @@ import { PageFrame } from "@/components/shared/page-frame";
 import { shopEnabled } from "@/lib/checkout/config";
 
 export const metadata: Metadata = {
-  title: "Cart | Shop",
+  title: "Cart | Components",
   description: "Review what your coding agent will install.",
   robots: { index: false, follow: true },
 };

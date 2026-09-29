@@ -27,7 +27,7 @@ export function AddToCartButton({
       variant={inCart ? "outline" : variant}
       size={size}
       aria-pressed={inCart}
-      aria-label={inCart ? `Remove ${name} from cart` : `Add ${name} to cart`}
+      aria-label={inCart ? `Remove ${name} from setup` : `Add ${name} to setup`}
       onClick={() => {
         analytics.shop.cartToggled(slug, !inCart);
         toggleCartItem(slug);
@@ -39,7 +39,7 @@ export function AddToCartButton({
       ) : (
         <PlusIcon data-icon="inline-start" />
       )}
-      {inCart ? "In cart" : "Add to cart"}
+      {inCart ? "In setup" : "Add to setup"}
     </Button>
   );
 }
