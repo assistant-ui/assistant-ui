@@ -110,6 +110,22 @@ describe("useCloudThreadListAdapter", () => {
     expect(cloudDeleteB).toHaveBeenCalledWith("thread-2");
   });
 
+  it("registers the SDK that arrives with a new cloud on that cloud", () => {
+    const cloudA = { registerSdk: vi.fn() } as unknown as AssistantCloud;
+    const cloudB = { registerSdk: vi.fn() } as unknown as AssistantCloud;
+    const sdkA = { name: "sdk-a", version: "1.0.0" };
+    const sdkB = { name: "sdk-b", version: "1.0.0" };
+    const { rerender } = renderHook(
+      ({ cloud, sdk }) => useCloudThreadListAdapter({ cloud, sdk }),
+      { initialProps: { cloud: cloudA, sdk: sdkA } },
+    );
+
+    rerender({ cloud: cloudB, sdk: sdkB });
+
+    expect(cloudB.registerSdk).toHaveBeenCalledWith(sdkB);
+    expect(cloudB.registerSdk).not.toHaveBeenCalledWith(sdkA);
+  });
+
   it("loads archived Cloud threads alongside regular threads", async () => {
     const activeThreads = [makeThread("active-1")];
     const archivedThreads = [

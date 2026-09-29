@@ -5,7 +5,7 @@ import { DEMOS } from "@/lib/demos";
 import { DESIGN_COMPONENTS } from "@/components/pages/design/registry-meta";
 import { BASE_URL, PRODUCTS } from "@/lib/constants";
 
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+export default function sitemap(): MetadataRoute.Sitemap {
   const staticPages: MetadataRoute.Sitemap = [
     { url: BASE_URL, changeFrequency: "weekly", priority: 1 },
     { url: `${BASE_URL}/blog`, changeFrequency: "weekly", priority: 0.8 },
@@ -62,33 +62,29 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.4,
   }));
 
-  const docsPages: MetadataRoute.Sitemap = await Promise.all(
-    source.getPages().map(async (page) => ({
-      url: `${BASE_URL}${page.url}`,
-      lastModified: (await page.data.load()).lastModified,
-      changeFrequency: "weekly" as const,
-      priority: 0.9,
-    })),
-  );
+  const docsPages: MetadataRoute.Sitemap = source.getPages().map((page) => ({
+    url: `${BASE_URL}${page.url}`,
+    changeFrequency: "weekly" as const,
+    priority: 0.9,
+  }));
 
   const blogPages: MetadataRoute.Sitemap = blog
     .getPages()
     .filter((page) => page.data.externalUrl === undefined)
     .map((page) => ({
       url: `${BASE_URL}${page.url}`,
-      lastModified: page.data.lastModified,
+      lastModified: page.data.date,
       changeFrequency: "monthly",
       priority: 0.7,
     }));
 
-  const examplePages: MetadataRoute.Sitemap = await Promise.all(
-    examples.getPages().map(async (page) => ({
+  const examplePages: MetadataRoute.Sitemap = examples
+    .getPages()
+    .map((page) => ({
       url: `${BASE_URL}${page.url}`,
-      lastModified: (await page.data.load()).lastModified,
       changeFrequency: "monthly" as const,
       priority: 0.6,
-    })),
-  );
+    }));
 
   const elementPages: MetadataRoute.Sitemap = ELEMENTS.map((element) => ({
     url: `${BASE_URL}/elements/${element.slug}`,
@@ -110,7 +106,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const careerPages: MetadataRoute.Sitemap = careers.getPages().map((page) => ({
     url: `${BASE_URL}${page.url}`,
-    lastModified: page.data.lastModified,
     changeFrequency: "monthly",
     priority: 0.5,
   }));

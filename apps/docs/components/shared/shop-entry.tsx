@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, lazy, type ComponentProps } from "react";
-import { checkoutEnabled } from "@/lib/checkout/config";
+import { checkoutEnabled, shopEnabled } from "@/lib/checkout/config";
 
 const LazyCartButton = lazy(() =>
   import("@/components/shared/cart-button").then((module) => ({
@@ -17,7 +17,7 @@ const LazyAgentSetup = lazy(() =>
 
 /** The shop's entry points load the catalog only on a build that has a shop, and only where one renders. */
 export function CartButton(props: ComponentProps<typeof LazyCartButton>) {
-  if (!checkoutEnabled) return null;
+  if (!shopEnabled) return null;
   return (
     <Suspense fallback={null}>
       <LazyCartButton {...props} />

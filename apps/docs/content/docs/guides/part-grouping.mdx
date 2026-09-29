@@ -49,7 +49,7 @@ Reach for an inline `groupBy={(part) => …}` only when the helper isn't express
 
 `groupBy` receives each part and returns either `null` for an ungrouped leaf or a group-key path such as `["group-chainOfThought", "group-tool"]`. Group keys must start with `"group-"` so your render function can distinguish synthetic groups from real part types.
 
-The render function receives both group nodes and leaf parts through `{ part, children }`. Only group cases should render `children`; leaf cases should render their own UI or return `null`.
+The render function receives both group nodes and leaf parts through `{ part, children }`. Only group cases should render `children`. For a leaf, returning `null` renders its registered tool or data UI when one exists. Return an empty fragment (`<></>`) when you want to suppress a registered UI, or return your own component for a custom leaf renderer. Text and other unregistered leaves render nothing when `null` is returned.
 
 <Callout type="warn">
   `MessagePrimitive.Unstable_PartsGrouped` remains available for rare non-adjacent clustering where one group needs to collect parts from different positions in the message. For normal consecutive reasoning/tool grouping, use `GroupedParts`.
@@ -429,7 +429,7 @@ const stream = createAssistantStream(async (controller) => {
       name: "children",
       type: "({ part, children }) => ReactNode",
       description:
-        "Render function called for group nodes and leaf parts. Group nodes expose children; leaf parts should render their own UI or return null.",
+        "Render function called for group nodes and leaf parts. Group nodes expose children. Returning null for a tool or data leaf renders its registered UI; an empty fragment suppresses it. Other leaves render nothing when null is returned.",
       required: true,
     },
   ]}
