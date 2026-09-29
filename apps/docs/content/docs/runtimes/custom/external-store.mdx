@@ -967,23 +967,9 @@ The same opt-in fields are available on `ExternalThread`, `useAISDKRuntime`, and
 `useChatRuntime`. Merely providing `onResume` does not advertise a resumable checkpoint.
 `useAssistantTransportRuntime` accepts `canResume` with its existing `resumeApi`;
 the flag must come from the backend's checkpoint state for the current thread.
-With a resumable `AssistantChatTransport`, `useChatRuntime` reconnects on
-mount using the AI SDK's `resumeStream`. To show the manual Resume control,
-opt in with `canResume: true` only if the endpoint replays the full interrupted
-message and its `start` chunk repeats the original assistant message ID.
-[AI SDK 7 uses fresh state for a resumed stream](https://github.com/vercel/ai/blob/ai%407.0.101/packages/ai/src/ui/chat.ts#L733-L740):
-an omitted or different `start.messageId` appends a second answer, while a replay
-of only the remaining text loses the earlier content. A stored stream ID alone
-does not establish these requirements.
-A missing or expired stream clears that checkpoint; reconnect failures also invoke
-`onResumeError`. Transient failures retain the checkpoint only with `canResume: true`
-for manual retry; otherwise they clear the matching checkpoint. Stopping an active
-response preserves its checkpoint.
-With `canResume: true`, other errors also retain the checkpoint. If a custom
-endpoint reports a terminal failure outside 204/404, clear that thread's checkpoint
-in `onResumeError` with `storage.clear(threadId)` to stop further retries.
-With manual resume enabled, switching branches clears the stored checkpoint before notifying the application,
-so the interrupted response cannot attach to a different transcript.
+
+For AI SDK replay requirements, retry policy, and branch cleanup, see
+[Resumable Streams](/docs/guides/resumable-streams#stop-and-resume-in-the-composer).
 
 `useAgUiRuntime` does not expose the generic Resume control: its default resume
 path starts a new AG-UI run, which does not establish checkpoint availability.
