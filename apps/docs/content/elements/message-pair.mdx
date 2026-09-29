@@ -116,6 +116,8 @@ export function Turn() {
       words={reply}
       visibleWords={visibleWords}
       streaming={streaming}
+      onCopy={() => void navigator.clipboard?.writeText(reply.join(" "))}
+      onRegenerate={() => setVisibleWords(0)}
     />
   );
 }
@@ -126,7 +128,7 @@ export function Turn() {
 
 ### Handle the hover actions
 
-`MessagePair` renders the copy and regenerate buttons but leaves their behavior to you; wire `onClick` handlers where you render the element, or reach them from outside with `[data-slot="message-pair"] button`.
+Pass `onCopy` and `onRegenerate` to show the matching buttons and own their behavior. If a callback is absent, its button is not rendered, so the standalone element never exposes an action that cannot run.
 
   </Step>
 </Steps>
@@ -140,7 +142,7 @@ export function Turn() {
   <p>{/* the sent message */}</p>
   <div>
     <p>{/* the reply, word by word */}</p>
-    <div>{/* copy, regenerate, hidden until hover or focus */}</div>
+    <div>{/* available actions, hidden until hover or focus */}</div>
   </div>
 </div>
 ```
@@ -239,6 +241,8 @@ Both lanes take `className` on the root, and the shared `paper` and `ghostButton
 | `visibleWords` | `number` | required | How many words from the start of `words` to show. |
 | `streaming` | `boolean` | required | Tints the newest words and shows the trailing cursor while true. |
 | `variant` | `"bubble" \| "flat"` | `"bubble"` | How the sent message is presented. |
+| `onCopy` | `() => void` | | Renders the copy button and runs when it is activated. |
+| `onRegenerate` | `() => void` | | Renders the regenerate button and runs when it is activated. |
 | `className` | `string` | | Merged onto the root. |
 
 All other `div` props are forwarded to the root.

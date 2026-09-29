@@ -17,6 +17,7 @@ export type {
   ReasoningMessagePart,
   SourceMessagePart,
   ToolCallMessagePart,
+  ToolCallTiming,
   ToolModelContentPart,
   ImageMessagePart,
   FileMessagePart,

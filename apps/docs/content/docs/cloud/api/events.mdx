@@ -3,7 +3,7 @@ title: Events
 description: Record text-free engagement events and update a project's daily rollups and thread signals.
 ---
 
-An event is a text-free engagement record for a project. A browser sends events to the project's frontend host with an access token, and a server sends them to `https://backend.assistant-api.com` with an API key and the `Aui-User-Id` and `Aui-Workspace-Id` headers; see [Conventions](/docs/cloud/api) for hosts, credentials and shared errors.
+An event is a text-free engagement record for a project. A browser sends events to the project's frontend host with an access token, and a server sends them to `https://backend.assistant-api.com` with an API key and the `Aui-User-Id` and `Aui-Workspace-Id` headers; see [Conventions](/docs/cloud/api) for hosts and credentials, and [Errors](/docs/cloud/api#errors) for shared errors.
 
 ## The event object
 
@@ -14,7 +14,7 @@ An event is a text-free engagement record for a project. A browser sends events 
 | `message_id` | string | Optional. 1 to 48 characters. |
 | `run_id` | string | Optional. 1 to 48 characters. |
 | `value` | integer | Optional. At least 0 and at most 2,147,483,647. |
-| `props` | object | Optional. Keys are 1 to 64 characters. Each value is a string of at most 256 characters, a finite number, or a boolean. The serialized object is at most 1,024 bytes. |
+| `props` | object | Optional. Keys are 1 to 64 characters. Each value is a string of at most 256 characters, a finite number, or a boolean. `JSON.stringify(props)` is at most 1,024 UTF-16 code units. |
 
 ## Create events
 

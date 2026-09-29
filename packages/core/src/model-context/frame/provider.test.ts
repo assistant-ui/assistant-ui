@@ -368,6 +368,28 @@ describe("AssistantFrameProvider", () => {
     expect(signals[1]?.aborted).toBe(false);
   });
 
+  it("withdraws its context from the parent when disposed", () => {
+    AssistantFrameProvider.addModelContextProvider(
+      {
+        getModelContext: () => ({
+          tools: { sensitiveTool: createTool(vi.fn()) },
+        }),
+      },
+      "https://parent.example",
+    );
+    vi.mocked(parentWindow.postMessage).mockClear();
+
+    AssistantFrameProvider.dispose();
+
+    expect(parentWindow.postMessage).toHaveBeenCalledExactlyOnceWith(
+      {
+        channel: FRAME_MESSAGE_CHANNEL,
+        message: { type: "model-context-update", context: {} },
+      },
+      "https://parent.example",
+    );
+  });
+
   it("aborts in-flight tool calls when the provider is disposed", async () => {
     let toolSignal: AbortSignal | undefined;
     const execute = vi.fn(
