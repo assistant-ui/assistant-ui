@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import {
   runPythonVersionCheck,
-  splitProjectVersion,
+  readPyproject,
 } from "./check-python-versions.mjs";
 
 function pyproject(version) {
@@ -67,23 +67,28 @@ function runExecutable(root, env) {
   );
 }
 
-test("splitProjectVersion separates the [project] version from the rest of the file", () => {
-  assert.deepEqual(splitProjectVersion(pyproject("0.0.36")), {
-    version: "0.0.36",
-    rest: pyproject("0.0.36").replace('version = "0.0.36"\n', ""),
-  });
+test("readPyproject separates the [project] version from the rest of the document", () => {
+  const plain = readPyproject(pyproject("0.0.36"));
+  assert.equal(plain.version, "0.0.36");
+  assert.equal(readPyproject(pyproject("0.0.37")).rest, plain.rest);
   assert.equal(
-    splitProjectVersion(
-      '[tool.poetry]\nversion = "9.9.9"\n\n  [project]  # metadata\n  name = "fixture"\n  "version" = \'1.2.3\'\n',
+    readPyproject('[project]\ndependencies = []\nname = "fixture"\n').rest,
+    readPyproject('[project]\nname = "fixture"\ndependencies = []\n').rest,
+  );
+  assert.equal(
+    readPyproject(
+      '[tool.poetry]\nversion = "9.9.9"\n\n  [project]  # metadata\n  name = "fixture"\n  "version" = """1.2.3"""\n',
     ).version,
     "1.2.3",
   );
+  assert.equal(readPyproject("project.version = '2.0.0'\n").version, "2.0.0");
   assert.equal(
-    splitProjectVersion(
+    readPyproject(
       '[project]\nname = "fixture"\ndynamic = ["version"]\n\n[tool.other]\nversion = "5.0.0"\n',
     ).version,
     null,
   );
+  assert.throws(() => readPyproject("[project]\nversion = 0.0.2\n"));
 });
 
 test("a version bump next to other package edits is rejected", () => {
@@ -104,6 +109,46 @@ test("a version bump next to other package edits is rejected", () => {
       ],
       mixedFiles: ["python/pkg/src/pkg/__init__.py"],
     });
+  });
+});
+
+test("a bump written as any TOML string next to other package edits is rejected", () => {
+  withRepo((root, base) => {
+    const head = commit(
+      root,
+      {
+        "python/pkg/pyproject.toml": pyproject("0.0.1").replace(
+          'version = "0.0.1"',
+          'version = """0.0.2"""',
+        ),
+        "python/pkg/src/pkg/__init__.py": "VALUE = 2\n",
+      },
+      "multi-line string bump",
+    );
+    assert.deepEqual(runPythonVersionCheck(root, base, head), {
+      versionChanges: [
+        { file: "python/pkg/pyproject.toml", from: "0.0.1", to: "0.0.2" },
+      ],
+      mixedFiles: ["python/pkg/src/pkg/__init__.py"],
+    });
+  });
+});
+
+test("an unreadable pyproject.toml fails instead of passing", () => {
+  withRepo((root, base) => {
+    const head = commit(
+      root,
+      {
+        "python/pkg/pyproject.toml":
+          '[project]\nname = "fixture"\nversion = 0.0.2\n',
+        "python/pkg/src/pkg/__init__.py": "VALUE = 2\n",
+      },
+      "invalid toml",
+    );
+    assert.match(
+      runPythonVersionCheck(root, base, head).error,
+      /^python\/pkg\/pyproject\.toml at [0-9a-f]{9}: /,
+    );
   });
 });
 

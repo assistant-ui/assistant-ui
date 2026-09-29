@@ -9,27 +9,30 @@ const repoRoot = path.resolve(
   "..",
 );
 
-const TABLE_HEADER = /^\s*\[\[?\s*([\w.\-"' ]+?)\s*\]\]?\s*(?:#.*)?$/;
-const VERSION_KEY = /^\s*(?:version|"version"|'version')\s*=\s*(["'])(.*?)\1/;
+const READ_PYPROJECT = `
+import json, sys, tomllib
+document = tomllib.loads(sys.stdin.read())
+version = document.get("project", {}).pop("version", None)
+print(json.dumps({"version": version, "rest": json.dumps(document, sort_keys=True, default=str)}))
+`;
 
-export function splitProjectVersion(pyproject) {
-  let inProject = false;
-  let version = null;
-  const rest = [];
-  for (const line of pyproject.split(/\r?\n/)) {
-    const header = TABLE_HEADER.exec(line);
-    if (header) {
-      inProject = header[1] === "project";
-    } else if (inProject && version === null) {
-      const key = VERSION_KEY.exec(line);
-      if (key) {
-        version = key[2];
-        continue;
-      }
-    }
-    rest.push(line);
-  }
-  return { version, rest: rest.join("\n") };
+export function readPyproject(source) {
+  return JSON.parse(
+    execFileSync("python3", ["-c", READ_PYPROJECT], {
+      input: source,
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "pipe"],
+    }),
+  );
+}
+
+function lastErrorLine(error) {
+  return (
+    String(error.stderr ?? "")
+      .trim()
+      .split("\n")
+      .at(-1) || error.message
+  );
 }
 
 function runGit(root, args) {
@@ -44,7 +47,12 @@ function readProjectAt(root, ref, file) {
   if (runGit(root, ["ls-tree", "--name-only", ref, "--", file]) === "") {
     return undefined;
   }
-  return splitProjectVersion(runGit(root, ["show", `${ref}:${file}`]));
+  const source = runGit(root, ["show", `${ref}:${file}`]);
+  try {
+    return readPyproject(source);
+  } catch (error) {
+    throw new Error(`${file} at ${ref.slice(0, 9)}: ${lastErrorLine(error)}`);
+  }
 }
 
 export function runPythonVersionCheck(root, baseSha, headSha) {
@@ -87,8 +95,7 @@ export function runPythonVersionCheck(root, baseSha, headSha) {
       mixedFiles: versionChanges.length === 0 ? [] : otherChanges,
     };
   } catch (error) {
-    const stderr = String(error.stderr ?? "").trim();
-    return { error: stderr.split("\n").at(-1) || error.message };
+    return { error: lastErrorLine(error) };
   }
 }
 
@@ -110,7 +117,7 @@ function main() {
   );
   if ("error" in result) {
     console.error(
-      `Could not diff ${BASE_SHA}...${HEAD_SHA}: ${result.error}. Failing instead of skipping the Python version check.`,
+      `Could not check ${BASE_SHA}...${HEAD_SHA}: ${result.error}. Failing instead of skipping the Python version check.`,
     );
     process.exit(1);
   }
