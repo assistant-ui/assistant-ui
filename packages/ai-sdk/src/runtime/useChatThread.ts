@@ -105,9 +105,6 @@ const useDynamicChatTransport = <UI_MESSAGE extends UIMessage = UIMessage>(
 const getResumableAdapter = <UI_MESSAGE extends UIMessage>(
   transport: ChatTransport<UI_MESSAGE>,
 ): AssistantChatResumableOptions | undefined => {
-  if (transport instanceof AssistantChatTransport) {
-    return transport.getResumableAdapter();
-  }
   const candidate = (transport as { getResumableAdapter?: () => unknown })
     .getResumableAdapter;
   if (typeof candidate !== "function") return undefined;

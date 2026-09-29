@@ -640,6 +640,56 @@ describe("useChatThread", () => {
     },
   );
 
+  it("allows replacing a resumable transport with one without checkpoint support", async () => {
+    const storage = createResumableSessionStorage({ key: "replace-resumable" });
+    storage.clear();
+    const onError = vi.fn();
+    let transport: ChatTransport<UIMessage> = new AssistantChatTransport({
+      resumable: { storage, resumeApi: (id) => `/api/resume/${id}` },
+    });
+    const listeners = new Set<() => void>();
+    const Host = createHost({});
+    const handle = createAssistantClient({
+      getConfig: () =>
+        AuiConfig({ threads: Host({ transport, canResume: true, onError }) }),
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    });
+    handle.subscribe(() => {});
+    const sendMessages = vi.fn(
+      async () =>
+        new ReadableStream<UIMessageChunk>({
+          start(controller) {
+            controller.enqueue({ type: "start", messageId: "answer" });
+            controller.enqueue({ type: "finish" });
+            controller.close();
+          },
+        }),
+    );
+    try {
+      transport = {
+        sendMessages,
+        reconnectToStream: vi.fn(async () => null),
+      };
+      flushTapSync(() => listeners.forEach((listener) => listener()));
+      await nextTask();
+      const aui = handle.getClient();
+      flushTapSync(() => aui.composer.setText("new transport"));
+      flushTapSync(() => aui.composer.send());
+      await vi.waitFor(() => {
+        expect(sendMessages).toHaveBeenCalledOnce();
+        expect(aui.thread.getState().isRunning).toBe(false);
+      });
+      expect(onError).not.toHaveBeenCalled();
+      expect(aui.thread.getState().canResume).toBe(false);
+    } finally {
+      handle.destroy();
+      storage.clear();
+    }
+  });
+
   it("coalesces resume calls across chat updates and consumes the stopped response checkpoint on finish", async () => {
     const storage = createResumableSessionStorage({ key: "composer-resume" });
     storage.clear();
