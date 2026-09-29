@@ -14,6 +14,7 @@ import { htmlBlockNames, htmlRawNames } from "micromark-util-html-tag-name";
 
 const BACKTICK = 96;
 const TILDE = 126;
+const DOLLAR = 36;
 const SPACE = 32;
 const TAB = 9;
 const CR = 13;
@@ -285,6 +286,7 @@ function htmlBlockRanges(text: string): number[] {
   let fenceRun = 0;
   let fenceIndent = 0;
   let fenceQuoteDepth = 0;
+  let mathEnd = 0;
   let inParagraph = false;
   let paragraphItemIndent = 0;
   let lastQuoteDepth = 0;
@@ -356,17 +358,26 @@ function htmlBlockRanges(text: string): number[] {
         continue;
       }
     }
-    if (fenceChar !== 0 && depth < fenceQuoteDepth) fenceChar = 0;
+    if (
+      fenceChar !== 0 &&
+      (depth < fenceQuoteDepth ||
+        (fenceChar === DOLLAR && first !== -1 && indent < fenceIndent))
+    )
+      fenceChar = 0;
     if (fenceChar !== 0) {
       let end = i;
       while (end < lineEnd && text.charCodeAt(end) === fenceChar) end += 1;
       if (
         depth === fenceQuoteDepth &&
-        i - contentStart <= fenceIndent + 3 &&
+        (fenceChar === DOLLAR ? indent : i - contentStart) <= fenceIndent + 3 &&
         end - i >= fenceRun &&
         onlyWhitespace(text, end, lineEnd)
       )
         fenceChar = 0;
+      lineStart = nextLine;
+      continue;
+    }
+    if (lineStart < mathEnd) {
       lineStart = nextLine;
       continue;
     }
@@ -400,18 +411,41 @@ function htmlBlockRanges(text: string): number[] {
     }
     const blockFirst = blockStart < lineEnd ? text.charCodeAt(blockStart) : -1;
 
-    if (blockFirst === BACKTICK || blockFirst === TILDE) {
+    const itemIndent =
+      blockItemIndent ||
+      (depth === lastQuoteDepth && indent >= paragraphItemIndent
+        ? paragraphItemIndent
+        : 0);
+    const mathFence = blockFirst === DOLLAR;
+    if (blockFirst === BACKTICK || blockFirst === TILDE || mathFence) {
       let end = blockStart;
       while (end < lineEnd && text.charCodeAt(end) === blockFirst) end += 1;
       if (
-        end - blockStart >= 3 &&
-        (blockFirst === TILDE || !includesChar(text, BACKTICK, end, lineEnd))
+        end - blockStart >= (mathFence ? 2 : 3) &&
+        (blockFirst === TILDE ||
+          !includesChar(text, blockFirst, end, lineEnd)) &&
+        (!mathFence ||
+          (!markersInProse &&
+            !indentedMarker &&
+            columns(text, contentStart, blockStart) - itemIndent < 4))
       ) {
         fenceChar = blockFirst;
         fenceRun = end - blockStart;
-        fenceIndent = blockStart - contentStart;
+        fenceIndent = mathFence ? itemIndent : blockStart - contentStart;
         fenceQuoteDepth = depth;
       }
+    }
+    const mathStart = text.startsWith("\\\\[", blockStart)
+      ? blockStart + 1
+      : blockStart;
+    const mathClose = text.startsWith("\\[", mathStart)
+      ? "\\]"
+      : text.startsWith("[/math]", mathStart)
+        ? "[/math]"
+        : "";
+    if (mathClose !== "") {
+      const close = text.indexOf(mathClose, mathStart + mathClose.length);
+      if (close !== -1) mathEnd = close + mathClose.length;
     }
     let closesBlock = false;
     if (
@@ -438,11 +472,7 @@ function htmlBlockRanges(text: string): number[] {
           htmlStart = lineStart;
           htmlQuoteDepth = depth;
           htmlQuoteIndents = blockQuoteIndents;
-          htmlItemIndent =
-            blockItemIndent ||
-            (depth === lastQuoteDepth && indent >= paragraphItemIndent
-              ? paragraphItemIndent
-              : 0);
+          htmlItemIndent = itemIndent;
         }
       }
     }
@@ -450,6 +480,7 @@ function htmlBlockRanges(text: string): number[] {
     inParagraph =
       first !== -1 &&
       fenceChar === 0 &&
+      mathEnd <= lineEnd &&
       htmlKind === 0 &&
       !closesBlock &&
       !(
@@ -472,6 +503,8 @@ function htmlBlockRanges(text: string): number[] {
           : continued
             ? paragraphItemIndent
             : 0;
+    } else if (first !== -1 && indent < paragraphItemIndent) {
+      paragraphItemIndent = 0;
     }
     lastQuoteDepth = depth;
     lineStart = nextLine;

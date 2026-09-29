@@ -722,6 +722,31 @@ describe("escapeCurrencyDollars", () => {
 });
 
 describe("HTML blocks", () => {
+  it("escapes prose after block tags inside display math", () => {
+    expect(
+      escapeCurrencyDollars("$$\n<p> = m <v>\n$$\nThe price is $5 and $10."),
+    ).toBe("$$\n<p> = m <v>\n$$\nThe price is \\$5 and \\$10.");
+  });
+
+  it("escapes prose after raw tags inside display math", () => {
+    expect(escapeCurrencyDollars("$$\n<pre>\n$$\n\ncosts $5")).toBe(
+      "$$\n<pre>\n$$\n\ncosts \\$5",
+    );
+  });
+
+  it.each([
+    ["\\[", "\\]"],
+    ["\\\\[", "\\\\]"],
+    ["[/math]", "[/math]"],
+  ])("normalizes %s display math containing block tags", (open, close) => {
+    expect(normalizeMathDelimiters(`${open}\n<p> = m <v>\n${close}`)).toBe(
+      "$$<p> = m <v>$$",
+    );
+    expect(
+      normalizeMathDelimiters(`${open}\n<pre>\nx\n${close}\n\\(y\\)`),
+    ).toBe("$$\n<pre>\nx\n$$\n$y$");
+  });
+
   it("preserves currency in a completed pre block", () => {
     const text = "<pre>\ncosts $5 and $10\n</pre>";
     expect(escapeCurrencyDollars(text)).toBe(text);
@@ -746,6 +771,42 @@ describe("HTML blocks", () => {
       "$$x$$ $y$ $$z$$ $w$",
     ],
   ] as const)("%s", (_, preprocess, body, rewritten) => {
+    it.each([
+      ["equal closing run", "$$", "$$"],
+      ["longer closing run", "$$$", "$$$$"],
+      ["opening metadata", "$$ math", "$$"],
+      ["shorter body run", "$$$", "$$\n<pre>\n$$$"],
+      ["body run with metadata", "$$", "$$ math\n<pre>\n$$"],
+      ["indented closer", "  $$", "   $$ \t"],
+    ])("keeps HTML inert in display math with %s", (_, open, close) => {
+      const block = `${open}\n<p> = m <v>\n${close}`;
+      expect(preprocess(`${block}\n${body}`)).toBe(`${block}\n${rewritten}`);
+      expect(preprocess(`${block}\n<pre>\n${body}\n</pre>\n${body}`)).toBe(
+        `${block}\n<pre>\n${body}\n</pre>\n${rewritten}`,
+      );
+    });
+
+    it.each(["$", "$$x$$", "$$ meta$"])(
+      "does not treat %s as a display math opener",
+      (open) => {
+        const block = `${open}\n<pre>\n${body}\n</pre>`;
+        expect(preprocess(`${block}\n${body}`)).toBe(`${block}\n${rewritten}`);
+      },
+    );
+
+    it.each(["# h", "***", "```\nx\n```", "$$\nx\n$$"])(
+      "preserves root HTML after %s ends a list item",
+      (ending) => {
+        const block = `- item\n${ending}\n  <pre>\n${body}\n</pre>`;
+        expect(preprocess(`${block}\n${body}`)).toBe(`${block}\n${rewritten}`);
+      },
+    );
+
+    it("preserves the item indent after a heading inside the list", () => {
+      const block = `- item\n  # h\n  <pre>\n  ${body}`;
+      expect(preprocess(`${block}\n${body}`)).toBe(`${block}\n${rewritten}`);
+    });
+
     it.each([
       ["kind 1", "<pre>", "</pre>"],
       ["kind 1 with a tab", "<script\tdata-x>", "</script>"],
