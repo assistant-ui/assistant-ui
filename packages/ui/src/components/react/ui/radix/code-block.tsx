@@ -2,6 +2,8 @@
 
 import {
   useEffect,
+  useId,
+  useLayoutEffect,
   useRef,
   useState,
   type ComponentProps,
@@ -24,6 +26,7 @@ export interface CodeBlockProps extends Omit<
   onCopied?: () => void;
   /** Numbers the lines when the `pre` does not carry `data-line-numbers` itself. */
   lineNumbers?: boolean;
+  maxCollapsedLines?: number | undefined;
 }
 
 function CopyButton({
@@ -96,13 +99,70 @@ export function CodeBlock({
   copyText,
   onCopied,
   lineNumbers,
+  maxCollapsedLines,
   className,
   children,
   ...props
 }: CodeBlockProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
+  const viewportId = useId();
+  const [lineCount, setLineCount] = useState(0);
+  const [collapsedHeight, setCollapsedHeight] = useState<string>();
+  const [expanded, setExpanded] = useState(false);
   const getText = () =>
     copyText ?? viewportRef.current?.querySelector("pre")?.textContent ?? "";
+  const collapsedLines = Math.floor(maxCollapsedLines ?? 0);
+  const isCollapsible = collapsedLines > 0 && lineCount > collapsedLines;
+  const isCollapsed = isCollapsible && !expanded;
+
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+
+    if (!viewport || collapsedLines <= 0) {
+      setLineCount(0);
+      setCollapsedHeight(undefined);
+      return;
+    }
+
+    const measure = () => {
+      const pre = viewport.querySelector("pre");
+      if (!pre) {
+        setLineCount(0);
+        setCollapsedHeight(undefined);
+        return;
+      }
+      const lines = pre.querySelectorAll(".line");
+      const nextLineCount =
+        lines.length ||
+        pre.textContent?.replace(/\n$/, "").split("\n").length ||
+        0;
+      const line = lines[0];
+      const lineHeight =
+        line?.getBoundingClientRect().height ||
+        Number.parseFloat(getComputedStyle(line ?? pre).lineHeight) ||
+        Number.parseFloat(getComputedStyle(viewport).lineHeight);
+      const viewportStyle = getComputedStyle(viewport);
+      const verticalPadding =
+        (Number.parseFloat(viewportStyle.paddingBlockStart) || 0) +
+        (Number.parseFloat(viewportStyle.paddingBlockEnd) || 0);
+
+      setLineCount(nextLineCount);
+      setCollapsedHeight(
+        Number.isFinite(lineHeight) && lineHeight > 0
+          ? `${lineHeight * collapsedLines + verticalPadding}px`
+          : `calc(${collapsedLines}lh + ${verticalPadding || 0}px)`,
+      );
+    };
+
+    measure();
+    const observer = new MutationObserver(measure);
+    observer.observe(viewport, {
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
+    return () => observer.disconnect();
+  }, [children, collapsedLines]);
 
   return (
     <figure
@@ -126,28 +186,50 @@ export function CodeBlock({
           className="bg-background/80 absolute top-2 right-2 z-10 opacity-0 backdrop-blur-sm transition-opacity group-hover/code:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-100"
         />
       )}
-      <div
-        ref={viewportRef}
-        role="region"
-        aria-label="Code"
-        tabIndex={0}
-        className={cn(
-          "focus-visible:outline-foreground/20 min-w-0 overflow-x-auto py-3.5 font-mono text-[12.5px] leading-relaxed [font-variant-ligatures:none] focus-visible:outline-1 focus-visible:-outline-offset-1",
-          "[&_code]:bg-transparent! [&_pre]:w-max [&_pre]:min-w-full [&_pre]:bg-transparent! [&_pre]:px-3.5",
-          "[&_.line]:inline-block [&_.line]:min-h-[1lh] [&_.line]:w-full",
-          "[&_code_span]:[color:var(--shiki-light,inherit)]",
-          "dark:[&_code_span]:[color:var(--shiki-dark)]!",
-          "[&_.highlighted]:bg-blue-500/8 [&_.highlighted]:shadow-[inset_2px_0_0_#3b82f6] dark:[&_.highlighted]:bg-blue-500/15",
-          "[&_pre[data-line-numbers]]:[counter-reset:line]",
-          "[&_pre[data-line-numbers]_.line]:relative [&_pre[data-line-numbers]_.line]:pl-8 [&_pre[data-line-numbers]_.line]:[counter-increment:line]",
-          "[&_pre[data-line-numbers]_.line]:before:text-muted-foreground/40 [&_pre[data-line-numbers]_.line]:before:absolute [&_pre[data-line-numbers]_.line]:before:left-0 [&_pre[data-line-numbers]_.line]:before:w-5 [&_pre[data-line-numbers]_.line]:before:text-right [&_pre[data-line-numbers]_.line]:before:tabular-nums [&_pre[data-line-numbers]_.line]:before:[content:counter(line)]",
-          lineNumbers &&
-            "[&_.line]:before:text-muted-foreground/40 [counter-reset:line] [&_.line]:relative [&_.line]:pl-8 [&_.line]:[counter-increment:line] [&_.line]:before:absolute [&_.line]:before:left-0 [&_.line]:before:w-5 [&_.line]:before:text-right [&_.line]:before:tabular-nums [&_.line]:before:[content:counter(line)]",
-          viewportClassName,
+      <div className="relative min-w-0">
+        <div
+          ref={viewportRef}
+          id={isCollapsible ? viewportId : undefined}
+          role="region"
+          aria-label="Code"
+          tabIndex={0}
+          style={isCollapsed ? { maxHeight: collapsedHeight } : undefined}
+          className={cn(
+            "focus-visible:outline-foreground/20 overflow-x-auto py-3.5 font-mono text-[12.5px] leading-relaxed [font-variant-ligatures:none] focus-visible:outline-1 focus-visible:-outline-offset-1",
+            isCollapsed && "overflow-y-hidden",
+            "[&_code]:bg-transparent! [&_pre]:w-max [&_pre]:min-w-full [&_pre]:bg-transparent! [&_pre]:px-3.5",
+            "[&_.line]:inline-block [&_.line]:min-h-[1lh] [&_.line]:w-full",
+            "[&_code_span]:[color:var(--shiki-light,inherit)]",
+            "dark:[&_code_span]:[color:var(--shiki-dark)]!",
+            "[&_.highlighted]:bg-blue-500/8 [&_.highlighted]:shadow-[inset_2px_0_0_#3b82f6] dark:[&_.highlighted]:bg-blue-500/15",
+            "[&_pre[data-line-numbers]]:[counter-reset:line]",
+            "[&_pre[data-line-numbers]_.line]:relative [&_pre[data-line-numbers]_.line]:pl-8 [&_pre[data-line-numbers]_.line]:[counter-increment:line]",
+            "[&_pre[data-line-numbers]_.line]:before:text-muted-foreground/40 [&_pre[data-line-numbers]_.line]:before:absolute [&_pre[data-line-numbers]_.line]:before:left-0 [&_pre[data-line-numbers]_.line]:before:w-5 [&_pre[data-line-numbers]_.line]:before:text-right [&_pre[data-line-numbers]_.line]:before:tabular-nums [&_pre[data-line-numbers]_.line]:before:[content:counter(line)]",
+            lineNumbers &&
+              "[&_.line]:before:text-muted-foreground/40 [counter-reset:line] [&_.line]:relative [&_.line]:pl-8 [&_.line]:[counter-increment:line] [&_.line]:before:absolute [&_.line]:before:left-0 [&_.line]:before:w-5 [&_.line]:before:text-right [&_.line]:before:tabular-nums [&_.line]:before:[content:counter(line)]",
+            viewportClassName,
+          )}
+        >
+          {children}
+        </div>
+        {isCollapsed && (
+          <div
+            aria-hidden="true"
+            className="from-foreground/[0.025] dark:from-foreground/[0.04] pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t to-transparent"
+          />
         )}
-      >
-        {children}
       </div>
+      {isCollapsible && (
+        <button
+          type="button"
+          aria-controls={viewportId}
+          aria-expanded={!isCollapsed}
+          onClick={() => setExpanded((value) => !value)}
+          className="text-muted-foreground hover:text-foreground self-start px-3.5 py-2 text-xs transition-colors motion-reduce:transition-none"
+        >
+          {isCollapsed ? `Show all ${lineCount} lines` : "Show less"}
+        </button>
+      )}
     </figure>
   );
 }
