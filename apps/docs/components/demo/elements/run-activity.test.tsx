@@ -1,0 +1,198 @@
+// @vitest-environment jsdom
+
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
+import {
+  ActivityRunExample,
+  activityStatus,
+  convertRun,
+  type ActivityRun,
+} from "./run-activity";
+
+beforeAll(() => {
+  Object.defineProperty(HTMLElement.prototype, "scrollTo", {
+    value: vi.fn(),
+    configurable: true,
+  });
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+});
+
+afterAll(() => {
+  vi.unstubAllGlobals();
+  Reflect.deleteProperty(HTMLElement.prototype, "scrollTo");
+});
+
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
+
+const RUN: ActivityRun = {
+  id: "run-1",
+  status: { type: "complete", reason: "stop" },
+  timing: { startedAt: 1000, completedAt: 134000 },
+  parts: [
+    {
+      id: "commentary-1",
+      kind: "commentary",
+      label: "Inspecting",
+      part: { type: "text", text: "I’ll inspect the files." },
+    },
+    {
+      id: "tool-1",
+      kind: "tool",
+      label: "Reading source",
+      part: {
+        type: "tool-call",
+        toolCallId: "tool-1",
+        toolName: "read_file",
+        args: {},
+        argsText: "{}",
+        result: "Read source",
+      },
+    },
+    {
+      id: "commentary-2",
+      kind: "commentary",
+      label: "Checking the fix",
+      part: { type: "text", text: "I found the issue; checking the fix." },
+    },
+    {
+      id: "answer",
+      kind: "answer",
+      label: "",
+      part: { type: "text", text: "The final answer." },
+    },
+  ],
+};
+
+describe("run activity external-store recipe", () => {
+  it("preserves the explicit run boundary and part order in the runtime", () => {
+    const converted = convertRun(RUN);
+    expect(converted.id).toBe(RUN.id);
+    expect(converted.content).toEqual(RUN.parts.map((entry) => entry.part));
+    expect(converted.status).toEqual(RUN.status);
+    expect(converted.metadata?.custom?.activityRun).toBe(RUN);
+  });
+
+  it("renders persisted duration and keeps the answer outside the runtime disclosure", async () => {
+    render(<ActivityRunExample run={RUN} />);
+    expect(
+      await screen.findByRole("button", { name: "Worked for 2m 13s" }),
+    ).toBeTruthy();
+    expect(screen.getByText("The final answer.")).toBeTruthy();
+    expect(screen.queryByText("I’ll inspect the files.")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Worked for 2m 13s" }));
+    expect(
+      screen
+        .getAllByRole("listitem")
+        .map((item) => item.getAttribute("data-activity-kind")),
+    ).toEqual(["commentary", "tool", "commentary"]);
+    expect(screen.getByText("I’ll inspect the files.")).toBeTruthy();
+    expect(
+      screen.getByText("I found the issue; checking the fix."),
+    ).toBeTruthy();
+  });
+
+  it("preserves expansion through a real runtime streaming-to-complete update", async () => {
+    const running: ActivityRun = {
+      ...RUN,
+      status: { type: "running" },
+      timing: { startedAt: Date.now() - 12000 },
+      parts: RUN.parts.slice(0, 3),
+    };
+    const view = render(<ActivityRunExample run={running} />);
+    const trigger = await screen.findByRole("button", { name: /Working/ });
+    fireEvent.click(trigger);
+    await act(async () => view.rerender(<ActivityRunExample run={RUN} />));
+    expect(
+      screen
+        .getByRole("button", { name: "Worked for 2m 13s" })
+        .getAttribute("aria-expanded"),
+    ).toBe("true");
+    expect(screen.getByText("The final answer.")).toBeTruthy();
+  });
+
+  it("keeps a pending tool approval actionable even when classified as a tool", async () => {
+    const onRespondToToolApproval = vi.fn();
+    const run: ActivityRun = {
+      ...RUN,
+      status: { type: "requires-action", reason: "tool-calls" },
+      parts: [
+        ...RUN.parts.slice(0, 1),
+        {
+          id: "approval",
+          kind: "tool",
+          label: "Run tests",
+          part: {
+            type: "tool-call",
+            toolCallId: "approval",
+            toolName: "run_command",
+            args: {},
+            argsText: "{}",
+            approval: { id: "approval-1", prompt: "Run the tests?" },
+          },
+        },
+      ],
+    };
+    render(
+      <ActivityRunExample
+        run={run}
+        onRespondToToolApproval={onRespondToToolApproval}
+      />,
+    );
+    const approve = await screen.findByRole("button", { name: "Allow" });
+    expect(
+      screen
+        .getByRole("button", { name: /Needs your input/ })
+        .getAttribute("aria-expanded"),
+    ).toBe("false");
+    fireEvent.click(approve);
+    await waitFor(() => expect(onRespondToToolApproval).toHaveBeenCalledOnce());
+    expect(onRespondToToolApproval.mock.calls[0]?.[0]).toMatchObject({
+      approvalId: "approval-1",
+      approved: true,
+    });
+  });
+
+  it.each([
+    [{ type: "requires-action", reason: "interrupt" }, "requires-action"],
+    [{ type: "incomplete", reason: "cancelled" }, "cancelled"],
+    [{ type: "incomplete", reason: "error" }, "error"],
+    [{ type: "incomplete", reason: "length" }, "incomplete"],
+    [{ type: "incomplete", reason: "content-filter" }, "incomplete"],
+    [{ type: "incomplete", reason: "tool-calls" }, "incomplete"],
+  ] as const)("keeps %j distinct from success", (status, expected) => {
+    expect(activityStatus(status)).toBe(expected);
+  });
+
+  it("restores the recorded duration after a JSON persistence round trip", async () => {
+    render(<ActivityRunExample run={JSON.parse(JSON.stringify(RUN))} />);
+    expect(
+      await screen.findByRole("button", { name: "Worked for 2m 13s" }),
+    ).toBeTruthy();
+    expect(screen.getByText("The final answer.")).toBeTruthy();
+  });
+});

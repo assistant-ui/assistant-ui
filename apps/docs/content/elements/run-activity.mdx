@@ -1,0 +1,110 @@
+---
+title: "Run activity"
+description: "A compact live summary, ordered commentary and tools, and a final answer that stays visible."
+---
+
+`RunActivity` folds a run's public commentary and tools into one disclosure. While running, the collapsed view shows the latest nonempty activity label. After completion, the same row can read “Worked for 2m 13s”. Decisions and final answers stay outside the collapsed content.
+
+The element is a props-driven React registry component. It does not execute tools, classify model output, or add a runtime. Use [Tool timeline](/elements/tool-timeline) when you only need a list of tool steps and file statistics.
+
+## Getting started
+
+```tsx
+import { useState } from "react";
+import { RunActivity } from "@/components/assistant-ui/elements/run-activity";
+
+function CompletedRun() {
+  const [open, setOpen] = useState(false);
+  return (
+    <RunActivity
+      status="complete"
+      statusLabel="Worked for"
+      durationLabel="2m 13s"
+      open={open}
+      onOpenChange={setOpen}
+      entries={[
+        {
+          id: "commentary-1",
+          kind: "commentary",
+          label: "Inspecting the files",
+          content: <p>I’ll inspect the files.</p>,
+        },
+        {
+          id: "read-1",
+          kind: "tool",
+          label: "Reading thread.tsx",
+          content: <p>Read thread.tsx</p>,
+        },
+        {
+          id: "commentary-2",
+          kind: "commentary",
+          label: "Checking the fix",
+          content: <p>I found the issue; checking the fix.</p>,
+        },
+        {
+          id: "test-1",
+          kind: "tool",
+          label: "Running the tests",
+          content: <p>All tests passed.</p>,
+        },
+      ]}
+    >
+      <p>The fix is ready. The tests pass.</p>
+    </RunActivity>
+  );
+}
+```
+
+Only put public commentary and tool history in `entries`, in their original order. Supply stable IDs and short activity labels. Put the explicitly identified final answer in `children`; the element never guesses whether a text part is commentary or an answer. Empty runs show a status without an empty disclosure button.
+
+## With an external-store runtime
+
+The demo on this page runs through `useExternalStoreRuntime`, `ThreadPrimitive.Viewport`, and `MessagePrimitive.PartByIndex`. Its [complete, tested integration](https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/demo/elements/run-activity.tsx) includes conversion, timing, status mapping, tool approvals, and scroll locking.
+
+Keep one stable assistant message ID for each application-defined run. Your adapter must identify run boundaries and classify each part before rendering. The example stores that application-owned record in `metadata.custom.activityRun`; this is a recipe convention, not a built-in assistant-ui metadata field.
+
+```tsx
+const runtime = useExternalStoreRuntime<ActivityRun>({
+  messages: runs,
+  isRunning,
+  convertMessage: (run) => ({
+    id: run.id,
+    role: "assistant",
+    status: run.status,
+    content: run.parts.map((entry) => entry.part),
+    metadata: { custom: { activityRun: run } },
+  }),
+  onNew: sendMessage,
+  onRespondToToolApproval: respondToApproval,
+  onResumeToolCall: resumeToolCall,
+});
+```
+
+In the message renderer, read that record with `useAuiState`. Render each classified part with `MessagePrimitive.PartByIndex`, using its index in the converted message and your existing text/tool components. Put `commentary` and `tool` entries in the disclosure, `answer` parts in `children`, and `attention` parts in `attention`. Do not also render `MessagePrimitive.Parts` for the whole message: that would duplicate the content.
+
+The example keeps pending approvals, unresolved tool interruptions, and tool errors in `attention` even if their original classification was `tool`. It uses the existing `ToolFallback`, so the runtime's approval callback still receives the approval response. Supply your app's clarification and recovery renderers there as well. Classification alone does not implement an approval or retry: wire the appropriate external-store callbacks to your backend and persist their result.
+
+If your backend emits several messages per run, project them into one stable assistant message in the adapter, preserving their part order and explicit final-answer markers. Do not infer an answer from the last text part, punctuation, or a tool finishing. Retain stable part positions while a run streams; start a new run/message ID for a new turn.
+
+## Lifecycle and persisted time
+
+| Runtime message status | Element status | Example label |
+| --- | --- | --- |
+| `running` | `running` | Working |
+| `requires-action` | `requires-action` | Needs your input |
+| `complete` | `complete` | Worked for |
+| `incomplete`, reason `cancelled` | `cancelled` | Stopped after |
+| `incomplete`, reason `error` | `error` | Failed after |
+| Other `incomplete` reasons | `incomplete` | Incomplete |
+
+All labels are supplied by the app for localization. Use a complete label such as “Completed” when no duration is available. An interrupted, cancelled, or failed run must not be relabeled as successful completion just because streaming stopped.
+
+Persist the run's status, classification, start timestamp, and settled duration or end timestamp alongside its content. A running clock may derive elapsed time from that persisted start; a completed run must use the persisted duration, not the time since mounting. If your adapter supplies `metadata.timing.totalStreamTime` with the desired run scope, format that value directly. Missing timing should remain absent.
+
+`durationLabel` accepts a React node so a small clock component can update without rerendering the transcript. The demo uses the existing `useTaskElapsed` utility with an application-owned start/end pair. Its scripted timestamps demonstrate the contract; they are not measurements of a live model. Only `statusLabel` enters the live region, so clock ticks and streaming tokens do not interrupt screen-reader announcements.
+
+## Expansion, focus, and scrolling
+
+Keep `open` in the message renderer, initially `false`, keyed by the stable run/message ID. This keeps runs compact by default and preserves explicit expansion or collapse across new activity and completion. Do not force `open` to `false` when streaming ends: a user may be inspecting or focusing a control in the history.
+
+Inside a runtime viewport, call `useScrollLock` before changing `open`, as the integration example does. The element does not call `scrollIntoView` or move focus when its status changes. Its disclosure uses the installed Base UI or Radix primitive, native keyboard activation, a visible focus ring, and reduced-motion styles. Applications with a custom virtualized transcript should apply their existing scroll anchoring around the disclosure.

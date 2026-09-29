@@ -583,6 +583,83 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
       },
     ],
   },
+  "run-activity": {
+    usage: `import { RunActivity } from "@/components/assistant-ui/elements/run-activity";
+
+<RunActivity
+  status="complete"
+  statusLabel="Worked for"
+  durationLabel="2m 13s"
+  entries={entries}
+  open={open}
+  onOpenChange={setOpen}
+  attention={pendingDecision}
+>
+  {finalAnswer}
+</RunActivity>`,
+    props: [
+      {
+        component: "RunActivity",
+        rows: [
+          {
+            name: "status",
+            type: '"running" | "requires-action" | "complete" | "cancelled" | "incomplete" | "error"',
+            required: true,
+            description:
+              "Persisted lifecycle state. Only running shows the latest activity.",
+          },
+          {
+            name: "statusLabel",
+            type: "string",
+            required: true,
+            description: "Localized status text, announced when it changes.",
+          },
+          {
+            name: "durationLabel",
+            type: "ReactNode",
+            description:
+              "Formatted elapsed time from persisted timing, or an isolated live clock.",
+          },
+          {
+            name: "entries",
+            type: "readonly RunActivityEntry[]",
+            required: true,
+            description:
+              "Ordered public commentary and tool entries with stable id, kind, label, and rendered content.",
+          },
+          {
+            name: "open",
+            type: "boolean",
+            required: true,
+            description:
+              "Controlled disclosure state. Streaming and completion do not override it.",
+          },
+          {
+            name: "onOpenChange",
+            type: "(open: boolean) => void",
+            required: true,
+            description: "Called when the user toggles the disclosure.",
+          },
+          {
+            name: "attention",
+            type: "ReactNode",
+            description:
+              "Approval, clarification, or recovery UI that stays visible when collapsed.",
+          },
+          {
+            name: "children",
+            type: "ReactNode",
+            description: "Final answer rendered outside the disclosure.",
+          },
+          {
+            name: "className",
+            type: "string",
+            description: "Extra classes on the root.",
+          },
+        ],
+      },
+    ],
+  },
   "tool-timeline": {
     usage: `import { FileSearchIcon } from "lucide-react";
 import { ToolTimeline } from "@/components/assistant-ui/elements/tool-timeline";
