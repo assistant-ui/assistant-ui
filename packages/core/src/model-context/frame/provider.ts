@@ -271,6 +271,10 @@ export class AssistantFrameProvider {
 
   private broadcastUpdate() {
     if (this._disposed) return;
+    this.postModelContext();
+  }
+
+  private postModelContext() {
     if (window.parent && window.parent !== window) {
       const updateMessage: FrameMessage = {
         type: "model-context-update",
@@ -429,6 +433,7 @@ export class AssistantFrameProvider {
       });
       instance._providerUnsubscribes.clear();
       instance._providers.clear();
+      runCleanup(() => instance.postModelContext());
       instance._activeToolCalls.forEach(({ abortController, event }, id) => {
         runCleanup(() => {
           abortController.abort();

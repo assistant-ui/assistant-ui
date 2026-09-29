@@ -1,5 +1,11 @@
 # @assistant-ui/tap
 
+## 0.9.19
+
+### Patch Changes
+
+- [#7864](https://github.com/assistant-ui/assistant-ui/pull/7864) [`1790780`](https://github.com/assistant-ui/assistant-ui/commit/1790780a6cdd5920bcf028949cfe38e4d965a22d) - fix: bail out of a no-op state dispatch from an effect under a React host instead of re-rendering on every commit ([@okisdev](https://github.com/okisdev))
+
 ## 0.9.18
 
 ### Patch Changes

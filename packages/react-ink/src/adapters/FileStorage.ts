@@ -1,6 +1,13 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { realpathSync } from "node:fs";
-import { readFile, mkdir, rename, rm, writeFile } from "node:fs/promises";
+import {
+  readFile,
+  readdir,
+  mkdir,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import type { RemoteThreadListAdapter } from "@assistant-ui/core";
 import {
@@ -29,7 +36,19 @@ export class FileStorage implements AsyncStorageLike {
   }
 
   private getFilePath(key: string) {
-    return join(this.dir, `${encodeURIComponent(key)}.json`);
+    const hash = createHash("sha256").update(key).digest("hex");
+    return join(this.dir, `v2-${hash}.json`);
+  }
+
+  private async getLegacyFilePath(key: string): Promise<string | null> {
+    const filename = `${encodeURIComponent(key)}.json`;
+    try {
+      const files = await readdir(this.dir);
+      return files.includes(filename) ? join(this.dir, filename) : null;
+    } catch (error) {
+      if (isEnoent(error)) return null;
+      throw error;
+    }
   }
 
   private async ensureDir(): Promise<void> {
@@ -40,9 +59,11 @@ export class FileStorage implements AsyncStorageLike {
     try {
       return await readFile(this.getFilePath(key), "utf8");
     } catch (error) {
-      if (isEnoent(error)) return null;
-      throw error;
+      if (!isEnoent(error)) throw error;
     }
+
+    const legacyPath = await this.getLegacyFilePath(key);
+    return legacyPath ? readFile(legacyPath, "utf8") : null;
   }
 
   async setItem(key: string, value: string): Promise<void> {
@@ -62,6 +83,8 @@ export class FileStorage implements AsyncStorageLike {
 
   async removeItem(key: string): Promise<void> {
     await rm(this.getFilePath(key), { force: true });
+    const legacyPath = await this.getLegacyFilePath(key);
+    if (legacyPath) await rm(legacyPath, { force: true });
   }
 }
 

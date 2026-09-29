@@ -55,8 +55,8 @@ const ROLE_LABELS = {
   system: "system",
 } as const;
 
-const NestedToolCall: ToolCallMessagePartComponent = (props) =>
-  isTaskPart(props) ? <TaskCard part={props} /> : <ToolFallback {...props} />;
+const NestedToolCall: ToolCallMessagePartComponent = (part) =>
+  isTaskPart(part) ? <TaskCard part={part} /> : <ToolFallback {...part} />;
 
 const NestedMessage: FC = () => {
   const role = useAuiState((s) => s.message.role);
@@ -104,6 +104,7 @@ export const TaskCard: FC<{ part: TaskPart; className?: string }> = ({
     part.timing,
     part.status.type === "running" || part.status.type === "requires-action",
   );
+  const canAnswer = useAuiState((s) => s.thread.capabilities.answerToolCall);
   const messages = part.messages ?? [];
   const showError =
     part.status.type === "incomplete" &&
@@ -123,7 +124,8 @@ export const TaskCard: FC<{ part: TaskPart; className?: string }> = ({
   const actions =
     part.status.type === "requires-action" &&
     approvalPending &&
-    offersInterruptAction(part.status, part.approval, part.interrupt) ? (
+    offersInterruptAction(part.status, part.approval, part.interrupt) &&
+    (canAnswer || part.approval?.prompt) ? (
       <ToolFallbackApproval
         status={part.status}
         {...(part.approval !== undefined && { approval: part.approval })}
