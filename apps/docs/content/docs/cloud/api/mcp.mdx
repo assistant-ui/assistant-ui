@@ -3,7 +3,7 @@ title: MCP
 description: Connect an MCP client to Assistant Cloud project reads.
 ---
 
-Assistant Cloud exposes a stateless Model Context Protocol endpoint for agents that need to inspect a project's runs, usage, threads, scores, topics and skills. It uses the backend host and an API key, and the API key strategy still requires `Aui-Workspace-Id` even though the tools scope their reads to the project.
+Assistant Cloud exposes a stateless Model Context Protocol endpoint for agents that need to inspect a project's runs, usage, threads, scores, topics and skills. It uses the backend host and an API key, and the request still requires `Aui-Workspace-Id` even though the tools scope their reads to the project.
 
 ## The MCP endpoint
 
@@ -14,12 +14,12 @@ POST /v1/mcp
 | Request item | Required | Rules |
 |---|---|---|
 | `Authorization` | yes | A bearer API key. |
-| `Aui-Workspace-Id` | yes | Required by the API key strategy. |
+| `Aui-Workspace-Id` | yes | Required on an API key request. |
 | `Accept` | no | When sent, it must include `application/json`, `text/event-stream` or `*/*`, or the transport answers `406`. A missing header counts as `*/*`. |
 | HTTP method | yes | Only `POST` is accepted. |
 | Transport | yes | Stateless streamable HTTP with JSON responses. |
 
-The server identifies itself as `{ name: "assistant-cloud", version: "1.0.0" }`. It creates no MCP session because the transport is configured without a session id generator. Every exposed tool has `annotations: { readOnlyHint: true }`.
+The server identifies itself as `{ name: "assistant-cloud", version: "1.0.0" }`. It creates no MCP session. Every exposed tool has `annotations: { readOnlyHint: true }`.
 
 ```http title="Request"
 POST /v1/mcp
@@ -275,7 +275,7 @@ Each topic has `id`, `name`, `created_at`, `updated_at` and `thread_count`. Topi
 
 ## `list_skills`
 
-List skills in the authenticated project. This read only tool takes no input.
+List skills in the authenticated project.
 
 | Input | Type | Required | Rules |
 |---|---|---|---|

@@ -6195,6 +6195,7 @@ type UserExternalState = keyof Assistant.ExternalState extends never ? Record<st
 
 type UserMessage = {
   readonly role: "user";
+  readonly id?: string;
   readonly parts: readonly UserMessagePart[];
 };
 

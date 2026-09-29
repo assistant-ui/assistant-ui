@@ -269,6 +269,11 @@ const useGeneratedSuggestions = (
 
 const NO_CANCELLED_MESSAGE_IDS: ReadonlySet<string> = new Set();
 
+const NO_SUPERSEDED_APPROVAL_PROJECTION = Object.freeze({
+  approvalIds: Object.freeze(new Set<string>()),
+  statusMessageIds: Object.freeze(new Set<string>()),
+});
+
 const NO_TOOL_APPROVAL_RESPONSES: ReadonlyMap<
   string,
   RespondToToolApprovalOptions
@@ -322,6 +327,132 @@ const notifyHostApprovals = (owner: object) => {
   for (const listener of [...(hostApprovalListenersByChat.get(owner) ?? [])]) {
     listener();
   }
+};
+
+const getSupersededApprovalProjection = <UI_MESSAGE extends UIMessage>(
+  messages: readonly UI_MESSAGE[],
+  hostApprovalIds: ReadonlySet<string>,
+  joinStrategy: JoinStrategy | undefined,
+  isRunning: boolean,
+) => {
+  const approvalIds = new Set<string>();
+  const statusMessageIds = new Set<string>();
+  const lastIndex = messages.length - 1;
+  let lastAssistant: UI_MESSAGE | undefined;
+  let hasSupersededApproval = false;
+  let previousWasVoice = false;
+
+  const flush = () => {
+    const hasOpenToolPart =
+      lastAssistant === messages[lastIndex] &&
+      lastAssistant?.parts?.some((part) => {
+        if (
+          !isToolUIPart(part) ||
+          part.state === "output-available" ||
+          part.state === "output-error" ||
+          part.state === "output-denied"
+        )
+          return false;
+
+        const approval = (
+          part as {
+            approval?: {
+              resolution?: unknown;
+              descriptor?: unknown;
+            };
+          }
+        ).approval;
+        const resolution =
+          approval?.resolution ??
+          (approval?.descriptor as { resolution?: unknown } | undefined)
+            ?.resolution;
+        return resolution !== "cancelled" && resolution !== "expired";
+      });
+    if (
+      lastAssistant &&
+      hasSupersededApproval &&
+      !hasOpenToolPart &&
+      !(isRunning && lastAssistant === messages[lastIndex])
+    ) {
+      statusMessageIds.add(lastAssistant.id);
+    }
+    lastAssistant = undefined;
+    hasSupersededApproval = false;
+    previousWasVoice = false;
+  };
+
+  for (let index = 0; index < messages.length; index++) {
+    const message = messages[index]!;
+    if (message.role !== "assistant") {
+      flush();
+    } else {
+      const isVoice =
+        (message.metadata as { modality?: unknown } | undefined)?.modality ===
+        "voice";
+      if (isVoice || previousWasVoice || joinStrategy === "none") flush();
+      lastAssistant = message;
+      previousWasVoice = isVoice;
+    }
+
+    for (const part of message.parts ?? []) {
+      if (!isToolUIPart(part) || part.state !== "approval-requested") continue;
+
+      const approval = part.approval;
+      if (!approval) continue;
+
+      const approvalId = approval.id;
+      if (hostApprovalIds.has(approvalId)) continue;
+
+      const resolution =
+        (approval as { resolution?: unknown }).resolution ??
+        (approval.descriptor as { resolution?: unknown } | null | undefined)
+          ?.resolution;
+      if (resolution === "cancelled" || resolution === "expired") continue;
+
+      if (index !== lastIndex) {
+        approvalIds.add(approvalId);
+        if (message.role === "assistant") hasSupersededApproval = true;
+      }
+    }
+  }
+  flush();
+
+  if (approvalIds.size === 0 && statusMessageIds.size === 0)
+    return NO_SUPERSEDED_APPROVAL_PROJECTION;
+
+  return { approvalIds, statusMessageIds };
+};
+
+const findRawToolMessageIndex = <UI_MESSAGE extends UIMessage>(
+  messages: readonly UI_MESSAGE[],
+  messageId: string,
+  toolCallId: string,
+  joinStrategy: JoinStrategy | undefined,
+) => {
+  const containsToolCall = (message: UI_MESSAGE) =>
+    message.parts?.some(
+      (part) => isToolUIPart(part) && part.toolCallId === toolCallId,
+    ) === true;
+
+  const messageIndex = messages.findIndex(
+    (message) => message.id === messageId,
+  );
+  if (messageIndex === -1) return -1;
+  if (containsToolCall(messages[messageIndex]!)) return messageIndex;
+  if (joinStrategy === "none" || messages[messageIndex]?.role !== "assistant")
+    return -1;
+
+  let start = messageIndex;
+  while (start > 0 && messages[start - 1]?.role === "assistant") start--;
+
+  let end = messageIndex;
+  while (end + 1 < messages.length && messages[end + 1]?.role === "assistant")
+    end++;
+
+  for (let index = start; index <= end; index++) {
+    if (containsToolCall(messages[index]!)) return index;
+  }
+  return -1;
 };
 
 const toChatError = (error: Error): AssistantError => {
@@ -495,6 +626,36 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       : NO_CANCELLED_MESSAGE_IDS;
   const supportsRichToolApprovalResponses =
     customOnRespondToToolApproval != null;
+  const supersededApprovalProjectionRef = useRef(
+    NO_SUPERSEDED_APPROVAL_PROJECTION,
+  );
+  const supersededApprovalProjection = useMemo(
+    () => {
+      const projection = getSupersededApprovalProjection(
+        chatHelpers.messages,
+        hostApprovalIdsRef.current,
+        joinStrategy,
+        isRunning,
+      );
+      const previous = supersededApprovalProjectionRef.current;
+      if (
+        projection.approvalIds.size === previous.approvalIds.size &&
+        projection.statusMessageIds.size === previous.statusMessageIds.size &&
+        [...projection.approvalIds].every((id) =>
+          previous.approvalIds.has(id),
+        ) &&
+        [...projection.statusMessageIds].every((id) =>
+          previous.statusMessageIds.has(id),
+        )
+      )
+        return previous;
+
+      supersededApprovalProjectionRef.current = projection;
+      return projection;
+    },
+    // oxlint-disable-next-line react/exhaustive-deps -- hostApprovalIdsRef changes alongside toolApprovalResponses, which invalidates the projection
+    [chatHelpers.messages, joinStrategy, isRunning, toolApprovalResponses],
+  );
 
   const toThreadMessages = useCallback(
     (sourceMessages: UI_MESSAGE[]) => {
@@ -559,6 +720,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         toolArtifacts: toolArtifactsRef.current,
         toolInteractions: toolInteractionsRef.current,
         supportsRichToolApprovalResponses,
+        cancelledToolApprovalIds: supersededApprovalProjection.approvalIds,
+        cancelledStatusMessageIds:
+          supersededApprovalProjection.statusMessageIds,
         ...(optimisticMessageId && { optimisticMessageId }),
         ...(chatHelpers.error && {
           error: toChatError(chatHelpers.error),
@@ -574,6 +738,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         cancelledMessageIds,
         toolApprovalResponses,
         supportsRichToolApprovalResponses,
+        supersededApprovalProjection,
         toolArtifactEpoch,
         toolInteractionEpoch,
       ],
@@ -991,6 +1156,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       await chatHelpers.regenerate({ metadata: config.runConfig });
     },
     onAddToolResult: ({
+      messageId,
       toolCallId,
       toolName,
       result,
@@ -1002,6 +1168,62 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         toolArtifactsRef.current.set(toolCallId, artifact);
         markToolArtifactsChanged();
       }
+
+      const targetIndex = findRawToolMessageIndex(
+        chatHelpers.messages,
+        messageId,
+        toolCallId,
+        joinStrategy,
+      );
+
+      const errorText =
+        typeof result === "string" ? result : JSON.stringify(result);
+      const output =
+        !isError && modelContent !== undefined
+          ? wrapModelContentEnvelope(result, modelContent)
+          : result;
+
+      if (targetIndex >= 0 && targetIndex !== chatHelpers.messages.length - 1) {
+        const target = chatHelpers.messages[targetIndex]!;
+        const targetPart = target.parts.find(
+          (part) => isToolUIPart(part) && part.toolCallId === toolCallId,
+        ) as { state?: string; preliminary?: boolean } | undefined;
+        // An earlier message's settled output may already have reached the model, as the error a cancelling send writes does.
+        if (
+          targetPart?.state === "output-error" ||
+          targetPart?.state === "output-denied" ||
+          (targetPart?.state === "output-available" && !targetPart.preliminary)
+        )
+          return Promise.resolve();
+
+        const targetMessageId = target.id;
+        chatHelpers.setMessages((current) =>
+          current.map((message) => {
+            if (message.id !== targetMessageId) return message;
+
+            return {
+              ...message,
+              parts: message.parts.map((part) => {
+                if (!isToolUIPart(part) || part.toolCallId !== toolCallId)
+                  return part;
+
+                const { preliminary: _preliminary, ...finalPart } =
+                  part as typeof part & { preliminary?: boolean };
+                return {
+                  ...finalPart,
+                  state: isError
+                    ? ("output-error" as const)
+                    : ("output-available" as const),
+                  output: isError ? undefined : output,
+                  errorText: isError ? errorText : undefined,
+                } as typeof part;
+              }),
+            };
+          }),
+        );
+        return Promise.resolve();
+      }
+
       const options = { metadata: lastRunConfigRef.current };
       if (isError) {
         return Promise.resolve(
@@ -1009,29 +1231,32 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
             state: "output-error",
             tool: toolName ?? toolCallId,
             toolCallId,
-            errorText:
-              typeof result === "string" ? result : JSON.stringify(result),
-            options,
-          }),
-        );
-      } else {
-        const output =
-          modelContent !== undefined
-            ? wrapModelContentEnvelope(result, modelContent)
-            : result;
-        return Promise.resolve(
-          chatHelpers.addToolOutput({
-            tool: toolName,
-            toolCallId,
-            output,
+            errorText,
             options,
           }),
         );
       }
+
+      return Promise.resolve(
+        chatHelpers.addToolOutput({
+          tool: toolName,
+          toolCallId,
+          output,
+          options,
+        }),
+      );
     },
-    onRespondToToolApproval: customOnRespondToToolApproval
-      ? (response) => respondViaHost(customOnRespondToToolApproval, response)
-      : respondViaAISDK,
+    onRespondToToolApproval: (response) => {
+      if (supersededApprovalProjection.approvalIds.has(response.approvalId))
+        return Promise.reject(
+          new Error(
+            `Tool approval ${response.approvalId} is not waiting for a response.`,
+          ),
+        );
+      return customOnRespondToToolApproval
+        ? respondViaHost(customOnRespondToToolApproval, response)
+        : respondViaAISDK(response);
+    },
     unstable_onRecordToolInteraction: ({
       messageId,
       toolCallId,

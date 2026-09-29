@@ -53,7 +53,7 @@ describe("ProductInputCard", () => {
         product: {
           slug: "assistant-ui",
           name: "assistant-ui",
-          guide: `${window.location.origin}/shop/cart.md?items=assistant-ui`,
+          guide: `${window.location.origin}/install.md?items=assistant-ui`,
         },
       }),
     );
@@ -70,7 +70,7 @@ describe("ProductInputCard", () => {
     expect(commands["checkout/add-product"]).not.toHaveBeenCalled();
   });
 
-  it("disables Add and offers Dismiss for a product the shop does not carry", () => {
+  it("disables Add and offers Dismiss for a product the catalog does not carry", () => {
     setup("nope");
     expect(screen.getByRole("button", { name: "Add" })).toHaveProperty(
       "disabled",
