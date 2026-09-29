@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -54,6 +54,17 @@ function withRepo(run) {
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+}
+
+function runExecutable(root, env) {
+  return spawnSync(
+    process.execPath,
+    [path.join(import.meta.dirname, "check-python-versions.mjs")],
+    {
+      encoding: "utf8",
+      env: { ...process.env, PYTHON_VERSION_CHECK_ROOT: root, ...env },
+    },
+  );
 }
 
 test("readProjectVersion reads the version of the [project] table only", () => {
@@ -174,9 +185,55 @@ test("changes on the target branch after the fork do not count against the PR", 
   });
 });
 
-test("an unknown commit fails instead of passing", () => {
+test("the executable fails a mixed bump and passes a release PR", () => {
   withRepo((root, base) => {
-    const result = runPythonVersionCheck(root, "0".repeat(40), base);
-    assert.ok("error" in result);
+    const mixed = commit(
+      root,
+      {
+        "python/pkg/pyproject.toml": pyproject("0.0.2"),
+        "python/pkg/src/pkg/__init__.py": "VALUE = 2\n",
+      },
+      "fix with a bump",
+    );
+    const mixedResult = runExecutable(root, {
+      BASE_SHA: base,
+      HEAD_SHA: mixed,
+    });
+    assert.equal(mixedResult.status, 1);
+    assert.match(
+      mixedResult.stderr,
+      /python\/pkg\/pyproject\.toml: 0\.0\.1 to 0\.0\.2/,
+    );
+    assert.match(mixedResult.stderr, /python\/pkg\/src\/pkg\/__init__\.py/);
+
+    git(root, "checkout", "-q", "-b", "release", base);
+    const release = commit(
+      root,
+      {
+        "python/pkg/pyproject.toml": pyproject("0.0.2"),
+        "python/pkg/uv.lock": "version = 2\n",
+      },
+      "release",
+    );
+    const releaseResult = runExecutable(root, {
+      BASE_SHA: base,
+      HEAD_SHA: release,
+    });
+    assert.equal(
+      releaseResult.status,
+      0,
+      releaseResult.stdout + releaseResult.stderr,
+    );
+  });
+});
+
+test("an unknown commit fails the executable instead of passing", () => {
+  withRepo((root, base) => {
+    const result = runExecutable(root, {
+      BASE_SHA: "0".repeat(40),
+      HEAD_SHA: base,
+    });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Failing instead of skipping/);
   });
 });

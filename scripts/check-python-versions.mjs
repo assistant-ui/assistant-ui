@@ -88,7 +88,11 @@ function main() {
     process.exit(1);
   }
 
-  const result = runPythonVersionCheck(repoRoot, BASE_SHA, HEAD_SHA);
+  const result = runPythonVersionCheck(
+    process.env.PYTHON_VERSION_CHECK_ROOT ?? repoRoot,
+    BASE_SHA,
+    HEAD_SHA,
+  );
   if ("error" in result) {
     console.error(
       `Could not diff ${BASE_SHA}...${HEAD_SHA}: ${result.error}. Failing instead of skipping the Python version check.`,
