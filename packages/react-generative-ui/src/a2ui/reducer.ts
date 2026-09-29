@@ -3,6 +3,7 @@ import {
   type A2uiOperationResult,
   type A2uiState,
   type A2uiSurfaceState,
+  type A2uiVersion,
 } from "./types";
 
 const OPERATION_KEYS = new Set([
@@ -18,8 +19,8 @@ const INVALID_POINTER = Symbol("invalidPointer");
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const isVersion = (value: unknown): value is "v0.9" | "v1.0" =>
-  value === "v0.9" || value === "v1.0";
+const isVersion = (value: unknown): value is A2uiVersion =>
+  value === "v0.9" || value === "v0.9.1" || value === "v1.0";
 
 const surfaceIdOf = (payload: Record<string, unknown>): string | undefined => {
   const surfaceId = payload["surfaceId"];

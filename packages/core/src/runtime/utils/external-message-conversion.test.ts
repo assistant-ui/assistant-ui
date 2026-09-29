@@ -1,16 +1,71 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ThreadMessage } from "../../types/message";
+import type { MessageStatus, ThreadMessage } from "../../types/message";
+import { getExternalStoreMessages } from "./external-store-message";
 import { fromThreadMessageLike } from "./thread-message-like";
 import {
   chunkExternalMessages,
   completeExternalMessageConversion,
   convertExternalMessageCallback,
   convertExternalMessageChunk,
+  convertExternalMessages,
+  createExternalMessageConversionCache,
   joinExternalMessages,
   type ExternalMessageConverterCallback,
   type ExternalMessageConverterCallbackResult,
   type ExternalMessageConverterMessage,
 } from "./external-message-conversion";
+
+describe("joined assistant status", () => {
+  it.each([
+    { status: { type: "running" }, isRunning: true },
+    { status: { type: "complete", reason: "stop" }, isRunning: false },
+    {
+      status: { type: "incomplete", reason: "error", error: "failed" },
+      isRunning: false,
+    },
+    { status: undefined, isRunning: true },
+  ] satisfies { status: MessageStatus | undefined; isRunning: boolean }[])(
+    "uses the tail status $status with isRunning=$isRunning",
+    ({ status, isRunning }) => {
+      const result = convertExternalMessageChunk(
+        {
+          inputs: [],
+          outputs: [
+            {
+              id: "first",
+              role: "assistant",
+              content: "First step",
+              status: { type: "complete", reason: "unknown" },
+            },
+            { id: "second", role: "assistant", content: "Next step", status },
+          ],
+        },
+        0,
+        1,
+        isRunning,
+        undefined,
+      );
+      expect(result.status).toMatchObject(status ?? { type: "running" });
+      expect(result.id).toBe("first");
+      expect(result.content).toMatchObject([
+        { type: "text", text: "First step" },
+        { type: "text", text: "Next step" },
+      ]);
+    },
+  );
+
+  it("takes a running status from a tail whose content has not arrived yet", () => {
+    const result = joinExternalMessages([
+      {
+        role: "assistant",
+        content: "First step",
+        status: { type: "complete", reason: "stop" },
+      },
+      { role: "assistant", content: [], status: { type: "running" } },
+    ]);
+    expect(result.status).toEqual({ type: "running" });
+  });
+});
 
 describe("completeExternalMessageConversion", () => {
   it.each([false, 0, ""])(
@@ -544,4 +599,35 @@ describe("convertExternalMessageChunk", () => {
       reason: "unknown",
     });
   });
+});
+
+describe("external message source identity", () => {
+  it.each(["user", "assistant"] as const)(
+    "refreshes %s sources when a converter reuses its output",
+    (role) => {
+      const output = { id: "message", role, content: "unchanged" };
+      const callback = vi.fn(() => output);
+      const metadata = {};
+      const cache = createExternalMessageConversionCache<{ version: number }>();
+      const firstSource = { version: 1 };
+      const secondSource = { version: 2 };
+      const convert = (source: { version: number }) =>
+        convertExternalMessages(
+          [source],
+          callback,
+          false,
+          metadata,
+          undefined,
+          cache,
+        )[0]!;
+      const first = convert(firstSource);
+      expect(convert(firstSource)).toBe(first);
+      expect(callback).toHaveBeenCalledTimes(1);
+      const second = convert(secondSource);
+      expect(getExternalStoreMessages(second)).toEqual([secondSource]);
+      expect(getExternalStoreMessages(first)).toEqual([firstSource]);
+      expect(convert(secondSource)).toBe(second);
+      expect(callback).toHaveBeenCalledTimes(2);
+    },
+  );
 });

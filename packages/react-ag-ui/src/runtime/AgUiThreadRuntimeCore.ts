@@ -348,8 +348,6 @@ export class AgUiThreadRuntimeCore {
   }
 
   private appendEntry(message: AppendMessage): string {
-    if (message.sourceId) this.session.tryDeleteMessage(message.sourceId);
-
     const threadMessage = this.toThreadMessage(message);
     const parentId =
       message.parentId === null

@@ -133,11 +133,23 @@ class RunController:
         self._stream_tasks_to_drain.append(task)
         return controller
 
-    def add_tool_result(self, tool_call_id: str, result: Any) -> None:
-        """Add a tool result to the stream."""
+    def add_tool_result(
+        self,
+        tool_call_id: str,
+        result: Any,
+        *,
+        artifact: Any | None = None,
+        is_error: bool = False,
+        is_preliminary: bool = False,
+    ) -> None:
+        """Add a tool result to the stream, optionally marked as an error, as
+        preliminary, or carrying a UI-only artifact."""
         chunk = ToolResultChunk(
             tool_call_id=tool_call_id,
             result=result,
+            artifact=artifact,
+            is_error=is_error,
+            is_preliminary=is_preliminary,
         )
         self._flush_and_put_chunk(chunk)
 
