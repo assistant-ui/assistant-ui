@@ -32,7 +32,9 @@ import type {
   ResumeToolCallOptions,
   SpeechState,
   ThreadSuggestion,
+  Unstable_RecordToolInteractionOptions,
 } from "../../runtime/interfaces/thread-runtime-core";
+import type { Unstable_ToolInteractionInput } from "../../types/message";
 import type {
   ExternalThreadQueueAdapter,
   QueuePlacement,
@@ -49,6 +51,7 @@ import type { ComposerSendOptions } from "../scopes/composer";
 import { fileMatchesAccept } from "../../adapters/attachment";
 import { getThreadMessageText } from "../../utils/text";
 import { resolveToolApprovalResponse } from "../../runtime/utils/resolveToolApprovalResponse";
+import { createToolInteraction } from "../../runtime/utils/tool-interactions";
 import {
   AttachmentAddOperations,
   drainAttachmentAdd,
@@ -131,6 +134,9 @@ export type ExternalThreadProps = {
   onRespondToToolApproval?: (
     options: RespondToToolApprovalOptions,
   ) => void | Promise<void>;
+  unstable_onRecordToolInteraction?:
+    | ((options: Unstable_RecordToolInteractionOptions) => void | Promise<void>)
+    | undefined;
 };
 
 type MessageClientProps = {
@@ -144,6 +150,9 @@ type MessageClientProps = {
   branches?: ExternalThreadBranchAdapter | undefined;
   onRespondToToolApproval?:
     | ((options: RespondToToolApprovalOptions) => void | Promise<void>)
+    | undefined;
+  unstable_onRecordToolInteraction?:
+    | ((options: Unstable_RecordToolInteractionOptions) => void | Promise<void>)
     | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
   onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
@@ -171,6 +180,7 @@ const useMessageClient = ({
   queue,
   branches,
   onRespondToToolApproval,
+  unstable_onRecordToolInteraction,
   onAddToolResult,
   onResumeToolCall,
   attachmentAdapter,
@@ -192,6 +202,7 @@ const useMessageClient = ({
           status: derivePartStatus(message, idx, part),
           messageId: message.id,
           onRespondToToolApproval,
+          unstable_onRecordToolInteraction,
           onAddToolResult,
           onResumeToolCall,
         }),
@@ -335,6 +346,9 @@ type PartResourceProps = {
   onRespondToToolApproval?:
     | ((options: RespondToToolApprovalOptions) => void | Promise<void>)
     | undefined;
+  unstable_onRecordToolInteraction?:
+    | ((options: Unstable_RecordToolInteractionOptions) => void | Promise<void>)
+    | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
   onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
 };
@@ -345,6 +359,7 @@ const usePartResource = ({
   status,
   messageId,
   onRespondToToolApproval,
+  unstable_onRecordToolInteraction,
   onAddToolResult,
   onResumeToolCall,
 }: PartResourceProps): ClientOutput<"part"> => {
@@ -385,6 +400,18 @@ const usePartResource = ({
         throw new Error("Tried to resume tool call on non-tool message part");
 
       onResumeToolCall({ toolCallId: part.toolCallId, payload });
+      void Promise.resolve()
+        .then(() =>
+          unstable_onRecordToolInteraction?.({
+            messageId,
+            toolCallId: part.toolCallId,
+            interaction: createToolInteraction({
+              type: "human-response",
+              payload,
+            }),
+          }),
+        )
+        .catch(() => {});
     },
     respondToToolApproval: (response) => {
       if (!onRespondToToolApproval)
@@ -408,6 +435,22 @@ const usePartResource = ({
       } catch (error) {
         return Promise.reject(error);
       }
+    },
+    unstable_recordInteraction: async (
+      input: Unstable_ToolInteractionInput,
+    ) => {
+      if (!unstable_onRecordToolInteraction)
+        throw new Error(
+          "Runtime does not support recording tool interactions.",
+        );
+      if (part.type !== "tool-call")
+        throw new Error("Tried to record interaction on non-tool message part");
+
+      await unstable_onRecordToolInteraction({
+        messageId,
+        toolCallId: part.toolCallId,
+        interaction: createToolInteraction(input),
+      });
     },
   };
 };
@@ -1335,6 +1378,7 @@ const useExternalThread = ({
   onRefetchThread,
   onAddToolResult,
   onResumeToolCall,
+  unstable_onRecordToolInteraction,
   onLoadExternalState,
   attachmentAdapter,
   feedbackAdapter,
@@ -1512,6 +1556,7 @@ const useExternalThread = ({
         queue,
         branches,
         onRespondToToolApproval,
+        unstable_onRecordToolInteraction,
         onAddToolResult,
         onResumeToolCall,
         attachmentAdapter,
@@ -1564,6 +1609,8 @@ const useExternalThread = ({
   const hasAttachments = !!attachmentAdapter;
   const hasFeedback = !!feedbackAdapter;
   const hasSpeech = !!speechAdapter;
+  const hasAnswerToolCall =
+    !!onAddToolResult || !!onResumeToolCall || !!onRespondToToolApproval;
   const state = useMemo(() => {
     const messageStates =
       pendingClients.state.length === 0
@@ -1590,6 +1637,7 @@ const useExternalThread = ({
         unstable_copy: false,
         dictation: false,
         queue: hasQueue,
+        answerToolCall: hasAnswerToolCall,
       },
       messages: messageStates,
       tasks,
@@ -1614,6 +1662,7 @@ const useExternalThread = ({
     hasAttachments,
     hasFeedback,
     hasSpeech,
+    hasAnswerToolCall,
     speech,
     messageClients.state,
     pendingClients.state,
