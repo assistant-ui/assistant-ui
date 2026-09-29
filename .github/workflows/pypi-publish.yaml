@@ -167,11 +167,11 @@ jobs:
 
           case "$status" in
             200)
-              latest=$(python3 -c 'import sys, json; print(json.load(sys.stdin).get("info", {}).get("version") or "")' < "$pypi_body")
+              highest=$(python3 -c 'import sys, json, re; vs = [tuple(map(int, v.split("."))) for v in json.load(sys.stdin).get("releases", {}) if re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", v)]; print(".".join(map(str, max(vs))) if vs else "")' < "$pypi_body")
               exists=$(python3 -c 'import sys, json; d=json.load(sys.stdin); print("true" if sys.argv[1] in d.get("releases", {}) else "false")' "$version" < "$pypi_body")
               ;;
             404)
-              latest=""
+              highest=""
               exists="false"
               ;;
             *)
@@ -180,15 +180,15 @@ jobs:
               ;;
           esac
 
-          if [ -n "$latest" ] && [ "$version" != "$latest" ]; then
-            IFS=. read -r major minor patch <<< "$latest"
+          if [ -n "$highest" ] && [ "$version" != "$highest" ]; then
+            IFS=. read -r major minor patch <<< "$highest"
             next_patch="$major.$minor.$((patch + 1))"
             next_minor="$major.$((minor + 1)).0"
             next_major="$((major + 1)).0.0"
             case "$version" in
               "$next_patch" | "$next_minor" | "$next_major") ;;
               *)
-                echo "Refusing to publish $PYTHON_PACKAGE_NAME@$version: PyPI latest is $latest, so the next release is $next_patch, $next_minor, or $next_major" >&2
+                echo "Refusing to publish $PYTHON_PACKAGE_NAME@$version: the highest release on PyPI is $highest, so the next release is $next_patch, $next_minor, or $next_major" >&2
                 exit 1
                 ;;
             esac
