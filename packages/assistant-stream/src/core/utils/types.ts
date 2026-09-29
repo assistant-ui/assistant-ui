@@ -86,17 +86,31 @@ type ToolCallPartWithoutResult = ToolCallPartBase & {
   state: "partial-call" | "call";
   result?: undefined;
   modelContent?: undefined;
+  isPreliminary?: undefined;
 };
 
-type ToolCallPartWithResult = ToolCallPartBase & {
-  state: "result";
+type ToolCallPartWithPreliminaryResult = ToolCallPartBase & {
+  state: "partial-call" | "call";
   result: ReadonlyJSONValue;
+  isPreliminary: true;
   artifact?: ReadonlyJSONValue;
   modelContent?: readonly ToolModelContentPart[];
   isError?: boolean;
 };
 
-export type ToolCallPart = ToolCallPartWithoutResult | ToolCallPartWithResult;
+type ToolCallPartWithResult = ToolCallPartBase & {
+  state: "result";
+  result: ReadonlyJSONValue;
+  isPreliminary?: undefined;
+  artifact?: ReadonlyJSONValue;
+  modelContent?: readonly ToolModelContentPart[];
+  isError?: boolean;
+};
+
+export type ToolCallPart =
+  | ToolCallPartWithoutResult
+  | ToolCallPartWithPreliminaryResult
+  | ToolCallPartWithResult;
 
 export type SourcePart = {
   type: "source";

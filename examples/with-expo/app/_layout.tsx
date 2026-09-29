@@ -22,6 +22,7 @@ import {
   useAui,
   useAuiEvent,
 } from "@assistant-ui/react-native";
+import { useHydrated } from "@/components/assistant-ui/elements/surfaces";
 import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
 import { Icon } from "@/components/ui/icon";
 import toolkit from "@/components/tools";
@@ -57,15 +58,18 @@ function DrawerContent({ navigation }: DrawerContentComponentProps) {
   );
 }
 
+// The theme and the variables come from the CSSOM, so they apply from the first render after hydration.
 function DrawerLayout() {
+  const hydrated = useHydrated();
   const { theme } = useUniwind();
-  const [background, foreground, border] = useCSSVariable([
+  const variables = useCSSVariable([
     "--color-background",
     "--color-foreground",
     "--color-border",
   ]);
+  const [background, foreground, border] = hydrated ? variables : [];
 
-  const base = theme === "dark" ? DarkTheme : DefaultTheme;
+  const base = hydrated && theme === "dark" ? DarkTheme : DefaultTheme;
   const colors = {
     background: String(background ?? base.colors.background),
     text: String(foreground ?? base.colors.text),

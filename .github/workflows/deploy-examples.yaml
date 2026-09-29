@@ -43,7 +43,7 @@ env:
 jobs:
   changes:
     name: Changed examples
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.filter.outputs.matrix }}
       any: ${{ steps.filter.outputs.any }}
@@ -81,7 +81,7 @@ jobs:
     name: Deploy Production (${{ matrix.example }})
     needs: changes
     if: needs.changes.outputs.any == 'true'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.changes.outputs.matrix) }}
@@ -100,15 +100,6 @@ jobs:
           runtime: node@24
           cache: true
           install: false
-
-      - name: Cache turbo build setup
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache@v6.1.0
-        with:
-          path: .turbo
-          key: ${{ runner.os }}-turbo-${{ matrix.example }}-${{ github.ref }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-turbo-${{ matrix.example }}-${{ github.ref }}-
-            ${{ runner.os }}-turbo-${{ matrix.example }}-
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

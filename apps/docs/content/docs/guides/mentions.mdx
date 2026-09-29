@@ -6,6 +6,8 @@ platforms: ["react"]
 
 Mentions let users type `@` in the composer to open a popover picker, select an item (e.g. a tool), and insert a directive into the message text. The LLM can then use the directive as a hint.
 
+<AgentSetup product="guides/mentions" />
+
 ## How It Works
 
 ```mermaid
@@ -387,7 +389,7 @@ The mention system supports two input modes:
 | --- | --- | --- |
 | **Input component** | `ComposerPrimitive.Input` | `LexicalComposerInput` |
 | **Mention display in composer** | Raw directive text (`:tool[Label]`) | Inline chips (atomic nodes) |
-| **Dependencies** | None | `@assistant-ui/react-lexical`, `lexical`, `@lexical/react` |
+| **Dependencies** | None | `@assistant-ui/react-lexical` and its Lexical peers: `lexical`, `@lexical/react`, `@lexical/utils`, `@lexical/history`, `@lexical/plain-text` |
 | **Best for** | Simple setups, minimal bundle | Rich editing, polished UX |
 
 With **textarea**, selecting a mention inserts the directive string directly into the text. The user sees `:tool[Get Weather]{name=get_weather}` in the input.
@@ -416,7 +418,7 @@ import { LexicalComposerInput } from "@assistant-ui/react-lexical";
 
 ### Custom Lexical Plugins
 
-Children of `LexicalComposerInput` render inside the `LexicalComposer` context after the built-in plugins, so standard Lexical plugin components built on `useLexicalComposerContext` work for editor concerns the mention system does not cover, such as paste normalization or length limits. Custom plugins import Lexical APIs directly, so install `lexical` and `@lexical/react` as direct dependencies of your app. The example below registers an update listener that flags messages over a maximum length.
+Children of `LexicalComposerInput` render inside the Lexical composer context after the built-in plugins, so standard Lexical plugin components built on `useLexicalComposerContext` work for editor concerns the mention system does not cover, such as paste normalization or length limits. `lexical` and the `@lexical/*` packages are peer dependencies of `@assistant-ui/react-lexical`, so the copy your plugins import is the one the composer runs on; keep every Lexical package in your app at a single version. The example below registers an update listener that flags messages over a maximum length.
 
 ```tsx
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";

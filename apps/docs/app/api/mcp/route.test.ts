@@ -268,7 +268,7 @@ describe("POST /api/mcp", () => {
       const request = new Request(new URL(url, ORIGIN), {
         method: init.method,
         headers: init.headers,
-        body: init.body,
+        ...(init.body === undefined ? {} : { body: init.body }),
         ...(init.signal ? { signal: init.signal } : {}),
       });
       const response = await POST(request as Parameters<typeof POST>[0]);

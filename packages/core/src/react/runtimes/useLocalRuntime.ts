@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   AssistantRuntime,
   ChatModelAdapter,
@@ -6,11 +6,12 @@ import type {
 } from "../../index";
 import type { LocalRuntimeOptionsBase } from "../../runtimes/local/local-runtime-options";
 import { AssistantRuntimeImpl, LocalRuntimeCore } from "../../internal";
-import { useAuiState } from "@assistant-ui/store";
+import { useAui } from "@assistant-ui/store";
 import { useRemoteThreadListRuntime } from "./useRemoteThreadListRuntime";
 import { useCloudThreadListAdapter } from "./cloud/useCloudThreadListAdapter";
 import { useRuntimeAdapters } from "./RuntimeAdapterProvider";
 import type { AssistantCloud } from "assistant-cloud";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 
 export type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
   cloud?: AssistantCloud | undefined;
@@ -34,17 +35,20 @@ const useLocalThreadRuntime = (
 
   const [runtime] = useState(() => new LocalRuntimeCore(opt, initialMessages));
 
-  const threadIdRef = useRef<string | undefined>(undefined);
+  const aui = useAui();
   const historyLoadPromiseRef = useRef<Promise<void> | undefined>(undefined);
-  threadIdRef.current = useAuiState((s) => s.threadListItem.remoteId);
 
+  // A run reads the id in the microtask after the initialization barrier,
+  // before the store has flushed the remote id into React state.
   useEffect(() => {
     runtime.threads
       .getMainThreadRuntimeCore()
-      .__internal_setGetThreadId(() => threadIdRef.current);
-  }, [runtime]);
+      .__internal_setGetThreadId(
+        () => aui.threadListItem.__internal_getRuntime?.().getState().remoteId,
+      );
+  }, [aui, runtime]);
 
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     return () => {
       runtime.threads.getMainThreadRuntimeCore().detach();
     };
@@ -71,7 +75,8 @@ const useLocalThreadRuntime = (
     return runtime.registerModelContextProvider(modelContext);
   }, [modelContext, runtime]);
 
-  return useMemo(() => new AssistantRuntimeImpl(runtime), [runtime]);
+  const [assistantRuntime] = useState(() => new AssistantRuntimeImpl(runtime));
+  return assistantRuntime;
 };
 
 export const splitLocalRuntimeOptions = <T extends LocalRuntimeOptions>(

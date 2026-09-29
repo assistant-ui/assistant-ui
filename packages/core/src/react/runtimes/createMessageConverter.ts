@@ -1,6 +1,6 @@
 "use client";
 import type { ThreadMessage } from "../../types/message";
-import type { ThreadState } from "../../runtime/api/thread-runtime";
+import type { ThreadRuntimeState } from "../../runtime/api/thread-runtime";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import {
   useExternalMessageConverter,
@@ -40,14 +40,20 @@ export const createMessageConverter = <T extends object>(
       return convertExternalMessages(messages, callback, isRunning, metadata);
     },
     toOriginalMessages: (
-      input: ThreadState | ThreadMessage | ThreadMessage["content"][number],
+      input:
+        | ThreadRuntimeState
+        | ThreadMessage
+        | ThreadMessage["content"][number],
     ) => {
       const messages = getExternalStoreMessages(input);
       if (messages.length === 0) throw new Error("No original messages found");
       return messages;
     },
     toOriginalMessage: (
-      input: ThreadState | ThreadMessage | ThreadMessage["content"][number],
+      input:
+        | ThreadRuntimeState
+        | ThreadMessage
+        | ThreadMessage["content"][number],
     ) => {
       const messages = result.toOriginalMessages(input);
       return messages[0]!;

@@ -48,9 +48,12 @@ type ElementRegistryEntry = {
   description: string;
   file: string;
   dependencies?: string[];
+  devDependencies?: string[];
   usesCollapsible?: boolean;
   usesElements?: string[];
+  usesHooks?: string[];
   usesSurfaces?: boolean;
+  usesUi?: string[];
 };
 
 const createElementRegistryItem = (
@@ -74,9 +77,14 @@ const createElementRegistryItem = (
     ...(entry.usesElements ?? []).map(
       (slug) => `https://r.assistant-ui.com/elements-${slug}.json`,
     ),
+    ...(entry.usesHooks ?? []).map(
+      (name) => `https://r.assistant-ui.com/${name}.json`,
+    ),
     ...(entry.usesCollapsible ? ["collapsible"] : []),
+    ...(entry.usesUi ?? []),
   ],
   ...(entry.dependencies ? { dependencies: entry.dependencies } : {}),
+  ...(entry.devDependencies ? { devDependencies: entry.devDependencies } : {}),
 });
 
 const elementsRegistryItems: RegistryItem[] = [
@@ -88,7 +96,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "Shared design language for the elements family: surface, ink, and motion class recipes plus the shimmer utility.",
     files: [
       {
-        type: "registry:lib",
+        type: "registry:component",
         path: "components/assistant-ui/elements/surfaces.tsx",
         sourcePath:
           "../../packages/ui/src/components/react/assistant-ui/elements/surfaces.tsx",
@@ -107,12 +115,43 @@ const elementsRegistryItems: RegistryItem[] = [
       "Range normalization for the elements family: clamping a caller's counts, indexes, and shares to what the element can render.",
     files: [
       {
-        type: "registry:lib",
+        type: "registry:component",
         path: "components/assistant-ui/utils/range.ts",
         sourcePath:
           "../../packages/ui/src/components/react/assistant-ui/utils/range.ts",
       },
     ],
+  },
+  {
+    name: "elements-href",
+    type: "registry:component",
+    title: "Elements Href",
+    description:
+      "Link safety for the elements family: reducing a model's or a tool's URL to a target a browser can follow without running script.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/href.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/utils/href.ts",
+      },
+    ],
+  },
+  {
+    name: "elements-task",
+    type: "registry:component",
+    title: "Elements Task",
+    description:
+      "Shared task state, labels, timing, and elapsed time for task elements.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/task.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/utils/task.ts",
+      },
+    ],
+    dependencies: ["@assistant-ui/react"],
   },
   createElementRegistryItem({
     slug: "loading-state",
@@ -221,6 +260,7 @@ const elementsRegistryItems: RegistryItem[] = [
     file: "terminal-block.tsx",
     dependencies: ["lucide-react"],
     usesElements: ["range"],
+    usesHooks: ["use-copy-to-clipboard"],
   }),
   createElementRegistryItem({
     slug: "code-diff",
@@ -246,6 +286,7 @@ const elementsRegistryItems: RegistryItem[] = [
     file: "sources.tsx",
     dependencies: ["lucide-react"],
     usesCollapsible: true,
+    usesElements: ["href"],
   }),
   createElementRegistryItem({
     slug: "inline-citation",
@@ -254,6 +295,15 @@ const elementsRegistryItems: RegistryItem[] = [
       "Numbered references inside a sentence, each with a hover preview of its source.",
     file: "inline-citation.tsx",
     dependencies: ["@base-ui/react"],
+    usesElements: ["href"],
+  }),
+  createElementRegistryItem({
+    slug: "link-preview",
+    title: "Link preview",
+    description:
+      "A returned URL unfurled into a card with enough context to decide whether to open it.",
+    file: "link-preview.tsx",
+    usesElements: ["href"],
   }),
   createElementRegistryItem({
     slug: "image-generation",
@@ -264,10 +314,22 @@ const elementsRegistryItems: RegistryItem[] = [
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
+    slug: "image-gallery",
+    title: "Image gallery",
+    description:
+      "A compact grid of returned images that opens each one in a shared lightbox.",
+    file: "image-gallery.tsx",
+    dependencies: ["lucide-react"],
+    usesElements: ["href", "range"],
+    usesUi: ["dialog"],
+  }),
+  createElementRegistryItem({
     slug: "data-table",
     title: "Data table",
-    description: "A small comparison table the model can answer with directly.",
+    description:
+      "A tool's rows and columns with formatting, sorting, and a card layout in narrow columns.",
     file: "data-table.tsx",
+    usesElements: ["href", "range"],
   }),
   createElementRegistryItem({
     slug: "number-ticker",
@@ -302,12 +364,37 @@ const elementsRegistryItems: RegistryItem[] = [
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
+    slug: "task-card",
+    title: "Task card",
+    description:
+      "A delegated task with its state, timing, result, and transcript in one card.",
+    file: "task-card.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
     slug: "approval-card",
     title: "Approval card",
     description:
       "Human in the loop: the agent asks before it runs anything with side effects.",
     file: "approval-card.tsx",
     dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "option-list",
+    title: "Option list",
+    description:
+      "The agent asks a question with a few answers; the pick returns to it and stays as a receipt.",
+    file: "option-list.tsx",
+    dependencies: ["lucide-react"],
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "question-flow",
+    title: "Question flow",
+    description:
+      "A few short questions asked one at a time, answered together and kept as a receipt.",
+    file: "question-flow.tsx",
+    usesElements: ["option-list"],
   }),
   createElementRegistryItem({
     slug: "recommendation-card",
@@ -382,6 +469,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "The agent's own working list, rewritten mid-run as it discovers what else is needed.",
     file: "todo-list.tsx",
     dependencies: ["lucide-react"],
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "message-queue",
@@ -441,6 +529,14 @@ const elementsRegistryItems: RegistryItem[] = [
       "Area, line, and bars, with points landing one at a time as the series streams in.",
     file: "chart.tsx",
     usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "media-player",
+    title: "Media player",
+    description:
+      "Audio and video a tool returned, played inline without leaving the thread.",
+    file: "media-player.tsx",
+    dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
     slug: "trace-waterfall",
@@ -711,6 +807,15 @@ const elementsRegistryItems: RegistryItem[] = [
     description:
       "A location answer: pins, a route between them, and the list they came from.",
     file: "map-answer.tsx",
+  }),
+  createElementRegistryItem({
+    slug: "geo-map",
+    title: "Geo map",
+    description:
+      "Places and routes on a real tiled map, with an accessible list of every place.",
+    file: "geo-map.tsx",
+    dependencies: ["leaflet"],
+    devDependencies: ["@types/leaflet"],
   }),
   createElementRegistryItem({
     slug: "math-block",
@@ -1108,6 +1213,69 @@ export const registry: RegistryItem[] = [
     ],
   },
   {
+    name: "voice-conversation",
+    type: "registry:component",
+    title: "Voice conversation",
+    description:
+      "The live call screen bound to the thread's voice session: orb, caption, transcript, mute, and end call.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/voice-conversation.aui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/voice-conversation.aui.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/elements-voice-conversation.json",
+    ],
+  },
+  {
+    name: "task-card",
+    type: "registry:component",
+    title: "Task card",
+    description:
+      "A runtime task card with nested transcripts, timing, results, and grouped task lanes.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/task-card.aui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/task-card.aui.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/elements-task-card.json",
+      "https://r.assistant-ui.com/elements-task.json",
+      "https://r.assistant-ui.com/markdown-text.json",
+      "https://r.assistant-ui.com/tool-fallback.json",
+    ],
+  },
+  {
+    name: "agent-status",
+    type: "registry:component",
+    title: "Agent status",
+    description:
+      "A runtime task summary chip with an optional tray for every task in the thread.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/agent-status.aui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/agent-status.aui.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/elements-agent-status.json",
+      "https://r.assistant-ui.com/elements-task-card.json",
+      "https://r.assistant-ui.com/elements-task.json",
+      "popover",
+    ],
+  },
+  {
     name: "use-copy-to-clipboard",
     type: "registry:hook",
     title: "Use Copy To Clipboard",
@@ -1381,7 +1549,8 @@ export const registry: RegistryItem[] = [
     name: "assistant-modal",
     type: "registry:component",
     title: "Assistant Modal",
-    description: "Floating chat bubble for support widgets and help desks.",
+    description:
+      "Floating chat bubble for support widgets and help desks, with a thread list and a resizable window.",
     files: [
       {
         type: "registry:component",
@@ -1393,9 +1562,10 @@ export const registry: RegistryItem[] = [
     dependencies: ["@assistant-ui/react", "lucide-react"],
     registryDependencies: [
       "https://r.assistant-ui.com/thread.json",
+      "https://r.assistant-ui.com/thread-list.json",
       "https://r.assistant-ui.com/tooltip-icon-button.json",
     ],
-    baseRegistryDependencies: ["popover"],
+    baseDependencies: ["@base-ui/react"],
   },
   {
     name: "assistant-sidebar",
@@ -1553,6 +1723,10 @@ export const registry: RegistryItem[] = [
       "parse-diff",
       "@assistant-ui/react-markdown",
       "class-variance-authority",
+      "lucide-react",
+    ],
+    registryDependencies: [
+      "https://r.assistant-ui.com/use-copy-to-clipboard.json",
     ],
   },
   {
@@ -1611,7 +1785,10 @@ export const registry: RegistryItem[] = [
       },
     ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
-    registryDependencies: ["https://r.assistant-ui.com/badge.json"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/badge.json",
+      "https://r.assistant-ui.com/elements-href.json",
+    ],
   },
   {
     name: "image",
@@ -1632,14 +1809,14 @@ export const registry: RegistryItem[] = [
       "lucide-react",
       "class-variance-authority",
     ],
-    registryDependencies: [],
+    registryDependencies: ["https://r.assistant-ui.com/elements-href.json"],
   },
   {
     name: "file",
     type: "registry:component",
     title: "File",
     description:
-      "Display file parts with icon, name, size, and a download button.",
+      "Display file parts with icon, name, size, and a download button, playing audio and video inline.",
     files: [
       {
         type: "registry:component",
@@ -1652,6 +1829,9 @@ export const registry: RegistryItem[] = [
       "@assistant-ui/react",
       "lucide-react",
       "class-variance-authority",
+    ],
+    registryDependencies: [
+      "https://r.assistant-ui.com/elements-media-player.json",
     ],
   },
   {
@@ -1942,6 +2122,7 @@ type NativeElementRegistryEntry = {
   dependencies?: string[];
   usesElements?: string[];
   usesIcon?: boolean;
+  usesUtils?: boolean;
   usesSurfaces?: boolean;
 };
 
@@ -1967,7 +2148,9 @@ const createNativeElementRegistryItem = (
       (slug) => `https://r.assistant-ui.com/native/elements-${slug}.json`,
     ),
     ...(entry.usesIcon ? ["https://r.assistant-ui.com/native/icon.json"] : []),
-    "https://r.assistant-ui.com/utils.json",
+    ...(entry.usesUtils === false
+      ? []
+      : ["https://r.assistant-ui.com/utils.json"]),
   ],
   dependencies: [...(entry.dependencies ?? []), "uniwind"],
 });
@@ -1996,10 +2179,15 @@ export const nativeRegistry: RegistryItem[] = [
     ],
     registryDependencies: [
       "https://r.assistant-ui.com/native/attachment.json",
+      "https://r.assistant-ui.com/native/file.json",
+      "https://r.assistant-ui.com/native/image.json",
       "https://r.assistant-ui.com/native/elements-icon-button.json",
+      "https://r.assistant-ui.com/native/reasoning.json",
+      "https://r.assistant-ui.com/native/elements-surfaces.json",
       "https://r.assistant-ui.com/native/elements-typing-indicator.json",
       "https://r.assistant-ui.com/native/icon.json",
       "https://r.assistant-ui.com/native/markdown-text.json",
+      "https://r.assistant-ui.com/native/elements-tool-fallback.json",
       "https://r.assistant-ui.com/utils.json",
     ],
   },
@@ -2025,7 +2213,30 @@ export const nativeRegistry: RegistryItem[] = [
       "react-native-svg",
       "uniwind",
     ],
-    registryDependencies: ["https://r.assistant-ui.com/native/icon.json"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/native/elements-surfaces.json",
+      "https://r.assistant-ui.com/native/icon.json",
+    ],
+  },
+  {
+    name: "reasoning",
+    type: "registry:component",
+    title: "Reasoning",
+    description:
+      "Collapsible renderer for assistant reasoning with a live streaming preview.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/reasoning.aui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react-native/assistant-ui/elements/reasoning.aui.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react-native", "uniwind"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/native/elements-reasoning.json",
+      "https://r.assistant-ui.com/native/markdown-text.json",
+    ],
   },
   {
     name: "attachment",
@@ -2048,7 +2259,10 @@ export const nativeRegistry: RegistryItem[] = [
       "lucide-react-native",
       "uniwind",
     ],
-    registryDependencies: ["https://r.assistant-ui.com/native/icon.json"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/native/elements-icon-button.json",
+      "https://r.assistant-ui.com/native/icon.json",
+    ],
   },
   {
     name: "thread-list",
@@ -2097,7 +2311,7 @@ export const nativeRegistry: RegistryItem[] = [
       "Shared design language for the native elements family: surface, ink, and monospace class recipes plus the pulse label.",
     files: [
       {
-        type: "registry:lib",
+        type: "registry:component",
         path: "components/assistant-ui/elements/surfaces.tsx",
         sourcePath:
           "../../packages/ui/src/components/react-native/assistant-ui/elements/surfaces.tsx",
@@ -2114,12 +2328,28 @@ export const nativeRegistry: RegistryItem[] = [
       "Range normalization for the elements family: clamping a caller's counts to what the element can render.",
     files: [
       {
-        type: "registry:lib",
+        type: "registry:component",
         path: "components/assistant-ui/utils/range.ts",
         sourcePath:
           "../../packages/ui/src/components/react-native/assistant-ui/utils/range.ts",
       },
     ],
+  },
+  {
+    name: "elements-task",
+    type: "registry:component",
+    title: "Elements Task",
+    description:
+      "Shared task state, labels, timing, elapsed time, and value helpers for task elements.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/task.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react-native/assistant-ui/utils/task.ts",
+      },
+    ],
+    dependencies: ["@assistant-ui/react-native"],
   },
   createNativeElementRegistryItem({
     slug: "icon-button",
@@ -2134,6 +2364,15 @@ export const nativeRegistry: RegistryItem[] = [
     description:
       "The classic three dots, tuned to read as presence rather than noise.",
     file: "typing-indicator.tsx",
+  }),
+  createNativeElementRegistryItem({
+    slug: "reasoning",
+    title: "Reasoning",
+    description:
+      "Collapsible assistant reasoning with a live, bottom-pinned streaming preview.",
+    file: "reasoning.tsx",
+    dependencies: ["lucide-react-native"],
+    usesIcon: true,
   }),
   createNativeElementRegistryItem({
     slug: "error-state",
@@ -2154,6 +2393,77 @@ export const nativeRegistry: RegistryItem[] = [
     usesIcon: true,
   }),
   createNativeElementRegistryItem({
+    slug: "message-queue",
+    title: "Message queue",
+    description:
+      "Turns you typed while a run was in flight, stacked and cancelable until it finishes.",
+    file: "message-queue.tsx",
+    dependencies: ["lucide-react-native"],
+    usesElements: ["icon-button"],
+    usesIcon: true,
+  }),
+  createNativeElementRegistryItem({
+    slug: "tool-fallback",
+    title: "Tool fallback",
+    description: "Default renderer for tool calls that have no dedicated UI.",
+    file: "tool-fallback.tsx",
+    dependencies: ["@assistant-ui/react-native", "lucide-react-native"],
+    usesElements: ["task"],
+    usesIcon: true,
+  }),
+  {
+    name: "file",
+    type: "registry:component",
+    title: "File",
+    description:
+      "File message part with a type icon, payload size, and an external open control for web URLs.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/file.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react-native/assistant-ui/elements/file.tsx",
+      },
+    ],
+    dependencies: [
+      "@assistant-ui/react-native",
+      "lucide-react-native",
+      "uniwind",
+    ],
+    registryDependencies: [
+      "https://r.assistant-ui.com/native/elements-icon-button.json",
+      "https://r.assistant-ui.com/native/icon.json",
+      "https://r.assistant-ui.com/utils.json",
+    ],
+  },
+  {
+    name: "image",
+    type: "registry:component",
+    title: "Image",
+    description:
+      "Image message part with loading, generation, and content filtering states plus tap to zoom.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/image.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react-native/assistant-ui/elements/image.tsx",
+      },
+    ],
+    dependencies: [
+      "@assistant-ui/react-native",
+      "lucide-react-native",
+      "react-native-safe-area-context",
+      "uniwind",
+    ],
+    registryDependencies: [
+      "https://r.assistant-ui.com/native/elements-surfaces.json",
+      "https://r.assistant-ui.com/native/elements-icon-button.json",
+      "https://r.assistant-ui.com/native/icon.json",
+      "https://r.assistant-ui.com/utils.json",
+    ],
+  },
+  createNativeElementRegistryItem({
     slug: "approval-card",
     title: "Approval card",
     description:
@@ -2172,6 +2482,15 @@ export const nativeRegistry: RegistryItem[] = [
     usesIcon: true,
   }),
   createNativeElementRegistryItem({
+    slug: "task-card",
+    title: "Task card",
+    description:
+      "A delegated task with its state, timing, result, and transcript in one card.",
+    file: "task-card.tsx",
+    dependencies: ["lucide-react-native"],
+    usesIcon: true,
+  }),
+  createNativeElementRegistryItem({
     slug: "tool-timeline",
     title: "Tool timeline",
     description:
@@ -2181,6 +2500,116 @@ export const nativeRegistry: RegistryItem[] = [
     usesElements: ["range"],
     usesIcon: true,
   }),
+  createNativeElementRegistryItem({
+    slug: "conversation-map",
+    title: "Conversation map",
+    description:
+      "A rail of the whole thread: one tick per turn, the turn being read marked and the ones on screen deepened, and a held tick previews what it says.",
+    file: "conversation-map.tsx",
+  }),
+  createNativeElementRegistryItem({
+    slug: "voice-conversation",
+    title: "Voice conversation",
+    description:
+      "The props-driven native call screen: orb, caption, transcript, mute, and end call.",
+    file: "voice-conversation.tsx",
+    dependencies: ["lucide-react-native"],
+    usesElements: ["range"],
+    usesIcon: true,
+  }),
+  {
+    name: "conversation-map",
+    type: "registry:component",
+    title: "Conversation Map",
+    description:
+      "Runtime-backed thread rail for the thread's Rail slot: a tick per turn, the turn being read marked and the ones on screen deepened, a held preview, and a press that scrolls there.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/conversation-map.aui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react-native/assistant-ui/elements/conversation-map.aui.tsx",
+      },
+    ],
+    registryDependencies: [
+      "https://r.assistant-ui.com/native/elements-conversation-map.json",
+      "https://r.assistant-ui.com/native/thread.json",
+      "https://r.assistant-ui.com/utils.json",
+    ],
+    dependencies: ["@assistant-ui/react-native", "uniwind"],
+  },
+  {
+    name: "voice-conversation",
+    type: "registry:component",
+    title: "Voice conversation",
+    description:
+      "The live call screen bound to the thread's voice session: orb, caption, transcript, mute, and end call.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/voice-conversation.aui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react-native/assistant-ui/elements/voice-conversation.aui.tsx",
+      },
+    ],
+    registryDependencies: [
+      "https://r.assistant-ui.com/native/elements-voice-conversation.json",
+    ],
+    dependencies: ["@assistant-ui/react-native", "uniwind"],
+  },
+  {
+    name: "task-card",
+    type: "registry:component",
+    title: "Task card",
+    description:
+      "A native task card with nested transcripts, timing, results, and grouped task lanes.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/task-card.aui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react-native/assistant-ui/elements/task-card.aui.tsx",
+      },
+    ],
+    registryDependencies: [
+      "https://r.assistant-ui.com/native/elements-task-card.json",
+      "https://r.assistant-ui.com/native/elements-task.json",
+      "https://r.assistant-ui.com/native/elements-surfaces.json",
+      "https://r.assistant-ui.com/native/elements-tool-fallback.json",
+      "https://r.assistant-ui.com/native/markdown-text.json",
+      "https://r.assistant-ui.com/utils.json",
+    ],
+    dependencies: ["@assistant-ui/react-native", "uniwind"],
+  },
+  {
+    name: "agent-status",
+    type: "registry:component",
+    title: "Agent status",
+    description:
+      "A native task summary chip with an optional tray for every task in the thread.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/agent-status.aui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react-native/assistant-ui/elements/agent-status.aui.tsx",
+      },
+    ],
+    registryDependencies: [
+      "https://r.assistant-ui.com/native/elements-agent-status.json",
+      "https://r.assistant-ui.com/native/elements-task-card.json",
+      "https://r.assistant-ui.com/native/elements-task.json",
+      "https://r.assistant-ui.com/native/elements-surfaces.json",
+      "https://r.assistant-ui.com/native/icon.json",
+      "https://r.assistant-ui.com/utils.json",
+    ],
+    dependencies: [
+      "@assistant-ui/react-native",
+      "lucide-react-native",
+      "react-native-safe-area-context",
+      "uniwind",
+    ],
+  },
 ];
 
 /**

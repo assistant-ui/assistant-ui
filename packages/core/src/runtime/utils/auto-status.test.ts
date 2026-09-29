@@ -48,6 +48,21 @@ describe("getAutoStatus", () => {
     ).toMatchObject({ type: "complete", reason: "unknown" });
   });
 
+  it.each([false, 0, ""])("preserves the falsy error payload %j", (error) => {
+    expect(getAutoStatus(true, false, false, false, error)).toMatchObject({
+      type: "incomplete",
+      reason: "error",
+      error,
+    });
+  });
+
+  it("treats a null error as no error", () => {
+    expect(getAutoStatus(true, false, false, false, null)).toMatchObject({
+      type: "complete",
+      reason: "unknown",
+    });
+  });
+
   it.each([
     ["running", { type: "running" }, true, false, false, undefined],
     [
@@ -142,6 +157,45 @@ describe("getAutoStatus", () => {
       ),
     ).toMatchObject({ type: "requires-action", reason: "interrupt" });
   });
+
+  it.each([
+    ["approval", { approval: { id: "approval-1" } }],
+    ["interrupt", { interrupt: { type: "human" as const, payload: {} } }],
+  ] as const)(
+    "keeps a tool call with a pending %s interrupted beside its result",
+    (_label, action) => {
+      expect(
+        getContentAutoStatus(
+          [{ ...pendingToolCall(), result: "partial output", ...action }],
+          true,
+          false,
+        ),
+      ).toMatchObject({ type: "requires-action", reason: "interrupt" });
+    },
+  );
+
+  it.each([
+    ["a decision", { approved: true }],
+    ["a rejection", { approved: false }],
+    ["a resolution", { resolution: "cancelled" as const }],
+  ])(
+    "settles a tool call whose approval carries %s beside its result",
+    (_label, settled) => {
+      expect(
+        getContentAutoStatus(
+          [
+            {
+              ...pendingToolCall(),
+              result: "sunny",
+              approval: { id: "approval-1", ...settled },
+            },
+          ],
+          true,
+          false,
+        ),
+      ).toMatchObject({ type: "complete" });
+    },
+  );
 
   it.each([
     ["a result", { ...pendingToolCall(), result: {} }],

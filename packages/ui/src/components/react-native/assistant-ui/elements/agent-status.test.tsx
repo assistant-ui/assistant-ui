@@ -1,4 +1,5 @@
 import { act } from "react";
+import { View } from "react-native";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AgentStatus } from "./agent-status";
@@ -34,6 +35,7 @@ vi.mock("lucide-react-native", async () => {
     CheckIcon: icon("CheckIcon"),
     PauseIcon: icon("PauseIcon"),
     RotateCcwIcon: icon("RotateCcwIcon"),
+    XIcon: icon("XIcon"),
   };
 });
 
@@ -109,5 +111,25 @@ describe("AgentStatus", () => {
     expect(pill?.textContent).not.toContain("1:05");
     expect(pill?.querySelector('[data-testid="CheckIcon"]')).not.toBeNull();
     expect(pill?.querySelector('[data-testid="RotateCcwIcon"]')).not.toBeNull();
+  });
+
+  it("marks a failed run and takes a trailing node", async () => {
+    await act(async () => {
+      root.render(
+        <AgentStatus
+          state="failed"
+          label="Tests failed"
+          elapsed="1:05"
+          trailing={<View testID="Chevron" />}
+        />,
+      );
+    });
+
+    const pill = container.querySelector('[aria-label="Tests failed, failed"]');
+    expect(pill).not.toBeNull();
+    expect(pill?.textContent).not.toContain("1:05");
+    expect(pill?.querySelector('[data-testid="XIcon"]')).not.toBeNull();
+    expect(pill?.querySelector('[data-testid="Chevron"]')).not.toBeNull();
+    expect(pill?.querySelector('[data-testid="RotateCcwIcon"]')).toBeNull();
   });
 });

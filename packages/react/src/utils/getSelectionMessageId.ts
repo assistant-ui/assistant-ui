@@ -54,7 +54,10 @@ const intersectsExcluded = (scope: Element, selection: Selection): boolean => {
   return false;
 };
 
-export const getSelectionMessageId = (selection: Selection): string | null => {
+export const getSelectionMessageId = (
+  selection: Selection,
+  root?: Element | null,
+): string | null => {
   const { anchorNode, focusNode } = selection;
   if (!anchorNode || !focusNode) return null;
 
@@ -62,6 +65,9 @@ export const getSelectionMessageId = (selection: Selection): string | null => {
   const focusMessageElement = findMessageElement(focusNode);
 
   if (!anchorMessageElement || anchorMessageElement !== focusMessageElement) {
+    return null;
+  }
+  if (root && !root.contains(anchorMessageElement)) {
     return null;
   }
 

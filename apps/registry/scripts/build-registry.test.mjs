@@ -15,6 +15,9 @@ const {
   expandBundledRegistryDependencies,
   getRadixVariantSourcePath,
   getRelativeImportCandidates,
+  pinWorkspaceDependencies,
+  readWorkspacePackageVersions,
+  shadcnInstallPath,
   validateRegistryInstallMetadata,
   validateBasePassDidNotReadRadixSources,
   validateBaseTreeRadixImports,
@@ -28,6 +31,8 @@ const {
   validateVariantSlotParity,
   validateVariantTreesDiffer,
 } = await import("./build-registry.ts");
+
+const workspaceVersions = readWorkspacePackageVersions();
 
 const { generativeUiVocabularyCss } =
   await import("../../../packages/ui/src/lib/generative-ui-vocabulary-css.ts");
@@ -170,7 +175,11 @@ test("native registry build emits the React Native kit", async () => {
     thread.files[0].path,
     "components/assistant-ui/elements/thread.aui.tsx",
   );
-  assert.ok(thread.dependencies.includes("@assistant-ui/react-native"));
+  assert.ok(
+    thread.dependencies.includes(
+      `@assistant-ui/react-native@^${workspaceVersions.get("@assistant-ui/react-native")}`,
+    ),
+  );
   assert.ok(
     thread.registryDependencies.includes(
       "https://r.assistant-ui.com/native/attachment.json",
@@ -186,18 +195,32 @@ test("native registry build emits the React Native kit", async () => {
     [
       "thread",
       "markdown-text",
+      "reasoning",
       "attachment",
       "thread-list",
       "icon",
       "elements-surfaces",
       "elements-range",
+      "elements-task",
       "elements-icon-button",
       "elements-typing-indicator",
+      "elements-reasoning",
       "elements-error-state",
       "elements-stopped-run",
+      "elements-message-queue",
+      "elements-tool-fallback",
+      "file",
+      "image",
       "elements-approval-card",
       "elements-agent-status",
+      "elements-task-card",
       "elements-tool-timeline",
+      "elements-conversation-map",
+      "elements-voice-conversation",
+      "conversation-map",
+      "voice-conversation",
+      "task-card",
+      "agent-status",
     ],
   );
 });
@@ -236,7 +259,7 @@ test("vue registry build emits self-contained staged items", async () => {
     ["thread-list", "thread"],
   );
   assert.deepEqual(thread.dependencies, [
-    "@assistant-ui/core",
+    `@assistant-ui/core@^${workspaceVersions.get("@assistant-ui/core")}`,
     "@assistant-ui/vue",
     "@lucide/vue",
     "markdown-it",
@@ -251,6 +274,86 @@ test("vue registry build emits self-contained staged items", async () => {
   assert.equal("target" in threadListFile, false);
   assert.match(threadFile.content, /import Message from "\.\/message\.vue"/);
   assert.match(threadListFile.content, /from "reka-ui"/);
+});
+
+test("workspace dependencies are pinned to the caret range of the built version", () => {
+  const versions = new Map([
+    ["@assistant-ui/react", "0.15.22"],
+    ["tw-shimmer", "0.4.13"],
+    ["@assistant-ui/vue", null],
+  ]);
+  const item = pinWorkspaceDependencies(
+    {
+      name: "thread",
+      type: "registry:component",
+      dependencies: [
+        "@assistant-ui/react",
+        "@assistant-ui/vue",
+        "tw-shimmer",
+        "lucide-react",
+      ],
+      devDependencies: ["@assistant-ui/react"],
+    },
+    versions,
+  );
+
+  assert.deepEqual(item.dependencies, [
+    "@assistant-ui/react@^0.15.22",
+    "@assistant-ui/vue",
+    "tw-shimmer@^0.4.13",
+    "lucide-react",
+  ]);
+  assert.deepEqual(item.devDependencies, ["@assistant-ui/react@^0.15.22"]);
+  assert.equal(
+    "dependencies" in
+      pinWorkspaceDependencies(
+        { name: "utils", type: "registry:lib" },
+        versions,
+      ),
+    false,
+  );
+  assert.throws(
+    () =>
+      pinWorkspaceDependencies(
+        {
+          name: "thread",
+          type: "registry:component",
+          dependencies: ["@assistant-ui/missing"],
+        },
+        versions,
+      ),
+    /"@assistant-ui\/missing" is not a workspace package/,
+  );
+});
+
+test("web registry build pins every published assistant-ui dependency", async () => {
+  const { registry, stagedVueRegistry } = await import("../src/registry.ts");
+  await buildRegistry(registry, stagedVueRegistry);
+
+  const reactRange = `@assistant-ui/react@^${workspaceVersions.get("@assistant-ui/react")}`;
+  for (const file of [
+    "dist/thread.json",
+    "dist/base/thread.json",
+    "dist/registry.json",
+    "dist/base/registry.json",
+  ]) {
+    const parsed = JSON.parse(await readFile(file, "utf8"));
+    const items = parsed.items ?? [parsed];
+    const thread = items.find((item) => item.name === "thread");
+    assert.ok(thread.dependencies.includes(reactRange), file);
+    for (const item of items) {
+      for (const dependency of [
+        ...(item.dependencies ?? []),
+        ...(item.devDependencies ?? []),
+      ]) {
+        assert.doesNotMatch(
+          dependency,
+          /^@assistant-ui\/[^@]+$/,
+          `${file}: ${item.name} declares unpinned "${dependency}"`,
+        );
+      }
+    }
+  }
 });
 
 test("emitted vue artifacts compile as SFCs and pass the vue purity gate", async () => {
@@ -1523,6 +1626,34 @@ const GENERATIVE_UI_EXEMPT_ATTRIBUTES = new Map([
     "chart:color",
     "free string, not sourced from a shared enum; supports the same color tokens as Text's color prop as a convention",
   ],
+  [
+    "chart-series:color",
+    "free string, not sourced from a shared enum; supports the same color tokens as Text's color prop as a convention",
+  ],
+  [
+    "chart-legend-item:color",
+    "free string, not sourced from a shared enum; mirrors its series' color token for the swatch",
+  ],
+  [
+    "checkbox:variant",
+    "schema enum of checkbox or switch; the default checkbox renders unstyled, so only switch has rules",
+  ],
+  [
+    "table-col:align",
+    "schema enum of start or end; start is the default and needs no rule",
+  ],
+  [
+    "table:align",
+    "body cells repeat their column's start or end alignment; start is the default and needs no rule",
+  ],
+  [
+    "fact-delta:tone",
+    "derived by the renderer from trend and upIsGood, not a model prop; only good, bad, or neutral is emitted",
+  ],
+  [
+    "button:state",
+    "derived by the renderer during an undo countdown, not a model prop; only pending is emitted",
+  ],
 ]);
 
 test("every enum value of every attribute-mapped generative-ui prop is styled by at least one css rule", () => {
@@ -1777,10 +1908,13 @@ test("install validation resolves a sibling through file.target, not file.path",
 
   assert.equal(findingsFrom([componentItem(files)]), null);
 
-  // Without targets both paths fall back to their authored locations, which are
-  // still siblings, so only a mismatched target proves the target is what wins.
   const withoutTargets = files.map(({ path, content }) => ({ path, content }));
-  assert.equal(findingsFrom([componentItem(withoutTargets)]), null);
+  const untargetedFindings = findingsFrom([componentItem(withoutTargets)]);
+  assert.match(
+    untargetedFindings,
+    /thread\.tsx lands at components\/react\/assistant-ui\/thread\.tsx/,
+  );
+  assert.doesNotMatch(untargetedFindings, /imports "\.\/badge"/);
 
   const targetMismatch = [
     files[0],
@@ -1790,6 +1924,110 @@ test("install validation resolves a sibling through file.target, not file.path",
     findingsFrom([componentItem(targetMismatch)]),
     /imports "\.\/badge"/,
   );
+});
+
+test("install validation places an untargeted lib file where shadcn does", () => {
+  const dependency = "https://r.assistant-ui.com/elements-surfaces.json";
+  const consumer = componentItem(
+    [
+      {
+        path: "components/assistant-ui/elements/error-state.tsx",
+        type: "registry:component",
+        content: 'import { surface } from "./surfaces";\n',
+      },
+    ],
+    { registryDependencies: [dependency] },
+  );
+  const surfaces = {
+    path: "components/assistant-ui/elements/surfaces.tsx",
+    type: "registry:lib",
+    content: "export const surface = {};\n",
+  };
+  const provider = (file) => ({
+    name: "elements-surfaces",
+    type: "registry:component",
+    files: [file],
+  });
+
+  assert.match(
+    findingsFrom([consumer, provider(surfaces)]),
+    /surfaces\.tsx lands at lib\/surfaces\.tsx/,
+  );
+  assert.equal(
+    findingsFrom([
+      consumer,
+      provider({ ...surfaces, type: "registry:component" }),
+    ]),
+    null,
+  );
+  assert.equal(
+    findingsFrom([consumer, provider({ ...surfaces, target: surfaces.path })]),
+    null,
+  );
+});
+
+test("install validation rejects a target written with the ~/ prefix", () => {
+  const findings = findingsFrom([
+    componentItem([
+      {
+        path: "components/assistant-ui/demo.tsx",
+        type: "registry:component",
+        target: "~/components/assistant-ui/demo.tsx",
+        content: "export const Demo = () => null;\n",
+      },
+    ]),
+  ]);
+
+  assert.match(
+    findings,
+    /declares the target "~\/components\/assistant-ui\/demo\.tsx"/,
+  );
+  assert.doesNotMatch(findings, /lands at/);
+});
+
+test("shadcn install paths follow the type directory, keep the nested tail, and take a target as given", () => {
+  for (const [file, expected] of [
+    [
+      {
+        type: "registry:lib",
+        path: "components/assistant-ui/elements/surfaces.tsx",
+      },
+      "lib/surfaces.tsx",
+    ],
+    [
+      { type: "registry:lib", path: "lib/cloud/client.ts" },
+      "lib/cloud/client.ts",
+    ],
+    [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/surfaces.tsx",
+      },
+      "components/assistant-ui/elements/surfaces.tsx",
+    ],
+    [
+      { type: "registry:ui", path: "components/ui/button.tsx" },
+      "components/ui/button.tsx",
+    ],
+    [
+      { type: "registry:hook", path: "hooks/use-thing.ts" },
+      "hooks/use-thing.ts",
+    ],
+    [
+      {
+        type: "registry:file",
+        path: "source/route.ts",
+        target: "app/api/chat/route.ts",
+      },
+      "app/api/chat/route.ts",
+    ],
+  ]) {
+    assert.equal(
+      shadcnInstallPath(file),
+      expected,
+      `${file.type} ${file.path}`,
+    );
+  }
 });
 
 test("install validation reports an import that escapes the installed tree", () => {
@@ -2160,6 +2398,7 @@ test("install validation accepts an explicitly documented page sidecar", () => {
     files: [
       {
         path: "app/api/chat/route.ts",
+        target: "app/api/chat/route.ts",
         content: "export const POST = () => null;\n",
       },
     ],

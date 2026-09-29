@@ -38,36 +38,65 @@ export class GenerativeUIRenderError extends Error {
 
 const isObjectNode = (
   node: GenerativeUINode,
-): node is Exclude<GenerativeUINode, string> =>
-  typeof node === "object" && node !== null;
+): node is Extract<GenerativeUINode, { component: string }> =>
+  typeof node === "object" && node !== null && !Array.isArray(node);
+
+const toNodeList = (
+  value: GenerativeUINode | null | undefined,
+): readonly GenerativeUINode[] => {
+  if (value === undefined || value === null) return [];
+  return Array.isArray(value) ? value : [value];
+};
+
+const warn = (message: string, ...args: unknown[]) => {
+  if (
+    typeof process !== "undefined" &&
+    process.env?.NODE_ENV !== "production"
+  ) {
+    console.warn(message, ...args);
+  }
+};
+
+/** Bounds recursion so a runaway or adversarial model response cannot overflow the stack. */
+const MAX_DEPTH = 64;
 
 const renderNode = (
   node: GenerativeUINode | undefined,
   components: GenerativeUIComponentRegistry,
   Fallback: GenerativeUIRenderProps["Fallback"],
   path: string,
+  depth = 0,
 ): ReactNode => {
+  if (depth > MAX_DEPTH) {
+    warn(
+      `[generative-ui] Skipping node nested past ${MAX_DEPTH} levels at ${path}.`,
+    );
+    return null;
+  }
   if (node === undefined || node === null) return null;
 
-  if (typeof node === "string") return node;
+  if (typeof node === "string" || typeof node === "number") return node;
+
+  if (Array.isArray(node)) {
+    return node.map((child, i) =>
+      renderNode(child, components, Fallback, `${path}/${i}`, depth + 1),
+    );
+  }
 
   if (
     !isObjectNode(node) ||
     !("component" in node) ||
     typeof node.component !== "string"
   ) {
-    if (
-      typeof process !== "undefined" &&
-      process.env?.NODE_ENV !== "production"
-    ) {
-      console.warn(`[generative-ui] Skipping malformed node at ${path}:`, node);
-    }
+    warn(`[generative-ui] Skipping malformed node at ${path}:`, node);
     return null;
   }
 
   const { component, props, children, key } = node;
 
-  const Resolved = components[component];
+  const Resolved = Object.hasOwn(components, component)
+    ? components[component]
+    : undefined;
   if (!Resolved) {
     if (Fallback) {
       return <Fallback key={key ?? path} component={component} props={props} />;
@@ -75,27 +104,13 @@ const renderNode = (
     throw new GenerativeUIRenderError(component);
   }
 
-  const renderedChildren = children?.length
-    ? children.map((child, i) =>
-        renderNode(child, components, Fallback, `${path}/${i}`),
-      )
-    : undefined;
-
   return createElement(
     Resolved,
     { ...(props ?? {}), key: key ?? path },
-    ...(renderedChildren ?? []),
+    ...toNodeList(children).map((child, i) =>
+      renderNode(child, components, Fallback, `${path}/${i}`, depth + 1),
+    ),
   );
-};
-
-const normalizeRoot = (
-  spec: GenerativeUISpec | undefined,
-): readonly GenerativeUINode[] => {
-  if (!spec || spec.root === undefined || spec.root === null) return [];
-  const root = spec.root;
-  return Array.isArray(root)
-    ? (root as readonly GenerativeUINode[])
-    : [root as GenerativeUINode];
 };
 
 /**
@@ -108,7 +123,7 @@ export const GenerativeUIRender: FC<GenerativeUIRenderProps> = ({
   components,
   Fallback,
 }) => {
-  const nodes = useMemo(() => normalizeRoot(spec), [spec]);
+  const nodes = useMemo(() => toNodeList(spec?.root), [spec]);
 
   return (
     <>

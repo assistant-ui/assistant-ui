@@ -5,6 +5,7 @@ import path from "node:path";
 import * as p from "@clack/prompts";
 import { logger } from "../lib/utils/logger";
 import {
+  cleanupPendingProjectDownloads,
   dlxCommand,
   downloadProject,
   resolveLatestReleaseRef,
@@ -382,9 +383,29 @@ export function resolveCreateProjectDirectory(params: {
   const { projectDirectory, stdinIsTTY = process.stdin.isTTY } = params;
 
   if (projectDirectory) return projectDirectory;
-  if (!stdinIsTTY) return "my-aui-app";
+  if (!stdinIsTTY) return DEFAULT_PROJECT_DIRECTORY;
   return undefined;
 }
+
+export const DEFAULT_PROJECT_DIRECTORY = "my-aui-app";
+
+export const projectNamePromptOptions = {
+  message: "Project name:",
+  placeholder: DEFAULT_PROJECT_DIRECTORY,
+  defaultValue: DEFAULT_PROJECT_DIRECTORY,
+  validate: (value?: string) => {
+    // Enter on an untouched prompt is how clack accepts `defaultValue`, and it
+    // validates before finalize substitutes it, so an empty value has to pass
+    // here or the default is unreachable.
+    if (value === undefined || value === "") return undefined;
+    const name = value.trim();
+    if (!name) return "Project name cannot be empty";
+    if (name === "." || name === "..") return "Project name cannot be . or ..";
+    if (name.includes("/") || name.includes("\\"))
+      return "Project name cannot contain path separators";
+    return undefined;
+  },
+};
 
 export function resolveProjectDirectoryGuidance(params: {
   absoluteProjectDir: string;
@@ -522,6 +543,12 @@ export const create = new Command()
   .option("--no-skills", "skip adding assistant-ui agent skills")
   .addOption(
     new Option(
+      "--cwd <cwd>",
+      "the working directory. defaults to the current directory.",
+    ).hideHelp(),
+  )
+  .addOption(
+    new Option(
       "--debug-source-root <path>",
       "copy templates/examples from a local assistant-ui repo root",
     ).hideHelp(),
@@ -551,20 +578,7 @@ export const create = new Command()
     });
 
     if (!resolvedProjectDirectory) {
-      const result = await p.text({
-        message: "Project name:",
-        placeholder: "my-aui-app",
-        defaultValue: "my-aui-app",
-        validate: (value?: string) => {
-          const name = (value ?? "").trim();
-          if (!name) return "Project name cannot be empty";
-          if (name === "." || name === "..")
-            return "Project name cannot be . or ..";
-          if (name.includes("/") || name.includes("\\"))
-            return "Project name cannot contain path separators";
-          return undefined;
-        },
-      });
+      const result = await p.text(projectNamePromptOptions);
 
       if (p.isCancel(result)) {
         p.cancel("Project creation cancelled.");
@@ -575,9 +589,13 @@ export const create = new Command()
     }
 
     // Check directory
-    const absoluteProjectDir = path.resolve(resolvedProjectDirectory);
+    const absoluteProjectDir = path.resolve(
+      opts.cwd ?? process.cwd(),
+      resolvedProjectDirectory,
+    );
     const { display: displayProjectDir, cdCommand } =
       resolveProjectDirectoryGuidance({ absoluteProjectDir });
+    let projectDirExisted = true;
     try {
       const files = fs.readdirSync(absoluteProjectDir);
       if (files.length > 0) {
@@ -591,6 +609,7 @@ export const create = new Command()
         err instanceof Error ? (err as NodeJS.ErrnoException).code : undefined;
       if (code === "ENOENT") {
         // Directory doesn't exist — good, proceed
+        projectDirExisted = false;
       } else if (code === "ENOTDIR") {
         logger.error(
           `${displayProjectDir} already exists and is not a directory`,
@@ -638,11 +657,24 @@ export const create = new Command()
     );
 
     // Clean up partial project directory on unexpected exit (e.g. Ctrl+C)
+    const resetProjectDir = () => {
+      if (!projectDirExisted) {
+        fs.rmSync(absoluteProjectDir, { recursive: true, force: true });
+        return;
+      }
+      if (!fs.existsSync(absoluteProjectDir)) return;
+      for (const entry of fs.readdirSync(absoluteProjectDir)) {
+        fs.rmSync(path.join(absoluteProjectDir, entry), {
+          recursive: true,
+          force: true,
+        });
+      }
+    };
     let cleanupArmed = true;
     const cleanupOnExit = () => {
       if (!cleanupArmed) return;
       cleanupArmed = false;
-      fs.rmSync(absoluteProjectDir, { recursive: true, force: true });
+      resetProjectDir();
     };
     const disarmCleanup = () => {
       cleanupArmed = false;
@@ -651,10 +683,11 @@ export const create = new Command()
       process.removeListener("SIGTERM", cleanupOnSignal);
     };
     // Node emits no "exit" when a signal kills the process. An in-flight
-    // runSpawn forwards the signal itself, so the directory is removed on the
-    // error path once the child is reaped rather than while it is still writing.
+    // runSpawn forwards the signal itself, so cleanup runs on the error path
+    // once the child is reaped rather than while it is still writing.
     const cleanupOnSignal = (signal: NodeJS.Signals) => {
       if (hasActiveSpawn()) return;
+      cleanupPendingProjectDownloads();
       cleanupOnExit();
       disarmCleanup();
       process.kill(process.pid, signal);
@@ -696,7 +729,7 @@ export const create = new Command()
           ref &&
           !fs.existsSync(path.join(absoluteProjectDir, "package.json"))
         ) {
-          fs.rmSync(absoluteProjectDir, { recursive: true, force: true });
+          resetProjectDir();
           logger.warn(
             "Template not found at release tag, downloading from HEAD",
           );

@@ -1,5 +1,8 @@
 import { flushTapSync } from "@assistant-ui/tap";
-import { suggestionTriggerDisabled } from "@assistant-ui/core/store/internal";
+import {
+  suggestionSendMode,
+  suggestionTriggerDisabled,
+} from "@assistant-ui/core/store/internal";
 import { getAuiContext } from "../context";
 import { useAuiState } from "../useAuiState";
 
@@ -34,13 +37,13 @@ export const suggestionTrigger = (options: {
         if (prompt === undefined) return;
         flushTapSync(() => {
           if (send) {
-            const { isRunning, capabilities } = aui.thread.getState();
-            if (isRunning && !capabilities.queue) return;
+            const mode = suggestionSendMode(aui.thread.getState());
+            if (mode === "blocked") return;
             aui.thread.append({
               content: [{ type: "text", text: prompt }],
               runConfig: aui.composer.getState().runConfig,
             });
-            if (clearComposer && !isRunning) {
+            if (clearComposer && mode === "now") {
               aui.composer.setText("");
             }
           } else if (clearComposer) {
