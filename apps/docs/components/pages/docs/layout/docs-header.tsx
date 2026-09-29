@@ -14,7 +14,6 @@ import { NavItems, NavItemsRoot } from "@/components/shared/nav-items";
 import { useDocsSidebar } from "@/components/pages/docs/contexts/sidebar";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
-import { HeaderBrandLink } from "@/components/shared/header-brand-link";
 import { CartButton } from "@/components/shared/shop-entry";
 import { headerBarClassName } from "@/components/shared/header-chrome";
 import { useScrolled } from "@/hooks/use-scrolled";
@@ -22,6 +21,10 @@ import { analytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { usePlatform } from "@/components/pages/docs/platform/context";
 import { PlatformSwitcher } from "@/components/pages/docs/platform/switcher";
+import {
+  DocsProjectSwitcher,
+  type DocsProjectOption,
+} from "@/components/pages/docs/layout/docs-project-switcher";
 import {
   buildPlatformSections,
   findPathToNode,
@@ -31,6 +34,7 @@ import {
 interface DocsHeaderProps {
   section: string;
   sectionHref: string;
+  projects: DocsProjectOption[];
   tree: PageTree.Root;
 }
 
@@ -128,7 +132,12 @@ function MobileSectionBreadcrumb({
   );
 }
 
-export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
+export function DocsHeader({
+  section,
+  sectionHref,
+  tree,
+  projects,
+}: DocsHeaderProps) {
   const { setOpenSearch } = useSearchContext();
   const {
     open: sidebarOpen,
@@ -174,7 +183,7 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
           )}
         >
           <div className="flex min-w-0 flex-1 items-center">
-            <HeaderBrandLink labelClassName="hidden sm:inline" />
+            <DocsProjectSwitcher projects={projects} />
             <span className="text-muted-foreground/40 mx-3 max-md:hidden">
               /
             </span>
