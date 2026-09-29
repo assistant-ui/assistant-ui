@@ -485,6 +485,7 @@ function scanBlocks(text: string): BlockScan {
   let htmlStart = 0;
   let htmlQuoteDepth = 0;
   let itemIndent = 0;
+  let itemQuoteDepth = 0;
   let listIndent = 0;
   let listQuoteDepth = 0;
   let inParagraph = false;
@@ -510,7 +511,7 @@ function scanBlocks(text: string): BlockScan {
       lineStart,
       lineEnd,
       inFence || inMath ? itemIndent : listIndent,
-      inFence || inMath ? blockQuoteDepth : listQuoteDepth,
+      inFence || inMath ? itemQuoteDepth : listQuoteDepth,
       inHtml ? htmlQuoteDepth : Infinity,
       !inHtml && !inFence && !inMath,
     );
@@ -609,6 +610,7 @@ function scanBlocks(text: string): BlockScan {
           fenceIndent = blockStart - contentStart;
           fenceQuoteDepth = quoteDepth;
           itemIndent = blockItemIndent;
+          itemQuoteDepth = prefix.markerQuoteDepth;
         } else if (
           blockFirst === fenceChar &&
           quoteDepth === fenceQuoteDepth &&
@@ -677,6 +679,7 @@ function scanBlocks(text: string): BlockScan {
           mathIndent = blockStart - contentStart;
           mathQuoteDepth = quoteDepth;
           itemIndent = blockItemIndent;
+          itemQuoteDepth = prefix.markerQuoteDepth;
         } else if (dollars >= 2) {
           const end = sizedDollarRunEnd(text, openEnd, lineEnd, dollars);
           if (end !== -1) protectedRanges.push(lineStart, end);

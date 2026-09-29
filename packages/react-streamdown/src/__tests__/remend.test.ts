@@ -909,6 +909,18 @@ describe("tailBoundedRemend", () => {
     },
   );
 
+  it.each([
+    ["backtick fence", "- > ```sh\n  > echo a~b\n  > ```"],
+    ["display math block", "- > $$\n  > a~b\n  > $$"],
+  ])(
+    "protects a %s opened in a quote after a list marker and repairs following prose",
+    (_, block) => {
+      const text = `${block}\n\nDone **bold`;
+      expect(tailBoundedRemend(text)).toBe(`${text}**`);
+      expect(findRemendWindowStart(text)).toBe(text.indexOf("Done"));
+    },
+  );
+
   it("leaves an open fence on a list marker line untouched", () => {
     const text = "Intro\n\n- ~~~r\n  lm(y~x)\n  a **b";
     expect(findRemendWindowStart(text)).toBe(text.indexOf("- ~~~r"));
