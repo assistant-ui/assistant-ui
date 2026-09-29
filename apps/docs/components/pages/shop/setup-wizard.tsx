@@ -37,7 +37,6 @@ import {
   useAgentName,
 } from "@/components/pages/shop/agent-status";
 import { FinishProposal } from "@/components/pages/shop/finish-proposal";
-import { LicenseAgreement } from "@/components/pages/shop/license-agreement";
 import { AnswerReview } from "@/components/pages/shop/answer-review";
 import { InputCard } from "@/components/pages/shop/input-card";
 import { PlanCard, PlanMarkdown } from "@/components/pages/shop/plan-card";
@@ -62,10 +61,7 @@ import type { CheckoutContextValue } from "@/components/shared/checkout-provider
 import { analytics } from "@/lib/analytics";
 import { getCatalogItem } from "@/lib/catalog";
 import { abandonCheckout, finishCheckout } from "@/lib/checkout/flow";
-import {
-  acceptSetupLicense,
-  acknowledgeSetupIntro,
-} from "@/lib/checkout/session-store";
+import { acknowledgeSetupIntro } from "@/lib/checkout/session-store";
 import { useSyntheticProgress } from "@/components/pages/shop/use-synthetic-progress";
 import { useElapsed } from "@/components/pages/shop/use-elapsed";
 import {
@@ -340,7 +336,7 @@ function InstallSteps({
       ref={list}
       role="list"
       aria-label="Installation steps"
-      className={cn("flex flex-col", !closed && "py-[50cqh]")}
+      className={cn("flex flex-col", !closed && "pb-6")}
     >
       {state.steps.map((step) => {
         const inputs = checkout.openInputs.filter(
@@ -499,16 +495,6 @@ export function SetupWizard({
         return {
           title: `Welcome to the setup wizard for ${listProducts(products)}`,
           body: <SetupIntro onContinue={acknowledgeSetupIntro} />,
-        };
-      case "license":
-        return {
-          title: "License agreement",
-          body: (
-            <LicenseAgreement
-              accepted={checkout.session.licenseAccepted === true}
-              onAccept={acceptSetupLicense}
-            />
-          ),
         };
       case "connect":
         return {

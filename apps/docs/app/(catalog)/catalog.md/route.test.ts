@@ -11,11 +11,14 @@ afterEach(() => {
   vi.resetModules();
 });
 
-describe("shop markdown route", () => {
+describe("catalog markdown route", () => {
   it("lists every product when the shop is open", async () => {
     const response = await get();
     expect(response.status).toBe(200);
-    expect(await response.text()).toContain("Slug: cloud");
+    const body = await response.text();
+    expect(body).toContain("Slug: cloud");
+    expect(body).toContain("/install.md?items=");
+    expect(body).not.toMatch(/\b(?:cart|shop|checkout)\b/i);
   });
 
   it("answers 404 when the shop is closed", async () => {

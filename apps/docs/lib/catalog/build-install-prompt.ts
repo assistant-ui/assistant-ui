@@ -20,10 +20,7 @@ export function buildInstallPrompt(products: readonly CatalogItem[]): string {
     }
     return `## ${index + 1}. ${product.name}\n\nDocs: ${BASE_URL}${product.docs}.md\n\n${prompt}`;
   });
-  return [
-    `# Install from the assistant-ui shop`,
-    preamble,
-    ...sections,
-    closing,
-  ].join("\n\n");
+  return [`# Install assistant-ui`, preamble, ...sections, closing].join(
+    "\n\n",
+  );
 }
