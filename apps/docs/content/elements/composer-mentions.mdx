@@ -16,7 +16,7 @@ Mentions and slash commands share one trigger system, keyed by which character o
 
 ### Define the people
 
-`unstable_useMentionAdapter` bundles a person list into the `{ adapter, directive }` pair the trigger needs. Left with no `items` or `categories`, it defaults to listing the tools registered on the thread's model context instead, so `@` can mention a tool as easily as a person:
+`unstable_useMentionAdapter` bundles a person list into the `{ adapter, directive }` pair the trigger needs. Left with no `items` or `categories`, it defaults to listing the tools registered on the thread's model context instead, so `@` can mention a tool as well as a person:
 
 ```tsx title="components/assistant-ui/elements/composer-mentions.tsx"
 "use client";
@@ -165,7 +165,7 @@ With a runtime, a pick does not insert a chip directly into the textarea; it ins
 
 <RuntimeMode>
 
-The adapter's `search` matches a person's `id`, `label`, and `description` against the text after `@`, case-insensitively; with `categories` instead of `items`, matching drills down per category rather than searching everything at once.
+The adapter's `search` matches a person's `id`, `label`, and `description` against the text after `@`, case-insensitively; with `categories` instead of `items`, an empty query lists the categories, a typed query searches the items of every category, and a query typed inside an open category filters that category's items.
 
 ```tsx
 mention.adapter.search("ada"); // → [{ id: "ada", label: "Ada Lovelace", ... }]
@@ -187,7 +187,7 @@ const matches = useMentionMatches("cc @ada", people); // → [{ name: "Ada", ...
 
 <RuntimeMode>
 
-Leaving `items` and `categories` unset (or passing `includeModelContextTools: true` alongside them) lists every tool currently registered on `aui.thread.getModelContext.tools`, so `@` doubles as a way to reference a tool the model has access to:
+Leaving `items` and `categories` unset (or passing `includeModelContextTools: true` alongside them) lists every tool currently registered on `aui.thread.getModelContext().tools`, so `@` doubles as a way to reference a tool the model has access to:
 
 ```tsx
 const mention = unstable_useMentionAdapter({

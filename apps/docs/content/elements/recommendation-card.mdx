@@ -20,11 +20,19 @@ A proposal like this is a human-in-the-loop tool call: the model calls it to ask
 "use client";
 
 import { defineToolkit } from "@assistant-ui/react";
+import { z } from "zod";
 import { RecommendationCard } from "@/components/assistant-ui/elements/recommendation-card";
 
 export const toolkit = defineToolkit({
   propose_change: {
     type: "human",
+    description: "Propose a change and wait for the user to accept it.",
+    parameters: z.object({
+      question: z.string(),
+      detail: z.string(),
+      confidenceLabel: z.string(),
+      acceptedLabel: z.string(),
+    }),
     render: ({ args, result, addResult }) => (
       <RecommendationCard
         state={result ? "accepted" : "idle"}
@@ -41,7 +49,7 @@ export const toolkit = defineToolkit({
 });
 ```
 
-Call `addResult` exactly once to resolve the call and let the model continue. The result shape is entirely yours; `{ accepted: false }` here is a convention for "show me something else", not a fixed protocol value. An app that wants the model to keep proposing without resolving the call yet could instead leave it pending and send a follow-up user message.
+Call `addResult` exactly once to resolve the call and let the model continue. The result shape is yours; `{ accepted: false }` here is a convention for "show me something else", not a fixed protocol value. An app that wants the model to keep proposing without resolving the call yet could instead leave it pending and send a follow-up user message.
 
   </Step>
   <Step>
@@ -50,11 +58,13 @@ Call `addResult` exactly once to resolve the call and let the model continue. Th
 
 ```tsx title="app/MyRuntimeProvider.tsx"
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 import { toolkit } from "./toolkit";
 
 const config = AuiConfig({ tools: Tools({ toolkit }) });
 
 export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime();
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>
       {children}

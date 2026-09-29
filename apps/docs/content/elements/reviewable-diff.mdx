@@ -36,8 +36,10 @@ type ReviewPatchResult = { kept: readonly string[] };
 export const ReviewPatchToolUI: ToolCallMessagePartComponent<
   ReviewPatchArgs,
   ReviewPatchResult
-> = ({ args, result, addResult }) => {
+> = ({ args, status, result, addResult }) => {
   const [decisions, setDecisions] = useState<Record<string, HunkDecision>>({});
+
+  if (status.type === "running") return null;
 
   if (result) {
     return (
@@ -67,6 +69,8 @@ export const ReviewPatchToolUI: ToolCallMessagePartComponent<
   );
 };
 ```
+
+`args` is a partial parse while the call is `running`, so the renderer waits for the complete arguments before it reads `hunks`.
 
   </Step>
   <Step>
@@ -118,7 +122,7 @@ export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
 }
 ```
 
-See [User Input Collection](/docs/tools/tool-ui) for more on human tools and `addResult`.
+See [User Input Collection](/docs/tools/tool-ui#user-input-collection) for more on human tools and `addResult`.
 
   </Step>
 </Steps>
@@ -127,7 +131,7 @@ See [User Input Collection](/docs/tools/tool-ui) for more on human tools and `ad
 
 <StandaloneMode>
 
-Standalone, the review is entirely local: you hold the hunks and their decisions, and `onApply` is whatever you want to do once every hunk has one.
+Standalone, you hold the hunks and their decisions, and `onApply` runs whatever you choose once every hunk has a decision.
 
 <Steps>
   <Step>
@@ -180,7 +184,7 @@ export function PatchReview() {
 
 ### Apply the kept hunks
 
-`onApply` is called once, with every hunk still available to read its current `decision`. Nothing in the element itself submits or clears state, so the handler owns both:
+`onApply` takes no arguments, so read each hunk's current `decision` from your own state. The element does not submit or clear anything, so the handler does both:
 
 ```tsx
 async function applyPatch(kept: readonly DiffHunk[]) {
@@ -251,6 +255,7 @@ function discardAll() {
 |------|------|-------------|
 | `args` | `{ filename: string; hunks: readonly Omit<DiffHunk, "decision">[] }` | The filename and the unreviewed hunks the model is proposing. |
 | `result` | `{ kept: readonly string[] } \| undefined` | Set once `addResult` is called; the ids of the hunks the user kept. |
+| `status` | `ToolCallMessagePartStatus` | `status.type` is `"running"` while the arguments stream in. |
 | `addResult` | `(result: ReviewPatchResult) => void` | Call once, after the user has decided every hunk, to resolve the call. |
 
 See [Tool UI](/docs/tools/tool-ui) for the full render-prop surface and human-tool registration.

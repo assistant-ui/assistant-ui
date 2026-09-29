@@ -94,7 +94,7 @@ Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRun
 
 ### Parts Pipeline
 
-`MessagePrimitive.Parts` now prefers a children render function. It gives you the current enriched part state directly, so you can branch inline and return exactly the UI you want:
+`MessagePrimitive.Parts` takes a children render function. It receives the current part state, so you can branch inline and return the UI for each part:
 
 ```tsx
 <MessagePrimitive.Parts>
@@ -109,12 +109,12 @@ Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRun
 ```
 
 <Callout type="info">
-For most new code, prefer `MessagePrimitive.Parts` with a `children` render function. When you need adjacent grouping, use `MessagePrimitive.GroupedParts`.
+When you need adjacent grouping, use `MessagePrimitive.GroupedParts`.
 </Callout>
 
 ### Part Types
 
-A message part is one of three kinds, and which kind a new capability belongs to is decided by the list below rather than case by case.
+A message part is one of three kinds. The table below decides which kind a new capability belongs to.
 
 | Kind | Parts | Grows by |
 |------|-------|----------|
@@ -145,15 +145,14 @@ Adapter coverage for the file path is still uneven, so check your adapter's conv
 
 ### Tool Resolution
 
-Tool call parts resolve in this order:
+With the deprecated `components` prop, tool call parts resolve in this order:
 
-1. **`tools.Override`**: if provided inline through the deprecated `components` prop, handles **all** tool calls
+1. **`tools.Override`**: if provided, handles **all** tool calls
 2. **Globally registered tools**: tools registered via `Tools({ toolkit })`
-3. **`tools.by_name[toolName]`**: per-`MessagePrimitive.Parts` inline overrides from the deprecated `components` prop
-4. **`tools.Fallback`**: catch-all for unmatched tool calls from the deprecated `components` prop
-5. **`part.toolUI`**: the resolved tool UI exposed directly in the children render function
+3. **`tools.by_name[toolName]`**: per-`MessagePrimitive.Parts` inline overrides
+4. **`tools.Fallback`**: catch-all for unmatched tool calls
 
-In the children API, tool and data parts expose resolved UI helpers directly:
+In the children API, `part.toolUI` is the registered tool UI, or `null` when no tool UI is registered for the call. Data parts expose `part.dataRendererUI` the same way:
 
 ```tsx
 <MessagePrimitive.Parts>
@@ -180,7 +179,7 @@ Returning `null` still allows registered tool UIs and data renderer UIs to rende
 - `components.ChainOfThought` takes over all reasoning and tool-call rendering (mutually exclusive with `ToolGroup`, `ReasoningGroup`, `tools`, and `Reasoning`). This legacy path is deprecated; use `MessagePrimitive.GroupedParts` for grouped Chain of Thought in new code.
 - `data.by_name` and `data.Fallback` let you route custom data part types
 - `Quote` renders quoted message references from metadata
-- `Empty` is available for edge rendering paths
+- `Empty` renders when the message has no parts and, by default, when its last part is not a text or reasoning part
 - `Unstable_Audio` is deprecated; render `audio/*` from the `File` slot instead
 
 ```tsx
@@ -224,7 +223,7 @@ For new code, use the `children` render function or `GroupedParts` instead.
 
 ### Hover State
 
-`MessagePrimitive.Root` automatically tracks mouse enter/leave events. This hover state is consumed by `ActionBarPrimitive` to implement auto-hide behavior, with no extra wiring needed.
+`MessagePrimitive.Root` tracks mouse enter and leave events. `ActionBarPrimitive` reads this hover state to implement auto-hide.
 
 ### MessagePartPrimitive
 
@@ -411,7 +410,7 @@ Renders quote metadata when the current message includes a quote. Place it above
 
 ### Unstable_PartsGrouped
 
-Groups parts by a custom grouping function *(unstable; use `GroupedParts` for adjacent grouping)*.
+Groups parts by a custom grouping function *(unstable and deprecated for adjacent grouping, where `GroupedParts` replaces it; keep it only for non-adjacent clustering)*.
 
 ```tsx
 <MessagePrimitive.Unstable_PartsGrouped
@@ -509,7 +508,7 @@ function MarkdownText() {
 
 ### Error Display with ErrorPrimitive
 
-For more control over error rendering, `ErrorPrimitive` provides a dedicated component that auto-reads the error string from the message status:
+`ErrorPrimitive` reads the error string from the message status:
 
 ```tsx
 import { ErrorPrimitive, MessagePrimitive } from "@assistant-ui/react";
@@ -522,7 +521,7 @@ import { ErrorPrimitive, MessagePrimitive } from "@assistant-ui/react";
 </MessagePrimitive.Root>
 ```
 
-`ErrorPrimitive.Root` renders a `<div>` container with `role="alert"` and `ErrorPrimitive.Message` renders a `<span>` that displays the error text. `Root` always renders. Only `Message` conditionally returns `null` when there is no error. Wrap in `<MessagePrimitive.Error>` if you want the entire block to be conditional. See the [ErrorPrimitive API Reference](/docs/api-reference/primitives/error) for full details.
+`ErrorPrimitive.Root` renders a `<div>` container with `role="alert"` and `ErrorPrimitive.Message` renders a `<span>` that displays the error text. `Root` always renders; only `Message` returns `null` when there is no error. Wrap both in `<MessagePrimitive.Error>` to make the entire block conditional. See the [ErrorPrimitive API Reference](/docs/api-reference/primitives/error) for full details.
 
 ### Render After Stream Completes
 
@@ -545,12 +544,7 @@ import { MessagePrimitive, AuiIf } from "@assistant-ui/react";
 </MessagePrimitive.Root>;
 ```
 
-`s.message.status` is a discriminated union of `running | requires-action | complete | incomplete`, defined only on assistant messages. The `role === "assistant"` guard keeps the predicate type-safe. For tool-call-driven generative UI that defers rendering inside the part itself, see [Deferred Rendering](/docs/tools/tool-ui#deferred-rendering) in the Generative UI guide.
-
-### Legacy and Unstable APIs
-
-- `MessagePrimitive.Unstable_PartsGrouped` and `MessagePrimitive.Unstable_PartsGroupedByParentId` are unstable APIs for non-adjacent custom grouping.
-- `Unstable_PartsGroupedByParentId` is deprecated in favor of `Unstable_PartsGrouped`.
+`s.message.status` is a discriminated union of `running | requires-action | complete | incomplete`, defined only on assistant messages. The `role === "assistant"` guard keeps the predicate type-safe. For tool-call-driven generative UI that defers rendering inside the part itself, see [Deferred Rendering](/docs/tools/tool-ui#deferred-rendering) in the Tool UI guide.
 
 ### Role-Based Styling
 
@@ -604,7 +598,7 @@ function AssistantMessage() {
 
 ## Relationship to Components
 
-The shadcn [Thread](/elements/thread) component renders user and assistant messages built from these primitives. The pre-built `AssistantMessage` and `UserMessage` components handle text rendering, tool UIs, error display, and action bars, all using `MessagePrimitive` under the hood.
+The shadcn [Thread](/elements/thread) component renders user and assistant messages built from these primitives. The pre-built `AssistantMessage` and `UserMessage` components handle text rendering, tool UIs, error display, and action bars.
 
 Messages are commonly paired with [ActionBar](/docs/primitives/action-bar) for copy/reload/edit actions and [BranchPicker](/docs/primitives/branch-picker) for navigating between alternative responses.
 
