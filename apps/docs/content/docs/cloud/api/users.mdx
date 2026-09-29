@@ -45,9 +45,10 @@ The cloud executes the erasure steps below in one transaction, in this order:
 3. It deletes those threads.
 4. It redacts messages written by the user inside other users' threads by setting `content` to `{}` and `created_by` to `usr_deleted`. These messages cannot be deleted because another message may reference one through `parent_id`.
 5. It sets `messages.updated_by` and `threads.updated_by` to `usr_deleted`.
-6. It deletes the user's `workspaces`, `project_users`, `refresh_tokens`, authored `scores`, `client_events` and `client_events_daily` rows.
-7. It sets `runs.created_by` to `usr_deleted`. The number of rows changed by this step is returned as `runs`.
-8. It folds the user's daily run rollups into the `usr_deleted` key, then deletes the user's `runs_daily` rows.
+6. It deletes the user's `workspaces`, `project_users` and `refresh_tokens` rows.
+7. It recomputes `thumbs_up` and `thumbs_down` for the threads where the user left feedback, then deletes the user's authored `scores`, `client_events` and `client_events_daily` rows.
+8. It sets `runs.created_by` to `usr_deleted`. The number of rows changed by this step is returned as `runs`.
+9. It folds the user's daily run rollups into the `usr_deleted` key, then deletes the user's `runs_daily` rows.
 
 The marker used for deleted ownership is `usr_deleted`. Redacting a message in another user's thread keeps the message tree connected while removing the deleted user's content and identity. Deleting the containing thread is safe because it belongs to the erased user and its messages are removed first.
 
@@ -60,6 +61,6 @@ After the transaction commits, the cloud writes an audit entry with `action` set
 | `200` | `{ "threads": number, "runs": number }` | The erasure transaction completed and the audit entry was written after commit. |
 | `400` | A schema validation error object. | `userId` failed validation. |
 | `401` | An authentication error object. | The authorization header is missing, malformed or expired. |
-| `403` | `{ "error": "Project-wide user deletion requires API key authentication" }` | The credential is not an API key, or API key access failed. |
+| `403` | Plain text: `Project-wide user deletion requires API key authentication` | The credential is not an API key, or API key access failed. |
 
 The erasure is final. A repeated call for the same user finds nothing left to erase, returns zero counts and writes another audit entry.

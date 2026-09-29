@@ -11,8 +11,8 @@ A thread's Conversation section has two views. **Structured**, the default, is t
 |---|---|
 | Text, reasoning, sources, images, files, audio | Natively: markdown, collapsible reasoning with its duration, a source ledger, image and file chips. |
 | A tool call | Its name, arguments, result or error, and its cancelled, approval and interrupt states, with timing, the artifact, a sub-agent's messages and an MCP App's server and resource. |
-| A `present` call with the default vocabulary | Drawn read only with the default vocabulary of `@assistant-ui/react-generative-ui`, with a Raw toggle. Nothing in it can be clicked or submitted. |
-| A `present` call with your own components | Your components appear as labelled blocks with their props and children, inside the drawn tree. |
+| A tool call whose arguments carry a `$type` root with the default vocabulary | Drawn read only with the default vocabulary of `@assistant-ui/react-generative-ui`, with a Raw toggle. Nothing in it can be clicked or submitted. |
+| A tool call whose arguments carry a `$type` root with your own components | Your components appear as labelled blocks with their props and children, inside the drawn tree. |
 | An A2UI surface from AG-UI or A2A | The basic catalog components are drawn natively; other components are labelled blocks. |
 | A `generative-ui` part | Every node is a labelled block with its props, since the allowlist of components lives in your app. |
 | A data part (data UIs, AG-UI activity and custom events) | Its name and JSON. |

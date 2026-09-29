@@ -100,6 +100,22 @@ Shows old content on the left, new content on the right side-by-side.
 
 <DiffViewerSizesSample />
 
+### Copying a File
+
+Each file header includes a copy action by default. It copies that file as a unified diff, including its file headers and hunks. Set `copyable={false}` when the diff should not be copied.
+
+```tsx
+<DiffViewer patch={diffString} copyable={false} />
+```
+
+### Long Files
+
+Use `maxCollapsedLines` to keep a long file compact. Files at or below the limit stay expanded, and each longer file can be expanded independently.
+
+```tsx
+<DiffViewer patch={diffString} maxCollapsedLines={24} />
+```
+
 ### Theming
 
 Changed lines carry a 2px gutter rule and a faint fill; the diff hue otherwise appears only on the `+`/`-` markers and the header stats, while code stays in ink. Override the CSS variables to retheme:
@@ -192,6 +208,17 @@ The main component for rendering diffs.
       type: "boolean",
       default: "true",
       description: "Show addition/deletion counts in header.",
+    },
+    {
+      name: "copyable",
+      type: "boolean",
+      default: "true",
+      description: "Show a file-header action that copies each file as a unified diff.",
+    },
+    {
+      name: "maxCollapsedLines",
+      type: "number",
+      description: "Collapse a file when its rendered rows exceed this limit.",
     },
     {
       name: "className",
