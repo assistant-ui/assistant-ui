@@ -21,6 +21,78 @@ const prompts = (items: readonly { prompt: string }[]) =>
   items.map((i) => i.prompt);
 
 describe("createMessageQueue", () => {
+  it.each(["steer", "move"])(
+    "queues a reentrant %s until the reserved run settles",
+    (mode) => {
+      const run = vi.fn();
+      const cancel = vi.fn();
+      const queue = createMessageQueue({ run, cancel });
+      const first = msg("first");
+      const second = msg("second");
+      queue.hold();
+      queue.adapter.enqueue(first);
+      if (mode === "move") queue.adapter.enqueue(second);
+      let steered = false;
+      queue.subscribe(() => {
+        if (steered) return;
+        steered = true;
+        if (mode === "steer") queue.adapter.steer!(second);
+        else queue.adapter.move!(queue.adapter.items[0]!.id, { lane: "steer" });
+      });
+      queue.release();
+      expect(cancel).not.toHaveBeenCalled();
+      expect(run).toHaveBeenCalledExactlyOnceWith(first, { steer: false });
+      expect(prompts(queue.adapter.steerItems!)).toEqual(["second"]);
+      queue.notifyIdle();
+      expect(run).toHaveBeenNthCalledWith(2, second, { steer: false });
+      queue.notifyIdle();
+      expect(run).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it("keeps messages enqueued by a removal subscriber behind the pending run", () => {
+    const run = vi.fn();
+    const queue = createMessageQueue({ run });
+    const first = msg("first");
+    const second = msg("second");
+    queue.hold();
+    queue.adapter.enqueue(first);
+    let enqueued = false;
+    queue.subscribe(() => {
+      if (!enqueued && queue.adapter.items.length === 0) {
+        enqueued = true;
+        queue.adapter.enqueue(second);
+      }
+    });
+    queue.release();
+    expect(run).toHaveBeenCalledExactlyOnceWith(first, { steer: false });
+    expect(prompts(queue.adapter.items)).toEqual(["second"]);
+    queue.notifyIdle();
+    expect(run).toHaveBeenNthCalledWith(2, second, { steer: false });
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(queue.adapter.items).toEqual([]);
+  });
+
+  it("keeps draining after a subscriber cancels while the queue dispatches", () => {
+    const run = vi.fn(() => queue.notifyBusy());
+    const queue = createMessageQueue({ run });
+    queue.adapter.enqueue(msg("first"));
+    queue.adapter.enqueue(msg("second"));
+
+    let cancelled = false;
+    queue.subscribe(() => {
+      if (cancelled || queue.adapter.items.length !== 0) return;
+      cancelled = true;
+      queue.notifyCancelled();
+    });
+    queue.notifyIdle();
+    queue.notifyIdle();
+    queue.adapter.enqueue(msg("third"));
+
+    expect(run).toHaveBeenCalledTimes(3);
+    expect(run).toHaveBeenLastCalledWith(msg("third"), { steer: false });
+  });
+
   it("runs immediately when idle and holds while running", () => {
     const run = vi.fn();
     const { adapter, notifyIdle } = createMessageQueue({ run });

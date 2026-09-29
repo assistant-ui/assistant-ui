@@ -130,13 +130,13 @@ async function run() {
 
 ```tsx
 <div data-slot="code-runner">
-  <div>{/* language, optional duration, run button (spinner while running) */}</div>
+  <div>{/* language, optional duration, optional run button */}</div>
   <pre>{/* code, always visible */}</pre>
   {/* output block: only once state !== "idle" */}
 </div>
 ```
 
-The code block is always visible; the output block only mounts once `state` leaves `"idle"`. Each output line fades in staggered by `80ms` per line, and reads in red when `state` is `"error"`, neutral otherwise. A blinking caret renders only while `state` is `"running"`, after the lines received so far. The duration badge next to the run button only shows once a duration is known and the run isn't currently in progress.
+The code block is always visible; the output block only mounts once `state` leaves `"idle"`. Each output line fades in staggered by `80ms` per line, and reads in red when `state` is `"error"`, neutral otherwise. A blinking caret renders only while `state` is `"running"`, after the lines received so far. The run button renders when `onRun` is provided and shows a disabled spinner while running; running display-only output keeps the same disabled spinner as a status indicator. The duration badge only shows once a duration is known and the run isn't currently in progress.
 
 ## Examples
 
@@ -151,6 +151,8 @@ const RunCodeUI: ToolCallMessagePartComponent<RunArgs, RunResult> = ({ args }) =
   <CodeRunner language={args.language} code={args.code} state="idle" output={[]} />
 );
 ```
+
+Without an `onRun` callback, this read-only example shows no run button.
 
 </RuntimeMode>
 
@@ -211,7 +213,7 @@ Both lanes take `className` on the root. The output block scrolls horizontally t
 | `state` | `RunState` | required | `"idle" \| "running" \| "ok" \| "error"`. |
 | `output` | `readonly string[]` | required | Output lines; ignored while `state` is `"idle"`. |
 | `durationMs` | `number` | | Shown next to the run button once known. |
-| `onRun` | `() => void` | | Called when the run button is pressed. |
+| `onRun` | `() => void` | | Renders the run button and is called when it is pressed. |
 | `className` | `string` | | Merged onto the root. |
 
 All other `div` props are forwarded to the root.

@@ -8,13 +8,15 @@ import { take } from "../utils/range";
 
 export interface MessagePairProps extends Omit<
   ComponentProps<"div">,
-  "children"
+  "children" | "onCopy"
 > {
   userMessage: string;
   words: readonly string[];
   visibleWords: number;
   streaming: boolean;
   variant?: "bubble" | "flat";
+  onCopy?: () => void;
+  onRegenerate?: () => void;
 }
 
 export function MessagePair({
@@ -23,6 +25,8 @@ export function MessagePair({
   visibleWords,
   streaming,
   variant = "bubble",
+  onCopy,
+  onRegenerate,
   className,
   ...props
 }: MessagePairProps) {
@@ -73,22 +77,30 @@ export function MessagePair({
             />
           )}
         </p>
-        <div className="flex items-center gap-1 pt-1 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100 motion-reduce:transition-none">
-          <button
-            type="button"
-            aria-label="Copy response"
-            className={cn(ghostButton, "size-7")}
-          >
-            <CopyIcon className="size-3.5" />
-          </button>
-          <button
-            type="button"
-            aria-label="Regenerate response"
-            className={cn(ghostButton, "size-7")}
-          >
-            <RefreshCwIcon className="size-3.5" />
-          </button>
-        </div>
+        {(onCopy || onRegenerate) && (
+          <div className="flex items-center gap-1 pt-1 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100 motion-reduce:transition-none">
+            {onCopy && (
+              <button
+                type="button"
+                aria-label="Copy response"
+                onClick={onCopy}
+                className={cn(ghostButton, "size-7")}
+              >
+                <CopyIcon className="size-3.5" />
+              </button>
+            )}
+            {onRegenerate && (
+              <button
+                type="button"
+                aria-label="Regenerate response"
+                onClick={onRegenerate}
+                className={cn(ghostButton, "size-7")}
+              >
+                <RefreshCwIcon className="size-3.5" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
