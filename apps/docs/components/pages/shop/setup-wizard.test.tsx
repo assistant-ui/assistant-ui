@@ -188,6 +188,58 @@ describe("SetupWizard", () => {
     }
   });
 
+  it("shortens the title already on screen when the heading resizes and the products wrap to a second line", () => {
+    const lines = vi.spyOn(Element.prototype, "getClientRects");
+    const rects = (lineCount: number) =>
+      Array.from(
+        { length: lineCount },
+        () => new DOMRect(),
+      ) as unknown as DOMRectList;
+    const observed = new Map<Element, () => void>();
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        readonly callback: ResizeObserverCallback;
+        constructor(callback: ResizeObserverCallback) {
+          this.callback = callback;
+        }
+        observe(target: Element) {
+          observed.set(target, () => this.callback([], this));
+        }
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    try {
+      lines.mockReturnValue(rects(1));
+      render(
+        <SetupWizard
+          checkout={context(initialCheckoutState(), false, false, {
+            products: ["assistant-ui", "cloud"],
+          })}
+        />,
+      );
+      const heading = screen.getByRole("heading", { level: 1 });
+      expect(heading.textContent).toBe(
+        "Welcome to the setup wizard for assistant-ui and Assistant Cloud",
+      );
+      const resized = observed.get(heading);
+      expect(resized).toBeDefined();
+      lines.mockReturnValue(rects(2));
+      act(() => resized!());
+      expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+        "Welcome to the setup wizard",
+      );
+      expect(
+        screen.getByText("Setting up assistant-ui and Assistant Cloud.")
+          .className,
+      ).toContain("text-muted-foreground");
+    } finally {
+      lines.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("keeps the frame at one fixed size on every page", () => {
     const frame = () =>
       document.querySelector('section[aria-labelledby="setup-wizard-title"]')!
