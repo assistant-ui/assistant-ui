@@ -521,19 +521,11 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
 
   const toThreadMessages = useCallback(
     (sourceMessages: UI_MESSAGE[]) => {
-      const projection = getSupersededApprovalProjection(
-        sourceMessages,
-        hostApprovalIdsRef.current,
-        joinStrategy,
-        false,
-      );
       const metadata: AISDKMessageConverterMetadata = {
         supportsRichToolApprovalResponses,
         toolArtifacts: toolArtifactsRef.current,
         toolInteractions: toolInteractionsRef.current,
         toolApprovalResponses: toolApprovalResponsesRef.current,
-        cancelledToolApprovalIds: projection.approvalIds,
-        cancelledStatusMessageIds: projection.statusMessageIds,
       };
       return AISDKMessageConverter.toThreadMessages(
         sourceMessages,
@@ -541,7 +533,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         metadata,
       );
     },
-    [joinStrategy, supportsRichToolApprovalResponses],
+    [supportsRichToolApprovalResponses],
   );
 
   const retractCancellation = useCallback(
@@ -1017,7 +1009,19 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
           : result;
 
       if (targetIndex >= 0 && targetIndex !== chatHelpers.messages.length - 1) {
-        const targetMessageId = chatHelpers.messages[targetIndex]!.id;
+        const target = chatHelpers.messages[targetIndex]!;
+        const targetPart = target.parts.find(
+          (part) => isToolUIPart(part) && part.toolCallId === toolCallId,
+        ) as { state?: string; preliminary?: boolean } | undefined;
+        // An earlier message's settled output may already have reached the model, as the error a cancelling send writes does.
+        if (
+          targetPart?.state === "output-error" ||
+          targetPart?.state === "output-denied" ||
+          (targetPart?.state === "output-available" && !targetPart.preliminary)
+        )
+          return Promise.resolve();
+
+        const targetMessageId = target.id;
         chatHelpers.setMessages((current) =>
           current.map((message) => {
             if (message.id !== targetMessageId) return message;

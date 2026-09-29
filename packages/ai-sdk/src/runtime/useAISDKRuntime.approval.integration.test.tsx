@@ -1100,4 +1100,45 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
     expect(sendAutomaticallyWhen).toHaveBeenCalledTimes(automaticSendChecks);
     expect(sendMessages).not.toHaveBeenCalled();
   });
+
+  it("keeps a settled tool result in an earlier message when a late result arrives", async () => {
+    const cancelled = "User cancelled tool call by sending a new message.";
+    const { part, toolPart, sendMessages } = await setup(() => async () => {}, {
+      messages: [
+        {
+          id: "user-1",
+          role: "user",
+          parts: [{ type: "text", text: "deploy" }],
+        },
+        {
+          id: "assistant-1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-deploy",
+              toolCallId: "tool-1",
+              state: "output-error",
+              input: {},
+              errorText: cancelled,
+            },
+          ],
+        },
+        {
+          id: "user-2",
+          role: "user",
+          parts: [{ type: "text", text: "later" }],
+        },
+      ],
+    });
+
+    await act(async () => {
+      await part().addToolResult("deployed");
+    });
+
+    expect(toolPart()).toMatchObject({
+      state: "output-error",
+      errorText: cancelled,
+    });
+    expect(sendMessages).not.toHaveBeenCalled();
+  });
 });
