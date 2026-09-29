@@ -63,7 +63,7 @@ const user = { name: "Ada", email: "ada@test", image: null };
 
 const setup = (card = input) => {
   const answer = vi.fn().mockResolvedValue(undefined);
-  render(
+  const tree = () => (
     <WizardHost>
       <CloudProjectInputCard
         input={card}
@@ -73,9 +73,10 @@ const setup = (card = input) => {
           } as unknown as CheckoutContextValue
         }
       />
-    </WizardHost>,
+    </WizardHost>
   );
-  return answer;
+  const { rerender } = render(tree());
+  return { answer, rerender: () => rerender(tree()) };
 };
 
 const field = () =>
@@ -85,7 +86,7 @@ const next = () => screen.getByRole("button", { name: "Next" });
 describe("CloudProjectInputCard", () => {
   it("offers sign-in back to this page and takes a pasted URL meanwhile", async () => {
     mocks.session = { status: "anonymous" };
-    const answer = setup();
+    const { answer } = setup();
     expect(
       screen.getByRole("link", { name: "Sign in" }).getAttribute("href"),
     ).toBe("/api/auth/login?redirect=%2Fcomponents%2Fsetup");
@@ -132,7 +133,7 @@ describe("CloudProjectInputCard", () => {
         },
       ],
     };
-    const answer = setup();
+    const { answer } = setup();
     expect(mocks.enabled).toContain(true);
     expect(screen.queryByRole("link", { name: "Sign in" })).toBeNull();
     expect(
@@ -215,7 +216,7 @@ describe("CloudProjectInputCard", () => {
     mocks.projects = { status: "loading" };
     setup();
     expect(screen.getByRole("status").textContent).toContain(
-      "Loading your projects",
+      "Looking for your projects",
     );
     expect(screen.queryByRole("textbox")).toBeNull();
     expect(next()).toHaveProperty("disabled", true);
@@ -225,6 +226,46 @@ describe("CloudProjectInputCard", () => {
     expect(screen.queryByRole("status")).toBeNull();
     expect(screen.queryByRole("radio")).toBeNull();
     expect(field()).toBeTruthy();
+  });
+
+  it("keeps the field hidden until the session and then the listing have answered", () => {
+    mocks.session = { status: "loading" };
+    mocks.projects = { status: "unavailable" };
+    const { rerender } = setup();
+    expect(screen.getByRole("status").textContent).toContain(
+      "Looking for your projects",
+    );
+    expect(
+      screen.queryByRole("textbox", { name: "Frontend API URL" }),
+    ).toBeNull();
+    expect(screen.queryByRole("link", { name: "Sign in" })).toBeNull();
+    expect(mocks.enabled).not.toContain(true);
+    mocks.session = { status: "signed-in", cloudHistory: false, user };
+    mocks.projects = { status: "loading" };
+    rerender();
+    expect(screen.getByRole("status")).toBeTruthy();
+    expect(
+      screen.queryByRole("textbox", { name: "Frontend API URL" }),
+    ).toBeNull();
+    expect(mocks.enabled).toContain(true);
+    mocks.projects = {
+      status: "ready",
+      projects: [
+        {
+          id: "proj_a",
+          name: "Support desk",
+          organization: "Acme",
+          frontendUrl: "https://proj-a.assistant-api.com",
+        },
+      ],
+    };
+    rerender();
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getByRole("radio", { name: /Support desk/ })).toBeTruthy();
+    expect(
+      screen.queryByRole("textbox", { name: "Frontend API URL" }),
+    ).toBeNull();
+    expect(next()).toHaveProperty("disabled", true);
   });
 });
 

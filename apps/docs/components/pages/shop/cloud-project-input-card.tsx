@@ -54,7 +54,7 @@ export function CloudProjectInputCard({
   const [note, setNote] = useState("");
   const { busy, answer, dismiss } = useInputActions(input, checkout);
   const chosen = projects.find((project) => project.id === picked);
-  const loading = listing.status === "loading";
+  const loading = session.status === "loading" || listing.status === "loading";
   const typing = !loading && (projects.length === 0 || picked === OWN);
   const value =
     chosen?.frontendUrl ?? (typing ? frontendUrlOf(url) : undefined);
@@ -93,7 +93,7 @@ export function CloudProjectInputCard({
               aria-hidden="true"
               className="size-4 shrink-0 motion-safe:animate-spin"
             />
-            Loading your projects…
+            Looking for your projects…
           </p>
         ) : null}
         {projects.length > 0 ? (
