@@ -427,14 +427,14 @@ describe("convertLangChainMessages metadata", () => {
       id: "ai-1",
       content: "Hi there!",
       additional_kwargs: {
-        metadata: { model: "gpt-5.6-luna", speaker_name: "Assistant" },
+        metadata: { model: "gpt-6-luna", speaker_name: "Assistant" },
       },
     });
 
     expect(result).toMatchObject({
       role: "assistant",
       metadata: {
-        custom: { model: "gpt-5.6-luna", speaker_name: "Assistant" },
+        custom: { model: "gpt-6-luna", speaker_name: "Assistant" },
       },
     });
   });

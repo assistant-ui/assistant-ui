@@ -550,6 +550,13 @@ describe("PiThreadSupervisor", () => {
     );
   });
 
+  it("treats deleting a thread that no longer exists as done", async () => {
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+    sdk.list.mockResolvedValue([]);
+
+    await expect(supervisor.deleteThread("gone")).resolves.toBeUndefined();
+  });
+
   it("returns an empty cleared queue for cold threads without going live", async () => {
     const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
 
