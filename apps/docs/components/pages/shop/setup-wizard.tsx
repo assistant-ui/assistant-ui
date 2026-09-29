@@ -185,6 +185,7 @@ function DisconnectedDialog({
   onEnd: () => void;
 }) {
   const [ending, setEnding] = useState(false);
+  if (!open && ending) setEnding(false);
   const trigger = useRef<HTMLButtonElement>(null);
   return (
     <Dialog open={open} disablePointerDismissal>

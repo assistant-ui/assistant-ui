@@ -481,6 +481,33 @@ describe("SetupWizard", () => {
     await waitFor(() => expect(abandonCheckout).toHaveBeenCalled());
   });
 
+  it("drops the end confirmation when the agent reconnects", async () => {
+    const { rerender } = render(
+      <SetupWizard
+        checkout={context(connected({ status: "planning" }), false)}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "More options" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "End setup" }));
+    await screen.findByRole("dialog", { name: "End this setup?" });
+    rerender(
+      <SetupWizard
+        checkout={context(connected({ status: "planning" }), true)}
+      />,
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    rerender(
+      <SetupWizard
+        checkout={context(connected({ status: "planning" }), false)}
+      />,
+    );
+    await screen.findByRole("dialog", { name: "Claude Code disconnected" });
+    expect(
+      screen.queryByRole("dialog", { name: "End this setup?" }),
+    ).toBeNull();
+    expect(commands["checkout/cancel"]).not.toHaveBeenCalled();
+  });
+
   it("puts a question's answer on the Next button and sends it from the footer", async () => {
     const state = connected({
       status: "planning",
