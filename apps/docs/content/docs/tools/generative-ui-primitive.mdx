@@ -125,8 +125,6 @@ case "tool-call":
 
 The message store still holds a `tool-call` on this path, not a `generative-ui` part. See `examples/with-generative-ui/app/gui-chat` for a working reference.
 
-Bare strings and numbers act as inline text leaves. Arrays can be nested to group nodes without introducing another component.
-
 ## Spec shape
 
 ```ts
@@ -146,11 +144,13 @@ type GenerativeUISpec = {
 };
 ```
 
-The spec is plain JSON, easy for any agent to emit and easy to validate on the server before delivery.
+Bare strings and numbers act as inline text leaves. Arrays can be nested to group nodes without introducing another component.
+
+The spec is plain JSON, so any agent can emit it and you can validate it on the server before delivery.
 
 To keep malformed or adversarial payloads from overflowing the renderer, content nested beyond 64 levels is ignored.
 
-This is a different shape from the flat `$type` tree the [`present` tool](/docs/tools/generative-ui) uses. The two are not interchangeable, and the Slack, Teams, and A2UI converters only accept the `$type` form.
+This is a different shape from the flat `$type` tree the [`present` tool](/docs/tools/generative-ui) uses. The two are not interchangeable: this primitive renders only `component` nodes, the Slack and Teams converters take the `$type` tree, and the A2UI converter produces one.
 
 ## Streaming
 
@@ -181,4 +181,4 @@ Unknown component names throw `GenerativeUIRenderError` with a typed `componentN
 
 ## Composing with other primitives
 
-`generative-ui` is a regular `MessagePart` type, so it composes cleanly with `MessagePrimitive.Parts`, `MessagePrimitive.PartByIndex`, and `MessagePrimitive.GroupedParts`. Render it alongside text, tool calls, and reasoning in the same message.
+`generative-ui` is a regular `MessagePart` type, so it works with `MessagePrimitive.Parts`, `MessagePrimitive.PartByIndex`, and `MessagePrimitive.GroupedParts`. Render it alongside text, tool calls, and reasoning in the same message.
