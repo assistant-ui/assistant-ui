@@ -684,7 +684,16 @@ const runtime = useChatRuntime({
 
 The handler runs for every approval request in the thread, including tools that use the AI SDK's `needsApproval`. Hand the requests your backend does not own to `respondViaAISDK`, which sends them through `addToolApprovalResponse` exactly as when the option is omitted, so only `approved` and `reason` travel. The handler receives the full response (`approvalId`, `approved`, and optional `optionId`, `text` and `reason`) together with the `toolCallId` and `toolName` it answers.
 
-The answer applies as soon as the handler starts and stays out of the `useChat` messages, so `sendAutomaticallyWhen` cannot send it to your chat route. `AISDKThreads` passes its `Chat` as `unstable_hostApprovalOwner`: the in-memory answer survives switching away and back, and is retired once the chat records the outcome. With a history adapter, answers are also stored under `__aui_toolApprovalResponses` and restored on reload. A direct `useAISDKRuntime` caller without an owner or history adapter keeps answers only for that runtime's lifetime. Have your endpoint refuse a second resume. If the handler throws, the request reopens and `respondToApproval` rejects with the handler's error.
+The answer applies as soon as the handler starts and stays out of the `useChat` messages, so `sendAutomaticallyWhen` cannot send it to your chat route. `AISDKThreads` passes its `Chat` as `unstable_hostApprovalOwner`, so an in-memory answer survives switching away and back. A direct `useAISDKRuntime` caller can pass the `Chat` it renders:
+
+```tsx
+const runtime = useAISDKRuntime(useChat({ chat }), {
+  unstable_hostApprovalOwner: chat,
+  onRespondToToolApproval,
+});
+```
+
+Without an owner or history adapter, an answer lasts only as long as the runtime. With a history adapter, answers are stored under `__aui_toolApprovalResponses` and restored on reload. Bring the resumed run back into the chat, for example with `resumeStream`, and have your endpoint refuse a second resume. If the handler throws, the request reopens and `respondToApproval` rejects with the handler's error.
 
 While a handler is set, an approval's `display`, `allowFreeform`, `dismissible` and `options` reach the renderer, so select and text requests render their own controls. The AI SDK's approval object does not declare these fields and `validateUIMessages` strips them, so stream them as the `approvalDescriptor` of the `tool-approval-request` chunk, which arrives as `approval.descriptor` and survives a reload. The converter reads `prompt`, `display`, `allowFreeform`, `dismissible`, `options`, `optionId`, `text` and `resolution` from a descriptor object when the approval itself does not carry them; `id`, `approved`, `reason` and `isAutomatic` always come from the AI SDK, and the descriptor stays on the part unchanged for custom renderers.
 

@@ -118,8 +118,8 @@ export type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage = UIMessage> =
     /**
      * The object a host answer belongs to, normally the `Chat` the runtime
      * renders. A host answer never reaches the `useChat` messages, so without
-     * an owner it lives only as long as this runtime and a remount over the
-     * same chat reopens the request.
+     * an owner it lives only as long as this runtime. With an owner, it
+     * survives runtime remounts over the same chat.
      */
     unstable_hostApprovalOwner?: object | undefined;
     /**
@@ -149,7 +149,7 @@ export type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage = UIMessage> =
     /**
      * Answers tool approval requests through a host-owned channel instead of the AI SDK's `addToolApprovalResponse`.
      *
-     * Called for every approval request in the thread with the complete response, including option and free-form answers. Hand requests the host does not own to `respondViaAISDK`, which is what runs when this option is omitted. The answer applies to the approval when the handler starts and is removed if it throws. It is never written into the `useChat` messages, so `sendAutomaticallyWhen` cannot forward it. With a history adapter, the answer is stored with its message once the handler resolves and returns on reload, and a second response to the same request rejects; without one it lasts as long as this runtime, and a runtime mounted again over the same chat shows the request open until the resumed run records its resolution in the chat. With `unstable_hostApprovalOwner`, in-memory answers also survive remounting a runtime over the same chat; resolved chat outcomes retire those answers.
+     * Called for every approval request in the thread with the complete response, including option and free-form answers. Hand requests the host does not own to `respondViaAISDK`, which is what runs when this option is omitted. The answer applies to the approval when the handler starts and is removed if it throws. It is never written into the `useChat` messages, so `sendAutomaticallyWhen` cannot forward it. With a history adapter, the answer is stored with its message once the handler resolves and returns on reload. With `unstable_hostApprovalOwner`, in-memory answers survive runtime remounts over the same chat; without an owner or history adapter, they last only as long as the runtime. Bring the resumed run back into the chat, for example with `resumeStream`, and have the endpoint refuse a second resume.
      *
      * While a handler is set, an approval's `display`, `allowFreeform`, `dismissible` and `options` reach the renderer, because the handler can receive answers the AI SDK cannot carry. A stream declares them through the `approvalDescriptor` of its `tool-approval-request` chunk, the one approval field the AI SDK keeps opaque; the converter reads the request and answer fields from that descriptor when the approval itself lacks them.
      */
@@ -288,10 +288,6 @@ const NO_TOOL_APPROVAL_RESPONSES: ReadonlyMap<
  */
 type OwnedApproval = {
   response: RespondToToolApprovalOptions;
-  /** The request the answer belongs to; a branch switch hides the part without
-   * resolving it, so the outcome is read from this tool call rather than from
-   * the approval id still being present. */
-  toolCallId: string;
 };
 
 const hostToolApprovalsByChat = new WeakMap<
@@ -542,32 +538,6 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     sync();
     return unsubscribe;
   }, [approvalOwner, ownedApprovals]);
-
-  // A stored answer is retired once the chat records an outcome for the tool
-  // call it belongs to, not when the part stops being visible: a branch switch
-  // or a deletion rewrites `messages` without resolving anything, and retiring
-  // on absence would reopen an answered request when the branch comes back.
-  // Matching on the tool call rather than the approval id also covers
-  // `completePendingToolCalls`, which strips `approval` when it rewrites a part.
-  useEffect(() => {
-    if (!ownedApprovals || ownedApprovals.size === 0) return;
-    const resolvedToolCallIds = new Set<string>();
-    for (const message of chatHelpers.messages) {
-      for (const part of message.parts) {
-        if (isToolUIPart(part) && part.state !== "approval-requested") {
-          resolvedToolCallIds.add(part.toolCallId);
-        }
-      }
-    }
-    let retired = false;
-    for (const [approvalId, entry] of [...ownedApprovals]) {
-      if (!resolvedToolCallIds.has(entry.toolCallId)) continue;
-      ownedApprovals.delete(approvalId);
-      hostApprovalIdsRef.current.delete(approvalId);
-      retired = true;
-    }
-    if (retired && approvalOwner) notifyHostApprovals(approvalOwner);
-  }, [chatHelpers.messages, ownedApprovals, approvalOwner]);
 
   // A runtime kept mounted across a change of owner must not carry the
   // previous chat's answers: a reused approval id would render as already
@@ -911,7 +881,6 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       if (applied)
         startedWith?.set(approvalId, {
           response,
-          toolCallId: requested.part.toolCallId,
         });
       else startedWith?.delete(approvalId);
 
