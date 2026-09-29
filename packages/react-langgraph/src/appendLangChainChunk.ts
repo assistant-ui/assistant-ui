@@ -64,13 +64,13 @@ const findMatchingToolCall = (
 ): LangChainToolCall | undefined => {
   if (toolCall.id != null && toolCall.id !== "") {
     const byId = prevToolCalls.find(
-      (p) => p.id != null && p.id !== "" && p.id === toolCall.id,
+      (p) => p?.id != null && p.id !== "" && p.id === toolCall.id,
     );
     if (byId) return byId;
   }
   if (toolCall.index != null) {
     return prevToolCalls.find(
-      (p) => p.index === toolCall.index && (!p.id || !toolCall.id),
+      (p) => p?.index === toolCall.index && (!p.id || !toolCall.id),
     );
   }
   return undefined;
@@ -90,7 +90,12 @@ const mergeStreamedToolCallArgs = (
 
   let changed = false;
   const mergedToolCalls = currToolCalls.map((toolCall) => {
-    if (toolCall.partial_json) return toolCall;
+    if (
+      typeof toolCall !== "object" ||
+      toolCall === null ||
+      toolCall.partial_json
+    )
+      return toolCall;
     const previousToolCall = findMatchingToolCall(prevToolCalls, toolCall);
     const streamedPartialJson = previousToolCall?.partial_json;
     if (!streamedPartialJson) return toolCall;
@@ -251,11 +256,11 @@ export const appendLangChainChunk = (
   const newToolCalls = [...(prev.tool_calls ?? [])];
   for (const chunk of curr.tool_call_chunks ?? []) {
     let idx = newToolCalls.findIndex(
-      (tc) => tc.id != null && tc.id !== "" && tc.id === chunk.id,
+      (tc) => tc?.id != null && tc.id !== "" && tc.id === chunk.id,
     );
     if (idx === -1 && chunk.index != null) {
       idx = newToolCalls.findIndex(
-        (tc) => tc.index === chunk.index && (!tc.id || !chunk.id),
+        (tc) => tc?.index === chunk.index && (!tc.id || !chunk.id),
       );
     }
     if (idx === -1) {

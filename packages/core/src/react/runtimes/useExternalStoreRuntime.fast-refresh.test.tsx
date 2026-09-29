@@ -8,6 +8,7 @@ import { ThreadRuntimeImpl } from "../../runtime/api/thread-runtime";
 import { ExportedMessageRepository } from "../../runtime/utils/message-repository";
 import { captureThreadRuntimeGeneration } from "../../runtime/utils/thread-runtime-lifecycle";
 import type { ThreadMessage } from "../../types/message";
+import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import { RuntimeAdapterProvider } from "./RuntimeAdapterProvider";
 import { useExternalStoreRuntime } from "./useExternalStoreRuntime";
 
@@ -50,6 +51,44 @@ const refresh = (before: unknown, after: unknown) => {
     });
   }
 };
+
+it("keeps a bare voice session connected through a real Fast Refresh", async () => {
+  const disconnect = vi.fn();
+  const session: RealtimeVoiceAdapter.Session = {
+    status: { type: "running" },
+    isMuted: false,
+    disconnect,
+    mute: vi.fn(),
+    unmute: vi.fn(),
+    onStatusChange: () => () => {},
+    onTranscript: () => () => {},
+    onModeChange: () => () => {},
+    onVolumeChange: () => () => {},
+  };
+  let runtime!: AssistantRuntime;
+  const useRuntime = () =>
+    useExternalStoreRuntime<ThreadMessage>({
+      messages: [],
+      onNew: async () => {},
+      adapters: { voice: { connect: () => session } },
+    });
+  const Before = () => {
+    runtime = useRuntime();
+    return null;
+  };
+  const After = () => {
+    runtime = useRuntime();
+    return null;
+  };
+  const view = render(<Before />);
+  act(() => runtime.thread.connectVoice());
+  await act(async () => refresh(Before, After));
+  expect(disconnect).not.toHaveBeenCalled();
+  expect(runtime.thread.getState().voice).toBeDefined();
+  view.unmount();
+  await act(async () => Promise.resolve());
+  expect(disconnect).toHaveBeenCalledOnce();
+});
 
 it("dispatches an in-flight append through a Fast Refresh and invalidates on unmount", async () => {
   const onNew = vi.fn(async () => {});
