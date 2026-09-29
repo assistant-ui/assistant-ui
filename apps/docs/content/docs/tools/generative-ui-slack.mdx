@@ -131,13 +131,13 @@ Only buttons carry `value`. `Select`, `Input`, `Slider`, `DatePicker`, `Checkbox
 
 ### Inbound
 
-Slack posts interactions to your request URL as a [`block_actions` payload](https://docs.slack.dev/reference/interaction-payloads/block_actions-payload). `decodeBlockAction` takes one entry from its `actions` array and the payload's `state.values`, then rebuilds the action your tree dispatched. The clicked element's runtime selection remains under `$input`; `{ "$field": name }` references elsewhere in its action payload resolve from named controls in that state:
+Slack posts interactions to your request URL as a [`block_actions` payload](https://docs.slack.dev/reference/interaction-payloads/block_actions-payload). `decodeBlockAction` takes one entry from its `actions` array and the payload's `state.values`, then rebuilds the action your tree dispatched. A control's runtime selection appears under `$input` when supplied; a button with a JSON-serialized `value` contributes its payload fields directly. `{ "$field": name }` references in the action payload resolve from named controls in that state:
 
 ```ts
 import { decodeBlockAction } from "@assistant-ui/react-generative-ui/slack";
 
 const action = decodeBlockAction(payload.actions[0], payload.state?.values);
-// { type: "approve_order", orderId: "48213", $input: "…" }
+// { type: "approve_order", orderId: "48213" }
 ```
 
 It returns `undefined` for anything without a usable `action_id`, and never throws. `type` always comes from `action_id`, so a payload key named `type` cannot override it, and a `$input` key smuggled into the serialized payload is always stripped.
