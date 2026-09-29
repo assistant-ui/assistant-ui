@@ -7,6 +7,7 @@ import {
   WritableSubscribable,
 } from "../../subscribable/subscribable";
 import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
+import { handleThreadListAction } from "../../store/runtime-clients/handle-thread-list-action";
 import { nullProtoRecord } from "../../utils/record";
 import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-state";
 import { EMPTY_THREAD_CORE } from "../../runtimes/remote-thread-list/empty-thread-core";
@@ -775,8 +776,12 @@ export class RemoteThreadListThreadListRuntimeCore
 
   private _switchToThreadFromProp(threadId: string | undefined): Promise<void> {
     return threadId !== undefined
-      ? this._startSwitchToThread(threadId, undefined, false)
-      : this._startSwitchToNewThread(false);
+      ? handleThreadListAction("switch", () =>
+          this._startSwitchToThread(threadId, undefined, false),
+        )
+      : handleThreadListAction("create", () =>
+          this._startSwitchToNewThread(false),
+        );
   }
 
   private _startSwitchToNewThread(emitThreadIdChange: boolean): Promise<void> {
@@ -1018,6 +1023,11 @@ export class RemoteThreadListThreadListRuntimeCore
     let lastAwaitedTask: Promise<void> | undefined;
 
     while (threadId === this._mainThreadId) {
+      // Rechecked each pass: the draft can become the new thread again
+      // mid-loop when its failed first save rolls it back, and switching to a
+      // new thread then re-adopts it, so no switch can move main off it.
+      if (threadId === this.newThreadId)
+        throw new Error("Cannot ensure new thread is not main");
       let switchTask = this._switchTask;
       const startedFallback = !switchTask || switchTask === lastAwaitedTask;
       if (startedFallback) switchTask = this.switchToNewThread();

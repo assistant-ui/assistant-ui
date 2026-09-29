@@ -19,6 +19,7 @@ export type CloudMessage = {
   updated_at: Date;
   format: "aui/v0" | string;
   content: ReadonlyJSONObject;
+  external_id?: string | null | undefined;
 };
 
 type AssistantCloudThreadMessageListQuery = {
@@ -35,6 +36,8 @@ type AssistantCloudThreadMessageCreateBody = {
   parent_id: string | null;
   format: "aui/v0" | string;
   content: ReadonlyJSONObject;
+  external_id?: string | undefined;
+  parent_external_id?: string | undefined;
 };
 
 type AssistantCloudMessageCreateResponse = {
@@ -71,6 +74,10 @@ export const decodeCloudMessage = (
     updated_at: readCloudTimestamp(message.updated_at, `${field}.updated_at`),
     format: readCloudString(message.format, `${field}.format`),
     content: readCloudJSONObject(message.content, `${field}.content`),
+    external_id: readCloudNullableString(
+      message.external_id ?? null,
+      `${field}.external_id`,
+    ),
   };
 };
 
@@ -108,7 +115,20 @@ export class AssistantCloudThreadMessages {
     const response = readCloudRecord(
       await this.cloud.makeRequest(
         `/threads/${encodeURIComponent(threadId)}/messages`,
-        { method: "POST", body },
+        {
+          method: "POST",
+          body: {
+            parent_id: body.parent_id,
+            format: body.format,
+            content: body.content,
+            ...(body.external_id !== undefined
+              ? { external_id: body.external_id }
+              : undefined),
+            ...(body.parent_external_id !== undefined
+              ? { parent_external_id: body.parent_external_id }
+              : undefined),
+          },
+        },
       ),
       "thread message create response",
     );
