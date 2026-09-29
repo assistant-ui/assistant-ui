@@ -276,3 +276,59 @@ describe("toAgUiMessages content metadata", () => {
     expect(toAgUiMessages(rebuilt as never)).toEqual(sent);
   });
 });
+
+describe("toAgUiMessages percent-encoded data URLs", () => {
+  it("sends a data URL that is not base64 as a url source", () => {
+    expect(
+      contentOf(
+        userMessage([
+          { type: "image", image: "data:image/svg+xml,%3Csvg%2F%3E" },
+          {
+            type: "file",
+            data: "data:text/plain,hello",
+            mimeType: "text/plain",
+            filename: "f.txt",
+          },
+        ]),
+      ),
+    ).toEqual([
+      {
+        type: "image",
+        source: { type: "url", value: "data:image/svg+xml,%3Csvg%2F%3E" },
+      },
+      {
+        type: "document",
+        source: {
+          type: "url",
+          value: "data:text/plain,hello",
+          mimeType: "text/plain",
+        },
+        metadata: { filename: "f.txt" },
+      },
+    ]);
+  });
+
+  it("keeps a data URL that is not base64 through a snapshot round trip", () => {
+    const sent = toAgUiMessages([
+      userMessage([
+        {
+          type: "file",
+          data: "data:text/plain,hello",
+          mimeType: "text/plain",
+          filename: "f.txt",
+        },
+      ]),
+    ]);
+
+    const rebuilt = fromAgUiMessages(sent as never);
+    const attachment = (rebuilt[0] as unknown as { attachments: unknown[] })
+      .attachments[0] as { content: unknown[] };
+
+    expect(attachment.content[0]).toMatchObject({
+      type: "file",
+      data: "data:text/plain,hello",
+      mimeType: "text/plain",
+    });
+    expect(toAgUiMessages(rebuilt as never)).toEqual(sent);
+  });
+});

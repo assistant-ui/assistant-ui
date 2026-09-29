@@ -38,7 +38,10 @@ import { MessageTimingSample } from "@/components/pages/docs/samples/message-tim
 import { ModelSelectorSample } from "@/components/pages/docs/samples/model-selector";
 import { ReasoningSample } from "@/components/pages/docs/samples/reasoning";
 import { ThreadListSample } from "@/components/pages/docs/samples/threadlist";
-import { ToolFallbackSample } from "@/components/pages/docs/samples/tool-fallback";
+import {
+  ToolFallbackReceiptSample,
+  ToolFallbackSample,
+} from "@/components/pages/docs/samples/tool-fallback";
 import { ToolGroupSample } from "@/components/pages/docs/samples/tool-group";
 import { QuoteSample } from "@/components/pages/docs/samples/quote";
 import {
@@ -256,6 +259,14 @@ export function AuiToolFallbackDemo() {
   return (
     <RuntimeDemo>
       <ToolFallbackSample />
+    </RuntimeDemo>
+  );
+}
+
+export function AuiToolFallbackReceiptDemo() {
+  return (
+    <RuntimeDemo>
+      <ToolFallbackReceiptSample />
     </RuntimeDemo>
   );
 }

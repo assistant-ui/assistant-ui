@@ -303,12 +303,13 @@ export abstract class BaseComposerRuntimeCore
     if (!this.canSend || this.isSubmitting) return;
 
     if (this._dictationSession) {
+      const sessionId = this._activeDictationSessionId;
       try {
         this._dictationSession.cancel();
       } catch (error) {
         console.error("[assistant-ui] Dictation session cancel threw", error);
       } finally {
-        this._cleanupDictation();
+        this._cleanupDictation({ sessionId });
       }
     }
 
@@ -532,6 +533,15 @@ export abstract class BaseComposerRuntimeCore
     this._sendGeneration++;
     this._submission = undefined;
     this._submissionSend = undefined;
+  }
+
+  /** Drops the send being prepared without returning it to the draft, for a thread runtime disposed for good. */
+  public __internal_dispose() {
+    this._cancelAllAttachmentAdds();
+    if (!this._submission) return;
+    this._submissionSend?.controller.abort();
+    this._endSubmission();
+    this._notifySubscribers();
   }
 
   /**

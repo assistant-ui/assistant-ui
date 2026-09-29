@@ -435,6 +435,39 @@ describe("PiThreadController", () => {
     vi.useRealTimers();
   });
 
+  it("finishes local cleanup when the event unsubscribe throws", () => {
+    const cleanupError = new Error("unsubscribe failed");
+    const client = createFakeClient();
+    const eventListeners: Array<(event: PiClientEvent) => void> = [];
+    client.subscribe = (_threadId, listener) => {
+      const failsCleanup = eventListeners.length === 0;
+      eventListeners.push(listener);
+      client.listeners.add(listener);
+      return () => {
+        if (failsCleanup) throw cleanupError;
+        client.listeners.delete(listener);
+      };
+    };
+    const controller = new PiThreadController(client, THREAD);
+    const notify = vi.fn();
+    controller.subscribe(notify);
+    controller.connect();
+
+    expect(() => controller.dispose()).toThrow(cleanupError);
+
+    controller.subscribe(notify);
+    controller.connect();
+
+    eventListeners[0]!(ev({ type: "agent_start" }, 1));
+    expect(notify).not.toHaveBeenCalled();
+    expect(controller.getState().runStatus).toBe("idle");
+
+    eventListeners[1]!(ev({ type: "agent_start" }, 1));
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(controller.getState().runStatus).toBe("running");
+    expect(() => controller.dispose()).not.toThrow();
+  });
+
   it("keeps thread switching on the read-only getThread path", async () => {
     const client = createFakeClient(
       snapshot({ messages: [{ role: "user", content: "one", timestamp: 1 }] }),
