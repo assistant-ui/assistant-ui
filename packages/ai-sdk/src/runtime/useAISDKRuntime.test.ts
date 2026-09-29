@@ -595,6 +595,44 @@ describe("useAISDKRuntime", () => {
     expect(chat.messages[0].parts[2].state).toBe("output-error");
   });
 
+  it("answers a tool call in an earlier assistant message with malformed parts", async () => {
+    const chat = createChatHelpers([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          null,
+          {
+            type: "tool-weather",
+            toolCallId: "tc-1",
+            state: "input-available",
+            input: { city: "NYC" },
+          },
+        ],
+      },
+      { id: "u2", role: "user", parts: [{ type: "text", text: "and?" }] },
+      { id: "a2", role: "assistant", parts: [{ type: "text", text: "ok" }] },
+    ]);
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBe(3);
+    });
+
+    await act(async () => {
+      result.current.thread
+        .getMessageById("a1")
+        .getMessagePartByToolCallId("tc-1")
+        .addToolResult({ temp: 72 });
+    });
+
+    await waitFor(() => {
+      expect(chat.messages[0].parts[1].state).toBe("output-available");
+    });
+    expect(chat.messages[0].parts[0]).toBeNull();
+    expect(chat.messages[0].parts[1].output).toEqual({ temp: 72 });
+  });
+
   it("strips stale approval when cancelling a tool pending approval so history stays valid", async () => {
     const chat = createChatHelpers([
       {

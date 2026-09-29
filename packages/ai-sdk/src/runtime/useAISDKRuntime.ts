@@ -343,6 +343,7 @@ const getSupersededApprovalProjection = <UI_MESSAGE extends UIMessage>(
       lastAssistant === messages[lastIndex] &&
       lastAssistant?.parts?.some((part) => {
         if (
+          typeof part?.type !== "string" ||
           !isToolUIPart(part) ||
           part.state === "output-available" ||
           part.state === "output-error" ||
@@ -391,7 +392,12 @@ const getSupersededApprovalProjection = <UI_MESSAGE extends UIMessage>(
     }
 
     for (const part of message.parts ?? []) {
-      if (!isToolUIPart(part) || part.state !== "approval-requested") continue;
+      if (
+        typeof part?.type !== "string" ||
+        !isToolUIPart(part) ||
+        part.state !== "approval-requested"
+      )
+        continue;
 
       const approval = part.approval;
       if (!approval) continue;
@@ -427,7 +433,10 @@ const findRawToolMessageIndex = <UI_MESSAGE extends UIMessage>(
 ) => {
   const containsToolCall = (message: UI_MESSAGE) =>
     message.parts?.some(
-      (part) => isToolUIPart(part) && part.toolCallId === toolCallId,
+      (part) =>
+        typeof part?.type === "string" &&
+        isToolUIPart(part) &&
+        part.toolCallId === toolCallId,
     ) === true;
 
   const messageIndex = messages.findIndex(
@@ -1158,7 +1167,10 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       if (targetIndex >= 0 && targetIndex !== chatHelpers.messages.length - 1) {
         const target = chatHelpers.messages[targetIndex]!;
         const targetPart = target.parts.find(
-          (part) => isToolUIPart(part) && part.toolCallId === toolCallId,
+          (part) =>
+            typeof part?.type === "string" &&
+            isToolUIPart(part) &&
+            part.toolCallId === toolCallId,
         ) as { state?: string; preliminary?: boolean } | undefined;
         // An earlier message's settled output may already have reached the model, as the error a cancelling send writes does.
         if (
@@ -1176,7 +1188,11 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
             return {
               ...message,
               parts: message.parts.map((part) => {
-                if (!isToolUIPart(part) || part.toolCallId !== toolCallId)
+                if (
+                  typeof part?.type !== "string" ||
+                  !isToolUIPart(part) ||
+                  part.toolCallId !== toolCallId
+                )
                   return part;
 
                 const { preliminary: _preliminary, ...finalPart } =
