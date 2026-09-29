@@ -98,6 +98,20 @@ if ! pnpm install --no-frozen-lockfile ||
   ' "$expo_manifest_backup" "$EXPO_MANIFEST" examples/with-expo "$expo_matrix_backup"
 fi
 
+# expo install --fix repins react-native but does not manage the scoped Metro
+# package, so align the explicit peer-resolution pin on both success and fallback
+# paths after Expo has finished rewriting the manifest.
+node -e '
+  const fs = require("node:fs");
+  const manifestPath = process.argv[1];
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  const reactNative = manifest.dependencies?.["react-native"];
+  if (reactNative && manifest.devDependencies?.["@react-native/metro-config"]) {
+    manifest.devDependencies["@react-native/metro-config"] = reactNative;
+    fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+  }
+' "$EXPO_MANIFEST"
+
 pnpm install
 pnpm dedupe
 bash scripts/generate-deps-changeset.sh

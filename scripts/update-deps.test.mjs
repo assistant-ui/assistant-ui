@@ -82,6 +82,13 @@ set -eu
 if [ "$1" = "expo" ]; then
   [ "$FAILURE_STAGE" != "expo-repin" ]
   printf '%s\n' "$*" > "$EXPO_CALL_MARKER"
+  node -e '
+    const fs = require("node:fs");
+    const file = "package.json";
+    const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
+    manifest.dependencies["react-native"] = "0.81.5";
+    fs.writeFileSync(file, JSON.stringify(manifest, null, 2) + "\\n");
+  '
   exit
 fi
 node -e '
@@ -165,7 +172,7 @@ printf '%s\n' generate-deps-changeset >> "$COMPLETION_MARKER"
               "@expo/vector-icons": "15.0.0",
               "expo-constants": "18.0.0",
               "@shopify/flash-list": "2.0.0",
-              "react-native": "0.82.0",
+              "react-native": "0.81.5",
               "react-native-screens": "4.18.0",
               "react-native-worklets": "0.7.1",
               "unrelated-package": "2.0.0",
@@ -182,7 +189,7 @@ printf '%s\n' generate-deps-changeset >> "$COMPLETION_MARKER"
       );
       assert.deepEqual(manifest.devDependencies, {
         "@react-native/metro-config":
-          failureStage === "none" ? "0.82.0" : "0.81.5",
+          "0.81.5",
         expo: failureStage === "none" ? "55.0.0" : "54.0.0",
       });
     } finally {
