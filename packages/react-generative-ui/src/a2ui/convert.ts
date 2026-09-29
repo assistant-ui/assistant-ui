@@ -378,34 +378,25 @@ const recordBindings = (
   const name = mapped["name"];
   const boundKey = BOUND_KEYS.find((key) => node[key] !== undefined);
   const value = boundKey === undefined ? undefined : props[boundKey];
-  // A date input cannot show a time, so its binding keeps the value the agent sent.
-  const holdsValue =
-    component !== "DateTimeInput" ||
-    typeof value !== "string" ||
-    value === "" ||
-    DATE_PATTERN.test(value);
   if (INPUT_COMPONENTS.has(String(component)) && typeof name === "string") {
     context.textFields.set(
       name,
       (!context.textFields.has(name) || context.bindings !== undefined) &&
-        holdsValue &&
         (component === "TextField" || component === "DateTimeInput"),
     );
-    if (holdsValue) {
-      const field = (fallback: unknown) =>
-        fallback === undefined ? { $field: name } : { $field: name, fallback };
-      // A single-choice picker collects one string, while the spec binds it to a string list.
-      const listValued =
-        component === "ChoicePicker" &&
-        mapped.$type !== "CheckboxGroup" &&
-        typeof value !== "string";
-      context.inputFields.set(
-        name,
-        listValued
-          ? [field(Array.isArray(value) ? value[0] : undefined)]
-          : field(value),
-      );
-    }
+    const field = (fallback: unknown) =>
+      fallback === undefined ? { $field: name } : { $field: name, fallback };
+    // A single-choice picker collects one string, while the spec binds it to a string list.
+    const listValued =
+      component === "ChoicePicker" &&
+      mapped.$type !== "CheckboxGroup" &&
+      typeof value !== "string";
+    context.inputFields.set(
+      name,
+      listValued
+        ? [field(Array.isArray(value) ? value[0] : undefined)]
+        : field(value),
+    );
   }
   const action = mapped.$action;
   const raw = node["action"];
@@ -719,6 +710,12 @@ const mappedProps = (
 
   if (component === "TextField") {
     const placeholder = stringProp(props, ["placeholder"]);
+    const inputType =
+      props["variant"] === "obscured"
+        ? "password"
+        : props["variant"] === "number"
+          ? "number"
+          : undefined;
     const multiline =
       typeof props["multiline"] === "boolean"
         ? props["multiline"]
@@ -735,6 +732,7 @@ const mappedProps = (
           : undefined;
     return {
       $type: "Input",
+      ...(inputType !== undefined ? { inputType } : {}),
       ...(placeholder !== undefined ? { placeholder } : {}),
       ...(multiline !== undefined ? { multiline } : {}),
       ...(label !== undefined ? { label } : {}),
@@ -796,17 +794,6 @@ const mappedProps = (
       };
     }
     const [defaultValue] = selected;
-    if (props["displayStyle"] === "chips") {
-      const placeholder = stringProp(props, ["placeholder"]);
-      return {
-        $type: "Select",
-        options,
-        ...(placeholder !== undefined ? { placeholder } : {}),
-        ...(label !== undefined ? { label } : {}),
-        ...(name !== undefined ? { name } : {}),
-        ...(defaultValue !== undefined ? { defaultValue } : {}),
-      };
-    }
     return {
       $type: "RadioGroup",
       options,
@@ -818,6 +805,18 @@ const mappedProps = (
 
   if (component === "DateTimeInput") {
     const value = stringProp(props, ["value"]);
+    if (
+      props["enableDate"] !== true ||
+      props["enableTime"] === true ||
+      (value !== undefined && value !== "" && !DATE_PATTERN.test(value))
+    ) {
+      return {
+        $type: "Input",
+        ...(value !== undefined ? { defaultValue: value } : {}),
+        ...(label !== undefined ? { label } : {}),
+        ...(name !== undefined ? { name } : {}),
+      };
+    }
     const min = stringProp(props, ["min"]);
     const max = stringProp(props, ["max"]);
     return {

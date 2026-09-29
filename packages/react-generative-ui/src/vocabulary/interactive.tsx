@@ -274,6 +274,7 @@ function SelectRender({
 
 type InputRenderProps = {
   value?: string;
+  inputType?: "text" | "password" | "number";
   placeholder?: string;
   multiline?: boolean;
   label?: string;
@@ -286,6 +287,7 @@ type InputRenderProps = {
 
 function InputRender({
   value,
+  inputType,
   placeholder,
   multiline,
   label,
@@ -337,6 +339,8 @@ function InputRender({
   ) : (
     <input
       key={initialValue}
+      type={inputType}
+      step={inputType === "number" ? "any" : undefined}
       data-aui="input"
       data-aui-action={actionAttr($action)}
       name={name}
@@ -811,6 +815,10 @@ export const interactiveVocabulary = {
     description:
       "A text input. Carries `$action` describing the on-submit behavior.",
     properties: z.object({
+      inputType: z
+        .enum(["text", "password", "number"])
+        .optional()
+        .describe("Single-line input type. Values remain strings."),
       placeholder: z.string().optional().describe("Placeholder text."),
       multiline: z
         .boolean()
