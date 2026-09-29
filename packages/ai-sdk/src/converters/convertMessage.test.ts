@@ -44,7 +44,7 @@ describe("AISDKMessageConverter", () => {
         parts: [{ type: "text", text: "yo" }],
         metadata: {
           usage: { inputTokens: 40, outputTokens: 2 },
-          modelId: "gpt-5.6-luna",
+          modelId: "gpt-6-luna",
           custom: { source: "route" },
         },
       },
@@ -52,7 +52,7 @@ describe("AISDKMessageConverter", () => {
 
     expect(converted[0]?.metadata.custom).toEqual({
       usage: { inputTokens: 40, outputTokens: 2 },
-      modelId: "gpt-5.6-luna",
+      modelId: "gpt-6-luna",
       source: "route",
     });
     expect(converted[0]?.metadata).not.toHaveProperty("usage");

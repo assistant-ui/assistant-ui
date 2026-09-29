@@ -89,6 +89,7 @@ type ThreadMessageLike = {
   role: "system" | "user" | "assistant";
   content: readonly MessagePartLike[];
   attachments?: readonly AttachmentLike[];
+  status?: { type: string };
 };
 
 const IMAGE_MEDIA_TYPES: Record<string, string> = {
@@ -148,6 +149,7 @@ function isAwaitingHost(part: MessagePartLike): boolean {
 function processToolCall(
   part: MessagePartLike,
   accumulator: ToolCallAccumulator,
+  inFlight: boolean,
 ): boolean {
   if (!part.toolCallId || !part.toolName) return false;
 
@@ -161,8 +163,8 @@ function processToolCall(
   const settled =
     !part.isPreliminary &&
     (part.state === "result" || part.result !== undefined);
-  // The in-flight message is converted on every roundtrip, so a call still awaiting a decision or an execution is live rather than failed.
-  if (!settled && isAwaitingHost(part)) return false;
+  // The in-flight message is the last one and is converted on every roundtrip, so a call in it still awaiting a decision or an execution is live rather than failed; a call in an earlier or settled message will never be answered.
+  if (!settled && inFlight && isAwaitingHost(part)) return false;
 
   // Providers reject an assistant tool call that no tool result answers.
   const toolResult: GenericToolResultPart = {
@@ -249,12 +251,17 @@ function convertUserMessage(
 function convertAssistantMessage(
   message: ThreadMessageLike,
   result: GenericMessage[],
+  isLast: boolean,
 ): void {
   const accumulator: ToolCallAccumulator = {
     textParts: [],
     toolResults: [],
   };
   let hasPendingToolResults = false;
+  const inFlight =
+    isLast &&
+    message.status?.type !== "complete" &&
+    message.status?.type !== "incomplete";
 
   for (const part of message.content) {
     if (part.type === "text" && part.text) {
@@ -265,7 +272,7 @@ function convertAssistantMessage(
       }
       accumulator.textParts.push({ type: "text", text: part.text });
     } else if (part.type === "tool-call") {
-      if (processToolCall(part, accumulator)) {
+      if (processToolCall(part, accumulator, inFlight)) {
         hasPendingToolResults = true;
       }
     }
@@ -283,7 +290,7 @@ export function toGenericMessages(
 ): GenericMessage[] {
   const result: GenericMessage[] = [];
 
-  for (const message of messages) {
+  for (const [index, message] of messages.entries()) {
     switch (message.role) {
       case "system":
         convertSystemMessage(message, result);
@@ -292,7 +299,7 @@ export function toGenericMessages(
         convertUserMessage(message, result);
         break;
       case "assistant":
-        convertAssistantMessage(message, result);
+        convertAssistantMessage(message, result, index === messages.length - 1);
         break;
     }
   }

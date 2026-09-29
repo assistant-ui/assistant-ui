@@ -187,7 +187,7 @@ describe("createRunReport", () => {
         threadId: "ai-sdk-thread",
         status: "completed",
         traceId: "00112233445566778899aabbccddeeff",
-        modelId: "gpt-5.6-terra",
+        modelId: "gpt-6-sol",
         provider: "gateway",
         usage: {
           inputTokens: 100,
@@ -215,7 +215,7 @@ describe("createRunReport", () => {
       thread_id: "ai-sdk-thread",
       status: "completed",
       trace_id: "00112233445566778899aabbccddeeff",
-      model_id: "gpt-5.6-terra",
+      model_id: "gpt-6-sol",
       provider: "gateway",
       provider_type: "gateway",
       input_tokens: 100,

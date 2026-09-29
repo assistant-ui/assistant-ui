@@ -15,18 +15,18 @@ import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 
 export function ModelSelectorWithMetadata() {
   const models: ModelOption[] = [
-    { id: "gpt-5.6-luna", name: "GPT-5.6 Luna" },
-    { id: "gpt-5.6-sol", name: "GPT-5.6 Sol" },
-    { id: "claude-opus-5", name: "Claude Opus 5" },
-    { id: "gemini-3.7-flash", name: "Gemini 3.7 Flash" },
+    { id: "gpt-6-luna", name: "GPT-6 Luna" },
+    { id: "gpt-6-astra", name: "GPT-6 Astra" },
+    { id: "claude-opus-5-5", name: "Claude Opus 5.5" },
+    { id: "gemini-3.8-flash", name: "Gemini 3.8 Flash" },
   ];
   const capabilities: Record<string, string[]> = {
-    "gpt-5.6-luna": ["Tools", "128K"],
-    "gpt-5.6-sol": ["Vision", "Tools", "128K"],
-    "claude-opus-5": ["Vision", "Tools", "1M"],
-    "gemini-3.7-flash": ["Vision", "Tools", "2M"],
+    "gpt-6-luna": ["Tools", "1M"],
+    "gpt-6-astra": ["Vision", "Tools", "1M"],
+    "claude-opus-5-5": ["Vision", "Tools", "1M"],
+    "gemini-3.8-flash": ["Vision", "Tools", "1M"],
   };
-  const [model, setModel] = useState("gpt-5.6-sol");
+  const [model, setModel] = useState("gpt-6-astra");
 
   return (
     <ModelSelectorRoot models={models} value={model} onValueChange={setModel}>
