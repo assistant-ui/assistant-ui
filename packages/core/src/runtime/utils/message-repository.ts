@@ -147,7 +147,9 @@ export const withoutOrphanedMessages = (
     dropped.add(id);
     for (const child of children.get(id) ?? []) pending.push(child);
   }
-  if (dropped.size === 0) return { repository, droppedIds: [] };
+  const headMissing =
+    repository.headId != null && !listed.has(repository.headId);
+  if (dropped.size === 0 && !headMissing) return { repository, droppedIds: [] };
 
   const droppedIds: string[] = [];
   const keptParents = new Set<string>();
@@ -160,7 +162,7 @@ export const withoutOrphanedMessages = (
     return true;
   });
   let { headId } = repository;
-  if (headId != null && dropped.has(headId)) {
+  if (headId != null && (headMissing || dropped.has(headId))) {
     headId = null;
     for (const { message } of messages) {
       if (!keptParents.has(message.id)) headId = message.id;

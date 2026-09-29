@@ -3129,6 +3129,45 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     );
   });
 
+  it("loads a history whose stored head names no message and warns about it", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const stored = ExportedMessageRepository.fromBranchableArray(
+      [
+        { message: { ...userMessage("hello"), id: "root" }, parentId: null },
+        {
+          message: { ...userMessage("follow-up"), id: "leaf" },
+          parentId: "root",
+        },
+      ],
+      { headId: "never-stored" },
+    );
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [] };
+        },
+      },
+      {
+        history: {
+          async load() {
+            return stored;
+          },
+          async append() {},
+        },
+      },
+    );
+
+    await thread.__internal_load();
+
+    expect(thread.export().headId).toBe("leaf");
+    expect(thread.messages.map((m) => m.id)).toEqual(["root", "leaf"]);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(
+      "[assistant-ui] History head is not among the loaded messages:",
+      "never-stored",
+    );
+  });
+
   it.each([false, true])(
     "appends a completed message replaced by a tool result before its generator returns (update: %s)",
     async (update) => {
@@ -4869,6 +4908,78 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     expect(appended).toHaveLength(1);
     expect(appended[0]?.message.id).toBe("restored");
     expect(appended[0]?.message.status?.type).toBe("complete");
+  });
+
+  it("appends a resumed pause again before a turn that follows it while its run is open", async () => {
+    const { history, appended } = createHistory({ update: false });
+    const paused: ExportedMessageRepositoryItem = {
+      parentId: null,
+      message: {
+        id: "restored",
+        role: "assistant",
+        content: [toolCallPart("send_email", { id: "a1" })],
+        status: { type: "requires-action", reason: "tool-calls" },
+        createdAt: new Date(),
+        metadata: {
+          unstable_state: null,
+          unstable_annotations: [],
+          unstable_data: [],
+          steps: [],
+          custom: {},
+        },
+      },
+    };
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const thread = createThread(
+      {
+        async *run() {
+          yield toolCallResult("send_sms", { id: "a2" });
+          await released;
+        },
+      },
+      {
+        history: {
+          ...history,
+          async load() {
+            return { headId: "restored", messages: [paused] };
+          },
+        },
+      },
+    );
+
+    thread.__internal_load();
+    await flush();
+    thread.respondToToolApproval({ approvalId: "a1", approved: true });
+    await flush();
+    void thread.append({
+      ...userMessage("never mind"),
+      parentId: "restored",
+      startRun: false,
+    });
+    await flush();
+
+    try {
+      expect(appended.map((i) => i.message.id)).toEqual([
+        "restored",
+        thread.messages.at(-1)!.id,
+      ]);
+      expect(appended[0]?.message).toMatchObject({
+        status: { type: "incomplete", reason: "cancelled" },
+        content: expect.arrayContaining([
+          expect.objectContaining({
+            approval: expect.objectContaining({
+              id: "a2",
+              resolution: "cancelled",
+            }),
+          }),
+        ]),
+      });
+    } finally {
+      release();
+    }
   });
 
   it("persists a partial approval decision while another tool call is still pending", async () => {

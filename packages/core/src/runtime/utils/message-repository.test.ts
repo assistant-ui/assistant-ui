@@ -145,6 +145,25 @@ describe("withoutOrphanedMessages", () => {
     expect(imported.getMessage("older-leaf").parentId).toBe("root");
     expect(imported.export().messages).toHaveLength(3);
   });
+
+  it("replaces a head that names no stored message with the most recently listed leaf", () => {
+    const stored: ExportedMessageRepository = {
+      headId: "never-stored",
+      messages: [
+        { message: message("root"), parentId: null },
+        { message: message("leaf"), parentId: "root" },
+      ],
+    };
+
+    const { repository, droppedIds } = withoutOrphanedMessages(stored);
+
+    expect(droppedIds).toEqual([]);
+    expect(repository).toEqual({ ...stored, headId: "leaf" });
+    expect(() => new MessageRepository().import(stored)).toThrow();
+    const imported = new MessageRepository();
+    imported.import(repository);
+    expect(imported.headId).toBe("leaf");
+  });
 });
 
 describe("MessageRepository rejected operations", () => {

@@ -184,7 +184,8 @@ export class LocalThreadRuntimeCore
   // queue runs overlap, and the previous dispatch settles after the next one
   // has already started.
   private _queueRunInFlight: object | null = null;
-  private _activeRun: { cancelled: boolean } | null = null;
+  private _activeRun: { cancelled: boolean; resumedFromPause: boolean } | null =
+    null;
   private _runGeneration = 0;
   // A metadata change such as feedback, and a tool result on a running message, replace a message without superseding the run that is streaming it; any other replacement ends that run, whose later chunks would overwrite it.
   private _messageReplacements = new WeakMap<
@@ -280,10 +281,23 @@ export class LocalThreadRuntimeCore
     if (entry.message.role !== "assistant") return;
     if (this._roundtripsInFlight.has(messageId)) {
       this._followedDuringRun.add(messageId);
-      return this._persistSettled(
-        entry.parentId,
-        withCancelledPause(entry.message),
-      );
+      const snapshot = withCancelledPause(entry.message);
+      const history = this._options.adapters.history;
+      // A followed run skips its final write, so a resumed pause a history without `update` already holds is appended again here with what the run added.
+      if (
+        history &&
+        !history.update &&
+        this._activeRun?.resumedFromPause &&
+        !this._unwrittenMessages.has(messageId)
+      ) {
+        const item = {
+          parentId: entry.parentId,
+          message: snapshot,
+          runConfig: this._lastRunConfig,
+        };
+        return this._chainHistoryWrite(messageId, () => history.append(item));
+      }
+      return this._persistSettled(entry.parentId, snapshot);
     }
     const message = withCancelledPause(entry.message);
     if (message === entry.message) return;
@@ -494,6 +508,15 @@ export class LocalThreadRuntimeCore
           console.warn(
             "[assistant-ui] Skipped history messages with missing parents:",
             droppedIds,
+          );
+        }
+        if (
+          repo.headId != null &&
+          !repo.messages.some((item) => item.message.id === repo.headId)
+        ) {
+          console.warn(
+            "[assistant-ui] History head is not among the loaded messages:",
+            repo.headId,
           );
         }
         this.repository.import(withLocalPauseReasons(repository));
