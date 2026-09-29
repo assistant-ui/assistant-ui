@@ -140,17 +140,7 @@ export function decodeBlockAction(
       }
     }
 
-    const checkboxMapping =
-      action["type"] === "checkboxes" && typeof action["block_id"] === "string"
-        ? fieldMappingsFromBlockId(action["block_id"]).find(
-            ([mappedActionId, , isCheckbox]) =>
-              mappedActionId === actionId && isCheckbox,
-          )
-        : undefined;
-    const input =
-      (checkboxMapping
-        ? checkboxValue(action, checkboxMapping[1])
-        : selectedValue(action)) ?? plainValue;
+    const input = selectedValue(action) ?? plainValue;
 
     const decoded = {
       ...Object.fromEntries(

@@ -147,6 +147,23 @@ describe("A2UI actions on Slack", () => {
     }
   });
 
+  it("decodes a named Checkbox action with a list in $input", () => {
+    const blockId = `aui:0:${JSON.stringify([["toggle", "agree", "Checkbox"]])}`;
+    for (const [selectedOptions, input] of [
+      [[], []],
+      [[{ value: "agree" }], ["agree"]],
+    ] as const) {
+      expect(
+        decodeBlockAction({
+          type: "checkboxes",
+          block_id: blockId,
+          action_id: "toggle",
+          selected_options: selectedOptions,
+        }),
+      ).toEqual({ type: "toggle", $input: input });
+    }
+  });
+
   it("sends the user's edited TextField value", () => {
     const { blockId, actionId, button } = convertForm();
     const stateValues = {

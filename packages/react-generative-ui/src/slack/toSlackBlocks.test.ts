@@ -812,8 +812,8 @@ describe("toSlackBlocks", () => {
         throw new Error("Expected a checkbox");
       }
       for (const [selectedOptions, expected] of [
-        [[], false],
-        [checkbox.options, true],
+        [[], []],
+        [checkbox.options, ["agree"]],
       ] as const) {
         expect(
           decodeBlockAction({

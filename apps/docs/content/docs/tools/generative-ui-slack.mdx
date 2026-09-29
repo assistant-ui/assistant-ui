@@ -148,11 +148,12 @@ What lands in `$input` depends on the element:
 |---|---|
 | `static_select`, `radio_buttons` | The selected option's value, as a string |
 | `datepicker` | The selected date, as `YYYY-MM-DD` |
-| `checkboxes` from a named `Checkbox` | `true` when checked or `false` when unchecked |
-| Other `checkboxes` | An array of selected values, empty when nothing is checked |
+| `checkboxes` | An array of selected values, empty when nothing is checked |
 | `plain_text_input` | The typed text |
 | `number_input` | The entered number |
 | `button` | The raw `value` string, when it is not a serialized object |
+
+A `{ "$field": name }` reference to a named `Checkbox` resolves from state values to `true` when checked or `false` when unchecked.
 
 ### Reading a tree back
 
