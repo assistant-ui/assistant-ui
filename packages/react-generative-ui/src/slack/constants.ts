@@ -54,6 +54,9 @@ export const SELECT_OPTION_CAP = 100;
 /** The maximum number of options in a radio-button group. */
 export const RADIO_OPTION_CAP = 10;
 
+/** The maximum number of options in a checkbox group. */
+export const CHECKBOX_OPTION_CAP = 10;
+
 /** The character limit for a select or input placeholder. */
 export const PLACEHOLDER_TEXT_CAP = 150;
 

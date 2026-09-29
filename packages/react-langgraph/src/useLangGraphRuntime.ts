@@ -97,7 +97,10 @@ const isSpokenMessage = (message: LangChainMessage) =>
   (message.type === "human" || message.type === "ai") &&
   getMessageModality(message.additional_kwargs) !== undefined;
 
-const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
+const useLangGraphRuntimeImpl = (
+  options: UseLangGraphRuntimeOptions,
+  loadRef: { current: UseLangGraphRuntimeOptions["load"] },
+) => {
   const {
     autoCancelPendingToolCalls,
     adapters: { attachments, dictation, feedback, speech, voice } = {},
@@ -698,11 +701,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     uiMessagesRef.current = uiMessages;
   }, [uiMessages]);
 
-  const loadRef = useRef(load);
-  useEffect(() => {
-    loadRef.current = load;
-  });
-
   const threadListItem =
     aui.threadListItem.source !== null ? aui.threadListItem : undefined;
 
@@ -765,6 +763,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     },
     [
       threadListItem,
+      loadRef,
       loadController,
       setValues,
       reconcileMessages,
@@ -997,6 +996,10 @@ export const useLangGraphRuntime = ({
   ...options
 }: UseLangGraphRuntimeOptions) => {
   const aui = useAui();
+  const loadRef = useRef(options.load);
+  useInsertionEffect(() => {
+    loadRef.current = options.load;
+  }, [options.load]);
   const cloudAdapter = useCloudThreadListAdapter({
     sdk: LANGGRAPH_SDK,
     cloud,
@@ -1011,7 +1014,7 @@ export const useLangGraphRuntime = ({
 
   return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
-      return useLangGraphRuntimeImpl(options);
+      return useLangGraphRuntimeImpl(options, loadRef);
     },
     adapter,
     allowNesting: true,

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { MyRuntimeProvider } from "@/app/MyRuntimeProvider";
 
 import "./globals.css";
 
@@ -29,7 +28,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} h-dvh antialiased`}
       >
-        <MyRuntimeProvider>{children}</MyRuntimeProvider>
+        {children}
       </body>
     </html>
   );

@@ -36,9 +36,9 @@ import { useConvertedState } from "./useConvertedState";
 import type { ToolExecutionStatus } from "../../../runtimes/tool-invocations/ToolInvocationTracker";
 import { createRequestHeaders } from "../../../runtimes/assistant-transport/utils";
 import { useRemoteThreadListRuntime } from "../useRemoteThreadListRuntime";
-import { InMemoryThreadListAdapter } from "../../../runtimes/remote-thread-list/adapter/in-memory";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import type { UserExternalState } from "../../../types/augmentations";
+import { useCloudThreadListAdapter } from "../cloud/useCloudThreadListAdapter";
 
 const convertAppendMessageToCommand = (
   message: AppendMessage,
@@ -364,6 +364,7 @@ const useAssistantTransportThreadRuntime = <T>(
       ];
 
       commandQueue.reset();
+      parentIdRef.current = undefined;
 
       options.onCancel?.({
         commands: cmds,
@@ -380,6 +381,7 @@ const useAssistantTransportThreadRuntime = <T>(
       const queuedCmds = [...commandQueue.state.queued];
 
       commandQueue.reset();
+      parentIdRef.current = undefined;
 
       try {
         await options.onError?.(error as Error, {
@@ -493,7 +495,7 @@ const useAssistantTransportThreadRuntime = <T>(
 export const useAssistantTransportRuntime = <T>(
   options: AssistantTransportOptions<T>,
 ): AssistantRuntime => {
-  const [adapter] = useState(() => new InMemoryThreadListAdapter());
+  const adapter = useCloudThreadListAdapter({ cloud: options.cloud });
   const runtime = useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
       return useAssistantTransportThreadRuntime(options);

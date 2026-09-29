@@ -276,6 +276,8 @@ Supported keyboard bindings:
 | `Alt+D` | Kill the word after the cursor | Terminals that emit meta-key sequences |
 | `Shift+Enter` | Insert a newline | Multi-line submit mode, terminals that distinguish it |
 
+`Alt+Up` and `Alt+Down` are left to the application and do not move the input cursor.
+
 Word boundaries and grapheme stepping use `Intl.Segmenter`, so emoji, accented letters, skin-tone modifiers, ZWJ sequences, and CJK ideographs each move and delete as a single character.
 
 Some bindings depend on terminal capabilities. iTerm2, Windows Terminal, and most Linux terminals emit `Alt`-letter combinations as `Esc`-prefixed sequences that Ink decodes as meta-key input; macOS Terminal.app requires enabling "Use Option as Meta key" in its preferences before `Alt+B` / `Alt+F` / `Alt+D` work as expected. `Shift+Enter` requires a terminal that supports the CSI-u protocol (iTerm2 3.4+, kitty, foot, and similar) — terminals that conflate it with `Enter` will fall back to the `submitOnEnter` behaviour.
@@ -1217,7 +1219,7 @@ Container `Box` for the status bar. Forwards all `Box` props; pass `gap` to spac
 ```tsx
 <StatusBarPrimitive.Root gap={1}>
   <StatusBarPrimitive.Status />
-  <StatusBarPrimitive.ModelName name="gpt-5.6-luna" />
+  <StatusBarPrimitive.ModelName name="gpt-6-luna" />
   <StatusBarPrimitive.MessageCount />
   <StatusBarPrimitive.TokenCount />
   <StatusBarPrimitive.Latency />
