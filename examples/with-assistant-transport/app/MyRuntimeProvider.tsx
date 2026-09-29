@@ -37,7 +37,7 @@ const converter = (
         return [
           {
             type: "human" as const,
-            id: c.message.id,
+            ...(c.message.id !== undefined && { id: c.message.id }),
             content: [
               {
                 type: "text" as const,
