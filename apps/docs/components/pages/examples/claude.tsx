@@ -171,13 +171,13 @@ const ComposerPrimaryAction: FC = () => {
 
 const CLAUDE_MODELS = [
   {
-    id: "sonnet-4.5",
-    name: "Sonnet 4.5",
+    id: "sonnet-5",
+    name: "Sonnet 5",
     description: "Smart, fast, everyday tasks",
   },
   {
-    id: "opus-4.7",
-    name: "Opus 4.7",
+    id: "fable-5.1",
+    name: "Fable 5.1",
     description: "Anthropic's most capable model",
   },
   {

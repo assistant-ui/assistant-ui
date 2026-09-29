@@ -35,11 +35,8 @@ export const WizardProvider = WizardContext.Provider;
 /** The id a page's form takes so the wizard's Next button can submit it. */
 export const useWizardFormId = () => useContext(WizardContext)?.formId;
 
-/**
- * Hands the page's primary action to the wizard footer. Returns false when no
- * wizard hosts the component, which then renders its own buttons.
- */
-export function useWizardNext(next: WizardNext): boolean {
+/** Hands the page's primary action to the wizard footer. */
+export function useWizardNext(next: WizardNext) {
   const host = useContext(WizardContext);
   const setNext = host?.setNext;
   const onClick = useRef(next.onClick);
@@ -55,5 +52,4 @@ export function useWizardNext(next: WizardNext): boolean {
     setNext({ label, disabled, submit, run, ...(hasBack && { back }) });
     return () => setNext(undefined);
   }, [setNext, label, disabled, submit, run, hasBack, back]);
-  return host !== null;
 }

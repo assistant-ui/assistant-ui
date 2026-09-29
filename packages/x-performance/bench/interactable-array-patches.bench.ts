@@ -1,5 +1,5 @@
 import { unstable_getInteractableVersions } from "@assistant-ui/core";
-import { describe, test } from "vitest";
+import { describe, inject, test } from "vitest";
 
 const makeMessages = (size: number) => {
   const items = Array.from({ length: size }, (_, index) => ({
@@ -42,7 +42,7 @@ describe("core: id-keyed interactable array patches", () => {
     test(`${size} items and patches`, async ({ bench }) => {
       await bench(`${size} items and patches`, () => {
         unstable_getInteractableVersions([...messages], "board", "board");
-      }).run();
+      }).run(inject("benchSampling"));
     });
   }
 });
