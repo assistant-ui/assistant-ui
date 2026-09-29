@@ -52,10 +52,13 @@ const useMessageClient = ({
   runtime,
   threadIdRef,
   threadId,
+  isLast,
 }: {
   runtime: MessageRuntime;
   threadIdRef: { current: string };
   threadId: string;
+  /** False when the thread renders a message the runtime does not hold after this one. */
+  isLast?: false | undefined;
 }): ClientOutput<"message"> => {
   const runtimeState = useSubscribable(runtime);
   const emit = useAssistantEmit();
@@ -127,6 +130,7 @@ const useMessageClient = ({
   const state = useMemo<MessageState>(() => {
     return {
       ...(runtimeState as MessageState),
+      ...(isLast === false ? { isLast } : {}),
 
       parts: parts.state,
       composer: composer.state,
@@ -136,6 +140,7 @@ const useMessageClient = ({
     };
   }, [
     runtimeState,
+    isLast,
     parts.state,
     composer.state,
     isCopiedState,

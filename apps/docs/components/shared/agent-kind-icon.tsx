@@ -6,6 +6,7 @@ const AGENT_MARKS: Record<string, string> = {
   codex: "openai",
   cursor: "cursor",
   gemini: "gemini",
+  opencode: "opencode",
 };
 
 /** The mark of a coding agent by the kind the CLI reports (`claude`, `codex`, `gemini`, ...). */

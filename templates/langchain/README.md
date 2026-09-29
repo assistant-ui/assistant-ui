@@ -19,14 +19,17 @@ This is the [assistant-ui](https://github.com/assistant-ui/assistant-ui) starter
 2. Install deps and run both the LangGraph backend and the Next.js frontend:
 
    ```bash
-   pnpm install
-   pnpm dev
+   npm install
+   npm run dev
    ```
+
+   Any package manager works — substitute `pnpm`, `yarn` or `bun` if you
+   scaffolded with one of those.
 
    - `localhost:2024` — LangGraph dev server (serves the `agent` graph)
    - `localhost:3000` — Next.js app (proxies `/api/*` → `LANGGRAPH_API_URL`)
 
-   Run them individually with `pnpm dev:backend` and `pnpm dev:frontend`.
+   Run them individually with `npm run dev:backend` and `npm run dev:frontend`.
 
 ## Project layout
 

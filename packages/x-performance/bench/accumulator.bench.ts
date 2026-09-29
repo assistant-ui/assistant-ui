@@ -1,4 +1,4 @@
-import { describe, test } from "vitest";
+import { describe, inject, test } from "vitest";
 import {
   AssistantMessageStream,
   createAssistantStream,
@@ -53,7 +53,7 @@ describe("assistant-stream: stream + accumulator per-delta cost (16-char deltas)
     test(`${n} deltas`, async ({ bench }) => {
       await bench(`${n} deltas`, async () => {
         await drain(chunks);
-      }).run();
+      }).run(inject("benchSampling"));
     });
   }
 });
@@ -64,7 +64,7 @@ describe("assistant-stream: stream round trip baseline, no accumulator", () => {
     test(`${n} deltas`, async ({ bench }) => {
       await bench(`${n} deltas`, async () => {
         await drainRaw(chunks);
-      }).run();
+      }).run(inject("benchSampling"));
     });
   }
 });
@@ -75,13 +75,13 @@ describe("assistant-stream: raw controller enqueue overhead", () => {
   test("10,000 controller.enqueue calls", async ({ bench }) => {
     await bench("10,000 controller.enqueue calls", async () => {
       await drainRawEnqueue(chunks);
-    }).run();
+    }).run(inject("benchSampling"));
   });
 
   test("10,000 chunks from one source stream", async ({ bench }) => {
     await bench("10,000 chunks from one source stream", async () => {
       await drainRaw(chunks);
-    }).run();
+    }).run(inject("benchSampling"));
   });
 });
 
@@ -95,7 +95,7 @@ describe("assistant-stream: same 4000-char text, chunk size A/B", () => {
     test(name, async ({ bench }) => {
       await bench(name, async () => {
         await drain(chunks);
-      }).run();
+      }).run(inject("benchSampling"));
     });
   }
 });

@@ -16,6 +16,7 @@ import { useHydrated, useMotion } from "./surfaces";
 const h = vi.hoisted(() => ({
   hydrationRenders: [] as boolean[],
   resolvers: [] as Array<(reduced: boolean) => void>,
+  rejecters: [] as Array<(error: Error) => void>,
   handler: undefined as ((reduced: boolean) => void) | undefined,
   subscribe: vi.fn(),
   remove: vi.fn(),
@@ -29,8 +30,9 @@ vi.mock("react-native", async (importOriginal) => {
     AccessibilityInfo: {
       ...actual.AccessibilityInfo,
       isReduceMotionEnabled: () =>
-        new Promise<boolean>((resolve) => {
+        new Promise<boolean>((resolve, reject) => {
           h.resolvers.push(resolve);
+          h.rejecters.push(reject);
         }),
       addEventListener: (
         _event: string,
@@ -54,6 +56,7 @@ describe("useMotion", () => {
 
   beforeEach(() => {
     h.resolvers.length = 0;
+    h.rejecters.length = 0;
     h.handler = undefined;
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -70,6 +73,12 @@ describe("useMotion", () => {
   const answer = async (index: number, reduced: boolean) => {
     await act(async () => {
       h.resolvers[index]?.(reduced);
+    });
+  };
+
+  const reject = async (index: number, error: Error) => {
+    await act(async () => {
+      h.rejecters[index]?.(error);
     });
   };
 
@@ -126,6 +135,20 @@ describe("useMotion", () => {
     expect(container.textContent).toBe("still");
 
     await answer(1, false);
+    expect(container.textContent).toBe("motion");
+  });
+
+  it("keeps motion disabled when the initial setting query rejects", async () => {
+    await act(async () => {
+      root.render(<Probe />);
+    });
+
+    await reject(0, new Error("setting unavailable"));
+    expect(container.textContent).toBe("still");
+
+    await act(async () => {
+      h.handler?.(false);
+    });
     expect(container.textContent).toBe("motion");
   });
 });

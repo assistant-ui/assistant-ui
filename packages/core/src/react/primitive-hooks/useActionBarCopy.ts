@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useInsertionEffect, useRef } from "react";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { actionBarCopyDisabled } from "../../store/primitive-predicates";
 
@@ -13,13 +13,22 @@ export const useActionBarCopy = ({
 }: UseActionBarCopyOptions = {}) => {
   const aui = useAui();
   const disabled = useAuiState(actionBarCopyDisabled);
+  const messageId = useAuiState((s) => s.message.id);
   const isCopied = useAuiState((s) => s.message.isCopied);
   const isEditing = useAuiState((s) => s.composer.isEditing);
   const composerValue = useAuiState((s) => s.composer.text);
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
+  const copiedFeedbackTargetRef = useRef<
+    ((value: boolean) => void) | undefined
+  >(undefined);
   const scopeGenerationRef = useRef(0);
+  const committedMessageIdRef = useRef(messageId);
+
+  useInsertionEffect(() => {
+    committedMessageIdRef.current = messageId;
+  }, [messageId]);
 
   useEffect(
     () => () => {
@@ -28,9 +37,10 @@ export const useActionBarCopy = ({
 
       clearTimeout(copiedTimerRef.current);
       copiedTimerRef.current = undefined;
-      aui.message.setIsCopied(false);
+      copiedFeedbackTargetRef.current?.(false);
+      copiedFeedbackTargetRef.current = undefined;
     },
-    [aui],
+    [aui, messageId],
   );
 
   const copy = useCallback(() => {
@@ -39,6 +49,8 @@ export const useActionBarCopy = ({
     const valueToCopy = isEditing ? composerValue : aui.message.getCopyText();
     if (!valueToCopy) return;
     const scopeGeneration = scopeGenerationRef.current;
+    const copiedMessageId = messageId;
+    const setCopyFeedback = aui.message.setIsCopied;
 
     // The writer runs synchronously inside the press so the user-gesture gating
     // of navigator.clipboard survives (WebKit scopes it to the stack); the try
@@ -54,20 +66,38 @@ export const useActionBarCopy = ({
 
     Promise.resolve(write).then(
       () => {
-        if (scopeGeneration !== scopeGenerationRef.current) return;
+        if (
+          scopeGeneration !== scopeGenerationRef.current ||
+          copiedMessageId !== committedMessageIdRef.current
+        )
+          return;
 
         if (copiedTimerRef.current !== undefined) {
           clearTimeout(copiedTimerRef.current);
         }
-        aui.message.setIsCopied(true);
+        copiedFeedbackTargetRef.current = setCopyFeedback;
+        setCopyFeedback(true);
         copiedTimerRef.current = setTimeout(() => {
           copiedTimerRef.current = undefined;
-          aui.message.setIsCopied(false);
+          if (copiedMessageId !== committedMessageIdRef.current) {
+            setCopyFeedback(false);
+            copiedFeedbackTargetRef.current = undefined;
+            return;
+          }
+          setCopyFeedback(false);
+          copiedFeedbackTargetRef.current = undefined;
         }, copiedDuration);
       },
       () => {},
     );
-  }, [aui, isEditing, composerValue, copiedDuration, copyToClipboard]);
+  }, [
+    aui,
+    messageId,
+    isEditing,
+    composerValue,
+    copiedDuration,
+    copyToClipboard,
+  ]);
 
   return { copy, disabled: disabled || !copyToClipboard, isCopied };
 };
