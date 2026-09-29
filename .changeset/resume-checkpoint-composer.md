@@ -11,3 +11,5 @@ Add explicit adapter-owned `canResume` state and a `useComposerResume` hook, wit
 Resumable AI SDK transports expose the manual resume API only with `canResume: true`. This opt-in also clears checkpoints on branch switches and retains them after transient reconnect failures for manual retry. Identical pending manual calls coalesce across AI SDK state updates. Without it, explicit resume support and branch callbacks keep their existing behavior. Automatic reconnect does not retry the same stream again during the mount.
 
 The new state field is optional so existing custom thread clients and typed state fixtures remain assignable without advertising checkpoint support.
+
+With manual Resume enabled, a new send, edit, or regeneration clears the previous checkpoint before making the request, including when the request fails before response headers arrive.

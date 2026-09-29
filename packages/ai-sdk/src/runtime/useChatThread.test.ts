@@ -19,6 +19,7 @@ import {
   type ChatThreadEnvironment,
 } from "./useChatThread";
 import { AssistantChatTransport } from "../transport/AssistantChatTransport";
+import { AISDKThreads } from "./AISDKThreads";
 import {
   createResumableSessionStorage,
   RESUMABLE_STREAM_ID_HEADER,
@@ -524,6 +525,120 @@ describe("useChatThread", () => {
       storage.clear();
     }
   });
+
+  it.each(
+    [false, true].flatMap((canResume) =>
+      ["owned", "threads"].flatMap((owner) =>
+        ["send", "edit", "reload"].map((action) => ({
+          canResume,
+          owner,
+          action,
+        })),
+      ),
+    ),
+  )(
+    "invalidates the old checkpoint before a failed $action only with canResume=$canResume ($owner)",
+    async ({ canResume, owner, action }) => {
+      const storage = createResumableSessionStorage({
+        key: `failed-${action}-${owner}-${canResume}`,
+      });
+      storage.clear();
+      let initial!: ReadableStreamDefaultController<Uint8Array>;
+      let rejectRequest!: (error: Error) => void;
+      const error = new Error("offline before response headers");
+      const onError = vi.fn();
+      const fetch = vi
+        .fn<typeof globalThis.fetch>()
+        .mockImplementation(
+          () =>
+            new Promise<Response>((_resolve, reject) => {
+              rejectRequest = reject;
+            }),
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            new ReadableStream({
+              start: (controller) => (initial = controller),
+            }),
+            {
+              headers: {
+                "content-type": "text/event-stream",
+                [RESUMABLE_STREAM_ID_HEADER]: "old-stream",
+              },
+            },
+          ),
+        );
+      const options = {
+        canResume,
+        onError,
+        transport: new AssistantChatTransport({
+          fetch,
+          resumable: { storage, resumeApi: (id) => `/api/resume/${id}` },
+        }),
+      };
+      const Host = createHost({});
+      const handle = createAssistantClient(
+        AuiConfig({
+          threads: owner === "threads" ? AISDKThreads(options) : Host(options),
+        }),
+      );
+      handle.subscribe(() => {});
+      const aui = handle.getClient();
+      try {
+        flushTapSync(() => aui.composer.setText("first question"));
+        flushTapSync(() => aui.composer.send());
+        for (const chunk of [
+          { type: "start", messageId: "answer" },
+          { type: "text-start", id: "text" },
+          { type: "text-delta", id: "text", delta: "Partial" },
+        ] satisfies UIMessageChunk[])
+          initial.enqueue(
+            new TextEncoder().encode(`data: ${JSON.stringify(chunk)}\n\n`),
+          );
+        await vi.waitFor(() =>
+          expect(aui.thread.getState().messages.at(-1)?.id).toBe("answer"),
+        );
+        flushTapSync(() => aui.thread.cancelRun());
+        await vi.waitFor(() => {
+          expect(aui.thread.getState().isRunning).toBe(false);
+          expect(aui.thread.getState().canResume).toBe(canResume);
+        });
+        expect(storage.getStreamId("main")).toBe("old-stream");
+
+        if (action === "send") {
+          flushTapSync(() => aui.composer.setText("follow-up"));
+          flushTapSync(() => aui.composer.send());
+        } else if (action === "edit") {
+          const edit = () => aui.thread.message({ index: 0 }).composer();
+          flushTapSync(() => edit().beginEdit());
+          flushTapSync(() => edit().setText("edited question"));
+          flushTapSync(() => edit().send());
+        } else {
+          flushTapSync(() => aui.thread.message({ id: "answer" }).reload());
+        }
+        await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+        expect(storage.getStreamId("main")).toBe(
+          canResume ? null : "old-stream",
+        );
+        rejectRequest(error);
+        await vi.waitFor(() => {
+          expect(onError).toHaveBeenCalledWith(error);
+          expect(aui.thread.getState().isRunning).toBe(false);
+          expect(aui.thread.getState().canResume).toBe(false);
+        });
+        if (canResume) {
+          const messages = aui.thread.getState().messages;
+          await aui.thread.resumeRun({ parentId: messages.at(-1)?.id ?? null });
+          expect(aui.thread.getState().messages).toEqual(messages);
+          expect(fetch).toHaveBeenCalledTimes(2);
+        }
+      } finally {
+        rejectRequest?.(error);
+        handle.destroy();
+        storage.clear();
+      }
+    },
+  );
 
   it("coalesces resume calls across chat updates and consumes the stopped response checkpoint on finish", async () => {
     const storage = createResumableSessionStorage({ key: "composer-resume" });

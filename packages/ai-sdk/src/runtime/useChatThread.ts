@@ -183,7 +183,7 @@ export const splitChatThreadOptions = <UI_MESSAGE extends UIMessage>(
 type ChatCallbacks<UI_MESSAGE extends UIMessage> = Pick<
   ChatInit<UI_MESSAGE>,
   "onToolCall" | "onData" | "onFinish" | "onError" | "sendAutomaticallyWhen"
->;
+> & { canResume?: boolean | undefined };
 
 const requestsByChat = new WeakMap<object, symbol>();
 
@@ -203,6 +203,11 @@ export const createChat = <UI_MESSAGE extends UIMessage>(
       transport: {
         sendMessages: (options) => {
           requestsByChat.set(chat, Symbol());
+          // A new send or regeneration changes the replay target even when
+          // the request fails before returning a replacement checkpoint.
+          if (callbacksRef.current?.canResume) {
+            getResumableAdapter(transport)?.storage.clear(options.chatId);
+          }
           return transport.sendMessages(options);
         },
         reconnectToStream: (options) => {
@@ -267,9 +272,9 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
   );
   const transport = useDynamicChatTransport(sourceTransport);
 
-  const latestChatOptionsRef = useRef(chatOptions);
+  const latestChatOptionsRef = useRef({ ...chatOptions, canResume });
   useEffect(() => {
-    latestChatOptionsRef.current = chatOptions;
+    latestChatOptionsRef.current = { ...chatOptions, canResume };
   });
   // `useChat` stops a chat it constructs whenever it unmounts, and a
   // resource's soft unmount runs that cleanup, so the thread owns its chat.

@@ -159,7 +159,10 @@ ID appends a second answer; a replay containing only the remaining text loses
 the earlier partial content. Leave manual Resume disabled unless the endpoint
 satisfies both requirements. When the server emits `finish`, storage is cleared.
 
-Typing a new draft keeps Send available. Resumable storage alone does not
+Typing a new draft keeps Send available. With manual Resume enabled, starting a
+new send, edit, or regeneration request clears the previous checkpoint, so a failed
+request cannot replay an older answer into the new turn.
+Resumable storage alone does not
 expose manual Resume. Custom adapters can opt in with
 `canResume` and `onResume`; they own checkpoint expiry and error state. A
 cancelled run without a retained checkpoint cannot be resumed. Custom composer
