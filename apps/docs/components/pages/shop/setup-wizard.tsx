@@ -444,13 +444,17 @@ function InstallSteps({
   const leaving = useLeaving(drafting);
   const name = useAgentName(checkout);
   const activeId = state.steps.find((step) => step.status === "active")?.id;
+  const activeLast =
+    activeId === undefined
+      ? undefined
+      : stepActivity(state, activeId).at(-1)?.id;
   const list = useRef<HTMLOListElement>(null);
   useEffect(() => {
     if (activeId === undefined) return;
     list.current
       ?.querySelector('[aria-current="step"]')
       ?.scrollIntoView({ block: "center" });
-  }, [activeId]);
+  }, [activeId, activeLast]);
   let lastProduct: string | undefined;
   return (
     <ol
@@ -493,6 +497,7 @@ function InstallSteps({
                 entries={activity}
                 live={step.id === activeId}
                 agentName={name}
+                stepTitle={step.title}
               />
             ) : null}
           </TimelineEntry>

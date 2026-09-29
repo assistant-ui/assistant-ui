@@ -14,11 +14,14 @@ export function StepActivity({
   entries,
   live,
   agentName,
+  stepTitle,
 }: {
   entries: readonly Checkout.LogEntry[];
   /** The step is in progress, so new lines keep arriving. */
   live: boolean;
   agentName: string;
+  /** Read after the visible label, so the disclosures of two steps with the same line count still read apart. */
+  stepTitle: string;
 }) {
   const [toggled, setToggled] = useState<boolean>();
   const open = toggled ?? live;
@@ -33,7 +36,8 @@ export function StepActivity({
   return (
     <Collapsible open={open} onOpenChange={setToggled}>
       <CollapsibleTrigger className="text-muted-foreground hover:text-foreground group flex items-center gap-1.5 text-sm">
-        {count} {count === 1 ? "line" : "lines"} from {agentName}
+        {count} {count === 1 ? "line" : "lines"} from {agentName}{" "}
+        <span className="sr-only">for {stepTitle}</span>
         <ChevronDownIcon className="size-3.5 transition-transform group-data-[panel-open]:rotate-180" />
       </CollapsibleTrigger>
       <CollapsibleContent className="mt-2">

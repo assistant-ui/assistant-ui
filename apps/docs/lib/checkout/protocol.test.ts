@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   awaitingUserAt,
   initialCheckoutState,
+  isStepClosingLine,
   stepActivity,
   unreadAgentEntries,
   type Checkout,
@@ -92,25 +93,27 @@ describe("unreadAgentEntries", () => {
 });
 
 describe("stepActivity", () => {
+  const line = (
+    id: string,
+    stepId: string | undefined,
+    text: string,
+    role: "agent" | "user" = "agent",
+  ): Checkout.LogEntry => ({
+    id,
+    role,
+    phase: "installing",
+    at: Number(id.slice(1)),
+    text,
+    ...(stepId !== undefined && { stepId }),
+  });
+  const steps: Checkout.Step[] = [
+    { id: "s1", title: "Add the route", status: "done", createdAt: 1 },
+    { id: "s2", title: "Wire the runtime", status: "active", createdAt: 2 },
+  ];
+
   it("keeps the agent's lines for one step, minus the line that closed it", () => {
-    const line = (
-      id: string,
-      stepId: string | undefined,
-      text: string,
-      role: "agent" | "user" = "agent",
-    ): Checkout.LogEntry => ({
-      id,
-      role,
-      phase: "installing",
-      at: Number(id.slice(1)),
-      text,
-      ...(stepId !== undefined && { stepId }),
-    });
     const installing = state({
-      steps: [
-        { id: "s1", title: "Add the route", status: "done", createdAt: 1 },
-        { id: "s2", title: "Wire the runtime", status: "active", createdAt: 2 },
-      ],
+      steps,
       log: [
         line("l1", undefined, "Starting."),
         line("l2", "s1", "Created app/api/chat/route.ts"),
@@ -126,5 +129,24 @@ describe("stepActivity", () => {
       "l5",
     ]);
     expect(stepActivity(installing, "s3")).toEqual([]);
+  });
+
+  it("takes a Completed or Skipped line as closing only the step it was posted under", () => {
+    const installing = state({
+      steps,
+      log: [
+        line("l1", "s2", "Completed: Add the route"),
+        line("l2", "s2", "Skipped: Add the route\n\nAlready there."),
+        line("l3", "s2", "Completed: Wire the runtime"),
+        line("l4", "s3", "Completed: Add the route"),
+      ],
+    });
+    expect(stepActivity(installing, "s2").map((entry) => entry.id)).toEqual([
+      "l1",
+      "l2",
+    ]);
+    expect(
+      installing.log.map((entry) => isStepClosingLine(entry, installing)),
+    ).toEqual([false, false, true, false]);
   });
 });

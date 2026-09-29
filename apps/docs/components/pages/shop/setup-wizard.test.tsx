@@ -422,7 +422,7 @@ describe("SetupWizard", () => {
     vi.useRealTimers();
   });
 
-  it("streams the agent's lines under their step, open while it runs and folded once it is done", () => {
+  it("streams the agent's lines under their step, keeping it centered as they arrive, open while it runs and folded once it is done", () => {
     const step = (
       id: string,
       title: string,
@@ -443,6 +443,7 @@ describe("SetupWizard", () => {
     const installing = (
       second: Checkout.StepStatus,
       third: Checkout.StepStatus,
+      ...later: Checkout.LogEntry[]
     ) =>
       context(
         connected({
@@ -457,6 +458,7 @@ describe("SetupWizard", () => {
             line("l2", "s1", "Completed: Add the route"),
             line("l3", "s2", "Installing @assistant-ui/react"),
             line("l4", "s2", "Writing app/assistant.tsx"),
+            ...later,
           ],
         }),
       );
@@ -466,17 +468,22 @@ describe("SetupWizard", () => {
           .getByRole("list", { name: "Installation steps" })
           .querySelectorAll(":scope > li"),
       ) as HTMLElement[];
+    const centered = () =>
+      scrollIntoView.mock.contexts.map(
+        (element) => (element as HTMLElement).querySelector("p")!.textContent,
+      );
+    scrollIntoView.mockClear();
     const { rerender } = render(
       <SetupWizard checkout={installing("active", "pending")} />,
     );
     const [first, second, third] = rows();
     const doneToggle = within(first!).getByRole("button", {
-      name: "1 line from Claude Code",
+      name: "1 line from Claude Code for Add the route",
     });
     expect(doneToggle.getAttribute("aria-expanded")).toBe("false");
     expect(within(first!).queryByRole("log")).toBeNull();
     const liveToggle = within(second!).getByRole("button", {
-      name: "2 lines from Claude Code",
+      name: "2 lines from Claude Code for Wire the runtime",
     });
     expect(liveToggle.getAttribute("aria-expanded")).toBe("true");
     const live = within(second!).getByRole("log");
@@ -487,6 +494,7 @@ describe("SetupWizard", () => {
         .map((item) => item.textContent),
     ).toEqual(["Installing @assistant-ui/react", "Writing app/assistant.tsx"]);
     expect(within(third!).queryByRole("button")).toBeNull();
+    expect(centered()).toEqual(["Wire the runtime"]);
 
     fireEvent.click(doneToggle);
     expect(
@@ -498,15 +506,33 @@ describe("SetupWizard", () => {
       "off",
     );
 
+    const wrapped = line("l5", "s2", "Wrapped the app in the runtime provider");
+    rerender(
+      <SetupWizard checkout={installing("active", "pending", wrapped)} />,
+    );
+    expect(centered()).toEqual(["Wire the runtime", "Wire the runtime"]);
+    expect(scrollIntoView).toHaveBeenLastCalledWith({ block: "center" });
+    rerender(
+      <SetupWizard
+        checkout={installing(
+          "active",
+          "pending",
+          wrapped,
+          line("l6", "s1", "Re-exported the route handler"),
+        )}
+      />,
+    );
+    expect(centered()).toEqual(["Wire the runtime", "Wire the runtime"]);
+
     rerender(<SetupWizard checkout={installing("done", "active")} />);
     expect(
       within(rows()[1]!)
-        .getByRole("button", { name: "2 lines from Claude Code" })
+        .getByRole("button", { name: /^2 lines from Claude Code/ })
         .getAttribute("aria-expanded"),
     ).toBe("false");
     expect(
       within(rows()[0]!)
-        .getByRole("button", { name: "1 line from Claude Code" })
+        .getByRole("button", { name: /^1 line from Claude Code/ })
         .getAttribute("aria-expanded"),
     ).toBe("true");
   });
