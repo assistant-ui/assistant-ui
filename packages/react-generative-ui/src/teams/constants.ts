@@ -29,7 +29,7 @@ export const TABLE_ROW_CAP = 100;
 /** The maximum number of columns in a Table. */
 export const TABLE_COLUMN_CAP = 20;
 
-/** The maximum number of choices in a Select or RadioGroup. */
+/** The maximum number of choices in a Select, RadioGroup, or CheckboxGroup. */
 export const CHOICE_OPTION_CAP = 100;
 
 /** The soft byte-count budget for a serialized card, past which a warning notes Teams' 100 KB bot message limit (the card is never truncated to fit it). */

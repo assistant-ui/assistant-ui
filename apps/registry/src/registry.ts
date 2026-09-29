@@ -48,9 +48,12 @@ type ElementRegistryEntry = {
   description: string;
   file: string;
   dependencies?: string[];
+  devDependencies?: string[];
   usesCollapsible?: boolean;
   usesElements?: string[];
+  usesHooks?: string[];
   usesSurfaces?: boolean;
+  usesUi?: string[];
 };
 
 const createElementRegistryItem = (
@@ -74,9 +77,14 @@ const createElementRegistryItem = (
     ...(entry.usesElements ?? []).map(
       (slug) => `https://r.assistant-ui.com/elements-${slug}.json`,
     ),
+    ...(entry.usesHooks ?? []).map(
+      (name) => `https://r.assistant-ui.com/${name}.json`,
+    ),
     ...(entry.usesCollapsible ? ["collapsible"] : []),
+    ...(entry.usesUi ?? []),
   ],
   ...(entry.dependencies ? { dependencies: entry.dependencies } : {}),
+  ...(entry.devDependencies ? { devDependencies: entry.devDependencies } : {}),
 });
 
 const elementsRegistryItems: RegistryItem[] = [
@@ -111,6 +119,21 @@ const elementsRegistryItems: RegistryItem[] = [
         path: "components/assistant-ui/utils/range.ts",
         sourcePath:
           "../../packages/ui/src/components/react/assistant-ui/utils/range.ts",
+      },
+    ],
+  },
+  {
+    name: "elements-href",
+    type: "registry:component",
+    title: "Elements Href",
+    description:
+      "Link safety for the elements family: reducing a model's or a tool's URL to a target a browser can follow without running script.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/href.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/utils/href.ts",
       },
     ],
   },
@@ -237,6 +260,7 @@ const elementsRegistryItems: RegistryItem[] = [
     file: "terminal-block.tsx",
     dependencies: ["lucide-react"],
     usesElements: ["range"],
+    usesHooks: ["use-copy-to-clipboard"],
   }),
   createElementRegistryItem({
     slug: "code-diff",
@@ -262,6 +286,7 @@ const elementsRegistryItems: RegistryItem[] = [
     file: "sources.tsx",
     dependencies: ["lucide-react"],
     usesCollapsible: true,
+    usesElements: ["href"],
   }),
   createElementRegistryItem({
     slug: "inline-citation",
@@ -270,6 +295,15 @@ const elementsRegistryItems: RegistryItem[] = [
       "Numbered references inside a sentence, each with a hover preview of its source.",
     file: "inline-citation.tsx",
     dependencies: ["@base-ui/react"],
+    usesElements: ["href"],
+  }),
+  createElementRegistryItem({
+    slug: "link-preview",
+    title: "Link preview",
+    description:
+      "A returned URL unfurled into a card with enough context to decide whether to open it.",
+    file: "link-preview.tsx",
+    usesElements: ["href"],
   }),
   createElementRegistryItem({
     slug: "image-generation",
@@ -280,10 +314,22 @@ const elementsRegistryItems: RegistryItem[] = [
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
+    slug: "image-gallery",
+    title: "Image gallery",
+    description:
+      "A compact grid of returned images that opens each one in a shared lightbox.",
+    file: "image-gallery.tsx",
+    dependencies: ["lucide-react"],
+    usesElements: ["href", "range"],
+    usesUi: ["dialog"],
+  }),
+  createElementRegistryItem({
     slug: "data-table",
     title: "Data table",
-    description: "A small comparison table the model can answer with directly.",
+    description:
+      "A tool's rows and columns with formatting, sorting, and a card layout in narrow columns.",
     file: "data-table.tsx",
+    usesElements: ["href", "range"],
   }),
   createElementRegistryItem({
     slug: "number-ticker",
@@ -332,6 +378,23 @@ const elementsRegistryItems: RegistryItem[] = [
       "Human in the loop: the agent asks before it runs anything with side effects.",
     file: "approval-card.tsx",
     dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "option-list",
+    title: "Option list",
+    description:
+      "The agent asks a question with a few answers; the pick returns to it and stays as a receipt.",
+    file: "option-list.tsx",
+    dependencies: ["lucide-react"],
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "question-flow",
+    title: "Question flow",
+    description:
+      "A few short questions asked one at a time, answered together and kept as a receipt.",
+    file: "question-flow.tsx",
+    usesElements: ["option-list"],
   }),
   createElementRegistryItem({
     slug: "recommendation-card",
@@ -406,6 +469,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "The agent's own working list, rewritten mid-run as it discovers what else is needed.",
     file: "todo-list.tsx",
     dependencies: ["lucide-react"],
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "message-queue",
@@ -465,6 +529,14 @@ const elementsRegistryItems: RegistryItem[] = [
       "Area, line, and bars, with points landing one at a time as the series streams in.",
     file: "chart.tsx",
     usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "media-player",
+    title: "Media player",
+    description:
+      "Audio and video a tool returned, played inline without leaving the thread.",
+    file: "media-player.tsx",
+    dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
     slug: "trace-waterfall",
@@ -735,6 +807,15 @@ const elementsRegistryItems: RegistryItem[] = [
     description:
       "A location answer: pins, a route between them, and the list they came from.",
     file: "map-answer.tsx",
+  }),
+  createElementRegistryItem({
+    slug: "geo-map",
+    title: "Geo map",
+    description:
+      "Places and routes on a real tiled map, with an accessible list of every place.",
+    file: "geo-map.tsx",
+    dependencies: ["leaflet"],
+    devDependencies: ["@types/leaflet"],
   }),
   createElementRegistryItem({
     slug: "math-block",
@@ -1642,6 +1723,10 @@ export const registry: RegistryItem[] = [
       "parse-diff",
       "@assistant-ui/react-markdown",
       "class-variance-authority",
+      "lucide-react",
+    ],
+    registryDependencies: [
+      "https://r.assistant-ui.com/use-copy-to-clipboard.json",
     ],
   },
   {
@@ -1700,7 +1785,10 @@ export const registry: RegistryItem[] = [
       },
     ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
-    registryDependencies: ["https://r.assistant-ui.com/badge.json"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/badge.json",
+      "https://r.assistant-ui.com/elements-href.json",
+    ],
   },
   {
     name: "image",
@@ -1721,14 +1809,14 @@ export const registry: RegistryItem[] = [
       "lucide-react",
       "class-variance-authority",
     ],
-    registryDependencies: [],
+    registryDependencies: ["https://r.assistant-ui.com/elements-href.json"],
   },
   {
     name: "file",
     type: "registry:component",
     title: "File",
     description:
-      "Display file parts with icon, name, size, and a download button.",
+      "Display file parts with icon, name, size, and a download button, playing audio and video inline.",
     files: [
       {
         type: "registry:component",
@@ -1741,6 +1829,9 @@ export const registry: RegistryItem[] = [
       "@assistant-ui/react",
       "lucide-react",
       "class-variance-authority",
+    ],
+    registryDependencies: [
+      "https://r.assistant-ui.com/elements-media-player.json",
     ],
   },
   {
