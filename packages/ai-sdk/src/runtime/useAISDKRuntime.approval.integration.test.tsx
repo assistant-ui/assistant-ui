@@ -9,7 +9,10 @@ import {
   type UIMessageChunk,
 } from "ai";
 import { ToolResponse } from "assistant-stream";
-import type { ThreadHistoryAdapter } from "@assistant-ui/core";
+import type {
+  ThreadHistoryAdapter,
+  ThreadRuntimeCore,
+} from "@assistant-ui/core";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { useAISDKRuntime } from "./useAISDKRuntime";
 
@@ -609,6 +612,118 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
       stream.close();
     });
   });
+
+  it.each([
+    {
+      situation: "without superseded approvals",
+      middle: {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [{ type: "text", text: "Earlier reply" }],
+      } as UIMessage,
+    },
+    {
+      situation: "with unchanged superseded approval ids",
+      middle: approvalMessage("assistant-1", "tool-1", "approval-1"),
+    },
+  ])(
+    "keeps earlier messages stable while a reply streams $situation",
+    async ({ middle }) => {
+      let stream!: ReadableStreamDefaultController<UIMessageChunk>;
+      const { chat, thread } = await setup(undefined, {
+        messages: [
+          userMessage,
+          middle,
+          {
+            id: "user-2",
+            role: "user",
+            parts: [{ type: "text", text: "Continue" }],
+          },
+        ],
+        continuation: () =>
+          new ReadableStream({
+            start(controller) {
+              stream = controller;
+            },
+          }),
+      });
+
+      act(() => {
+        void chat().sendMessage();
+      });
+      await act(async () => {
+        stream.enqueue({ type: "start", messageId: "assistant-2" });
+        stream.enqueue({ type: "text-start", id: "text-2" });
+        stream.enqueue({ type: "text-delta", id: "text-2", delta: "One" });
+      });
+      await waitFor(() => expect(chat().status).toBe("streaming"));
+      const earlierMessage = thread().getState().messages[1];
+
+      await act(async () => {
+        stream.enqueue({ type: "text-delta", id: "text-2", delta: " two" });
+      });
+
+      expect(chat().messages.at(-1)?.parts).toMatchObject([
+        { type: "text", text: "One two" },
+      ]);
+      expect(thread().getState().messages[1]).toBe(earlierMessage);
+
+      await act(async () => {
+        stream.enqueue({ type: "text-end", id: "text-2" });
+        stream.enqueue({ type: "finish" });
+        stream.close();
+      });
+    },
+  );
+
+  it.each(["host", "AI SDK"] as const)(
+    "rejects a direct response to a superseded approval through the %s path",
+    async (path) => {
+      const handler = vi.fn<ApprovalHandler>(async () => {});
+      const { chat, thread } = await setup(
+        path === "host" ? () => handler : undefined,
+        {
+          messages: [
+            userMessage,
+            approvalMessage("assistant-1", "tool-1", "approval-1"),
+            {
+              id: "user-2",
+              role: "user",
+              parts: [{ type: "text", text: "later" }],
+            },
+          ],
+        },
+      );
+      const addToolApprovalResponse = vi.spyOn(
+        chat(),
+        "addToolApprovalResponse",
+      );
+
+      expect(
+        (
+          thread()
+            .getMessageByIndex(1)
+            .getMessagePartByToolCallId("tool-1")
+            .getState() as { approval?: Record<string, unknown> }
+        ).approval,
+      ).toMatchObject({ resolution: "cancelled" });
+      const threadCore = (
+        thread() as unknown as {
+          __internal_threadBinding: { getState(): ThreadRuntimeCore };
+        }
+      ).__internal_threadBinding.getState();
+      await expect(
+        threadCore.respondToToolApproval({
+          approvalId: "approval-1",
+          approved: true,
+        }),
+      ).rejects.toThrow(
+        "Tool approval approval-1 is not waiting for a response.",
+      );
+      expect(handler).not.toHaveBeenCalled();
+      expect(addToolApprovalResponse).not.toHaveBeenCalled();
+    },
+  );
 
   it('cancels only the approval message with joinStrategy "none"', async () => {
     const { thread } = await setup(undefined, {

@@ -262,6 +262,11 @@ const useGeneratedSuggestions = (
 
 const NO_CANCELLED_MESSAGE_IDS: ReadonlySet<string> = new Set();
 
+const NO_SUPERSEDED_APPROVAL_PROJECTION = Object.freeze({
+  approvalIds: Object.freeze(new Set<string>()),
+  statusMessageIds: Object.freeze(new Set<string>()),
+});
+
 const NO_TOOL_APPROVAL_RESPONSES: ReadonlyMap<
   string,
   RespondToToolApprovalOptions
@@ -335,17 +340,16 @@ const getSupersededApprovalProjection = <UI_MESSAGE extends UIMessage>(
     for (const part of message.parts ?? []) {
       if (!isToolUIPart(part) || part.state !== "approval-requested") continue;
 
-      const approvalId = part.approval.id;
+      const approval = part.approval;
+      if (!approval) continue;
+
+      const approvalId = approval.id;
       if (hostApprovalIds.has(approvalId)) continue;
 
       const resolution =
-        (part.approval as { resolution?: unknown }).resolution ??
-        (
-          part.approval.descriptor as
-            | { resolution?: unknown }
-            | null
-            | undefined
-        )?.resolution;
+        (approval as { resolution?: unknown }).resolution ??
+        (approval.descriptor as { resolution?: unknown } | null | undefined)
+          ?.resolution;
       if (resolution === "cancelled" || resolution === "expired") continue;
 
       if (index !== lastIndex) {
@@ -355,6 +359,9 @@ const getSupersededApprovalProjection = <UI_MESSAGE extends UIMessage>(
     }
   }
   flush();
+
+  if (approvalIds.size === 0 && statusMessageIds.size === 0)
+    return NO_SUPERSEDED_APPROVAL_PROJECTION;
 
   return { approvalIds, statusMessageIds };
 };
@@ -481,14 +488,33 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       : NO_CANCELLED_MESSAGE_IDS;
   const supportsRichToolApprovalResponses =
     customOnRespondToToolApproval != null;
+  const supersededApprovalProjectionRef = useRef(
+    NO_SUPERSEDED_APPROVAL_PROJECTION,
+  );
   const supersededApprovalProjection = useMemo(
-    () =>
-      getSupersededApprovalProjection(
+    () => {
+      const projection = getSupersededApprovalProjection(
         chatHelpers.messages,
         hostApprovalIdsRef.current,
         joinStrategy,
         isRunning,
-      ),
+      );
+      const previous = supersededApprovalProjectionRef.current;
+      if (
+        projection.approvalIds.size === previous.approvalIds.size &&
+        projection.statusMessageIds.size === previous.statusMessageIds.size &&
+        [...projection.approvalIds].every((id) =>
+          previous.approvalIds.has(id),
+        ) &&
+        [...projection.statusMessageIds].every((id) =>
+          previous.statusMessageIds.has(id),
+        )
+      )
+        return previous;
+
+      supersededApprovalProjectionRef.current = projection;
+      return projection;
+    },
     // oxlint-disable-next-line react/exhaustive-deps -- hostApprovalIdsRef changes alongside toolApprovalResponses, which invalidates the projection
     [chatHelpers.messages, joinStrategy, isRunning, toolApprovalResponses],
   );
@@ -1041,9 +1067,17 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         }),
       );
     },
-    onRespondToToolApproval: customOnRespondToToolApproval
-      ? (response) => respondViaHost(customOnRespondToToolApproval, response)
-      : respondViaAISDK,
+    onRespondToToolApproval: (response) => {
+      if (supersededApprovalProjection.approvalIds.has(response.approvalId))
+        return Promise.reject(
+          new Error(
+            `Tool approval ${response.approvalId} is not waiting for a response.`,
+          ),
+        );
+      return customOnRespondToToolApproval
+        ? respondViaHost(customOnRespondToToolApproval, response)
+        : respondViaAISDK(response);
+    },
     unstable_onRecordToolInteraction: ({
       messageId,
       toolCallId,
