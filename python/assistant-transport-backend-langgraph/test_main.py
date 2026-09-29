@@ -1,9 +1,46 @@
 import json
+from types import SimpleNamespace
 
 import pytest
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 import main
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("client_id", ["client-user", None])
+async def test_chat_preserves_user_message_id(
+    monkeypatch: pytest.MonkeyPatch, client_id: str | None
+) -> None:
+    captured: list[HumanMessage] = []
+
+    async def events(input_state: dict[str, object], **_kwargs: object):
+        captured.extend(input_state["messages"])
+        if False:
+            yield None
+
+    monkeypatch.setattr(main, "graph", SimpleNamespace(astream=events))
+    monkeypatch.setattr(main, "create_run", lambda callback, state: callback)
+    monkeypatch.setattr(main, "AssistantTransportResponse", lambda stream: stream)
+    request = main.ChatRequest(
+        commands=[
+            main.AddMessageCommand(
+                message=main.UserMessage(
+                    id=client_id,
+                    parts=[main.MessagePart(type="text", text="hello")],
+                )
+            )
+        ],
+        state={},
+    )
+
+    callback = await main.chat_endpoint(request)
+    controller = SimpleNamespace(state={})
+    await callback(controller)
+
+    assert len(captured) == 1
+    assert isinstance(captured[0], HumanMessage)
+    assert captured[0].id == client_id
 
 
 def tool_call(tool_call_id: str, name: str) -> dict[str, object]:
