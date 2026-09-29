@@ -107,14 +107,6 @@ const GUIDES: readonly Guide[] = [
     agentMinutes: [5, 12],
   },
   {
-    slug: "guides/helicone",
-    name: "Helicone logging",
-    tagline:
-      "Log every LLM request with cost and latency by routing the provider through the Helicone proxy.",
-    docs: "/docs/integrations/observability/helicone",
-    agentMinutes: [3, 8],
-  },
-  {
     slug: "guides/langsmith",
     name: "LangSmith tracing",
     tagline: "Trace AI SDK calls into a LangSmith project with wrapAISDK.",

@@ -155,17 +155,6 @@ Verify: start the dev server, open the chat page, and confirm the DevTools launc
 Verify: send a message and confirm a trace named after \`traceName\` appears in the Langfuse project within seconds, with a span per LLM call. Nothing appearing usually means the keys are not loaded in the server runtime or the region URL is wrong.`,
   ],
   [
-    "guides/helicone",
-    `This guide changes the server code that creates the LLM provider client. Find it first (usually app/api/chat/route.ts). It assumes the provider is OpenAI through the AI SDK or the OpenAI SDK; for Anthropic, Gemini, or others, the base URL differs, so follow Helicone's provider docs linked under "Notes" on the docs page above and tell the user.
-
-1. Ask the user for their Helicone API key and write HELICONE_API_KEY=<key> to .env.local next to the existing provider key. Never invent one, and never expose it to client code.
-2. AI SDK: replace the \`openai\` import with \`const openai = createOpenAI({ baseURL: "https://oai.helicone.ai/v1", headers: { "Helicone-Auth": \`Bearer \${process.env.HELICONE_API_KEY}\` } })\` from @ai-sdk/openai, and leave the \`streamText\` call unchanged. OpenAI SDK: set the same \`baseURL\` and put the header in \`defaultHeaders\`.
-3. If several routes create provider clients (chat, titles, suggestions), move the proxied client into one shared module and import it everywhere, so no call bypasses the proxy.
-4. Restart the dev server so the new environment variable loads.
-
-Verify: send a message and confirm the request appears in the Helicone dashboard within seconds with token counts and latency. If nothing appears, the server is still calling api.openai.com, or HELICONE_API_KEY is not loaded.`,
-  ],
-  [
     "guides/langsmith",
     `${needsAiSdkRoute} With @assistant-ui/react-langgraph on LangGraph Cloud, tracing is built in and this guide is not needed.
 

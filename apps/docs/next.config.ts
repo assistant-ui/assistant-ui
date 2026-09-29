@@ -182,6 +182,11 @@ const config: NextConfig = {
       permanent: true,
     },
     {
+      source: "/docs/integrations/observability/helicone",
+      destination: "/docs/integrations",
+      permanent: true,
+    },
+    {
       source: "/docs/cloud/telemetry",
       destination: "/docs/cloud/run-reports",
       permanent: true,
