@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   type ReactNode,
+  type RefObject,
 } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -14,6 +15,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   LoaderCircleIcon,
+  MoreHorizontalIcon,
   WifiOffIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -28,6 +30,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useSetupNavigation } from "@/components/shared/setup-navigation";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import {
@@ -115,50 +123,20 @@ function ConnectionNotice({
   );
 }
 
-function DisconnectedDialog({
-  checkout,
-  name,
-  open,
-}: {
-  checkout: CheckoutContextValue;
-  name: string;
-  open: boolean;
-}) {
-  return (
-    <Dialog open={open} disablePointerDismissal>
-      <DialogContent showCloseButton={false} className="rounded-none">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <WifiOffIcon aria-hidden="true" className="size-4 shrink-0" />
-            {name} disconnected
-          </DialogTitle>
-        </DialogHeader>
-        <AgentStatus checkout={checkout} inline />
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function CancelButton({
+function EndSetupDialog({
   checkout,
   onEnd,
+  open,
+  onOpenChange,
+  trigger,
 }: {
   checkout: CheckoutContextValue;
   onEnd: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  trigger: RefObject<HTMLButtonElement | null>;
 }) {
   const fromCart = checkout.session.fromCart === true;
-  const [open, setOpen] = useState(false);
-  const trigger = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || event.defaultPrevented) return;
-      if (!(event.target instanceof Element)) return;
-      if (event.target.closest('[role="dialog"]') !== null) return;
-      setOpen(true);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
   const end = async () => {
     analytics.setup.cancelled();
     try {
@@ -171,29 +149,123 @@ function CancelButton({
     onEnd();
   };
   return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent finalFocus={trigger}>
+        <DialogHeader>
+          <DialogTitle>End this setup?</DialogTitle>
+          <DialogDescription>
+            Your agent will be told to stop and the progress shown here will be
+            lost.{fromCart ? " Its products go back into your cart." : ""}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose render={<Button variant="outline" />}>
+            Keep going
+          </DialogClose>
+          <Button variant="destructive" onClick={end}>
+            End setup
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DisconnectedDialog({
+  checkout,
+  name,
+  open,
+  onLeave,
+  onEnd,
+}: {
+  checkout: CheckoutContextValue;
+  name: string;
+  open: boolean;
+  onLeave: () => void;
+  onEnd: () => void;
+}) {
+  const [ending, setEnding] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  return (
+    <Dialog open={open} disablePointerDismissal>
+      <DialogContent showCloseButton={false} className="rounded-none">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <WifiOffIcon aria-hidden="true" className="size-4 shrink-0" />
+            {name} disconnected
+          </DialogTitle>
+        </DialogHeader>
+        <AgentStatus
+          checkout={checkout}
+          inline
+          quietActions={
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    ref={trigger}
+                    variant="outline"
+                    size="icon"
+                    aria-label="More options"
+                  />
+                }
+              >
+                <MoreHorizontalIcon />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-auto">
+                <DropdownMenuItem onClick={onLeave}>
+                  Leave, setup keeps running
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setEnding(true)}>
+                  End setup
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          }
+        />
+        <EndSetupDialog
+          checkout={checkout}
+          onEnd={onEnd}
+          open={ending}
+          onOpenChange={setEnding}
+          trigger={trigger}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CancelButton({
+  checkout,
+  onEnd,
+}: {
+  checkout: CheckoutContextValue;
+  onEnd: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (!(event.target instanceof Element)) return;
+      if (event.target.closest('[role="dialog"]') !== null) return;
+      setOpen(true);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+  return (
     <>
       <Button ref={trigger} variant="outline" onClick={() => setOpen(true)}>
         Cancel
       </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent finalFocus={trigger}>
-          <DialogHeader>
-            <DialogTitle>End this setup?</DialogTitle>
-            <DialogDescription>
-              Your agent will be told to stop and the progress shown here will
-              be lost.{fromCart ? " Its products go back into your cart." : ""}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" />}>
-              Keep going
-            </DialogClose>
-            <Button variant="destructive" onClick={end}>
-              End setup
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <EndSetupDialog
+        checkout={checkout}
+        onEnd={onEnd}
+        open={open}
+        onOpenChange={setOpen}
+        trigger={trigger}
+      />
     </>
   );
 }
@@ -670,6 +742,8 @@ export function SetupWizard({
             open={
               phase === "quiet" && page.id !== "connect" && !checkout.degraded
             }
+            onLeave={leaveSetup}
+            onEnd={() => exit(false)}
           />
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="shrink-0 px-5 pt-8 sm:px-6 sm:pt-10">

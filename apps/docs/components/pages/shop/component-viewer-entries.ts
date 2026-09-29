@@ -416,10 +416,11 @@ export const ENTRIES: readonly Entry[] = [
     group: "Frame",
     controls: [
       { kind: "select", key: "kind", label: "Agent", options: AGENT_KINDS },
+      productsControl,
     ],
-    defaults: { kind: "claude" },
+    defaults: { kind: "claude", products: PRODUCTS },
     scene: (values) => ({
-      state: stateOf({}, str(values, "kind")),
+      state: stateOf({ products: productsOf(values) }, str(values, "kind")),
       agentPresent: false,
     }),
   },

@@ -3,9 +3,9 @@
 - The frame never resizes: every page renders in one fixed size, and only the viewport caps it.
 - Page content never scrolls. The install step list is the exception: the title and progress bar stay put while the list scrolls under a fade and follows the step in progress. The list keeps the step in progress in the middle of its area and fades the bottom `4rem`, short enough that the next step's title stays legible below the centered one; the first steps rest at the top and the last ones at the bottom instead of reaching the middle, and while the setup is live the list pads its end by `6`, so the last step clears the fade.
 - The intro page fits the frame.
-- The agent-disconnected notice is a modal that hides the content until the agent reconnects.
+- The agent-disconnected notice is a modal that hides the content until the agent reconnects. It always shows the prompt, and Copy prompt is its only visible action; a More options menu beside it carries Leave, which keeps the session running, and End setup, which asks for the same confirmation as Cancel.
 - The key step shows an explicit test result before Next.
-- Back keeps the session running; Cancel is the only way to end it.
+- Back and Leave keep the session running; only the End setup confirmation ends it, reached from Cancel or the disconnected notice.
 - The finished page lists the products the session installed behind a disclosure that reads "See what was added in this session.", collapsed by default and kept to one line: one row per product with its catalog glyph, its name and its packages as muted metadata on the same line, in two columns once the body is `@lg` wide, so the list never scrolls. The install page keeps its step list and shows no disclosure.
 - The mobile header replaces the desktop sidebar.
 - The messages sheet is full screen below `sm` and resizable above.

@@ -20,6 +20,7 @@ import {
   type Checkout,
 } from "../../../lib/checkout/protocol";
 import type { CheckoutContextValue } from "../../shared/checkout-provider";
+import { SetupNavigationContext } from "../../shared/setup-navigation";
 
 const { push, finishCheckout, abandonCheckout } = vi.hoisted(() => ({
   push: vi.fn(),
@@ -401,7 +402,15 @@ describe("SetupWizard", () => {
     const dialog = screen.getByRole("dialog", {
       name: "Claude Code disconnected",
     });
-    expect(dialog.textContent).toContain("run the command again");
+    expect(dialog.textContent).toContain("picks up where it left off");
+    expect(dialog.textContent).toContain("npx setup-agent");
+    expect(
+      within(dialog)
+        .getAllByRole("button")
+        .map(
+          (button) => button.getAttribute("aria-label") ?? button.textContent,
+        ),
+    ).toEqual(["Copy prompt", "More options"]);
     expect(within(dialog).queryByRole("button", { name: "Close" })).toBeNull();
     await waitFor(() =>
       expect(dialog.contains(document.activeElement)).toBe(true),
@@ -416,6 +425,60 @@ describe("SetupWizard", () => {
       />,
     );
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("leaves the setup running from the disconnected dialog", async () => {
+    const leaveSetup = vi.fn();
+    render(
+      <SetupNavigationContext.Provider
+        value={{
+          enterSetup: () => {},
+          leaveSetup,
+          resumeHint: false,
+          dismissResumeHint: () => {},
+        }}
+      >
+        <SetupWizard
+          checkout={context(connected({ status: "planning" }), false)}
+        />
+      </SetupNavigationContext.Provider>,
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: "Claude Code disconnected",
+    });
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "More options" }),
+    );
+    fireEvent.click(
+      await screen.findByRole("menuitem", {
+        name: "Leave, setup keeps running",
+      }),
+    );
+    expect(leaveSetup).toHaveBeenCalledOnce();
+    expect(commands["checkout/cancel"]).not.toHaveBeenCalled();
+    expect(abandonCheckout).not.toHaveBeenCalled();
+  });
+
+  it("ends the setup from the disconnected dialog once confirmed", async () => {
+    render(
+      <SetupWizard
+        checkout={context(connected({ status: "planning" }), false)}
+      />,
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: "Claude Code disconnected",
+    });
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "More options" }),
+    );
+    fireEvent.click(await screen.findByRole("menuitem", { name: "End setup" }));
+    const confirm = await screen.findByRole("dialog", {
+      name: "End this setup?",
+    });
+    expect(commands["checkout/cancel"]).not.toHaveBeenCalled();
+    fireEvent.click(within(confirm).getByRole("button", { name: "End setup" }));
+    await waitFor(() => expect(commands["checkout/cancel"]).toHaveBeenCalled());
+    await waitFor(() => expect(abandonCheckout).toHaveBeenCalled());
   });
 
   it("puts a question's answer on the Next button and sends it from the footer", async () => {
