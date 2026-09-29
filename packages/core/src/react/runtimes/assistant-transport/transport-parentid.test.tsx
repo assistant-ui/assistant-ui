@@ -55,6 +55,14 @@ const setupRuntime = () => {
   return { App, fetchMock, requestBodies, runtimeRef };
 };
 
+const toolResult = (toolCallId: string): AssistantTransportCommand => ({
+  type: "add-tool-result",
+  toolCallId,
+  toolName: "tool",
+  result: {},
+  isError: false,
+});
+
 describe("assistant transport parentId lifetime", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -94,4 +102,53 @@ describe("assistant transport parentId lifetime", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     expect(Object.hasOwn(requestBodies[1]!, "parentId")).toBe(false);
   });
+
+  it.each(["cancel", "error"] as const)(
+    "drops the parentId of a message discarded by a run's %s",
+    async (outcome) => {
+      const { App, fetchMock, requestBodies, runtimeRef } = setupRuntime();
+      let settleFirstRun!: () => void;
+      fetchMock.mockImplementationOnce(
+        (_url: RequestInfo | URL, init?: RequestInit) => {
+          requestBodies.push(JSON.parse(init!.body as string));
+          return new Promise<Response>((_resolve, reject) => {
+            settleFirstRun = () => reject(new Error("network down"));
+            init!.signal!.addEventListener(
+              "abort",
+              () => reject(init!.signal!.reason),
+              { once: true },
+            );
+          });
+        },
+      );
+
+      await act(async () => {
+        render(<App />);
+      });
+      await waitFor(() => expect(runtimeRef.current).not.toBeNull());
+      const extras = () =>
+        runtimeRef.current!.thread.getState().extras as {
+          sendCommand: (command: AssistantTransportCommand) => void;
+        };
+
+      act(() => extras().sendCommand(toolResult("t0")));
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+      await act(async () => {
+        void runtimeRef.current!.thread.append("m2");
+      });
+      await act(async () => {
+        if (outcome === "cancel") runtimeRef.current!.thread.cancelRun();
+        else settleFirstRun();
+      });
+      await waitFor(() =>
+        expect(runtimeRef.current!.thread.getState().isRunning).toBe(false),
+      );
+
+      act(() => extras().sendCommand(toolResult("t1")));
+
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+      expect(requestBodies[1]!["commands"]).toEqual([toolResult("t1")]);
+      expect(Object.hasOwn(requestBodies[1]!, "parentId")).toBe(false);
+    },
+  );
 });
