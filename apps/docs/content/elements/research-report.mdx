@@ -9,7 +9,7 @@ ResearchReport is a live outline: a heading list that tracks pending, writing, a
 
 <RuntimeMode>
 
-assistant-ui streams a tool call's arguments as partial JSON while the model writes them, so a report can be the argument itself rather than something you wait for a finished result to show. Ask the model for the report as structured `args` and read them live.
+assistant-ui streams a tool call's arguments as partial JSON while the model writes them, so the report can be the argument itself and render before the call finishes. Ask the model for the report as structured `args` and read them live.
 
 <Steps>
   <Step>
@@ -168,7 +168,7 @@ function finishSection(id: string, preview: string) {
 </div>
 ```
 
-The header's `done` count is computed by filtering `sections` for `state === "done"`; `sourcesRead` is a separate number you supply and is never cross-checked against each section's own `sources`. Heading brightness marks two states, not three: `pending` dims the heading, while both `writing` and `done` render it at full opacity, so only the glyph beside it, a static dot, a spinning loader, or a check, tells writing and done apart. A section's source count renders only when greater than zero; a `0` is hidden rather than shown as `0 src`. `preview` renders only for a non-empty string; an explicit empty string hides it the same as omitting the field. The first section's row carries no top border; every one after it does. An empty `sections` array renders the header alone, reading `0/0 sections`, with no placeholder row.
+The header's `done` count is computed by filtering `sections` for `state === "done"`; `sourcesRead` is a separate number you supply and is never cross-checked against each section's own `sources`. Heading brightness separates only `pending`, which dims the heading. `writing` and `done` share the same brighter color, so only the glyph beside the heading (a spinner or a check) tells them apart. A section's source count renders only when greater than zero; a `0` is hidden rather than shown as `0 src`. `preview` renders only for a non-empty string; an explicit empty string hides it the same as omitting the field. The first section's row carries no top border; every one after it does. An empty `sections` array renders the header alone, reading `0/0 sections`, with no placeholder row.
 
 ## Examples
 
@@ -176,7 +176,7 @@ The header's `done` count is computed by filtering `sections` for `state === "do
 
 <RuntimeMode>
 
-`state` is plain data the model writes as part of `sections`; assistant-ui does not infer pending, writing, or done from streaming progress on its own. If you would rather not trust the model to self-report accurately, `useToolArgsStatus` reports whether the whole `sections` argument has finished streaming, which you can use to force every section to `"done"` once the call settles, regardless of what the model wrote for individual entries.
+`state` is plain data the model writes as part of `sections`; assistant-ui does not infer pending, writing, or done from streaming progress on its own. If you do not want to rely on the model's own report, `useToolArgsStatus` returns the call's `status`, which you can use to force every section to `"done"` once the call completes, whatever the model wrote for individual entries.
 
 ```tsx
 import { useToolArgsStatus } from "@assistant-ui/react";
