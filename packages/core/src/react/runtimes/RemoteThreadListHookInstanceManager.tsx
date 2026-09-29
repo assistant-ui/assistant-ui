@@ -229,6 +229,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
       this._notifySubscribers();
       if (previousRuntime !== undefined && previousRuntime !== runtime) {
         notifySubscribers(this.replacedSubscribers);
+        disposeThreadRuntime(previousRuntime);
       }
     }
   }
