@@ -62,6 +62,15 @@ export function useMcpOAuthCallback(
     if (startedRef.current === url) return;
     startedRef.current = url;
 
+    // A callback page can be handed a second login URL while the first
+    // completeAuth is still in flight. That attempt keeps running, so it
+    // publishes only while its own URL is still the one being attempted;
+    // otherwise an older failure would overwrite the newer attempt's success.
+    // The check is against `startedRef` rather than a teardown flag so that
+    // Strict Mode's unmount-remount, which starts no new attempt, still
+    // publishes the result of the one already running.
+    const superseded = () => startedRef.current !== url;
+
     void (async () => {
       let serverId: string | null = null;
       try {
@@ -72,10 +81,13 @@ export function useMcpOAuthCallback(
         if (!serverId) {
           throw new Error("state was not created by assistant-ui MCP");
         }
+        if (superseded()) return;
         setResult({ status: "running", serverId, error: null });
         await aui.mcp.server({ id: serverId }).completeAuth(url);
+        if (superseded()) return;
         setResult({ status: "done", serverId, error: null });
       } catch (err) {
+        if (superseded()) return;
         const error = createMcpOAuthCallbackError(err, serverId);
         setResult({ status: "error", serverId, error });
         invokeMcpCallback("onError", optsRef.current.onError, error);

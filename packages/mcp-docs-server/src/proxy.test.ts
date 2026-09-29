@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from "vitest";
+import { once } from "node:events";
 import {
   createServer,
   type IncomingMessage,
@@ -147,6 +149,139 @@ const createRpcClient = (stdin: PassThrough, stdout: PassThrough) => {
 };
 
 describe("runProxy", () => {
+  it.each([
+    {
+      scenario: "stdin reached EOF before startup",
+      createStdin: async () => {
+        const stdin = new PassThrough();
+        const ended = once(stdin, "end");
+        stdin.resume();
+        stdin.end();
+        await ended;
+        return stdin;
+      },
+      stopInput: (stdin: PassThrough) => stdin.end(),
+    },
+    {
+      scenario: "stdin reaches EOF after startup",
+      createStdin: async () => new PassThrough(),
+      stopInput: (stdin: PassThrough) => stdin.end(),
+    },
+    {
+      scenario: "stdin ends without emitting close",
+      createStdin: async () => new PassThrough({ autoDestroy: false }),
+      stopInput: (stdin: PassThrough) => stdin.end(),
+    },
+    {
+      scenario: "stdin is destroyed without EOF",
+      createStdin: async () => new PassThrough(),
+      stopInput: (stdin: PassThrough) => stdin.destroy(),
+    },
+  ])("closes when $scenario", async ({ createStdin, stopInput }) => {
+    const stdin = await createStdin();
+    const stdout = new PassThrough();
+    const stderr = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const proxy = runProxy({
+      url: new URL("https://example.invalid/mcp"),
+      stdin,
+      stdout,
+    });
+    let closed = false;
+
+    try {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      stopInput(stdin);
+      await expect(
+        withTimeout(proxy, "proxy shutdown after stdin closed"),
+      ).resolves.toBeUndefined();
+      closed = true;
+    } finally {
+      stdout.destroy(closed ? undefined : new Error("Proxy test cleanup"));
+      await proxy;
+      stdin.destroy();
+      stderr.mockRestore();
+    }
+  });
+
+  it("does not log errors caused by clean shutdown", async () => {
+    let resolvePendingRequest = () => {};
+    const pendingRequest = new Promise<void>((resolve) => {
+      resolvePendingRequest = resolve;
+    });
+    const httpServer = createServer(async (request, response) => {
+      if (request.method !== "POST") {
+        response.statusCode = 405;
+        response.end();
+        return;
+      }
+
+      let body = "";
+      for await (const chunk of request) body += chunk.toString();
+      const message = JSON.parse(body) as { method: string; id?: number };
+      if (message.method === "initialize") {
+        response.setHeader("content-type", "application/json");
+        response.end(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: message.id,
+            result: {
+              protocolVersion: "2025-11-25",
+              capabilities: {},
+              serverInfo: { name: "proxy-test", version: "1.0.0" },
+            },
+          }),
+        );
+        return;
+      }
+
+      response.writeHead(200, {
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache",
+      });
+      response.write(": keep-alive\n\n");
+      resolvePendingRequest();
+    });
+    const url = await listen(httpServer);
+    const proxyStdin = new PassThrough();
+    const proxyStdout = new PassThrough();
+    const stderr = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const proxy = runProxy({ url, stdin: proxyStdin, stdout: proxyStdout });
+    const client = createRpcClient(proxyStdin, proxyStdout);
+    let proxyClosed = false;
+
+    try {
+      const initialize = await client.request("initialize", {
+        protocolVersion: "2025-11-25",
+        capabilities: {},
+        clientInfo: { name: "proxy-test-client", version: "1.0.0" },
+      });
+      expect(initialize.error).toBeUndefined();
+
+      client.notify("notifications/initialized");
+      await withTimeout(pendingRequest, "pending request");
+      proxyStdin.end();
+      await expect(
+        withTimeout(proxy, "proxy shutdown after stdin closed"),
+      ).resolves.toBeUndefined();
+      proxyClosed = true;
+
+      expect(stderr).not.toHaveBeenCalled();
+    } finally {
+      if (!proxyClosed) {
+        proxyStdin.destroy();
+        await proxy.catch(() => undefined);
+      }
+      await closeHttpServer(httpServer);
+      proxyStdout.destroy();
+      proxyStdin.destroy();
+      stderr.mockRestore();
+    }
+  });
+
   it("proxies MCP requests and returns transport failures", async () => {
     const inputSchema = fromJsonSchema<{ text: string }>({
       type: "object",

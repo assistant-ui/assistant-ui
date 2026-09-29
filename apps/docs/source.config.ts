@@ -8,7 +8,6 @@ import {
 import { rehypeCodeDefaultOptions } from "fumadocs-core/mdx-plugins";
 import { transformerMetaHighlight } from "@shikijs/transformers";
 import { z } from "zod";
-import lastModified from "fumadocs-mdx/plugins/last-modified";
 import type { ShikiTransformer } from "shiki";
 import { remarkMermaid } from "./lib/remark-mermaid";
 
@@ -25,7 +24,7 @@ function transformerLineNumbers(): ShikiTransformer {
 // filter content based on the user's selected platform in the header dropdown.
 // Pages / folders with no `platforms` field are universal.
 // fumadocs-mdx forbids non-collection exports here, so this is local-only.
-const platformSchema = z.enum(["react", "rn", "ink", "vue"]);
+const platformSchema = z.enum(["react", "rn", "ink", "vue", "tap", "cloud"]);
 
 export const docs = defineDocs({
   docs: {
@@ -47,19 +46,6 @@ export const docs = defineDocs({
       description: z.string().optional(),
       overview: z.string().optional(),
       platforms: z.array(platformSchema).optional(),
-    }),
-  },
-});
-
-export const tapDocs = defineDocs({
-  dir: "content/tap-docs",
-  docs: {
-    schema: frontmatterSchema,
-    async: true,
-  },
-  meta: {
-    schema: metaSchema.extend({
-      description: z.string().optional(),
     }),
   },
 });
@@ -120,7 +106,6 @@ export const careers = defineCollections({
 });
 
 export default defineConfig({
-  plugins: [lastModified()],
   mdxOptions: {
     remarkPlugins: [remarkMermaid],
     rehypeCodeOptions: {

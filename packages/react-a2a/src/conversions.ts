@@ -15,6 +15,51 @@ function isImageMediaType(mediaType?: string): boolean {
   return !!mediaType && mediaType.startsWith("image/");
 }
 
+const A2UI_OPERATION_KEYS = [
+  "createSurface",
+  "updateComponents",
+  "updateDataModel",
+  "deleteSurface",
+] as const;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const isA2uiOperation = (value: unknown): boolean =>
+  isRecord(value) &&
+  typeof value.version === "string" &&
+  A2UI_OPERATION_KEYS.some((key) => Object.hasOwn(value, key));
+
+const hasA2uiMediaType = (value: unknown): boolean =>
+  typeof value === "string" && value.toLowerCase().includes("a2ui");
+
+export function isA2uiDataPart(part: A2APart): boolean {
+  if (part.data === undefined) return false;
+
+  const metadata = isRecord(part.metadata) ? part.metadata : {};
+  return (
+    hasA2uiMediaType(part.mediaType) ||
+    hasA2uiMediaType(metadata.mimeType) ||
+    hasA2uiMediaType(metadata.mediaType) ||
+    isA2uiOperation(part.data) ||
+    (Array.isArray(part.data) &&
+      part.data.length > 0 &&
+      part.data.every(isA2uiOperation))
+  );
+}
+
+export function a2uiPartToOperations(part: A2APart): readonly unknown[] {
+  if (!isA2uiDataPart(part)) return [];
+  return Array.isArray(part.data) ? part.data : [part.data];
+}
+
+export function a2uiPartsToOperations(
+  parts: readonly A2APart[],
+): readonly unknown[] {
+  if (!Array.isArray(parts)) return [];
+  return parts.flatMap(a2uiPartToOperations);
+}
+
 export function a2aPartToContent(
   part: A2APart,
 ): ThreadAssistantMessage["content"][number] {
@@ -61,7 +106,9 @@ export function a2aPartToContent(
 export function a2aPartsToContent(
   parts: A2APart[],
 ): ThreadAssistantMessage["content"] {
-  return (Array.isArray(parts) ? parts : []).map(a2aPartToContent);
+  return (Array.isArray(parts) ? parts : [])
+    .filter((part) => !isA2uiDataPart(part))
+    .map(a2aPartToContent);
 }
 
 const TERMINAL_STATES = new Set<A2ATaskState>([

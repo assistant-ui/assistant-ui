@@ -2,6 +2,7 @@ import {
   type ComponentPropsWithoutRef,
   type ComponentType,
   type FC,
+  isValidElement,
   memo,
   useContext,
 } from "react";
@@ -18,6 +19,19 @@ import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
 import { withDefaultProps } from "./withDefaults";
 import { DefaultCodeBlockContent } from "./defaultComponents";
 import { memoCompareNodes } from "../memoization";
+
+function extractCode(children: unknown): string {
+  if (typeof children === "string") return children;
+  if (Array.isArray(children)) {
+    let code = "";
+    for (const child of children) code += extractCode(child);
+    return code;
+  }
+  if (isValidElement<{ children?: unknown }>(children)) {
+    return extractCode(children.props.children);
+  }
+  return "";
+}
 
 const CodeBlockOverride: FC<CodeOverrideProps> = ({
   node,
@@ -44,23 +58,29 @@ const CodeBlockOverride: FC<CodeOverrideProps> = ({
 
   const language = parseLanguageClass(codeProps.className);
 
-  // if the code content is not string (due to rehype plugins), return a default code block
-  if (typeof children !== "string") {
-    return (
-      <DefaultCodeBlockContent
-        node={node}
-        components={{ Pre: WrappedPre, Code: WrappedCode }}
-        code={children}
-      />
-    );
-  }
-
   const SyntaxHighlighter: ComponentType<SyntaxHighlighterProps> =
     componentsByLanguage[language]?.SyntaxHighlighter ??
     FallbackSyntaxHighlighter;
 
   const CodeHeader: ComponentType<CodeHeaderProps> =
     componentsByLanguage[language]?.CodeHeader ?? FallbackCodeHeader;
+
+  if (children != null && typeof children !== "string") {
+    return (
+      <>
+        <CodeHeader
+          node={node}
+          language={language}
+          code={extractCode(children)}
+        />
+        <DefaultCodeBlockContent
+          node={node}
+          components={{ Pre: WrappedPre, Code: WrappedCode }}
+          code={children}
+        />
+      </>
+    );
+  }
 
   return (
     <DefaultCodeBlock
@@ -72,7 +92,7 @@ const CodeBlockOverride: FC<CodeOverrideProps> = ({
         CodeHeader,
       }}
       language={language}
-      code={children}
+      code={children ?? ""}
     />
   );
 };

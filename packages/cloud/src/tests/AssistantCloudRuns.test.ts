@@ -90,6 +90,34 @@ describe("AssistantCloudRuns", () => {
     );
     expect(cancel).toHaveBeenCalledOnce();
   });
+
+  it("pins the UI message stream protocol in assistant options", () => {
+    const { protocol } =
+      createCloud().runs.__internal_getAssistantOptions("assistant-id");
+
+    expect(protocol).toBe("ui-message-stream");
+  });
+
+  it("uses the requested thread ID in assistant options", async () => {
+    const { body } =
+      createCloud().runs.__internal_getAssistantOptions("assistant-id");
+
+    await expect(body({ threadId: "remote-thread" })).resolves.toEqual({
+      assistant_id: "assistant-id",
+      response_format: "vercel-ai-data-stream/v1",
+      thread_id: "remote-thread",
+    });
+  });
+
+  it("rejects assistant options without a thread ID", async () => {
+    const { body } =
+      createCloud().runs.__internal_getAssistantOptions("assistant-id");
+
+    await expect(body({})).rejects.toThrow(
+      "Assistant Cloud runs need a thread",
+    );
+    await expect(body()).rejects.toThrow("Assistant Cloud runs need a thread");
+  });
 });
 
 const createCloudRuns = () => {

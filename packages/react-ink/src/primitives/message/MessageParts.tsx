@@ -33,35 +33,28 @@ export namespace MessagePrimitiveParts {
 const mergeWithInkDefaults = (
   components: NonNullable<MessagePrimitiveParts.Props["components"]>,
 ): NonNullable<MessagePrimitiveParts.Props["components"]> => {
-  const shared = {
+  const inkOverrides = {
     Text: components.Text ?? inkDefaultComponents.Text,
     Image: components.Image ?? inkDefaultComponents.Image,
     Source: components.Source ?? inkDefaultComponents.Source,
     File: components.File ?? inkDefaultComponents.File,
-    Unstable_Audio:
-      components.Unstable_Audio ?? messagePartsDefaultComponents.Unstable_Audio,
     data: components.data
       ? {
-          by_name: components.data.by_name,
+          ...components.data,
           Fallback:
             components.data.Fallback ?? inkDefaultComponents.data.Fallback,
         }
       : inkDefaultComponents.data,
-    Quote: components.Quote,
-    Empty: components.Empty,
   };
 
   if ("ChainOfThought" in components) {
-    return { ...shared, ChainOfThought: components.ChainOfThought };
+    return { ...components, ...inkOverrides };
   }
 
   return {
-    ...shared,
+    ...components,
+    ...inkOverrides,
     Reasoning: components.Reasoning ?? inkDefaultComponents.Reasoning,
-    tools: components.tools,
-    ToolGroup: components.ToolGroup ?? messagePartsDefaultComponents.ToolGroup,
-    ReasoningGroup:
-      components.ReasoningGroup ?? messagePartsDefaultComponents.ReasoningGroup,
   };
 };
 

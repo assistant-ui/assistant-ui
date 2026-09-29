@@ -68,4 +68,36 @@ describe("generateThreadTitle", () => {
 
     expect(update).not.toHaveBeenCalled();
   });
+
+  it("returns null without updating for a whitespace-only title", async () => {
+    const { cloud, update } = createCloud(
+      titleStream({ type: "text-delta", textDelta: " \n\t" }),
+    );
+
+    await expect(
+      generateThreadTitle(cloud, {
+        threadId: "thread-1",
+        messages: [],
+      }),
+    ).resolves.toBeNull();
+
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("trims surrounding whitespace from a generated title", async () => {
+    const { cloud, update } = createCloud(
+      titleStream({ type: "text-delta", textDelta: "  Weather chat \n" }),
+    );
+
+    await expect(
+      generateThreadTitle(cloud, {
+        threadId: "thread-1",
+        messages: [],
+      }),
+    ).resolves.toBe("Weather chat");
+
+    expect(update).toHaveBeenCalledExactlyOnceWith("thread-1", {
+      title: "Weather chat",
+    });
+  });
 });

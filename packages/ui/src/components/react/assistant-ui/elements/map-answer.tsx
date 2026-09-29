@@ -82,16 +82,10 @@ export function MapAnswer({
           )}
         </svg>
 
-        {pins.map((pin) => (
-          <button
-            key={pin.id}
-            type="button"
-            aria-label={pin.label}
-            aria-current={pin.id === activeId || undefined}
-            onClick={() => onSelect?.(pin.id)}
-            className="focus-visible:ring-foreground/30 absolute flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full outline-none focus-visible:ring-1"
-            style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
-          >
+        {pins.map((pin) => {
+          const className =
+            "focus-visible:ring-foreground/30 absolute flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full outline-none focus-visible:ring-1";
+          const content = (
             <span
               className={cn(
                 "block rounded-full border-2 transition-all duration-200 motion-reduce:transition-none",
@@ -100,32 +94,76 @@ export function MapAnswer({
                   : "border-background bg-foreground/45 size-2.5",
               )}
             />
-          </button>
-        ))}
+          );
+
+          return onSelect ? (
+            <button
+              key={pin.id}
+              type="button"
+              aria-label={pin.label}
+              aria-current={pin.id === activeId || undefined}
+              onClick={() => onSelect(pin.id)}
+              className={className}
+              style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
+            >
+              {content}
+            </button>
+          ) : (
+            <span
+              key={pin.id}
+              role="img"
+              aria-label={pin.label}
+              aria-current={pin.id === activeId || undefined}
+              className={className}
+              style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
+            >
+              {content}
+            </span>
+          );
+        })}
       </div>
 
       <div className="flex flex-col">
-        {pins.map((pin) => (
-          <button
-            key={pin.id}
-            type="button"
-            aria-current={pin.id === activeId || undefined}
-            onClick={() => onSelect?.(pin.id)}
-            className={cn(
-              "border-foreground/[0.06] flex items-baseline gap-2 border-t px-3.5 py-2 text-start transition-colors",
-              pin.id === activeId
-                ? "bg-foreground/[0.03]"
-                : "hover:bg-foreground/[0.02]",
-            )}
-          >
-            <span className="text-foreground/85 min-w-0 flex-1 truncate text-[13px]">
-              {pin.label}
-            </span>
-            <span className={cn(mono, "text-foreground/30 shrink-0")}>
-              {pin.detail}
-            </span>
-          </button>
-        ))}
+        {pins.map((pin) => {
+          const className = cn(
+            "border-foreground/[0.06] flex items-baseline gap-2 border-t px-3.5 py-2 text-start transition-colors",
+            pin.id === activeId
+              ? "bg-foreground/[0.03]"
+              : onSelect
+                ? "hover:bg-foreground/[0.02]"
+                : undefined,
+          );
+          const content = (
+            <>
+              <span className="text-foreground/85 min-w-0 flex-1 truncate text-[13px]">
+                {pin.label}
+              </span>
+              <span className={cn(mono, "text-foreground/30 shrink-0")}>
+                {pin.detail}
+              </span>
+            </>
+          );
+
+          return onSelect ? (
+            <button
+              key={pin.id}
+              type="button"
+              aria-current={pin.id === activeId || undefined}
+              onClick={() => onSelect(pin.id)}
+              className={className}
+            >
+              {content}
+            </button>
+          ) : (
+            <div
+              key={pin.id}
+              aria-current={pin.id === activeId || undefined}
+              className={className}
+            >
+              {content}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

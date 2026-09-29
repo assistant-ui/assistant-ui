@@ -41,8 +41,31 @@ export const useAssistantFrameHost = ({
     const unsubscribe = register(frameHost);
 
     return () => {
-      frameHost.dispose();
-      unsubscribe();
+      let cleanupFailed = false;
+      let cleanupError: unknown;
+
+      try {
+        frameHost.dispose();
+      } catch (error) {
+        cleanupFailed = true;
+        cleanupError = error;
+      }
+
+      try {
+        unsubscribe();
+      } catch (error) {
+        if (cleanupFailed) {
+          console.error(
+            "[assistant-ui] AssistantFrameHost unregistration failed.",
+            error,
+          );
+        } else {
+          cleanupFailed = true;
+          cleanupError = error;
+        }
+      }
+
+      if (cleanupFailed) throw cleanupError;
     };
   }, [iframeRef, targetOrigin, register]);
 };

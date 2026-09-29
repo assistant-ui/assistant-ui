@@ -11,6 +11,7 @@ import type { AssistantMessage, ToolCallPart } from "../utils/types";
 import type { ReadonlyJSONObject, ReadonlyJSONValue } from "../../utils";
 
 const TOOL_EXECUTION_ID = Symbol.for("assistant-stream.tool-execution-id");
+const TOOL_ABORTED = Symbol("assistant-stream.tool-aborted");
 
 type InternalHumanCallback = (
   toolCallId: string,
@@ -52,8 +53,8 @@ type InternalToolExecutionOptions = {
 };
 
 const isStandardSchemaV1 = (
-  schema: unknown,
-): schema is StandardSchemaV1<unknown> => {
+  schema: Tool["parameters"],
+): schema is StandardSchemaV1<Record<string, unknown>> => {
   return (
     typeof schema === "object" &&
     schema !== null &&
@@ -62,9 +63,43 @@ const isStandardSchemaV1 = (
   );
 };
 
-const isThenable = (value: unknown): value is PromiseLike<unknown> =>
-  typeof (value as PromiseLike<unknown> | null | undefined)?.then ===
-  "function";
+const isThenable = <T>(value: T | PromiseLike<T>): value is PromiseLike<T> =>
+  typeof (value as PromiseLike<T> | null | undefined)?.then === "function";
+
+const raceWithAbort = async <T>(
+  value: PromiseLike<T>,
+  abortSignal: AbortSignal,
+  // Tool execution gets two microtasks to settle after handling an abort.
+  delayAbort = false,
+): Promise<T | typeof TOOL_ABORTED> => {
+  let onAbort!: () => void;
+  const abortPromise = new Promise<typeof TOOL_ABORTED>((resolve) => {
+    onAbort = () => {
+      if (delayAbort) {
+        queueMicrotask(() => queueMicrotask(() => resolve(TOOL_ABORTED)));
+      } else {
+        resolve(TOOL_ABORTED);
+      }
+    };
+    if (abortSignal.aborted) {
+      onAbort();
+    } else {
+      abortSignal.addEventListener("abort", onAbort, { once: true });
+    }
+  });
+
+  try {
+    return await Promise.race([value, abortPromise]);
+  } finally {
+    abortSignal.removeEventListener("abort", onAbort);
+  }
+};
+
+const cancelledToolResponse = (): ToolResponse<ReadonlyJSONValue> =>
+  new ToolResponse({
+    result: "Tool execution was cancelled.",
+    isError: true,
+  });
 
 function getToolResponse(
   tools: Record<string, Tool> | undefined,
@@ -81,21 +116,24 @@ function getToolResponse(
   if (!tool?.execute) return undefined;
 
   const getResult = async (
-    toolExecute: ToolExecuteFunction<ReadonlyJSONObject, unknown>,
+    toolExecute: ToolExecuteFunction<Record<string, unknown>, unknown>,
   ): Promise<ToolResponse<ReadonlyJSONValue>> => {
-    // Check if already aborted before starting
     if (abortSignal.aborted) {
-      return new ToolResponse({
-        result: "Tool execution was cancelled.",
-        isError: true,
-      });
+      return cancelledToolResponse();
     }
 
     let executeFn = toolExecute;
+    let args: Record<string, unknown> = toolCall.args;
 
     if (isStandardSchemaV1(tool.parameters)) {
       const result = tool.parameters["~standard"].validate(toolCall.args);
-      const validationResult = isThenable(result) ? await result : result;
+      const validationResult = isThenable(result)
+        ? await raceWithAbort(result, abortSignal)
+        : result;
+
+      if (validationResult === TOOL_ABORTED) {
+        return cancelledToolResponse();
+      }
 
       if (validationResult.issues) {
         executeFn =
@@ -105,33 +143,14 @@ function getToolResponse(
               `Function parameter validation failed. ${JSON.stringify(validationResult.issues)}`,
             );
           });
+      } else {
+        args = validationResult.value;
       }
     }
 
-    // Create abort promise that resolves after 2 microtasks
-    // This gives tools that handle abort a chance to win the race
-    let onAbort!: () => void;
-    const abortPromise = new Promise<ToolResponse<ReadonlyJSONValue>>(
-      (resolve) => {
-        onAbort = () => {
-          queueMicrotask(() => {
-            queueMicrotask(() => {
-              resolve(
-                new ToolResponse({
-                  result: "Tool execution was cancelled.",
-                  isError: true,
-                }),
-              );
-            });
-          });
-        };
-        if (abortSignal.aborted) {
-          onAbort();
-        } else {
-          abortSignal.addEventListener("abort", onAbort, { once: true });
-        }
-      },
-    );
+    if (abortSignal.aborted) {
+      return cancelledToolResponse();
+    }
 
     const executePromise = (async () => {
       const executionContext = {
@@ -142,7 +161,7 @@ function getToolResponse(
         [TOOL_EXECUTION_ID]: toolCall.executionId,
       } as ToolExecutionContext;
       const result = (await executeFn(
-        toolCall.args,
+        args,
         executionContext,
       )) as unknown as ReadonlyJSONValue;
       const response = ToolResponse.toResponse(result);
@@ -154,7 +173,7 @@ function getToolResponse(
         try {
           const modelContent = await tool.toModelOutput({
             toolCallId: toolCall.toolCallId,
-            input: toolCall.args,
+            input: args,
             output: response.result,
           });
           return new ToolResponse({
@@ -174,11 +193,14 @@ function getToolResponse(
       return response;
     })();
 
-    try {
-      return await Promise.race([executePromise, abortPromise]);
-    } finally {
-      abortSignal.removeEventListener("abort", onAbort);
-    }
+    const executionResult = await raceWithAbort(
+      executePromise,
+      abortSignal,
+      true,
+    );
+    return executionResult === TOOL_ABORTED
+      ? cancelledToolResponse()
+      : executionResult;
   };
 
   return getResult(tool.execute);
@@ -207,7 +229,7 @@ function getToolStreamResponse(
 
 const isPendingToolCall = (
   part: AssistantMessage["parts"][number],
-): part is ToolCallPart =>
+): part is Extract<ToolCallPart, { result?: undefined }> =>
   part.type === "tool-call" &&
   part.state !== "result" &&
   part.result === undefined;
@@ -250,17 +272,13 @@ export async function unstable_runPendingTools(
     return message;
   }
 
-  const toolCallResultsById = toolCallResults.reduce(
-    (acc, { toolCallId, result }) => {
-      acc[toolCallId] = result;
-      return acc;
-    },
-    {} as Record<string, ToolResponse<ReadonlyJSONValue>>,
+  const toolCallResultsById = new Map(
+    toolCallResults.map(({ toolCallId, result }) => [toolCallId, result]),
   );
 
   const updatedParts = message.parts.map((p) => {
     if (isPendingToolCall(p)) {
-      const toolResponse = toolCallResultsById[p.toolCallId];
+      const toolResponse = toolCallResultsById.get(p.toolCallId);
       if (toolResponse) {
         return {
           ...p,
@@ -270,6 +288,9 @@ export async function unstable_runPendingTools(
             : {}),
           ...(toolResponse.modelContent !== undefined
             ? { modelContent: toolResponse.modelContent }
+            : {}),
+          ...(toolResponse.messages !== undefined
+            ? { messages: toolResponse.messages }
             : {}),
           result: toolResponse.result as ReadonlyJSONValue,
           isError: toolResponse.isError,

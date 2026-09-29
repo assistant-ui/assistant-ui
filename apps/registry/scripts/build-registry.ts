@@ -1,4 +1,4 @@
-import { existsSync, promises as fs, readFileSync } from "node:fs";
+import { existsSync, promises as fs, readdirSync, readFileSync } from "node:fs";
 import * as path from "node:path";
 import { pathToFileURL } from "node:url";
 import * as ts from "typescript";
@@ -8,19 +8,24 @@ import {
   type CssDeclarationBlock,
   type CssMediaBlock,
 } from "@assistant-ui/ui/lib/generative-ui-vocabulary-css.ts";
-import { registry, vueRegistry } from "../src/registry";
+import { nativeRegistry, registry, vueRegistry } from "../src/registry";
 import { registrySchema, type RegistryItem } from "../src/schema";
 
 const REGISTRY_PATH = path.join(process.cwd(), "dist");
 const BASE_REGISTRY_PATH = path.join(REGISTRY_PATH, "base");
 const VUE_REGISTRY_PATH = path.join(REGISTRY_PATH, "vue");
+const NATIVE_REGISTRY_PATH = path.join(REGISTRY_PATH, "native");
 const REGISTRY_INDEX_PATH = path.join(REGISTRY_PATH, "registry.json");
 const BASE_REGISTRY_INDEX_PATH = path.join(BASE_REGISTRY_PATH, "registry.json");
 const VUE_REGISTRY_INDEX_PATH = path.join(VUE_REGISTRY_PATH, "registry.json");
+const NATIVE_REGISTRY_INDEX_PATH = path.join(
+  NATIVE_REGISTRY_PATH,
+  "registry.json",
+);
 const REGISTRY_ITEM_SCHEMA_URL =
   "https://ui.shadcn.com/schema/registry-item.json";
 const ASSISTANT_REGISTRY_DEPENDENCY_RE =
-  /^https:\/\/r\.assistant-ui\.com\/(?:base\/)?(.+)\.json$/;
+  /^https:\/\/r\.assistant-ui\.com\/(?:(?:base|native)\/)?(.+)\.json$/;
 const RADIX_IMPORT_RE =
   /(?:from|import)\s*\(?\s*["'](?:radix-ui["']|@radix-ui\/)/;
 const BASE_VARIANT_FORBIDDEN_PATTERNS = [
@@ -44,6 +49,8 @@ const PROJECT_PACKAGE_IMPORTS = new Set([
   "react-dom",
   "vue",
 ]);
+const NATIVE_PROJECT_PACKAGE_IMPORTS = new Set(["react", "react-native"]);
+const WORKSPACE_PACKAGES_ROOT = "../../packages";
 
 type RegistryFile = NonNullable<RegistryItem["files"]>[number];
 type RegistryBuildItem = Omit<
@@ -219,6 +226,57 @@ export function validateVueFlavorContent(vueBuilt: BuiltRegistryPayload[]) {
   throwIfFindings("Invalid vue flavor content:", findings);
 }
 
+const NATIVE_FORBIDDEN_PACKAGES = new Set([
+  "react-dom",
+  "radix-ui",
+  "@base-ui/react",
+  "lucide-react",
+  "@assistant-ui/react",
+]);
+export const NATIVE_SHARED_REGISTRY_ITEMS = new Set(["utils"]);
+
+function isNativeForbiddenPackage(specifier: string) {
+  const packageName = getPackageName(specifier);
+  return (
+    NATIVE_FORBIDDEN_PACKAGES.has(packageName) ||
+    packageName.startsWith("@radix-ui/") ||
+    (packageName.startsWith("@assistant-ui/react-") &&
+      packageName !== "@assistant-ui/react-native")
+  );
+}
+
+export function validateNativeFlavorContent(
+  nativeBuilt: BuiltRegistryPayload[],
+) {
+  const findings = new Set<string>();
+
+  for (const { payload } of nativeBuilt) {
+    for (const dependency of payload.registryDependencies ?? []) {
+      const name = getAssistantRegistryDependencyName(dependency);
+      const expected =
+        name && NATIVE_SHARED_REGISTRY_ITEMS.has(name)
+          ? `https://r.assistant-ui.com/${name}.json`
+          : `https://r.assistant-ui.com/native/${name}.json`;
+      if (dependency !== expected) {
+        findings.add(
+          `${payload.name}: registry dependency "${dependency}" is not a native item`,
+        );
+      }
+    }
+    for (const file of payload.files ?? []) {
+      for (const specifier of collectModuleSpecifiers(file)) {
+        if (isNativeForbiddenPackage(specifier)) {
+          findings.add(
+            `${payload.name}: native tree file ${file.path} imports forbidden "${specifier}"`,
+          );
+        }
+      }
+    }
+  }
+
+  throwIfFindings("Invalid native flavor content:", findings);
+}
+
 export function validateEmittedSpecifierHygiene(built: BuiltRegistryPayload[]) {
   const findings = new Set<string>();
 
@@ -235,10 +293,38 @@ export function validateEmittedSpecifierHygiene(built: BuiltRegistryPayload[]) {
   throwIfFindings("Invalid emitted UI specifiers:", findings);
 }
 
+const SHADCN_TYPE_DIRECTORIES: Record<string, string> = {
+  "registry:ui": "components/ui",
+  "registry:lib": "lib",
+  "registry:hook": "hooks",
+};
+
+/**
+ * Where shadcn writes a file under the default aliases: an explicit target as
+ * given, otherwise the directory its type owns plus the part of the path after
+ * that directory's last segment, or the bare file name when the path never
+ * passes through it.
+ */
+export function shadcnInstallPath(file: {
+  path: string;
+  type?: string | undefined;
+  target?: string | undefined;
+}): string {
+  if (file.target) return file.target;
+  const directory = SHADCN_TYPE_DIRECTORIES[file.type ?? ""] ?? "components";
+  const segments = file.path.replace(/^\/|\/$/g, "").split("/");
+  const anchorIndex = segments.indexOf(path.posix.basename(directory));
+  const nested =
+    anchorIndex === -1
+      ? path.posix.basename(file.path)
+      : segments.slice(anchorIndex + 1).join("/");
+  return `${directory}/${nested}`;
+}
+
 /** The on-disk key the docs' packaged-file URLs mirror: what shadcn installs. */
 export function packagedFilePath(file: {
   path: string;
-  target?: string;
+  target?: string | undefined;
 }): string {
   return file.target ?? file.path;
 }
@@ -659,7 +745,7 @@ export function collectAttributeSelectorValues(
       for (const match of branch.matchAll(CSS_SELECTOR_ATTRIBUTE_VALUE_RE)) {
         const key = `${component}:${match[1]}`;
         const set = values.get(key) ?? new Set<string>();
-        set.add(match[2]);
+        set.add(match[2]!);
         values.set(key, set);
       }
     }
@@ -945,6 +1031,58 @@ export function createBaseRegistryItem(item: RegistryItem): RegistryBuildItem {
   };
 }
 
+/**
+ * Maps every workspace package name to its version, or to null when the
+ * package is private and therefore never installed from npm.
+ */
+export function readWorkspacePackageVersions(
+  root = path.join(process.cwd(), WORKSPACE_PACKAGES_ROOT),
+) {
+  const versions = new Map<string, string | null>();
+  for (const dir of readdirSync(root)) {
+    const packageJsonPath = path.join(root, dir, "package.json");
+    if (!existsSync(packageJsonPath)) continue;
+    const pkg = JSON.parse(readFileSync(packageJsonPath, "utf8")) as {
+      name: string;
+      version: string;
+      private?: boolean;
+    };
+    versions.set(pkg.name, pkg.private ? null : pkg.version);
+  }
+  return versions;
+}
+
+/**
+ * Pins each dependency on a published workspace package to the caret range of
+ * the version the item was built from, so a consumer's install resolves at
+ * least the release whose API the emitted source uses; a package manager's
+ * release-age gate would otherwise pick the previous release for a bare name.
+ */
+export function pinWorkspaceDependencies<
+  T extends Pick<RegistryItem, "dependencies" | "devDependencies">,
+>(item: T, versions: Map<string, string | null>): T {
+  const pin = (dependency: string) => {
+    const version = versions.get(dependency);
+    if (version === undefined) {
+      if (dependency.startsWith("@assistant-ui/")) {
+        throw new Error(
+          `Dependency "${dependency}" is not a workspace package; a registry item may only depend on an @assistant-ui package this repository publishes`,
+        );
+      }
+      return dependency;
+    }
+    return version === null ? dependency : `${dependency}@^${version}`;
+  };
+
+  return {
+    ...item,
+    ...(item.dependencies ? { dependencies: item.dependencies.map(pin) } : {}),
+    ...(item.devDependencies
+      ? { devDependencies: item.devDependencies.map(pin) }
+      : {}),
+  };
+}
+
 function getPackageName(specifier: string) {
   if (specifier.startsWith("@")) {
     return specifier.split("/").slice(0, 2).join("/");
@@ -969,7 +1107,9 @@ function getScriptKind(filePath: string) {
 }
 
 function getScriptContents(file: RegistryOutputFile) {
-  if (!file.path.endsWith(".vue")) return [{ content: file.content }];
+  if (!file.path.endsWith(".vue")) {
+    return [{ content: file.content, lang: undefined }];
+  }
 
   const { descriptor, errors } = parse(file.content, { filename: file.path });
   if (errors.length > 0) {
@@ -1238,6 +1378,7 @@ function isDirectRegistryDependencyUsed(
 export function validateRegistryInstallMetadata(
   payloads: RegistryOutputItem[],
   usageExemptions: RegistryDependencyUsageExemptions = new Map(),
+  projectPackageImports: Set<string> = PROJECT_PACKAGE_IMPORTS,
 ) {
   const itemByName = new Map(payloads.map((item) => [item.name, item]));
   const findings = new Set<string>();
@@ -1282,6 +1423,19 @@ export function validateRegistryInstallMetadata(
     const installContext = collectInstallContext(item, itemByName);
 
     for (const file of item.files ?? []) {
+      const installedPath = file.target ?? file.path;
+      if (file.target?.startsWith("~/")) {
+        findings.add(
+          `${item.name}: ${file.path} declares the target "${file.target}"; targets are written without the "~/" prefix, because the packaged-file path the docs serve is the target as declared`,
+        );
+      }
+      const shadcnPath = shadcnInstallPath(file);
+      if (shadcnPath !== installedPath) {
+        findings.add(
+          `${item.name}: ${file.path} lands at ${shadcnPath} when shadcn installs it; declare that path as its target or move it under the directory its type owns`,
+        );
+      }
+
       for (const specifier of collectModuleSpecifiers(file)) {
         const aliasCandidates = getAliasImportCandidates(specifier);
 
@@ -1302,7 +1456,6 @@ export function validateRegistryInstallMetadata(
         }
 
         if (specifier.startsWith(".")) {
-          const installedPath = file.target ?? file.path;
           const candidates = getRelativeImportCandidates(
             specifier,
             installedPath,
@@ -1326,7 +1479,7 @@ export function validateRegistryInstallMetadata(
 
         const packageName = getPackageName(specifier);
         if (
-          !PROJECT_PACKAGE_IMPORTS.has(packageName) &&
+          !projectPackageImports.has(packageName) &&
           !installContext.packages.has(packageName)
         ) {
           findings.add(
@@ -1393,9 +1546,11 @@ export function validateUniversalItems(
 export async function buildRegistry(
   registry: RegistryItem[],
   vueRegistry: RegistryItem[],
+  nativeRegistry?: RegistryItem[],
 ) {
   validateRegistrySchema(registry);
   validateRegistrySchema(vueRegistry);
+  if (nativeRegistry) validateRegistrySchema(nativeRegistry);
   const radixUsageExemptions = createRegistryDependencyUsageExemptions(
     registry,
     "radix",
@@ -1406,6 +1561,9 @@ export async function buildRegistry(
   );
   const vueUsageExemptions =
     createRegistryDependencyUsageExemptions(vueRegistry);
+  const nativeUsageExemptions = nativeRegistry
+    ? createRegistryDependencyUsageExemptions(nativeRegistry)
+    : new Map();
 
   const universalNames = new Set(
     registry
@@ -1438,6 +1596,9 @@ export async function buildRegistry(
     createRegistryPayload(item, false),
   );
   const vueBuilt = vueRegistry.map((item) => createRegistryPayload(item));
+  const nativeBuilt = nativeRegistry?.map((item) =>
+    createRegistryPayload(item),
+  );
   validateBaseVariantContent(radixBuilt, baseBuilt);
   validateBaseTreeRadixImports(baseBuilt);
   validateEmittedSpecifierHygiene([...radixBuilt, ...baseBuilt]);
@@ -1447,18 +1608,48 @@ export async function buildRegistry(
   validateVariantExportParity(radixBuilt, baseBuilt);
   validateStyleScopedDependencies(radixBuilt, baseBuilt);
   validateVueFlavorContent(vueBuilt);
+  if (nativeBuilt) validateNativeFlavorContent(nativeBuilt);
 
-  const payloads = radixBuilt.map((built) => built.payload);
-  const basePayloads = baseBuilt.map((built) => built.payload);
-  const vuePayloads = vueBuilt.map((built) => built.payload);
-  validateRegistryInstallMetadata(payloads, radixUsageExemptions);
-  validateRegistryInstallMetadata(basePayloads, baseUsageExemptions);
-  validateRegistryInstallMetadata(vuePayloads, vueUsageExemptions);
+  const unpinnedPayloads = radixBuilt.map((built) => built.payload);
+  const unpinnedBasePayloads = baseBuilt.map((built) => built.payload);
+  const unpinnedVuePayloads = vueBuilt.map((built) => built.payload);
+  const unpinnedNativePayloads = nativeBuilt?.map((built) => built.payload);
+  validateRegistryInstallMetadata(unpinnedPayloads, radixUsageExemptions);
+  validateRegistryInstallMetadata(unpinnedBasePayloads, baseUsageExemptions);
+  validateRegistryInstallMetadata(unpinnedVuePayloads, vueUsageExemptions);
+  if (unpinnedNativePayloads) {
+    const utilsPayload = unpinnedPayloads.find(
+      (payload) => payload.name === "utils",
+    );
+    validateRegistryInstallMetadata(
+      utilsPayload
+        ? [...unpinnedNativePayloads, utilsPayload]
+        : unpinnedNativePayloads,
+      nativeUsageExemptions,
+      NATIVE_PROJECT_PACKAGE_IMPORTS,
+    );
+  }
+
+  const workspaceVersions = readWorkspacePackageVersions();
+  const pinAll = <
+    T extends Pick<RegistryItem, "dependencies" | "devDependencies">,
+  >(
+    items: T[],
+  ) => items.map((item) => pinWorkspaceDependencies(item, workspaceVersions));
+  const payloads = pinAll(unpinnedPayloads);
+  const basePayloads = pinAll(unpinnedBasePayloads);
+  const vuePayloads = pinAll(unpinnedVuePayloads);
+  const nativePayloads =
+    unpinnedNativePayloads && pinAll(unpinnedNativePayloads);
 
   await fs.mkdir(REGISTRY_PATH, { recursive: true });
   await fs.mkdir(BASE_REGISTRY_PATH, { recursive: true });
   await fs.rm(VUE_REGISTRY_PATH, { force: true, recursive: true });
   await fs.mkdir(VUE_REGISTRY_PATH, { recursive: true });
+  if (nativePayloads) {
+    await fs.rm(NATIVE_REGISTRY_PATH, { force: true, recursive: true });
+    await fs.mkdir(NATIVE_REGISTRY_PATH, { recursive: true });
+  }
 
   for (const payload of payloads) {
     const p = path.join(REGISTRY_PATH, `${payload.name}.json`);
@@ -1483,11 +1674,21 @@ export async function buildRegistry(
     await fs.writeFile(p, JSON.stringify(payload, null, 2), "utf8");
   }
 
+  if (nativePayloads) {
+    for (const payload of nativePayloads) {
+      const p = path.join(NATIVE_REGISTRY_PATH, `${payload.name}.json`);
+      await fs.mkdir(path.dirname(p), { recursive: true });
+
+      await fs.writeFile(p, JSON.stringify(payload, null, 2), "utf8");
+    }
+    await writePackagedFiles(NATIVE_REGISTRY_PATH, nativePayloads);
+  }
+
   const registryIndex = {
     $schema: "https://ui.shadcn.com/schema/registry.json",
     name: "assistant-ui",
     homepage: "https://assistant-ui.com",
-    items: radixRegistry.map(stripRegistryDependencyUsageExemptions),
+    items: pinAll(radixRegistry.map(stripRegistryDependencyUsageExemptions)),
   };
 
   await fs.writeFile(
@@ -1501,7 +1702,7 @@ export async function buildRegistry(
     JSON.stringify(
       {
         ...registryIndex,
-        items: baseRegistry.map(stripRegistryDependencyUsageExemptions),
+        items: pinAll(baseRegistry.map(stripRegistryDependencyUsageExemptions)),
       },
       null,
       2,
@@ -1514,13 +1715,30 @@ export async function buildRegistry(
     JSON.stringify(
       {
         ...registryIndex,
-        items: vueRegistry.map(stripRegistryDependencyUsageExemptions),
+        items: pinAll(vueRegistry.map(stripRegistryDependencyUsageExemptions)),
       },
       null,
       2,
     ),
     "utf8",
   );
+
+  if (nativeRegistry) {
+    await fs.writeFile(
+      NATIVE_REGISTRY_INDEX_PATH,
+      JSON.stringify(
+        {
+          ...registryIndex,
+          items: pinAll(
+            nativeRegistry.map(stripRegistryDependencyUsageExemptions),
+          ),
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+  }
 }
 
 const entrypoint = process.argv[1];
@@ -1528,5 +1746,5 @@ if (
   entrypoint &&
   import.meta.url === pathToFileURL(path.resolve(entrypoint)).href
 ) {
-  await buildRegistry(registry, vueRegistry);
+  await buildRegistry(registry, vueRegistry, nativeRegistry);
 }

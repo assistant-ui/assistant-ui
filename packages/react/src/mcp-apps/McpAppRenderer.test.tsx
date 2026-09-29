@@ -70,8 +70,7 @@ const createPart = (
 });
 
 const createPartWithoutApp = (): ToolCallMessagePartProps => {
-  const part = createPart();
-  delete part.mcp;
+  const { mcp: _mcp, ...part } = createPart();
   return part;
 };
 

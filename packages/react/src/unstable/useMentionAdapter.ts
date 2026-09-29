@@ -152,7 +152,7 @@ export function unstable_useMentionAdapter(
   const formatter = options?.formatter;
   const onInserted = options?.onInserted;
   const isCategorized =
-    (categories !== undefined && categories.length > 0) ||
+    categories !== undefined ||
     (toolsConfig?.category !== undefined && items === undefined);
   const toolMentions = useModelContextSnapshot(
     aui,

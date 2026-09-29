@@ -1,31 +1,26 @@
 "use client";
 
-import {
-  Children,
-  cloneElement,
-  isValidElement,
-  useCallback,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import {
   PlatformScope,
   isVisibleForPlatform,
   PLATFORM_LABELS,
-  PLATFORMS,
+  SURFACES,
   type Platform,
+  type Surface,
   usePlatformOrDefault,
+  useSurfaceOrDefault,
 } from "./context";
 import {
   Tabs,
   escapeValue,
   type TabsProps,
 } from "@/components/pages/docs/fumadocs/tabs";
+import { rewritePlatformPackages } from "./rewrite";
 
-const ITEMS = PLATFORMS.map((p) => PLATFORM_LABELS[p]);
-const VALUE_TO_PLATFORM: Record<string, Platform> = Object.fromEntries(
-  PLATFORMS.map((p) => [escapeValue(PLATFORM_LABELS[p]), p]),
+const ITEMS = SURFACES.map((p) => PLATFORM_LABELS[p]);
+const VALUE_TO_SURFACE: Record<string, Surface> = Object.fromEntries(
+  SURFACES.map((p) => [escapeValue(PLATFORM_LABELS[p]), p]),
 );
 
 export type PlatformTabsProps = Omit<
@@ -34,22 +29,22 @@ export type PlatformTabsProps = Omit<
 >;
 
 export function PlatformTabs(props: PlatformTabsProps): React.ReactElement {
-  const platform = usePlatformOrDefault();
+  const surface = useSurfaceOrDefault();
   return (
-    <PlatformTabsInner key={platform} defaultPlatform={platform} {...props} />
+    <PlatformTabsInner key={surface} defaultSurface={surface} {...props} />
   );
 }
 
 // Local tab selection previews this group only, does not update
 // global platform. Global overrides this on navigation (via key remount).
 function PlatformTabsInner({
-  defaultPlatform,
+  defaultSurface,
   ...props
-}: PlatformTabsProps & { defaultPlatform: Platform }): React.ReactElement {
-  const [localPlatform, setLocalPlatform] = useState(defaultPlatform);
+}: PlatformTabsProps & { defaultSurface: Surface }): React.ReactElement {
+  const [localPlatform, setLocalPlatform] = useState<Surface>(defaultSurface);
 
   const handleValueChange = useCallback((value: string) => {
-    const next = VALUE_TO_PLATFORM[value];
+    const next = VALUE_TO_SURFACE[value];
     if (next) setLocalPlatform(next);
   }, []);
 
@@ -82,37 +77,11 @@ export function PlatformOnly({
   return <>{children}</>;
 }
 
-// Negative lookahead avoids matching siblings like `@assistant-ui/react-langgraph`.
-const PACKAGE_PATTERN = /@assistant-ui\/react(?![-\w])/g;
-
-const PLATFORM_PACKAGE: Record<Platform, string> = {
-  react: "@assistant-ui/react",
-  rn: "@assistant-ui/react-native",
-  ink: "@assistant-ui/react-ink",
-};
-
-function rewrite(node: ReactNode, replacement: string): ReactNode {
-  if (typeof node === "string") {
-    return node.replace(PACKAGE_PATTERN, replacement);
-  }
-  if (Array.isArray(node)) {
-    // Children.map auto-keys the siblings; bare Array.map would warn on Shiki spans.
-    return Children.map(node, (child) => rewrite(child, replacement));
-  }
-  if (isValidElement<{ children?: ReactNode }>(node)) {
-    const { children } = node.props;
-    if (children === undefined) return node;
-    return cloneElement(node, { children: rewrite(children, replacement) });
-  }
-  return node;
-}
-
 export function PlatformAwareCode({ children }: { children: ReactNode }) {
   const platform = usePlatformOrDefault();
-  const replacement = PLATFORM_PACKAGE[platform];
   const rewritten = useMemo(
-    () => (platform === "react" ? children : rewrite(children, replacement)),
-    [children, platform, replacement],
+    () => rewritePlatformPackages(children, platform),
+    [children, platform],
   );
   return <>{rewritten}</>;
 }

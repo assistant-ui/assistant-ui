@@ -18,6 +18,7 @@ import type { ModelContext } from "../../model-context/types";
 import type { MessageMethods, MessageState } from "./message";
 import type { ComposerMethods, ComposerState } from "./composer";
 import type { SuggestionsMethods } from "./suggestions";
+import type { TaskMethods, TaskState } from "./task";
 
 export type ThreadState = {
   /**
@@ -44,6 +45,10 @@ export type ThreadState = {
    * The messages in the currently selected branch of the thread.
    */
   readonly messages: readonly MessageState[];
+  /**
+   * Child work derived from the thread's tool calls: every tool call that carries a nested conversation, in document order with nested tasks after their parent. The array keeps its identity while no task changed.
+   */
+  readonly tasks: readonly TaskState[];
   /**
    * The thread state.
    * @deprecated This feature is experimental
@@ -76,6 +81,10 @@ export type ThreadMethods = {
    * The suggestions shown for this thread.
    */
   suggestions(): SuggestionsMethods;
+  /**
+   * Access a task by index or toolCallId; an id resolves the first task with that toolCallId in document order.
+   */
+  task(selector: { index: number } | { id: string }): TaskMethods;
   /**
    * Append a new message to the thread.
    *
@@ -144,6 +153,13 @@ export type ThreadMeta = {
 };
 
 export type ThreadEvents = {
+  "thread.toolApprovalAnswered": {
+    threadId: string;
+    messageId: string;
+    toolCallId: string;
+    toolName: string;
+    approved: boolean;
+  };
   /**
    * A run started on this thread. Also observable as `isRunning` flipping to
    * `true` in thread state.
@@ -155,6 +171,10 @@ export type ThreadEvents = {
    * state.
    */
   "thread.runEnd": { threadId: string };
+  /** The user stopped the run in progress on this thread. */
+  "thread.cancelRun": { threadId: string };
+  /** The user started a voice session on this thread. */
+  "thread.voiceStarted": { threadId: string };
   /**
    * The thread transitioned from new to initialized. Fires before the first
    * message is added, so read thread state via `useAuiState` rather than

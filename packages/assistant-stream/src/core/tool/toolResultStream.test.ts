@@ -59,6 +59,62 @@ afterEach(() => {
 });
 
 describe("unstable_runPendingTools", () => {
+  it("keeps provider messages when a pending tool settles", async () => {
+    const settled = await unstable_runPendingTools(
+      createPendingToolMessage("messages"),
+      {
+        tool: {
+          parameters: { type: "object", properties: {} },
+          execute: () =>
+            new ToolResponse({
+              result: "done",
+              messages: [{ role: "assistant", content: [] }],
+            }),
+        },
+      },
+      new AbortController().signal,
+      async () => {},
+    );
+
+    expect(settled.parts[0]).toMatchObject({
+      state: "result",
+      result: "done",
+      messages: [{ role: "assistant", content: [] }],
+    });
+    expect(settled.content).toEqual(settled.parts);
+  });
+
+  it.each(["constructor", "toString", "__proto__"])(
+    "does not assign inherited results to a %s tool call ID",
+    async (toolCallId) => {
+      const message = createPendingToolMessage("executed");
+      const unavailablePart = {
+        ...message.parts[0],
+        toolCallId,
+        toolName: "unavailable",
+      } as ToolCallPart;
+      message.parts.push(unavailablePart);
+
+      const settled = await unstable_runPendingTools(
+        message,
+        {
+          tool: {
+            parameters: { type: "object", properties: {} },
+            execute: async () => "done",
+          },
+        },
+        new AbortController().signal,
+        async () => {},
+      );
+
+      expect(settled.parts[0]).toMatchObject({
+        state: "result",
+        result: "done",
+      });
+      expect(settled.parts[1]).toBe(unavailablePart);
+    },
+  );
+
   it("settles a tool that returns no value with a concrete result", async () => {
     const message: AssistantMessage = {
       role: "assistant",
@@ -238,6 +294,61 @@ describe("unstable_runPendingTools", () => {
     );
   });
 
+  it.each(["sync", "async"] as const)(
+    "uses %s schema output for execution and model content",
+    async (mode) => {
+      const message = createPendingToolMessage("trim");
+      message.parts = [
+        {
+          type: "tool-call",
+          toolCallId: "trim",
+          toolName: "tool",
+          args: { name: " Ada ", extra: true },
+          argsText: '{"name":" Ada ","extra":true}',
+          state: "call",
+          status: { type: "requires-action", reason: "tool-call-result" },
+        },
+      ];
+      const tool: Tool = {
+        parameters: {
+          "~standard": {
+            version: 1,
+            vendor: "test",
+            validate: (input) => {
+              if (
+                typeof input !== "object" ||
+                input === null ||
+                !("name" in input) ||
+                typeof input.name !== "string"
+              ) {
+                return { issues: [{ message: "Expected a name" }] };
+              }
+              const result = { value: { name: input.name.trim() } };
+              return mode === "async" ? Promise.resolve(result) : result;
+            },
+          },
+        },
+        execute: (args) => `Hello, ${args.name}!`,
+        toModelOutput: ({ input, output }) => [
+          { type: "text", text: `${JSON.stringify(input)}: ${output}` },
+        ],
+      };
+
+      const settled = await unstable_runPendingTools(
+        message,
+        { tool },
+        new AbortController().signal,
+        async () => {},
+      );
+
+      expect(settled.parts[0]).toMatchObject({
+        args: { name: " Ada ", extra: true },
+        result: "Hello, Ada!",
+        modelContent: [{ type: "text", text: '{"name":"Ada"}: Hello, Ada!' }],
+      });
+    },
+  );
+
   it.each([
     [
       "thenable",
@@ -259,7 +370,9 @@ describe("unstable_runPendingTools", () => {
     "awaits a %s schema validation result",
     async (kind, createValidationResult) => {
       const execute = vi.fn(async () => "executed");
-      const onSchemaValidationError = vi.fn(async () => "recovered");
+      const onSchemaValidationError = vi.fn(
+        async (_args: unknown) => "recovered",
+      );
       const message = createPendingToolMessage(kind);
       const parameters = {
         "~standard": {
@@ -283,6 +396,7 @@ describe("unstable_runPendingTools", () => {
 
       expect(execute).not.toHaveBeenCalled();
       expect(onSchemaValidationError).toHaveBeenCalledOnce();
+      expect(onSchemaValidationError.mock.calls[0]?.[0]).toEqual({});
       expect(settled.parts[0]).toMatchObject({
         result: "recovered",
         isError: false,
@@ -297,7 +411,7 @@ describe("unstable_runPendingTools", () => {
     const parameters = {
       "~standard": {
         version: 1,
-        validate: () => ({ issues: undefined }),
+        validate: () => ({ value: {} }),
       },
     } as NonNullable<Tool["parameters"]>;
 
@@ -315,6 +429,147 @@ describe("unstable_runPendingTools", () => {
       result: "executed",
       isError: false,
     });
+  });
+
+  it("lets a synchronously aborting tool settle during the abort grace period", async () => {
+    const abortController = new AbortController();
+    const execute = vi.fn(() => {
+      abortController.abort();
+      return "executed";
+    });
+
+    const settled = await unstable_runPendingTools(
+      createPendingToolMessage("self-aborting-tool"),
+      {
+        tool: {
+          parameters: { type: "object", properties: {} },
+          execute,
+        },
+      },
+      abortController.signal,
+      async () => {},
+    );
+
+    expect(execute).toHaveBeenCalledOnce();
+    expect(settled.parts[0]).toMatchObject({
+      result: "executed",
+      isError: false,
+    });
+  });
+
+  it("does not execute a tool cancelled during async validation", async () => {
+    const abortController = new AbortController();
+    const validation = promiseWithResolvers<{
+      value: Record<string, unknown>;
+    }>();
+    const execute = vi.fn(() => "executed");
+    const pending = unstable_runPendingTools(
+      createPendingToolMessage("async-validation"),
+      {
+        tool: {
+          parameters: {
+            "~standard": {
+              version: 1,
+              vendor: "test",
+              validate: () => validation.promise,
+            },
+          },
+          execute,
+        },
+      },
+      abortController.signal,
+      async () => {},
+    );
+
+    abortController.abort();
+    validation.resolve({ value: {} });
+    const settled = await pending;
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(settled.parts[0]).toMatchObject({
+      state: "result",
+      result: "Tool execution was cancelled.",
+      isError: true,
+    });
+  });
+
+  it("settles cancellation while async validation remains pending", async () => {
+    const abortController = new AbortController();
+    const validation = promiseWithResolvers<{
+      value: Record<string, unknown>;
+    }>();
+    const execute = vi.fn(() => "executed");
+    const pending = unstable_runPendingTools(
+      createPendingToolMessage("pending-validation"),
+      {
+        tool: {
+          parameters: {
+            "~standard": {
+              version: 1,
+              vendor: "test",
+              validate: () => validation.promise,
+            },
+          },
+          execute,
+        },
+      },
+      abortController.signal,
+      async () => {},
+    );
+
+    abortController.abort();
+    const settled = await pending;
+
+    expect(settled.parts[0]).toMatchObject({
+      state: "result",
+      result: "Tool execution was cancelled.",
+      isError: true,
+    });
+
+    validation.resolve({ value: {} });
+    await validation.promise;
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("observes validation rejection after validation cancels the tool", async () => {
+    const abortController = new AbortController();
+    const validation = promiseWithResolvers<{
+      value: Record<string, unknown>;
+    }>();
+    const execute = vi.fn(() => "executed");
+    const pending = unstable_runPendingTools(
+      createPendingToolMessage("self-cancelling-validation"),
+      {
+        tool: {
+          parameters: {
+            "~standard": {
+              version: 1,
+              vendor: "test",
+              validate: () => {
+                abortController.abort();
+                return validation.promise;
+              },
+            },
+          },
+          execute,
+        },
+      },
+      abortController.signal,
+      async () => {},
+    );
+
+    const unhandledRejections = await captureUnhandledRejections(async () => {
+      const settled = await pending;
+      expect(settled.parts[0]).toMatchObject({
+        state: "result",
+        result: "Tool execution was cancelled.",
+        isError: true,
+      });
+      validation.reject(new Error("validation failed after cancellation"));
+    });
+
+    expect(unhandledRejections).toEqual([]);
+    expect(execute).not.toHaveBeenCalled();
   });
 
   it.each(["resolves", "rejects"] as const)(
@@ -840,6 +1095,52 @@ describe("unstable_runPendingTools", () => {
         isError: false,
       });
     });
+  });
+
+  it("settles an execute response marked preliminary", async () => {
+    const tool: Tool = {
+      parameters: { type: "object", properties: {} },
+      execute: async () =>
+        new ToolResponse({ result: { partial: true }, isPreliminary: true }),
+    };
+
+    const inputStream = new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        controller.enqueue({
+          type: "part-start",
+          path: [],
+          part: { type: "tool-call", toolCallId: "tc-1", toolName: "tool" },
+        });
+        controller.enqueue({ type: "text-delta", path: [0], textDelta: "{}" });
+        controller.enqueue({ type: "tool-call-args-text-finish", path: [0] });
+        controller.enqueue({ type: "part-finish", path: [0] });
+        controller.close();
+      },
+    });
+
+    const outputChunks: AssistantStreamChunk[] = [];
+    await inputStream
+      .pipeThrough(
+        unstable_toolResultStream(
+          { tool },
+          new AbortController().signal,
+          async () => {},
+        ),
+      )
+      .pipeTo(
+        new WritableStream<AssistantStreamChunk>({
+          write(chunk) {
+            outputChunks.push(chunk);
+          },
+        }),
+      );
+
+    const results = outputChunks.filter(
+      (c) => c.type === "result",
+    ) as (AssistantStreamChunk & { type: "result" })[];
+    expect(results).toHaveLength(1);
+    expect(results[0]?.result).toEqual({ partial: true });
+    expect(results[0]?.isPreliminary).toBeUndefined();
   });
 
   describe("toModelOutput", () => {

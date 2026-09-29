@@ -451,12 +451,12 @@ describe("BaseComposerRuntimeCore.addAttachment error events", () => {
   it("uses the adapter for foreign files that expose content", async () => {
     const add = vi.fn(makeAdapter().add);
     const composer = makeComposer(makeAdapter({ add }));
-    const foreignFile = {
-      name: "photo.png",
-      type: "image/png",
-      lastModified: 0,
-      content: [{ type: "text", text: "implementation detail" }],
-    } as File;
+    const foreignFile = Object.assign(
+      new File([""], "photo.png", { type: "image/png" }),
+      {
+        content: [{ type: "text", text: "implementation detail" }],
+      },
+    );
 
     await composer.addAttachment(foreignFile);
 

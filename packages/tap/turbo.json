@@ -1,0 +1,8 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "typecheck": {
+      "dependsOn": ["^build", "build"]
+    }
+  }
+}

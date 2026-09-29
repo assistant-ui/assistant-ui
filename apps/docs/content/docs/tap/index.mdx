@@ -1,0 +1,43 @@
+---
+title: Introduction
+description: State management based on React Hooks.
+---
+
+**tap is a state management library based on React Hooks.**
+
+It lets you build and manage your application state with the APIs and mental
+model you already use in React, organized around one new primitive: the
+**Resource**.
+
+A Resource does for state what a component does for UI. It turns stateful
+behavior into a reusable, composable building block—but returns state and methods
+instead of JSX.
+
+> **Resources organize like components, but execute like Hooks.**
+
+## Resources are the unit of state composition
+
+<TapTutorialSlideshow />
+
+`resource()` turns a Hook into a Resource. Use
+[`useResource`](/docs/tap/resources#hosting-a-resource) to compose one Resource
+or [`useResources`](/docs/tap/composition#useresources) to compose a keyed
+collection.
+
+Nested Resources behave as if their Hook logic were inlined, so effects follow
+declaration order—not component-tree order. See
+[Differences from React](/docs/tap/differences-from-react) for details.
+
+## Next steps
+
+<Cards>
+  <Card title="Resources" href="/docs/tap/resources">
+    Package Hooks into reusable, configurable state.
+  </Card>
+  <Card title="Composition" href="/docs/tap/composition">
+    Build Resource graphs and dynamic keyed collections.
+  </Card>
+  <Card title="API Reference" href="/docs/tap/api-reference">
+    Every export, in one place.
+  </Card>
+</Cards>

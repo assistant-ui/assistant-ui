@@ -16,9 +16,8 @@ const inlineStats = (message: MessagePreview): string[] => {
 
   if (timing && !canRenderBar(timing)) {
     const ttft =
-      timing.firstTokenTime !== undefined &&
-      timing.streamStartTime !== undefined
-        ? Math.max(0, timing.firstTokenTime - timing.streamStartTime)
+      timing.firstTokenTime !== undefined
+        ? Math.max(0, timing.firstTokenTime)
         : undefined;
     if (ttft !== undefined) stats.push(`TTFT ${formatMs(ttft)}`);
     if (timing.totalStreamTime !== undefined) {

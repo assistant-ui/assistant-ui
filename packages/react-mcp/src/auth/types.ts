@@ -8,7 +8,9 @@ export type MCPPersistedAuthState = {
   /** MCP server URL this authentication state belongs to. Required with credentials. */
   serverUrl?: string;
   tokens?: OAuthTokens;
+  tokensClientId?: string;
   clientInformation?: OAuthClientInformationFull;
+  clientInformationSource?: "registered";
   codeVerifier?: string;
   state?: string;
   discoveryState?: OAuthDiscoveryState;

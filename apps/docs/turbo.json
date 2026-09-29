@@ -2,10 +2,31 @@
   "$schema": "https://turbo.build/schema.json",
   "extends": ["//"],
   "tasks": {
+    "build": {
+      "dependsOn": ["^build", "generate:type-docs"]
+    },
+    "generate:type-docs": {
+      "dependsOn": ["^build"],
+      "env": ["!NEXT_PUBLIC_*"],
+      "inputs": [
+        "scripts/generate-type-docs.mts",
+        "scripts/generated-docs/**",
+        "content/types-to-generate/**",
+        "tsconfig.json"
+      ],
+      "outputs": [
+        "generated/typeDocs.ts",
+        "generated/integrationTypeDocs.ts",
+        "generated/primitiveDocs.ts"
+      ]
+    },
     "dev": {
       "dependsOn": ["^build"],
       "cache": false,
       "persistent": true
+    },
+    "test": {
+      "env": ["REDIS_*"]
     }
   }
 }

@@ -60,12 +60,12 @@ env:
   # - mcp__github_inline_comment__create_inline_comment: Create inline code comments
   # - Bash(gh ...): Read-only GitHub CLI commands for PR/issue info
   # Note: gh pr comment is NOT allowed - Claude must use update_claude_comment only
-  CLAUDE_ARGS: '--model claude-opus-5 --effort high --allowedTools "WebSearch,WebFetch,mcp__github_inline_comment__create_inline_comment,Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
+  CLAUDE_ARGS: '--model claude-opus-5-5 --effort high --allowedTools "WebSearch,WebFetch,mcp__github_inline_comment__create_inline_comment,Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
 
   # Fork reviews run in agent mode with no shell, filesystem, web, subagent, or
   # code-writing tools. The GitHub MCP tools below are individually read-only;
   # the inline-comment tool is the only model-controlled write capability.
-  FORK_CLAUDE_ARGS: '--model claude-opus-5 --effort high --permission-mode dontAsk --allowedTools "mcp__github__get_pull_request,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_file_contents,mcp__github__get_commit,mcp__github__list_commits,mcp__github_inline_comment__create_inline_comment" --disallowedTools "Bash,Read,Edit,Write,Glob,Grep,WebFetch,WebSearch,Agent,NotebookEdit"'
+  FORK_CLAUDE_ARGS: '--model claude-opus-5-5 --effort high --permission-mode dontAsk --allowedTools "mcp__github__get_pull_request,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_file_contents,mcp__github__get_commit,mcp__github__list_commits,mcp__github_inline_comment__create_inline_comment" --disallowedTools "Bash,Read,Edit,Write,Glob,Grep,WebFetch,WebSearch,Agent,NotebookEdit"'
 
 jobs:
   claude-review:
@@ -80,7 +80,7 @@ jobs:
     concurrency:
       group: claude-code-review-${{ github.event.pull_request.number }}
       cancel-in-progress: true
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read
@@ -98,7 +98,7 @@ jobs:
 
       - name: Review
         id: review
-        uses: anthropics/claude-code-action@a874e9ecd7bb36efdad65429c6b35815f5a08f10 # ratchet:anthropics/claude-code-action@v1.0.210
+        uses: anthropics/claude-code-action@8cf3482550831fb35a4fc3fbf7ca139cf8028b4c # ratchet:anthropics/claude-code-action@v1.0.233
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: ${{ env.REVIEW_PROMPT }}
@@ -172,7 +172,7 @@ jobs:
     concurrency:
       group: claude-code-review-${{ github.event.pull_request.number }}
       cancel-in-progress: true
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read
@@ -189,7 +189,7 @@ jobs:
 
       - name: Review external PR
         id: review
-        uses: anthropics/claude-code-action@a874e9ecd7bb36efdad65429c6b35815f5a08f10 # ratchet:anthropics/claude-code-action@v1.0.210
+        uses: anthropics/claude-code-action@8cf3482550831fb35a4fc3fbf7ca139cf8028b4c # ratchet:anthropics/claude-code-action@v1.0.233
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}

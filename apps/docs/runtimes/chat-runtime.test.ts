@@ -5,7 +5,9 @@ import { afterEach, expect, it, vi } from "vitest";
 import type { SessionState } from "@/lib/session";
 import { useDocsChatRuntime, useDocsCloud } from "./chat-runtime";
 
-const useChatRuntime = vi.hoisted(() => vi.fn(() => ({ runtime: true })));
+const useChatRuntime = vi.hoisted(() =>
+  vi.fn((_options: unknown) => ({ runtime: true })),
+);
 const refreshDemoUsage = vi.hoisted(() => vi.fn());
 const mocks = vi.hoisted(() => ({
   session: { status: "loading" } as SessionState,
@@ -54,10 +56,14 @@ const installLocalStorage = (withRefreshToken: boolean) => {
   } as Storage);
 };
 
+// The claim is cached per signed-in visitor for the page's lifetime, so each
+// case signs in as its own visitor rather than reading the previous one's claim.
+let visitor = 0;
+
 const signedInSession = (cloudHistory = true): SessionState => ({
   status: "signed-in",
   cloudHistory,
-  user: { name: "Ada", email: "ada@test", image: null },
+  user: { name: "Ada", email: `ada${visitor}@test`, image: null },
 });
 
 const cloudStrategy = (cloud: ReturnType<typeof useDocsCloud>["cloud"]) =>
@@ -71,6 +77,7 @@ const options = () =>
   useChatRuntime.mock.calls.at(-1)![0] as Record<string, unknown>;
 
 afterEach(() => {
+  visitor += 1;
   useChatRuntime.mockClear();
   refreshDemoUsage.mockClear();
   mocks.session = { status: "loading" };
@@ -179,6 +186,42 @@ it("claims a stored anonymous token while switching to account history", async (
 
   expect(refreshDemoUsage).toHaveBeenCalledOnce();
   expect(fetchMock).toHaveBeenCalledOnce();
+});
+
+it("shares one claim across the surfaces mounted on the same page", async () => {
+  vi.stubEnv("NEXT_PUBLIC_ASSISTANT_BASE_URL", baseUrl);
+  installLocalStorage(true);
+  mocks.session = signedInSession();
+  const fetchMock = vi.fn(() => Promise.resolve(Response.json({ moved: 2 })));
+  vi.stubGlobal("fetch", fetchMock);
+
+  const { result } = renderHook(() => ({
+    outer: useDocsCloud(),
+    nested: useDocsCloud(),
+  }));
+
+  await waitFor(() => expect(result.current.outer.claims).toBe(1));
+  expect(result.current.nested.claims).toBe(1);
+  expect(fetchMock).toHaveBeenCalledOnce();
+  expect(refreshDemoUsage).toHaveBeenCalledOnce();
+});
+
+it("claims once per visitor across a remount", async () => {
+  vi.stubEnv("NEXT_PUBLIC_ASSISTANT_BASE_URL", baseUrl);
+  installLocalStorage(true);
+  mocks.session = signedInSession();
+  const fetchMock = vi.fn(() => Promise.resolve(Response.json({ moved: 2 })));
+  vi.stubGlobal("fetch", fetchMock);
+
+  const first = renderHook(() => useDocsCloud());
+  await waitFor(() => expect(first.result.current.claims).toBe(1));
+  first.unmount();
+
+  const second = renderHook(() => useDocsCloud());
+
+  await waitFor(() => expect(second.result.current.claims).toBe(1));
+  expect(fetchMock).toHaveBeenCalledOnce();
+  expect(refreshDemoUsage).toHaveBeenCalledOnce();
 });
 
 it("switches without a claim when no anonymous token is stored", () => {

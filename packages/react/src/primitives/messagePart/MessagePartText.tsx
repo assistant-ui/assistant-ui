@@ -1,11 +1,12 @@
 "use client";
 
-import type { Primitive } from "../../utils/Primitive";
+import { Primitive, renderSlot } from "../../utils/Primitive";
 import {
   type ComponentRef,
   forwardRef,
   type ComponentPropsWithoutRef,
   type ElementType,
+  isValidElement,
 } from "react";
 import { useMessagePartText } from "./useMessagePartText";
 import { useSmooth, type SmoothOptions } from "../../utils/smooth/useSmooth";
@@ -26,6 +27,7 @@ export namespace MessagePartPrimitiveText {
     smooth?: boolean | SmoothOptions;
     /**
      * The HTML element or React component to render as.
+     * Ignored when a valid `render` element is supplied.
      * @default "span"
      */
     component?: ElementType;
@@ -51,14 +53,25 @@ export namespace MessagePartPrimitiveText {
 export const MessagePartPrimitiveText = forwardRef<
   MessagePartPrimitiveText.Element,
   MessagePartPrimitiveText.Props
->(({ smooth = true, component: Component = "span", ...rest }, forwardedRef) => {
-  const { text, status } = useSmooth(useMessagePartText(), smooth);
+>(
+  (
+    { smooth = true, component: Component = Primitive.span, render, ...rest },
+    forwardedRef,
+  ) => {
+    const { text, status } = useSmooth(useMessagePartText(), smooth);
 
-  return (
-    <Component data-status={status.type} {...rest} ref={forwardedRef}>
-      {text}
-    </Component>
-  );
-});
+    const mergedProps = {
+      "data-status": status.type,
+      ...rest,
+      ref: forwardedRef,
+    };
+
+    if (render && isValidElement(render)) {
+      return renderSlot(render, text, mergedProps);
+    }
+
+    return <Component {...mergedProps}>{text}</Component>;
+  },
+);
 
 MessagePartPrimitiveText.displayName = "MessagePartPrimitive.Text";

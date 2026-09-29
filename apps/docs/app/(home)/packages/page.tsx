@@ -29,6 +29,10 @@ export const metadata: Metadata = {
   ...createOgMetadata(title, description),
 };
 
+// api.npmjs.org allows about forty requests a minute per IP, which a build
+// shares with every other build on the platform, so npm is read at request time.
+export const dynamic = "force-dynamic";
+
 export default async function PackagesPage() {
   const npm = await fetchNpmDownloads();
 

@@ -14,6 +14,7 @@ import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
 import { NavItems, NavItemsRoot } from "@/components/shared/nav-items";
 import { HeaderBrandLink } from "@/components/shared/header-brand-link";
+import { CartButton } from "@/components/shared/shop-entry";
 import { headerBarClassName } from "@/components/shared/header-chrome";
 import { useScrolled } from "@/hooks/use-scrolled";
 
@@ -97,7 +98,8 @@ export function Header() {
             contentClassName="mx-auto max-w-7xl"
           />
 
-          <div className="flex items-center justify-end gap-2">
+          <div className="flex items-center justify-end gap-2 max-sm:[&:has([data-cart-button]:not([data-empty]))_[data-header-cloud]]:hidden">
+            <CartButton />
             <SearchButton onToggle={() => setSearchOpen((prev) => !prev)} />
             <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
 
@@ -116,6 +118,8 @@ export function Header() {
             <Button
               size="sm"
               nativeButton={false}
+              data-header-cloud=""
+              className="max-[340px]:hidden"
               render={
                 <a href={CLOUD_URL} target="_blank" rel="noopener noreferrer" />
               }
@@ -177,7 +181,7 @@ export function Header() {
                   </span>
                   {item.groups.map((group) => (
                     <div key={group.label} className="flex flex-col">
-                      <span className="text-muted-foreground py-3 font-mono text-sm tracking-wide uppercase">
+                      <span className="text-muted-foreground py-3 text-xs font-medium">
                         {group.label}
                       </span>
                       {group.items.map((link) =>

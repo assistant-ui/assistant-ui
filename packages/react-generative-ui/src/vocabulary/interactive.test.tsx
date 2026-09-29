@@ -1,7 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+import {
+  CHECKBOX_GROUP_ATTR,
+  FIELD_NAME_ATTR,
+  GENERATED_NAME_ATTR,
+} from "../constants";
 import { renderGenerativeUI } from "../renderGenerativeUI";
 import { interactiveVocabulary } from "./interactive";
+import { defaultGenerativeUILibrary } from "./index";
 
 const render = (node: unknown) =>
   renderToStaticMarkup(<>{renderGenerativeUI(node, interactiveVocabulary)}</>);
@@ -48,7 +54,7 @@ describe("interactiveVocabulary", () => {
     expect(html).toContain('aria-label="Choose"');
   });
 
-  it("Select keys options by index so duplicate values do not collide", () => {
+  it("Select renders every option when values are duplicated", () => {
     const html = render({
       $type: "Select",
       options: [
@@ -101,6 +107,26 @@ describe("interactiveVocabulary", () => {
     );
     expect(html).toContain('<option value="a">A</option>');
     expect(html).toContain('<option value="b">B</option>');
+  });
+
+  it("Select ignores malformed options instead of throwing", () => {
+    expect(render({ $type: "Select" })).toBe(
+      '<select data-aui="select"></select>',
+    );
+    expect(render({ $type: "Select", options: "not-an-array" })).toBe(
+      '<select data-aui="select"></select>',
+    );
+    expect(
+      render({
+        $type: "Select",
+        options: [
+          null,
+          { label: "Missing value" },
+          { value: "Missing label" },
+          { label: "A", value: "a" },
+        ],
+      }),
+    ).toBe('<select data-aui="select"><option value="a">A</option></select>');
   });
 
   it("Input renders a single-line input by default", () => {
@@ -157,6 +183,27 @@ describe("interactiveVocabulary", () => {
     expect(html).toContain('checked=""');
   });
 
+  it.each([
+    [
+      { $type: "Button", label: { unexpected: true } },
+      '<button type="button" data-aui="button"></button>',
+    ],
+    [
+      {
+        $type: "Select",
+        placeholder: { unexpected: true },
+        options: [],
+      },
+      '<select data-aui="select"></select>',
+    ],
+    [
+      { $type: "Checkbox", label: { unexpected: true } },
+      '<label data-aui="checkbox"><input type="checkbox"/><span data-aui="checkbox-label"></span></label>',
+    ],
+  ])("ignores malformed control text properties", (node, expected) => {
+    expect(render(node)).toBe(expected);
+  });
+
   it("RadioGroup renders a fieldset with one radio per option", () => {
     const html = render({
       $type: "RadioGroup",
@@ -172,6 +219,24 @@ describe("interactiveVocabulary", () => {
     expect(html).toContain("Large");
   });
 
+  it("RadioGroup renders model-provided children after the options inside the fieldset", () => {
+    const html = renderToStaticMarkup(
+      <>
+        {renderGenerativeUI(
+          {
+            $type: "RadioGroup",
+            options: [{ label: "Small", value: "sm" }],
+            children: { $type: "Text", value: "Additional context" },
+          },
+          defaultGenerativeUILibrary,
+        )}
+      </>,
+    );
+    expect(html).toMatch(
+      /^<fieldset data-aui="radiogroup">.*data-aui="radiogroup-option".*Small<\/label>.*Additional context.*<\/fieldset>$/,
+    );
+  });
+
   it("RadioGroup renders an aria-label from the label prop", () => {
     const html = render({
       $type: "RadioGroup",
@@ -181,7 +246,7 @@ describe("interactiveVocabulary", () => {
     expect(html).toContain('aria-label="Size"');
   });
 
-  it("RadioGroup radios share the given name", () => {
+  it("RadioGroup uses a shared native name and preserves the logical field name", () => {
     const html = render({
       $type: "RadioGroup",
       name: "size",
@@ -190,7 +255,12 @@ describe("interactiveVocabulary", () => {
         { label: "Large", value: "lg" },
       ],
     });
-    expect((html.match(/name="size"/g) ?? []).length).toBe(2);
+    const names = [...html.matchAll(/ name="([^"]*)"/g)].map((m) => m[1]);
+    expect(names).toHaveLength(2);
+    expect(names[0]).toBe(names[1]);
+    expect(names[0]).not.toBe("size");
+    expect(html.split(`${FIELD_NAME_ATTR}="size"`).length - 1).toBe(2);
+    expect(html).not.toContain(GENERATED_NAME_ATTR);
   });
 
   it("RadioGroup falls back to a generated shared name when name is omitted", () => {
@@ -201,10 +271,21 @@ describe("interactiveVocabulary", () => {
         { label: "Large", value: "lg" },
       ],
     });
-    const names = [...html.matchAll(/name="([^"]*)"/g)].map((m) => m[1]);
+    const names = [...html.matchAll(/ name="([^"]*)"/g)].map((m) => m[1]);
     expect(names.length).toBe(2);
     expect(names[0]).toBe(names[1]);
     expect(names[0]).toBeTruthy();
+    expect(html.split(`${GENERATED_NAME_ATTR}=""`).length - 1).toBe(2);
+  });
+
+  it("RadioGroup marks a generated shared name when name is null", () => {
+    const html = render({
+      $type: "RadioGroup",
+      name: null,
+      options: [{ label: "Small", value: "sm" }],
+    });
+
+    expect(html).toContain(`${GENERATED_NAME_ATTR}=""`);
   });
 
   it("RadioGroup marks the option matching defaultValue as checked", () => {
@@ -243,6 +324,54 @@ describe("interactiveVocabulary", () => {
     expect(() => render({ $type: "RadioGroup" })).not.toThrow();
     expect(render({ $type: "RadioGroup" })).toBe(
       '<fieldset data-aui="radiogroup"></fieldset>',
+    );
+  });
+
+  it("CheckboxGroup renders one named checkbox per option and checks each defaultValue", () => {
+    const html = render({
+      $type: "CheckboxGroup",
+      name: "toppings",
+      label: "Toppings",
+      defaultValue: ["olives"],
+      options: [
+        { label: "Basil", value: "basil" },
+        null,
+        { label: "Olives", value: "olives" },
+      ],
+    });
+    const inputs = html.match(/<input[^>]*>/g) ?? [];
+    expect(html).toMatch(
+      /^<fieldset data-aui="checkboxgroup" aria-label="Toppings">.*Basil<\/label>.*Olives<\/label><\/fieldset>$/,
+    );
+    expect(inputs).toHaveLength(2);
+    for (const input of inputs) {
+      expect(input).toContain('type="checkbox"');
+      expect(input).toContain('name="toppings"');
+      expect(input).toContain(`${CHECKBOX_GROUP_ATTR}=""`);
+    }
+    expect(inputs.filter((input) => input.includes('checked=""'))).toEqual([
+      expect.stringContaining('value="olives"'),
+    ]);
+  });
+
+  it("CheckboxGroup falls back to a generated shared name when name is omitted", () => {
+    const html = render({
+      $type: "CheckboxGroup",
+      options: [
+        { label: "Basil", value: "basil" },
+        { label: "Olives", value: "olives" },
+      ],
+    });
+    const names = [...html.matchAll(/ name="([^"]*)"/g)].map((m) => m[1]);
+    expect(names.length).toBe(2);
+    expect(names[0]).toBeTruthy();
+    expect(names[0]).toBe(names[1]);
+    expect(html.split(`${GENERATED_NAME_ATTR}=""`).length - 1).toBe(2);
+  });
+
+  it("CheckboxGroup with missing options renders an empty fieldset without throwing", () => {
+    expect(render({ $type: "CheckboxGroup" })).toBe(
+      '<fieldset data-aui="checkboxgroup"></fieldset>',
     );
   });
 });

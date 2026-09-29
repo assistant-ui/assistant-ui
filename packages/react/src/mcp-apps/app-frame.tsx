@@ -42,12 +42,12 @@ const isSameHostContext = (a: unknown, b: unknown, depth = 0): boolean => {
   if (Object.is(a, b)) return true;
   if (depth > 100) return false;
   if (Array.isArray(a) || Array.isArray(b)) {
-    return (
-      Array.isArray(a) &&
-      Array.isArray(b) &&
-      a.length === b.length &&
-      a.every((item, index) => isSameHostContext(item, b[index], depth + 1))
-    );
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length)
+      return false;
+    for (let i = 0; i < a.length; i++) {
+      if (!isSameHostContext(a[i], b[i], depth + 1)) return false;
+    }
+    return true;
   }
   if (!isPlainObject(a) || !isPlainObject(b)) return false;
   const aKeys = Object.keys(a);

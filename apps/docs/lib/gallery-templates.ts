@@ -303,8 +303,7 @@ const portfolio: GalleryTemplate = {
       {
         $type: "Markdown",
         $key: "footnote",
-        value:
-          "Prices delayed by 15 minutes. See the [disclosure](/legal/disclosure) for details.",
+        value: "Prices delayed by 15 minutes.",
       },
     ],
   },

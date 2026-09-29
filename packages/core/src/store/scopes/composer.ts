@@ -5,6 +5,7 @@ import type { RunConfig } from "../../types/message";
 import type { ComposerRuntime } from "../../runtime/api/composer-runtime";
 import type {
   AttachmentAddErrorReason,
+  ComposerSubmission,
   DictationState,
   SendOptions,
 } from "../../runtime/interfaces/composer-runtime-core";
@@ -36,10 +37,13 @@ export type ComposerState = {
   /**
    * Whether the composer is currently willing to send. `true` when the
    * composer is in editing mode and has non-empty content; for thread
-   * composers also requires the thread's `isSendDisabled` flag to be unset.
-   * Edit composers (saving message edits) ignore `isSendDisabled` since it
-   * is a thread-scoped gate. Cross-thread gating (running, queue capability)
-   * is layered on top by `useComposerSend`.
+   * composers also requires the thread's `isSendDisabled` flag to be unset
+   * and, while a voice session is connected, a session that takes typed text
+   * (`voice.canSendText`) and a draft without attachments. Edit composers
+   * (saving message edits) ignore `isSendDisabled` since it is a
+   * thread-scoped gate and never send while a voice session is connected.
+   * Cross-thread gating (running, queue capability) is layered on top by
+   * `useComposerSend`.
    */
   readonly canSend: boolean;
   readonly attachmentAccept: string;
@@ -63,6 +67,20 @@ export type ComposerState = {
    * Empty when no messages are queued.
    */
   readonly queue: readonly QueueItemState[];
+
+  /**
+   * The message this composer sent while its attachments are prepared. The
+   * thread renders it as its last message until the runtime takes it.
+   * Undefined when no send is being prepared.
+   */
+  readonly submission?: ComposerSubmission | undefined;
+
+  /**
+   * Messages this composer handed to the runtime that the thread does not
+   * show yet, oldest first. The thread renders them after its own messages
+   * until the runtime shows each one.
+   */
+  readonly inTransit?: readonly ComposerSubmission[] | undefined;
 };
 
 export type ComposerMethods = {
@@ -109,22 +127,34 @@ export type ComposerMeta = {
 
 export type ComposerEvents = {
   /**
-   * The user sent the composer contents. `messageId` is set when the send
-   * came from an edit composer.
+   * The user sent a message, from the composer or through `thread.append`.
+   * `messageId` is set when the send came from an edit composer.
    */
-  "composer.send": { threadId: string; messageId?: string };
+  "composer.send": {
+    threadId: string;
+    messageId?: string;
+    chars: number;
+    attachments: number;
+    suggestion?: boolean;
+  };
   /**
    * An attachment was added to the composer. `messageId` is set when the
    * attachment was added to an edit composer.
    */
-  "composer.attachmentAdd": { threadId: string; messageId?: string };
+  "composer.attachmentAdd": {
+    threadId: string;
+    messageId?: string;
+    contentType?: string;
+  };
   "composer.attachmentAddError": {
     threadId: string;
     messageId?: string;
     attachmentId?: string;
     reason: AttachmentAddErrorReason;
     message: string;
+    contentType?: string;
   };
+  "composer.cancel": { threadId: string };
 };
 
 export type ComposerClientSchema = {
