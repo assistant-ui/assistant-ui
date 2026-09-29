@@ -22,6 +22,7 @@ export const mockMessageState = (
 ) => {
   useAuiStateMock.mockImplementation((selector: UseAuiStateSelector) =>
     selector({
+      optional: {},
       ...state,
       get part() {
         if (partContext.index === null) return undefined;

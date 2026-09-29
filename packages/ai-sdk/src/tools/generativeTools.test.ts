@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   defineMcpToolkit,
+  defineToolkit,
   type ToolkitDefinition,
 } from "@assistant-ui/core/react";
 import { AISDKToolkit } from "./generativeTools";
@@ -229,19 +230,17 @@ describe("AISDKToolkit.tools()", () => {
   it("reflects replaced toolkit entries on the next call", async () => {
     const definition: ToolkitDefinition = {
       serverTool: {
-        type: "backend",
         description: "Original tool",
-        parameters: { type: "object", properties: {} },
+        parameters: { type: "object" as const, properties: {} },
         execute: async () => "original",
       },
     };
-    const toolkit = new AISDKToolkit({ toolkit: definition });
+    const toolkit = new AISDKToolkit({ toolkit: defineToolkit(definition) });
 
     const first = await toolkit.tools();
     definition.serverTool = {
-      type: "backend",
       description: "Replacement tool",
-      parameters: { type: "object", properties: {} },
+      parameters: { type: "object" as const, properties: {} },
       execute: async () => "replacement",
     };
 
@@ -262,12 +261,11 @@ describe("AISDKToolkit.tools()", () => {
     }));
     const definition: ToolkitDefinition = {
       serverTool: {
-        type: "backend",
         parameters: { toJSONSchema: firstConversion },
         execute: async () => "ok",
       } as never,
     };
-    const toolkit = new AISDKToolkit({ toolkit: definition });
+    const toolkit = new AISDKToolkit({ toolkit: defineToolkit(definition) });
 
     await toolkit.tools();
     definition.serverTool!.parameters = {
@@ -282,13 +280,12 @@ describe("AISDKToolkit.tools()", () => {
   it("reflects in-place toolkit entry changes on the next call", async () => {
     const definition: ToolkitDefinition = {
       serverTool: {
-        type: "backend",
         description: "Original tool",
-        parameters: { type: "object", properties: {} },
+        parameters: { type: "object" as const, properties: {} },
         execute: async () => "ok",
       },
     };
-    const toolkit = new AISDKToolkit({ toolkit: definition });
+    const toolkit = new AISDKToolkit({ toolkit: defineToolkit(definition) });
 
     expect((await toolkit.tools()).serverTool?.description).toBe(
       "Original tool",
@@ -305,14 +302,13 @@ describe("AISDKToolkit.tools()", () => {
 
   it("does not share mutable tool entries between calls", async () => {
     const toolkit = new AISDKToolkit({
-      toolkit: {
+      toolkit: defineToolkit({
         serverTool: {
-          type: "backend",
           description: "Original tool",
-          parameters: { type: "object", properties: {} },
+          parameters: { type: "object" as const, properties: {} },
           execute: async () => "ok",
         },
-      },
+      }),
     });
 
     const first = await toolkit.tools();

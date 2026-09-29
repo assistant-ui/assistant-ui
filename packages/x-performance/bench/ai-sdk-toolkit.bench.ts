@@ -1,5 +1,5 @@
 import { AISDKToolkit } from "@assistant-ui/ai-sdk";
-import { bench, describe } from "vitest";
+import { describe, inject, test } from "vitest";
 
 const makeToolkit = (size: number) =>
   Object.fromEntries(
@@ -34,16 +34,20 @@ await Promise.all(
 
 describe("ai-sdk: reuse converted AISDKToolkit schemas", () => {
   for (const size of SIZES) {
-    bench(`${size} static tools`, async () => {
-      await reusedToolkits.get(size)!.tools();
+    test(`${size} static tools`, async ({ bench }) => {
+      await bench(`${size} static tools`, async () => {
+        await reusedToolkits.get(size)!.tools();
+      }).run(inject("benchSampling"));
     });
   }
 });
 
 describe("ai-sdk: convert fresh AISDKToolkit schemas", () => {
   for (const size of SIZES) {
-    bench(`${size} static tools`, async () => {
-      await new AISDKToolkit({ toolkit: makeToolkit(size) }).tools();
+    test(`${size} static tools`, async ({ bench }) => {
+      await bench(`${size} static tools`, async () => {
+        await new AISDKToolkit({ toolkit: makeToolkit(size) }).tools();
+      }).run(inject("benchSampling"));
     });
   }
 });

@@ -1,15 +1,15 @@
 ---
 title: "Approval card"
-description: "Human in the loop: the agent asks before it runs anything with side effects."
+description: "Human in the loop: the agent asks before it takes a consequential action."
 ---
 
-A card that names what the agent wants to run, shows the command, and waits for a decision before switching to a status line for running, done, or denied. With a runtime the decision flows through the tool call's own approval gate; standalone you hold the state and answer the callbacks yourself.
+An approval card explains a consequential action before it happens. It can show a shell command, but it also works for actions with a short description and structured details, such as deleting records or publishing a release. With a runtime the decision flows through the tool call's own approval gate; standalone you hold the state and answer the callbacks yourself.
 
 ## Getting started
 
 <RuntimeMode>
 
-A request like this is exactly what server-side tool approval gates are for: the tool call carries an `approval` object until the user answers, and `respondToApproval` sends the answer back.
+A server-side tool approval gate keeps the request open until the user answers. Map the tool arguments to the card and send the selected response through `respondToApproval`.
 
 <Steps>
   <Step>
@@ -19,16 +19,14 @@ A request like this is exactly what server-side tool approval gates are for: the
 ```tsx title="app/toolkit.tsx"
 "use client";
 
+import { Trash2Icon } from "lucide-react";
 import { defineToolkit, type ToolApprovalResponse } from "@assistant-ui/react";
 import { ApprovalCard } from "@/components/assistant-ui/elements/approval-card";
 
 export const toolkit = defineToolkit({
-  run_command: {
+  manage_records: {
     type: "backend",
     render: ({ args, approval, respondToApproval, result }) => {
-      // A refused response rejects and a precondition (an unknown option, an
-      // answer the request does not take) throws, so `try`/`await` covers both
-      // and the controls stay actionable.
       const answer = async (response: ToolApprovalResponse) => {
         try {
           await respondToApproval(response);
@@ -36,6 +34,7 @@ export const toolkit = defineToolkit({
           console.error(failure);
         }
       };
+      const destructive = args.action === "delete";
 
       return (
         <ApprovalCard
@@ -51,6 +50,10 @@ export const toolkit = defineToolkit({
           command={args.command}
           title={args.title}
           subtitle={args.subtitle}
+          description={args.description}
+          details={args.details}
+          variant={destructive ? "destructive" : "default"}
+          icon={destructive ? <Trash2Icon className="size-4" /> : undefined}
           onAllowOnce={() => void answer({ optionId: "once" })}
           onAlwaysAllow={() => void answer({ optionId: "always" })}
           onDeny={() => void answer({ optionId: "deny" })}
@@ -61,7 +64,7 @@ export const toolkit = defineToolkit({
 });
 ```
 
-`approval.approved` is `undefined` until answered, so that is the only window in which `respondToApproval` is legal. Sending an `optionId` records which of the host's three options was chosen rather than a plain yes or no; see [Approval options](/docs/tools/tool-ui#approval-options) for how the host declares `"once"`, `"always"`, and `"deny"` as `allow-once`, `allow-always`, and `reject-once`.
+`approval.approved` is `undefined` until answered, so that is the only window in which `respondToApproval` is legal. Sending an `optionId` records which of the host's declared options was chosen rather than a plain yes or no. See [Approval options](/docs/tools/tool-ui#approval-options) for declaring `"once"`, `"always"`, and `"deny"` as `allow-once`, `allow-always`, and `reject-once`.
 
   </Step>
   <Step>
@@ -115,8 +118,9 @@ export function Approval() {
     <ApprovalCard
       state={state}
       command="pnpm vitest run --changed"
-      title="Run command"
+      title="Run checks"
       subtitle="The agent wants to run a shell command"
+      description="This runs the tests affected by the current changes."
       onAllowOnce={() => setState("running")}
       onAlwaysAllow={() => setState("running")}
       onDeny={() => setState("denied")}
@@ -128,46 +132,71 @@ export function Approval() {
   </Step>
   <Step>
 
-### Resolve the run
+### Resolve the action
 
 ```tsx
 async function run() {
-  const exitCode = await runCommand();
+  await runChecks();
   setState("done");
 }
 ```
 
-There is no prop for the exit code; `state: "done"` always reads as "Finished with exit 0" in this version.
+`state="done"` reads "Finished" by default. Pass `statusLabel` when the completed action needs a more specific receipt.
 
   </Step>
 </Steps>
 
 </StandaloneMode>
-
 ## Anatomy
 
 ```tsx
-<div data-slot="approval-card">
+<div data-slot="approval-card" data-variant="default | destructive">
   <div>
-    <span>{/* terminal icon */}</span>
+    <span>{/* terminal icon or icon */}</span>
     <p>{/* title */}</p>
     <p>{/* subtitle */}</p>
   </div>
-  <div>{/* command, monospace */}</div>
-  <div>
-    {/* state === "request": Deny, Always allow, Allow once */}
-    {/* otherwise: a status line keyed on state, so it animates in */}
-  </div>
+  <p>{/* optional description */}</p>
+  <div>{/* optional command, monospace */}</div>
+  <dl>{/* optional detail label and value pairs */}</dl>
+  <div>{/* request actions or a status receipt */}</div>
 </div>
 ```
 
-The footer is one of two things: the three-button strip while `state` is `"request"`, or a single status line once it is not. The status line's icon and text are fixed per state (a spinner for `"running"`, an X for `"denied"`, a check for `"done"`) rather than driven by further props. The card holds no state of its own and runs no timers; every transition comes from the `state` you pass in and the callbacks fire only from the request row.
+The title labels the card for assistive technology, and `description` becomes its accessible description when present. The footer becomes a live status receipt once the state changes to `"running"`, `"done"`, or `"denied"`.
 
 ## Examples
 
+### Approve a destructive action
+
+`command` is optional, so an approval can describe an application action without pretending it is a terminal command. The destructive variant changes the icon tile and the primary action to the failure tone.
+
+```tsx
+import { Trash2Icon } from "lucide-react";
+
+<ApprovalCard
+  state="request"
+  variant="destructive"
+  icon={<Trash2Icon className="size-4" />}
+  title="Delete 12 archived conversations"
+  subtitle="This action cannot be undone"
+  description="The selected conversations and their generated files will be permanently removed."
+  details={[
+    { label: "Conversations", value: "12 archived" },
+    { label: "Generated files", value: "38 files" },
+  ]}
+  allowOnceLabel="Delete conversations"
+  alwaysAllowLabel="Always delete"
+  denyLabel="Keep conversations"
+  onAllowOnce={deleteConversations}
+  onAlwaysAllow={alwaysDeleteConversations}
+  onDeny={closeApproval}
+/>
+```
+
 ### Restyle the card
 
-Both lanes take `className` on the root. The command block uses the `field` surface and the primary button uses `inkButton`, both from `surfaces.tsx`.
+Both lanes take `className` on the root. The optional command and details panels use the `field` surface. Request buttons use `ghostButton` and `inkButton` from `surfaces.tsx`.
 
 ```tsx
 <ApprovalCard className="max-w-md" /* ... */ />
@@ -204,14 +233,20 @@ onDeny={() => {
 
 <RuntimeMode>
 
-### Render props
+### Tool-call render props
 
 | Source | Type | Description |
 |--------|------|-------------|
-| `args.command` / `args.title` / `args.subtitle` | `string` | The command and its framing copy. |
+| `args.title` / `args.subtitle` | `string` | Required framing copy for the card header. |
+| `args.command` | `string \| undefined` | Optional command displayed in the monospace panel. |
+| `args.description` | `string \| undefined` | Optional summary mapped to `description`. |
+| `args.details` | `readonly { label: string; value: string }[] \| undefined` | Optional structured detail rows mapped to `details`. |
+| Renderer mapping | `"default" \| "destructive"`, `ReactNode \| undefined` | Choose `variant` and `icon` from the action type. An icon is renderer UI, not a tool argument. |
+| Renderer labels | `string \| undefined` | Map action-specific labels to `allowOnceLabel`, `alwaysAllowLabel`, and `denyLabel`; their card defaults are available when omitted. |
+| Result mapping | `string \| undefined` | Pass `statusLabel` when the running, finished, or denied receipt needs action-specific copy. |
 | `approval?.approved` | `boolean \| undefined` | `undefined` maps to `"request"`, `false` to `"denied"`, `true` to `"running"` or `"done"` depending on `result`. |
-| `result` | `unknown` | Presence (once `approved` is `true`) maps to `"done"`. |
-| `respondToApproval(response)` | `(response: ToolApprovalResponse) => Promise<void>` | Sends the decision. Legal only while `approval.approved` is `undefined`. Rejects when the runtime could not record the response. |
+| `result` | `unknown` | Presence after approval maps to `"done"`. |
+| `respondToApproval(response)` | `(response: ToolApprovalResponse) => Promise<void>` | Sends the decision. It is legal only while `approval.approved` is `undefined`. |
 
 </RuntimeMode>
 
@@ -221,13 +256,21 @@ onDeny={() => {
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `state` | `"request" \| "running" \| "done" \| "denied"` | required | Which footer renders. |
-| `command` | `string` | required | Shown in the monospace command block. |
-| `title` | `string` | required | Header title. |
-| `subtitle` | `string` | required | Header subtitle. |
-| `onAllowOnce` | `() => void` | | Fires from the request row's primary button, which renders only when this is supplied. |
-| `onAlwaysAllow` | `() => void` | | Fires from the request row's secondary button, which renders only when this is supplied. |
-| `onDeny` | `() => void` | | Fires from the request row's Deny button, which renders only when this is supplied. |
+| `state` | `"request" \| "running" \| "done" \| "denied"` | required | Selects the request controls or receipt. |
+| `command` | `string \| undefined` | | Displays a monospace command panel when supplied. |
+| `title` | `string` | required | Labels the card and names the action. |
+| `subtitle` | `string` | required | Secondary header copy. |
+| `description` | `string \| undefined` | | Short explanation of what will happen. |
+| `details` | `readonly { label: string; value: string }[] \| undefined` | | Structured action details, displayed as label and value pairs. |
+| `variant` | `"default" \| "destructive"` | `"default"` | Uses the destructive tone for the icon tile and primary action. |
+| `icon` | `ReactNode \| undefined` | terminal icon | Replaces the terminal icon in the header tile. |
+| `allowOnceLabel` | `string \| undefined` | `"Allow once"` | Label for the primary request action. |
+| `alwaysAllowLabel` | `string \| undefined` | `"Always allow"` | Label for the persistent request action. |
+| `denyLabel` | `string \| undefined` | `"Deny"` | Label for the refusal action. |
+| `statusLabel` | `string \| undefined` | state-specific copy | Replaces the receipt text for any non-request state. |
+| `onAllowOnce` | `() => void` | | Renders the primary request action and fires when it is selected. |
+| `onAlwaysAllow` | `() => void` | | Renders the persistent request action and fires when it is selected. |
+| `onDeny` | `() => void` | | Renders the refusal action and fires when it is selected. |
 | `className` | `string` | | Merged onto the root. |
 
 All other `div` props are forwarded to the root.
