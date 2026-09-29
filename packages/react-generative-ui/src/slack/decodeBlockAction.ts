@@ -20,10 +20,18 @@ const selectedValue = (action: Record<string, unknown>): unknown => {
         .map(optionValue)
         .filter((value): value is string => value !== undefined)
     : undefined;
+  const numberInput =
+    action["type"] === "number_input" && typeof action["value"] === "string"
+      ? Number(action["value"])
+      : undefined;
   return (
     selectedOption ??
     selectedDate ??
-    (selectedOptions !== undefined ? selectedOptions : undefined)
+    (selectedOptions !== undefined
+      ? selectedOptions
+      : Number.isFinite(numberInput)
+        ? numberInput
+        : undefined)
   );
 };
 
@@ -100,7 +108,9 @@ export function decodeBlockAction(
     const rawValue = action["value"];
     let payload: Record<string, unknown> = {};
     let plainValue: string | undefined;
-    if (typeof rawValue === "string") {
+    if (action["type"] === "plain_text_input" && typeof rawValue === "string") {
+      plainValue = rawValue;
+    } else if (typeof rawValue === "string") {
       try {
         const parsed: unknown = JSON.parse(rawValue);
         if (isRecord(parsed)) {

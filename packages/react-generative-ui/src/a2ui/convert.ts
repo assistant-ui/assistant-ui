@@ -1,13 +1,10 @@
 import { ICON_NAMES, type UIElement } from "../ir";
-import {
-  A2UI_SURFACE_ID,
-  type A2uiSurfaceState,
-  type A2uiTemplateChildren,
-} from "./types";
+import { A2UI_SURFACE_ID, type A2uiSurfaceState } from "./types";
 import {
   evaluateA2uiValueFunction,
   type ExpressionPart,
 } from "./valueFunctions";
+import { MAX_AUTO_VIVIFY_ARRAY_INDEX } from "./reducer";
 
 const DEPTH_CAP = 32;
 const TEMPLATE_ITEM_CAP = 100;
@@ -28,6 +25,13 @@ const SUPPORTED_COMPONENTS = new Set([
   "CheckBox",
   "ChoicePicker",
   "DateTimeInput",
+  "Slider",
+]);
+
+const CHILD_LIST_COMPONENTS: ReadonlySet<string> = new Set([
+  "Row",
+  "Column",
+  "List",
 ]);
 
 const ICON_NAME_SET: ReadonlySet<string> = new Set(ICON_NAMES);
@@ -82,13 +86,22 @@ const isBinding = (value: unknown): value is { readonly path: string } =>
   Object.keys(value).length === 1 &&
   typeof value["path"] === "string";
 
-const isTemplateChildren = (value: unknown): value is A2uiTemplateChildren =>
-  isPlainObject(value) &&
-  Object.keys(value).length === 1 &&
-  isPlainObject(value["template"]) &&
-  Object.keys(value["template"]).length === 2 &&
-  typeof value["template"]["componentId"] === "string" &&
-  typeof value["template"]["path"] === "string";
+type ChildTemplate = { readonly componentId: string; readonly path: string };
+
+const childTemplateOf = (children: unknown): ChildTemplate | undefined => {
+  const template =
+    isPlainObject(children) &&
+    Object.keys(children).length === 1 &&
+    isPlainObject(children["template"])
+      ? children["template"]
+      : children;
+  return isPlainObject(template) &&
+    Object.keys(template).length === 2 &&
+    typeof template["componentId"] === "string" &&
+    typeof template["path"] === "string"
+    ? { componentId: template["componentId"], path: template["path"] }
+    : undefined;
+};
 
 const decodePointer = (path: string): string[] => {
   if (path === "" || path === "/") return [];
@@ -116,8 +129,57 @@ const resolvePointer = (source: unknown, path: string): unknown => {
 const bindingPath = (value: unknown): string | undefined =>
   isBinding(value) ? value.path : undefined;
 
-const lastPointerSegment = (path: string | undefined): string | undefined =>
-  path ? decodePointer(path).at(-1) : undefined;
+type Scope = { readonly data: unknown; readonly path: string };
+
+const pointerIn = (scope: Scope, path: string): string =>
+  (path.startsWith("/") ? "" : scope.path) +
+  decodePointer(path)
+    .map((segment) => `/${segment.replaceAll("~", "~0").replaceAll("/", "~1")}`)
+    .join("");
+
+const setIn = (
+  value: unknown,
+  segments: readonly string[],
+  leaf: unknown,
+): unknown => {
+  const [head, ...rest] = segments;
+  if (head === undefined) return leaf;
+  if (
+    /^(0|[1-9]\d*)$/.test(head) &&
+    (Array.isArray(value) || value === undefined || value === null)
+  ) {
+    const list = Array.isArray(value) ? value : [];
+    const index = Number(head);
+    if (index >= list.length && index > MAX_AUTO_VIVIFY_ARRAY_INDEX) {
+      return value;
+    }
+    const copy = [...list];
+    copy[index] = setIn(copy[index], rest, leaf);
+    return copy;
+  }
+  const copy: Record<string, unknown> = isRecord(value) ? { ...value } : {};
+  setOwnProperty(
+    copy,
+    head,
+    setIn(Object.hasOwn(copy, head) ? copy[head] : undefined, rest, leaf),
+  );
+  return copy;
+};
+
+const withFieldReferences = (
+  value: unknown,
+  pointer: string,
+  fields: ReadonlyMap<string, unknown>,
+): unknown => {
+  if (fields.has(pointer)) return fields.get(pointer);
+  let result = value;
+  for (const [name, field] of fields) {
+    if (name.startsWith(`${pointer}/`)) {
+      result = setIn(result, decodePointer(name.slice(pointer.length)), field);
+    }
+  }
+  return result;
+};
 
 const materializeEntries = (
   value: Record<string, unknown>,
@@ -163,7 +225,12 @@ function materialize(
   depth = 0,
   positional = false,
 ): unknown {
-  if (isBinding(value)) return resolvePointer(source, value.path);
+  if (isBinding(value)) {
+    return resolvePointer(
+      value.path.startsWith("/") ? context.surface.dataModel : source,
+      value.path,
+    );
+  }
   if (Array.isArray(value)) {
     const entries = value.map((entry) =>
       materialize(entry, source, context, evaluate, depth, positional),
@@ -249,7 +316,130 @@ type ConversionContext = {
   evaluationBudgetWarned: boolean;
   functionDepthWarned: boolean;
   readonly templates: Map<string, ExpressionPart[] | null>;
+  readonly inputFields: Map<string, unknown>;
+  readonly textFields: Map<string, boolean>;
+  readonly boundActionEntries: {
+    readonly target: Record<string, unknown>;
+    readonly key: string;
+    readonly pointer: string;
+  }[];
+  readonly boundUserMessages: {
+    readonly action: Record<string, unknown>;
+    readonly pointer: string;
+  }[];
   readonly keepUnknownComponents: boolean;
+};
+
+const BOUND_KEYS = ["text", "value", "binding"] as const;
+
+const INPUT_COMPONENTS: ReadonlySet<string> = new Set([
+  "TextField",
+  "CheckBox",
+  "ChoicePicker",
+  "DateTimeInput",
+  "Slider",
+]);
+
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+const finiteNumber = (value: unknown): number | undefined =>
+  typeof value === "number" && Number.isFinite(value) ? value : undefined;
+
+const decimalPlaces = (value: number): number => {
+  const [mantissa = "", exponent = "0"] = String(value).split("e");
+  return Math.max(0, (mantissa.split(".")[1]?.length ?? 0) - Number(exponent));
+};
+
+// A spec slider without `steps` is continuous, so its step leaves at least a hundred divisions and keeps every bound value on the grid.
+const sliderStep = (
+  min: number,
+  max: number,
+  value: number | undefined,
+  steps: unknown,
+): number | undefined => {
+  if (max <= min) return undefined;
+  if (typeof steps === "number" && Number.isInteger(steps) && steps >= 1) {
+    return (max - min) / steps;
+  }
+  const precision = Math.max(
+    decimalPlaces(min),
+    value === undefined ? 0 : decimalPlaces(value),
+  );
+  return Math.min(
+    10 ** Math.floor(Math.log10((max - min) / 100)),
+    10 ** -precision,
+  );
+};
+
+const recordBindings = (
+  node: Record<string, unknown>,
+  props: Record<string, unknown>,
+  mapped: UIElement,
+  scope: Scope,
+  context: ConversionContext,
+) => {
+  const component = node["component"];
+  const name = mapped["name"];
+  const boundKey = BOUND_KEYS.find((key) => node[key] !== undefined);
+  const value = boundKey === undefined ? undefined : props[boundKey];
+  // A date input cannot show a time, so its binding keeps the value the agent sent.
+  const holdsValue =
+    component !== "DateTimeInput" ||
+    typeof value !== "string" ||
+    value === "" ||
+    DATE_PATTERN.test(value);
+  if (INPUT_COMPONENTS.has(String(component)) && typeof name === "string") {
+    // Controls that share a name collect as a list, so only a lone text control collects one string.
+    context.textFields.set(
+      name,
+      !context.textFields.has(name) &&
+        holdsValue &&
+        (component === "TextField" || component === "DateTimeInput"),
+    );
+    if (holdsValue) {
+      const field = (fallback: unknown) =>
+        fallback === undefined ? { $field: name } : { $field: name, fallback };
+      // A single-choice picker collects one string, while the spec binds it to a string list.
+      const listValued =
+        component === "ChoicePicker" &&
+        mapped.$type !== "CheckboxGroup" &&
+        typeof value !== "string";
+      context.inputFields.set(
+        name,
+        listValued
+          ? [field(Array.isArray(value) ? value[0] : undefined)]
+          : field(value),
+      );
+    }
+  }
+  const action = mapped.$action;
+  const raw = node["action"];
+  if (!action || !isRecord(raw)) return;
+  const functionCall = action.type === "a2ui:functionCall";
+  const event = isRecord(raw["event"]) ? raw["event"] : raw;
+  const userMessage = event["userMessage"];
+  if (!functionCall && isBinding(userMessage)) {
+    context.boundUserMessages.push({
+      action,
+      pointer: pointerIn(scope, userMessage.path),
+    });
+  }
+  const rawEntries = functionCall
+    ? isRecord(raw["functionCall"])
+      ? raw["functionCall"]["args"]
+      : undefined
+    : event["context"];
+  const target = functionCall ? action["args"] : action["context"];
+  if (!isRecord(rawEntries) || !isRecord(target)) return;
+  for (const [key, entry] of Object.entries(rawEntries)) {
+    if (isBinding(entry)) {
+      context.boundActionEntries.push({
+        target,
+        key,
+        pointer: pointerIn(scope, entry.path),
+      });
+    }
+  }
 };
 
 const spendEvaluation = (context: ConversionContext): boolean => {
@@ -295,7 +485,7 @@ const childReferences = (node: Record<string, unknown>): unknown[] => {
 
 const childrenOf = (
   node: Record<string, unknown>,
-  dataSource: unknown,
+  scope: Scope,
   context: ConversionContext,
   depth: number,
   visited: Set<string>,
@@ -308,13 +498,7 @@ const childrenOf = (
       );
       continue;
     }
-    const child = convertComponent(
-      childId,
-      dataSource,
-      context,
-      depth + 1,
-      visited,
-    );
+    const child = convertComponent(childId, scope, context, depth + 1, visited);
     if (child) result.push(child);
   }
   return result;
@@ -362,10 +546,12 @@ const mappedAction = (
         : undefined;
   if (actionName) {
     const actionContext = isRecord(event) ? event["context"] : undefined;
+    const userMessage = isRecord(event) ? event["userMessage"] : undefined;
     return {
       type: "a2ui:action",
       name: actionName,
       ...source,
+      ...(typeof userMessage === "string" ? { userMessage } : {}),
       ...(actionContext !== undefined ? { context: actionContext } : {}),
     };
   }
@@ -404,6 +590,7 @@ const mappedProps = (
   node: Record<string, unknown>,
   props: Record<string, unknown>,
   context: ConversionContext,
+  scope: Scope,
 ): UIElement | undefined => {
   const component = node["component"];
 
@@ -531,8 +718,8 @@ const mappedProps = (
     };
   }
 
-  const binding = firstDefined(node, ["text", "value", "binding"]);
-  const name = lastPointerSegment(bindingPath(binding));
+  const bound = bindingPath(firstDefined(node, BOUND_KEYS));
+  const name = bound === undefined ? undefined : pointerIn(scope, bound);
   const label = stringProp(props, ["label"]);
 
   if (component === "TextField") {
@@ -544,12 +731,20 @@ const mappedProps = (
             props["textFieldType"] === "longText"
           ? true
           : undefined;
+    const initial = firstDefined(props, ["value", "text"]);
+    const defaultValue =
+      typeof initial === "string"
+        ? initial
+        : typeof initial === "number" && Number.isFinite(initial)
+          ? String(initial)
+          : undefined;
     return {
       $type: "Input",
       ...(placeholder !== undefined ? { placeholder } : {}),
       ...(multiline !== undefined ? { multiline } : {}),
       ...(label !== undefined ? { label } : {}),
       ...(name !== undefined ? { name } : {}),
+      ...(defaultValue !== undefined ? { defaultValue } : {}),
     };
   }
 
@@ -560,6 +755,23 @@ const mappedProps = (
       ...(label !== undefined ? { label } : {}),
       ...(name !== undefined ? { name } : {}),
       ...(typeof defaultChecked === "boolean" ? { defaultChecked } : {}),
+    };
+  }
+
+  if (component === "Slider") {
+    const min = finiteNumber(props["min"]) ?? 0;
+    const max = finiteNumber(props["max"]);
+    if (max === undefined || max < min) return undefined;
+    const value = finiteNumber(props["value"]);
+    const step = sliderStep(min, max, value, props["steps"]);
+    return {
+      $type: "Slider",
+      min,
+      max,
+      ...(step !== undefined ? { step } : {}),
+      ...(value !== undefined ? { defaultValue: value } : {}),
+      ...(label !== undefined ? { label } : {}),
+      ...(name !== undefined ? { name } : {}),
     };
   }
 
@@ -581,6 +793,7 @@ const mappedProps = (
         ...(selected.length > 0 ? { defaultValue: selected } : {}),
       };
     }
+    const [defaultValue] = selected;
     if (props["displayStyle"] === "chips") {
       const placeholder = stringProp(props, ["placeholder"]);
       return {
@@ -589,9 +802,9 @@ const mappedProps = (
         ...(placeholder !== undefined ? { placeholder } : {}),
         ...(label !== undefined ? { label } : {}),
         ...(name !== undefined ? { name } : {}),
+        ...(defaultValue !== undefined ? { defaultValue } : {}),
       };
     }
-    const [defaultValue] = selected;
     return {
       $type: "RadioGroup",
       options,
@@ -620,23 +833,18 @@ const mappedProps = (
 
 const convertTemplate = (
   node: Record<string, unknown>,
-  templateChildren: A2uiTemplateChildren,
-  dataSource: unknown,
+  template: ChildTemplate,
+  scope: Scope,
   context: ConversionContext,
   depth: number,
   visited: Set<string>,
-  retained?: UIElement,
-  mappedContainer?: UIElement,
+  converted: UIElement | undefined,
 ): UIElement | null => {
   if (!reserveNode(context)) return null;
-  const horizontalList =
-    node["component"] === "List" &&
-    materialize(node["direction"], dataSource, context) === "horizontal";
-  const container = mappedContainer ??
-    retained ?? {
-      $type: horizontalList ? "Row" : "ListView",
-    };
-  const list = resolvePointer(dataSource, templateChildren.template.path);
+  const container = converted ?? { $type: "ListView" };
+  const itemized = container.$type === "ListView";
+  const list = materialize({ path: template.path }, scope.data, context);
+  const listPointer = pointerIn(scope, template.path);
   if (!Array.isArray(list)) {
     context.warnings.push(
       `Template on component "${String(node["id"] ?? "")}" did not resolve to a list.`,
@@ -652,21 +860,21 @@ const convertTemplate = (
   }
   const children: UIElement[] = [];
   for (let index = 0; index < itemCount; index++) {
-    if (!retained && !horizontalList && !reserveNode(context)) break;
+    if (itemized && !reserveNode(context)) break;
     const child = convertComponent(
-      templateChildren.template.componentId,
-      list[index],
+      template.componentId,
+      { data: list[index], path: `${listPointer}/${index}` },
       context,
       depth + 1,
       visited,
     );
-    if (retained || horizontalList) {
-      if (child) children.push(child);
-    } else {
+    if (itemized) {
       children.push({
         $type: "ListViewItem",
         ...(child ? { children: child } : {}),
       });
+    } else if (child) {
+      children.push(child);
     }
   }
   return { ...container, children };
@@ -674,7 +882,7 @@ const convertTemplate = (
 
 function convertComponent(
   componentId: string,
-  dataSource: unknown,
+  scope: Scope,
   context: ConversionContext,
   depth: number,
   visited: Set<string>,
@@ -705,12 +913,11 @@ function convertComponent(
       );
       return null;
     }
-    const templateChildren = node["children"];
-    const hasTemplate = isTemplateChildren(templateChildren);
+    const template = childTemplateOf(node["children"]);
     if (
       !SUPPORTED_COMPONENTS.has(component) &&
       !context.keepUnknownComponents &&
-      !hasTemplate
+      !template
     ) {
       context.warnings.push(
         `Unknown A2UI component "${component}" was skipped.`,
@@ -729,13 +936,13 @@ function convertComponent(
       }
       const resolved = materialize(
         value,
-        dataSource,
+        scope.data,
         context,
         key !== "checks",
       );
       if (resolved !== undefined) setOwnProperty(props, key, resolved);
     }
-    const mapped = mappedProps(node, props, context);
+    const mapped = mappedProps(node, props, context, scope);
     if (!mapped && SUPPORTED_COMPONENTS.has(component)) {
       context.warnings.push(
         `A2UI component "${component}" could not be mapped and was skipped.`,
@@ -751,22 +958,22 @@ function convertComponent(
             ),
           }
         : undefined;
-    if (hasTemplate) {
+    if (template) {
       return convertTemplate(
         node,
-        templateChildren,
-        dataSource,
+        template,
+        scope,
         context,
         depth,
         visited,
-        retained,
-        component === "List" ? mapped : undefined,
+        CHILD_LIST_COMPONENTS.has(component) ? mapped : retained,
       );
     }
     if (!reserveNode(context)) return null;
     const converted = mapped ?? retained;
     if (!converted) return null;
-    const children = childrenOf(node, dataSource, context, depth, visited);
+    recordBindings(node, props, converted, scope, context);
+    const children = childrenOf(node, scope, context, depth, visited);
     if (mapped?.$type === "Button" && mapped["label"] === undefined) {
       const label = textLabel(node, children, context);
       if (label !== undefined) return { ...mapped, label };
@@ -810,16 +1017,39 @@ export function convertSurfaceToUISpec(
     evaluationBudgetWarned: false,
     functionDepthWarned: false,
     templates: new Map(),
+    inputFields: new Map(),
+    textFields: new Map(),
+    boundActionEntries: [],
+    boundUserMessages: [],
     keepUnknownComponents: options.keepUnknownComponents === true,
   };
   try {
     const spec = convertComponent(
       "root",
-      surface.dataModel,
+      { data: surface.dataModel, path: "" },
       context,
       0,
       new Set(),
     );
+    for (const { target, key, pointer } of context.boundActionEntries) {
+      const value = withFieldReferences(
+        target[key],
+        pointer,
+        context.inputFields,
+      );
+      if (value !== undefined) setOwnProperty(target, key, value);
+    }
+    for (const { action, pointer } of context.boundUserMessages) {
+      if (!context.textFields.get(pointer)) continue;
+      const fallback = action["userMessage"];
+      setOwnProperty(
+        action,
+        "userMessage",
+        typeof fallback === "string"
+          ? { $field: pointer, fallback }
+          : { $field: pointer },
+      );
+    }
     return { spec, warnings };
   } catch {
     warnings.push("A2UI surface conversion encountered malformed input.");

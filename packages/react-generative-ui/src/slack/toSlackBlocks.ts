@@ -12,6 +12,11 @@ import {
   type NormalizedUINode,
 } from "../ir";
 import {
+  factTrend,
+  formatFactDelta,
+  formatValue,
+} from "../vocabulary/formatValue";
+import {
   ACTION_ID_CAP,
   ACTIONS_ELEMENT_CAP,
   ALERT_TEXT_CAP,
@@ -95,7 +100,12 @@ const INTERACTIVE_TYPES = new Set([
  * block rather than an actions element, but a reshape loses them the same way,
  * and a `Form` gets a Submit button whether or not it carries an action.
  */
-const CONTROL_TYPES = new Set([...INTERACTIVE_TYPES, "Input", "Form"]);
+const CONTROL_TYPES = new Set([
+  ...INTERACTIVE_TYPES,
+  "Input",
+  "Slider",
+  "Form",
+]);
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -104,6 +114,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const asString = (value: unknown): string =>
   typeof value === "string" ? value : "";
+
+const asFiniteNumber = (value: unknown): number | undefined =>
+  typeof value === "number" && Number.isFinite(value) ? value : undefined;
 
 const warn = (
   context: ConversionContext,
@@ -235,6 +248,7 @@ const optionFrom = (
   ) {
     return undefined;
   }
+  const description = asString(value["description"]);
   return {
     text: plainText(
       clampText(
@@ -246,7 +260,20 @@ const optionFrom = (
       ),
     ),
     value: value["value"],
-  };
+    ...(description
+      ? {
+          description: plainText(
+            clampText(
+              description,
+              INTERACTIVE_TEXT_CAP,
+              component,
+              "option description",
+              context,
+            ),
+          ),
+        }
+      : {}),
+  } as SlackOption;
 };
 
 const warnDroppedOptions = (
@@ -311,10 +338,18 @@ const toActionElement = (
         "placeholder",
         context,
       );
+      const defaultValue = props["defaultValue"];
+      const initialOption =
+        typeof defaultValue === "string"
+          ? options.find((option) => option.value === defaultValue)
+          : undefined;
       return {
         type: "static_select",
         action_id: asActionId(action, "Select", context),
         options,
+        ...(initialOption !== undefined
+          ? { initial_option: initialOption }
+          : {}),
         ...(placeholder ? { placeholder: plainText(placeholder) } : {}),
       };
     }
@@ -458,10 +493,15 @@ const convertFacts = (
   const fields = facts.map((fact) => {
     const label = asString(fact.props["label"]);
     const value = asString(fact.props["value"]);
+    const delta = fact.props["delta"];
+    const deltaText =
+      typeof delta === "string"
+        ? formatFactDelta(delta, factTrend(delta, fact.props["trend"]))
+        : undefined;
     return {
       type: "mrkdwn" as const,
       text: clampText(
-        `*${label}*\n${value}`,
+        `*${label}*\n${deltaText === undefined ? value : `${value} (${deltaText})`}`,
         FACT_FIELD_TEXT_CAP,
         "Fact",
         "field",
@@ -1066,12 +1106,18 @@ const convertCarousel = (
   return [buildCarouselBlock(cards)];
 };
 
-const toDataTableCell = (value: unknown): SlackDataTableCell | undefined => {
-  if (typeof value === "number") {
+const toDataTableCell = (
+  value: unknown,
+  format: unknown,
+): SlackDataTableCell | undefined => {
+  if (typeof value === "number" && format === undefined) {
     return { type: "raw_number", text: String(value) };
   }
   if (typeof value === "string" || typeof value === "boolean") {
-    return { type: "raw_text", text: String(value) };
+    return { type: "raw_text", text: formatValue(value, format) };
+  }
+  if (typeof value === "number") {
+    return { type: "raw_text", text: formatValue(value, format) };
   }
   return undefined;
 };
@@ -1134,8 +1180,13 @@ const convertTable = (
       ? copyBounded(row, DATA_TABLE_COLUMN_CAP).items
       : []
     ).map(
-      (value) =>
-        toDataTableCell(value) ?? { type: "raw_text" as const, text: "" },
+      (value, index) =>
+        toDataTableCell(
+          value,
+          isRecord(takenColumns[index])
+            ? takenColumns[index]["format"]
+            : undefined,
+        ) ?? { type: "raw_text" as const, text: "" },
     ),
   );
   const width = Math.max(
@@ -1270,6 +1321,48 @@ const convertElement = (
     case "CheckboxGroup":
     case "RadioGroup":
       return convertActions([element], context);
+    case "Slider": {
+      const label = clampText(
+        asString(props["label"]),
+        INPUT_LABEL_CAP,
+        "Slider",
+        "label",
+        context,
+      );
+      const min = asFiniteNumber(props["min"]);
+      const max = asFiniteNumber(props["max"]);
+      const step = asFiniteNumber(props["step"]);
+      const defaultValue = asFiniteNumber(props["defaultValue"]);
+      const actionId = asActionId(element.action, "Slider", context);
+      const name = props["name"];
+      const blockId = fieldBlockId(
+        typeof name === "string" && name.length > 0
+          ? [{ actionId, name, component: "Slider" }]
+          : [],
+        context,
+      );
+      return [
+        {
+          type: "input",
+          ...(blockId !== undefined ? { block_id: blockId } : {}),
+          label: plainText(label),
+          element: {
+            type: "number_input",
+            action_id: actionId,
+            ...(min !== undefined ? { min_value: min } : {}),
+            ...(max !== undefined ? { max_value: max } : {}),
+            ...(defaultValue !== undefined
+              ? { initial_value: defaultValue }
+              : {}),
+            ...([step, min, max, defaultValue].some(
+              (value) => value !== undefined && !Number.isInteger(value),
+            )
+              ? { is_decimal_allowed: true }
+              : {}),
+          },
+        } as unknown as SlackBlock,
+      ];
+    }
     case "Input": {
       const label = clampText(
         asString(props["label"]),
@@ -1293,6 +1386,7 @@ const convertElement = (
           : [],
         context,
       );
+      const defaultValue = props["defaultValue"];
       return [
         {
           type: "input",
@@ -1302,6 +1396,9 @@ const convertElement = (
             type: "plain_text_input",
             action_id: actionId,
             ...(props["multiline"] === true ? { multiline: true } : {}),
+            ...(typeof defaultValue === "string" && defaultValue
+              ? { initial_value: defaultValue }
+              : {}),
             ...(placeholder ? { placeholder: plainText(placeholder) } : {}),
           },
         },

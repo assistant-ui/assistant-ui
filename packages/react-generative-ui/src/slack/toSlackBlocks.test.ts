@@ -1,3 +1,4 @@
+import { decodeBlockAction } from "./decodeBlockAction";
 import { describe, expect, it } from "vitest";
 import { CHILDREN_CAP, NODE_BUDGET } from "../convert/boundSpec";
 import { toSlackBlocks } from "./toSlackBlocks";
@@ -173,6 +174,19 @@ describe("toSlackBlocks", () => {
       expect(warnings).toEqual([]);
     });
 
+    it("appends a directional fact delta to the value text", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Fact",
+        label: "Revenue",
+        value: "$12.4k",
+        delta: "8%",
+        trend: "down",
+      });
+      expect((blocks[0] as SlackSectionBlock).fields?.[0]?.text).toBe(
+        "*Revenue*\n$12.4k (↓ 8%)",
+      );
+    });
+
     it("breaks Fact merging on a non-Fact sibling", () => {
       const root = [
         { $type: "Fact", label: "A", value: "1" },
@@ -335,6 +349,37 @@ describe("toSlackBlocks", () => {
       });
     });
 
+    it("preserves field references until state is available to the decoder", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Button",
+        label: "Save",
+        $action: {
+          type: "save",
+          note: { $field: "note" },
+          form: {
+            id: 7,
+            name: { $field: "name", fallback: "Ada" },
+            plan: [{ $field: "plan" }],
+          },
+        },
+      });
+      expect((blocks[0] as SlackActionsBlock).elements[0]).toMatchObject({
+        action_id: "save",
+        value: JSON.stringify({
+          note: { $field: "note" },
+          form: {
+            id: 7,
+            name: { $field: "name", fallback: "Ada" },
+            plan: [{ $field: "plan" }],
+          },
+        }),
+      });
+      expect(warnings).toEqual([]);
+      expect(
+        decodeBlockAction((blocks[0] as SlackActionsBlock).elements[0]),
+      ).toEqual({ type: "save", form: { id: 7, name: "Ada", plan: [] } });
+    });
+
     it(`omits value instead of truncating and warns when the serialized action payload exceeds ${BUTTON_VALUE_CAP} characters`, () => {
       const { blocks, warnings } = toSlackBlocks({
         $type: "Button",
@@ -393,6 +438,51 @@ describe("toSlackBlocks", () => {
           },
         ],
       });
+    });
+
+    it("sets initial_option from a matching defaultValue", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Select",
+        defaultValue: "b",
+        options: [
+          { label: "Alpha", value: "a" },
+          { label: "Beta", value: "b" },
+        ],
+      });
+      expect(
+        (
+          (blocks[0] as SlackActionsBlock)
+            .elements[0] as SlackStaticSelectElement
+        ).initial_option,
+      ).toEqual({ text: { type: "plain_text", text: "Beta" }, value: "b" });
+    });
+
+    it("sets initial_option from a matching empty defaultValue", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Select",
+        defaultValue: "",
+        options: [{ label: "No preference", value: "" }],
+      });
+      expect(
+        (
+          (blocks[0] as SlackActionsBlock)
+            .elements[0] as SlackStaticSelectElement
+        ).initial_option,
+      ).toEqual({
+        text: { type: "plain_text", text: "No preference" },
+        value: "",
+      });
+    });
+
+    it("omits initial_option when defaultValue has no matching option", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Select",
+        defaultValue: "missing",
+        options: [{ label: "Alpha", value: "a" }],
+      });
+      expect((blocks[0] as SlackActionsBlock).elements[0]).not.toHaveProperty(
+        "initial_option",
+      );
     });
 
     it(`clamps options past ${SELECT_OPTION_CAP} entries and warns`, () => {
@@ -539,6 +629,28 @@ describe("toSlackBlocks", () => {
       );
     });
 
+    it("sets initial_value from a non-empty defaultValue", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Input",
+        label: "Notes",
+        defaultValue: "Draft reply",
+      });
+      expect((blocks[0] as SlackInputBlock).element.initial_value).toBe(
+        "Draft reply",
+      );
+    });
+
+    it("omits initial_value when defaultValue is empty", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Input",
+        label: "Notes",
+        defaultValue: "",
+      });
+      expect((blocks[0] as SlackInputBlock).element).not.toHaveProperty(
+        "initial_value",
+      );
+    });
+
     it(`clamps label to ${INPUT_LABEL_CAP} and placeholder to ${PLACEHOLDER_TEXT_CAP} characters, warning on each`, () => {
       const label = "l".repeat(INPUT_LABEL_CAP + 10);
       const placeholder = "p".repeat(PLACEHOLDER_TEXT_CAP + 10);
@@ -613,6 +725,63 @@ describe("toSlackBlocks", () => {
     });
   });
 
+  describe("Slider", () => {
+    it("renders a number input block with its numeric bounds", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Slider",
+        label: "Quantity",
+        min: 1,
+        max: 12,
+        step: 0.5,
+        defaultValue: 3.5,
+        $action: { type: "set_quantity" },
+      });
+
+      expect(blocks).toEqual([
+        {
+          type: "input",
+          label: { type: "plain_text", text: "Quantity" },
+          element: {
+            type: "number_input",
+            action_id: "set_quantity",
+            min_value: 1,
+            max_value: 12,
+            initial_value: 3.5,
+            is_decimal_allowed: true,
+          },
+        },
+      ]);
+    });
+
+    it.each([
+      ["minimum", { min: 0.5, max: 2, step: 1 }],
+      ["maximum", { min: 0, max: 2.5 }],
+      ["default value", { min: 0, max: 2, step: 1, defaultValue: 0.5 }],
+    ])("allows decimals when the %s is fractional", (_property, values) => {
+      const { blocks } = toSlackBlocks({
+        $type: "Slider",
+        label: "Quantity",
+        ...values,
+      });
+
+      expect(blocks[0]).toMatchObject({
+        element: { type: "number_input", is_decimal_allowed: true },
+      });
+    });
+
+    it("uses the same input block when nested in a Form", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Form",
+        children: { $type: "Slider", label: "Quantity", min: 1, max: 12 },
+      });
+
+      expect(blocks[0]).toMatchObject({
+        type: "input",
+        element: { type: "number_input", min_value: 1, max_value: 12 },
+      });
+    });
+  });
+
   describe("Checkbox", () => {
     it("emits a single-option checkboxes element", () => {
       const { blocks } = toSlackBlocks({
@@ -672,9 +841,42 @@ describe("toSlackBlocks", () => {
         "initial_options",
       );
     });
+
+    it("maps a switch like a checkbox", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Checkbox",
+        label: "Agree",
+        variant: "switch",
+      });
+      expect((blocks[0] as SlackActionsBlock).elements[0]).toMatchObject({
+        type: "checkboxes",
+        options: [{ value: "Agree" }],
+      });
+    });
   });
 
   describe("RadioGroup", () => {
+    it("maps option descriptions to Slack option descriptions", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "RadioGroup",
+        options: [
+          {
+            label: "Free",
+            description: "For personal projects",
+            value: "free",
+          },
+        ],
+      });
+
+      expect((blocks[0] as SlackActionsBlock).elements[0]).toMatchObject({
+        options: [
+          {
+            description: { type: "plain_text", text: "For personal projects" },
+          },
+        ],
+      });
+    });
+
     it("names RadioGroup when the same option loss happens there", () => {
       const { warnings } = toSlackBlocks({
         $type: "RadioGroup",
@@ -1817,6 +2019,29 @@ describe("toSlackBlocks", () => {
       ]);
     });
 
+    it("formats table cells from their columns", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Table",
+        columns: [
+          { label: "Number", format: { kind: "number", decimals: 1 } },
+          {
+            label: "Revenue",
+            format: { kind: "currency", currency: "USD", decimals: 2 },
+          },
+          { label: "Share", format: { kind: "percent", decimals: 0 } },
+          { label: "Date", format: { kind: "date" } },
+        ],
+        rows: [[1234.5, 12.4, 0.08, "2024-01-02"]],
+      });
+      const table = blocks[0] as SlackDataTableBlock;
+      expect(table.rows[1]?.map((cell) => cell.text)).toEqual([
+        "1,234.5",
+        "$12.40",
+        "8%",
+        "Jan 2, 2024",
+      ]);
+    });
+
     it("requires a caption on every emitted table", () => {
       const { blocks } = toSlackBlocks({
         $type: "Table",
@@ -2605,4 +2830,42 @@ describe("toSlackBlocks data_table integrity", () => {
       ),
     ).toBe(true);
   });
+});
+
+it("resolves a Slider field reference from numeric Slack state", () => {
+  const { blocks } = toSlackBlocks([
+    {
+      $type: "Slider",
+      name: "count",
+      label: "Count",
+      min: 0,
+      max: 10,
+      $action: { type: "change_count" },
+    },
+    {
+      $type: "Button",
+      label: "Submit",
+      $action: { type: "submit", count: { $field: "count" } },
+    },
+  ]);
+  const slider = blocks.find((block) => block.type === "input");
+  const actions = blocks.find((block) => block.type === "actions");
+  if (
+    !slider ||
+    slider.type !== "input" ||
+    !slider.block_id ||
+    !actions ||
+    actions.type !== "actions"
+  )
+    throw new Error("Expected slider and action blocks");
+  const button = actions.elements[0];
+  if (!button || button.type !== "button")
+    throw new Error("Expected submit button");
+  expect(
+    decodeBlockAction(button, {
+      [slider.block_id]: {
+        change_count: { type: "number_input", value: "3" },
+      },
+    }),
+  ).toEqual({ type: "submit", count: 3 });
 });

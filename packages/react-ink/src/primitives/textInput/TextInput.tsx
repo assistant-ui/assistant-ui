@@ -173,12 +173,12 @@ export const TextInput = ({
         return;
       }
 
-      if (multiLine && key.upArrow) {
+      if (multiLine && key.upArrow && !key.meta) {
         commitAction({ type: "move-up" }, { syncText: false });
         return;
       }
 
-      if (multiLine && key.downArrow) {
+      if (multiLine && key.downArrow && !key.meta) {
         commitAction({ type: "move-down" }, { syncText: false });
         return;
       }

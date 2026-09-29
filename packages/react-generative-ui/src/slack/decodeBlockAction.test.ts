@@ -2,6 +2,30 @@ import { describe, expect, it } from "vitest";
 import { decodeBlockAction } from "./decodeBlockAction";
 
 describe("decodeBlockAction", () => {
+  it.each([
+    "{}",
+    '{"sku":"typed text","qty":2}',
+    '{"type":"other","$input":"typed text"}',
+  ])("preserves plain-text input containing JSON verbatim: %s", (value) => {
+    expect(
+      decodeBlockAction({
+        type: "plain_text_input",
+        action_id: "leave_note",
+        value,
+      }),
+    ).toEqual({ type: "leave_note", $input: value });
+  });
+
+  it("keeps typed text distinct from a button's serialized payload", () => {
+    const value = '{"sku":"abc123","$input":"ignored"}';
+    expect(
+      decodeBlockAction({ type: "button", action_id: "buy_item", value }),
+    ).toEqual({
+      type: "buy_item",
+      sku: "abc123",
+    });
+  });
+
   it("decodes a button action, spreading its JSON value into the payload", () => {
     const action = {
       action_id: "buy_item",
@@ -98,6 +122,16 @@ describe("decodeBlockAction", () => {
       type: "pick_date",
       $input: "2026-07-15",
     });
+  });
+
+  it("decodes a number input action as a number", () => {
+    expect(
+      decodeBlockAction({
+        type: "number_input",
+        action_id: "set_quantity",
+        value: "3.5",
+      }),
+    ).toEqual({ type: "set_quantity", $input: 3.5 });
   });
 
   it("decodes a checkboxes action, reading $input from selected_options[].value", () => {

@@ -1626,6 +1626,34 @@ const GENERATIVE_UI_EXEMPT_ATTRIBUTES = new Map([
     "chart:color",
     "free string, not sourced from a shared enum; supports the same color tokens as Text's color prop as a convention",
   ],
+  [
+    "chart-series:color",
+    "free string, not sourced from a shared enum; supports the same color tokens as Text's color prop as a convention",
+  ],
+  [
+    "chart-legend-item:color",
+    "free string, not sourced from a shared enum; mirrors its series' color token for the swatch",
+  ],
+  [
+    "checkbox:variant",
+    "schema enum of checkbox or switch; the default checkbox renders unstyled, so only switch has rules",
+  ],
+  [
+    "table-col:align",
+    "schema enum of start or end; start is the default and needs no rule",
+  ],
+  [
+    "table:align",
+    "body cells repeat their column's start or end alignment; start is the default and needs no rule",
+  ],
+  [
+    "fact-delta:tone",
+    "derived by the renderer from trend and upIsGood, not a model prop; only good, bad, or neutral is emitted",
+  ],
+  [
+    "button:state",
+    "derived by the renderer during an undo countdown, not a model prop; only pending is emitted",
+  ],
 ]);
 
 test("every enum value of every attribute-mapped generative-ui prop is styled by at least one css rule", () => {
