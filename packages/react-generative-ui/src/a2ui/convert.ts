@@ -806,7 +806,6 @@ const mappedProps = (
   if (component === "DateTimeInput") {
     const value = stringProp(props, ["value"]);
     if (
-      props["enableDate"] !== true ||
       props["enableTime"] === true ||
       (value !== undefined && value !== "" && !DATE_PATTERN.test(value))
     ) {

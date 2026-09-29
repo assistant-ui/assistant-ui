@@ -402,7 +402,6 @@ describe("convertSurfaceToUISpec", () => {
         {
           id: "date",
           component: "DateTimeInput",
-          enableDate: true,
           label: "Start date",
           value: { path: "/form/startDate" },
           min: "2026-01-01",
@@ -610,11 +609,11 @@ describe("convertSurfaceToUISpec", () => {
   );
 
   it.each([
-    { mode: {}, value: "2025-12-15", type: "Input" },
+    { mode: {}, value: "2025-12-15", type: "DatePicker" },
     {
       mode: { enableDate: false, enableTime: false },
       value: "2025-12-15",
-      type: "Input",
+      type: "DatePicker",
     },
     { mode: { enableDate: true }, value: "2025-12-15", type: "DatePicker" },
     {
@@ -624,7 +623,7 @@ describe("convertSurfaceToUISpec", () => {
     },
     { mode: { enableDate: true }, value: "", type: "DatePicker" },
     { mode: { enableDate: true }, value: undefined, type: "DatePicker" },
-    { mode: {}, value: undefined, type: "Input" },
+    { mode: {}, value: undefined, type: "DatePicker" },
     { mode: {}, value: "2025-12-15T17:00:00Z", type: "Input" },
     {
       mode: { enableDate: true },

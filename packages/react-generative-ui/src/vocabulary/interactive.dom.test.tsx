@@ -1290,7 +1290,6 @@ describe("A2UI two-way binding", () => {
                 {
                   id: "day",
                   component: "DateTimeInput",
-                  enableDate: true,
                   value: { path: "/day" },
                 },
               ],
@@ -1525,8 +1524,8 @@ describe.each([
       title: "omitted temporal flags",
       field: { component: "DateTimeInput" },
       initial: "2025-12-15",
-      edited: "2025-12-16T08:30:00Z",
-      type: "text",
+      edited: "2025-12-16",
+      type: "date",
     },
     {
       title: "disabled temporal flags",
@@ -1536,8 +1535,8 @@ describe.each([
         enableTime: false,
       },
       initial: "",
-      edited: "2025-12-16T08:30:00Z",
-      type: "text",
+      edited: "2025-12-16",
+      type: "date",
     },
     {
       title: "date only",
