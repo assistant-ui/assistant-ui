@@ -4910,6 +4910,69 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     expect(appended[0]?.message.status?.type).toBe("complete");
   });
 
+  it("appends a resumed pause again when a later run started while its roundtrip is still open", async () => {
+    const { history, appended } = createHistory({ update: false });
+    const paused: ExportedMessageRepositoryItem = {
+      parentId: null,
+      message: {
+        id: "restored",
+        role: "assistant",
+        content: [toolCallPart("send_email", { id: "a1" })],
+        status: { type: "requires-action", reason: "tool-calls" },
+        createdAt: new Date(),
+        metadata: {
+          unstable_state: null,
+          unstable_annotations: [],
+          unstable_data: [],
+          steps: [],
+          custom: {},
+        },
+      },
+    };
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const thread = createThread(
+      {
+        async *run() {
+          yield toolCallResult("send_sms", { id: "a2" });
+          await released;
+        },
+      },
+      {
+        history: {
+          ...history,
+          async load() {
+            return { headId: "restored", messages: [paused] };
+          },
+        },
+      },
+    );
+
+    thread.__internal_load();
+    await flush();
+    thread.respondToToolApproval({ approvalId: "a1", approved: true });
+    await flush();
+    void thread.startRun({ parentId: null, sourceId: null, runConfig: {} });
+    await flush();
+    void thread.append({
+      ...userMessage("never mind"),
+      parentId: "restored",
+      startRun: false,
+    });
+    await flush();
+
+    try {
+      const restored = appended.findIndex((i) => i.message.id === "restored");
+      const child = appended.findIndex((i) => i.parentId === "restored");
+      expect(restored).toBeGreaterThanOrEqual(0);
+      expect(restored).toBeLessThan(child);
+    } finally {
+      release();
+    }
+  });
+
   it("appends a resumed pause again before a turn that follows it while its run is open", async () => {
     const { history, appended } = createHistory({ update: false });
     const paused: ExportedMessageRepositoryItem = {

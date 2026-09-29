@@ -184,8 +184,7 @@ export class LocalThreadRuntimeCore
   // queue runs overlap, and the previous dispatch settles after the next one
   // has already started.
   private _queueRunInFlight: object | null = null;
-  private _activeRun: { cancelled: boolean; resumedFromPause: boolean } | null =
-    null;
+  private _activeRun: { cancelled: boolean } | null = null;
   private _runGeneration = 0;
   // A metadata change such as feedback, and a tool result on a running message, replace a message without superseding the run that is streaming it; any other replacement ends that run, whose later chunks would overwrite it.
   private _messageReplacements = new WeakMap<
@@ -250,7 +249,10 @@ export class LocalThreadRuntimeCore
   // A message whose roundtrip is in flight belongs to that run, even after it
   // yields a pause, so the run settles it when the roundtrip ends. `import`
   // replaces every message both refer to, so it clears them.
-  private _roundtripsInFlight = new Map<string, AbortController>();
+  private _roundtripsInFlight = new Map<
+    string,
+    { controller: AbortController; resumedFromPause: boolean }
+  >();
   private _followedDuringRun = new Set<string>();
 
   // Messages a run created that the history has not received; a message loaded from history is never in this set, so its writes are updates.
@@ -287,7 +289,7 @@ export class LocalThreadRuntimeCore
       if (
         history &&
         !history.update &&
-        this._activeRun?.resumedFromPause &&
+        this._roundtripsInFlight.get(messageId)?.resumedFromPause &&
         !this._unwrittenMessages.has(messageId)
       ) {
         const item = {
@@ -1109,7 +1111,10 @@ export class LocalThreadRuntimeCore
 
     const maxSteps = this._options.maxSteps ?? 2;
 
-    this._roundtripsInFlight.set(message.id, abortController);
+    this._roundtripsInFlight.set(message.id, {
+      controller: abortController,
+      resumedFromPause: run.resumedFromPause,
+    });
     try {
       const steps = message.metadata?.steps?.length ?? 0;
       if (steps >= maxSteps) {
@@ -1218,7 +1223,8 @@ export class LocalThreadRuntimeCore
       // A roundtrip replaced by a resume of the same message leaves it, and any
       // follow-up recorded meanwhile, to the roundtrip that replaced it.
       const holdsMessage =
-        this._roundtripsInFlight.get(message.id) === abortController;
+        this._roundtripsInFlight.get(message.id)?.controller ===
+        abortController;
       if (holdsMessage) this._roundtripsInFlight.delete(message.id);
 
       const history = this._options.adapters.history;
