@@ -270,14 +270,66 @@ const getSupersededApprovalProjection = <UI_MESSAGE extends UIMessage>(
   messages: readonly UI_MESSAGE[],
   hostApprovalIds: ReadonlySet<string>,
   joinStrategy: JoinStrategy | undefined,
+  isRunning: boolean,
 ) => {
   const approvalIds = new Set<string>();
   const statusMessageIds = new Set<string>();
   const lastIndex = messages.length - 1;
+  let lastAssistant: UI_MESSAGE | undefined;
+  let hasSupersededApproval = false;
+  let previousWasVoice = false;
 
-  for (let index = 0; index < lastIndex; index++) {
+  const flush = () => {
+    const hasOpenToolPart =
+      lastAssistant === messages[lastIndex] &&
+      lastAssistant?.parts?.some((part) => {
+        if (
+          !isToolUIPart(part) ||
+          part.state === "output-available" ||
+          part.state === "output-error" ||
+          part.state === "output-denied"
+        )
+          return false;
+
+        const approval = (
+          part as {
+            approval?: {
+              resolution?: unknown;
+              descriptor?: unknown;
+            };
+          }
+        ).approval;
+        const resolution =
+          approval?.resolution ??
+          (approval?.descriptor as { resolution?: unknown } | undefined)
+            ?.resolution;
+        return resolution !== "cancelled" && resolution !== "expired";
+      });
+    if (
+      lastAssistant &&
+      hasSupersededApproval &&
+      !hasOpenToolPart &&
+      !(isRunning && lastAssistant === messages[lastIndex])
+    ) {
+      statusMessageIds.add(lastAssistant.id);
+    }
+    lastAssistant = undefined;
+    hasSupersededApproval = false;
+    previousWasVoice = false;
+  };
+
+  for (let index = 0; index < messages.length; index++) {
     const message = messages[index]!;
-    let hasSupersededApproval = false;
+    if (message.role !== "assistant") {
+      flush();
+    } else {
+      const isVoice =
+        (message.metadata as { modality?: unknown } | undefined)?.modality ===
+        "voice";
+      if (isVoice || previousWasVoice || joinStrategy === "none") flush();
+      lastAssistant = message;
+      previousWasVoice = isVoice;
+    }
 
     for (const part of message.parts ?? []) {
       if (!isToolUIPart(part) || part.state !== "approval-requested") continue;
@@ -295,22 +347,13 @@ const getSupersededApprovalProjection = <UI_MESSAGE extends UIMessage>(
         )?.resolution;
       if (resolution === "cancelled" || resolution === "expired") continue;
 
-      approvalIds.add(approvalId);
-      hasSupersededApproval = true;
+      if (index !== lastIndex) {
+        approvalIds.add(approvalId);
+        if (message.role === "assistant") hasSupersededApproval = true;
+      }
     }
-
-    if (!hasSupersededApproval || message.role !== "assistant") continue;
-
-    let statusIndex = index;
-    if (joinStrategy !== "none") {
-      while (
-        statusIndex + 1 < messages.length &&
-        messages[statusIndex + 1]?.role === "assistant"
-      )
-        statusIndex++;
-    }
-    statusMessageIds.add(messages[statusIndex]!.id);
   }
+  flush();
 
   return { approvalIds, statusMessageIds };
 };
@@ -443,9 +486,10 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         chatHelpers.messages,
         hostApprovalIdsRef.current,
         joinStrategy,
+        isRunning,
       ),
     // oxlint-disable-next-line react/exhaustive-deps -- hostApprovalIdsRef changes alongside toolApprovalResponses, which invalidates the projection
-    [chatHelpers.messages, joinStrategy, toolApprovalResponses],
+    [chatHelpers.messages, joinStrategy, isRunning, toolApprovalResponses],
   );
 
   const toThreadMessages = useCallback(
@@ -454,6 +498,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         sourceMessages,
         hostApprovalIdsRef.current,
         joinStrategy,
+        false,
       );
       const metadata: AISDKMessageConverterMetadata = {
         supportsRichToolApprovalResponses,
