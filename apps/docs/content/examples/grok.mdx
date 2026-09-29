@@ -11,7 +11,7 @@ The Grok Clone demonstrates how to customize assistant-ui to match xAI's Grok in
 
 - **Centered Grok Wordmark**: Empty state shows the SVG wordmark above the composer
 - **Pill Composer**: `rounded-4xl` with thin ring border, paperclip on the leading edge
-- **Functional Model Picker**: Fast / Grok 4.1 / Think dropdown with descriptions, plus "Subscribe to SuperGrok"
+- **Functional Model Picker**: Fast / Grok 4.7 / Think dropdown with descriptions, plus "Subscribe to SuperGrok"
 - **Expand/Collapse Model Pill**: When the composer is empty the pill shows the model name; when typing it collapses to just the model icon
 - **Animated Send Slot**: Mic when empty, Send (white-on-dark) when typing, Cancel while running — all via `group-data-[empty]` / `group-data-[running]`
 - **Inverted Primary**: Dark button on light mode, light button on dark mode
@@ -80,7 +80,7 @@ const Composer = () => {
 ```tsx
 const MODELS = [
   { id: "fast", name: "Fast", description: "Default. Quick responses", Icon: Zap },
-  { id: "grok-4.1", name: "Grok 4.1", description: "Standard reasoning", Icon: Moon },
+  { id: "grok-4.7", name: "Grok 4.7", description: "Standard reasoning", Icon: Moon },
   { id: "think", name: "Think", description: "Multi-step reasoning", Icon: Moon },
 ];
 

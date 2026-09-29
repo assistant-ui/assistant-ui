@@ -3,7 +3,7 @@ title: Scores
 description: Record numeric, categorical and boolean scores against a thread, message or run.
 ---
 
-A score records one named value against a thread, a message or a run. A browser sends scores with an authenticated token on the project's frontend host, and a server sends them to `https://backend.assistant-api.com` with an API key and the `Aui-User-Id` and `Aui-Workspace-Id` headers; see [Conventions](/docs/cloud/api) for hosts, credentials and shared errors.
+A score records one named value against a thread, a message or a run. A browser sends scores with an authenticated token on the project's frontend host, and a server sends them to `https://backend.assistant-api.com` with an API key and the `Aui-User-Id` and `Aui-Workspace-Id` headers; see [Conventions](/docs/cloud/api) for hosts and credentials, and [Errors](/docs/cloud/api#errors) for shared errors. An API key write is scoped to the project. A JWT write is scoped to the user's workspace.
 
 ## The score object
 
@@ -16,6 +16,8 @@ A score records one named value against a thread, a message or a run. A browser 
 | `string_value` | string or null | The categorical value. It is `null` for numeric and boolean scores. |
 | `source` | enum | `end_user`, `human`, `evaluator` or `api`. |
 | `comment` | string or null | The optional comment recorded with the score. |
+
+`source` and `comment` are returned by `GET /v1/projects/scores`, not by `POST /v1/scores`.
 
 ## Create a score
 
@@ -77,9 +79,9 @@ curl https://backend.assistant-api.com/v1/scores \
 |---|---|---|
 | `201` | `{ score_id, name, data_type, value, string_value }` | The score was stored. |
 | `400` | `{ "success": false, "error": … }` | A field failed validation. The messages include `value is required for numeric scores`, `boolean scores require value to be true, false, 1, or 0`, `string_value is required for categorical scores`, `categorical scores cannot include value`, `only categorical scores can include string_value`, `a score must target a message, run, or thread` and `a score must target exactly one message, run, or thread`. |
-| `400` | `{ "error": "message_id must belong to thread_id" }` | The message is not in the supplied thread. |
-| `404` | `{ "error": "Thread not found" }` | The target thread is not visible in the caller's scope. |
-| `404` | `{ "error": "Run not found" }` | The target run is not visible in the caller's scope. |
+| `400` | Plain text: `message_id must belong to thread_id` | The message is not in the supplied thread. |
+| `404` | Plain text: `Thread not found` | The target thread is not visible in the caller's scope. |
+| `404` | Plain text: `Run not found` | The target run is not visible in the caller's scope. |
 
 The score source is `api` for a server API key write, `end_user` for user feedback or a JWT score write, `human` for a dashboard manual score including a conversation review, and `evaluator` for an evaluator rule's verdict. Scores are upserted per target and author. Message scores conflict on `(message_id, name, author_id)`, run scores on `(run_id, name, author_id)`, and thread scores on `(thread_id, name, author_id)`; a conflict updates the existing row and its `updated_at`. Read scores back from the [project API](/docs/cloud/api/project).
 

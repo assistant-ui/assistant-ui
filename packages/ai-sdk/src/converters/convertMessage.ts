@@ -24,6 +24,7 @@ import {
   type McpAppMetadata,
   type MessagePartStreamStatus,
   type RespondToToolApprovalOptions,
+  type Unstable_ToolInteractionLog,
 } from "@assistant-ui/core";
 import { stableStringifyToolArgs } from "@assistant-ui/core/internal";
 import {
@@ -71,6 +72,8 @@ export type AISDKMessageConverterMetadata =
     toolArgsTextCache?: WeakMap<ReadonlyJSONObject, Map<string, string>>;
     toolLastInputCache?: Map<string, ReadonlyJSONObject>;
     mcpAppMetadataCache?: Map<string, McpAppMetadata>;
+    toolArtifacts?: ReadonlyMap<string, unknown>;
+    toolInteractions?: ReadonlyMap<string, Unstable_ToolInteractionLog>;
     supportsRichToolApprovalResponses?: boolean;
     toolApprovalResponses?: ReadonlyMap<string, RespondToToolApprovalOptions>;
     /** Id of the currently-streaming message, flagged optimistic (#4037). */
@@ -218,6 +221,7 @@ const APPROVAL_DESCRIPTOR_FIELDS = [
   "prompt",
   "display",
   "allowFreeform",
+  "dismissible",
   "options",
   "optionId",
   "text",
@@ -282,6 +286,7 @@ function getToolApprovalAndInterrupt(
       resolution,
       display,
       allowFreeform,
+      dismissible,
       options,
       optionId,
       text,
@@ -317,6 +322,7 @@ function getToolApprovalAndInterrupt(
               display === "select" ||
               display === "text") && { display }),
             ...(typeof allowFreeform === "boolean" && { allowFreeform }),
+            ...(typeof dismissible === "boolean" && { dismissible }),
             ...(normalizedOptions && { options: normalizedOptions }),
             ...(typeof optionId === "string" && { optionId }),
             ...(typeof text === "string" && { text }),
@@ -488,6 +494,8 @@ function convertParts(
           part,
           metadata.mcpAppMetadataCache,
         );
+        const artifact = metadata.toolArtifacts?.get(toolCallId);
+        const interactions = metadata.toolInteractions?.get(toolCallId);
         return {
           type: "tool-call",
           toolName,
@@ -496,6 +504,10 @@ function convertParts(
           args,
           result,
           isError,
+          ...(artifact !== undefined && { artifact }),
+          ...(interactions !== undefined && {
+            unstable_interactions: interactions,
+          }),
           ...(part.state === "output-available" &&
             part.preliminary === true && { isPreliminary: true }),
           ...(modelContent !== undefined && { modelContent }),

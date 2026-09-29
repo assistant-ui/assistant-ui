@@ -80,7 +80,7 @@ Standalone, there's no connection to configure. `McpConfigDialog` exists to driv
 </Dialog>
 ```
 
-Each server card shows an avatar (the server's `icon`, or a fallback icon), its name, a status badge, action buttons, and, once it has one, an error banner. Which action buttons render depends on `connectionState`: Connect shows for `"disconnected"`, `"error"`, or `"authRequired"`; the OAuth link shows whenever the server exposes an `authorizationUrl`; Disconnect shows for `"connected"`, `"connecting"`, or `"authPending"`. A card in `"error"` state additionally gets a destructive-tinted border.
+Each server card shows an avatar (the server's `icon`, or a fallback icon), its name, a status badge, action buttons, and, once it has one, an error banner. Which action buttons render depends on `connectionState`: Connect shows for `"disconnected"`, `"error"`, or `"authRequired"`; the OAuth link shows whenever the server exposes an `authorizationUrl`; Disconnect shows for `"connected"`, `"connecting"`, or `"authPending"`. A card in `"error"` state additionally gets a destructive-tinted border. Each card also carries a visually hidden `role="status"` region that announces later connection state changes and new connection errors with their message, while the state a card opens with stays silent.
 
 </RuntimeMode>
 

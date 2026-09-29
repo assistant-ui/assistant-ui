@@ -5,6 +5,39 @@ description: Render AI SDK tool calls with Vue components, text descriptors, and
 
 `MessagePrimitiveParts` renders a registered tool UI for matching tool-call parts. A Vue tool UI receives one required `tool` prop of type `ToolUIProps`. Vue does not spread tool-call fields into the component because undeclared props fall through to the DOM. Read all tool state and callbacks from `tool` instead.
 
+Tool calls with an MCP App resource (`ui://...`) use the configured `tools.mcpApp` renderer when no named tool UI is registered. It receives the same `tool` prop as a regular tool UI, so the app can read the tool part from `tool.part`.
+
+## Register data renderers
+
+Data renderers receive one declared `data` prop containing the full data part as `data.part`. This keeps the part's name and status available to fallback renderers without spreading fields onto the DOM. Register a named renderer with `aui.dataRenderers.setDataUI`:
+
+```vue title="app/components/RegisterDataUIs.vue"
+<script setup lang="ts">
+import { defineComponent, h, onMounted, onUnmounted } from "vue";
+import { useAui, type DataUIProps } from "@assistant-ui/vue";
+import type { DataMessagePartComponent } from "@assistant-ui/core/react";
+
+const aui = useAui();
+
+const Chart = defineComponent({
+  props: ["data"],
+  setup: (props: { data: DataUIProps<{ points: number[] }> }) => () =>
+    h("pre", null, JSON.stringify(props.data.part.data.points)),
+});
+
+let unregister: (() => void) | undefined;
+onMounted(() => {
+  unregister = aui.dataRenderers.setDataUI(
+    "chart",
+    Chart as unknown as DataMessagePartComponent,
+  );
+});
+onUnmounted(() => unregister?.());
+</script>
+
+<template><slot /></template>
+```
+
 ## Register tool UIs in config
 
 Use `Tools({ toolkit })` when the toolkit and its renderers belong to the assistant configuration. The tools scope registers the renderers for message rendering and exposes the toolkit to model context.

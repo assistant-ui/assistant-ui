@@ -124,12 +124,16 @@ const AttachmentUI: FC = () => {
     }
   });
 
+  // An attachment on a submission is still being prepared, whether or not the
+  // adapter reports progress while it uploads.
   const uploadState = useAuiState((s) =>
-    s.attachment.status.type === "running"
-      ? "uploading"
-      : s.attachment.status.type === "incomplete" &&
-          s.attachment.status.reason === "error"
-        ? "error"
+    s.attachment.status.type === "incomplete" &&
+    s.attachment.status.reason === "error"
+      ? "error"
+      : s.attachment.status.type === "running" ||
+          (s.optional.message?.submission !== undefined &&
+            s.attachment.status.type !== "complete")
+        ? "uploading"
         : undefined,
   );
   const isUploading = uploadState === "uploading";
@@ -226,7 +230,7 @@ const AttachmentRemove: FC = () => {
 
 export const UserMessageAttachments: FC = () => {
   return (
-    <div className="aui-user-message-attachments-end col-span-full col-start-1 row-start-1 flex w-full flex-row justify-end gap-2">
+    <div className="aui-user-message-attachments-end col-span-full col-start-1 row-start-1 flex w-full flex-row justify-end gap-2 empty:hidden">
       <MessagePrimitive.Attachments>
         {() => <AttachmentUI />}
       </MessagePrimitive.Attachments>

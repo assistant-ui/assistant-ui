@@ -10,10 +10,12 @@ import {
 import {
   AssistantRuntimeProvider,
   type ChatModelAdapter,
+  ExportedMessageRepository,
   type RealtimeVoiceAdapter,
   useAui,
   useLocalRuntime,
 } from "@assistant-ui/react";
+import { useEffect } from "react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { Thread, type ThreadProps } from "./thread.aui";
@@ -59,6 +61,27 @@ function TestThread(props: ThreadProps) {
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <Thread {...props} />
+    </AssistantRuntimeProvider>
+  );
+}
+
+const userBranch = (text: string) =>
+  ExportedMessageRepository.fromArray([
+    { role: "user", content: [{ type: "text", text }] },
+  ]).messages;
+
+function UserMessageTestThread() {
+  const runtime = useLocalRuntime(adapter);
+
+  useEffect(() => {
+    runtime.thread.import({
+      messages: [...userBranch("Hello"), ...userBranch("Hello again")],
+    });
+  }, [runtime]);
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread autoFocus={false} />
     </AssistantRuntimeProvider>
   );
 }
@@ -158,6 +181,36 @@ describe("Thread", () => {
     render(<TestThread autoFocus={false} />);
 
     expect(document.activeElement).toBe(pageControl);
+  });
+
+  it("hides the empty user attachment wrapper", async () => {
+    render(<UserMessageTestThread />);
+
+    await waitFor(() => expect(screen.getByText("Hello again")).toBeTruthy());
+
+    const root = document.querySelector('[data-slot="aui_user-message-root"]');
+    const attachments = root?.querySelector(
+      ".aui-user-message-attachments-end",
+    );
+
+    expect(attachments).toBeTruthy();
+    expect(attachments?.matches(":empty")).toBe(true);
+    expect(attachments?.classList.contains("empty:hidden")).toBe(true);
+  });
+
+  it("lets the user branch picker follow the rendered rows", async () => {
+    render(<UserMessageTestThread />);
+
+    const picker = await waitFor(() => {
+      const element = document.querySelector(
+        '[data-slot="aui_user-branch-picker"]',
+      );
+      expect(element).toBeTruthy();
+      return element as HTMLElement;
+    });
+
+    expect(picker.classList.contains("col-span-full")).toBe(true);
+    expect(picker.className).not.toMatch(/row-start-/);
   });
 
   it("shows feedback actions only when the runtime supports feedback", () => {

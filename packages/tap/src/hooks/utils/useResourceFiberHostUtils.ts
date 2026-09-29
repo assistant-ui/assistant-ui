@@ -35,8 +35,10 @@ const useResourceFiberHostUtilsReact = () => {
         return eagerBail ? version : version + 1;
       });
 
+      // React runs the updater above eagerly only while this fiber has no
+      // pending work, so the reducer repeats the evaluation it may have skipped.
       if (!eagerBail) {
-        apply(applyUpdate);
+        apply(() => evaluateUpdate() && applyUpdate());
       }
     });
   });

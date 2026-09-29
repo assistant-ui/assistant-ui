@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
-import { StrictMode, type ReactNode } from "react";
-import { cleanup } from "@testing-library/react";
+import { StrictMode, type ReactNode, useLayoutEffect } from "react";
+import { act, cleanup } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Tool } from "assistant-stream";
 import type {
@@ -190,6 +190,40 @@ describe("unstable_useWebMcpProvider", () => {
       await expect(descriptor.execute({})).resolves.toEqual({
         content: [{ type: "text", text: "second" }],
       });
+    });
+    expect(host.registerCalls).toEqual(["search"]);
+    expect(host.unregisterCalls).toEqual([]);
+  });
+
+  it("calls through to the committed implementation from a descendant layout effect", async () => {
+    const host = useHost(createFakeWebMcpHost());
+    const provider = createProvider({
+      search: frontendTool({ execute: async () => "first" }),
+    });
+    let invoke = false;
+    let execution: ReturnType<WebMcpToolDescriptor["execute"]> | undefined;
+
+    const InvokeOnCommit = ({ children }: { children: ReactNode }) => {
+      useLayoutEffect(() => {
+        if (invoke) execution = host.registry.get("search")?.execute({});
+      });
+      return children;
+    };
+    const { rerender } = mountProvider(provider, {}, (children) => (
+      <InvokeOnCommit>{children}</InvokeOnCommit>
+    ));
+    await waitForNames(["search"]);
+
+    act(() => {
+      invoke = true;
+      provider.setTools({
+        search: frontendTool({ execute: async () => "second" }),
+      });
+      rerender({});
+    });
+
+    await expect(execution).resolves.toEqual({
+      content: [{ type: "text", text: "second" }],
     });
     expect(host.registerCalls).toEqual(["search"]);
     expect(host.unregisterCalls).toEqual([]);

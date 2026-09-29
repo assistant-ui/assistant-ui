@@ -25,10 +25,10 @@ export type ThreadListItemEventCallback<E extends ThreadListItemEventType> = (
   payload: ThreadListItemEventPayload[E],
 ) => void;
 
-import type { ThreadListItemState } from "./bindings";
+import type { ThreadListItemRuntimeState } from "./bindings";
 import type { ThreadListItemStatus } from "../interfaces/thread-list-runtime-core";
 
-export type { ThreadListItemState, ThreadListItemStatus };
+export type { ThreadListItemRuntimeState, ThreadListItemStatus };
 
 export type ThreadListItemGenerateTitleOptions = {
   /** Marks a generation started by the automatic title trigger. */
@@ -37,7 +37,7 @@ export type ThreadListItemGenerateTitleOptions = {
 
 export type ThreadListItemRuntime = {
   readonly path: ThreadListItemRuntimePath;
-  getState(): ThreadListItemState;
+  getState(): ThreadListItemRuntimeState;
 
   initialize(): Promise<{ remoteId: string; externalId: string | undefined }>;
   generateTitle(options?: ThreadListItemGenerateTitleOptions): Promise<void>;
@@ -62,7 +62,7 @@ export type ThreadListItemRuntime = {
 };
 
 export type ThreadListItemStateBinding = SubscribableWithState<
-  ThreadListItemState,
+  ThreadListItemRuntimeState,
   ThreadListItemRuntimePath
 >;
 
@@ -98,7 +98,7 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
     this.detach = this.detach.bind(this);
   }
 
-  public getState(): ThreadListItemState {
+  public getState(): ThreadListItemRuntimeState {
     return this._core.getState();
   }
 

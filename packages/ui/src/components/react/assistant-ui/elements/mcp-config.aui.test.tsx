@@ -1,5 +1,6 @@
 import type { FC } from "react";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -202,7 +203,7 @@ describe.each([
   it("moves focus to Disconnect when Connect starts a connection", async () => {
     await openServers([server("docs")]);
     press(screen.getByRole("button", { name: "Connect" }));
-    await screen.findByText("Connected");
+    await screen.findAllByText("Connected");
     await expectFocused("Disconnect");
   });
 
@@ -238,7 +239,7 @@ describe.each([
   it("returns focus to Connect after Disconnect", async () => {
     await openServers([server("docs")]);
     fireEvent.click(screen.getByRole("button", { name: "Connect" }));
-    await screen.findByText("Connected");
+    await screen.findAllByText("Connected");
     press(screen.getByRole("button", { name: "Disconnect" }));
     await expectFocused("Connect");
   });
@@ -266,31 +267,70 @@ describe.each([
     await expectFocused("Close form");
   });
 
-  it("announces connection changes and shows errors after the card remounts", async () => {
-    await openServers([server("unavailable", UNAVAILABLE_URL)]);
+  const announcement = () => screen.getByRole("status");
 
-    expect(screen.getByRole("status").textContent).toBe("Disconnected");
-    expect(screen.getByRole("alert").textContent).toBe("");
+  const failConnection = async () => {
+    unavailable.resolve(new Response(null, { status: 503 }));
+    await waitFor(() => expect(announcement().textContent).toMatch(/^Error: /));
+    return announcement().textContent!.slice("Error: ".length).trim();
+  };
+
+  it("announces connection changes after the first observed state", async () => {
+    await openServers([server("unavailable", UNAVAILABLE_URL)]);
+    expect(screen.getAllByRole("status")).toHaveLength(1);
+    expect(announcement().textContent).toBe("");
 
     press(screen.getByRole("button", { name: "Connect" }));
-    await waitFor(() =>
-      expect(screen.getByRole("status").textContent).toBe("Connecting…"),
-    );
+    await waitFor(() => expect(announcement().textContent).toBe("Connecting…"));
 
-    unavailable.resolve(new Response(null, { status: 503 }));
-    await waitFor(() => {
-      expect(screen.getByRole("alert").textContent).not.toBe("");
-      const status = screen.getByRole("status");
-      expect(status.textContent).toBe("Error");
-    });
+    const message = await failConnection();
+    expect(screen.getByText(message)).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("announces a successful connection and a disconnect", async () => {
+    await openServers([server("docs")]);
+    press(screen.getByRole("button", { name: "Connect" }));
+    await waitFor(() => expect(announcement().textContent).toBe("Connected"));
+    press(screen.getByRole("button", { name: "Disconnect" }));
+    await waitFor(() =>
+      expect(announcement().textContent).toBe("Disconnected"),
+    );
+  });
+
+  it("clears an announcement once it has been spoken", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      await openServers([server("docs")]);
+      press(screen.getByRole("button", { name: "Connect" }));
+      await waitFor(() => expect(announcement().textContent).toBe("Connected"));
+      act(() => vi.advanceTimersByTime(1000));
+      expect(announcement().textContent).toBe("");
+      expect(screen.getByText("Connected")).toBeTruthy();
+      press(screen.getByRole("button", { name: "Disconnect" }));
+      await waitFor(() =>
+        expect(announcement().textContent).toBe("Disconnected"),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stays silent about a failure that predates the dialog opening", async () => {
+    await openServers([server("unavailable", UNAVAILABLE_URL)]);
+    press(screen.getByRole("button", { name: "Connect" }));
+    const message = await failConnection();
 
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     fireEvent.click(screen.getByRole("button", { name: "MCP servers" }));
-    await waitFor(() => {
-      expect(screen.getByRole("alert").textContent).not.toBe("");
-      const status = screen.getByRole("status");
-      expect(status.textContent).toBe("Error");
-    });
+    await screen.findByText(message);
+    expect(screen.getByText("Error")).toBeTruthy();
+    expect(announcement().textContent).toBe("");
+
+    unavailable = Promise.withResolvers();
+    press(screen.getByRole("button", { name: "Connect" }));
+    await waitFor(() => expect(announcement().textContent).toBe("Connecting…"));
+    expect(await failConnection()).toBe(message);
   });
 });

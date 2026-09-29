@@ -5,8 +5,10 @@
 ## Installation
 
 ```bash
-npm install @assistant-ui/react @assistant-ui/react-lexical
+npm install @assistant-ui/react @assistant-ui/react-lexical lexical @lexical/react @lexical/utils @lexical/history @lexical/plain-text
 ```
+
+`lexical` and the `@lexical/*` packages this package imports are peer dependencies: your app owns the single Lexical copy that the composer and your own plugins share, so keep every Lexical package at one version.
 
 ## Usage
 

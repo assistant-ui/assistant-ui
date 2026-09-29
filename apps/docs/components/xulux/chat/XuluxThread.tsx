@@ -34,13 +34,13 @@ import { LearnCourseResultFooter, XuluxToolCall } from "./XuluxToolCall";
 import { XuluxUsageLimitBanner } from "./XuluxUsageLimitBanner";
 
 const XULUX_CONTEXT_WINDOW = 1_050_000;
-const XULUX_DEFAULT_MODEL_ID = "gpt-5.6-luna";
+const XULUX_DEFAULT_MODEL_ID = "gpt-6-luna";
 
 const XULUX_MODELS = [
   {
-    id: "gpt-5.6-luna",
-    name: "GPT-5.6 Luna",
-    modelName: "gpt-5.6-luna",
+    id: "gpt-6-luna",
+    name: "GPT-6 Luna",
+    modelName: "gpt-6-luna",
   },
 ] as const;
 
