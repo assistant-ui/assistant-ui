@@ -16,11 +16,7 @@ import {
 } from "@assistant-ui/core/react";
 import { STREAM_CONTROLLER, type AnyStream } from "@langchain/react";
 import type { BaseMessage } from "@langchain/core/messages";
-import {
-  channelProjection,
-  messagesProjection,
-  type Event,
-} from "@langchain/langgraph-sdk/stream";
+import { channelProjection, type Event } from "@langchain/langgraph-sdk/stream";
 import type { SubagentDiscoverySnapshot } from "@langchain/react";
 import {
   attachSubagentTranscripts,
@@ -31,6 +27,7 @@ import {
 import { convertLangChainBaseMessage } from "./convertMessages";
 import { groupUIMessagesByParent } from "./converter";
 import { langChainStreamingTimingAccessors } from "./streamingTiming";
+import { subagentMessagesProjection } from "./subagentMessagesProjection";
 import type { LangChainBaseMessage, UIMessage } from "./types";
 import {
   createUIFoldMemo,
@@ -301,7 +298,7 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
         }
         if (source.resources.has(snapshot.id)) continue;
         const acquired = controller.registry.acquire(
-          messagesProjection(snapshot.namespace),
+          subagentMessagesProjection(snapshot.namespace),
         );
         const acquiredUI =
           snapshot.namespace.length > ROOT_UI_CHANNEL_DEPTH

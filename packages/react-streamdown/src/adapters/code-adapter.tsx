@@ -4,9 +4,11 @@ import type { Element } from "hast";
 import {
   type ComponentPropsWithoutRef,
   type ComponentType,
+  createContext,
   isValidElement,
   memo,
   type ReactNode,
+  useContext,
 } from "react";
 import { parseLanguageClass } from "@assistant-ui/react-markdown/code-fence";
 import { isSameHastNode } from "../memoization";
@@ -36,8 +38,14 @@ export interface CodeAdapterOptions {
 
 export type CodeAdapterProps = CodeProps & {
   "data-block"?: string;
-  adapter: CodeAdapterOptions;
 };
+
+/**
+ * Carries the adapter components past streamdown's memo boundaries: its root
+ * memo ignores `components`, so a settled block never re-renders for a new
+ * highlighter, while a context change reaches every mounted code adapter.
+ */
+export const CodeAdapterContext = createContext<CodeAdapterOptions>({});
 
 function joinClassNames(...names: (string | undefined)[]): string | undefined {
   const joined = names.filter(Boolean).join(" ");
@@ -64,12 +72,9 @@ function DefaultCode({ node: _, ...props }: CodeProps): ReactNode {
 /**
  * Bridges the assistant-ui SyntaxHighlighter/CodeHeader API to streamdown's
  * code component, using streamdown's data-block marker for inline/block
- * detection. The options travel as a prop rather than a closure so the
- * component type stays the same across renders and a fresh `components` object
- * updates the code block instead of remounting it.
+ * detection.
  */
 function CodeAdapterInner({
-  adapter,
   node,
   className,
   children,
@@ -82,7 +87,7 @@ function CodeAdapterInner({
     componentsByLanguage = {},
     Pre = DefaultPre,
     Code = DefaultCode,
-  } = adapter;
+  } = useContext(CodeAdapterContext);
 
   const preProps = useStreamdownPreProps();
   const WrappedPre = useCallbackRef(

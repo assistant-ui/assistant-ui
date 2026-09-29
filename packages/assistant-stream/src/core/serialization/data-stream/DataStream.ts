@@ -188,6 +188,10 @@ export class DataStreamEncoder
                   result: chunk.result,
                   artifact: chunk.artifact,
                   ...(chunk.isError ? { isError: chunk.isError } : {}),
+                  ...(chunk.isPreliminary ? { isPreliminary: true } : {}),
+                  ...(chunk.modelContent !== undefined
+                    ? { modelContent: chunk.modelContent }
+                    : {}),
                 },
               });
               break;
@@ -409,7 +413,14 @@ export class DataStreamDecoder extends PipeableTransformStream<
             }
 
             case DataStreamStreamChunkType.ToolCallResult: {
-              const { toolCallId, artifact, result, isError } = value;
+              const {
+                toolCallId,
+                artifact,
+                result,
+                isError,
+                isPreliminary,
+                modelContent,
+              } = value;
               const toolCallController =
                 toolCallPartRegistry.tryGet(toolCallId);
               if (!toolCallController) {
@@ -427,6 +438,8 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 artifact,
                 result,
                 isError,
+                ...(isPreliminary ? { isPreliminary: true } : {}),
+                ...(modelContent !== undefined ? { modelContent } : {}),
               });
               break;
             }

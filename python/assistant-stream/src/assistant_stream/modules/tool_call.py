@@ -54,18 +54,35 @@ class ToolCallController:
         return self.set_response(result)
 
     def set_response(
-        self, result: Any, *, artifact: Any | None = None, is_error: bool = False
+        self,
+        result: Any,
+        *,
+        artifact: Any | None = None,
+        is_error: bool = False,
+        is_preliminary: bool = False,
     ) -> None:
-        """Set the result of the tool call."""
+        """Set a tool response. A preliminary response keeps the call open so
+        further responses can follow; a final response closes it, and later
+        responses are ignored. Any response settles the args text, so
+        `append_args_text` must complete before the first one.
+
+        A preliminary response requires a client on an `assistant-stream`
+        release that carries interim results; an older decoder settles the
+        tool call on the first response and ignores the final one.
+        """
+        if self._closed:
+            return
 
         chunk = ToolResultChunk(
             tool_call_id=self.tool_call_id,
             result=result,
             artifact=artifact,
             is_error=is_error,
+            is_preliminary=is_preliminary,
         )
         enqueue_threadsafe(self.loop, self.queue, chunk)
-        self.close()
+        if not is_preliminary:
+            self.close()
 
     def close(self) -> None:
         """Close the stream."""

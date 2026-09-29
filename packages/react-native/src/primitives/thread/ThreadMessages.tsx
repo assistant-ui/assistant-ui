@@ -17,7 +17,8 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "react-native";
-import type { MessageState, ThreadMessage } from "@assistant-ui/core";
+import type { ThreadMessage } from "@assistant-ui/core";
+import type { MessageState } from "@assistant-ui/core/store";
 import {
   RenderChildrenWithAccessor,
   useAuiEvent,

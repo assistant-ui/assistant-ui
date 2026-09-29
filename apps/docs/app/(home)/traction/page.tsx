@@ -34,6 +34,10 @@ const description =
 // A cold render fans out across every package on npm and a year of commits.
 export const maxDuration = 60;
 
+// api.npmjs.org allows about forty requests a minute per IP, which a build
+// shares with every other build on the platform, so npm is read at request time.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title,
   description,
@@ -41,9 +45,8 @@ export const metadata: Metadata = {
 };
 
 export default async function TractionPage() {
-  // api.npmjs.org rate limits per IP and a deploy asks it about every package at
-  // once, so the chart's five packages are read before the rest of the catalogue
-  // competes for what is left. Everything outside npm starts immediately.
+  // The chart's five packages are read before the rest of the catalogue competes
+  // for npm's window. Everything outside npm starts immediately.
   const timeline = fetchTimelineSeries(TIMELINE_PACKAGES);
   const [
     downloadsTimeline,

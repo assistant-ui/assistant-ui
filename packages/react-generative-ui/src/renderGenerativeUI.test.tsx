@@ -77,8 +77,10 @@ describe("renderGenerativeUI", () => {
       library,
     );
 
-    expect(Array.isArray(out)).toBe(true);
-    const elements = out as ReactElement[];
+    expect(isValidElement(out)).toBe(true);
+    const elements = (out as ReactElement<{ children: ReactElement[] }>).props
+      .children;
+    expect(Array.isArray(elements)).toBe(true);
     expect(elements.every(isValidElement)).toBe(true);
     expect(elements.map((element) => element.key)).toEqual([
       "model:1:Text",
@@ -108,11 +110,18 @@ describe("renderGenerativeUI", () => {
   });
 
   it("renders nothing for an unknown component", () => {
-    const html = renderToStaticMarkup(
-      <>{renderGenerativeUI({ $type: "Missing" }, library)}</>,
-    );
+    const rendered = renderGenerativeUI({ $type: "Missing" }, library);
+    expect(rendered).toBeNull();
+    const html = renderToStaticMarkup(<>{rendered}</>);
     expect(html).toBe("");
   });
+
+  it.each(["plain", 42, null])(
+    "preserves a primitive root result: %j",
+    (value) => {
+      expect(renderGenerativeUI(value, library)).toBe(value);
+    },
+  );
 
   it.each(["toString", "constructor"])(
     "treats inherited %s as an unknown component",

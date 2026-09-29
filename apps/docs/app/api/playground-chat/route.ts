@@ -1,7 +1,7 @@
 import { getDistinctId } from "@/lib/posthog-server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { validateGeneralChatInput } from "@/lib/validate-input";
-import { getModel } from "@/lib/ai/provider";
+import { resolveChatModel } from "@/lib/ai/provider";
 import { posthogTelemetry } from "@/lib/ai/telemetry";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import { frontendTools } from "@assistant-ui/ai-sdk";
@@ -88,8 +88,6 @@ Thread & Viewport:
 
 Welcome:
 - .aui-thread-welcome-root — welcome section wrapper
-- .aui-thread-welcome-center — centering container
-- .aui-thread-welcome-message — title/subtitle wrapper
 - .aui-thread-welcome-message-inner — individual title/subtitle text
 - .aui-thread-welcome-suggestions — suggestions grid container
 - .aui-thread-welcome-suggestion — individual suggestion button
@@ -105,7 +103,6 @@ Messages:
 
 Composer:
 - .aui-composer-root — composer wrapper
-- .aui-composer-attachment-dropzone — input area with border
 - .aui-composer-input — text input element
 - .aui-composer-send — send button
 - .aui-composer-cancel — cancel/stop button
@@ -119,7 +116,7 @@ Other:
 - .aui-branch-picker-root — branch navigation
 - .aui-md — markdown content wrapper
 
-CSS variables available: --aui-thread-max-width, --aui-accent-color, --aui-background, --aui-foreground, --aui-muted, --aui-muted-foreground, --aui-border, --aui-user-message-background, --aui-assistant-message-background, --aui-composer-background, --aui-user-avatar-background, --aui-assistant-avatar-background, --aui-suggestion-background, --aui-suggestion-border
+CSS variables available: --thread-max-width, --composer-radius, --composer-padding, --composer-bg, --accent-color, --accent-foreground, and the theme tokens --background, --foreground, --muted, --muted-foreground, --border, --primary. An unset color inherits the host theme through its token and a configured color overrides that token, so reference the tokens instead of hard-coded values.
 
 Custom CSS is automatically scoped to the .aui-root container via @scope — only target .aui-* classes, not body, html, or other page elements.
 
@@ -159,7 +156,7 @@ export async function POST(req: Request) {
       return new Response("Config too large", { status: 400 });
     }
 
-    const model = getModel();
+    const { model, providerOptions } = resolveChatModel();
     const distinctId = getDistinctId(req);
 
     const prunedMessages = pruneMessages({
@@ -169,6 +166,7 @@ export async function POST(req: Request) {
 
     const result = streamText({
       model,
+      ...(providerOptions ? { providerOptions } : {}),
       system:
         SYSTEM_PROMPT +
         `\n\n## Current Config State\n\n\`\`\`json\n${JSON.stringify(builderConfig, null, 2)}\n\`\`\``,

@@ -31,6 +31,13 @@ export type EventSubscribable<TEvent extends string> = {
     | undefined,
     unknown
   >;
+  /**
+   * Notifies subscribers with an empty payload when the binding swaps to a
+   * different source. For an event that reports a change to a value read off
+   * the source rather than an occurrence in time, the swap is itself such a
+   * change, and the previous source never announces it.
+   */
+  notifyOnRebind?: boolean;
 };
 
 export const notifySubscribers = <TArgs extends unknown[]>(
@@ -371,6 +378,7 @@ export class EventSubscriptionSubject<
         previousInner?.();
       } finally {
         innerUnsubscribe = newState?.unstable_on(this.config.event, callback);
+        if (this.config.notifyOnRebind) callback({});
       }
     };
 

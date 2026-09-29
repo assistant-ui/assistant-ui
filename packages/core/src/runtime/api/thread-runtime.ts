@@ -14,7 +14,7 @@ import type { ThreadMessageLike } from "../utils/thread-message-like";
 import {
   type MessageRuntime,
   MessageRuntimeImpl,
-  type MessageState,
+  type MessageRuntimeState,
 } from "./message-runtime";
 import { NestedSubscriptionSubject } from "../../subscribable/subscribable";
 import {
@@ -32,7 +32,7 @@ import type {
   ThreadListItemRuntimePath,
   ThreadRuntimePath,
 } from "./paths";
-import type { ThreadListItemState } from "./bindings";
+import type { ThreadListItemRuntimeState } from "./bindings";
 import type { AppendMessage, ThreadMessage } from "../../types/message";
 import type { Unsubscribe } from "../../types/unsubscribe";
 import { isMessageNotSentError } from "../../types/error";
@@ -134,11 +134,11 @@ export type ThreadRuntimeCoreBinding = SubscribableWithState<
 };
 
 export type ThreadListItemRuntimeBinding = SubscribableWithState<
-  ThreadListItemState,
+  ThreadListItemRuntimeState,
   ThreadListItemRuntimePath
 >;
 
-export type ThreadState = {
+export type ThreadRuntimeState = {
   /**
    * The thread ID.
    * @deprecated This field is deprecated and will be removed in 0.12.0. Use `useThreadListItem().id` instead.
@@ -150,7 +150,7 @@ export type ThreadState = {
    *
    * @deprecated Use `useThreadListItem()` instead. This field is deprecated and will be removed in 0.12.0.
    */
-  readonly metadata: ThreadListItemState;
+  readonly metadata: ThreadListItemRuntimeState;
 
   /**
    * Whether the thread is disabled. Disabled threads cannot receive new messages.
@@ -203,6 +203,11 @@ export type ThreadState = {
 };
 
 /**
+ * @deprecated Use `ThreadRuntimeState`. From `@assistant-ui/react` 0.16, `ThreadState` names the thread state read through `useAuiState`.
+ */
+export type ThreadState = ThreadRuntimeState;
+
+/**
  * The canonical `isRunning` derivation. A runtime that tracks run state itself
  * reports it directly; the rest fall back to the trailing assistant message.
  */
@@ -218,8 +223,8 @@ export const getThreadRuntimeCoreIsRunning = (
 
 export const getThreadState = (
   runtime: ThreadRuntimeCore,
-  threadListItemState: ThreadListItemState,
-): ThreadState => {
+  threadListItemState: ThreadListItemRuntimeState,
+): ThreadRuntimeState => {
   return Object.freeze({
     threadId: threadListItemState.id,
     metadata: threadListItemState,
@@ -250,7 +255,7 @@ export type ThreadRuntime = {
   /**
    * Gets a snapshot of the thread state.
    */
-  getState(): ThreadState;
+  getState(): ThreadRuntimeState;
 
   /**
    * Append a new message to the thread.
@@ -352,10 +357,10 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
   }
 
   private readonly _threadBinding: ThreadRuntimeCoreBinding & {
-    getStateState(): ThreadState;
+    getStateState(): ThreadRuntimeState;
   };
   private readonly _stateBinding: ShallowMemoizeSubject<
-    ThreadState,
+    ThreadRuntimeState,
     ThreadRuntimePath
   >;
 
@@ -593,7 +598,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
 
             speech:
               speechState?.messageId === message.id ? speechState : undefined,
-          } satisfies MessageState;
+          } satisfies MessageRuntimeState;
         },
         subscribe: (callback) => this._threadBinding.subscribe(callback),
       }),
@@ -615,6 +620,11 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
       subject = new EventSubscriptionSubject<ThreadRuntimeEventType>({
         event,
         binding: this._threadBinding,
+        // The main thread binding starts on a placeholder core whose model
+        // context is empty and swaps to the real one once it attaches, so a
+        // subscriber that read the context before that would keep the
+        // placeholder's forever.
+        notifyOnRebind: event === "modelContextUpdate",
       });
       this._eventSubscriptionSubjects.set(event, subject);
     }
