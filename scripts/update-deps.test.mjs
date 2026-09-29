@@ -188,8 +188,7 @@ printf '%s\n' generate-deps-changeset >> "$COMPLETION_MARKER"
             },
       );
       assert.deepEqual(manifest.devDependencies, {
-        "@react-native/metro-config":
-          "0.81.5",
+        "@react-native/metro-config": "0.81.5",
         expo: failureStage === "none" ? "55.0.0" : "54.0.0",
       });
     } finally {
