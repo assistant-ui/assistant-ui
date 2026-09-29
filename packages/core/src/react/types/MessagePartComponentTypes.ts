@@ -12,6 +12,7 @@ import type {
   ToolApprovalResponse,
   ToolCallMessagePart,
   Unstable_AudioMessagePart,
+  Unstable_ToolInteractionInput,
   QuoteInfo,
 } from "../..";
 import type { MessagePartState } from "../..";
@@ -91,6 +92,15 @@ export type ToolCallMessagePartProps<
      * it could not be recorded, so the controls can stay retryable.
      */
     respondToApproval: (response: ToolApprovalResponse) => Promise<void>;
+    /**
+     * Records what the user did in this call's UI on the part, so a stored
+     * conversation keeps it. Resolves once recorded, and rejects when the
+     * payload is not plain JSON, is over the size limit, or the runtime
+     * cannot record interactions; the user's action itself is unaffected.
+     */
+    unstable_recordInteraction?:
+      | ((input: Unstable_ToolInteractionInput) => Promise<void>)
+      | undefined;
   };
 
 /** Component used to render a tool-call message part. */

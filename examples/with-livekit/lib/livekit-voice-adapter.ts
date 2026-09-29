@@ -81,6 +81,9 @@ export class LiveKitVoiceAdapter implements RealtimeVoiceAdapter {
         unmute: () => {
           room.localParticipant.setMicrophoneEnabled(true).catch(() => {});
         },
+        sendText: async (text: string) => {
+          await room.localParticipant.sendText(text, { topic: "lk.chat" });
+        },
       };
 
       room.on(RoomEvent.TrackSubscribed, attachRemoteAudio);

@@ -23,6 +23,39 @@ describe("decodeSubmitData", () => {
     });
   });
 
+  it("keeps a number input as a number", () => {
+    const value = {
+      aui: { type: "set_quantity" },
+      quantity: 3.5,
+    };
+    expect(decodeSubmitData(value)).toEqual({
+      type: "set_quantity",
+      $input: { quantity: 3.5 },
+    });
+  });
+
+  it("resolves $field references in the payload from same-card inputs, else their fallback", () => {
+    const value = {
+      aui: {
+        type: "save",
+        payload: {
+          note: { $field: "note" },
+          form: { plan: [{ $field: "plan" }], missing: { $field: "gone" } },
+          renamed: { $field: "aui", fallback: "kept" },
+        },
+      },
+      note: "Ship it",
+      plan: "pro",
+    };
+    expect(decodeSubmitData(value)).toEqual({
+      type: "save",
+      note: "Ship it",
+      form: { plan: ["pro"] },
+      renamed: "kept",
+      $input: { note: "Ship it", plan: "pro" },
+    });
+  });
+
   it("omits $input when there are no other top-level keys", () => {
     expect(decodeSubmitData({ aui: { type: "approve" } })).toEqual({
       type: "approve",

@@ -75,16 +75,21 @@ describe("fetchNpmDownloads", () => {
     });
   });
 
-  it("falls back to the current day when npm withholds the window", async () => {
-    getLastWeek.mockResolvedValue(null);
+  it.each([
+    ["withholds the window", null],
+    ["sends an end it cannot have meant", { ...LAST_WEEK, end: null }],
+  ] as const)("reads nothing when npm %s", async (_, week) => {
+    getLastWeek.mockResolvedValue(week);
 
-    await fetchNpmDownloads();
+    const downloads = await fetchNpmDownloads();
 
-    expect(getDownloadsRange).toHaveBeenCalledWith(
-      FLAGSHIP_PACKAGE,
-      "2026-07-18",
-      "2026-09-16",
-      undefined,
-    );
+    expect(getDownloadsRange).not.toHaveBeenCalled();
+    expect(downloads.totalWeekly).toBe(0);
+    expect(downloads.perPackage[FLAGSHIP_PACKAGE]).toEqual({
+      weekly: 0,
+      series: [],
+      monthly: 0,
+      prevMonthly: 0,
+    });
   });
 });

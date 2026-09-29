@@ -428,11 +428,16 @@ describe("InMemoryResumableStreamStore", () => {
       code: "missing",
       message: "Stream superseded by a new acquisition: s",
     });
-    await expect(
-      store.finalize("s", "done", undefined, a.lease),
-    ).resolves.toBeUndefined();
+    await expect(store.finalize("s", "done", undefined, a.lease)).resolves.toBe(
+      false,
+    );
     await expect(store.status("s")).resolves.toBe("streaming");
-    await store.finalize("s", "done", undefined, b.lease);
+    await expect(store.finalize("s", "done", undefined, b.lease)).resolves.toBe(
+      true,
+    );
+    await expect(store.finalize("s", "done", undefined, b.lease)).resolves.toBe(
+      false,
+    );
     await expect(
       store.append("s", bytes("late"), a.lease),
     ).rejects.toMatchObject({

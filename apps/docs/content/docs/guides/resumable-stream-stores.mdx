@@ -30,7 +30,7 @@ export interface ResumableStreamStore {
     status: "done" | "error",
     error?: string,
     lease?: ResumableStreamLease,
-  ): Promise<void>;
+  ): Promise<boolean | void>;
   read(
     streamId: string,
     cursor: string,
@@ -47,7 +47,7 @@ export interface ResumableStreamStore {
 
 After `append` resolves, changes to the input buffer must not change stored bytes.
 
-`finalize(streamId, status, error?)` flips the stream into a terminal state. Pending and future `read` iterables drain buffered entries and then either complete (`"done"`) or throw with `error` (`"error"`). Implementations must make `finalize` idempotent: a duplicate call with the same status is a no-op, and the producer task may retry on transient errors.
+`finalize(streamId, status, error?)` flips the stream into a terminal state. Pending and future `read` iterables drain buffered entries and then either complete (`"done"`) or throw with `error` (`"error"`). Implementations must make `finalize` idempotent: a duplicate call with the same status is a no-op, and the producer task may retry on transient errors. Resolve `false` from a call that finalized nothing, whether because the stream was already terminal or because the lease no longer owns it; the context then skips its `onFinalize` hook for that producer, and reports a `"done"` that did not apply through `onError` as `ResumableStreamError("missing")`. A store that resolves without a value is taken to have finalized, so a store written before this return value keeps working.
 
 `read(streamId, cursor, signal)` is the only streaming method. It yields every entry whose cursor sorts strictly after the supplied `cursor`, then waits for new appends, then completes when the stream finalizes. Aborting `signal` resolves the iterable cleanly without throwing. Networked stores typically combine a bounded fetch loop with pub/sub, long-poll, or notify wakeups; do not busy-loop.
 
@@ -68,7 +68,7 @@ Changes to a yielded chunk must not affect other reads. In-memory stores must co
 
 If your backend cannot offer atomicity, do not paper over it with read-then-write; you will silently produce two writers for the same stream under contention, and consumers will observe interleaved bytes.
 
-`acquireLease(streamId, options?)` is optional. It elects exactly like `acquire`, but a `"producer"` result also carries a lease (`{ role: "producer", lease: { token } }`; consumers get `{ role: "consumer" }`). The context prefers it when present and passes the lease to every `append` and `finalize` call from that producer task; `delete` takes no lease and stays administrative. Store a per-acquisition token with the stream and, when a lease is given, reject `append` with `ResumableStreamError("missing")` and make `finalize` a no-op when the stream exists and the token no longer matches (a stream with no state at all still reports not found from `finalize`, since there is no successor to defer to). This is what stops a producer whose stream expired from writing into the stream a later `acquire` created under the same `streamId`. A store without `acquireLease` still works through `acquire`, but forfeits that fence: an expired producer that keeps running can append to or finalize its successor's stream.
+`acquireLease(streamId, options?)` is optional. It elects exactly like `acquire`, but a `"producer"` result also carries a lease (`{ role: "producer", lease: { token } }`; consumers get `{ role: "consumer" }`). The context prefers it when present and passes the lease to every `append` and `finalize` call from that producer task; `delete` takes no lease and stays administrative. Store a per-acquisition token with the stream and, when a lease is given, reject `append` with `ResumableStreamError("missing")` and make `finalize` a no-op that resolves `false` when the stream exists and the token no longer matches (a stream with no state at all still reports not found from `finalize`, since there is no successor to defer to). This is what stops a producer whose stream expired from writing into the stream a later `acquire` created under the same `streamId`. A store without `acquireLease` still works through `acquire`, but forfeits that fence: an expired producer that keeps running can append to or finalize its successor's stream.
 
 The target for that check is the same atomicity `acquire` has: compare the token in the same round trip that writes, with a Lua script or `MULTI`/`WATCH` block in Redis, `UPDATE ... WHERE stream_id = ? AND lease_token = ?` in SQL, or the single-threaded object body in Durable Objects. A read-then-write check leaves a window where a reacquisition lands between the compare and the write.
 
@@ -115,9 +115,11 @@ export function createMapResumableStreamStore(): ResumableStreamStore {
     },
     async finalize(id, status, error) {
       const s = streams.get(id);
-      if (!s || s.final) return;
+      if (!s) throw new Error(`Cannot finalize: ${id}`);
+      if (s.final) return false;
       s.final = { status, error };
       wake(s);
+      return true;
     },
     async *read(id, cursor, signal) {
       const s = streams.get(id);

@@ -54,7 +54,6 @@ vi.mock("@/components/shared/page-frame", () => ({
 }));
 vi.mock("@/components/shared/type", () => ({
   typeDeck: "",
-  typeEyebrow: "",
   typePage: "",
 }));
 vi.mock("@/components/pages/traction/activity-heatmap", () => ({
@@ -70,9 +69,13 @@ vi.mock("@/components/pages/traction/weekly-downloads-stat", () => ({
   WeeklyDownloadsStat: () => null,
 }));
 
-const { default: TractionPage } = await import("./page");
+const { default: TractionPage, dynamic } = await import("./page");
 
 describe("TractionPage", () => {
+  it("renders at request time so npm is never read from a build", () => {
+    expect(dynamic).toBe("force-dynamic");
+  });
+
   it("starts every read except the package fan-out, which waits for the timeline", async () => {
     const page = TractionPage();
 

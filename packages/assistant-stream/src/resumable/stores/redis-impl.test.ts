@@ -275,12 +275,10 @@ describe("RedisResumableStreamStore", () => {
     await expect(
       staleStore.append(streamId, encoder.encode("stale")),
     ).rejects.toThrow(`Stream superseded by a new acquisition: ${streamId}`);
-    await expect(
-      staleStore.finalize(streamId, "done"),
-    ).resolves.toBeUndefined();
+    await expect(staleStore.finalize(streamId, "done")).resolves.toBe(false);
     await expect(freshStore.status(streamId)).resolves.toBe("streaming");
 
-    await freshStore.finalize(streamId, "done");
+    await expect(freshStore.finalize(streamId, "done")).resolves.toBe(true);
     const chunks: string[] = [];
     for await (const entry of freshStore.read(
       streamId,
@@ -315,7 +313,7 @@ describe("RedisResumableStreamStore", () => {
     client.strings.delete(metaKey);
     await expect(freshStore.acquire(streamId)).resolves.toBe("producer");
     resumeFinalizer();
-    await finalizing;
+    await expect(finalizing).resolves.toBe(false);
 
     await expect(freshStore.status(streamId)).resolves.toBe("streaming");
     await expect(
@@ -530,11 +528,16 @@ describe("RedisResumableStreamStore", () => {
       code: "missing",
       message: "Stream superseded by a new acquisition: s",
     });
-    await expect(
-      store.finalize("s", "done", undefined, a.lease),
-    ).resolves.toBeUndefined();
+    await expect(store.finalize("s", "done", undefined, a.lease)).resolves.toBe(
+      false,
+    );
     await expect(store.status("s")).resolves.toBe("streaming");
-    await store.finalize("s", "done", undefined, b.lease);
+    await expect(store.finalize("s", "done", undefined, b.lease)).resolves.toBe(
+      true,
+    );
+    await expect(store.finalize("s", "done", undefined, b.lease)).resolves.toBe(
+      false,
+    );
     await expect(
       store.append("s", encoder.encode("late"), a.lease),
     ).rejects.toMatchObject({

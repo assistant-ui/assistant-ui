@@ -8,7 +8,6 @@ import {
   TAIL_KEY,
   type ConcentrationSegment,
 } from "@/components/pages/packages/download-concentration";
-import { typeEyebrow } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 
 export type DirectoryRow = {
@@ -107,7 +106,7 @@ export function PackageDirectory({
             className="border-foreground/10 border-b py-8 md:grid md:grid-cols-[180px_minmax(0,1fr)] md:gap-12 md:py-10"
           >
             <div className="mb-5 md:mb-0">
-              <h2 className={typeEyebrow}>{category.label}</h2>
+              <h2 className="text-sm font-medium">{category.label}</h2>
               <p className="text-muted-foreground/70 mt-2 max-w-[22ch] text-[13px] leading-relaxed">
                 {category.description}
               </p>

@@ -287,10 +287,11 @@ async def test_stale_lease_cannot_mutate_reacquired_stream_on_one_store() -> Non
 
     with pytest.raises(ResumableStreamError, match="superseded"):
         await store.append("same-store", b"late", stale.lease)
-    await store.finalize("same-store", "done", lease=stale.lease)
+    assert await store.finalize("same-store", "done", lease=stale.lease) is False
     assert await store.status("same-store") == "streaming"
 
-    await store.finalize("same-store", "done", lease=fresh.lease)
+    assert await store.finalize("same-store", "done", lease=fresh.lease) is True
+    assert await store.finalize("same-store", "done", lease=fresh.lease) is False
     chunks = [
         entry.chunk
         async for entry in store.read("same-store", "", asyncio.Event())

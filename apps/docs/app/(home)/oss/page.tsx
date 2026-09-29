@@ -15,12 +15,7 @@ import {
 import { formatCompact } from "@/lib/format";
 import { createOgMetadata } from "@/lib/og";
 import { PageFrame } from "@/components/shared/page-frame";
-import {
-  typeDeck,
-  typeEyebrow,
-  typePage,
-  typeSection,
-} from "@/components/shared/type";
+import { typeDeck, typePage, typeSection } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 
 const title = "Open source";
@@ -59,10 +54,7 @@ export default async function OssPage() {
       {flagship ? (
         <div className="border-foreground/10 mt-16 border-t md:mt-20">
           <section className="border-foreground/10 border-b py-10 md:py-14">
-            <p className={typeEyebrow}>
-              {OSS_CATEGORIES[flagship.category].label}
-            </p>
-            <div className="mt-5 flex flex-col gap-8 lg:flex-row lg:items-baseline lg:justify-between lg:gap-16">
+            <div className="flex flex-col gap-8 lg:flex-row lg:items-baseline lg:justify-between lg:gap-16">
               <div className="min-w-0">
                 <Link href={ossPrimaryUrl(flagship)} className="group block">
                   <h2 className={typeSection}>
@@ -117,7 +109,7 @@ export default async function OssPage() {
               className="border-foreground/10 border-b py-10 md:grid md:grid-cols-[180px_minmax(0,1fr)] md:gap-12 md:py-12"
             >
               <div className="mb-6 md:mb-0">
-                <h2 className={typeEyebrow}>
+                <h2 className="text-sm font-medium">
                   {OSS_CATEGORIES[category].label}
                 </h2>
                 <p className="text-muted-foreground/70 mt-2 max-w-[22ch] text-[13px] leading-relaxed">

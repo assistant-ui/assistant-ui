@@ -36,7 +36,9 @@ const createChatHelpers = (initialMessages: UIMessage[] = []) => {
   return chatHelpers;
 };
 
-const createVoiceAdapter = () => {
+const createVoiceAdapter = ({
+  sendText,
+}: { sendText?: RealtimeVoiceAdapter.Session["sendText"] } = {}) => {
   let transcriptCallback:
     | ((transcript: RealtimeVoiceAdapter.TranscriptItem) => void)
     | undefined;
@@ -46,6 +48,7 @@ const createVoiceAdapter = () => {
     disconnect: vi.fn(),
     mute: vi.fn(),
     unmute: vi.fn(),
+    ...(sendText && { sendText }),
     onStatusChange: () => () => {},
     onTranscript: (callback) => {
       transcriptCallback = callback;
@@ -265,6 +268,52 @@ describe("useAISDKRuntime voice transcripts", () => {
     expect(history.append).toHaveBeenCalledWith({
       parentId: null,
       message: transcript,
+    });
+  });
+
+  it("persists a message typed into the session as a typed turn", async () => {
+    const chat = createChatHelpers();
+    const sendText = vi.fn(async (_text: string) => {});
+    const voice = createVoiceAdapter({ sendText });
+    const history = createHistoryAdapter();
+    const { result, rerender } = await renderVoiceRuntime(chat, {
+      voice: voice.adapter,
+      history: history.adapter,
+    });
+
+    act(() => {
+      result.current.thread.connectVoice();
+    });
+    await act(async () => {
+      await result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "Typed" }],
+      });
+    });
+
+    expect(sendText).toHaveBeenCalledExactlyOnceWith("Typed");
+    expect(chat.sendMessage).not.toHaveBeenCalled();
+    const typed = chat.messages[0];
+    expect(typed).toEqual({
+      id: expect.any(String),
+      role: "user",
+      parts: [{ type: "text", text: "Typed" }],
+      metadata: {},
+    });
+    rerender();
+
+    await waitFor(() => {
+      const messages = result.current.thread
+        .getState()
+        .messages.filter((message) => message.id === typed.id);
+      expect(messages).toHaveLength(1);
+      expect(messages[0]?.metadata.modality).toBeUndefined();
+      expect(textOf(messages[0]!)).toBe("Typed");
+    });
+    await waitFor(() => expect(history.append).toHaveBeenCalledTimes(1));
+    expect(history.append).toHaveBeenCalledWith({
+      parentId: null,
+      message: typed,
     });
   });
 });

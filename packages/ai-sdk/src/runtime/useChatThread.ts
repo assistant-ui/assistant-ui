@@ -39,6 +39,7 @@ export type ChatThreadOptions<UI_MESSAGE extends UIMessage = UIMessage> =
       toCreateMessage?: CustomToCreateMessageFunction;
       onResume?: AISDKRuntimeAdapter["onResume"];
       onResumeToolCall?: AISDKRuntimeAdapter["onResumeToolCall"];
+      onRespondToToolApproval?: AISDKRuntimeAdapter["onRespondToToolApproval"];
       /**
        * Called when an automatic resumable stream reconnect fails. Use this to
        * surface a toast, report telemetry, or mark the thread as needing a
@@ -56,6 +57,12 @@ export type ChatThreadEnvironment<UI_MESSAGE extends UIMessage = UIMessage> = {
   isMainThread: boolean;
   getThreadListItem: () => InitializableThreadListItem | undefined;
   stopOnClientDestroy?: boolean;
+  /**
+   * Aborts when the React component hosting the runtime is deleted. A nested
+   * runtime resolves the destroy signal of the provider above it, which
+   * outlives the nested component, so this stops the chat on its own unmount.
+   */
+  hostDestroySignal?: AbortSignal | undefined;
   /**
    * An externally owned chat instance. State lives on the instance, so it
    * survives the hosting resource unmounting; construction options are read
@@ -141,6 +148,7 @@ export const splitChatThreadOptions = <UI_MESSAGE extends UIMessage>(
     suggestions: _suggestions,
     onResume,
     onResumeToolCall,
+    onRespondToToolApproval,
     onResumeError,
     joinStrategy,
     messageRepository,
@@ -159,6 +167,7 @@ export const splitChatThreadOptions = <UI_MESSAGE extends UIMessage>(
     toCreateMessage,
     onResume,
     onResumeToolCall,
+    onRespondToToolApproval,
     onResumeError,
     joinStrategy,
     messageRepository,
@@ -202,6 +211,7 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     toCreateMessage,
     onResume,
     onResumeToolCall,
+    onRespondToToolApproval,
     onResumeError,
     joinStrategy,
     messageRepository,
@@ -214,12 +224,25 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     isMainThread,
     getThreadListItem,
     stopOnClientDestroy = true,
+    hostDestroySignal,
     chat: externalChat,
     messageRepositoryInstance,
   } = env;
 
-  const defaultTransport = useMemo(() => new AssistantChatTransport(), []);
-  const sourceTransport = transportOptions ?? defaultTransport;
+  // Wiring below is per thread and mutated on the instance, so a transport
+  // shared across simultaneously mounted threads is last-writer-wins. A
+  // caller-owned chat is already bound to its own clone, so cloning again
+  // here would wire a copy the chat never sends through.
+  const sourceTransport = useMemo(
+    () =>
+      transportOptions === undefined
+        ? new AssistantChatTransport()
+        : externalChat === undefined &&
+            transportOptions instanceof AssistantChatTransport
+          ? transportOptions.__internal_clone()
+          : transportOptions,
+    [transportOptions, externalChat],
+  );
   const transport = useDynamicChatTransport(sourceTransport);
 
   const latestChatOptionsRef = useRef(chatOptions);
@@ -239,9 +262,13 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(throttle !== undefined && { throttle }),
   });
 
-  useResourceCleanup(stopOnClientDestroy, () => {
-    void chat.stop().catch(() => {});
-  });
+  useResourceCleanup(
+    stopOnClientDestroy,
+    () => {
+      void chat.stop().catch(() => {});
+    },
+    hostDestroySignal,
+  );
 
   const runtime = useAISDKRuntime(chat, {
     adapters,
@@ -249,6 +276,7 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(toCreateMessage && { toCreateMessage }),
     ...(onResume && { onResume }),
     ...(onResumeToolCall && { onResumeToolCall }),
+    ...(onRespondToToolApproval && { onRespondToToolApproval }),
     ...(joinStrategy && { joinStrategy }),
     ...(messageRepository && { messageRepository }),
     ...(messageRepositoryInstance && {
@@ -257,6 +285,11 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(unstable_onBranchChange && { unstable_onBranchChange }),
   });
 
+  // Wire in render, not an effect: a send from a descendant's mount effect
+  // runs before this hook's effect would (effects fire child-first), and must
+  // see a wired transport. The clone is per thread, so a discarded render's
+  // wiring is discarded with it and the committed render re-wires the same
+  // instance.
   if (sourceTransport instanceof AssistantChatTransport) {
     sourceTransport.setRuntime(runtime);
     sourceTransport.__internal_setGetThreadListItem(getThreadListItem);

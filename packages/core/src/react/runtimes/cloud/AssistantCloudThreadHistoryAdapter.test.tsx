@@ -5,6 +5,7 @@ import type { AssistantCloud } from "assistant-cloud";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ThreadAssistantMessage } from "../../../types/message";
 import { useAssistantCloudThreadHistoryAdapter } from "./AssistantCloudThreadHistoryAdapter";
+import { auiV0Encode } from "./auiV0";
 
 const mocks = vi.hoisted(() => {
   const makeClient = (
@@ -88,6 +89,12 @@ const makeCloud = (telemetry: Partial<AssistantCloud["telemetry"]> = {}) =>
     runs: { report: vi.fn().mockResolvedValue(undefined) },
   }) as unknown as AssistantCloud;
 
+const tracked = (cloud: AssistantCloud, kind: string) =>
+  vi
+    .mocked(cloud.events.track)
+    .mock.calls.map(([event]) => event)
+    .filter((event) => event.kind === kind);
+
 const makeAssistantMessage = (id: string): ThreadAssistantMessage => ({
   id,
   role: "assistant",
@@ -101,6 +108,23 @@ const makeAssistantMessage = (id: string): ThreadAssistantMessage => ({
     steps: [],
     custom: {},
   },
+});
+
+const makeToolCallMessage = (
+  id: string,
+  result?: unknown,
+): ThreadAssistantMessage => ({
+  ...makeAssistantMessage(id),
+  content: [
+    {
+      type: "tool-call",
+      toolCallId: "call-1",
+      toolName: "lookup_weather",
+      args: {},
+      argsText: "{}",
+      ...(result !== undefined && { result }),
+    },
+  ],
 });
 
 afterEach(() => {
@@ -287,6 +311,115 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     ).toHaveLength(1);
   });
 
+  it("subscribes once per thread list and resolves each event through its own thread", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(100);
+    const listeners = new Map<string, Set<(payload: any) => void>>();
+    const emit = (event: string, payload: unknown) => {
+      for (const listener of listeners.get(event) ?? []) listener(payload);
+    };
+    const listedItem = {
+      source: "threads",
+      getState: () => ({ id: "thread-3", remoteId: "remote-3" }),
+      initialize: async () => ({ remoteId: "remote-3", externalId: undefined }),
+    };
+    const threads = {
+      item: vi.fn(() => listedItem),
+      getState: () => ({
+        mainThreadId: "thread-2",
+        threadItems: [
+          { id: "thread-1", remoteId: "remote-1" },
+          { id: "thread-2", remoteId: "remote-2" },
+          { id: "thread-3", remoteId: "remote-3" },
+        ],
+      }),
+    };
+    const makeClient = (id: string, remoteId: string) =>
+      ({
+        threadListItem: {
+          source: "threads",
+          getState: () => ({ id, remoteId }),
+          initialize: async () => ({ remoteId, externalId: undefined }),
+        },
+        threads,
+        thread: { getState: () => ({ isEmpty: false, suggestions: [] }) },
+        on: vi.fn((selector, callback) => {
+          let set = listeners.get(selector.event);
+          if (!set) {
+            set = new Set();
+            listeners.set(selector.event, set);
+          }
+          set.add(callback);
+          return () => set.delete(callback);
+        }),
+        subscribe: vi.fn(() => () => {}),
+      }) as unknown as import("@assistant-ui/store").AssistantClient;
+    const cloud = makeCloud();
+
+    const firstClient = makeClient("thread-1", "remote-1");
+    mocks.aui = firstClient;
+    const first = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const secondClient = makeClient("thread-2", "remote-2");
+    mocks.aui = secondClient;
+    const second = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    await waitFor(() => expect(listeners.get("composer.send")?.size).toBe(1));
+    expect(listeners.get("threads.selectionChanged")?.size).toBe(1);
+    expect(vi.mocked(firstClient.subscribe)).toHaveBeenCalledOnce();
+    expect(vi.mocked(secondClient.subscribe)).not.toHaveBeenCalled();
+
+    emit("thread.runStart", { threadId: "thread-2" });
+    emit("composer.send", { threadId: "thread-2", chars: 5, attachments: 0 });
+    emit("message.error", {
+      threadId: "thread-1",
+      messageId: "local-message-1",
+      reason: "error",
+    });
+    emit("composer.send", { threadId: "unknown", chars: 9, attachments: 0 });
+    emit("threads.selectionChanged", {
+      threadId: "thread-3",
+      previousThreadId: "thread-2",
+    });
+    await waitFor(() =>
+      expect(tracked(cloud, "thread_switched")).toEqual([
+        expect.objectContaining({ thread_id: "remote-3" }),
+      ]),
+    );
+    expect(threads.item).toHaveBeenCalledWith({ id: "thread-3" });
+    expect(tracked(cloud, "error_shown")).toEqual([
+      expect.objectContaining({ thread_id: "remote-1" }),
+    ]);
+    expect(tracked(cloud, "message_sent")).toEqual([
+      expect.objectContaining({
+        thread_id: "remote-2",
+        props: { chars: 5, attachments: 0 },
+      }),
+    ]);
+
+    first.unmount();
+    expect(listeners.get("composer.send")?.size).toBe(1);
+    expect(vi.mocked(secondClient.subscribe)).toHaveBeenCalledOnce();
+    now.mockReturnValue(160);
+    emit("thread.cancelRun", { threadId: "thread-2" });
+    await waitFor(() =>
+      expect(tracked(cloud, "run_stopped")).toEqual([
+        expect.objectContaining({ thread_id: "remote-2", value: 60 }),
+      ]),
+    );
+
+    emit("composer.send", { threadId: "thread-2", chars: 7, attachments: 0 });
+    second.unmount();
+    expect(listeners.get("composer.send")?.size).toBe(0);
+    expect(listeners.get("threads.selectionChanged")?.size).toBe(0);
+    await waitFor(() => expect(tracked(cloud, "message_sent")).toHaveLength(2));
+    expect(tracked(cloud, "message_sent")[1]).toMatchObject({
+      thread_id: "remote-2",
+      props: { chars: 7, attachments: 0 },
+    });
+  });
+
   it("refreshes formatted persistence when the Cloud client changes", async () => {
     mocks.aui = mocks.makeClient("thread-1");
     const firstCloud = makeCloud();
@@ -404,6 +537,31 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     });
   });
 
+  it("forwards a feedback comment to the cloud", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const cloudRef = { current: cloud };
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter(cloudRef),
+    );
+    const message = makeAssistantMessage("local-message-1");
+
+    await result.current.append({ parentId: null, message });
+    result.current.feedback.submit({
+      message,
+      type: "negative",
+      comment: "Quoted the wrong date",
+    });
+
+    await waitFor(() => {
+      expect(cloud.threads.messages.feedback).toHaveBeenCalledWith(
+        "thread-1",
+        "remote-message-1",
+        { type: "negative", comment: "Quoted the wrong date" },
+      );
+    });
+  });
+
   it("warns and skips feedback before the thread has a remote ID", async () => {
     mocks.aui = mocks.makeClient(undefined, "local-thread", "thread-1");
     const cloud = makeCloud();
@@ -490,7 +648,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
         id: "message-1",
         role: "assistant",
         content: [{ type: "text", text: "done" }],
-        status: { type: "complete" },
+        status: { type: "complete", reason: "stop" },
       },
     };
 
@@ -949,7 +1107,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
           id: "message-1",
           role: "assistant",
           content: [{ type: "text", text: "done" }],
-          status: { type: "complete" },
+          status: { type: "complete", reason: "stop" },
           metadata: {
             steps: [{ response: { modelId: "provider/model-1" } }],
           },
@@ -1068,5 +1226,308 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
       "m1",
       expect.anything(),
     );
+  });
+
+  it("reports a run once when its settled message is rewritten", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+
+    await result.current.append({
+      parentId: null,
+      message: makeToolCallMessage("local-message-1"),
+    });
+    await result.current.update!({
+      parentId: null,
+      message: makeToolCallMessage("local-message-1", { temperature: 21 }),
+    });
+
+    expect(cloud.threads.messages.update).toHaveBeenCalledOnce();
+    expect(cloud.runs.report).toHaveBeenCalledOnce();
+  });
+
+  it("reports a paused run from the write that settles it", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const settled = makeToolCallMessage("local-message-1", {
+      temperature: 21,
+    });
+
+    await result.current.update!({
+      parentId: null,
+      message: {
+        ...makeToolCallMessage("local-message-1"),
+        status: { type: "requires-action", reason: "tool-calls" },
+      },
+    });
+    expect(cloud.runs.report).not.toHaveBeenCalled();
+
+    await result.current.update!({ parentId: null, message: settled });
+    await result.current.update!({ parentId: null, message: settled });
+
+    expect(cloud.runs.report).toHaveBeenCalledOnce();
+  });
+
+  it("does not report a loaded settled message again when it is rewritten", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const row = (id: string, parentId: string | null, content: unknown) => ({
+      id,
+      thread_id: "thread-1",
+      format: "aui/v0" as const,
+      parent_id: parentId,
+      created_at: new Date(0),
+      content,
+    });
+    cloud.threads.messages.list = vi.fn().mockResolvedValue({
+      messages: [
+        row(
+          "msg-2",
+          "msg-1",
+          auiV0Encode({
+            ...makeToolCallMessage("msg-2"),
+            status: { type: "requires-action", reason: "tool-calls" },
+          }),
+        ),
+        row("msg-1", null, auiV0Encode(makeToolCallMessage("msg-1"))),
+      ],
+    });
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    await result.current.load();
+
+    await result.current.update!({
+      parentId: null,
+      message: makeToolCallMessage("msg-1", { temperature: 21 }),
+    });
+    expect(cloud.runs.report).not.toHaveBeenCalled();
+
+    await result.current.update!({
+      parentId: "msg-1",
+      message: makeToolCallMessage("msg-2", { temperature: 21 }),
+    });
+    expect(cloud.threads.messages.update).toHaveBeenCalledTimes(2);
+    expect(cloud.runs.report).toHaveBeenCalledOnce();
+  });
+
+  it("reports a run whose settling write a concurrent load reads back", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const paused: ThreadAssistantMessage = {
+      ...makeToolCallMessage("msg-1"),
+      status: { type: "requires-action", reason: "tool-calls" },
+    };
+    const settled = makeToolCallMessage("msg-1", { temperature: 21 });
+    const row = (message: ThreadAssistantMessage) => ({
+      id: "msg-1",
+      thread_id: "thread-1",
+      format: "aui/v0" as const,
+      parent_id: null,
+      created_at: new Date(0),
+      content: auiV0Encode(message),
+    });
+    cloud.threads.messages.list = vi
+      .fn()
+      .mockResolvedValueOnce({ messages: [row(paused)] })
+      .mockResolvedValueOnce({ messages: [row(settled)] });
+    let commitUpdate!: () => void;
+    cloud.threads.messages.update = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          commitUpdate = resolve;
+        }),
+    );
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    await result.current.load();
+
+    const updating = result.current.update!({
+      parentId: null,
+      message: settled,
+    });
+    await waitFor(() =>
+      expect(cloud.threads.messages.update).toHaveBeenCalled(),
+    );
+    await result.current.load();
+    commitUpdate();
+    await updating;
+
+    expect(cloud.runs.report).toHaveBeenCalledOnce();
+  });
+
+  it("reports a run once when overlapping writes store one settled message", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    let commitCreate!: (value: { message_id: string }) => void;
+    cloud.threads.messages.create = vi.fn(
+      () =>
+        new Promise<{ message_id: string }>((resolve) => {
+          commitCreate = resolve;
+        }),
+    );
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const message = makeToolCallMessage("local-message-1");
+
+    const writes = [
+      result.current.append({ parentId: null, message }),
+      result.current.append({ parentId: null, message }),
+    ];
+    await waitFor(() =>
+      expect(cloud.threads.messages.create).toHaveBeenCalled(),
+    );
+    commitCreate({ message_id: "remote-message-1" });
+    await Promise.all(writes);
+
+    expect(cloud.threads.messages.create).toHaveBeenCalledOnce();
+    expect(cloud.runs.report).toHaveBeenCalledOnce();
+  });
+
+  it("marks a settled message on the thread its write started on", async () => {
+    const threadA = mocks.makeClient("thread-a");
+    const threadB = mocks.makeClient("thread-b");
+    mocks.aui = threadA;
+    const cloud = makeCloud();
+    let commitCreate!: (value: { message_id: string }) => void;
+    cloud.threads.messages.create = vi.fn(
+      () =>
+        new Promise<{ message_id: string }>((resolve) => {
+          commitCreate = resolve;
+        }),
+    );
+    const { result, rerender } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+
+    const appending = result.current.append({
+      parentId: null,
+      message: makeToolCallMessage("local-message-1"),
+    });
+    await waitFor(() =>
+      expect(cloud.threads.messages.create).toHaveBeenCalled(),
+    );
+    mocks.aui = threadB;
+    rerender();
+    commitCreate({ message_id: "remote-message-1" });
+    await appending;
+
+    mocks.aui = threadA;
+    rerender();
+    await result.current.update!({
+      parentId: null,
+      message: makeToolCallMessage("local-message-1", { temperature: 21 }),
+    });
+
+    expect(cloud.threads.messages.update).toHaveBeenCalledOnce();
+    expect(cloud.runs.report).toHaveBeenCalledOnce();
+  });
+
+  it("attempts every engagement cleanup when one unsubscribe throws", async () => {
+    const aui = mocks.makeClient("thread-1");
+    const cleanupError = new Error("cleanup failed");
+    const cleanupOrder: number[] = [];
+    let subscriptionCount = 0;
+    aui.on = vi.fn(() => {
+      const index = subscriptionCount++;
+      return () => {
+        cleanupOrder.push(index);
+        if (index === 1) throw cleanupError;
+      };
+    }) as never;
+    mocks.aui = aui;
+    const { unmount } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: makeCloud() }),
+    );
+    await waitFor(() => expect(subscriptionCount).toBeGreaterThan(2));
+
+    expect(() => unmount()).toThrow(cleanupError);
+    expect(cleanupOrder).toEqual(
+      Array.from({ length: subscriptionCount }, (_, index) => index),
+    );
+  });
+});
+
+describe("useAssistantCloudThreadHistoryAdapter load recovery", () => {
+  const userRow = (id: string, parentId: string | null, text: string) => ({
+    id,
+    thread_id: "thread-1",
+    format: "aui/v0" as const,
+    parent_id: parentId,
+    created_at: new Date(0),
+    content: {
+      role: "user",
+      content: [{ type: "text", text }],
+      metadata: { custom: {} },
+    },
+  });
+
+  const loadHistory = async (messages: unknown[]) => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    cloud.threads.messages.list = vi.fn().mockResolvedValue({ messages });
+    const cloudRef = { current: cloud };
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter(cloudRef),
+    );
+    return (await result.current.load()).messages;
+  };
+
+  it("keeps a row whose stored part is malformed, and the thread below it", async () => {
+    // The cloud lists rows newest first.
+    const messages = await loadHistory([
+      userRow("msg-3", "msg-2", "after"),
+      {
+        ...userRow("msg-2", "msg-1", "ignored"),
+        content: { role: "assistant", content: [null] },
+      },
+      userRow("msg-1", null, "hello"),
+    ]);
+
+    expect(messages.map((item) => item.message.id)).toEqual([
+      "msg-1",
+      "msg-2",
+      "msg-3",
+    ]);
+    expect(messages[1]?.message.content).toEqual([]);
+  });
+
+  it("keeps a row whose stored attachment is malformed", async () => {
+    const messages = await loadHistory([
+      {
+        ...userRow("msg-1", null, "look"),
+        content: {
+          role: "user",
+          content: [{ type: "text", text: "look" }],
+          attachments: [null],
+          metadata: { custom: {} },
+        },
+      },
+    ]);
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0]?.message.content).toEqual([
+      { type: "text", text: "look" },
+    ]);
+  });
+
+  it("drops an unreadable row together with the subtree below it", async () => {
+    const messages = await loadHistory([
+      userRow("msg-3", "msg-2", "orphaned"),
+      {
+        ...userRow("msg-2", "msg-1", "ignored"),
+        content: { role: "assistant", content: null },
+      },
+      userRow("msg-1", null, "hello"),
+    ]);
+
+    expect(messages.map((item) => item.message.id)).toEqual(["msg-1"]);
   });
 });

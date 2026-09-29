@@ -3,12 +3,7 @@ import { Fragment } from "react";
 import { ArrowUpRight } from "lucide-react";
 import { createOgMetadata } from "@/lib/og";
 import { PageFrame } from "@/components/shared/page-frame";
-import {
-  typeDeck,
-  typeEyebrow,
-  typePage,
-  typeSection,
-} from "@/components/shared/type";
+import { typeDeck, typePage, typeSection } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 
 const title = "Brand";
@@ -70,15 +65,15 @@ const ASSETS = [
 ];
 
 function Section({
-  eyebrow,
+  label,
   children,
 }: {
-  eyebrow: string;
+  label: string;
   children: React.ReactNode;
 }) {
   return (
     <section className="border-foreground/10 border-b py-10 md:py-12">
-      <p className={typeEyebrow}>{eyebrow}</p>
+      <h2 className="text-sm font-medium">{label}</h2>
       {children}
     </section>
   );
@@ -119,7 +114,7 @@ export default function BrandPage() {
       </header>
 
       <div className="border-foreground/10 mt-16 border-t md:mt-20">
-        <Section eyebrow="The name">
+        <Section label="The name">
           <span className="bg-foreground mt-8 block h-10 w-60 [mask-image:url(/brand/logotype.svg)] [mask-size:contain] [mask-position:left_center] [mask-repeat:no-repeat] md:h-14 md:w-[21rem]" />
           <p className="mt-8 flex flex-wrap items-baseline gap-x-8 gap-y-2 font-mono text-[13px]">
             <span>assistant-ui</span>
@@ -135,7 +130,7 @@ export default function BrandPage() {
           </p>
         </Section>
 
-        <Section eyebrow="The mark">
+        <Section label="The mark">
           <div className="mt-10 grid gap-12 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:items-center lg:gap-20">
             <div>
               <div className="bg-foreground/75 relative aspect-square w-full max-w-[20rem] overflow-hidden [mask-image:url(/favicon/icon.svg),radial-gradient(circle,#000_40%,transparent_44%)] [mask-composite:intersect] [mask-size:contain,5px_5px] [mask-position:center,0_0] [mask-repeat:no-repeat,repeat]">
@@ -216,7 +211,7 @@ export default function BrandPage() {
           </p>
         </Section>
 
-        <Section eyebrow="The ink">
+        <Section label="The ink">
           <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-4 lg:grid-cols-7">
             {SWATCHES.map((swatch) => (
               <div key={swatch.name}>
@@ -244,7 +239,7 @@ export default function BrandPage() {
           </p>
         </Section>
 
-        <Section eyebrow="The voice">
+        <Section label="The voice">
           <div className="divide-foreground/10 mt-4 flex flex-col divide-y">
             <VoiceRow name="Display" face="System sans · 500–550">
               <p className={typeSection}>The frontend library for AI agents.</p>
@@ -261,7 +256,7 @@ export default function BrandPage() {
           </div>
         </Section>
 
-        <Section eyebrow="Rules">
+        <Section label="Rules">
           <ol className="mt-4 flex flex-col">
             {RULES.map((rule, index) => (
               <li
@@ -277,7 +272,7 @@ export default function BrandPage() {
           </ol>
         </Section>
 
-        <Section eyebrow="Assets">
+        <Section label="Assets">
           <div className="divide-foreground/10 mt-4 grid gap-2 md:grid-cols-3 md:gap-0 md:divide-x">
             {ASSETS.map((asset) => (
               <a

@@ -75,6 +75,7 @@ const running = {
   status: { type: "running" },
   isMuted: false,
   mode: "listening",
+  canSendText: false,
 } as const;
 
 const voiceMessage = (

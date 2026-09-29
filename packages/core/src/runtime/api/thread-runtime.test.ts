@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 import { LocalRuntimeCore } from "../../runtimes/local/local-runtime-core";
 import { ExternalStoreRuntimeCore } from "../../runtimes/external-store/external-store-runtime-core";
 import { ReadonlyThreadRuntimeCore } from "../../runtimes/readonly/ReadonlyThreadRuntimeCore";
+import { EMPTY_THREAD_CORE } from "../../runtimes/remote-thread-list/empty-thread-core";
+import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
 import { AssistantRuntimeImpl } from "./assistant-runtime";
 import {
   ThreadRuntimeImpl,
@@ -132,5 +135,61 @@ describe("ThreadRuntime state subscriptions", () => {
     runtime.subscribe(() => {});
     expect(threadSubscriptions).toBe(2);
     expect(itemSubscriptions).toBe(2);
+  });
+});
+
+describe("ThreadRuntime model context", () => {
+  it("notifies modelContextUpdate subscribers when the bound core is replaced", () => {
+    const attached = new ExternalStoreRuntimeCore({
+      messages: [],
+      onNew: async () => {},
+    });
+    attached.registerModelContextProvider({
+      getModelContext: () => ({
+        tools: { search_docs: { parameters: z.object({}) } },
+      }),
+    });
+
+    let core: ThreadRuntimeCore = EMPTY_THREAD_CORE;
+    let notifyBinding!: () => void;
+    const path = {
+      ref: "test.thread",
+      threadSelector: { type: "main" as const },
+    };
+    const runtime = new ThreadRuntimeImpl(
+      {
+        path,
+        getState: () => core,
+        subscribe: (callback) => {
+          notifyBinding = callback;
+          return () => {};
+        },
+        outerSubscribe: () => () => {},
+      } satisfies ThreadRuntimeCoreBinding,
+      {
+        path,
+        getState: () => ({
+          id: "test",
+          remoteId: undefined,
+          externalId: undefined,
+          isMain: true,
+          isRunning: false,
+          status: "regular",
+          title: undefined,
+        }),
+        subscribe: () => () => {},
+      } satisfies ThreadListItemRuntimeBinding,
+    );
+
+    const reads: string[][] = [];
+    runtime.unstable_on("modelContextUpdate", () => {
+      reads.push(Object.keys(runtime.getModelContext().tools ?? {}));
+    });
+    expect(runtime.getModelContext().tools).toBeUndefined();
+
+    core = attached.threads.getMainThreadRuntimeCore();
+    notifyBinding();
+
+    expect(reads).toEqual([["search_docs"]]);
   });
 });

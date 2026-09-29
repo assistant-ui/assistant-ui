@@ -90,7 +90,7 @@ The AG-UI protocol delivers agent state on the wire:
 - `STATE_SNAPSHOT` replaces the full client-side snapshot.
 - `STATE_DELTA` applies a JSON Patch to the current snapshot.
 
-The runtime applies both client-side, so `useAgUiState` always reflects the latest merged snapshot. Calling the setter from `useAgUiSetState` updates that same local snapshot. On the next run, the runtime automatically includes it as the `state` field of the run input.
+The runtime applies both client-side, so `useAgUiState` always reflects the latest merged snapshot. Calling the setter from `useAgUiSetState` updates that same local snapshot. On the next run, the runtime automatically includes it as the `state` field of the run input. Each assistant message stores the state as it stood at the end of its run.
 
 This works with any AG-UI agent (Mastra, Pydantic AI, CrewAI, LangGraph via AG-UI adapters, and other AG-UI-compliant servers).
 

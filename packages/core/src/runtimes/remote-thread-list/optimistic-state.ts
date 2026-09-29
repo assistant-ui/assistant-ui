@@ -38,9 +38,14 @@ export class OptimisticState<TState> extends BaseSubscribable {
     [];
 
   /**
-   * Completed optimistic callbacks remain active while any transform is
-   * pending, so later state replacements cannot erase them. Invocation order
-   * determines which overlapping optimistic update wins.
+   * Completed optimistic callbacks stay applied on top of the base value while
+   * any transform is pending, so a state replacement made meanwhile cannot hide
+   * them. They are dropped when the last transform settles, so `update()` must
+   * be given a state that already contains the completed effects, such as one
+   * derived from `baseValue`. While transforms are pending, callbacks apply
+   * in invocation order. A transform that settles with `then` has every
+   * completed callback replayed over its result, so an earlier-invoked update
+   * can win over it.
    *
    * Correctness requirement: `optimistic` callbacks must be idempotent.
    */

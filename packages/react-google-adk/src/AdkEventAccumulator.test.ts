@@ -246,6 +246,78 @@ describe("AdkEventAccumulator - function calls", () => {
     );
     expect(acc.getToolConfirmations()).toHaveLength(0);
   });
+
+  const requestEvent = (name: string) =>
+    makeEvent({
+      author: "agent",
+      content: {
+        role: "model",
+        parts: [{ functionCall: { name, id: "rc-1" } }, { text: "still here" }],
+      },
+    });
+
+  it("keeps an args-less confirmation call answerable", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(requestEvent("adk_request_confirmation"));
+
+    expect(acc.getToolConfirmations()).toEqual([
+      {
+        toolCallId: "rc-1",
+        toolName: "",
+        args: {},
+        hint: "",
+        confirmed: false,
+      },
+    ]);
+    expect((msgs[0] as AdkMessage & { type: "ai" }).tool_calls).toEqual([
+      {
+        id: "rc-1",
+        name: "adk_request_confirmation",
+        args: {},
+        argsText: "{}",
+      },
+    ]);
+    expect(msgs[0]).toMatchObject({
+      content: [{ type: "text", text: "still here" }],
+    });
+  });
+
+  it("keeps an args-less credential call answerable", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(requestEvent("adk_request_credential"));
+
+    expect(acc.getAuthRequests()).toEqual([
+      { toolCallId: "rc-1", authConfig: undefined },
+    ]);
+    expect((msgs[0] as AdkMessage & { type: "ai" }).tool_calls).toEqual([
+      {
+        id: "rc-1",
+        name: "adk_request_credential",
+        args: {},
+        argsText: "{}",
+      },
+    ]);
+    expect(msgs[0]).toMatchObject({
+      content: [{ type: "text", text: "still here" }],
+    });
+  });
+
+  it("defaults an ordinary call without args to empty args", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        content: {
+          role: "model",
+          parts: [{ functionCall: { name: "search", id: "tc-1" } }],
+        },
+      }),
+    );
+
+    expect((msgs[0] as AdkMessage & { type: "ai" }).tool_calls).toEqual([
+      { id: "tc-1", name: "search", args: {}, argsText: "{}" },
+    ]);
+  });
 });
 
 describe("AdkEventAccumulator - function responses", () => {
@@ -1102,21 +1174,176 @@ describe("AdkEventAccumulator - special function calls", () => {
     });
   });
 
-  it("records auth request from adk_request_credential", () => {
+  it.each([
+    [
+      "snake_case",
+      { function_call_id: "tc-original", auth_config: { type: "oauth2" } },
+    ],
+    [
+      "camelCase",
+      { functionCallId: "tc-original", authConfig: { type: "oauth2" } },
+    ],
+  ])(
+    "records an auth request under its adk_request_credential call id (%s args)",
+    (_, args) => {
+      const acc = new AdkEventAccumulator();
+      acc.processEvent(
+        makeEvent({
+          author: "agent",
+          content: {
+            role: "model",
+            parts: [
+              {
+                functionCall: {
+                  name: "adk_request_credential",
+                  id: "cred-1",
+                  args,
+                },
+              },
+            ],
+          },
+        }),
+      );
+      expect(acc.getAuthRequests()).toEqual([
+        { toolCallId: "cred-1", authConfig: { type: "oauth2" } },
+      ]);
+    },
+  );
+});
+
+describe.each([
+  {
+    name: "adk_request_confirmation",
+    args: {
+      originalFunctionCall: { id: "gated", name: "transfer", args: {} },
+      toolConfirmation: { hint: "Transfer?" },
+    },
+    actions: {
+      requestedToolConfirmations: { gated: { hint: "Transfer?" } },
+    },
+    reply: { confirmed: true },
+    pending: (acc: AdkEventAccumulator) =>
+      acc.getToolConfirmations().map((c) => c.toolCallId),
+  },
+  {
+    name: "adk_request_credential",
+    args: { function_call_id: "gated", auth_config: { credentialKey: "k" } },
+    actions: {
+      requestedAuthConfigs: {
+        gated: { credentialKey: "k" },
+        "gated-2": { credentialKey: "k" },
+      },
+    },
+    reply: { exchangedAuthCredential: { authType: "apiKey", apiKey: "key" } },
+    pending: (acc: AdkEventAccumulator) =>
+      acc.getAuthRequests().map((r) => r.toolCallId),
+  },
+])("AdkEventAccumulator - pending $name requests", (request) => {
+  const requestEvents: AdkEvent[] = [
+    makeEvent({
+      id: "call",
+      author: "agent",
+      content: {
+        role: "model",
+        parts: [
+          { functionCall: { name: "transfer", id: "gated", args: {} } },
+          { functionCall: { name: "transfer", id: "gated-2", args: {} } },
+        ],
+      },
+    }),
+    makeEvent({
+      id: "request",
+      author: "agent",
+      longRunningToolIds: ["req"],
+      actions: request.actions,
+      content: {
+        role: "user",
+        parts: [
+          {
+            functionCall: { name: request.name, id: "req", args: request.args },
+          },
+        ],
+      },
+    }),
+    makeEvent({
+      id: "interim",
+      author: "agent",
+      actions: request.actions,
+      content: {
+        role: "user",
+        parts: [
+          {
+            functionResponse: {
+              id: "gated",
+              name: "transfer",
+              response: { status: "pending" },
+            },
+          },
+        ],
+      },
+    }),
+  ];
+  const replyPart = {
+    functionResponse: {
+      id: "req",
+      name: request.name,
+      response: request.reply,
+    },
+  };
+
+  it("lists the request once, under its call, until the user replies to that call", () => {
+    const acc = new AdkEventAccumulator();
+    for (const event of requestEvents) acc.processEvent(event);
+    expect(request.pending(acc)).toEqual(["req"]);
+
+    acc.processEvent(
+      makeEvent({
+        id: "reply",
+        author: "user",
+        content: { role: "user", parts: [replyPart] },
+      }),
+    );
+    expect(request.pending(acc)).toEqual([]);
+  });
+
+  it("carries the request into an accumulator seeded with the thread, which an optimistic reply settles", () => {
+    const replayed = new AdkEventAccumulator();
+    let messages: AdkMessage[] = [];
+    for (const event of requestEvents) messages = replayed.processEvent(event);
+
+    const acc = new AdkEventAccumulator(messages);
+    expect(request.pending(acc)).toEqual(["req"]);
+
+    acc.processEvent(
+      makeEvent({
+        id: "optimistic",
+        content: { role: "user", parts: [replyPart] },
+      }),
+    );
+    expect(request.pending(acc)).toEqual([]);
+  });
+});
+
+describe("AdkEventAccumulator - confirmation replies", () => {
+  it.each([
+    [["req"], "an unreadable reply", { response: "not json" }],
+    [[], "a denial", { confirmed: false }],
+  ])("lists %j after %s", (pending, _, response) => {
     const acc = new AdkEventAccumulator();
     acc.processEvent(
       makeEvent({
+        id: "request",
         author: "agent",
+        longRunningToolIds: ["req"],
         content: {
           role: "model",
           parts: [
             {
               functionCall: {
-                name: "adk_request_credential",
-                id: "cred-1",
+                name: "adk_request_confirmation",
+                id: "req",
                 args: {
-                  function_call_id: "tc-original",
-                  auth_config: { type: "oauth2" },
+                  originalFunctionCall: { id: "gated", name: "transfer" },
                 },
               },
             },
@@ -1124,12 +1351,27 @@ describe("AdkEventAccumulator - special function calls", () => {
         },
       }),
     );
-    const reqs = acc.getAuthRequests();
-    expect(reqs).toHaveLength(1);
-    expect(reqs[0]).toMatchObject({
-      toolCallId: "tc-original",
-      authConfig: { type: "oauth2" },
-    });
+    acc.processEvent(
+      makeEvent({
+        id: "reply",
+        author: "user",
+        content: {
+          role: "user",
+          parts: [
+            {
+              functionResponse: {
+                id: "req",
+                name: "adk_request_confirmation",
+                response,
+              },
+            },
+          ],
+        },
+      }),
+    );
+    expect(acc.getToolConfirmations().map((c) => c.toolCallId)).toEqual(
+      pending,
+    );
   });
 });
 
