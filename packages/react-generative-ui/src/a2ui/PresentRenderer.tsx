@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import * as React from "react";
 import { renderGenerativeUI } from "../renderGenerativeUI";
 import type {
   GenerativeUIDispatch,
@@ -25,12 +25,12 @@ export function A2uiPresentRenderer({
   status: GenerativeUIStatus;
   dispatch?: GenerativeUIDispatch;
 }) {
-  const surface = useMemo(
+  const surface = React.useMemo(
     () => applyA2uiOperations(new Map(), operations).state.get(surfaceId),
     [operations, surfaceId],
   );
   const incoming = surface?.dataModel;
-  const [local, setLocal] = useState(() => ({
+  const [local, setLocal] = React.useState(() => ({
     incoming,
     value: incoming,
     editedPaths: new Set<string>(),
@@ -44,11 +44,11 @@ export function A2uiPresentRenderer({
         local.editedPaths,
       );
   if (model !== local) setLocal(model);
-  const convert = useMemo(
+  const convert = React.useMemo(
     () => surface && createLiveSurfaceConverter(surface),
     [surface],
   );
-  const converted = useMemo(
+  const converted = React.useMemo(
     () => convert?.(model.value),
     [convert, model.value],
   );
