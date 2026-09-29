@@ -30,7 +30,7 @@ Add a patch changeset only if a published package changed. Private packages such
 
 ## Changes in the main worktree
 
-When the user asks for it and the change already sits uncommitted in the main worktree (the primary checkout), open the PR from that change instead of writing it again; never infer this from a dirty main worktree. In step 4, carry the intended hunks into the new worktree with `git -C <main-worktree> diff origin/main -- <file>... | git apply`, and leave out any hunk that belongs to other work. Leave the main worktree as it is.
+When the user asks for it and the change already sits uncommitted in the main worktree (the primary checkout), open the PR from that change instead of writing it again; never infer this from a dirty main worktree. In step 4, carry the intended hunks into the new worktree with `git -C <main-worktree> diff HEAD -- <file>... | git apply --3way`, copy any untracked new files across, and leave out any hunk that belongs to other work. Leave the main worktree as it is.
 
 ## Cleanup
 
