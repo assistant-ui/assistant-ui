@@ -56,7 +56,10 @@ window.matchMedia = (query: string) =>
     removeEventListener() {},
   }) as unknown as MediaQueryList;
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  reducedMotion = false;
+});
 
 const commands = {
   "checkout/message": vi.fn().mockResolvedValue(undefined),
@@ -1141,7 +1144,11 @@ describe("SetupWizard messages", () => {
     const verb = () => heading().querySelector("[aria-hidden]")!.textContent;
     vi.useFakeTimers();
     const { rerender } = render(
-      <SetupWizard checkout={context(connected({ status: "planning" }))} />,
+      <SetupWizard
+        checkout={context(connected({ status: "planning" }), true, false, {
+          id: "exploring-title",
+        })}
+      />,
     );
     expect(verb()).toBe("Exploring");
     expect(heading().querySelector(".sr-only")!.textContent).toBe("Exploring");
@@ -1153,7 +1160,9 @@ describe("SetupWizard messages", () => {
     expect(heading().querySelector(".sr-only")!.textContent).toBe("Exploring");
     rerender(
       <SetupWizard
-        checkout={context(connected({ status: "planning" }), false)}
+        checkout={context(connected({ status: "planning" }), false, false, {
+          id: "exploring-title",
+        })}
       />,
     );
     act(() => vi.advanceTimersByTime(5000));
@@ -1165,7 +1174,11 @@ describe("SetupWizard messages", () => {
     reducedMotion = true;
     vi.useFakeTimers();
     render(
-      <SetupWizard checkout={context(connected({ status: "planning" }))} />,
+      <SetupWizard
+        checkout={context(connected({ status: "planning" }), true, false, {
+          id: "exploring-title",
+        })}
+      />,
     );
     act(() => vi.advanceTimersByTime(5000));
     expect(
@@ -1173,7 +1186,6 @@ describe("SetupWizard messages", () => {
         .textContent,
     ).toBe("Exploring");
     vi.useRealTimers();
-    reducedMotion = false;
   });
 
   it("fills the exploring bar with time and holds it while the agent is away", () => {
