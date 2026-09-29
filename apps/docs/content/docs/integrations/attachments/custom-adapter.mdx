@@ -47,7 +47,7 @@ const s3 = new S3Client({ region: process.env.AWS_REGION });
 
 export async function POST(req: Request) {
   const session = await auth();
-  if (!session?.user) return new Response(null, { status: 401 });
+  if (!session?.user?.id) return new Response(null, { status: 401 });
 
   const { name, contentType } = (await req.json()) as {
     name: string;
@@ -85,7 +85,7 @@ export async function DELETE(
   { params }: { params: Promise<{ key: string }> },
 ) {
   const session = await auth();
-  if (!session?.user) return new Response(null, { status: 401 });
+  if (!session?.user?.id) return new Response(null, { status: 401 });
 
   const key = decodeURIComponent((await params).key);
   if (!key.startsWith(`chat-uploads/${session.user.id}/`))
