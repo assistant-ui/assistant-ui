@@ -86,6 +86,209 @@ describe("tailBoundedRemend", () => {
     expect(tailBoundedRemend("- > 25\n\nTail")).toBe("- \\> 25\n\nTail");
   });
 
+  describe("comparison operators", () => {
+    it.each([
+      ["LF", "\n\n"],
+      ["CRLF", "\r\n\r\n"],
+      ["space-filled LF", "\n   \n"],
+      ["space-filled CRLF", "\r\n   \r\n"],
+      ["tab-filled LF", "\n\t\n"],
+      ["single LF", "\n"],
+      ["single CR", "\r"],
+    ])("does not pair a list comparison across %s", (_, separator) => {
+      for (const marker of ["-", "*", "+", "1.", "2)"]) {
+        for (const operator of [">", ">="]) {
+          const text = `${marker} ${operator}${separator}5`;
+          expect(tailBoundedRemend(text)).toBe(text);
+          const settled = `${text}\n\nTail`;
+          expect(tailBoundedRemend(settled)).toBe(settled);
+          expect(blocksOf(tailBoundedRemend(settled))).toEqual(
+            blocksOf(settled),
+          );
+        }
+      }
+    });
+
+    it.each([
+      ["- >5", "- \\>5"],
+      ["* > 25", "* \\> 25"],
+      ["+ >=$25", "+ \\>=$25"],
+      ["12. >= $25", "12. \\>= $25"],
+      ["2)  >\t5", "2)  \\>\t5"],
+      ["\t- > 5", "\t- \\> 5"],
+      ["   - > 5", "   - \\> 5"],
+      ["00000000001. > 5", "00000000001. \\> 5"],
+      ["- > 5 and > 6", "- \\> 5 and > 6"],
+      ["- > 5 `code`", "- \\> 5 `code`"],
+      ["- > 5 x~y", "- \\> 5 x\\~y"],
+      ["a\u2028- > 5", "a\u2028- \\> 5"],
+      ["- >\u20281. >5", "- \\>\u20281. >5"],
+      ["- >\u2029- >5", "- >\u2029- \\>5"],
+      ["not a list > 5", "not a list > 5"],
+      ["-\t>5", "-\t>5"],
+      ["- \t>5", "- \t>5"],
+      ["- > =5", "- > =5"],
+      ["- >$ 5", "- >$ 5"],
+      ["- >>5", "- >>5"],
+      ["- \\>5", "- \\>5"],
+      ["- >word", "- >word"],
+      ["> 5", "> 5"],
+      ["- - >5", "- - >5"],
+      ["- >+5", "- >+5"],
+      ["- >-5", "- >-5"],
+      ["١. >5", "١. >5"],
+      ["`- > 5`", "`- > 5`"],
+    ])("matches remend on the single line %j", (text, expected) => {
+      expect(remend(text)).toBe(expected);
+      expect(tailBoundedRemend(text)).toBe(expected);
+      expect(tailBoundedRemend(`${text}\n\nTail`)).toBe(`${expected}\n\nTail`);
+    });
+
+    it("matches remend's single-line whitespace in both comparison positions", () => {
+      for (const code of [
+        9, 11, 12, 32, 0xa0, 0x1680, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004,
+        0x2005, 0x2006, 0x2007, 0x2008, 0x2009, 0x200a, 0x2028, 0x2029, 0x202f,
+        0x205f, 0x3000, 0xfeff,
+      ]) {
+        const space = String.fromCharCode(code);
+        const text = `${space}- >=${space}$5`;
+        const expected = `${space}- \\>=${space}$5`;
+        expect(remend(text)).toBe(expected);
+        expect(tailBoundedRemend(text)).toBe(expected);
+      }
+      for (const code of [0x85, 0x180e, 0x200b]) {
+        const space = String.fromCharCode(code);
+        for (const text of [`${space}- >5`, `- >${space}5`]) {
+          expect(remend(text)).toBe(text);
+          expect(tailBoundedRemend(text)).toBe(text);
+        }
+      }
+    });
+
+    it.each([
+      ["a `\n- > 5\n` b\n- > 6", "a `\n- > 5\n` b\n- \\> 6"],
+      ["a \\`\n- > 5", "a \\`\n- \\> 5"],
+      ["a `\\`\n- > 5\n` b", "a `\\`\n- > 5\n` b"],
+    ])("preserves remend's inline code context in %j", (text, expected) => {
+      expect(remend(text)).toBe(expected);
+      expect(tailBoundedRemend(text)).toBe(expected);
+      expect(tailBoundedRemend(`${text}\n\nTail`)).toBe(`${expected}\n\nTail`);
+    });
+
+    it("keeps indentation after a settled separator", () => {
+      const text = "A\n\n > quote\n\nTail";
+      expect(tailBoundedRemend(text)).toBe(text);
+      expect(blocksOf(tailBoundedRemend(text))).toEqual(blocksOf(text));
+    });
+
+    it("passes a list item's continuation to a custom handler in one call", () => {
+      const calls: string[] = [];
+      const text = "- first\n\n  continuation\n\nTail";
+      const result = tailBoundedRemend(text, {
+        handlers: [
+          {
+            name: "join",
+            handle: (run) => {
+              calls.push(run);
+              return run.replace("- first\n\n  continuation", "- joined");
+            },
+          },
+        ],
+      });
+      expect(calls).toEqual(["- first\n\n  continuation\n\n", "Tail"]);
+      expect(result).toBe("- joined\n\nTail");
+    });
+
+    it("keeps comparison escapes between single tilde and priority 5 custom handlers", () => {
+      const calls: [number, string][] = [];
+      const handlers = [5, 0, 4, 10].map((priority) => ({
+        name: `record-${priority}`,
+        priority,
+        handle: (text: string) => {
+          calls.push([priority, text]);
+          return text;
+        },
+      }));
+      const options = { handlers };
+      expect(tailBoundedRemend("- > 5 x~y\n\nTail", options)).toBe(
+        "- \\> 5 x\\~y\n\nTail",
+      );
+      expect(calls).toEqual([
+        [0, "- > 5 x\\~y\n\n"],
+        [4, "- > 5 x\\~y\n\n"],
+        [5, "- \\> 5 x\\~y\n\n"],
+        [10, "- \\> 5 x\\~y\n\n"],
+        [0, "Tail"],
+        [4, "Tail"],
+        [5, "Tail"],
+        [10, "Tail"],
+      ]);
+      expect(options).toEqual({ handlers });
+      expect(handlers.map(({ priority }) => priority)).toEqual([5, 0, 4, 10]);
+    });
+
+    it("confines comparisons introduced by an earlier handler to their line", () => {
+      const calls: string[] = [];
+      expect(
+        tailBoundedRemend("Draft", {
+          handlers: [
+            { name: "insert", priority: 4, handle: () => "- >\n5" },
+            {
+              name: "record",
+              priority: 5,
+              handle: (text) => {
+                calls.push(text);
+                return text;
+              },
+            },
+          ],
+        }),
+      ).toBe("- >\n5");
+      expect(calls).toEqual(["- >\n5"]);
+    });
+
+    it("keeps link completion's early return after comparison escaping", () => {
+      const calls: string[] = [];
+      const options = {
+        handlers: [
+          {
+            name: "late",
+            handle: (text: string) => {
+              calls.push(text);
+              return text;
+            },
+          },
+        ],
+      };
+      const text = "- > 5 [link";
+      expect(tailBoundedRemend(text, options)).toBe(remend(text, options));
+      expect(calls).toEqual([]);
+    });
+
+    it.each([
+      ["leading", ""],
+      ["prose-prefixed", "Intro"],
+    ])("scales linearly across a %s blank run", (_, prefix) => {
+      const small = `${prefix}${"\n".repeat(4096)}x>\n\nTail`;
+      const large = `${prefix}${"\n".repeat(8 * 4096)}x>\n\nTail`;
+      expect(tailBoundedRemend(small)).toBe(small);
+      expect(tailBoundedRemend(large)).toBe(large);
+      const measure = (text: string) => {
+        const start = performance.now();
+        tailBoundedRemend(text);
+        return performance.now() - start;
+      };
+      const smallTimes: number[] = [];
+      const largeTimes: number[] = [];
+      for (let i = 0; i < 3; i += 1) {
+        smallTimes.push(measure(small));
+        largeTimes.push(measure(large));
+      }
+      const median = (times: number[]) => times.sort((a, b) => a - b)[1]!;
+      expect(median(largeTimes)).toBeLessThan(median(smallTimes) * 24 + 10);
+    });
+  });
+
   it("respects disabled escapes in earlier paragraphs", () => {
     const text = "20~25 and 30~35\n\n- > 25\n\nTail";
     expect(
