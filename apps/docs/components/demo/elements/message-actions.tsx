@@ -5,17 +5,14 @@ import {
   MessageActions,
   type Reaction,
 } from "@/components/assistant-ui/elements/message-actions";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 
 export function MessageActionsDemo() {
-  const [copied, setCopied] = useState(false);
+  const { isCopied, copyToClipboard } = useCopyToClipboard({
+    copiedDuration: 1400,
+  });
   const [reaction, setReaction] = useState<Reaction>(null);
   const [regenerating, setRegenerating] = useState(false);
-
-  useEffect(() => {
-    if (!copied) return undefined;
-    const id = setTimeout(() => setCopied(false), 1400);
-    return () => clearTimeout(id);
-  }, [copied]);
 
   useEffect(() => {
     if (!regenerating) return undefined;
@@ -25,10 +22,10 @@ export function MessageActionsDemo() {
 
   return (
     <MessageActions
-      copied={copied}
+      copied={isCopied}
       reaction={reaction}
       regenerating={regenerating}
-      onCopy={() => setCopied(true)}
+      onCopy={() => copyToClipboard("...")}
       onReactionChange={setReaction}
       onRegenerate={() => setRegenerating(true)}
       onMore={() => {}}

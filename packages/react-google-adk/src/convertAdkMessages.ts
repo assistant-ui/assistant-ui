@@ -89,6 +89,11 @@ const contentToParts = (
             name: "code_execution_result",
             data: { output: part.output, outcome: part.outcome },
           };
+        case "activity":
+          return {
+            type: "text",
+            text: typeof part.message === "string" ? part.message : "",
+          };
         default:
           return null;
       }

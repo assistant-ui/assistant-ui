@@ -66,7 +66,7 @@ Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRun
 Attachments appear in two different contexts:
 
 - **Composer**: via `ComposerPrimitive.Attachments`. These are pending uploads that can be removed before sending.
-- **Messages**: via `MessagePrimitive.Attachments`. These are sent attachments, displayed read-only (the iterator renders attachments for user messages).
+- **Messages**: via `MessagePrimitive.Attachments`. These are sent attachments, displayed read-only (the iterator renders attachments for user messages). While the message is the composer's submission, its attachments are still being prepared, so the iterator hands the render function an `Attachment` rather than a `CompleteAttachment`: read `attachment.status` before `attachment.content`.
 
 The same `AttachmentPrimitive` parts work in both contexts. The difference is behavioral: `Remove` only works in the composer context.
 

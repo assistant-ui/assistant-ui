@@ -72,9 +72,12 @@ const setReduceMotion = (reduced: boolean) => {
 const subscribeMotion = (listener: () => void) => {
   if (motionListeners.size === 0) {
     const query = ++reduceMotionQuery;
-    void AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
-      if (query === reduceMotionQuery) setReduceMotion(reduced);
-    });
+    void AccessibilityInfo.isReduceMotionEnabled().then(
+      (reduced) => {
+        if (query === reduceMotionQuery) setReduceMotion(reduced);
+      },
+      () => {},
+    );
     reduceMotionSubscription = AccessibilityInfo.addEventListener(
       "reduceMotionChanged",
       setReduceMotion,

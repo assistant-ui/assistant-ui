@@ -3,7 +3,7 @@ import type { AssistantCloudRunReport } from "./AssistantCloudRuns";
 
 const MAX_TELEMETRY_TEXT_LENGTH = 50_000;
 
-const BASE64_PATTERN = /^[A-Za-z0-9+/]{100,}={0,2}$/;
+const BASE64_PATTERN = /^[A-Za-z0-9+/]+={0,2}$/;
 
 export type AssistantCloudRunReportToolCall = {
   tool_name: string;
@@ -114,28 +114,81 @@ function safeStringify(value: unknown): string | undefined {
   }
 }
 
+const base64SizeKB = (value: string) =>
+  ((value.length * 3) / 4 / 1024).toFixed(1);
+
+// Both call sites read a field the MCP content grammar already defines as
+// base64, so the test only has to recognise the encoding's own shape: its
+// alphabet, and a length that is a multiple of four. A size floor would leave
+// a short payload — `aGk=` is a whole image in this repo's own fixtures —
+// serialized raw.
+const isInlineBase64 = (value: unknown): value is string => {
+  if (typeof value !== "string") return false;
+  const head = value.slice(0, 200);
+  return head.length > 0 && head.length % 4 === 0 && BASE64_PATTERN.test(head);
+};
+
+function summarizeMcpContentBlock(item: unknown): unknown {
+  if (!item || typeof item !== "object") return item;
+  const block = item as {
+    type?: unknown;
+    data?: unknown;
+    resource?: unknown;
+  };
+  if (
+    (block.type === "image" || block.type === "audio") &&
+    isInlineBase64(block.data)
+  ) {
+    return {
+      ...block,
+      data: `[${String(block.type)}: ${base64SizeKB(block.data)}KB]`,
+    };
+  }
+  // An EmbeddedResource is the third inline carrier: a binary resource arrives
+  // as base64 under `resource.blob` rather than as a top-level `data` field.
+  if (
+    block.type === "resource" &&
+    block.resource &&
+    typeof block.resource === "object"
+  ) {
+    const resource = block.resource as { blob?: unknown };
+    if (isInlineBase64(resource.blob)) {
+      return {
+        ...block,
+        resource: {
+          ...resource,
+          blob: `[resource: ${base64SizeKB(resource.blob)}KB]`,
+        },
+      };
+    }
+  }
+  return item;
+}
+
 function summarizeMcpResult(value: unknown): string | undefined {
   if (value == null) return undefined;
   try {
     const parsed = typeof value === "string" ? JSON.parse(value) : value;
     if (Array.isArray(parsed)) {
-      const summarized = parsed.map((item) => {
-        if (item && typeof item === "object" && item.type) {
-          if (
-            (item.type === "image" || item.type === "audio") &&
-            typeof item.data === "string" &&
-            BASE64_PATTERN.test(item.data.slice(0, 200))
-          ) {
-            const sizeKB = ((item.data.length * 3) / 4 / 1024).toFixed(1);
-            return { ...item, data: `[${item.type}: ${sizeKB}KB]` };
-          }
-        }
-        return item;
-      });
-      return truncateRunTelemetryText(JSON.stringify(summarized));
+      return truncateRunTelemetryText(
+        JSON.stringify(parsed.map(summarizeMcpContentBlock)),
+      );
+    }
+    // `callTool` resolves to a CallToolResult, so the blocks carrying base64
+    // arrive under `content` rather than as the result itself.
+    if (typeof parsed === "object") {
+      const content = (parsed as { content?: unknown }).content;
+      if (Array.isArray(content)) {
+        return truncateRunTelemetryText(
+          JSON.stringify({
+            ...(parsed as Record<string, unknown>),
+            content: content.map(summarizeMcpContentBlock),
+          }),
+        );
+      }
     }
   } catch {
-    // not JSON array, fall through
+    // not a shape with summarizable content, fall through
   }
   return safeStringify(value);
 }

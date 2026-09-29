@@ -10,6 +10,8 @@ import type {
   ThreadAssistantMessage,
   ThreadHistoryAdapter,
   ThreadMessage,
+  RespondToToolApprovalOptions,
+  Unstable_ToolInteractionLog,
 } from "@assistant-ui/core";
 
 const mocks = vi.hoisted(() => ({
@@ -349,7 +351,12 @@ describe("useExternalHistory persistence", () => {
     mocks.listeners.clear();
   });
 
-  type InnerMessage = { id: string; parts: string[] };
+  type InnerMessage = {
+    id: string;
+    parts: unknown[];
+    role?: string;
+    metadata?: Record<string, unknown>;
+  };
 
   const persistenceStorageFormat: MessageFormatAdapter<
     InnerMessage,
@@ -393,6 +400,13 @@ describe("useExternalHistory persistence", () => {
       loadMessages?: MessageFormatRepository<InnerMessage>;
       toThreadMessages?: (messages: InnerMessage[]) => ThreadMessage[];
       initialIsRunning?: boolean;
+      onSetMessages?: (messages: InnerMessage[]) => void;
+      toolArtifacts?: Map<string, unknown>;
+      onToolArtifactsRestored?: () => void;
+      toolInteractions?: Map<string, Unstable_ToolInteractionLog>;
+      onToolInteractionsRestored?: () => void;
+      toolApprovalResponses?: Map<string, RespondToToolApprovalOptions>;
+      onToolApprovalResponsesRestored?: () => void;
     },
   ) => {
     const append = vi.fn(
@@ -430,13 +444,14 @@ describe("useExternalHistory persistence", () => {
     let isRunning = options?.initialIsRunning ?? false;
     let messages: ThreadMessage[] = [];
     const getState = vi.fn(() => ({ isRunning, messages }));
+    const importMessages = vi.fn();
     const thread = {
       subscribe: (nextListener: () => void) => {
         listener = nextListener;
         return () => {};
       },
       getState,
-      import: vi.fn(),
+      import: importMessages,
       export: vi.fn(() => ({ headId: null, messages: [] })),
     } as unknown as AssistantRuntime["thread"];
     const persistenceRuntimeRef = {
@@ -452,7 +467,13 @@ describe("useExternalHistory persistence", () => {
         historyAdapter,
         options?.toThreadMessages ?? (() => []),
         persistenceStorageFormat,
-        () => {},
+        options?.onSetMessages ?? (() => {}),
+        options?.toolArtifacts,
+        options?.onToolArtifactsRestored,
+        options?.toolInteractions,
+        options?.onToolInteractionsRestored,
+        options?.toolApprovalResponses,
+        options?.onToolApprovalResponsesRestored,
       ),
     );
 
@@ -488,15 +509,52 @@ describe("useExternalHistory persistence", () => {
       update,
       deleteItems,
       formattedAdapter,
+      importMessages,
       deleteMessage: result.current.deleteMessage,
       reportTelemetry,
       load,
+      persistToolInteractions: result.current.persistToolInteractions,
+      persistToolApprovalResponses: result.current.persistToolApprovalResponses,
       runCycle,
       flush,
       step,
       unmount,
     };
   };
+
+  it("clears tool data and invokes restore callbacks when loaded history is empty", async () => {
+    const toolArtifacts = new Map<string, unknown>([
+      ["call-1", { preview: "72°F and sunny" }],
+    ]);
+    const toolInteractions = new Map<string, Unstable_ToolInteractionLog>([
+      ["call-1", { entries: [{ type: "action", occurredAt: 1, payload: {} }] }],
+    ]);
+    const toolApprovalResponses = new Map<string, RespondToToolApprovalOptions>(
+      [["approval-1", { approvalId: "approval-1", approved: true }]],
+    );
+    const onToolArtifactsRestored = vi.fn();
+    const onToolInteractionsRestored = vi.fn();
+    const onToolApprovalResponsesRestored = vi.fn();
+    const { importMessages, load } = createPersistenceHarness(false, {
+      loadMessages: { messages: [] },
+      toolArtifacts,
+      onToolArtifactsRestored,
+      toolInteractions,
+      onToolInteractionsRestored,
+      toolApprovalResponses,
+      onToolApprovalResponsesRestored,
+    });
+
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+    expect(toolArtifacts).toEqual(new Map());
+    expect(toolInteractions).toEqual(new Map());
+    expect(toolApprovalResponses).toEqual(new Map());
+    expect(onToolArtifactsRestored).toHaveBeenCalledOnce();
+    expect(onToolInteractionsRestored).toHaveBeenCalledOnce();
+    expect(onToolApprovalResponsesRestored).toHaveBeenCalledOnce();
+    expect(importMessages).not.toHaveBeenCalled();
+  });
 
   it("persists a message that lands while the thread is idle", async () => {
     const { append, step } = createPersistenceHarness(false);
@@ -512,6 +570,888 @@ describe("useExternalHistory persistence", () => {
       parentId: null,
       message: { id: "spoken-1", parts: ["spoken"] },
     });
+  });
+
+  it("updates stored tool artifacts without mutating chat messages", async () => {
+    const toolArtifacts = new Map<string, unknown>();
+    const { append, update, runCycle } = createPersistenceHarness(true, {
+      toolArtifacts,
+    });
+    const innerMessage: InnerMessage = {
+      id: "inner-a",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-weather",
+          toolCallId: "call-1",
+          state: "output-available",
+          input: { city: "New York" },
+          output: { temperature: 72 },
+        },
+      ],
+    };
+    const content: ThreadAssistantMessage["content"] = [
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "weather",
+        args: { city: "New York" },
+        argsText: '{"city":"New York"}',
+        result: { temperature: 72 },
+        isError: false,
+      },
+    ];
+    const message = Object.assign(
+      createAssistantMessage({ type: "complete", reason: "stop" }, [
+        innerMessage,
+      ]),
+      { content },
+    );
+
+    await runCycle([message]);
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+    expect(append).toHaveBeenCalledWith({
+      parentId: null,
+      message: innerMessage,
+    });
+
+    toolArtifacts.set("call-1", { preview: "72°F and sunny" });
+    await runCycle([message]);
+
+    await waitFor(() =>
+      expect(update).toHaveBeenCalledWith(
+        {
+          parentId: null,
+          message: {
+            ...innerMessage,
+            metadata: {
+              __aui_toolArtifacts: {
+                "call-1": { preview: "72°F and sunny" },
+              },
+            },
+          },
+        },
+        "inner-a",
+      ),
+    );
+    expect(innerMessage.metadata).toBeUndefined();
+  });
+
+  it("keeps tool artifacts out of run telemetry", async () => {
+    const toolArtifacts = new Map<string, unknown>([
+      ["call-1", { preview: "72°F and sunny" }],
+    ]);
+    const { append, load, reportTelemetry, runCycle } =
+      createPersistenceHarness(false, { toolArtifacts });
+    const innerMessage: InnerMessage = {
+      id: "inner-a",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-weather",
+          toolCallId: "call-1",
+          state: "output-available",
+        },
+      ],
+    };
+    const message = Object.assign(
+      createAssistantMessage({ type: "complete", reason: "stop" }, [
+        innerMessage,
+      ]),
+      {
+        content: [
+          {
+            type: "tool-call" as const,
+            toolCallId: "call-1",
+            toolName: "weather",
+            args: {},
+            argsText: "{}",
+            result: { temperature: 72 },
+            isError: false,
+          },
+        ],
+      },
+    );
+
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    toolArtifacts.set("call-1", { preview: "72°F and sunny" });
+
+    await runCycle([message]);
+
+    await waitFor(() => expect(reportTelemetry).toHaveBeenCalledTimes(1));
+    expect(append.mock.calls[0]?.[0].message).toHaveProperty(
+      "metadata.__aui_toolArtifacts",
+    );
+    expect(reportTelemetry.mock.calls[0]?.[0]).toEqual([
+      { parentId: null, message: innerMessage },
+    ]);
+  });
+
+  it("keeps tool interactions and approval responses out of run telemetry", async () => {
+    const toolInteractions = new Map<string, Unstable_ToolInteractionLog>([
+      [
+        "call-1",
+        {
+          entries: [
+            {
+              type: "action",
+              occurredAt: 1,
+              payload: { refresh: true },
+            },
+          ],
+        },
+      ],
+    ]);
+    const toolApprovalResponses = new Map<string, RespondToToolApprovalOptions>(
+      [
+        [
+          "approval-1",
+          { approvalId: "approval-1", approved: true, reason: "Approved" },
+        ],
+      ],
+    );
+    const { append, load, reportTelemetry, runCycle } =
+      createPersistenceHarness(false, {
+        toolInteractions,
+        toolApprovalResponses,
+      });
+    const innerMessage: InnerMessage = {
+      id: "inner-a",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-weather",
+          toolCallId: "call-1",
+          state: "output-available",
+        },
+        {
+          type: "tool-deploy",
+          toolCallId: "call-2",
+          state: "approval-requested",
+          approval: { id: "approval-1" },
+        },
+      ],
+    };
+    const message = Object.assign(
+      createAssistantMessage({ type: "complete", reason: "stop" }, [
+        innerMessage,
+      ]),
+      {
+        content: [
+          {
+            type: "tool-call" as const,
+            toolCallId: "call-1",
+            toolName: "weather",
+            args: {},
+            argsText: "{}",
+            result: { temperature: 72 },
+            isError: false,
+          },
+          {
+            type: "tool-call" as const,
+            toolCallId: "call-2",
+            toolName: "deploy",
+            args: {},
+            argsText: "{}",
+            result: undefined,
+            isError: false,
+            approval: { id: "approval-1" },
+          },
+        ],
+      },
+    );
+
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    toolInteractions.set("call-1", {
+      entries: [
+        {
+          type: "action",
+          occurredAt: 1,
+          payload: { refresh: true },
+        },
+      ],
+    });
+    toolApprovalResponses.set("approval-1", {
+      approvalId: "approval-1",
+      approved: true,
+      reason: "Approved",
+    });
+
+    await runCycle([message]);
+
+    await waitFor(() => expect(reportTelemetry).toHaveBeenCalledTimes(1));
+    expect(append.mock.calls[0]?.[0].message).toMatchObject({
+      metadata: {
+        __aui_toolInteractions: { "call-1": toolInteractions.get("call-1") },
+        __aui_toolApprovalResponses: {
+          "approval-1": { approved: true, reason: "Approved" },
+        },
+      },
+    });
+    expect(reportTelemetry.mock.calls[0]?.[0]).toEqual([
+      { parentId: null, message: innerMessage },
+    ]);
+  });
+
+  it("stores host approval responses with the first message write", async () => {
+    const toolApprovalResponses = new Map<string, RespondToToolApprovalOptions>(
+      [
+        [
+          "approval-1",
+          {
+            approvalId: "approval-1",
+            approved: true,
+            optionId: "allow-once",
+            text: "Staging only",
+            reason: "Approved by operator",
+          },
+        ],
+      ],
+    );
+    const { append, load, runCycle } = createPersistenceHarness(false, {
+      toolApprovalResponses,
+    });
+    const innerMessage: InnerMessage = {
+      id: "inner-a",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-deploy",
+          toolCallId: "call-1",
+          state: "approval-requested",
+          approval: { id: "approval-1" },
+        },
+      ],
+    };
+    const message = Object.assign(
+      createAssistantMessage({ type: "complete", reason: "stop" }, [
+        innerMessage,
+      ]),
+      {
+        content: [
+          {
+            type: "tool-call" as const,
+            toolCallId: "call-1",
+            toolName: "deploy",
+            args: {},
+            argsText: "{}",
+            result: undefined,
+            isError: false,
+            approval: { id: "approval-1" },
+          },
+        ],
+      },
+    );
+
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    toolApprovalResponses.set("approval-1", {
+      approvalId: "approval-1",
+      approved: true,
+      optionId: "allow-once",
+      text: "Staging only",
+      reason: "Approved by operator",
+    });
+
+    await runCycle([message]);
+
+    await waitFor(() =>
+      expect(append).toHaveBeenCalledWith({
+        parentId: null,
+        message: {
+          ...innerMessage,
+          metadata: {
+            __aui_toolApprovalResponses: {
+              "approval-1": {
+                approved: true,
+                optionId: "allow-once",
+                text: "Staging only",
+                reason: "Approved by operator",
+              },
+            },
+          },
+        },
+      }),
+    );
+    expect(innerMessage.metadata).toBeUndefined();
+  });
+
+  it("logs and retries a failed host approval response update after a settled run", async () => {
+    const toolApprovalResponses = new Map<
+      string,
+      RespondToToolApprovalOptions
+    >();
+    const { append, update, persistToolApprovalResponses, runCycle } =
+      createPersistenceHarness(true, { toolApprovalResponses });
+    const innerMessage: InnerMessage = {
+      id: "inner-a",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-deploy",
+          toolCallId: "call-1",
+          state: "approval-requested",
+          approval: { id: "approval-1" },
+        },
+      ],
+    };
+    const message = Object.assign(
+      createAssistantMessage({ type: "complete", reason: "stop" }, [
+        innerMessage,
+      ]),
+      {
+        content: [
+          {
+            type: "tool-call" as const,
+            toolCallId: "call-1",
+            toolName: "deploy",
+            args: {},
+            argsText: "{}",
+            result: undefined,
+            isError: false,
+            approval: { id: "approval-1" },
+          },
+        ],
+      },
+    );
+
+    await runCycle([message]);
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+
+    toolApprovalResponses.set("approval-1", {
+      approvalId: "approval-1",
+      approved: false,
+      reason: "Not now",
+    });
+    const failure = new Error("storage unavailable");
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    update.mockRejectedValueOnce(failure);
+
+    try {
+      await act(async () => {
+        await persistToolApprovalResponses("inner-a");
+      });
+
+      expect(errorSpy).toHaveBeenCalledWith(
+        "Failed to persist tool data:",
+        failure,
+      );
+      await act(async () => {
+        await persistToolApprovalResponses("inner-a");
+      });
+
+      expect(update).toHaveBeenCalledTimes(2);
+      expect(update).toHaveBeenLastCalledWith(
+        {
+          parentId: null,
+          message: {
+            ...innerMessage,
+            metadata: {
+              __aui_toolApprovalResponses: {
+                "approval-1": { approved: false, reason: "Not now" },
+              },
+            },
+          },
+        },
+        "inner-a",
+      );
+      expect(append).toHaveBeenCalledTimes(1);
+      expect(innerMessage.metadata).toBeUndefined();
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it("stores tool interactions with the first message write", async () => {
+    const toolInteractions = new Map<string, Unstable_ToolInteractionLog>([
+      [
+        "call-1",
+        {
+          entries: [
+            {
+              type: "action",
+              occurredAt: 1,
+              payload: { refresh: true },
+            },
+          ],
+        },
+      ],
+    ]);
+    const { append, load, runCycle } = createPersistenceHarness(false, {
+      toolArtifacts: new Map(),
+      toolInteractions,
+    });
+    const innerMessage: InnerMessage = {
+      id: "inner-a",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-weather",
+          toolCallId: "call-1",
+          state: "output-available",
+        },
+      ],
+    };
+    const message = Object.assign(
+      createAssistantMessage({ type: "complete", reason: "stop" }, [
+        innerMessage,
+      ]),
+      {
+        content: [
+          {
+            type: "tool-call" as const,
+            toolCallId: "call-1",
+            toolName: "weather",
+            args: {},
+            argsText: "{}",
+            result: { temperature: 72 },
+            isError: false,
+          },
+        ],
+      },
+    );
+
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    toolInteractions.set("call-1", {
+      entries: [
+        {
+          type: "action",
+          occurredAt: 1,
+          payload: { refresh: true },
+        },
+      ],
+    });
+
+    await runCycle([message]);
+
+    await waitFor(() =>
+      expect(append).toHaveBeenCalledWith({
+        parentId: null,
+        message: {
+          ...innerMessage,
+          metadata: {
+            __aui_toolInteractions: {
+              "call-1": toolInteractions.get("call-1"),
+            },
+          },
+        },
+      }),
+    );
+    expect(innerMessage.metadata).toBeUndefined();
+  });
+
+  it("leaves stored rows unchanged without tool artifacts", async () => {
+    const toolArtifacts = new Map<string, unknown>();
+    const { append, runCycle } = createPersistenceHarness(false, {
+      toolArtifacts,
+    });
+    const innerMessage = { id: "inner-a", parts: ["answer"] };
+    const message = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [innerMessage],
+    );
+
+    await runCycle([message]);
+
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+    expect(append).toHaveBeenCalledWith({
+      parentId: null,
+      message: innerMessage,
+    });
+    expect(append.mock.calls[0]?.[0].message).toBe(innerMessage);
+  });
+
+  it("logs and retries a failed tool interaction update after a settled run", async () => {
+    const toolInteractions = new Map<string, Unstable_ToolInteractionLog>();
+    const { append, update, persistToolInteractions, runCycle } =
+      createPersistenceHarness(true, { toolInteractions });
+    const initialInnerMessage: InnerMessage = {
+      id: "inner-a",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-weather",
+          toolCallId: "call-1",
+          state: "output-available",
+        },
+      ],
+    };
+    const createMessage = (innerMessage: InnerMessage) =>
+      Object.assign(
+        createAssistantMessage({ type: "complete", reason: "stop" }, [
+          innerMessage,
+        ]),
+        {
+          content: [
+            {
+              type: "tool-call" as const,
+              toolCallId: "call-1",
+              toolName: "weather",
+              args: {},
+              argsText: "{}",
+              result: undefined,
+              isError: false,
+            },
+          ],
+        },
+      );
+
+    await runCycle([createMessage(initialInnerMessage)]);
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+
+    const log: Unstable_ToolInteractionLog = {
+      entries: [
+        {
+          type: "human-response",
+          occurredAt: 2,
+          payload: "yes",
+        },
+      ],
+    };
+    toolInteractions.set("call-1", log);
+    const failure = new Error("storage unavailable");
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    update.mockRejectedValueOnce(failure);
+
+    try {
+      await act(async () => {
+        await persistToolInteractions("assistant-a");
+      });
+
+      expect(errorSpy).toHaveBeenCalledWith(
+        "Failed to persist tool data:",
+        failure,
+      );
+      await act(async () => {
+        await persistToolInteractions("assistant-a");
+      });
+
+      expect(update).toHaveBeenCalledTimes(2);
+      expect(update).toHaveBeenLastCalledWith(
+        {
+          parentId: null,
+          message: {
+            ...initialInnerMessage,
+            metadata: {
+              __aui_toolInteractions: { "call-1": log },
+            },
+          },
+        },
+        "inner-a",
+      );
+      expect(append).toHaveBeenCalledTimes(1);
+
+      const rewrittenInnerMessage = {
+        ...initialInnerMessage,
+        parts: [...initialInnerMessage.parts, { type: "text", text: "done" }],
+      };
+      await runCycle([createMessage(rewrittenInnerMessage)]);
+
+      await waitFor(() =>
+        expect(update).toHaveBeenLastCalledWith(
+          {
+            parentId: null,
+            message: {
+              ...rewrittenInnerMessage,
+              metadata: {
+                __aui_toolInteractions: { "call-1": log },
+              },
+            },
+          },
+          "inner-a",
+        ),
+      );
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it("leaves stored rows unchanged without tool artifacts or interactions", async () => {
+    const toolArtifacts = new Map<string, unknown>();
+    const toolInteractions = new Map<string, Unstable_ToolInteractionLog>();
+    const { append, runCycle } = createPersistenceHarness(false, {
+      toolArtifacts,
+      toolInteractions,
+    });
+    const innerMessage = {
+      id: "inner-a",
+      parts: [
+        {
+          type: "tool-weather",
+          toolCallId: "call-1",
+          state: "output-available",
+        },
+      ],
+    };
+    const message = Object.assign(
+      createAssistantMessage({ type: "complete", reason: "stop" }, [
+        innerMessage,
+      ]),
+      {
+        content: [
+          {
+            type: "tool-call" as const,
+            toolCallId: "call-1",
+            toolName: "weather",
+            args: {},
+            argsText: "{}",
+            result: undefined,
+            isError: false,
+          },
+        ],
+      },
+    );
+
+    await runCycle([message]);
+
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+    expect(append).toHaveBeenCalledWith({
+      parentId: null,
+      message: innerMessage,
+    });
+    expect(append.mock.calls[0]?.[0].message).toBe(innerMessage);
+  });
+
+  it("restores stored tool interactions without returning metadata to the chat", async () => {
+    const toolInteractions = new Map<string, Unstable_ToolInteractionLog>();
+    const onSetMessages = vi.fn();
+    const log: Unstable_ToolInteractionLog = {
+      entries: [
+        {
+          type: "human-response",
+          occurredAt: 3,
+          payload: "yes",
+        },
+      ],
+    };
+    const storedMessage: InnerMessage = {
+      id: "inner-a",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-weather",
+          toolCallId: "call-1",
+          state: "output-available",
+        },
+      ],
+      metadata: {
+        __aui_toolInteractions: { "call-1": log },
+      },
+    };
+    const { importMessages, load } = createPersistenceHarness(true, {
+      loadMessages: {
+        messages: [{ parentId: null, message: storedMessage }],
+      },
+      toThreadMessages: (messages) =>
+        messages.map((message) => {
+          const tool = message.parts[0] as { toolCallId: string };
+          const converted = createAssistantMessage(
+            { type: "complete", reason: "stop" },
+            [message],
+            message.id,
+          ) as ThreadAssistantMessage;
+          return Object.assign(converted, {
+            content: [
+              {
+                type: "tool-call" as const,
+                toolCallId: tool.toolCallId,
+                toolName: "weather",
+                args: {},
+                argsText: "{}",
+                result: undefined,
+                isError: false,
+                unstable_interactions: toolInteractions.get(tool.toolCallId),
+              },
+            ],
+          });
+        }),
+      onSetMessages,
+      toolInteractions,
+    });
+
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(importMessages).toHaveBeenCalledTimes(1));
+
+    const imported = importMessages.mock.calls[0]?.[0] as {
+      messages: { message: ThreadMessage }[];
+    };
+    expect(imported.messages[0]?.message.content[0]).toMatchObject({
+      type: "tool-call",
+      toolCallId: "call-1",
+      unstable_interactions: log,
+    });
+    expect(toolInteractions.get("call-1")).toEqual(log);
+    expect(onSetMessages.mock.calls[0]?.[0][0]).not.toHaveProperty(
+      "metadata.__aui_toolInteractions",
+    );
+  });
+
+  it("restores host approval responses without returning metadata to the chat", async () => {
+    const toolApprovalResponses = new Map<
+      string,
+      RespondToToolApprovalOptions
+    >();
+    const onSetMessages = vi.fn();
+    const storedMessage: InnerMessage = {
+      id: "inner-a",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-deploy",
+          toolCallId: "call-1",
+          state: "approval-requested",
+          approval: { id: "approval-1" },
+        },
+      ],
+      metadata: {
+        __aui_toolApprovalResponses: {
+          "approval-1": {
+            approved: true,
+            optionId: "allow-once",
+            text: "Staging only",
+            reason: "Approved by operator",
+          },
+        },
+      },
+    };
+    const { importMessages, load } = createPersistenceHarness(true, {
+      loadMessages: {
+        messages: [{ parentId: null, message: storedMessage }],
+      },
+      toThreadMessages: (messages) =>
+        messages.map((message) => {
+          const tool = message.parts[0] as {
+            toolCallId: string;
+            approval: { id: string };
+          };
+          const response = toolApprovalResponses.get(tool.approval.id);
+          const converted = createAssistantMessage(
+            { type: "complete", reason: "stop" },
+            [message],
+            message.id,
+          ) as ThreadAssistantMessage;
+          return Object.assign(converted, {
+            content: [
+              {
+                type: "tool-call" as const,
+                toolCallId: tool.toolCallId,
+                toolName: "deploy",
+                args: {},
+                argsText: "{}",
+                result: undefined,
+                isError: false,
+                approval: {
+                  id: tool.approval.id,
+                  ...(response && { approved: response.approved }),
+                  ...(response?.optionId && { optionId: response.optionId }),
+                  ...(response?.text && { text: response.text }),
+                  ...(response?.reason && { reason: response.reason }),
+                },
+              },
+            ],
+          });
+        }),
+      onSetMessages,
+      toolApprovalResponses,
+    });
+
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(importMessages).toHaveBeenCalledTimes(1));
+
+    const imported = importMessages.mock.calls[0]?.[0] as {
+      messages: { message: ThreadMessage }[];
+    };
+    expect(imported.messages[0]?.message.content[0]).toMatchObject({
+      type: "tool-call",
+      toolCallId: "call-1",
+      approval: {
+        id: "approval-1",
+        approved: true,
+        optionId: "allow-once",
+        text: "Staging only",
+        reason: "Approved by operator",
+      },
+    });
+    expect(toolApprovalResponses.get("approval-1")).toEqual({
+      approvalId: "approval-1",
+      approved: true,
+      optionId: "allow-once",
+      text: "Staging only",
+      reason: "Approved by operator",
+    });
+    expect(onSetMessages.mock.calls[0]?.[0][0]).not.toHaveProperty(
+      "metadata.__aui_toolApprovalResponses",
+    );
+  });
+
+  it("restores stored tool artifacts without returning metadata to the chat", async () => {
+    const toolArtifacts = new Map<string, unknown>();
+    const onSetMessages = vi.fn();
+    const storedMessage: InnerMessage = {
+      id: "inner-a",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-weather",
+          toolCallId: "call-1",
+          state: "output-available",
+          input: { city: "New York" },
+          output: { temperature: 72 },
+        },
+      ],
+      metadata: {
+        __aui_toolArtifacts: {
+          "call-1": { preview: "72°F and sunny" },
+        },
+      },
+    };
+    const { importMessages, load } = createPersistenceHarness(true, {
+      loadMessages: {
+        messages: [{ parentId: null, message: storedMessage }],
+      },
+      toThreadMessages: (messages) =>
+        messages.map((message) => {
+          const tool = message.parts[0] as { toolCallId: string };
+          const converted = createAssistantMessage(
+            { type: "complete", reason: "stop" },
+            [message],
+            message.id,
+          ) as ThreadAssistantMessage;
+          return Object.assign(converted, {
+            content: [
+              {
+                type: "tool-call" as const,
+                toolCallId: tool.toolCallId,
+                toolName: "weather",
+                args: { city: "New York" },
+                argsText: '{"city":"New York"}',
+                result: { temperature: 72 },
+                isError: false,
+                artifact: toolArtifacts.get(tool.toolCallId),
+              },
+            ],
+          });
+        }),
+      onSetMessages,
+      toolArtifacts,
+    });
+
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(importMessages).toHaveBeenCalledTimes(1));
+
+    const imported = importMessages.mock.calls[0]?.[0] as {
+      messages: { message: ThreadMessage }[];
+    };
+    expect(imported.messages[0]?.message.content[0]).toMatchObject({
+      type: "tool-call",
+      toolCallId: "call-1",
+      artifact: { preview: "72°F and sunny" },
+    });
+    expect(toolArtifacts.get("call-1")).toEqual({
+      preview: "72°F and sunny",
+    });
+    expect(onSetMessages.mock.calls[0]?.[0][0]).not.toHaveProperty(
+      "metadata.__aui_toolArtifacts",
+    );
   });
 
   it("schedules one idle persistence attempt per landed message when append fails", async () => {

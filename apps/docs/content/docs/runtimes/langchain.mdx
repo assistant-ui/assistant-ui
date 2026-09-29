@@ -255,7 +255,11 @@ Follow the [Ink setup](/docs/ink).
 
 | Option | Type | Description |
 | --- | --- | --- |
-| `cloud` | `AssistantCloud` | Optional. Persists threads via assistant-cloud. |
+| `cloud` | `AssistantCloud` | Optional. Uses Assistant Cloud for the thread list and a copy of settled messages for the dashboard. |
+| `create` | `() => Promise<{ externalId: string \| undefined }>` | Optional. Creates a thread in your backend. |
+| `delete` | `(threadId: string) => Promise<void>` | Optional. When Cloud owns the thread list, called before a thread is deleted and given its Cloud thread id; read that thread's `external_id` to delete the backend thread, as [LangGraph](/docs/cloud/langgraph) shows. |
+| `onThreadIdChange` | `(threadId: string \| undefined) => void` | Optional. Called when the active thread's canonical ID changes. |
+| `unstable_threadListAdapter` | `RemoteThreadListAdapter` | Optional. Replaces the Cloud thread list adapter. |
 | `adapters` | `{ attachments?, speech?, feedback? }` | Optional. Attachment, speech, and feedback adapters. |
 | `messagesKey` | `string` | The state key that holds messages. Defaults to `"messages"`. |
 | `uiStateKey` | `string` | The state key that holds generative `UIMessage`s. Defaults to `"ui"`. |
@@ -798,7 +802,7 @@ import { convertLangChainBaseMessage } from "@assistant-ui/react-langchain";
 
 ## Cloud persistence
 
-Pass an `AssistantCloud` instance to persist threads across sessions. The runtime automatically wires thread list management and resumes state from the cloud.
+Pass an `AssistantCloud` instance to persist the thread list across sessions. `useStream({ threadId: externalId })` loads state from the LangGraph server, not from Assistant Cloud. The runtime copies settled messages to Assistant Cloud for the dashboard; set `telemetry: { messages: false }` on the cloud client to disable that copy.
 
 ```tsx
 // see "AssistantCloud" in /docs/runtimes/concepts/threads for cloud setup

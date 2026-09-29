@@ -320,6 +320,53 @@ test("runCheck rejects a changeset naming a private package", () => {
   }
 });
 
+test("runCheck rejects a changeset naming a private package with release type none", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/published": patch\n"@fixture/internal": none\n---\n\nfix: something\n',
+  );
+  try {
+    const { problems } = runCheck(root);
+    assert.deepEqual(
+      problems.map(({ name }) => name),
+      ["@fixture/internal"],
+    );
+    assert.match(problems[0].reason, /is private/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("runCheck rejects a none release of a package outside the workspace", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/published": patch\n"@fixture/renamed": none\n---\n\nfix: something\n',
+  );
+  try {
+    assert.deepEqual(
+      runCheck(root).problems.map(({ name }) => name),
+      ["@fixture/renamed"],
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("runCheck reads a changeset whose frontmatter follows blank lines or a byte order mark", () => {
+  for (const prefix of ["\n", "\r\n", "\uFEFF"]) {
+    const root = createWorkspace(
+      `${prefix}---\n"@fixture/published": patch\n"@fixture/internal": patch\n---\n\nfix: something\n`,
+    );
+    try {
+      assert.deepEqual(
+        runCheck(root).problems.map(({ name }) => name),
+        ["@fixture/internal"],
+        JSON.stringify(prefix),
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }
+});
+
 test("readSkipRules follows .changeset/config.json", () => {
   assert.deepEqual(readSkipRules({}), {
     ignored: [],
@@ -481,6 +528,33 @@ test("changed package validation ignores non-release edits and requires a PR cha
     assert.match(
       coveredResult.stdout,
       /All changed published packages have changesets\./,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a none release does not stand in for the changeset a changed package needs", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/held": patch\n---\n\nfix: base\n',
+  );
+  try {
+    const sourceDir = path.join(root, "packages", "published", "src");
+    mkdirSync(sourceDir);
+    writeFileSync(path.join(sourceDir, "index.ts"), "export const a = 1;\n");
+    git(root, "init", "-q", "-b", "main");
+    const base = commitAll(root, "base");
+    writeFileSync(path.join(sourceDir, "index.ts"), "export const a = 2;\n");
+    writeFileSync(
+      path.join(root, ".changeset", "none.md"),
+      '---\n"@fixture/published": none\n---\n\nchore: no release\n',
+    );
+    const head = commitAll(root, "source with a none release");
+    assert.deepEqual(
+      runChangedPackageCheck(root, base, head).missingChangesets.map(
+        ({ name }) => name,
+      ),
+      ["@fixture/published"],
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
