@@ -119,7 +119,7 @@ export function useDocsCloud() {
 
   const cloud = useMemo(
     () =>
-      accountOwned
+      userKey !== null
         ? new AssistantCloud({
             baseUrl,
             telemetry: cloudTelemetry,
@@ -142,7 +142,7 @@ export function useDocsCloud() {
             anonymous: true,
             telemetry: cloudTelemetry,
           }),
-    [accountOwned, baseUrl],
+    [baseUrl, userKey],
   );
 
   return { cloud, claims };

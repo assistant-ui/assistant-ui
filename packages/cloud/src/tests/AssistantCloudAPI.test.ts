@@ -191,6 +191,7 @@ describe("AssistantCloudAPI", () => {
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
 
     currentToken = userBToken;
+    api.invalidateAuth();
     await api.makeRawRequest("/threads");
 
     resolveUserAResponse({

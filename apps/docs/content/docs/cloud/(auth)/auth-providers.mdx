@@ -40,9 +40,9 @@ There is no per project auth rule count limit. Several rules are useful when sep
 
 ## Exchange provider tokens in the browser
 
-After the cloud accepts a provider JWT, its response includes `Authorization: Bearer <internal token>`. The internal token is valid for five minutes, has an `nbf` ten seconds before its issue time, and carries the project, user, and workspace. Before each request, the SDK calls `authToken` to confirm the current provider identity. While that token is unchanged, it keeps the internal token until 30 seconds before expiry. A changed token replaces the cache, and a callback returning `null` clears it and throws `Authorization failed` before the request is sent.
+After the cloud accepts a provider JWT, its response includes `Authorization: Bearer <internal token>`. The internal token is valid for five minutes, has an `nbf` ten seconds before its issue time, and carries the project, user, and workspace. The SDK keeps it until 30 seconds before expiry and shares one pending call to `authToken` across concurrent requests.
 
-Keep the `AssistantCloud` client in `useMemo`. Recreating it on a render discards the exchanged token cache and can call the provider more often than needed.
+Keep the `AssistantCloud` client in `useMemo`. Recreating it on a render discards the exchanged token cache and can call the provider more often than needed. Recreate it when the signed-in user or workspace changes, or call `cloud.auth.invalidate()` as part of that transition. Invalidation clears the cached credential and pending engagement events; the next request calls `authToken` for the new session.
 
 ## From your code
 

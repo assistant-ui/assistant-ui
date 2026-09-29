@@ -937,7 +937,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
 });
 
 describe("AssistantCloudJWTAuthStrategy", () => {
-  it("stops authenticating when the provider signs out", async () => {
+  it("stops authenticating after the provider session is invalidated", async () => {
     let currentToken: string | null = createAccessToken("user-a");
     const authToken = vi.fn(async () => currentToken);
     const strategy = new AssistantCloudJWTAuthStrategy(authToken);
@@ -955,12 +955,13 @@ describe("AssistantCloudJWTAuthStrategy", () => {
     );
 
     currentToken = null;
+    strategy.invalidate();
 
     await expect(strategy.getAuthHeaders()).resolves.toBe(false);
     expect(authToken).toHaveBeenCalledTimes(2);
   });
 
-  it("uses the new provider token after an account switch", async () => {
+  it("uses the new provider token after an account switch is invalidated", async () => {
     let currentToken = createAccessToken("user-a");
     const authToken = vi.fn(async () => currentToken);
     const strategy = new AssistantCloudJWTAuthStrategy(authToken);
@@ -978,6 +979,7 @@ describe("AssistantCloudJWTAuthStrategy", () => {
     );
 
     currentToken = createAccessToken("user-b");
+    strategy.invalidate();
 
     await expect(strategy.getAuthHeaders()).resolves.toEqual({
       Authorization: `Bearer ${currentToken}`,
@@ -1001,7 +1003,7 @@ describe("AssistantCloudJWTAuthStrategy", () => {
     await expect(strategy.getAuthHeaders()).resolves.toEqual({
       Authorization: `Bearer ${internalToken}`,
     });
-    expect(authToken).toHaveBeenCalledTimes(2);
+    expect(authToken).toHaveBeenCalledOnce();
   });
 
   it("ignores a rotated token from a superseded provider request", async () => {
@@ -1013,6 +1015,7 @@ describe("AssistantCloudJWTAuthStrategy", () => {
     if (userAHeaders === false) throw new Error("Expected auth headers");
 
     currentToken = createAccessToken("user-b");
+    strategy.invalidate();
     await strategy.getAuthHeaders();
 
     strategy.readAuthHeaders(
@@ -1025,10 +1028,10 @@ describe("AssistantCloudJWTAuthStrategy", () => {
     await expect(strategy.getAuthHeaders()).resolves.toEqual({
       Authorization: `Bearer ${currentToken}`,
     });
-    expect(authToken).toHaveBeenCalledTimes(3);
+    expect(authToken).toHaveBeenCalledTimes(2);
   });
 
-  it("does not share an in-flight provider token across sign-out", async () => {
+  it("discards an in-flight provider token after invalidation", async () => {
     let resolveUserAToken: (token: string) => void = () => {};
     const userAToken = new Promise<string>((resolve) => {
       resolveUserAToken = resolve;
@@ -1040,13 +1043,33 @@ describe("AssistantCloudJWTAuthStrategy", () => {
     const strategy = new AssistantCloudJWTAuthStrategy(authToken);
 
     const userARequest = strategy.getAuthHeaders();
+    strategy.invalidate();
     await expect(strategy.getAuthHeaders()).resolves.toBe(false);
 
     resolveUserAToken(createAccessToken("user-a"));
-    await expect(userARequest).resolves.toEqual({
-      Authorization: `Bearer ${createAccessToken("user-a")}`,
-    });
+    await expect(userARequest).resolves.toBe(false);
     expect(authToken).toHaveBeenCalledTimes(2);
+  });
+
+  it("shares an in-flight provider token request", async () => {
+    let resolveToken: (token: string) => void = () => {};
+    const token = new Promise<string>((resolve) => {
+      resolveToken = resolve;
+    });
+    const authToken = vi.fn(() => token);
+    const strategy = new AssistantCloudJWTAuthStrategy(authToken);
+
+    const first = strategy.getAuthHeaders();
+    const second = strategy.getAuthHeaders();
+    resolveToken(accessToken);
+
+    await expect(first).resolves.toEqual({
+      Authorization: `Bearer ${accessToken}`,
+    });
+    await expect(second).resolves.toEqual({
+      Authorization: `Bearer ${accessToken}`,
+    });
+    expect(authToken).toHaveBeenCalledOnce();
   });
 
   it("retries token acquisition after a failed request", async () => {
@@ -1087,6 +1110,6 @@ describe("AssistantCloudJWTAuthStrategy", () => {
     await expect(strategy.getAuthHeaders()).resolves.toEqual({
       Authorization: `Bearer ${accessToken}`,
     });
-    expect(authToken).toHaveBeenCalledTimes(2);
+    expect(authToken).toHaveBeenCalledOnce();
   });
 });

@@ -2,4 +2,4 @@
 "assistant-cloud": patch
 ---
 
-fix: clear cached browser authentication when the provider identity changes
+fix: add explicit browser authentication invalidation for session changes
