@@ -954,7 +954,9 @@ Adapters without an explicit checkpoint keep the Send/Cancel controls.
 it with `append`, `reload`, or an empty user message. Set `isRunning` while reconnecting
 and clear `canResume` when the checkpoint is consumed, expires, or the thread changes.
 With `canResume: true`, `useExternalStoreRuntime` shares one attempt for identical
-pending resume requests; different run configurations remain separate.
+pending resume requests that use the same `onResume` callback. Memoize the callback
+with `useCallback` to preserve this across renders. Replacing the callback or
+changing the run configuration starts a separate attempt.
 `ExternalThread` has a parameterless `onResume`, so it shares one pending attempt
 per thread. Without this opt-in, explicit resume calls retain their existing
 independent behavior.
