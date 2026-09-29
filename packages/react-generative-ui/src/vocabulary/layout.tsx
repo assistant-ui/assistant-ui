@@ -4,6 +4,7 @@ import type { GenerativeUILibrary } from "../types";
 import { ALIGNS, JUSTIFIES } from "../ir";
 import { fire } from "./dispatch";
 import { collectFormValuesFromEvent } from "./collectFormValues";
+import { toTextContent } from "./toTextContent";
 
 const toCssLength = (value: string | number): string =>
   typeof value === "number" ? `${value}px` : value;
@@ -65,6 +66,7 @@ export const layoutVocabulary = {
       children,
     }) => {
       const Root = asForm ? "form" : "section";
+      const cardTitle = toTextContent(title);
       const footer =
         confirm || cancel ? (
           <footer data-aui="card-footer">
@@ -73,19 +75,29 @@ export const layoutVocabulary = {
                 type={asForm ? "submit" : "button"}
                 data-aui="card-confirm"
                 onClick={
-                  asForm ? undefined : () => fire(confirm.$action, $dispatch)
+                  asForm
+                    ? undefined
+                    : (e) =>
+                        fire(
+                          confirm.$action,
+                          $dispatch,
+                          undefined,
+                          e.currentTarget,
+                        )
                 }
               >
-                {confirm.label}
+                {toTextContent(confirm.label)}
               </button>
             ) : null}
             {cancel ? (
               <button
                 type="button"
                 data-aui="card-cancel"
-                onClick={() => fire(cancel.$action, $dispatch)}
+                onClick={(e) =>
+                  fire(cancel.$action, $dispatch, undefined, e.currentTarget)
+                }
               >
-                {cancel.label}
+                {toTextContent(cancel.label)}
               </button>
             ) : null}
           </footer>
@@ -113,12 +125,15 @@ export const layoutVocabulary = {
                     confirm?.$action,
                     $dispatch,
                     collectFormValuesFromEvent(event),
+                    event.currentTarget,
                   );
                 }
               : undefined
           }
         >
-          {title ? <header data-aui="card-title">{title}</header> : null}
+          {cardTitle ? (
+            <header data-aui="card-title">{cardTitle}</header>
+          ) : null}
           {children}
           {footer}
         </Root>
@@ -182,7 +197,7 @@ export const layoutVocabulary = {
     }),
     render: ({ value, variant, children }) => (
       <span data-aui="badge" data-aui-variant={variant}>
-        {value}
+        {toTextContent(value)}
         {children}
       </span>
     ),

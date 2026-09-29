@@ -37,14 +37,30 @@ const INDICATOR: Record<string, string> = {
   normal: " ",
 };
 
-const EMPTY_SEGMENT_MAP = new Map<ParsedLine, StyledDiffSegment[]>();
+type SegmentReader = (line: ParsedLine) => StyledDiffSegment[] | undefined;
+
+const EMPTY_SEGMENT_READER: SegmentReader = () => undefined;
 
 const isDevNull = (n: string | undefined) => !n || n === "/dev/null";
 
-const buildSegmentMap = (lines: ParsedLine[]) => {
+const createSegmentReader = (lines: ParsedLine[]): SegmentReader => {
+  const partners = new Map<ParsedLine, ParsedLine>();
   const segmentMap = new Map<ParsedLine, StyledDiffSegment[]>();
 
   for (const [del, add] of buildLinePairMap(lines)) {
+    partners.set(del, add);
+    partners.set(add, del);
+  }
+
+  return (line) => {
+    const cached = segmentMap.get(line);
+    if (cached) return cached;
+
+    const partner = partners.get(line);
+    if (!partner) return undefined;
+
+    const del = line.type === "del" ? line : partner;
+    const add = line.type === "add" ? line : partner;
     const { delSegments, addSegments } = buildIntraLineSegments(
       del.content,
       add.content,
@@ -52,9 +68,8 @@ const buildSegmentMap = (lines: ParsedLine[]) => {
 
     segmentMap.set(del, delSegments);
     segmentMap.set(add, addSegments);
-  }
-
-  return segmentMap;
+    return segmentMap.get(line);
+  };
 };
 
 const renderSegmentedLine = (
@@ -82,11 +97,11 @@ const renderSegmentedLine = (
 const StyledLine = ({
   line,
   showLineNumbers,
-  segmentMap,
+  getSegments,
 }: {
   line: ParsedLine;
   showLineNumbers: boolean;
-  segmentMap: Map<ParsedLine, StyledDiffSegment[]>;
+  getSegments: SegmentReader;
 }) => {
   const lineNum =
     line.type === "del"
@@ -96,7 +111,7 @@ const StyledLine = ({
         : line.oldLineNumber;
   const numStr = lineNum !== undefined ? String(lineNum) : "";
   const padded = numStr.padStart(4);
-  const segments = segmentMap.get(line);
+  const segments = getSegments(line);
 
   return (
     <Box>
@@ -125,8 +140,8 @@ const DiffViewInner = ({
 }: DiffViewInnerProps) => {
   const { files } = useDiffContext();
   const shouldShowLineNumbers = showLineNumbers ?? true;
-  const segmentMaps = useMemo(
-    () => files.map((file) => buildSegmentMap(file.lines)),
+  const segmentReaders = useMemo(
+    () => files.map((file) => createSegmentReader(file.lines)),
     [files],
   );
 
@@ -170,7 +185,7 @@ const DiffViewInner = ({
                 <StyledLine
                   line={line}
                   showLineNumbers={shouldShowLineNumbers}
-                  segmentMap={segmentMaps[i] ?? EMPTY_SEGMENT_MAP}
+                  getSegments={segmentReaders[i] ?? EMPTY_SEGMENT_READER}
                 />
               )}
               renderFold={({ region }) => <StyledFold region={region} />}

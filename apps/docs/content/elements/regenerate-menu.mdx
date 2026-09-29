@@ -190,8 +190,8 @@ Both lanes take `className` on the root. The dropdown reads the shared `floating
 | `options` | `readonly RegenerateOption[]` | required | The alternatives offered. |
 | `open` | `boolean` | required | Whether the dropdown is shown. |
 | `currentId` | `string` | required | Id shown as "current". A non-matching id marks no row current. |
-| `onOpenChange` | `(open: boolean) => void` | | Called when the trigger is pressed, with the next open value. |
-| `onPick` | `(id: string) => void` | | Called when a row is pressed. Does not close the menu itself. |
+| `onOpenChange` | `(open: boolean) => void` | | Called when the trigger is pressed, with the next open value. The trigger renders only when this is supplied. |
+| `onPick` | `(id: string) => void` | | Called when a row is pressed. Without it, options render as non-interactive rows. Does not close the menu itself. |
 | `className` | `string` | | Merged onto the root. |
 
 ### RegenerateOption

@@ -116,7 +116,7 @@ The root uses the shared `paper` surface; the timestamp and file count use `mono
 |------|------|---------|-------------|
 | `checkpoints` | `readonly Checkpoint[]` | required | The rows to render, in order. |
 | `currentId` | `string` | required | Id of the active checkpoint. An id with no match leaves every row unmarked. |
-| `onRestore` | `(id: string) => void` | | Called when a row's Restore button is clicked. |
+| `onRestore` | `(id: string) => void` | | Called when a row's Restore button is clicked. Restore buttons render only when this is supplied. |
 | `className` | `string` | | Merged onto the root. |
 
 ### Checkpoint

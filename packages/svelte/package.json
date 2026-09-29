@@ -30,12 +30,13 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.17",
-    "@assistant-ui/store": "^0.3.12",
-    "@assistant-ui/tap": "^0.9.16"
+    "@assistant-ui/core": "^0.3.21",
+    "@assistant-ui/store": "^0.3.15",
+    "@assistant-ui/tap": "^0.9.19"
   },
   "peerDependencies": {
     "svelte": "^5.29.0"
@@ -43,11 +44,11 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@sveltejs/vite-plugin-svelte": "^7.3.0",
-    "@types/node": "^26.4.1",
-    "@types/react": "^19.2.18",
+    "@types/node": "^26.5.1",
+    "@types/react": "^19.3.0",
     "jsdom": "^30.0.1",
     "svelte": "^5.57.0",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.1"
   },
   "homepage": "https://www.assistant-ui.com/",
   "repository": {

@@ -32,8 +32,15 @@ const EXPECTED_CHUNKS: AssistantStreamChunk[] = [
     operations: [{ type: "set", path: ["status"], value: "running" }],
     path: [],
   },
-  { type: "result", result: { temp: 70 }, isError: false, path: [2] },
+  {
+    type: "result",
+    result: { status: "working" },
+    isError: false,
+    isPreliminary: true,
+    path: [2],
+  },
   { type: "tool-call-args-text-finish", path: [2] },
+  { type: "result", result: { temp: 70 }, isError: false, path: [2] },
   { type: "part-finish", path: [2] },
   { type: "data", data: [{ progress: 1 }], path: [] },
   {
@@ -125,6 +132,22 @@ describe("Python encoder interop", () => {
       }),
     );
 
+    const interim = messages
+      .filter(
+        (message) =>
+          message.parts[2]?.type === "tool-call" &&
+          message.parts[2].isPreliminary,
+      )
+      .at(-1)!;
+    expect(interim.parts[2]).toMatchObject({
+      type: "tool-call",
+      state: "call",
+      args: { city: "NYC" },
+      result: { status: "working" },
+      isPreliminary: true,
+      status: { type: "running", isArgsComplete: true },
+    });
+
     const message = messages.at(-1)!;
     expect(message.parts).toHaveLength(6);
     expect(message.parts[0]).toMatchObject({
@@ -145,6 +168,7 @@ describe("Python encoder interop", () => {
       result: { temp: 70 },
       isError: false,
     });
+    expect(message.parts[2]).not.toHaveProperty("isPreliminary");
     expect(message.parts[3]).toMatchObject({
       type: "source",
       sourceType: "url",

@@ -7,14 +7,14 @@ import {
   ThreadListSearch,
   useThreadListGroups,
 } from "@/components/assistant-ui/elements/thread-list.aui";
-import { typeEyebrow } from "@/components/shared/type";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { SidebarAccount } from "./account";
 import { SidebarNavigationContext } from "./sidebar-context";
 import { threadListItemComponents } from "./thread-list-item";
 
-const sidebarLabelClass = cn(typeEyebrow, "mt-5 mb-1 px-2");
+const sidebarLabelClass =
+  "text-muted-foreground mt-5 mb-1 px-2 text-xs font-medium";
 
 const SIDEBAR_SKELETON_WIDTHS = [
   "w-full",

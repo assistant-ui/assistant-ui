@@ -16,7 +16,7 @@ concurrency:
 jobs:
   analyze:
     name: Semver Check
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
       - name: Checkout PR merge ref
@@ -44,3 +44,9 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: node scripts/check-changeset-semver.mjs
+
+      - name: Verify changed published sources have changesets
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/check-changesets.mjs --changed-packages

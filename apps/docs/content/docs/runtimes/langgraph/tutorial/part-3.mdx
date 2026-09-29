@@ -123,9 +123,11 @@ export const PurchaseStockToolUI: ToolCallMessagePartComponent<
 
 Finally, we add a `TransactionConfirmationPending` component to ask for approval.
 
-This requires shadcn/ui's `Card` and `Button` components. We will install them as a dependency.
+This requires shadcn/ui's `Card` and `Button` components. Install them if you have not already:
 
-<InstallCommand shadcn={["card", "button"]} />
+```sh
+npx shadcn@latest add card button
+```
 
 Then create a new file under `/components/tools/purchase-stock/transaction-confirmation-pending.tsx` to define the approval UI.
 

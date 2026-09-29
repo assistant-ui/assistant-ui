@@ -3,7 +3,7 @@ import { ArrowUpRight } from "lucide-react";
 import { createOgMetadata } from "@/lib/og";
 import { ShowcaseCard } from "@/components/pages/showcase/showcase-card";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";
+import { typeDeck, typePage } from "@/components/shared/type";
 import { SHOWCASE_COUNT, SHOWCASE_SECTIONS } from "@/lib/showcase";
 import { cn } from "@/lib/utils";
 
@@ -36,8 +36,8 @@ export default function ShowcasePage() {
             className="border-foreground/10 scroll-mt-24 border-t py-10 md:py-12"
           >
             <div className="flex items-baseline justify-between">
-              <h2 className={typeEyebrow}>{section.label}</h2>
-              <span className="text-muted-foreground/60 font-mono text-[11px] tracking-wide tabular-nums">
+              <h2 className="text-sm font-medium">{section.label}</h2>
+              <span className="text-muted-foreground text-sm tabular-nums">
                 {String(section.items.length).padStart(2, "0")}
               </span>
             </div>

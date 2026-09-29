@@ -10,6 +10,8 @@ Render LaTeX mathematical expressions in chat messages using KaTeX.
 
 <Callout type="warn">LaTeX rendering is not enabled by default.</Callout>
 
+<AgentSetup product="guides/latex" />
+
 <Tabs items={["react-markdown", "Streamdown"]}>
   <Tab value="react-markdown">
 
@@ -154,5 +156,5 @@ import {
 ```
 
 <Callout type="tip">
-Inside `MarkdownTextPrimitive`, the streamed text first passes through `preprocess` (delimiter normalization) and then through `useSmooth` (character by character accumulation), and only then reaches the markdown parser. Both run before remark-math sees the text, so delimiter replacement and the streaming smoothing stay streaming safe; a partially received delimiter is accumulated in the smoothing buffer rather than parsed mid fragment.
+Inside `MarkdownTextPrimitive`, `useSmooth` reveals the raw accumulated text character by character. `preprocess` then normalizes only the revealed prefix before it reaches the markdown parser. Both run before remark-math sees the text, so a partially received delimiter remains raw until its closing token has been revealed.
 </Callout>

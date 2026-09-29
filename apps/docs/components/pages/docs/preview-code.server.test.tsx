@@ -1,6 +1,8 @@
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { PreviewCode } from "./preview-code.server";
+import type { LLMRenderContext } from "@/lib/get-llm-text";
 
 const PreviewCodeClient = vi.hoisted(() => () => null);
 
@@ -12,6 +14,15 @@ type PreviewCodeElement = ReactElement<{
   code: string;
   baseCode?: string;
 }>;
+
+const PreviewCodeLLM = (
+  PreviewCode as typeof PreviewCode & {
+    llm: (
+      props: Parameters<typeof PreviewCode>[0],
+      ctx?: LLMRenderContext,
+    ) => ReactNode;
+  }
+).llm;
 
 async function getPreviewCode(
   file: string,
@@ -73,4 +84,26 @@ describe("PreviewCode", () => {
     );
     expect(code).not.toContain("AssistantRuntime");
   });
+
+  it.each([
+    ["rn", "@assistant-ui/react-native"],
+    ["ink", "@assistant-ui/react-ink"],
+  ] as const)(
+    "rewrites LLM preview imports for %s",
+    (platform, packageName) => {
+      const markup = renderToStaticMarkup(
+        PreviewCodeLLM(
+          {
+            file: "components/pages/docs/samples/tool-ui/custom-renderer",
+            name: "WeatherToolUI",
+            children: null,
+          },
+          { flavor: "base", platform },
+        ),
+      );
+
+      expect(markup).toContain(packageName);
+      expect(markup).not.toContain("@assistant-ui/react&quot;");
+    },
+  );
 });

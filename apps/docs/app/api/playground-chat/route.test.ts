@@ -1,8 +1,8 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   checkRateLimit: vi.fn(),
-  getModel: vi.fn(),
+  resolveChatModel: vi.fn(),
   getDistinctId: vi.fn(),
   streamText: vi.fn(),
 }));
@@ -19,7 +19,7 @@ vi.mock("@/lib/rate-limit", async (importOriginal) => ({
 
 vi.mock("@/lib/ai/provider", async (importOriginal) => ({
   ...(await importOriginal()),
-  getModel: mocks.getModel,
+  resolveChatModel: mocks.resolveChatModel,
 }));
 
 vi.mock("@/lib/validate-input", async (importOriginal) => ({
@@ -55,14 +55,10 @@ const request = () =>
     }),
   });
 
-afterEach(() => {
-  vi.clearAllMocks();
-});
-
 describe("POST /api/playground-chat telemetry", () => {
   it("reports under its own capability so it separates from the other chat routes", async () => {
     mocks.checkRateLimit.mockResolvedValue(null);
-    mocks.getModel.mockReturnValue({});
+    mocks.resolveChatModel.mockReturnValue({ model: {} });
     mocks.getDistinctId.mockReturnValue("distinct_1234567890");
     mocks.streamText.mockReturnValue({
       toUIMessageStreamResponse: () => new Response(null, { status: 200 }),
@@ -87,7 +83,7 @@ describe("POST /api/playground-chat telemetry", () => {
     const response = await POST(request());
 
     expect(response.status).toBe(429);
-    expect(mocks.getModel).not.toHaveBeenCalled();
+    expect(mocks.resolveChatModel).not.toHaveBeenCalled();
     expect(mocks.streamText).not.toHaveBeenCalled();
   });
 });

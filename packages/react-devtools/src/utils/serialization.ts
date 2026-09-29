@@ -3,6 +3,29 @@ import type { SerializedModelContext } from "../types";
 import { normalizeToolList, type NormalizedTool } from "./toolNormalization";
 import { readProperty, UNSERIALIZABLE } from "./unserializable";
 
+const setOwnProperty = (
+  target: Record<string, unknown>,
+  key: string,
+  value: unknown,
+): void => {
+  if (key === "__proto__") {
+    Object.defineProperty(target, key, {
+      value,
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+  } else {
+    target[key] = value;
+  }
+};
+
+// An Error from an iframe or worker fails `instanceof`, so the brand check is
+// what keeps a cross-realm error from serializing as an empty object.
+const isErrorLike = (value: object): boolean =>
+  value instanceof Error ||
+  Object.prototype.toString.call(value) === "[object Error]";
+
 export const sanitizeForMessage = (
   value: unknown,
   seen = new WeakSet<object>(),
@@ -54,7 +77,11 @@ export const sanitizeForMessage = (
             nextSuffixByKey.set(serializedKey, 2);
           }
 
-          result[serializedKey] = sanitizeForMessage(entry, seen);
+          setOwnProperty(
+            result,
+            serializedKey,
+            sanitizeForMessage(entry, seen),
+          );
         }
         return result;
       }
@@ -78,15 +105,46 @@ export const sanitizeForMessage = (
         return result;
       }
 
+      // `name`, `message` and `stack` are not enumerable, so the branch below
+      // would render every Error as an empty object. Each is sanitized like any
+      // other value, since an Error carries whatever its author assigned.
+      if (isErrorLike(value)) {
+        const error: Record<string, unknown> = {
+          name: sanitizeForMessage(readProperty(value, "name"), seen),
+          message: sanitizeForMessage(readProperty(value, "message"), seen),
+        };
+        const stack = readProperty(value, "stack");
+        if (stack !== undefined) {
+          error["stack"] = sanitizeForMessage(stack, seen);
+        }
+        const cause = readProperty(value, "cause");
+        if (cause !== undefined) {
+          error["cause"] = sanitizeForMessage(cause, seen);
+        }
+        for (const key of Object.keys(value)) {
+          try {
+            setOwnProperty(
+              error,
+              key,
+              sanitizeForMessage(readProperty(value, key), seen),
+            );
+          } catch {
+            setOwnProperty(error, key, UNSERIALIZABLE);
+          }
+        }
+        return error;
+      }
+
       const result: Record<string, unknown> = {};
       for (const key of Object.keys(value)) {
         try {
-          result[key] = sanitizeForMessage(
-            (value as Record<string, unknown>)[key],
-            seen,
+          setOwnProperty(
+            result,
+            key,
+            sanitizeForMessage((value as Record<string, unknown>)[key], seen),
           );
         } catch {
-          result[key] = UNSERIALIZABLE;
+          setOwnProperty(result, key, UNSERIALIZABLE);
         }
       }
       return result;
@@ -149,10 +207,13 @@ export const redactSensitive = (value: unknown, maskAll = false): unknown => {
       value as Record<string, unknown>,
     )) {
       const normalized = normalizeKey(key);
-      result[key] =
+      setOwnProperty(
+        result,
+        key,
         maskAll || SENSITIVE_KEYS.has(normalized)
           ? REDACTED
-          : redactSensitive(entry, MASK_ALL_KEYS.has(normalized));
+          : redactSensitive(entry, MASK_ALL_KEYS.has(normalized)),
+      );
     }
     return result;
   }

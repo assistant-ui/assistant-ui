@@ -1,5 +1,6 @@
 import { BASE_URL } from "./constants";
 import { AGENT_DISCOVERY_ROUTES } from "./agent-discovery-routes";
+import { listSkills } from "./agent-skills";
 
 type LLMIndexPage = {
   url: string;
@@ -26,7 +27,6 @@ function addPageToSection(
 
 export function buildLLMSIndex(
   docsPages: LLMIndexPage[],
-  tapPages: LLMIndexPage[],
   examplesPages: LLMIndexPage[],
   designPages: LLMIndexPage[] = [],
   elementsPages: LLMIndexPage[] = [],
@@ -45,7 +45,7 @@ export function buildLLMSIndex(
     "- Per-page markdown: append `.md` to any docs page URL. `.mdx` is kept as a backwards-compatible alias for agents that request source-style URLs. For example, `/docs/installation.md` and `/docs/installation.mdx` both return markdown for `/docs/installation`.",
   );
   lines.push(
-    "- Markdown by Accept header: requesting a docs, examples, design or tap docs page with `Accept: text/markdown` also returns that page's markdown.",
+    "- Markdown by Accept header: requesting a docs, examples, design or elements page with `Accept: text/markdown` also returns that page's markdown.",
   );
   lines.push(
     "- Use the index below to choose a specific page. Remove the `.md` or `.mdx` suffix to open the human-readable docs page.",
@@ -58,6 +58,9 @@ export function buildLLMSIndex(
     `- [Site skill](${BASE_URL}${AGENT_DISCOVERY_ROUTES.skill})`,
     `- [API catalog](${BASE_URL}${AGENT_DISCOVERY_ROUTES.apiCatalog})`,
     `- [Agent Skills index](${BASE_URL}${AGENT_DISCOVERY_ROUTES.skillsIndex})`,
+    `- Agent skills: task-shaped SKILL.md guides listed in the Agent Skills index, one per area (${listSkills()
+      .map((skill) => skill.name)
+      .join(", ")}).`,
     `- [Markdown sitemap](${BASE_URL}${AGENT_DISCOVERY_ROUTES.sitemap})`,
     `- [Documentation MCP endpoint](${BASE_URL}/mcp)`,
   );
@@ -68,10 +71,6 @@ export function buildLLMSIndex(
 
   for (const page of docsPages) {
     addPageToSection(map, page.slugs[0] || "root", page);
-  }
-
-  for (const page of tapPages) {
-    addPageToSection(map, "tap", page);
   }
 
   for (const page of examplesPages) {

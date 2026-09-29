@@ -9,7 +9,7 @@ vi.mock("../../utils/id", async (importOriginal) => ({
 
 import {
   buildInteractableModelContext,
-  type PartialJSONSchema,
+  type StateJSONSchema,
 } from "./interactable-model-context";
 import type { Unstable_InteractableDefinition } from "../types/scopes/interactables";
 
@@ -26,12 +26,13 @@ const def = (
   initialState: state,
 });
 
-const partialNoteSchema = {
+const noteSchema = {
   type: "object" as const,
   properties: { title: { type: "string" as const } },
+  required: ["title"],
 };
 
-const partialTaskBoardSchema = {
+const taskBoardSchema = {
   type: "object" as const,
   properties: {
     tasks: {
@@ -51,15 +52,23 @@ const partialTaskBoardSchema = {
 
 const build = (
   definitions: Record<string, Unstable_InteractableDefinition>,
-  cache: Map<string, PartialJSONSchema> = new Map([["n1", partialNoteSchema]]),
+  cache: Map<string, StateJSONSchema> = new Map([["n1", noteSchema]]),
+  // The tool is built from a snapshot, so a caller can pass a separate map to
+  // model what the runtime holds by the time the call arrives.
+  live: Record<string, Unstable_InteractableDefinition> = definitions,
 ) => {
   const setDefState = vi.fn(
     (id: string, updater: (prev: unknown) => unknown) => {
-      const d = definitions[id];
-      if (d) definitions[id] = { ...d, state: updater(d.state) };
+      const d = live[id];
+      if (d) live[id] = { ...d, state: updater(d.state) };
     },
   );
-  const ctx = buildInteractableModelContext(definitions, cache, setDefState);
+  const ctx = buildInteractableModelContext(
+    definitions,
+    cache,
+    setDefState,
+    () => live,
+  );
   return { ctx, setDefState };
 };
 
@@ -86,7 +95,7 @@ describe("buildInteractableModelContext", () => {
     ]);
   });
 
-  it("wraps the partial schema with a required id parameter", () => {
+  it("replaces the root required list with the id parameter", () => {
     const { ctx } = build({ n1: def("n1", "note") });
     const params = ctx!.tools["update_note"]!.parameters as {
       properties: Record<string, unknown>;
@@ -148,7 +157,7 @@ describe("buildInteractableModelContext", () => {
   it("exposes operation schemas for array fields", () => {
     const { ctx } = build(
       { b1: def("b1", "taskBoard") },
-      new Map([["b1", partialTaskBoardSchema]]),
+      new Map([["b1", taskBoardSchema]]),
     );
     const params = ctx!.tools["update_taskBoard"]!.parameters as {
       properties: {
@@ -171,7 +180,7 @@ describe("buildInteractableModelContext", () => {
   it("omits id from add items but keeps it for update", () => {
     const { ctx } = build(
       { b1: def("b1", "taskBoard") },
-      new Map([["b1", partialTaskBoardSchema]]),
+      new Map([["b1", taskBoardSchema]]),
     );
     const tasks = (
       ctx!.tools["update_taskBoard"]!.parameters as {
@@ -220,7 +229,7 @@ describe("buildInteractableModelContext", () => {
 
     it("mints an id for an added item that has none", async () => {
       const defs = { b1: def("b1", "taskBoard", { tasks: [] }) };
-      const { ctx } = build(defs, new Map([["b1", partialTaskBoardSchema]]));
+      const { ctx } = build(defs, new Map([["b1", taskBoardSchema]]));
       const result = await ctx!.tools["update_taskBoard"]!.execute!(
         { id: "b1", tasks: { add: [{ title: "Write tests", done: false }] } },
         {} as never,
@@ -241,6 +250,50 @@ describe("buildInteractableModelContext", () => {
       expect(mockGenerateId).toHaveBeenCalledOnce();
     });
 
+    it.each(["__proto__", "toString"])(
+      "mints ids for items in a prototype-named array field %s",
+      async (field) => {
+        const itemSchema = {
+          type: "object" as const,
+          properties: {
+            id: { type: "string" as const },
+            title: { type: "string" as const },
+          },
+          required: ["id", "title"],
+        };
+        const schema = {
+          type: "object" as const,
+          properties: Object.fromEntries([
+            [field, { type: "array" as const, items: itemSchema }],
+          ]),
+        };
+        const state = Object.fromEntries([[field, []]]);
+        const defs = { b1: def("b1", "taskBoard", state) };
+        const { ctx } = build(defs, new Map([["b1", schema]]));
+        const args = Object.fromEntries([
+          ["id", "b1"],
+          [field, { add: [{ title: "Write tests" }] }],
+        ]);
+
+        const result = (await ctx!.tools["update_taskBoard"]!.execute!(
+          args,
+          {} as never,
+        )) as {
+          addedItemIds: Record<string, string[]>;
+        };
+
+        expect(Object.getPrototypeOf(result.addedItemIds)).toBe(
+          Object.prototype,
+        );
+        expect(Object.hasOwn(result.addedItemIds, field)).toBe(true);
+        expect(result.addedItemIds[field]).toEqual(["generated-id"]);
+        expect(Object.hasOwn(defs.b1.state as object, field)).toBe(true);
+        expect((defs.b1.state as Record<string, unknown>)[field]).toEqual([
+          { title: "Write tests", id: "generated-id" },
+        ]);
+      },
+    );
+
     it("rejects an unknown id and lists valid ids", async () => {
       const defs = { n1: def("n1", "note"), n2: def("n2", "note") };
       const { ctx, setDefState } = build(defs);
@@ -252,6 +305,40 @@ describe("buildInteractableModelContext", () => {
       expect(result.error).toContain("n1");
       expect(result.error).toContain("n2");
       expect(setDefState).not.toHaveBeenCalled();
+    });
+
+    it("rejects a target that unmounted after the tool was built", async () => {
+      const built = { n1: def("n1", "note"), n2: def("n2", "note") };
+      const live: Record<string, Unstable_InteractableDefinition> = {
+        n2: def("n2", "note"),
+      };
+      const { ctx, setDefState } = build(built, undefined, live);
+
+      const result = (await ctx!.tools["update_note"]!.execute!(
+        { id: "n1", title: "B" },
+        {} as never,
+      )) as { success: boolean; error?: string };
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Valid ids: n2");
+      expect(setDefState).not.toHaveBeenCalled();
+    });
+
+    it("rejects a same-id replacement registered under another name", async () => {
+      const built = { n1: def("n1", "note", { title: "A" }) };
+      const live: Record<string, Unstable_InteractableDefinition> = {
+        n1: def("n1", "board", { title: "replacement" }),
+      };
+      const { ctx, setDefState } = build(built, undefined, live);
+
+      const result = (await ctx!.tools["update_note"]!.execute!(
+        { id: "n1", title: "B" },
+        {} as never,
+      )) as { success: boolean; error?: string };
+
+      expect(result.success).toBe(false);
+      expect(setDefState).not.toHaveBeenCalled();
+      expect(live["n1"]!.state).toEqual({ title: "replacement" });
     });
 
     it("rejects an id-less call when multiple instances exist", async () => {
@@ -284,7 +371,7 @@ describe("buildInteractableModelContext", () => {
           ],
         }),
       };
-      const { ctx } = build(defs, new Map([["b1", partialTaskBoardSchema]]));
+      const { ctx } = build(defs, new Map([["b1", taskBoardSchema]]));
 
       await ctx!.tools["update_taskBoard"]!.execute!(
         {
@@ -378,7 +465,7 @@ describe("buildInteractableModelContext", () => {
           tasks: [{ id: "a", title: "A", done: false }],
         }),
       };
-      const { ctx } = build(defs, new Map([["b1", partialTaskBoardSchema]]));
+      const { ctx } = build(defs, new Map([["b1", taskBoardSchema]]));
       const context = { toolCallId: "call-1" } as never;
 
       await ctx!.tools["update_taskBoard"]!.streamCall!(

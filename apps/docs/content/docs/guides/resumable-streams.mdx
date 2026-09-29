@@ -8,6 +8,8 @@ platforms: ["react"]
 
 It works with any encoder that already ships in `assistant-stream` (the AI SDK UI message stream, the data stream protocol, the assistant transport SSE format, or your own), because persistence happens at the byte level after encoding.
 
+<AgentSetup product="guides/resumable-streams" />
+
 ## What it solves
 
 A user sends a long prompt, walks away, and reloads the tab. Without resumable streams the LLM call is wasted; with them the client picks up where it left off. The same flow handles dropped mobile connections and lets a stream started on one device be read on another, gated by an opaque stream id.
@@ -208,7 +210,7 @@ Key by `remoteId ?? id` under a recognizable prefix, read lazily. A brand-new th
 
 The core package ships `createInMemoryResumableStreamStore` for development and tests. State lives in a process-local `Map`, so it does not survive a server restart. Useful options include `defaultTtlMs`, `maxChunkBytes`, `maxEntriesPerStream`, `maxStreams`, and `gcIntervalMs` for periodic eviction.
 
-For production, use one of the optional Redis adapters via the `assistant-stream/resumable/redis` (node-redis v5) or `assistant-stream/resumable/ioredis` sub-paths. Both adapters batch the per-append `XADD` and TTL refresh into a single pipelined round trip, store chunk values as binary, and accept the same `keyPrefix`, `defaultTtlMs`, `pollIntervalMs`, and `maxChunkBytes` options. Cluster routing works because each stream's keys share a `{streamId}` hash tag. Finalization runs as a server-side script, so the endpoint must allow `EVAL`; a Redis-compatible service with scripting disabled needs a custom `ResumableStreamStore` instead.
+For production, use one of the optional Redis adapters via the `assistant-stream/resumable/redis` (node-redis v5) or `assistant-stream/resumable/ioredis` sub-paths. Both adapters store chunk values as binary and accept the same `keyPrefix`, `defaultTtlMs`, `pollIntervalMs`, and `maxChunkBytes` options. Cluster routing works because each stream's keys share a `{streamId}` hash tag. In the bundled adapters, appends, finalization, and deletion run as server-side scripts so a metadata change between a mutation's read and write prevents that stale mutation from affecting the replacement generation. The endpoint must allow `EVALSHA` and `EVAL`; a Redis-compatible service with scripting disabled needs a custom `ResumableStreamStore` instead.
 
 ```ts title="/lib/resumable-context.ts"
 import {

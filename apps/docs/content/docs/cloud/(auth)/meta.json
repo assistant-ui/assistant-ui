@@ -1,0 +1,14 @@
+{
+  "title": "Authentication and access",
+  "description": "Who may call a project, from where, and as whom.",
+  "icon": "Lock",
+  "root": true,
+  "pages": [
+    "authorization",
+    "anonymous-sessions",
+    "auth-providers",
+    "api-keys",
+    "allowed-origins",
+    "users-and-workspaces"
+  ]
+}

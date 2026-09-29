@@ -1,11 +1,13 @@
 import { openai } from "@ai-sdk/openai";
 import { frontendTools } from "@assistant-ui/ai-sdk";
 import {
+  type JSONSchema7,
   streamText,
   convertToModelMessages,
   type UIMessage,
-  type JSONSchema7,
 } from "ai";
+
+export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const {
@@ -19,7 +21,7 @@ export async function POST(req: Request) {
   } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
     tools: {
       ...frontendTools(tools ?? {}),
@@ -27,5 +29,8 @@ export async function POST(req: Request) {
     ...(system === undefined ? {} : { system }),
   });
 
-  return result.toUIMessageStreamResponse();
+  return result.toUIMessageStreamResponse({
+    onError: (error) =>
+      error instanceof Error ? error.message : String(error),
+  });
 }

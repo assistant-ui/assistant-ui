@@ -8,6 +8,7 @@ import {
   createToolCallCancellationStub,
   parseDataUrl,
   resolveFilePartSource,
+  resolveImageMediaType,
   scanPendingToolCalls,
 } from "@assistant-ui/core/internal";
 import type { AdkMessage } from "./types";
@@ -15,16 +16,30 @@ import type { AdkMessage } from "./types";
 /** Exported for unit tests. */
 export const getMessageContent = (msg: AppendMessage) => {
   const allContent = [
-    ...msg.content,
-    ...(msg.attachments?.flatMap((a) => a.content) ?? []),
+    ...msg.content.map((part) => ({ part, contentType: undefined })),
+    ...(msg.attachments?.flatMap((attachment) =>
+      attachment.content.map((part) => ({
+        part,
+        contentType: attachment.contentType,
+      })),
+    ) ?? []),
   ];
-  const content = allContent.flatMap((part) => {
+  const content = allContent.flatMap(({ part, contentType }) => {
     const type = part.type;
     switch (type) {
       case "text":
         return { type: "text" as const, text: part.text };
-      case "image":
+      case "image": {
+        const parsed = parseDataUrl(part.image);
+        if (parsed) {
+          return {
+            type: "image" as const,
+            mimeType: resolveImageMediaType(part.image, contentType),
+            data: parsed.data,
+          };
+        }
         return { type: "image_url" as const, url: part.image };
+      }
       case "file": {
         const source = resolveFilePartSource(part);
         if (source.kind === "url") {

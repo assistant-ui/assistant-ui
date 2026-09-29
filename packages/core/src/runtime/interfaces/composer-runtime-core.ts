@@ -21,16 +21,21 @@ export type AttachmentAddErrorEvent = {
 
 export type ComposerRuntimeEventPayload = {
   /**
-   * @deprecated State-derivable. Observe `state.text` clearing via
-   * `subscribe` + `getState` instead. Kept for backward compatibility.
+   * Fired after a send with the size of what went out. The composer state is
+   * already cleared when it fires, so the counts are only available here.
    */
-  send: Record<string, never>;
+  send: {
+    readonly chars: number;
+    readonly attachments: number;
+  };
   /**
    * @deprecated State-derivable. Observe `state.attachments` via `subscribe` +
    * `getState` instead. Kept for backward compatibility.
    */
-  attachmentAdd: Record<string, never>;
-  attachmentAddError: AttachmentAddErrorEvent;
+  attachmentAdd: { readonly contentType?: string | undefined };
+  attachmentAddError: AttachmentAddErrorEvent & {
+    readonly contentType?: string | undefined;
+  };
 };
 
 export type ComposerRuntimeEventType = keyof ComposerRuntimeEventPayload;
@@ -43,6 +48,20 @@ export type DictationState = {
   readonly status: DictationAdapter.Status;
   readonly transcript?: string;
   readonly inputDisabled?: boolean;
+};
+
+/**
+ * A message the user sent that the thread does not show as one of its own
+ * yet, because its attachments are still being prepared or the runtime has
+ * not shown it since taking it. A send that cannot be delivered takes its
+ * content back into the draft, so a submission is always in flight.
+ */
+export type ComposerSubmission = {
+  readonly id: string;
+  readonly role: MessageRole;
+  readonly text: string;
+  readonly quote: QuoteInfo | undefined;
+  readonly attachments: readonly Attachment[];
 };
 
 export type SendOptions = {
@@ -81,6 +100,11 @@ export type ComposerRuntimeCore = Readonly<{
 
   send: (options?: SendOptions) => void;
   cancel: () => void;
+
+  /** The message this composer sent while its attachments are prepared. */
+  submission?: ComposerSubmission | undefined;
+  /** Messages this composer handed to the runtime that the thread does not show yet. */
+  inTransit?: readonly ComposerSubmission[] | undefined;
 
   queue: readonly QueueItemState[];
   moveQueueItem: (queueItemId: string, placement: QueuePlacement) => void;

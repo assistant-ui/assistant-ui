@@ -6,6 +6,12 @@ import {
   API_CATALOG_LINK_HEADER,
 } from "./lib/agent-discovery-routes";
 import { isWebMcpEnabled } from "./lib/feature-flags";
+import { RENDERER_ALLOWED_ORIGINS, RENDERER_PATH } from "./lib/renderer";
+import { LEGACY_TAP_DOCS_REDIRECTS } from "./lib/legacy-tap-docs";
+import {
+  docsMarkdownAcceptRewrites,
+  docsMarkdownFileRewrites,
+} from "./lib/markdown-rewrites";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -45,13 +51,21 @@ const faviconRewrites = faviconVariant
     ]
   : [];
 
+// The SDK packages resolve to their sources through tsconfig paths, so no
+// package build stamps their version; a deployment reports its commit instead.
+const sdkVersion = process.env.VERCEL_GIT_COMMIT_SHA
+  ? `0.0.0+${process.env.VERCEL_GIT_COMMIT_SHA.slice(0, 7)}`
+  : undefined;
+
 // Chrome applies form-action to the redirects that follow a submit, and the
 // sign-out form lands on the accounts end-session endpoint.
 const authOrigin = process.env.NEXT_PUBLIC_AUTH_URL ?? "";
 
 // The playground AI Builder renders same-origin preview routes inside an iframe.
-// Keep frame ancestors self-only so external sites still cannot embed docs pages.
-const cspHeader = `
+// Keep frame ancestors self-only so external sites still cannot embed docs pages;
+// only the conversation renderer also admits the Assistant Cloud dashboard.
+const csp = (frameAncestors: string) =>
+  `
     default-src 'self';
     connect-src *;
     frame-src * blob:;
@@ -62,16 +76,16 @@ const cspHeader = `
     object-src 'none';
     base-uri 'self';
     form-action 'self' ${authOrigin};
-    frame-ancestors 'self';
+    frame-ancestors ${frameAncestors};
     upgrade-insecure-requests;
-`;
+`.replace(/\n/g, "");
 
 const config: NextConfig = {
-  experimental: {
-    // Learn previews compile several complete lesson stages into the docs app.
-    // Bound build concurrency so Vercel and other constrained builders do not
-    // run out of memory while Turbopack compiles those routes in parallel.
-    cpus: 2,
+  // This app keeps a hand-written AGENTS.md, and the root one already points
+  // agents at the bundled Next.js docs, so `next dev` must not append its block.
+  agentRules: false,
+  compiler: {
+    define: sdkVersion ? { __AUI_PACKAGE_VERSION__: sdkVersion } : {},
   },
   transpilePackages: ["@assistant-ui/ui", "shiki"],
   serverExternalPackages: ["just-bash"],
@@ -94,7 +108,16 @@ const config: NextConfig = {
       headers: [
         {
           key: "Content-Security-Policy",
-          value: cspHeader.replace(/\n/g, ""),
+          value: csp("'self'"),
+        },
+      ],
+    },
+    {
+      source: RENDERER_PATH,
+      headers: [
+        {
+          key: "Content-Security-Policy",
+          value: csp(["'self'", ...RENDERER_ALLOWED_ORIGINS].join(" ")),
         },
       ],
     },
@@ -132,6 +155,42 @@ const config: NextConfig = {
     })),
   ],
   redirects: async () => [
+    ...LEGACY_TAP_DOCS_REDIRECTS,
+    {
+      source: "/tap",
+      destination: "/docs/tap",
+      permanent: true,
+    },
+    {
+      source: "/cloud-ai-sdk",
+      destination: "/docs/cloud/migrate-cloud-ai-sdk",
+      permanent: true,
+    },
+    {
+      source: "/docs/api-reference/integrations/cloud-ai-sdk",
+      destination: "/docs/cloud/migrate-cloud-ai-sdk",
+      permanent: true,
+    },
+    {
+      source: "/docs/cloud/ai-sdk-assistant-ui",
+      destination: "/docs/cloud/ai-sdk",
+      permanent: true,
+    },
+    {
+      source: "/docs/cloud/telemetry",
+      destination: "/docs/cloud/run-reports",
+      permanent: true,
+    },
+    {
+      source: "/docs/cloud/overview",
+      destination: "/docs/cloud/dashboard/overview",
+      permanent: true,
+    },
+    {
+      source: "/docs/cloud/alerts",
+      destination: "/docs/cloud/settings/alerts",
+      permanent: true,
+    },
     {
       source: "/elements/reasoning-panel",
       destination: "/elements/reasoning",
@@ -394,22 +453,7 @@ const config: NextConfig = {
         source: "/docs/.well-known/mcp",
         destination: "/api/mcp",
       },
-      {
-        source: "/docs.md",
-        destination: "/llms.mdx",
-      },
-      {
-        source: "/docs.mdx",
-        destination: "/llms.mdx",
-      },
-      {
-        source: "/docs/:path*.md",
-        destination: "/llms.mdx/:path*",
-      },
-      {
-        source: "/docs/:path*.mdx",
-        destination: "/llms.mdx/:path*",
-      },
+      ...docsMarkdownFileRewrites(),
       {
         source: "/examples.md",
         destination: "/llms.mdx/examples",
@@ -428,7 +472,17 @@ const config: NextConfig = {
       },
       {
         source: "/design/:path+.md",
+        has: [{ type: "query", key: "view", value: "radix-ui" }],
+        destination: "/radix-llms.mdx/design/:path*",
+      },
+      {
+        source: "/design/:path+.md",
         destination: "/llms.mdx/design/:path*",
+      },
+      {
+        source: "/design/:path+.mdx",
+        has: [{ type: "query", key: "view", value: "radix-ui" }],
+        destination: "/radix-llms.mdx/design/:path*",
       },
       {
         source: "/design/:path+.mdx",
@@ -441,22 +495,6 @@ const config: NextConfig = {
       {
         source: "/elements/:path+.mdx",
         destination: "/llms.mdx/elements/:path*",
-      },
-      {
-        source: "/tap/docs.md",
-        destination: "/tap-llms.mdx",
-      },
-      {
-        source: "/tap/docs.mdx",
-        destination: "/tap-llms.mdx",
-      },
-      {
-        source: "/tap/docs/:path*.md",
-        destination: "/tap-llms.mdx/:path*",
-      },
-      {
-        source: "/tap/docs/:path*.mdx",
-        destination: "/tap-llms.mdx/:path*",
       },
       {
         source: "/",
@@ -476,19 +514,21 @@ const config: NextConfig = {
         source: "/pricing.mdx",
         destination: "/pricing.md",
       },
-      {
-        source: "/docs/:path*",
-        has: [
-          { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
-        ],
-        destination: "/llms.mdx/:path*",
-      },
+      ...docsMarkdownAcceptRewrites(),
       {
         source: "/examples/:path*",
         has: [
           { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
         ],
         destination: "/llms.mdx/examples/:path*",
+      },
+      {
+        source: "/design/:path*",
+        has: [
+          { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
+          { type: "query", key: "view", value: "radix-ui" },
+        ],
+        destination: "/radix-llms.mdx/design/:path*",
       },
       {
         source: "/design/:path*",
@@ -503,13 +543,6 @@ const config: NextConfig = {
           { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
         ],
         destination: "/llms.mdx/elements/:path*",
-      },
-      {
-        source: "/tap/docs/:path*",
-        has: [
-          { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
-        ],
-        destination: "/tap-llms.mdx/:path*",
       },
       {
         source: "/umami/:path*",

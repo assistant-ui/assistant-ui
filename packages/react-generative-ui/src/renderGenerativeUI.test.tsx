@@ -77,8 +77,10 @@ describe("renderGenerativeUI", () => {
       library,
     );
 
-    expect(Array.isArray(out)).toBe(true);
-    const elements = out as ReactElement[];
+    expect(isValidElement(out)).toBe(true);
+    const elements = (out as ReactElement<{ children: ReactElement[] }>).props
+      .children;
+    expect(Array.isArray(elements)).toBe(true);
     expect(elements.every(isValidElement)).toBe(true);
     expect(elements.map((element) => element.key)).toEqual([
       "model:1:Text",
@@ -108,10 +110,43 @@ describe("renderGenerativeUI", () => {
   });
 
   it("renders nothing for an unknown component", () => {
-    const html = renderToStaticMarkup(
-      <>{renderGenerativeUI({ $type: "Missing" }, library)}</>,
-    );
+    const rendered = renderGenerativeUI({ $type: "Missing" }, library);
+    expect(rendered).toBeNull();
+    const html = renderToStaticMarkup(<>{rendered}</>);
     expect(html).toBe("");
+  });
+
+  it.each(["plain", 42, null])(
+    "preserves a primitive root result: %j",
+    (value) => {
+      expect(renderGenerativeUI(value, library)).toBe(value);
+    },
+  );
+
+  it.each(["toString", "constructor"])(
+    "treats inherited %s as an unknown component",
+    (type) => {
+      const html = renderToStaticMarkup(
+        <>{renderGenerativeUI({ $type: type }, library)}</>,
+      );
+      expect(html).toBe("");
+    },
+  );
+
+  it("renders an explicitly registered prototype-named component", () => {
+    const prototypeNamedLibrary: GenerativeUILibrary = {
+      ...library,
+      toString: {
+        description: "An explicitly registered component.",
+        properties: z.object({}),
+        render: () => <span>registered</span>,
+      },
+    };
+
+    const html = renderToStaticMarkup(
+      <>{renderGenerativeUI({ $type: "toString" }, prototypeNamedLibrary)}</>,
+    );
+    expect(html).toBe("<span>registered</span>");
   });
 
   it("holds back a node whose `$type` is still streaming", () => {

@@ -3,18 +3,50 @@ title: "Agent status"
 description: "One pill that always answers: what is it doing, and for how long."
 ---
 
-A rounded pill with a state dot, a label that crossfades when it changes, an elapsed time while the agent is still going, and a trailing icon. With a runtime the state and label track a tool call's own lifecycle; standalone you hold all three and update them yourself.
+A rounded pill with a state dot, a label that crossfades when it changes, an elapsed time while the agent is still going, and a trailing icon. With a runtime the state and label summarize nested tasks; standalone you hold all three and update them yourself.
 
 ## Getting started
 
 <RuntimeMode>
 
-The pill maps naturally onto a single tool call: what the call is doing is the label, and whether it is still running, waiting on something, or finished is the state.
-
 <Steps>
   <Step>
 
-### Render the tool call
+### Render the bound chip
+
+```tsx title="app/status.tsx"
+"use client";
+
+import { AgentStatus } from "@/components/assistant-ui/elements/agent-status.aui";
+
+export function HeaderStatus() {
+  return <AgentStatus />;
+}
+```
+
+Both bound components read the thread through the nearest `AssistantRuntimeProvider`, so mount them inside it, in a header or toolbar of the same tree. `AgentStatus` reads `s.thread.tasks` and is a live chip: it renders only while a task runs or waits for input, and nothing once everything has settled. Its label is the only running task's label, `N of M tasks running` when more than one is running, or `N tasks waiting for input` when work is blocked. Elapsed time starts from the earliest running task's timing.
+
+  </Step>
+  <Step>
+
+### Open the tray
+
+```tsx title="app/status.tsx"
+"use client";
+
+import { TaskTray } from "@/components/assistant-ui/elements/agent-status.aui";
+
+export function HeaderTasks() {
+  return <TaskTray />;
+}
+```
+
+`TaskTray` uses the same pill as a button that opens a popover, with a chevron as the trailing icon so the control reads as a disclosure. The pill stays after the work settles and carries the tally, `M tasks done` or `M tasks done, N failed` (a cancelled task counts as finished, not failed), with the `failed` state when a failure remains. Its list contains every task in document order, indents nested tasks, shows each row's state, label, meta tag, and elapsed time, and pages four rows at a time.
+
+  </Step>
+  <Step>
+
+### Bind a single tool call instead
 
 ```tsx title="app/toolkit.tsx"
 "use client";
@@ -42,27 +74,7 @@ export const toolkit = defineToolkit({
 });
 ```
 
-`state` follows the call's own status: `requires-action` reads as waiting, `running` as working, and both `complete` and `incomplete` read as done, since either way the call is no longer active. `label` and `elapsed` are whatever the call's `args` carry, so your server formats `elapsed` (`"2m14s"`) the way you want it shown.
-
-  </Step>
-  <Step>
-
-### Register the toolkit
-
-```tsx title="app/MyRuntimeProvider.tsx"
-import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
-import { toolkit } from "./toolkit";
-
-const config = AuiConfig({ tools: Tools({ toolkit }) });
-
-export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
-  return (
-    <AssistantRuntimeProvider runtime={runtime} config={config}>
-      {children}
-    </AssistantRuntimeProvider>
-  );
-}
-```
+Use the props only element when a single tool call owns the status. `requires-action` maps to waiting, `running` maps to working, and both complete and incomplete calls map to done.
 
   </Step>
 </Steps>
@@ -119,16 +131,16 @@ Changing `label` alone still animates: the text fades and blurs between values b
 ## Anatomy
 
 ```tsx
-<div data-slot="agent-status">
-  <span>{/* check, a pulsing dot, or an outlined one */}</span>
+<span data-slot="agent-status">
+  <span>{/* check, cross, a pulsing dot, or an outlined one */}</span>
   <span>{/* visually hidden state */}</span>
   <span>{/* label */}</span>
-  <span>{/* elapsed, only while state !== "done" */}</span>
-  <span aria-hidden>{/* decorative trailing icon */}</span>
-</div>
+  <span>{/* elapsed, only while state is "working" or "waiting" */}</span>
+  <span aria-hidden>{/* decorative trailing icon, or the trailing node you pass */}</span>
+</span>
 ```
 
-The leading indicator is a check once `state` is `"done"`, otherwise a dot: filled blue and pulsing while `"working"`, a static muted outline while `"waiting"`, so the two states differ in shape and motion and not only in color. The state is also rendered as visually hidden text, so it is exposed to assistive technology rather than carried by the dot's color alone. `elapsed` only renders when it is supplied and `state` is not `"done"`. The trailing icon swaps between the pause and replay treatments based on `state`, and is decorative: it carries no hover or press treatment and is hidden from assistive technology. Props spread onto the root pill.
+The leading indicator is a check once `state` is `"done"` and a cross once it is `"failed"`, otherwise a dot: filled blue and pulsing while `"working"`, a static muted outline while `"waiting"`, so the states differ in shape and motion and not only in color. The root is a `span`, so the pill can sit inside a button or a link. The state is also rendered as visually hidden text, so it is exposed to assistive technology rather than carried by the dot's color alone. `elapsed` only renders when it is supplied and `state` is `"working"` or `"waiting"`. The trailing icon swaps between the pause and replay treatments based on `state` unless `trailing` supplies a node, and is decorative: it carries no hover or press treatment and is hidden from assistive technology. Props spread onto the root pill.
 
 ## Examples
 
@@ -152,13 +164,15 @@ Omit `elapsed` for work that is not worth timing, like a wait state with no usef
 
 <RuntimeMode>
 
-### Render props
+### Bound AgentStatus and TaskTray
 
-| Source | Type | Description |
-|--------|------|-------------|
-| `status.type` | `"running" \| "requires-action" \| "incomplete" \| "complete"` | Drives `state`: `requires-action` to `"waiting"`, `running` to `"working"`, otherwise `"done"`. |
-| `args.label` | `string` | What the agent is doing right now. |
-| `args.elapsed` | `string \| undefined` | Preformatted elapsed time, shown only while the mapped `state` is not `"done"`. |
+| Input | Type | Description |
+|-------|------|-------------|
+| `className` prop | `string \| undefined` | Merged onto the bound chip or tray trigger. |
+| Tasks | `s.thread.tasks` | Drives the aggregate state, label, and elapsed time. `AgentStatus` returns `null` unless a task runs or waits; `TaskTray` returns `null` only when the thread has no tasks. |
+| `useTaskSummary()` | `TaskSummary` | Returns `total`, `running`, `waiting`, `failed`, `startedAt`, and `runningLabel` for the current tasks. |
+| `summaryState(summary)` | `AgentState` | Returns working while any task runs, waiting when none run but work waits, failed when the settled work includes a failure, and done otherwise. |
+| `summaryLabel(summary)` | `string` | Returns the task summary label used by the chip and tray. |
 
 </RuntimeMode>
 
@@ -168,11 +182,12 @@ Omit `elapsed` for work that is not worth timing, like a wait state with no usef
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `state` | `"working" \| "waiting" \| "done"` | required | Drives the leading indicator, visually hidden state text, and trailing icon. |
+| `state` | `"working" \| "waiting" \| "done" \| "failed"` | required | Drives the leading indicator, visually hidden state text, and trailing icon. |
 | `label` | `string` | required | Crossfades in whenever its value changes. |
-| `elapsed` | `string` | | Shown only while `state` is not `"done"`. |
+| `elapsed` | `string` | | Shown only while `state` is `"working"` or `"waiting"`. |
+| `trailing` | `ReactNode` | | Replaces the decorative trailing icon, for example with a chevron when the pill opens something. |
 | `className` | `string` | | Merged onto the root. |
 
-All other `div` props are forwarded to the root.
+All other `span` props are forwarded to the root.
 
 </StandaloneMode>

@@ -202,7 +202,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(injectInteractableContext(messages)), // [!code ++]
   });
 
@@ -602,7 +602,7 @@ import {
   unstable_Interactables,
 } from "@assistant-ui/react";
 
-// Module-level (or memoized) so the adapter identity is stable across renders.
+// Module-level (or memoized): a new adapter object is a new persistence scope.
 const persistenceAdapter = {
   load: () => {
     const saved = localStorage.getItem("interactables");
@@ -630,7 +630,9 @@ function MyRuntimeProvider({ children }) {
 
 `load` is called when the adapter is attached and may be async. Loaded state seeds interactables as they register; a local edit made while a slow `load` is still in flight wins over the loaded value. Thread-scoped interactables are not touched by the adapter; they persist via thread history.
 
-For dynamic setups (an adapter that depends on auth), call `aui.unstable_interactables.setPersistenceAdapter(adapter)` imperatively instead. Replacing or removing an adapter flushes queued changes through the outgoing adapter before the new persistence context is attached.
+For dynamic setups (an adapter that depends on auth), call `aui.unstable_interactables.setPersistenceAdapter(adapter)` imperatively instead. Replacing an adapter resets app-scoped interactables before loading the replacement scope, including when the transition passes through `undefined`. Removing an adapter flushes queued changes but preserves local state, and reattaching the same adapter continues that scope. Keep the adapter memoized unless an account or workspace change should deliberately reset the scope.
+
+`save` receives the complete app-scoped snapshot for the current persistence scope: mounted interactables, entries that were loaded but never mounted, and entries whose component has since unmounted. Thread-scoped entries are always excluded. This is a superset of `exportState()`, which returns only currently mounted interactables.
 
 ### Sync Status
 
@@ -641,11 +643,11 @@ const [state, { setState, isPending, error, flush }] =
   unstable_useInteractableState<TState>(id);
 
 // isPending: true while a save is in-flight
-// error: the error from the last failed save, if any
+// error: the error from the last failed load or save, if any
 // flush(): force an immediate save (useful before navigation)
 ```
 
-State changes are automatically debounced (500ms) before saving. When the owning component unmounts, any pending save is flushed immediately.
+State changes are automatically debounced (500ms) before saving. Once the persistence scope has loaded, unmounting the owning component flushes any pending save immediately. If the load is still pending or has failed, the state remains in memory and joins the next snapshot after a successful load. A failed load keeps queued changes and exposes the error through the sync metadata. The next edit retries the load after the debounce delay, while an explicit `flush()` retries it immediately. If a load is already pending, `flush()` waits up to 5 seconds for it to settle before saving; past that it resolves without saving and the queued changes join the next snapshot after a successful load, so an adapter whose `load` stalls cannot block navigation. Saving starts only after a load succeeds. If the retry started by `flush()` also fails, `flush()` resolves without saving; check `error` and call `flush()` again after the load failure is resolved.
 
 ### Export / Import
 
@@ -673,7 +675,7 @@ aui.unstable_interactables.importState(snapshot);
 
 ## Streaming Updates
 
-The same partial merge runs token by token as the model generates an `update_{name}` call, so the interactable fills in live: a field the model is writing updates character by character, and only the fields and array items the call touches change. Everything it doesn't mention stays exactly as it was.
+The same partial merge runs token by token as the model generates an `update_{name}` call, so the interactable fills in live: a field the model is writing updates character by character, and only the fields and array items the call touches change. Everything it doesn't mention stays exactly as it was. A nested object streams the same way: the fields the model hasn't reached yet keep their previous values instead of disappearing, and once the object closes it replaces the previous one, as the final merge does.
 
 That stability is concrete, not just visual. While one array item streams in, the items the model isn't editing keep their exact object identity for the whole stream, so a memoized row for them never re-renders:
 
@@ -774,7 +776,7 @@ Pass an explicit `id` whenever you need to reach a specific instance: to read or
 
 ## Partial Updates
 
-Auto-generated tools use a partial schema in which all fields are optional. The AI only sends the fields it wants to change; omitted fields keep their current values.
+Auto-generated tools use a partial schema in which every top-level field is optional. The AI only sends the fields it wants to change; omitted fields keep their current values.
 
 ```tsx
 // If the state is { title: "My Note", content: "Hello", color: "yellow" }
@@ -788,13 +790,14 @@ For array fields whose items carry an `id`, the AI doesn't send a replacement ar
 
 <Callout type="info">
   Merge is shallow (one level deep). If the AI sends a nested object, it
-  replaces that entire field rather than deep-merging into it.
+  replaces that entire field rather than deep-merging into it, so the schema
+  keeps a nested object's required fields and the AI sends it complete.
 </Callout>
 
 ## How It Works
 
 1. **Register**: the interactable joins the `interactables` scope with its name, description, schema, and initial state.
-2. **Generate the tool**: one `update_{name}` tool per name, with a partial schema (every field optional) plus a required `id`. The tool list stays stable as instances mount and unmount, so provider prompt caches stay warm.
+2. **Generate the tool**: one `update_{name}` tool per name, with a partial schema (every top-level field optional, nested objects sent whole) plus a required `id`. The tool list stays stable as instances mount and unmount, so provider prompt caches stay warm.
 3. **Snapshot**: each sent user message carries the current state in `metadata.custom`, but only when the model doesn't already know it. A user edit stamps a snapshot; the model's own `update_*` calls and an in-message instance's create args don't. When the change fits a shallow merge it stamps only the changed fields (`partial: true`). Your route turns snapshots into model-visible text (see [State snapshots](#state-snapshots)).
 4. **Stream**: state updates field-by-field as the model generates the tool arguments, so the UI fills in live.
 5. **Merge**: only the fields the model sends are applied; the rest stay. Array fields keyed by `id` take operations (add/update/remove/clear) instead of a replacement array, and the framework mints ids for added items.

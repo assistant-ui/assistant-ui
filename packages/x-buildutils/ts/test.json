@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./base.json",
+  "compilerOptions": {
+    "types": ["node", "aui-build"],
+    "lib": ["dom", "dom.iterable", "ES2024"]
+  }
+}

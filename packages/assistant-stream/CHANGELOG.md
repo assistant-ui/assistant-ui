@@ -1,5 +1,101 @@
 # assistant-stream
 
+## 0.3.45
+
+### Patch Changes
+
+- [#7439](https://github.com/assistant-ui/assistant-ui/pull/7439) [`9619b42`](https://github.com/assistant-ui/assistant-ui/commit/9619b4207b96cad96ec649856454db2a937aea79) - fix: `createResumableStreamContext` no longer reports `onFinalize` for a producer whose finalize was fenced out by a newer acquisition of the same stream. `ResumableStreamStore.finalize` now resolves `false` when it finalized nothing (the bundled in-memory and Redis stores return it; a custom store that resolves without a value is still taken to have finalized), the context skips the hook on `false`, and a producer whose `"done"` finalize did not apply is reported through `onError` with a `ResumableStreamError("missing")`. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#7788](https://github.com/assistant-ui/assistant-ui/pull/7788) [`dcd43fd`](https://github.com/assistant-ui/assistant-ui/commit/dcd43fd08ea0194425ed9148e7ae0ce64a1e67d5) - fix: surface preliminary tool outputs instead of dropping them ([@rupic-app](https://github.com/apps/rupic-app))
+  
+  the ui message stream decoder now emits every `tool-output-available` chunk marked `preliminary` as an interim `result` with `isPreliminary: true`, the tool call stays open until its final output, and the accumulator keeps the call running with the interim value. the data stream protocol carries the same marker on `a:` lines, so a server on this version streaming interim results to a client on an older `assistant-stream` settles that client's tool call on the first interim value; keep both sides on the same version.
+
+- [#7907](https://github.com/assistant-ui/assistant-ui/pull/7907) [`e046327`](https://github.com/assistant-ui/assistant-ui/commit/e04632746cee8bc3fbc29b58cf23df4e12b12990) - fix(assistant-stream): reject tool argument waiters when the args stream fails ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7908](https://github.com/assistant-ui/assistant-ui/pull/7908) [`e525f14`](https://github.com/assistant-ui/assistant-ui/commit/e525f14b0bd7acbd1f3b4d268aa21d175afa9a94) - fix: carry a tool result's `modelContent` across the data-stream wire and aui/v0 persistence ([@Kinfe123](https://github.com/Kinfe123))
+  
+  The data-stream encoder dropped `modelContent` from the tool result frame and the aui/v0 cloud encoder dropped it from the stored tool-call part, so a tool that returned a large UI blob plus a short model summary sent the blob to the model, and a reloaded cloud thread disagreed with the localStorage boundary, which kept the field.
+
+- [#7068](https://github.com/assistant-ui/assistant-ui/pull/7068) [`4b069f9`](https://github.com/assistant-ui/assistant-ui/commit/4b069f90fbcb58953ebc7b9c4becca0bf4607842) - fix: Use successful Standard Schema output for tool execution and model output. Keep the original arguments for validation errors and stored tool calls. ([@ephraimduncan](https://github.com/ephraimduncan))
+
+## 0.3.44
+
+### Patch Changes
+
+- [#7368](https://github.com/assistant-ui/assistant-ui/pull/7368) [`562e495`](https://github.com/assistant-ui/assistant-ui/commit/562e495139605d5279e9bd39abc223ef52b79a94) - fix: cancel merged assistant streams when a transform is cancelled or errors, including child streams waiting for their next chunk. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7525](https://github.com/assistant-ui/assistant-ui/pull/7525) [`99c9988`](https://github.com/assistant-ui/assistant-ui/commit/99c9988951b5c469b2706bc3c85116a65660836a) - fix(assistant-stream): keep streaming tool-call arguments across a non-terminal error on the data stream ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7101](https://github.com/assistant-ui/assistant-ui/pull/7101) [`37a5a95`](https://github.com/assistant-ui/assistant-ui/commit/37a5a955d4d51a1b7013232a358e5e7461879d28) - fix: normalize configurable JSON Schema converters to draft-07 ([@rupic-app](https://github.com/apps/rupic-app))
+  
+  `toJSONSchema` asked only one of its conversion paths for a dialect, so the same tool definition emitted draft-07 or draft-2020-12 depending on the schema library. object-level `toJSONSchema()` methods are now asked for draft-07 as well, and the Standard JSON Schema converter, which declares `StandardJSONSchemaV1.Options` as its input and so agreed to the term, is rejected instead of cast when it answers in another dialect. the `~standard.toJSONSchema` hook is gone: it is not part of the Standard Schema spec, no library implements it, and it preempted the spec's `~standard.jsonSchema` converter. an unconvertible schema now names its own library in the error instead of telling every user to upgrade Zod.
+  
+  nothing else is held to the target. duck-typed `toJSONSchema()` methods, `toJSON()` results and plain JSON Schema objects pass through in whatever dialect they carry, so forwarding a remote tool's `inputSchema` verbatim keeps working.
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#7591](https://github.com/assistant-ui/assistant-ui/pull/7591) [`408d5f4`](https://github.com/assistant-ui/assistant-ui/commit/408d5f43a69baa9df723b395eaafba7a501f8884) - fix: keep package imports external in `aui-build` output without resolving them, and fail the build when anything from `node_modules` would be bundled. `assistant-stream` and `@assistant-ui/react-generative-ui` now depend on `@types/json-schema` instead of shipping a copy of it under `dist/node_modules`. ([@okisdev](https://github.com/okisdev))
+
+- [#7546](https://github.com/assistant-ui/assistant-ui/pull/7546) [`70b633f`](https://github.com/assistant-ui/assistant-ui/commit/70b633f378deff6c693f2720ceb9cbb5b8677d8c) - fix: name the Zod helper when a Zod schema has no JSON Schema converter ([@okisdev](https://github.com/okisdev))
+  
+  a `zod/mini` schema carries no `~standard.jsonSchema` converter and no schema-level `toJSONSchema`, so it reaches the unconvertible-schema error. that error now names `z.toJSONSchema(schema)` instead of pointing at "that library's Standard JSON Schema helper", which a Zod user had to go and find.
+
+## 0.3.43
+
+### Patch Changes
+
+- [#7220](https://github.com/assistant-ui/assistant-ui/pull/7220) [`628df88`](https://github.com/assistant-ui/assistant-ui/commit/628df887b9cfc9e0381cf53139a32dd0e75bbc67) - fix: a producer whose stream expired no longer writes into or finalizes the stream a later `run` starts under the same id. `createResumableStreamContext` now passes a lease from the new optional `ResumableStreamStore.acquireLease` to `append` and `finalize`; the bundled in-memory and Redis stores implement it, and custom stores opt in by implementing it. ([@samdickson22](https://github.com/samdickson22))
+
+- [#7262](https://github.com/assistant-ui/assistant-ui/pull/7262) [`ed77e95`](https://github.com/assistant-ui/assistant-ui/commit/ed77e956811a161243e6c9faf13320846db30a8a) - fix: avoid repeatedly scanning unfinished SSE lines when events arrive in small chunks ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7198](https://github.com/assistant-ui/assistant-ui/pull/7198) [`f6f52cd`](https://github.com/assistant-ui/assistant-ui/commit/f6f52cde1814bac7bca41c5da163bb50021921ff) - fix: a stale Redis append or delete no longer changes a stream that was reacquired between the store's metadata read and its write. the node-redis and ioredis adapters now run append, finalize, and delete as scripts through `EVALSHA`, so the Redis endpoint must allow `EVALSHA` as well as `EVAL`. a custom `RedisLikeClient` gets the same protection by implementing the optional `appendIfUnchanged` and `deleteIfUnchanged`. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7143](https://github.com/assistant-ui/assistant-ui/pull/7143) [`790217b`](https://github.com/assistant-ui/assistant-ui/commit/790217b85d9130116ac1a06c46a7902a2552ed07) - fix: batch raw AssistantStream enqueue calls ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7344](https://github.com/assistant-ui/assistant-ui/pull/7344) [`dacfcec`](https://github.com/assistant-ui/assistant-ui/commit/dacfcecf633340250e38f6055eeea3c9e01a978d) - fix: skip in-memory resumable stream expiry sweeps until an expiry can be due, avoiding full-store scans on every chunk while preserving TTL and reader wakeups. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7241](https://github.com/assistant-ui/assistant-ui/pull/7241) [`c0d6150`](https://github.com/assistant-ui/assistant-ui/commit/c0d615046cbbbdfee1a183428f51e9c547564a8c) - fix: strict `TextStreamController.append()` drops deltas instead of throwing after the consumer cancels the stream ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#7242](https://github.com/assistant-ui/assistant-ui/pull/7242) [`275eeb9`](https://github.com/assistant-ui/assistant-ui/commit/275eeb91d0be1d43e98b7b48a53a9609e87419c4) - fix: the tool-call `argsText` controller honors the `strict` flag passed to `createAssistantStreamController` ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#7327](https://github.com/assistant-ui/assistant-ui/pull/7327) [`e57c33f`](https://github.com/assistant-ui/assistant-ui/commit/e57c33f956b28d1c504ea6a1eadbc9e3092e4931) - fix: avoid rescanning emitted tool argument array entries on each streaming update ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7056](https://github.com/assistant-ui/assistant-ui/pull/7056) [`e533f6b`](https://github.com/assistant-ui/assistant-ui/commit/e533f6b2790d4f8ffcc75c256d3753c95f801a9e) - fix: mark tool arguments complete when their text stream ends ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#7325](https://github.com/assistant-ui/assistant-ui/pull/7325) [`28691a5`](https://github.com/assistant-ui/assistant-ui/commit/28691a5ef6f7f0a333fa910220f29b0b2a0fae8c) - fix: return only own JSON properties when reading tool argument fields ([@Kinfe123](https://github.com/Kinfe123))
+
+## 0.3.42
+
+### Patch Changes
+
+- [#7058](https://github.com/assistant-ui/assistant-ui/pull/7058) [`3bcd6db`](https://github.com/assistant-ui/assistant-ui/commit/3bcd6dbacd4ac0d13c30cf82b974e98aaa514ad9) - fix: prevent tool execution after cancellation during asynchronous schema validation ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#7061](https://github.com/assistant-ui/assistant-ui/pull/7061) [`a16b990`](https://github.com/assistant-ui/assistant-ui/commit/a16b9908d0a4ee74573ee94228b4d87aa4f977f8) - fix: use final message usage for token counts when the stream reports a positive output total ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#7106](https://github.com/assistant-ui/assistant-ui/pull/7106) [`253c80d`](https://github.com/assistant-ui/assistant-ui/commit/253c80de81d07ee556978d99e342f8bc1b57cb0a) - fix(assistant-stream): settle cancellation during asynchronous tool validation ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7107](https://github.com/assistant-ui/assistant-ui/pull/7107) [`e6158c8`](https://github.com/assistant-ui/assistant-ui/commit/e6158c8af3306f9af4af2fea8987ded698d6393e) - fix(assistant-stream): preserve prototype-named tool call IDs ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7158](https://github.com/assistant-ui/assistant-ui/pull/7158) [`623d5ff`](https://github.com/assistant-ui/assistant-ui/commit/623d5ff90ef93a892152f8f1219b0560ea124d97) - fix: apply deeply nested GORP paths without overflowing the stack ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7142](https://github.com/assistant-ui/assistant-ui/pull/7142) [`07eeb54`](https://github.com/assistant-ui/assistant-ui/commit/07eeb54de16fed4b7a1afc7de0b2aa264c51a299) - perf: skip partial tool argument parsing without active readers ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7059](https://github.com/assistant-ui/assistant-ui/pull/7059) [`12c5447`](https://github.com/assistant-ui/assistant-ui/commit/12c54477a18b0ebd2b9cf397da1a1427704ea0c9) - fix: remove nested required constraints from partial schemas without properties ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#7065](https://github.com/assistant-ui/assistant-ui/pull/7065) [`9b9d5e9`](https://github.com/assistant-ui/assistant-ui/commit/9b9d5e936395ce878464c9c50a75e8344aaeb067) - fix: keep provider messages in backend tool responses and completed pending tool calls ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6881](https://github.com/assistant-ui/assistant-ui/pull/6881) [`afac9e0`](https://github.com/assistant-ui/assistant-ui/commit/afac9e02911f05684309087b4e2d9e0ee9b2bc1f) - fix: complete aborted in-memory stream reads without throwing a stored error after the last buffered chunk. ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6877](https://github.com/assistant-ui/assistant-ui/pull/6877) [`4cdcabb`](https://github.com/assistant-ui/assistant-ui/commit/4cdcabb1a914b48af214da59896fe3c716465321) - fix: Keep stored replay bytes separate from producer and consumer buffers. ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6954](https://github.com/assistant-ui/assistant-ui/pull/6954) [`23d2865`](https://github.com/assistant-ui/assistant-ui/commit/23d286573f68875ade98b2fd01ed3e36c0d629f4) - fix: keep the first SSE event when a text stream starts with a byte-order mark ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#7060](https://github.com/assistant-ui/assistant-ui/pull/7060) [`b505555`](https://github.com/assistant-ui/assistant-ui/commit/b505555a7a8c98e09bdcb718dd74aaa48eb57bee) - fix: supply the draft-07 target to Standard JSON Schema converters so tool parameter conversion does not throw on missing options ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6868](https://github.com/assistant-ui/assistant-ui/pull/6868) [`01fdd4b`](https://github.com/assistant-ui/assistant-ui/commit/01fdd4b204f4c3d2c151f7a0ac356706de5b923b) - fix: keep positive exponents incomplete until all argument digits arrive ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6952](https://github.com/assistant-ui/assistant-ui/pull/6952) [`59a8251`](https://github.com/assistant-ui/assistant-ui/commit/59a825190f80f6036984650bc36c5aa260e7e332) - fix: keep the JSON quotes on a successful tool input that is a plain string, so a tool with a string input schema executes instead of failing with a parameter parsing error ([@ephraimduncan](https://github.com/ephraimduncan))
+
 ## 0.3.41
 
 ### Patch Changes

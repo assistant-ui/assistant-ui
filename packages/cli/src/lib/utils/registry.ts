@@ -2,6 +2,34 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 const REGISTRY_BASE_URL = "https://r.assistant-ui.com";
+export const SHARED_REGISTRY_ITEMS = new Set(["utils"]);
+
+export function detectRegistryPlatform(cwd: string): "web" | "native" {
+  try {
+    const packageJsonPath = path.join(cwd, "package.json");
+    const packageJson = JSON.parse(
+      fs.readFileSync(packageJsonPath, "utf8"),
+    ) as {
+      dependencies?: unknown;
+      devDependencies?: unknown;
+    };
+    const dependencyGroups = [
+      packageJson.dependencies,
+      packageJson.devDependencies,
+    ];
+
+    return dependencyGroups.some(
+      (dependencies) =>
+        typeof dependencies === "object" &&
+        dependencies !== null &&
+        Object.hasOwn(dependencies, "react-native"),
+    )
+      ? "native"
+      : "web";
+  } catch {
+    return "web";
+  }
+}
 
 export function getComponentsJsonStyle(cwd: string): string | undefined {
   try {
@@ -30,7 +58,14 @@ export function resolveQuickStartRegistryUrl(style?: string): string {
 export function resolveRegistryItemUrl(
   component: string,
   style?: string,
+  platform: "web" | "native" = "web",
 ): string {
+  if (platform === "native") {
+    return SHARED_REGISTRY_ITEMS.has(component)
+      ? `${REGISTRY_BASE_URL}/${encodeURIComponent(component)}.json`
+      : `${REGISTRY_BASE_URL}/native/${encodeURIComponent(component)}.json`;
+  }
+
   if (style === undefined) {
     return `${REGISTRY_BASE_URL}/base/${encodeURIComponent(component)}.json`;
   }

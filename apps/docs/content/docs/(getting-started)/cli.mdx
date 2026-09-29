@@ -352,6 +352,31 @@ Options:
   -h, --help        display help for command
 ```
 
+## agent
+
+Use the `agent` command to open Claude Code with the assistant-ui skills loaded and a prompt already sent.
+
+```bash
+npx assistant-ui@latest agent "add a chat sidebar to this app"
+```
+
+The command fetches the [assistant-ui skills](/docs/llm#skills) plugin pinned to this CLI release into `~/.cache/assistant-ui/skills/<commit>` (under `$XDG_CACHE_HOME` when set), then runs `claude` with `--plugin-dir` for that session only. Nothing is written into your project; run `npx skills add assistant-ui/skills` to install the skills permanently. The `claude` CLI must be on your `PATH`, and a `GITHUB_TOKEN` avoids GitHub's unauthenticated rate limit on the first fetch.
+
+**Options**
+
+```bash
+Usage: assistant-ui agent [options] <prompt...>
+
+launch Claude Code with assistant-ui skills
+
+Arguments:
+  prompt      prompt for the agent
+
+Options:
+  --dry       print the command instead of running it
+  -h, --help  display help for command
+```
+
 ## info
 
 Use the `info` command to print your environment and package versions for bug reports.

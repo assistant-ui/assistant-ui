@@ -3,8 +3,10 @@ import type {
   ThreadUserMessagePart,
   ToolApprovalResponse,
   ToolCallMessagePartStatus,
+  Unstable_ToolInteractionInput,
 } from "../../types/message";
 import { resolveToolApprovalResponse } from "../utils/resolveToolApprovalResponse";
+import { createToolInteraction } from "../utils/tool-interactions";
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { MessagePartStatus } from "../../types/message";
 import type { SubscribableWithState } from "../../subscribable/subscribable";
@@ -29,6 +31,9 @@ export type MessagePartRuntime = {
   addToolResult(result: any | ToolResponse<any>): void;
   resumeToolCall(payload: unknown): void;
   respondToToolApproval(response: ToolApprovalResponse): Promise<void>;
+  unstable_recordInteraction?: (
+    input: Unstable_ToolInteractionInput,
+  ) => Promise<void>;
 
   readonly path: MessagePartRuntimePath;
   getState(): MessagePartState;
@@ -59,6 +64,8 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
     this.addToolResult = this.addToolResult.bind(this);
     this.resumeToolCall = this.resumeToolCall.bind(this);
     this.respondToToolApproval = this.respondToToolApproval.bind(this);
+    this.unstable_recordInteraction =
+      this.unstable_recordInteraction.bind(this);
     this.getState = this.getState.bind(this);
     this.subscribe = this.subscribe.bind(this);
   }
@@ -92,8 +99,11 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
       toolName,
       toolCallId,
       result: response.result,
-      artifact: response.artifact,
       isError: response.isError,
+      ...(response.artifact !== undefined && { artifact: response.artifact }),
+      ...(response.modelContent !== undefined && {
+        modelContent: response.modelContent,
+      }),
     });
   }
 
@@ -111,6 +121,10 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
       toolCallId,
       payload,
     });
+    void this.unstable_recordInteraction({
+      type: "human-response",
+      payload,
+    }).catch(() => {});
   }
 
   public respondToToolApproval(response: ToolApprovalResponse): Promise<void> {
@@ -136,6 +150,35 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
       .respondToToolApproval(
         resolveToolApprovalResponse(state.approval, response),
       );
+  }
+
+  public async unstable_recordInteraction(
+    input: Unstable_ToolInteractionInput,
+  ): Promise<void> {
+    const state = this.contentBinding.getState();
+    if (!state) throw new Error("Message part is not available");
+
+    if (state.type !== "tool-call")
+      throw new Error("Tried to record interaction on non-tool message part");
+
+    if (!this.messageApi)
+      throw new Error(
+        "Message API is not available. This is likely a bug in assistant-ui.",
+      );
+    if (!this.threadApi) throw new Error("Thread API is not available");
+
+    const message = this.messageApi.getState();
+    if (!message) throw new Error("Message is not available");
+
+    const core = this.threadApi.getState();
+    if (!core.unstable_recordToolInteraction)
+      throw new Error("Runtime does not support recording tool interactions.");
+
+    await core.unstable_recordToolInteraction({
+      messageId: message.id,
+      toolCallId: state.toolCallId,
+      interaction: createToolInteraction(input),
+    });
   }
 
   public subscribe(callback: () => void) {

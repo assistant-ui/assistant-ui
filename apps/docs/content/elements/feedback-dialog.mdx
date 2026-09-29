@@ -9,7 +9,7 @@ FeedbackDialog turns a thumbs-down into a short form: pick what went wrong, add 
 
 <RuntimeMode>
 
-assistant-ui's own feedback signal is binary: positive or negative, recorded on the message. `ActionBarPrimitive.FeedbackNegative` already submits that in one click. FeedbackDialog asks why first, so it sits in front of that signal rather than replacing it: keep the binary rating for the runtime, and carry the reasons and note yourself.
+assistant-ui's own feedback signal is binary: positive or negative, recorded on the message. `ActionBarPrimitive.FeedbackNegative` already submits that in one click. FeedbackDialog asks why first, so it sits in front of that signal rather than replacing it: keep the binary rating for the runtime, and pass the reasons and note as `comment`.
 
 <Steps>
   <Step>
@@ -62,7 +62,11 @@ export function MessageFeedback() {
       }
       onNoteChange={setNote}
       onSubmit={() => {
-        aui.message.submitFeedback({ type: "negative" });
+        const comment = [...selected, note.trim()]
+          .filter(Boolean)
+          .join(". ")
+          .slice(0, 2000);
+        aui.message.submitFeedback({ type: "negative", comment });
         setSent(true);
       }}
     />
@@ -73,9 +77,9 @@ export function MessageFeedback() {
   </Step>
   <Step>
 
-### Register where the binary signal lands
+### Register where feedback lands
 
-`submitFeedback` reaches a `FeedbackAdapter` you register on the runtime. Its `submit` receives the message and the type only, never the reasons or the note, so those need their own transport if you want to keep them.
+`submitFeedback` reaches a `FeedbackAdapter` you register on the runtime. Its `submit` receives the message, type, and optional `comment`, so reasons and a note travel in `comment`. Structured reasons still need their own transport when they must remain separate. The example caps the comment at 2,000 characters, the longest Assistant Cloud accepts; a backend with another limit sets its own.
 
 ```tsx title="app/assistant.tsx"
 import { useLocalRuntime } from "@assistant-ui/react";
@@ -83,10 +87,10 @@ import { useLocalRuntime } from "@assistant-ui/react";
 const runtime = useLocalRuntime(adapter, {
   adapters: {
     feedback: {
-      submit: ({ message, type }) => {
+      submit: ({ message, type, comment }) => {
         fetch("/api/feedback", {
           method: "POST",
-          body: JSON.stringify({ messageId: message.id, type }),
+          body: JSON.stringify({ messageId: message.id, type, comment }),
         });
       },
     },
@@ -94,7 +98,7 @@ const runtime = useLocalRuntime(adapter, {
 });
 ```
 
-Send `selected` and `note` from `onSubmit` in the same request, or a separate one; the adapter contract itself has no slot for them.
+The runtime example combines `selected` and `note` into `comment`. Send structured reasons in their own request only when the backend must keep them separate.
 
   </Step>
 </Steps>
@@ -203,7 +207,7 @@ const runtime = useExternalStoreRuntime({
   // ...messages, onNew, isRunning, etc.
   adapters: {
     feedback: {
-      submit: ({ message, type }) => api.rateMessage(message.id, type),
+      submit: ({ message, type, comment }) => api.rateMessage(message.id, type, comment),
     },
   },
 });
@@ -229,14 +233,14 @@ Both lanes take `className` on the root. Pills, the textarea, and the submit but
 
 | Selector | Type | Description |
 |----------|------|-------------|
-| `s.message.metadata.submittedFeedback` | `{ type: "positive" \| "negative" } \| undefined` | The rating already recorded for this message, if any. |
-| `aui.message.submitFeedback(feedback)` | `(feedback: { type: "positive" \| "negative" }) => void` | Records the rating on the message and calls the registered `FeedbackAdapter`. |
+| `s.message.metadata.submittedFeedback` | `{ type: "positive" \| "negative"; comment?: string } \| undefined` | The rating already recorded for this message, if any. |
+| `aui.message.submitFeedback(feedback)` | `(feedback: { type: "positive" \| "negative"; comment?: string }) => void` | Records the rating on the message and calls the registered `FeedbackAdapter`. |
 
 ### FeedbackAdapter
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `submit` | `(feedback: { message: ThreadMessage; type: "positive" \| "negative" }) => void` | Called once per `submitFeedback`. Register it under `adapters.feedback` on `useLocalRuntime` or an external-store runtime. Carries the message and the binary type only. |
+| `submit` | `(feedback: { message: ThreadMessage; type: "positive" \| "negative"; comment?: string }) => void` | Called once per `submitFeedback`. Register it under `adapters.feedback` on `useLocalRuntime` or an external-store runtime. Carries the message, type, and optional comment. |
 
 </RuntimeMode>
 
@@ -250,9 +254,9 @@ Both lanes take `className` on the root. Pills, the textarea, and the submit but
 | `selected` | `readonly string[]` | required | Reasons currently pressed. |
 | `note` | `string` | required | The textarea's value. |
 | `sent` | `boolean` | required | Swaps the form for the confirmation line when true. |
-| `onToggleReason` | `(reason: string) => void` | | Called with the pressed reason; toggling membership in `selected` is the caller's job. |
+| `onToggleReason` | `(reason: string) => void` | | Called with the pressed reason; toggling membership in `selected` is the caller's job. Without it, reasons render as non-interactive selected-state chips. |
 | `onNoteChange` | `(note: string) => void` | | Called with the textarea's next value. |
-| `onSubmit` | `() => void` | | Called with no arguments. Read `selected` and `note` from your own state. |
+| `onSubmit` | `() => void` | | Called with no arguments. Read `selected` and `note` from your own state. The submit button renders only when this is supplied. |
 | `className` | `string` | | Merged onto the root. |
 
 All other `div` props are forwarded to the root.

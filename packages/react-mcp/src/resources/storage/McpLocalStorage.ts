@@ -148,12 +148,13 @@ const isSecureNetworkUrl = (value: unknown): value is string => {
   if (!isNonEmptyString(value)) return false;
   try {
     const url = new URL(value);
+    const isIpv4Loopback = /^127(?:\.\d{1,3}){3}$/.test(url.hostname);
     return (
       url.protocol === "https:" ||
       (url.protocol === "http:" &&
         (url.hostname === "localhost" ||
           url.hostname.endsWith(".localhost") ||
-          url.hostname.startsWith("127.") ||
+          isIpv4Loopback ||
           url.hostname === "[::1]"))
     );
   } catch {

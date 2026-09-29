@@ -4,7 +4,7 @@ import { ArrowUpRight } from "lucide-react";
 import { createOgMetadata } from "@/lib/og";
 import { ExampleCard } from "@/components/pages/examples/example-card";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";
+import { typeDeck, typePage } from "@/components/shared/type";
 import { COMMUNITY_EXAMPLES, INTERNAL_EXAMPLES } from "@/lib/examples";
 import { cn } from "@/lib/utils";
 
@@ -33,8 +33,8 @@ function ExampleSection({
       className="border-foreground/10 scroll-mt-24 border-t py-10 md:py-12"
     >
       <div className="flex items-baseline justify-between">
-        <h2 className={typeEyebrow}>{label}</h2>
-        <span className="text-muted-foreground/60 font-mono text-[11px] tracking-wide tabular-nums">
+        <h2 className="text-sm font-medium">{label}</h2>
+        <span className="text-muted-foreground text-sm tabular-nums">
           {String(items.length).padStart(2, "0")}
         </span>
       </div>
