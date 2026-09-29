@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { CHECKBOX_GROUP_ATTR, GENERATED_NAME_ATTR } from "../constants";
+import {
+  CHECKBOX_GROUP_ATTR,
+  FIELD_NAME_ATTR,
+  GENERATED_NAME_ATTR,
+} from "../constants";
 import { renderGenerativeUI } from "../renderGenerativeUI";
 import { interactiveVocabulary } from "./interactive";
 import { defaultGenerativeUILibrary } from "./index";
@@ -50,7 +54,7 @@ describe("interactiveVocabulary", () => {
     expect(html).toContain('aria-label="Choose"');
   });
 
-  it("Select keys options by index so duplicate values do not collide", () => {
+  it("Select renders every option when values are duplicated", () => {
     const html = render({
       $type: "Select",
       options: [
@@ -242,7 +246,7 @@ describe("interactiveVocabulary", () => {
     expect(html).toContain('aria-label="Size"');
   });
 
-  it("RadioGroup radios share the given name", () => {
+  it("RadioGroup uses a shared native name and preserves the logical field name", () => {
     const html = render({
       $type: "RadioGroup",
       name: "size",
@@ -251,7 +255,11 @@ describe("interactiveVocabulary", () => {
         { label: "Large", value: "lg" },
       ],
     });
-    expect((html.match(/name="size"/g) ?? []).length).toBe(2);
+    const names = [...html.matchAll(/ name="([^"]*)"/g)].map((m) => m[1]);
+    expect(names).toHaveLength(2);
+    expect(names[0]).toBe(names[1]);
+    expect(names[0]).not.toBe("size");
+    expect(html.split(`${FIELD_NAME_ATTR}="size"`).length - 1).toBe(2);
     expect(html).not.toContain(GENERATED_NAME_ATTR);
   });
 

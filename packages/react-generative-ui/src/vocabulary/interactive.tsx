@@ -1,6 +1,10 @@
-import { useId, type ReactNode } from "react";
+import * as React from "react";
 import { z } from "zod";
-import { CHECKBOX_GROUP_ATTR, GENERATED_NAME_ATTR } from "../constants";
+import {
+  CHECKBOX_GROUP_ATTR,
+  FIELD_NAME_ATTR,
+  GENERATED_NAME_ATTR,
+} from "../constants";
 import type { Action } from "../ir";
 import { BUTTON_STYLES } from "../ir";
 import type {
@@ -8,85 +12,115 @@ import type {
   GenerativeUILibrary,
   GenerativeUIStatus,
 } from "../types";
+import { useAnsweredValue } from "../answeredValues";
 import { actionAttr, fire } from "./dispatch";
 import { toTextContent } from "./toTextContent";
+import { useRadioGroupName } from "../RadioGroupScope";
 
 const optionSchema = z.object({
   label: z.string(),
   value: z.string(),
 });
 
-type Option = { label: string; value: string };
+const describedOptionSchema = optionSchema.extend({
+  description: z.string().optional(),
+});
+
+type Option = { label: string; description?: string; value: string };
 
 const isOption = (option: unknown): option is Option =>
   option !== null &&
   typeof option === "object" &&
   "label" in option &&
   typeof option.label === "string" &&
+  (!("description" in option) || typeof option.description === "string") &&
   "value" in option &&
   typeof option.value === "string";
 
+const mapOptions = (
+  options: unknown,
+  render: (option: Option, key: string) => React.ReactNode,
+) => {
+  const occurrences = new Map<string, number>();
+  return (Array.isArray(options) ? options : []).map((option) => {
+    if (!isOption(option)) return null;
+    const occurrence = occurrences.get(option.value) ?? 0;
+    occurrences.set(option.value, occurrence + 1);
+    return render(option, JSON.stringify([option.value, occurrence]));
+  });
+};
+
 type RadioGroupRenderProps = {
+  value?: string;
   options: Option[];
   name?: string;
   label?: string;
-  value?: string;
   defaultValue?: string;
-  children?: ReactNode;
+  children?: React.ReactNode;
   $status: GenerativeUIStatus;
   $action?: Action;
   $dispatch?: GenerativeUIDispatch;
 };
 
 function RadioGroupRender({
+  value,
   options,
   name,
   label,
-  value,
   defaultValue,
   children,
   $action,
   $dispatch,
 }: RadioGroupRenderProps) {
-  const generatedName = useId();
-  const fieldName = name ?? generatedName;
-  const safeOptions = Array.isArray(options) ? options : [];
+  const groupName = useRadioGroupName(name);
+  const answeredValue = useAnsweredValue(name);
+  const isBound = $action?.type === "a2ui:binding";
+  const initialValue =
+    typeof answeredValue === "string" ? answeredValue : defaultValue;
   return (
     <fieldset
+      key={initialValue}
       data-aui="radiogroup"
       data-aui-action={actionAttr($action)}
       aria-label={label}
     >
-      {safeOptions.map((option, i) =>
-        isOption(option) ? (
-          <label key={i} data-aui="radiogroup-option">
-            <input
-              type="radio"
-              name={fieldName}
-              {...(name == null ? { [GENERATED_NAME_ATTR]: "" } : {})}
-              value={option.value}
-              checked={value === undefined ? undefined : value === option.value}
-              defaultChecked={
-                value === undefined && defaultValue === option.value
-              }
-              onChange={() => fire($action, $dispatch, option.value)}
-            />
-            {option.label}
-          </label>
-        ) : null,
-      )}
+      {mapOptions(options, (option, key) => (
+        <label key={key} data-aui="radiogroup-option">
+          <input
+            type="radio"
+            name={groupName}
+            {...{ [FIELD_NAME_ATTR]: name }}
+            {...(name == null ? { [GENERATED_NAME_ATTR]: "" } : {})}
+            value={option.value}
+            {...(isBound
+              ? { checked: (answeredValue ?? value) === option.value }
+              : { defaultChecked: initialValue === option.value })}
+            onChange={(e) =>
+              fire($action, $dispatch, option.value, e.currentTarget)
+            }
+          />
+          {option.description ? (
+            <span data-aui="option-content">
+              <span data-aui="option-label">{option.label}</span>
+              <span data-aui="option-description">{option.description}</span>
+            </span>
+          ) : (
+            option.label
+          )}
+        </label>
+      ))}
       {children}
     </fieldset>
   );
 }
 
 type CheckboxGroupRenderProps = {
+  value?: string[];
   options: Option[];
   name?: string;
   label?: string;
-  value?: string[];
   defaultValue?: string[];
-  children?: ReactNode;
+  children?: React.ReactNode;
   $status: GenerativeUIStatus;
   $action?: Action;
   $dispatch?: GenerativeUIDispatch;
@@ -103,56 +137,616 @@ const checkedGroupValues = (input: HTMLInputElement): string[] =>
   );
 
 function CheckboxGroupRender({
+  value,
   options,
   name,
   label,
-  value,
   defaultValue,
   children,
   $action,
   $dispatch,
 }: CheckboxGroupRenderProps) {
-  const generatedName = useId();
+  const generatedName = React.useId();
   const fieldName = name ?? generatedName;
-  const safeOptions = Array.isArray(options) ? options : [];
-  const checkedValues = Array.isArray(value)
-    ? value
-    : Array.isArray(defaultValue)
-      ? defaultValue
-      : [];
+  const answeredValue = useAnsweredValue(name);
+  const isBound = $action?.type === "a2ui:binding";
+  const checkedValues =
+    Array.isArray(answeredValue) &&
+    answeredValue.every((value): value is string => typeof value === "string")
+      ? answeredValue
+      : Array.isArray(defaultValue)
+        ? defaultValue
+        : [];
   return (
     <fieldset
+      key={JSON.stringify(checkedValues)}
       data-aui="checkboxgroup"
       data-aui-action={actionAttr($action)}
       aria-label={label}
     >
-      {safeOptions.map((option, i) =>
-        isOption(option) ? (
-          <label key={i} data-aui="checkboxgroup-option">
-            <input
-              type="checkbox"
-              name={fieldName}
-              {...{ [CHECKBOX_GROUP_ATTR]: "" }}
-              {...(name == null ? { [GENERATED_NAME_ATTR]: "" } : {})}
-              value={option.value}
-              checked={
-                value === undefined
-                  ? undefined
-                  : checkedValues.includes(option.value)
-              }
-              defaultChecked={
-                value === undefined && checkedValues.includes(option.value)
-              }
-              onChange={(e) =>
-                fire($action, $dispatch, checkedGroupValues(e.currentTarget))
-              }
-            />
-            {option.label}
-          </label>
-        ) : null,
-      )}
+      {mapOptions(options, (option, key) => (
+        <label key={key} data-aui="checkboxgroup-option">
+          <input
+            type="checkbox"
+            name={fieldName}
+            {...{ [CHECKBOX_GROUP_ATTR]: "" }}
+            {...(name == null ? { [GENERATED_NAME_ATTR]: "" } : {})}
+            value={option.value}
+            {...(isBound
+              ? {
+                  checked: (Array.isArray(answeredValue)
+                    ? checkedValues
+                    : (value ?? [])
+                  ).includes(option.value),
+                }
+              : { defaultChecked: checkedValues.includes(option.value) })}
+            onChange={(e) =>
+              fire(
+                $action,
+                $dispatch,
+                checkedGroupValues(e.currentTarget),
+                e.currentTarget,
+              )
+            }
+          />
+          {option.description ? (
+            <span data-aui="option-content">
+              <span data-aui="option-label">{option.label}</span>
+              <span data-aui="option-description">{option.description}</span>
+            </span>
+          ) : (
+            option.label
+          )}
+        </label>
+      ))}
       {children}
     </fieldset>
+  );
+}
+
+type SelectRenderProps = {
+  value?: string;
+  options: Option[];
+  placeholder?: string;
+  label?: string;
+  name?: string;
+  defaultValue?: string;
+  children?: React.ReactNode;
+  $status: GenerativeUIStatus;
+  $action?: Action;
+  $dispatch?: GenerativeUIDispatch;
+};
+
+function SelectRender({
+  value,
+  options,
+  placeholder,
+  label,
+  name,
+  defaultValue,
+  $action,
+  $dispatch,
+  children,
+}: SelectRenderProps) {
+  const answeredValue = useAnsweredValue(name);
+  const isBound = $action?.type === "a2ui:binding";
+  const placeholderText = toTextContent(placeholder);
+  const initialValue =
+    typeof answeredValue === "string"
+      ? answeredValue
+      : typeof defaultValue === "string"
+        ? defaultValue
+        : "";
+  return (
+    <select
+      key={initialValue}
+      data-aui="select"
+      data-aui-action={actionAttr($action)}
+      name={name}
+      aria-label={label}
+      {...(isBound
+        ? {
+            value:
+              typeof answeredValue === "string" ? answeredValue : (value ?? ""),
+          }
+        : { defaultValue: initialValue })}
+      onChange={(e) =>
+        fire($action, $dispatch, e.currentTarget.value, e.currentTarget)
+      }
+    >
+      {placeholderText ? (
+        <option value="" disabled>
+          {placeholderText}
+        </option>
+      ) : null}
+      {mapOptions(options, (option, key) => (
+        <option key={key} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+      {children}
+    </select>
+  );
+}
+
+type InputRenderProps = {
+  value?: string;
+  placeholder?: string;
+  multiline?: boolean;
+  label?: string;
+  name?: string;
+  defaultValue?: string;
+  $status: GenerativeUIStatus;
+  $action?: Action;
+  $dispatch?: GenerativeUIDispatch;
+};
+
+function InputRender({
+  value,
+  placeholder,
+  multiline,
+  label,
+  name,
+  defaultValue,
+  $action,
+  $dispatch,
+}: InputRenderProps) {
+  const answeredValue = useAnsweredValue(name);
+  const isBound = $action?.type === "a2ui:binding";
+  const initialValue =
+    typeof answeredValue === "string" ? answeredValue : defaultValue;
+  const submit = (control: HTMLInputElement | HTMLTextAreaElement) =>
+    fire($action, $dispatch, control.value, control);
+  return multiline ? (
+    <textarea
+      key={initialValue}
+      data-aui="input"
+      data-aui-multiline
+      data-aui-action={actionAttr($action)}
+      name={name}
+      aria-label={label}
+      placeholder={placeholder}
+      {...(isBound
+        ? {
+            value:
+              typeof answeredValue === "string" ? answeredValue : (value ?? ""),
+          }
+        : { defaultValue: initialValue })}
+      onChange={
+        isBound
+          ? (e) =>
+              fire($action, $dispatch, e.currentTarget.value, e.currentTarget)
+          : undefined
+      }
+      onKeyDown={(e) => {
+        if (
+          e.key !== "Enter" ||
+          !(e.ctrlKey || e.metaKey) ||
+          e.nativeEvent.isComposing
+        )
+          return;
+        if (e.currentTarget.form) {
+          e.preventDefault();
+          HTMLFormElement.prototype.requestSubmit.call(e.currentTarget.form);
+        } else {
+          submit(e.currentTarget);
+        }
+      }}
+    />
+  ) : (
+    <input
+      key={initialValue}
+      data-aui="input"
+      data-aui-action={actionAttr($action)}
+      name={name}
+      aria-label={label}
+      placeholder={placeholder}
+      {...(isBound
+        ? {
+            value:
+              typeof answeredValue === "string" ? answeredValue : (value ?? ""),
+          }
+        : { defaultValue: initialValue })}
+      onChange={
+        isBound
+          ? (e) =>
+              fire($action, $dispatch, e.currentTarget.value, e.currentTarget)
+          : undefined
+      }
+      onKeyDown={(e) => {
+        if (
+          e.key === "Enter" &&
+          !e.nativeEvent.isComposing &&
+          !e.currentTarget.form
+        )
+          submit(e.currentTarget);
+      }}
+    />
+  );
+}
+
+type DatePickerRenderProps = {
+  value?: string;
+  min?: string;
+  max?: string;
+  label?: string;
+  name?: string;
+  $status: GenerativeUIStatus;
+  $action?: Action;
+  $dispatch?: GenerativeUIDispatch;
+};
+
+function DatePickerRender({
+  value,
+  min,
+  max,
+  label,
+  name,
+  $action,
+  $dispatch,
+}: DatePickerRenderProps) {
+  const answeredValue = useAnsweredValue(name);
+  const isBound = $action?.type === "a2ui:binding";
+  const initialValue =
+    typeof answeredValue === "string" ? answeredValue : value;
+  return (
+    <input
+      key={isBound ? undefined : initialValue}
+      type="date"
+      data-aui="datepicker"
+      data-aui-action={actionAttr($action)}
+      name={name}
+      aria-label={label}
+      {...(isBound
+        ? {
+            value:
+              typeof answeredValue === "string" ? answeredValue : (value ?? ""),
+          }
+        : { defaultValue: initialValue })}
+      min={min}
+      max={max}
+      onChange={(e) =>
+        fire($action, $dispatch, e.currentTarget.value, e.currentTarget)
+      }
+    />
+  );
+}
+
+type CheckboxRenderProps = {
+  checked?: boolean;
+  label: string;
+  name?: string;
+  defaultChecked?: boolean;
+  variant?: "checkbox" | "switch";
+  $status: GenerativeUIStatus;
+  $action?: Action;
+  $dispatch?: GenerativeUIDispatch;
+};
+
+function CheckboxRender({
+  checked,
+  label,
+  name,
+  defaultChecked,
+  variant = "checkbox",
+  $action,
+  $dispatch,
+}: CheckboxRenderProps) {
+  const answeredValue = useAnsweredValue(name);
+  const isBound = $action?.type === "a2ui:binding";
+  const initialChecked =
+    typeof answeredValue === "boolean" ? answeredValue : defaultChecked;
+  return (
+    <label
+      data-aui="checkbox"
+      data-aui-variant={variant === "switch" ? variant : undefined}
+    >
+      <input
+        key={String(initialChecked)}
+        type="checkbox"
+        role={variant === "switch" ? "switch" : undefined}
+        data-aui-action={actionAttr($action)}
+        name={name}
+        {...(isBound
+          ? {
+              checked:
+                typeof answeredValue === "boolean"
+                  ? answeredValue
+                  : checked === true,
+            }
+          : { defaultChecked: initialChecked })}
+        onChange={(e) =>
+          fire($action, $dispatch, e.currentTarget.checked, e.currentTarget)
+        }
+      />
+      <span data-aui="checkbox-label">{toTextContent(label)}</span>
+    </label>
+  );
+}
+
+const finiteNumber = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value);
+
+const clamp = (value: number, min: number, max: number): number =>
+  Math.min(Math.max(value, min), max);
+
+type SliderRenderProps = {
+  value?: number;
+  name?: string;
+  label?: string;
+  min: number;
+  max: number;
+  step?: number;
+  defaultValue?: number;
+  unit?: string;
+  $status: GenerativeUIStatus;
+  $action?: Action;
+  $dispatch?: GenerativeUIDispatch;
+};
+
+type SliderControlProps = {
+  controlledValue?: number;
+  name?: string;
+  label?: string;
+  min: number;
+  max: number;
+  step: number;
+  initialValue: number;
+  unit?: string;
+  $action?: Action;
+  $dispatch?: GenerativeUIDispatch;
+};
+
+function SliderControl({
+  controlledValue,
+  name,
+  label,
+  min,
+  max,
+  step,
+  initialValue,
+  unit,
+  $action,
+  $dispatch,
+}: SliderControlProps) {
+  const [localValue, setValue] = React.useState(initialValue);
+  const value = controlledValue ?? localValue;
+  const pointerActive = React.useRef(false);
+  const keyboardActive = React.useRef(false);
+  const lastCommitted = React.useRef(initialValue);
+  const currentValue = (input: HTMLInputElement) =>
+    clamp(Number(input.value), min, max);
+  const commit = (input: HTMLInputElement) => {
+    if (controlledValue !== undefined) return;
+    const nextValue = currentValue(input);
+    setValue(nextValue);
+    if (lastCommitted.current === nextValue) return;
+    lastCommitted.current = nextValue;
+    fire($action, $dispatch, nextValue, input);
+  };
+
+  return (
+    <label data-aui="slider-field">
+      {label ? <span data-aui="slider-label">{label}</span> : null}
+      <input
+        type="range"
+        data-aui="slider"
+        data-aui-action={actionAttr($action)}
+        name={name}
+        aria-label={label}
+        aria-valuetext={unit ? `${value} ${unit}` : String(value)}
+        min={min}
+        max={max}
+        step={step}
+        {...(controlledValue !== undefined
+          ? { value }
+          : { defaultValue: initialValue })}
+        onInput={(e) => {
+          const nextValue = currentValue(e.currentTarget);
+          if (controlledValue !== undefined)
+            fire($action, $dispatch, nextValue, e.currentTarget);
+          else setValue(nextValue);
+        }}
+        onPointerDown={() => {
+          pointerActive.current = true;
+        }}
+        onPointerUp={(e) => {
+          pointerActive.current = false;
+          commit(e.currentTarget);
+        }}
+        onKeyDown={(e) => {
+          keyboardActive.current = [
+            "ArrowDown",
+            "ArrowLeft",
+            "ArrowRight",
+            "ArrowUp",
+            "End",
+            "Home",
+            "PageDown",
+            "PageUp",
+          ].includes(e.key);
+        }}
+        onKeyUp={(e) => {
+          if (!keyboardActive.current) return;
+          keyboardActive.current = false;
+          commit(e.currentTarget);
+        }}
+        onChange={(e) => {
+          if (!pointerActive.current && !keyboardActive.current)
+            commit(e.currentTarget);
+        }}
+      />
+      <output data-aui="slider-value">
+        {value}
+        {unit ? ` ${unit}` : ""}
+      </output>
+    </label>
+  );
+}
+
+function SliderRender({
+  value,
+  name,
+  label,
+  min,
+  max,
+  step,
+  defaultValue,
+  unit,
+  $action,
+  $dispatch,
+}: SliderRenderProps) {
+  const answeredValue = useAnsweredValue(name);
+  const isBound = $action?.type === "a2ui:binding";
+  const safeMin = finiteNumber(min) ? min : 0;
+  const safeMax = finiteNumber(max) ? Math.max(max, safeMin) : safeMin + 100;
+  const safeStep = finiteNumber(step) && step > 0 ? step : 1;
+  const defaultNumber = finiteNumber(isBound ? value : defaultValue)
+    ? isBound
+      ? value!
+      : defaultValue!
+    : safeMin;
+  const initialValue = clamp(
+    finiteNumber(answeredValue) ? answeredValue : defaultNumber,
+    safeMin,
+    safeMax,
+  );
+  return (
+    <SliderControl
+      key={`${safeMin}:${safeMax}:${safeStep}:${isBound ? "bound" : initialValue}`}
+      {...(isBound ? { controlledValue: initialValue } : {})}
+      min={safeMin}
+      max={safeMax}
+      step={safeStep}
+      initialValue={initialValue}
+      {...(name !== undefined ? { name } : {})}
+      {...(label !== undefined ? { label } : {})}
+      {...(unit !== undefined ? { unit } : {})}
+      {...($action !== undefined ? { $action } : {})}
+      {...($dispatch !== undefined ? { $dispatch } : {})}
+    />
+  );
+}
+
+const UNDO_WINDOW_SECONDS = 5;
+
+type ButtonRenderProps = {
+  label: string;
+  buttonStyle?: (typeof BUTTON_STYLES)[number];
+  block?: boolean;
+  submit?: boolean;
+  undoable?: boolean;
+  children?: React.ReactNode;
+  $status: GenerativeUIStatus;
+  $action?: Action;
+  $dispatch?: GenerativeUIDispatch;
+};
+
+function ButtonRender({
+  label,
+  buttonStyle,
+  block,
+  submit,
+  undoable,
+  children,
+  $action,
+  $dispatch,
+}: ButtonRenderProps) {
+  const [remaining, setRemaining] = React.useState<number | undefined>(
+    undefined,
+  );
+  const labelText = String(toTextContent(label) ?? "");
+  const undoLabel = labelText.trim();
+  const pendingAction = React.useRef<
+    | {
+        $action: Action;
+        $dispatch: GenerativeUIDispatch;
+        source: HTMLButtonElement;
+      }
+    | undefined
+  >(undefined);
+  const canUndo =
+    undoable && !submit && $action !== undefined && $dispatch !== undefined;
+
+  React.useEffect(() => {
+    if (remaining === undefined) return;
+    const timer = setTimeout(() => {
+      if (remaining > 1) {
+        setRemaining(remaining - 1);
+        return;
+      }
+      const action = pendingAction.current;
+      pendingAction.current = undefined;
+      setRemaining(undefined);
+      if (action)
+        fire(action.$action, action.$dispatch, undefined, action.source);
+    }, 1_000);
+    return () => clearTimeout(timer);
+  }, [remaining]);
+
+  const cancelUndo = () => {
+    pendingAction.current = undefined;
+    setRemaining(undefined);
+  };
+
+  return (
+    <button
+      type={submit ? "submit" : "button"}
+      data-aui="button"
+      data-aui-style={buttonStyle}
+      data-aui-block={block || undefined}
+      data-aui-submit={submit || undefined}
+      data-aui-state={remaining === undefined ? undefined : "pending"}
+      data-aui-action={actionAttr($action)}
+      aria-label={
+        remaining === undefined
+          ? undefined
+          : undoLabel
+            ? `Undo ${undoLabel}`
+            : "Undo"
+      }
+      onClick={
+        submit
+          ? undefined
+          : canUndo
+            ? (e) => {
+                if (remaining !== undefined) {
+                  cancelUndo();
+                  return;
+                }
+                pendingAction.current = {
+                  $action,
+                  $dispatch,
+                  source: e.currentTarget,
+                };
+                setRemaining(UNDO_WINDOW_SECONDS);
+              }
+            : (e) => fire($action, $dispatch, undefined, e.currentTarget)
+      }
+      onKeyDown={
+        canUndo
+          ? (e) => {
+              if (e.key !== "Escape" || remaining === undefined) return;
+              e.preventDefault();
+              cancelUndo();
+            }
+          : undefined
+      }
+    >
+      {remaining === undefined ? (
+        <>
+          {labelText}
+          {children}
+        </>
+      ) : (
+        <>
+          Undo <span data-aui="button-countdown">{remaining}</span>
+          <span data-aui="button-undo-status" role="status">
+            {labelText} in {UNDO_WINDOW_SECONDS} seconds
+          </span>
+        </>
+      )}
+    </button>
   );
 }
 
@@ -173,29 +767,14 @@ export const interactiveVocabulary = {
         .describe(
           "Render as a submit button for an ancestor Form/Card instead of a click button.",
         ),
+      undoable: z
+        .boolean()
+        .optional()
+        .describe(
+          "Delay the action with an undo control, for sends and other hard-to-reverse actions.",
+        ),
     }),
-    render: ({
-      label,
-      buttonStyle,
-      block,
-      submit,
-      $action,
-      $dispatch,
-      children,
-    }) => (
-      <button
-        type={submit ? "submit" : "button"}
-        data-aui="button"
-        data-aui-style={buttonStyle}
-        data-aui-block={block || undefined}
-        data-aui-submit={submit || undefined}
-        data-aui-action={actionAttr($action)}
-        onClick={submit ? undefined : () => fire($action, $dispatch)}
-      >
-        {toTextContent(label)}
-        {children}
-      </button>
-    ),
+    render: ButtonRender,
   },
   Select: {
     description:
@@ -211,47 +790,9 @@ export const interactiveVocabulary = {
         .optional()
         .describe("Accessible label for the control."),
       name: z.string().optional().describe("Field name used inside a Form."),
+      defaultValue: z.string().optional().describe("Initially selected value."),
     }),
-    render: (props) => {
-      const {
-        options,
-        placeholder,
-        label,
-        name,
-        $action,
-        $dispatch,
-        children,
-      } = props;
-      const placeholderText = toTextContent(placeholder);
-      const isA2uiBinding = $action?.type === "a2ui:binding";
-      const boundValue = (props as Record<string, unknown>)["value"];
-      return (
-        <select
-          data-aui="select"
-          data-aui-action={actionAttr($action)}
-          name={name}
-          aria-label={label}
-          {...(isA2uiBinding
-            ? { value: typeof boundValue === "string" ? boundValue : "" }
-            : { defaultValue: "" })}
-          onChange={(e) => fire($action, $dispatch, e.currentTarget.value)}
-        >
-          {placeholderText ? (
-            <option value="" disabled>
-              {placeholderText}
-            </option>
-          ) : null}
-          {(Array.isArray(options) ? options : []).map((option, i) =>
-            isOption(option) ? (
-              <option key={i} value={option.value}>
-                {option.label}
-              </option>
-            ) : null,
-          )}
-          {children}
-        </select>
-      );
-    },
+    render: SelectRender,
   },
   Input: {
     description:
@@ -267,69 +808,9 @@ export const interactiveVocabulary = {
         .optional()
         .describe("Accessible label for the control."),
       name: z.string().optional().describe("Field name used inside a Form."),
+      defaultValue: z.string().optional().describe("Initial text."),
     }),
-    render: (props) => {
-      const { placeholder, multiline, label, name, $action, $dispatch } = props;
-      const submit = (v: string) => fire($action, $dispatch, v);
-      const isA2uiBinding = $action?.type === "a2ui:binding";
-      const boundValue = (props as Record<string, unknown>)["value"];
-      const value =
-        isA2uiBinding && typeof boundValue === "string" ? boundValue : "";
-      return multiline ? (
-        <textarea
-          data-aui="input"
-          data-aui-multiline
-          data-aui-action={actionAttr($action)}
-          name={name}
-          aria-label={label}
-          placeholder={placeholder}
-          {...(isA2uiBinding ? { value } : {})}
-          onChange={
-            isA2uiBinding
-              ? (e) => fire($action, $dispatch, e.currentTarget.value)
-              : undefined
-          }
-          onKeyDown={(e) => {
-            if (
-              e.key !== "Enter" ||
-              !(e.ctrlKey || e.metaKey) ||
-              e.nativeEvent.isComposing
-            )
-              return;
-            if (e.currentTarget.form) {
-              e.preventDefault();
-              HTMLFormElement.prototype.requestSubmit.call(
-                e.currentTarget.form,
-              );
-            } else {
-              submit(e.currentTarget.value);
-            }
-          }}
-        />
-      ) : (
-        <input
-          data-aui="input"
-          data-aui-action={actionAttr($action)}
-          name={name}
-          aria-label={label}
-          placeholder={placeholder}
-          {...(isA2uiBinding ? { value } : {})}
-          onChange={
-            isA2uiBinding
-              ? (e) => fire($action, $dispatch, e.currentTarget.value)
-              : undefined
-          }
-          onKeyDown={(e) => {
-            if (
-              e.key === "Enter" &&
-              !e.nativeEvent.isComposing &&
-              !e.currentTarget.form
-            )
-              submit(e.currentTarget.value);
-          }}
-        />
-      );
-    },
+    render: InputRender,
   },
   DatePicker: {
     description:
@@ -344,25 +825,7 @@ export const interactiveVocabulary = {
         .describe("Accessible label for the control."),
       name: z.string().optional().describe("Field name used inside a Form."),
     }),
-    render: (props) => {
-      const { value, min, max, label, name, $action, $dispatch } = props;
-      const isA2uiBinding = $action?.type === "a2ui:binding";
-      return (
-        <input
-          type="date"
-          data-aui="datepicker"
-          data-aui-action={actionAttr($action)}
-          name={name}
-          aria-label={label}
-          {...(isA2uiBinding
-            ? { value: value ?? "" }
-            : { defaultValue: value })}
-          min={min}
-          max={max}
-          onChange={(e) => fire($action, $dispatch, e.currentTarget.value)}
-        />
-      );
-    },
+    render: DatePickerRender,
   },
   Checkbox: {
     description:
@@ -374,32 +837,35 @@ export const interactiveVocabulary = {
         .boolean()
         .optional()
         .describe("Whether the checkbox starts checked."),
+      variant: z
+        .enum(["checkbox", "switch"])
+        .optional()
+        .describe("Whether to render a checkbox or switch."),
     }),
-    render: (props) => {
-      const { label, name, defaultChecked, $action, $dispatch } = props;
-      const isA2uiBinding = $action?.type === "a2ui:binding";
-      const boundChecked = (props as Record<string, unknown>)["checked"];
-      return (
-        <label data-aui="checkbox">
-          <input
-            type="checkbox"
-            data-aui-action={actionAttr($action)}
-            name={name}
-            {...(isA2uiBinding
-              ? { checked: boundChecked === true }
-              : { defaultChecked })}
-            onChange={(e) => fire($action, $dispatch, e.currentTarget.checked)}
-          />
-          <span data-aui="checkbox-label">{toTextContent(label)}</span>
-        </label>
-      );
-    },
+    render: CheckboxRender,
+  },
+  Slider: {
+    description:
+      "A numeric range control. Carries `$action` describing the committed value.",
+    properties: z.object({
+      name: z.string().optional().describe("Field name used inside a Form."),
+      label: z
+        .string()
+        .optional()
+        .describe("Accessible label for the control."),
+      min: z.number().describe("Minimum value."),
+      max: z.number().describe("Maximum value."),
+      step: z.number().optional().describe("Value increment. Defaults to 1."),
+      defaultValue: z.number().optional().describe("Initial value."),
+      unit: z.string().optional().describe("Unit shown with the value."),
+    }),
+    render: SliderRender,
   },
   RadioGroup: {
     description:
       "A group of mutually exclusive radio options. Carries `$action` describing the on-change behavior.",
     properties: z.object({
-      options: z.array(optionSchema).describe("Selectable options."),
+      options: z.array(describedOptionSchema).describe("Selectable options."),
       name: z.string().optional().describe("Field name used inside a Form."),
       label: z.string().optional().describe("Accessible name for the group."),
       defaultValue: z.string().optional().describe("Initially selected value."),
@@ -410,7 +876,7 @@ export const interactiveVocabulary = {
     description:
       "A group of checkbox options where any number can be checked. Carries `$action` describing the on-change behavior.",
     properties: z.object({
-      options: z.array(optionSchema).describe("Selectable options."),
+      options: z.array(describedOptionSchema).describe("Selectable options."),
       name: z.string().optional().describe("Field name used inside a Form."),
       label: z.string().optional().describe("Accessible name for the group."),
       defaultValue: z

@@ -24,7 +24,12 @@ export const formVocabulary = {
         data-aui-action={actionAttr($action)}
         onSubmit={(event) => {
           event.preventDefault();
-          fire($action, $dispatch, collectFormValuesFromEvent(event));
+          fire(
+            $action,
+            $dispatch,
+            collectFormValuesFromEvent(event),
+            event.currentTarget,
+          );
         }}
       >
         {children}

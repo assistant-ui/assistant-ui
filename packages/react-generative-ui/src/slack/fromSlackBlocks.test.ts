@@ -323,6 +323,54 @@ describe("fromSlackBlocks", () => {
       ]);
     });
 
+    it("reads defaultValue from a matching static_select initial_option", () => {
+      const { nodes } = fromSlackBlocks([
+        {
+          type: "actions",
+          elements: [
+            {
+              type: "static_select",
+              action_id: "pick",
+              options: [
+                { text: { type: "plain_text", text: "Alpha" }, value: "a" },
+                { text: { type: "plain_text", text: "Beta" }, value: "b" },
+              ],
+              initial_option: {
+                text: { type: "plain_text", text: "Beta" },
+                value: "b",
+              },
+            },
+          ],
+        },
+      ]);
+      expect(nodes[0]).toMatchObject({
+        $type: "Select",
+        defaultValue: "b",
+      });
+    });
+
+    it("omits defaultValue when static_select initial_option is not an option", () => {
+      const { nodes } = fromSlackBlocks([
+        {
+          type: "actions",
+          elements: [
+            {
+              type: "static_select",
+              action_id: "pick",
+              options: [
+                { text: { type: "plain_text", text: "Alpha" }, value: "a" },
+              ],
+              initial_option: {
+                text: { type: "plain_text", text: "Missing" },
+                value: "missing",
+              },
+            },
+          ],
+        },
+      ]);
+      expect(nodes[0]).not.toHaveProperty("defaultValue");
+    });
+
     it("inverts a datepicker, reading value from initial_date and omitting it when absent", () => {
       const { nodes: withDate } = fromSlackBlocks([
         {
@@ -568,6 +616,33 @@ describe("fromSlackBlocks", () => {
         },
       ]);
       expect(nodes[0]).not.toHaveProperty("multiline");
+    });
+
+    it("reads defaultValue from a string initial_value, including empty text", () => {
+      const withText = fromSlackBlocks([
+        {
+          type: "input",
+          label: { type: "plain_text", text: "Notes" },
+          element: {
+            type: "plain_text_input",
+            action_id: "notes",
+            initial_value: "Draft reply",
+          },
+        },
+      ]);
+      const withEmptyText = fromSlackBlocks([
+        {
+          type: "input",
+          label: { type: "plain_text", text: "Notes" },
+          element: {
+            type: "plain_text_input",
+            action_id: "notes",
+            initial_value: "",
+          },
+        },
+      ]);
+      expect(withText.nodes[0]).toMatchObject({ defaultValue: "Draft reply" });
+      expect(withEmptyText.nodes[0]).toMatchObject({ defaultValue: "" });
     });
 
     it("drops an input block wrapping an unrecognized element", () => {
@@ -831,6 +906,27 @@ describe("fromSlackBlocks", () => {
   });
 
   describe("round trip", () => {
+    it("keeps Input and Select defaultValue props", () => {
+      const tree = [
+        {
+          $type: "Input",
+          label: "Notes",
+          defaultValue: "Draft reply",
+          $action: { type: "notes" },
+        },
+        {
+          $type: "Select",
+          options: [
+            { label: "Alpha", value: "a" },
+            { label: "Beta", value: "b" },
+          ],
+          defaultValue: "b",
+          $action: { type: "pick" },
+        },
+      ];
+      expect(fromSlackBlocks(toSlackBlocks(tree).blocks).nodes).toEqual(tree);
+    });
+
     const fixtures: readonly {
       readonly name: string;
       readonly tree: unknown;

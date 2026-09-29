@@ -529,7 +529,9 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
             type: "file",
             data: part.data,
             mimeType: part.mimeType,
-            ...(part.filename ? { filename: part.filename } : undefined),
+            ...(part.filename != null
+              ? { filename: part.filename }
+              : undefined),
             ...(part.sourceType ? { sourceType: part.sourceType } : undefined),
             ...(part.providerMetadata != null
               ? { providerMetadata: part.providerMetadata }

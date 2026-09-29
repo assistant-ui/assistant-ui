@@ -18,6 +18,9 @@ type A2uiCreateSurfaceOperation = {
   readonly version: "v0.9";
   readonly createSurface: A2uiCreateSurfaceV09Payload;
 } | {
+  readonly version: "v0.9.1";
+  readonly createSurface: A2uiCreateSurfaceV09Payload;
+} | {
   readonly version: "v1.0";
   readonly createSurface: A2uiCreateSurfaceV10Payload;
 };
@@ -103,7 +106,7 @@ interface A2uiUpdateDataModelPayload {
   readonly data?: unknown;
 }
 
-type A2uiVersion = "v0.9" | "v1.0";
+type A2uiVersion = "v0.9" | "v0.9.1" | "v1.0";
 
 declare const ALERT_TONES: readonly [
   "info",
@@ -302,7 +305,10 @@ type CompleteAttachmentStatus = {
 interface ComponentNode extends Record<string, unknown> {
   readonly id: string;
   readonly component: string;
-  readonly children?: readonly string[] | A2uiTemplateChildren;
+  readonly children?: readonly string[] | {
+    readonly componentId: string;
+    readonly path: string;
+  } | A2uiTemplateChildren;
 }
 
 type DataMessagePart<T = any> = {
@@ -799,6 +805,7 @@ interface SlackPlainTextInputElement {
   readonly type: "plain_text_input";
   readonly action_id: string;
   readonly multiline?: boolean;
+  readonly initial_value?: string;
   readonly placeholder?: SlackPlainText;
 }
 
@@ -820,6 +827,7 @@ interface SlackStaticSelectElement {
   readonly type: "static_select";
   readonly action_id: string;
   readonly options: readonly SlackOption[];
+  readonly initial_option?: SlackOption;
   readonly placeholder?: SlackPlainText;
 }
 
@@ -1007,6 +1015,7 @@ interface TeamsInputText {
   readonly id: string;
   readonly label?: string;
   readonly placeholder?: string;
+  readonly value?: string;
   readonly isMultiline?: true;
   readonly separator?: true;
   readonly spacing?: "large";
@@ -1481,6 +1490,7 @@ declare function buildPresentParameters(library: GenerativeUILibrary): JSONSchem
 
 declare function convertSurfaceToUISpec(surface: A2uiSurfaceState, options?: {
   readonly keepUnknownComponents?: boolean;
+  readonly liveBindings?: boolean;
 }): {
   spec: UIElement | null;
   warnings: string[];

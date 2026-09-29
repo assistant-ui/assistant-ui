@@ -38,7 +38,9 @@ export function A2uiPresentRenderer({
   }
 
   const surface = state.get(surfaceId);
-  const { spec } = surface ? convertSurfaceToUISpec(surface) : { spec: null };
+  const { spec } = surface
+    ? convertSurfaceToUISpec(surface, { liveBindings: true })
+    : { spec: null };
   const node = spec ?? fallback;
 
   const dispatchWithBindings: GenerativeUIDispatch = (action: Action) => {
@@ -56,7 +58,10 @@ export function A2uiPresentRenderer({
                 updateDataModel: {
                   surfaceId,
                   path,
-                  value: action["$input"],
+                  value:
+                    action["arrayValue"] === true
+                      ? [action["$input"]]
+                      : action["$input"],
                 },
               },
             ]).state,
