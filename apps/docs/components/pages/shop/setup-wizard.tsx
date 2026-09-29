@@ -52,6 +52,7 @@ import { PlanCard, PlanMarkdown } from "@/components/pages/shop/plan-card";
 import { AgentChat, conversation } from "@/components/pages/shop/agent-chat";
 import { SetupIntro } from "@/components/pages/shop/setup-intro";
 import { SetupBackButton } from "@/components/pages/shop/setup-back-button";
+import { StepActivity } from "@/components/pages/shop/step-activity";
 import {
   livePage,
   pageKey,
@@ -77,6 +78,7 @@ import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import {
   finishProposed,
   inputPrompt,
+  stepActivity,
   stepsFinalized,
   unreadAgentEntries,
   type Checkout,
@@ -440,6 +442,7 @@ function InstallSteps({
   const closed = state.status === "done" || state.status === "cancelled";
   const drafting = !closed && !finishProposed(state) && !stepsFinalized(state);
   const leaving = useLeaving(drafting);
+  const name = useAgentName(checkout);
   const activeId = state.steps.find((step) => step.status === "active")?.id;
   const list = useRef<HTMLOListElement>(null);
   useEffect(() => {
@@ -468,6 +471,7 @@ function InstallSteps({
             : undefined;
         lastProduct = step.product ?? lastProduct;
         const glyph = product ? getCatalogItem(product.slug)?.glyph : undefined;
+        const activity = stepActivity(state, step.id);
         return (
           <TimelineEntry
             key={step.id}
@@ -483,7 +487,15 @@ function InstallSteps({
                 </p>
               ) : undefined
             }
-          />
+          >
+            {activity.length > 0 ? (
+              <StepActivity
+                entries={activity}
+                live={step.id === activeId}
+                agentName={name}
+              />
+            ) : null}
+          </TimelineEntry>
         );
       })}
       {drafting || leaving ? (

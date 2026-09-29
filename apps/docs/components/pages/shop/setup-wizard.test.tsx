@@ -422,6 +422,95 @@ describe("SetupWizard", () => {
     vi.useRealTimers();
   });
 
+  it("streams the agent's lines under their step, open while it runs and folded once it is done", () => {
+    const step = (
+      id: string,
+      title: string,
+      status: Checkout.StepStatus,
+    ): Checkout.Step => ({ id, title, status, createdAt: 0 });
+    const line = (
+      id: string,
+      stepId: string,
+      text: string,
+    ): Checkout.LogEntry => ({
+      id,
+      role: "agent",
+      phase: "installing",
+      at: Number(id.slice(1)),
+      text,
+      stepId,
+    });
+    const installing = (
+      second: Checkout.StepStatus,
+      third: Checkout.StepStatus,
+    ) =>
+      context(
+        connected({
+          status: "installing",
+          steps: [
+            step("s1", "Add the route", "done"),
+            step("s2", "Wire the runtime", second),
+            step("s3", "Mount the thread", third),
+          ],
+          log: [
+            line("l1", "s1", "Created app/api/chat/route.ts"),
+            line("l2", "s1", "Completed: Add the route"),
+            line("l3", "s2", "Installing @assistant-ui/react"),
+            line("l4", "s2", "Writing app/assistant.tsx"),
+          ],
+        }),
+      );
+    const rows = () =>
+      Array.from(
+        screen
+          .getByRole("list", { name: "Installation steps" })
+          .querySelectorAll(":scope > li"),
+      ) as HTMLElement[];
+    const { rerender } = render(
+      <SetupWizard checkout={installing("active", "pending")} />,
+    );
+    const [first, second, third] = rows();
+    const doneToggle = within(first!).getByRole("button", {
+      name: "1 line from Claude Code",
+    });
+    expect(doneToggle.getAttribute("aria-expanded")).toBe("false");
+    expect(within(first!).queryByRole("log")).toBeNull();
+    const liveToggle = within(second!).getByRole("button", {
+      name: "2 lines from Claude Code",
+    });
+    expect(liveToggle.getAttribute("aria-expanded")).toBe("true");
+    const live = within(second!).getByRole("log");
+    expect(live.getAttribute("aria-live")).toBe("polite");
+    expect(
+      within(live)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual(["Installing @assistant-ui/react", "Writing app/assistant.tsx"]);
+    expect(within(third!).queryByRole("button")).toBeNull();
+
+    fireEvent.click(doneToggle);
+    expect(
+      within(within(first!).getByRole("log"))
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual(["Created app/api/chat/route.ts"]);
+    expect(within(first!).getByRole("log").getAttribute("aria-live")).toBe(
+      "off",
+    );
+
+    rerender(<SetupWizard checkout={installing("done", "active")} />);
+    expect(
+      within(rows()[1]!)
+        .getByRole("button", { name: "2 lines from Claude Code" })
+        .getAttribute("aria-expanded"),
+    ).toBe("false");
+    expect(
+      within(rows()[0]!)
+        .getByRole("button", { name: "1 line from Claude Code" })
+        .getAttribute("aria-expanded"),
+    ).toBe("true");
+  });
+
   it("fills the install bar with time within the current step and snaps to the step count when one completes", () => {
     const step = (id: string, status: Checkout.StepStatus): Checkout.Step => ({
       id,
@@ -1031,12 +1120,12 @@ describe("SetupWizard messages", () => {
       ],
     });
     render(<SetupWizard checkout={context(state)} />);
-    expect(screen.queryByRole("log")).toBeNull();
+    expect(screen.queryByRole("log", { name: "Messages" })).toBeNull();
     expect(
       screen.queryByRole("textbox", { name: "Message your agent" }),
     ).toBeNull();
     openMessages();
-    const log = await screen.findByRole("log");
+    const log = await screen.findByRole("log", { name: "Messages" });
     expect(log.textContent).toContain("You: Use pnpm");
     expect(log.textContent).toContain("Claude Code: Switching to pnpm.");
     expect(log.textContent).not.toContain("Completed: Add the route");

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   awaitingUserAt,
   initialCheckoutState,
+  stepActivity,
   unreadAgentEntries,
   type Checkout,
 } from "./protocol";
@@ -87,5 +88,43 @@ describe("unreadAgentEntries", () => {
       "l5",
     ]);
     expect(unreadAgentEntries(undefined, entries, 0)).toEqual([]);
+  });
+});
+
+describe("stepActivity", () => {
+  it("keeps the agent's lines for one step, minus the line that closed it", () => {
+    const line = (
+      id: string,
+      stepId: string | undefined,
+      text: string,
+      role: "agent" | "user" = "agent",
+    ): Checkout.LogEntry => ({
+      id,
+      role,
+      phase: "installing",
+      at: Number(id.slice(1)),
+      text,
+      ...(stepId !== undefined && { stepId }),
+    });
+    const installing = state({
+      steps: [
+        { id: "s1", title: "Add the route", status: "done", createdAt: 1 },
+        { id: "s2", title: "Wire the runtime", status: "active", createdAt: 2 },
+      ],
+      log: [
+        line("l1", undefined, "Starting."),
+        line("l2", "s1", "Created app/api/chat/route.ts"),
+        line("l3", "s1", "Completed: Add the route\n\nIt streams."),
+        line("l4", "s1", "Looks good", "user"),
+        line("l5", "s2", "Installing @assistant-ui/react"),
+      ],
+    });
+    expect(stepActivity(installing, "s1").map((entry) => entry.id)).toEqual([
+      "l2",
+    ]);
+    expect(stepActivity(installing, "s2").map((entry) => entry.id)).toEqual([
+      "l5",
+    ]);
+    expect(stepActivity(installing, "s3")).toEqual([]);
   });
 });
