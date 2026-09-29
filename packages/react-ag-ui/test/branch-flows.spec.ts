@@ -890,4 +890,48 @@ describe("AgUiThreadRuntimeCore branch flows", () => {
     expect(tail.metadata.isOptimistic).toBeUndefined();
     expect(tail.id.startsWith("__optimistic__")).toBe(false);
   });
+
+  it("edit: adds the edited message as a sibling branch and keeps the original turn", async () => {
+    let callCount = 0;
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        callCount++;
+        emitAssistantText(
+          subscriber,
+          `assistant-${callCount}`,
+          `answer ${callCount}`,
+        );
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+
+    await core.append(createAppendMessage());
+    const originalUserId = core.getMessages()[0]!.id;
+    const originalAssistantId = core.getMessages()[1]!.id;
+
+    await core.edit(
+      createAppendMessage({
+        parentId: null,
+        sourceId: originalUserId,
+        startRun: false,
+      }),
+    );
+    const editedUserId = core.getMessages()[0]!.id;
+
+    const entries = core.getMessageRepository().messages;
+    expect(entries.map(({ message }) => message.id)).toContain(originalUserId);
+    expect(entries.map(({ message }) => message.id)).toContain(
+      originalAssistantId,
+    );
+    expect(
+      entries.find(({ message }) => message.id === originalAssistantId)
+        ?.parentId,
+    ).toBe(originalUserId);
+    expect(
+      entries.find(({ message }) => message.id === editedUserId)?.parentId,
+    ).toBeNull();
+    expect(core.getMessages().map(({ id }) => id)).toEqual([editedUserId]);
+  });
 });

@@ -54,6 +54,13 @@ export const ThreadListItemMorePrimitiveContent = forwardRef<
           {...props}
           onKeyDown={composeEventHandlers(props.onKeyDown, (event) => {
             if (!sharedFocusGroup || event.key !== closeKey) return;
+            if (
+              event.altKey ||
+              event.ctrlKey ||
+              event.metaKey ||
+              event.shiftKey
+            )
+              return;
             event.preventDefault();
             setOpen(false);
             focus?.moreRef.current?.focus();

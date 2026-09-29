@@ -8,9 +8,54 @@ import {
   type ReactNode,
   type SVGProps,
 } from "react";
-import { ChevronDownIcon, MessageSquarePlusIcon } from "lucide-react";
+import {
+  AudioLinesIcon,
+  BellIcon,
+  BookOpenIcon,
+  BotIcon,
+  BracesIcon,
+  BrainIcon,
+  CalendarIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  CircleHelpIcon,
+  ClockIcon,
+  CloudIcon,
+  CodeIcon,
+  DatabaseIcon,
+  FileIcon,
+  FolderIcon,
+  GitBranchIcon,
+  GlobeIcon,
+  ImageIcon,
+  KeyRoundIcon,
+  LinkIcon,
+  LockIcon,
+  MailIcon,
+  MessageSquareIcon,
+  MessageSquarePlusIcon,
+  MicIcon,
+  MonitorIcon,
+  PackageIcon,
+  PaletteIcon,
+  PaperclipIcon,
+  PlugIcon,
+  SearchIcon,
+  ServerIcon,
+  SettingsIcon,
+  ShieldIcon,
+  SmartphoneIcon,
+  SparklesIcon,
+  TableIcon,
+  TerminalIcon,
+  UserIcon,
+  UsersIcon,
+  VideoIcon,
+  WorkflowIcon,
+  WrenchIcon,
+  ZapIcon,
+} from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
@@ -19,15 +64,69 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { CursorIcon } from "@/components/icons/cursor";
 import { ClaudeIcon } from "@/components/icons/claude";
-import { GeminiIcon } from "@/components/icons/gemini";
+import { GeminiMarkIcon } from "@/components/icons/gemini-mark";
 import { LangGraphIcon } from "@/components/icons/langgraph";
 import { MastraIcon } from "@/components/icons/mastra";
 import { OpenCodeIcon } from "@/components/icons/opencode";
 import { VercelIcon } from "@/components/icons/vercel";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import { useWizardNext } from "@/components/pages/shop/wizard-actions";
-import type { Checkout } from "@/lib/checkout/protocol";
+import {
+  isOptionIcon,
+  type Checkout,
+  type OptionIcon,
+} from "@/lib/checkout/protocol";
 import { cn } from "@/lib/utils";
+
+/** The pack an agent picks an option's icon from, drawn in the helper text colour so brand marks stay the only full-colour ones. */
+const OPTION_ICON_COMPONENTS: Record<
+  OptionIcon,
+  ComponentType<SVGProps<SVGSVGElement>>
+> = {
+  code: CodeIcon,
+  terminal: TerminalIcon,
+  braces: BracesIcon,
+  "git-branch": GitBranchIcon,
+  package: PackageIcon,
+  database: DatabaseIcon,
+  server: ServerIcon,
+  cloud: CloudIcon,
+  globe: GlobeIcon,
+  monitor: MonitorIcon,
+  smartphone: SmartphoneIcon,
+  key: KeyRoundIcon,
+  lock: LockIcon,
+  shield: ShieldIcon,
+  brain: BrainIcon,
+  sparkles: SparklesIcon,
+  bot: BotIcon,
+  workflow: WorkflowIcon,
+  file: FileIcon,
+  folder: FolderIcon,
+  book: BookOpenIcon,
+  table: TableIcon,
+  image: ImageIcon,
+  video: VideoIcon,
+  mic: MicIcon,
+  speech: AudioLinesIcon,
+  paperclip: PaperclipIcon,
+  message: MessageSquareIcon,
+  mail: MailIcon,
+  bell: BellIcon,
+  calendar: CalendarIcon,
+  clock: ClockIcon,
+  user: UserIcon,
+  users: UsersIcon,
+  settings: SettingsIcon,
+  wrench: WrenchIcon,
+  plug: PlugIcon,
+  link: LinkIcon,
+  palette: PaletteIcon,
+  search: SearchIcon,
+  zap: ZapIcon,
+  check: CheckIcon,
+  question: CircleHelpIcon,
+};
 
 const COMPONENT_ICONS: Record<
   string,
@@ -38,12 +137,12 @@ const COMPONENT_ICONS: Record<
   langgraph: LangGraphIcon,
   claude: ClaudeIcon,
   cursor: CursorIcon,
-  gemini: GeminiIcon,
+  gemini: GeminiMarkIcon,
   opencode: OpenCodeIcon,
 };
 
 /** Single-colour marks under public/icons are painted with the current text colour so they follow the theme. */
-const MONO_MARKS = new Set(["openai", "anthropic", "xai"]);
+const MONO_MARKS = new Set(["openai", "anthropic", "xai", "openrouter"]);
 const COLOUR_MARKS = new Set([
   "google",
   "mistral",
@@ -59,6 +158,10 @@ export function ChoiceIcon({
   icon: string;
   className?: string | undefined;
 }) {
+  if (isOptionIcon(icon)) {
+    const Packed = OPTION_ICON_COMPONENTS[icon];
+    return <Packed className={cn("text-muted-foreground", className)} />;
+  }
   const Component = COMPONENT_ICONS[icon];
   if (Component) return <Component className={className} />;
   if (MONO_MARKS.has(icon)) {
@@ -144,8 +247,8 @@ export const useInputActions = (
 export function InputHelp({ help }: { help: Checkout.InputHelp }) {
   const guideUrl = getHttpsUrl(help.href);
   return (
-    <Collapsible className="mt-3">
-      <CollapsibleTrigger className="text-muted-foreground hover:text-foreground group flex items-center gap-1 text-sm">
+    <Collapsible>
+      <CollapsibleTrigger className="text-muted-foreground hover:text-foreground group flex items-center gap-1.5 text-sm">
         Need help choosing?
         <ChevronDownIcon className="size-3.5 transition-transform group-data-[panel-open]:rotate-180" />
       </CollapsibleTrigger>
@@ -206,7 +309,7 @@ export function NoteField({
     );
   }
   return (
-    <div className="flex flex-col gap-1.5 text-sm">
+    <div className={fieldClassName}>
       <label htmlFor={id} className="text-muted-foreground">
         Note for your agent
       </label>
@@ -241,7 +344,7 @@ export function InputLinks({
 }) {
   if (!input.optional && !children) return null;
   return (
-    <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2">
+    <div className="flex flex-wrap gap-x-4 gap-y-2">
       {children}
       {input.optional ? (
         <button
@@ -257,43 +360,22 @@ export function InputLinks({
   );
 }
 
+/** Binds the footer's Next to the card's form and lists the question's secondary choices. */
 export function SubmitRow({
   input,
   busy,
   disabled,
-  label = "Send",
   onDismiss,
 }: {
   input: Checkout.Input;
   busy: boolean;
   disabled: boolean;
-  label?: string;
   onDismiss: () => void;
 }) {
-  const wizard = useWizardNext({
-    label: "Next",
-    disabled: busy || disabled,
-    submit: true,
-  });
-  if (wizard)
-    return <InputLinks input={input} busy={busy} onDismiss={onDismiss} />;
-  return (
-    <div className="mt-4 flex gap-2">
-      <Button type="submit" disabled={busy || disabled}>
-        {label}
-      </Button>
-      {input.optional ? (
-        <Button
-          type="button"
-          variant="outline"
-          disabled={busy}
-          onClick={onDismiss}
-        >
-          Skip
-        </Button>
-      ) : null}
-    </div>
-  );
+  useWizardNext({ label: "Next", disabled: busy || disabled, submit: true });
+  return <InputLinks input={input} busy={busy} onDismiss={onDismiss} />;
 }
 
-export const inputCardClassName = "py-1";
+export const inputCardClassName = "flex flex-col gap-4";
+
+export const fieldClassName = "flex flex-col gap-2 text-sm";

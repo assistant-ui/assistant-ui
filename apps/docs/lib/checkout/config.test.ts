@@ -31,5 +31,30 @@ describe("checkout config", () => {
     const config = await loadConfig();
     expect(config.CHECKOUT_BASE_URL).toBeNull();
     expect(config.checkoutEnabled).toBe(false);
+    expect(config.shopEnabled).toBe(false);
+  });
+});
+
+describe("shop flag", () => {
+  it("opens the shop in development without the variable", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SHOP_ENABLED", "");
+    vi.stubEnv("NODE_ENV", "development");
+    const config = await loadConfig();
+    expect(config.shopEnabled).toBe(true);
+  });
+
+  it("keeps the shop closed in production until the variable is set", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SHOP_ENABLED", " ");
+    vi.stubEnv("NODE_ENV", "production");
+    expect((await loadConfig()).shopEnabled).toBe(false);
+    vi.stubEnv("NEXT_PUBLIC_SHOP_ENABLED", "1");
+    expect((await loadConfig()).shopEnabled).toBe(true);
+  });
+
+  it("never opens the shop without a checkout worker", async () => {
+    vi.stubEnv("NEXT_PUBLIC_CHECKOUT_URL", "");
+    vi.stubEnv("NEXT_PUBLIC_SHOP_ENABLED", "1");
+    vi.stubEnv("NODE_ENV", "production");
+    expect((await loadConfig()).shopEnabled).toBe(false);
   });
 });
