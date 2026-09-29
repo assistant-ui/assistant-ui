@@ -95,6 +95,7 @@ export class ExternalStoreThreadRuntimeCore
     attachments: false,
     feedback: false,
     queue: false,
+    answerToolCall: false,
   };
 
   public get capabilities() {
@@ -255,6 +256,13 @@ export class ExternalStoreThreadRuntimeCore
     if (repositoryChanged) {
       this.repository = repositoryInstance;
       this._pendingDeleteEvictions.clear();
+      // Keep the live placeholder so resetHead cannot evict an id still used
+      // by clients rendering the previous snapshot.
+      const head = this.repository.getMessages();
+      const tail = head.at(-1);
+      this._optimistic = tail?.metadata.isOptimistic
+        ? { id: tail.id, parentId: head.at(-2)?.id ?? null }
+        : null;
     }
     if (oldStore?.queue !== store.queue) {
       this._transformedQueue = undefined;
@@ -295,6 +303,11 @@ export class ExternalStoreThreadRuntimeCore
       attachments: !!this._store.adapters?.attachments,
       feedback: !!this._store.adapters?.feedback,
       queue: this._store.queue !== undefined,
+      answerToolCall:
+        this._store.onAddToolResult !== undefined ||
+        this._store.onResumeToolCall !== undefined ||
+        this._store.onRespondToToolApproval !== undefined ||
+        this._store.unstable_enableToolInvocations === true,
     };
     if (!shallowEqual(this._capabilities, newCapabilities)) {
       this._capabilities = newCapabilities;
