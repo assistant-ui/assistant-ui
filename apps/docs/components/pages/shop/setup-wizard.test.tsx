@@ -58,6 +58,7 @@ window.matchMedia = (query: string) =>
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
   reducedMotion = false;
 });
 
@@ -118,6 +119,33 @@ const captureEvents = () => {
     capture.mock.calls
       .filter(([name]) => name === event)
       .map(([, properties]) => properties);
+};
+
+const observeRow = () => {
+  let callback: IntersectionObserverCallback | undefined;
+  let target: Element | undefined;
+  vi.stubGlobal(
+    "IntersectionObserver",
+    class {
+      constructor(observe: IntersectionObserverCallback) {
+        callback = observe;
+      }
+      observe(element: Element) {
+        target = element;
+      }
+      disconnect() {
+        target = undefined;
+      }
+    },
+  );
+  return {
+    observed: () => target,
+    intersect: (isIntersecting: boolean) =>
+      callback?.(
+        [{ target, isIntersecting } as IntersectionObserverEntry],
+        {} as IntersectionObserver,
+      ),
+  };
 };
 
 describe("SetupWizard", () => {
@@ -535,6 +563,75 @@ describe("SetupWizard", () => {
         .getByRole("button", { name: /^1 line from Claude Code/ })
         .getAttribute("aria-expanded"),
     ).toBe("true");
+  });
+
+  describe("following the step in progress", () => {
+    const step = (id: string, status: Checkout.StepStatus): Checkout.Step => ({
+      id,
+      title: `Step ${id.slice(1)}`,
+      status,
+      createdAt: 0,
+    });
+    const installing = (activeId: "s1" | "s2", lines: string[]) =>
+      context(
+        connected({
+          status: "installing",
+          steps: [
+            step("s1", activeId === "s1" ? "active" : "done"),
+            step("s2", activeId === "s2" ? "active" : "pending"),
+          ],
+          log: lines.map((stepId, index): Checkout.LogEntry => ({
+            id: `l${index + 1}`,
+            role: "agent",
+            phase: "installing",
+            at: index + 1,
+            text: `Line ${index + 1}`,
+            stepId,
+          })),
+        }),
+      );
+    const stream = (count: number) =>
+      installing(
+        "s1",
+        Array.from({ length: count }, () => "s1"),
+      );
+    const centered = () =>
+      scrollIntoView.mock.contexts.map(
+        (element) =>
+          within(element as HTMLElement).getByText(/^Step \d$/).textContent,
+      );
+    const row = () => screen.getByRole("listitem", { current: "step" });
+
+    it("re-centers the row on every line of a sustained stream while it stays in view", () => {
+      const observer = observeRow();
+      scrollIntoView.mockClear();
+      const { rerender } = render(<SetupWizard checkout={stream(1)} />);
+      expect(observer.observed()).toBe(row());
+      observer.intersect(true);
+      for (let count = 2; count <= 10; count += 1) {
+        rerender(<SetupWizard checkout={stream(count)} />);
+        observer.intersect(true);
+      }
+      expect(centered()).toEqual(Array.from({ length: 10 }, () => "Step 1"));
+    });
+
+    it("stays put once the row has scrolled out of view and follows again when the step changes", () => {
+      const observer = observeRow();
+      scrollIntoView.mockClear();
+      const { rerender } = render(<SetupWizard checkout={stream(1)} />);
+      expect(centered()).toEqual(["Step 1"]);
+      observer.intersect(false);
+      rerender(<SetupWizard checkout={stream(2)} />);
+      expect(centered()).toEqual(["Step 1"]);
+
+      rerender(<SetupWizard checkout={installing("s2", ["s1", "s1", "s2"])} />);
+      expect(centered()).toEqual(["Step 1", "Step 2"]);
+      expect(observer.observed()).toBe(row());
+      rerender(
+        <SetupWizard checkout={installing("s2", ["s1", "s1", "s2", "s2"])} />,
+      );
+      expect(centered()).toEqual(["Step 1", "Step 2", "Step 2"]);
+    });
   });
 
   it("fills the install bar with time within the current step and snaps to the step count when one completes", () => {

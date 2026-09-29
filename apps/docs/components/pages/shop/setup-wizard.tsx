@@ -449,8 +449,20 @@ function InstallSteps({
       ? undefined
       : stepActivity(state, activeId).at(-1)?.id;
   const list = useRef<HTMLOListElement>(null);
+  const following = useRef(true);
   useEffect(() => {
-    if (activeId === undefined) return;
+    following.current = true;
+    const row = list.current?.querySelector('[aria-current="step"]');
+    // jsdom has no IntersectionObserver, so the list always follows there.
+    if (!row || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver((entries) => {
+      following.current = entries.at(-1)?.isIntersecting ?? true;
+    });
+    observer.observe(row);
+    return () => observer.disconnect();
+  }, [activeId]);
+  useEffect(() => {
+    if (activeId === undefined || !following.current) return;
     list.current
       ?.querySelector('[aria-current="step"]')
       ?.scrollIntoView({ block: "center" });
