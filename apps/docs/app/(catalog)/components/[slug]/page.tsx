@@ -30,7 +30,6 @@ export async function generateMetadata({
   return {
     title,
     description: product.tagline,
-    robots: { index: false, follow: true },
     ...createOgMetadata(product.name, product.tagline),
   };
 }

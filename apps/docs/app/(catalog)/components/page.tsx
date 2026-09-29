@@ -23,7 +23,6 @@ const description = "Everything you can add to an assistant-ui project.";
 export const metadata: Metadata = {
   title,
   description,
-  robots: { index: false, follow: true },
   ...createOgMetadata(title, description),
 };
 
