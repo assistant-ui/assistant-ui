@@ -54,7 +54,7 @@ export async function POST(req: Request) {
     contentType: string;
   };
 
-  const key = `chat-uploads/${generateId()}-${name}`;
+  const key = `chat-uploads/${session.user.id}/${generateId()}-${name}`;
   const url = await getSignedUrl(
     s3,
     new PutObjectCommand({
@@ -87,16 +87,21 @@ export async function DELETE(
   const session = await auth();
   if (!session?.user) return new Response(null, { status: 401 });
 
-  const { key } = await params;
+  const key = decodeURIComponent((await params).key);
+  if (!key.startsWith(`chat-uploads/${session.user.id}/`))
+    return new Response(null, { status: 403 });
+
   await s3.send(
     new DeleteObjectCommand({
       Bucket: process.env.S3_BUCKET!,
-      Key: decodeURIComponent(key),
+      Key: key,
     }),
   );
   return new Response(null, { status: 204 });
 }
 ```
+
+The presign route puts the user id in the key, and the delete route rejects a key outside that user's prefix, so a signed-in user cannot delete another user's upload.
 
 </Step>
 <Step>
