@@ -12,9 +12,12 @@ export type CheckoutSession = {
   fromCart?: boolean;
   /** The user read how a setup works and chose to continue. */
   introSeen?: boolean;
+  /** The user accepted the license agreement the wizard shows before connecting. */
+  licenseAccepted?: boolean;
 };
 
 const storageKey = "aui-checkout-session";
+const linkKey = "aui-agent-link";
 const listeners = new Set<() => void>();
 let session: CheckoutSession | null = null;
 let loaded = false;
@@ -26,7 +29,7 @@ export const checkoutUrl = (id: string) =>
 const ID_ALPHABET =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
-const createSessionId = () => {
+const createId = () => {
   const bytes = crypto.getRandomValues(new Uint8Array(12));
   return Array.from(
     bytes,
@@ -36,8 +39,15 @@ const createSessionId = () => {
 
 const normalize = (value: unknown): CheckoutSession | null => {
   if (typeof value !== "object" || value === null) return null;
-  const { id, products, startedAt, instructions, fromCart, introSeen } =
-    value as Record<string, unknown>;
+  const {
+    id,
+    products,
+    startedAt,
+    instructions,
+    fromCart,
+    introSeen,
+    licenseAccepted,
+  } = value as Record<string, unknown>;
   if (typeof id !== "string" || !Array.isArray(products)) return null;
   const slugs = products.filter(
     (entry): entry is string => typeof entry === "string",
@@ -51,6 +61,7 @@ const normalize = (value: unknown): CheckoutSession | null => {
       instructions.trim() && { instructions: instructions.trim() }),
     ...(fromCart === true && { fromCart }),
     ...(introSeen === true && { introSeen }),
+    ...(licenseAccepted === true && { licenseAccepted }),
   };
 };
 
@@ -114,6 +125,24 @@ export const getCheckoutSession = (): CheckoutSession | null => {
   return session;
 };
 
+let linkId: string | null = null;
+
+/** The browser's link to its coding agent. It is created once and outlives every setup, so an agent that keeps its stream open stays connected for the next one. */
+export const getAgentLinkId = () => {
+  if (linkId !== null) return linkId;
+  linkId = createId();
+  try {
+    const stored = window.localStorage.getItem(linkKey);
+    if (stored) linkId = stored;
+    else window.localStorage.setItem(linkKey, linkId);
+  } catch {
+    // Storage can be blocked; the link then lives for this tab only.
+  }
+  return linkId;
+};
+
+export const agentLinkUrl = () => checkoutUrl(getAgentLinkId());
+
 /** Opens a checkout for the given catalog slugs; returns the running one if it exists. The store stays free of the catalog because the root providers import it on every route, so callers pass slugs they already resolved. */
 export const startCheckout = (
   products: readonly string[],
@@ -126,7 +155,7 @@ export const startCheckout = (
   const slugs = [...new Set(products)];
   if (slugs.length === 0) return null;
   session = {
-    id: createSessionId(),
+    id: createId(),
     products: slugs,
     startedAt: Date.now(),
     ...(instructions.trim() && { instructions: instructions.trim() }),
@@ -141,6 +170,14 @@ export const acknowledgeSetupIntro = () => {
   load();
   if (session === null || session.introSeen) return;
   session = { ...session, introSeen: true };
+  writeStored(session);
+  notify();
+};
+
+export const acceptSetupLicense = () => {
+  load();
+  if (session === null || session.licenseAccepted) return;
+  session = { ...session, licenseAccepted: true };
   writeStored(session);
   notify();
 };

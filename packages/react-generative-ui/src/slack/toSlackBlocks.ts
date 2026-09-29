@@ -6,11 +6,17 @@ import {
 import { copyBounded } from "../convert/copyBounded";
 import { isElement } from "../convert/isElement";
 import { takeRun } from "../convert/takeRun";
+import { hasFieldReference, resolveFieldReferences } from "../fieldReferences";
 import {
   normalizeSpec,
   type NormalizedUIElement,
   type NormalizedUINode,
 } from "../ir";
+import {
+  factTrend,
+  formatFactDelta,
+  formatValue,
+} from "../vocabulary/formatValue";
 import {
   ACTION_ID_CAP,
   ACTIONS_ELEMENT_CAP,
@@ -22,6 +28,7 @@ import {
   CARD_TITLE_CAP,
   CAROUSEL_CARD_CAP,
   CAROUSEL_CARD_MIN,
+  CHECKBOX_OPTION_CAP,
   CONTEXT_ELEMENT_CAP,
   CONTEXT_TEXT_CAP,
   DATA_TABLE_CHAR_BUDGET,
@@ -75,6 +82,7 @@ const INTERACTIVE_TYPES = new Set([
   "Select",
   "DatePicker",
   "Checkbox",
+  "CheckboxGroup",
   "RadioGroup",
 ]);
 
@@ -84,7 +92,12 @@ const INTERACTIVE_TYPES = new Set([
  * block rather than an actions element, but a reshape loses them the same way,
  * and a `Form` gets a Submit button whether or not it carries an action.
  */
-const CONTROL_TYPES = new Set([...INTERACTIVE_TYPES, "Input", "Form"]);
+const CONTROL_TYPES = new Set([
+  ...INTERACTIVE_TYPES,
+  "Input",
+  "Slider",
+  "Form",
+]);
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -93,6 +106,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const asString = (value: unknown): string =>
   typeof value === "string" ? value : "";
+
+const asFiniteNumber = (value: unknown): number | undefined =>
+  typeof value === "number" && Number.isFinite(value) ? value : undefined;
 
 const warn = (
   context: ConversionContext,
@@ -159,7 +175,17 @@ const buttonElement = (
   component: string,
   context: ConversionContext,
 ): SlackButtonElement => {
-  const serializedValue = actionValue(action);
+  let payload = action;
+  if (hasFieldReference(action)) {
+    warn(
+      context,
+      "fallback",
+      component,
+      "field references in value became their fallback, or were dropped without one, because Slack sends no other control's value with a button click.",
+    );
+    payload = resolveFieldReferences(action, {});
+  }
+  const serializedValue = actionValue(payload);
   let value = serializedValue;
   if (value !== undefined && value.length > BUTTON_VALUE_CAP) {
     warn(
@@ -197,6 +223,7 @@ const optionFrom = (
   ) {
     return undefined;
   }
+  const description = asString(value["description"]);
   return {
     text: plainText(
       clampText(
@@ -208,7 +235,20 @@ const optionFrom = (
       ),
     ),
     value: value["value"],
-  };
+    ...(description
+      ? {
+          description: plainText(
+            clampText(
+              description,
+              INTERACTIVE_TEXT_CAP,
+              component,
+              "option description",
+              context,
+            ),
+          ),
+        }
+      : {}),
+  } as SlackOption;
 };
 
 const warnDroppedOptions = (
@@ -273,10 +313,18 @@ const toActionElement = (
         "placeholder",
         context,
       );
+      const defaultValue = props["defaultValue"];
+      const initialOption =
+        typeof defaultValue === "string"
+          ? options.find((option) => option.value === defaultValue)
+          : undefined;
       return {
         type: "static_select",
         action_id: asActionId(action, "Select", context),
         options,
+        ...(initialOption !== undefined
+          ? { initial_option: initialOption }
+          : {}),
         ...(placeholder ? { placeholder: plainText(placeholder) } : {}),
       };
     }
@@ -316,6 +364,46 @@ const toActionElement = (
         options: [option],
         ...(props["defaultChecked"] === true
           ? { initial_options: [option] }
+          : {}),
+      };
+    }
+    case "CheckboxGroup": {
+      const rawOptions = Array.isArray(props["options"])
+        ? props["options"]
+        : [];
+      const { items: takenOptions, truncated } = copyBounded(
+        rawOptions,
+        CHECKBOX_OPTION_CAP,
+      );
+      if (truncated) {
+        warn(
+          context,
+          "clamped",
+          "CheckboxGroup",
+          `options were clamped to ${CHECKBOX_OPTION_CAP} entries.`,
+        );
+      }
+      const options = takenOptions
+        .map((option) => optionFrom(option, "CheckboxGroup", context))
+        .filter((option): option is SlackOption => option !== undefined);
+      warnDroppedOptions(
+        options.length,
+        takenOptions.length,
+        "CheckboxGroup",
+        context,
+      );
+      const defaultValue = Array.isArray(props["defaultValue"])
+        ? props["defaultValue"]
+        : [];
+      const initialOptions = options.filter((option) =>
+        defaultValue.includes(option.value),
+      );
+      return {
+        type: "checkboxes",
+        action_id: asActionId(action, "CheckboxGroup", context),
+        options,
+        ...(initialOptions.length > 0
+          ? { initial_options: initialOptions }
           : {}),
       };
     }
@@ -380,10 +468,15 @@ const convertFacts = (
   const fields = facts.map((fact) => {
     const label = asString(fact.props["label"]);
     const value = asString(fact.props["value"]);
+    const delta = fact.props["delta"];
+    const deltaText =
+      typeof delta === "string"
+        ? formatFactDelta(delta, factTrend(delta, fact.props["trend"]))
+        : undefined;
     return {
       type: "mrkdwn" as const,
       text: clampText(
-        `*${label}*\n${value}`,
+        `*${label}*\n${deltaText === undefined ? value : `${value} (${deltaText})`}`,
         FACT_FIELD_TEXT_CAP,
         "Fact",
         "field",
@@ -914,12 +1007,18 @@ const convertCarousel = (
   return [buildCarouselBlock(cards)];
 };
 
-const toDataTableCell = (value: unknown): SlackDataTableCell | undefined => {
-  if (typeof value === "number") {
+const toDataTableCell = (
+  value: unknown,
+  format: unknown,
+): SlackDataTableCell | undefined => {
+  if (typeof value === "number" && format === undefined) {
     return { type: "raw_number", text: String(value) };
   }
   if (typeof value === "string" || typeof value === "boolean") {
-    return { type: "raw_text", text: String(value) };
+    return { type: "raw_text", text: formatValue(value, format) };
+  }
+  if (typeof value === "number") {
+    return { type: "raw_text", text: formatValue(value, format) };
   }
   return undefined;
 };
@@ -982,8 +1081,13 @@ const convertTable = (
       ? copyBounded(row, DATA_TABLE_COLUMN_CAP).items
       : []
     ).map(
-      (value) =>
-        toDataTableCell(value) ?? { type: "raw_text" as const, text: "" },
+      (value, index) =>
+        toDataTableCell(
+          value,
+          isRecord(takenColumns[index])
+            ? takenColumns[index]["format"]
+            : undefined,
+        ) ?? { type: "raw_text" as const, text: "" },
     ),
   );
   const width = Math.max(
@@ -1115,8 +1219,42 @@ const convertElement = (
     case "Select":
     case "DatePicker":
     case "Checkbox":
+    case "CheckboxGroup":
     case "RadioGroup":
       return convertActions([element], context);
+    case "Slider": {
+      const label = clampText(
+        asString(props["label"]),
+        INPUT_LABEL_CAP,
+        "Slider",
+        "label",
+        context,
+      );
+      const min = asFiniteNumber(props["min"]);
+      const max = asFiniteNumber(props["max"]);
+      const step = asFiniteNumber(props["step"]);
+      const defaultValue = asFiniteNumber(props["defaultValue"]);
+      return [
+        {
+          type: "input",
+          label: plainText(label),
+          element: {
+            type: "number_input",
+            action_id: asActionId(element.action, "Slider", context),
+            ...(min !== undefined ? { min_value: min } : {}),
+            ...(max !== undefined ? { max_value: max } : {}),
+            ...(defaultValue !== undefined
+              ? { initial_value: defaultValue }
+              : {}),
+            ...([step, min, max, defaultValue].some(
+              (value) => value !== undefined && !Number.isInteger(value),
+            )
+              ? { is_decimal_allowed: true }
+              : {}),
+          },
+        } as unknown as SlackBlock,
+      ];
+    }
     case "Input": {
       const label = clampText(
         asString(props["label"]),
@@ -1132,6 +1270,7 @@ const convertElement = (
         "placeholder",
         context,
       );
+      const defaultValue = props["defaultValue"];
       return [
         {
           type: "input",
@@ -1140,6 +1279,9 @@ const convertElement = (
             type: "plain_text_input",
             action_id: asActionId(element.action, "Input", context),
             ...(props["multiline"] === true ? { multiline: true } : {}),
+            ...(typeof defaultValue === "string" && defaultValue
+              ? { initial_value: defaultValue }
+              : {}),
             ...(placeholder ? { placeholder: plainText(placeholder) } : {}),
           },
         },

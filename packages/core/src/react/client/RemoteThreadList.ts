@@ -876,6 +876,12 @@ const useRemoteThreadList = (
       }
       let lastAwaitedTask: Promise<void> | undefined;
       while (isSameThread(store.value, threadId, session.mainThreadId)) {
+        // Rechecked each pass: the draft can become the new thread again
+        // mid-loop when its failed first save rolls it back, and switching to
+        // a new thread then re-adopts it, so no switch can move main off it.
+        if (threadId === store.value.newThreadId) {
+          throw new Error("Cannot ensure new thread is not main");
+        }
         let switchTask = session.switchTask;
         const startedFallback = !switchTask || switchTask === lastAwaitedTask;
         if (startedFallback) {

@@ -13,6 +13,7 @@ const repoRoot = path.resolve(
 );
 
 const BUMP_VALUES = new Set(["patch", "minor", "major"]);
+const RELEASE_VALUES = new Set([...BUMP_VALUES, "none"]);
 const TEST_DIRECTORIES = new Set(["__fixtures__", "__tests__", "tests"]);
 const TEST_FILE = /\.(?:bench|spec|test)\.[^/]+$/;
 const RELEASE_REWRITTEN_KEYS = new Set(["version"]);
@@ -45,6 +46,11 @@ export function parseWorkspaceGlobs(source) {
 }
 
 export function parseBumpLine(line) {
+  const release = parseReleaseLine(line);
+  return release && BUMP_VALUES.has(release.bump) ? release : null;
+}
+
+function parseReleaseLine(line) {
   const entry = line
     .trim()
     .match(/^(?:"([^"]*)"|'([^']*)'|([^#:][^:]*?))\s*:\s*(.*)$/);
@@ -54,7 +60,7 @@ export function parseBumpLine(line) {
   );
   if (!value) return null;
   const bump = value[1] ?? value[2] ?? value[3];
-  if (!BUMP_VALUES.has(bump)) return null;
+  if (!RELEASE_VALUES.has(bump)) return null;
   return { name: entry[1] ?? entry[2] ?? entry[3], bump };
 }
 
@@ -107,8 +113,8 @@ function readChangesetBumps(root, files = null) {
     );
     if (!changeset) continue;
     for (const line of changeset.frontmatter.split("\n")) {
-      const bump = parseBumpLine(line);
-      if (bump) bumps.push({ file, name: bump.name });
+      const release = parseReleaseLine(line);
+      if (release) bumps.push({ file, ...release });
     }
   }
   return bumps;
@@ -360,7 +366,9 @@ export function runChangedPackageCheck(root, baseSha, headSha) {
       .map((file) => path.posix.basename(file)),
   );
   const bumpedNames = new Set(
-    readChangesetBumps(root, changesetFiles).map(({ name }) => name),
+    readChangesetBumps(root, changesetFiles)
+      .filter(({ bump }) => BUMP_VALUES.has(bump))
+      .map(({ name }) => name),
   );
 
   const missing = new Map(

@@ -1,5 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
-import { createCore, makeAdapter } from "./remote-thread-list-test-helpers";
+import {
+  contextProvider,
+  createCore,
+  deferred,
+  makeAdapter,
+  setStartThreadRuntime,
+} from "./remote-thread-list-test-helpers";
+import { RemoteThreadListThreadListRuntimeCore } from "../react/runtimes/RemoteThreadListThreadListRuntimeCore";
 import { InMemoryThreadListAdapter } from "../runtimes/remote-thread-list/adapter/in-memory";
 
 describe("RemoteThreadListThreadListRuntimeCore errors", () => {
@@ -32,6 +39,61 @@ describe("RemoteThreadListThreadListRuntimeCore errors", () => {
     );
   });
 
+  it("logs a controlled threadId switch that fails when the list mounts", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const fetchError = new Error("fetch failed");
+    const core = createCore(
+      makeAdapter({
+        fetch: vi.fn(async () => {
+          throw fetchError;
+        }),
+      }),
+      "missing-thread",
+    );
+
+    core.__internal_load();
+    await new Promise((resolve) => setTimeout(resolve));
+
+    expect(error).toHaveBeenCalledWith(
+      "[assistant-ui] thread list switch failed:",
+      fetchError,
+    );
+    error.mockRestore();
+  });
+
+  it("logs a controlled threadId switch that fails when the threadId prop changes", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const fetchError = new Error("fetch failed");
+    const adapter = makeAdapter({
+      fetch: vi.fn(async () => {
+        throw fetchError;
+      }),
+    });
+    const runtimeHook = () => ({}) as never;
+    const core = new RemoteThreadListThreadListRuntimeCore(
+      { adapter, runtimeHook, threadId: undefined },
+      contextProvider,
+    );
+    setStartThreadRuntime(core, async () => ({}));
+    core.__internal_load();
+    await core.getLoadThreadsPromise();
+    const mainThreadId = core.mainThreadId;
+
+    core.__internal_setOptions({
+      adapter,
+      runtimeHook,
+      threadId: "missing-thread",
+    });
+    await new Promise((resolve) => setTimeout(resolve));
+
+    expect(error).toHaveBeenCalledWith(
+      "[assistant-ui] thread list switch failed:",
+      fetchError,
+    );
+    expect(core.mainThreadId).toBe(mainThreadId);
+    error.mockRestore();
+  });
+
   it("includes the requested thread id when the in-memory adapter cannot fetch it", async () => {
     const adapter = new InMemoryThreadListAdapter();
 
@@ -39,4 +101,36 @@ describe("RemoteThreadListThreadListRuntimeCore errors", () => {
       'Thread "missing-thread" not found in in-memory thread list.',
     );
   });
+
+  it.each(["archive", "delete", "detach"] as const)(
+    "rejects %s of the main thread when its initialize fails instead of looping",
+    async (operation) => {
+      const initialization = deferred<{
+        remoteId: string;
+        externalId: string;
+      }>();
+      const core = createCore(
+        makeAdapter({ initialize: vi.fn(() => initialization.promise) }),
+      );
+      await core.getLoadThreadsPromise();
+      const localId = core.newThreadId!;
+      const initializing = core.initialize(localId).catch(() => {});
+
+      let fallbackSwitches = 0;
+      const switchToNewThread = core.switchToNewThread.bind(core);
+      core.switchToNewThread = () => {
+        if (++fallbackSwitches > 50) throw new Error("livelock");
+        return switchToNewThread();
+      };
+
+      const operating = core[operation](localId);
+      initialization.reject(new Error("initialize failed"));
+      await initializing;
+
+      await expect(operating).rejects.toThrow(
+        "Cannot ensure new thread is not main",
+      );
+      expect(core.mainThreadId).toBe(localId);
+    },
+  );
 });
