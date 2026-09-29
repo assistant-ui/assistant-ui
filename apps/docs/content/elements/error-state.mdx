@@ -154,6 +154,8 @@ import { useMessageError } from "@assistant-ui/core/react";
 const error = useMessageError();
 ```
 
+The hook is exported from `@assistant-ui/core/react` and not from `@assistant-ui/react`, so add `@assistant-ui/core` to the app's dependencies.
+
 </RuntimeMode>
 
 <StandaloneMode>
@@ -188,7 +190,7 @@ Both lanes take `className` on the root; the failure banner's red tint and the r
 | Selector | Type | Description |
 |----------|------|-------------|
 | `s.message.status?.type` | `"running" \| "complete" \| "incomplete" \| "requires-action"` | `"incomplete"` with `reason: "error"` is what a failed run looks like. |
-| `useMessageError()` | `() => string \| number \| boolean \| ReadonlyJSONObject \| ReadonlyJSONArray \| undefined` | The error value, or `undefined` when the message didn't fail. Exported from `@assistant-ui/core/react`, so the app needs `@assistant-ui/core` as a direct dependency. |
+| `useMessageError()` | `() => string \| number \| boolean \| ReadonlyJSONObject \| ReadonlyJSONArray \| undefined` | The error value, or `undefined` when the message didn't fail. Exported from `@assistant-ui/core/react`. |
 | `aui.message.reload(config?)` | `(config?: { runConfig?: RunConfig }) => void` | Retries by regenerating this message. |
 
 </RuntimeMode>
