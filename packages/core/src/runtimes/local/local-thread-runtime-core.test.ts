@@ -2990,6 +2990,313 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     );
   };
 
+  it.each([false, true])(
+    "reloads a followed in-flight pause and its child (update: %s)",
+    async (update) => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const stored: ExportedMessageRepositoryItem[] = [];
+      const history: ThreadHistoryAdapter = {
+        async load() {
+          return {
+            headId: stored.at(-1)?.message.id ?? null,
+            messages: [...stored],
+          };
+        },
+        async append(item) {
+          stored.push(item);
+        },
+        ...(update && {
+          async update(item: ExportedMessageRepositoryItem) {
+            const index = stored.findIndex(
+              ({ message }) => message.id === item.message.id,
+            );
+            stored[index] = item;
+          },
+        }),
+      };
+      let release!: () => void;
+      const released = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const thread = createThread(
+        {
+          async *run() {
+            yield toolCallResult("send_email", { id: "a1" });
+            await released;
+          },
+        },
+        { history },
+      );
+      const first = thread.startRun({
+        parentId: null,
+        sourceId: null,
+        runConfig: {},
+      });
+      try {
+        await flush();
+        const paused = thread.messages[0]!;
+        expect(paused.status?.type).toBe("requires-action");
+        await thread.append({
+          ...userMessage("never mind"),
+          parentId: paused.id,
+          startRun: false,
+        });
+        const child = thread.messages[1]!;
+        expect(thread.getMessageById(paused.id)?.message).toBe(paused);
+
+        const reloaded = createThread(
+          {
+            async run() {
+              return { content: [] };
+            },
+          },
+          { history },
+        );
+        await reloaded.__internal_load();
+
+        expect(reloaded.messages).toEqual([
+          {
+            ...paused,
+            status: { type: "incomplete", reason: "cancelled" },
+            content: [
+              toolCallPart("send_email", {
+                id: "a1",
+                resolution: "cancelled",
+              }),
+            ],
+          },
+          child,
+        ]);
+        expect(reloaded.export().headId).toBe(child.id);
+        expect(reloaded.getMessageById(child.id)?.parentId).toBe(paused.id);
+        expect(warn).not.toHaveBeenCalled();
+      } finally {
+        release();
+        await first;
+      }
+    },
+  );
+
+  it("loads every kept history message, warns about an orphan, and preserves a kept head", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const stored = ExportedMessageRepository.fromBranchableArray(
+      [
+        { message: { ...userMessage("hello"), id: "root" }, parentId: null },
+        {
+          message: { ...userMessage("follow-up"), id: "head" },
+          parentId: "root",
+        },
+        {
+          message: { ...userMessage("orphan"), id: "orphan" },
+          parentId: "missing",
+        },
+        {
+          message: { ...userMessage("another branch"), id: "other" },
+          parentId: null,
+        },
+      ],
+      { headId: "head" },
+    );
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [] };
+        },
+      },
+      {
+        history: {
+          async load() {
+            return stored;
+          },
+          async append() {},
+        },
+      },
+    );
+
+    await thread.__internal_load();
+
+    expect(thread.export().headId).toBe("head");
+    expect(thread.messages.map((m) => m.id)).toEqual(["root", "head"]);
+    expect(thread.export().messages).toEqual([
+      stored.messages[0],
+      stored.messages[1],
+      stored.messages[3],
+    ]);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(
+      "[assistant-ui] Skipped history messages with missing parents:",
+      ["orphan"],
+    );
+  });
+
+  it.each([false, true])(
+    "appends a completed message replaced by a tool result before its generator returns (update: %s)",
+    async (update) => {
+      const { history, appended, updated } = createHistory({ update });
+      let release!: () => void;
+      const released = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const thread = createThread(
+        {
+          async *run() {
+            yield {
+              content: [toolCallPart("send_email")],
+              status: { type: "complete", reason: "stop" },
+            };
+            await released;
+          },
+        },
+        { history },
+      );
+
+      const first = thread.append(userMessage("send an email"));
+      await flush();
+      const completed = thread.messages[1]!;
+      expect(completed.status?.type).toBe("complete");
+      expect(appended.filter((i) => i.message.id === completed.id)).toEqual([]);
+      thread.addToolResult({
+        messageId: completed.id,
+        toolCallId: "call-send_email",
+        toolName: "send_email",
+        result: "sent",
+        isError: false,
+      });
+      await flush();
+      release();
+      await first;
+
+      expect(
+        appended.filter((i) => i.message.id === completed.id),
+      ).toMatchObject([
+        {
+          message: {
+            status: { type: "complete", reason: "stop" },
+            content: [{ toolCallId: "call-send_email", result: "sent" }],
+          },
+        },
+      ]);
+      expect(updated).toEqual([]);
+    },
+  );
+
+  it("issues a followed message's append before its child's without waiting for it to resolve", async () => {
+    const appended: ExportedMessageRepositoryItem[] = [];
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const thread = createThread(
+      {
+        async *run() {
+          yield toolCallResult("send_email", { id: "a1" });
+          await released;
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          append(item) {
+            appended.push(item);
+            return item.message.role === "assistant"
+              ? new Promise<void>(() => {})
+              : Promise.resolve();
+          },
+        },
+      },
+    );
+
+    const first = thread.append(userMessage("send an email"));
+    await flush();
+    const paused = thread.messages[1]!;
+    void thread.append({
+      ...userMessage("never mind"),
+      parentId: paused.id,
+      startRun: false,
+    });
+    await flush();
+    try {
+      expect(appended.map((i) => i.message.id)).toEqual(
+        thread.messages.map((m) => m.id),
+      );
+      expect(appended[1]).toMatchObject({
+        message: {
+          id: paused.id,
+          status: { type: "incomplete", reason: "cancelled" },
+          content: [{ approval: { id: "a1", resolution: "cancelled" } }],
+        },
+      });
+      expect(appended[2]?.parentId).toBe(paused.id);
+      expect(thread.getMessageById(paused.id)?.message).toBe(paused);
+    } finally {
+      release();
+    }
+    await first;
+  });
+
+  it("appends a completed message before a user turn added by its subscriber", async () => {
+    const { history, appended } = createHistory();
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [{ type: "text", text: "done" }] };
+        },
+      },
+      { history },
+    );
+    let followUp: Promise<void> | undefined;
+    const unsubscribe = thread.subscribe(() => {
+      const message = thread.messages.at(-1);
+      if (message?.status?.type !== "complete") return;
+      unsubscribe();
+      followUp = thread.append({
+        ...userMessage("thanks"),
+        parentId: message.id,
+        startRun: false,
+      });
+    });
+
+    await thread.append(userMessage("hi"));
+    expect(followUp).toBeDefined();
+    await followUp;
+
+    expect(appended.map((i) => i.message.id)).toEqual(
+      thread.messages.map((m) => m.id),
+    );
+    expect(appended[1]?.message.status?.type).toBe("complete");
+    expect(appended[2]?.parentId).toBe(appended[1]?.message.id);
+  });
+
+  it("stores messages through a history whose append returns nothing", async () => {
+    const appended: ExportedMessageRepositoryItem[] = [];
+    const append = (item: ExportedMessageRepositoryItem) => {
+      appended.push(item);
+    };
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [{ type: "text", text: "done" }] };
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          append: append as unknown as ThreadHistoryAdapter["append"],
+        },
+      },
+    );
+
+    await thread.append(userMessage("hi"));
+
+    expect(appended.map((i) => i.message.id)).toEqual(
+      thread.messages.map((m) => m.id),
+    );
+  });
+
   it("persists feedback submitted after the assistant run settles", async () => {
     const { history, appended, updated } = createHistory();
     const thread = createThread(
@@ -3488,18 +3795,23 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     const paused = thread.messages[1]!;
     expect(paused.status?.type).toBe("requires-action");
     await thread.append({ ...userMessage("never mind"), parentId: paused.id });
-    release();
-    await flush();
 
     const settled = {
       status: { type: "incomplete", reason: "cancelled" },
       content: [{ approval: { id: "a1", resolution: "cancelled" } }],
     };
-    expect(thread.getMessageById(paused.id)?.message).toMatchObject(settled);
     expect(appended.filter((i) => i.message.id === paused.id)).toMatchObject([
       { message: settled },
     ]);
     expect(updated.filter((i) => i.message.id === paused.id)).toEqual([]);
+    release();
+    await flush();
+
+    expect(thread.getMessageById(paused.id)?.message).toMatchObject(settled);
+    expect(appended.filter((i) => i.message.id === paused.id)).toHaveLength(1);
+    expect(updated.filter((i) => i.message.id === paused.id)).toMatchObject([
+      { message: settled },
+    ]);
   });
 
   it("keeps a resumed roundtrip's message when the paused roundtrip it replaced ends late", async () => {
@@ -4328,7 +4640,7 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     });
   });
 
-  it("rejects the run of a pause it lost when the settled pause cannot be stored", async () => {
+  it("rejects a turn after an in-flight pause when the settled pause cannot be stored", async () => {
     const failure = new Error("history unavailable");
     let pausedId: string | undefined;
     let release!: () => void;
@@ -4370,15 +4682,16 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
       result: "sent",
       isError: false,
     });
-    void thread.append({
-      ...userMessage("skip the deploy"),
-      parentId: pausedId,
-      startRun: false,
-    });
-    await flush();
+    await expect(
+      thread.append({
+        ...userMessage("skip the deploy"),
+        parentId: pausedId,
+        startRun: false,
+      }),
+    ).rejects.toBe(failure);
     release();
 
-    await expect(first).rejects.toBe(failure);
+    await expect(first).resolves.toBeUndefined();
   });
 
   it("rewrites a pause its run lost to a tool result once a later turn follows it", async () => {
@@ -4422,11 +4735,28 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     release();
     await flush();
 
-    expect(appended.some((i) => i.message.id === paused.id)).toBe(false);
-    expect(updated.at(-1)?.message).toMatchObject({
-      id: paused.id,
-      status: { type: "incomplete", reason: "cancelled" },
-    });
+    expect(appended.filter((i) => i.message.id === paused.id)).toMatchObject([
+      {
+        message: {
+          status: { type: "requires-action", reason: "tool-calls" },
+          content: [
+            { toolCallId: "call-send_email", result: "sent" },
+            { approval: { id: "a1" } },
+          ],
+        },
+      },
+    ]);
+    const settled = {
+      message: {
+        id: paused.id,
+        status: { type: "incomplete", reason: "cancelled" },
+        content: [
+          { toolCallId: "call-send_email", result: "sent" },
+          { approval: { id: "a1", resolution: "cancelled" } },
+        ],
+      },
+    };
+    expect(updated).toMatchObject([settled, settled]);
   });
 
   it("keeps the append-only behavior for adapters without update", async () => {
