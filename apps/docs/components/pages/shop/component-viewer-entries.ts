@@ -378,20 +378,6 @@ export const ENTRIES: readonly Entry[] = [
     }),
   },
   {
-    id: "license",
-    label: "License",
-    group: "Frame",
-    controls: [{ kind: "toggle", key: "accepted", label: "Accepted earlier" }],
-    defaults: { accepted: false },
-    scene: (values) =>
-      on(values, "accepted")
-        ? {
-            state: stateOf({ status: "waiting", agent: agentOf("", false) }),
-            initialPage: "license",
-          }
-        : { state: undefined, session: { licenseAccepted: false } },
-  },
-  {
     id: "connect",
     label: "Connect",
     group: "Frame",
@@ -430,10 +416,11 @@ export const ENTRIES: readonly Entry[] = [
     group: "Frame",
     controls: [
       { kind: "select", key: "kind", label: "Agent", options: AGENT_KINDS },
+      productsControl,
     ],
-    defaults: { kind: "claude" },
+    defaults: { kind: "claude", products: PRODUCTS },
     scene: (values) => ({
-      state: stateOf({}, str(values, "kind")),
+      state: stateOf({ products: productsOf(values) }, str(values, "kind")),
       agentPresent: false,
     }),
   },

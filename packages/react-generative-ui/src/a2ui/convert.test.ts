@@ -25,7 +25,7 @@ describe("convertSurfaceToUISpec", () => {
         {
           id: "root",
           component: "List",
-          children: { template: { componentId: "row", path: "/items" } },
+          children: { componentId: "row", path: "/items" },
         },
         {
           id: "row",
@@ -55,7 +55,7 @@ describe("convertSurfaceToUISpec", () => {
         {
           id: "nested",
           component: "List",
-          children: { template: { componentId: "label", path: "/labels" } },
+          children: { componentId: "label", path: "/labels" },
         },
         { id: "label", component: "Text", text: { path: "name" } },
       ],
@@ -114,9 +114,7 @@ describe("convertSurfaceToUISpec", () => {
             {
               id: "items",
               component: "List",
-              children: {
-                template: { componentId: "item", path: "/items" },
-              },
+              children: { componentId: "item", path: "/items" },
             },
             {
               id: "item",
@@ -648,6 +646,104 @@ describe("convertSurfaceToUISpec", () => {
     });
   });
 
+  it("maps a bound Slider with the spec's min default and a continuous step", () => {
+    const surface = surfaceFrom(
+      [
+        {
+          id: "root",
+          component: "Slider",
+          label: "Volume",
+          max: 1,
+          value: { path: "/volume" },
+        },
+      ],
+      { volume: 0.35 },
+    );
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "Slider",
+        min: 0,
+        max: 1,
+        step: 0.01,
+        defaultValue: 0.35,
+        label: "Volume",
+        name: "/volume",
+      },
+      warnings: [],
+    });
+  });
+
+  it("divides a Slider range by its steps and keeps integer values exact", () => {
+    const stepped = surfaceFrom([
+      { id: "root", component: "Slider", max: 100, steps: 4, value: 50 },
+    ]);
+    const wide = surfaceFrom([
+      { id: "root", component: "Slider", min: 0, max: 1000, value: 537 },
+    ]);
+
+    expect(convertSurfaceToUISpec(stepped).spec).toEqual({
+      $type: "Slider",
+      min: 0,
+      max: 100,
+      step: 25,
+      defaultValue: 50,
+    });
+    expect(convertSurfaceToUISpec(wide).spec).toEqual({
+      $type: "Slider",
+      min: 0,
+      max: 1000,
+      step: 1,
+      defaultValue: 537,
+    });
+  });
+
+  it("sends a Slider's live value to an action bound to its path", () => {
+    const surface = surfaceFrom(
+      [
+        { id: "root", component: "Column", children: ["volume", "save"] },
+        {
+          id: "volume",
+          component: "Slider",
+          max: 10,
+          value: { path: "/volume" },
+        },
+        {
+          id: "save",
+          component: "Button",
+          label: "Save",
+          action: {
+            event: { name: "save", context: { volume: { path: "/volume" } } },
+          },
+        },
+      ],
+      { volume: 4 },
+    );
+
+    const result = convertSurfaceToUISpec(surface);
+    expect(result.warnings).toEqual([]);
+    expect(result.spec).toMatchObject({
+      children: [
+        { $type: "Slider", name: "/volume", defaultValue: 4 },
+        {
+          $action: {
+            context: { volume: { $field: "/volume", fallback: 4 } },
+          },
+        },
+      ],
+    });
+  });
+
+  it("skips a Slider without a numeric max", () => {
+    const surface = surfaceFrom([
+      { id: "root", component: "Slider", value: 3 },
+    ]);
+
+    expect(convertSurfaceToUISpec(surface).warnings).toEqual([
+      'A2UI component "Slider" could not be mapped and was skipped.',
+    ]);
+  });
+
   it("warns and omits a malformed formatString template", () => {
     const surface = surfaceFrom([
       {
@@ -685,7 +781,7 @@ describe("convertSurfaceToUISpec", () => {
         {
           id: "rows",
           component: "Column",
-          children: { template: { componentId: "row", path: "/items" } },
+          children: { componentId: "row", path: "/items" },
         },
         {
           id: "row",
@@ -708,13 +804,8 @@ describe("convertSurfaceToUISpec", () => {
         children: [
           { $type: "Markdown", value: usd(12) },
           {
-            $type: "ListView",
-            children: [
-              {
-                $type: "ListViewItem",
-                children: { $type: "Markdown", value: `Tea: ${usd(3)}` },
-              },
-            ],
+            $type: "Col",
+            children: [{ $type: "Markdown", value: `Tea: ${usd(3)}` }],
           },
         ],
       },
@@ -957,10 +1048,8 @@ describe("convertSurfaceToUISpec", () => {
       [
         {
           id: "root",
-          component: "Column",
-          children: {
-            template: { componentId: "item", path: "/items" },
-          },
+          component: "List",
+          children: { componentId: "item", path: "/items" },
         },
         {
           id: "item",
@@ -989,6 +1078,107 @@ describe("convertSurfaceToUISpec", () => {
     });
   });
 
+  it("keeps a Row or Column template in its own container", () => {
+    const surface = surfaceFrom(
+      [
+        { id: "root", component: "Column", children: ["days", "hours"] },
+        {
+          id: "days",
+          component: "Row",
+          justify: "spaceBetween",
+          children: { componentId: "day", path: "/days" },
+        },
+        {
+          id: "hours",
+          component: "Column",
+          align: "center",
+          children: { componentId: "day", path: "/hours" },
+        },
+        { id: "day", component: "Text", text: { path: "label" } },
+      ],
+      {
+        days: [{ label: "Tue" }, { label: "Wed" }],
+        hours: [{ label: "9am" }],
+      },
+    );
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "Col",
+        children: [
+          {
+            $type: "Row",
+            justify: "spaceBetween",
+            children: [
+              { $type: "Markdown", value: "Tue" },
+              { $type: "Markdown", value: "Wed" },
+            ],
+          },
+          {
+            $type: "Col",
+            align: "center",
+            children: [{ $type: "Markdown", value: "9am" }],
+          },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
+  it("expands a template on a component without a child list into a ListView", () => {
+    const surface = surfaceFrom(
+      [
+        {
+          id: "root",
+          component: "Divider",
+          children: { componentId: "item", path: "/items" },
+        },
+        { id: "item", component: "Text", text: { path: "name" } },
+      ],
+      { items: [{ name: "one" }] },
+    );
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "ListView",
+        children: [
+          {
+            $type: "ListViewItem",
+            children: { $type: "Markdown", value: "one" },
+          },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
+  it("reads template children wrapped in a template key", () => {
+    const surface = surfaceFrom(
+      [
+        {
+          id: "root",
+          component: "List",
+          children: { template: { componentId: "item", path: "/items" } },
+        },
+        { id: "item", component: "Text", text: { path: "name" } },
+      ],
+      { items: [{ name: "one" }] },
+    );
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "ListView",
+        children: [
+          {
+            $type: "ListViewItem",
+            children: { $type: "Markdown", value: "one" },
+          },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
   it("preserves a horizontal list container when expanding templates", () => {
     const surface = surfaceFrom(
       [
@@ -997,9 +1187,7 @@ describe("convertSurfaceToUISpec", () => {
           component: "List",
           direction: "horizontal",
           align: "center",
-          children: {
-            template: { componentId: "item", path: "/items" },
-          },
+          children: { componentId: "item", path: "/items" },
         },
         { id: "item", component: "Text", text: { path: "label" } },
       ],
@@ -1040,9 +1228,7 @@ describe("convertSurfaceToUISpec", () => {
             id: "root",
             component: "List",
             direction: "horizontal",
-            children: {
-              template: { componentId: "item", path: "/items" },
-            },
+            children: { componentId: "item", path: "/items" },
           }),
           dataModel,
         ),
@@ -1052,9 +1238,7 @@ describe("convertSurfaceToUISpec", () => {
           components({
             id: "root",
             component: "CustomList",
-            children: {
-              template: { componentId: "item", path: "/items" },
-            },
+            children: { componentId: "item", path: "/items" },
           }),
           dataModel,
         ),
@@ -1078,9 +1262,7 @@ describe("convertSurfaceToUISpec", () => {
         {
           id: "root",
           component: "Column",
-          children: {
-            template: { componentId: "item", path: "/items" },
-          },
+          children: { componentId: "item", path: "/items" },
         },
         {
           id: "item",
@@ -1163,6 +1345,175 @@ describe("convertSurfaceToUISpec", () => {
         ],
       },
       warnings: [],
+    });
+  });
+
+  it("carries an event's userMessage when it resolves to a string", () => {
+    const surface = surfaceFrom(
+      [
+        { id: "root", component: "Row", children: ["greet", "count"] },
+        {
+          id: "greet",
+          component: "Button",
+          label: "Greet",
+          action: {
+            event: {
+              name: "greet",
+              userMessage: {
+                call: "formatString",
+                args: { value: "Greet ${/name}" },
+              },
+            },
+          },
+        },
+        {
+          id: "count",
+          component: "Button",
+          label: "Count",
+          action: { event: { name: "count", userMessage: { path: "/count" } } },
+        },
+      ],
+      { name: "Ada", count: 3 },
+    );
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "Row",
+        children: [
+          {
+            $type: "Button",
+            label: "Greet",
+            $action: {
+              type: "a2ui:action",
+              name: "greet",
+              surfaceId: "",
+              sourceComponentId: "greet",
+              userMessage: "Greet Ada",
+            },
+          },
+          {
+            $type: "Button",
+            label: "Count",
+            $action: {
+              type: "a2ui:action",
+              name: "count",
+              surfaceId: "",
+              sourceComponentId: "count",
+            },
+          },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
+  it("points a userMessage only at a lone text input bound to its exact path", () => {
+    const surface = surfaceFrom(
+      [
+        {
+          id: "root",
+          component: "Column",
+          children: [
+            "email",
+            "volume",
+            "note",
+            "qty",
+            "qty-level",
+            "form",
+            "level",
+            "draft",
+            "copy",
+          ],
+        },
+        { id: "email", component: "TextField", value: { path: "/form/email" } },
+        {
+          id: "volume",
+          component: "Slider",
+          max: 10,
+          value: { path: "/volume" },
+        },
+        { id: "note", component: "TextField", value: { path: "/note" } },
+        { id: "qty", component: "TextField", value: { path: "/qty" } },
+        {
+          id: "qty-level",
+          component: "Slider",
+          max: 10,
+          value: { path: "/qty" },
+        },
+        {
+          id: "form",
+          component: "Button",
+          label: "Form",
+          action: { event: { name: "form", userMessage: { path: "/form" } } },
+        },
+        {
+          id: "level",
+          component: "Button",
+          label: "Level",
+          action: {
+            event: { name: "level", userMessage: { path: "/volume" } },
+          },
+        },
+        {
+          id: "draft",
+          component: "Button",
+          label: "Draft",
+          action: { event: { name: "draft", userMessage: { path: "/note" } } },
+        },
+        {
+          id: "copy",
+          component: "Button",
+          label: "Copy",
+          action: { event: { name: "copy", userMessage: { path: "/qty" } } },
+        },
+      ],
+      { form: { email: "ada@example.com" }, volume: 4, qty: "2" },
+    );
+
+    const { spec, warnings } = convertSurfaceToUISpec(surface);
+
+    expect(warnings).toEqual([]);
+    expect(spec?.["children"]).toContainEqual({
+      $type: "Button",
+      label: "Form",
+      $action: {
+        type: "a2ui:action",
+        name: "form",
+        surfaceId: "",
+        sourceComponentId: "form",
+      },
+    });
+    expect(spec?.["children"]).toContainEqual({
+      $type: "Button",
+      label: "Level",
+      $action: {
+        type: "a2ui:action",
+        name: "level",
+        surfaceId: "",
+        sourceComponentId: "level",
+      },
+    });
+    expect(spec?.["children"]).toContainEqual({
+      $type: "Button",
+      label: "Draft",
+      $action: {
+        type: "a2ui:action",
+        name: "draft",
+        surfaceId: "",
+        sourceComponentId: "draft",
+        userMessage: { $field: "/note" },
+      },
+    });
+    expect(spec?.["children"]).toContainEqual({
+      $type: "Button",
+      label: "Copy",
+      $action: {
+        type: "a2ui:action",
+        name: "copy",
+        surfaceId: "",
+        sourceComponentId: "copy",
+        userMessage: "2",
+      },
     });
   });
 
@@ -1337,7 +1688,7 @@ describe("convertSurfaceToUISpec", () => {
         {
           id: "lines",
           component: "List",
-          children: { template: { componentId: "line", path: "/items" } },
+          children: { componentId: "line", path: "/items" },
         },
         { id: "line", component: "Row", children: ["qty", "remove"] },
         {
@@ -1933,9 +2284,7 @@ describe("convertSurfaceToUISpec", () => {
           $action: { type: "injected" },
           $key: "injected",
           $status: "injected",
-          children: {
-            template: { componentId: "item", path: "/items" },
-          },
+          children: { componentId: "item", path: "/items" },
         },
         { id: "item", component: "Text", text: { path: "label" } },
       ],
@@ -1966,9 +2315,7 @@ describe("convertSurfaceToUISpec", () => {
         {
           id: "root",
           component: "CustomList",
-          children: {
-            template: { componentId: "item", path: "/items" },
-          },
+          children: { componentId: "item", path: "/items" },
         },
         { id: "item", component: "Text", text: { path: "label" } },
       ],
@@ -1996,9 +2343,7 @@ describe("convertSurfaceToUISpec", () => {
           id: "root",
           component: "CustomList",
           title: { path: "/title" },
-          children: {
-            template: { componentId: "item", path: "/items" },
-          },
+          children: { componentId: "item", path: "/items" },
         },
         { id: "item", component: "Text", text: { path: "label" } },
       ],

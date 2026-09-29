@@ -23,6 +23,17 @@ describe("decodeSubmitData", () => {
     });
   });
 
+  it("keeps a number input as a number", () => {
+    const value = {
+      aui: { type: "set_quantity" },
+      quantity: 3.5,
+    };
+    expect(decodeSubmitData(value)).toEqual({
+      type: "set_quantity",
+      $input: { quantity: 3.5 },
+    });
+  });
+
   it("resolves $field references in the payload from same-card inputs, else their fallback", () => {
     const value = {
       aui: {

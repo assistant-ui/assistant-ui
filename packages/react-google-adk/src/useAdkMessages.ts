@@ -1,12 +1,12 @@
 import {
   useState,
   useCallback,
-  useEffect,
   useInsertionEffect,
   useRef,
   useMemo,
 } from "react";
 import { generateId } from "@assistant-ui/core";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import { useAui } from "@assistant-ui/store";
 import {
   abortableIterable,
@@ -286,7 +286,7 @@ export const useAdkMessages = ({
     }
   }, []);
 
-  useEffect(() => cancel, [cancel]);
+  useReplaySafeEffect(() => cancel, []);
 
   return {
     messages,
