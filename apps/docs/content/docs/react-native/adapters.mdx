@@ -25,6 +25,8 @@ const cloud = new AssistantCloud({
 const runtime = useLocalRuntime(chatModel, { cloud });
 ```
 
+Set `EXPO_PUBLIC_ASSISTANT_BASE_URL` in `.env` as the [Cloud quickstart](/docs/cloud/quickstart) describes.
+
 This gives you multi-thread support with server-side persistence, cross-device sync, and automatic title generation.
 
 ### History adapter
