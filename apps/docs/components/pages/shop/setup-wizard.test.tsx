@@ -154,6 +154,40 @@ describe("SetupWizard", () => {
     ).toContain("text-muted-foreground");
   });
 
+  it("names the products in the title only while that fits on one line, and lists them under it otherwise", () => {
+    const lines = vi.spyOn(Element.prototype, "getClientRects");
+    const intro = (lineCount: number) => {
+      lines.mockReturnValue(
+        Array.from(
+          { length: lineCount },
+          () => new DOMRect(),
+        ) as unknown as DOMRectList,
+      );
+      render(
+        <SetupWizard
+          checkout={context(initialCheckoutState(), false, false, {
+            products: ["assistant-ui", "cloud"],
+          })}
+        />,
+      );
+      return screen.getByRole("heading", { level: 1 }).textContent;
+    };
+    try {
+      expect(intro(1)).toBe(
+        "Welcome to the setup wizard for assistant-ui and Assistant Cloud",
+      );
+      expect(screen.queryByText(/^Setting up/)).toBeNull();
+      cleanup();
+      expect(intro(2)).toBe("Welcome to the setup wizard");
+      expect(
+        screen.getByText("Setting up assistant-ui and Assistant Cloud.")
+          .className,
+      ).toContain("text-muted-foreground");
+    } finally {
+      lines.mockRestore();
+    }
+  });
+
   it("keeps the frame at one fixed size on every page", () => {
     const frame = () =>
       document.querySelector('section[aria-labelledby="setup-wizard-title"]')!
