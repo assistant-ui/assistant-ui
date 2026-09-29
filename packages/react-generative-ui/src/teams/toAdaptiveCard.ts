@@ -583,7 +583,10 @@ export function convertElement(
         ...(typeof defaultValue === "string" && defaultValue
           ? { value: defaultValue }
           : {}),
-        ...(props["multiline"] === true ? { isMultiline: true } : {}),
+        ...(props["multiline"] === true &&
+        (props["inputType"] === undefined || props["inputType"] === "text")
+          ? { isMultiline: true }
+          : {}),
       };
       return withCompanionSubmit(element, input, context);
     }

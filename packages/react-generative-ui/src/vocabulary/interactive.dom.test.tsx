@@ -57,6 +57,39 @@ const mount = async (
   return container;
 };
 
+describe("Input", () => {
+  it("keeps password and number single-line when multiline is set", async () => {
+    const container = await mount(
+      [
+        {
+          $type: "Input",
+          name: "password",
+          inputType: "password",
+          multiline: true,
+        },
+        {
+          $type: "Input",
+          name: "number",
+          inputType: "number",
+          multiline: true,
+        },
+        { $type: "Input", name: "text", inputType: "text", multiline: true },
+        { $type: "Input", name: "default", multiline: true },
+      ],
+      {},
+    );
+
+    expect(
+      Array.from(container.querySelectorAll("input, textarea")).map(
+        (control) =>
+          control instanceof HTMLInputElement
+            ? control.type
+            : control.tagName.toLowerCase(),
+      ),
+    ).toEqual(["password", "number", "textarea", "textarea"]);
+  });
+});
+
 describe("RadioGroup", () => {
   it("keeps repeated logical fields exclusive within one root without a form", async () => {
     const save = vi.fn();

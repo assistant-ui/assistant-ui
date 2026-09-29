@@ -303,7 +303,7 @@ function InputRender({
     typeof answeredValue === "string" ? answeredValue : defaultValue;
   const submit = (control: HTMLInputElement | HTMLTextAreaElement) =>
     fire($action, $dispatch, control.value, control);
-  return multiline ? (
+  return multiline && (inputType === undefined || inputType === "text") ? (
     <textarea
       key={initialValue}
       data-aui="input"
@@ -823,7 +823,9 @@ export const interactiveVocabulary = {
       multiline: z
         .boolean()
         .optional()
-        .describe("Render a textarea instead of a single-line input."),
+        .describe(
+          'Render a textarea instead of a single-line input; ignored when `inputType` is `"password"` or `"number"`.',
+        ),
       label: z
         .string()
         .optional()

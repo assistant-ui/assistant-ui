@@ -775,6 +775,20 @@ describe("toAdaptiveCard", () => {
       expect((card.body[0] as TeamsInputText).isMultiline).toBe(true);
     });
 
+    it("keeps a multiline password input single-line", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Input",
+        name: "password",
+        inputType: "password",
+        multiline: true,
+      });
+      expect(card.body[0]).toEqual({
+        type: "Input.Text",
+        id: "password",
+        style: "password",
+      });
+    });
+
     it("sets value from a non-empty defaultValue", () => {
       const { card } = toAdaptiveCard({
         $type: "Input",
