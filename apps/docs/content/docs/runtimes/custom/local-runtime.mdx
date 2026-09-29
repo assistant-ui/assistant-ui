@@ -631,7 +631,7 @@ aui.thread.resumeRun({
 });
 ```
 
-A common pattern is to check whether the backend is still running on mount, then reconnect:
+A common pattern is to check whether the backend is still running on mount, then reconnect. Here `streamFromBackend` stands for your own async generator that reads the running job's output:
 
 ```tsx
 function useStreamReconnect(threadId: string) {
@@ -648,7 +648,10 @@ function useStreamReconnect(threadId: string) {
       );
       if (status.isRunning) {
         const parentId = aui.thread.getState().messages.at(-1)?.id ?? null;
-        aui.thread.resumeRun({ parentId, stream: createCustomStream });
+        aui.thread.resumeRun({
+          parentId,
+          stream: () => streamFromBackend(threadId),
+        });
       }
     })();
   }, [aui, threadId]);

@@ -108,7 +108,7 @@ const runtime = useAISDKRuntime(chat);
 
 When you are ready to upgrade:
 
-1. Update `ai` from `@^5` to `@^6`, and `@assistant-ui/react-ai-sdk` to `1.3.40`, the last v6-compatible release.
+1. Update `ai` from `@^5` to `@^6`, `@ai-sdk/openai` from `@^2` to `@^3`, and `@assistant-ui/react-ai-sdk` to `1.3.40`, the last v6-compatible release. If you install `@ai-sdk/react` directly, update it to `@^3`.
 2. Add `await` to `convertToModelMessages(...)` calls.
 3. Wrap tool schemas: `inputSchema: z.object({...})` → `inputSchema: zodSchema(z.object({...}))`.
 
