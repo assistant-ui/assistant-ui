@@ -10,6 +10,7 @@ import type {
   ReasoningMessagePart,
   TextMessagePart,
   ImageMessagePart,
+  FileMessagePart,
   Unstable_ToolInteractionLog,
 } from "../../../types/message";
 import type { CompleteAttachment } from "../../../types/attachment";
@@ -104,6 +105,9 @@ type AuiV0MessagePart =
       readonly mimeType: string;
       readonly filename?: string;
       readonly sourceType?: "url" | "id";
+      readonly providerMetadata?: NonNullable<
+        FileMessagePart["providerMetadata"]
+      >;
       readonly parentId?: string;
     }
   | {
@@ -151,12 +155,18 @@ type AuiV0AttachmentPart =
   | {
       readonly type: "text";
       readonly text: string;
+      readonly providerMetadata?: NonNullable<
+        TextMessagePart["providerMetadata"]
+      >;
       readonly parentId?: string;
     }
   | {
       readonly type: "image";
       readonly image: string;
       readonly filename?: string;
+      readonly providerMetadata?: NonNullable<
+        ImageMessagePart["providerMetadata"]
+      >;
     }
   | {
       readonly type: "file";
@@ -164,6 +174,9 @@ type AuiV0AttachmentPart =
       readonly mimeType: string;
       readonly filename?: string;
       readonly sourceType?: "url" | "id";
+      readonly providerMetadata?: NonNullable<
+        FileMessagePart["providerMetadata"]
+      >;
       readonly parentId?: string;
     }
   | {
@@ -218,6 +231,9 @@ const encodeAttachmentPart = (
       return {
         type: "text",
         text: part.text,
+        ...(part.providerMetadata !== undefined
+          ? { providerMetadata: part.providerMetadata }
+          : undefined),
         ...(part.parentId !== undefined
           ? { parentId: part.parentId }
           : undefined),
@@ -228,6 +244,9 @@ const encodeAttachmentPart = (
         type: "image",
         image: part.image,
         ...(part.filename != null ? { filename: part.filename } : undefined),
+        ...(part.providerMetadata !== undefined
+          ? { providerMetadata: part.providerMetadata }
+          : undefined),
       };
 
     case "file":
@@ -238,6 +257,9 @@ const encodeAttachmentPart = (
         ...(part.filename != null ? { filename: part.filename } : undefined),
         ...(part.sourceType != null
           ? { sourceType: part.sourceType }
+          : undefined),
+        ...(part.providerMetadata != null
+          ? { providerMetadata: part.providerMetadata }
           : undefined),
         ...(part.parentId !== undefined
           ? { parentId: part.parentId }
@@ -298,6 +320,55 @@ const serializableArtifact = (
     return serialized === undefined ? undefined : JSON.parse(serialized);
   } catch {
     return undefined;
+  }
+};
+
+// Diagnostic only: names the data JSON.stringify silently loses (Map and Set
+// entries, symbol-keyed or non-enumerable own data, extra array properties,
+// undefined, functions, non-finite numbers). A wrapper that keeps its data
+// behind prototype getters or a Map from another realm has no own keys and is
+// indistinguishable from an empty object here, so it passes exactly as it does
+// on main.
+const hasLosslessJSONShape = (value: unknown, depth = 0): boolean => {
+  if (depth > 100) return false;
+  if (value === undefined || typeof value === "function") return false;
+  if (typeof value === "number") return Number.isFinite(value);
+  if (typeof value !== "object" || value === null) return true;
+  // A toJSON is the value's own serializer, so whatever it emits is intended.
+  if (typeof (value as { toJSON?: unknown }).toJSON === "function") return true;
+  if ((value instanceof Map || value instanceof Set) && value.size > 0) {
+    return false;
+  }
+
+  if (Array.isArray(value)) {
+    if (Reflect.ownKeys(value).length !== value.length + 1) return false;
+    for (let index = 0; index < value.length; index++) {
+      if (
+        !Object.hasOwn(value, index) ||
+        !hasLosslessJSONShape(value[index], depth + 1)
+      ) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  return Reflect.ownKeys(value).every(
+    (key) =>
+      typeof key === "string" &&
+      Object.getOwnPropertyDescriptor(value, key)?.enumerable === true &&
+      hasLosslessJSONShape((value as Record<string, unknown>)[key], depth + 1),
+  );
+};
+
+// Reading a getter a second time can throw where JSON.stringify's read did
+// not; a diagnostic that throws is reported as loss rather than failing the
+// write.
+const losesDataInJSON = (value: unknown): boolean => {
+  try {
+    return !hasLosslessJSONShape(value);
+  } catch {
+    return true;
   }
 };
 
@@ -376,9 +447,18 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
           };
 
         case "tool-call": {
-          if (part.result !== undefined && !isJSONValue(part.result)) {
+          // Persisting what JSON can carry keeps the tool call answered on
+          // reload; a part with no result is rejected by providers as an
+          // unanswered call, which is worse than a hollowed-out result.
+          const result = serializableArtifact(part.result);
+          if (
+            part.result !== undefined &&
+            (result === undefined || losesDataInJSON(part.result))
+          ) {
             console.warn(
-              `tool-call result is not JSON! ${JSON.stringify(part)}`,
+              result === undefined
+                ? `tool-call result for ${part.toolCallId} cannot be serialized as JSON; omitted`
+                : `tool-call result for ${part.toolCallId} loses data in JSON; persisted as its JSON form`,
             );
           }
           const artifact = serializableArtifact(part.artifact);
@@ -397,9 +477,7 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
             ...(JSON.stringify(part.args) === part.argsText
               ? { args: part.args }
               : { argsText: part.argsText }),
-            ...(part.result !== undefined
-              ? { result: part.result as ReadonlyJSONValue }
-              : undefined),
+            ...(result !== undefined ? { result } : undefined),
             ...(artifact !== undefined ? { artifact } : undefined),
             ...(part.modelContent !== undefined
               ? { modelContent: part.modelContent }
@@ -451,8 +529,13 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
             type: "file",
             data: part.data,
             mimeType: part.mimeType,
-            ...(part.filename ? { filename: part.filename } : undefined),
+            ...(part.filename != null
+              ? { filename: part.filename }
+              : undefined),
             ...(part.sourceType ? { sourceType: part.sourceType } : undefined),
+            ...(part.providerMetadata != null
+              ? { providerMetadata: part.providerMetadata }
+              : undefined),
             ...(part.parentId !== undefined
               ? { parentId: part.parentId }
               : undefined),

@@ -52,8 +52,30 @@ describe("no unsafe process.env access", () => {
       violations,
       `These files access process.env (non-NODE_ENV) without a typeof process !== "undefined" guard.\n` +
         `@assistant-ui/core lacks @types/node, so bare process.env access crashes in Vite and other bundlers.\n` +
-        `Add: typeof process !== "undefined" ? process.env?.["VAR_NAME"] : undefined\n\n` +
+        `Add: typeof process !== "undefined" ? process.env.VAR_NAME : undefined\n\n` +
         `Files:\n${violations.map((f) => `  - ${f}`).join("\n")}`,
+    ).toEqual([]);
+  });
+
+  it("reads NEXT_PUBLIC_ variables as a literal process.env member, the only form Next.js inlines", () => {
+    const files = findFiles(SRC_DIR, [".ts", ".tsx"]).filter(
+      (f) => !f.includes("/tests/") && !f.includes(".test."),
+    );
+
+    const violations = files.flatMap((file) =>
+      (
+        readFileSync(file, "utf-8").match(
+          /process\??\.env(?:\??\.|\?\.\[|\[)\s*["'`]?NEXT_PUBLIC_\w+/g,
+        ) ?? []
+      )
+        .filter((read) => !/^process\.env\.NEXT_PUBLIC_\w+$/.test(read))
+        .map((read) => `${relative(SRC_DIR, file)}: ${read}`),
+    );
+
+    expect(
+      violations,
+      `Turbopack production builds inline a NEXT_PUBLIC_ variable only when it is read as process.env.NEXT_PUBLIC_NAME; an optional chain or a bracket read stays unset in the browser.\n\n` +
+        violations.map((v) => `  - ${v}`).join("\n"),
     ).toEqual([]);
   });
 });

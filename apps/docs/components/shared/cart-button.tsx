@@ -137,8 +137,7 @@ function CheckoutProgressButton({
       >
         <PopoverTitle>Resume setup anytime</PopoverTitle>
         <PopoverDescription>
-          Your session stays open. Use this button to return to your agent,
-          follow its progress, or answer a question.
+          Your session stays open. Use this button to return to your agent.
         </PopoverDescription>
         <Button
           variant="outline"
@@ -257,7 +256,7 @@ function CartPopoverButton({ checkoutActive }: { checkoutActive: boolean }) {
               <p className="text-muted-foreground text-sm">Added to cart</p>
             </div>
           </div>
-          <dl className="border-foreground/10 flex flex-col gap-2 border-t px-4 py-3 text-sm">
+          <dl className="border-foreground/10 flex flex-col gap-2 border-t p-4 text-sm">
             <div className="flex justify-between gap-4">
               <dt className="text-muted-foreground">In cart</dt>
               <dd className="tabular-nums">{countLabel}</dd>

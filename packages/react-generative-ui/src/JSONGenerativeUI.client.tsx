@@ -1,5 +1,7 @@
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
+import { getPartialJsonObjectMeta } from "assistant-stream/utils";
 import type { ReactNode } from "react";
+import { AnsweredValuesProvider, findAnsweredValues } from "./answeredValues";
 import { buildPresentParameters } from "./buildPresentParameters";
 import {
   presentToolBase,
@@ -14,12 +16,16 @@ import { type ActionRegistry } from "./actionRegistry";
 import { renderGenerativeUI } from "./renderGenerativeUI";
 import type { GenerativeUILibrary, GenerativeUIStatus } from "./types";
 
-/** Maps a tool-call part status to the generative-UI streaming status. Only a
- * `complete` call has fully-arrived args; `running` and `incomplete`
- * (aborted/errored, so args may be partial) both render as `"streaming"` so a
- * non-streaming component is never handed partial props. */
-function uiStatus(status: { type: string }): GenerativeUIStatus {
-  return status.type === "complete" ? "done" : "streaming";
+// A cancelled argument stream can leave a tool waiting with partial arguments.
+function uiStatus(
+  status: { type: string },
+  args: Record<string, unknown>,
+): GenerativeUIStatus {
+  return status.type === "complete" ||
+    (status.type === "requires-action" &&
+      getPartialJsonObjectMeta(args)?.state !== "partial")
+    ? "done"
+    : "streaming";
 }
 
 /**
@@ -58,49 +64,64 @@ export class JSONGenerativeUI {
       result,
       toolCallId,
       unstable_recordInteraction,
+      unstable_interactions,
     }: ToolCallMessagePartProps<Record<string, unknown>, any>,
     completesPrompt = false,
   ): ReactNode => {
+    const answered = completesPrompt && result !== undefined;
     const actions = this.actions;
-    const dispatch = actions
-      ? (action: Parameters<ActionRegistry["dispatch"]>[0]) => {
-          if (unstable_recordInteraction) {
-            try {
-              void unstable_recordInteraction({
-                type: "action",
-                payload: action,
-              }).catch(() => {});
-            } catch {}
-          }
+    const dispatch =
+      !answered && actions
+        ? (action: Parameters<ActionRegistry["dispatch"]>[0]) => {
+            if (unstable_recordInteraction) {
+              try {
+                void unstable_recordInteraction({
+                  type: "action",
+                  payload: action,
+                }).catch(() => {});
+              } catch {}
+            }
 
-          const actionResult = actions.dispatch(action);
-          if (
-            completesPrompt &&
-            actionResult !== undefined &&
-            result === undefined
-          ) {
-            void Promise.resolve(actionResult)
-              .then((response) => {
-                if (
-                  response !== undefined &&
-                  !this.completedPromptToolCallIds.has(toolCallId)
-                ) {
-                  this.completedPromptToolCallIds.add(toolCallId);
-                  addResult(response);
-                }
-              })
-              .catch(() => {});
+            const actionResult = actions.dispatch(action);
+            if (
+              completesPrompt &&
+              actionResult !== undefined &&
+              result === undefined
+            ) {
+              void Promise.resolve(actionResult)
+                .then((response) => {
+                  if (
+                    response !== undefined &&
+                    !this.completedPromptToolCallIds.has(toolCallId)
+                  ) {
+                    this.completedPromptToolCallIds.add(toolCallId);
+                    addResult(response);
+                  }
+                })
+                .catch(() => {});
+            }
+            return actionResult;
           }
-          return actionResult;
-        }
-      : undefined;
+        : undefined;
+
+    const rendered = renderGenerativeUI(args, this.library, {
+      status: uiStatus(status, args),
+      ...(dispatch ? { dispatch } : {}),
+    });
 
     return (
       <div data-aui="root">
-        {renderGenerativeUI(args, this.library, {
-          status: uiStatus(status),
-          ...(dispatch ? { dispatch } : {}),
-        })}
+        {answered ? (
+          <AnsweredValuesProvider
+            values={findAnsweredValues(unstable_interactions)}
+          >
+            <fieldset disabled data-aui="answered">
+              {rendered}
+            </fieldset>
+          </AnsweredValuesProvider>
+        ) : (
+          rendered
+        )}
       </div>
     );
   };
