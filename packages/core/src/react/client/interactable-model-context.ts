@@ -1,5 +1,6 @@
 import type { Tool } from "assistant-stream";
 import { toJSONSchema } from "assistant-stream";
+import { getPartialJsonObjectMeta } from "assistant-stream/utils";
 import type { Unstable_InteractableDefinition } from "../types/scopes/interactables";
 import {
   interactableToolName,
@@ -231,8 +232,14 @@ export function buildInteractableModelContext(
               });
             }
 
+            const partialPath = getPartialJsonObjectMeta(
+              args as Record<symbol, unknown>,
+            )?.partialPath;
             setDefState(target.id, (prev) =>
-              shallowMergeInteractableState(prev, partial, { arrayBaseline }),
+              shallowMergeInteractableState(prev, partial, {
+                arrayBaseline,
+                partialPath,
+              }),
             );
           }
         } catch {

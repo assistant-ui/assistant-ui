@@ -39,6 +39,20 @@ describe("AssistantCloudThreads responses", () => {
     );
   });
 
+  it("sends upsert with the external id when creating a thread", async () => {
+    const { threads, makeRequest } = createCloudThreads();
+    makeRequest.mockResolvedValueOnce({ thread_id: "thread-1" });
+    const last_message_at = new Date("2026-09-25T09:30:00.000Z");
+
+    await expect(
+      threads.create({ last_message_at, external_id: "crm:42", upsert: true }),
+    ).resolves.toEqual({ thread_id: "thread-1" });
+    expect(makeRequest).toHaveBeenCalledWith("/threads", {
+      method: "POST",
+      body: { last_message_at, external_id: "crm:42", upsert: true },
+    });
+  });
+
   it("claims anonymous threads and validates the moved count", async () => {
     const { threads, makeRequest } = createCloudThreads();
     makeRequest.mockResolvedValueOnce({ moved: 2 });

@@ -86,11 +86,18 @@ export function isEqualToDepth(a: unknown, b: unknown, depth: number): boolean {
  * Compares parsed hast, which streamdown re-creates on every parse: children
  * recursively, `properties`, `position` and `data` one array or object level
  * deep, and any other field by identity, so plugin values nested deeper compare
- * as changed without being walked.
+ * as changed without being walked. A `pre` below the root is not walked either
+ * and compares as changed: its own PreOverride compares it, and walking it from
+ * every ancestor would cost the square of the nesting depth.
  */
 export function isSameHastNode(a: unknown, b: unknown): boolean {
+  return isSameHastNodeAt(a, b, true);
+}
+
+function isSameHastNodeAt(a: unknown, b: unknown, root: boolean): boolean {
   if (Object.is(a, b)) return true;
   if (!isPlainObject(a) || !isPlainObject(b)) return false;
+  if (!root && a.tagName === "pre") return false;
   const keys = Object.keys(a);
   return (
     keys.length === Object.keys(b).length &&
@@ -101,7 +108,9 @@ export function isSameHastNode(a: unknown, b: unknown): boolean {
       if (key === "children" && isPlainArray(prev) && isPlainArray(next)) {
         return (
           prev.length === next.length &&
-          prev.every((child, index) => isSameHastNode(child, next[index]))
+          prev.every((child, index) =>
+            isSameHastNodeAt(child, next[index], false),
+          )
         );
       }
       if (key === "properties" || key === "position" || key === "data") {

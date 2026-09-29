@@ -8,32 +8,26 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { collapsePanel, fieldInteractive, mono, paper } from "./surfaces";
+import { hostOf, safeHref } from "../utils/href";
 
 export interface Source {
-  domain: string;
+  domain?: string | undefined;
   title: string;
+  url?: string | undefined;
+  snippet?: string | undefined;
+  author?: string | undefined;
+  publishedAt?: string | undefined;
 }
 
 export interface SourcesProps {
   sources: readonly Source[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  className?: string;
-  /** "grid" (default, unchanged): a two-column card grid, each source's
-   * domain and title stacked. "list": one compact line per source (a
-   * favicon glyph, then title and domain inline) - a denser arrangement
-   * of the same fields, for a caller that wants the source list itself
-   * denser than the grid's own cards. */
   layout?: "grid" | "list";
+  locale?: string | undefined;
+  className?: string | undefined;
 }
 
-/**
- * A small favicon-style glyph for a source row: the domain's own first
- * letter, uppercased, on a muted rounded square. No icon fetch - shared
- * identically by both `Sources` layouts below.
- *
- * @param domain - The source's hostname; only its first character is read.
- */
 function SourceGlyph({ domain }: { domain: string }) {
   return (
     <span className="bg-foreground/[0.06] text-foreground/45 flex size-4 shrink-0 items-center justify-center rounded text-[9px] font-medium">
@@ -42,21 +36,36 @@ function SourceGlyph({ domain }: { domain: string }) {
   );
 }
 
-/**
- * A collapsible list of a reply's sources, collapsed by default. Renders
- * as either a two-column card grid (`layout: "grid"`, the default) or a
- * denser one-line-per-source list (`layout: "list"`), both showing the
- * identical `title`/`domain` fields.
- *
- * @param props - See {@link SourcesProps}.
- */
+const displayDomain = (source: Source) => source.domain || hostOf(source.url);
+
+const formatPublishedAt = (publishedAt: string | undefined, locale: string) => {
+  if (!publishedAt) return undefined;
+  const date = new Date(publishedAt);
+  if (Number.isNaN(date.valueOf())) return undefined;
+  const options: Intl.DateTimeFormatOptions = {
+    month: "short",
+    year: "numeric",
+  };
+  try {
+    return new Intl.DateTimeFormat(locale, options).format(date);
+  } catch {
+    return new Intl.DateTimeFormat("en-US", options).format(date);
+  }
+};
+
 export function Sources({
   sources,
   open,
   onOpenChange,
-  className,
   layout = "grid",
+  locale = "en-US",
+  className,
 }: SourcesProps) {
+  const badgeDomains = sources
+    .map(displayDomain)
+    .filter((domain): domain is string => domain !== undefined)
+    .slice(0, 3);
+
   return (
     <Collapsible
       data-slot="sources"
@@ -70,6 +79,19 @@ export function Sources({
           "group/trigger text-foreground/60 hover:text-foreground/90 inline-flex w-fit items-center gap-1.5 rounded-full px-3.5 py-2 text-xs outline-none",
         )}
       >
+        {badgeDomains.length > 0 ? (
+          <span aria-hidden className="flex -space-x-1">
+            {badgeDomains.map((domain, index) => (
+              <span
+                key={`${domain}-${index}`}
+                data-slot="sources-badge"
+                className="bg-foreground/[0.08] text-foreground/55 ring-background dark:ring-popover flex size-4 items-center justify-center rounded-full text-[8px] font-medium ring-1"
+              >
+                {domain.charAt(0).toUpperCase()}
+              </span>
+            ))}
+          </span>
+        ) : null}
         <span>Sources</span>
         <span className={cn(mono, "text-foreground/35 tabular-nums")}>
           {sources.length}
@@ -77,57 +99,104 @@ export function Sources({
         <ChevronDownIcon className="size-3 opacity-60 transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-data-open/trigger:rotate-180 group-data-panel-open/trigger:rotate-180 motion-reduce:transition-none" />
       </CollapsibleTrigger>
       <CollapsibleContent className={cn(collapsePanel, "outline-none")}>
-        {/* `key={index}`, not `source.domain`: two different pages on the
-         * same site produce identical keys and collide. `sources` is a
-         * complete snapshot on mount for every caller this ships with
-         * today (never streamed/reordered/filtered client-side after
-         * mount) - a caller that DOES reorder this array incrementally
-         * would need real per-source ids instead. */}
-        {layout === "list" ? (
-          <div className="flex flex-col gap-1 pt-2.5" data-slot="sources-list">
-            {sources.map((source, index) => (
-              <div
-                key={index}
-                className="flex items-center gap-2 rounded-lg px-1 py-1"
-              >
-                <SourceGlyph domain={source.domain} />
-                <span className="text-foreground/90 min-w-0 flex-1 truncate text-[13px] leading-snug">
-                  {source.title}
-                </span>
-                <span
-                  className={cn(
-                    mono,
-                    "text-foreground/35 max-w-[40%] min-w-0 shrink truncate text-[11px]",
-                  )}
-                >
-                  {source.domain}
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-2 pt-2.5">
-            {sources.map((source, index) => (
-              <div
-                key={index}
-                className={cn(
-                  paper,
-                  "flex flex-col gap-1.5 rounded-2xl p-3 transition-transform hover:-translate-y-px",
-                )}
-              >
-                <div className="flex items-center gap-1.5">
-                  <SourceGlyph domain={source.domain} />
-                  <span className={cn(mono, "text-foreground/40 truncate")}>
-                    {source.domain}
-                  </span>
+        <div
+          className={
+            layout === "list"
+              ? "flex flex-col gap-1 pt-2.5"
+              : "grid grid-cols-2 gap-2 pt-2.5"
+          }
+          data-slot={layout === "list" ? "sources-list" : undefined}
+        >
+          {sources.map((source, index) => {
+            const domain = displayDomain(source);
+            const href = safeHref(source.url);
+            const meta = [
+              source.author,
+              formatPublishedAt(source.publishedAt, locale),
+            ]
+              .filter((value): value is string => Boolean(value))
+              .join(" · ");
+            const cardClassName = cn(
+              layout === "grid" && paper,
+              "focus-visible:ring-foreground/20 flex flex-col gap-1.5 outline-none focus-visible:ring-1",
+              layout === "list"
+                ? "rounded-lg px-1 py-1"
+                : "rounded-2xl p-3 transition-transform duration-150 hover:-translate-y-px motion-reduce:transition-none",
+            );
+            const content = (
+              <>
+                {layout === "list" ? (
+                  <div className="flex min-w-0 items-center gap-2">
+                    {domain ? <SourceGlyph domain={domain} /> : null}
+                    <span className="text-foreground/90 min-w-0 flex-1 truncate text-[13px] leading-snug">
+                      {source.title}
+                    </span>
+                    {domain ? (
+                      <span
+                        className={cn(
+                          mono,
+                          "text-foreground/35 max-w-[40%] min-w-0 shrink truncate text-[11px]",
+                        )}
+                      >
+                        {domain}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : domain ? (
+                  <div className="flex items-center gap-1.5">
+                    <SourceGlyph domain={domain} />
+                    <span className={cn(mono, "text-foreground/40 truncate")}>
+                      {domain}
+                    </span>
+                  </div>
+                ) : null}
+                <div className="flex min-w-0 flex-col gap-1">
+                  {layout === "grid" ? (
+                    <span className="text-foreground/90 line-clamp-2 text-[13px] leading-snug font-medium">
+                      {source.title}
+                    </span>
+                  ) : null}
+                  {source.snippet ? (
+                    <span className="text-foreground/50 line-clamp-2 text-xs leading-relaxed">
+                      {source.snippet}
+                    </span>
+                  ) : null}
+                  {meta ? (
+                    <span className="text-foreground/40 truncate text-xs">
+                      {meta}
+                    </span>
+                  ) : null}
                 </div>
-                <span className="text-foreground/90 line-clamp-2 text-[13px] leading-snug font-medium">
-                  {source.title}
-                </span>
+              </>
+            );
+
+            if (href) {
+              return (
+                <a
+                  key={`${source.url ?? source.domain ?? source.title}-${index}`}
+                  data-slot="source-card"
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cardClassName}
+                >
+                  {content}
+                  <span className="sr-only">(opens in a new tab)</span>
+                </a>
+              );
+            }
+
+            return (
+              <div
+                key={`${source.url ?? source.domain ?? source.title}-${index}`}
+                data-slot="source-card"
+                className={cardClassName}
+              >
+                {content}
               </div>
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
       </CollapsibleContent>
     </Collapsible>
   );

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Pressable, type PressableProps } from "react-native";
+import { Platform, Pressable, type PressableProps } from "react-native";
 import { useActionBarFeedbackPositive } from "@assistant-ui/core/react";
 
 export type ActionBarFeedbackPositiveProps = Omit<
@@ -24,6 +24,9 @@ export const ActionBarFeedbackPositive = ({
       onPress={submit}
       disabled={disabledProp}
       accessibilityRole="button"
+      {...(Platform.OS === "web"
+        ? { "aria-pressed": isSubmitted }
+        : { "aria-selected": isSubmitted })}
       {...pressableProps}
     >
       {typeof children === "function"

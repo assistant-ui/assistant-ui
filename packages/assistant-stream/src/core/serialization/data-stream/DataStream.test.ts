@@ -5,6 +5,30 @@ import { createAssistantStreamController } from "../../modules/assistant-stream"
 import { toolResultStream } from "../../tool/toolResultStream";
 import { AssistantMessageAccumulator } from "../../accumulators/assistant-message-accumulator";
 
+const roundTripFirstPart = async <T>(
+  chunks: AssistantStreamChunk[],
+): Promise<T> => {
+  const source = new ReadableStream<AssistantStreamChunk>({
+    start(controller) {
+      for (const chunk of chunks) controller.enqueue(chunk);
+      controller.close();
+    },
+  });
+  let last: { parts: readonly unknown[] } | undefined;
+  await source
+    .pipeThrough(new DataStreamEncoder())
+    .pipeThrough(new DataStreamDecoder())
+    .pipeThrough(new AssistantMessageAccumulator())
+    .pipeTo(
+      new WritableStream({
+        write(message) {
+          last = message as unknown as { parts: readonly unknown[] };
+        },
+      }),
+    );
+  return last!.parts[0] as T;
+};
+
 const decodeLines = async (lines: string[], options?: { strict?: boolean }) => {
   const bytes = new ReadableStream<Uint8Array>({
     start(controller) {
@@ -66,6 +90,47 @@ describe("DataStreamEncoder streamed tool-call args", () => {
       'b:{"toolCallId":"t1","toolName":"search"}',
       'c:{"toolCallId":"t1","argsTextDelta":"{\\"q\\":1}"}',
       'c:{"toolCallId":"t1","argsTextDelta":"","isFinal":true}',
+    ]);
+  });
+
+  it("round trips preliminary tool results before the final result", async () => {
+    const chunks: AssistantStreamChunk[] = [
+      {
+        type: "part-start",
+        path: [],
+        part: { type: "tool-call", toolCallId: "t1", toolName: "search" },
+      },
+      { type: "text-delta", path: [0], textDelta: "{}" },
+      { type: "tool-call-args-text-finish", path: [0] },
+      {
+        type: "result",
+        path: [0],
+        result: "first",
+        isError: false,
+        isPreliminary: true,
+      },
+      {
+        type: "result",
+        path: [0],
+        result: "final",
+        isError: false,
+      },
+      { type: "part-finish", path: [0] },
+    ];
+
+    const lines = await encodeChunks(chunks);
+    const decoded = await decodeLines(lines);
+    expect(
+      decoded
+        .filter((chunk) => chunk.type === "result")
+        .map((chunk) =>
+          chunk.type === "result"
+            ? { result: chunk.result, isPreliminary: chunk.isPreliminary }
+            : undefined,
+        ),
+    ).toEqual([
+      { result: "first", isPreliminary: true },
+      { result: "final", isPreliminary: undefined },
     ]);
   });
 
@@ -259,31 +324,10 @@ describe("non-terminal errors across the data stream round trip", () => {
     },
   ];
 
-  const roundTrip = async (chunks: AssistantStreamChunk[]) => {
-    const source = new ReadableStream<AssistantStreamChunk>({
-      start(controller) {
-        for (const chunk of chunks) controller.enqueue(chunk);
-        controller.close();
-      },
-    });
-    let last: { parts: readonly unknown[] } | undefined;
-    await source
-      .pipeThrough(new DataStreamEncoder())
-      .pipeThrough(new DataStreamDecoder())
-      .pipeThrough(new AssistantMessageAccumulator())
-      .pipeTo(
-        new WritableStream({
-          write(message) {
-            last = message as unknown as { parts: readonly unknown[] };
-          },
-        }),
-      );
-    return last!.parts[0] as {
-      type: string;
-      argsText: string;
-      args: unknown;
-    };
-  };
+  const roundTrip = (chunks: AssistantStreamChunk[]) =>
+    roundTripFirstPart<{ type: string; argsText: string; args: unknown }>(
+      chunks,
+    );
 
   it("preserves tool-call args written after an info error", async () => {
     const part = await roundTrip(streamWithErrorMidArgs("info"));
@@ -749,6 +793,105 @@ describe("file parts on the data stream", () => {
     expect(lines).toEqual([
       'k:{"data":"data:image/png;base64,AAAA","mimeType":"image/png","parentId":"p1"}',
     ]);
+  });
+});
+
+describe("DataStream tool result modelContent", () => {
+  const modelContent = [
+    { type: "text" as const, text: "The report is ready." },
+    {
+      type: "file" as const,
+      data: "AAAA",
+      mediaType: "application/pdf",
+      filename: "report.pdf",
+    },
+  ];
+
+  const streamWithResult = (
+    result: Extract<AssistantStreamChunk, { type: "result" }>,
+  ): AssistantStreamChunk[] => [
+    {
+      type: "part-start",
+      path: [],
+      part: { type: "tool-call", toolCallId: "t1", toolName: "report" },
+    },
+    { type: "text-delta", path: [0], textDelta: "{}" },
+    { type: "tool-call-args-text-finish", path: [0] },
+    result,
+    { type: "part-finish", path: [0] },
+  ];
+
+  const accumulate = (chunks: AssistantStreamChunk[]) =>
+    roundTripFirstPart<{
+      result: unknown;
+      artifact?: unknown;
+      modelContent?: unknown;
+    }>(chunks);
+
+  it("carries modelContent on the result frame", async () => {
+    const lines = await encodeChunks(
+      streamWithResult({
+        type: "result",
+        path: [0],
+        result: { blob: "x".repeat(16) },
+        artifact: { reportId: "r1" },
+        isError: false,
+        modelContent,
+      }),
+    );
+
+    expect(lines.at(-1)).toBe(
+      'a:{"toolCallId":"t1","result":{"blob":"xxxxxxxxxxxxxxxx"},' +
+        '"artifact":{"reportId":"r1"},"modelContent":[' +
+        '{"type":"text","text":"The report is ready."},' +
+        '{"type":"file","data":"AAAA","mediaType":"application/pdf","filename":"report.pdf"}]}',
+    );
+  });
+
+  it("keeps modelContent distinct from the result through encode, decode and accumulate", async () => {
+    const part = await accumulate(
+      streamWithResult({
+        type: "result",
+        path: [0],
+        result: { blob: "x".repeat(16) },
+        isError: false,
+        modelContent,
+      }),
+    );
+
+    expect(part.result).toEqual({ blob: "x".repeat(16) });
+    expect(part.modelContent).toEqual(modelContent);
+  });
+
+  it("carries modelContent on a preliminary result", async () => {
+    const part = await accumulate(
+      streamWithResult({
+        type: "result",
+        path: [0],
+        result: "partial",
+        isError: false,
+        isPreliminary: true,
+        modelContent: [{ type: "text", text: "still working" }],
+      }),
+    );
+
+    expect(part.modelContent).toEqual([
+      { type: "text", text: "still working" },
+    ]);
+  });
+
+  it("omits modelContent when the result does not carry it", async () => {
+    const chunks = streamWithResult({
+      type: "result",
+      path: [0],
+      result: "plain",
+      isError: false,
+    });
+
+    expect(await encodeChunks(chunks)).toContain(
+      'a:{"toolCallId":"t1","result":"plain"}',
+    );
+    expect(await accumulate(chunks)).not.toHaveProperty("modelContent");
   });
 });
 

@@ -29,6 +29,11 @@ const TICK_LINE_H = 14;
 // tall enough for the tick row and identical across both plate branches.
 const PLATE_H = PLOT_H + TICK_GAP + TICK_LINE_H + PLATE_PAD * 2 + 2;
 const TICK_ROWS = 4;
+const MIN_CHART_POINTS = 2;
+const COMPLETE_CACHE_CONTROL =
+  "public, max-age=3600, s-maxage=21600, stale-while-revalidate=86400";
+// Cloudflare lifts any PNG max-age under four hours to four hours and GitHub's image proxy keeps the README image that long, so a render with a fallback in it must not be stored at all.
+const DEGRADED_CACHE_CONTROL = "private, no-store";
 
 // The site's tokens resolved out of oklch, which satori cannot parse.
 const THEMES = {
@@ -82,7 +87,7 @@ function Stat({
   fontMono,
   theme,
 }: {
-  value: string;
+  value: string | null;
   label: string;
   caption: string;
   fontSans: string;
@@ -100,7 +105,7 @@ function Stat({
           letterSpacing: "-0.01em",
         }}
       >
-        {value}
+        {value ?? "—"}
       </span>
       <span
         style={{
@@ -175,7 +180,7 @@ function Plate({
 
   // An empty series would otherwise draw an axis and no curve, which reads as a
   // chart of roughly zero next to a stat naming the real number.
-  if (points.length < 2) {
+  if (points.length < MIN_CHART_POINTS) {
     return shell(
       <div style={{ ...frame, alignItems: "center" }}>
         <span
@@ -319,28 +324,19 @@ export async function renderTractionImage(name: keyof typeof THEMES) {
   const fontSans = fonts ? OG_FONT_SANS : "sans-serif";
   const fontMono = fonts ? OG_FONT_MONO : "monospace";
 
-  const imageOptions: ImageResponseOptions = {
-    width: WIDTH,
-    height: HEIGHT,
-    headers: { "Cache-Control": "public, max-age=3600, s-maxage=21600" },
-  };
-  if (fonts) {
-    imageOptions.fonts = fonts;
-  }
-
   const stats = [
     {
-      value: repo ? formatCompact(repo.stars) : "—",
+      value: repo ? formatCompact(repo.stars) : null,
       label: "GitHub stars",
       caption: "and counting",
     },
     {
-      value: weekly == null ? "—" : formatCompact(weekly),
+      value: weekly == null ? null : formatCompact(weekly),
       label: "Weekly downloads",
       caption: FLAGSHIP_PACKAGE,
     },
     {
-      value: contributors ? String(contributors.length) : "—",
+      value: contributors ? String(contributors.length) : null,
       label: "Contributors",
       caption: "from the community",
     },
@@ -350,6 +346,22 @@ export async function renderTractionImage(name: keyof typeof THEMES) {
       caption: "shipped on npm",
     },
   ];
+  const degraded =
+    stats.some((stat) => stat.value == null) ||
+    [stars, downloads].some((points) => points.length < MIN_CHART_POINTS);
+
+  const imageOptions: ImageResponseOptions = {
+    width: WIDTH,
+    height: HEIGHT,
+    headers: {
+      "Cache-Control": degraded
+        ? DEGRADED_CACHE_CONTROL
+        : COMPLETE_CACHE_CONTROL,
+    },
+  };
+  if (fonts) {
+    imageOptions.fonts = fonts;
+  }
 
   return new ImageResponse(
     <div

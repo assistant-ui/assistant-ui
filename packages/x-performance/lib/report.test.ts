@@ -293,6 +293,22 @@ describe("renderCompareMarkdown", () => {
     expect(md).not.toContain("byte-identical");
   });
 
+  it("says no bench ran when the comparison was skipped", () => {
+    const identical = markdown([], {
+      changed: [],
+      footer: ["base `a`", "head `b`"],
+    });
+    expect(identical).toContain(
+      "- **Nothing to measure.** Every measured package dist is byte-identical between base (aaaaaaa) and head (bbbbbbb), so no bench ran",
+    );
+    expect(identical).not.toContain("<details>");
+    expect(identical.trimEnd().endsWith("base `a` · head `b`")).toBe(true);
+
+    expect(markdown([], { changed: ["@assistant-ui/react"] })).toContain(
+      "- **No bench exercises the changed dists** (`@assistant-ui/react`), so no bench ran. A bench under `bench/` that imports them would measure this class of change.",
+    );
+  });
+
   it("names the missing controls when every bench is measured", () => {
     const md = markdown([row("bench/m.bench.ts > g > x", 1, 3, true)], {
       changed: ["@assistant-ui/tap"],

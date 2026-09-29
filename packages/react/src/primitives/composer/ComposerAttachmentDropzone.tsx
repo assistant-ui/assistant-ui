@@ -42,10 +42,9 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
   // claimed via preventDefault even when the runtime does not support attachments.
   const handleDragEnterCapture = useCallback(
     (e: React.DragEvent) => {
-      if (disabled) return;
       if (!e.dataTransfer.types.includes("Files")) return;
       e.preventDefault();
-      if (!aui.thread.getState().capabilities.attachments) {
+      if (disabled || !aui.thread.getState().capabilities.attachments) {
         e.dataTransfer.dropEffect = "none";
         return;
       }
@@ -56,10 +55,9 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
 
   const handleDragOverCapture = useCallback(
     (e: React.DragEvent) => {
-      if (disabled) return;
       if (!e.dataTransfer.types.includes("Files")) return;
       e.preventDefault();
-      if (!aui.thread.getState().capabilities.attachments) {
+      if (disabled || !aui.thread.getState().capabilities.attachments) {
         e.dataTransfer.dropEffect = "none";
         return;
       }
@@ -83,10 +81,10 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
 
   const handleDrop = useCallback(
     async (e: React.DragEvent) => {
-      if (disabled) return;
       setIsDragging(false);
       if (!e.dataTransfer.types.includes("Files")) return;
       e.preventDefault();
+      if (disabled) return;
       const files = Array.from(e.dataTransfer.files);
       if (!aui.thread.getState().capabilities.attachments || files.length === 0)
         return;
