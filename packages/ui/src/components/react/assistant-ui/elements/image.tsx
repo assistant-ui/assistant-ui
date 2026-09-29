@@ -25,6 +25,7 @@ import type {
   ImageMessagePartComponent,
 } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
+import { hostOf, safeHref } from "../utils/href";
 
 const extensionForMimeType = (mimeType?: string): string => {
   switch (mimeType) {
@@ -187,12 +188,16 @@ function ImageRoot({
 }
 
 type ImagePreviewProps = Omit<React.ComponentProps<"img">, "children"> & {
-  containerClassName?: string;
+  containerClassName?: string | undefined;
+  ratio?: "auto" | "1:1" | "4:3" | "16:9" | "9:16" | undefined;
+  fit?: "cover" | "contain" | undefined;
 };
 
 function ImagePreview({
   className,
   containerClassName,
+  ratio = "auto",
+  fit = "contain",
   onLoad,
   onError,
   alt = "Image content",
@@ -205,6 +210,17 @@ function ImagePreview({
 
   const loaded = loadedSrc === src;
   const error = errorSrc === src;
+  const fixedRatio = ratio !== "auto";
+  const ratioClassName =
+    ratio === "1:1"
+      ? "aspect-square"
+      : ratio === "4:3"
+        ? "aspect-[4/3]"
+        : ratio === "16:9"
+          ? "aspect-video"
+          : ratio === "9:16"
+            ? "aspect-[9/16]"
+            : undefined;
 
   useEffect(() => {
     const image = imgRef.current;
@@ -216,7 +232,11 @@ function ImagePreview({
   return (
     <div
       data-slot="image-preview"
-      className={cn("relative min-h-32", containerClassName)}
+      className={cn(
+        "relative",
+        fixedRatio ? ratioClassName : "min-h-32",
+        containerClassName,
+      )}
     >
       {!loaded && !error && (
         <div
@@ -229,7 +249,10 @@ function ImagePreview({
       {error ? (
         <div
           data-slot="image-preview-error"
-          className="bg-muted/50 flex min-h-32 items-center justify-center p-4"
+          className={cn(
+            "bg-muted/50 flex min-h-32 items-center justify-center p-4",
+            fixedRatio && "absolute inset-0",
+          )}
         >
           <ImageOffIcon className="text-muted-foreground size-8" />
         </div>
@@ -239,7 +262,12 @@ function ImagePreview({
           src={src}
           alt={alt}
           className={cn(
-            "block h-auto w-full object-contain",
+            fixedRatio
+              ? cn("block h-full w-full", {
+                  "object-cover": fit === "cover",
+                  "object-contain": fit === "contain",
+                })
+              : "block h-auto w-full object-contain",
             !loaded && "invisible",
             className,
           )}
@@ -253,6 +281,74 @@ function ImagePreview({
           }}
           {...props}
         />
+      )}
+    </div>
+  );
+}
+
+export type ImageSourceProps = {
+  label?: string | undefined;
+  url?: string | undefined;
+  iconUrl?: string | undefined;
+} & React.ComponentProps<"div">;
+
+function ImageSource({
+  className,
+  label,
+  url,
+  iconUrl,
+  ...props
+}: ImageSourceProps) {
+  const href = safeHref(url);
+  const host = hostOf(url);
+  const displayLabel = label || host;
+  const [failedIconUrl, setFailedIconUrl] = useState<string | undefined>();
+
+  if (!displayLabel) return null;
+
+  const showIcon = iconUrl !== undefined && failedIconUrl !== iconUrl;
+
+  return (
+    <div
+      data-slot="image-source"
+      className={cn(
+        "text-muted-foreground flex items-center gap-2 border-t px-2 py-1.5 text-xs",
+        className,
+      )}
+      {...props}
+    >
+      {showIcon ? (
+        <img
+          data-slot="image-source-icon"
+          src={iconUrl}
+          alt=""
+          className="size-4 shrink-0 rounded-sm"
+          onError={() => setFailedIconUrl(iconUrl)}
+        />
+      ) : (
+        <span
+          data-slot="image-source-icon-fallback"
+          aria-hidden="true"
+          className="bg-muted flex size-4 shrink-0 items-center justify-center rounded-sm text-[10px] font-medium"
+        >
+          {displayLabel.charAt(0).toUpperCase()}
+        </span>
+      )}
+      {href ? (
+        <a
+          data-slot="image-source-label"
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:text-foreground truncate"
+        >
+          {displayLabel}
+          <span className="sr-only"> (opens in a new tab)</span>
+        </a>
+      ) : (
+        <span data-slot="image-source-label" className="truncate">
+          {displayLabel}
+        </span>
       )}
     </div>
   );
@@ -539,6 +635,7 @@ const ImageImpl: ImageMessagePartComponent = (props) => {
 const Image = memo(ImageImpl) as unknown as ImageMessagePartComponent & {
   Root: typeof ImageRoot;
   Preview: typeof ImagePreview;
+  Source: typeof ImageSource;
   Filename: typeof ImageFilename;
   Zoom: typeof ImageZoom;
   Actions: typeof ImageActions;
@@ -549,6 +646,7 @@ const Image = memo(ImageImpl) as unknown as ImageMessagePartComponent & {
 Image.displayName = "Image";
 Image.Root = ImageRoot;
 Image.Preview = ImagePreview;
+Image.Source = ImageSource;
 Image.Filename = ImageFilename;
 Image.Zoom = ImageZoom;
 Image.Actions = ImageActions;
@@ -559,6 +657,7 @@ export {
   Image,
   ImageRoot,
   ImagePreview,
+  ImageSource,
   ImageFilename,
   ImageZoom,
   ImageActions,
