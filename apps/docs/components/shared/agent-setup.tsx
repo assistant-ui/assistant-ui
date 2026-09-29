@@ -19,7 +19,8 @@ export function AgentSetup({
   const session = useCheckoutSession();
   const beginSetup = useBeginSetup();
   if (product === undefined) return null;
-  const collects = product.purchase === "cart";
+  const held = session?.products.includes(product.slug) ?? false;
+  const collects = product.purchase === "cart" && !held;
   const begin =
     session && collects ? null : (
       <Button
@@ -42,9 +43,11 @@ export function AgentSetup({
             Install {product.name} with your coding agent
           </p>
           <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
-            {collects
-              ? "Add it to your setup. Your agent installs everything in the setup and wires it into your project."
-              : "Your agent installs it and wires it into your project."}
+            {!collects
+              ? "Your agent installs it and wires it into your project."
+              : session
+                ? "A setup is running. Add this to your next setup and your agent installs it then."
+                : "Add it to your setup. Your agent installs everything in the setup and wires it into your project."}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

@@ -3,7 +3,11 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { clearCart } from "../../lib/catalog/cart-store";
-import { endCheckout, startCheckout } from "../../lib/checkout/session-store";
+import {
+  endCheckout,
+  getCheckoutSession,
+  startCheckout,
+} from "../../lib/checkout/session-store";
 import { AgentSetup } from "./agent-setup";
 
 const mocks = vi.hoisted(() => ({ beginSetup: vi.fn() }));
@@ -47,14 +51,28 @@ describe("agent setup banner", () => {
     ]);
   });
 
-  it("offers no way into the running setup from a product it does not hold", () => {
-    startCheckout(["assistant-ui"]);
+  it("queues a product for the next setup while a setup without it runs", () => {
+    const session = startCheckout(["assistant-ui"]);
     render(<AgentSetup product="elements/thread-list" prominent />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Add Thread list to next setup" }),
+    );
     expect(
-      screen.getByRole("button", { name: "Add Thread list to setup" }),
-    ).toBeTruthy();
+      screen.getByRole("button", {
+        name: "Remove Thread list from next setup",
+      }).textContent,
+    ).toBe("In next setup");
+    expect(getCheckoutSession()).toEqual(session);
     expect(screen.queryByRole("button", { name: "Continue setup" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Begin setup" })).toBeNull();
+  });
+
+  it("returns to the running setup from a product it holds", () => {
+    startCheckout(["elements/thread-list"]);
+    render(<AgentSetup product="elements/thread-list" prominent />);
+    expect(
+      screen.getAllByRole("button").map((button) => button.textContent),
+    ).toEqual(["Continue setup"]);
   });
 
   it("returns to the running setup from a product that starts one", () => {
