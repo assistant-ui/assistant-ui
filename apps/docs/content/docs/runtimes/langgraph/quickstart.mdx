@@ -25,8 +25,10 @@ NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID=your_graph_id
 ```
 
 ```sh
-npm run dev
+npm run dev:frontend
 ```
+
+`npm run dev` also starts the template's bundled agent with `langgraphjs dev`, which needs `ANTHROPIC_API_KEY`.
 
 The template connects to LangGraph through `useStreamRuntime` from [`@assistant-ui/react-langchain`](/docs/runtimes/langchain); continue on that page to add features. To use `useLangGraphRuntime`, follow the manual setup below.
 
