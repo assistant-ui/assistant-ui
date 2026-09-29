@@ -36,6 +36,17 @@ describe("cart markdown route", () => {
     expect(body).not.toContain("<script>");
   });
 
+  it("serves only the main installer when the shop is closed", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SHOP_ENABLED", "");
+    vi.stubEnv("NODE_ENV", "production");
+    expect((await get("?items=cloud")).status).toBe(400);
+    const response = await get("?items=assistant-ui,cloud");
+    expect(response.status).toBe(200);
+    const body = await response.text();
+    expect(body).toContain("assistant-ui");
+    expect(body).not.toContain("Assistant Cloud");
+  });
+
   it("answers 404 when no checkout worker is configured", async () => {
     vi.stubEnv("NEXT_PUBLIC_CHECKOUT_URL", "");
     vi.stubEnv("NODE_ENV", "production");

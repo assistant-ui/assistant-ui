@@ -242,6 +242,18 @@ const applyMessagePartDelta = (
   return null;
 };
 
+/**
+ * Whether the thread is mid-run. The transient `cancelling` and `reverting`
+ * states leave it only on a server busy-to-idle transition, so an action that
+ * enters one while the session is already idle would never settle.
+ */
+export const isOpenCodeStateRunning = (state: OpenCodeThreadState): boolean =>
+  state.runState.type === "streaming" ||
+  state.runState.type === "cancelling" ||
+  state.runState.type === "reverting" ||
+  state.sessionStatus?.type === "busy" ||
+  state.sessionStatus?.type === "retry";
+
 export const createOpenCodeThreadState = (
   sessionId: string,
 ): OpenCodeThreadState => ({

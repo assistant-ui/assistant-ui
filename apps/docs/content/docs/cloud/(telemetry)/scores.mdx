@@ -134,9 +134,9 @@ With no target, the request is refused with `"a score must target a message, run
 |---|---|---|
 | `201` | `{ score_id, name, data_type, value, string_value }` | The score was stored. `value` is a number or `null`; `string_value` is a string or `null`. |
 | `400` | `{ "success": false, "error": … }` | A field or data type rule failed validation. |
-| `400` | `{ "error": "message_id must belong to thread_id" }` | The message is not in the supplied thread. |
-| `404` | `{ "error": "Thread not found" }` | The thread target is not available to the caller. |
-| `404` | `{ "error": "Run not found" }` | The run target is not available to the caller. |
+| `400` | Plain text: `message_id must belong to thread_id` | The message is not in the supplied thread. |
+| `404` | Plain text: `Thread not found` | The thread target is not available to the caller. |
+| `404` | Plain text: `Run not found` | The run target is not available to the caller. |
 
 ### Source, author, and replacement
 

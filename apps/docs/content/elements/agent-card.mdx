@@ -58,7 +58,7 @@ export function ConnectedAgentCard() {
         name: skill.name,
         description: skill.description,
       }))}
-      model="gpt-5.6-sol"
+      model="gpt-6-astra"
       connected
     />
   );
@@ -91,7 +91,7 @@ export default function AgentPage() {
       description="Answers questions about current and forecast weather."
       provider="Acme Corp"
       version="1.4.0"
-      model="gpt-5.6-sol"
+      model="gpt-6-astra"
       endpoint="weather-agent.example.com"
       skills={[
         { name: "get_forecast", description: "5-day forecast for a location" },

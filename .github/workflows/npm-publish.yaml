@@ -707,3 +707,30 @@ jobs:
         run: |
           echo "::error::Publish failed for release SHA ${RELEASE_SHA}."
           echo "::error::Rerun this workflow run, or run workflow_dispatch with releaseSha=${RELEASE_SHA}."
+
+  registry-dispatch:
+    name: Dispatch registry deploy
+    needs:
+      - approve
+      - publish
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      RELEASE_SHA: ${{ needs.approve.outputs.release_sha }}
+    steps:
+      - name: Trigger registry deploy
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
+        with:
+          script: |
+            await github.rest.repos.createDispatchEvent({
+              ...context.repo,
+              event_type: "registry-deploy",
+              client_payload: { releaseSha: process.env.RELEASE_SHA },
+            });
+
+      - name: Recovery guidance
+        if: failure()
+        run: |
+          echo "::error::npm publish succeeded, but the registry deploy was not triggered for ${RELEASE_SHA}."
+          echo "::error::Rerun this job, or run Deploy Shadcn Registry via workflow_dispatch with releaseSha=${RELEASE_SHA}."

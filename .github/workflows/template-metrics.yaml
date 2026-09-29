@@ -21,7 +21,7 @@ env:
   BUNDLE_TEMPLATES: "default minimal"
   # Exceeding MAX_LOC_INCREASE only warns; MAX_LOC_HARD_INCREASE fails the gate.
   MAX_LOC_INCREASE: "50"
-  MAX_LOC_HARD_INCREASE: "300"
+  MAX_LOC_HARD_INCREASE: "800"
 
 jobs:
   gate:

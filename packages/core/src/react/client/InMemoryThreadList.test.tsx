@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
 
-import { act, render } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
+import { useMemo, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { resource } from "@assistant-ui/tap";
 import { AuiProvider, useAui, useAuiEvent } from "@assistant-ui/store";
+import type { AttachmentAdapter } from "../../adapters/attachment";
+import { ExternalThread } from "../../store/clients/external-thread";
 import { InMemoryThreadList } from "./InMemoryThreadList";
 
 const stubComposer = { getState: () => ({}) };
@@ -14,6 +17,91 @@ const useStubThread = (_props: { threadId: string }) => ({
   suggestions: () => stubSuggestions,
 });
 const StubThread = resource(useStubThread);
+
+const useDraftThread = (_props: { threadId: string }) => {
+  const [text, setText] = useState("");
+  const composerState = useMemo(() => ({ text }), [text]);
+  const composer = useMemo(
+    () => ({ getState: () => composerState, setText }),
+    [composerState],
+  );
+  return {
+    getState: () => ({ isRunning: false }),
+    composer: () => composer,
+    suggestions: () => stubSuggestions,
+  };
+};
+const DraftThread = resource(useDraftThread);
+
+const setupPendingAttachmentSend = async () => {
+  const upload = Promise.withResolvers<void>();
+  let aui!: ReturnType<typeof useAui>;
+  const mainOnNew = vi.fn(() => aui.thread.getState().messages.length);
+  const otherOnNew = vi.fn();
+  let sendSignal: AbortSignal | undefined;
+  const attachmentAdapter: AttachmentAdapter = {
+    accept: "*",
+    add: async ({ file }) => ({
+      id: file.name,
+      type: "file",
+      name: file.name,
+      contentType: file.type,
+      file,
+      status: { type: "requires-action", reason: "composer-send" },
+    }),
+    remove: async () => {},
+    send: async (attachment, options) => {
+      sendSignal = options?.signal;
+      await upload.promise;
+      return {
+        ...attachment,
+        status: { type: "complete" },
+        content: [],
+      };
+    },
+  };
+  const Harness = () => {
+    aui = useAui({
+      threads: InMemoryThreadList({
+        thread: (threadId) =>
+          ExternalThread({
+            messages: [],
+            isRunning: false,
+            attachmentAdapter,
+            onNew: threadId === "main" ? mainOnNew : otherOnNew,
+          }),
+      }),
+    });
+    return <AuiProvider value={aui}>{null}</AuiProvider>;
+  };
+  const view = render(<Harness />);
+  await act(async () => {});
+
+  await act(async () => {
+    await aui.composer.addAttachment(
+      new File(["content"], "note.txt", { type: "text/plain" }),
+    );
+    aui.composer.setText("sent from main");
+    void aui.composer.send();
+  });
+  expect(sendSignal).toBeDefined();
+  expect(aui.thread.getState().messages).toHaveLength(1);
+  expect(aui.composer.getState().submission?.text).toBe("sent from main");
+
+  return {
+    getAui: () => aui,
+    unmount: () => view.unmount(),
+    getSendSignal: () => sendSignal,
+    mainOnNew,
+    otherOnNew,
+    resolveUpload: async () => {
+      await act(async () => {
+        upload.resolve();
+        await upload.promise;
+      });
+    },
+  };
+};
 
 const setup = () => {
   const selectionChanged = vi.fn();
@@ -95,6 +183,116 @@ describe("InMemoryThreadList selection events", () => {
       threadId: "main",
       previousThreadId: newThreadId,
     });
+  });
+});
+
+describe("InMemoryThreadList thread state", () => {
+  it("does not carry a composer draft into another thread", async () => {
+    let aui!: ReturnType<typeof useAui>;
+    const Harness = () => {
+      aui = useAui({
+        threads: InMemoryThreadList({
+          thread: (threadId) => DraftThread({ threadId }) as never,
+        }),
+      } as never);
+      return <AuiProvider value={aui}>{null}</AuiProvider>;
+    };
+    render(<Harness />);
+    await act(async () => {});
+
+    await act(async () => {
+      aui.composer.setText("draft for main");
+    });
+    expect(aui.composer.getState().text).toBe("draft for main");
+
+    await act(async () => {
+      aui.threads.switchToNewThread();
+    });
+    await act(async () => {});
+
+    expect(aui.composer.getState().text).toBe("");
+  });
+
+  it("aborts a pending attachment send when the selected thread is deleted", async () => {
+    const { getAui, getSendSignal, mainOnNew, resolveUpload } =
+      await setupPendingAttachmentSend();
+
+    await act(async () => {
+      getAui().threads.item({ id: "main" }).delete();
+    });
+    expect(getSendSignal()?.aborted).toBe(true);
+
+    await resolveUpload();
+    expect(mainOnNew).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["while its thread is selected", false],
+    ["after switching away from its thread", true],
+  ])(
+    "aborts a pending attachment send when the list's owner unmounts %s",
+    async (_, switchAway) => {
+      const {
+        getAui,
+        getSendSignal,
+        mainOnNew,
+        otherOnNew,
+        resolveUpload,
+        unmount,
+      } = await setupPendingAttachmentSend();
+
+      if (switchAway) {
+        await act(async () => {
+          getAui().threads.switchToNewThread();
+        });
+      }
+      expect(getSendSignal()?.aborted).toBe(false);
+
+      unmount();
+      await act(async () => {});
+      expect(getSendSignal()?.aborted).toBe(true);
+
+      await resolveUpload();
+      expect(mainOnNew).not.toHaveBeenCalled();
+      expect(otherOnNew).not.toHaveBeenCalled();
+    },
+  );
+
+  it("aborts a pending attachment send when an unselected thread is deleted", async () => {
+    const { getAui, getSendSignal, mainOnNew, resolveUpload } =
+      await setupPendingAttachmentSend();
+
+    await act(async () => {
+      getAui().threads.switchToNewThread();
+    });
+    expect(getSendSignal()?.aborted).toBe(false);
+
+    await act(async () => {
+      getAui().threads.item({ id: "main" }).delete();
+    });
+    expect(getSendSignal()?.aborted).toBe(true);
+
+    await resolveUpload();
+    expect(mainOnNew).not.toHaveBeenCalled();
+  });
+
+  it("delivers a pending attachment send to its original thread after switching", async () => {
+    const { getAui, getSendSignal, mainOnNew, otherOnNew, resolveUpload } =
+      await setupPendingAttachmentSend();
+
+    await act(async () => {
+      getAui().threads.switchToNewThread();
+    });
+    expect(getSendSignal()?.aborted).toBe(false);
+    expect(getAui().thread.getState().messages).toEqual([]);
+    expect(getAui().composer.getState().submission).toBeUndefined();
+
+    await resolveUpload();
+    await waitFor(() => expect(mainOnNew).toHaveBeenCalledTimes(1));
+    expect(mainOnNew).toHaveReturnedWith(0);
+    expect(otherOnNew).not.toHaveBeenCalled();
+    expect(getAui().thread.getState().messages).toEqual([]);
+    expect(getAui().composer.getState().submission).toBeUndefined();
   });
 });
 
