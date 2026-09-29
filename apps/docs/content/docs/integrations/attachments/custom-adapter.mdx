@@ -430,7 +430,7 @@ Pick a file. Check:
 
 ## Variants
 
-Only the upload step changes per provider: the server route and the `add()` body. The tabs below show that step; `send`, `remove`, and the runtime wiring stay the same.
+The upload step changes per provider: the server route and the `add()` body. The tabs below show that step; `send` and the runtime wiring stay the same. The delete route changes with it: call the provider's delete API (`del()` from `@vercel/blob`, `deleteFiles()` on Uploadthing's `UTApi`) behind the same ownership check.
 
 <Tabs items={["S3 / R2", "Vercel Blob", "Uploadthing"]}>
 <Tab value="S3 / R2">
