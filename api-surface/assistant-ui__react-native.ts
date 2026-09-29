@@ -858,6 +858,7 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   reset(): Promise<void>;
   clearAttachments(): Promise<void>;
   send(options?: SendOptions): Promise<void>;
+  __internal_dispose(): void;
   protected cancelSubmission(): void;
   restoreDraft(draft: {
     text: string;

@@ -8,6 +8,7 @@ import { AssistantRuntimeImpl } from "../../runtime/internal";
 import { invalidateThreadRuntime } from "../../runtime/utils/thread-runtime-lifecycle";
 import { useRuntimeAdapters } from "./RuntimeAdapterProvider";
 import { ExternalStoreHistoryCopy } from "./external-store-history-copy";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 
 export const useExternalStoreRuntime = <T>(
   store: ExternalStoreAdapter<T>,
@@ -33,7 +34,7 @@ export const useExternalStoreRuntime = <T>(
   }, [copiesHistory, feedback, historyCopy, store]);
   const [runtime] = useState(() => new ExternalStoreRuntimeCore(adaptedStore));
 
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     return () => {
       invalidateThreadRuntime(runtime.threads.getMainThreadRuntimeCore());
     };
@@ -43,7 +44,7 @@ export const useExternalStoreRuntime = <T>(
     runtime.setAdapter(adaptedStore);
   });
 
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     if (!copiesHistory || !history) return;
     return historyCopy.attach(
       runtime.threads.getMainThreadRuntimeCore(),
