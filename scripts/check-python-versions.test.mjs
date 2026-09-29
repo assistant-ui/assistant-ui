@@ -5,8 +5,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
-  readProjectVersion,
   runPythonVersionCheck,
+  splitProjectVersion,
 } from "./check-python-versions.mjs";
 
 function pyproject(version) {
@@ -67,18 +67,21 @@ function runExecutable(root, env) {
   );
 }
 
-test("readProjectVersion reads the version of the [project] table only", () => {
-  assert.equal(readProjectVersion(pyproject("0.0.36")), "0.0.36");
+test("splitProjectVersion separates the [project] version from the rest of the file", () => {
+  assert.deepEqual(splitProjectVersion(pyproject("0.0.36")), {
+    version: "0.0.36",
+    rest: pyproject("0.0.36").replace('version = "0.0.36"\n', ""),
+  });
   assert.equal(
-    readProjectVersion(
-      '[tool.poetry]\nversion = "9.9.9"\n\n[project]\nname = "fixture"\nversion = \'1.2.3\'  # pinned\n',
-    ),
+    splitProjectVersion(
+      '[tool.poetry]\nversion = "9.9.9"\n\n  [project]  # metadata\n  name = "fixture"\n  "version" = \'1.2.3\'\n',
+    ).version,
     "1.2.3",
   );
   assert.equal(
-    readProjectVersion(
+    splitProjectVersion(
       '[project]\nname = "fixture"\ndynamic = ["version"]\n\n[tool.other]\nversion = "5.0.0"\n',
-    ),
+    ).version,
     null,
   );
 });
@@ -104,7 +107,37 @@ test("a version bump next to other package edits is rejected", () => {
   });
 });
 
-test("a release PR changes no package file except pyproject.toml and uv.lock", () => {
+test("a version bump next to any other pyproject.toml edit is rejected", () => {
+  withRepo((root) => {
+    const base = commit(
+      root,
+      { "python/other/pyproject.toml": pyproject("1.0.0") },
+      "add another package",
+    );
+    const head = commit(
+      root,
+      {
+        "python/pkg/pyproject.toml": pyproject("0.0.2").replace(
+          "dependencies = []",
+          'dependencies = ["starlette"]',
+        ),
+        "python/other/pyproject.toml": pyproject("1.0.0").replace(
+          'name = "fixture"',
+          'name = "renamed"',
+        ),
+      },
+      "bump with metadata edits",
+    );
+    assert.deepEqual(runPythonVersionCheck(root, base, head), {
+      versionChanges: [
+        { file: "python/pkg/pyproject.toml", from: "0.0.1", to: "0.0.2" },
+      ],
+      mixedFiles: ["python/other/pyproject.toml", "python/pkg/pyproject.toml"],
+    });
+  });
+});
+
+test("a release PR changes nothing in a package but the version and uv.lock files", () => {
   withRepo((root, base) => {
     const head = commit(
       root,

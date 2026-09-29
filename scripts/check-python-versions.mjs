@@ -9,19 +9,27 @@ const repoRoot = path.resolve(
   "..",
 );
 
-const RELEASE_FILES = new Set(["pyproject.toml", "uv.lock"]);
+const TABLE_HEADER = /^\s*\[\[?\s*([\w.\-"' ]+?)\s*\]\]?\s*(?:#.*)?$/;
+const VERSION_KEY = /^\s*(?:version|"version"|'version')\s*=\s*(["'])(.*?)\1/;
 
-export function readProjectVersion(pyproject) {
+export function splitProjectVersion(pyproject) {
   let inProject = false;
+  let version = null;
+  const rest = [];
   for (const line of pyproject.split(/\r?\n/)) {
-    if (line.startsWith("[")) {
-      inProject = /^\[\s*project\s*\]/.test(line);
-    } else if (inProject) {
-      const version = /^version\s*=\s*["']([^"']*)["']/.exec(line);
-      if (version) return version[1];
+    const header = TABLE_HEADER.exec(line);
+    if (header) {
+      inProject = header[1] === "project";
+    } else if (inProject && version === null) {
+      const key = VERSION_KEY.exec(line);
+      if (key) {
+        version = key[2];
+        continue;
+      }
     }
+    rest.push(line);
   }
-  return null;
+  return { version, rest: rest.join("\n") };
 }
 
 function runGit(root, args) {
@@ -32,11 +40,11 @@ function runGit(root, args) {
   });
 }
 
-function readVersionAt(root, ref, file) {
+function readProjectAt(root, ref, file) {
   if (runGit(root, ["ls-tree", "--name-only", ref, "--", file]) === "") {
     return undefined;
   }
-  return readProjectVersion(runGit(root, ["show", `${ref}:${file}`]));
+  return splitProjectVersion(runGit(root, ["show", `${ref}:${file}`]));
 }
 
 export function runPythonVersionCheck(root, baseSha, headSha) {
@@ -53,23 +61,30 @@ export function runPythonVersionCheck(root, baseSha, headSha) {
     ])
       .split("\0")
       .filter((file) => file.split("/").length > 2);
-    const versionChanges = packageFiles
-      .filter((file) => path.posix.basename(file) === "pyproject.toml")
-      .flatMap((file) => {
-        const from = readVersionAt(root, forkPoint, file);
-        const to = readVersionAt(root, headSha, file);
-        return from === undefined || to === undefined || from === to
-          ? []
-          : [{ file, from, to }];
-      });
+    const versionChanges = [];
+    const otherChanges = [];
+    for (const file of packageFiles) {
+      const name = path.posix.basename(file);
+      if (name === "uv.lock") continue;
+      if (name === "pyproject.toml") {
+        const before = readProjectAt(root, forkPoint, file);
+        const after = readProjectAt(root, headSha, file);
+        if (before && after) {
+          if (before.version !== after.version) {
+            versionChanges.push({
+              file,
+              from: before.version,
+              to: after.version,
+            });
+          }
+          if (before.rest === after.rest) continue;
+        }
+      }
+      otherChanges.push(file);
+    }
     return {
       versionChanges,
-      mixedFiles:
-        versionChanges.length === 0
-          ? []
-          : packageFiles.filter(
-              (file) => !RELEASE_FILES.has(path.posix.basename(file)),
-            ),
+      mixedFiles: versionChanges.length === 0 ? [] : otherChanges,
     };
   } catch (error) {
     const stderr = String(error.stderr ?? "").trim();
@@ -108,12 +123,12 @@ function main() {
     for (const change of versionChanges) {
       console.error(`  ${formatChange(change)}`);
     }
-    console.error("\nOther Python package files in this PR:\n");
+    console.error("\nOther Python package changes in this PR:\n");
     for (const file of mixedFiles) {
       console.error(`  ${file}`);
     }
     console.error(
-      "\nA maintainer bumps a Python package version in a release PR that changes no package file except pyproject.toml and uv.lock, right before publishing to PyPI.",
+      "\nA maintainer bumps a Python package version in a release PR that changes nothing in a package but that version and uv.lock files, right before publishing to PyPI.",
     );
     console.error("Revert the version in pyproject.toml and uv.lock.");
     process.exit(1);
