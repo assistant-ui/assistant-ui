@@ -69,7 +69,7 @@ import { withAssistantCloudTraceMetadata } from "assistant-cloud/telemetry";
 export async function POST(request: Request) {
   const { messages } = await request.json();
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
     telemetry: { integrations: [new OpenTelemetry()] },
   });
@@ -159,7 +159,9 @@ A trace root's id is deterministic: `run_<first 24 hexadecimal characters of sha
 |---|---|
 | `source`, `created_by`, and `created_at` | The client owned value. |
 | `thread_id`, `assistant_id`, and `message_id` | The client owned value. |
-| `tags`, `environment`, `release`, and `first_token_ms` | The client owned value. |
+| `tags`, `environment`, and `release` | The client owned value. |
+| `first_token_ms` | The exported value, when present. |
+| `error_code` | The existing value. |
 | `aborted` or `disconnected` outcome | The client owned outcome. |
 | Any attribute beginning `client.` | The client owned value. |
 
@@ -200,7 +202,7 @@ export async function POST(req: Request) {
   const samplingCalls: Record<string, SamplingCallData[]> = {};
 
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
     tools: {
       delegate: tool({

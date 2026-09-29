@@ -35,13 +35,13 @@ The **Token mix** block separates input, cached input, output and reasoning toke
 | **Disconnected** | `outcome_type: "disconnected"` |
 | **Truncated** | `outcome_type: "length"` or `"content_filter"` |
 | **Failed** | Any other nonempty `outcome_type` |
-| **Unknown** | No `outcome_type` |
+| **Incomplete, no reason** | No `outcome_type` |
 
-The chart also puts configuration marks in the bucket that contains the recorded change. Marks come only from audit entries for `feature`, `project`, `provider` and `model_price`. Their summaries include `Thread titles: turned on, model set to gpt-…`, `Retention to 30 days, pending`, `Retention change cancelled`, `Provider {name} added`, `Harness {name} updated` and `Model price for {pattern} set`.
+The chart also puts configuration marks in the bucket that contains the recorded change. Marks come only from audit entries for `feature`, `project`, `provider` and `model_price`. Their summaries include `Thread titles: turned on, model set to gpt-…`, `Retention to 30 days, pending`, `Retention change cancelled`, `Provider {name} added` and `Model price for {pattern} set`.
 
 ## Find the next conversation
 
-**Get started** is a checklist over three resources, LLM providers, assistants and API keys, with a **Connect** link to set up each one.
+**Get started** is a checklist over three resources, LLM providers, assistants and API keys. Each step is a link. The single **Connect** button opens a dialog with the API Endpoint and Project ID. The checklist hides when every step is complete.
 
 **Recent threads** lists the 8 most recently active threads, ordered by `last_message_at`, with each creator's display name. The **Topics** tile shows the topics [Intelligence](/docs/cloud/intelligence) found, and the model list is the range's share of runs by model.
 

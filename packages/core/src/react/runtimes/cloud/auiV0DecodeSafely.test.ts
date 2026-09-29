@@ -481,6 +481,144 @@ describe("auiV0DecodeSafely against encoder output", () => {
       content: auiV0Encode(message),
     }) as unknown as CloudMessage & { format: "aui/v0" };
 
+  const withToolResult = (result: unknown): ThreadAssistantMessage => ({
+    id: "assistant-1",
+    role: "assistant",
+    status: { type: "complete", reason: "stop" },
+    createdAt: new Date(0),
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: {},
+    },
+    content: [
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "lookup",
+        args: {},
+        argsText: "{}",
+        result,
+      },
+    ],
+  });
+
+  const encodedResult = (result: unknown) => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const encoded = auiV0Encode(withToolResult(result));
+      const part = encoded.content[0] as { result?: unknown };
+      return { result: part.result, warned: warn.mock.calls.length };
+    } finally {
+      warn.mockRestore();
+    }
+  };
+
+  it("persists the JSON form of a result JSON would empty, and warns", () => {
+    expect(encodedResult(new Map([["answer", 42]]))).toEqual({
+      result: {},
+      warned: 1,
+    });
+    expect(encodedResult(new Set([1, 2]))).toEqual({ result: {}, warned: 1 });
+  });
+
+  it("keeps the siblings of a lossy field and warns once", () => {
+    expect(
+      encodedResult({ text: "long answer", index: new Map([["a", 1]]) }),
+    ).toEqual({ result: { text: "long answer", index: {} }, warned: 1 });
+    expect(encodedResult({ a: 1, b: undefined })).toEqual({
+      result: { a: 1 },
+      warned: 1,
+    });
+    expect(encodedResult({ label: "x", score: NaN })).toEqual({
+      result: { label: "x", score: null },
+      warned: 1,
+    });
+  });
+
+  it("keeps tool results JSON preserves", () => {
+    class Weather {
+      tempC = 21;
+      city = "Berlin";
+    }
+    const cases: [unknown, unknown][] = [
+      [{ createdAt: new Date(0) }, { createdAt: "1970-01-01T00:00:00.000Z" }],
+      [new Weather(), { tempC: 21, city: "Berlin" }],
+      [new URL("https://x.y/"), "https://x.y/"],
+      [{ nested: [{ items: new Map() }] }, { nested: [{ items: {} }] }],
+    ];
+    for (const [input, expected] of cases) {
+      expect(encodedResult(input)).toEqual({ result: expected, warned: 0 });
+    }
+  });
+
+  it("warns for a result that hides data behind non-string keys", () => {
+    const symbolKeyed = { [Symbol("hidden")]: 1, shown: 2 };
+    const sparse = Object.defineProperty([1, 2], "extra", {
+      value: 3,
+      enumerable: true,
+    });
+    expect(encodedResult(symbolKeyed)).toEqual({
+      result: { shown: 2 },
+      warned: 1,
+    });
+    expect(encodedResult(sparse)).toEqual({ result: [1, 2], warned: 1 });
+  });
+
+  it("omits a result JSON cannot serialize at all, and warns", () => {
+    const circular: { self?: unknown } = {};
+    circular.self = circular;
+    expect(encodedResult(circular)).toEqual({ result: undefined, warned: 1 });
+  });
+
+  it("takes an object literal's toJSON as its serialized form", () => {
+    expect(encodedResult({ toJSON: () => "summary" })).toEqual({
+      result: "summary",
+      warned: 0,
+    });
+  });
+
+  it("cannot see data behind prototype getters, matching main", () => {
+    class Wrapper {
+      #value = 1;
+      get value() {
+        return this.#value;
+      }
+    }
+    expect(encodedResult(new Wrapper())).toEqual({ result: {}, warned: 0 });
+  });
+
+  it("warns for opaque own state JSON cannot see", () => {
+    const empty = Object.assign(new Map(), { [Symbol("hidden")]: 1 });
+    expect(encodedResult(empty)).toEqual({ result: {}, warned: 1 });
+    expect(encodedResult(/x/)).toEqual({ result: {}, warned: 1 });
+  });
+
+  it("warns when a toJSON round trip yields nothing to store", () => {
+    expect(encodedResult({ toJSON: () => undefined })).toEqual({
+      result: undefined,
+      warned: 1,
+    });
+    expect(encodedResult({ toJSON: () => 1n })).toEqual({
+      result: undefined,
+      warned: 1,
+    });
+  });
+
+  it("reports a getter that throws on its second read instead of failing", () => {
+    let reads = 0;
+    const flaky = Object.defineProperty({}, "x", {
+      enumerable: true,
+      get() {
+        if (reads++ > 0) throw new Error("second read");
+        return 1;
+      },
+    });
+    expect(encodedResult(flaky)).toEqual({ result: { x: 1 }, warned: 1 });
+  });
+
   it("keeps every assistant status the encoder writes", () => {
     const statuses: MessageStatus[] = [
       { type: "running" },
