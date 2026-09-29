@@ -31,21 +31,24 @@ import {
 import { useSetupNavigation } from "@/components/shared/setup-navigation";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import {
+  AgentIndicator,
   AgentStatus,
   agentPhase,
   useAgentName,
 } from "@/components/pages/shop/agent-status";
 import { FinishProposal } from "@/components/pages/shop/finish-proposal";
+import { LicenseAgreement } from "@/components/pages/shop/license-agreement";
+import { AnswerReview } from "@/components/pages/shop/answer-review";
 import { InputCard } from "@/components/pages/shop/input-card";
 import { PlanCard, PlanMarkdown } from "@/components/pages/shop/plan-card";
-import { SetupComposer } from "@/components/pages/shop/setup-composer";
+import { AgentChat, conversation } from "@/components/pages/shop/agent-chat";
 import { SetupIntro } from "@/components/pages/shop/setup-intro";
+import { SetupBackButton } from "@/components/pages/shop/setup-back-button";
 import {
   livePage,
+  pageKey,
   pageTrail,
-  type TrailPageId,
   type WizardPage,
-  type WizardPageId,
 } from "@/components/pages/shop/setup-wizard-page";
 import {
   TimelineEntry,
@@ -56,10 +59,22 @@ import {
   type WizardNextBinding,
 } from "@/components/pages/shop/wizard-actions";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
+import { analytics } from "@/lib/analytics";
 import { getCatalogItem } from "@/lib/catalog";
 import { abandonCheckout, finishCheckout } from "@/lib/checkout/flow";
-import { acknowledgeSetupIntro } from "@/lib/checkout/session-store";
-import { finishProposed, type Checkout } from "@/lib/checkout/protocol";
+import {
+  acceptSetupLicense,
+  acknowledgeSetupIntro,
+} from "@/lib/checkout/session-store";
+import { useSyntheticProgress } from "@/components/pages/shop/use-synthetic-progress";
+import { useElapsed } from "@/components/pages/shop/use-elapsed";
+import {
+  finishProposed,
+  inputPrompt,
+  stepsFinalized,
+  unreadAgentEntries,
+  type Checkout,
+} from "@/lib/checkout/protocol";
 import { cn } from "@/lib/utils";
 
 const ignoreNext = () => {};
@@ -81,7 +96,7 @@ function ConnectionNotice({
   return (
     <div
       role="status"
-      className="border-foreground/10 bg-muted/40 flex shrink-0 flex-wrap items-center gap-3 border-b px-5 py-2 text-sm"
+      className="bg-muted flex shrink-0 flex-wrap items-center gap-3 border-b px-5 py-2 text-sm sm:px-6"
     >
       {retrying ? (
         <LoaderCircleIcon className="size-4 shrink-0 animate-spin" />
@@ -104,13 +119,52 @@ function ConnectionNotice({
   );
 }
 
-function CancelButton({ checkout }: { checkout: CheckoutContextValue }) {
-  const router = useRouter();
-  const { leaveSetup } = useSetupNavigation();
+function DisconnectedDialog({
+  checkout,
+  name,
+  open,
+}: {
+  checkout: CheckoutContextValue;
+  name: string;
+  open: boolean;
+}) {
+  return (
+    <Dialog open={open} disablePointerDismissal>
+      <DialogContent showCloseButton={false} className="rounded-none">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <WifiOffIcon aria-hidden="true" className="size-4 shrink-0" />
+            {name} disconnected
+          </DialogTitle>
+        </DialogHeader>
+        <AgentStatus checkout={checkout} inline />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CancelButton({
+  checkout,
+  onEnd,
+}: {
+  checkout: CheckoutContextValue;
+  onEnd: () => void;
+}) {
   const fromCart = checkout.session.fromCart === true;
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (!(event.target instanceof Element)) return;
+      if (event.target.closest('[role="dialog"]') !== null) return;
+      setOpen(true);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
   const end = async () => {
+    analytics.setup.cancelled();
     try {
       await checkout.commands["checkout/cancel"]();
     } catch {
@@ -118,9 +172,7 @@ function CancelButton({ checkout }: { checkout: CheckoutContextValue }) {
         "Could not reach the session. Your agent may keep working until it times out.",
       );
     }
-    abandonCheckout();
-    if (fromCart) router.push("/shop/cart");
-    else leaveSetup();
+    onEnd();
   };
   return (
     <>
@@ -153,10 +205,15 @@ function CancelButton({ checkout }: { checkout: CheckoutContextValue }) {
 function ProgressBar({
   value,
   label,
+  valueText,
+  fillKey,
 }: {
   /** A fraction of the work done, or `undefined` while it cannot be measured. */
   value: number | undefined;
   label: string;
+  valueText?: string | undefined;
+  /** Remounts the fill so a change of it snaps instead of animating. */
+  fillKey?: string | undefined;
 }) {
   return (
     <div
@@ -165,9 +222,11 @@ function ProgressBar({
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={value === undefined ? undefined : Math.round(value * 100)}
+      aria-valuetext={valueText}
       className="bg-foreground/10 relative h-2 w-full overflow-hidden rounded-full"
     >
       <div
+        key={fillKey}
         className={cn(
           "bg-foreground absolute inset-y-0 left-0 rounded-full transition-[width] duration-500",
           value === undefined && "w-full opacity-30 motion-safe:animate-pulse",
@@ -178,6 +237,85 @@ function ProgressBar({
   );
 }
 
+const agentWorking = (checkout: CheckoutContextValue) =>
+  agentPhase(checkout) === "connected" &&
+  checkout.state !== undefined &&
+  checkout.state.status !== "waiting" &&
+  checkout.openInputs.length === 0 &&
+  !checkout.planPending &&
+  !finishProposed(checkout.state);
+
+function WorkingProgress({
+  checkout,
+  label,
+}: {
+  checkout: CheckoutContextValue;
+  label: string;
+}) {
+  const active = agentWorking(checkout);
+  const { value, complete } = useSyntheticProgress({
+    active,
+    stepKey: `${checkout.session.id}:${label}`,
+  });
+  return (
+    <ProgressBar
+      value={value}
+      label={label}
+      valueText={
+        active || complete
+          ? undefined
+          : checkout.agentPresent
+            ? "Waiting for your input"
+            : "Waiting for the agent"
+      }
+    />
+  );
+}
+
+const STEP_FILL_TAU_MS = 20_000;
+
+const stepFill = (elapsed: number) => 1 - Math.exp(-elapsed / STEP_FILL_TAU_MS);
+
+function InstallProgress({
+  checkout,
+  state,
+}: {
+  checkout: CheckoutContextValue;
+  state: Checkout.State;
+}) {
+  const { done: finished, total } = checkout.progress;
+  const active = state.steps.find((step) => step.status === "active");
+  const finalized = stepsFinalized(state);
+  const key = finalized ? active?.id : "planning";
+  const partial = stepFill(useElapsed(key));
+  return finalized ? (
+    <ProgressBar
+      value={(finished + partial) / total}
+      label={active ? active.title : "Installing"}
+      fillKey={key}
+    />
+  ) : (
+    <ProgressBar value={partial} label="Planning the steps" fillKey={key} />
+  );
+}
+
+const LEAVE_MS = 300;
+
+function useLeaving(present: boolean) {
+  const [leaving, setLeaving] = useState(false);
+  const [was, setWas] = useState(present);
+  if (was !== present) {
+    setWas(present);
+    setLeaving(!present);
+  }
+  useEffect(() => {
+    if (!leaving) return;
+    const timer = setTimeout(() => setLeaving(false), LEAVE_MS);
+    return () => clearTimeout(timer);
+  }, [leaving]);
+  return leaving;
+}
+
 function InstallSteps({
   checkout,
   state,
@@ -186,9 +324,24 @@ function InstallSteps({
   state: Checkout.State;
 }) {
   const closed = state.status === "done" || state.status === "cancelled";
+  const drafting = !closed && !finishProposed(state) && !stepsFinalized(state);
+  const leaving = useLeaving(drafting);
+  const activeId = state.steps.find((step) => step.status === "active")?.id;
+  const list = useRef<HTMLOListElement>(null);
+  useEffect(() => {
+    if (activeId === undefined) return;
+    list.current
+      ?.querySelector('[aria-current="step"]')
+      ?.scrollIntoView({ block: "center" });
+  }, [activeId]);
   let lastProduct: string | undefined;
   return (
-    <ol role="list" aria-label="Installation steps" className="flex flex-col">
+    <ol
+      ref={list}
+      role="list"
+      aria-label="Installation steps"
+      className={cn("flex flex-col", !closed && "py-[50cqh]")}
+    >
       {state.steps.map((step) => {
         const inputs = checkout.openInputs.filter(
           (input) => input.stepId === step.id,
@@ -205,6 +358,7 @@ function InstallSteps({
           <TimelineEntry
             key={step.id}
             status={status}
+            current={step.id === activeId}
             title={step.title}
             detail={step.note ?? step.detail}
             eyebrow={
@@ -218,40 +372,17 @@ function InstallSteps({
           />
         );
       })}
-    </ol>
-  );
-}
-
-function AgentLog({
-  state,
-  agentName,
-}: {
-  state: Checkout.State;
-  agentName: string;
-}) {
-  const entries = state.log.filter((entry) => entry.phase === state.status);
-  if (entries.length === 0) return null;
-  return (
-    <ol
-      role="log"
-      aria-label="Conversation"
-      aria-live="polite"
-      className="flex flex-col gap-2"
-    >
-      {entries.slice(-4).map((entry) => (
-        <li
-          key={entry.id}
-          className={cn(
-            "text-sm [overflow-wrap:anywhere]",
-            entry.role === "user" ? "text-muted-foreground" : "text-foreground",
-          )}
-        >
-          {entry.role === "user" ? null : (
-            <span className="sr-only">{`${agentName}: `}</span>
-          )}
-          {entry.role === "user" ? `You: ${entry.text}` : entry.text}
-        </li>
-      ))}
+      {drafting || leaving ? (
+        <TimelineEntry
+          status="drafting"
+          leaving={leaving}
+          title={
+            state.steps.length === 0
+              ? "Planning the steps…"
+              : "Writing the next step…"
+          }
+        />
+      ) : null}
     </ol>
   );
 }
@@ -259,10 +390,21 @@ function AgentLog({
 type PageView = {
   title: string;
   subtitle?: string | undefined;
+  header?: ReactNode;
   body: ReactNode;
 };
 
-export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
+export function SetupWizard({
+  checkout,
+  initialPage,
+  onExit,
+}: {
+  checkout: CheckoutContextValue;
+  /** The page key to open on instead of the live page, when it is on the trail. */
+  initialPage?: string | undefined;
+  /** Called before the session ends and the page is left. */
+  onExit?: () => void;
+}) {
   const router = useRouter();
   const { leaveSetup } = useSetupNavigation();
   const name = useAgentName(checkout);
@@ -281,34 +423,47 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
     openInputs: checkout.openInputs,
     planPending: checkout.planPending,
   });
-  const liveKey =
-    live.id === "question" ? `question:${live.input.id}` : live.id;
+  const liveKey = pageKey(live);
   const [seenLive, setSeenLive] = useState(liveKey);
-  const [viewing, setViewing] = useState<WizardPageId>();
+  const [viewing, setViewing] = useState(initialPage);
   if (seenLive !== liveKey) {
     setSeenLive(liveKey);
     setViewing(undefined);
   }
   const heading = useRef<HTMLHeadingElement>(null);
   const footer = useRef<HTMLElement>(null);
-  const pageKey = viewing ?? liveKey;
-  const mountedKey = useRef(pageKey);
+  const shownKey = viewing ?? liveKey;
+  const mountedKey = useRef(shownKey);
   useEffect(() => {
-    if (mountedKey.current === pageKey) return;
-    mountedKey.current = pageKey;
+    if (mountedKey.current === shownKey) return;
+    mountedKey.current = shownKey;
     const active = document.activeElement;
     const fromFooter =
       active === null ||
       active === document.body ||
       footer.current?.contains(active) === true;
     if (fromFooter) heading.current?.focus();
-  }, [pageKey]);
+  }, [shownKey]);
   const trail = pageTrail(state, live);
+  const keys = trail.map(pageKey);
   const liveIndex = trail.length - 1;
-  const viewingIndex = viewing === undefined ? -1 : trail.indexOf(viewing);
+  const viewingIndex = viewing === undefined ? -1 : keys.indexOf(viewing);
   const index = viewingIndex === -1 ? liveIndex : viewingIndex;
-  const page: WizardPage =
-    index === liveIndex ? live : { id: trail[index]! as TrailPageId };
+  const page: WizardPage = trail[index]!;
+  const step = page.id;
+  useEffect(() => {
+    analytics.setup.stepViewed(step);
+  }, [shownKey, step]);
+  const previousPhase = useRef(phase);
+  useEffect(() => {
+    const previous = previousPhase.current;
+    previousPhase.current = phase;
+    if (
+      phase === "connected" &&
+      (previous === "unconnected" || previous === "waiting")
+    )
+      analytics.setup.agentConnected();
+  }, [phase]);
   const reviewing = index !== liveIndex;
   const fromCart = checkout.session.fromCart === true;
   const products = state?.products.length
@@ -317,7 +472,11 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
         (slug) => getCatalogItem(slug)?.name ?? slug,
       );
   const done = state?.status === "done";
+  useEffect(() => {
+    if (done) analytics.setup.installFinished();
+  }, [done]);
   const exit = (finished: boolean) => {
+    onExit?.();
     if (finished) finishCheckout();
     else abandonCheckout();
     if (fromCart) router.push(finished ? "/shop" : "/shop/cart");
@@ -339,8 +498,17 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
       case "welcome":
         return {
           title: `Welcome to the setup wizard for ${listProducts(products)}`,
-          subtitle: `Your coding agent will set up ${listProducts(products)} in your project. To continue, click Next.`,
           body: <SetupIntro onContinue={acknowledgeSetupIntro} />,
+        };
+      case "license":
+        return {
+          title: "License agreement",
+          body: (
+            <LicenseAgreement
+              accepted={checkout.session.licenseAccepted === true}
+              onAccept={acceptSetupLicense}
+            />
+          ),
         };
       case "connect":
         return {
@@ -354,13 +522,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
         };
       case "question":
         return {
-          title: `${name} has a question`,
-          subtitle:
-            page.total > 2
-              ? `${page.total - 1} more questions waiting`
-              : page.total === 2
-                ? "1 more question waiting"
-                : undefined,
+          title: inputPrompt(page.input),
           body: (
             <InputCard
               key={page.input.id}
@@ -369,12 +531,17 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
             />
           ),
         };
+      case "answer":
+        return {
+          title:
+            page.input.status === "answered"
+              ? "Your answer"
+              : "A question you skipped",
+          body: <AnswerReview input={page.input} agentName={name} />,
+        };
       case "plan":
         return {
           title: reviewing ? "The plan" : "Review the plan",
-          subtitle: reviewing
-            ? undefined
-            : "Nothing changes until you approve it.",
           body:
             reviewing && checkout.plan ? (
               <div className="flex flex-col gap-3">
@@ -387,6 +554,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
             ) : state ? (
               <PlanCard
                 plans={state.plans}
+                steps={state.steps}
                 checkout={checkout}
                 closed={!checkout.planPending}
               />
@@ -396,42 +564,33 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
         const revising = checkout.plan?.status === "changes-requested";
         return {
           title: revising ? "Revising the plan" : "Exploring your project",
-          subtitle: `${name} will ask when it needs you.`,
           body: state ? (
-            <div className="flex flex-col gap-5">
-              <ProgressBar
-                value={undefined}
+            <div className="flex flex-col gap-4">
+              <WorkingProgress
+                checkout={checkout}
                 label={revising ? "Revising the plan" : "Exploring"}
               />
               {proposal}
-              <AgentLog state={state} agentName={name} />
             </div>
           ) : null,
         };
       }
       case "install": {
         const { done: finished, total } = checkout.progress;
-        const active = state?.steps.find((step) => step.status === "active");
         return {
           title: reviewing || done ? "Installation" : "Installing",
           subtitle:
-            total > 0
+            state !== undefined && stepsFinalized(state)
               ? `${finished} of ${total} ${total === 1 ? "step" : "steps"} done`
               : undefined,
+          header:
+            !reviewing && !done && state ? (
+              <InstallProgress checkout={checkout} state={state} />
+            ) : undefined,
           body: state ? (
-            <div className="flex flex-col gap-5">
-              {!reviewing && !done ? (
-                <ProgressBar
-                  value={total > 0 ? finished / total : undefined}
-                  label={active ? active.title : "Installing"}
-                />
-              ) : null}
+            <div className="flex flex-col gap-4">
               {proposal}
-              {state.steps.length > 0 ? (
-                <InstallSteps checkout={checkout} state={state} />
-              ) : (
-                <AgentLog state={state} agentName={name} />
-              )}
+              <InstallSteps checkout={checkout} state={state} />
             </div>
           ) : null,
         };
@@ -444,15 +603,13 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
               checkout={checkout}
               agentName={name}
               onClosed={() => exit(true)}
+              summary
             />
           ),
         };
       case "closed":
         return {
           title: done ? "Setup complete" : "Setup cancelled",
-          subtitle: done
-            ? `${listProducts(products)} ${products.length === 1 ? "is" : "are"} set up in your project.`
-            : undefined,
           body:
             state && state.steps.length > 0 ? (
               <InstallSteps checkout={checkout} state={state} />
@@ -468,16 +625,17 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
       (page.id !== "working" && page.id !== "install" && page.id !== "closed"));
   const closed = state?.status === "done" || state?.status === "cancelled";
   const back = ownsActions ? pageNext?.back : undefined;
-  const composing =
-    !reviewing &&
-    page.id !== "welcome" &&
-    page.id !== "connect" &&
-    page.id !== "closed";
+  const entries = conversation(state);
+  const latest = entries.at(-1)?.at ?? 0;
+  const [chatOpen, setChatOpen] = useState(false);
+  const [readAt, setReadAt] = useState(latest);
+  if (chatOpen && readAt < latest) setReadAt(latest);
+  const unread = unreadAgentEntries(state, entries, readAt).length;
   const next: WizardNextBinding | undefined = reviewing
     ? {
         label: "Next",
         run: () =>
-          setViewing(index + 1 === liveIndex ? undefined : trail[index + 1]),
+          setViewing(index + 1 === liveIndex ? undefined : keys[index + 1]),
       }
     : closed
       ? { label: "Finish", run: leave }
@@ -488,8 +646,18 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
   return (
     <section
       aria-labelledby="setup-wizard-title"
-      className="border-foreground/15 bg-background flex h-full max-h-full w-full max-w-[52rem] flex-col overflow-hidden border shadow-xl sm:aspect-[16/10] sm:h-auto"
+      className="border-foreground/10 bg-background flex h-full max-h-full w-full max-w-[52rem] flex-col overflow-hidden border shadow-xl sm:aspect-[16/10] sm:h-auto sm:min-h-[min(38rem,100%)]"
     >
+      <header className="flex shrink-0 items-center justify-between bg-black px-3 py-2 sm:hidden">
+        <SetupBackButton className="text-white hover:bg-white/15 hover:text-white" />
+        <Image
+          src="/favicon/icon.svg"
+          alt=""
+          width={24}
+          height={24}
+          className="invert"
+        />
+      </header>
       <div className="flex min-h-0 flex-1">
         <aside
           aria-hidden="true"
@@ -510,33 +678,31 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
             connection={checkout.connection}
             degraded={checkout.degraded}
           />
-          {phase === "quiet" && page.id !== "connect" && !checkout.degraded ? (
-            <div
-              role="status"
-              className="border-foreground/10 bg-muted/40 flex shrink-0 flex-col gap-2 border-b px-5 py-3 text-sm sm:px-6"
-            >
-              <p className="flex items-center gap-2 font-medium">
-                <WifiOffIcon aria-hidden="true" className="size-4 shrink-0" />
-                {name} disconnected.
-              </p>
-              <AgentStatus checkout={checkout} inline />
+          <DisconnectedDialog
+            checkout={checkout}
+            name={name}
+            open={
+              phase === "quiet" && page.id !== "connect" && !checkout.degraded
+            }
+          />
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="shrink-0 px-5 pt-8 sm:px-6 sm:pt-10">
+              <h1
+                ref={heading}
+                id="setup-wizard-title"
+                tabIndex={-1}
+                className="text-lg font-semibold text-balance"
+              >
+                {view.title}
+              </h1>
+              {view.subtitle ? (
+                <p className="text-muted-foreground motion-safe:animate-in motion-safe:fade-in mt-1 text-sm motion-safe:duration-300">
+                  {view.subtitle}
+                </p>
+              ) : null}
+              {view.header ? <div className="mt-4">{view.header}</div> : null}
             </div>
-          ) : null}
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-8 pb-5 sm:px-6 sm:pt-10">
-            <h1
-              ref={heading}
-              id="setup-wizard-title"
-              tabIndex={-1}
-              className="text-lg font-semibold text-balance"
-            >
-              {view.title}
-            </h1>
-            {view.subtitle ? (
-              <p className="text-muted-foreground mt-1 text-sm">
-                {view.subtitle}
-              </p>
-            ) : null}
-            <div className="mt-5">
+            <div className="[container-type:size] flex min-h-0 flex-1 flex-col overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_1.5rem,black_calc(100%_-_4rem),transparent)] px-5 pt-6 pb-8 motion-safe:scroll-smooth sm:px-6 sm:pb-10">
               <WizardProvider
                 value={{ formId, setNext: ownsActions ? setNext : ignoreNext }}
               >
@@ -544,44 +710,51 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
               </WizardProvider>
             </div>
           </div>
-          {composing ? (
-            <div className="shrink-0 px-5 pb-4 sm:px-6">
-              <SetupComposer checkout={checkout} />
-            </div>
-          ) : null}
         </div>
       </div>
       <footer
         ref={footer}
-        className="border-foreground/10 flex shrink-0 items-center justify-end gap-2 border-t px-5 py-4 sm:px-6"
+        className="border-foreground/10 flex shrink-0 items-center justify-between gap-4 border-t px-5 py-4 sm:px-6"
       >
-        <Button
-          variant="outline"
-          disabled={back === undefined && index === 0}
-          onClick={back ?? (() => setViewing(trail[index - 1]))}
-        >
-          <ChevronLeftIcon data-icon="inline-start" />
-          Back
-        </Button>
-        <Button
-          type={next?.submit ? "submit" : "button"}
-          form={next?.submit ? formId : undefined}
-          disabled={next === undefined || next.disabled === true}
-          onClick={next?.submit ? undefined : next?.run}
-        >
-          {next?.label ?? "Next"}
-          {next?.label === "Finish" ? null : (
-            <ChevronRightIcon data-icon="inline-end" />
-          )}
-        </Button>
-        <span className="w-2" aria-hidden="true" />
-        {closed ? (
-          <Button variant="outline" disabled>
-            Cancel
+        <AgentIndicator
+          checkout={checkout}
+          unread={unread}
+          onClick={() => setChatOpen(true)}
+        />
+        <AgentChat
+          checkout={checkout}
+          open={chatOpen}
+          onOpenChange={setChatOpen}
+        />
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <Button
+            variant="outline"
+            disabled={back === undefined && index === 0}
+            onClick={back ?? (() => setViewing(keys[index - 1]))}
+          >
+            <ChevronLeftIcon data-icon="inline-start" />
+            Back
           </Button>
-        ) : (
-          <CancelButton checkout={checkout} />
-        )}
+          <Button
+            type={next?.submit ? "submit" : "button"}
+            form={next?.submit ? formId : undefined}
+            disabled={next === undefined || next.disabled === true}
+            onClick={next?.submit ? undefined : next?.run}
+          >
+            {next?.label ?? "Next"}
+            {next?.label === "Finish" ? null : (
+              <ChevronRightIcon data-icon="inline-end" />
+            )}
+          </Button>
+          <span className="w-2" aria-hidden="true" />
+          {closed ? (
+            <Button variant="outline" disabled>
+              Cancel
+            </Button>
+          ) : (
+            <CancelButton checkout={checkout} onEnd={() => exit(false)} />
+          )}
+        </div>
       </footer>
     </section>
   );
