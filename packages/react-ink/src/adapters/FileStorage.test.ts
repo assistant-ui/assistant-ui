@@ -5,6 +5,7 @@ import {
   readFile,
   rm,
   symlink,
+  writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -50,7 +51,33 @@ describe("FileStorage", () => {
     );
 
     const files = await readdir(dir);
-    expect(files).toEqual(["%40assistant-ui%3Athreads.json"]);
+    expect(files).toHaveLength(1);
+    expect(files[0]).toMatch(/^v2-[0-9a-f]{64}\.json$/);
+  });
+
+  it("keeps keys that differ only by case in separate files", async () => {
+    const dir = await createTempDir();
+    const storage = new FileStorage(dir);
+
+    await storage.setItem("thread:A", "upper");
+    await storage.setItem("thread:a", "lower");
+
+    await expect(storage.getItem("thread:A")).resolves.toBe("upper");
+    await expect(storage.getItem("thread:a")).resolves.toBe("lower");
+    const files = await readdir(dir);
+    expect(new Set(files.map((file) => file.toLowerCase())).size).toBe(2);
+  });
+
+  it("reads and removes files written with the previous filename format", async () => {
+    const dir = await createTempDir();
+    const storage = new FileStorage(dir);
+    const legacyPath = join(dir, "thread%3AA.json");
+    await writeFile(legacyPath, "legacy", "utf8");
+
+    await expect(storage.getItem("thread:A")).resolves.toBe("legacy");
+    await expect(storage.getItem("thread:a")).resolves.toBeNull();
+    await storage.removeItem("thread:A");
+    await expect(storage.getItem("thread:A")).resolves.toBeNull();
   });
 
   it("removes existing keys and ignores missing ones", async () => {
@@ -77,7 +104,8 @@ describe("FileStorage", () => {
     expect(["first", "second"]).toContain(finalValue);
 
     const files = await readdir(dir);
-    expect(files).toEqual(["thread-1.json"]);
+    expect(files).toHaveLength(1);
+    expect(files[0]).toMatch(/^v2-[0-9a-f]{64}\.json$/);
   });
 
   it("recreates its directory after it is removed", async () => {
@@ -113,7 +141,8 @@ describe("createFileStorageAdapter", () => {
       title: undefined,
     });
 
-    const threadsFile = join(dir, "%40assistant-ui%3Atest%3Athreads.json");
+    const [filename] = await readdir(dir);
+    const threadsFile = join(dir, filename!);
     await expect(readFile(threadsFile, "utf8")).resolves.toContain("thread-1");
   });
 
