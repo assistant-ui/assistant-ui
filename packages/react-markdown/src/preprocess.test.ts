@@ -720,3 +720,291 @@ describe("escapeCurrencyDollars", () => {
     expect(escapeCurrencyDollars("$50 to US$60")).toBe("\\$50 to US\\$60");
   });
 });
+
+describe("HTML blocks", () => {
+  it("preserves currency in a completed pre block", () => {
+    const text = "<pre>\ncosts $5 and $10\n</pre>";
+    expect(escapeCurrencyDollars(text)).toBe(text);
+  });
+
+  it("preserves bracket math in a completed pre block", () => {
+    const text = "<pre>\n\\[x\\]\n</pre>";
+    expect(normalizeMathDelimiters(text)).toBe(text);
+  });
+
+  describe.each([
+    [
+      "currency",
+      escapeCurrencyDollars,
+      "costs $5 and $10",
+      "costs \\$5 and \\$10",
+    ],
+    [
+      "math",
+      normalizeMathDelimiters,
+      "\\[x\\] \\(y\\) [/math]z[/math] [/inline]w[/inline]",
+      "$$x$$ $y$ $$z$$ $w$",
+    ],
+  ] as const)("%s", (_, preprocess, body, rewritten) => {
+    it.each([
+      ["kind 1", "<pre>", "</pre>"],
+      ["kind 1 with a tab", "<script\tdata-x>", "</script>"],
+      ["kind 1 at line end", "<style", "</style>"],
+      ["kind 1 with mixed case", "<TeXtArEa >", "</TEXTAREA>"],
+      ["kind 2", "<!--", "-->"],
+      ["kind 3", "<?target", "?>"],
+      ["kind 4", "<!DOCTYPE", ">"],
+      ["kind 4 with lowercase", "<!doctype", ">"],
+      ["kind 5", "<![CDATA[", "]]>"],
+      ["kind 6", "<div>", "</div>"],
+      ["kind 6 with a closing tag", "</section>", "</section>"],
+      ["kind 6 with a self-closing tag", "<div/>", "</div>"],
+      ["kind 6 with an incomplete tag", "<div data-x=", "</div>"],
+      ["kind 7 with a body line", "<widget>", "</widget>"],
+      ["kind 7 with a closing tag", "</widget >", "</widget>"],
+      [
+        "kind 7 with attributes",
+        "<widget :a-b.c_0='x' _b=\"y\" disabled>",
+        "</widget>",
+      ],
+      ["kind 7 with repeated equals", "<widget value=a=b>", "</widget>"],
+      [
+        "kind 7 with an unquoted self-closing value",
+        "<widget value=a/>",
+        "</widget>",
+      ],
+      [
+        "kind 7 with an empty self-closing value",
+        "<widget value=/>",
+        "</widget>",
+      ],
+    ])("preserves %s", (_, open, close) => {
+      const block = `${open}\n${body}\n${close}`;
+      expect(preprocess(`${body}\n\n${block}\n\n${body}`)).toBe(
+        `${rewritten}\n\n${block}\n\n${rewritten}`,
+      );
+    });
+
+    it.each([
+      ["kind 1 with a longer tag name", "<prelude> tail"],
+      ["kind 2 with one dash", "<!-"],
+      ["kind 3 with a space before the question mark", "< ?target"],
+      ["kind 4 with a digit", "<!1DOCTYPE"],
+      ["kind 5 with lowercase cdata", "<![cdata["],
+      ["kind 6 with a slash before attributes", "<div/foo>"],
+      ["kind 7 with trailing prose", "<widget> tail"],
+      ["kind 7 with a multiline tag", "<widget\nvalue='x'>"],
+      ["kind 7 with a slash in an unquoted value", "<widget value=a/b>"],
+      ["kind 7 with consecutive equals", "<widget value=a==b>"],
+      ["kind 7 with a missing attribute value", "<widget value=>"],
+      ["kind 7 with a backtick value", "<widget value=`x`>"],
+      ["kind 7 with an unclosed quoted value", "<widget value='x>"],
+      ["kind 7 with adjacent quoted attributes", "<widget value='x'other>"],
+      ["kind 7 with attributes on a closing tag", "</widget value=x>"],
+      ["kind 7 with an invalid tag name", "<widget_name>"],
+    ])("rejects %s", (_, open) => {
+      expect(preprocess(`${open}\n${body}`)).toBe(`${open}\n${rewritten}`);
+    });
+
+    it.each(["</script>", "</style>", "</textarea>", "</PRE>"])(
+      "closes a pre block on %s",
+      (close) => {
+        const block = `<pre>\n${body}\n${close} ${body}`;
+        expect(preprocess(`${block}\n${body}`)).toBe(`${block}\n${rewritten}`);
+      },
+    );
+
+    it.each(["</pre >", "</pre\t>", "</pre/>", "</prelude>"])(
+      "does not close a pre block on %s",
+      (close) => {
+        const block = `<pre>\n${close}\n${body}\n</pre>`;
+        expect(preprocess(`${block}\n${body}`)).toBe(`${block}\n${rewritten}`);
+      },
+    );
+
+    it.each(["<pre", "<!--", "<?", "<!D", "<![CDATA[", "<div>", "<widget>"])(
+      "preserves every streaming body prefix after %s",
+      (open) => {
+        const block = `${open}\n${body}`;
+        for (let end = open.length; end <= block.length; end += 1) {
+          const prefix = block.slice(0, end);
+          expect(preprocess(prefix)).toBe(prefix);
+        }
+      },
+    );
+
+    it.each(["<pre/>", "<div>", "<widget>"])(
+      "ends %s at a blank line even without a closing tag",
+      (open) => {
+        const block = `${open}\n${body}\n</pre>\n${body}`;
+        expect(preprocess(`${block}\n \t\n${body}`)).toBe(
+          `${block}\n \t\n${rewritten}`,
+        );
+      },
+    );
+
+    it("does not close CDATA on an odd run of brackets", () => {
+      const block = `<![CDATA[\n]]]>\n${body}\n]]]]]>\n${body}\n]]>`;
+      expect(preprocess(`${block}\n${body}`)).toBe(`${block}\n${rewritten}`);
+    });
+
+    it("closes CDATA on an even run of brackets", () => {
+      const block = `<![CDATA[\n${body}\n]]]]>`;
+      expect(preprocess(`${block}\n${body}`)).toBe(`${block}\n${rewritten}`);
+    });
+
+    it.each(["<!-->", "<!--->", "<?>", "<!D>", "<![CDATA[]]>"])(
+      "closes an empty %s block on its opening line",
+      (open) => {
+        expect(preprocess(`${open} ${body}\n${body}`)).toBe(
+          `${open} ${body}\n${rewritten}`,
+        );
+      },
+    );
+
+    it.each(["<pre>", "<!--", "<?", "<!D", "<![CDATA[", "<div>"])(
+      "lets %s interrupt a paragraph",
+      (open) => {
+        expect(preprocess(`prose\n${open}\n${body}`)).toBe(
+          `prose\n${open}\n${body}`,
+        );
+      },
+    );
+
+    it.each([
+      "<widget>",
+      "<pre/>",
+      "2. <widget>",
+      "2) <widget>",
+      "10. <widget>",
+      "2. <pre>",
+    ])("keeps %s in an existing paragraph", (open) => {
+      expect(preprocess(`prose\n${open}\n${body}`)).toBe(
+        `prose\n${open}\n${rewritten}`,
+      );
+    });
+
+    it.each([
+      "# heading",
+      "---",
+      "prose\n===",
+      "prose\n---",
+      "<!-- closed -->",
+      "```\ncode\n```",
+    ])("allows kind 7 after %s", (prefix) => {
+      const block = `${prefix}\n<widget>\n${body}`;
+      expect(preprocess(block)).toBe(block);
+    });
+
+    it.each(["-", "1.", "1)"])(
+      "opens HTML after an interrupting %s list marker",
+      (marker) => {
+        const indent = " ".repeat(marker.length + 1);
+        const block = `prose\n${marker} <widget>\n${indent}${body}`;
+        expect(preprocess(`${block}\n\n${body}`)).toBe(
+          `${block}\n\n${rewritten}`,
+        );
+      },
+    );
+
+    it("opens HTML in a noninterrupting ordered item after a blank line", () => {
+      const block = `prose\n\n2. <widget>\n   ${body}`;
+      expect(preprocess(`${block}\n\n${body}`)).toBe(
+        `${block}\n\n${rewritten}`,
+      );
+    });
+
+    it.each(["```", "~~~"])("keeps HTML inside %s fences inert", (fence) => {
+      const block = `${fence}\n<pre>\n${body}\n${fence}`;
+      expect(preprocess(`${block}\n${body}`)).toBe(`${block}\n${rewritten}`);
+    });
+
+    it("keeps fences inside HTML inert", () => {
+      const block = `<pre>\n~~~\n${body}\n</pre>`;
+      expect(preprocess(`${block}\n${body}`)).toBe(`${block}\n${rewritten}`);
+    });
+
+    it.each(["<pre>", "<widget>", "<div>", "<!--", "<![CDATA["])(
+      "preserves %s in a blockquote inside a list item",
+      (open) => {
+        const block = `- > ${open}\n  > ${body}`;
+        expect(preprocess(`${block}\n\n${body}`)).toBe(
+          `${block}\n\n${rewritten}`,
+        );
+      },
+    );
+
+    it("ends HTML when a containing list ends before its blockquote", () => {
+      const block = `- > <pre>\n  > ${body}`;
+      expect(preprocess(`${block}\n> ${body}`)).toBe(
+        `${block}\n> ${rewritten}`,
+      );
+    });
+
+    it("keeps HTML inside a fence in a quoted list inert", () => {
+      const block = `- > ~~~\n  > <pre>\n  > ${body}\n  > ~~~`;
+      expect(preprocess(`${block}\n\n${body}`)).toBe(
+        `${block}\n\n${rewritten}`,
+      );
+    });
+
+    it("preserves a quoted raw block and resumes at its closing line", () => {
+      const block = `> <pre>\n> ${body}\n> </pre>`;
+      expect(preprocess(`${block}\n> ${body}\n\n${body}`)).toBe(
+        `${block}\n> ${rewritten}\n\n${rewritten}`,
+      );
+    });
+
+    it("ends a quoted raw block when its container ends", () => {
+      const block = `>> <pre>\n>> ${body}`;
+      expect(preprocess(`${block}\n> ${body}`)).toBe(
+        `${block}\n> ${rewritten}`,
+      );
+    });
+
+    it("ends a quoted kind 7 block on a blank quoted line", () => {
+      const block = `> <widget>\n> ${body}`;
+      expect(preprocess(`${block}\n>\n> ${body}`)).toBe(
+        `${block}\n>\n> ${rewritten}`,
+      );
+    });
+
+    it("opens kind 7 in a new blockquote after prose", () => {
+      const block = `prose\n> <widget>\n> ${body}`;
+      expect(preprocess(block)).toBe(block);
+    });
+
+    it("keeps kind 7 in a lazy continuation of a quoted paragraph", () => {
+      const block = `> prose\n<widget>\n${body}`;
+      expect(preprocess(block)).toBe(`> prose\n<widget>\n${rewritten}`);
+    });
+
+    it.each(["\r\n", "\r"])(
+      "preserves HTML with %j line endings",
+      (newline) => {
+        const block = `<pre>${newline}${body}${newline}</pre>`;
+        expect(preprocess(`${block}${newline}${body}`)).toBe(
+          `${block}${newline}${rewritten}`,
+        );
+      },
+    );
+
+    it("does not require a raw body to keep its opener's indentation", () => {
+      const block = `   <pre>\n${body}\n</pre>`;
+      expect(preprocess(`${block}\n${body}`)).toBe(`${block}\n${rewritten}`);
+    });
+
+    it("keeps inline tags in prose eligible for preprocessing", () => {
+      expect(preprocess(`prose <span>${body}</span>`)).toBe(
+        `prose <span>${rewritten}</span>`,
+      );
+    });
+
+    it("does not carry an inline code span across an HTML block", () => {
+      const block = `prose \`\n<pre>\n${body}\n</pre>`;
+      expect(preprocess(`${block}\n\` ${body}`)).toBe(
+        `${block}\n\` ${rewritten}`,
+      );
+    });
+  });
+});
