@@ -6,7 +6,8 @@ import { clearCart, toggleCartItem } from "../../lib/catalog/cart-store";
 import { endCheckout, startCheckout } from "../../lib/checkout/session-store";
 import { CartButton } from "./cart-button";
 
-vi.mock("next/navigation", () => ({
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
   usePathname: () => "/elements/thread-list",
   useRouter: () => ({ push: vi.fn() }),
 }));
