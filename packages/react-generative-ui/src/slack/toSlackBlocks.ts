@@ -1368,6 +1368,22 @@ const convertElement = (
       ];
     }
     case "Input": {
+      if (props["inputType"] === "password") {
+        warn(
+          context,
+          "dropped",
+          "Input",
+          "Password input was replaced by a Slack omission note.",
+        );
+        return [
+          {
+            type: "context",
+            elements: [
+              { type: "mrkdwn", text: "Password input omitted on Slack." },
+            ],
+          },
+        ];
+      }
       const label = clampText(
         asString(props["label"]),
         INPUT_LABEL_CAP,

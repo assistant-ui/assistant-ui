@@ -65,7 +65,7 @@ type SlackConversionWarning = {
 | `Checkbox` | `checkboxes` element with a single option | The `switch` variant uses the same element |
 | `Slider` | Its own `input` block with `number_input` | `min`, `max`, and `defaultValue` map to number bounds and initial value; fractional steps allow decimal input |
 | `DatePicker` | `datepicker` element | `min` and `max` are dropped; a non-`YYYY-MM-DD` value is dropped with a warning |
-| `Input` | Its own `input` block | Not grouped into an `actions` block |
+| `Input` | Its own `input` block for text and number; an omission note for password | Number uses `plain_text_input`, stays a string, and has no native numeric validation; Slack shows no password field |
 | `Form` | Children inline, then a "Submit" button | Slack has no form container |
 | `Row` | One `context` block when every child is a `Badge` or `Caption`, otherwise flattened | Horizontal layout is lost in the flattened case |
 | `Col`, `Box` | Flattened into the sibling block stream | Slack has no nesting container |

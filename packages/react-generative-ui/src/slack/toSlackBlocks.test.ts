@@ -570,6 +570,72 @@ describe("toSlackBlocks", () => {
   });
 
   describe("Input", () => {
+    it("keeps number text and replaces a password input while retaining its field fallback", () => {
+      const { blocks, warnings } = toSlackBlocks([
+        {
+          $type: "Input",
+          name: "quantity",
+          inputType: "number",
+          defaultValue: "2.5",
+          $action: { type: "edit_quantity" },
+        },
+        {
+          $type: "Input",
+          name: "password",
+          label: "Password",
+          inputType: "password",
+          defaultValue: "secret",
+        },
+        {
+          $type: "Button",
+          label: "Submit",
+          $action: {
+            type: "submit",
+            quantity: { $field: "quantity" },
+            password: { $field: "password", fallback: "agent-value" },
+          },
+        },
+      ]);
+      expect(blocks[0]).toMatchObject({
+        type: "input",
+        element: { type: "plain_text_input", initial_value: "2.5" },
+      });
+      expect(blocks[1]).toEqual({
+        type: "context",
+        elements: [
+          { type: "mrkdwn", text: "Password input omitted on Slack." },
+        ],
+      });
+      expect(blocks.filter((block) => block.type === "input")).toHaveLength(1);
+      expect(JSON.stringify(blocks)).not.toContain("secret");
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Input",
+        detail: "Password input was replaced by a Slack omission note.",
+      });
+      const button = blocks[2];
+      const numberInput = blocks[0];
+      if (
+        button?.type !== "actions" ||
+        button.elements[0]?.type !== "button" ||
+        numberInput?.type !== "input" ||
+        !numberInput.block_id
+      ) {
+        throw new Error("Expected a named number input and submit button");
+      }
+      expect(
+        decodeBlockAction(button.elements[0], {
+          [numberInput.block_id]: {
+            edit_quantity: { type: "plain_text_input", value: "3.5" },
+          },
+        }),
+      ).toEqual({
+        type: "submit",
+        quantity: "3.5",
+        password: "agent-value",
+      });
+    });
+
     it("carries a named control in its block_id", () => {
       const { blocks, warnings } = toSlackBlocks({
         $type: "Input",

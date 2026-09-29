@@ -69,7 +69,7 @@ type TeamsConversionWarning = {
 | `CheckboxGroup` | `Input.ChoiceSet`, expanded, with `isMultiSelect` | Its value is the checked values joined by commas, so a value that contains a comma cannot be told apart; descriptions append to the choice title |
 | `Checkbox` | `Input.Toggle` | Its value is the string `"true"` or `"false"`; the `switch` variant uses the same element |
 | `Slider` | `Input.Number` | `min`, `max`, `defaultValue`, and `label` map directly; submitted values are numbers |
-| `Input` | `Input.Text` | |
+| `Input` | `Input.Text` | Password uses `style: "password"`; number stays text and submits a string without native numeric validation |
 | `DatePicker` | `Input.Date` | `value`, `min`, and `max` are kept only in `YYYY-MM-DD` form, otherwise dropped silently |
 | `Form` | Children inline, then a "Submit" `ActionSet` | Adaptive Cards has no form container; inputs on the card submit together |
 | `Row` | `ColumnSet` with one auto-width column per child | Beyond three columns you get a warning, but all columns are kept |
