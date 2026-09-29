@@ -373,15 +373,22 @@ const useEveThreadRuntime = (
 
   // The store outlives the component (useEveAgent holds it in a ref with no
   // cleanup), so queued sends must not fire server turns after unmount. The
-  // flag separates that teardown from a user cancel. Replayed effects keep
-  // the queued sends alive until the runtime actually unmounts.
-  useReplaySafeEffect(() => {
+  // flag separates that teardown from a user cancel, and is re-armed in setup
+  // for a remounted tree.
+  useEffect(() => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
-      sendEpochRef.current += 1;
     };
   }, []);
+
+  // A replay (Fast Refresh, StrictMode) must not cancel the sends queued behind the active turn.
+  useReplaySafeEffect(
+    () => () => {
+      sendEpochRef.current += 1;
+    },
+    [],
+  );
 
   // A replay rides the send chain because `resume()` rejects during a turn and upstream refuses sends while it runs; the reset counter keeps a cancel from dropping a refetch, and the hook's own replay on mount joins this one since upstream shares concurrent `resume()` calls.
   const enqueueResume = useCallback(
