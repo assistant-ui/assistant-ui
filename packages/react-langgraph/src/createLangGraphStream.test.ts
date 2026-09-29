@@ -211,7 +211,7 @@ describe("unstable_createLangGraphStream", () => {
       client,
       assistantId: "graph-1",
     });
-    const runConfig = { configurable: { model_name: "gpt-5.6-luna" } };
+    const runConfig = { configurable: { model_name: "gpt-6-luna" } };
 
     await callback([humanMessage], {
       abortSignal: new AbortController().signal,

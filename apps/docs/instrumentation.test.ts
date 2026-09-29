@@ -19,7 +19,7 @@ describe("isAiSpan", () => {
   it("accepts a span whose attributes carry an AI prefix", () => {
     expect(
       isAiSpan(
-        span("chat gpt-5.6-luna", {
+        span("chat gpt-6-luna", {
           "ai.settings.context.posthog_distinct_id": "user_1",
         }),
       ),

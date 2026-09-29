@@ -83,6 +83,23 @@ export const benchCoverage = (benchDir, graph) => {
   return out;
 };
 
+// Replayed over recorded CI runs, a fourth control file no longer lowered the false verdicts on held-out control rows.
+const CONTROL_FILES = 3;
+
+export const planBenches = (coverage, changed, { all = false } = {}) => {
+  const measured = [];
+  const unchanged = [];
+  for (const [file, covers] of coverage) {
+    if (changed.some((pkg) => covers.has(pkg))) measured.push(file);
+    else unchanged.push(file);
+  }
+  return {
+    measured,
+    controls: all ? unchanged : unchanged.slice(0, CONTROL_FILES),
+    unchanged: unchanged.length,
+  };
+};
+
 export const benchFileOf = (rowId) => rowId.slice(0, rowId.indexOf(" > "));
 
 export const attributeRows = (rows, coverage, changed) =>

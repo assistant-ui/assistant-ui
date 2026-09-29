@@ -1,0 +1,124 @@
+"use client";
+
+import { useEffect, useRef } from "react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { SetupComposer } from "@/components/pages/shop/setup-composer";
+import { useAgentName } from "@/components/pages/shop/agent-status";
+import {
+  maxWidth,
+  useResizableWidth,
+} from "@/components/pages/shop/use-resizable-width";
+import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
+import type { Checkout } from "@/lib/checkout/protocol";
+import { cn } from "@/lib/utils";
+
+/** The checkout worker (harness-sdk, apps/checkout-worker host) logs "Completed: <title>" or "Skipped: <title>" with the stepId when a step closes; the step list already shows them. */
+const isStepLine = (entry: Checkout.LogEntry, state: Checkout.State) =>
+  entry.role === "agent" &&
+  entry.stepId !== undefined &&
+  state.steps.some((step) =>
+    ["Completed", "Skipped"].some(
+      (verb) =>
+        entry.text === `${verb}: ${step.title}` ||
+        entry.text.startsWith(`${verb}: ${step.title}\n\n`),
+    ),
+  );
+
+/** What the user and the agent said to each other, in order. */
+export const conversation = (state: Checkout.State | undefined) =>
+  state === undefined
+    ? []
+    : state.log.filter((entry) => !isStepLine(entry, state));
+
+export function AgentChat({
+  checkout,
+  open,
+  onOpenChange,
+}: {
+  checkout: CheckoutContextValue;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const name = useAgentName(checkout);
+  const entries = conversation(checkout.state);
+  const list = useRef<HTMLOListElement>(null);
+  const composer = useRef<HTMLTextAreaElement>(null);
+  const last = entries.at(-1)?.id;
+  const { width, handle } = useResizableWidth();
+  useEffect(() => {
+    if (!open || last === undefined) return;
+    list.current?.lastElementChild?.scrollIntoView({ block: "end" });
+  }, [open, last]);
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        initialFocus={composer}
+        style={{ width }}
+        className={cn(
+          "gap-0 p-0 max-sm:data-[side=right]:w-full",
+          width !== undefined && "data-[side=right]:sm:max-w-none",
+        )}
+      >
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize messages"
+          aria-valuemax={maxWidth()}
+          tabIndex={0}
+          {...handle}
+          className="group absolute inset-y-0 -left-2 z-10 w-4 cursor-col-resize touch-none outline-none max-sm:hidden"
+        >
+          <div className="bg-foreground/30 absolute inset-y-0 left-2 w-px opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 group-active:opacity-100" />
+        </div>
+        <SheetHeader className="border-foreground/10 border-b pr-12">
+          <SheetTitle>Messages</SheetTitle>
+        </SheetHeader>
+        {entries.length === 0 ? (
+          <p className="text-muted-foreground flex-1 p-4 text-sm">
+            No messages yet.
+          </p>
+        ) : (
+          <ol
+            ref={list}
+            role="log"
+            aria-label="Messages"
+            aria-live="polite"
+            className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4"
+          >
+            {entries.map((entry) => (
+              <li
+                key={entry.id}
+                className={cn(
+                  "flex flex-col gap-1",
+                  entry.role === "user" ? "items-end" : "items-start",
+                )}
+              >
+                <span className="sr-only">
+                  {entry.role === "user" ? "You: " : `${name}: `}
+                </span>
+                <span
+                  className={cn(
+                    "max-w-[85%] rounded-lg px-3 py-2 text-sm leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap",
+                    entry.role === "user"
+                      ? "bg-foreground text-background rounded-br-sm"
+                      : "bg-muted rounded-bl-sm",
+                  )}
+                >
+                  {entry.text}
+                </span>
+              </li>
+            ))}
+          </ol>
+        )}
+        <div className="border-foreground/10 shrink-0 border-t p-4">
+          <SetupComposer checkout={checkout} ref={composer} />
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}

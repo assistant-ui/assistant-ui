@@ -133,7 +133,7 @@ When an adapter exposes a feature like attachments, speech, or feedback, it does
 A few things follow predictable patterns regardless of layer:
 
 - **Adapters** (attachments, speech, feedback, history, suggestions) are configured the same way and carry the same contract everywhere. See [adapters](/docs/runtimes/concepts/adapters).
-- **Threads** (single, cloud, custom database) work via a shared `RemoteThreadListAdapter` for `LocalRuntime`-based runtimes and a separate `ExternalStoreThreadListAdapter` for `ExternalStoreRuntime`. See [threads](/docs/runtimes/concepts/threads).
+- **Threads** (single, cloud, custom database) work via a shared `RemoteThreadListAdapter` for `LocalRuntime`-based runtimes. A standalone `ExternalStoreRuntime` uses an `ExternalStoreThreadListAdapter`; runtime adapters that receive `cloud` use Assistant Cloud's remote thread list adapter. See [threads](/docs/runtimes/concepts/threads).
 - **Unstable APIs** are surfaced with an `unstable_` prefix and may change in any release. See [stability](/docs/runtimes/concepts/stability).
 
 ## Choosing a layer

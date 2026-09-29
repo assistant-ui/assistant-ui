@@ -8,9 +8,16 @@ import type {
 } from "../../../adapters/thread-history";
 import type { ExportedMessageRepositoryItem } from "../../../runtime/utils/message-repository";
 import type { ThreadMessage } from "../../../types";
+import type { Unstable_ToolInteractionLog } from "../../../types/message";
+import {
+  appendToolInteraction,
+  readToolInteractionLog,
+} from "../../../runtime/utils/tool-interactions";
+import { isJSONValueEqual } from "../../../utils/json/is-json-equal";
 import {
   type AssistantCloud,
   type AssistantCloudEvent,
+  CloudAPIError,
   CloudEngagementReporter,
   CloudMessagePersistence,
   CloudRunReporter,
@@ -69,10 +76,57 @@ const isSettledMessage = (message: ThreadMessage) =>
   message.role === "assistant" &&
   (message.status.type === "complete" || message.status.type === "incomplete");
 
+const mergeInteractionLogs = (
+  stored: Unstable_ToolInteractionLog | undefined,
+  current: Unstable_ToolInteractionLog | undefined,
+): Unstable_ToolInteractionLog | undefined => {
+  const incoming = readToolInteractionLog(current);
+  if (!stored) return incoming;
+  if (!incoming) return stored;
+  const omitted = Math.max(stored.omitted ?? 0, incoming.omitted ?? 0);
+  let merged: Unstable_ToolInteractionLog = {
+    entries: stored.entries,
+    ...(omitted ? { omitted } : undefined),
+  };
+  for (const entry of incoming.entries) {
+    if (
+      merged.entries.some(
+        (existing) =>
+          existing.type === entry.type &&
+          existing.occurredAt === entry.occurredAt &&
+          isJSONValueEqual(existing.payload, entry.payload),
+      )
+    ) {
+      continue;
+    }
+    merged = appendToolInteraction(merged, entry);
+  }
+  return merged;
+};
+
+type CopiedThread = {
+  stored: Set<string>;
+  refused: Set<string>;
+  closed: boolean;
+  interactions: Map<string, Unstable_ToolInteractionLog>;
+};
+
+const RETRIED_COPY_STATUSES = new Set([401, 403, 408, 429]);
+// The thread is gone, or its end user may not write this month.
+const THREAD_REFUSAL_STATUSES = new Set([402, 404]);
+
+const isRefusedCopy = (error: unknown): error is CloudAPIError =>
+  error instanceof CloudAPIError &&
+  error.status >= 400 &&
+  error.status < 500 &&
+  !RETRIED_COPY_STATUSES.has(error.status);
+
 class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   private cloudRef: RefObject<AssistantCloud>;
   private getAui: () => AssistantClient;
   private runReporter: CloudRunReporter;
+  private copiedThreads = new Map<string, Promise<CopiedThread>>();
+  private copyQueues = new Map<string, Promise<void>>();
 
   constructor(
     cloudRef: RefObject<AssistantCloud>,
@@ -313,6 +367,185 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     await this._writeMessage(persistence, remoteId, message, (encoded) =>
       persistence.update(remoteId, message.id, "aui/v0", encoded),
     );
+  }
+
+  get unstable_copy() {
+    const telemetry = this.cloudRef.current?.telemetry;
+    return telemetry?.enabled === false || telemetry?.messages === false
+      ? undefined
+      : this.copy;
+  }
+
+  private copy = async (
+    branch: readonly ThreadMessage[],
+    messageIds: readonly string[],
+  ): Promise<void> => {
+    const cloud = this.cloudRef.current;
+    if (messageIds.length === 0) return;
+
+    const threadListItem = this.tryGetKeyedThreadListItem();
+    if (!threadListItem) {
+      throw new Error("Cannot copy cloud history without a thread list item.");
+    }
+    const remoteId = (await threadListItem.initialize()).remoteId;
+    const persistence = this.getPersistence(threadListItem);
+    const previous = this.copyQueues.get(remoteId);
+    const task = (previous ?? Promise.resolve())
+      .catch(() => undefined)
+      .then(() =>
+        this.copyBranch(cloud, remoteId, persistence, branch, messageIds),
+      );
+    this.copyQueues.set(remoteId, task);
+    try {
+      await task;
+    } finally {
+      if (this.copyQueues.get(remoteId) === task) {
+        this.copyQueues.delete(remoteId);
+      }
+    }
+  };
+
+  private async copyBranch(
+    cloud: AssistantCloud,
+    remoteId: string,
+    persistence: CloudMessagePersistence,
+    branch: readonly ThreadMessage[],
+    messageIds: readonly string[],
+  ): Promise<void> {
+    let inventory = this.copiedThreads.get(remoteId);
+    if (!inventory) {
+      inventory = (async (): Promise<CopiedThread> => {
+        const copied: CopiedThread = {
+          stored: new Set(),
+          refused: new Set(),
+          closed: false,
+          interactions: new Map(),
+        };
+        const seen = new Set<string>();
+        let after: string | undefined;
+        while (true) {
+          const page = await cloud.threads.messages.list(remoteId, {
+            limit: 200,
+            ...(after ? { after } : undefined),
+          });
+          // A cursor the server cannot resolve drops the keyset filter and replays
+          // an earlier page, so already-seen rows end the walk instead of repeating.
+          const fresh = page.messages.filter((row) => !seen.has(row.id));
+          for (const row of fresh) {
+            seen.add(row.id);
+            if (!row.external_id || row.format !== "aui/v0") continue;
+            copied.stored.add(row.external_id);
+            persistence.record(row.external_id, row.id);
+            const decoded = auiV0DecodeSafely(
+              row as typeof row & { format: "aui/v0" },
+            );
+            for (const part of decoded?.message.content ?? []) {
+              if (part.type !== "tool-call") continue;
+              const merged = mergeInteractionLogs(
+                copied.interactions.get(part.toolCallId),
+                part.unstable_interactions,
+              );
+              if (merged) copied.interactions.set(part.toolCallId, merged);
+            }
+          }
+          const last = page.messages.at(-1);
+          if (fresh.length === 0 || page.messages.length < 200 || !last) break;
+          after = last.id;
+        }
+        return copied;
+      })();
+      this.copiedThreads.set(remoteId, inventory);
+    }
+
+    let copied: CopiedThread;
+    try {
+      copied = await inventory;
+    } catch (error) {
+      if (this.copiedThreads.get(remoteId) === inventory) {
+        this.copiedThreads.delete(remoteId);
+      }
+      throw error;
+    }
+    if (copied.closed) return;
+
+    const eligible = branch.filter(
+      (message) => message.id.length > 0 && message.id.length <= 255,
+    );
+    const changed = new Set(messageIds);
+    let next = 0;
+    let parent: string | undefined;
+    for (let index = 0; index < eligible.length; index++) {
+      if (!changed.has(eligible[index]!.id)) continue;
+      for (; next <= index; next++) {
+        const message = eligible[next]!;
+        if (
+          next !== index &&
+          (copied.stored.has(message.id) || copied.refused.has(message.id))
+        ) {
+          if (copied.stored.has(message.id)) parent = message.id;
+          continue;
+        }
+        const encoded = auiV0Encode(message);
+        const content = {
+          ...encoded,
+          content: encoded.content.map((part) => {
+            if (part.type !== "tool-call") return part;
+            const interactions = mergeInteractionLogs(
+              copied.interactions.get(part.toolCallId),
+              part.unstable_interactions,
+            );
+            return {
+              ...part,
+              ...(interactions
+                ? { unstable_interactions: interactions }
+                : undefined),
+            };
+          }),
+        };
+        let message_id: string;
+        try {
+          ({ message_id } = await cloud.threads.messages.create(remoteId, {
+            parent_id: null,
+            format: "aui/v0",
+            content,
+            external_id: message.id,
+            ...(parent ? { parent_external_id: parent } : undefined),
+          }));
+        } catch (error) {
+          if (!isRefusedCopy(error)) throw error;
+          // Two refusals before any accepted message mean the cloud takes none of the thread, as a server without external ids does; one alone may be an oversized first message.
+          if (
+            THREAD_REFUSAL_STATUSES.has(error.status) ||
+            (copied.stored.size === 0 && copied.refused.size > 0)
+          ) {
+            copied.closed = true;
+            console.warn(
+              `[assistant-ui] The cloud refused copies to thread ${remoteId}; the dashboard shows the conversation as far as it was copied.`,
+              error,
+            );
+            return;
+          }
+          copied.refused.add(message.id);
+          console.warn(
+            `[assistant-ui] The cloud refused the copy of message ${message.id}; the dashboard shows the conversation without it.`,
+            error,
+          );
+          continue;
+        }
+        copied.stored.add(message.id);
+        copied.refused.delete(message.id);
+        parent = message.id;
+        persistence.record(message.id, message_id);
+        for (const part of content.content) {
+          if (part.type === "tool-call" && part.unstable_interactions) {
+            copied.interactions.set(
+              part.toolCallId,
+              part.unstable_interactions,
+            );
+          }
+        }
+      }
+    }
   }
 
   // A run is reported once, by the write that first stores its message as settled; rewriting that entry later, as a late tool result does, is not a new run. Eligibility is read before the write, so a load that reads the write back cannot take the report, and the report is claimed after it, so overlapping writes of one message report once.

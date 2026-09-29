@@ -254,9 +254,9 @@ const SearchModePicker: FC = () => {
 const PERPLEXITY_MODELS = [
   { id: "best", name: "Best", description: "Auto-pick the best model" },
   { id: "sonar", name: "Sonar", description: "Perplexity's fast model" },
-  { id: "claude", name: "Claude 4.5 Sonnet", description: "Anthropic" },
-  { id: "gpt-5", name: "GPT-5", description: "OpenAI" },
-  { id: "gemini", name: "Gemini 3 Pro", description: "Google" },
+  { id: "claude", name: "Claude Sonnet 5", description: "Anthropic" },
+  { id: "gpt-6", name: "GPT-6", description: "OpenAI" },
+  { id: "gemini", name: "Gemini 3.1 Pro", description: "Google" },
 ];
 
 const ModelPicker: FC = () => {
