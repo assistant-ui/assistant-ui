@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
@@ -13,22 +13,32 @@ const load = async () => {
   return import("./hero");
 };
 
+beforeEach(() => {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn(() => ({ matches: true })),
+  );
+});
+
 afterEach(() => {
   cleanup();
   vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
   vi.resetModules();
 });
 
-const ctaRow = () =>
-  screen.getByRole("button", { name: "Quick Start" }).parentElement!;
+const ctaRow = (name = "Quick Start") =>
+  screen.getByRole("button", { name }).parentElement!;
 
 describe("hero", () => {
-  it("opens the setup dialog from the one call to action when checkout is configured", async () => {
+  it("offers agent setup through one call to action when checkout is configured", async () => {
     const { Hero } = await load();
     render(<Hero stars={null} downloads={null} />);
-    const trigger = screen.getByRole("button", { name: "Quick Start" });
+    const trigger = screen.getByRole("button", {
+      name: "Set up with your coding agent",
+    });
     expect(trigger.tagName).toBe("BUTTON");
-    expect(ctaRow().children).toHaveLength(1);
+    expect(ctaRow("Set up with your coding agent").children).toHaveLength(1);
     expect(screen.queryByRole("link", { name: "Read the docs" })).toBeNull();
     expect(screen.queryByText("npx assistant-ui init")).toBeNull();
   });
