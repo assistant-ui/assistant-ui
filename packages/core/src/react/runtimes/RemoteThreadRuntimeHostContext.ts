@@ -1,4 +1,4 @@
-import { createContext, use } from "react";
+import { createContext, useContext } from "react";
 import { useContextProvider } from "@assistant-ui/tap";
 
 const RemoteThreadRuntimeHostContext = createContext(false);
@@ -8,4 +8,4 @@ export const useRemoteThreadRuntimeHostProvider = <TResult>(
 ): TResult => useContextProvider(RemoteThreadRuntimeHostContext, true, fn);
 
 export const useIsRemoteThreadRuntimeHosted = (): boolean =>
-  use(RemoteThreadRuntimeHostContext);
+  useContext(RemoteThreadRuntimeHostContext);

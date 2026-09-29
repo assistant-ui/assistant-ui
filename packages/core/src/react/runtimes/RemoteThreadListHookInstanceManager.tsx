@@ -219,6 +219,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     if (instance.generation !== generation) return;
 
     const previousRuntime = instance.runtime;
+    const previousPublishedGeneration = instance.publishedGeneration;
     instance.runtime = runtime;
     instance.publishedGeneration = generation;
     try {
@@ -226,10 +227,19 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
         this._trackRunning(threadId, instance);
       }
     } finally {
-      this._notifySubscribers();
-      if (previousRuntime !== undefined && previousRuntime !== runtime) {
-        notifySubscribers(this.replacedSubscribers);
-        disposeThreadRuntime(previousRuntime);
+      try {
+        this._notifySubscribers();
+        if (previousRuntime !== undefined && previousRuntime !== runtime) {
+          notifySubscribers(this.replacedSubscribers);
+        }
+      } finally {
+        if (
+          previousPublishedGeneration === generation &&
+          previousRuntime !== undefined &&
+          previousRuntime !== runtime
+        ) {
+          disposeThreadRuntime(previousRuntime);
+        }
       }
     }
   }

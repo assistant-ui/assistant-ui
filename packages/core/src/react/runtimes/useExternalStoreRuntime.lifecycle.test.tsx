@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { Activity, StrictMode, useEffect } from "react";
-import { act, render } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useExternalStoreRuntime } from "./useExternalStoreRuntime";
 import { useRemoteThreadListRuntime } from "./useRemoteThreadListRuntime";
@@ -13,6 +13,9 @@ import { RuntimeAdapterProvider } from "./RuntimeAdapterProvider";
 import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import { useLocalRuntime } from "./useLocalRuntime";
+import { makeAdapter } from "../../tests/remote-thread-list-test-helpers";
+import { captureThreadRuntimeDisposal } from "../../runtime/utils/thread-runtime-lifecycle";
+import type { ThreadRuntimeCore } from "../../runtime/interfaces/thread-runtime-core";
 
 const userMessage: ThreadMessage = {
   id: "user-1",
@@ -157,6 +160,87 @@ describe("useExternalStoreRuntime lifecycle", () => {
     expect(signal?.aborted).toBe(true);
   });
 
+  it("delivers a hosted pending attachment send across a thread restart", async () => {
+    let resolveSend!: () => void;
+    const send = vi.fn<AttachmentAdapter["send"]>(
+      (attachment) =>
+        new Promise((resolve) => {
+          resolveSend = () =>
+            resolve({
+              ...attachment,
+              status: { type: "complete" },
+              content: [],
+            });
+        }),
+    );
+    const attachments: AttachmentAdapter = {
+      accept: "*",
+      add: async ({ file }) => ({
+        id: "attachment-1",
+        type: "document",
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: { type: "requires-action", reason: "composer-send" },
+      }),
+      remove: async () => {},
+      send,
+    };
+    const onNew = vi.fn(async () => {});
+    const adapter = makeAdapter();
+    let runtime!: AssistantRuntime;
+    const App = () => {
+      runtime = useRemoteThreadListRuntime({
+        adapter,
+        initialThreadId: "thread-1",
+        runtimeHook: function useThreadRuntime() {
+          return useExternalStoreRuntime<ThreadMessage>({
+            messages: [],
+            onNew,
+            adapters: { attachments },
+          });
+        },
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <div />
+        </AssistantRuntimeProvider>
+      );
+    };
+    render(<App />);
+    await waitFor(() => {
+      expect(runtime.threads.mainItem.getState().status).toBe("regular");
+    });
+    const outgoing = (
+      runtime.thread as unknown as {
+        __internal_threadBinding: { getState(): ThreadRuntimeCore };
+      }
+    ).__internal_threadBinding.getState();
+    const disposal = captureThreadRuntimeDisposal(outgoing);
+    await act(async () =>
+      runtime.thread.composer.addAttachment(
+        new File(["hello"], "notes.txt", { type: "text/plain" }),
+      ),
+    );
+    act(() => {
+      runtime.thread.composer.setText("hello");
+      runtime.thread.composer.send();
+    });
+    expect(send).toHaveBeenCalledOnce();
+    const signal = send.mock.lastCall?.[1]?.signal;
+    expect(signal?.aborted).toBe(false);
+
+    await act(() => runtime.threads.reloadMainThread());
+
+    const disposedAfterRestart = disposal.aborted;
+    const abortedAfterRestart = signal?.aborted;
+    await act(async () => resolveSend());
+    expect(disposedAfterRestart).toBe(false);
+    expect(abortedAfterRestart).toBe(false);
+    expect(onNew).toHaveBeenCalledOnce();
+    expect(signal?.aborted).toBe(false);
+  });
+
   it("disconnects a replaced hosted voice session and keeps its successor", async () => {
     const first = createVoiceSession();
     const second = createVoiceSession();
@@ -180,6 +264,8 @@ describe("useExternalStoreRuntime lifecycle", () => {
     };
     const view = render(<App hostKey={0} />);
     act(() => runtime.thread.connectVoice());
+    await act(async () => view.rerender(<App hostKey={1} />));
+    expect(first.disconnect).toHaveBeenCalledOnce();
     await act(async () => view.rerender(<App hostKey={1} />));
     expect(first.disconnect).toHaveBeenCalledOnce();
     act(() => runtime.thread.connectVoice());
