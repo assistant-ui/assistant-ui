@@ -757,6 +757,14 @@ describe("HTML blocks", () => {
     expect(normalizeMathDelimiters(text)).toBe(text);
   });
 
+  it("escapes currency outside HTML after a sibling item heading", () => {
+    expect(
+      escapeCurrencyDollars(
+        "- item\n- # heading\n  <pre>\n  costs $5\noutside $10",
+      ),
+    ).toBe("- item\n- # heading\n  <pre>\n  costs $5\noutside \\$10");
+  });
+
   describe.each([
     [
       "currency",
@@ -771,6 +779,29 @@ describe("HTML blocks", () => {
       "$$x$$ $y$ $$z$$ $w$",
     ],
   ] as const)("%s", (_, preprocess, body, rewritten) => {
+    describe.each([
+      ["\\[", "\\]"],
+      ["\\\\[", "\\\\]"],
+      ["[/math]", "[/math]"],
+    ])("%s display math", (open, close) => {
+      it.each([
+        ["blockquote", "> ", "> ", ""],
+        ["list item", "- ", "  ", ""],
+        ["continued list item", "- item\n  ", "  ", ""],
+        ["list inside a blockquote", "> - ", ">   ", "> "],
+        ["blockquote inside a list item", "- > ", "  > ", "> "],
+        ["list before a deeper blockquote", "- ", "  ", "> "],
+      ])(
+        "preserves HTML after the %s ends before the math closer",
+        (_, prefix, continuation, after) => {
+          const block = `${prefix}${open}\n${continuation}x\n${after}<pre>\n${after}${body}\n${after}${close}\n${after}</pre>`;
+          expect(preprocess(`${block}\n${body}`)).toBe(
+            `${block}\n${rewritten}`,
+          );
+        },
+      );
+    });
+
     it.each([
       ["equal closing run", "$$", "$$"],
       ["longer closing run", "$$$", "$$$$"],
@@ -804,6 +835,11 @@ describe("HTML blocks", () => {
 
     it("preserves the item indent after a heading inside the list", () => {
       const block = `- item\n  # h\n  <pre>\n  ${body}`;
+      expect(preprocess(`${block}\n${body}`)).toBe(`${block}\n${rewritten}`);
+    });
+
+    it("preserves the item indent after a sibling item heading", () => {
+      const block = `- item\n- # heading\n  <pre>\n  ${body}`;
       expect(preprocess(`${block}\n${body}`)).toBe(`${block}\n${rewritten}`);
     });
 

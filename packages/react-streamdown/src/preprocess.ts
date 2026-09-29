@@ -287,6 +287,9 @@ function htmlBlockRanges(text: string): number[] {
   let fenceIndent = 0;
   let fenceQuoteDepth = 0;
   let mathEnd = 0;
+  let mathQuoteDepth = 0;
+  let mathItemIndent = 0;
+  let mathQuoteIndents: number[] = [];
   let inParagraph = false;
   let paragraphItemIndent = 0;
   let lastQuoteDepth = 0;
@@ -303,7 +306,12 @@ function htmlBlockRanges(text: string): number[] {
       text.charCodeAt(lineEnd) === CR && text.charCodeAt(lineEnd + 1) === 10
         ? lineEnd + 2
         : lineEnd + 1;
-    const blockQuoteDepth = htmlKind !== 0 ? htmlQuoteDepth : fenceQuoteDepth;
+    const blockQuoteDepth =
+      htmlKind !== 0
+        ? htmlQuoteDepth
+        : lineStart < mathEnd
+          ? mathQuoteDepth
+          : fenceQuoteDepth;
     let i = lineStart;
     let depth = 0;
     let quoteStart = lineStart;
@@ -378,8 +386,21 @@ function htmlBlockRanges(text: string): number[] {
       continue;
     }
     if (lineStart < mathEnd) {
-      lineStart = nextLine;
-      continue;
+      if (
+        depth < mathQuoteDepth ||
+        mathQuoteIndents.some(
+          (indent, level) => quoteIndents[level]! < indent,
+        ) ||
+        (mathItemIndent !== 0 &&
+          (depth > mathQuoteDepth
+            ? columns(text, blockContentStart, quoteStart) < mathItemIndent
+            : first !== -1 && indent < mathItemIndent))
+      ) {
+        mathEnd = 0;
+      } else {
+        lineStart = nextLine;
+        continue;
+      }
     }
     let blockStart = skipListMarkers(text, i, lineEnd);
     let blockItemIndent =
@@ -445,7 +466,12 @@ function htmlBlockRanges(text: string): number[] {
         : "";
     if (mathClose !== "") {
       const close = text.indexOf(mathClose, mathStart + mathClose.length);
-      if (close !== -1) mathEnd = close + mathClose.length;
+      if (close !== -1) {
+        mathEnd = close + mathClose.length;
+        mathQuoteDepth = depth;
+        mathItemIndent = itemIndent;
+        mathQuoteIndents = blockQuoteIndents;
+      }
     }
     let closesBlock = false;
     if (
@@ -503,7 +529,11 @@ function htmlBlockRanges(text: string): number[] {
           : continued
             ? paragraphItemIndent
             : 0;
-    } else if (first !== -1 && indent < paragraphItemIndent) {
+    } else if (
+      blockStart === i &&
+      first !== -1 &&
+      indent < paragraphItemIndent
+    ) {
       paragraphItemIndent = 0;
     }
     lastQuoteDepth = depth;
