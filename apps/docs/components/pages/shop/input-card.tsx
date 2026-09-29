@@ -146,7 +146,7 @@ export function InputCard({
     case "model":
       return <ModelInputCard input={input} checkout={checkout} />;
     default:
-      return asksForCloudProject(input) ? (
+      return asksForCloudProject(input) && !asksForSecret(input) ? (
         <CloudProjectInputCard input={input} checkout={checkout} />
       ) : (
         <TextInputCard input={input} checkout={checkout} />

@@ -23,10 +23,10 @@ import { useSession } from "@/lib/session";
 
 const OWN = "\0own";
 
-/** A text question about the Assistant Cloud project an app should use, which the browser can answer from the visitor's account. A false positive only puts the account row above the field. */
+/** A text question asking which Assistant Cloud project an app should use, answered with its Frontend API URL, which the browser can pick from the visitor's account. A match replaces the free-text field with one that takes only an https URL, so the pattern names the project or its URL, never Assistant Cloud alone. */
 export const asksForCloudProject = (input: Checkout.Input) =>
   input.kind === "text" &&
-  /assistant cloud|frontend api url|assistant-api\.com/i.test(
+  /assistant cloud project|frontend api url|assistant-api\.com/i.test(
     `${input.prompt} ${input.placeholder ?? ""}`,
   );
 
@@ -47,12 +47,15 @@ export function CloudProjectInputCard({
   const organizations = new Set(
     projects.map((project) => project.organization),
   );
-  const [picked, setPicked] = useState<string>();
+  const [picked, setPicked] = useState<string | undefined>(
+    input.default ? OWN : undefined,
+  );
   const [url, setUrl] = useState(input.default ?? "");
   const [note, setNote] = useState("");
   const { busy, answer, dismiss } = useInputActions(input, checkout);
   const chosen = projects.find((project) => project.id === picked);
-  const typing = projects.length === 0 || picked === OWN;
+  const loading = listing.status === "loading";
+  const typing = !loading && (projects.length === 0 || picked === OWN);
   const value =
     chosen?.frontendUrl ?? (typing ? frontendUrlOf(url) : undefined);
   const signingIn = session.status === "anonymous";
@@ -81,7 +84,7 @@ export function CloudProjectInputCard({
             </a>
           </div>
         ) : null}
-        {listing.status === "loading" ? (
+        {loading ? (
           <p
             role="status"
             className="text-muted-foreground flex items-center gap-2 text-sm"
@@ -157,7 +160,7 @@ export function CloudProjectInputCard({
               aria-label="Frontend API URL"
               autoFocus={!signingIn && projects.length === 0}
             />
-            {projects.length === 0 && listing.status !== "loading" ? (
+            {projects.length === 0 ? (
               <p className="text-muted-foreground">
                 {listing.status === "ready"
                   ? "Your account has no projects yet. "

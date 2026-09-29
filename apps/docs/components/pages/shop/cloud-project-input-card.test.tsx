@@ -25,14 +25,16 @@ vi.mock("@/lib/session", async (importOriginal) => ({
   useSession: () => mocks.session,
 }));
 
-vi.mock("@/lib/cloud-projects-client", () => ({
+vi.mock("@/lib/cloud-projects-client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/cloud-projects-client")>()),
   useCloudProjects: (enabled: boolean) => {
     mocks.enabled.push(enabled);
     return mocks.projects;
   },
 }));
 
-vi.mock("next/navigation", () => ({
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
   usePathname: () => "/components/setup",
 }));
 
@@ -59,12 +61,12 @@ const input: Checkout.Input = {
 
 const user = { name: "Ada", email: "ada@test", image: null };
 
-const setup = () => {
+const setup = (card = input) => {
   const answer = vi.fn().mockResolvedValue(undefined);
   render(
     <WizardHost>
       <CloudProjectInputCard
-        input={input}
+        input={card}
         checkout={
           {
             commands: { "checkout/answer": answer },
@@ -187,14 +189,36 @@ describe("CloudProjectInputCard", () => {
     expect(field()).toBeTruthy();
   });
 
-  it("falls back to the field while the listing loads or fails", () => {
+  it("picks Another project for a default URL once the listing has projects", () => {
+    mocks.session = { status: "signed-in", cloudHistory: false, user };
+    mocks.projects = {
+      status: "ready",
+      projects: [
+        {
+          id: "proj_a",
+          name: "Support desk",
+          organization: "Acme",
+          frontendUrl: "https://proj-a.assistant-api.com",
+        },
+      ],
+    };
+    setup({ ...input, default: "https://own.example.com" });
+    expect(
+      screen.getByRole("radio", { name: /Another project/ }),
+    ).toHaveProperty("checked", true);
+    expect(field().value).toBe("https://own.example.com");
+    expect(next()).toHaveProperty("disabled", false);
+  });
+
+  it("shows only the status line while the listing loads and the field alone when there is none", () => {
     mocks.session = { status: "signed-in", cloudHistory: false, user };
     mocks.projects = { status: "loading" };
     setup();
     expect(screen.getByRole("status").textContent).toContain(
       "Loading your projects",
     );
-    expect(field()).toBeTruthy();
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(next()).toHaveProperty("disabled", true);
     cleanup();
     mocks.projects = { status: "unavailable" };
     setup();
@@ -213,10 +237,16 @@ describe("asksForCloudProject", () => {
     expect(asksForCloudProject({ ...input, prompt })).toBe(true);
   });
 
-  it("leaves other questions alone", () => {
-    expect(asksForCloudProject({ ...input, prompt: "Which port?" })).toBe(
-      false,
-    );
+  it.each([
+    "Which port?",
+    "Should Assistant Cloud persist threads for anonymous users? (yes/no)",
+    "What user id should Assistant Cloud scope threads to?",
+    "Paste your Assistant Cloud API key",
+  ])("leaves %s alone", (prompt) => {
+    expect(asksForCloudProject({ ...input, prompt })).toBe(false);
+  });
+
+  it("leaves other kinds alone", () => {
     expect(asksForCloudProject({ ...input, kind: "choice" })).toBe(false);
   });
 });
