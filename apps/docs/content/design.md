@@ -17,7 +17,7 @@ assistant-ui is drawn as a printed document, not as an application skin. Every s
 - **Matter printed on the page** (a code sheet, a table, a figure plate, a specimen frame, a thread specimen) is printed, not applied. It carries the smallest rounding on the scale, nothing more: `--radius-document` is 6px, and it is declared explicitly so a parent radius cannot leak into it.
 - **An object you press or lift** (a button, a field, a menu, a dialog, a toast, a composer) is a physical control resting on the paper. It is rounded.
 
-Everything below descends from that. Hairlines instead of boxes, because a printed rule is a line and not a container. Mono eyebrows instead of tracked all-caps kickers, because a running head names its section in the typewriter's voice. `fig. NN` captions instead of floating labels, because a plate in a book is numbered. A line budget, because ink is expensive.
+Everything below descends from that. Hairlines instead of boxes, because a printed rule is a line and not a container. `fig. NN` captions instead of floating labels, because a plate in a book is numbered. A line budget, because ink is expensive.
 
 When a rule you need is not written below, derive it from this section rather than importing a convention from application UI.
 
@@ -78,13 +78,13 @@ Three faces, assigned by meaning rather than by size:
 
 - **Display** (`--font-display`) is the page's own voice: `h1`, `h2`, `h3`, and the large figures a page is built around.
 - **Sans** (`--font-sans`) is reading text.
-- **Mono** (`--font-mono`) has exactly two jobs: **the thing you type or install** (a command, a package name, a path, an identifier, a version, a count) and **the eyebrow** that names a section. Mono is never prose and never emphasis.
+- **Mono** (`--font-mono`) has exactly one job: **the thing you type or install** (a command, a package name, a path, an identifier, a version, a count). Mono is never prose and never emphasis.
 
-Type roles are a closed set in `components/shared/type.ts`: `typeHero`, `typeSection`, `typePage`, `typeDeck`, `typeEyebrow`, `typePackage`. Use the role. Do not compose a one-off size, and never resize one peer because its string is longer.
+Type roles are a closed set in `components/shared/type.ts`: `typeHero`, `typeSection`, `typePage`, `typeDeck`, `typePackage`. Use the role. Do not compose a one-off size, and never resize one peer because its string is longer.
 
 Headings are sentences that state the thing, not category labels. "AI chat, in the terminal." and "The anatomy of a run." are titles; "Features" and "Overview" are furniture. A product page is titled by what it does, not by its own name.
 
-Ligatures are off on `pre` and `code`. Eyebrows are mono, never tracked all-caps sans. Avoid em dashes.
+Ligatures are off on `pre` and `code`. Avoid em dashes.
 
 ## Register: the line budget
 
@@ -94,7 +94,7 @@ The most repeated correction on this site is that there are too many lines. A ru
 - **Rows breathe on rhythm and a hover fill** (`hover:bg-foreground/[0.025]`), not on dividers. A ledger of forty rows with forty hairlines is a cage.
 - **Never nest rules three levels deep.** If a structure needs a rule inside a rule inside a rule, the structure is wrong, not under-ruled.
 - A hairline is `border-foreground/10`. Do not stack a border, a ring, and a shadow on one edge.
-- Prefer a change of density or a mono eyebrow over a box. A field panel (`bg-foreground/[0.025]`, dark `/[0.04]`) groups machine content with no border at all.
+- Prefer a change of density over a box. A field panel (`bg-foreground/[0.025]`, dark `/[0.04]`) groups machine content with no border at all.
 - Shadows are zeroed globally. Only a floating surface may lift.
 
 ## How a page is composed
@@ -105,7 +105,7 @@ The most repeated correction on this site is that there are too many lines. A ru
 
 **One focal object per reading moment.** Surround it with quiet, vary density down the scroll, and let the page resolve rather than stop.
 
-**Consistency lives in the vocabulary, not in a grid.** Field panels, hairlines, mono eyebrows, `fig. NN` captions, and the type roles are constant on every page. The column structure is not. A section may be full-width, a rail plus stage, or a code and schematic spread, whichever the material wants. Repeating one two-column pattern down a page is template noise, not consistency.
+**Consistency lives in the vocabulary, not in a grid.** Field panels, hairlines, `fig. NN` captions, and the type roles are constant on every page. The column structure is not. A section may be full-width, a rail plus stage, or a code and schematic spread, whichever the material wants. Repeating one two-column pattern down a page is template noise, not consistency.
 
 Two tests before coding. Squint: is one object obviously dominant, and is the reading path stable? Blur the words: does the hierarchy still communicate identity, grouping, and progression? If every block carries equal weight, redesign first.
 

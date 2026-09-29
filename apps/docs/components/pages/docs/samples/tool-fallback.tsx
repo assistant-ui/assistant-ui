@@ -8,6 +8,7 @@ import {
   ToolFallbackTrigger,
   ToolFallbackContent,
   ToolFallbackArgs,
+  ToolFallbackApproval,
   ToolFallbackResult,
 } from "@/components/assistant-ui/elements/tool-fallback.aui";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
@@ -28,6 +29,36 @@ export function ToolFallbackSample() {
           <ToolFallbackResult
             result={{ temperature: 72, condition: "Sunny", humidity: 45 }}
           />
+        </ToolFallbackContent>
+      </ToolFallbackRoot>
+    </SampleFrame>
+  );
+}
+
+export function ToolFallbackReceiptSample() {
+  return (
+    <SampleFrame className="flex h-auto items-center p-6">
+      <ToolFallbackRoot defaultOpen>
+        <ToolFallbackTrigger
+          toolName="send_email"
+          status={{ type: "complete" }}
+        />
+        <ToolFallbackContent>
+          <ToolFallbackArgs
+            argsText={JSON.stringify(
+              { to: "team@example.com", subject: "Weekly summary" },
+              null,
+              2,
+            )}
+          />
+          <ToolFallbackApproval
+            approval={{
+              id: "send-weekly-summary",
+              prompt: "Send the weekly summary to team@example.com?",
+              approved: true,
+            }}
+          />
+          <ToolFallbackResult result={{ sent: true }} />
         </ToolFallbackContent>
       </ToolFallbackRoot>
     </SampleFrame>
@@ -85,12 +116,19 @@ function ToolFallbackStreamingDemo() {
 
   const isRunning = status.type === "running";
 
+  const [syncedRunning, setSyncedRunning] = useState<boolean | null>(null);
+
+  if (syncedRunning !== isRunning) {
+    setSyncedRunning(isRunning);
+    if (isRunning) {
+      setIsOpen(true);
+      setStreamedArgs("");
+      setResult(undefined);
+    }
+  }
+
   useEffect(() => {
     if (!isRunning) return;
-
-    setIsOpen(true);
-    setStreamedArgs("");
-    setResult(undefined);
 
     let index = 0;
     const argsInterval = setInterval(() => {

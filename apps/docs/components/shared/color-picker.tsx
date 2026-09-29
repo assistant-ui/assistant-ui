@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 
 import type { ThemeColor } from "@/components/pages/playground/types";
 import { cn } from "@/lib/utils";
@@ -15,11 +15,13 @@ export function ColorPicker({
   onChange: (value: string) => void;
 }) {
   const [localValue, setLocalValue] = useState(value);
+  const [syncedValue, setSyncedValue] = useState(value);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
+  if (syncedValue !== value) {
+    setSyncedValue(value);
     setLocalValue(value);
-  }, [value]);
+  }
 
   const handleChange = (newValue: string) => {
     setLocalValue(newValue);

@@ -7,7 +7,9 @@ import {
 
 export type ActionBarCopyProps = Omit<PressableProps, "onPress" | "children"> &
   UseActionBarCopyOptions & {
-    children: ReactNode | ((props: { isCopied: boolean }) => ReactNode);
+    children:
+      | ReactNode
+      | ((props: { isCopied: boolean; disabled: boolean }) => ReactNode);
   };
 
 export const ActionBarCopy = ({
@@ -21,15 +23,18 @@ export const ActionBarCopy = ({
     copiedDuration,
     copyToClipboard,
   });
+  const isDisabled = disabledProp ?? disabled;
 
   return (
     <Pressable
       onPress={copy}
-      disabled={disabledProp ?? disabled}
+      disabled={isDisabled}
       accessibilityRole="button"
       {...pressableProps}
     >
-      {typeof children === "function" ? children({ isCopied }) : children}
+      {typeof children === "function"
+        ? children({ isCopied, disabled: isDisabled })
+        : children}
     </Pressable>
   );
 };

@@ -2,6 +2,7 @@
 
 import {
   createElement,
+  StrictMode,
   Suspense,
   startTransition,
   type PropsWithChildren,
@@ -170,6 +171,58 @@ describe("useMcpOAuthCallback", () => {
 
     expect(onCompleteB).not.toHaveBeenCalled();
     expect(onCompleteA).toHaveBeenCalledWith("docs");
+  });
+
+  it("keeps the newer callback's result when an older attempt settles late", async () => {
+    const secondUrl =
+      "https://app.example.com/oauth/callback?state=aui-mcp%3AZG9jcw.second";
+    let rejectFirst!: (err: Error) => void;
+    mocks.completeAuth.mockReturnValueOnce(
+      new Promise<void>((_resolve, reject) => {
+        rejectFirst = reject;
+      }),
+    );
+    mocks.completeAuth.mockResolvedValueOnce();
+    const onComplete = vi.fn();
+    const onError = vi.fn();
+
+    const { result, rerender } = renderHook(
+      ({ url }) => useMcpOAuthCallback({ url, onComplete, onError }),
+      { initialProps: { url: callbackUrl } },
+    );
+    await waitFor(() => expect(mocks.completeAuth).toHaveBeenCalledOnce());
+
+    rerender({ url: secondUrl });
+    await waitFor(() => expect(result.current.status).toBe("done"));
+
+    // The first attempt only fails once the second has already succeeded.
+    await act(async () => {
+      rejectFirst(new Error("authorization code expired"));
+      await Promise.resolve();
+    });
+
+    expect(result.current).toMatchObject({ status: "done", error: null });
+    expect(onError).not.toHaveBeenCalled();
+    expect(onComplete).toHaveBeenCalledExactlyOnceWith("docs");
+  });
+
+  // Strict Mode tears the effect down and remounts it without starting a new
+  // attempt, so the one already running must still publish its result.
+  it("publishes the result under Strict Mode's remount", async () => {
+    mocks.completeAuth.mockResolvedValueOnce();
+    const onComplete = vi.fn();
+
+    const { result } = renderHook(
+      () => useMcpOAuthCallback({ url: callbackUrl, onComplete }),
+      {
+        wrapper: ({ children }: PropsWithChildren) =>
+          createElement(StrictMode, null, children),
+      },
+    );
+
+    await waitFor(() => expect(result.current.status).toBe("done"));
+    expect(mocks.completeAuth).toHaveBeenCalledOnce();
+    expect(onComplete).toHaveBeenCalledExactlyOnceWith("docs");
   });
 });
 

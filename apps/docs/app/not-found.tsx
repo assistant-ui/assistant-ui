@@ -4,28 +4,38 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Home } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 const TITLE = "404 - Page not found";
 const MESSAGE =
   "I couldn't find the page you're looking for. It might have been moved or doesn't exist.";
 
+const subscribeToNothing = () => () => {};
+
+const getUrl = () => window.location.href;
+
+const getServerUrl = () => "";
+
+const getCanGoBack = () =>
+  window.history.length > 1 &&
+  document.referrer.startsWith(window.location.origin);
+
+const getServerCanGoBack = () => false;
+
 export default function NotFound() {
   const router = useRouter();
-  const [url, setUrl] = useState("");
-  const [canGoBack, setCanGoBack] = useState(false);
+  const url = useSyncExternalStore(subscribeToNothing, getUrl, getServerUrl);
+  const canGoBack = useSyncExternalStore(
+    subscribeToNothing,
+    getCanGoBack,
+    getServerCanGoBack,
+  );
   const [showAssistant, setShowAssistant] = useState(false);
   const [displayedTitle, setDisplayedTitle] = useState("");
   const [displayedMessage, setDisplayedMessage] = useState("");
   const [showActions, setShowActions] = useState(false);
 
   useEffect(() => {
-    setUrl(window.location.href);
-    setCanGoBack(
-      window.history.length > 1 &&
-        document.referrer.startsWith(window.location.origin),
-    );
-
     const assistantTimer = setTimeout(() => setShowAssistant(true), 600);
 
     return () => clearTimeout(assistantTimer);

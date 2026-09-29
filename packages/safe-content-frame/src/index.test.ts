@@ -99,6 +99,31 @@ describe("SafeContentFrame", () => {
     );
   });
 
+  it("accepts raw multibyte pathnames from custom location providers", async () => {
+    vi.stubGlobal("location", {
+      origin: window.location.origin,
+      pathname: "/café",
+    });
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const renderer = new SafeContentFrame("test", {
+      enableBrowserCaching: true,
+    });
+
+    const framePromise = renderer.renderHtml("<p>Hello</p>", container);
+    await vi.waitFor(() => {
+      expect(container.querySelector("iframe")).toBeTruthy();
+    });
+
+    const iframe = container.querySelector("iframe")!;
+    setContentWindow(iframe);
+    iframe.dispatchEvent(new Event("load"));
+    const frame = await framePromise;
+
+    await expect(framePromise).resolves.toBeDefined();
+    frame.dispose();
+  });
+
   it("cleans up the mounted frame and message channel after a load error", async () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
@@ -271,11 +296,17 @@ describe("SafeContentFrame", () => {
     iframe.dispatchEvent(new Event("load"));
     const frame = await framePromise;
 
-    const fullyLoaded = frame.fullyLoadedPromiseWithTimeout(100);
-    MockMessageChannel.instances[0]!.port1.emit({ type: "msg" });
+    vi.useFakeTimers();
+    try {
+      const fullyLoaded = frame.fullyLoadedPromiseWithTimeout(100);
+      MockMessageChannel.instances[0]!.port1.emit({ type: "msg" });
 
-    await expect(fullyLoaded).resolves.toBeUndefined();
-    frame.dispose();
+      await expect(fullyLoaded).resolves.toBeUndefined();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+      frame.dispose();
+    }
   });
 
   it("keeps render completion compatible without a readiness message", async () => {

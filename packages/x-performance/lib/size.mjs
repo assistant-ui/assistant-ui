@@ -1,6 +1,15 @@
-import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import {
+  existsSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
 import { gzipSync } from "node:zlib";
+import { ensureRefWorktree } from "./ref-worktree.mjs";
+import { envStamp, git } from "./suite.mjs";
 
 export const SIZE_IGNORE = new Set([
   "assistant-ui",
@@ -13,6 +22,8 @@ export const SIZE_IGNORE = new Set([
   "@assistant-ui/vite",
   "@assistant-ui/agent-launcher",
 ]);
+
+const REPORT_MARKER = "<!-- aui-size-report -->";
 
 const isJavaScript = (file) =>
   file.endsWith(".js") || file.endsWith(".mjs") || file.endsWith(".cjs");
@@ -81,165 +92,177 @@ export const measureEntry = async (file) => {
   }
 };
 
-export const budgetStatus = (budget, actual) => {
-  if (!Number.isFinite(budget?.gzip)) return "new";
-  const tolerance = Math.max(Math.round(budget.gzip * 0.02), 256);
-  if (actual.gzip > budget.gzip + tolerance) return "over";
-  if (actual.gzip < budget.gzip - tolerance) return "under";
-  return "ok";
-};
-
-const readBudgets = (budgetsPath) =>
-  existsSync(budgetsPath) ? JSON.parse(readFileSync(budgetsPath, "utf8")) : {};
-
-const cloneBudgets = (budgets) =>
-  Object.fromEntries(
-    Object.entries(budgets).map(([name, entries]) => [name, { ...entries }]),
-  );
-
-const sortBudgets = (budgets) =>
-  Object.fromEntries(
-    Object.keys(budgets)
-      .sort()
-      .filter((name) => Object.keys(budgets[name]).length)
-      .map((name) => [
-        name,
-        Object.fromEntries(
-          Object.keys(budgets[name])
-            .sort()
-            .map((subpath) => [subpath, budgets[name][subpath]]),
-        ),
-      ]),
-  );
-
-const budgetCount = (budgets) =>
-  Object.values(budgets).reduce(
-    (count, entries) => count + Object.keys(entries).length,
-    0,
-  );
-
-const percentDelta = (budget, actual) => {
-  const delta = ((actual.gzip - budget.gzip) / budget.gzip) * 100;
-  return `${delta >= 0 ? "+" : ""}${delta.toFixed(1)}%`;
-};
-
-const tableRow = (row) => ({
-  entry: `${row.package} ${row.subpath}`,
-  "gzip budget": row.budget?.gzip ?? "",
-  gzip: row.gzip ?? "",
-  delta:
-    row.budget && row.gzip !== undefined ? percentDelta(row.budget, row) : "",
-  status: row.status,
-});
-
-export const checkSizes = async ({
-  repoRoot,
-  budgetsPath,
-  update = false,
-  json,
-}) => {
-  const budgets = readBudgets(budgetsPath);
-  const nextBudgets = cloneBudgets(budgets);
-  const declaredEntries = new Map();
-  const rows = [];
-  const measured = new Set();
-  const packageDirs = readdirSync(join(repoRoot, "packages"), {
+const publishedPackages = (root) => {
+  const packages = new Map();
+  for (const directory of readdirSync(join(root, "packages"), {
     withFileTypes: true,
-  })
-    .filter((entry) => entry.isDirectory())
-    .sort((a, b) => a.name.localeCompare(b.name));
-
-  for (const directory of packageDirs) {
-    const pkgDir = join(repoRoot, "packages", directory.name);
+  })) {
+    const pkgDir = join(root, "packages", directory.name);
     const manifestPath = join(pkgDir, "package.json");
-    if (!existsSync(manifestPath)) continue;
+    if (!directory.isDirectory() || !existsSync(manifestPath)) continue;
     const pkg = JSON.parse(readFileSync(manifestPath, "utf8"));
-    if (typeof pkg.name !== "string") continue;
-    const entries = listEntries(pkg, pkgDir);
-    declaredEntries.set(
-      pkg.name,
-      new Set(entries.map((entry) => entry.subpath)),
-    );
+    if (
+      typeof pkg.name !== "string" ||
+      pkg.private === true ||
+      SIZE_IGNORE.has(pkg.name)
+    )
+      continue;
+    packages.set(pkg.name, listEntries(pkg, pkgDir));
+  }
+  return packages;
+};
 
-    if (pkg.private === true || SIZE_IGNORE.has(pkg.name)) continue;
-    for (const entry of entries) {
-      const budget = budgets[pkg.name]?.[entry.subpath];
-      if (!existsSync(entry.file)) {
-        rows.push({
-          package: pkg.name,
-          subpath: entry.subpath,
-          min: null,
-          gzip: null,
-          budget: budget ?? null,
-          status: "skipped (not built)",
-        });
-        continue;
-      }
-
-      const actual = await measureEntry(entry.file);
-      const status = budgetStatus(budget, actual);
-      rows.push({
-        package: pkg.name,
-        subpath: entry.subpath,
-        ...actual,
-        budget: budget ?? null,
-        status,
-      });
-      measured.add(`${pkg.name}\u0000${entry.subpath}`);
-      if (status !== "ok") {
-        nextBudgets[pkg.name] ??= {};
-        nextBudgets[pkg.name][entry.subpath] = actual;
-      }
+export const measurePackages = async (root, names) => {
+  const packages = publishedPackages(root);
+  const sizes = new Map();
+  for (const name of names) {
+    for (const { subpath, file } of packages.get(name) ?? []) {
+      if (!existsSync(file))
+        throw new Error(`${name} ${subpath} was not built: ${file} is missing`);
+      sizes.set(`${name} ${subpath}`, await measureEntry(file));
     }
   }
+  return sizes;
+};
 
-  for (const [name, entries] of Object.entries(budgets)) {
-    for (const [subpath, budget] of Object.entries(entries)) {
-      if (measured.has(`${name}\u0000${subpath}`)) continue;
-      if (declaredEntries.get(name)?.has(subpath)) continue;
-      rows.push({
-        package: name,
-        subpath,
-        min: null,
-        gzip: null,
-        budget,
-        status: "stale",
-      });
-      delete nextBudgets[name][subpath];
-    }
-  }
-
-  console.table(rows.map(tableRow));
-
-  if (json) {
-    writeFileSync(
-      json,
-      `${JSON.stringify(
-        {
-          schema: "aui-perf/size@1",
-          generatedAt: new Date().toISOString(),
-          rows,
-        },
-        null,
-        2,
-      )}\n`,
+export const diffSizes = (base, head) =>
+  [...new Set([...base.keys(), ...head.keys()])]
+    .map((entry) => {
+      const before = base.get(entry)?.gzip ?? null;
+      const after = head.get(entry)?.gzip ?? null;
+      const delta = (after ?? 0) - (before ?? 0);
+      const status =
+        before === null
+          ? "new"
+          : after === null
+            ? "removed"
+            : delta === 0
+              ? "same"
+              : "moved";
+      return { entry, base: before, head: after, delta, status };
+    })
+    .sort(
+      (a, b) =>
+        Math.abs(b.delta) - Math.abs(a.delta) || a.entry.localeCompare(b.entry),
     );
-  }
 
-  if (update) {
-    const sortedBudgets = sortBudgets(nextBudgets);
-    writeFileSync(budgetsPath, `${JSON.stringify(sortedBudgets, null, 2)}\n`);
-    console.log(`wrote ${budgetCount(sortedBudgets)} size budget entries`);
-    return true;
-  }
+const bytes = (value) => `${value.toLocaleString("en-US")} B`;
 
-  const hasFailure = rows.some((row) =>
-    ["new", "over", "under", "stale"].includes(row.status),
+const change = (row) => {
+  if (row.status !== "moved") return row.status;
+  const sign = row.delta > 0 ? "+" : "-";
+  const percent = ((Math.abs(row.delta) / row.base) * 100).toFixed(1);
+  return `${sign}${bytes(Math.abs(row.delta))} (${sign}${percent}%)`;
+};
+
+const tally = (rows) => {
+  const changed = rows.filter((row) => row.status !== "same").length;
+  return `${changed} of ${rows.length} measured ${rows.length === 1 ? "entry" : "entries"} changed`;
+};
+
+export const renderSizeReport = (rows, { base, head }) =>
+  [
+    REPORT_MARKER,
+    `**Bundle size** of \`${head}\` against \`${base}\`: ${tally(rows)}.`,
+    "",
+    "| Entry | Base | Head | Change |",
+    "| --- | ---: | ---: | ---: |",
+    ...rows
+      .filter((row) => row.status !== "same")
+      .map(
+        (row) =>
+          `| \`${row.entry}\` | ${row.base === null ? "" : bytes(row.base)} | ${row.head === null ? "" : bytes(row.head)} | ${change(row)} |`,
+      ),
+    "",
+    "Gzip bytes of each published entry of the packages this change builds, minified by rolldown with every bare import external.",
+    "",
+  ].join("\n");
+
+const turbo = (root, args, stdout = "pipe") =>
+  execFileSync(join(root, "node_modules", ".bin", "turbo"), args, {
+    cwd: root,
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+    stdio: ["ignore", stdout, "inherit"],
+  });
+
+// Dependents are selected because every package devDepends on x-buildutils, which is how a build tool change reaches every entry.
+const affectedPackages = (root, base) =>
+  JSON.parse(
+    turbo(root, ["run", "build", `--filter=...[${base}]`, "--dry=json"]),
+  ).packages;
+
+const build = (root, names) => {
+  turbo(
+    root,
+    [
+      "run",
+      "build",
+      "--ui=stream",
+      "--output-logs=errors-only",
+      ...names.map((name) => `--filter=${name}`),
+    ],
+    2,
   );
-  if (hasFailure) {
-    console.log(
-      "size budgets need updating: run pnpm size:update. A shrink beyond tolerance also needs the update so the file stays truthful.",
-    );
+};
+
+export const compareSizes = async ({ root, ref, report }) => {
+  if (report) rmSync(report, { force: true });
+  const base = git(["merge-base", "HEAD", ref], root);
+  if (base === "unknown")
+    throw new Error(`cannot resolve the merge base of HEAD and ${ref}`);
+  const { sha, dirty } = envStamp(root);
+  // Measured against its first parent, a pull request's merge commit stands for the branch it merges, whose head is the commit a reader can find on the PR.
+  const merged =
+    git(["rev-parse", "HEAD^1"], root) === base
+      ? git(["rev-parse", "--short", "HEAD^2"], root)
+      : "unknown";
+  const head = merged === "unknown" ? sha : merged;
+  const labels = {
+    base: git(["rev-parse", "--short", base], root),
+    head: dirty ? `${head}, dirty` : head,
+  };
+  const onHead = publishedPackages(root);
+  const names = affectedPackages(root, base).filter((name) => onHead.has(name));
+  // A deleted or newly private package is invisible to turbo here, so a changed manifest is what sends the run to the base to report it as removed.
+  const manifests = git(
+    ["diff", "--name-only", base, "--", "packages/*/package.json"],
+    root,
+  );
+  if (names.length === 0 && manifests === "") {
+    console.log(`no published package changed against ${labels.base}`);
+    return;
   }
-  return !hasFailure;
+
+  if (names.length > 0) build(root, names);
+  const { wt } = ensureRefWorktree(base, { build: false });
+  execFileSync("pnpm", ["install"], {
+    cwd: wt,
+    stdio: ["ignore", 2, "inherit"],
+    env: { ...process.env, CI: "true" },
+  });
+  const baseNames = [...publishedPackages(wt).keys()].filter(
+    (name) => names.includes(name) || !onHead.has(name),
+  );
+  if (baseNames.length > 0) build(wt, baseNames);
+
+  const rows = diffSizes(
+    await measurePackages(wt, baseNames),
+    await measurePackages(root, names),
+  );
+  const changed = rows.filter((row) => row.status !== "same");
+  if (changed.length > 0)
+    console.table(
+      changed.map((row) => ({
+        entry: row.entry,
+        base: row.base ?? "",
+        head: row.head ?? "",
+        change: change(row),
+      })),
+    );
+  console.log(
+    `bundle size of ${labels.head} against ${labels.base}: ${tally(rows)}`,
+  );
+  if (report && changed.length > 0)
+    writeFileSync(report, renderSizeReport(rows, labels));
 };

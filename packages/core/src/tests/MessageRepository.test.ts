@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   MessageRepository,
   ExportedMessageRepository,
@@ -57,10 +57,6 @@ describe("MessageRepository", () => {
     // Reset mocks with predictable counter-based values
     nextMockId = 1;
     mockGenerateId.mockImplementation(() => `mock-id-${nextMockId++}`);
-  });
-
-  afterEach(() => {
-    vi.clearAllMocks();
   });
 
   // Core functionality tests - these test the public contract
@@ -238,6 +234,80 @@ describe("MessageRepository", () => {
 
       const messages2 = repository.getMessages();
       expect(messages2.map((m) => m.id)).toEqual(["parent-id", "branch2-id"]);
+    });
+
+    it("keeps a nested branch selected when revisiting its ancestor", () => {
+      repository.addOrUpdateMessage(null, createTestMessage({ id: "r" }));
+      repository.addOrUpdateMessage("r", createTestMessage({ id: "a" }));
+      repository.addOrUpdateMessage("a", createTestMessage({ id: "x" }));
+      repository.addOrUpdateMessage("r", createTestMessage({ id: "b" }));
+      repository.addOrUpdateMessage("b", createTestMessage({ id: "y" }));
+
+      repository.switchToBranch("y");
+      expect(repository.getMessages().map((m) => m.id)).toEqual([
+        "r",
+        "b",
+        "y",
+      ]);
+
+      repository.switchToBranch("r");
+      expect(repository.getMessages().map((m) => m.id)).toEqual([
+        "r",
+        "b",
+        "y",
+      ]);
+
+      repository.switchToBranch("x");
+      repository.switchToBranch("r");
+      expect(repository.getMessages().map((m) => m.id)).toEqual([
+        "r",
+        "a",
+        "x",
+      ]);
+    });
+
+    it("keeps the selected root branch when deletion selects from the root", () => {
+      repository.addOrUpdateMessage(null, createTestMessage({ id: "a" }));
+      repository.addOrUpdateMessage("a", createTestMessage({ id: "x" }));
+      repository.addOrUpdateMessage(null, createTestMessage({ id: "b" }));
+      repository.addOrUpdateMessage("b", createTestMessage({ id: "y" }));
+
+      repository.switchToBranch("y");
+      repository.deleteMessage("y", null);
+
+      expect(repository.getMessages().map((m) => m.id)).toEqual(["b"]);
+    });
+
+    it("keeps the selected root branch after relinking a message", () => {
+      repository.addOrUpdateMessage(null, createTestMessage({ id: "a" }));
+      repository.addOrUpdateMessage("a", createTestMessage({ id: "m" }));
+      repository.addOrUpdateMessage("m", createTestMessage({ id: "x" }));
+      repository.addOrUpdateMessage(null, createTestMessage({ id: "b" }));
+      repository.addOrUpdateMessage("b", createTestMessage({ id: "m" }));
+
+      expect(repository.getMessages().map((m) => m.id)).toEqual([
+        "b",
+        "m",
+        "x",
+      ]);
+
+      repository.deleteMessage("x", null);
+
+      expect(repository.getMessages().map((m) => m.id)).toEqual(["b", "m"]);
+    });
+
+    it("keeps the selected branch when relinking an off-branch message", () => {
+      repository.addOrUpdateMessage(null, createTestMessage({ id: "a" }));
+      repository.addOrUpdateMessage("a", createTestMessage({ id: "m" }));
+      repository.addOrUpdateMessage("a", createTestMessage({ id: "n" }));
+      repository.addOrUpdateMessage(null, createTestMessage({ id: "b" }));
+      repository.addOrUpdateMessage("b", createTestMessage({ id: "n" }));
+
+      expect(repository.getMessages().map((m) => m.id)).toEqual(["a", "m"]);
+
+      repository.deleteMessage("m", null);
+
+      expect(repository.getMessages().map((m) => m.id)).toEqual(["a"]);
     });
 
     it("should operate on a long message history without overflowing the stack", () => {
@@ -484,6 +554,31 @@ describe("MessageRepository", () => {
       expect(
         exported.messages.find((m) => m.message.id === "child-id")?.parentId,
       ).toBe("parent-id");
+    });
+
+    it("round-trips after reparenting under a later-added ancestor", () => {
+      const messageA = createTestMessage({ id: "A" });
+      repository.addOrUpdateMessage(null, messageA);
+      repository.addOrUpdateMessage("A", createTestMessage({ id: "B" }));
+      repository.addOrUpdateMessage("A", createTestMessage({ id: "C" }));
+      repository.addOrUpdateMessage(null, createTestMessage({ id: "X" }));
+      repository.addOrUpdateMessage("X", messageA);
+
+      const exported = repository.export();
+      expect(exported.messages.map((m) => m.message.id)).toEqual([
+        "X",
+        "A",
+        "B",
+        "C",
+      ]);
+
+      const restored = new MessageRepository();
+      restored.import(exported);
+
+      expect(restored.headId).toBe("B");
+      expect(restored.getMessages().map((m) => m.id)).toEqual(["X", "A", "B"]);
+      restored.switchToBranch("C");
+      expect(restored.getMessages().map((m) => m.id)).toEqual(["X", "A", "C"]);
     });
 
     it("should import repository state", () => {
@@ -940,6 +1035,23 @@ describe("MessageRepository", () => {
       expect(repository.getMessage("C").parentId).toBe("B");
 
       expect(repository.headId).toBe("C");
+    });
+
+    it("should advance the head when re-parenting onto the current head", () => {
+      repository.addOrUpdateMessage(null, createTestMessage({ id: "a" }));
+      repository.addOrUpdateMessage("a", createTestMessage({ id: "h" }));
+      repository.addOrUpdateMessage(null, createTestMessage({ id: "b" }));
+      repository.addOrUpdateMessage("b", createTestMessage({ id: "c" }));
+
+      repository.addOrUpdateMessage("h", createTestMessage({ id: "c" }));
+
+      expect(repository.getMessages().map((m) => m.id)).toEqual([
+        "a",
+        "h",
+        "c",
+      ]);
+      expect(repository.headId).toBe("c");
+      expect(repository.getMessage("c").parentId).toBe("h");
     });
   });
 });

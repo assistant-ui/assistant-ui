@@ -7,19 +7,23 @@ import { sync as globSync } from "glob";
 import { runSpawnCapture, SpawnExitError, SpawnSignalError } from "./run-spawn";
 
 const log = debug("codemod:transform");
-const error = debug("codemod:transform:error");
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * Gets the list of files that need to be processed in the codebase
- * Only includes files that contain "assistant-ui" to optimize performance
+ * Gets relevant source files from an explicit file or directory target.
+ * Directory scans only include files containing "assistant-ui".
  */
-export function getRelevantFiles(cwd: string): string[] {
+export function getRelevantFiles(source: string): string[] {
+  const target = path.resolve(source);
+  if (fs.statSync(target).isFile()) {
+    return /\.(js|jsx|ts|tsx)$/.test(target) ? [target] : [];
+  }
+
   const pattern = "**/*.{js,jsx,ts,tsx}";
   const files = globSync(pattern, {
-    cwd,
+    cwd: target,
     ignore: [
       "**/node_modules/**",
       "**/dist/**",
@@ -27,26 +31,25 @@ export function getRelevantFiles(cwd: string): string[] {
       "**/*.min.js",
       "**/*.bundle.js",
     ],
-  });
+  }).map((file) => path.join(target, file));
 
-  // Filter files to only include those containing "assistant-ui"
   const relevantFiles = files.filter((file) => {
     try {
-      const content = fs.readFileSync(path.join(cwd, file), "utf8");
+      const content = fs.readFileSync(file, "utf8");
       return content.includes("assistant-ui");
     } catch {
       return false;
     }
   });
 
-  return relevantFiles.map((file) => path.join(cwd, file));
+  return relevantFiles;
 }
 
 /**
  * Counts the number of files that need to be processed
  */
-export function countFilesToProcess(cwd: string): number {
-  return getRelevantFiles(cwd).length;
+export function countFilesToProcess(source: string): number {
+  return getRelevantFiles(source).length;
 }
 
 function buildCommand(
@@ -62,6 +65,7 @@ function buildCommand(
     ...targetFiles,
     "--parser",
     "tsx",
+    "--fail-on-error",
   ];
 
   if (options.dry) {
@@ -88,23 +92,6 @@ export type TransformErrors = {
   filename: string;
   summary: string;
 }[];
-
-function parseErrors(transform: string, output: string): TransformErrors {
-  const errors: TransformErrors = [];
-  const errorRegex = /ERR (.+) Transformation error/g;
-  const syntaxErrorRegex = /SyntaxError: .+/g;
-
-  for (const match of output.matchAll(errorRegex)) {
-    const filename = match[1]!;
-    const syntaxErrorMatch = syntaxErrorRegex.exec(output);
-    if (syntaxErrorMatch) {
-      const summary = syntaxErrorMatch[0];
-      errors.push({ transform, filename, summary });
-    }
-  }
-
-  return errors;
-}
 
 export async function transform(
   codemod: string,
@@ -138,7 +125,13 @@ export async function transform(
     throw new SpawnSignalError(result.signal, false);
   }
   if (result.code !== 0) {
-    throw new SpawnExitError(result.code || 1, result.stderr);
+    const failure = new SpawnExitError(
+      result.code || 1,
+      result.stderr,
+      result.stdout,
+    );
+    failure.message = `Codemod '${codemod}' failed\n${failure.message}`;
+    throw failure;
   }
 
   const { stdout } = result;
@@ -148,13 +141,5 @@ export async function transform(
     options.onProgress(processedFiles);
   }
 
-  const errors = parseErrors(codemod, stdout);
-  if (options.logStatus && errors.length > 0) {
-    errors.forEach(({ transform, filename, summary }) => {
-      error(
-        `Error applying codemod [codemod=${transform}, path=${filename}, summary=${summary}]`,
-      );
-    });
-  }
-  return errors;
+  return [];
 }

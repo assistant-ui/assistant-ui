@@ -14,29 +14,35 @@ This guide provides instructions for configuring assistant-ui to work with React
 
 ## React 18
 
-If you're using React 18, you need to update the shadcn/ui components to work with `forwardRef`. Specifically, you need to modify the Button component.
+If you're using React 18, components that receive a `ref` through props must use `forwardRef`. Update the copied primitives and reasoning wrappers described below. `TooltipIconButton` forwards its ref to `Button`, so it is covered by the Button change. If your project has customized other copied components, also convert any component you pass a `ref` to, including components that name `ref` in their props and components that only spread `...props` onto a DOM element. React 19 supports both forms, but React 18 silently drops those refs from plain function components.
+
+The Base UI copies import primitives from `@base-ui/react/*`; the Radix copies import from `radix-ui`. Use those imports to identify which variant is in your project before applying each change below.
+
+The examples use the named `forwardRef` export. Add `forwardRef` to an existing value import from `react`, or add `import { forwardRef } from "react"`. An existing `import type * as React from "react"` can remain type-only.
 
 ### Updating the Button Component
 
-Navigate to your button component file (typically `/components/ui/button.tsx`) and wrap the Button component with `forwardRef`:
+For the Radix variant, navigate to `/components/ui/button.tsx` and wrap the Button component with `forwardRef`:
 
 ```tsx
 // Before
 function Button({
   className,
-  variant,
-  size,
+  variant = "default",
+  size = "default",
   asChild = false,
   ...props
 }: React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean;
   }) {
-  const Comp = asChild ? Slot : "button";
+  const Comp = asChild ? Slot.Root : "button";
 
   return (
     <Comp
       data-slot="button"
+      data-variant={variant}
+      data-size={size}
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     />
@@ -44,18 +50,20 @@ function Button({
 }
 
 // After
-const Button = React.forwardRef<
+const Button = forwardRef<
   HTMLButtonElement,
   React.ComponentProps<"button"> &
     VariantProps<typeof buttonVariants> & {
       asChild?: boolean;
     }
->(({ className, variant, size, asChild = false, ...props }, ref) => {
-  const Comp = asChild ? Slot : "button";
+>(({ className, variant = "default", size = "default", asChild = false, ...props }, ref) => {
+  const Comp = asChild ? Slot.Root : "button";
 
   return (
     <Comp
       data-slot="button"
+      data-variant={variant}
+      data-size={size}
       className={cn(buttonVariants({ variant, size, className }))}
       ref={ref}
       {...props}
@@ -64,6 +72,66 @@ const Button = React.forwardRef<
 });
 Button.displayName = "Button";
 ```
+
+For the Base UI variant, keep the existing `ButtonPrimitive` body and use `ButtonPrimitive.Props & VariantProps<typeof buttonVariants>` as the props type. Pass the forwarded ref directly to `<ButtonPrimitive ref={ref}>`; the Radix-only `asChild` and `Slot` code above does not apply to Base UI.
+
+### Updating the Input Component
+
+Keep the existing element, props type, `data-slot`, and complete class list. Change only the function wrapper and add the forwarded ref:
+
+```diff
+-function Input({ className, type, ...props }: React.ComponentProps<"input">) {
++const Input = forwardRef<
++  HTMLInputElement,
++  React.ComponentProps<"input">
++>(({ className, type, ...props }, ref) => {
+```
+
+Pass the forwarded ref to the existing input without changing its other attributes:
+
+```diff
+ <input
++  ref={ref}
+   type={type}
+```
+
+Finally, close the wrapper and set its display name:
+
+```diff
+-}
++});
++Input.displayName = "Input";
+```
+
+### Updating the Collapsible Component
+
+The root `Collapsible` component also receives refs from tool elements. For Base UI, preserve its `Root.Props` surface and `data-slot` attribute:
+
+```tsx
+const Collapsible = forwardRef<
+  HTMLDivElement,
+  CollapsiblePrimitive.Root.Props
+>((props, ref) => (
+  <CollapsiblePrimitive.Root data-slot="collapsible" ref={ref} {...props} />
+));
+Collapsible.displayName = "Collapsible";
+```
+
+For Radix, use `React.ComponentProps<typeof CollapsiblePrimitive.Root>` as the props type and keep the same `HTMLDivElement` ref and `data-slot="collapsible"` attribute.
+
+### Updating Popover Content
+
+The model selector attaches a ref to `PopoverContent` so its side stays stable while filtering. The `popover` dependency that `shadcn add` installs can declare `PopoverContent` as a plain function, so on React 18 that ref never reaches the popup.
+
+For a Radix wrapper, wrap `PopoverContent` with `forwardRef<HTMLDivElement, React.ComponentProps<typeof PopoverPrimitive.Content>>`, accept the ref as the second argument, and pass it to the existing `<PopoverPrimitive.Content ref={ref}>`. Preserve the portal, props, defaults, `data-slot`, and class list, then set `PopoverContent.displayName = "PopoverContent"`.
+
+For a Base UI wrapper, preserve its existing combined popup and positioner props type and pass the forwarded ref to `<PopoverPrimitive.Popup>`. If your copy already uses `forwardRef` and passes `ref={ref}` to either `PopoverPrimitive.Content` or `PopoverPrimitive.Popup`, no change is needed.
+
+### Updating the Reasoning Components
+
+Both reasoning layers need forwarding. In `/components/assistant-ui/elements/reasoning.tsx`, add `forwardRef` to the existing named React import, wrap `ReasoningRoot` with `forwardRef<HTMLDivElement, ReasoningRootProps>`, accept `ref` as the second argument, and add `ref={ref}` to the existing `<Collapsible>`. In `/components/assistant-ui/elements/reasoning.aui.tsx`, add the same import and wrapper, remove `ref` from the props destructuring, and use the forwarded second argument in the existing composed-ref callback. Set `ReasoningRoot.displayName = "ReasoningRoot"` in both files.
+
+Updating only `Collapsible` is not enough. `useScrollLock` reads the disclosure element through `reasoning.tsx`, so that file must forward its ref or the scroll lock silently no-ops. The `reasoning.aui.tsx` change lets a ref passed directly to `ReasoningRoot` reach the element; on React 18, `ref` never arrives in props, so the destructured value is always `undefined` and the caller's ref is dropped. Neither failure is a type error, so a green typecheck does not mean you can skip these files.
 
 ## Additional Resources
 

@@ -4,15 +4,20 @@ export const BASE_URL = "https://www.assistant-ui.com";
 export const CLOUD_URL = "https://cloud.assistant-ui.com";
 export const STATUS_URL = "https://status.assistant-ui.com";
 
-export const PLATFORMS = ["react", "rn", "ink"] as const;
+export const SURFACES = ["react", "rn", "ink"] as const;
+export type Surface = (typeof SURFACES)[number];
+
+export const PLATFORMS = [...SURFACES, "tap", "cloud"] as const;
 export type Platform = (typeof PLATFORMS)[number];
 
-export const DEFAULT_PLATFORM: Platform = "react";
+export const DEFAULT_PLATFORM: Surface = "react";
 
 export const PLATFORM_LABELS: Record<Platform, string> = {
   react: "React",
   rn: "React Native",
   ink: "React Ink",
+  tap: "Tap",
+  cloud: "assistant-cloud",
 };
 
 export type Product = {
@@ -30,13 +35,6 @@ export const PRODUCTS: Product[] = [
     label: "tw-shimmer",
     href: "/tw-shimmer",
     description: "Tailwind CSS shimmer effects",
-    external: false,
-  },
-  {
-    slug: "tw-glass",
-    label: "tw-glass",
-    href: "/tw-glass",
-    description: "Tailwind CSS glass refraction effects",
     external: false,
   },
   {
@@ -58,13 +56,6 @@ export const PRODUCTS: Product[] = [
     label: "Ink",
     href: "/ink",
     description: "Build interactive experiences with Ink",
-    external: false,
-  },
-  {
-    slug: "cloud-ai-sdk",
-    label: "Cloud AI SDK",
-    href: "/cloud-ai-sdk",
-    description: "Cloud persistence for AI SDK apps",
     external: false,
   },
   {
@@ -113,10 +104,8 @@ export type NavGlyphKind =
   | "native"
   | "ink"
   | "cloud"
-  | "cloud-ai-sdk"
   | "playground"
   | "shimmer"
-  | "glass"
   | "heat"
   | "frame"
   | "o11y"
@@ -219,13 +208,6 @@ export const NAV_ITEMS: NavItem[] = [
             glyph: "cloud",
           },
           {
-            label: "Cloud AI SDK",
-            href: "/cloud-ai-sdk",
-            description: "Drop-in persistence for useChat",
-            external: false,
-            glyph: "cloud-ai-sdk",
-          },
-          {
             label: "Playground",
             href: "/playground",
             description: "Try the library in the browser",
@@ -243,13 +225,6 @@ export const NAV_ITEMS: NavItem[] = [
             description: "Shimmer loading states for Tailwind",
             external: false,
             glyph: "shimmer",
-          },
-          {
-            label: "tw-glass",
-            href: "/tw-glass",
-            description: "Glass refraction in pure CSS",
-            external: false,
-            glyph: "glass",
           },
           {
             label: "Heat Graph",

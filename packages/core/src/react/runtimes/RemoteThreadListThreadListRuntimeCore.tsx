@@ -7,6 +7,8 @@ import {
   WritableSubscribable,
 } from "../../subscribable/subscribable";
 import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
+import { handleThreadListAction } from "../../store/runtime-clients/handle-thread-list-action";
+import { nullProtoRecord } from "../../utils/record";
 import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-state";
 import { EMPTY_THREAD_CORE } from "../../runtimes/remote-thread-list/empty-thread-core";
 import type {
@@ -20,6 +22,8 @@ import {
   createThreadMappingId,
   getThreadData,
   normalizeCursor,
+  reconcileInitializedThread,
+  promoteNewThreadReducer,
   updateStatusReducer,
   preserveMidLoadTransitions,
   seedNewThread,
@@ -55,6 +59,7 @@ import { useAui } from "@assistant-ui/store";
 import type { ModelContextProvider } from "../../model-context/types";
 import { RuntimeAdapterProvider } from "./RuntimeAdapterProvider";
 import { useStableRuntimeAdapters } from "./useRuntimeAdapters";
+import { invokeUserCallback } from "../../utils/invoke-user-callback";
 
 const threadNotFoundError = (threadIdOrRemoteId: string, action: string) =>
   new Error(`Thread "${threadIdOrRemoteId}" not found while ${action}.`);
@@ -366,8 +371,13 @@ export class RemoteThreadListThreadListRuntimeCore
   ): RemoteThreadState {
     const carried: RemoteThreadData[] = [];
     if (state.newThreadId) {
-      const mappingId = state.threadIdMap[state.newThreadId];
-      const draft = mappingId ? state.threadData[mappingId] : undefined;
+      const mappingId = Object.hasOwn(state.threadIdMap, state.newThreadId)
+        ? state.threadIdMap[state.newThreadId]
+        : undefined;
+      const draft =
+        mappingId && Object.hasOwn(state.threadData, mappingId)
+          ? state.threadData[mappingId]
+          : undefined;
       if (draft?.status === "new") carried.push(draft);
     }
 
@@ -384,12 +394,12 @@ export class RemoteThreadListThreadListRuntimeCore
     const seed: ClassifyAccumulator = {
       threadIds: [],
       archivedThreadIds: [],
-      threadIdMap: {},
-      threadData: {},
+      threadIdMap: nullProtoRecord(),
+      threadData: nullProtoRecord(),
     };
     for (const item of carried) {
       const mappingId = createThreadMappingId(item.id);
-      if (seed.threadData[mappingId]) continue;
+      if (Object.hasOwn(seed.threadData, mappingId)) continue;
       seed.threadIdMap[item.id] = mappingId;
       if (item.remoteId !== undefined) {
         seed.threadIdMap[item.remoteId] = mappingId;
@@ -402,7 +412,10 @@ export class RemoteThreadListThreadListRuntimeCore
 
     for (const item of carried) {
       if (item.remoteId === undefined) continue;
-      const current = threadData[createThreadMappingId(item.id)];
+      const currentMappingId = createThreadMappingId(item.id);
+      const current = Object.hasOwn(threadData, currentMappingId)
+        ? threadData[currentMappingId]
+        : undefined;
       if (current === undefined) continue;
       if (current.status === "regular" && !threadIds.includes(current.id)) {
         threadIds.push(current.id);
@@ -424,7 +437,7 @@ export class RemoteThreadListThreadListRuntimeCore
       threadData,
       newThreadId:
         state.newThreadId !== undefined &&
-        threadIdMap[state.newThreadId] === undefined
+        !Object.hasOwn(threadIdMap, state.newThreadId)
           ? undefined
           : state.newThreadId,
     };
@@ -449,8 +462,14 @@ export class RemoteThreadListThreadListRuntimeCore
       Object.values(nextState.threadData).map((item) => item.id),
     );
     for (const item of Object.values(state.threadData)) {
-      if (!nextIds.has(item.id)) {
+      if (nextIds.has(item.id)) continue;
+      try {
         this._hookManager.stopThreadRuntime(item.id);
+      } catch (error) {
+        console.error(
+          "[assistant-ui] Thread runtime cleanup threw while stopping a thread",
+          error,
+        );
       }
     }
     void this._hookManager.startThreadRuntime(this._mainThreadId).then(
@@ -562,7 +581,12 @@ export class RemoteThreadListThreadListRuntimeCore
     if (this._lastNotifiedThreadId === threadId) return;
     this._lastNotifiedThreadId = threadId;
     if (emit) {
-      this._options.onThreadIdChange?.(threadId);
+      invokeUserCallback(
+        "assistant-ui",
+        "onThreadIdChange",
+        this._options.onThreadIdChange,
+        threadId,
+      );
     }
   }
 
@@ -752,8 +776,12 @@ export class RemoteThreadListThreadListRuntimeCore
 
   private _switchToThreadFromProp(threadId: string | undefined): Promise<void> {
     return threadId !== undefined
-      ? this._startSwitchToThread(threadId, undefined, false)
-      : this._startSwitchToNewThread(false);
+      ? handleThreadListAction("switch", () =>
+          this._startSwitchToThread(threadId, undefined, false),
+        )
+      : handleThreadListAction("create", () =>
+          this._startSwitchToNewThread(false),
+        );
   }
 
   private _startSwitchToNewThread(emitThreadIdChange: boolean): Promise<void> {
@@ -801,67 +829,33 @@ export class RemoteThreadListThreadListRuntimeCore
       return { remoteId, externalId };
     }
 
+    this._requireAdapterGeneration(adapterGeneration);
+    const initializeTask = adapter.initialize(threadId);
+    let removedMappingId: string | undefined;
     const { remoteId, externalId } = await this._state.optimisticUpdate({
-      execute: () => {
-        this._requireAdapterGeneration(adapterGeneration);
-        return adapter.initialize(threadId);
-      },
-      optimistic: (state) => {
-        return updateStatusReducer(state, threadId, "regular");
-      },
-      loading: (state, task) => {
-        const mappingId = createThreadMappingId(threadId);
-        return {
-          ...state,
-          threadData: {
-            ...state.threadData,
-            [mappingId]: {
-              ...state.threadData[mappingId],
-              initializeTask: task,
-            },
-          },
-        };
-      },
+      execute: () => initializeTask,
+      optimistic: (state) =>
+        promoteNewThreadReducer(state, threadId, initializeTask),
       then: (state, { remoteId, externalId }) => {
         if (adapterGeneration !== this._adapterGeneration) return state;
-        const data = getThreadData(state, threadId);
-        if (!data) return state;
-
-        const mappingId = createThreadMappingId(threadId);
-        // A list() response that landed while this initialize was in flight
-        // could not know the remote id yet, so it may have minted its own slot
-        // for it; that slot collapses into this one.
-        const listedMappingId = state.threadIdMap[remoteId];
-        const orphan =
-          listedMappingId !== undefined && listedMappingId !== mappingId
-            ? state.threadData[listedMappingId]
-            : undefined;
-
-        const threadData = { ...state.threadData };
-        if (orphan !== undefined) delete threadData[listedMappingId!];
-        threadData[mappingId] = {
-          ...data,
-          initializeTask: Promise.resolve({ remoteId, externalId }),
+        const reconciliation = reconcileInitializedThread(
+          state,
+          threadId,
           remoteId,
           externalId,
-        } as RemoteThreadData;
-
-        const rewire = (ids: readonly string[]) =>
-          orphan === undefined ? ids : ids.filter((id) => id !== orphan.id);
-
-        return {
-          ...state,
-          threadIds: rewire(state.threadIds),
-          archivedThreadIds: rewire(state.archivedThreadIds),
-          threadIdMap: {
-            ...state.threadIdMap,
-            [remoteId]: mappingId,
-          },
-          threadData,
-        };
+          threadId,
+        );
+        removedMappingId = reconciliation.removedMappingId;
+        if (removedMappingId === this._mainThreadId) {
+          this._mainThreadId = reconciliation.survivorMappingId;
+        }
+        return reconciliation.state;
       },
     });
     this._requireAdapterGeneration(adapterGeneration);
+    if (removedMappingId !== undefined) {
+      this._hookManager.stopThreadRuntime(removedMappingId);
+    }
     return { remoteId, externalId };
   };
 
@@ -1029,6 +1023,11 @@ export class RemoteThreadListThreadListRuntimeCore
     let lastAwaitedTask: Promise<void> | undefined;
 
     while (threadId === this._mainThreadId) {
+      // Rechecked each pass: the draft can become the new thread again
+      // mid-loop when its failed first save rolls it back, and switching to a
+      // new thread then re-adopts it, so no switch can move main off it.
+      if (threadId === this.newThreadId)
+        throw new Error("Cannot ensure new thread is not main");
       let switchTask = this._switchTask;
       const startedFallback = !switchTask || switchTask === lastAwaitedTask;
       if (startedFallback) switchTask = this.switchToNewThread();
@@ -1107,10 +1106,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
     await this._ensureThreadIsNotMain(data.id);
     this._requireAdapterGeneration(adapterGeneration);
-    this._hookManager.stopThreadRuntime(data.id);
-    clearThreadTitleState(this._titleStates, data.id);
-
-    return this._state.optimisticUpdate({
+    const result = await this._state.optimisticUpdate({
       execute: async () => {
         const { remoteId } = await data.initializeTask;
         this._requireAdapterGeneration(adapterGeneration);
@@ -1120,6 +1116,12 @@ export class RemoteThreadListThreadListRuntimeCore
         return updateStatusReducer(state, data.id, "deleted");
       },
     });
+    // The optimistic layer survives an adapter swap, so a resolved deletion has
+    // dropped the slot from `threadData`, where `_replaceWithThreads` would
+    // otherwise have found it to stop.
+    this._hookManager.stopThreadRuntime(data.id);
+    clearThreadTitleState(this._titleStates, data.id);
+    return result;
   }
 
   public __internal_dispose() {

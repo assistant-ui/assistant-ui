@@ -50,21 +50,33 @@ export function ReasoningEffort({
       <div className={cn(field, "flex gap-0.5 rounded-full p-0.5")}>
         {levels.map((level) => {
           const active = level.key === selectedKey;
-          return (
+          const className = cn(
+            "flex-1 rounded-full py-1 text-xs font-medium transition-[background-color,color,scale] duration-150",
+            onSelect && "active:scale-[0.97]",
+            active
+              ? "bg-background text-foreground/90"
+              : onSelect
+                ? "text-foreground/45 hover:text-foreground/70"
+                : "text-foreground/45",
+          );
+          return onSelect ? (
             <button
               key={level.key}
               type="button"
               aria-pressed={active}
-              onClick={() => onSelect?.(level.key)}
-              className={cn(
-                "flex-1 rounded-full py-1 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.97]",
-                active
-                  ? "bg-background text-foreground/90"
-                  : "text-foreground/45 hover:text-foreground/70",
-              )}
+              onClick={() => onSelect(level.key)}
+              className={className}
             >
               {level.label}
             </button>
+          ) : (
+            <span
+              key={level.key}
+              aria-current={active ? "true" : undefined}
+              className={className}
+            >
+              {level.label}
+            </span>
           );
         })}
       </div>

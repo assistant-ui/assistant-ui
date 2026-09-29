@@ -51,7 +51,6 @@ const stateWithQuote = (text: string | undefined) => ({
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
   inputHandlers = [];
 });
 

@@ -25,6 +25,8 @@ import {
   createThreadMappingId,
   getThreadData,
   normalizeCursor,
+  reconcileInitializedThread,
+  promoteNewThreadReducer,
   updateStatusReducer,
   type RemoteThreadData,
   type RemoteThreadState,
@@ -55,6 +57,7 @@ import {
   startThreadTitleRename,
   type ThreadTitleState,
 } from "../../runtimes/remote-thread-list/title-generation";
+import { invokeUserCallback } from "../../utils/invoke-user-callback";
 
 const RESOLVED_PROMISE = Promise.resolve();
 
@@ -76,6 +79,7 @@ export type RemoteThreadListProps = {
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
   onSwitchToThread?: ((threadId: string) => void) | undefined;
   onSwitchToNewThread?: (() => void) | undefined;
+  /** Called after the backing adapter successfully deletes the thread. */
   onDelete?: ((threadId: string) => void) | undefined;
   /**
    * Keeps every thread the session switched to mounted, so a run continues
@@ -547,7 +551,14 @@ const useRemoteThreadList = (
     (remoteId: string | undefined, emit: boolean) => {
       if (session.lastNotifiedRemoteId === remoteId) return;
       session.lastNotifiedRemoteId = remoteId;
-      if (emit) session.onThreadIdChange?.(remoteId);
+      if (emit) {
+        invokeUserCallback(
+          "assistant-ui",
+          "onThreadIdChange",
+          session.onThreadIdChange,
+          remoteId,
+        );
+      }
     },
     [session],
   );
@@ -865,6 +876,12 @@ const useRemoteThreadList = (
       }
       let lastAwaitedTask: Promise<void> | undefined;
       while (isSameThread(store.value, threadId, session.mainThreadId)) {
+        // Rechecked each pass: the draft can become the new thread again
+        // mid-loop when its failed first save rolls it back, and switching to
+        // a new thread then re-adopts it, so no switch can move main off it.
+        if (threadId === store.value.newThreadId) {
+          throw new Error("Cannot ensure new thread is not main");
+        }
         let switchTask = session.switchTask;
         const startedFallback = !switchTask || switchTask === lastAwaitedTask;
         if (startedFallback) {
@@ -906,70 +923,60 @@ const useRemoteThreadList = (
         requireAdapterGeneration(adapterGeneration);
         return result;
       }
+      requireAdapterGeneration(adapterGeneration);
+      const initializeTask = currentAdapter.initialize(threadId);
+      let removedMappingId: string | undefined;
+      let replacementMainThreadId: string | undefined;
       const result = await store.optimisticUpdate({
-        execute: () => {
-          requireAdapterGeneration(adapterGeneration);
-          return currentAdapter.initialize(threadId);
-        },
-        optimistic: (state) => updateStatusReducer(state, threadId, "regular"),
-        loading: (state, task) => {
-          const mappingId = createThreadMappingId(threadId);
-          return {
-            ...state,
-            threadData: {
-              ...state.threadData,
-              [mappingId]: {
-                ...state.threadData[mappingId],
-                initializeTask: task,
-              },
-            },
-          };
-        },
+        execute: () => initializeTask,
+        optimistic: (state) =>
+          promoteNewThreadReducer(state, threadId, initializeTask),
         then: (state, { remoteId, externalId }) => {
           if (adapterGeneration !== session.adapterGeneration) return state;
-          const data = getThreadData(state, threadId);
-          if (!data) return state;
-          const mappingId = createThreadMappingId(threadId);
-          // A list() response that landed while this initialize was in flight
-          // could not know the remote id yet, so it may have minted its own
-          // slot for it; that slot collapses into this one.
-          const listedMappingId = state.threadIdMap[remoteId];
-          const orphan =
-            listedMappingId !== undefined && listedMappingId !== mappingId
-              ? state.threadData[listedMappingId]
-              : undefined;
-
-          const threadData = { ...state.threadData };
-          if (orphan !== undefined) delete threadData[listedMappingId!];
-          threadData[mappingId] = {
-            ...data,
-            initializeTask: Promise.resolve({ remoteId, externalId }),
+          // Background mode still owns the initializing body. Single-body mode
+          // has already replaced it, so retain the currently mounted body.
+          const retainedThreadId = backgroundThreads
+            ? threadId
+            : session.mainThreadId;
+          const reconciliation = reconcileInitializedThread(
+            state,
+            threadId,
             remoteId,
             externalId,
-          } as RemoteThreadData;
-
-          const rewire = (ids: readonly string[]) =>
-            orphan === undefined ? ids : ids.filter((id) => id !== orphan.id);
-
-          return {
-            ...state,
-            threadIds: rewire(state.threadIds),
-            archivedThreadIds: rewire(state.archivedThreadIds),
-            threadIdMap: {
-              ...state.threadIdMap,
-              [remoteId]: mappingId,
-            },
-            threadData,
-          };
+            retainedThreadId,
+          );
+          removedMappingId = reconciliation.removedMappingId;
+          if (removedMappingId === session.mainThreadId) {
+            replacementMainThreadId = reconciliation.survivorMappingId;
+          }
+          return reconciliation.state;
         },
       });
       requireAdapterGeneration(adapterGeneration);
+      if (removedMappingId !== undefined) {
+        setStartedIds((prev) =>
+          prev.filter((startedId) => startedId !== removedMappingId),
+        );
+      }
+      if (
+        replacementMainThreadId !== undefined &&
+        session.mainThreadId === removedMappingId
+      ) {
+        assignMainThreadId(replacementMainThreadId);
+      }
       if (threadId === session.mainThreadId) {
         notifyRemoteId(result.remoteId, true);
       }
       return toInitializeResult(result);
     },
-    [notifyRemoteId, requireAdapterGeneration, session, store],
+    [
+      assignMainThreadId,
+      backgroundThreads,
+      notifyRemoteId,
+      requireAdapterGeneration,
+      session,
+      store,
+    ],
   );
 
   const rename = useCallback(
@@ -1145,9 +1152,7 @@ const useRemoteThreadList = (
       }
       await ensureNotMain(data.id);
       requireAdapterGeneration(adapterGeneration);
-      onDelete?.(data.id);
-      clearThreadTitleState(session.titleStates, data.id);
-      return store.optimisticUpdate({
+      const result = await store.optimisticUpdate({
         execute: async () => {
           const { remoteId } = await data.initializeTask;
           requireAdapterGeneration(adapterGeneration);
@@ -1155,6 +1160,13 @@ const useRemoteThreadList = (
         },
         optimistic: (state) => updateStatusReducer(state, data.id, "deleted"),
       });
+      // An adapter swap resets the optimistic layer, and a listed thread's slot
+      // id is its remote id, so a replacement adapter can re-list this slot
+      // while the deletion is in flight.
+      if (getThreadData(store.value, data.id) !== undefined) return result;
+      clearThreadTitleState(session.titleStates, data.id);
+      onDelete?.(data.id);
+      return result;
     },
     [ensureNotMain, onDelete, requireAdapterGeneration, session, store],
   );
@@ -1257,7 +1269,12 @@ const useRemoteThreadList = (
   useEffect(() => {
     if (session.lastNotifiedRemoteId === mainRemoteId) return;
     session.lastNotifiedRemoteId = mainRemoteId;
-    onThreadIdChange?.(mainRemoteId);
+    invokeUserCallback(
+      "assistant-ui",
+      "onThreadIdChange",
+      onThreadIdChange,
+      mainRemoteId,
+    );
   }, [mainRemoteId, onThreadIdChange, session]);
 
   useEffect(() => {

@@ -8,12 +8,17 @@ const h = vi.hoisted(() => ({
   state: { disabled: false },
 }));
 
-vi.mock("@assistant-ui/core/react", () => ({
-  useBranchPickerPrevious: () => ({
-    previous: h.previous,
-    disabled: h.state.disabled,
-  }),
-}));
+vi.mock("@assistant-ui/core/react", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@assistant-ui/core/react")>();
+  return {
+    ...actual,
+    useBranchPickerPrevious: () => ({
+      previous: h.previous,
+      disabled: h.state.disabled,
+    }),
+  };
+});
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -96,5 +101,46 @@ describe("BranchPickerPrevious", () => {
     });
 
     expect(h.previous).toHaveBeenCalledTimes(1);
+  });
+
+  it("passes the hook disabled state and an explicit override to render children", async () => {
+    h.state.disabled = true;
+    let hookState: unknown = null;
+
+    await act(async () => {
+      root.render(
+        <BranchPickerPrevious testID="t">
+          {(state) => {
+            hookState = state;
+            return state.disabled ? "disabled" : "enabled";
+          }}
+        </BranchPickerPrevious>,
+      );
+    });
+
+    expect(hookState).toMatchObject({ pressed: false, disabled: true });
+    expect(container.textContent).toBe("disabled");
+
+    let overrideState: unknown = null;
+
+    await act(async () => {
+      root.render(
+        <BranchPickerPrevious testID="t" disabled={false}>
+          {(state) => {
+            overrideState = state;
+            return state.disabled ? "disabled" : "enabled";
+          }}
+        </BranchPickerPrevious>,
+      );
+    });
+
+    expect(overrideState).toMatchObject({ pressed: false, disabled: false });
+    expect(container.textContent).toBe("enabled");
+  });
+
+  it("renders plain children", async () => {
+    const el = await mount();
+
+    expect(el.textContent).toBe("prev");
   });
 });

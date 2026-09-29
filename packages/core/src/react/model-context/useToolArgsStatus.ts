@@ -4,6 +4,7 @@ import {
   getPartialJsonObjectFieldState,
   getPartialJsonObjectMeta,
 } from "assistant-stream/utils";
+import { nullProtoRecord } from "../../utils/record";
 
 type PropFieldStatus = "streaming" | "complete";
 
@@ -60,7 +61,7 @@ export const useToolArgsStatus = <
     const isStreaming = statusType === "running";
     const args = part.args as Record<string, unknown>;
     const meta = getPartialJsonObjectMeta(args as Record<symbol, unknown>);
-    const propStatus: Partial<Record<string, PropFieldStatus>> = {};
+    const propStatus = nullProtoRecord<PropFieldStatus>();
 
     for (const key of Object.keys(args)) {
       if (meta) {

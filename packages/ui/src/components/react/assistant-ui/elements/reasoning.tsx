@@ -68,13 +68,13 @@ function ReasoningRoot({
   children,
   ...props
 }: ReasoningRootProps) {
-  const initialOpenRef = useRef(defaultOpen);
+  const [initialOpen] = useState(defaultOpen);
   const [userOpen, setUserOpen] = useState<boolean | null>(null);
 
   const isControlled = controlledOpen !== undefined;
   const isOpen = isControlled
     ? controlledOpen
-    : (userOpen ?? (streaming || initialOpenRef.current));
+    : (userOpen ?? (streaming || initialOpen));
   const isPreview = streaming === true && isOpen;
 
   const prevStreamingRef = useRef(streaming);
@@ -83,10 +83,10 @@ function ReasoningRoot({
     prevStreamingRef.current = streaming;
     // A streaming transition only animates the panel when the resting state
     // is collapsed; with `defaultOpen` the disclosure stays open across it.
-    if (!isControlled && userOpen === null && !initialOpenRef.current) {
+    if (!isControlled && userOpen === null && !initialOpen) {
       onAnimationStart?.();
     }
-  }, [streaming, isControlled, userOpen, onAnimationStart]);
+  }, [streaming, isControlled, userOpen, initialOpen, onAnimationStart]);
 
   const handleOpenChange = useCallback(
     (open: boolean) => {

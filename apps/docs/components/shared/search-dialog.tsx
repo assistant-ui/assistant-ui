@@ -197,10 +197,28 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
       });
   }, []);
 
+  const [openScope, setOpenScope] = useState<{
+    open: boolean;
+    pathname: string;
+  } | null>(null);
+
+  if (
+    openScope === null ||
+    openScope.open !== open ||
+    openScope.pathname !== pathname
+  ) {
+    setOpenScope({ open, pathname });
+    if (open) {
+      setInputValue("");
+      setSelectedIndex(0);
+    }
+  }
+
   useEffect(() => {
     if (!open) return;
-    setInputValue("");
-    setSelectedIndex(0);
+    // The headings are collected from the committed page DOM, so this cannot
+    // move into render.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPageEntries(collectPageEntries(pathname));
   }, [open, pathname]);
 
@@ -239,9 +257,20 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
     resultsLengthRef.current = results.length;
   }, [results.length]);
 
-  useEffect(() => {
+  const [resultScope, setResultScope] = useState({
+    query,
+    onPageHits,
+    otherGroups,
+  });
+
+  if (
+    resultScope.query !== query ||
+    resultScope.onPageHits !== onPageHits ||
+    resultScope.otherGroups !== otherGroups
+  ) {
+    setResultScope({ query, onPageHits, otherGroups });
     setSelectedIndex(0);
-  }, [query, onPageHits, otherGroups]);
+  }
 
   useEffect(() => {
     if (listRef.current && results.length > 0) {

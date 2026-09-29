@@ -82,6 +82,19 @@ async def test_streaming_path_emits_append_text_deltas_not_set() -> None:
 
 
 @pytest.mark.anyio
+async def test_create_run_detaches_initial_state() -> None:
+    initial = {"cfg": {}}
+
+    async def run_callback(controller: RunController):
+        initial["cfg"]["theme"] = "dark"
+        assert controller.state["cfg"] == {}
+
+    chunks = [chunk async for chunk in create_run(run_callback, state=initial)]
+
+    assert chunks == []
+
+
+@pytest.mark.anyio
 async def test_string_assignment_non_extension_emits_set() -> None:
     ops: list[dict[str, Any]] = []
     manager = StateManager(

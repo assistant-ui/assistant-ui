@@ -4,7 +4,7 @@ import { appendFileSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isExecutedAsMain } from "./check-built-declarations.mjs";
-import { parseBumpLine } from "./check-changesets.mjs";
+import { parseBumpLine, readChangesetSource } from "./check-changesets.mjs";
 import { collectPackages } from "./lib/workspace.mjs";
 
 const repoRoot = path.resolve(
@@ -33,6 +33,47 @@ export function isOutsideCaretRange(rangeVersion, newVersion) {
   return newMajor !== rangeMajor;
 }
 
+function compareVersions(left, right) {
+  for (let index = 0; index < 3; index++) {
+    if (left[index] !== right[index]) return left[index] - right[index];
+  }
+  return 0;
+}
+
+const CARET =
+  /^\^[v=\s]*(0|[1-9]\d*)(?:\.(0|[1-9]\d*|[xX*])(?:\.(0|[1-9]\d*|[xX*])(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)?)?$/;
+
+// A prerelease tag on the floor is dropped because every compared version is
+// a release, which such a floor admits from its release tuple on.
+function caretBounds(range) {
+  const bounds = [];
+  for (const alternative of range.split("||")) {
+    const match = CARET.exec(alternative.trim());
+    if (!match) return null;
+    const given = [];
+    for (const part of match.slice(1)) {
+      if (!/^\d+$/.test(part ?? "")) break;
+      given.push(Number(part));
+    }
+    const lower = [...given, 0, 0].slice(0, 3);
+    const nonZero = given.findIndex((part) => part !== 0);
+    const pivot = nonZero === -1 ? given.length - 1 : nonZero;
+    const upper = lower.map((part, index) =>
+      index < pivot ? part : index === pivot ? part + 1 : 0,
+    );
+    bounds.push({ lower, upper });
+  }
+  return bounds;
+}
+
+function satisfiesCaretRange(range, version) {
+  const parts = version.split(".").map(Number);
+  return (caretBounds(range) ?? []).some(
+    ({ lower, upper }) =>
+      compareVersions(parts, lower) >= 0 && compareVersions(parts, upper) < 0,
+  );
+}
+
 export function buildDependencyGraph(manifests) {
   const pkgMap = new Map();
   for (const pkg of manifests) {
@@ -52,7 +93,9 @@ export function buildDependencyGraph(manifests) {
       // every other protocol spelling in a published dependency field.
       const range =
         rawRange === "workspace:^" ? `^${target.version}` : rawRange;
-      if (!range.startsWith("^")) continue;
+      // changesets drops an edge whose range misses the current version, so
+      // such a dependent is never cascaded onto.
+      if (!satisfiesCaretRange(range, target.version)) continue;
       if (!revDeps.has(dependency)) revDeps.set(dependency, []);
       revDeps.get(dependency).push({
         name: pkg.name,
@@ -77,8 +120,7 @@ export function computeCascade(bumps, pkgMap, revDeps) {
     const { name, newVersion } = queue[index];
     for (const dependent of revDeps.get(name) ?? []) {
       if (visited.has(dependent.name)) continue;
-      const rangeVersion = dependent.range.replace(/^\^/, "");
-      if (!isOutsideCaretRange(rangeVersion, newVersion)) continue;
+      if (satisfiesCaretRange(dependent.range, newVersion)) continue;
       visited.add(dependent.name);
 
       const version = pkgMap.get(dependent.name)?.version ?? dependent.version;
@@ -99,26 +141,46 @@ export function computeCascade(bumps, pkgMap, revDeps) {
   return cascade;
 }
 
+const INTENDED_MARKER =
+  /^\s*(?:<!--\s*)?caret-break:\s*intended\s*(?:-->)?\s*$/m;
+
+function rangeBreakReason(bump) {
+  const major = Number(bump.version.split(".")[0]);
+  // A 0.0.x patch also leaves `^0.0.x`, which matches exactly. It is left
+  // unreported so that pre-stable packages can ship a patch without every
+  // release being flagged; the cascade table still shows who it moves.
+  const breaksRange =
+    (major === 0 && bump.bumpType !== "patch") ||
+    (major >= 1 && bump.bumpType === "major");
+  if (!breaksRange) return null;
+  return major === 0
+    ? `0.x package — ${bump.bumpType} bump breaks \`^\` caret range`
+    : "major bump breaks `^` caret range";
+}
+
 export function findRangeBreakingBumps(bumps) {
   const problems = [];
   for (const bump of bumps) {
-    const major = Number(bump.version.split(".")[0]);
-    // A 0.0.x patch also leaves `^0.0.x`, which matches exactly. It is left
-    // unreported so that pre-stable packages can ship a patch without every
-    // release being flagged; the cascade table still shows who it moves.
-    const breaksRange =
-      (major === 0 && bump.bumpType !== "patch") ||
-      (major >= 1 && bump.bumpType === "major");
-    if (!breaksRange) continue;
-    problems.push({
-      ...bump,
-      reason:
-        major === 0
-          ? `0.x package — ${bump.bumpType} bump breaks \`^\` caret range`
-          : "major bump breaks `^` caret range",
-    });
+    if (bump.intended) continue;
+    const reason = rangeBreakReason(bump);
+    if (reason) problems.push({ ...bump, reason });
   }
   return problems;
+}
+
+/**
+ * A changeset whose body carries `caret-break: intended` (an HTML comment
+ * keeps it out of the changelog) declares the range break as a release
+ * decision; its bumps are listed instead of failing the check.
+ */
+export function findIntendedRangeBreaks(bumps) {
+  const accepted = [];
+  for (const bump of bumps) {
+    if (!bump.intended) continue;
+    const reason = rangeBreakReason(bump);
+    if (reason) accepted.push({ ...bump, reason });
+  }
+  return accepted;
 }
 
 function renderCascadeSection(cascade) {
@@ -146,7 +208,25 @@ function renderCascadeSection(cascade) {
   return parts.join("");
 }
 
-export function renderSummary({ bumps, violations, cascade }) {
+function renderIntendedSection(intended) {
+  if (intended.length === 0) return "";
+  const parts = [
+    `### Intended range breaks (${intended.length})\n\n`,
+    "| File | Package | Version | Bump | Why |\n",
+    "| --- | --- | --- | --- | --- |\n",
+  ];
+  for (const entry of intended) {
+    parts.push(
+      `| \`${entry.file}\` | \`${entry.name}\` | ${entry.version} | **${entry.bumpType}** | ${entry.reason} |\n`,
+    );
+  }
+  parts.push(
+    "\nDeclared with `caret-break: intended` in the changeset body: consumers on the previous `^` range must move to the new line.\n\n",
+  );
+  return parts.join("");
+}
+
+export function renderSummary({ bumps, violations, cascade, intended = [] }) {
   if (violations.length === 0) {
     const parts = [
       "## Changeset Impact Summary\n\n",
@@ -158,7 +238,11 @@ export function renderSummary({ bumps, violations, cascade }) {
         `| \`${bump.file}\` | \`${bump.name}\` | ${bump.version} | ${bump.bumpType} |\n`,
       );
     }
-    parts.push("\n", renderCascadeSection(cascade));
+    parts.push(
+      "\n",
+      renderIntendedSection(intended),
+      renderCascadeSection(cascade),
+    );
     return parts.join("");
   }
 
@@ -174,6 +258,7 @@ export function renderSummary({ bumps, violations, cascade }) {
   }
   parts.push(
     "\n",
+    renderIntendedSection(intended),
     renderCascadeSection(cascade),
     "### What this means\n\n",
     "- **0.x packages**: `^0.12.15` only matches `>=0.12.15 <0.13.0` — ",
@@ -195,12 +280,11 @@ function readChangesetFiles(root, changedFiles) {
 function readChangesetBumps(root, files, pkgMap) {
   const bumps = [];
   for (const file of files) {
-    const frontmatter = readFileSync(
-      path.join(root, ".changeset", file),
-      "utf8",
-    ).match(/^---\r?\n([\s\S]*?)\r?\n---/);
-    if (!frontmatter) continue;
-    for (const line of frontmatter[1].split("\n")) {
+    const source = readFileSync(path.join(root, ".changeset", file), "utf8");
+    const changeset = readChangesetSource(source);
+    if (!changeset) continue;
+    const intended = INTENDED_MARKER.test(changeset.body);
+    for (const line of changeset.frontmatter.split("\n")) {
       const parsed = parseBumpLine(line);
       if (!parsed) continue;
       const pkg = pkgMap.get(parsed.name);
@@ -210,6 +294,7 @@ function readChangesetBumps(root, files, pkgMap) {
         name: parsed.name,
         bumpType: parsed.bump,
         version: pkg.version,
+        ...(intended ? { intended } : {}),
       });
     }
   }
@@ -227,12 +312,21 @@ export function runCheck(root = repoRoot, changedFiles = null) {
     files,
     bumps,
     violations: findRangeBreakingBumps(bumps),
+    intended: findIntendedRangeBreaks(bumps),
     cascade: computeCascade(bumps, pkgMap, revDeps),
   };
 }
 
 function annotate(level, message) {
-  console.log(process.env.GITHUB_ACTIONS ? `::${level}::${message}` : message);
+  if (!process.env.GITHUB_ACTIONS) {
+    console.log(message);
+    return;
+  }
+  const data = message
+    .replaceAll("%", "%25")
+    .replaceAll("\r", "%0D")
+    .replaceAll("\n", "%0A");
+  console.log(`::${level}::${data}`);
 }
 
 function writeSummary(summary) {
@@ -248,21 +342,18 @@ function diffChangesetFiles(root, baseSha, headSha) {
       [
         "diff",
         "--name-only",
+        "--no-renames",
         "--diff-filter=ACM",
-        baseSha,
-        headSha,
+        `${baseSha}...${headSha}`,
         "--",
         ".changeset/*.md",
       ],
-      { cwd: root, encoding: "utf8" },
+      { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
     ).trim();
     return new Set(diff ? diff.split("\n").map((f) => path.basename(f)) : []);
-  } catch {
-    annotate(
-      "warning",
-      "Could not diff against base — checking all changeset files",
-    );
-    return null;
+  } catch (error) {
+    const stderr = String(error.stderr ?? "").trim();
+    return { error: stderr.split("\n").at(-1) || error.message };
   }
 }
 
@@ -271,8 +362,19 @@ function main() {
   const { BASE_SHA, HEAD_SHA } = process.env;
   const changedFiles =
     BASE_SHA && HEAD_SHA ? diffChangesetFiles(root, BASE_SHA, HEAD_SHA) : null;
+  if (changedFiles && !(changedFiles instanceof Set)) {
+    annotate(
+      "error",
+      `Could not diff ${BASE_SHA}...${HEAD_SHA}: ${changedFiles.error}. Failing instead of grading every changeset in the tree.`,
+    );
+    process.exitCode = 1;
+    return;
+  }
 
-  const { files, bumps, violations, cascade } = runCheck(root, changedFiles);
+  const { files, bumps, violations, intended, cascade } = runCheck(
+    root,
+    changedFiles,
+  );
 
   if (files.length === 0) {
     console.log("No changeset files changed in this PR.");
@@ -283,9 +385,17 @@ function main() {
     return;
   }
 
-  writeSummary(renderSummary({ bumps, violations, cascade }));
+  writeSummary(renderSummary({ bumps, violations, cascade, intended }));
 
   if (violations.length === 0) {
+    if (intended.length > 0) {
+      annotate(
+        "notice",
+        `Intended range breaks accepted: ${intended
+          .map((entry) => `${entry.name}@${entry.bumpType}`)
+          .join(", ")}`,
+      );
+    }
     console.log(
       "All changeset bump types are safe for current package versions. ✓",
     );

@@ -88,11 +88,15 @@ export function useVirtualArchive(
     [templateId, versionId],
   );
 
+  const [syncedUrl, setSyncedUrl] = useState<typeof downloadUrl | null>(null);
+
+  if (syncedUrl !== downloadUrl) {
+    setSyncedUrl(downloadUrl);
+    if (!downloadUrl) setState({ status: "idle" });
+  }
+
   useEffect(() => {
-    if (!downloadUrl) {
-      setState({ status: "idle" });
-      return;
-    }
+    if (!downloadUrl) return;
     load(downloadUrl);
     return () => abortRef.current?.abort();
   }, [downloadUrl, load]);

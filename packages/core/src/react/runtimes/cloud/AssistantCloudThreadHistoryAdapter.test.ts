@@ -25,16 +25,44 @@ describe("extractAuiV0", () => {
     ).toBeNull();
   });
 
+  it("returns null for a requires-action message without a reason", () => {
+    expect(extractAuiV0(auiV0Message({ type: "requires-action" }))).toBeNull();
+  });
+
+  it("returns null for a running message so partial writes never report", () => {
+    expect(extractAuiV0(auiV0Message({ type: "running" }))).toBeNull();
+  });
+
+  it("reports provider-defined incomplete reasons", () => {
+    expect(
+      extractAuiV0(auiV0Message({ type: "incomplete", reason: "max_tokens" })),
+    ).toMatchObject({
+      status: "incomplete",
+      usage: { inputTokens: 1, outputTokens: 2 },
+      totalSteps: 1,
+    });
+  });
+
+  it("reports an incomplete status without a reason as incomplete", () => {
+    expect(extractAuiV0(auiV0Message({ type: "incomplete" }))).toMatchObject({
+      status: "incomplete",
+      usage: { inputTokens: 1, outputTokens: 2 },
+      totalSteps: 1,
+    });
+  });
+
   it("reports a terminal message once with its usage", () => {
-    const result = extractAuiV0(auiV0Message({ type: "complete" }));
+    const result = extractAuiV0(
+      auiV0Message({ type: "complete", reason: "stop" }),
+    );
     expect(result?.status).toBe("completed");
-    expect(result?.inputTokens).toBe(1);
-    expect(result?.outputTokens).toBe(2);
+    expect(result?.usage?.inputTokens).toBe(1);
+    expect(result?.usage?.outputTokens).toBe(2);
   });
 
   it("sums step usage reported under the AI SDK v7 token details", () => {
     const result = extractAuiV0({
-      ...auiV0Message({ type: "complete" }),
+      ...auiV0Message({ type: "complete", reason: "stop" }),
       metadata: {
         steps: [
           {
@@ -57,23 +85,77 @@ describe("extractAuiV0", () => {
       },
     });
 
-    expect(result?.inputTokens).toBe(15);
-    expect(result?.outputTokens).toBe(6);
-    expect(result?.cachedInputTokens).toBe(9);
-    expect(result?.reasoningTokens).toBe(2);
+    expect(result?.usage).toEqual({
+      inputTokens: 15,
+      outputTokens: 6,
+      cachedInputTokens: 9,
+      reasoningTokens: 2,
+    });
     expect(result?.steps).toEqual([
       {
-        input_tokens: 10,
-        output_tokens: 4,
-        reasoning_tokens: 1,
-        cached_input_tokens: 6,
+        usage: {
+          inputTokens: 10,
+          outputTokens: 4,
+          inputTokenDetails: { cacheReadTokens: 6 },
+          outputTokenDetails: { reasoningTokens: 1 },
+        },
       },
       {
-        input_tokens: 5,
-        output_tokens: 2,
-        reasoning_tokens: 1,
-        cached_input_tokens: 3,
+        usage: {
+          inputTokens: 5,
+          outputTokens: 2,
+          inputTokenDetails: { cacheReadTokens: 3 },
+          outputTokenDetails: { reasoningTokens: 1 },
+        },
       },
     ]);
+  });
+
+  it("normalizes valid usage fields without retaining invalid siblings", () => {
+    const result = extractAuiV0({
+      ...auiV0Message({ type: "complete", reason: "stop" }),
+      metadata: {
+        steps: [
+          {
+            usage: {
+              inputTokens: null,
+              promptTokens: 3,
+              completionTokens: 4,
+              reasoningTokens: -1,
+              inputTokenDetails: { cacheReadTokens: 2 },
+              outputTokenDetails: { reasoningTokens: -2 },
+            },
+          },
+        ],
+      },
+    });
+
+    expect(result?.usage).toEqual({
+      inputTokens: 3,
+      outputTokens: 4,
+      cachedInputTokens: 2,
+    });
+    expect(result?.steps).toEqual([
+      {
+        usage: {
+          promptTokens: 3,
+          completionTokens: 4,
+          inputTokenDetails: { cacheReadTokens: 2 },
+        },
+      },
+    ]);
+  });
+
+  it("skips telemetry when the persisted assistant status is malformed", () => {
+    expect(extractAuiV0(auiV0Message({ type: "unknown" }))).toBeNull();
+  });
+
+  it("ignores malformed persisted step metadata", () => {
+    expect(
+      extractAuiV0({
+        ...auiV0Message({ type: "complete", reason: "stop" }),
+        metadata: { steps: "invalid" },
+      }),
+    ).toMatchObject({ status: "completed" });
   });
 });

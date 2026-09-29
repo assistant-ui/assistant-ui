@@ -95,7 +95,7 @@ const toolMentionSource: ModelContextSnapshotSource<
   read: (aui) => {
     const tools = aui.thread.getModelContext().tools;
     if (!tools) return EMPTY_TOOL_MENTIONS;
-    const mentions: Record<string, string | undefined> = {};
+    const mentions = Object.create(null) as Record<string, string | undefined>;
     for (const [name, tool] of Object.entries(tools)) {
       mentions[name] = tool.description;
     }
@@ -152,7 +152,7 @@ export function unstable_useMentionAdapter(
   const formatter = options?.formatter;
   const onInserted = options?.onInserted;
   const isCategorized =
-    (categories !== undefined && categories.length > 0) ||
+    categories !== undefined ||
     (toolsConfig?.category !== undefined && items === undefined);
   const toolMentions = useModelContextSnapshot(
     aui,

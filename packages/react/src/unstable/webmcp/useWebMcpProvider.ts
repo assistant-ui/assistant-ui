@@ -1,12 +1,20 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useInsertionEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useResources, useTapRoot, withKey } from "@assistant-ui/tap";
-import { useAui, type AssistantClient } from "@assistant-ui/store";
+import { useAui } from "@assistant-ui/store";
 import type { Tool } from "assistant-stream";
 import { getDefaultWebMcpHost, type WebMcpHost } from "./webmcp-host";
 import { defaultWebMcpFilter, toWebMcpInputSchema } from "./convertTools";
 import { WebMcpRegistrationResource } from "./WebMcpRegistrationResource";
+import { shallowEqual } from "@assistant-ui/store/internal";
 import {
   useModelContextSnapshot,
   type ModelContextSnapshotSource,
@@ -64,10 +72,7 @@ const useStableNames = (names: readonly (string | null)[]) => {
   const [cell] = useState(() => ({ names: EMPTY_NAMES }));
   const next = names.filter((name): name is string => name !== null).sort();
   const previous = cell.names;
-  if (
-    previous.length === next.length &&
-    previous.every((name, index) => name === next[index])
-  ) {
+  if (shallowEqual(previous, next)) {
     return previous;
   }
   cell.names = next;
@@ -75,20 +80,16 @@ const useStableNames = (names: readonly (string | null)[]) => {
 };
 
 const useWebMcpRegistry = ({
-  aui,
   host,
   filter,
+  tools,
+  getCurrentTool,
 }: {
-  aui: AssistantClient;
   host: WebMcpHost;
   filter: (name: string, tool: Tool<any, any>) => boolean;
+  tools: Record<string, Tool<any, any>>;
+  getCurrentTool: (name: string) => Tool<any, any> | undefined;
 }) => {
-  const tools = useModelContextSnapshot(
-    aui,
-    host.available,
-    modelContextToolSource,
-  );
-
   const elements = [];
   for (const [name, tool] of Object.entries(tools)) {
     try {
@@ -97,8 +98,14 @@ const useWebMcpRegistry = ({
       elements.push(
         withKey(
           name,
-          WebMcpRegistrationResource({ host, name, signature, tool }),
-          [host, name, signature, tool],
+          WebMcpRegistrationResource({
+            host,
+            name,
+            signature,
+            tool,
+            getCurrentTool,
+          }),
+          [host, name, signature, tool, getCurrentTool],
         ),
       );
     } catch (error) {
@@ -128,9 +135,27 @@ export const unstable_useWebMcpProvider = (
   const aui = useAui();
   const [host] = useState(getDefaultWebMcpHost);
   const filter = options.filter ?? defaultWebMcpFilter;
+  const tools = useModelContextSnapshot(
+    aui,
+    host.available,
+    modelContextToolSource,
+  );
+  const currentToolsRef = useRef(tools);
+  useInsertionEffect(() => {
+    currentToolsRef.current = tools;
+  }, [tools]);
+  const getCurrentTool = useCallback(
+    (name: string) => currentToolsRef.current[name],
+    [],
+  );
 
   const root = useTapRoot(function WebMcpProviderRoot() {
-    return useWebMcpRegistry({ aui, host, filter });
+    return useWebMcpRegistry({
+      host,
+      filter,
+      tools,
+      getCurrentTool,
+    });
   });
   const registeredToolNames = useSyncExternalStore(
     root.subscribe,

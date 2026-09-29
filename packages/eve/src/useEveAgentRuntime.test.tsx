@@ -18,6 +18,7 @@ vi.mock("eve/react", async (importOriginal) => ({
   useEveAgent: mockUseEveAgent,
 }));
 
+import type { MessageStreamEvent } from "eve/client";
 import type { EveMessageData } from "eve/react";
 import { useEveAgentRuntime } from "./useEveAgentRuntime";
 import { eveExtras } from "./eveExtras";
@@ -2150,5 +2151,90 @@ describe("useEveAgentRuntime thread refetch", () => {
     await act(async () => {
       await result.current.threads.reloadMainThread();
     });
+  });
+});
+
+describe("useEveAgentRuntime createdAt derivation", () => {
+  const TURN = "turn_ts";
+  const USER_AT = "2026-01-02T10:00:01.000Z";
+  const ASSISTANT_AT = "2026-01-02T10:02:00.000Z";
+
+  const turnEvents = [
+    {
+      type: "turn.started",
+      data: { sequence: 1, turnId: TURN },
+      meta: { at: "2026-01-02T10:00:00.000Z", id: "evt_1" },
+    },
+    {
+      type: "message.received",
+      data: { message: "hi", sequence: 2, turnId: TURN },
+      meta: { at: USER_AT, id: "evt_2" },
+    },
+    {
+      type: "step.started",
+      data: { modelId: "m", sequence: 3, stepIndex: 0, turnId: TURN },
+      meta: { at: ASSISTANT_AT, id: "evt_3" },
+    },
+  ] satisfies readonly MessageStreamEvent[];
+
+  const turnData: EveMessageData = {
+    messages: [
+      {
+        id: `${TURN}:user`,
+        role: "user",
+        metadata: { turnId: TURN },
+        parts: [{ type: "text", text: "hi" }],
+      },
+      {
+        id: `${TURN}:assistant`,
+        role: "assistant",
+        metadata: { turnId: TURN },
+        parts: [{ type: "text", text: "hello" }],
+      },
+    ],
+  };
+
+  it("stamps a message with the wall clock when no event covers its turn, and keeps that stamp across renders", () => {
+    const before = Date.now();
+    const agent = createAgent({ data: turnData, events: [] });
+    mockUseEveAgent.mockReturnValue(agent as never);
+
+    const { result, rerender } = renderHook(() => useEveAgentRuntime());
+
+    const stamped = result.current.thread.getState().messages[0]?.createdAt;
+    expect(stamped?.getTime()).toBeGreaterThanOrEqual(before);
+
+    mockUseEveAgent.mockReturnValue({
+      ...agent,
+      data: { messages: [...turnData.messages] },
+    } as never);
+    rerender();
+
+    expect(result.current.thread.getState().messages[0]?.createdAt).toBe(
+      stamped,
+    );
+  });
+
+  it("keeps the message list identity when appended events stamp no message", () => {
+    const agent = createAgent({ data: turnData, events: turnEvents });
+    mockUseEveAgent.mockReturnValue(agent as never);
+
+    const { result, rerender } = renderHook(() => useEveAgentRuntime());
+    const first = result.current.thread.getState().messages;
+
+    mockUseEveAgent.mockReturnValue({
+      ...agent,
+      events: [
+        ...turnEvents,
+        {
+          type: "turn.started",
+          data: { sequence: 4, turnId: "turn_next" },
+          meta: { at: "2026-01-02T10:05:00.000Z", id: "evt_4" },
+        },
+      ],
+    } as never);
+    rerender();
+
+    expect(result.current.thread.getState().messages).toBe(first);
   });
 });

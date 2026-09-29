@@ -22,7 +22,6 @@ import { PublicAssistantSessionBoundary } from "./PublicAssistantSessionBoundary
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
 });
 
 describe("PublicAssistantSessionBoundary", () => {

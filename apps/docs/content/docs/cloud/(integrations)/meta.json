@@ -1,0 +1,15 @@
+{
+  "title": "Integrations",
+  "description": "Connect each assistant-ui runtime, a server, or a bot to the cloud.",
+  "icon": "Plug",
+  "root": true,
+  "pages": [
+    "runtimes",
+    "ai-sdk",
+    "local-runtime",
+    "langgraph",
+    "custom-thread-list",
+    "servers",
+    "migrate-cloud-ai-sdk"
+  ]
+}

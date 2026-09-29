@@ -13,6 +13,7 @@ import {
   useExternalStoreSharedOptions,
   useRuntimeAdapters,
 } from "@assistant-ui/core/react";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import type {
   AssistantRuntime,
   AppendMessage,
@@ -69,7 +70,7 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
         })
       : null;
 
-  const client = useMemo(() => {
+  const createClient = () => {
     if (options.client) return options.client;
     if (!managedClientOptionsKey) {
       throw new Error("useA2ARuntime requires either `client` or `baseUrl`");
@@ -79,7 +80,25 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
       ...(JSON.parse(managedClientOptionsKey) as ManagedA2AClientOptions),
       headers: resolveHeaders,
     });
-  }, [managedClientOptionsKey, options.client, resolveHeaders]);
+  };
+  const [pinnedClient, setPinnedClient] = useState(() => ({
+    key: managedClientOptionsKey,
+    provided: options.client,
+    client: createClient(),
+  }));
+  let currentClient = pinnedClient;
+  if (
+    pinnedClient.key !== managedClientOptionsKey ||
+    pinnedClient.provided !== options.client
+  ) {
+    currentClient = {
+      key: managedClientOptionsKey,
+      provided: options.client,
+      client: createClient(),
+    };
+    setPinnedClient(currentClient);
+  }
+  const client = currentClient.client;
 
   const coreOptions = {
     client,
@@ -95,21 +114,29 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
   const coreOptionsRef = useRef(coreOptions);
   coreOptionsRef.current = coreOptions;
 
-  const core = useMemo(
-    () =>
-      new A2AThreadRuntimeCore({
-        ...coreOptionsRef.current,
-        client,
-        notifyUpdate,
-      }),
-    [client, notifyUpdate],
-  );
+  const createCore = () =>
+    new A2AThreadRuntimeCore({
+      ...coreOptionsRef.current,
+      client,
+      notifyUpdate,
+    });
+  const [pinnedCore, setPinnedCore] = useState(() => ({
+    client,
+    core: createCore(),
+  }));
+  let currentCore = pinnedCore;
+  if (pinnedCore.client !== client) {
+    currentCore = { client, core: createCore() };
+    setPinnedCore(currentCore);
+  }
+  const core = currentCore.core;
 
   useEffect(() => {
     core.updateOptions(coreOptions);
   });
 
   // Thread list
+  const threadSwitchGenerationRef = useRef(0);
   const threadList = useMemo(() => {
     if (!threadListAdapter) return undefined;
 
@@ -119,7 +146,13 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
       threadId: threadListAdapter.threadId,
       onSwitchToNewThread: onSwitchToNewThread
         ? async () => {
+            const generation = ++threadSwitchGenerationRef.current;
+            // Clear before the thread id flips, or the old messages leak
+            // into the new thread as a sibling branch.
+            core.applyExternalMessages([]);
+            core.resetContext();
             await onSwitchToNewThread();
+            if (generation !== threadSwitchGenerationRef.current) return;
             // Apply first so the abort inside resetContext finds an already
             // cleared repository and cannot persist the old thread's partial
             // assistant message.
@@ -129,7 +162,14 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
         : undefined,
       onSwitchToThread: onSwitchToThread
         ? async (threadId: string) => {
+            const generation = ++threadSwitchGenerationRef.current;
+            // Clear before the thread id flips, or the old messages leak
+            // into the new thread as a sibling branch.
+            core.applyExternalMessages([]);
+            core.resetContext();
             const result = await onSwitchToThread(threadId);
+            if (generation !== threadSwitchGenerationRef.current) return;
+            core.applyExternalMessages([]);
             core.applyExternalMessages(result.messages);
             core.resetContext();
           }
@@ -161,15 +201,20 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
       isLoading: core.isLoading,
       messageRepository: core.getMessageRepository(),
       isRunning: core.isRunning(),
+      unstable_persistsHistory: true,
       extras: a2aExtras.provide({
         task: core.getTask(),
         artifacts: core.getArtifacts(),
         agentCard: core.getAgentCard(),
       }),
       onNew: (message: AppendMessage) => core.append(message),
+      onVoiceTranscript: (message: ThreadMessage) =>
+        core.appendVoiceTranscript(message),
       onEdit: (message: AppendMessage) => core.edit(message),
       onReload: (parentId: string | null) => core.reload(parentId),
       onCancel: () => core.cancel(),
+      unstable_onRecordToolInteraction: (options) =>
+        core.recordToolInteraction(options),
       setMessages: (messages: readonly ThreadMessage[]) =>
         core.applyExternalMessages(messages),
       onImport: (messages: readonly ThreadMessage[]) =>
@@ -180,7 +225,7 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
 
   const runtime = useExternalStoreRuntime(store);
 
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     core.attachRuntime(runtime);
     return () => {
       core.detachRuntime();

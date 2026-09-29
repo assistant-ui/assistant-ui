@@ -37,6 +37,104 @@ async function flush() {
 }
 
 describe("createMcpAppBridge", () => {
+  it("ignores requests and notifications after disposal", async () => {
+    const { frame, captured } = makeFrame();
+    const callTool = vi.fn().mockResolvedValue({ ok: true });
+    const onInitialized = vi.fn();
+    const bridge = createMcpAppBridge({
+      frame,
+      handlers: { callTool, onInitialized },
+    });
+
+    bridge.dispose();
+    expect(() => bridge.dispose()).not.toThrow();
+
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
+      params: { name: "search" },
+    });
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      method: "notifications/initialized",
+    });
+    await flush();
+
+    expect(callTool).not.toHaveBeenCalled();
+    expect(onInitialized).not.toHaveBeenCalled();
+    expect(captured).toEqual([]);
+  });
+
+  it("does not send a response after disposal", async () => {
+    const { frame, captured } = makeFrame();
+    let resolveCall!: (value: unknown) => void;
+    const callTool = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveCall = resolve;
+        }),
+    );
+    const bridge = createMcpAppBridge({ frame, handlers: { callTool } });
+
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
+      params: { name: "search" },
+    });
+    expect(callTool).toHaveBeenCalledOnce();
+
+    bridge.dispose();
+    resolveCall({ ok: true });
+    await flush();
+
+    expect(captured).toEqual([]);
+  });
+
+  it("does not report an async error after disposal", async () => {
+    const { frame, captured } = makeFrame();
+    let rejectCall!: (reason?: unknown) => void;
+    const callTool = vi.fn(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectCall = reject;
+        }),
+    );
+    const onError = vi.fn();
+    const bridge = createMcpAppBridge({
+      frame,
+      handlers: { callTool, onError },
+    });
+
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
+      params: { name: "search" },
+    });
+    expect(callTool).toHaveBeenCalledOnce();
+
+    bridge.dispose();
+    rejectCall(new Error("tool failed"));
+    await flush();
+
+    expect(onError).not.toHaveBeenCalled();
+    expect(captured).toEqual([]);
+  });
+
+  it("does not send host notifications after disposal", () => {
+    const { frame, captured } = makeFrame();
+    const bridge = createMcpAppBridge({ frame });
+
+    bridge.dispose();
+    bridge.notifyToolInput({ query: "hello" });
+    bridge.notifyToolResult({ answer: "world" });
+    bridge.notifyHostContextChanged({ theme: "dark" });
+
+    expect(captured).toEqual([]);
+  });
+
   it("responds to ui/initialize with host info, version, and capabilities", async () => {
     const { frame, captured } = makeFrame();
     const bridge = createMcpAppBridge({

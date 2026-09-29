@@ -61,7 +61,8 @@ export interface PiThreadState {
   readiness: PiRuntimeReadiness | undefined;
   lastError: string | undefined;
   loadState: PiLoadState;
-  /** Monotonic seq of the last applied event (for ordering/dedup). */
+  /** Sequence watermark for ordering/dedup. An authoritative snapshot can
+   * lower it when the supervisor starts a new sequence. */
   lastSeq: number;
 }
 
@@ -98,6 +99,22 @@ const withMetadataStatus = (
 ): PiThreadMetadata =>
   metadata.status === status ? metadata : { ...metadata, status };
 
+const withMetadataActivity = (
+  metadata: PiThreadMetadata,
+  compaction: PiThreadState["compaction"],
+  retry: PiThreadState["retry"],
+): PiThreadMetadata =>
+  metadata.compactionActive === compaction.active &&
+  metadata.retryActive === retry.active &&
+  metadata.retryAttempt === retry.attempt
+    ? metadata
+    : {
+        ...metadata,
+        compactionActive: compaction.active,
+        retryActive: retry.active,
+        retryAttempt: retry.attempt,
+      };
+
 const applySnapshot = (
   state: PiThreadState,
   snapshot: PiThreadSnapshot,
@@ -108,16 +125,36 @@ const applySnapshot = (
       : snapshot.metadata.status === "failed"
         ? "failed"
         : "idle";
+  // Older supervisors omit activity flags, so settled status remains their
+  // only signal that neither operation is in flight.
+  const settled = runStatus !== "running";
+  const compactionActive =
+    snapshot.metadata.compactionActive ??
+    (settled ? false : state.compaction.active);
+  const retryActive =
+    snapshot.metadata.retryActive ?? (settled ? false : state.retry.active);
+
+  const compaction = compactionActive
+    ? { ...state.compaction, active: true }
+    : { active: false };
+  const retry = retryActive
+    ? {
+        active: true,
+        attempt: snapshot.metadata.retryAttempt ?? state.retry.attempt,
+      }
+    : { active: false, attempt: 0 };
 
   return {
     ...state,
-    metadata: snapshot.metadata,
+    metadata: withMetadataActivity(snapshot.metadata, compaction, retry),
     messages: snapshot.messages,
     // Snapshot is authoritative: drop transient streaming pointers/buffers so
     // any divergence self-heals.
     streamingMessageIndex: undefined,
     toolExecutions: {},
     runStatus,
+    compaction,
+    retry,
     // A missing `queuedMessages` means an empty queue (snapshots omit the
     // field when there is nothing queued, and cold threads have no queue at
     // all) — keeping the prior queue here would let items drained while the
@@ -175,7 +212,7 @@ export const removeHostUiRequest = (
 /**
  * Apply a single client event. Pure: returns a new state (or the same reference
  * when nothing changed). Non-snapshot events older than `lastSeq` are ignored;
- * snapshots always apply (they are authoritative).
+ * current snapshots apply as authoritative state.
  */
 export const reducePiThreadState = (
   state: PiThreadState,
@@ -198,8 +235,16 @@ export const reducePiThreadState = (
       : { ...next, lastSeq: Math.max(state.lastSeq, event.seq) };
 
   switch (event.type) {
-    case "snapshot":
-      return stamped(applySnapshot(state, event.snapshot));
+    case "snapshot": {
+      const next = applySnapshot(state, event.snapshot);
+      const sequenceReset = event.seq < state.lastSeq;
+      return {
+        ...next,
+        lastSeq: sequenceReset
+          ? Math.max(event.seq, event.snapshot.seq ?? 0)
+          : Math.max(state.lastSeq, event.seq, event.snapshot.seq ?? 0),
+      };
+    }
 
     case "agent_start":
       return stamped({
@@ -308,26 +353,41 @@ export const reducePiThreadState = (
         queue: { steering: event.steering, followUp: event.followUp },
       });
 
-    case "compaction_start":
+    case "compaction_start": {
+      const compaction = { active: true, reason: event.reason };
       return stamped({
         ...state,
-        compaction: { active: true, reason: event.reason },
+        compaction,
+        metadata: withMetadataActivity(state.metadata, compaction, state.retry),
       });
+    }
 
-    case "compaction_end":
-      return stamped({ ...state, compaction: { active: false } });
-
-    case "auto_retry_start":
+    case "compaction_end": {
+      const compaction = { active: false };
       return stamped({
         ...state,
-        retry: { active: true, attempt: event.attempt },
+        compaction,
+        metadata: withMetadataActivity(state.metadata, compaction, state.retry),
       });
+    }
 
-    case "auto_retry_end":
+    case "auto_retry_start": {
+      const retry = { active: true, attempt: event.attempt };
       return stamped({
         ...state,
-        retry: { active: false, attempt: 0 },
+        retry,
+        metadata: withMetadataActivity(state.metadata, state.compaction, retry),
       });
+    }
+
+    case "auto_retry_end": {
+      const retry = { active: false, attempt: 0 };
+      return stamped({
+        ...state,
+        retry,
+        metadata: withMetadataActivity(state.metadata, state.compaction, retry),
+      });
+    }
 
     case "context_usage":
       return stamped({ ...state, contextUsage: event.contextUsage });

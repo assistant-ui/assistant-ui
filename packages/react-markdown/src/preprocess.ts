@@ -5,34 +5,62 @@
  * recognize (LaTeX `\(...\)` / `\[...\]` brackets, `[/math]` / `[/inline]` tags),
  * and they write currency amounts (`$5`) that single-dollar math otherwise eats.
  * These helpers normalize that output to the `$...$` / `$$...$$` form remark-math
- * parses, and are streaming safe (each runs on the full accumulated text before
- * the parser sees it). Compose them in `preprocess`.
+ * parses. During streaming, smoothing reveals the raw accumulated text first,
+ * then `preprocess` runs on that revealed prefix before the parser sees it.
+ * Compose them in `preprocess`.
  */
 
 const LATEX_INLINE_DELIMITER = /\\{1,2}\(([^\n]+?)\\{1,2}\)/g;
 const LATEX_DISPLAY_DELIMITER = /\\{1,2}\[([\s\S]+?)\\{1,2}\]/g;
 
-// A closer has to sit in the same container as its opener: a root fence is not
-// closed by a quoted line, and a quoted fence is closed by one however its
-// marker is spaced. Matching the prefix by shape rather than as a literal keeps
-// `> ~~~` and `>~~~` equivalent.
-const TILDE_FENCE_CLOSE_ROOT = /^ {0,3}(~{3,})[ \t\r]*$/;
-const TILDE_FENCE_CLOSE_QUOTED = /^ {0,3}(?:>[ \t]?)+ {0,3}(~{3,})[ \t\r]*$/;
-const LINE_IS_QUOTED = /^ {0,3}(?:>[ \t]?)+/;
+// A closer has to sit at its opener's blockquote depth, counted in markers so
+// `> ~~~` and `>~~~` are the same line, and at most three characters deeper
+// than the opener past the last marker, as the remend scan reads it. The
+// opener's indentation stands in for a list item's content column, which this
+// walker does not track, so a fence written past that column still closes on
+// its own line.
+const FENCE_CLOSE = {
+  "`": /^(`{3,})[ \t\r]*$/,
+  "~": /^(~{3,})[ \t\r]*$/,
+};
+// What may precede a fence opener on its line: the blockquote and list markers
+// whose containers a fence opens inside of, nested in either order, and the
+// indentation between them. Each marker takes its own trailing whitespace, so a
+// prefix that fails cannot be re-split across two markers, and a list marker
+// still requires the space that separates it from its content.
+const FENCE_OPEN_PREFIX = /^[ \t]*(?:>[ \t]*|(?:[-*+]|\d{1,9}[.)])[ \t]+)*$/;
+const QUOTE_PREFIX = /^[ \t>]*/;
+
+function quoteDepth(prefix: string): number {
+  let depth = 0;
+  for (const char of prefix) if (char === ">") depth += 1;
+  return depth;
+}
+
+function indentPastQuote(prefix: string): number {
+  const marker = prefix.lastIndexOf(">");
+  if (marker === -1) return prefix.length;
+  return prefix.length - marker - (prefix[marker + 1] === " " ? 2 : 1);
+}
 
 /**
- * End index (exclusive) of the tilde fence opened by the `~` run at `start`,
- * which the caller has verified starts a line: the end of the first later line
- * carrying a closing run of at least the same length, or the end of `text`
- * when none does — an unclosed fence reads as code to the end of the input,
- * which keeps a fence that is still streaming in inert.
+ * End index (exclusive) of the fence opened by the `marker` run at `start`,
+ * which the caller has verified opens one: the end of the first later line
+ * carrying a closing run of at least the same length, or the end of the
+ * container when no line does, since an unclosed fence is one still streaming
+ * in. A root fence's container is the whole input; a quoted one ends where its
+ * blockquote does, on the first line with fewer markers than the opener, a
+ * blank line included, because a fence body takes no lazy continuation and a
+ * blank line closes a blockquote. The opener's depth counts every marker ahead
+ * of its run, since list markers can separate them on that line, while a later
+ * line continues a list item by indentation alone, which this walker does not
+ * measure, so a fence opened in a list item does not end with it.
  */
-function tildeFenceEnd(text: string, start: number): number {
-  const fenceLength = runLength(text, start, "~");
-  const openerLine = text.slice(text.lastIndexOf("\n", start - 1) + 1, start);
-  const closer = LINE_IS_QUOTED.test(openerLine)
-    ? TILDE_FENCE_CLOSE_QUOTED
-    : TILDE_FENCE_CLOSE_ROOT;
+function fenceEnd(text: string, start: number, marker: "`" | "~"): number {
+  const fenceLength = runLength(text, start, marker);
+  const opener = text.slice(text.lastIndexOf("\n", start - 1) + 1, start);
+  const depth = quoteDepth(opener);
+  const indent = indentPastQuote(opener);
   let lineStart = text.indexOf("\n", start);
 
   while (lineStart !== -1) {
@@ -41,9 +69,14 @@ function tildeFenceEnd(text: string, start: number): number {
       lineStart + 1,
       lineEnd === -1 ? undefined : lineEnd,
     );
-    const close = closer.exec(line);
-    if (close && close[1]!.length >= fenceLength) {
-      return lineEnd === -1 ? text.length : lineEnd;
+    const prefix = QUOTE_PREFIX.exec(line)![0];
+    const lineDepth = quoteDepth(prefix);
+    if (lineDepth < depth) return lineStart;
+    if (lineDepth === depth && indentPastQuote(prefix) <= indent + 3) {
+      const close = FENCE_CLOSE[marker].exec(line.slice(prefix.length));
+      if (close && close[1]!.length >= fenceLength) {
+        return lineEnd === -1 ? text.length : lineEnd;
+      }
     }
     lineStart = lineEnd;
   }
@@ -51,21 +84,55 @@ function tildeFenceEnd(text: string, start: number): number {
   return text.length;
 }
 
-/** Whether the character at `index` starts a line, allowing ≤3 spaces indent. */
-function atLineStart(text: string, index: number): boolean {
-  let cursor = index;
-  let indent = 0;
-  while (cursor > 0 && text[cursor - 1] === " " && indent < 3) {
-    cursor--;
-    indent++;
-  }
-  if (cursor === 0 || text[cursor - 1] === "\n") return true;
+/**
+ * Whether the backtick run at `start` opens a fence rather than a code span: a
+ * fence is a flow construct, so its run is three or more backticks carrying
+ * nothing but indentation and blockquote markers ahead of them on their line,
+ * and an info string, which CommonMark forbids a backtick in.
+ *
+ * Indentation is not capped at the three columns CommonMark allows, because the
+ * cap is relative to the enclosing container and this walker does not track
+ * containers: a fence written past a list item's content column, or on its
+ * marker line, is ordinary model output, and reading it as a span costs the
+ * closer of any such fence whose body carries a blank line. The cost of the
+ * wider reading is that a run indented four columns at the root, where
+ * CommonMark reads an indented code block, opens a fence here.
+ */
+function opensBacktickFence(text: string, start: number): boolean {
+  const fenceLength = runLength(text, start, "`");
+  if (fenceLength < 3) return false;
 
-  // A fence keeps its meaning inside a blockquote, so a line carrying only
-  // blockquote markers still opens one. Four spaces would make it an indented
-  // code block instead, so the marker may carry at most three.
-  const lineStart = text.lastIndexOf("\n", cursor - 1) + 1;
-  return /^ {0,3}(?:>[ \t]?)+$/.test(text.slice(lineStart, cursor));
+  const lineStart = text.lastIndexOf("\n", start - 1) + 1;
+  if (!FENCE_OPEN_PREFIX.test(text.slice(lineStart, start))) return false;
+
+  const lineEnd = text.indexOf("\n", start + fenceLength);
+  const info = text.slice(
+    start + fenceLength,
+    lineEnd === -1 ? undefined : lineEnd,
+  );
+  return !info.includes("`");
+}
+
+/**
+ * Whether the tilde run at `index` opens a fence. A tilde run only ever opens
+ * one, so unlike a backtick run it needs no info string rule, but it still has
+ * to carry the same container prefix as a backtick fence.
+ */
+function opensTildeFence(text: string, index: number): boolean {
+  if (text[index] !== "~" || runLength(text, index, "~") < 3) return false;
+  const lineStart = text.lastIndexOf("\n", index - 1) + 1;
+  return FENCE_OPEN_PREFIX.test(text.slice(lineStart, index));
+}
+
+/**
+ * End index (exclusive) of the backtick construct opened at `start`: the fence
+ * when {@link opensBacktickFence} accepts the run, the code span otherwise, or
+ * -1 when a span never closes.
+ */
+function backtickEnd(text: string, start: number): number {
+  return opensBacktickFence(text, start)
+    ? fenceEnd(text, start, "`")
+    : codeSpanEnd(text, start);
 }
 
 /**
@@ -76,14 +143,15 @@ function atLineStart(text: string, index: number): boolean {
  * boundary stays as written. Each stretch is passed the characters adjacent to
  * it so the rewrite can make line-boundary decisions that survive the split.
  *
- * Backtick regions are found with `codeSpanEnd`, which {@link
- * escapeCurrencyDollars} also uses, and read as CommonMark does: an unclosed
- * one- or two-backtick run is literal text, an unclosed three-plus run is a
- * fence still streaming in and protects to the end of the input, and fences are
- * not line-anchored. The unclosed three-plus case is where this walker and
- * `escapeCurrencyDollars` differ, since that one treats the run as literal. Tilde
- * fences are line-anchored per CommonMark: a `~~~` run starting a line opens
- * one, and it closes on a line carrying only an at-least-as-long tilde run.
+ * Backtick regions are found with `backtickEnd`, which {@link
+ * escapeCurrencyDollars} also uses, and split the two constructs a backtick run
+ * opens in CommonMark: a run of three or more starting a line opens a fence,
+ * which closes on a line carrying only an at-least-as-long run, and a run
+ * anywhere else opens a code span, which closes on a run of exactly its own
+ * length wherever on a line that run sits, and never past the paragraph it
+ * opens in. An unclosed span reads as literal text, while an unclosed fence is
+ * one still streaming in and protects to the end of its container. Tilde runs
+ * only ever open a fence, read the same way.
  */
 function rewriteOutsideCode(
   text: string,
@@ -123,17 +191,11 @@ function rewriteOutsideCode(
     if (char === "\\") {
       index += 2;
     } else if (char === "`") {
-      const run = runLength(text, index, "`");
-      const end = codeSpanEnd(text, index);
+      const end = backtickEnd(text, index);
       if (end !== -1) copyVerbatim(end);
-      else if (run >= 3) copyVerbatim(text.length);
-      else index += run;
-    } else if (
-      char === "~" &&
-      runLength(text, index, "~") >= 3 &&
-      atLineStart(text, index)
-    ) {
-      copyVerbatim(tildeFenceEnd(text, index));
+      else index += runLength(text, index, "`");
+    } else if (opensTildeFence(text, index)) {
+      copyVerbatim(fenceEnd(text, index, "~"));
     } else {
       index += 1;
     }
@@ -192,7 +254,7 @@ function emitDisplayMath(
   // math was written inside, so they carry that container's prefix and the body
   // is aligned to it.
   const prefix = continuationPrefix(lineHead(offset));
-  const quoted = prefix.includes(">");
+  const depth = quoteDepth(prefix);
   // The body is split before trimming, since trimming would take the shared
   // indentation off the first line only and leave the block ragged.
   const bodyLines = body.split("\n");
@@ -210,10 +272,18 @@ function emitDisplayMath(
     Number.POSITIVE_INFINITY,
   );
   const lines = bodyLines.map((line) => {
-    // A line already carrying the blockquote marker keeps the spacing it was
+    // A line already carrying the blockquote markers keeps the spacing it was
     // written with; `>a` and `> a` are the same blockquote. Indentation alone
-    // is not that signal, since a body may legitimately be indented.
-    if (quoted && /^[ \t]*>/.test(line)) return line;
+    // is not that signal, since a body may legitimately be indented, and a line
+    // with fewer markers is a lazy continuation whose markers the prefix
+    // replaces.
+    const markers = QUOTE_PREFIX.exec(line)![0];
+    const lineDepth = quoteDepth(markers);
+    if (depth > 0 && lineDepth > 0) {
+      return lineDepth >= depth
+        ? line
+        : `${prefix}${line.slice(markers.length)}`;
+    }
     return `${prefix}${line.slice(Number.isFinite(shared) ? shared : 0)}`;
   });
 
@@ -303,6 +373,12 @@ const BLANK_LINE = /\n[ \t]*\n/;
 const ADJACENT_WORDS = /[A-Za-z]{3,}\s+[A-Za-z]{3,}/;
 const TRAILING_OPERATOR = /[-+*/=<>,;:([\u2013\u2014\u2212]$/;
 
+// The paragraph break a code span cannot reach past. `BLANK_LINE` cannot serve
+// here: it does not admit the carriage return of a CRLF document, and widening
+// it would change which bodies `isMathBody` accepts. Sticky so the scan starts
+// at the run without copying the rest of the input on every backtick.
+const PARAGRAPH_BREAK = /\n[ \t\r]*\n/g;
+
 /** Length of the run of `char` starting at `start`. */
 function runLength(text: string, start: number, char: string): number {
   let length = 0;
@@ -311,23 +387,29 @@ function runLength(text: string, start: number, char: string): number {
 }
 
 /**
- * End index (exclusive) of the code span or fence whose backtick run starts at
- * `start`, or -1 when that run is never closed and its backticks read as literal
- * text.
+ * End index (exclusive) of the code span whose backtick run starts at `start`,
+ * or -1 when that run is never closed and its backticks read as literal text. A
+ * span closes on a run of exactly its own length, wherever on a line that run
+ * sits; a shorter or longer run is content, and a blank line ends the search
+ * with the paragraph.
  */
 function codeSpanEnd(text: string, start: number): number {
   const delimiterLength = runLength(text, start, "`");
   const delimiter = "`".repeat(delimiterLength);
+  // A span is an inline construct, so it cannot reach past the paragraph it
+  // opens in and a run left open in prose does not swallow a later fence.
+  PARAGRAPH_BREAK.lastIndex = start;
+  const blank = PARAGRAPH_BREAK.exec(text);
+  const limit = blank ? blank.index : text.length;
   let closed = text.indexOf(delimiter, start + delimiterLength);
 
-  // Fences may close on a longer run; one- and two-backtick inline spans may not.
-  while (delimiterLength < 3 && closed !== -1) {
+  while (closed !== -1 && closed < limit) {
     const closedLength = runLength(text, closed, "`");
     if (closedLength === delimiterLength) break;
     closed = text.indexOf(delimiter, closed + closedLength);
   }
 
-  return closed === -1 ? -1 : closed + delimiterLength;
+  return closed === -1 || closed >= limit ? -1 : closed + delimiterLength;
 }
 
 /**
@@ -342,7 +424,7 @@ function findClosingDollar(text: string, openIndex: number): number {
     if (char === "$") return index;
     if (char === "\\") index += 2;
     else if (char === "`") {
-      const end = codeSpanEnd(text, index);
+      const end = backtickEnd(text, index);
       index = end === -1 ? index + runLength(text, index, "`") : end;
     } else index += 1;
   }
@@ -387,16 +469,18 @@ function opensCurrencyAmount(text: string, index: number): boolean {
 
 /**
  * End index (exclusive) of the run at `index` that must be copied unchanged: a `\x`
- * escape, a code span, a `$$` display delimiter, an inline math span, or a plain
- * character. Returns `index` itself for a single `$`, which the caller has to decide.
+ * escape, a code span or fence, a `$$` display delimiter, an inline math span, or a
+ * plain character. Returns `index` itself for a single `$`, which the caller has to
+ * decide.
  */
 function endOfVerbatimRun(text: string, index: number): number {
   const char = text[index];
   if (char === "\\") return Math.min(index + 2, text.length);
   if (char === "`") {
-    const end = codeSpanEnd(text, index);
+    const end = backtickEnd(text, index);
     return end === -1 ? index + runLength(text, index, "`") : end;
   }
+  if (opensTildeFence(text, index)) return fenceEnd(text, index, "~");
   if (char !== "$") return index + 1;
 
   const dollars = runLength(text, index, "$");

@@ -56,9 +56,20 @@ const LINES: { text: string; part: PartId; indent: number }[] = [
   { text: "</ThreadPrimitive.Root>", part: "root", indent: 0 },
 ];
 
-function PartChip({ label }: { label: string }) {
+function PartChip({
+  label,
+  className,
+}: {
+  label: string;
+  className?: string | undefined;
+}) {
   return (
-    <span className="absolute -top-2.5 right-2 z-10 bg-blue-500 px-1.5 py-px font-mono text-[10px] font-medium tracking-wide text-white uppercase">
+    <span
+      className={cn(
+        "absolute -top-2.5 right-2 z-10 rounded-sm bg-blue-500 px-1.5 py-px font-mono text-[10px] font-medium text-white",
+        className,
+      )}
+    >
       {label}
     </span>
   );
@@ -68,11 +79,13 @@ function Region({
   part,
   active,
   className,
+  chipClassName,
   children,
 }: {
   part: PartId;
   active: PartId;
   className?: string;
+  chipClassName?: string | undefined;
   children?: React.ReactNode;
 }) {
   const current = active === part;
@@ -80,12 +93,12 @@ function Region({
   return (
     <div
       className={cn(
-        "relative transition-all duration-300",
+        "relative rounded-sm transition-all duration-300",
         current ? "ring-1 ring-blue-500/70" : "opacity-80",
         className,
       )}
     >
-      {current ? <PartChip label={label} /> : null}
+      {current ? <PartChip label={label} className={chipClassName} /> : null}
       {children}
     </div>
   );
@@ -136,7 +149,7 @@ export function PrimitivesAnatomy() {
                   onMouseEnter={() => setActive(line.part)}
                   onFocus={() => setActive(line.part)}
                   className={cn(
-                    "-mx-2 flex whitespace-pre transition-colors duration-200",
+                    "-mx-2 flex rounded-sm whitespace-pre transition-colors duration-200",
                     current
                       ? "text-foreground bg-blue-500/8"
                       : "text-foreground/45 hover:text-foreground/75",
@@ -173,22 +186,23 @@ export function PrimitivesAnatomy() {
               active={active}
               className="flex flex-col gap-2.5 p-1"
             >
-              <div className="bg-foreground/[0.06] ml-auto h-6 w-24" />
+              <div className="bg-foreground/[0.06] ml-auto h-6 w-24 rounded-sm" />
               <div className="flex flex-col gap-1.5">
-                <div className="bg-foreground/15 h-2 w-full" />
-                <div className="bg-foreground/15 h-2 w-4/5" />
-                <div className="bg-foreground/15 h-2 w-3/5" />
+                <div className="bg-foreground/15 h-2 w-full rounded-sm" />
+                <div className="bg-foreground/15 h-2 w-4/5 rounded-sm" />
+                <div className="bg-foreground/15 h-2 w-3/5 rounded-sm" />
               </div>
-              <div className="bg-foreground/[0.06] ml-auto h-6 w-32" />
+              <div className="bg-foreground/[0.06] ml-auto h-6 w-32 rounded-sm" />
               <div className="flex flex-col gap-1.5">
-                <div className="bg-foreground/15 h-2 w-11/12" />
-                <div className="bg-foreground/15 h-2 w-2/3" />
+                <div className="bg-foreground/15 h-2 w-11/12 rounded-sm" />
+                <div className="bg-foreground/15 h-2 w-2/3 rounded-sm" />
               </div>
             </Region>
             <Region
               part="scroll"
               active={active}
               className="border-foreground/20 bg-background rounded-capsule mt-auto ml-auto grid size-6 place-items-center border"
+              chipClassName="top-1/2 right-full mr-1.5 -translate-y-1/2 whitespace-nowrap"
             >
               <ArrowDownIcon className="text-foreground/60 size-3" />
             </Region>
@@ -198,7 +212,7 @@ export function PrimitivesAnatomy() {
             active={active}
             className="border-foreground/15 flex items-center justify-between border px-2.5 py-2"
           >
-            <div className="bg-foreground/20 h-1.5 w-16" />
+            <div className="bg-foreground/20 h-1.5 w-16 rounded-sm" />
             <div className="bg-foreground/80 rounded-capsule size-4" />
           </Region>
         </Region>
@@ -206,7 +220,7 @@ export function PrimitivesAnatomy() {
 
       <p
         key={active}
-        className="animate-in fade-in-0 text-muted-foreground font-mono text-[11px] tracking-wide duration-500 motion-reduce:animate-none"
+        className="animate-in fade-in-0 text-muted-foreground font-mono text-[11px] duration-500 motion-reduce:animate-none"
       >
         {activePart.label} · {activePart.caption}
       </p>

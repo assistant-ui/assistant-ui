@@ -59,20 +59,32 @@ export interface StoryPhases {
 export function useStoryPhases(durations: readonly number[]): StoryPhases {
   const stage = useContext(DemoStageContext);
   const [phase, setPhase] = useState(0);
-  const [running, setRunning] = useState(true);
+  const [isRunning, setRunning] = useState(true);
   const [epoch, setEpoch] = useState(0);
+  const running = isRunning && durations.length > 1;
 
-  useEffect(() => {
+  const [syncedStopped, setSyncedStopped] = useState<{
+    stopped: boolean | undefined;
+  } | null>(null);
+
+  if (syncedStopped?.stopped !== stage?.stopped) {
+    setSyncedStopped({ stopped: stage?.stopped });
     if (stage?.stopped) setRunning(false);
-  }, [stage?.stopped]);
+  }
 
   useEffect(() => {
     stage?.setPlaying(running);
   }, [stage, running]);
 
+  const [syncedRun, setSyncedRun] = useState({ running, epoch });
+
+  if (syncedRun.running !== running || syncedRun.epoch !== epoch) {
+    setSyncedRun({ running, epoch });
+    if (running) setPhase(0);
+  }
+
   useEffect(() => {
     if (!running) return;
-    setPhase(0);
     let index = 0;
     let id: ReturnType<typeof setTimeout>;
     const next = () => {
@@ -86,10 +98,6 @@ export function useStoryPhases(durations: readonly number[]): StoryPhases {
         next();
       }, durations[index]);
     };
-    if (durations.length <= 1) {
-      setRunning(false);
-      return;
-    }
     next();
     return () => clearTimeout(id);
   }, [durations, running, epoch]);
@@ -106,9 +114,15 @@ export function useStoryPhases(durations: readonly number[]): StoryPhases {
 /** Elapsed tenths of a second while `running`, reset on each rising edge. */
 export function useElapsed(running: boolean): number {
   const [tenths, setTenths] = useState(0);
+  const [syncedRunning, setSyncedRunning] = useState(running);
+
+  if (syncedRunning !== running) {
+    setSyncedRunning(running);
+    if (running) setTenths(0);
+  }
+
   useEffect(() => {
     if (!running) return;
-    setTenths(0);
     const id = setInterval(() => setTenths((t) => t + 1), 100);
     return () => clearInterval(id);
   }, [running]);
@@ -120,12 +134,13 @@ export interface WordStream {
   /** Number of words currently revealed. */
   count: number;
   streaming: boolean;
+  restart: () => void;
 }
 
 /**
- * Reveals `text` word by word and stops when finished (replay happens by
- * remounting the demo). Word delays are jittered deterministically so the
- * rhythm reads as generation rather than a metronome.
+ * Reveals `text` word by word and stops when finished. Word delays are
+ * jittered deterministically so the rhythm reads as generation rather than a
+ * metronome.
  */
 export function useWordStream(
   text: string,
@@ -138,7 +153,15 @@ export function useWordStream(
   const stopped = stage?.stopped ?? false;
   const words = useMemo(() => text.split(" "), [text]);
   const [count, setCount] = useState(0);
+  const [restartKey, setRestartKey] = useState(0);
   const countRef = useRef(0);
+
+  const restart = useCallback(() => {
+    if (stopped) return;
+    countRef.current = 0;
+    setCount(0);
+    setRestartKey((current) => current + 1);
+  }, [stopped]);
 
   useEffect(() => {
     stage?.setPlaying(!stopped && count < words.length);
@@ -164,9 +187,14 @@ export function useWordStream(
     };
     id = setTimeout(tick, startDelay);
     return () => clearTimeout(id);
-  }, [words, interval, startDelay, stopped]);
+  }, [words, interval, startDelay, stopped, restartKey]);
 
-  return { words, count, streaming: !stopped && count < words.length };
+  return {
+    words,
+    count,
+    streaming: !stopped && count < words.length,
+    restart,
+  };
 }
 
 /** Types `text` character by character, clears, and restarts. */

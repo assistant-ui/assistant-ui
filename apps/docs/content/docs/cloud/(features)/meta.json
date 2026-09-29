@@ -1,0 +1,13 @@
+{
+  "title": "Cloud features",
+  "description": "The features the cloud runs on your conversations with a model: providers, titles, intelligence, evaluators, assistants and harnesses.",
+  "icon": "Sparkles",
+  "root": true,
+  "pages": [
+    "llm-providers",
+    "intelligence",
+    "evaluators",
+    "assistants",
+    "harnesses"
+  ]
+}

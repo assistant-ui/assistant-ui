@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { createRef, startTransition, Suspense } from "react";
+import { createRef, startTransition, Suspense, useLayoutEffect } from "react";
 import { act, render, waitFor } from "@testing-library/react";
 import { resource, withKey } from "@assistant-ui/tap";
 import {
@@ -68,6 +68,47 @@ const makeAdapter = (): RemoteThreadListAdapter => ({
 });
 
 describe("RemoteThreadList concurrent rendering", () => {
+  it("reloads through the committed adapter from a descendant layout effect", async () => {
+    const adapterA = makeAdapter();
+    const adapterB = makeAdapter();
+
+    const ReloadOnSwap = ({ workspace }: { workspace: string }) => {
+      const aui = useAui();
+      useLayoutEffect(() => {
+        if (workspace === "A") return;
+        void aui.threads.reload();
+      }, [aui, workspace]);
+      return null;
+    };
+    const App = ({
+      adapter,
+      workspace,
+    }: {
+      adapter: RemoteThreadListAdapter;
+      workspace: string;
+    }) => (
+      <AuiProvider
+        config={AuiConfig({
+          threads: RemoteThreadList({
+            adapter,
+            thread: () => StubThread() as never,
+          }),
+        })}
+      >
+        <ReloadOnSwap workspace={workspace} />
+      </AuiProvider>
+    );
+
+    const view = render(<App adapter={adapterA} workspace="A" />);
+    await waitFor(() => expect(adapterA.list).toHaveBeenCalledOnce());
+
+    act(() => {
+      view.rerender(<App adapter={adapterB} workspace="B" />);
+    });
+    await waitFor(() => expect(adapterB.list).toHaveBeenCalled());
+    expect(adapterA.list).toHaveBeenCalledOnce();
+  });
+
   it("keeps actions scoped to the committed adapter", async () => {
     const adapterA = makeAdapter();
     const adapterB = makeAdapter();
@@ -116,7 +157,7 @@ describe("RemoteThreadList concurrent rendering", () => {
     expect(adapterB.rename).not.toHaveBeenCalled();
   });
 
-  it("does not render the previous thread during an ordinary switch", async () => {
+  it("exposes the selected thread during render, layout effects, and selection events", async () => {
     const adapter = makeAdapter();
     adapter.list = vi.fn(async () => ({
       threads: [
@@ -134,6 +175,8 @@ describe("RemoteThreadList concurrent rendering", () => {
     }));
     const clientRef = createRef<AssistantClient>();
     const renders: string[] = [];
+    const layoutReads: string[] = [];
+    const refetchThread = vi.fn();
     const selectionToolIds: string[] = [];
 
     const Observer = () => {
@@ -145,6 +188,10 @@ describe("RemoteThreadList concurrent rendering", () => {
         | string
         | undefined;
       renders.push(`${stateId}:${imperativeId}`);
+      useLayoutEffect(() => {
+        layoutReads.push(`${stateId}:${aui.thread.getState().messages[0]?.id}`);
+        if (stateId === "thread-2") void aui.threads.reloadMainThread();
+      }, [aui, stateId]);
       return null;
     };
     const App = () => (
@@ -159,7 +206,7 @@ describe("RemoteThreadList concurrent rendering", () => {
                 IdentifiedThread({
                   id,
                   onRender: () => {},
-                  onRefetch: () => {},
+                  onRefetch: refetchThread,
                 }),
               ) as never,
           }),
@@ -179,19 +226,28 @@ describe("RemoteThreadList concurrent rendering", () => {
     const unsubscribe = client.on(
       "threads.selectionChanged" as never,
       (() => {
-        selectionToolIds.push(
-          Object.keys(client.thread.getModelContext().tools)[0]!,
-        );
+        const tools = client.thread.getModelContext().tools;
+        if (tools === undefined) {
+          throw new Error("Expected thread model context tools");
+        }
+        const toolId = Object.keys(tools)[0];
+        if (toolId === undefined) {
+          throw new Error("Expected thread model context tool");
+        }
+        selectionToolIds.push(toolId);
       }) as never,
     );
 
     renders.length = 0;
+    layoutReads.length = 0;
     await act(async () => {
       await client.threads.switchToThread("thread-2");
     });
     await waitFor(() => expect(renders).toContain("thread-2:thread-2"));
 
     expect(renders).not.toContain("thread-2:thread-1");
+    expect(layoutReads).toEqual(["thread-2:thread-2"]);
+    expect(refetchThread).toHaveBeenCalledExactlyOnceWith("thread-2");
     expect(selectionToolIds).toEqual(["thread-2"]);
     unsubscribe();
   });

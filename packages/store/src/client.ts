@@ -17,6 +17,7 @@ export {
   useAssistantContextValue,
 } from "./utils/react-assistant-context";
 export { useConfiguredAui } from "./useAui";
+export { useDestroySignalProvider } from "./utils/destroy-signal-context";
 export { getProxiedAssistantState } from "./utils/proxied-assistant-state";
 export {
   useAssistantClientRef,

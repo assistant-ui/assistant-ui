@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { LiveDot } from "@/components/shared/live-dot";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
@@ -8,7 +8,7 @@ import { CopyCommandButton } from "@/components/shared/copy-command-button";
 import { Highlight } from "@/components/shared/highlight";
 import { CodeBlock } from "@/components/ui/code-block";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";
+import { typeDeck, typePage } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 
 const ANALYTICS_PAGE = "native" as const;
@@ -105,7 +105,7 @@ export default function NativePage() {
 
       <div className="border-foreground/10 mt-16 border-t md:mt-20">
         <section className="border-foreground/10 border-b py-10 md:py-12">
-          <p className={typeEyebrow}>The setup</p>
+          <p className="text-sm font-medium">The setup</p>
           <CodeBlock
             title="app/_layout.tsx · abridged from examples/with-expo"
             className="my-0 mt-6 max-w-[44rem]"
@@ -116,8 +116,8 @@ export default function NativePage() {
 
         <section className="border-foreground/10 border-b py-10 md:py-12">
           <div className="flex items-baseline justify-between">
-            <p className={typeEyebrow}>The primitives</p>
-            <span className="text-muted-foreground/60 font-mono text-[11px] tracking-wide tabular-nums">
+            <p className="text-sm font-medium">The primitives</p>
+            <span className="text-muted-foreground text-sm tabular-nums">
               {PRIMITIVES.length}
             </span>
           </div>
@@ -178,11 +178,7 @@ export default function NativePage() {
 }
 
 function NativeDemo() {
-  const [src, setSrc] = useState<string | null>(null);
-
-  useEffect(() => {
-    setSrc(DEMO_SRC);
-  }, []);
+  const src = useHydrated() ? DEMO_SRC : null;
 
   return (
     <div className="border-foreground/10 overflow-hidden border">

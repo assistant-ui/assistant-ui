@@ -111,6 +111,48 @@ describe("controller close idempotence", () => {
   });
 });
 
+describe("raw chunk ordering", () => {
+  it("emits synchronous raw chunks before an appended part body", async () => {
+    const before: AssistantStreamChunk = {
+      type: "annotations",
+      path: [],
+      annotations: ["before"],
+    };
+    const after: AssistantStreamChunk = {
+      type: "annotations",
+      path: [],
+      annotations: ["after"],
+    };
+
+    const chunks = await collectChunks(
+      createAssistantStream((controller) => {
+        controller.enqueue(before);
+        controller.appendText("child");
+        controller.enqueue(after);
+      }),
+    );
+
+    expect(chunks).toEqual([
+      before,
+      {
+        type: "part-start",
+        path: [],
+        part: { type: "text" },
+      },
+      after,
+      {
+        type: "text-delta",
+        path: [0],
+        textDelta: "child",
+      },
+      {
+        type: "part-finish",
+        path: [0],
+      },
+    ]);
+  });
+});
+
 describe("createAssistantStream task settlement", () => {
   it("emits callback failures without leaking an unhandled rejection", async () => {
     let chunks: AssistantStreamChunk[] = [];

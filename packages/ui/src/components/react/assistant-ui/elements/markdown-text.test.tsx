@@ -100,4 +100,22 @@ describe("MarkdownText component overrides", () => {
       mocks.messagePartText.text = "```tsx\nconst answer = 42;\n```";
     }
   });
+
+  it("gives a table its own horizontal scroll container", () => {
+    mocks.messagePartText.text =
+      "| ID |\n| --- |\n| aaaa0000bbbb1111cccc2222dddd3333 |";
+    try {
+      render(<MarkdownText />);
+
+      const table = screen.getByRole("table");
+      const wrapper = table.parentElement;
+
+      expect(wrapper?.classList.contains("aui-md-table-wrapper")).toBe(true);
+      expect(wrapper?.classList.contains("overflow-x-auto")).toBe(true);
+      expect(table.classList.contains("aui-md-table")).toBe(true);
+      expect(table.className).not.toContain("overflow");
+    } finally {
+      mocks.messagePartText.text = "```tsx\nconst answer = 42;\n```";
+    }
+  });
 });
