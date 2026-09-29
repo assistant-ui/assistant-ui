@@ -26,6 +26,12 @@ export type ToolResponseLike<TResult> = {
   /** Marks the tool result as an error result. */
   isError?: boolean | undefined;
   /**
+   * Marks the result as interim while the tool call keeps running. Honored by
+   * stream controllers, which can send more responses; a tool's `execute`
+   * result is always final and ignores it.
+   */
+  isPreliminary?: boolean | undefined;
+  /**
    * Explicit model-visible content to send back after the tool call.
    *
    * When omitted, assistant-ui derives model output from `result` or a tool's
@@ -60,6 +66,7 @@ export class ToolResponse<TResult> {
   readonly artifact?: ReadonlyJSONValue;
   readonly result: TResult;
   readonly isError: boolean;
+  readonly isPreliminary?: boolean;
   readonly modelContent?: readonly ToolModelContentPart[];
   readonly messages?: ReadonlyJSONValue;
 
@@ -74,6 +81,9 @@ export class ToolResponse<TResult> {
     this.result =
       result === undefined ? (NO_RESULT as unknown as TResult) : result;
     this.isError = options.isError ?? false;
+    if (options.isPreliminary) {
+      this.isPreliminary = true;
+    }
     if (options.modelContent !== undefined) {
       this.modelContent = options.modelContent;
     }

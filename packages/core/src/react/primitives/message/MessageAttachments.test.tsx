@@ -2,7 +2,7 @@
 import { render, screen } from "@testing-library/react";
 import { useState, type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
-import type { CompleteAttachment } from "../../../types/attachment";
+import type { Attachment, CompleteAttachment } from "../../../types/attachment";
 
 const mocks = vi.hoisted(() => ({
   role: "user" as "user" | "assistant",
@@ -56,11 +56,7 @@ const attachment = (id: string): CompleteAttachment => ({
   content: [],
 });
 
-const StatefulAttachment = ({
-  attachment,
-}: {
-  attachment: CompleteAttachment;
-}) => {
+const StatefulAttachment = ({ attachment }: { attachment: Attachment }) => {
   const [initialId] = useState(attachment.id);
   return <span>{initialId}</span>;
 };

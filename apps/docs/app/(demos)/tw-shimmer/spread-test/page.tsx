@@ -72,7 +72,7 @@ function TableOfContents() {
 
   return (
     <nav className="sticky top-24">
-      <h2 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase">
+      <h2 className="text-muted-foreground mb-3 text-xs font-semibold">
         Sections
       </h2>
       <ul className="space-y-1">

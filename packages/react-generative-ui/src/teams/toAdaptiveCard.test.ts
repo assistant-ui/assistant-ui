@@ -202,6 +202,22 @@ describe("toAdaptiveCard", () => {
       expect((card.body[0] as TeamsFactSet).facts).toHaveLength(5);
     });
 
+    it("appends a directional fact delta to the value text", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Fact",
+        label: "Revenue",
+        value: "$12.4k",
+        delta: "8%",
+        trend: "down",
+      });
+      expect(card.body).toEqual([
+        {
+          type: "FactSet",
+          facts: [{ title: "Revenue", value: "$12.4k (↓ 8%)" }],
+        },
+      ]);
+    });
+
     it("breaks Fact merging on a non-Fact sibling", () => {
       const { card } = toAdaptiveCard([
         { $type: "Fact", label: "A", value: "1" },
@@ -481,6 +497,24 @@ describe("toAdaptiveCard", () => {
       expect((card.body[0] as TeamsInputChoiceSet).id).toBe("select");
     });
 
+    it("sets value from a non-empty defaultValue", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Select",
+        defaultValue: "blue",
+        options: [{ label: "Blue", value: "blue" }],
+      });
+      expect((card.body[0] as TeamsInputChoiceSet).value).toBe("blue");
+    });
+
+    it("omits value when defaultValue is empty", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Select",
+        defaultValue: "",
+        options: [{ label: "Blue", value: "blue" }],
+      });
+      expect((card.body[0] as TeamsInputChoiceSet).value).toBeUndefined();
+    });
+
     it("does not dispatch a prop array through Symbol.species", () => {
       let dispatches = 0;
       const injected = Array.from(
@@ -556,6 +590,86 @@ describe("toAdaptiveCard", () => {
         },
       ]);
     });
+
+    it("appends option descriptions to choice titles", () => {
+      const { card } = toAdaptiveCard({
+        $type: "RadioGroup",
+        options: [
+          {
+            label: "Free",
+            description: "For personal projects",
+            value: "free",
+          },
+        ],
+      });
+      expect((card.body[0] as TeamsInputChoiceSet).choices).toEqual([
+        { title: "Free: For personal projects", value: "free" },
+      ]);
+    });
+  });
+
+  describe("CheckboxGroup", () => {
+    it("renders an expanded multi-select Input.ChoiceSet with the default values joined by commas", () => {
+      const { card } = toAdaptiveCard({
+        $type: "CheckboxGroup",
+        name: "toppings",
+        label: "Toppings",
+        defaultValue: ["basil", 7, "onion"],
+        options: [
+          { label: "Basil", value: "basil" },
+          { label: "Olives", value: "olives" },
+          { label: "Onion", value: "onion" },
+        ],
+      });
+      expect(card.body).toEqual([
+        {
+          type: "Input.ChoiceSet",
+          id: "toppings",
+          style: "expanded",
+          isMultiSelect: true,
+          choices: [
+            { title: "Basil", value: "basil" },
+            { title: "Olives", value: "olives" },
+            { title: "Onion", value: "onion" },
+          ],
+          value: "basil,onion",
+          label: "Toppings",
+        },
+      ]);
+    });
+
+    it("falls back to the checkboxgroup id and appends a companion submit for an action", () => {
+      const { card, warnings } = toAdaptiveCard({
+        $type: "CheckboxGroup",
+        options: [{ label: "Basil", value: "basil" }],
+        $action: { type: "pick" },
+      });
+      expect(card.body).toEqual([
+        {
+          type: "Input.ChoiceSet",
+          id: "checkboxgroup",
+          style: "expanded",
+          isMultiSelect: true,
+          choices: [{ title: "Basil", value: "basil" }],
+        },
+        {
+          type: "ActionSet",
+          actions: [
+            {
+              type: "Action.Submit",
+              title: "Submit",
+              data: { aui: { type: "pick" } },
+            },
+          ],
+        },
+      ]);
+      expect(warnings).toContainEqual({
+        code: "fallback",
+        component: "CheckboxGroup",
+        detail:
+          "Teams inputs cannot dispatch on change; a companion submit action was appended.",
+      });
+    });
   });
 
   describe("Checkbox", () => {
@@ -582,6 +696,39 @@ describe("toAdaptiveCard", () => {
       const { card } = toAdaptiveCard({ $type: "Checkbox", label: "Agree" });
       expect((card.body[0] as TeamsInputToggle).id).toBe("Agree");
       expect((card.body[0] as TeamsInputToggle).value).toBe("false");
+    });
+
+    it("maps a switch like a checkbox", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Checkbox",
+        label: "Subscribe",
+        variant: "switch",
+      });
+      expect(card.body[0]).toMatchObject({
+        type: "Input.Toggle",
+        title: "Subscribe",
+      });
+    });
+  });
+
+  describe("Slider", () => {
+    it("renders an Input.Number with its bounds, value, and label", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Slider",
+        name: "quantity",
+        label: "Quantity",
+        min: 1,
+        max: 12,
+        defaultValue: 3,
+      });
+      expect(card.body[0]).toEqual({
+        type: "Input.Number",
+        id: "quantity",
+        label: "Quantity",
+        min: 1,
+        max: 12,
+        value: 3,
+      });
     });
   });
 
@@ -610,6 +757,24 @@ describe("toAdaptiveCard", () => {
         multiline: true,
       });
       expect((card.body[0] as TeamsInputText).isMultiline).toBe(true);
+    });
+
+    it("sets value from a non-empty defaultValue", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Input",
+        name: "notes",
+        defaultValue: "Draft reply",
+      });
+      expect((card.body[0] as TeamsInputText).value).toBe("Draft reply");
+    });
+
+    it("omits value when defaultValue is empty", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Input",
+        name: "notes",
+        defaultValue: "",
+      });
+      expect((card.body[0] as TeamsInputText).value).toBeUndefined();
     });
 
     it("emits no ActionSet when $action is absent", () => {
@@ -663,7 +828,9 @@ describe("toAdaptiveCard", () => {
       ["Input", { $type: "Input", name: "aui" }],
       ["Select", { $type: "Select", name: "aui", options: [] }],
       ["RadioGroup", { $type: "RadioGroup", name: "aui", options: [] }],
+      ["CheckboxGroup", { $type: "CheckboxGroup", name: "aui", options: [] }],
       ["Checkbox", { $type: "Checkbox", name: "aui", label: "Agree" }],
+      ["Slider", { $type: "Slider", name: "aui", min: 0, max: 10 }],
       ["DatePicker", { $type: "DatePicker", name: "aui" }],
     ] as const)(
       "renames a %s named aui to aui_ with a warning",
@@ -1140,6 +1307,28 @@ describe("toAdaptiveCard", () => {
           ],
         },
       ]);
+    });
+
+    it("formats table cells from their columns", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Table",
+        columns: [
+          { label: "Number", format: { kind: "number", decimals: 1 } },
+          {
+            label: "Revenue",
+            format: { kind: "currency", currency: "USD", decimals: 2 },
+          },
+          { label: "Share", format: { kind: "percent", decimals: 0 } },
+          { label: "Date", format: { kind: "date" } },
+        ],
+        rows: [[1234.5, 12.4, 0.08, "2024-01-02"]],
+      });
+      const table = card.body[0] as TeamsTable;
+      expect(
+        table.rows[1]?.cells.map(
+          (cell) => (cell.items[0] as TeamsTextBlock).text,
+        ),
+      ).toEqual(["1,234.5", "$12.40", "8%", "Jan 2, 2024"]);
     });
 
     it("sets firstRowAsHeaders false and emits no header row when there are no columns", () => {

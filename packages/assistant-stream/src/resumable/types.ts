@@ -52,8 +52,8 @@ export interface ResumableStreamStore {
    * @param lease When given, the mutation applies only while `lease` still owns
    * the stream. While the stream exists under a newer acquisition, a superseded
    * producer's append throws `ResumableStreamError("missing")` and its
-   * finalize is a no-op; a stream with no state at all still reports
-   * not found from finalize.
+   * finalize is a no-op that resolves `false`; a stream with no state at all
+   * still reports not found from finalize.
    */
   append(
     streamId: string,
@@ -61,13 +61,18 @@ export interface ResumableStreamStore {
     lease?: ResumableStreamLease,
   ): Promise<void>;
 
-  /** @param lease See {@link ResumableStreamStore.append}. */
+  /**
+   * Resolves `false` when nothing was finalized: the stream was already in a
+   * terminal state, or `lease` no longer owns it. A store that resolves
+   * without a value is taken to have finalized.
+   * @param lease See {@link ResumableStreamStore.append}.
+   */
   finalize(
     streamId: string,
     status: "done" | "error",
     error?: string,
     lease?: ResumableStreamLease,
-  ): Promise<void>;
+  ): Promise<boolean | void>;
 
   /**
    * Yields persisted entries strictly after `cursor` (`""` starts from the

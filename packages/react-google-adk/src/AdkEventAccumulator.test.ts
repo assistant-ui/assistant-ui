@@ -246,6 +246,78 @@ describe("AdkEventAccumulator - function calls", () => {
     );
     expect(acc.getToolConfirmations()).toHaveLength(0);
   });
+
+  const requestEvent = (name: string) =>
+    makeEvent({
+      author: "agent",
+      content: {
+        role: "model",
+        parts: [{ functionCall: { name, id: "rc-1" } }, { text: "still here" }],
+      },
+    });
+
+  it("keeps an args-less confirmation call answerable", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(requestEvent("adk_request_confirmation"));
+
+    expect(acc.getToolConfirmations()).toEqual([
+      {
+        toolCallId: "rc-1",
+        toolName: "",
+        args: {},
+        hint: "",
+        confirmed: false,
+      },
+    ]);
+    expect((msgs[0] as AdkMessage & { type: "ai" }).tool_calls).toEqual([
+      {
+        id: "rc-1",
+        name: "adk_request_confirmation",
+        args: {},
+        argsText: "{}",
+      },
+    ]);
+    expect(msgs[0]).toMatchObject({
+      content: [{ type: "text", text: "still here" }],
+    });
+  });
+
+  it("keeps an args-less credential call answerable", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(requestEvent("adk_request_credential"));
+
+    expect(acc.getAuthRequests()).toEqual([
+      { toolCallId: "rc-1", authConfig: undefined },
+    ]);
+    expect((msgs[0] as AdkMessage & { type: "ai" }).tool_calls).toEqual([
+      {
+        id: "rc-1",
+        name: "adk_request_credential",
+        args: {},
+        argsText: "{}",
+      },
+    ]);
+    expect(msgs[0]).toMatchObject({
+      content: [{ type: "text", text: "still here" }],
+    });
+  });
+
+  it("defaults an ordinary call without args to empty args", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        content: {
+          role: "model",
+          parts: [{ functionCall: { name: "search", id: "tc-1" } }],
+        },
+      }),
+    );
+
+    expect((msgs[0] as AdkMessage & { type: "ai" }).tool_calls).toEqual([
+      { id: "tc-1", name: "search", args: {}, argsText: "{}" },
+    ]);
+  });
 });
 
 describe("AdkEventAccumulator - function responses", () => {

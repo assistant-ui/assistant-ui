@@ -8,6 +8,8 @@ platforms: ["react"]
 
 It works with any encoder that already ships in `assistant-stream` (the AI SDK UI message stream, the data stream protocol, the assistant transport SSE format, or your own), because persistence happens at the byte level after encoding.
 
+<AgentSetup product="guides/resumable-streams" />
+
 ## What it solves
 
 A user sends a long prompt, walks away, and reloads the tab. Without resumable streams the LLM call is wasted; with them the client picks up where it left off. The same flow handles dropped mobile connections and lets a stream started on one device be read on another, gated by an opaque stream id.

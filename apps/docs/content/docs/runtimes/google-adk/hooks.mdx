@@ -134,7 +134,9 @@ function ToolConfirmationUI() {
 
 ## Auth requests
 
-When a tool requires OAuth or other authentication, use `useAdkAuthRequests` to read pending requests and `useAdkSubmitAuth` to submit credentials:
+When a tool requires OAuth or other authentication, ADK pauses it and emits an `adk_request_credential` call carrying the auth config it issued. `useAdkAuthRequests` lists the calls still waiting, and `useAdkSubmitAuth` answers one with a credential. The reply is that request's `authConfig` with the credential as its `exchangedAuthCredential`, which is the shape ADK resumes the tool on, so the id has to be one the list currently holds; a stale one throws instead of sending a reply ADK would ignore.
+
+For OAuth2 and OpenID Connect the app owns the browser round trip: open `authConfig.exchangedAuthCredential.oauth2.authUri`, then submit the URL ADK redirected the user back to as `oauth2.authResponseUri` (or the code alone as `oauth2.authCode`). ADK exchanges the code for tokens itself. adk-js reads nothing else off an OAuth2 reply; adk-python also accepts a credential that already carries `oauth2.accessToken` and stores it without an exchange. The examples call an app-owned `completeOAuth(authUri)` that resolves with that redirect URL.
 
 <PlatformTabs>
 <Tab value="React">
@@ -146,6 +148,10 @@ import {
   type AdkAuthCredential,
 } from "@assistant-ui/react-google-adk";
 
+const authUriOf = (authConfig: unknown) =>
+  (authConfig as { exchangedAuthCredential?: AdkAuthCredential } | undefined)
+    ?.exchangedAuthCredential?.oauth2?.authUri;
+
 function AuthUI() {
   const authRequests = useAdkAuthRequests();
   const submitAuth = useAdkSubmitAuth();
@@ -155,15 +161,15 @@ function AuthUI() {
   return authRequests.map((req) => (
     <div key={req.toolCallId}>
       <button
-        onClick={() => {
-          const credential: AdkAuthCredential = {
+        onClick={async () => {
+          const authResponseUri = await completeOAuth(authUriOf(req.authConfig));
+          submitAuth(req.toolCallId, {
             authType: "oauth2",
-            oauth2: { accessToken: "..." },
-          };
-          submitAuth(req.toolCallId, credential);
+            oauth2: { authResponseUri },
+          });
         }}
       >
-        Authenticate
+        Sign in
       </button>
     </div>
   ));
@@ -181,6 +187,10 @@ import {
 } from "@assistant-ui/react-google-adk";
 import { Pressable, Text, View } from "react-native";
 
+const authUriOf = (authConfig: unknown) =>
+  (authConfig as { exchangedAuthCredential?: AdkAuthCredential } | undefined)
+    ?.exchangedAuthCredential?.oauth2?.authUri;
+
 function AuthUI() {
   const authRequests = useAdkAuthRequests();
   const submitAuth = useAdkSubmitAuth();
@@ -192,15 +202,17 @@ function AuthUI() {
       {authRequests.map((req) => (
         <Pressable
           key={req.toolCallId}
-          onPress={() => {
-            const credential: AdkAuthCredential = {
+          onPress={async () => {
+            const authResponseUri = await completeOAuth(
+              authUriOf(req.authConfig),
+            );
+            submitAuth(req.toolCallId, {
               authType: "oauth2",
-              oauth2: { accessToken: "..." },
-            };
-            submitAuth(req.toolCallId, credential);
+              oauth2: { authResponseUri },
+            });
           }}
         >
-          <Text>Authenticate</Text>
+          <Text>Sign in</Text>
         </Pressable>
       ))}
     </View>
@@ -219,18 +231,22 @@ import {
 } from "@assistant-ui/react-google-adk";
 import { Box, Text, useInput } from "ink";
 
+const authUriOf = (authConfig: unknown) =>
+  (authConfig as { exchangedAuthCredential?: AdkAuthCredential } | undefined)
+    ?.exchangedAuthCredential?.oauth2?.authUri;
+
 function AuthUI() {
   const authRequests = useAdkAuthRequests();
   const submitAuth = useAdkSubmitAuth();
   const active = authRequests[0];
 
-  useInput((input) => {
+  useInput(async (input) => {
     if (!active || input !== "a") return;
-    const credential: AdkAuthCredential = {
+    const authResponseUri = await completeOAuth(authUriOf(active.authConfig));
+    submitAuth(active.toolCallId, {
       authType: "oauth2",
-      oauth2: { accessToken: "..." },
-    };
-    submitAuth(active.toolCallId, credential);
+      oauth2: { authResponseUri },
+    });
   });
 
   if (!active) return null;
@@ -238,7 +254,7 @@ function AuthUI() {
   return (
     <Box flexDirection="column">
       <Text>Authentication required for a tool call.</Text>
-      <Text>Press a after completing your auth flow.</Text>
+      <Text>Press a to sign in.</Text>
     </Box>
   );
 }
@@ -247,7 +263,7 @@ function AuthUI() {
 </Tab>
 </PlatformTabs>
 
-`AdkAuthCredential` supports all ADK auth types: `apiKey`, `http`, `oauth2`, `openIdConnect`, `serviceAccount`.
+`AdkAuthCredential` supports all ADK auth types: `apiKey`, `http`, `oauth2`, `openIdConnect`, `serviceAccount`. A scheme without a browser round trip takes the credential directly, such as `submitAuth(req.toolCallId, { authType: "apiKey", apiKey })`.
 
 ## Input requests
 

@@ -723,7 +723,8 @@ async function bundlePackageSurface(packageInfo, workspacePackagePatterns) {
     cwd: repoRoot,
     platform: "neutral",
     format: "esm",
-    dts: true,
+    // The declaration plugin's shared context keeps every TypeScript program it creates alive for the whole process; an isolated context is released when its build ends.
+    dts: { newContext: true },
     sourcemap: false,
     clean: true,
     logLevel: "silent",

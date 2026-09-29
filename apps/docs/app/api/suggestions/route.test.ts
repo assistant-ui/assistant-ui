@@ -1,10 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { DEFAULT_MODEL_ID } from "@/lib/model";
 
 const mocks = vi.hoisted(() => ({
   requireSession: vi.fn(),
   checkRateLimit: vi.fn(),
-  getModel: vi.fn(),
+  resolveChatModel: vi.fn(),
   getDistinctId: vi.fn(),
   generateText: vi.fn(),
 }));
@@ -21,7 +20,7 @@ vi.mock("@/lib/rate-limit", async (importOriginal) => ({
 
 vi.mock("@/lib/ai/provider", async (importOriginal) => ({
   ...(await importOriginal()),
-  getModel: mocks.getModel,
+  resolveChatModel: mocks.resolveChatModel,
 }));
 
 vi.mock("@/lib/posthog-server", async (importOriginal) => ({
@@ -50,7 +49,7 @@ describe("POST /api/suggestions", () => {
 
     expect(await POST(request("Hello"))).toBe(denied);
     expect(mocks.checkRateLimit).not.toHaveBeenCalled();
-    expect(mocks.getModel).not.toHaveBeenCalled();
+    expect(mocks.resolveChatModel).not.toHaveBeenCalled();
   });
 
   it("rejects a prompt that is missing or blank", async () => {
@@ -64,7 +63,7 @@ describe("POST /api/suggestions", () => {
 
     expect(response.status).toBe(400);
     expect(await response.text()).toBe("Invalid prompt");
-    expect(mocks.getModel).not.toHaveBeenCalled();
+    expect(mocks.resolveChatModel).not.toHaveBeenCalled();
   });
 
   it("rejects a malformed body without failing as a server error", async () => {
@@ -83,7 +82,7 @@ describe("POST /api/suggestions", () => {
     );
 
     expect(response.status).toBe(400);
-    expect(mocks.getModel).not.toHaveBeenCalled();
+    expect(mocks.resolveChatModel).not.toHaveBeenCalled();
   });
 
   it("keeps the task instruction and the newest turns of a long transcript", async () => {
@@ -92,7 +91,7 @@ describe("POST /api/suggestions", () => {
       expiresAt: Date.now() + 60_000,
     });
     mocks.checkRateLimit.mockResolvedValue(null);
-    mocks.getModel.mockReturnValue({});
+    mocks.resolveChatModel.mockReturnValue({ model: {} });
     mocks.getDistinctId.mockReturnValue("distinct_1234567890");
     mocks.generateText.mockResolvedValue({ text: "One" });
 
@@ -113,7 +112,7 @@ describe("POST /api/suggestions", () => {
       expiresAt: Date.now() + 60_000,
     });
     mocks.checkRateLimit.mockResolvedValue(null);
-    mocks.getModel.mockReturnValue(model);
+    mocks.resolveChatModel.mockReturnValue({ model });
     mocks.getDistinctId.mockReturnValue("distinct_1234567890");
     mocks.generateText.mockResolvedValue({
       text: " - \"Ask a deeper question\"\n2. “Draw a diagram”\n• 'Remember this preference'",
@@ -128,12 +127,12 @@ describe("POST /api/suggestions", () => {
         "Remember this preference",
       ],
     });
-    expect(mocks.getModel).toHaveBeenCalledWith(DEFAULT_MODEL_ID);
+    expect(mocks.resolveChatModel).toHaveBeenCalledWith();
     expect(mocks.generateText).toHaveBeenCalledWith(
       expect.objectContaining({
         model,
         prompt: "Explain thread state",
-        maxOutputTokens: 160,
+        maxOutputTokens: 1024,
       }),
     );
   });

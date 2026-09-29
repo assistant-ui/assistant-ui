@@ -90,7 +90,14 @@ export const createReplayBoundaryStream = async (
   const reader = body.getReader();
   let bytesForwarded = 0;
   let replayFinished = false;
+  let replayCleared = false;
   let readerCleanup: Promise<void> | undefined;
+
+  const clearReplay = () => {
+    if (replayCleared) return;
+    replayCleared = true;
+    setReplaying(false);
+  };
 
   const releaseReader = () => {
     if (readerCleanup) return readerCleanup;
@@ -117,7 +124,7 @@ export const createReplayBoundaryStream = async (
 
     // Let replay bytes drain before rendering live mode, then render live mode before releasing live bytes.
     await waitForReplayRender();
-    setReplaying(false);
+    clearReplay();
     await waitForReplayRender();
   };
 
@@ -158,6 +165,7 @@ export const createReplayBoundaryStream = async (
         await finishReplay();
         controller.enqueue(value.subarray(replayBytesInChunk));
       } catch (error) {
+        clearReplay();
         await cancelReader(error).catch(() => {});
         throw error;
       }
@@ -165,7 +173,7 @@ export const createReplayBoundaryStream = async (
     async cancel(reason) {
       const wasFinished = replayFinished;
       replayFinished = true;
-      if (!wasFinished) setReplaying(false);
+      if (!wasFinished) clearReplay();
       await cancelReader(reason);
     },
   });

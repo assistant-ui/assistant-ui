@@ -130,6 +130,57 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
     expect(sendMessages).toHaveBeenCalledTimes(1);
   });
 
+  it("renders a streamed request as its approvalDescriptor declares", async () => {
+    const descriptor = {
+      prompt: "Which environment?",
+      display: "select",
+      options: [{ id: "once", kind: "allow-once", label: "Staging once" }],
+      scope: "deploy",
+    };
+    const handler = vi.fn<ApprovalHandler>(async () => {});
+    const { approval, part, toolPart } = await setup(() => handler, {
+      request: [
+        { type: "start", messageId: "assistant-1" },
+        { type: "start-step" },
+        {
+          type: "tool-input-available",
+          toolCallId: "tool-1",
+          toolName: "deploy",
+          input: {},
+        },
+        {
+          type: "tool-approval-request",
+          approvalId: "approval-1",
+          toolCallId: "tool-1",
+          approvalDescriptor: descriptor,
+        },
+        { type: "finish-step" },
+        { type: "finish" },
+      ],
+    });
+
+    expect(toolPart()).toMatchObject({
+      state: "approval-requested",
+      approval: { id: "approval-1", descriptor },
+    });
+    expect(approval()).toEqual({
+      id: "approval-1",
+      prompt: "Which environment?",
+      display: "select",
+      options: [{ id: "once", kind: "allow-once", label: "Staging once" }],
+      descriptor,
+    });
+
+    await act(() => part().respondToToolApproval({ optionId: "once" }));
+
+    expect(handler).toHaveBeenCalledWith(
+      { approvalId: "approval-1", approved: true, optionId: "once" },
+      expect.objectContaining({ toolCallId: "tool-1", toolName: "deploy" }),
+    );
+    expect(approval()).toMatchObject({ approved: true, optionId: "once" });
+    expect(toolPart()).toMatchObject({ state: "approval-requested" });
+  });
+
   it("keeps a host answer out of the chat's automatic sends", async () => {
     const { chat, sendMessages, respond } = await setup(() => async () => {}, {
       request: approvalStep([

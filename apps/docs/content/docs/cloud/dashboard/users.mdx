@@ -22,11 +22,13 @@ The table supplies the people behind those totals.
 | Column | Reading |
 | --- | --- |
 | User | The display name when the identity supplied the Name claim, otherwise the user id. |
+| Last active | The user's most recent activity. |
+| Threads | Threads attributed to the user in the range. |
 | Runs | Runs attributed to the user in the range. |
 | Tokens | Tokens attributed to those runs. |
 | Cost | Cost attributed to those runs. |
 
-Every column sorts. The page opens sorted by Runs and shows 50 people per page, with 25 and 100 as the other page sizes. Search matches user ids and display names.
+**User**, **Runs**, **Tokens** and **Cost** sort. **Last active** and **Threads** do not. The page opens sorted by Runs and shows 50 people per page, with 25 and 100 as the other page sizes. Search matches user ids and display names.
 
 ### Charts
 
@@ -42,7 +44,7 @@ The Name claim is recorded as the project's display name for that user. A missin
 
 ![User page on the demo project](../images/user.webp)
 
-Select a user to open their page. This page always reads a fixed last 30 days, including its Threads and Runs sections. The dashboard range picker does not change that window, so use the list page when you need a different historical range.
+Select a user to open their page. Its tiles, Models, Threads and Runs sections read the last 30 days. The dashboard range picker does not change that window. The header shows first seen and last active, and Activity is a 52 week calendar of daily runs over the last 365 days.
 
 | Part | What it contains |
 | --- | --- |
@@ -51,7 +53,7 @@ Select a user to open their page. This page always reads a fixed last 30 days, i
 | Topics | Topics associated with the user's activity. |
 | Threads | The user's threads in the fixed window. |
 | Runs | The user's runs in the fixed window. |
-| Activity | First seen and last active timestamps for the user. |
+| Activity | A 52 week calendar of daily runs over the last 365 days. |
 
 The user page reads “User not found” when there is no usage for that id.
 

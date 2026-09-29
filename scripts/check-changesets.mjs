@@ -13,8 +13,18 @@ const repoRoot = path.resolve(
 );
 
 const BUMP_VALUES = new Set(["patch", "minor", "major"]);
+const RELEASE_VALUES = new Set([...BUMP_VALUES, "none"]);
 const TEST_DIRECTORIES = new Set(["__fixtures__", "__tests__", "tests"]);
 const TEST_FILE = /\.(?:bench|spec|test)\.[^/]+$/;
+const RELEASE_REWRITTEN_KEYS = new Set(["version"]);
+const CONSUMER_INERT_KEYS = new Set(["devDependencies"]);
+const DEPENDENCY_KEYS = new Set([
+  "dependencies",
+  "optionalDependencies",
+  "peerDependencies",
+]);
+const CONSUMER_RUN_SCRIPTS = new Set(["install", "postinstall", "preinstall"]);
+const RELEASE_MANAGED_RANGE = "<release managed>";
 
 export function parseWorkspaceGlobs(source) {
   const globs = [];
@@ -36,6 +46,11 @@ export function parseWorkspaceGlobs(source) {
 }
 
 export function parseBumpLine(line) {
+  const release = parseReleaseLine(line);
+  return release && BUMP_VALUES.has(release.bump) ? release : null;
+}
+
+function parseReleaseLine(line) {
   const entry = line
     .trim()
     .match(/^(?:"([^"]*)"|'([^']*)'|([^#:][^:]*?))\s*:\s*(.*)$/);
@@ -45,8 +60,18 @@ export function parseBumpLine(line) {
   );
   if (!value) return null;
   const bump = value[1] ?? value[2] ?? value[3];
-  if (!BUMP_VALUES.has(bump)) return null;
+  if (!RELEASE_VALUES.has(bump)) return null;
   return { name: entry[1] ?? entry[2] ?? entry[3], bump };
+}
+
+// A copy of `mdRegex` from `@changesets/parse`, which `changeset version` uses
+// to read a changeset. The checks run in CI without installed dependencies, so
+// they cannot import it; keep the two patterns identical.
+const CHANGESET_SOURCE = /\s*---([\s\S]*?)\r?\n\s*---(\s*(?:\n|$)[\s\S]*)/;
+
+export function readChangesetSource(source) {
+  const match = CHANGESET_SOURCE.exec(source);
+  return match ? { frontmatter: match[1], body: match[2] } : null;
 }
 
 export function readWorkspacePackages(root) {
@@ -83,14 +108,13 @@ function readChangesetBumps(root, files = null) {
   for (const file of readdirSync(changesetDir).sort()) {
     if (!file.endsWith(".md") || file === "README.md") continue;
     if (files && !files.has(file)) continue;
-    const frontmatter = readFileSync(
-      path.join(changesetDir, file),
-      "utf8",
-    ).match(/^---\r?\n([\s\S]*?)\r?\n---/);
-    if (!frontmatter) continue;
-    for (const line of frontmatter[1].split("\n")) {
-      const bump = parseBumpLine(line);
-      if (bump) bumps.push({ file, name: bump.name });
+    const changeset = readChangesetSource(
+      readFileSync(path.join(changesetDir, file), "utf8"),
+    );
+    if (!changeset) continue;
+    for (const line of changeset.frontmatter.split("\n")) {
+      const release = parseReleaseLine(line);
+      if (release) bumps.push({ file, ...release });
     }
   }
   return bumps;
@@ -230,23 +254,98 @@ export function findMissingPackageChangesets(
   return missing.sort((a, b) => (a.name < b.name ? -1 : 1));
 }
 
+function mapEntries(block, map) {
+  if (block === null || typeof block !== "object") return {};
+  return Object.fromEntries(
+    Object.entries(block).flatMap(([key, value]) => {
+      const mapped = map(key, value);
+      return mapped === undefined ? [] : [[key, mapped]];
+    }),
+  );
+}
+
+function publishedManifestFields(manifest, workspacePackageNames) {
+  const fields = {};
+  for (const [key, value] of Object.entries(manifest)) {
+    if (
+      RELEASE_REWRITTEN_KEYS.has(key) ||
+      CONSUMER_INERT_KEYS.has(key) ||
+      DEPENDENCY_KEYS.has(key) ||
+      key === "scripts"
+    ) {
+      continue;
+    }
+    fields[key] = value;
+  }
+  for (const key of DEPENDENCY_KEYS) {
+    fields[key] = mapEntries(manifest[key], (dependency, range) =>
+      workspacePackageNames.has(dependency) ? RELEASE_MANAGED_RANGE : range,
+    );
+  }
+  fields.scripts = mapEntries(manifest.scripts, (script, command) =>
+    CONSUMER_RUN_SCRIPTS.has(script) ? command : undefined,
+  );
+  return fields;
+}
+
+export function findChangedManifestFields(base, head, workspacePackageNames) {
+  const before = publishedManifestFields(base ?? {}, workspacePackageNames);
+  const after = publishedManifestFields(head ?? {}, workspacePackageNames);
+  return [...new Set([...Object.keys(before), ...Object.keys(after)])]
+    .filter((key) => JSON.stringify(before[key]) !== JSON.stringify(after[key]))
+    .sort();
+}
+
+function runGit(root, args) {
+  return execFileSync("git", args, {
+    cwd: root,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+}
+
 function listChangedFiles(root, baseSha, headSha) {
-  return execFileSync(
-    "git",
-    ["diff", "--name-only", "--no-renames", "-z", `${baseSha}...${headSha}`],
-    { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
-  )
+  return runGit(root, [
+    "diff",
+    "--name-only",
+    "--no-renames",
+    "-z",
+    `${baseSha}...${headSha}`,
+  ])
     .split("\0")
     .filter(Boolean);
 }
 
+function listTreeFiles(root, ref) {
+  return new Set(
+    runGit(root, ["ls-tree", "-r", "-z", "--name-only", ref])
+      .split("\0")
+      .filter(Boolean),
+  );
+}
+
+function readManifestAt(root, ref, file, treeFiles) {
+  if (!treeFiles.has(file)) return null;
+  return JSON.parse(runGit(root, ["show", `${ref}:${file}`]));
+}
+
+function gitFailure(error) {
+  const stderr = String(error.stderr ?? "").trim();
+  return { error: stderr.split("\n").at(-1) || error.message };
+}
+
 export function runChangedPackageCheck(root, baseSha, headSha) {
+  let forkPoint;
   let changedFiles;
+  let forkPointFiles;
+  let headFiles;
   try {
+    forkPoint = runGit(root, ["merge-base", baseSha, headSha]).trim();
     changedFiles = listChangedFiles(root, baseSha, headSha);
+    forkPointFiles = listTreeFiles(root, forkPoint);
+    headFiles = listTreeFiles(root, headSha);
   } catch (error) {
-    const stderr = String(error.stderr ?? "").trim();
-    return { error: stderr.split("\n").at(-1) || error.message };
+    return gitFailure(error);
   }
 
   const workspacePackages = readWorkspacePackages(root);
@@ -257,10 +356,9 @@ export function runChangedPackageCheck(root, baseSha, headSha) {
   const packages = new Map(
     [...workspacePackages].filter(([name, pkg]) => !isSkipped(name, pkg)),
   );
+  const releasable = [...packages.values()];
   const sourceFiles = changedFiles.filter((file) =>
-    [...packages.values()].some((pkg) =>
-      isReleaseRelevantPackageFile(file, pkg),
-    ),
+    releasable.some((pkg) => isReleaseRelevantPackageFile(file, pkg)),
   );
   const changesetFiles = new Set(
     changedFiles
@@ -268,15 +366,48 @@ export function runChangedPackageCheck(root, baseSha, headSha) {
       .map((file) => path.posix.basename(file)),
   );
   const bumpedNames = new Set(
-    readChangesetBumps(root, changesetFiles).map(({ name }) => name),
+    readChangesetBumps(root, changesetFiles)
+      .filter(({ bump }) => BUMP_VALUES.has(bump))
+      .map(({ name }) => name),
   );
+
+  const missing = new Map(
+    findMissingPackageChangesets(packages, sourceFiles, bumpedNames).map(
+      ({ name, files }) => [name, { name, files, fields: [] }],
+    ),
+  );
+  const changedManifests = new Set(
+    changedFiles.filter((file) => path.posix.basename(file) === "package.json"),
+  );
+  try {
+    const workspacePackageNames = new Set();
+    for (const pkg of workspacePackages.values()) {
+      const manifest = readManifestAt(root, headSha, pkg.manifest, headFiles);
+      if (typeof manifest?.name === "string") {
+        workspacePackageNames.add(manifest.name);
+      }
+    }
+    for (const [name, pkg] of packages) {
+      if (bumpedNames.has(name) || !changedManifests.has(pkg.manifest))
+        continue;
+      const fields = findChangedManifestFields(
+        readManifestAt(root, forkPoint, pkg.manifest, forkPointFiles),
+        readManifestAt(root, headSha, pkg.manifest, headFiles),
+        workspacePackageNames,
+      );
+      if (fields.length === 0) continue;
+      const entry = missing.get(name);
+      if (entry) entry.fields = fields;
+      else missing.set(name, { name, files: [], fields });
+    }
+  } catch (error) {
+    return gitFailure(error);
+  }
 
   return {
     changedSourceCount: sourceFiles.length,
-    missingChangesets: findMissingPackageChangesets(
-      packages,
-      sourceFiles,
-      bumpedNames,
+    missingChangesets: [...missing.values()].sort((a, b) =>
+      a.name < b.name ? -1 : 1,
     ),
   };
 }
@@ -319,11 +450,18 @@ function main() {
   );
 }
 
-function summarizeFiles(files) {
+function summarize(items) {
   const limit = 5;
-  const summary = files.slice(0, limit).join(", ");
-  const remaining = files.length - limit;
+  const summary = items.slice(0, limit).join(", ");
+  const remaining = items.length - limit;
   return remaining > 0 ? `${summary}, and ${remaining} more` : summary;
+}
+
+function describeMissingChangeset({ name, files, fields }) {
+  const evidence = [];
+  if (files.length > 0) evidence.push(summarize(files));
+  if (fields.length > 0) evidence.push(`package.json: ${summarize(fields)}`);
+  return `  "${name}" (${evidence.join("; ")})`;
 }
 
 function mainChangedPackages() {
@@ -349,8 +487,8 @@ function mainChangedPackages() {
 
   if (result.missingChangesets.length > 0) {
     console.error("Changed published packages without a changeset:\n");
-    for (const { name, files } of result.missingChangesets) {
-      console.error(`  "${name}" (${summarizeFiles(files)})`);
+    for (const missing of result.missingChangesets) {
+      console.error(describeMissingChangeset(missing));
     }
     console.error(
       "\nAdd a changeset from this PR that names every changed published package.",

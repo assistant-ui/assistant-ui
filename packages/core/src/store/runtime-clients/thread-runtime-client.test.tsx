@@ -7,7 +7,7 @@ import {
   type AssistantClient,
 } from "@assistant-ui/store";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ThreadListItemState } from "../../runtime/api/bindings";
+import type { ThreadListItemRuntimeState } from "../../runtime/api/bindings";
 import { ThreadRuntimeImpl } from "../../runtime/api/thread-runtime";
 import type { ExternalStoreAdapter } from "../../runtimes/external-store/external-store-adapter";
 import { ExternalStoreThreadRuntimeCore } from "../../runtimes/external-store/external-store-thread-runtime-core";
@@ -19,7 +19,7 @@ const path = {
   threadSelector: { type: "main" as const },
 };
 
-const threadListItem: ThreadListItemState = {
+const threadListItem: ThreadListItemRuntimeState = {
   id: "thread-1",
   remoteId: undefined,
   externalId: undefined,
@@ -37,7 +37,10 @@ const userMessage = {
   metadata: { custom: {} },
 } as ThreadMessage;
 
-const renderThreadClient = (core: ExternalStoreThreadRuntimeCore) => {
+const renderThreadClient = (
+  core: ExternalStoreThreadRuntimeCore,
+  configureRuntime?: (runtime: ThreadRuntimeImpl) => void,
+) => {
   const runtime = new ThreadRuntimeImpl(
     {
       path,
@@ -51,6 +54,7 @@ const renderThreadClient = (core: ExternalStoreThreadRuntimeCore) => {
       subscribe: () => () => {},
     },
   );
+  configureRuntime?.(runtime);
   const captured: { current: AssistantClient | null } = { current: null };
   const App = () => (
     <AuiProvider
@@ -62,16 +66,87 @@ const renderThreadClient = (core: ExternalStoreThreadRuntimeCore) => {
       {null}
     </AuiProvider>
   );
+  let unmount!: () => void;
   act(() => {
-    render(<App />);
+    ({ unmount } = render(<App />));
   });
   if (!captured.current) throw new Error("Expected the client to mount.");
-  return { runtime, client: captured.current };
+  return { runtime, client: captured.current, unmount };
 };
 
 describe("ThreadClient", () => {
   afterEach(() => {
     cleanup();
+  });
+
+  it("does not mark the runtime's last message as last while a sent message follows it", async () => {
+    const upload = Promise.withResolvers<void>();
+    const onNew = vi.fn();
+    const store: ExternalStoreAdapter<ThreadMessage> = {
+      messages: [userMessage],
+      onNew,
+      adapters: {
+        attachments: {
+          accept: "*",
+          add: async ({ file }) => ({
+            id: "f",
+            type: "file",
+            name: file.name,
+            contentType: file.type,
+            file,
+            status: { type: "requires-action", reason: "composer-send" },
+          }),
+          remove: async () => {},
+          send: async (attachment) => {
+            await upload.promise;
+            return {
+              ...attachment,
+              status: { type: "complete" },
+              content: [],
+            };
+          },
+        },
+      },
+    };
+    const core = new ExternalStoreThreadRuntimeCore(
+      { getModelContext: () => ({}) },
+      store,
+    );
+    const { runtime, client } = renderThreadClient(core);
+    const rows = () =>
+      client.thread
+        .getState()
+        .messages.map(({ id, isLast }) => ({ id, isLast }));
+
+    await act(async () => {
+      await runtime.composer.addAttachment(
+        new File(["content"], "f.txt", { type: "text/plain" }),
+      );
+      runtime.composer.setText("hello");
+    });
+    await act(async () => {
+      runtime.composer.send();
+    });
+
+    expect(rows().map(({ isLast }) => isLast)).toEqual([false, true]);
+
+    await act(async () => {
+      upload.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(onNew).toHaveBeenCalledTimes(1);
+    expect(rows().map(({ isLast }) => isLast)).toEqual([false, true]);
+
+    act(() => {
+      core.__internal_setAdapter({
+        ...store,
+        messages: [userMessage, { ...userMessage, id: "u2" }],
+      });
+    });
+    expect(rows()).toEqual([
+      { id: "u1", isLast: false },
+      { id: "u2", isLast: true },
+    ]);
   });
 
   it("renders a run cancelled before its placeholder reached the client", async () => {
@@ -106,5 +181,63 @@ describe("ThreadClient", () => {
     expect(client.thread.getState().messages.map(({ id }) => id)).toEqual([
       "u1",
     ]);
+  });
+
+  it("attempts every event cleanup when one unsubscribe throws", () => {
+    const core = new ExternalStoreThreadRuntimeCore(
+      { getModelContext: () => ({}) },
+      {
+        messages: [],
+        onNew: vi.fn(),
+        onCancel: vi.fn(),
+      },
+    );
+    const cleanupError = new Error("cleanup failed");
+    const cleanupOrder: number[] = [];
+    let subscriptionCount = 0;
+    const { unmount } = renderThreadClient(core, (runtime) => {
+      vi.spyOn(runtime, "unstable_on").mockImplementation((() => {
+        const index = subscriptionCount++;
+        return () => {
+          cleanupOrder.push(index);
+          if (index === 0) throw cleanupError;
+        };
+      }) as never);
+    });
+
+    expect(() => unmount()).toThrow(cleanupError);
+    expect(subscriptionCount).toBeGreaterThan(1);
+    expect(cleanupOrder).toEqual(
+      Array.from({ length: subscriptionCount }, (_, index) => index),
+    );
+  });
+
+  it("attempts every composer event cleanup when one unsubscribe throws", () => {
+    const core = new ExternalStoreThreadRuntimeCore(
+      { getModelContext: () => ({}) },
+      {
+        messages: [],
+        onNew: vi.fn(),
+        onCancel: vi.fn(),
+      },
+    );
+    const cleanupError = new Error("cleanup failed");
+    const cleanupOrder: number[] = [];
+    let subscriptionCount = 0;
+    const { unmount } = renderThreadClient(core, (runtime) => {
+      vi.spyOn(runtime.composer, "unstable_on").mockImplementation((() => {
+        const index = subscriptionCount++;
+        return () => {
+          cleanupOrder.push(index);
+          if (index === 0) throw cleanupError;
+        };
+      }) as never);
+    });
+
+    expect(() => unmount()).toThrow(cleanupError);
+    expect(subscriptionCount).toBeGreaterThan(1);
+    expect(cleanupOrder).toEqual(
+      Array.from({ length: subscriptionCount }, (_, index) => index),
+    );
   });
 });

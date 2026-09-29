@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { typeEyebrow } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 import type { ComponentCategory } from "@/lib/component-reference";
 
@@ -64,7 +63,9 @@ export function VocabularyToc({
         >
           {categories.map((category) => (
             <div key={category.label} className="flex flex-col gap-1">
-              <p className={cn(typeEyebrow, "px-2")}>{category.label}</p>
+              <p className="text-muted-foreground px-2 text-xs font-medium">
+                {category.label}
+              </p>
               <div className="flex flex-col gap-0.5">
                 {category.components.map((name) => {
                   const active = activeId === name;

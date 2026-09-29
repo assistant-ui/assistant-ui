@@ -14,7 +14,7 @@ A message is one stored node in a thread's conversation tree. The browser reache
 | `parent_id` | string or null | The parent message in the same thread, or `null` for a root message. |
 | `created_at`, `updated_at` | ISO 8601 | When the message was created and last written. |
 | `format` | string | The stored message format, such as `aui/v0`, `ai-sdk/v5`, or `ai-sdk/v6`. |
-| `content` | object | The format's message payload. Its serialized JSON is at most 65,536 characters. |
+| `content` | object | The format's message payload. Its serialized JSON is at most 1,048,576 characters. |
 | `height` | integer | The message's depth in the tree. Assistant Cloud calculates it from the parent. |
 
 ## Create a message
@@ -30,7 +30,7 @@ POST /v1/threads/{thread_id}/messages
 | `external_id` | string | no | 1 to 255 characters. Repeating it identifies an existing message in this thread. |
 | `parent_external_id` | string | no | 1 to 255 characters. When present, it takes precedence over `parent_id` and must identify a message in this thread. |
 | `format` | string | yes | 1 to 255 characters. It is stored as sent. Read conversion recognizes `aui/v0`, `ai-sdk/v5`, and `ai-sdk/v6`. |
-| `content` | object | yes | The serialized JSON is at most 65,536 characters. Its `role` controls user activity tracking and the title trigger. |
+| `content` | object | yes | The serialized JSON is at most 1,048,576 characters. Its `role` controls user activity tracking and the title trigger. |
 
 Unknown fields are refused.
 
@@ -75,12 +75,12 @@ curl https://backend.assistant-api.com/v1/threads/thread_0qzof3jPoDwr7K3agyJN3D4
 |---|---|---|
 | `201` | `{ "message_id": "msg_…" }` | A new message was inserted. |
 | `200` | `{ "message_id": "msg_…" }` | `external_id` matched an existing message with the same role. An identical `content` and `format` cause no write; a changed body updates the message. |
-| `400` | `{ "success": false, "error": … }` | A required field is missing, a field is invalid, content exceeds 65,536 serialized characters, or an unknown field was sent. |
+| `400` | `{ "success": false, "error": … }` | A required field is missing, a field is invalid, content exceeds 1,048,576 serialized characters, or an unknown field was sent. |
 | `400` | `{ "error": "Parent message not found in thread" }` | `parent_id` does not identify a message in this thread. |
 | `400` | `{ "error": "Parent message with external_id not found in thread" }` | `parent_external_id` does not identify a message in this thread. |
 | `402` | `{ "error": "plan_limit_reached", "plan": …, "period_end": …, "cap": … }` | A new end user sends a `user` message after the project's active user cap. |
 | `404` | `{ "error": "Thread not found" }` | The thread is not in the caller's workspace. |
-| `404` | `{ "error": "Project not found" }` | The project no longer exists. |
+| `404` | Plain text: `Project not found` | The project no longer exists. |
 | `409` | `{ "error": "Message role cannot change" }` | An `external_id` repeat changes the stored message role. |
 | `401` or `403` | An authentication error. | The caller was not accepted. See [Conventions](/docs/cloud/api). |
 
@@ -199,7 +199,7 @@ PUT /v1/threads/{thread_id}/messages/{message_id}
 |---|---|---|---|
 | `thread_id` | string | yes | 1 to 255 characters. |
 | `message_id` | string | yes | 1 to 255 characters. |
-| `content` | object | yes | Replaces the content. Its serialized JSON is at most 65,536 characters. |
+| `content` | object | yes | Replaces the content. Its serialized JSON is at most 1,048,576 characters. |
 
 ```bash title="curl"
 curl https://backend.assistant-api.com/v1/threads/thread_0qzof3jPoDwr7K3agyJN3D4U/messages/msg_0qzof3jPoDwr7K3agyJN3D4U \
@@ -238,10 +238,9 @@ curl https://backend.assistant-api.com/v1/threads/thread_0qzof3jPoDwr7K3agyJN3D4
 | `200` | `{}` | The message was updated. |
 | `400` | `{ "success": false, "error": … }` | `content` is missing or invalid, too large, or an unknown field was sent. |
 | `404` | `{ "error": "Message not found" }` | The message is not in this thread. |
-| `409` | `{ "error": "Message has children and cannot be updated" }` | Another message names this message as its parent. |
 | `401` or `403` | An authentication error. | The caller was not accepted. See [Conventions](/docs/cloud/api). |
 
-Only a leaf message can be updated. The write records `updated_by` but does not advance the thread's `last_message_at`.
+Any message in the thread can be updated, including one that later messages follow, and it keeps its parent and its children. The write records `updated_by` but does not advance the thread's `last_message_at`.
 
 ## Submit message feedback
 
@@ -254,6 +253,7 @@ POST /v1/threads/{thread_id}/messages/{message_id}/feedback
 | `thread_id` | string | yes | 1 to 255 characters. |
 | `message_id` | string | yes | 1 to 255 characters. |
 | `type` | string | yes | `positive` or `negative`. |
+| `comment` | string | no | Optional. The trimmed value must be 1 to 2,000 characters when present. |
 
 ```bash title="curl"
 curl https://backend.assistant-api.com/v1/threads/thread_0qzof3jPoDwr7K3agyJN3D4U/messages/msg_0qzof3jPoDwr7K3agyJN3D4U/feedback \
@@ -261,23 +261,23 @@ curl https://backend.assistant-api.com/v1/threads/thread_0qzof3jPoDwr7K3agyJN3D4
   -H "Aui-User-Id: user_123" \
   -H "Aui-Workspace-Id: workspace_123" \
   -H "Content-Type: application/json" \
-  -d '{ "type": "positive" }'
+  -d '{ "type": "positive", "comment": "Resolved the request" }'
 ```
 
 ```json title="Request"
-{ "type": "positive" }
+{ "type": "positive", "comment": "Resolved the request" }
 ```
 
 ```json title="Response"
-{ "feedback_id": "score_…", "type": "positive" }
+{ "feedback_id": "score_…", "type": "positive", "comment": "Resolved the request" }
 ```
 
 | Status | Body | When |
 |---|---|---|
-| `200` | `{ "feedback_id": "score_…", "type": "positive" or "negative" }` | The feedback score was written. |
-| `400` | `{ "success": false, "error": … }` | `type` is missing, is not `positive` or `negative`, or an unknown field was sent. |
+| `200` | `{ "feedback_id": "score_…", "type": "positive" or "negative", "comment": string or null }` | The feedback score was written. |
+| `400` | `{ "success": false, "error": … }` | `type` is missing, is not `positive` or `negative`, `comment` is invalid, or an unknown field was sent. |
 | `404` | `{ "error": "Thread not found" }` | The thread is not in the caller's workspace. |
 | `404` | `{ "error": "Message not found" }` | The message is not in this thread. |
 | `401` or `403` | An authentication error. | The caller was not accepted. See [Conventions](/docs/cloud/api). |
 
-Feedback upserts one boolean score named `feedback` for the message and submitting user. `positive` stores `1` and `negative` stores `0`. Repeating feedback changes that score instead of adding another row.
+Feedback upserts one boolean score named `feedback` for the message and submitting user. `positive` stores `1` and `negative` stores `0`. Repeating feedback changes that score instead of adding another row. A comment that is sent is stored. Repeating the same rating without a comment keeps the stored comment; switching between `positive` and `negative` without a comment clears it. The comment is the `comment` of the `feedback` score and reads back through the [scores endpoints](/docs/cloud/api/scores).

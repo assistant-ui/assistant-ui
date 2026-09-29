@@ -1,5 +1,6 @@
 import type { Tool } from "assistant-stream";
 import { toJSONSchema } from "assistant-stream";
+import { getPartialJsonObjectMeta } from "assistant-stream/utils";
 import type { Unstable_InteractableDefinition } from "../types/scopes/interactables";
 import {
   interactableToolName,
@@ -10,7 +11,7 @@ import { generateId } from "../../utils/id";
 import { isRecord } from "../../utils/json/is-json";
 import { nullProtoRecord } from "../../utils/record";
 
-export type PartialJSONSchema = ReturnType<typeof toJSONSchema>;
+export type StateJSONSchema = ReturnType<typeof toJSONSchema>;
 
 const ID_PROPERTY = {
   type: "string" as const,
@@ -110,12 +111,13 @@ const withArrayUpdateSchemas = (properties: Record<string, unknown>) =>
   );
 
 /**
- * Wraps an interactable's partial state schema with the required `id`
- * parameter. Falls back to a permissive schema when the partial conversion
- * failed at registration time.
+ * Replaces the state schema's root `required` list with the `id` parameter,
+ * so every top-level field is optional while nested objects keep theirs and
+ * travel whole through the shallow merge. Falls back to a permissive schema
+ * when the JSON Schema conversion failed at registration time.
  */
-function withRequiredId(partial: PartialJSONSchema | undefined) {
-  if (!partial || typeof partial !== "object" || partial.type !== "object") {
+function withRequiredId(schema: StateJSONSchema | undefined) {
+  if (!schema || typeof schema !== "object" || schema.type !== "object") {
     return {
       type: "object" as const,
       properties: { id: ID_PROPERTY },
@@ -123,16 +125,16 @@ function withRequiredId(partial: PartialJSONSchema | undefined) {
       additionalProperties: true,
     };
   }
-  if (process.env.NODE_ENV !== "production" && partial.properties?.id) {
+  if (process.env.NODE_ENV !== "production" && schema.properties?.id) {
     console.warn(
       `[Interactables] a top-level "id" field in an interactable's stateSchema is ` +
         `reserved for instance addressing by the update tool and cannot be updated ` +
         `by the model. Rename the field to make it model-writable.`,
     );
   }
-  const { id: _reserved, ...properties } = partial.properties ?? {};
+  const { id: _reserved, ...properties } = schema.properties ?? {};
   return {
-    ...partial,
+    ...schema,
     properties: { id: ID_PROPERTY, ...withArrayUpdateSchemas(properties) },
     required: ["id"],
   };
@@ -140,8 +142,9 @@ function withRequiredId(partial: PartialJSONSchema | undefined) {
 
 export function buildInteractableModelContext(
   definitions: Record<string, Unstable_InteractableDefinition>,
-  partialSchemaCache: Map<string, PartialJSONSchema>,
+  schemaCache: Map<string, StateJSONSchema>,
   setDefState: (id: string, updater: (prev: unknown) => unknown) => void,
+  getCurrentDefinitions: () => Record<string, Unstable_InteractableDefinition>,
   streamBaselines = new Map<string, { targetId: string; state: unknown }>(),
 ):
   | {
@@ -174,10 +177,10 @@ export function buildInteractableModelContext(
     }
 
     const first = instances[0]!;
-    const partialSchema = partialSchemaCache.get(first.id);
+    const jsonSchema = schemaCache.get(first.id);
     const idKeyedFields =
-      partialSchema && isRecord(partialSchema.properties)
-        ? idKeyedArrayFieldNames(partialSchema.properties)
+      jsonSchema && isRecord(jsonSchema.properties)
+        ? idKeyedArrayFieldNames(jsonSchema.properties)
         : new Set<string>();
 
     // `id` resolves to a definition of this name; an id-less call is accepted
@@ -198,8 +201,9 @@ export function buildInteractableModelContext(
         `Update the state of interactable component "${name}". ${first.description} ` +
         `Pass the id of the instance to update — instance ids and current state ` +
         `appear in the conversation as state snapshots. Only include the fields ` +
-        `you want to change; omitted fields keep their current values.`,
-      parameters: withRequiredId(partialSchema),
+        `you want to change; omitted fields keep their current values. A nested ` +
+        `object replaces the existing one, so send it complete.`,
+      parameters: withRequiredId(jsonSchema),
       streamCall: async (reader, { toolCallId }) => {
         try {
           for await (const partialArgs of reader.args.streamValues()) {
@@ -213,19 +217,29 @@ export function buildInteractableModelContext(
             if (Object.keys(partial).length === 0) continue;
             const target = resolveTarget(id);
             if (!target) continue;
+            const currentTarget = getCurrentDefinitions()[target.id];
+            if (currentTarget?.name !== name) continue;
 
             const baseline = streamBaselines.get(toolCallId);
             const arrayBaseline =
-              baseline?.targetId === target.id ? baseline.state : target.state;
+              baseline?.targetId === target.id
+                ? baseline.state
+                : currentTarget.state;
             if (!baseline || baseline.targetId !== target.id) {
               streamBaselines.set(toolCallId, {
                 targetId: target.id,
-                state: target.state,
+                state: currentTarget.state,
               });
             }
 
+            const partialPath = getPartialJsonObjectMeta(
+              args as Record<symbol, unknown>,
+            )?.partialPath;
             setDefState(target.id, (prev) =>
-              shallowMergeInteractableState(prev, partial, { arrayBaseline }),
+              shallowMergeInteractableState(prev, partial, {
+                arrayBaseline,
+                partialPath,
+              }),
             );
           }
         } catch {
@@ -235,8 +249,17 @@ export function buildInteractableModelContext(
       execute: async (args: unknown, { toolCallId }) => {
         const { id, ...partial } = (args ?? {}) as Record<string, unknown>;
         const target = resolveTarget(id);
-        if (!target) {
-          const validIds = instances.map((d) => d.id);
+        // The tool was built from a snapshot, so the target may have unmounted
+        // or been replaced under the same id since; mutating either would
+        // report success for a write nothing receives.
+        const currentDefinitions = getCurrentDefinitions();
+        const currentTarget = target
+          ? currentDefinitions[target.id]
+          : undefined;
+        if (!currentTarget || currentTarget.name !== name) {
+          const validIds = Object.values(currentDefinitions)
+            .filter((def) => def.name === name)
+            .map((def) => def.id);
           return {
             success: false,
             error: `Unknown id ${JSON.stringify(id)} for interactable "${name}". Valid ids: ${validIds.join(", ")}`,
@@ -245,10 +268,12 @@ export function buildInteractableModelContext(
         const baseline = streamBaselines.get(toolCallId);
         streamBaselines.delete(toolCallId);
         const addedItemIds = nullProtoRecord<string[]>();
-        setDefState(target.id, (prev) =>
+        setDefState(currentTarget.id, (prev) =>
           shallowMergeInteractableState(prev, partial, {
             arrayBaseline:
-              baseline?.targetId === target.id ? baseline.state : undefined,
+              baseline?.targetId === currentTarget.id
+                ? baseline.state
+                : undefined,
             idFactory: (field) => {
               const itemId = generateId();
               (addedItemIds[field] ??= []).push(itemId);
@@ -263,7 +288,7 @@ export function buildInteractableModelContext(
           success: true;
           id: string;
           addedItemIds?: Record<string, string[]>;
-        } = { success: true, id: target.id };
+        } = { success: true, id: currentTarget.id };
         if (Object.keys(addedItemIds).length > 0) {
           result.addedItemIds = { ...addedItemIds };
         }

@@ -14,6 +14,25 @@ import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { writableStore } from "../../context/ReadonlyStore";
 import { useThreadViewportStore } from "../../context/react/ThreadViewportContext";
 
+// Enter and Space activate a focused control, which is how a collapsible tool
+// call expands without a pointer event ever firing. No other key changes thread
+// content: the keys that scroll the viewport reach handleScroll, which already
+// clears the intent when the user scrolls up.
+const ACTIVATION_KEYS = new Set(["Enter", " "]);
+
+// A control that consumes the activation key itself instead of acting on thread
+// content. `contenteditable="false"` marks a non-editable island inside an
+// editable tree, so it is excluded the way ComposerRoot already excludes it;
+// the input types left out are the ones a key activates rather than fills.
+const TEXT_ENTRY_SELECTOR = [
+  "textarea",
+  "select",
+  "[contenteditable]:not([contenteditable='false'])",
+  "input:not([type='checkbox']):not([type='radio']):not([type='button'])" +
+    ":not([type='submit']):not([type='reset']):not([type='image'])" +
+    ":not([type='range']):not([type='file']):not([type='color'])",
+].join(", ");
+
 export namespace useThreadViewportAutoScroll {
   export type Options = {
     /**
@@ -74,6 +93,16 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   // user actively scrolls up while content size is stable.
   const scrollingToBottomBehaviorRef = useRef<ScrollBehavior | null>(null);
   const followBottomRef = useRef(autoScroll);
+  const previousAutoScrollRef = useRef(autoScroll);
+
+  useLayoutEffect(() => {
+    const previousAutoScroll = previousAutoScrollRef.current;
+    previousAutoScrollRef.current = autoScroll;
+    if (previousAutoScroll || !autoScroll) return;
+
+    const div = divRef.current;
+    followBottomRef.current = div !== null && isViewportAtBottom(div);
+  }, [autoScroll]);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior) => {
     const div = divRef.current;
@@ -193,17 +222,33 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   });
 
   const scrollRef = useManagedRef<HTMLElement>((el) => {
-    // A pointer gesture invalidates pending bottom-scroll intent; otherwise an
+    // A user gesture invalidates pending bottom-scroll intent; otherwise an
     // intent kept alive by a non-overflowing thread (see handleScroll) hijacks
-    // the next content growth, e.g. expanding a collapsible tool call.
+    // the next content growth, e.g. expanding a collapsible tool call. Keyboard
+    // activation reaches that same content without ever emitting a pointer
+    // event, so it has to cancel the intent too.
     const cancelPendingScrollToBottom = () => {
+      // A scheduled frame re-plants the intent when it runs, so clearing the
+      // ref alone leaves the gesture undone.
+      cancelScheduledFrame();
       scrollingToBottomBehaviorRef.current = null;
+    };
+    // The composer renders inside the viewport, so its keystrokes bubble here;
+    // only an activation key aimed at something other than a text field is a
+    // gesture on thread content.
+    const cancelOnKeyDown = (event: KeyboardEvent) => {
+      if (!ACTIVATION_KEYS.has(event.key)) return;
+      const target = event.target as Element | null;
+      if (target?.closest?.(TEXT_ENTRY_SELECTOR)) return;
+      cancelPendingScrollToBottom();
     };
     el.addEventListener("scroll", handleScroll);
     el.addEventListener("pointerdown", cancelPendingScrollToBottom);
+    el.addEventListener("keydown", cancelOnKeyDown);
     return () => {
       el.removeEventListener("scroll", handleScroll);
       el.removeEventListener("pointerdown", cancelPendingScrollToBottom);
+      el.removeEventListener("keydown", cancelOnKeyDown);
     };
   });
 

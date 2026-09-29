@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   requireSession: vi.fn(),
   checkRateLimit: vi.fn(),
-  getModel: vi.fn(),
+  resolveChatModel: vi.fn(),
 }));
 
 vi.mock("@/lib/anonymous-session", async (importOriginal) => ({
@@ -18,7 +18,7 @@ vi.mock("@/lib/rate-limit", async (importOriginal) => ({
 
 vi.mock("@/lib/ai/provider", async (importOriginal) => ({
   ...(await importOriginal()),
-  getModel: mocks.getModel,
+  resolveChatModel: mocks.resolveChatModel,
 }));
 
 // @/lib/source and @/lib/llm-components import the build-generated
@@ -55,7 +55,7 @@ describe("POST /api/doc/chat access boundary", () => {
 
     expect(response.status).toBe(403);
     expect(mocks.checkRateLimit).not.toHaveBeenCalled();
-    expect(mocks.getModel).not.toHaveBeenCalled();
+    expect(mocks.resolveChatModel).not.toHaveBeenCalled();
   });
 
   it("lets a valid session reach ordinary input validation", async () => {
@@ -78,7 +78,7 @@ describe("POST /api/doc/chat access boundary", () => {
       expect.any(Request),
       "session_1234567890",
     );
-    expect(mocks.getModel).not.toHaveBeenCalled();
+    expect(mocks.resolveChatModel).not.toHaveBeenCalled();
   });
 });
 

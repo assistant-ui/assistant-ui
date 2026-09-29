@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-generative-ui",
-  "version": "0.0.18",
+  "version": "0.0.21",
   "description": "Generative UI components for assistant-ui",
   "keywords": [
     "generative-ui",
@@ -57,7 +57,7 @@
   },
   "dependencies": {
     "@types/json-schema": "^7.0.15",
-    "assistant-stream": "^0.3.43"
+    "assistant-stream": "^0.3.45"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.15.0",

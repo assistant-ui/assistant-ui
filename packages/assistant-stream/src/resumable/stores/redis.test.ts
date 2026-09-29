@@ -230,12 +230,13 @@ for (const adapter of adapters) {
         await deleteKey(`${keyPrefix}:{${id}}:meta`);
         await expect(freshStore.acquire(id)).resolves.toBe("producer");
         resumeFinalizer();
-        await finalizing;
+        await expect(finalizing).resolves.toBe(false);
 
         await expect(freshStore.status(id)).resolves.toBe("streaming");
         await expect(staleStore.append(id, bytes("stale"))).rejects.toThrow(
           /superseded/,
         );
+        await expect(freshStore.finalize(id, "done")).resolves.toBe(true);
       });
 
       it("does not let an in-flight append mutate a reacquired stream", async () => {

@@ -81,11 +81,15 @@ const { messages, sendMessage } = useHarness({
     credential: () => fetchCredential(),
     workspaceId: "ws_...",
     threadId,
+    userId: "user_...",
+    transport: "http",
   }),
 });
 ```
 
-Neither harness package is published during the preview, so these snippets show the API the Connect tab hands out, not an install you can run yet.
+`userId` is optional and defaults to the cloud's system user. `transport` accepts `"http"`, the default SSE transport, or `"websocket"`.
+
+`@assistant-ui/react-harness-sdk` is not published during the preview, and the `harness-sdk` release on npm does not include `HarnessCloud` yet, so these snippets show the API the Connect tab hands out, not an install you can run yet.
 
 ## Costs and limits
 
@@ -102,15 +106,21 @@ When a project's plan loses the feature, the cloud suspends every harness in tha
 
 ## Observe runs and conversations
 
+### Inspect a harness thread
+
+A thread Instance id or Thread id opens its harness thread page at `/harnesses/{id}/threads/{thread_id}`. The separate **Mirrored thread** link opens the cloud thread.
+
+The page's **Facts** rail shows **Thread ID**, **Workspace**, and **Backend**. **Backend** reads **Not pinned** when the thread has no pinned backend. Its **Conversation** tab shows the saved snapshot's main conversation, followed by **Subagent** sections. A saved state that is not a harness conversation falls back to JSON. **Raw** shows the saved state as JSON. When no state is saved, the page shows **No saved state**.
+
 **Live instances** shows the instances the hosted proxy holds for the harness. A client attached to a thread or thread list makes an instance appear, and an instance stays for five minutes after its last client leaves. The page polls every 5 seconds, waits 30 seconds after an error, and does not retry automatically.
 
 | Column | Meaning |
 |---|---|
-| Instance | The instance id, linked to its mirrored thread when there is one. |
+| Instance | A thread instance id opens its harness thread page. Its separate **Mirrored thread** link opens the cloud thread. |
 | Kind | `thread` or `thread list`. |
 | Connections | Current client connections. |
 | Tasks | Current tasks. |
-| Idle | Whether the instance is idle. |
+| Idle | How long the instance has been idle, such as `3 m 5 s`. |
 | Active since | When the instance became active. |
 
 The live status shows the total connections and pulses while that total is above 0. If no client is attached, the empty state explains that no instance is active. If the registry is unavailable, the page shows `The registry is unreachable` and a Retry action. If the registry is not configured, the Live section is not shown.
@@ -119,7 +129,7 @@ The threads ledger lists the 50 most recently updated harness thread rows and sh
 
 | Column | Meaning |
 |---|---|
-| Thread | Copyable thread id. |
+| Thread | Copyable thread id that opens its harness thread page. |
 | Workspace | The thread's workspace. |
 | Title | The title, or Untitled when it is null. |
 | Activity | `running`, `waiting`, `error`, or `idle`. Running is live, waiting is a warning, error is danger, and idle is neutral. |

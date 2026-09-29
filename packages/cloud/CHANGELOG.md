@@ -1,5 +1,45 @@
 # assistant-cloud
 
+## 0.2.3
+
+### Patch Changes
+
+- [#7637](https://github.com/assistant-ui/assistant-ui/pull/7637) [`b4f5153`](https://github.com/assistant-ui/assistant-ui/commit/b4f5153659c030c6660fac562e1d7d1a967d6dd1) - fix: useCloudRuntime sends the active Cloud thread id, including on the first run of a new thread, and pins the ui message stream protocol ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#7822](https://github.com/assistant-ui/assistant-ui/pull/7822) [`9f286dc`](https://github.com/assistant-ui/assistant-ui/commit/9f286dcd7cb7fdcef8dbbbfde249247cfe0434c8) - fix: report cloud engagement events once per thread list instead of once per mounted thread, keep counting a run that ends while its thread is in the background, and let an engagement id resolver decline an event for a thread it does not know ([@okisdev](https://github.com/okisdev))
+
+- [#8023](https://github.com/assistant-ui/assistant-ui/pull/8023) [`920422c`](https://github.com/assistant-ui/assistant-ui/commit/920422c2d4325e8c19e1d1db9d7ff652ac09ea21) - fix: retry transient engagement event delivery failures ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7898](https://github.com/assistant-ui/assistant-ui/pull/7898) [`40ba7f0`](https://github.com/assistant-ui/assistant-ui/commit/40ba7f073d2fa2e38da1fac40682c57db30d84dd) - fix(cloud): summarize base64 blocks inside an MCP `CallToolResult` instead of shipping them raw ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7643](https://github.com/assistant-ui/assistant-ui/pull/7643) [`b649669`](https://github.com/assistant-ui/assistant-ui/commit/b6496690edd3754842ab23b5f2f7b3396652495f) - fix: expose caller-supplied cost, attributes, and root span fields on run reports ([@Young7117](https://github.com/Young7117))
+
+- [#7823](https://github.com/assistant-ui/assistant-ui/pull/7823) [`0ce62a8`](https://github.com/assistant-ui/assistant-ui/commit/0ce62a880fb07726b5e787fd59377bfa8dc9d66b) - fix: accept a step input and every run outcome type on run reports ([@okisdev](https://github.com/okisdev))
+
+- [#7889](https://github.com/assistant-ui/assistant-ui/pull/7889) [`5d33fca`](https://github.com/assistant-ui/assistant-ui/commit/5d33fca404099d0cc8cbab098e36011629b0c2aa) - fix(cloud): measure a send's idle time from a stopped run instead of the last completed one ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8026](https://github.com/assistant-ui/assistant-ui/pull/8026) [`92d16d7`](https://github.com/assistant-ui/assistant-ui/commit/92d16d77a684cff61e6812c0803ea698a8db8b2f) - fix: stop pending engagement event retries when telemetry is disabled ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8338](https://github.com/assistant-ui/assistant-ui/pull/8338) [`d403574`](https://github.com/assistant-ui/assistant-ui/commit/d403574c2eb2223ebad560f52130461482689e4a) - feat: LangGraph, LangChain, Google ADK and custom external store runtimes under a cloud thread list now store a copy of their settled messages in Assistant Cloud by default, keyed by their backend's message ids, so the dashboard shows the transcript and feedback can rate it; tool interactions recorded in their tool UIs are kept on the copy instead of throwing. a message the cloud refuses, such as one over the size limit, is skipped with a console warning and the later messages are still copied, while a thread it refuses as a whole (deleted, its end user past the plan cap, or refused twice before any message was accepted) stops being copied with one warning. `telemetry: { messages: false }` on the `AssistantCloud` client keeps the copy out, and tool interactions then throw as before. a stored user message counts its end user toward the project's monthly active users. ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`9619b42`](https://github.com/assistant-ui/assistant-ui/commit/9619b4207b96cad96ec649856454db2a937aea79), [`dcd43fd`](https://github.com/assistant-ui/assistant-ui/commit/dcd43fd08ea0194425ed9148e7ae0ce64a1e67d5), [`e046327`](https://github.com/assistant-ui/assistant-ui/commit/e04632746cee8bc3fbc29b58cf23df4e12b12990), [`e525f14`](https://github.com/assistant-ui/assistant-ui/commit/e525f14b0bd7acbd1f3b4d268aa21d175afa9a94), [`4b069f9`](https://github.com/assistant-ui/assistant-ui/commit/4b069f90fbcb58953ebc7b9c4becca0bf4607842)]:
+  - assistant-stream@0.3.45
+
+## 0.2.2
+
+### Patch Changes
+
+- [#7120](https://github.com/assistant-ui/assistant-ui/pull/7120) [`69c3d0f`](https://github.com/assistant-ui/assistant-ui/commit/69c3d0f171e5bb61fd3d45db093cf69ba224eb5e) - docs: enable the AI SDK OpenTelemetry integration in the README telemetry recipe, so a route that follows it emits spans ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#7709](https://github.com/assistant-ui/assistant-ui/pull/7709) [`2caa1ce`](https://github.com/assistant-ui/assistant-ui/commit/2caa1cebe9ef7db666496e6d109813caee708ee4) - feat: message feedback accepts an optional comment and Assistant Cloud stores it ([@okisdev](https://github.com/okisdev))
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#7694](https://github.com/assistant-ui/assistant-ui/pull/7694) [`5c55222`](https://github.com/assistant-ui/assistant-ui/commit/5c5522271e67eade40482a555c836b9bf7301429) - fix: reject non-finite numeric event properties before serialization ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7373](https://github.com/assistant-ui/assistant-ui/pull/7373) [`479d6a3`](https://github.com/assistant-ui/assistant-ui/commit/479d6a3a363bcf9362421e44a834865c0c152808) - fix: allow keyed run reports to retry after rate limiting ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`562e495`](https://github.com/assistant-ui/assistant-ui/commit/562e495139605d5279e9bd39abc223ef52b79a94), [`99c9988`](https://github.com/assistant-ui/assistant-ui/commit/99c9988951b5c469b2706bc3c85116a65660836a), [`37a5a95`](https://github.com/assistant-ui/assistant-ui/commit/37a5a955d4d51a1b7013232a358e5e7461879d28), [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc), [`408d5f4`](https://github.com/assistant-ui/assistant-ui/commit/408d5f43a69baa9df723b395eaafba7a501f8884), [`70b633f`](https://github.com/assistant-ui/assistant-ui/commit/70b633f378deff6c693f2720ceb9cbb5b8677d8c)]:
+  - assistant-stream@0.3.44
+
 ## 0.2.1
 
 ### Patch Changes

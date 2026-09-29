@@ -13,19 +13,15 @@
 const LATEX_INLINE_DELIMITER = /\\{1,2}\(([^\n]+?)\\{1,2}\)/g;
 const LATEX_DISPLAY_DELIMITER = /\\{1,2}\[([\s\S]+?)\\{1,2}\]/g;
 
-// A closer has to sit in the same container as its opener: a root fence is not
-// closed by a quoted line, and a quoted fence is closed by one however its
-// marker is spaced. Matching the prefix by shape rather than as a literal keeps
-// `> ~~~` and `>~~~` equivalent.
-// Both marker patterns accept any indentation because their openers do too, so
-// a fence written past a list item's content column closes on its own line.
-const FENCE_CLOSE_ROOT = {
-  "`": /^[ \t]*(`{3,})[ \t\r]*$/,
-  "~": /^[ \t]*(~{3,})[ \t\r]*$/,
-};
-const FENCE_CLOSE_QUOTED = {
-  "`": /^[ \t]*(?:>[ \t]?)+[ \t]*(`{3,})[ \t\r]*$/,
-  "~": /^[ \t]*(?:>[ \t]?)+[ \t]*(~{3,})[ \t\r]*$/,
+// A closer has to sit at its opener's blockquote depth, counted in markers so
+// `> ~~~` and `>~~~` are the same line, and at most three characters deeper
+// than the opener past the last marker, as the remend scan reads it. The
+// opener's indentation stands in for a list item's content column, which this
+// walker does not track, so a fence written past that column still closes on
+// its own line.
+const FENCE_CLOSE = {
+  "`": /^(`{3,})[ \t\r]*$/,
+  "~": /^(~{3,})[ \t\r]*$/,
 };
 // What may precede a fence opener on its line: the blockquote and list markers
 // whose containers a fence opens inside of, nested in either order, and the
@@ -33,10 +29,19 @@ const FENCE_CLOSE_QUOTED = {
 // prefix that fails cannot be re-split across two markers, and a list marker
 // still requires the space that separates it from its content.
 const FENCE_OPEN_PREFIX = /^[ \t]*(?:>[ \t]*|(?:[-*+]|\d{1,9}[.)])[ \t]+)*$/;
-// A fence body takes no lazy continuation, so a quoted fence left unclosed ends
-// on the first line that drops the marker. A blank line stays inside it, the way
-// a fence body carries one at the root.
-const QUOTE_CONTINUATION = /^(?:[ \t]*>|[ \t\r]*$)/;
+const QUOTE_PREFIX = /^[ \t>]*/;
+
+function quoteDepth(prefix: string): number {
+  let depth = 0;
+  for (const char of prefix) if (char === ">") depth += 1;
+  return depth;
+}
+
+function indentPastQuote(prefix: string): number {
+  const marker = prefix.lastIndexOf(">");
+  if (marker === -1) return prefix.length;
+  return prefix.length - marker - (prefix[marker + 1] === " " ? 2 : 1);
+}
 
 /**
  * End index (exclusive) of the fence opened by the `marker` run at `start`,
@@ -44,13 +49,18 @@ const QUOTE_CONTINUATION = /^(?:[ \t]*>|[ \t\r]*$)/;
  * carrying a closing run of at least the same length, or the end of the
  * container when no line does, since an unclosed fence is one still streaming
  * in. A root fence's container is the whole input; a quoted one ends where its
- * blockquote does.
+ * blockquote does, on the first line with fewer markers than the opener, a
+ * blank line included, because a fence body takes no lazy continuation and a
+ * blank line closes a blockquote. The opener's depth counts every marker ahead
+ * of its run, since list markers can separate them on that line, while a later
+ * line continues a list item by indentation alone, which this walker does not
+ * measure, so a fence opened in a list item does not end with it.
  */
 function fenceEnd(text: string, start: number, marker: "`" | "~"): number {
   const fenceLength = runLength(text, start, marker);
-  const openerLine = text.slice(text.lastIndexOf("\n", start - 1) + 1, start);
-  const quoted = openerLine.includes(">");
-  const closer = quoted ? FENCE_CLOSE_QUOTED[marker] : FENCE_CLOSE_ROOT[marker];
+  const opener = text.slice(text.lastIndexOf("\n", start - 1) + 1, start);
+  const depth = quoteDepth(opener);
+  const indent = indentPastQuote(opener);
   let lineStart = text.indexOf("\n", start);
 
   while (lineStart !== -1) {
@@ -59,11 +69,15 @@ function fenceEnd(text: string, start: number, marker: "`" | "~"): number {
       lineStart + 1,
       lineEnd === -1 ? undefined : lineEnd,
     );
-    const close = closer.exec(line);
-    if (close && close[1]!.length >= fenceLength) {
-      return lineEnd === -1 ? text.length : lineEnd;
+    const prefix = QUOTE_PREFIX.exec(line)![0];
+    const lineDepth = quoteDepth(prefix);
+    if (lineDepth < depth) return lineStart;
+    if (lineDepth === depth && indentPastQuote(prefix) <= indent + 3) {
+      const close = FENCE_CLOSE[marker].exec(line.slice(prefix.length));
+      if (close && close[1]!.length >= fenceLength) {
+        return lineEnd === -1 ? text.length : lineEnd;
+      }
     }
-    if (quoted && !QUOTE_CONTINUATION.test(line)) return lineStart;
     lineStart = lineEnd;
   }
 
@@ -240,7 +254,7 @@ function emitDisplayMath(
   // math was written inside, so they carry that container's prefix and the body
   // is aligned to it.
   const prefix = continuationPrefix(lineHead(offset));
-  const quoted = prefix.includes(">");
+  const depth = quoteDepth(prefix);
   // The body is split before trimming, since trimming would take the shared
   // indentation off the first line only and leave the block ragged.
   const bodyLines = body.split("\n");
@@ -258,10 +272,18 @@ function emitDisplayMath(
     Number.POSITIVE_INFINITY,
   );
   const lines = bodyLines.map((line) => {
-    // A line already carrying the blockquote marker keeps the spacing it was
+    // A line already carrying the blockquote markers keeps the spacing it was
     // written with; `>a` and `> a` are the same blockquote. Indentation alone
-    // is not that signal, since a body may legitimately be indented.
-    if (quoted && /^[ \t]*>/.test(line)) return line;
+    // is not that signal, since a body may legitimately be indented, and a line
+    // with fewer markers is a lazy continuation whose markers the prefix
+    // replaces.
+    const markers = QUOTE_PREFIX.exec(line)![0];
+    const lineDepth = quoteDepth(markers);
+    if (depth > 0 && lineDepth > 0) {
+      return lineDepth >= depth
+        ? line
+        : `${prefix}${line.slice(markers.length)}`;
+    }
     return `${prefix}${line.slice(Number.isFinite(shared) ? shared : 0)}`;
   });
 

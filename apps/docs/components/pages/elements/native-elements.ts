@@ -8,6 +8,7 @@ const NATIVE_REGISTRY_NAMES: Record<string, string> = {
   "message-queue": "elements-message-queue",
   "tool-timeline": "elements-tool-timeline",
   "agent-status": "elements-agent-status",
+  "task-card": "elements-task-card",
   "approval-card": "elements-approval-card",
   "conversation-map": "elements-conversation-map",
   "voice-conversation": "elements-voice-conversation",

@@ -21,7 +21,9 @@ import { ParametersTable } from "@/components/pages/docs/parameters-table";
 import { ELEMENT_DOCS } from "@/components/pages/elements/element-docs";
 import { ElementPager } from "@/components/pages/elements/element-pager";
 import { ELEMENTS, getElement } from "@/components/pages/elements/registry";
-import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";
+import { AgentSetup } from "@/components/shared/shop-entry";
+import { typeDeck, typePage } from "@/components/shared/type";
+import { elementProductSlug } from "@/lib/catalog/products/elements";
 import { getGenerativeElement } from "@/lib/generative-elements";
 import { elementsDocs } from "@/lib/source";
 import {
@@ -180,20 +182,10 @@ export default async function ElementPage({
       >
         <div className="min-w-0">
           <header className="mt-8 lg:mt-0">
-            <div className="flex items-center justify-between gap-4">
-              <p className={typeEyebrow}>
-                <Link
-                  href="/elements"
-                  className="hover:text-foreground transition-colors"
-                >
-                  Elements
-                </Link>
-                {` · ${element.section}`}
-                {element.connection ? ` · ${element.connection}` : ""}
-              </p>
+            <div className="flex items-start justify-between gap-4">
+              <h1 className={typePage}>{element.title}</h1>
               <ElementPager slug={element.slug} />
             </div>
-            <h1 className={cn("mt-4", typePage)}>{element.title}</h1>
             <p className={cn("mt-4", typeDeck)}>{element.description}</p>
             {counterpart && (
               <p className="text-muted-foreground mt-4 text-sm">
@@ -278,6 +270,7 @@ export default async function ElementPage({
                   </NativeLane>
                 )}
                 <ReactLane>
+                  <AgentSetup product={elementProductSlug(element.slug)} />
                   {element.generative ? (
                     <PackageManagerTabs
                       packages={["@assistant-ui/react-generative-ui"]}
@@ -457,9 +450,7 @@ export default async function ElementPage({
         {showToc && (
           <nav aria-label="On this page" className="hidden xl:block">
             <div className="bg-background sticky top-12 -mt-20 flex max-h-[calc(100dvh-3rem)] w-40 [scrollbar-width:none] flex-col gap-2 overflow-y-auto pt-20 pb-8 font-mono text-[11px] [&::-webkit-scrollbar]:hidden">
-              <span className="text-foreground/40 tracking-wide uppercase">
-                On this page
-              </span>
+              <span className="text-foreground/40">On this page</span>
               {toc.map((item) => (
                 <a
                   key={item.url}

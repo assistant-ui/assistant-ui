@@ -5,6 +5,7 @@ import * as os from "node:os";
 import { EventEmitter } from "node:events";
 import type { spawn } from "cross-spawn";
 import {
+  cleanupPendingProjectDownloads,
   resolveLatestReleaseRef,
   downloadProject,
   scaffoldProject,
@@ -68,6 +69,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   fs.rmSync(testDir, { recursive: true, force: true });
   for (const key of GITHUB_AUTH_ENV_KEYS) {
     const value = originalGitHubAuthEnv[key];
@@ -75,6 +77,7 @@ afterEach(() => {
     else process.env[key] = value;
   }
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 function writeJSON(filePath: string, data: unknown) {
@@ -135,45 +138,231 @@ describe("resolveLatestReleaseRef", () => {
 
 describe("downloadProject", () => {
   it("passes ref in giget source when provided", async () => {
-    await downloadProject("templates/default", "/tmp/dest", "v1.0.0");
+    const destDir = path.join(testDir, "dest");
+    await downloadProject("templates/default", destDir, "v1.0.0");
 
     expect(downloadTemplate).toHaveBeenCalledWith(
       "gh:assistant-ui/assistant-ui/templates/default#v1.0.0",
-      expect.objectContaining({ dir: "/tmp/dest", force: true, silent: true }),
+      expect.objectContaining({
+        dir: expect.stringContaining(".assistant-ui-download-"),
+        force: true,
+        silent: true,
+      }),
     );
+    expect(fs.existsSync(destDir)).toBe(true);
   });
 
   it("omits ref from giget source when not provided", async () => {
-    await downloadProject("examples/with-tanstack", "/tmp/dest");
+    const destDir = path.join(testDir, "dest");
+    await downloadProject("examples/with-tanstack", destDir);
 
     expect(downloadTemplate).toHaveBeenCalledWith(
       "gh:assistant-ui/assistant-ui/examples/with-tanstack",
-      expect.objectContaining({ dir: "/tmp/dest", force: true, silent: true }),
+      expect.objectContaining({
+        dir: expect.stringContaining(".assistant-ui-download-"),
+        force: true,
+        silent: true,
+      }),
     );
   });
 
   it("passes auth to giget when a GitHub token is configured", async () => {
     process.env.GH_TOKEN = "ghs_test-token";
 
-    await downloadProject("templates/default", "/tmp/dest", "v1.0.0");
+    await downloadProject(
+      "templates/default",
+      path.join(testDir, "dest"),
+      "v1.0.0",
+    );
 
     expect(downloadTemplate).toHaveBeenCalledWith(
       "gh:assistant-ui/assistant-ui/templates/default#v1.0.0",
       expect.objectContaining({ auth: "ghs_test-token" }),
     );
   });
+
+  it("keeps late download writes out of the destination after timeout", async () => {
+    vi.useFakeTimers();
+    const destDir = path.join(testDir, "dest");
+    let finishDownload!: () => void;
+    let downloadStarted = false;
+    let lateWriteFinished = false;
+    const downloadBlocked = new Promise<void>((resolve) => {
+      finishDownload = resolve;
+    });
+
+    vi.mocked(downloadTemplate).mockImplementationOnce(
+      async (_source, options) => {
+        const stagingDir = options?.dir;
+        if (!stagingDir) throw new Error("Missing staging directory");
+        fs.mkdirSync(stagingDir, { recursive: true });
+        downloadStarted = true;
+        await downloadBlocked;
+        fs.mkdirSync(stagingDir, { recursive: true });
+        fs.writeFileSync(path.join(stagingDir, "late.txt"), "late");
+        lateWriteFinished = true;
+        return {} as never;
+      },
+    );
+
+    const result = downloadProject("templates/default", destDir);
+    await vi.waitFor(() => expect(downloadStarted).toBe(true), {
+      timeout: 1_000,
+    });
+    try {
+      const rejection = expect(result).rejects.toThrow("Download timed out");
+      await vi.advanceTimersByTimeAsync(30_000);
+      await rejection;
+      fs.rmSync(destDir, { recursive: true, force: true });
+    } finally {
+      finishDownload();
+    }
+
+    await vi.waitFor(() => expect(lateWriteFinished).toBe(true), {
+      timeout: 1_000,
+    });
+    expect(fs.existsSync(destDir)).toBe(false);
+  });
+
+  it("removes staging synchronously when command signal cleanup runs", async () => {
+    vi.useFakeTimers();
+    const destDir = path.join(testDir, "dest");
+    fs.mkdirSync(destDir);
+    let stagingDir: string | undefined;
+    let downloadStarted = false;
+    vi.mocked(downloadTemplate).mockImplementationOnce(
+      async (_source, options) => {
+        stagingDir = options?.dir;
+        downloadStarted = true;
+        return await new Promise<never>(() => undefined);
+      },
+    );
+
+    const result = downloadProject("templates/default", destDir);
+    await vi.waitFor(() => expect(downloadStarted).toBe(true), {
+      timeout: 1_000,
+    });
+    const rejection = expect(result).rejects.toThrow("Download timed out");
+    await vi.advanceTimersByTimeAsync(30_000);
+    await rejection;
+
+    cleanupPendingProjectDownloads();
+
+    expect(stagingDir).toBeDefined();
+    expect(fs.existsSync(stagingDir!)).toBe(false);
+    expect(fs.readdirSync(destDir)).toEqual([]);
+  });
+
+  it("removes staging synchronously when the process exits after timeout", async () => {
+    vi.useFakeTimers();
+    const destDir = path.join(testDir, "dest");
+    const previousExitListeners = new Set(process.rawListeners("exit"));
+    let stagingDir: string | undefined;
+    let downloadStarted = false;
+    vi.mocked(downloadTemplate).mockImplementationOnce(
+      async (_source, options) => {
+        stagingDir = options?.dir;
+        downloadStarted = true;
+        return await new Promise<never>(() => undefined);
+      },
+    );
+
+    const result = downloadProject("templates/default", destDir);
+    await vi.waitFor(() => expect(downloadStarted).toBe(true), {
+      timeout: 1_000,
+    });
+    const rejection = expect(result).rejects.toThrow("Download timed out");
+    await vi.advanceTimersByTimeAsync(30_000);
+    await rejection;
+
+    const exitListener = process
+      .rawListeners("exit")
+      .find((listener) => !previousExitListeners.has(listener));
+    expect(exitListener).toBeDefined();
+    exitListener?.call(process, 1);
+
+    expect(stagingDir).toBeDefined();
+    expect(fs.existsSync(stagingDir!)).toBe(false);
+    expect(fs.existsSync(destDir)).toBe(false);
+    cleanupPendingProjectDownloads();
+  });
+
+  it("restores DEBUG when staging setup fails", async () => {
+    const previousDebug = process.env.DEBUG;
+    process.env.DEBUG = "assistant-ui:*";
+    const mkdtemp = vi
+      .spyOn(fs.promises, "mkdtemp")
+      .mockRejectedValueOnce(new Error("staging failed"));
+
+    try {
+      await expect(
+        downloadProject("templates/default", path.join(testDir, "dest")),
+      ).rejects.toThrow("staging failed");
+      expect(process.env.DEBUG).toBe("assistant-ui:*");
+    } finally {
+      mkdtemp.mockRestore();
+      if (previousDebug === undefined) delete process.env.DEBUG;
+      else process.env.DEBUG = previousDebug;
+    }
+  });
+
+  it("falls back to temporary staging when the destination parent is read-only", async () => {
+    const originalMkdtemp = fs.promises.mkdtemp.bind(fs.promises);
+    const denied = Object.assign(new Error("read-only parent"), {
+      code: "EROFS",
+    });
+    const mkdtemp = vi
+      .spyOn(fs.promises, "mkdtemp")
+      .mockRejectedValueOnce(denied)
+      .mockImplementation(originalMkdtemp);
+    const destDir = path.join(testDir, "dest");
+
+    await downloadProject("templates/default", destDir);
+
+    expect(mkdtemp).toHaveBeenCalledTimes(2);
+    expect(mkdtemp.mock.calls[1]?.[0]).toBe(
+      path.join(os.tmpdir(), ".assistant-ui-download-"),
+    );
+    expect(fs.existsSync(destDir)).toBe(true);
+  });
+
+  it("copies staged entries when cross-device rename is unavailable", async () => {
+    const destDir = path.join(testDir, "dest");
+    vi.mocked(downloadTemplate).mockImplementationOnce(
+      async (_source, options) => {
+        if (!options?.dir) throw new Error("Missing staging directory");
+        fs.writeFileSync(path.join(options.dir, "package.json"), "{}");
+        return {} as never;
+      },
+    );
+    const crossDevice = Object.assign(new Error("cross-device rename"), {
+      code: "EXDEV",
+    });
+    vi.spyOn(fs.promises, "rename").mockRejectedValueOnce(crossDevice);
+
+    await downloadProject("templates/default", destDir);
+
+    expect(fs.readFileSync(path.join(destDir, "package.json"), "utf8")).toBe(
+      "{}",
+    );
+  });
 });
 
 describe("scaffoldProject", () => {
   it("downloads from GitHub sources", async () => {
-    await scaffoldProject("templates/default", "/tmp/dest", {
+    const destDir = path.join(testDir, "dest");
+    await scaffoldProject("templates/default", destDir, {
       kind: "github",
       ref: "v1.0.0",
     });
 
     expect(downloadTemplate).toHaveBeenCalledWith(
       "gh:assistant-ui/assistant-ui/templates/default#v1.0.0",
-      expect.objectContaining({ dir: "/tmp/dest", force: true, silent: true }),
+      expect.objectContaining({
+        dir: expect.stringContaining(".assistant-ui-download-"),
+        force: true,
+        silent: true,
+      }),
     );
   });
 

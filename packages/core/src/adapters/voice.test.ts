@@ -44,6 +44,14 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+const deferredControls = () => {
+  let resolve!: (controls: VoiceSessionControls) => void;
+  const promise = new Promise<VoiceSessionControls>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+};
+
 describe("createVoiceSession", () => {
   it("applies mute requested while setup is pending", async () => {
     const { controls, controlsPromise, resolveControls, session } =
@@ -182,6 +190,94 @@ describe("createVoiceSession", () => {
     expect(controls.disconnect).toHaveBeenCalledOnce();
   });
 
+  it.each([false, true])(
+    "tears down late controls once when cleanup throws: %s",
+    async (throws) => {
+      const abortController = new AbortController();
+      const pending = deferredControls();
+      const originalError = new Error("connection ended");
+      let helpers!: VoiceSessionHelpers;
+      const controls = {
+        disconnect: vi.fn(() => {
+          if (throws) throw new Error("cleanup failed");
+        }),
+        mute: vi.fn(),
+        unmute: vi.fn(),
+      };
+      const session = createVoiceSession(
+        { abortSignal: abortController.signal },
+        (value) => {
+          helpers = value;
+          return pending.promise;
+        },
+      );
+      helpers.end("error", originalError);
+      pending.resolve(controls);
+      await pending.promise;
+      expect(controls.disconnect).toHaveBeenCalledOnce();
+
+      if (!throws) abortController.abort();
+      expect(() => session.disconnect()).not.toThrow();
+      abortController.abort();
+
+      expect(controls.disconnect).toHaveBeenCalledOnce();
+      expect(session.status).toEqual({
+        type: "ended",
+        reason: "error",
+        error: originalError,
+      });
+      const transcript = vi.fn();
+      session.onTranscript(transcript);
+      helpers.emitTranscript({ role: "assistant", text: "late" });
+      expect(transcript).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["abort", "disconnect"] as const)(
+    "releases controls that arrive after %s without skipping or repeating cleanup",
+    async (action) => {
+      const abortController = new AbortController();
+      const pending = deferredControls();
+      const controls = { disconnect: vi.fn(), mute: vi.fn(), unmute: vi.fn() };
+      const session = createVoiceSession(
+        { abortSignal: abortController.signal },
+        () => pending.promise,
+      );
+      if (action === "abort") abortController.abort();
+      else session.disconnect();
+      expect(controls.disconnect).not.toHaveBeenCalled();
+
+      pending.resolve(controls);
+      await pending.promise;
+      session.disconnect();
+      abortController.abort();
+
+      expect(controls.disconnect).toHaveBeenCalledOnce();
+      expect(session.status).toEqual({ type: "ended", reason: "cancelled" });
+    },
+  );
+
+  it("does not reenter late teardown when the adapter disconnects the session", async () => {
+    const pending = deferredControls();
+    let helpers!: VoiceSessionHelpers;
+    const session = createVoiceSession({}, (value) => {
+      helpers = value;
+      return pending.promise;
+    });
+    const disconnect = vi.fn(() => session.disconnect());
+    helpers.end("finished");
+
+    pending.resolve({ disconnect, mute: vi.fn(), unmute: vi.fn() });
+    await pending.promise;
+
+    expect(disconnect).toHaveBeenCalledOnce();
+    expect(session.status).toEqual({
+      type: "ended",
+      reason: "finished",
+      error: undefined,
+    });
+  });
+
   it("cleans up when the adapter disconnect throws", async () => {
     const disconnectError = new Error("disconnect failed");
     let helpers: VoiceSessionHelpers | undefined;
@@ -205,6 +301,79 @@ describe("createVoiceSession", () => {
 
     helpers.emitTranscript({ role: "assistant", text: "stale" });
     expect(transcriptListener).not.toHaveBeenCalled();
+  });
+
+  it("exposes sendText once controls that take typed text resolve", async () => {
+    let helpers!: VoiceSessionHelpers;
+    const { promise, resolve } = deferredControls();
+    const session = createVoiceSession({}, (sessionHelpers) => {
+      helpers = sessionHelpers;
+      return promise;
+    });
+    const statusListener = vi.fn();
+    session.onStatusChange(statusListener);
+    helpers.setStatus({ type: "running" });
+    statusListener.mockClear();
+
+    expect(session.sendText).toBeUndefined();
+
+    const controls = {
+      disconnect: vi.fn(),
+      mute: vi.fn(),
+      unmute: vi.fn(),
+      sendText: vi.fn(function (this: unknown) {
+        expect(this).toBe(controls);
+      }),
+    };
+    resolve(controls);
+    await promise;
+
+    expect(statusListener).toHaveBeenCalledExactlyOnceWith({
+      type: "running",
+    });
+    session.sendText?.("hello");
+    expect(controls.sendText).toHaveBeenCalledExactlyOnceWith("hello");
+
+    session.disconnect();
+
+    expect(session.sendText).toBeUndefined();
+  });
+
+  it("leaves sendText undefined and stays quiet for controls without it", async () => {
+    let helpers!: VoiceSessionHelpers;
+    const { promise, resolve } = deferredControls();
+    const session = createVoiceSession({}, (sessionHelpers) => {
+      helpers = sessionHelpers;
+      return promise;
+    });
+    const statusListener = vi.fn();
+    session.onStatusChange(statusListener);
+    helpers.setStatus({ type: "running" });
+    statusListener.mockClear();
+
+    resolve({ disconnect: vi.fn(), mute: vi.fn(), unmute: vi.fn() });
+    await promise;
+
+    expect(session.sendText).toBeUndefined();
+    expect(statusListener).not.toHaveBeenCalled();
+  });
+
+  it("does not repeat a status that has not reached running when controls resolve", async () => {
+    const { promise, resolve } = deferredControls();
+    const session = createVoiceSession({}, () => promise);
+    const statusListener = vi.fn();
+    session.onStatusChange(statusListener);
+
+    resolve({
+      disconnect: vi.fn(),
+      mute: vi.fn(),
+      unmute: vi.fn(),
+      sendText: vi.fn(),
+    });
+    await promise;
+
+    expect(statusListener).not.toHaveBeenCalled();
+    expect(session.sendText).toBeDefined();
   });
 
   it("continues notifying listeners when one throws", () => {

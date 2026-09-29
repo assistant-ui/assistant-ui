@@ -102,10 +102,10 @@ vi.mock("./icon-button", () => ({
   iconButtonHitSlop: {},
 }));
 vi.mock("./markdown-text", () => ({ MarkdownText: () => null }));
-vi.mock("./surfaces", () => ({
+vi.mock("./surfaces", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./surfaces")>()),
   ShimmerLabel: () => null,
   useAnnounce: () => {},
-  webLiveRegion: "polite",
 }));
 vi.mock("./typing-indicator", () => ({ TypingIndicator: () => null }));
 vi.mock("@/components/ui/icon", () => ({ Icon: () => null }));

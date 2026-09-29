@@ -5,7 +5,7 @@
 ## Installation
 
 ```bash
-npm install @assistant-ui/react @assistant-ui/ai-sdk
+npm install @assistant-ui/react @assistant-ui/ai-sdk ai
 ```
 
 ## Usage
