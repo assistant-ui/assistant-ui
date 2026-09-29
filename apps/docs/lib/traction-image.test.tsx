@@ -101,7 +101,7 @@ describe("renderTractionImage cache policy", () => {
       () => mocks.fetchDownloadsTimeline.mockResolvedValue([points[0]]),
     ],
   ] as const)(
-    "does not store a render whose %s fell back",
+    "stores no render whose %s fell back",
     async (_source, degrade) => {
       degrade();
 

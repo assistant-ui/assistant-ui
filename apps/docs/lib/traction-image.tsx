@@ -32,6 +32,7 @@ const TICK_ROWS = 4;
 const MIN_CHART_POINTS = 2;
 const COMPLETE_CACHE_CONTROL =
   "public, max-age=3600, s-maxage=21600, stale-while-revalidate=86400";
+// Cloudflare lifts any PNG max-age under four hours to four hours and GitHub's image proxy keeps the README image that long, so a render with a fallback in it must not be stored at all.
 const DEGRADED_CACHE_CONTROL = "private, no-store";
 
 // The site's tokens resolved out of oklch, which satori cannot parse.
@@ -346,7 +347,7 @@ export async function renderTractionImage(name: keyof typeof THEMES) {
     },
   ];
   const degraded =
-    stats.some((stat) => stat.value === null) ||
+    stats.some((stat) => stat.value == null) ||
     [stars, downloads].some((points) => points.length < MIN_CHART_POINTS);
 
   const imageOptions: ImageResponseOptions = {

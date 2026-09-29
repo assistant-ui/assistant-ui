@@ -3,7 +3,7 @@ title: ThreadRuntime
 description: ThreadRuntime state and actions for controlling assistant-ui messages, composers, suggestions, model context, and the full thread lifecycle.
 ---
 
-import { ThreadComposerRuntime, ThreadComposerState, ThreadRuntime, ThreadState, ThreadViewportState, ThreadsState } from "@/generated/typeDocs";
+import { ThreadComposerRuntime, ThreadComposerState, ThreadRuntime, ThreadRuntimeState, ThreadState, ThreadViewportState, ThreadsState } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -26,15 +26,23 @@ import { ThreadComposerRuntime, ThreadComposerState, ThreadRuntime, ThreadState,
 
 <ParametersTable {...ThreadRuntime} />
 
+### ThreadRuntimeState
+
+<ParametersTable {...ThreadRuntimeState} />
+
 ### ThreadsState
 
 <ParametersTable {...ThreadsState} />
 
-### ThreadState
-
-<ParametersTable {...ThreadState} />
-
 ### ThreadViewportState
 
 <ParametersTable {...ThreadViewportState} />
+
+### ThreadState
+
+<Callout type="warn">
+<strong>Deprecated.</strong> Use `ThreadRuntimeState`. From `@assistant-ui/react` 0.16, `ThreadState` names the thread state read through `useAuiState`.
+</Callout>
+
+<ParametersTable {...ThreadState} />
 {/* api-reference:end */}

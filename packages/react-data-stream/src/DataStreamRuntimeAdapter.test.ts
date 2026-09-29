@@ -3,7 +3,8 @@ import type {
   ChatModelRunOptions,
   ThreadMessage,
 } from "@assistant-ui/core";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { DataStreamRuntimeAdapter } from "./DataStreamRuntimeAdapter";
 
 const userMessage: ThreadMessage = {
   id: "user-message",
@@ -26,20 +27,6 @@ const createRunOptions = (abortSignal: AbortSignal): ChatModelRunOptions =>
 const runOnce = (adapter: ChatModelAdapter, options: ChatModelRunOptions) =>
   (adapter.run(options) as AsyncGenerator).next();
 
-/**
- * The fallback warning is latched in a module-level flag, so each test imports
- * a fresh copy of the module to observe the first-time branch.
- */
-const importAdapter = async () => {
-  const { DataStreamRuntimeAdapter } =
-    await import("./DataStreamRuntimeAdapter");
-  return DataStreamRuntimeAdapter;
-};
-
-beforeEach(() => {
-  vi.resetModules();
-});
-
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -54,8 +41,11 @@ describe("DataStreamRuntimeAdapter cancellation", () => {
     controller.abort(abortError);
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(abortError));
 
-    const Adapter = await importAdapter();
-    const adapter = new Adapter({ api: "/api/chat", onCancel, onError });
+    const adapter = new DataStreamRuntimeAdapter({
+      api: "/api/chat",
+      onCancel,
+      onError,
+    });
 
     await expect(
       runOnce(adapter, createRunOptions(controller.signal)),
@@ -74,8 +64,10 @@ describe("DataStreamRuntimeAdapter cancellation", () => {
     controller.abort(detachError);
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(detachError));
 
-    const Adapter = await importAdapter();
-    const adapter = new Adapter({ api: "/api/chat", onCancel });
+    const adapter = new DataStreamRuntimeAdapter({
+      api: "/api/chat",
+      onCancel,
+    });
 
     await expect(
       runOnce(adapter, createRunOptions(controller.signal)),
@@ -89,8 +81,7 @@ describe("DataStreamRuntimeAdapter response handling", () => {
     const onError = vi.fn();
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null)));
 
-    const Adapter = await importAdapter();
-    const adapter = new Adapter({
+    const adapter = new DataStreamRuntimeAdapter({
       api: "/api/chat",
       protocol: "ui-message-stream",
       onError,
@@ -113,8 +104,7 @@ describe("DataStreamRuntimeAdapter response handling", () => {
         .mockResolvedValue(new Response("upstream exploded", { status: 503 })),
     );
 
-    const Adapter = await importAdapter();
-    const adapter = new Adapter({ api: "/api/chat", onError });
+    const adapter = new DataStreamRuntimeAdapter({ api: "/api/chat", onError });
 
     await expect(
       runOnce(adapter, createRunOptions(new AbortController().signal)),
@@ -123,7 +113,91 @@ describe("DataStreamRuntimeAdapter response handling", () => {
   });
 });
 
+describe("DataStreamRuntimeAdapter tool interrupt", () => {
+  const uiMessageStream = (events: readonly Record<string, unknown>[]) =>
+    new Response(
+      `${events
+        .map((event) => `data: ${JSON.stringify(event)}\n\n`)
+        .join("")}data: [DONE]\n\n`,
+    );
+
+  it("reports a human interrupt as a tool error", async () => {
+    const onError = vi.fn();
+    const afterHuman = vi.fn();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        uiMessageStream([
+          { type: "start", messageId: "assistant-1" },
+          {
+            type: "tool-input-start",
+            toolCallId: "call-1",
+            toolName: "ask",
+          },
+          {
+            type: "tool-input-available",
+            toolCallId: "call-1",
+            toolName: "ask",
+            input: {},
+          },
+          { type: "finish", finishReason: "tool-calls" },
+        ]),
+      ),
+    );
+
+    const adapter = new DataStreamRuntimeAdapter({
+      api: "/api/chat",
+      protocol: "ui-message-stream",
+      onError,
+    });
+    const options = {
+      ...createRunOptions(new AbortController().signal),
+      context: {
+        tools: {
+          ask: {
+            parameters: { type: "object", properties: {} } as const,
+            execute: async (
+              _args: unknown,
+              { human }: { human: (payload: unknown) => Promise<unknown> },
+            ) => {
+              await human({});
+              afterHuman();
+              return "unreachable";
+            },
+          },
+        },
+      },
+    };
+
+    const chunks: unknown[] = [];
+    for await (const chunk of adapter.run(options) as AsyncGenerator) {
+      chunks.push(chunk);
+    }
+
+    expect(onError).not.toHaveBeenCalled();
+    expect(afterHuman).not.toHaveBeenCalled();
+    const last = chunks.at(-1) as {
+      parts: { type: string; result?: unknown; isError?: boolean }[];
+    };
+    const parts = last.parts;
+    expect(parts.find((part) => part.type === "tool-call")).toMatchObject({
+      isError: true,
+      result: "Error: Tool interrupt is not supported in data stream runtime",
+    });
+  });
+});
+
 describe("DataStreamRuntimeAdapter protocol fallback", () => {
+  /**
+   * The fallback warning is latched in a module-level flag, so each test imports
+   * a fresh copy of the module to observe the first-time branch.
+   */
+  const importFreshAdapter = async () => {
+    vi.resetModules();
+    return (await import("./DataStreamRuntimeAdapter"))
+      .DataStreamRuntimeAdapter;
+  };
+
   const emptyStreamResponse = (headers?: Record<string, string>) =>
     new Response("data: [DONE]\n\n", headers ? { headers } : undefined);
 
@@ -134,7 +208,7 @@ describe("DataStreamRuntimeAdapter protocol fallback", () => {
       vi.fn().mockImplementation(async () => emptyStreamResponse()),
     );
 
-    const Adapter = await importAdapter();
+    const Adapter = await importFreshAdapter();
     const adapter = new Adapter({ api: "/api/chat" });
 
     await runOnce(adapter, createRunOptions(new AbortController().signal));
@@ -151,7 +225,7 @@ describe("DataStreamRuntimeAdapter protocol fallback", () => {
       vi.fn().mockImplementation(async () => emptyStreamResponse()),
     );
 
-    const Adapter = await importAdapter();
+    const Adapter = await importFreshAdapter();
     const adapter = new Adapter({
       api: "/api/chat",
       protocol: "ui-message-stream",
@@ -173,7 +247,7 @@ describe("DataStreamRuntimeAdapter protocol fallback", () => {
         ),
     );
 
-    const Adapter = await importAdapter();
+    const Adapter = await importFreshAdapter();
     const adapter = new Adapter({ api: "/api/chat" });
 
     await runOnce(adapter, createRunOptions(new AbortController().signal));

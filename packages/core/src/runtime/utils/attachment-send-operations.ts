@@ -31,13 +31,17 @@ export class AttachmentSendOperations {
   async send(
     attachment: Attachment,
     adapter: AttachmentAdapter | undefined,
+    signal?: AbortSignal,
   ): Promise<CompleteAttachment> {
     if (isAttachmentComplete(attachment)) return attachment;
     const entry = this.entries.get(attachment) ?? {};
     if (entry.result) return entry.result;
     if (!adapter) throw new Error("Attachments are not supported");
     this.entries.set(attachment, entry);
-    const result = await adapter.send(attachment);
+    const result = await adapter.send(
+      attachment,
+      signal ? { signal } : undefined,
+    );
     entry.result = result;
     return result;
   }

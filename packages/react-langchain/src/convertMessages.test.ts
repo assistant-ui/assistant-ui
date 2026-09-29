@@ -1134,6 +1134,54 @@ describe("convertLangChainBaseMessage malformed messages", () => {
     ]);
   });
 
+  it("normalizes missing, string, and array tool-call args to an object", () => {
+    for (const args of [undefined, "not-json", ["x"], null]) {
+      const result = convertLangChainBaseMessage(
+        {
+          ...aiMessage([]),
+          tool_calls: [{ id: "call-1", name: "lookup", args }],
+        } as unknown as LangChainBaseMessage,
+        {},
+      );
+      expect(contentOf(result)).toEqual([
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "lookup",
+          args: {},
+          argsText: "{}",
+        },
+      ]);
+    }
+  });
+
+  it("normalizes unsafe object tool-call args to an empty object", () => {
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    class CustomArgs {
+      query = "x";
+    }
+
+    for (const args of [new Date(0), new Map(), new CustomArgs(), cyclic]) {
+      const result = convertLangChainBaseMessage(
+        {
+          ...aiMessage([]),
+          tool_calls: [{ id: "call-1", name: "lookup", args }],
+        } as unknown as LangChainBaseMessage,
+        {},
+      );
+      expect(contentOf(result)).toEqual([
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "lookup",
+          args: {},
+          argsText: "{}",
+        },
+      ]);
+    }
+  });
+
   it("converts a system message with null content to empty text", () => {
     const result = convertLangChainBaseMessage(
       { _getType: () => "system", id: "msg-4", content: null },

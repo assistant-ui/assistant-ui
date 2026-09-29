@@ -35,6 +35,12 @@ export { getThreadMessageText } from "./utils/text";
 export { toMessagePartStatus } from "./utils/normalizePartStatus";
 export { notifyEventListeners } from "./utils/notify-event-listeners";
 export { resolveToolApprovalResponse } from "./runtime/utils/resolveToolApprovalResponse";
+export {
+  TOOL_INTERACTION_LIMITS,
+  appendToolInteraction,
+  createToolInteraction,
+  readToolInteractionLog,
+} from "./runtime/utils/tool-interactions";
 export { consumeSuggestionResult } from "./adapters/suggestion";
 
 // Composite context provider

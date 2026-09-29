@@ -227,6 +227,29 @@ describe("ComposerPrimitiveAttachmentDropzone", () => {
     expect(dropzone!.getAttribute("data-dragging")).toBe("true");
   });
 
+  it("prevents a disabled file drop from navigating away without adding attachments", async () => {
+    await act(async () => {
+      root.render(
+        <ComposerPrimitiveAttachmentDropzone data-testid="dropzone" disabled />,
+      );
+    });
+    const dropzone = container.querySelector("[data-testid='dropzone']")!;
+    const over = createDragEvent("dragover", ["Files"]);
+    const drop = createDropEvent([
+      new File(["file"], "photo.png", { type: "image/png" }),
+    ]);
+
+    await act(async () => {
+      dropzone.dispatchEvent(over);
+      dropzone.dispatchEvent(drop);
+    });
+
+    expect(over.defaultPrevented).toBe(true);
+    expect(drop.defaultPrevented).toBe(true);
+    expect(addAttachment).not.toHaveBeenCalled();
+    expect(dropzone.hasAttribute("data-dragging")).toBe(false);
+  });
+
   it("ignores non-file drags", async () => {
     const dropzone = container.querySelector("[data-testid='dropzone']");
     expect(dropzone).not.toBeNull();

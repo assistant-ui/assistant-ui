@@ -1,4 +1,4 @@
-import { describe, test } from "vitest";
+import { describe, inject, test } from "vitest";
 import { createElement, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
@@ -113,7 +113,7 @@ describe("react-markdown: one token changed in the last paragraph, by message le
           afterAll: () => host.unmount(),
         },
         () => host.tick(),
-      ).run();
+      ).run(inject("benchSampling"));
     });
   }
 });
@@ -137,7 +137,7 @@ describe("react-markdown: the same token with defer on", () => {
           afterAll: () => host.unmount(),
         },
         async () => await host.tick(),
-      ).run();
+      ).run(inject("benchSampling"));
     });
   }
 });
