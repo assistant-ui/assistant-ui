@@ -2,7 +2,7 @@ import { convertSurfaceToUISpec } from "./a2ui/convert";
 import { surfaceToOperations } from "./a2ui/snapshot";
 import { applyA2uiOperations } from "./a2ui/reducer";
 /** @vitest-environment jsdom */
-import { describe, it, expect, vi } from "vitest";
+import { beforeAll, describe, it, expect, vi } from "vitest";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -703,6 +703,10 @@ describe("defineGenerativeComponents", () => {
 });
 
 describe("live A2UI surfaces", () => {
+  beforeAll(async () => {
+    await import("./a2ui/PresentRenderer");
+  });
+
   it("shows the static surface while the live renderer loads", () => {
     const ui = new ClientGenUI({ library: defaultGenerativeUILibrary });
     const html = renderTool(
