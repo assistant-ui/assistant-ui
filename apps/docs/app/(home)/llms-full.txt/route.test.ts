@@ -10,7 +10,6 @@ vi.mock("@/lib/source", async (importOriginal) => {
     design: emptyCollection,
     elementsDocs: emptyCollection,
     examples: emptyCollection,
-    getTapDocsPages: () => [],
     source: emptyCollection,
   };
 });

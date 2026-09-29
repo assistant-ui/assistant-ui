@@ -3,7 +3,7 @@ import { createApp, defineComponent, h, nextTick, type Component } from "vue";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig } from "@assistant-ui/store/client";
 import { RuntimeAdapter } from "@assistant-ui/core/store";
-import type { ExternalStoreAdapter } from "@assistant-ui/core";
+import type { AppendMessage, ExternalStoreAdapter } from "@assistant-ui/core";
 import {
   AssistantRuntimeImpl,
   ExternalStoreRuntimeCore,
@@ -21,7 +21,9 @@ const createTestRuntime = () => {
   let messages: DemoMessage[] = [];
   let isRunning = false;
   let isDisabled = false;
-  const onNew = vi.fn(async () => {});
+  const onNew = vi.fn<(message: AppendMessage) => Promise<void>>(
+    async () => {},
+  );
   const onCancel = vi.fn(async () => {});
   const makeAdapter = (): ExternalStoreAdapter<DemoMessage> => ({
     messages,

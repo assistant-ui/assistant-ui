@@ -1,4 +1,6 @@
+import type { WizardPageId } from "@/components/pages/shop/setup-wizard-page";
 import type { LearnCourseStartSource } from "@/lib/xulux/learn/types";
+import type { WebMcpToolName } from "@/lib/webmcp-tools";
 
 declare global {
   interface Window {
@@ -44,7 +46,12 @@ const trackEvent = (event: string, properties?: AnalyticsProperties) => {
 export const analytics = {
   cta: {
     clicked: (
-      cta: "get_started" | "contact_sales" | "why_us",
+      cta:
+        | "get_started"
+        | "contact_sales"
+        | "why_us"
+        | "start_setup_agent"
+        | "start_setup_manual",
       location: string,
     ) => trackEvent("cta_clicked", { cta, location }),
 
@@ -55,6 +62,22 @@ export const analytics = {
 
     promptCopied: (properties?: AnalyticsProperties) =>
       trackEvent("prompt_copied", properties),
+  },
+
+  shop: {
+    cartToggled: (product: string, added: boolean) =>
+      trackEvent("shop_cart_toggled", { product, added }),
+  },
+
+  setup: {
+    stepViewed: (step: WizardPageId) =>
+      trackEvent("setup_step_viewed", { step }),
+
+    agentConnected: () => trackEvent("setup_agent_connected"),
+
+    installFinished: () => trackEvent("setup_install_finished"),
+
+    cancelled: () => trackEvent("setup_cancelled"),
   },
 
   search: {
@@ -99,6 +122,11 @@ export const analytics = {
   toc: {
     actionClicked: (action: "copy" | "markdown" | "github" | "ask_ai") =>
       trackEvent("toc_action_clicked", { action }),
+  },
+
+  pageActions: {
+    actionClicked: (action: "copy" | "markdown" | "claude" | "codex" | "mcp") =>
+      trackEvent("page_action_clicked", { action }),
   },
 
   install: {
@@ -350,5 +378,21 @@ export const analytics = {
       download_type?: "template" | "demo";
       template_id?: string;
     }) => trackEvent("xulux_converted", props),
+  },
+
+  webmcp: {
+    hostDetected: () => trackEvent("webmcp_host_detected"),
+
+    toolRegistered: (
+      props:
+        | { tool: WebMcpToolName; status: "ok" }
+        | { tool: WebMcpToolName; status: "failed"; error_name: string },
+    ) => trackEvent("webmcp_tool_registered", props),
+
+    toolCalled: (props: {
+      tool: WebMcpToolName;
+      status: "ok" | "error" | "aborted";
+      latency_ms: number;
+    }) => trackEvent("webmcp_tool_called", props),
   },
 };

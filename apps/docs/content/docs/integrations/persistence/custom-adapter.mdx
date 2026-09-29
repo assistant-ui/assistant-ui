@@ -203,6 +203,12 @@ export async function POST(
   const session = await auth();
   if (!session?.user) return new Response(null, { status: 401 });
 
+  const [thread] = await db
+    .select({ id: threads.id })
+    .from(threads)
+    .where(and(eq(threads.id, id), eq(threads.userId, session.user.id)));
+  if (!thread) return new Response(null, { status: 404 });
+
   const body = (await req.json()) as {
     id: string;
     parent_id: string | null;
@@ -728,6 +734,14 @@ export function MyProvider({ children }: { children: React.ReactNode }) {
 
 </Tab>
 </PlatformTabs>
+
+The runtime and its adapters retain state for the persistence scope under which they mounted. If that scope can change without a page reload, render `MyProvider` with a key containing every identifier your persistence endpoints use. The routes in this guide authorize every operation against the signed-in account, so the account id is sufficient. If your routes also filter by workspace, combine the account and workspace ids.
+
+```tsx
+<MyProvider key={accountId}>{children}</MyProvider>
+```
+
+This works the same way with the React, React Native, and React Ink versions above. The key remounts `useRemoteThreadListRuntime` and all per-thread runtimes, so the new scope starts with a fresh thread list, history, and composer. Any in-flight run from the old scope is stopped during unmount. Keying only `AssistantRuntimeProvider` does not remount the hook that owns the runtime.
 
 </Step>
 <Step>

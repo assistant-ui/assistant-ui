@@ -22,9 +22,11 @@ data: {"type": "text-delta", "textDelta": "\"NYC\"}", "path": [2]}
 
 data: {"type": "update-state", "operations": [{"type": "set", "path": ["status"], "value": "running"}]}
 
-data: {"type": "result", "result": {"temp": 70}, "isError": false, "path": [2]}
+data: {"type": "result", "result": {"status": "working"}, "isError": false, "isPreliminary": true, "path": [2]}
 
 data: {"type": "tool-call-args-text-finish", "path": [2]}
+
+data: {"type": "result", "result": {"temp": 70}, "isError": false, "path": [2]}
 
 data: {"type": "part-finish", "path": [2]}
 

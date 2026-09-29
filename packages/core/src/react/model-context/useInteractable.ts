@@ -10,6 +10,7 @@ import {
 } from "../../model-context/interactable-composer-metadata";
 import { unstable_useInteractableState as useInteractableState } from "./useInteractableState";
 import { useJSONEqual } from "../utils/useJSONEqual";
+import { useJSONSchemaDependency } from "../utils/useJSONSchemaDependency";
 
 /**
  * The state type described by an interactable's `stateSchema`. Resolves the
@@ -116,6 +117,7 @@ const useInteractable = <TSchema extends Unstable_InteractableStateSchema>(
 
   const stateSchemaRef = useRef(config.stateSchema);
   stateSchemaRef.current = config.stateSchema;
+  const normalizedStateSchema = useJSONSchemaDependency(config.stateSchema);
   const initialStateRef = useRef(config.initialState);
   initialStateRef.current = config.initialState;
 
@@ -138,6 +140,7 @@ const useInteractable = <TSchema extends Unstable_InteractableStateSchema>(
     id,
     name,
     config.description,
+    normalizedStateSchema,
     internalScope,
     config.updateRender,
   ]);

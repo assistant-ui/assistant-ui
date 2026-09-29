@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { renderGenerativeUI } from "../renderGenerativeUI";
 import { createActionRegistry } from "../actionRegistry";
+import type { GenerativeUIDispatch } from "../types";
 import { listVocabulary } from "./list";
 
 const render = (node: unknown) =>
@@ -55,13 +56,13 @@ describe("listVocabulary", () => {
 });
 
 describe("listVocabulary $action dispatch", () => {
-  const rowOut = (dispatch: (a: unknown) => unknown) =>
+  const rowOut = (dispatch: GenerativeUIDispatch) =>
     listVocabulary.ListViewItem.render({
       $status: "done",
       $action: { type: "open" },
       $dispatch: dispatch,
       children: "row",
-    }) as ReactElement;
+    }) as ReactElement<{ children: ReactElement }>;
 
   it("clicking the trigger fires $action with no $input", () => {
     const handler = vi.fn();
@@ -83,8 +84,8 @@ describe("listVocabulary $action dispatch", () => {
     preventDefault: () => void;
   };
 
-  const getOnKeyDown = (dispatch: (a: unknown) => unknown) => {
-    const trigger = rowOut(dispatch).props.children as ReactElement;
+  const getOnKeyDown = (dispatch: GenerativeUIDispatch) => {
+    const trigger = rowOut(dispatch).props.children;
     return (trigger.props as { onKeyDown: (e: KeyDownEvent) => void })
       .onKeyDown;
   };

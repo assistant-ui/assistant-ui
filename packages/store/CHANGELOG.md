@@ -1,5 +1,23 @@
 # @assistant-ui/store
 
+## 0.3.15
+
+### Patch Changes
+
+- [#7871](https://github.com/assistant-ui/assistant-ui/pull/7871) [`21f8bdf`](https://github.com/assistant-ui/assistant-ui/commit/21f8bdfd8c5c0541cf6d0541eec07fb9e88c3ad3) - fix: stop a nested `useChatRuntime` chat when its own component unmounts, stop registering `AISDKThreads` cloud threads on the client destroy signal, and stop fast refresh from aborting the destroy signal of `useAui(config)` hosts ([@okisdev](https://github.com/okisdev))
+
+- [#7749](https://github.com/assistant-ui/assistant-ui/pull/7749) [`8e1508a`](https://github.com/assistant-ui/assistant-ui/commit/8e1508a9cde31e3d682a3b142dcd2aca29696b11) - perf: keep a thread update off every message client ([@okisdev](https://github.com/okisdev))
+  
+  A streamed token no longer re-runs every message client in an external-store thread, cutting per-token cost by about 60% at 1000 messages.
+
+## 0.3.14
+
+### Patch Changes
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#7338](https://github.com/assistant-ui/assistant-ui/pull/7338) [`11969a2`](https://github.com/assistant-ui/assistant-ui/commit/11969a219201f49eb42a76d05e9f3cc787c5f025) - docs: teach `AuiConfig` and the provider `config` prop instead of the deprecated `useAui({...})` overload in docblocks and the agent skill ([@L4XB](https://github.com/L4XB))
+
 ## 0.3.13
 
 ### Patch Changes

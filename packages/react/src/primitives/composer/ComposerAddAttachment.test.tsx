@@ -78,14 +78,16 @@ describe("ComposerPrimitiveAddAttachment", () => {
 
     const button = container.querySelector("button");
     expect(button).not.toBeNull();
+    if (!button) throw new Error("Attachment button was not rendered");
 
     await act(async () => {
-      button!.click();
+      button.click();
     });
 
     const input =
       document.querySelector<HTMLInputElement>('input[type="file"]');
     expect(input).not.toBeNull();
+    if (!input) throw new Error("File input was not rendered");
 
     const files = [
       new File(["a"], "unsupported.bin"),
@@ -96,13 +98,13 @@ describe("ComposerPrimitiveAddAttachment", () => {
       value: files,
     });
 
-    const result = input!.onchange?.call(input, {
-      target: input,
-    } as unknown as Event);
+    const event = new Event("change");
+    Object.defineProperty(event, "target", { value: input });
+    const result = input.onchange?.call(input, event);
 
     await expect(Promise.resolve(result)).resolves.toBeUndefined();
     expect(addAttachment).toHaveBeenCalledTimes(2);
     expect(errorSpy).not.toHaveBeenCalled();
-    expect(input!.isConnected).toBe(false);
+    expect(input.isConnected).toBe(false);
   });
 });

@@ -88,7 +88,7 @@ threads the token back as a `?aui=` **query on the resolved file**: both tokens
 hit the same physical file, but the query makes each a distinct module key —
 unique identity without per-module files, still selected by the static
 `react-server` condition. The query is inert (`indirectionVariant` keys off the
-basename; the path still arrives via the import attribute).
+generated `path` loader option and then checks the exact basename).
 
 The `?generative-env=server|client` query then hits the loader again and compiles the
 concrete build. Net resolution from one bare import:

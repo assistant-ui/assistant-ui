@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   fetchPreviewSession: vi.fn(),
@@ -75,9 +75,6 @@ vi.mock("@/lib/source", () => {
     design: makeSource(),
     elementsDocs: makeSource(),
     standalone: makeSource(),
-    tapDocs: makeSource(),
-    getTapDocsPage: vi.fn(),
-    getTapDocsPages: vi.fn(() => []),
   };
 });
 
@@ -177,10 +174,6 @@ function inputSchemaShape(schema: Record<string, unknown>) {
   };
 }
 
-afterEach(() => {
-  vi.clearAllMocks();
-});
-
 async function requestDescriptor(accept?: string) {
   const request = new Request(`${ORIGIN}/api/mcp`, {
     ...(accept ? { headers: { Accept: accept } } : {}),
@@ -275,7 +268,7 @@ describe("POST /api/mcp", () => {
       const request = new Request(new URL(url, ORIGIN), {
         method: init.method,
         headers: init.headers,
-        body: init.body,
+        ...(init.body === undefined ? {} : { body: init.body }),
         ...(init.signal ? { signal: init.signal } : {}),
       });
       const response = await POST(request as Parameters<typeof POST>[0]);
@@ -472,6 +465,31 @@ describe("POST /api/mcp", () => {
       url: `${ORIGIN}/api/mcp`,
     });
     expect(mocks.checkTemplateRateLimit).not.toHaveBeenCalled();
+  });
+
+  it("lists pages under a legacy tap docs prefix", async () => {
+    const { source } = await import("@/lib/source");
+    vi.mocked(source.getPages).mockReturnValueOnce([
+      {
+        url: "/docs/store/scopes",
+        data: { title: "Scopes", description: "Scopes." },
+      },
+      {
+        url: "/docs/installation",
+        data: { title: "Installation", description: "Install." },
+      },
+    ] as never);
+
+    const response = await requestMcp("tools/call", {
+      name: "list_pages",
+      arguments: { path: "/tap/docs/store" },
+    });
+    const text = getToolCallResult(response).content.find(
+      (block) => block.type === "text",
+    )?.text;
+
+    expect(text).toContain("/docs/store/scopes");
+    expect(text).not.toContain("/docs/installation");
   });
 
   it("meters the docs resources that repeat the tool work", async () => {

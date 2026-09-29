@@ -235,6 +235,13 @@ declare namespace McpAddFormPrimitiveAuthSelect {
 
 declare const McpAddFormPrimitiveAuthSelect: import("react").ForwardRefExoticComponent<McpAddFormPrimitiveAuthSelect.Props & import("react").RefAttributes<HTMLSelectElement>>;
 
+declare namespace McpAddFormPrimitiveBearerTokenField {
+  type Element = ComponentRef<typeof Primitive.input>;
+  type Props = Omit<ComponentPropsWithoutRef<typeof Primitive.input>, "onChange" | "type" | "value">;
+}
+
+declare const McpAddFormPrimitiveBearerTokenField: import("react").ForwardRefExoticComponent<McpAddFormPrimitiveBearerTokenField.Props & import("react").RefAttributes<HTMLInputElement>>;
+
 declare namespace McpAddFormPrimitiveCancel {
   type Element = ComponentRef<typeof Primitive.button>;
   type Props = ComponentPropsWithoutRef<typeof Primitive.button>;
@@ -274,6 +281,13 @@ declare const McpAddFormPrimitiveRoot: import("react").ForwardRefExoticComponent
   onSubmitted?: (id: string) => void;
   onCancel?: () => void;
 } & import("react").RefAttributes<HTMLFormElement>>;
+
+declare namespace McpAddFormPrimitiveScopesField {
+  type Element = ComponentRef<typeof Primitive.input>;
+  type Props = Omit<ComponentPropsWithoutRef<typeof Primitive.input>, "onChange" | "type" | "value">;
+}
+
+declare const McpAddFormPrimitiveScopesField: import("react").ForwardRefExoticComponent<McpAddFormPrimitiveScopesField.Props & import("react").RefAttributes<HTMLInputElement>>;
 
 declare namespace McpAddFormPrimitiveSubmit {
   type Element = ComponentRef<typeof Primitive.button>;
@@ -614,7 +628,7 @@ type ValidateMethods<K extends string, TClient> = TClient extends {
 } ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
 
 declare namespace addForm_d_exports {
-  export { McpAddFormPrimitiveAuthFields as AuthFields, McpAddFormPrimitiveAuthSelect as AuthSelect, McpAddFormPrimitiveCancel as Cancel, McpAddFormPrimitiveError as Error, McpAddFormPrimitiveNameField as NameField, McpAddFormPrimitiveRoot as Root, McpAddFormPrimitiveSubmit as Submit, McpAddFormPrimitiveUrlField as UrlField };
+  export { McpAddFormPrimitiveAuthFields as AuthFields, McpAddFormPrimitiveAuthSelect as AuthSelect, McpAddFormPrimitiveBearerTokenField as BearerTokenField, McpAddFormPrimitiveCancel as Cancel, McpAddFormPrimitiveError as Error, McpAddFormPrimitiveNameField as NameField, McpAddFormPrimitiveRoot as Root, McpAddFormPrimitiveScopesField as ScopesField, McpAddFormPrimitiveSubmit as Submit, McpAddFormPrimitiveUrlField as UrlField };
 }
 
 declare function defineConnector(connector: MCPConnector): MCPConnector;

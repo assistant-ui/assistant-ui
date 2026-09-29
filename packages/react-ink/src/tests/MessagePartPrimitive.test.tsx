@@ -16,7 +16,6 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
 });
 
 describe("MessagePartPrimitive", () => {

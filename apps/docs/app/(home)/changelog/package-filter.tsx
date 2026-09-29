@@ -66,9 +66,7 @@ export function PackageFilter({
       onValueChange={(v) => {
         const nextValue = v ?? ALL;
         router.push(
-          nextValue === ALL
-            ? "/changelog"
-            : `?pkg=${encodeURIComponent(nextValue)}`,
+          nextValue === ALL ? "/changelog" : `/changelog/${nextValue}`,
         );
       }}
       items={[

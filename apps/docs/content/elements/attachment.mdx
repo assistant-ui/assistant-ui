@@ -134,9 +134,9 @@ function CustomThumb() {
 
 | Part | Renders | Notes |
 |------|---------|-------|
-| `ComposerAttachments` | list | Wraps `ComposerPrimitive.Attachments`; one tile per staged attachment. |
+| `ComposerAttachments` | list | Wraps `ComposerPrimitive.Attachments`; one tile per staged attachment. Hidden while nothing is staged. |
 | `ComposerAddAttachment` | `button` | Wraps `ComposerPrimitive.AddAttachment`; opens the native file picker. Renders `null` while the composer isn't editable. |
-| `UserMessageAttachments` | list | Wraps `MessagePrimitive.Attachments`; one tile per attachment on the current user message. |
+| `UserMessageAttachments` | list | Wraps `MessagePrimitive.Attachments`; one tile per attachment on the current user message. Hidden while the message has none, so the user message grid starts at the bubble. |
 
 ### Primitives composed
 
@@ -237,7 +237,7 @@ An `image` item renders as a filled thumbnail button with its name and size over
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `attachments` | `readonly MessageAttachmentItem[]` | required | The received files, in order. |
-| `onOpen` | `(id: string) => void` | | Called when an attachment is clicked. |
+| `onOpen` | `(id: string) => void` | | Called when an attachment is clicked. Without it, attachments render as non-interactive file details. |
 | `className` | `string` | | Merged onto the root. |
 
 `MessageAttachmentItem` is `{ id: string; name: string; size: string; kind: "image" | "document" | "file"; pages?: number; swatch?: string }`. All other `div` props are forwarded to the root.

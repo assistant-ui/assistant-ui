@@ -3,11 +3,13 @@ import { join, resolve } from "node:path";
 import {
   attributeRows,
   benchCoverage,
+  planBenches,
   workspaceGraph,
 } from "./attribution.mjs";
 import { meanRows, pairNoise, rowVerdict } from "./paired-compare.mjs";
 import { changedPackages, ensureRefWorktree } from "./ref-worktree.mjs";
 import {
+  baseLabel,
   buildCompareDoc,
   renderCompareMarkdown,
   renderCompareTerminal,
@@ -112,8 +114,37 @@ export const compareFiles = (aPath, bPath, outputs) => {
   );
 };
 
-export const compareRef = (ref, requestedRuns, outputs) => {
+export const compareRef = (
+  ref,
+  requestedRuns,
+  outputs,
+  { all = false } = {},
+) => {
   const { wt, sha, marker } = ensureRefWorktree(ref);
+  const keep = `ref worktree kept at ${wt}; remove with: git worktree remove "${wt}" && rm "${marker}"`;
+  const root = repoRoot();
+  const changed = changedPackages(root, wt);
+  const coverage = benchCoverage(join(pkgRoot, "bench"), workspaceGraph(root));
+  const plan = planBenches(coverage, changed, { all });
+  const files = [...plan.measured, ...plan.controls];
+  if (!plan.measured.length && !all) {
+    const refEnv = envStamp(wt);
+    const curEnv = envStamp();
+    emit(
+      [],
+      {
+        base: side(baseLabel(ref, sha), refEnv),
+        head: side(`head (${stamp(curEnv)})`, curEnv),
+        warnings: [],
+        changed,
+        runs: 0,
+        footer: [`base \`${refEnv.sha}\``, `head \`${stamp(curEnv)}\``],
+      },
+      outputs,
+    );
+    console.error(keep);
+    return;
+  }
   mkdirSync(perfDir, { recursive: true });
   // Drift cancellation needs the C R / R C alternation balanced, which only
   // holds for an even number of interleaved runs.
@@ -123,15 +154,23 @@ export const compareRef = (ref, requestedRuns, outputs) => {
       `rounding --runs up to ${runs} to keep the interleaving balanced`,
     );
   }
+  console.error(
+    `benches: ${plan.measured.length} files exercise a changed dist, ${plan.controls.length} of ${plan.unchanged} on unchanged dists run as controls`,
+  );
   const curRuns = [];
   const refRuns = [];
   const sides = [
-    ["current", () => curRuns.push(new Map(runSuite().map((r) => [r.id, r])))],
+    [
+      "current",
+      () => curRuns.push(new Map(runSuite({}, files).map((r) => [r.id, r]))),
+    ],
     [
       ref,
       () =>
         refRuns.push(
-          new Map(runSuite({ AUI_PERF_REF_ROOT: wt }).map((r) => [r.id, r])),
+          new Map(
+            runSuite({ AUI_PERF_REF_ROOT: wt }, files).map((r) => [r.id, r]),
+          ),
         ),
     ],
   ];
@@ -141,8 +180,8 @@ export const compareRef = (ref, requestedRuns, outputs) => {
   // middle slots. Burn the transient in a discarded warm-up pair; the
   // balanced interleaving then only has to cancel the near-linear remainder.
   console.error("warm-up pair (discarded)...");
-  runSuite();
-  runSuite({ AUI_PERF_REF_ROOT: wt });
+  runSuite({}, files);
+  runSuite({ AUI_PERF_REF_ROOT: wt }, files);
   for (let i = 0; i < runs; i++) {
     // Alternating the block orientation per pair (C R R C, then R C C R)
     // equalizes the squared slot sums as well, so residual curvature after
@@ -167,10 +206,7 @@ export const compareRef = (ref, requestedRuns, outputs) => {
   );
   writeFileSync(join(perfDir, "latest.json"), JSON.stringify(curDoc, null, 2));
 
-  const root = repoRoot();
-  const changed = changedPackages(root, wt);
-  const coverage = benchCoverage(join(pkgRoot, "bench"), workspaceGraph(root));
-  refDoc.label = ref === sha ? `base (${sha})` : `${ref} (${sha})`;
+  refDoc.label = baseLabel(ref, sha);
   curDoc.label = `head (${stamp(curDoc.env)})`;
   const { rows, warnings } = buildRows(
     refDoc,
@@ -189,12 +225,11 @@ export const compareRef = (ref, requestedRuns, outputs) => {
         `base \`${refDoc.env.sha}\``,
         `head \`${stamp(curDoc.env)}\``,
         `${runs} interleaved runs per side after a discarded warm-up pair`,
+        `${plan.controls.length} of ${plan.unchanged} bench files on unchanged dists ran as controls`,
         "floor = max(2×rme, 3%, 2×SE of the pair deltas)",
       ],
     },
     outputs,
   );
-  console.error(
-    `ref worktree kept at ${wt}; remove with: git worktree remove "${wt}" && rm "${marker}"`,
-  );
+  console.error(keep);
 };

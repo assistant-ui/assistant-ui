@@ -1,6 +1,7 @@
 import {
   AssistantCloudAPI,
   type AssistantCloudConfig,
+  type SdkIdentity,
   type AssistantCloudTelemetryConfig,
 } from "./AssistantCloudAPI";
 import { AssistantCloudAuthTokens } from "./AssistantCloudAuthTokens";
@@ -8,7 +9,10 @@ import { AssistantCloudProjects } from "./AssistantCloudProjects";
 import { AssistantCloudRuns } from "./AssistantCloudRuns";
 import { AssistantCloudThreads } from "./AssistantCloudThreads";
 import { AssistantCloudFiles } from "./AssistantCloudFiles";
-import { AssistantCloudEvents } from "./AssistantCloudEvents";
+import {
+  AssistantCloudEvents,
+  clearPendingAssistantCloudEvents,
+} from "./AssistantCloudEvents";
 import { AssistantCloudScores } from "./AssistantCloudScores";
 
 export class AssistantCloud {
@@ -20,11 +24,13 @@ export class AssistantCloud {
   public readonly events;
   public readonly scores;
   public readonly telemetry: AssistantCloudTelemetryConfig;
+  public readonly registerSdk: (sdk: SdkIdentity) => void;
 
   constructor(config: AssistantCloudConfig) {
     const api = new AssistantCloudAPI(config);
+    this.registerSdk = api.registerSdk;
     const t = config.telemetry;
-    this.telemetry =
+    const telemetry =
       t === false
         ? { enabled: false }
         : t === true || t === undefined
@@ -33,6 +39,18 @@ export class AssistantCloud {
               ...t,
               enabled: t.enabled !== false,
             };
+    this.telemetry = new Proxy(telemetry, {
+      set: (target, property, value) => {
+        const updated = Reflect.set(target, property, value);
+        if (
+          (property === "enabled" || property === "events") &&
+          (target.enabled === false || target.events === false)
+        ) {
+          clearPendingAssistantCloudEvents(this.events);
+        }
+        return updated;
+      },
+    });
 
     this.threads = new AssistantCloudThreads(api);
     this.projects = new AssistantCloudProjects(api);

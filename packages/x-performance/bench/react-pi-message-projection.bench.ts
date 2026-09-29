@@ -6,7 +6,7 @@ import {
   type PiClientEvent,
   type PiThreadSnapshot,
 } from "@assistant-ui/react-pi";
-import { bench, describe } from "vitest";
+import { test, inject, describe } from "vitest";
 
 const assistantMessage = (
   text: string,
@@ -44,15 +44,15 @@ const createStreamingUpdate = async (size: number) => {
     messages,
   };
   let listener: ((event: PiClientEvent) => void) | undefined;
-  const client = {
+  const client: Pick<PiClient, "getThread" | "subscribe"> = {
     getThread: async () => snapshot,
     subscribe: (_threadId, next) => {
       listener = next;
       return () => {};
     },
-  } as PiClient;
+  };
   const scheduled: Array<() => void> = [];
-  const controller = new PiThreadController(client, threadId, {
+  const controller = new PiThreadController(client as PiClient, threadId, {
     scheduleNotify: (flush) => scheduled.push(flush),
   });
   controller.connect();
@@ -87,7 +87,11 @@ const createStreamingUpdate = async (size: number) => {
 
 describe("react-pi: streaming tail projection", async () => {
   for (const size of [10, 1_000, 5_000]) {
-    const update = await createStreamingUpdate(size);
-    bench(`${size} stable messages`, update);
+    test(`${size} stable messages`, async ({ bench }) => {
+      const update = await createStreamingUpdate(size);
+      await bench(`${size} stable messages`, update).run(
+        inject("benchSampling"),
+      );
+    });
   }
 });

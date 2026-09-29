@@ -14,6 +14,7 @@ export function GuardrailNoticeDemo() {
       explanation="This asks for a working attack against infrastructure you don't own. I can help with the defensive side of the same problem."
       policy="policy"
       alternatives={ALTERNATIVES}
+      onPick={() => undefined}
     />
   );
 }

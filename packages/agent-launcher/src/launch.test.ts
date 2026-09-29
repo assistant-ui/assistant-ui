@@ -20,7 +20,6 @@ describe("launch", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.clearAllMocks();
 
     for (const directory of temporaryDirectories.splice(0)) {
       rmSync(directory, { recursive: true, force: true });

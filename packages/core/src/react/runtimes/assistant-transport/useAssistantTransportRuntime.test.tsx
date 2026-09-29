@@ -167,7 +167,13 @@ describe("useAssistantTransportRuntime", () => {
               ],
               createdAt: new Date(0),
               status: { type: "requires-action", reason: "tool-calls" },
-              metadata: { custom: {} },
+              metadata: {
+                unstable_state: {},
+                unstable_annotations: [],
+                unstable_data: [],
+                steps: [],
+                custom: {},
+              },
             },
           ],
           isRunning: meta.isSending,
@@ -202,6 +208,65 @@ describe("useAssistantTransportRuntime", () => {
       );
     },
   );
+
+  it("forwards a tool response's modelContent to the outbound command", async () => {
+    const fetchMock = installFetch();
+    const { aui } = mountRuntime({
+      converter: (_state, meta) => ({
+        messages: [
+          {
+            id: "a1",
+            role: "assistant",
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "tc1",
+                toolName: "probe",
+                args: {},
+                argsText: "{}",
+              },
+            ],
+            createdAt: new Date(0),
+            status: { type: "requires-action", reason: "tool-calls" },
+            metadata: {
+              unstable_state: {},
+              unstable_annotations: [],
+              unstable_data: [],
+              steps: [],
+              custom: {},
+            },
+          },
+        ],
+        isRunning: meta.isSending,
+      }),
+    });
+
+    await waitFor(() =>
+      expect(
+        aui()
+          .thread.message({ id: "a1" })
+          .part({ toolCallId: "tc1" })
+          .getState().type,
+      ).toBe("tool-call"),
+    );
+
+    const modelContent = [{ type: "text" as const, text: "done" }];
+    act(() => {
+      aui()
+        .thread.message({ id: "a1" })
+        .part({ toolCallId: "tc1" })
+        .addToolResult(new ToolResponse({ result: "ok", modelContent }));
+    });
+
+    await waitFor(() => expect(fetchMock.requests).toHaveLength(1));
+    expect(fetchMock.requests[0]!.body["commands"][0]).toHaveProperty(
+      "modelContent",
+      modelContent,
+    );
+
+    act(() => fetchMock.servers[0]!.close());
+    await waitFor(() => expect(aui().thread.getState().isRunning).toBe(false));
+  });
 
   it.each(["throws", "rejects"] as const)(
     "cancels the response body when onResponse %s",
@@ -271,6 +336,48 @@ describe("useAssistantTransportRuntime", () => {
     await waitFor(() => expect(aui().thread.getState().isRunning).toBe(false));
     await act(async () => {});
     expect(onError).not.toHaveBeenCalled();
+    expect(fetchMock.requests).toHaveLength(1);
+  });
+
+  it("cancels the commands queued behind a run whose response already finished", async () => {
+    const fetchMock = installFetch();
+    let releaseResponse!: () => void;
+    const responseHeld = new Promise<void>((resolve) => {
+      releaseResponse = resolve;
+    });
+    const onResponse = vi.fn(() => responseHeld);
+    const onCancel = vi.fn();
+    let pendingCommands: readonly AssistantTransportCommand[] = [];
+    const { aui, sendCommand } = mountRuntime({
+      onResponse,
+      onCancel,
+      converter: (_state, meta) => {
+        pendingCommands = meta.pendingCommands;
+        return { messages: [], isRunning: meta.isSending };
+      },
+    });
+    await waitFor(() =>
+      expect(
+        (aui().thread.getState().extras as { sendCommand?: unknown })
+          ?.sendCommand,
+      ).toBeTypeOf("function"),
+    );
+
+    act(() => sendCommand(createMessageCommand("a")));
+    await waitFor(() => expect(onResponse).toHaveBeenCalledTimes(1));
+    act(() => fetchMock.servers[0]!.close());
+    act(() => sendCommand(createMessageCommand("b")));
+    act(() => aui().thread.cancelRun());
+    await act(async () => releaseResponse());
+
+    await waitFor(() => expect(onCancel).toHaveBeenCalledTimes(1));
+    expect(
+      onCancel.mock.calls[0]![0].commands.map(
+        (c: any) => c.message.parts[0].text,
+      ),
+    ).toEqual(["b"]);
+    await waitFor(() => expect(aui().thread.getState().isRunning).toBe(false));
+    expect(pendingCommands).toEqual([]);
     expect(fetchMock.requests).toHaveLength(1);
   });
 
