@@ -275,7 +275,8 @@ describe("CloudProjectInputCard", () => {
 describe("CloudProjectInputCard notes", () => {
   it("sends a note along with the URL", async () => {
     mocks.session = { status: "disabled" };
-    const answer = setup();
+    mocks.projects = { status: "unavailable" };
+    const { answer } = setup();
     fireEvent.change(field(), {
       target: { value: "https://proj-abc.assistant-api.com" },
     });

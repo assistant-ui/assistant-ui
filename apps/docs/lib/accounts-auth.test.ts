@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 // The Next request scope reads request headers, which no test request carries.
-vi.mock("aui-auth/next", () => ({
+vi.mock("aui-auth/next", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("aui-auth/next")>()),
   withNextRequestScope: () => ({
     getSession: async () => null,
     getAccessToken: async () => null,
