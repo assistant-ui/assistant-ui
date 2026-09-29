@@ -336,7 +336,7 @@ function InstallSteps({
       ref={list}
       role="list"
       aria-label="Installation steps"
-      className={cn("flex flex-col", !closed && "py-[50cqh]")}
+      className={cn("flex flex-col", !closed && "pb-6")}
     >
       {state.steps.map((step) => {
         const inputs = checkout.openInputs.filter(
