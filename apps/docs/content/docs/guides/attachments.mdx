@@ -6,7 +6,7 @@ platforms: ["react"]
 
 import { AttachmentSample } from "@/components/pages/docs/samples/attachment";
 
-Enable users to attach files to their messages, enhancing conversations with images, documents, and other content.
+Let users attach images, documents, and other files to their messages.
 
 <AttachmentSample />
 
@@ -14,11 +14,11 @@ Enable users to attach files to their messages, enhancing conversations with ima
 
 ## Overview
 
-The attachment system in assistant-ui provides a flexible framework for handling file uploads in your AI chat interface. It consists of:
+The attachment system consists of:
 
 - **Attachment Adapters**: Backend logic for processing attachment files
 - **UI Components**: Pre-built components for attachment display and interaction
-- **Runtime Integration**: Seamless integration with all assistant-ui runtimes
+- **Runtime Integration**: Attachment support in the assistant-ui runtimes
 
 ## Getting Started
 
@@ -27,15 +27,15 @@ The attachment system in assistant-ui provides a flexible framework for handling
 
 ### Install UI Components
 
-First, add the attachment UI components to your project:
+Add the attachment UI components to your project:
 
 <InstallCommand shadcn={["attachment"]} />
 
-This adds `/components/assistant-ui/elements/attachment.tsx` to your project.
+This adds `/components/assistant-ui/elements/attachment.aui.tsx` to your project.
 
 <Callout type="tip">
-  **Next steps:** Feel free to adjust these auto-generated components (styling,
-  layout, behavior) to match your application's design system.
+  Adjust these components (styling, layout, behavior) to match your
+  application's design system.
 </Callout>
 
   </Step>
@@ -43,7 +43,7 @@ This adds `/components/assistant-ui/elements/attachment.tsx` to your project.
 
 ### Set up Runtime (No Configuration Required)
 
-For `useChatRuntime`, attachments work automatically without additional configuration:
+`useChatRuntime` supports attachments without additional configuration:
 
 ```tsx title="/app/MyRuntimeProvider.tsx"
 import { useChatRuntime } from "@assistant-ui/ai-sdk";
@@ -52,7 +52,7 @@ const runtime = useChatRuntime();
 ```
 
 <Callout type="info">
-  **Note:** The AI SDK runtime handles attachments automatically. For other runtimes like `useLocalRuntime`, you may still need to configure attachment adapters as shown in the [Creating Custom Attachment Adapters](#creating-custom-attachment-adapters) section below.
+  Other runtimes, such as `useLocalRuntime`, support attachments only when you pass an attachment adapter. Use a [built-in adapter](#built-in-attachment-adapters) or [create your own](#creating-custom-attachment-adapters).
 </Callout>
 
   </Step>
@@ -116,7 +116,7 @@ const compositeAdapter = new CompositeAttachmentAdapter([
 
 ## Creating Custom Attachment Adapters
 
-Build your own adapters for specialized file handling. Below are complete examples for common use cases. For `PendingAttachment` and `CompleteAttachment` type definitions, see [Attachment types](/elements/attachment#attachment-types).
+The examples below implement custom adapters for images and PDFs. For the status shapes of `PendingAttachment` and `CompleteAttachment`, see [Composer and attachment state](/elements/composer-attachments#composer-and-attachment-state).
 
 ### Vision-Capable Image Adapter
 
@@ -333,7 +333,7 @@ const runtime = useLocalRuntime(MyModelAdapter, {
 
 ### Progress Updates
 
-Provide real-time upload progress using async generators:
+Report upload progress by writing `add()` as an async generator:
 
 ```tsx
 class UploadAttachmentAdapter implements AttachmentAdapter {
@@ -418,7 +418,13 @@ const sending = useAuiState((s) => s.composer.submission !== undefined);
 
 ### Aborting Work in `send()`
 
-`send()` receives an options object whose `signal` aborts when the send is abandoned: the user cancels it while its attachments are prepared, or the thread is torn down for good. A thread built on the tap-native `ExternalThread` is torn down when the component rendering its `AuiProvider` unmounts; a runtime's thread is torn down when its thread list discards it, as when the component calling `useLocalRuntime` unmounts or an external store runtime switches `threadId`, and when the component calling a `useExternalStoreRuntime` that no thread list hosts unmounts. Hiding a thread, for example inside `<Activity>`, never aborts its send, and the message is still delivered. The built-in adapters that read the file in `send()` stop reading when the signal aborts; a custom adapter that does slow work there should pass the signal on:
+`send()` receives an options object whose `signal` aborts when the send is abandoned: the user cancels it while its attachments are prepared, or the thread is torn down for good. A thread is torn down in these cases:
+
+- A thread built on the tap-native `ExternalThread`: the component rendering its `AuiProvider` unmounts.
+- A runtime's thread: its thread list discards it, as when the component calling `useLocalRuntime` unmounts or an external store runtime switches `threadId`.
+- A `useExternalStoreRuntime` that no thread list hosts: the component calling it unmounts.
+
+Hiding a thread, for example inside `<Activity>`, never aborts its send, and the message is still delivered. The built-in adapters that read the file in `send()` stop reading when the signal aborts. A custom adapter that does slow work there should pass the signal on:
 
 ```tsx
 async send(
@@ -450,7 +456,7 @@ A result that arrives after the signal aborts is discarded either way, so an ada
 
 ### Validation and Error Handling
 
-Implement robust validation in your adapters:
+Validate files in the adapter's `add()` method:
 
 ```tsx
 class ValidatedImageAdapter implements AttachmentAdapter {
@@ -525,13 +531,12 @@ import { toast } from "sonner"; // or your toast library of choice
 import { useAuiEvent } from "@assistant-ui/react";
 
 function AttachmentErrorToast() {
-  useAuiEvent("composer.attachmentAddError", ({ reason, message, error }) => {
+  useAuiEvent("composer.attachmentAddError", ({ reason, message }) => {
     if (reason === "not-accepted") {
       toast.error("This file type is not supported.");
     } else if (reason === "no-adapter") {
       toast.error("Attachments are not configured for this composer.");
     } else {
-      if (error) console.error(error); // underlying Error, useful for logging
       toast.error(message || "Attachment failed to upload.");
     }
   });
@@ -597,12 +602,6 @@ Attachments work with all assistant-ui runtimes:
 - **External Store**: `useExternalStoreRuntime`
 - **LangGraph**: `useLangGraphRuntime`
 - **Custom Runtimes**: Any runtime implementing the attachment interface
-
-<Callout type="tip">
-  The attachment system is designed to be extensible. You can create adapters
-  for any file type, integrate with cloud storage services, or implement custom
-  processing logic to fit your specific needs.
-</Callout>
 
 ## Large File Uploads
 
