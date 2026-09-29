@@ -10,6 +10,7 @@ export type WebMcpRegistrationProps = {
   /** Re-registers when it changes; an execute-only edit reads through instead. */
   signature: string;
   tool: Tool<any, any>;
+  getCurrentTool: (name: string) => Tool<any, any> | undefined;
 };
 
 // The explainer specifies NotAllowedError for a page whose tools permission is
@@ -26,16 +27,12 @@ const useWebMcpRegistration = ({
   name,
   signature,
   tool,
+  getCurrentTool,
 }: WebMcpRegistrationProps): string | null => {
   // A refused name is remembered for as long as the tool stays in the model
   // context, so a permanent collision warns once rather than on every sync.
   const [refused, setRefused] = useState(false);
-  const toolRef = useRef(tool);
-  // Commit phase, so an abandoned render cannot hand the host a tool the tree
-  // never committed.
-  useEffect(() => {
-    toolRef.current = tool;
-  }, [tool]);
+  const fallbackToolRef = useRef(tool);
 
   useEffect(() => {
     if (refused) return undefined;
@@ -53,7 +50,11 @@ const useWebMcpRegistration = ({
 
     try {
       dispose = host.registerTool(
-        toWebMcpTool(name, () => toolRef.current, lifecycle.signal),
+        toWebMcpTool(
+          name,
+          () => getCurrentTool(name) ?? fallbackToolRef.current,
+          lifecycle.signal,
+        ),
         (error) =>
           refuse(
             notPermitted(error)
@@ -84,7 +85,7 @@ const useWebMcpRegistration = ({
         );
       }
     };
-  }, [host, name, signature, refused]);
+  }, [getCurrentTool, host, name, signature, refused]);
 
   return refused ? null : name;
 };

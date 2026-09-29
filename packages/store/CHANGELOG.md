@@ -1,5 +1,15 @@
 # @assistant-ui/store
 
+## 0.3.15
+
+### Patch Changes
+
+- [#7871](https://github.com/assistant-ui/assistant-ui/pull/7871) [`21f8bdf`](https://github.com/assistant-ui/assistant-ui/commit/21f8bdfd8c5c0541cf6d0541eec07fb9e88c3ad3) - fix: stop a nested `useChatRuntime` chat when its own component unmounts, stop registering `AISDKThreads` cloud threads on the client destroy signal, and stop fast refresh from aborting the destroy signal of `useAui(config)` hosts ([@okisdev](https://github.com/okisdev))
+
+- [#7749](https://github.com/assistant-ui/assistant-ui/pull/7749) [`8e1508a`](https://github.com/assistant-ui/assistant-ui/commit/8e1508a9cde31e3d682a3b142dcd2aca29696b11) - perf: keep a thread update off every message client ([@okisdev](https://github.com/okisdev))
+  
+  A streamed token no longer re-runs every message client in an external-store thread, cutting per-token cost by about 60% at 1000 messages.
+
 ## 0.3.14
 
 ### Patch Changes

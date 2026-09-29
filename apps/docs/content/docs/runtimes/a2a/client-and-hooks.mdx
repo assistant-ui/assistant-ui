@@ -23,7 +23,7 @@ const client = new A2AClient({
 });
 ```
 
-Pass a pre-built client to `useA2ARuntime`:
+Pass a pre-built client to `useA2ARuntime`, created once outside the component or in `useState`; the runtime keeps its session per client, so a client built inline on every render never settles:
 
 ```tsx
 const runtime = useA2ARuntime({ client });

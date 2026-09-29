@@ -744,6 +744,9 @@ type ThreadMessageLike = {
   role: "assistant" | "system" | "user";
   content: readonly MessagePartLike[];
   attachments?: readonly AttachmentLike[];
+  status?: {
+    type: string;
+  };
 };
 
 type ToToolsJSONSchemaOptions = {

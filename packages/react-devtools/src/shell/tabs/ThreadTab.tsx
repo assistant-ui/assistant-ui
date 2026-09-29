@@ -10,13 +10,19 @@ import {
   resolveSingleThread,
   resolveThreadForId,
 } from "../../views/thread";
-import type { ThreadPreview } from "../../views/thread";
+import type { ThreadListPreview, ThreadPreview } from "../../views/thread";
 import { CenteredMessage, ControlButton, EmptyState } from "../../views/ui";
 import { SplitLayout } from "../SplitLayout";
 import type { DevToolsTabContext } from "../registry";
 
 const TWO_COL = "clamp(16rem,32%,22rem)_minmax(0,1fr)";
 const THREE_COL = "clamp(12rem,26%,15rem)_clamp(14rem,32%,20rem)_minmax(0,1fr)";
+
+const firstThreadId = (threadList: ThreadListPreview | null) =>
+  threadList?.mainThreadId ??
+  threadList?.threadIds[0] ??
+  threadList?.archivedThreadIds[0] ??
+  "";
 
 const useSelectedMessage = (
   thread: ThreadPreview | null,
@@ -73,10 +79,11 @@ export const ThreadTab = ({
   const snapshots = data.threadSnapshots;
 
   const hasConversationList =
-    threadList !== null && threadList.threadIds.length > 0;
+    threadList !== null &&
+    threadList.threadIds.length + threadList.archivedThreadIds.length > 0;
 
-  const [activeThreadId, setActiveThreadId] = useState<string>(
-    () => threadList?.mainThreadId ?? threadList?.threadIds[0] ?? "",
+  const [activeThreadId, setActiveThreadId] = useState<string>(() =>
+    firstThreadId(threadList),
   );
 
   const resolvedThreadId =
@@ -85,7 +92,7 @@ export const ThreadTab = ({
           activeThreadId,
         )
         ? activeThreadId
-        : (threadList.mainThreadId ?? threadList.threadIds[0] ?? "")
+        : firstThreadId(threadList)
       : activeThreadId;
 
   if (resolvedThreadId !== activeThreadId) setActiveThreadId(resolvedThreadId);
@@ -101,12 +108,7 @@ export const ThreadTab = ({
     if (!hasConversationList) {
       return resolveSingleThread(data.state);
     }
-    return resolveThreadForId(
-      data.state,
-      snapshots,
-      activeThreadId,
-      threadList,
-    );
+    return resolveThreadForId(snapshots, activeThreadId, threadList);
   }, [hasConversationList, data.state, snapshots, activeThreadId, threadList]);
 
   const selectedMessage = useSelectedMessage(
