@@ -31,7 +31,7 @@ const storedReturnTo = () => {
     if (
       value?.startsWith("/") &&
       !value.startsWith("//") &&
-      !value.startsWith("/shop/setup") &&
+      !value.startsWith("/components/setup") &&
       !value.includes("\\")
     )
       return value;
@@ -57,7 +57,7 @@ export function SetupNavigationProvider({ children }: { children: ReactNode }) {
   if (previousPath !== pathname) {
     setPreviousPath(pathname);
     const showHint =
-      previousPath === "/shop/setup" &&
+      previousPath === "/components/setup" &&
       session !== null &&
       hintedSession !== session.id;
     setResumeHint(showHint);
@@ -72,7 +72,7 @@ export function SetupNavigationProvider({ children }: { children: ReactNode }) {
   }, [hintedSession]);
 
   const enterSetup = () => {
-    const fromCart = window.location.pathname === "/shop/cart";
+    const fromCart = window.location.pathname === "/components/cart";
     const href = fromCart
       ? "/"
       : `${window.location.pathname}${window.location.search}${window.location.hash}`;
@@ -113,7 +113,7 @@ export function SetupLink({
   return (
     <Link
       {...props}
-      href="/shop/setup"
+      href="/components/setup"
       onNavigate={(event) => {
         onNavigate?.(event);
         enterSetup();
@@ -129,6 +129,6 @@ export const useBeginSetup = () => {
   return (slugs: readonly string[]) => {
     startCheckout(slugs);
     enterSetup();
-    router.push("/shop/setup");
+    router.push("/components/setup");
   };
 };

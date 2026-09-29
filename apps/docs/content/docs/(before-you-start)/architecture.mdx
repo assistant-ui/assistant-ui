@@ -25,13 +25,13 @@ import { Sparkles, PanelsTopLeft, Database, Terminal } from "lucide-react";
 
 
 ### 1. Frontend components
-Stylized and functional chat components built on top of Shadcn components that have context state management provided by the assistantUI runtime provider. These pre-built React components come with intelligent state management. [View our components](/elements/thread)
+Styled chat components built on top of shadcn/ui components. They read their state from the assistant-ui runtime provider. [View our components](/elements/thread)
 
 ### 2. Runtime
-A React state management context for assistant chat. The runtime handles data conversions between the local state and calls to backends and LLMs. We offer different runtime solutions that work with various frameworks like Vercel AI SDK, LangGraph, LangChain, Helicone, local runtime, and an ExternalStore when you need full control of the frontend message state. [You can view the runtimes we support](/docs/runtimes/pick-a-runtime)
+A React state management context for assistant chat. The runtime handles data conversions between the local state and calls to backends and LLMs. Runtimes are available for frameworks like Vercel AI SDK, LangGraph, and LangChain, along with a local runtime and an ExternalStore runtime for when you need full control of the frontend message state. [You can view the runtimes we support](/docs/runtimes/pick-a-runtime)
 
 ### 3. Assistant Cloud
-A hosted service that enhances your assistant experience with comprehensive thread management and message history. Assistant Cloud stores complete message history, automatically persists threads, supports human-in-the-loop workflows, and integrates with common auth providers to seamlessly allow users to resume conversations at any point. [Cloud Docs](/docs/cloud)
+A hosted service for thread management and message history. Assistant Cloud stores complete message history, automatically persists threads, supports human-in-the-loop workflows, and integrates with common auth providers so users can resume conversations at any point. [Cloud Docs](/docs/cloud)
 
 
 ## What each layer owns
@@ -130,7 +130,7 @@ These pages go one level deeper on runtime internals, adapters, and persistence.
 <Cards>
   <Card
     title="Runtime architecture"
-    description="Core runtimes, protocol layers, and framework adapters — what each layer owns."
+    description="Core runtimes, protocol layers, framework adapters, and what each layer owns."
     href="/docs/runtimes/concepts/architecture"
   />
   <Card

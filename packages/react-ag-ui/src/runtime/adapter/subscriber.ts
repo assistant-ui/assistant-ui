@@ -29,6 +29,7 @@ type Subscriber = {
   onToolCallChunkEvent?: (payload: { event: unknown }) => void;
   onToolCallResultEvent?: (payload: { event: unknown }) => void;
   onActivitySnapshotEvent?: (payload: { event: unknown }) => void;
+  onActivityDeltaEvent?: (payload: { event: unknown }) => void;
   onStateSnapshotEvent?: (payload: { event: unknown }) => void;
   onStateDeltaEvent?: (payload: { event: unknown }) => void;
   onMessagesSnapshotEvent?: (payload: { event: unknown }) => void;
@@ -39,6 +40,8 @@ type Subscriber = {
   onSubagentErrorEvent?: (payload: { event: unknown }) => void;
   onRunFinishedEvent?: (payload: { event: unknown }) => void;
   onRunErrorEvent?: (payload: { event: unknown }) => void;
+  onStepStartedEvent?: (payload: { event: unknown }) => void;
+  onStepFinishedEvent?: (payload: { event: unknown }) => void;
   onRunFinalized?: () => void;
   onRunFailed?: (payload: { error: Error }) => void;
 };
@@ -142,6 +145,8 @@ export const createAgUiSubscriber = (
       dispatchIfValid(event, "TOOL_CALL_RESULT"),
     onActivitySnapshotEvent: ({ event }) =>
       dispatchIfValid(event, "ACTIVITY_SNAPSHOT"),
+    onActivityDeltaEvent: ({ event }) =>
+      dispatchIfValid(event, "ACTIVITY_DELTA"),
     onStateSnapshotEvent: ({ event }) =>
       dispatchIfValid(event, "STATE_SNAPSHOT"),
     onStateDeltaEvent: ({ event }) => dispatchIfValid(event, "STATE_DELTA"),
@@ -174,6 +179,10 @@ export const createAgUiSubscriber = (
       );
       onRunFailed?.(error);
     },
+    onStepStartedEvent: ({ event }) =>
+      logger?.debug?.("[agui] step boundary ignored", event),
+    onStepFinishedEvent: ({ event }) =>
+      logger?.debug?.("[agui] step boundary ignored", event),
     onRunFinalized: () => {
       if (runFinishedDispatched) return;
       dispatch({ type: "RUN_FINISHED", runId });
