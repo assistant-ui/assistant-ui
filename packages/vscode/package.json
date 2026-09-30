@@ -59,10 +59,16 @@
     "assistant-stream": "^0.3.45"
   },
   "devDependencies": {
+    "@assistant-ui/store": "workspace:*",
+    "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^26.5.1",
+    "@types/react": "^19.3.0",
     "ai": "^7.0.101",
     "jsdom": "^30.0.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "tailwindcss": "^4.3.3",
     "vitest": "^5.0.1"
   }

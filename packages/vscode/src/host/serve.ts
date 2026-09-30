@@ -13,6 +13,11 @@ import {
   type WebviewRoutes,
 } from "./router";
 
+export type MementoLike = {
+  get(key: string): unknown;
+  update(key: string, value: unknown): PromiseLike<void>;
+};
+
 export type ServeWebviewHostOptions = ServeWebviewRoutesOptions & {
   routes?: WebviewRoutes;
   /**
@@ -22,6 +27,10 @@ export type ServeWebviewHostOptions = ServeWebviewRoutesOptions & {
   openExternal?: (url: string) => PromiseLike<boolean> | boolean | void;
   /** URL schemes `openExternal` may receive, such as `"https:"`. */
   externalSchemes?: readonly string[];
+  /** Backs `createVSCodeStorage`, such as `context.globalState`. */
+  storage?: MementoLike;
+  /** Namespaces the webview's keys inside `storage`. */
+  storagePrefix?: string;
 };
 
 type RpcHandler = (...params: unknown[]) => unknown;
@@ -29,10 +38,16 @@ type RpcHandler = (...params: unknown[]) => unknown;
 const errorMessage = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
+const stringParam = (value: unknown, name: string): string => {
+  if (typeof value !== "string")
+    throw new TypeError(`${name} must be a string`);
+  return value;
+};
+
 /**
  * Serves `vscodeFetch` routes and the webview's host calls, such as
- * `installLinkInterceptor` opening links, for one webview. Use it in place of
- * `serveWebviewRoutes`.
+ * `installLinkInterceptor` opening links and `createVSCodeStorage`, for one
+ * webview. Use it in place of `serveWebviewRoutes`.
  */
 export function serveWebviewHost(
   webview: WebviewLike,
@@ -40,6 +55,8 @@ export function serveWebviewHost(
     routes = {},
     openExternal,
     externalSchemes = DEFAULT_EXTERNAL_SCHEMES,
+    storage,
+    storagePrefix = "@assistant-ui/vscode:",
     ...routeOptions
   }: ServeWebviewHostOptions = {},
 ): Disposable {
@@ -50,6 +67,21 @@ export function serveWebviewHost(
       const url = parseExternalUrl(value, externalSchemes);
       if (!url) throw new Error(`Refused to open ${String(value)}`);
       return (await openExternal(url)) !== false;
+    };
+  }
+
+  if (storage) {
+    const storageKey = (key: unknown) =>
+      storagePrefix + stringParam(key, "key");
+    handlers["storage.getItem"] = (key) => {
+      const value = storage.get(storageKey(key));
+      return typeof value === "string" ? value : null;
+    };
+    handlers["storage.setItem"] = async (key, value) => {
+      await storage.update(storageKey(key), stringParam(value, "value"));
+    };
+    handlers["storage.removeItem"] = async (key) => {
+      await storage.update(storageKey(key), undefined);
     };
   }
 

@@ -19,6 +19,10 @@ export {
   type WebviewLike,
   type WebviewRoutes,
 } from "./host/router";
-export { serveWebviewHost, type ServeWebviewHostOptions } from "./host/serve";
+export {
+  serveWebviewHost,
+  type MementoLike,
+  type ServeWebviewHostOptions,
+} from "./host/serve";
 export type { VSCodeModelRequest } from "./model-request";
 export * from "./protocol";
