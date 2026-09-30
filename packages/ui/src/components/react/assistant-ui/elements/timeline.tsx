@@ -54,10 +54,11 @@ export function Timeline({
               className={cn(
                 "mt-1 size-2 shrink-0 rounded-full",
                 event.when === "now" &&
-                  "bg-blue-500 ring-4 ring-blue-500/15 dark:bg-blue-400",
-                event.when === "past" && "bg-foreground/30",
+                  "bg-blue-500 ring-4 ring-blue-500/15 dark:bg-blue-400 forced-colors:bg-[Highlight]",
+                event.when === "past" &&
+                  "bg-muted-foreground forced-colors:bg-[CanvasText]",
                 event.when === "future" &&
-                  "border-foreground/20 border bg-transparent",
+                  "border-muted-foreground border bg-transparent",
               )}
             />
             {i < shown.length - 1 && (

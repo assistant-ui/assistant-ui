@@ -102,7 +102,7 @@ export function FlowGraph({
               node.state === "active" &&
                 "text-foreground/90 border-blue-500/30 bg-blue-500/10 dark:border-blue-400/30",
               node.state === "pending" &&
-                "border-foreground/8 text-muted-foreground border-dashed",
+                "border-border text-muted-foreground border-dashed",
             )}
             style={{
               left: node.column * COL_W,
