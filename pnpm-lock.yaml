@@ -5499,6 +5499,28 @@ importers:
         specifier: ^5.0.1
         version: 5.0.1(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.5.1)(@vitest/coverage-v8@5.0.1)(@vitest/ui@5.0.1)(jsdom@30.0.1)(vite@8.3.0(@types/node@26.5.1))
 
+  packages/vscode:
+    dependencies:
+      '@assistant-ui/core':
+        specifier: ^0.3.21
+        version: link:../core
+      assistant-stream:
+        specifier: ^0.3.45
+        version: link:../assistant-stream
+    devDependencies:
+      '@assistant-ui/x-buildutils':
+        specifier: workspace:*
+        version: link:../x-buildutils
+      '@types/node':
+        specifier: ^26.5.1
+        version: 26.5.1
+      ai:
+        specifier: ^7.0.101
+        version: 7.0.101(zod@4.6.5)
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.5.1)(@vitest/coverage-v8@5.0.1)(@vitest/ui@5.0.1)(jsdom@30.0.1)(vite@8.3.0(@types/node@26.5.1))
+
   packages/vue:
     dependencies:
       '@assistant-ui/core':
