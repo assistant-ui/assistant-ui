@@ -20,7 +20,7 @@ import {
   ShadcnInstallTabs,
 } from "@/components/pages/docs/fumadocs/install/package-manager-tabs";
 import { ParametersTable } from "@/components/pages/docs/parameters-table";
-import { ELEMENT_DOCS } from "@/components/pages/elements/element-docs";
+import { AUI_ELEMENT_DOCS } from "@/components/pages/elements/aui-element-docs";
 import { ElementPager } from "@/components/pages/elements/element-pager";
 import { ELEMENTS, getElement } from "@/components/pages/elements/registry";
 import { AgentSetup } from "@/components/shared/shop-entry";
@@ -109,7 +109,7 @@ export default async function ElementPage({
   const element = getElement(slug);
   if (!element) notFound();
 
-  const doc = ELEMENT_DOCS[slug];
+  const doc = AUI_ELEMENT_DOCS[slug];
   const mdxPage = elementsDocs.getPage([slug]);
   const generativeEntry = element.generative
     ? getGenerativeElement(slug)
