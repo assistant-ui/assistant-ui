@@ -9,6 +9,13 @@ export default defineConfig({
     coverage: {
       include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/__tests__/**"],
+      thresholds: {
+        lines: 93,
+        functions: 85,
+        branches: 85,
+        statements: 92,
+        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+      },
     },
     projects: [
       {

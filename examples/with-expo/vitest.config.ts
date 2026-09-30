@@ -8,6 +8,13 @@ export default defineConfig({
         "components/**/*.{ts,tsx}",
         "hooks/**/*.{ts,tsx}",
       ],
+      thresholds: {
+        lines: 83,
+        functions: 99,
+        branches: 76,
+        statements: 84,
+        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+      },
     },
   },
 });

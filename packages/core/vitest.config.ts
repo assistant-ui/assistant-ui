@@ -7,6 +7,13 @@ export default defineConfig({
     coverage: {
       include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/tests/**"],
+      thresholds: {
+        lines: 90,
+        functions: 85,
+        branches: 83,
+        statements: 89,
+        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+      },
     },
     environment: "node",
     globals: true,

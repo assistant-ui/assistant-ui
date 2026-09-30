@@ -8,6 +8,13 @@ export default defineConfig({
         "components/**/*.{ts,tsx}",
         "lib/**/*.{ts,tsx}",
       ],
+      thresholds: {
+        lines: 87,
+        functions: 99,
+        branches: 74,
+        statements: 85,
+        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+      },
     },
     environment: "node",
     include: ["lib/**/*.test.ts"],

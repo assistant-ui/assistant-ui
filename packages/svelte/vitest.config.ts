@@ -21,6 +21,13 @@ export default defineConfig({
     coverage: {
       include: ["src/**/*.{ts,tsx,svelte}"],
       exclude: ["src/__tests__/**"],
+      thresholds: {
+        lines: 96,
+        functions: 93,
+        branches: 78,
+        statements: 93,
+        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+      },
     },
     environment: "jsdom",
     pool: "threads",
