@@ -212,6 +212,8 @@
     "@assistant-ui/ai-sdk": "workspace:*",
     "@assistant-ui/core": "workspace:*",
     "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/react-generative-ui": "workspace:*",
+    "@assistant-ui/react-mcp": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
     "@assistant-ui/vscode": "workspace:*",
     "ai": "^7.0.101",

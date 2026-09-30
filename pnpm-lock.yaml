@@ -3630,6 +3630,12 @@ importers:
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
+      '@assistant-ui/react-generative-ui':
+        specifier: workspace:*
+        version: link:../../packages/react-generative-ui
+      '@assistant-ui/react-mcp':
+        specifier: workspace:*
+        version: link:../../packages/react-mcp
       '@assistant-ui/ui':
         specifier: workspace:*
         version: link:../../packages/ui
