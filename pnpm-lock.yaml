@@ -163,7 +163,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@google/adk>adm-zip': 0.6.1
+  '@google/adk>adm-zip': ^0.6.1
 
 importers:
 
