@@ -3,6 +3,7 @@ import { useResource } from "@assistant-ui/tap";
 import { describe, expect, it, vi } from "vitest";
 import { flushTapSync, resource, withKey } from "@assistant-ui/tap";
 import { AuiConfig, createAssistantClient } from "@assistant-ui/store/client";
+import { useAssistantEmit } from "@assistant-ui/store/client";
 import type { ThreadHistoryAdapter } from "../../adapters/thread-history";
 import type { RemoteThreadListAdapter } from "../../runtimes/remote-thread-list/types";
 import { useRuntimeAdapters } from "../runtimes/RuntimeAdapterProvider";
@@ -122,6 +123,58 @@ const deferred = <T>() => {
 };
 
 describe("RemoteThreadList backgroundThreads", () => {
+  it("keeps background emissions global while filtering thread scope to main", async () => {
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ status: "regular" as const, remoteId: "t1", title: "One" }],
+      })),
+    });
+    const emitters = new Map<string, (value: string) => void>();
+    const useEmittingThread = ({ threadId }: { threadId: string }) => {
+      const emit = useAssistantEmit();
+      emitters.set(threadId, (value) =>
+        emit("thread.pinged" as never, { value } as never),
+      );
+      return {
+        getState: () => ({ isRunning: false, messages: [] }),
+        composer: () => stubComposer,
+        suggestions: () => stubSuggestions,
+      };
+    };
+    const EmittingThread = resource(useEmittingThread);
+    const handle = createAssistantClient(
+      AuiConfig({
+        threads: RemoteThreadList({
+          adapter,
+          backgroundThreads: true,
+          thread: (id) =>
+            withKey(id, EmittingThread({ threadId: id }) as never),
+        }),
+      }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    const previousId = aui.threads.getState().mainThreadId;
+    const scoped = vi.fn();
+    const global = vi.fn();
+    aui.on({ scope: "thread", event: "thread.pinged" as never }, scoped);
+    aui.on({ scope: "*", event: "thread.pinged" as never }, global);
+
+    flushTapSync(() => aui.threads.switchToThread("t1"));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t1");
+    });
+    emitters.get("t1")!("main");
+    emitters.get(previousId)!("background");
+    await new Promise((resolve) => setTimeout(resolve));
+
+    expect(scoped).toHaveBeenCalledExactlyOnceWith({ value: "main" });
+    expect(global).toHaveBeenCalledTimes(2);
+    expect(global).toHaveBeenCalledWith({ value: "background" });
+    handle.destroy();
+  });
+
   it("keeps the running initialized body when its listed duplicate is selected", async () => {
     const list = deferred<{
       threads: [

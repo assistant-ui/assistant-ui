@@ -6,6 +6,7 @@ import {
   AuiConfig,
   createAssistantClient,
   type AssistantConfigSource,
+  useAssistantEmit,
 } from "@assistant-ui/store/client";
 import type { ThreadHistoryAdapter } from "../../adapters/thread-history";
 import { ExternalStoreRuntimeCore } from "../../runtimes/external-store/external-store-runtime-core";
@@ -231,6 +232,63 @@ describe("RemoteThreadList", () => {
       handle.destroy();
     },
   );
+
+  it("routes composer.send to the new main body after a switch", async () => {
+    const emitters = new Map<string, () => void>();
+    const useEmittingThread = ({ threadId }: { threadId: string }) => {
+      const emit = useAssistantEmit();
+      emitters.set(threadId, () =>
+        emit("composer.send", {
+          threadId,
+          chars: 1,
+          attachments: [],
+        }),
+      );
+      return useStubThread({ threadId });
+    };
+    const EmittingThread = resource(useEmittingThread);
+    const handle = createAssistantClient(
+      AuiConfig({
+        threads: RemoteThreadList({
+          adapter: makeAdapter({
+            list: vi.fn(async () => ({
+              threads: [
+                { status: "regular" as const, remoteId: "t1", title: "One" },
+              ],
+            })),
+          }),
+          backgroundThreads: true,
+          thread: (id) =>
+            withKey(id, EmittingThread({ threadId: id }) as never),
+        }),
+      }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    const previousId = aui.threads.getState().mainThreadId;
+    expect(previousId).not.toBe("t1");
+    const scoped = vi.fn();
+    const global = vi.fn();
+    aui.on({ scope: "thread", event: "composer.send" }, scoped);
+    aui.on({ scope: "*", event: "composer.send" }, global);
+
+    flushTapSync(() => aui.threads.switchToThread("t1"));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t1");
+    });
+    emitters.get("t1")!();
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(scoped).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ threadId: "t1" }),
+    );
+
+    emitters.get(previousId)!();
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(scoped).toHaveBeenCalledTimes(1);
+    expect(global).toHaveBeenCalledTimes(2);
+    handle.destroy();
+  });
 
   it("loads adapter threads on a standalone client", async () => {
     const adapter = makeAdapter({

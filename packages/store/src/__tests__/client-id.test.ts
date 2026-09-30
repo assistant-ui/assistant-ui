@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
+import { resource } from "@assistant-ui/tap";
+import { createAssistantClient } from "../createAssistantClient";
 import {
   createClientAccessor,
   createErrorClientAccessor,
   getClientId,
 } from "../utils/client-accessor";
 import type { ClientMethods, ClientNames } from "../types/client";
+
+const ResourceClient = resource(() => ({ getState: () => ({}) }));
 
 const meta = {
   name: "thread" as ClientNames,
@@ -33,6 +37,20 @@ describe("getClientId", () => {
 
     expect(getClientId(outer)).toBe(getClientId(methods));
     expect(getClientId(outer)).toBe(getClientId(inner));
+  });
+
+  it("resolves a forwarding wrapper to its resource client", () => {
+    const handle = createAssistantClient({ thread: ResourceClient() } as never);
+    handle.subscribe(() => {});
+    const client = getClientId(
+      handle.getClient().thread,
+    ) as unknown as ClientMethods;
+    const forwarding = new Proxy({} as ClientMethods, {
+      get: (_, prop) => (client as Record<PropertyKey, unknown>)[prop],
+    });
+
+    expect(getClientId(forwarding)).toBe(getClientId(client));
+    handle.destroy();
   });
 
   it("is distinct per bound instance", () => {
