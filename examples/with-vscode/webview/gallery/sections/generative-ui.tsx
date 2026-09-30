@@ -71,7 +71,7 @@ export default defineSections([
     title: "Generative UI",
     category: "agents",
     notes:
-      "renderGenerativeUI with styledGenerativeUILibrary under the elements theme: a card, an alert with a list of badges, and a markdown node. The vocabulary CSS is added as a constructed stylesheet.",
+      "renderGenerativeUI with styledGenerativeUILibrary under the elements theme: a card, an alert with a list of badges, and a markdown node. The vocabulary CSS comes from the linked generative-ui.css.",
     render: () => (
       <States>
         <State label="card">{render(WEATHER)}</State>
