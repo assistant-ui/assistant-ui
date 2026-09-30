@@ -1,4 +1,15 @@
 export {
+  createCspNonce,
+  createWebviewCsp,
+  renderWebviewHtml,
+  type RenderWebviewHtmlOptions,
+  type WebviewCspMode,
+  type WebviewCspOptions,
+  type WebviewCspSource,
+  type WebviewResourceLike,
+  type WebviewSurface,
+} from "./host/html";
+export {
   serveWebviewRoutes,
   type Disposable,
   type HttpMethod,

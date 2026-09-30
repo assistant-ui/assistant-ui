@@ -51,6 +51,39 @@ const runtime = useLocalRuntime(adapter);
 
 `acquireVsCodeApi()` may only be called once per webview. Use `getVSCodeApi()` wherever your webview code needs the API.
 
+## Webview HTML and Content Security Policy
+
+`renderWebviewHtml` returns the webview's HTML with a Content Security Policy, a fresh nonce on every script tag, and your bundle's URIs converted with `asWebviewUri`:
+
+```ts
+import { renderWebviewHtml } from "@assistant-ui/vscode/host";
+
+const dist = vscode.Uri.joinPath(context.extensionUri, "dist");
+view.webview.options = { enableScripts: true, localResourceRoots: [dist] };
+view.webview.html = renderWebviewHtml(view.webview, {
+  scripts: [vscode.Uri.joinPath(dist, "webview.js")],
+  styles: [vscode.Uri.joinPath(dist, "webview.css")],
+  title: "Chat",
+});
+```
+
+The strict policy (the default) is:
+
+```
+default-src 'none'; script-src 'nonce-…'; style-src <cspSource> 'nonce-…';
+img-src <cspSource> blob: data: https:; font-src <cspSource> data:;
+connect-src <cspSource>; frame-src 'none'
+```
+
+- `csp: "relaxed"` replaces the style nonce with `'unsafe-inline'`, for libraries that inject `<style>` tags without a nonce. Browsers ignore `'unsafe-inline'` next to a nonce, so the nonce is dropped from `style-src`. `script-src` keeps it.
+- `connectSrc`, `frameSrc`, and `scriptSrc` append sources. Pass `scriptSrc: [webview.cspSource]` when your bundle loads code-split chunks with `import()`, which carry no nonce.
+- `wasmUnsafeEval: true` adds `'wasm-unsafe-eval'` for WebAssembly. `'unsafe-eval'` is never added.
+- `surface` sets `data-aui-vscode-surface` on `<body>` for the theme, `rootId` names the mount element (`"root"`, or `null` for none), and `scriptType: "classic"` emits deferred classic scripts instead of modules.
+
+`createWebviewCsp(webview, { nonce })` returns only the policy, and `createCspNonce()` a nonce, if you write your own HTML.
+
+The nonce is also written to `<meta property="csp-nonce">`, the tag Vite reads. In the webview, `getCspNonce()` from `@assistant-ui/vscode/webview` returns it for libraries that inject tags at runtime.
+
 ## Theme
 
 `@assistant-ui/vscode/theme.css` maps the shadcn tokens used by assistant-ui's components (`--background`, `--primary`, `--muted-foreground`, `--border`, `--ring`, `--sidebar-*`, `--chart-*`, `--radius`, and the rest) to VS Code's `--vscode-*` theme variables, so the webview restyles itself when the user switches colour theme. It also re-points Tailwind's `dark:` variant at VS Code's `vscode-dark` and dark high-contrast body classes, sets `color-scheme`, uses the VS Code UI and editor fonts for `font-sans` and `font-mono`, and adds contrast borders and focus outlines under high-contrast themes.

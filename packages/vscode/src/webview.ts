@@ -1,4 +1,5 @@
 export { getVSCodeApi, type VSCodeApi } from "./webview/vscode-api";
+export { getCspNonce } from "./webview/csp-nonce";
 export {
   createVSCodeFetch,
   vscodeFetch,
