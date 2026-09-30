@@ -1,0 +1,253 @@
+@custom-variant dark (&:is(.vscode-dark *, .vscode-high-contrast:not(.vscode-high-contrast-light) *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: 1.5rem;
+  --font-sans: var(--vscode-font-family, ui-sans-serif, system-ui, sans-serif);
+  --font-mono: var(
+    --vscode-editor-font-family,
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace
+  );
+}
+
+/*
+ * Tokens live on body, not :root: VS Code sets its theme classes on body, and
+ * body-scoped values win over a template's :root values in any import order.
+ */
+@layer base {
+  body {
+    --aui-vscode-background: var(
+      --vscode-sideBar-background,
+      var(--vscode-editor-background, Canvas)
+    );
+    --aui-vscode-foreground: var(
+      --vscode-sideBar-foreground,
+      var(--vscode-foreground, CanvasText)
+    );
+
+    --radius: 0.375rem;
+    --background: var(--aui-vscode-background);
+    --foreground: var(--aui-vscode-foreground);
+    --card: var(--vscode-editorWidget-background, var(--background));
+    --card-foreground: var(--vscode-editorWidget-foreground, var(--foreground));
+    --popover: var(
+      --vscode-menu-background,
+      var(--vscode-editorWidget-background, var(--background))
+    );
+    --popover-foreground: var(
+      --vscode-menu-foreground,
+      var(--vscode-editorWidget-foreground, var(--foreground))
+    );
+    --primary: var(--vscode-button-background, #0078d4);
+    --primary-foreground: var(--vscode-button-foreground, #ffffff);
+    --secondary: var(
+      --vscode-button-secondaryBackground,
+      light-dark(#e5e5e5, #313131)
+    );
+    --secondary-foreground: var(
+      --vscode-button-secondaryForeground,
+      light-dark(#3b3b3b, #cccccc)
+    );
+    --muted: var(
+      --vscode-input-background,
+      color-mix(in srgb, var(--foreground) 8%, var(--background))
+    );
+    --muted-foreground: var(--vscode-descriptionForeground, GrayText);
+    --accent: var(
+      --vscode-list-hoverBackground,
+      var(
+        --vscode-toolbar-hoverBackground,
+        color-mix(in srgb, var(--foreground) 10%, transparent)
+      )
+    );
+    --accent-foreground: var(--vscode-list-hoverForeground, var(--foreground));
+    --destructive: var(--vscode-errorForeground, light-dark(#e51400, #f14c4c));
+    --border: var(
+      --vscode-panel-border,
+      var(
+        --vscode-widget-border,
+        color-mix(in srgb, var(--foreground) 15%, transparent)
+      )
+    );
+    --input: var(
+      --vscode-input-border,
+      var(--vscode-dropdown-border, var(--border))
+    );
+    --ring: var(--vscode-focusBorder, #0078d4);
+    --chart-1: var(--vscode-charts-blue, #3794ff);
+    --chart-2: var(--vscode-charts-green, #89d185);
+    --chart-3: var(--vscode-charts-yellow, #cca700);
+    --chart-4: var(--vscode-charts-orange, #d18616);
+    --chart-5: var(--vscode-charts-purple, #b180d7);
+    --sidebar: var(--vscode-sideBar-background, var(--background));
+    --sidebar-foreground: var(
+      --vscode-sideBar-foreground,
+      var(--vscode-foreground, var(--foreground))
+    );
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: var(--primary-foreground);
+    --sidebar-accent: var(--accent);
+    --sidebar-accent-foreground: var(--accent-foreground);
+    --sidebar-border: var(--vscode-sideBar-border, var(--border));
+    --sidebar-ring: var(--ring);
+
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(
+      --vscode-font-family,
+      ui-sans-serif,
+      system-ui,
+      sans-serif
+    );
+    font-size: var(--vscode-font-size, 13px);
+    font-weight: var(--vscode-font-weight, normal);
+  }
+
+  body:is(
+    [data-aui-vscode-surface="editor"],
+    [data-aui-vscode-surface="editor"] *
+  ) {
+    --aui-vscode-background: var(--vscode-editor-background, Canvas);
+    --aui-vscode-foreground: var(
+      --vscode-editor-foreground,
+      var(--vscode-foreground, CanvasText)
+    );
+  }
+
+  body:is(
+    [data-aui-vscode-surface="panel"],
+    [data-aui-vscode-surface="panel"] *
+  ) {
+    --aui-vscode-background: var(
+      --vscode-panel-background,
+      var(--vscode-editor-background, Canvas)
+    );
+    --aui-vscode-foreground: var(--vscode-foreground, CanvasText);
+  }
+
+  body:is(.vscode-light, .vscode-high-contrast-light) {
+    color-scheme: light;
+  }
+
+  body:is(
+    .vscode-dark,
+    .vscode-high-contrast:not(.vscode-high-contrast-light)
+  ) {
+    color-scheme: dark;
+  }
+
+  body:is(.vscode-high-contrast, .vscode-high-contrast-light) {
+    --border: var(--vscode-contrastBorder, CanvasText);
+    --input: var(--vscode-contrastBorder, CanvasText);
+    --ring: var(
+      --vscode-contrastActiveBorder,
+      var(--vscode-focusBorder, Highlight)
+    );
+    --sidebar-border: var(--border);
+  }
+}
+
+/*
+ * VS Code injects an unlayered default stylesheet into every webview, which
+ * outranks Tailwind's layers; revert-layer hands these properties back to them.
+ */
+body {
+  margin: revert-layer;
+  padding: revert-layer;
+  background-color: revert-layer;
+  color: revert-layer;
+  font-family: revert-layer;
+  font-size: revert-layer;
+  font-weight: revert-layer;
+}
+
+img,
+video {
+  max-width: revert-layer;
+  max-height: revert-layer;
+}
+
+a,
+a code,
+a:hover {
+  color: revert-layer;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  outline: revert-layer;
+  outline-offset: revert-layer;
+}
+
+code,
+pre code {
+  font-family: revert-layer;
+  color: revert-layer;
+  background-color: revert-layer;
+  padding: revert-layer;
+  border-radius: revert-layer;
+}
+
+blockquote {
+  background: revert-layer;
+  border-color: revert-layer;
+}
+
+:is(.vscode-high-contrast, .vscode-high-contrast-light)
+  :is(
+    [data-radix-popper-content-wrapper] > *,
+    [role="dialog"],
+    [role="menu"],
+    [role="listbox"],
+    [role="tooltip"]
+  ) {
+  outline: 1px solid var(--vscode-contrastBorder, CanvasText);
+  outline-offset: -1px;
+}
+
+:is(.vscode-high-contrast, .vscode-high-contrast-light) :focus-visible {
+  outline: 1px solid
+    var(--vscode-contrastActiveBorder, var(--vscode-focusBorder, Highlight));
+  outline-offset: -1px;
+}
