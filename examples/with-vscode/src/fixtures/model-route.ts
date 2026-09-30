@@ -20,6 +20,9 @@ export async function POST(req: Request): Promise<Response> {
         case "text-delta":
           controller.appendText(event.delta);
           break;
+        case "reasoning-delta":
+          controller.appendReasoning(event.delta);
+          break;
         case "tool-call": {
           const toolCall = controller.addToolCallPart({
             toolCallId: event.toolCallId,
@@ -32,8 +35,32 @@ export async function POST(req: Request): Promise<Response> {
         case "tool-result":
           toolCalls.get(event.toolCallId)?.setResponse({
             result: event.result as ReadonlyJSONValue,
+            isError: event.isError,
           });
           toolCalls.delete(event.toolCallId);
+          break;
+        case "source":
+          controller.appendSource({
+            type: "source",
+            sourceType: "url",
+            id: event.id,
+            url: event.url,
+            ...(event.title !== undefined && { title: event.title }),
+          });
+          break;
+        case "file":
+          controller.appendFile({
+            type: "file",
+            data: event.data,
+            mimeType: event.mediaType,
+          });
+          break;
+        case "data":
+          controller.appendData({
+            type: "data",
+            name: event.name,
+            data: event.data,
+          });
           break;
         case "error":
           throw new Error(event.message);

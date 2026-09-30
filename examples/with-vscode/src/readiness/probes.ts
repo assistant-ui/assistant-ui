@@ -83,6 +83,34 @@ export const PROBES = [
     workstream: "Scaffolding, template and docs",
   },
   {
+    id: "gallery-csp",
+    description:
+      "Every gallery section renders with zero securitypolicyviolation events",
+    phase: 1,
+    workstream: "Component gallery",
+  },
+  {
+    id: "gallery-errors",
+    description:
+      "No gallery section throws, trips its error boundary or logs console.error",
+    phase: 1,
+    workstream: "Component gallery",
+  },
+  {
+    id: "gallery-overflow",
+    description:
+      "No gallery section overflows horizontally at a 320px sidebar width",
+    phase: 1,
+    workstream: "Component gallery",
+  },
+  {
+    id: "chat-fixtures",
+    description:
+      "Every rich fixture streams its parts and renders without errors",
+    phase: 1,
+    workstream: "Component gallery",
+  },
+  {
     id: "native-extras",
     description:
       "vscode-lm backend answers; active file in model context; stdio MCP tool runs",

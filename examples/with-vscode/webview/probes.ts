@@ -27,9 +27,13 @@ import {
 } from "../src/protocol";
 import {
   APPROVAL_TOOL_NAME,
+  fixtureConflicts,
+  RICH_FIXTURES,
   selectFixture,
+  type Fixture,
   type FixtureStep,
 } from "../src/fixtures/fixtures";
+import { fixtureUIConflicts } from "./fixture-uis";
 import { threadStorage, threadStoragePrefix } from "./thread-storage";
 import { getVSCodeApi } from "./vscode-api";
 
@@ -43,6 +47,25 @@ document.addEventListener("securitypolicyviolation", (event) => {
     sample: event.sample,
   });
 });
+
+const consoleErrors: string[] = [];
+const recordConsoleError = (message: string) =>
+  consoleErrors.push(message.slice(0, 300));
+const consoleError = console.error.bind(console);
+console.error = (...args: unknown[]) => {
+  recordConsoleError(
+    args
+      .map((a) => (a instanceof Error ? `${a.name}: ${a.message}` : String(a)))
+      .join(" "),
+  );
+  consoleError(...args);
+};
+window.addEventListener("error", (event) =>
+  recordConsoleError(String(event.error ?? event.message)),
+);
+window.addEventListener("unhandledrejection", (event) =>
+  recordConsoleError(`Unhandled rejection: ${String(event.reason)}`),
+);
 
 export type WebviewProbeContext = {
   boot: WebviewBootConfig;
@@ -308,7 +331,125 @@ const MARKDOWN_LINK = (() => {
   return href;
 })();
 
+/** Switches to a new thread, sends the fixture prompt and waits for the run to settle. */
+const runFixtureInNewThread = async (aui: AssistantClient, prompt: string) => {
+  await waitForThreadList(aui);
+  aui.threads().switchToNewThread();
+  await waitFor(
+    () => aui.thread().getState().messages.length === 0,
+    5_000,
+    () => "a new empty thread",
+  );
+  return sendAndSettle(aui, prompt);
+};
+
+type ReplyPart = {
+  type: string;
+  toolName?: string;
+  result?: unknown;
+  name?: string;
+  url?: string;
+};
+
+/** Why the reply lacks a part that `step` should have produced, or `undefined`. */
+const missingPart = (parts: readonly ReplyPart[], step: FixtureStep) => {
+  switch (step.type) {
+    case "text":
+    case "reasoning":
+      return parts.some((p) => p.type === step.type)
+        ? undefined
+        : `no ${step.type} part`;
+    case "tool-call": {
+      const call = parts.find(
+        (p) => p.type === "tool-call" && p.toolName === step.toolName,
+      );
+      if (!call) return `no ${step.toolName} call`;
+      if (step.result !== undefined && call.result === undefined) {
+        return `${step.toolName} has no result`;
+      }
+      return undefined;
+    }
+    case "source":
+      return parts.some((p) => p.type === "source" && p.url === step.url)
+        ? undefined
+        : `no source ${step.url}`;
+    case "file":
+      return parts.some((p) => p.type === "file" || p.type === "image")
+        ? undefined
+        : `no ${step.mediaType} file part`;
+    case "data":
+      return parts.some((p) => p.type === "data" && p.name === step.name)
+        ? undefined
+        : `no ${step.name} data part`;
+    case "error":
+      return undefined;
+  }
+};
+
+const checkFixture = async (aui: AssistantClient, fixture: Fixture) => {
+  const csp = cspViolations.length;
+  const errors = consoleErrors.length;
+  const reply = await runFixtureInNewThread(aui, fixture.prompt);
+  await sleep(250);
+  const problems: string[] = [];
+  const status = reply.status;
+  if (status?.type === "incomplete") {
+    problems.push(`status incomplete (${status.reason})`);
+  }
+  const steps = fixture.script({
+    prompt: fixture.prompt,
+    toolResults: new Map(),
+  });
+  for (const step of steps) {
+    const missing = missingPart(reply.content as readonly ReplyPart[], step);
+    if (missing) problems.push(missing);
+  }
+  if (!document.querySelector("[data-slot=aui_thread-viewport]")) {
+    problems.push("the thread unmounted");
+  }
+  const newCsp = cspViolations.slice(csp);
+  if (newCsp.length > 0) {
+    problems.push(
+      `CSP: ${[...new Set(newCsp.map((v) => `${v.directive} ${v.blocked || v.sample}`))].join(", ")}`,
+    );
+  }
+  const newErrors = consoleErrors.slice(errors);
+  if (newErrors.length > 0) {
+    problems.push(
+      `console: ${[...new Set(newErrors)].slice(0, 2).join(" | ")}`,
+    );
+  }
+  return problems;
+};
+
 export const WEBVIEW_PROBES: Partial<Record<ProbeId, WebviewProbe>> = {
+  "chat-fixtures": async (ctx) => {
+    const aui = requireThread(ctx);
+    const conflicts = [...fixtureConflicts(), ...fixtureUIConflicts()];
+    const failures: string[] = [...conflicts];
+    for (const fixture of RICH_FIXTURES) {
+      const problems = await checkFixture(aui, fixture).catch(
+        (error: unknown) => [
+          error instanceof Error ? error.message : String(error),
+        ],
+      );
+      if (problems.length > 0) {
+        failures.push(`${fixture.name} (${problems.join("; ")})`);
+      }
+    }
+    const runtime = ctx.boot.switchboard.runtime;
+    if (failures.length > 0) {
+      return {
+        state: "fail",
+        detail: `runtime=${runtime}: ${failures.join("; ")}`,
+      };
+    }
+    return {
+      state: "pass",
+      detail: `runtime=${runtime}: ${RICH_FIXTURES.map((f) => f.name).join(", ")}`,
+    };
+  },
+
   "bridge-roundtrip": async (ctx) => {
     const aui = requireThread(ctx);
     const route = routeOf(ctx);
@@ -617,13 +758,15 @@ const waitForClient = async (getContext: () => { aui?: AssistantClient }) => {
  * Steps of host probes, which need the webview to reload or move in between.
  * Each returns a value for the host or throws.
  */
-export const WEBVIEW_TASKS: Record<
-  WebviewTaskId,
-  (
-    aui: AssistantClient,
-    arg: unknown,
-    boot: WebviewBootConfig,
-  ) => Promise<unknown>
+export const WEBVIEW_TASKS: Partial<
+  Record<
+    WebviewTaskId,
+    (
+      aui: AssistantClient,
+      arg: unknown,
+      boot: WebviewBootConfig,
+    ) => Promise<unknown>
+  >
 > = {
   "seed-thread": async (aui, _arg, boot) => {
     await waitForThreadList(aui);
@@ -652,6 +795,12 @@ export const WEBVIEW_TASKS: Record<
     }
     const seeded: SeededThread = { remoteId, prompt };
     return seeded;
+  },
+
+  "run-fixture": async (aui, arg) => {
+    await runFixtureInNewThread(aui, arg as string);
+    await sleep(300);
+    return { width: window.innerWidth, height: window.innerHeight };
   },
 
   "find-thread": async (aui, arg) => {
@@ -693,12 +842,10 @@ export const startProbeListener = (
     if (message.type === "run-task") {
       let result: TaskResult;
       try {
+        const task = WEBVIEW_TASKS[message.task];
+        if (!task) throw new Error(`The Assistant view has no ${message.task}`);
         const aui = await waitForClient(getContext);
-        const value = await WEBVIEW_TASKS[message.task](
-          aui,
-          message.arg,
-          getContext().boot,
-        );
+        const value = await task(aui, message.arg, getContext().boot);
         result = { ok: true, value };
       } catch (error) {
         result = {

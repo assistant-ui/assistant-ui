@@ -1,25 +1,7 @@
-export type FixtureStep =
-  | { type: "text"; text: string }
-  | {
-      type: "tool-call";
-      toolCallId: string;
-      toolName: string;
-      args: Record<string, unknown>;
-      result?: unknown;
-    }
-  | { type: "error"; message: string };
+import richFixtureModules from "virtual:rich-fixtures";
+import type { Fixture, FixtureStep } from "./types";
 
-export type FixtureInput = {
-  prompt: string;
-  toolResults: ReadonlyMap<string, unknown>;
-};
-
-export type Fixture = {
-  name: string;
-  description: string;
-  prompt: string;
-  script(input: FixtureInput): FixtureStep[];
-};
+export type { Fixture, FixtureInput, FixtureStep } from "./types";
 
 export const BACKEND_TOOL_NAME = "search_workspace";
 export const APPROVAL_TOOL_NAME = "request_approval";
@@ -61,6 +43,7 @@ export async function POST(req: Request): Promise<Response> {
 
 const APPROVAL_CALL_ID = "approval-1";
 
+/** The core fixtures the probes and the welcome suggestions use. */
 export const FIXTURES: readonly Fixture[] = [
   {
     name: "text",
@@ -141,6 +124,16 @@ export const FIXTURES: readonly Fixture[] = [
   },
 ];
 
+/**
+ * Rich fixtures, one file per component family in `src/fixtures/rich/`,
+ * collected by the `virtual:rich-fixtures` build plugin.
+ */
+export const RICH_FIXTURES: readonly Fixture[] = richFixtureModules.flatMap(
+  ({ value }) => value,
+);
+
+export const ALL_FIXTURES: readonly Fixture[] = [...FIXTURES, ...RICH_FIXTURES];
+
 const HELP_FIXTURE: Fixture = {
   name: "help",
   description: "Lists the available fixtures",
@@ -148,26 +141,46 @@ const HELP_FIXTURE: Fixture = {
   script: () => [
     {
       type: "text",
-      text: `Start a message with a fixture name:\n\n${FIXTURES.map((f) => `- **${f.name}**: ${f.description}`).join("\n")}`,
+      text: `Start a message with a fixture name:\n\n${ALL_FIXTURES.map((f) => `- **${f.name}**: ${f.description}`).join("\n")}`,
     },
   ],
 };
 
 export const selectFixture = (prompt: string): Fixture => {
   const name = prompt.trim().split(/\s+/, 1)[0]?.toLowerCase() ?? "";
-  return FIXTURES.find((f) => f.name === name) ?? HELP_FIXTURE;
+  return ALL_FIXTURES.find((f) => f.name === name) ?? HELP_FIXTURE;
+};
+
+/** Fixture names defined more than once, or whose prompt selects another fixture. */
+export const fixtureConflicts = () => {
+  const seen = new Set<string>();
+  const conflicts: string[] = [];
+  for (const fixture of ALL_FIXTURES) {
+    if (seen.has(fixture.name)) conflicts.push(`${fixture.name} is duplicated`);
+    seen.add(fixture.name);
+    if (selectFixture(fixture.prompt) !== fixture) {
+      conflicts.push(`${fixture.name}'s prompt selects another fixture`);
+    }
+  }
+  return conflicts;
 };
 
 export type FixtureEvent =
   | { type: "text-delta"; id: string; delta: string }
+  | { type: "reasoning-delta"; id: string; delta: string }
   | {
       type: "tool-call";
       toolCallId: string;
       toolName: string;
       args: Record<string, unknown>;
     }
-  | { type: "tool-result"; toolCallId: string; result: unknown }
-  | { type: "error"; message: string };
+  | {
+      type: "tool-result";
+      toolCallId: string;
+      result: unknown;
+      isError: boolean;
+    }
+  | Extract<FixtureStep, { type: "source" | "file" | "data" | "error" }>;
 
 const sleep = (ms: number, signal: AbortSignal | undefined) =>
   new Promise<void>((resolve, reject) => {
@@ -188,32 +201,43 @@ export async function* playFixture(
   { delayMs = 20, signal }: { delayMs?: number; signal?: AbortSignal } = {},
 ): AsyncGenerator<FixtureEvent> {
   for (const [index, step] of steps.entries()) {
-    if (step.type === "text") {
-      const id = `text-${index}`;
-      for (const [i, word] of step.text.split(" ").entries()) {
-        await sleep(delayMs, signal);
-        yield { type: "text-delta", id, delta: i === 0 ? word : ` ${word}` };
+    switch (step.type) {
+      case "text":
+      case "reasoning": {
+        const id = `${step.type}-${index}`;
+        const type =
+          step.type === "text" ? "text-delta" : ("reasoning-delta" as const);
+        for (const [i, word] of step.text.split(" ").entries()) {
+          await sleep(delayMs, signal);
+          yield { type, id, delta: i === 0 ? word : ` ${word}` };
+        }
+        break;
       }
-    } else if (step.type === "tool-call") {
-      await sleep(delayMs * 10, signal);
-      yield {
-        type: "tool-call",
-        toolCallId: step.toolCallId,
-        toolName: step.toolName,
-        args: step.args,
-      };
-      if (step.result !== undefined) {
-        await sleep(delayMs * 20, signal);
+      case "tool-call":
+        await sleep(delayMs * 10, signal);
         yield {
-          type: "tool-result",
+          type: "tool-call",
           toolCallId: step.toolCallId,
-          result: step.result,
+          toolName: step.toolName,
+          args: step.args,
         };
-      }
-    } else {
-      await sleep(delayMs * 10, signal);
-      yield { type: "error", message: step.message };
-      return;
+        if (step.result !== undefined) {
+          await sleep(delayMs * 20, signal);
+          yield {
+            type: "tool-result",
+            toolCallId: step.toolCallId,
+            result: step.result,
+            isError: step.isError ?? false,
+          };
+        }
+        break;
+      case "error":
+        await sleep(delayMs * 10, signal);
+        yield step;
+        return;
+      default:
+        await sleep(delayMs * 5, signal);
+        yield step;
     }
   }
 }

@@ -1,0 +1,9 @@
+/* Sweeps and screenshots settle at the final frame of every animation. */
+.aui-gallery-no-motion *,
+.aui-gallery-no-motion *::before,
+.aui-gallery-no-motion *::after {
+  animation-delay: 0s !important;
+  animation-duration: 0s !important;
+  transition: none !important;
+  caret-color: transparent !important;
+}

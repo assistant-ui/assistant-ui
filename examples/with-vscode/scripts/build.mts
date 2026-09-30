@@ -35,6 +35,52 @@ const watchLog = (afterBuild?: () => Promise<void>): Plugin => ({
   },
 });
 
+/**
+ * Resolves `virtual:<name>` to a module whose default export lists the default
+ * export of every `.ts`/`.tsx` file in a folder (sorted, skipping `_*` and
+ * `*.test.*`), so a new file registers itself without a shared index.
+ */
+const GLOB_MODULES: Record<string, string> = {
+  "virtual:rich-fixtures": path.join(rootDir, "src", "fixtures", "rich"),
+  "virtual:fixture-uis": path.join(rootDir, "webview", "fixture-ui"),
+  "virtual:gallery-sections": path.join(
+    rootDir,
+    "webview",
+    "gallery",
+    "sections",
+  ),
+};
+
+const globModules: Plugin = {
+  name: "glob-modules",
+  setup(b) {
+    b.onResolve({ filter: /^virtual:/ }, (args) =>
+      GLOB_MODULES[args.path]
+        ? { path: args.path, namespace: "glob-modules" }
+        : undefined,
+    );
+    b.onLoad({ filter: /.*/, namespace: "glob-modules" }, async (args) => {
+      const dir = GLOB_MODULES[args.path] as string;
+      const files = (await fs.readdir(dir).catch(() => []))
+        .filter((f) => /\.tsx?$/.test(f) && !f.startsWith("_"))
+        .filter((f) => !/\.test\.tsx?$/.test(f))
+        .sort();
+      const lines = files.map(
+        (f, i) => `import m${i} from ${JSON.stringify(path.join(dir, f))};`,
+      );
+      const entries = files.map(
+        (f, i) => `{ file: ${JSON.stringify(f)}, value: m${i} }`,
+      );
+      return {
+        contents: `${lines.join("\n")}\nexport default [${entries.join(", ")}];\n`,
+        loader: "js",
+        resolveDir: dir,
+        watchDirs: [dir],
+      };
+    });
+  },
+};
+
 const nodeOptions: BuildOptions = {
   bundle: true,
   format: "cjs",
@@ -49,14 +95,14 @@ const hostOptions: BuildOptions = {
   ...nodeOptions,
   entryPoints: [path.join(rootDir, "src", "extension.ts")],
   outfile: path.join(distDir, "extension.js"),
-  plugins: [watchLog()],
+  plugins: [watchLog(), globModules],
 };
 
 const testOptions: BuildOptions = {
   ...nodeOptions,
   entryPoints: [path.join(rootDir, "test", "suite.ts")],
   outfile: path.join(distDir, "test", "suite.js"),
-  plugins: [watchLog()],
+  plugins: [watchLog(), globModules],
 };
 
 const webviewOptions: BuildOptions = {
@@ -79,7 +125,20 @@ const webviewOptions: BuildOptions = {
   plugins: [watchLog(buildCss)],
 };
 
-const allOptions = [hostOptions, testOptions, webviewOptions];
+// The Assistant view and the component gallery share one CSS entry and the
+// glob modules; each bundle emits its own `<entry>.css` for imported CSS.
+const testbedWebviewOptions: BuildOptions = {
+  ...webviewOptions,
+  entryPoints: {
+    main: path.join(rootDir, "webview", "main.tsx"),
+    gallery: path.join(rootDir, "webview", "gallery", "main.tsx"),
+  },
+  outfile: undefined,
+  outdir: path.join(distDir, "webview"),
+  plugins: [...(webviewOptions.plugins ?? []), globModules],
+};
+
+const allOptions = [hostOptions, testOptions, testbedWebviewOptions];
 
 await fs.rm(distDir, { recursive: true, force: true });
 

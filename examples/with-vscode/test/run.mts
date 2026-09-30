@@ -121,7 +121,12 @@ for (const run of report.runs) {
 
 if (screenshotDir) {
   const { files = [], error } = report.screenshots ?? {};
-  if (files.length > 0) console.log(`\nScreenshots:\n${files.join("\n")}`);
+  if (files.length > 0) {
+    const sheets = files.filter((f) => f.endsWith(".html"));
+    console.log(
+      `\n${files.length - sheets.length} screenshots in ${screenshotDir}${sheets.map((f) => `\nContact sheet: ${f}`).join("")}`,
+    );
+  }
   if (error || files.length === 0) {
     console.error(`\nScreenshots failed: ${error ?? "none were taken"}`);
     failed = true;

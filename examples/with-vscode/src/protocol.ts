@@ -9,10 +9,57 @@ export const BOOT_ATTRIBUTE = "data-aui-testbed-boot";
 export type WebviewBootConfig = {
   switchboard: Switchboard;
   unimplemented: { key: SwitchboardKey; value: string }[];
+  /** Set for the component gallery panel, absent for the Assistant view. */
+  gallery?: GalleryView;
 };
 
-/** A step a host probe runs in the webview, such as seeding a thread before a reload. */
-export type WebviewTaskId = "seed-thread" | "find-thread";
+/** What the component gallery shows. */
+export type GalleryView = {
+  /** Renders only this section, in isolation; `null` renders every section. */
+  section: string | null;
+  /** Forces each section card to this width in CSS pixels; `null` fills the panel. */
+  width: number | null;
+  /** Turns off animations and transitions, for screenshots and sweeps. */
+  noMotion?: boolean;
+};
+
+/** The narrow width sections are checked and captured at: a sidebar. */
+export const NARROW_WIDTH = 320;
+
+/** A rectangle in the webview's viewport, in CSS pixels. */
+export type ViewportRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+/** What `gallery-show` returns once the view has rendered and settled. */
+export type GalleryShown = {
+  /** The card of the shown section, or the whole gallery. */
+  rect: ViewportRect | null;
+  viewport: { width: number; height: number };
+};
+
+/** A gallery section as the host lists it. */
+export type GallerySectionInfo = {
+  id: string;
+  title: string;
+  category: string;
+};
+
+/**
+ * A step a host probe or the screenshot run performs in a webview:
+ * `seed-thread` and `find-thread` in the Assistant view (thread persistence),
+ * `run-fixture` in the Assistant view (send a fixture prompt in a new thread),
+ * `gallery-sections` and `gallery-show` in the gallery.
+ */
+export type WebviewTaskId =
+  | "seed-thread"
+  | "find-thread"
+  | "run-fixture"
+  | "gallery-sections"
+  | "gallery-show";
 
 /** What `seed-thread` returns and `find-thread` looks for. */
 export type SeededThread = { remoteId: string; prompt: string };
