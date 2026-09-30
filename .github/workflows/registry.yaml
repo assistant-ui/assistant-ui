@@ -1,8 +1,19 @@
 name: Deploy Shadcn Registry
 
 on:
-  repository_dispatch:
-    types: [registry-deploy]
+  workflow_call:
+    inputs:
+      releaseSha:
+        description: "Release commit SHA to deploy"
+        required: true
+        type: string
+    secrets:
+      VERCEL_ORG_ID:
+        required: true
+      VERCEL_REGISTRY_PROJECT_ID:
+        required: true
+      VERCEL_TOKEN:
+        required: true
   workflow_dispatch:
     inputs:
       releaseSha:
@@ -13,10 +24,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
-
 env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_REGISTRY_PROJECT_ID }}
@@ -25,28 +32,23 @@ jobs:
   deploy-production:
     name: Deploy Production
     runs-on: ubuntu-latest
+    # A literal group, because inside a workflow_call github.workflow names the
+    # caller, so a release deploy and a manual one would not exclude each other.
+    concurrency:
+      group: deploy-shadcn-registry
+      cancel-in-progress: false
     steps:
       - name: Resolve deploy commit SHA
         id: deploy-sha
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
+        env:
+          REQUESTED_SHA: ${{ inputs.releaseSha }}
         with:
           script: |
             const defaultBranch = context.payload.repository.default_branch;
-            const requestedSha =
-              context.eventName === "repository_dispatch"
-                ? context.payload.client_payload?.releaseSha
-                : context.payload.inputs?.releaseSha;
-            let deploySha =
-              typeof requestedSha === "string"
-                ? requestedSha.trim().toLowerCase()
-                : "";
+            let deploySha = (process.env.REQUESTED_SHA ?? "").trim().toLowerCase();
 
             if (!deploySha) {
-              if (context.eventName === "repository_dispatch") {
-                core.setFailed("repository_dispatch payload is missing releaseSha");
-                return;
-              }
-
               const ref = await github.rest.git.getRef({
                 ...context.repo,
                 ref: `heads/${defaultBranch}`,
@@ -165,3 +167,11 @@ jobs:
       - name: Deploy Project Artifacts to Vercel
         working-directory: apps/registry
         run: pnpm exec vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Recovery guidance
+        if: failure()
+        env:
+          DEPLOY_SHA: ${{ steps.deploy-sha.outputs.value || inputs.releaseSha }}
+        run: |
+          echo "::error::The registry deploy failed for ${DEPLOY_SHA}, so the registry still serves the previous release."
+          echo "::error::Rerun this job, or run Deploy Shadcn Registry via workflow_dispatch with releaseSha=${DEPLOY_SHA}."
