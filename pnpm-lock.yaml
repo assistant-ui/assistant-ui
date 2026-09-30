@@ -162,6 +162,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  eve>undici: 8.10.2
+
 importers:
 
   .:
@@ -31205,7 +31208,7 @@ snapshots:
     dependencies:
       ai: 7.0.101(zod@4.6.5)
       nitro: 3.0.260903-beta
-      undici: 8.9.0
+      undici: 8.10.2
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
       just-bash: 3.4.2(supports-color@10.2.2)
