@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+import type {
+  MessageFormatAdapter,
+  ThreadHistoryAdapter,
+} from "../../adapters/thread-history";
 import type { AsyncStorageLike } from "./LocalStorageThreadListAdapter";
 import {
   createLocalStorageAdapter,
@@ -1255,5 +1259,230 @@ describe("createLocalStorageAdapter", () => {
     await expect(adapter.fetch("missing-thread")).rejects.toThrow(
       'Stored thread "missing-thread" not found while fetching thread metadata.',
     );
+  });
+});
+
+type TestMessage = { id: string; text: string };
+
+const testFormat: MessageFormatAdapter<TestMessage, { text: string }> = {
+  format: "test/v1",
+  encode: ({ message }) => ({ text: message.text }),
+  decode: (stored) => ({
+    parentId: stored.parent_id,
+    message: { id: stored.id, text: stored.content.text },
+  }),
+  getId: (message) => message.id,
+};
+
+const withTestFormat = (history: ThreadHistoryAdapter) => {
+  if (!history.withFormat) throw new Error("withFormat is missing");
+  return history.withFormat(testFormat);
+};
+
+const createThreadClient = (
+  adapter: ReturnType<typeof createLocalStorageAdapter>,
+  threadIds: string[],
+) => {
+  let currentId = threadIds[0]!;
+  const item = (id: string) => ({
+    getState: () => ({ id, remoteId: id }),
+    initialize: () => adapter.initialize(id),
+  });
+  return {
+    switchTo: (id: string) => {
+      currentId = id;
+    },
+    getAui: () =>
+      ({
+        threadListItem: { source: "threads", ...item(currentId) },
+        threads: {
+          getState: () => ({
+            threadItems: threadIds.map((id) => ({ id, remoteId: id })),
+          }),
+          item: ({ id }: { id: string }) => item(id),
+        },
+      }) as never,
+  };
+};
+
+describe("createLocalStorageHistoryAdapter withFormat", () => {
+  const formattedKey = "@assistant-ui:messages:thread-1:test/v1";
+
+  it("appends, updates, deletes, and reloads formatted messages", async () => {
+    const storage = createStorage();
+    const adapter = createLocalStorageAdapter({ storage });
+    const client = createThreadClient(adapter, ["thread-1"]);
+    const formatted = withTestFormat(
+      createHistory(storage, client.getAui as () => never),
+    );
+
+    await formatted.append({
+      parentId: null,
+      message: { id: "user-1", text: "hello" },
+    });
+    await formatted.append({
+      parentId: "user-1",
+      message: { id: "assistant-1", text: "draft" },
+    });
+    await formatted.update?.(
+      { parentId: "user-1", message: { id: "assistant-1", text: "final" } },
+      "assistant-1",
+    );
+    await formatted.update?.(
+      { parentId: "assistant-1", message: { id: "user-2", text: "again" } },
+      "user-2",
+    );
+    await formatted.append({
+      parentId: "user-2",
+      message: { id: "assistant-2", text: "removed" },
+    });
+    await formatted.delete?.([
+      {
+        parentId: "user-2",
+        message: { id: "assistant-2", text: "removed" },
+      },
+    ]);
+
+    expect(JSON.parse(storage.get(formattedKey) ?? "")).toEqual({
+      messages: [
+        {
+          id: "user-1",
+          parent_id: null,
+          format: "test/v1",
+          content: { text: "hello" },
+        },
+        {
+          id: "assistant-1",
+          parent_id: "user-1",
+          format: "test/v1",
+          content: { text: "final" },
+        },
+        {
+          id: "user-2",
+          parent_id: "assistant-1",
+          format: "test/v1",
+          content: { text: "again" },
+        },
+      ],
+    });
+
+    const reloaded = withTestFormat(
+      createHistory(storage, client.getAui as () => never),
+    );
+    await expect(reloaded.load()).resolves.toEqual({
+      messages: [
+        { parentId: null, message: { id: "user-1", text: "hello" } },
+        { parentId: "user-1", message: { id: "assistant-1", text: "final" } },
+        { parentId: "assistant-1", message: { id: "user-2", text: "again" } },
+      ],
+    });
+    await expect(adapter.list()).resolves.toEqual({
+      threads: [
+        {
+          remoteId: "thread-1",
+          externalId: undefined,
+          status: "regular",
+          title: undefined,
+          custom: undefined,
+        },
+      ],
+    });
+  });
+
+  it("writes to the pinned thread after a switch", async () => {
+    const storage = createStorage();
+    const adapter = createLocalStorageAdapter({ storage });
+    const client = createThreadClient(adapter, ["thread-1", "thread-2"]);
+    const formatted = withTestFormat(
+      createHistory(storage, client.getAui as () => never),
+    );
+
+    formatted.pin?.();
+    client.switchTo("thread-2");
+    await formatted.append({
+      parentId: null,
+      message: { id: "user-1", text: "hello" },
+    });
+    await formatted.update?.(
+      { parentId: null, message: { id: "user-1", text: "edited" } },
+      "user-1",
+    );
+
+    expect(
+      JSON.parse(storage.get(formattedKey) ?? "").messages.map(
+        (entry: { content: { text: string } }) => entry.content.text,
+      ),
+    ).toEqual(["edited"]);
+    expect(
+      storage.get("@assistant-ui:messages:thread-2:test/v1"),
+    ).toBeUndefined();
+  });
+
+  it("keeps thread message history and formatted history apart", async () => {
+    const storage = createStorage();
+    const adapter = createLocalStorageAdapter({ storage });
+    const client = createThreadClient(adapter, ["thread-1"]);
+    const history = createHistory(storage, client.getAui as () => never);
+    const formatted = withTestFormat(history);
+
+    await history.append({
+      message: {
+        ...storedMessage("thread-message"),
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      },
+      parentId: null,
+    } as never);
+    await formatted.append({
+      parentId: null,
+      message: { id: "formatted-message", text: "hello" },
+    });
+    await history.update?.({
+      message: {
+        ...storedMessage("thread-message"),
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      },
+      parentId: null,
+    } as never);
+
+    const repo = await history.load();
+    expect(repo.messages.map(({ message }) => message.id)).toEqual([
+      "thread-message",
+    ]);
+    expect(repo.headId).toBe("thread-message");
+    await expect(formatted.load()).resolves.toEqual({
+      messages: [
+        {
+          parentId: null,
+          message: { id: "formatted-message", text: "hello" },
+        },
+      ],
+    });
+  });
+
+  it("removes formatted history when its thread is deleted", async () => {
+    const storage = createStorage();
+    const adapter = createLocalStorageAdapter({ storage });
+    const client = createThreadClient(adapter, ["thread-1"]);
+    const history = createHistory(storage, client.getAui as () => never);
+    const formatted = withTestFormat(history);
+
+    await history.append({
+      message: {
+        ...storedMessage("thread-message"),
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      },
+      parentId: null,
+    } as never);
+    await formatted.append({
+      parentId: null,
+      message: { id: "formatted-message", text: "hello" },
+    });
+    expect(storage.get(formattedKey)).toBeDefined();
+
+    await adapter.delete("thread-1");
+
+    expect(storage.get(formattedKey)).toBeUndefined();
+    expect(storage.get("@assistant-ui:messages:thread-1")).toBeUndefined();
+    await expect(adapter.list()).resolves.toEqual({ threads: [] });
   });
 });

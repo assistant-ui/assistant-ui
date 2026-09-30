@@ -39,18 +39,16 @@ import {
 } from "assistant-cloud/ai-sdk";
 import { auiV0DecodeSafely, auiV0Encode } from "./auiV0";
 import { type AssistantClient, getClientId, useAui } from "@assistant-ui/store";
-import type { ThreadListItemMethods } from "../../../store/scopes/thread-list-item";
+import {
+  type KeyedThreadListItem as CloudThreadListItem,
+  tryGetKeyedThreadListItem,
+} from "../keyedThreadListItem";
 import type { FeedbackAdapter } from "../../../adapters/feedback";
 import {
   isStoredMessageStatus,
   parseStoredThreadSteps,
 } from "../../../runtime/utils/stored-message-parts";
 import { runCleanups } from "../../../subscribable/subscribable";
-
-type CloudThreadListItem = Pick<
-  ThreadListItemMethods,
-  "getState" | "initialize"
->;
 
 const globalPersistence = new WeakMap<
   getClientId.ClientId,
@@ -205,7 +203,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   public readonly feedback: FeedbackAdapter = {
     submit: ({ message, type, comment }) => {
       void (async () => {
-        const threadListItem = this.tryGetKeyedThreadListItem();
+        const threadListItem = tryGetKeyedThreadListItem(this.aui);
         const remoteThreadId = threadListItem?.getState().remoteId;
         if (!threadListItem || !remoteThreadId) {
           console.warn(
@@ -238,19 +236,6 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     },
   };
 
-  private tryGetKeyedThreadListItem(): CloudThreadListItem | undefined {
-    const live = this.aui.threadListItem;
-    if (!live.source) return undefined;
-    const id = live.getState().id;
-    if (id === undefined) return undefined;
-    // A body can resolve before the list's committed items include its
-    // thread; the live item is already the per-thread anchor in that window.
-    const listed = this.aui.threads
-      .getState()
-      .threadItems.some((item) => item.id === id || item.remoteId === id);
-    return listed ? this.aui.threads.item({ id }) : live;
-  }
-
   private getThreadListItem(threadId: string): CloudThreadListItem | undefined {
     const current = this.aui.threadListItem;
     if (current.source) {
@@ -274,7 +259,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     const adapter = this;
     let threadListItem: CloudThreadListItem | undefined;
     const pinCurrent = () => {
-      const next = adapter.tryGetKeyedThreadListItem();
+      const next = tryGetKeyedThreadListItem(adapter.aui);
       if (next) threadListItem = next;
       return threadListItem;
     };
@@ -383,7 +368,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     const cloud = this.cloudRef.current;
     if (messageIds.length === 0) return;
 
-    const threadListItem = this.tryGetKeyedThreadListItem();
+    const threadListItem = tryGetKeyedThreadListItem(this.aui);
     if (!threadListItem) {
       throw new Error("Cannot copy cloud history without a thread list item.");
     }
