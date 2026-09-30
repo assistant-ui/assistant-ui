@@ -1,3 +1,4 @@
+import type { ChatTransport, UIMessage } from "ai";
 // @vitest-environment jsdom
 
 import { act, renderHook, waitFor } from "@testing-library/react";
@@ -16,7 +17,9 @@ const mocks = vi.hoisted(() => {
       getModelContext: () => ({}),
       subscribe: (callback: () => void) => {
         subscribers.add(callback);
-        return () => subscribers.delete(callback);
+        return () => {
+          subscribers.delete(callback);
+        };
       },
     },
     threads: {
@@ -93,11 +96,52 @@ const sendMessagesOptions = {
 
 describe("useChatRuntime", () => {
   beforeEach(() => {
+    mocks.useAISDKRuntime.mockImplementation(() => mocks.runtime);
     mocks.state.isLoadingHistory = false;
     mocks.state.threadId = "thread-id";
     mocks.state.mainThreadId = "thread-id";
     mocks.subscribers.clear();
     window.sessionStorage.clear();
+  });
+
+  it("refreshes AssistantChatTransport wiring when the runtime changes", async () => {
+    const bodies: Array<{ system: string }> = [];
+    const transport = new AssistantChatTransport({
+      fetch: vi.fn(async (_input, init) => {
+        bodies.push(JSON.parse(String(init?.body)));
+        return new Response(
+          new ReadableStream({ start: (controller) => controller.close() }),
+          { headers: { "content-type": "text/event-stream" } },
+        );
+      }),
+    });
+    const createRuntime = (system: string) => ({
+      thread: {
+        getState: () => ({ isLoading: false }),
+        getModelContext: () => ({ system }),
+        subscribe: () => () => {},
+      },
+      threads: { mainItem: undefined },
+    });
+    let currentRuntime = createRuntime("system-a");
+    mocks.useAISDKRuntime.mockImplementation(() => currentRuntime);
+    mocks.useChat.mockReturnValue({
+      resumeStream: vi.fn(),
+      status: "ready",
+    });
+    const { rerender } = renderHook(() => useChatRuntime({ transport }));
+    const dynamicTransport = mocks.useChat.mock.lastCall?.[0].chat
+      .transport as ChatTransport<UIMessage>;
+
+    await dynamicTransport.sendMessages(sendMessagesOptions as never);
+    currentRuntime = createRuntime("system-b");
+    rerender();
+    await dynamicTransport.sendMessages(sendMessagesOptions as never);
+
+    expect(bodies).toEqual([
+      expect.objectContaining({ system: "system-a" }),
+      expect.objectContaining({ system: "system-b" }),
+    ]);
   });
 
   it("forwards a callback through a ref, so a later render's callback fires instead of the mounted one", () => {
