@@ -10,14 +10,19 @@ import {
   CHAT_ROUTE,
   COLOR_THEME_ROUTE,
   isTestbedMessage,
+  OPEN_EXTERNAL_ROUTE,
   MODEL_ROUTE,
   SERVED_REQUESTS_ROUTE,
   TESTBED_CHANNEL,
   type ColorThemeState,
   type ColorThemeUpdate,
   type HostToWebviewMessage,
+  type OpenExternalState,
+  type SeededThread,
   type ServedRequest,
+  type TaskResult,
   type WebviewBootConfig,
+  type WebviewTaskId,
   type WebviewToHostMessage,
 } from "../src/protocol";
 import {
@@ -25,6 +30,7 @@ import {
   selectFixture,
   type FixtureStep,
 } from "../src/fixtures/fixtures";
+import { threadStorage, threadStoragePrefix } from "./thread-storage";
 import { getVSCodeApi } from "./vscode-api";
 
 type CspViolation = { directive: string; blocked: string; sample: string };
@@ -277,6 +283,31 @@ const setColorTheme = async (theme: string | null) => {
 const LIGHT_THEME = "Default Light Modern";
 const DARK_THEME = "Default Dark Modern";
 
+const openExternalState = async (stub?: boolean) => {
+  if (stub !== undefined) {
+    const response = await vscodeFetch(OPEN_EXTERNAL_ROUTE, {
+      method: "PUT",
+      body: JSON.stringify({ stub }),
+    });
+    if (!response.ok) {
+      throw new Error(`${OPEN_EXTERNAL_ROUTE} answered ${response.status}`);
+    }
+  }
+  const response = await vscodeFetch(OPEN_EXTERNAL_ROUTE);
+  return (await response.json()) as OpenExternalState;
+};
+
+/** The first absolute link in the markdown fixture. */
+const MARKDOWN_LINK = (() => {
+  const fixture = selectFixture("markdown");
+  const text = fixtureText(
+    fixture.script({ prompt: fixture.prompt, toolResults: new Map() }),
+  );
+  const href = /\]\((https:[^)\s]+)\)/.exec(text)?.[1];
+  if (!href) throw new Error("The markdown fixture has no https link");
+  return href;
+})();
+
 export const WEBVIEW_PROBES: Partial<Record<ProbeId, WebviewProbe>> = {
   "bridge-roundtrip": async (ctx) => {
     const aui = requireThread(ctx);
@@ -469,6 +500,57 @@ export const WEBVIEW_PROBES: Partial<Record<ProbeId, WebviewProbe>> = {
     };
   },
 
+  "external-link": async (ctx) => {
+    const aui = requireThread(ctx);
+    const { stub } = await openExternalState();
+    let clicked: HTMLAnchorElement | undefined;
+    let opened: OpenExternalState["opened"] = [];
+    const locationBefore = window.location.href;
+    try {
+      const { opened: before } = await openExternalState(true);
+      const since = before.at(-1)?.seq ?? 0;
+      await sendAndSettle(aui, "markdown");
+      await waitFor(
+        () => {
+          clicked = [
+            ...document.querySelectorAll<HTMLAnchorElement>("a[href]"),
+          ].findLast((a) => a.getAttribute("href") === MARKDOWN_LINK);
+          return clicked !== undefined;
+        },
+        5_000,
+        () => `a rendered link to ${MARKDOWN_LINK}`,
+      );
+      clicked?.click();
+      const deadline = Date.now() + 5_000;
+      while (opened.length === 0 && Date.now() < deadline) {
+        await sleep(50);
+        opened = (await openExternalState()).opened.filter(
+          (o) => o.seq > since,
+        );
+      }
+    } finally {
+      await openExternalState(stub);
+    }
+
+    if (!clicked?.isConnected || window.location.href !== locationBefore) {
+      return {
+        state: "fail",
+        detail: `The webview navigated to ${window.location.href}`,
+      };
+    }
+    const expected = new URL(MARKDOWN_LINK).href;
+    if (opened.length !== 1 || opened[0]?.url !== expected) {
+      return {
+        state: "fail",
+        detail: `Host openExternal calls: ${JSON.stringify(opened.map((o) => o.url))}, expected [${JSON.stringify(expected)}]`,
+      };
+    }
+    return {
+      state: "pass",
+      detail: `openExternal(${expected}) stubbed; webview stayed put`,
+    };
+  },
+
   "frontend-tool-hitl": async (ctx) => {
     const aui = requireThread(ctx);
     const route = routeOf(ctx);
@@ -515,6 +597,89 @@ export const WEBVIEW_PROBES: Partial<Record<ProbeId, WebviewProbe>> = {
   },
 };
 
+const waitForThreadList = (aui: AssistantClient) =>
+  waitFor(
+    () => !aui.threads().getState().isLoading,
+    10_000,
+    () => "the thread list to load",
+  );
+
+const waitForClient = async (getContext: () => { aui?: AssistantClient }) => {
+  await waitFor(
+    () => getContext().aui !== undefined,
+    10_000,
+    () => "the thread to mount",
+  );
+  return getContext().aui as AssistantClient;
+};
+
+/**
+ * Steps of host probes, which need the webview to reload or move in between.
+ * Each returns a value for the host or throws.
+ */
+export const WEBVIEW_TASKS: Record<
+  WebviewTaskId,
+  (
+    aui: AssistantClient,
+    arg: unknown,
+    boot: WebviewBootConfig,
+  ) => Promise<unknown>
+> = {
+  "seed-thread": async (aui, _arg, boot) => {
+    await waitForThreadList(aui);
+    aui.threads().switchToNewThread();
+    await waitFor(
+      () => aui.thread().getState().messages.length === 0,
+      5_000,
+      () => "a new empty thread",
+    );
+    const prompt = `text threads-persist ${Date.now().toString(36)}`;
+    await sendAndSettle(aui, prompt);
+    const main = () => aui.threads().item("main").getState();
+    await waitFor(
+      () => main().remoteId !== undefined,
+      5_000,
+      () => "the new thread to get a remote id",
+    );
+    const remoteId = main().remoteId ?? "";
+    const key = `${threadStoragePrefix(boot.switchboard.runtime)}messages:${remoteId}`;
+    const deadline = Date.now() + 5_000;
+    while (!(await threadStorage.getItem(key))?.includes(prompt)) {
+      if (Date.now() > deadline) {
+        throw new Error(`${key} never reached the host's globalState`);
+      }
+      await sleep(50);
+    }
+    const seeded: SeededThread = { remoteId, prompt };
+    return seeded;
+  },
+
+  "find-thread": async (aui, arg) => {
+    const { remoteId, prompt } = arg as SeededThread;
+    await waitForThreadList(aui);
+    const { threadIds, threadItems } = aui.threads().getState();
+    const item = threadItems.find((t) => t.remoteId === remoteId);
+    if (!item || !threadIds.includes(item.id)) {
+      throw new Error(
+        `Thread ${remoteId} is not listed (listed: ${JSON.stringify(threadItems.map((t) => t.remoteId ?? t.status))})`,
+      );
+    }
+    aui.threads().switchToThread(item.id);
+    await waitFor(
+      () => {
+        const [user, reply] = aui.thread().getState().messages;
+        return textOf(user) === prompt && textOf(reply).length > 0;
+      },
+      10_000,
+      () => {
+        const { messages } = aui.thread().getState();
+        return `thread ${remoteId} to load its messages (has ${messages.length})`;
+      },
+    );
+    return aui.thread().getState().messages.length;
+  },
+};
+
 const post = (message: WebviewToHostMessage) =>
   getVSCodeApi().postMessage(message);
 
@@ -523,8 +688,34 @@ export const startProbeListener = (
 ) => {
   const onMessage = async (event: MessageEvent<unknown>) => {
     const data = event.data;
-    if (!isTestbedMessage(data) || data.type !== "run-probe") return;
-    const { requestId, probeId } = data as HostToWebviewMessage;
+    if (!isTestbedMessage(data)) return;
+    const message = data as HostToWebviewMessage;
+    if (message.type === "run-task") {
+      let result: TaskResult;
+      try {
+        const aui = await waitForClient(getContext);
+        const value = await WEBVIEW_TASKS[message.task](
+          aui,
+          message.arg,
+          getContext().boot,
+        );
+        result = { ok: true, value };
+      } catch (error) {
+        result = {
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+      post({
+        channel: TESTBED_CHANNEL,
+        type: "task-result",
+        requestId: message.requestId,
+        result,
+      });
+      return;
+    }
+    if (message.type !== "run-probe") return;
+    const { requestId, probeId } = message;
     const probe = WEBVIEW_PROBES[probeId];
     let result: ProbeResult;
     try {

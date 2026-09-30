@@ -17,7 +17,7 @@ A VS Code extension that renders the assistant-ui `Thread` in a webview. It is t
 
 ## Fetch bridge
 
-The webview reaches the extension host through `@assistant-ui/vscode`: `vscodeFetch` tunnels each request over `postMessage`, and `serveWebviewRoutes` in `src/webviews.ts` answers it with the routes in `src/routes.ts`. The fixtures play in the extension host, not in the webview.
+The webview reaches the extension host through `@assistant-ui/vscode`: `vscodeFetch` tunnels each request over `postMessage`, and `serveWebviewHost` in `src/webviews.ts` answers it with the routes in `src/routes.ts`. The fixtures play in the extension host, not in the webview.
 
 | Route | Handler | Used by |
 | --- | --- | --- |
@@ -25,6 +25,15 @@ The webview reaches the extension host through `@assistant-ui/vscode`: `vscodeFe
 | `POST /api/model` | `src/fixtures/model-route.ts`, an assistant-stream data stream | `auiTest.runtime=local`: `useLocalRuntime(createVSCodeModelAdapter())` |
 | `GET /testbed/served-requests` | the request log in `src/routes.ts` | probes that check what the host served and whether `req.signal` fired |
 | `GET`, `PUT /testbed/color-theme` | `src/routes.ts`, reads and sets the user `workbench.colorTheme` | `theme-follows` |
+| `GET`, `PUT /testbed/open-external` | `src/open-external.ts`, the host's `openExternal` log and its stub switch | `external-link` |
+
+## Links and threads
+
+`serveWebviewHost` also serves the webview's host calls. `installLinkInterceptor()` in `webview/main.tsx` sends link clicks to its `openExternal`, which records each URL in `src/open-external.ts` and opens it with `vscode.env.openExternal`. While stubbed, it records the URL and does not open it. `pnpm test` sets `AUI_TESTBED_STUB_OPEN_EXTERNAL=1`, and `external-link` turns the stub on for its own run.
+
+Both runtimes run inside `useRemoteThreadListRuntime` with `createLocalStorageAdapter({ storage: createVSCodeStorage() })`, which stores threads in the extension's `globalState` under a prefix per runtime. The thread list sits above the thread. `useChatRuntime` needs a history adapter with `withFormat`, which `createLocalStorageAdapter` does not provide, so under `ai-sdk` only the thread list persists and `threads-persist` fails.
+
+`threads-persist` seeds a thread, runs **Reload Assistant Webview**, then switches `auiTest.location` so that a new webview is created, and checks each time that the thread is listed with its messages. Reload Window would end the test run, so these two steps stand in for it.
 
 ## HTML, CSP and theme
 

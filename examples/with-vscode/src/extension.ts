@@ -10,7 +10,10 @@ const VIEW_IDS = {
 } as const;
 
 export function activate(context: vscode.ExtensionContext) {
-  const webviews = new AssistantWebviews(context.extensionUri);
+  const webviews = new AssistantWebviews(
+    context.extensionUri,
+    context.globalState,
+  );
   let editorPanel: vscode.WebviewPanel | undefined;
 
   const openEditorPanel = () => {

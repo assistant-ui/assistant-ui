@@ -11,12 +11,30 @@ export type WebviewBootConfig = {
   unimplemented: { key: SwitchboardKey; value: string }[];
 };
 
-export type HostToWebviewMessage = {
-  channel: typeof TESTBED_CHANNEL;
-  type: "run-probe";
-  requestId: string;
-  probeId: ProbeId;
-};
+/** A step a host probe runs in the webview, such as seeding a thread before a reload. */
+export type WebviewTaskId = "seed-thread" | "find-thread";
+
+/** What `seed-thread` returns and `find-thread` looks for. */
+export type SeededThread = { remoteId: string; prompt: string };
+
+export type TaskResult =
+  | { ok: true; value: unknown }
+  | { ok: false; error: string };
+
+export type HostToWebviewMessage =
+  | {
+      channel: typeof TESTBED_CHANNEL;
+      type: "run-probe";
+      requestId: string;
+      probeId: ProbeId;
+    }
+  | {
+      channel: typeof TESTBED_CHANNEL;
+      type: "run-task";
+      requestId: string;
+      task: WebviewTaskId;
+      arg: unknown;
+    };
 
 export type WebviewToHostMessage =
   | {
@@ -29,6 +47,12 @@ export type WebviewToHostMessage =
       type: "probe-result";
       requestId: string;
       result: ProbeResult;
+    }
+  | {
+      channel: typeof TESTBED_CHANNEL;
+      type: "task-result";
+      requestId: string;
+      result: TaskResult;
     };
 
 export const isTestbedMessage = (
@@ -42,6 +66,7 @@ export const CHAT_ROUTE = "/api/chat";
 export const MODEL_ROUTE = "/api/model";
 export const SERVED_REQUESTS_ROUTE = "/testbed/served-requests";
 export const COLOR_THEME_ROUTE = "/testbed/color-theme";
+export const OPEN_EXTERNAL_ROUTE = "/testbed/open-external";
 
 /** `GET` answers the effective `workbench.colorTheme` and its user setting. */
 export type ColorThemeState = { current: string; userValue: string | null };
@@ -59,3 +84,9 @@ export type ServedRequest = {
   completed: boolean;
   aborted: boolean;
 };
+
+/** A URL the webview asked the host to open with `openExternal`. */
+export type OpenedUrl = { seq: number; url: string; stubbed: boolean };
+
+/** `GET` answers the log; `PUT` with `{ stub }` turns stubbing on or off. */
+export type OpenExternalState = { stub: boolean; opened: OpenedUrl[] };

@@ -1,6 +1,7 @@
 import { startProbeListener } from "./probes";
 import "./zod-jitless";
-import { useEffect, useMemo, type FC } from "react";
+import { useEffect, useMemo } from "react";
+import { createLocalStorageAdapter } from "@assistant-ui/core/react";
 import { createRoot } from "react-dom/client";
 import {
   AssistantRuntimeProvider,
@@ -9,16 +10,20 @@ import {
   Tools,
   useAui,
   useLocalRuntime,
+  useRemoteThreadListRuntime,
   type AssistantClient,
   type AssistantRuntime,
+  type RemoteThreadListAdapter,
 } from "@assistant-ui/react";
 import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
 import {
   createVSCodeModelAdapter,
+  installLinkInterceptor,
   vscodeFetch,
 } from "@assistant-ui/vscode/webview";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { Thread } from "@assistant-ui/ui/components/assistant-ui/elements/thread.aui.tsx";
+import { ThreadList } from "@assistant-ui/ui/components/assistant-ui/elements/thread-list.aui.tsx";
 import { FIXTURES } from "../src/fixtures/fixtures";
 import {
   BOOT_ATTRIBUTE,
@@ -27,14 +32,33 @@ import {
   type WebviewBootConfig,
 } from "../src/protocol";
 import type { SWITCHBOARD, Switchboard } from "../src/switchboard";
+import { threadStorage, threadStoragePrefix } from "./thread-storage";
 import { toolkit } from "./tools";
 
 const boot = JSON.parse(
   document.body.getAttribute(BOOT_ATTRIBUTE) ?? "null",
 ) as WebviewBootConfig;
 
+installLinkInterceptor();
+
 let client: AssistantClient | undefined;
 startProbeListener(() => ({ boot, aui: client }));
+
+const localStorageAdapter = createLocalStorageAdapter({
+  storage: threadStorage,
+  prefix: threadStoragePrefix(boot.switchboard.runtime),
+});
+
+// useChatRuntime needs a history adapter with withFormat, which
+// createLocalStorageAdapter's lacks, so ai-sdk persists the thread list only.
+const threadListAdapter: RemoteThreadListAdapter =
+  boot.switchboard.runtime === "ai-sdk"
+    ? {
+        ...localStorageAdapter,
+        unstable_Provider: undefined,
+        unstable_useAdapters: undefined,
+      }
+    : localStorageAdapter;
 
 const config = AuiConfig({
   tools: Tools({ toolkit }),
@@ -58,42 +82,59 @@ function CaptureClient() {
   return null;
 }
 
-function FixtureThread({ runtime }: { runtime: AssistantRuntime }) {
-  return (
-    <AssistantRuntimeProvider runtime={runtime} config={config}>
-      <CaptureClient />
-      <Thread />
-    </AssistantRuntimeProvider>
-  );
-}
-
-function LocalThread() {
+function useLocalThreadRuntime() {
   const adapter = useMemo(
     () => createVSCodeModelAdapter({ api: MODEL_ROUTE }),
     [],
   );
-  return <FixtureThread runtime={useLocalRuntime(adapter)} />;
+  return useLocalRuntime(adapter);
 }
 
-function AiSdkThread() {
+function useAiSdkThreadRuntime() {
   const transport = useMemo(
     () => new AssistantChatTransport({ api: CHAT_ROUTE, fetch: vscodeFetch }),
     [],
   );
-  const runtime = useChatRuntime({
+  return useChatRuntime({
     transport,
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
   });
-  return <FixtureThread runtime={runtime} />;
 }
 
-const RUNTIME_THREADS: Record<
+const RUNTIME_HOOKS: Record<
   (typeof SWITCHBOARD.runtime.implemented)[number],
-  FC
+  () => AssistantRuntime
 > = {
-  "ai-sdk": AiSdkThread,
-  local: LocalThread,
+  "ai-sdk": useAiSdkThreadRuntime,
+  local: useLocalThreadRuntime,
 };
+
+function FixtureThreads({
+  useThreadRuntime,
+}: {
+  useThreadRuntime: () => AssistantRuntime;
+}) {
+  const runtime = useRemoteThreadListRuntime({
+    runtimeHook: useThreadRuntime,
+    adapter: threadListAdapter,
+  });
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      <CaptureClient />
+      <div className="flex h-full flex-col">
+        <nav
+          aria-label="Threads"
+          className="max-h-40 shrink-0 overflow-y-auto border-b p-2"
+        >
+          <ThreadList />
+        </nav>
+        <div className="min-h-0 flex-1">
+          <Thread />
+        </div>
+      </div>
+    </AssistantRuntimeProvider>
+  );
+}
 
 function NotImplementedBanner() {
   if (boot.unimplemented.length === 0) return null;
@@ -111,8 +152,10 @@ function NotImplementedBanner() {
 }
 
 function App() {
-  const RuntimeThread = (
-    RUNTIME_THREADS as Partial<Record<Switchboard["runtime"], FC>>
+  const useThreadRuntime = (
+    RUNTIME_HOOKS as Partial<
+      Record<Switchboard["runtime"], () => AssistantRuntime>
+    >
   )[boot.switchboard.runtime];
   const canMountThread = !boot.unimplemented.some(
     ({ key }) => key === "backend",
@@ -121,7 +164,9 @@ function App() {
     <main className="flex h-screen flex-col">
       <NotImplementedBanner />
       <div className="min-h-0 flex-1">
-        {canMountThread && RuntimeThread && <RuntimeThread />}
+        {canMountThread && useThreadRuntime && (
+          <FixtureThreads useThreadRuntime={useThreadRuntime} />
+        )}
       </div>
     </main>
   );
