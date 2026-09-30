@@ -1,4 +1,4 @@
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { MermaidDiagram } from "./mermaid-diagram";
 
@@ -48,5 +48,25 @@ describe("MermaidDiagram", () => {
     expect(document.adoptedStyleSheets).toHaveLength(1);
     second.unmount();
     expect(document.adoptedStyleSheets).toHaveLength(0);
+  });
+
+  it.each([
+    ["a dangling edge", "graph TD\n  A --> "],
+    ["a dangling labeled edge", "flowchart LR\n  A -->|label|"],
+    ["an empty diagram", "graph TD"],
+  ])("shows the fallback for %s", (_, code) => {
+    const { container } = render(<MermaidDiagram code={code} />);
+
+    expect(screen.getByText("diagram could not be rendered")).toBeTruthy();
+    expect(container.querySelector("svg")).toBeNull();
+  });
+
+  it("renders a complete diagram whose labels contain arrows", () => {
+    const { container } = render(
+      <MermaidDiagram code={"graph LR\n  A[a --> b] --> B"} />,
+    );
+
+    expect(screen.queryByText("diagram could not be rendered")).toBeNull();
+    expect(container.querySelector("svg")).toBeTruthy();
   });
 });
