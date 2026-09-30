@@ -123,6 +123,21 @@ const elementsRegistryItems: RegistryItem[] = [
     ],
   },
   {
+    name: "elements-tokens",
+    type: "registry:component",
+    title: "Elements Tokens",
+    description:
+      "Token count formatting for the elements family: a count in the unit that keeps it short, such as 48.2k or 912.5M.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/tokens.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/utils/tokens.ts",
+      },
+    ],
+  },
+  {
     name: "elements-href",
     type: "registry:component",
     title: "Elements Href",
@@ -872,7 +887,7 @@ const elementsRegistryItems: RegistryItem[] = [
     description:
       "What the run spent, split by model, against the session total.",
     file: "cost-meter.tsx",
-    usesElements: ["range"],
+    usesElements: ["range", "tokens"],
   }),
   createElementRegistryItem({
     slug: "quota-banner",
@@ -1189,7 +1204,10 @@ export const registry: RegistryItem[] = [
           "../../packages/ui/src/components/react/assistant-ui/elements/context-display.tsx",
       },
     ],
-    registryDependencies: ["tooltip"],
+    registryDependencies: [
+      "tooltip",
+      "https://r.assistant-ui.com/elements-tokens.json",
+    ],
   },
   {
     name: "voice",

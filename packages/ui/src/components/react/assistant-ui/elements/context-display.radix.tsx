@@ -15,6 +15,7 @@ import {
   type FC,
   type ReactNode,
 } from "react";
+import { formatTokenCount } from "../utils/tokens";
 
 export type TokenUsage = {
   totalTokens?: number | undefined;
@@ -22,14 +23,6 @@ export type TokenUsage = {
   cachedInputTokens?: number | undefined;
   outputTokens?: number | undefined;
   reasoningTokens?: number | undefined;
-};
-
-const formatTokenCount = (tokens: number): string => {
-  if (tokens >= 1_000_000)
-    return `${(tokens / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
-  if (tokens >= 1_000)
-    return `${(tokens / 1_000).toFixed(1).replace(/\.0$/, "")}k`;
-  return `${tokens}`;
 };
 
 const getUsagePercent = (
