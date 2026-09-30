@@ -21,6 +21,9 @@ const nextFrame = () => new Promise((r) => requestAnimationFrame(r));
 
 /** Settle time after the last frame, for effects that load asynchronously. */
 const SETTLE_MS = 120;
+/** How long no new issue must arrive before a noisy view counts as settled. */
+const QUIET_MS = 300;
+const QUIET_TIMEOUT_MS = 3_000;
 const IMAGE_TIMEOUT_MS = 2_000;
 
 const imagesLoaded = (root: ParentNode) =>
@@ -42,6 +45,25 @@ const show = async (view: GalleryView) => {
   await imagesLoaded(document);
   await sleep(SETTLE_MS);
   await nextFrame();
+};
+
+/**
+ * Waits until no issue has been recorded for `QUIET_MS` (at most
+ * `QUIET_TIMEOUT_MS`), so an async error or violation lands while the view
+ * that caused it is still the active one.
+ */
+const quiet = async (minMs = 0) => {
+  const start = performance.now();
+  let seen = issueMark();
+  let since = start;
+  while (performance.now() - start < QUIET_TIMEOUT_MS) {
+    await sleep(50);
+    const now = performance.now();
+    if (issueMark() !== seen) {
+      seen = issueMark();
+      since = now;
+    } else if (now - since >= QUIET_MS && now - start >= minMs) return;
+  }
 };
 
 const cardOf = (id: string) =>
@@ -107,18 +129,27 @@ type Sweep = {
  */
 const runSweep = async (): Promise<Sweep> => {
   const start = performance.now();
-  const sections: SectionReport[] = [];
+  // The page loads with every section mounted; their late async failures
+  // would otherwise land on the first section shown alone.
+  await quiet(1_000);
+  const sweepMark = issueMark();
+  const overflows: { id: string; overflow: string | null }[] = [];
   for (const { id } of SECTIONS) {
     const mark = issueMark();
     await show({ section: id, width: NARROW_WIDTH, noMotion: true });
-    sections.push({
-      id,
-      issues: issuesSince(mark).filter((i) => i.section === id),
-      overflow: measureOverflow(id),
-    });
+    overflows.push({ id, overflow: measureOverflow(id) });
+    if (issueMark() !== mark) await quiet();
   }
   const mark = issueMark();
+  // Issues are attributed when they arrive, which can be after the view moved on.
+  const swept = issuesSince(sweepMark, mark);
+  const sections = overflows.map(({ id, overflow }) => ({
+    id,
+    issues: swept.filter((i) => i.section === id),
+    overflow,
+  }));
   await show({ section: null, width: NARROW_WIDTH, noMotion: true });
+  await quiet();
   const pageOverflow =
     document.documentElement.scrollWidth - document.documentElement.clientWidth;
   const all = issuesSince(mark).filter((i) => i.section === ALL_SECTIONS);
