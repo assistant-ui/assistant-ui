@@ -170,7 +170,7 @@ describe("CheckoutSessionBridge", () => {
     expect(wire.dismiss).toHaveBeenCalledOnce();
   });
 
-  it("says once, as the retry starts, that a proposed product could not be added and keeps retrying every tick", async () => {
+  it("says once, as the retry starts, that a proposed product could not be added and keeps retrying every tick until it lands", async () => {
     vi.useFakeTimers();
     try {
       wire.addProduct
@@ -198,6 +198,10 @@ describe("CheckoutSessionBridge", () => {
       act(() => vi.advanceTimersByTime(5000));
       expect(wire.addProduct).toHaveBeenCalledTimes(3);
       expect(mocks.toastError).toHaveBeenCalledOnce();
+
+      await act(() => Promise.resolve());
+      act(() => vi.advanceTimersByTime(5000));
+      expect(wire.addProduct).toHaveBeenCalledTimes(3);
     } finally {
       vi.useRealTimers();
     }
@@ -255,26 +259,6 @@ describe("CheckoutSessionBridge", () => {
     } finally {
       vi.useRealTimers();
     }
-  });
-
-  it("retries a proposal the checkout rejected on the next tick, and only until it lands", async () => {
-    vi.useFakeTimers();
-    wire.addProduct.mockRejectedValueOnce(new Error("not-created"));
-    wire.state = {
-      ...previous(),
-      id: "s2",
-      status: "planning",
-      inputs: [proposal("p1", "assistant-ui")],
-    };
-    render(<CheckoutSessionBridge session={session} onChange={vi.fn()} />);
-    expect(wire.addProduct).toHaveBeenCalledOnce();
-    await act(() => Promise.resolve());
-    act(() => vi.advanceTimersByTime(5000));
-    expect(wire.addProduct).toHaveBeenCalledTimes(2);
-    await act(() => Promise.resolve());
-    act(() => vi.advanceTimersByTime(5000));
-    expect(wire.addProduct).toHaveBeenCalledTimes(2);
-    vi.useRealTimers();
   });
 
   it("leaves a proposal alone once the checkout is closed", () => {

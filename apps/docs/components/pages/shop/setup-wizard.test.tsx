@@ -58,6 +58,7 @@ window.matchMedia = (query: string) =>
   }) as unknown as MediaQueryList;
 
 afterEach(() => {
+  vi.useRealTimers();
   cleanup();
   vi.unstubAllGlobals();
   reducedMotion = false;
