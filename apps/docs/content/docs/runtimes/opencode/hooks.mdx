@@ -5,7 +5,7 @@ description: Permissions, questions, session state, runtime extras.
 
 import { OpenCodeIcon } from "@/components/icons/opencode";
 
-OpenCode-specific React hooks for interacting with the running session. All hooks must be used inside the runtime context (a tree wrapped in `AssistantRuntimeProvider` from a `useOpenCodeRuntime` setup).
+These React hooks read and act on the running OpenCode session. Use them inside the runtime context: a tree wrapped in `AssistantRuntimeProvider` with a runtime from `useOpenCodeRuntime`.
 
 ## Permissions
 
@@ -63,7 +63,9 @@ function QuestionPrompt() {
 
   return questions.map((req) => (
     <div key={req.id}>
-      <p>{req.text}</p>
+      {req.questions.map((q) => (
+        <p key={q.header}>{q.question}</p>
+      ))}
       <button
         onClick={() =>
           replyToQuestion(req.id, [
@@ -79,7 +81,7 @@ function QuestionPrompt() {
 }
 ```
 
-To reply, use `replyToQuestion(id, answers)` or `rejectQuestion(id)` from [`useOpenCodeRuntimeExtras`](#runtime-extras).
+Each request carries a `questions` array. To reply, use `replyToQuestion(id, answers)` or `rejectQuestion(id)` from [`useOpenCodeRuntimeExtras`](#runtime-extras). `answers` is a `QuestionAnswer[]`, and each `QuestionAnswer` is a `string[]`.
 
 ## Session
 
@@ -97,7 +99,7 @@ function SessionInfo() {
 
 ## Thread state
 
-`useOpenCodeThreadState` returns the full projected thread state (messages, run state, interactions, sync metadata). Use it for advanced custom views; most apps don't need it.
+`useOpenCodeThreadState` returns the full projected thread state (messages, run state, interactions, sync metadata). Use it for custom views that need more than the thread messages.
 
 ```tsx
 import { useOpenCodeThreadState } from "@assistant-ui/react-opencode";
@@ -155,7 +157,7 @@ function SessionActions() {
 | `replyToQuestion(id, answers)` | Answer a pending question. |
 | `rejectQuestion(id)` | Reject a pending question. |
 
-`useOpenCodePermissions` and `useOpenCodeQuestions` are sugar over `replyToPermission` / `replyToQuestion` / `rejectQuestion` plus the `pending` slices of state.
+`useOpenCodePermissions` returns the pending permissions together with `replyToPermission` as `reply`. `useOpenCodeQuestions` returns the pending questions only.
 
 ## Lower-level building blocks
 
@@ -169,7 +171,7 @@ For custom integrations that bypass `useOpenCodeRuntime`:
 | `projectOpenCodeThreadMessages` | Project raw OpenCode messages into assistant-ui thread messages. |
 | `createOpencodeClient` (re-exported from `@opencode-ai/sdk`) | Build a client with custom config. |
 
-These are only needed for advanced cases; most apps should use `useOpenCodeRuntime` directly.
+Most apps do not need these and use `useOpenCodeRuntime` directly.
 
 ## Related
 

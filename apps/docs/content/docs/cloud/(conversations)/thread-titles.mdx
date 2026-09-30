@@ -23,7 +23,7 @@ The run report, the trace receiver and a hosted assistant run start nothing. Eve
 
 ### What the model reads
 
-The first user message, and the first assistant message when one is already stored, and only their text parts. Tool calls, reasoning, sources and attachments are left out. The user's text alone may fill 8,000 characters. When a reply is stored, the two texts share that budget: the reply keeps up to 500 characters of it, the user's message takes the rest, and both are cut at their limit.
+The model reads the first user message, and the first assistant message when one is already stored, and only their text parts. Tool calls, reasoning, sources and attachments are left out. The user's text alone may fill 8,000 characters. When a reply is stored, the two texts share that budget: the reply keeps up to 500 characters of it, the user's message takes the rest, and both are cut at their limit.
 
 ### The model call
 
@@ -90,8 +90,8 @@ import { useAui } from "@assistant-ui/react";
 
 export function ThreadTitleActions() {
   const aui = useAui();
-  const rename = () => aui.threadListItem().rename("Refund for order 1042");
-  const generateTitle = () => aui.threadListItem().generateTitle();
+  const rename = () => aui.threadListItem.rename("Refund for order 1042");
+  const generateTitle = () => aui.threadListItem.generateTitle();
 
   return (
     <>
@@ -139,7 +139,7 @@ Content-Type: application/json
 
 ## Costs and limits
 
-Every title is a run the cloud made for itself. It is stored with its tokens, duration and cost, and excluded from every conversation figure, from the Runs page and from the project read API, so titles never distort your numbers.
+Every title is a run the cloud made for itself. It is stored with its tokens, duration and cost, and excluded from every conversation figure, from the Runs page and from the project read API.
 
 | Provider | Counted against | Priced |
 |---|---|---|

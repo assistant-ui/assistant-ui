@@ -1,15 +1,46 @@
 // @vitest-environment jsdom
 
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { useChat } from "@ai-sdk/react";
+import { Chat, useChat } from "@ai-sdk/react";
 import {
   lastAssistantMessageIsCompleteWithApprovalResponses,
   type ChatTransport,
   type UIMessage,
   type UIMessageChunk,
 } from "ai";
-import { describe, expect, it, vi } from "vitest";
+import { ToolResponse } from "assistant-stream";
+import { flushTapSync } from "@assistant-ui/tap";
+import { AuiConfig, createAssistantClient } from "@assistant-ui/store/client";
+import type {
+  ThreadHistoryAdapter,
+  ThreadRuntimeCore,
+} from "@assistant-ui/core";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { useAISDKRuntime } from "./useAISDKRuntime";
+import { useChatThread } from "./useChatThread";
+import { AISDKThreads } from "./AISDKThreads";
+import { isToolUIPart } from "ai";
+
+const historyState = vi.hoisted(() => ({
+  remoteId: undefined as string | undefined,
+}));
+
+vi.mock("@assistant-ui/store", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@assistant-ui/store")>();
+  return {
+    ...original,
+    useAui: (...args: Parameters<typeof original.useAui>) =>
+      historyState.remoteId
+        ? {
+            threadListItem: {
+              source: "threads",
+              getState: () => ({ remoteId: historyState.remoteId }),
+            },
+            subscribe: () => () => {},
+          }
+        : original.useAui(...args),
+  };
+});
 
 type ApprovalHandler = NonNullable<
   NonNullable<Parameters<typeof useAISDKRuntime>[1]>["onRespondToToolApproval"]
@@ -48,16 +79,50 @@ const toolOutput: UIMessageChunk[] = [
   { type: "finish" },
 ];
 
+const approvalMessage = (
+  messageId: string,
+  toolCallId: string,
+  approvalId: string,
+): UIMessage => ({
+  id: messageId,
+  role: "assistant",
+  parts: [
+    {
+      type: "tool-deploy",
+      toolCallId,
+      state: "approval-requested",
+      input: {},
+      approval: { id: approvalId },
+    },
+  ],
+});
+
+const userMessage: UIMessage = {
+  id: "user-1",
+  role: "user",
+  parts: [{ type: "text", text: "deploy" }],
+};
+
 const setup = async (
-  createHandler: (chat: () => ReturnType<typeof useChat>) => ApprovalHandler,
+  createHandler:
+    | ((chat: () => ReturnType<typeof useChat>) => ApprovalHandler)
+    | undefined,
   {
     messages,
     request = approvalStep(),
     continuation = () => streamOf(toolOutput),
+    joinStrategy,
+    cancelPendingToolCallsOnSend,
+    history,
+    hostApprovalOwner,
   }: {
     messages?: UIMessage[];
     request?: UIMessageChunk[];
     continuation?: () => ReadableStream<UIMessageChunk>;
+    joinStrategy?: "none";
+    cancelPendingToolCallsOnSend?: boolean;
+    history?: ThreadHistoryAdapter;
+    hostApprovalOwner?: boolean;
   } = {},
 ) => {
   let requests = 0;
@@ -70,27 +135,47 @@ const setup = async (
   const sendAutomaticallyWhen = vi.fn(
     lastAssistantMessageIsCompleteWithApprovalResponses,
   );
+  const chatInstance = hostApprovalOwner
+    ? new Chat<UIMessage>({
+        id: "chat-1",
+        ...(messages && { messages }),
+        transport: { sendMessages, reconnectToStream: async () => null },
+        sendAutomaticallyWhen,
+      })
+    : undefined;
 
   let handler: ApprovalHandler | undefined;
-  const { result } = renderHook(() => {
-    const chat = useChat({
-      id: "chat-1",
-      ...(messages && { messages }),
-      transport: { sendMessages, reconnectToStream: async () => null },
-      sendAutomaticallyWhen,
-    });
+  const { result, unmount } = renderHook(() => {
+    const chat = useChat(
+      chatInstance
+        ? { chat: chatInstance }
+        : {
+            id: "chat-1",
+            ...(messages && { messages }),
+            transport: { sendMessages, reconnectToStream: async () => null },
+            sendAutomaticallyWhen,
+          },
+    );
     return {
       chat,
       runtime: useAISDKRuntime(chat, {
-        onRespondToToolApproval: (response, context) =>
-          handler?.(response, context),
+        ...(createHandler && {
+          onRespondToToolApproval: (response, context) =>
+            handler?.(response, context),
+        }),
+        ...(joinStrategy && { joinStrategy }),
+        ...(history && { adapters: { history } }),
+        ...(chatInstance && { unstable_hostApprovalOwner: chatInstance }),
+        ...(cancelPendingToolCallsOnSend !== undefined && {
+          cancelPendingToolCallsOnSend,
+        }),
       }),
     };
   });
   const chat = () => result.current.chat;
-  handler = createHandler(chat);
+  handler = createHandler?.(chat);
 
-  if (!messages) {
+  if (!messages && !history) {
     await act(() => chat().sendMessage({ text: "deploy" }));
     await waitFor(() => expect(chat().status).toBe("ready"));
   }
@@ -101,7 +186,9 @@ const setup = async (
       .getMessagePartByToolCallId("tool-1");
 
   return {
+    unmount,
     chat,
+    thread: () => result.current.runtime.thread,
     part,
     approval: () =>
       (part().getState() as { approval?: Record<string, unknown> }).approval,
@@ -128,6 +215,735 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
     expect(toolPart()).toMatchObject({ state: "approval-requested" });
     expect(sendAutomaticallyWhen).toHaveBeenCalledTimes(automaticSendChecks);
     expect(sendMessages).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a host answer when a runtime remounts over the same chat", async () => {
+    const sendMessages = vi.fn<ChatTransport<UIMessage>["sendMessages"]>(
+      async () => streamOf(approvalStep()),
+    );
+    // One Chat, two runtime lifetimes: the shape AISDKThreads takes when a
+    // thread is switched away from and back.
+    const chatInstance = new Chat<UIMessage>({
+      id: "chat-remount",
+      transport: { sendMessages, reconnectToStream: async () => null },
+      sendAutomaticallyWhen:
+        lastAssistantMessageIsCompleteWithApprovalResponses,
+    });
+
+    const hostHandler = vi.fn<ApprovalHandler>(async () => {});
+    const mount = () =>
+      renderHook(() => {
+        const chat = useChat({ chat: chatInstance });
+        return {
+          chat,
+          runtime: useAISDKRuntime(chat, {
+            onRespondToToolApproval: hostHandler,
+            unstable_hostApprovalOwner: chatInstance,
+          }),
+        };
+      });
+
+    const first = mount();
+    await act(() => first.result.current.chat.sendMessage({ text: "deploy" }));
+    await waitFor(() => expect(first.result.current.chat.status).toBe("ready"));
+
+    const partOf = (r: ReturnType<typeof mount>) =>
+      r.result.current.runtime.thread
+        .getMessageByIndex(1)
+        .getMessagePartByToolCallId("tool-1");
+    const approvalOf = (r: ReturnType<typeof mount>) =>
+      (partOf(r).getState() as { approval?: Record<string, unknown> }).approval;
+
+    await act(() => partOf(first).respondToToolApproval({ approved: true }));
+    expect(approvalOf(first)).toMatchObject({
+      id: "approval-1",
+      approved: true,
+    });
+
+    first.unmount();
+    const second = mount();
+
+    // The answer belongs to the chat, so the remounted runtime still shows the
+    // request resolved rather than open for a second answer.
+    await waitFor(() =>
+      expect(approvalOf(second)).toMatchObject({
+        id: "approval-1",
+        approved: true,
+      }),
+    );
+
+    // The remounted runtime rebuilt its answered-id set from the owner, so a
+    // second answer is refused and the host handler is not called again.
+    expect(() =>
+      partOf(second).respondToToolApproval({ approved: true }),
+    ).toThrow(/no pending approval|not waiting for a response/);
+    expect(hostHandler).toHaveBeenCalledOnce();
+    second.unmount();
+
+    // A different Chat carrying the same id is a different owner, so its
+    // request starts unanswered. Keying the record by id rather than by the
+    // object would carry the first chat's answer across to it.
+    const twin = new Chat<UIMessage>({
+      id: "chat-remount",
+      transport: { sendMessages, reconnectToStream: async () => null },
+      sendAutomaticallyWhen:
+        lastAssistantMessageIsCompleteWithApprovalResponses,
+    });
+    const other = renderHook(() => {
+      const chat = useChat({ chat: twin });
+      return {
+        chat,
+        runtime: useAISDKRuntime(chat, {
+          onRespondToToolApproval: async () => {},
+          unstable_hostApprovalOwner: twin,
+        }),
+      };
+    });
+    await act(() => other.result.current.chat.sendMessage({ text: "deploy" }));
+    await waitFor(() => expect(other.result.current.chat.status).toBe("ready"));
+
+    expect(approvalOf(other)).not.toMatchObject({ approved: true });
+    other.unmount();
+  });
+
+  it("keeps a host answer while the answered part is out of the visible messages", async () => {
+    // A branch switch or a deletion rewrites `messages` without resolving
+    // anything. Retiring on absence would drop the answer and let the host
+    // handler run a second time for a request it already answered.
+    const hostHandler = vi.fn<ApprovalHandler>(async () => {});
+    const sendMessages = vi.fn<ChatTransport<UIMessage>["sendMessages"]>(
+      async () => streamOf(approvalStep()),
+    );
+    const chatInstance = new Chat<UIMessage>({
+      id: "chat-branch-switch",
+      transport: { sendMessages, reconnectToStream: async () => null },
+      sendAutomaticallyWhen:
+        lastAssistantMessageIsCompleteWithApprovalResponses,
+    });
+
+    const view = renderHook(() => {
+      const chat = useChat({ chat: chatInstance });
+      return {
+        chat,
+        runtime: useAISDKRuntime(chat, {
+          onRespondToToolApproval: hostHandler,
+          unstable_hostApprovalOwner: chatInstance,
+        }),
+      };
+    });
+
+    await act(() => view.result.current.chat.sendMessage({ text: "deploy" }));
+    await waitFor(() => expect(view.result.current.chat.status).toBe("ready"));
+
+    const part = () =>
+      view.result.current.runtime.thread
+        .getMessageByIndex(1)
+        .getMessagePartByToolCallId("tool-1");
+    const approval = () =>
+      (part().getState() as { approval?: Record<string, unknown> }).approval;
+
+    const answered = view.result.current.chat.messages;
+    await act(() => part().respondToToolApproval({ approved: true }));
+    expect(approval()).toMatchObject({ approved: true });
+
+    // Switch away: the answered part leaves the visible list entirely.
+    await act(async () => {
+      view.result.current.chat.setMessages([]);
+    });
+    // Switch back.
+    await act(async () => {
+      view.result.current.chat.setMessages(answered);
+    });
+
+    await waitFor(() =>
+      expect(approval()).toMatchObject({ id: "approval-1", approved: true }),
+    );
+    expect(() => part().respondToToolApproval({ approved: true })).toThrow(
+      /no pending approval|not waiting for a response/,
+    );
+    expect(hostHandler).toHaveBeenCalledOnce();
+    view.unmount();
+  });
+
+  it("reopens the request on the remounted runtime when the handler rejects after the remount", async () => {
+    // The rollback resolves against a runtime that has already unmounted, so
+    // it has to reach whichever runtime is now mounted over that owner.
+    const sendMessages = vi.fn<ChatTransport<UIMessage>["sendMessages"]>(
+      async () => streamOf(approvalStep()),
+    );
+    const chatInstance = new Chat<UIMessage>({
+      id: "chat-remount-reject",
+      transport: { sendMessages, reconnectToStream: async () => null },
+      sendAutomaticallyWhen:
+        lastAssistantMessageIsCompleteWithApprovalResponses,
+    });
+
+    let rejectHandler!: (error: Error) => void;
+    const pending = new Promise<void>((_resolve, reject) => {
+      rejectHandler = reject;
+    });
+
+    const mount = () =>
+      renderHook(() => {
+        const chat = useChat({ chat: chatInstance });
+        return {
+          chat,
+          runtime: useAISDKRuntime(chat, {
+            onRespondToToolApproval: () => pending,
+            unstable_hostApprovalOwner: chatInstance,
+          }),
+        };
+      });
+
+    const first = mount();
+    await act(() => first.result.current.chat.sendMessage({ text: "deploy" }));
+    await waitFor(() => expect(first.result.current.chat.status).toBe("ready"));
+
+    const partOf = (r: ReturnType<typeof mount>) =>
+      r.result.current.runtime.thread
+        .getMessageByIndex(1)
+        .getMessagePartByToolCallId("tool-1");
+    const approvalOf = (r: ReturnType<typeof mount>) =>
+      (partOf(r).getState() as { approval?: Record<string, unknown> }).approval;
+
+    const responded = partOf(first)
+      .respondToToolApproval({ approved: true })
+      .catch(() => {});
+    await waitFor(() =>
+      expect(approvalOf(first)).toMatchObject({ approved: true }),
+    );
+
+    first.unmount();
+    const second = mount();
+    await waitFor(() =>
+      expect(approvalOf(second)).toMatchObject({ approved: true }),
+    );
+
+    await act(async () => {
+      rejectHandler(new Error("host rejected"));
+      await responded;
+    });
+
+    await waitFor(() =>
+      expect(approvalOf(second)).not.toMatchObject({ approved: true }),
+    );
+    second.unmount();
+  });
+
+  it("accepts a retry when the host rejects before the remount subscribes", async () => {
+    const chatInstance = new Chat<UIMessage>({
+      id: "chat-reject-before-remount",
+      transport: {
+        sendMessages: async () => streamOf(approvalStep()),
+        reconnectToStream: async () => null,
+      },
+    });
+    let rejectHandler!: (error: Error) => void;
+    const pending = new Promise<void>((_resolve, reject) => {
+      rejectHandler = reject;
+    });
+    const handler = vi
+      .fn<ApprovalHandler>()
+      .mockImplementationOnce(() => pending)
+      .mockImplementation(async () => {});
+    const mount = () =>
+      renderHook(() => {
+        const chat = useChat({ chat: chatInstance });
+        return {
+          chat,
+          runtime: useAISDKRuntime(chat, {
+            onRespondToToolApproval: handler,
+            unstable_hostApprovalOwner: chatInstance,
+          }),
+        };
+      });
+    const partOf = (view: ReturnType<typeof mount>) =>
+      view.result.current.runtime.thread
+        .getMessageByIndex(1)
+        .getMessagePartByToolCallId("tool-1");
+    const approvalOf = (view: ReturnType<typeof mount>) =>
+      (partOf(view).getState() as { approval?: Record<string, unknown> })
+        .approval;
+
+    const first = mount();
+    await act(() => first.result.current.chat.sendMessage({ text: "deploy" }));
+    await waitFor(() => expect(first.result.current.chat.status).toBe("ready"));
+    const response = partOf(first).respondToToolApproval({ approved: true });
+    await waitFor(() =>
+      expect(approvalOf(first)).toMatchObject({ approved: true }),
+    );
+
+    first.unmount();
+    rejectHandler(new Error("host rejected"));
+    await expect(response).rejects.toThrow("host rejected");
+    const second = mount();
+    expect(approvalOf(second)).not.toMatchObject({ approved: true });
+    await act(() => partOf(second).respondToToolApproval({ approved: false }));
+    expect(approvalOf(second)).toMatchObject({ approved: false });
+    expect(handler).toHaveBeenCalledTimes(2);
+    second.unmount();
+  });
+
+  // The production path: AISDKThreads mounts only the visible thread through
+  // useChatThread, so the owner has to be the Chat that hook holds, not the
+  // useChat helpers it re-mints each render.
+  it("keeps a host answer across a useChatThread remount over one chat", async () => {
+    const hostHandler = vi.fn<ApprovalHandler>(async () => {});
+    const sendMessages = vi.fn<ChatTransport<UIMessage>["sendMessages"]>(
+      async () => streamOf(approvalStep()),
+    );
+    const chatInstance = new Chat<UIMessage>({
+      id: "chat-thread-remount",
+      transport: { sendMessages, reconnectToStream: async () => null },
+      sendAutomaticallyWhen:
+        lastAssistantMessageIsCompleteWithApprovalResponses,
+    });
+
+    const mount = () =>
+      renderHook(() =>
+        useChatThread(
+          { onRespondToToolApproval: hostHandler },
+          {
+            id: "thread-1",
+            isMainThread: true,
+            getThreadListItem: () => undefined,
+            chat: chatInstance,
+          },
+        ),
+      );
+
+    const first = mount();
+    await act(() =>
+      (first.result.current as any).thread.append({
+        role: "user",
+        content: [{ type: "text", text: "deploy" }],
+      }),
+    );
+
+    const partOf = (r: ReturnType<typeof mount>) =>
+      (r.result.current as any).thread
+        .getMessageByIndex(1)
+        .getMessagePartByToolCallId("tool-1");
+    const approvalOf = (r: ReturnType<typeof mount>) =>
+      (partOf(r).getState() as { approval?: Record<string, unknown> }).approval;
+
+    await waitFor(() =>
+      expect(approvalOf(first)).toMatchObject({ id: "approval-1" }),
+    );
+    await act(() => partOf(first).respondToToolApproval({ approved: true }));
+    expect(approvalOf(first)).toMatchObject({ approved: true });
+
+    first.unmount();
+    const second = mount();
+
+    await waitFor(() =>
+      expect(approvalOf(second)).toMatchObject({
+        id: "approval-1",
+        approved: true,
+      }),
+    );
+
+    // Answering again after the remount is refused, and the host handler is
+    // not invoked a second time for the same request.
+    expect(() =>
+      partOf(second).respondToToolApproval({ approved: true }),
+    ).toThrow(/no pending approval|not waiting for a response/);
+    expect(hostHandler).toHaveBeenCalledOnce();
+    second.unmount();
+  });
+
+  it("keeps a host answer after switching away and back through AISDKThreads", async () => {
+    const handler = vi.fn<ApprovalHandler>(async () => {});
+    const sendMessages = vi.fn<ChatTransport<UIMessage>["sendMessages"]>(
+      async () => streamOf(approvalStep()),
+    );
+    const handle = createAssistantClient(
+      AuiConfig({
+        threads: AISDKThreads({
+          transport: { sendMessages, reconnectToStream: async () => null },
+          onRespondToToolApproval: handler,
+        }),
+      }),
+    );
+    handle.subscribe(() => {});
+    try {
+      const thread = () => handle.getClient().thread;
+      const part = () =>
+        thread().message({ index: 1 }).part({ toolCallId: "tool-1" });
+      const approval = () =>
+        (part().getState() as { approval?: Record<string, unknown> }).approval;
+
+      flushTapSync(() => handle.getClient().composer.setText("deploy"));
+      flushTapSync(() => handle.getClient().composer.send());
+      await waitFor(() =>
+        expect(approval()).toMatchObject({ id: "approval-1" }),
+      );
+      await act(() => part().respondToToolApproval({ approved: true }));
+      expect(approval()).toMatchObject({ approved: true });
+
+      flushTapSync(() => handle.getClient().threads.switchToNewThread());
+      flushTapSync(() => handle.getClient().threads.switchToThread("main"));
+
+      expect(approval()).toMatchObject({ id: "approval-1", approved: true });
+      expect(() => part().respondToToolApproval({ approved: true })).toThrow(
+        /no pending approval|not waiting for a response/,
+      );
+      expect(handler).toHaveBeenCalledOnce();
+    } finally {
+      handle.destroy();
+    }
+  });
+
+  it("keeps a host answer on a settled tool part after a remount", async () => {
+    const sendMessages = vi.fn<ChatTransport<UIMessage>["sendMessages"]>(
+      async () => streamOf(approvalStep()),
+    );
+    const chatInstance = new Chat<UIMessage>({
+      id: "chat-retire",
+      transport: { sendMessages, reconnectToStream: async () => null },
+    });
+
+    const mount = () =>
+      renderHook(() => {
+        const chat = useChat({ chat: chatInstance });
+        return {
+          chat,
+          runtime: useAISDKRuntime(chat, {
+            onRespondToToolApproval: async () => {},
+            unstable_hostApprovalOwner: chatInstance,
+          }),
+        };
+      });
+
+    const first = mount();
+    await act(() => first.result.current.chat.sendMessage({ text: "deploy" }));
+    await waitFor(() => expect(first.result.current.chat.status).toBe("ready"));
+
+    const partOf = (r: ReturnType<typeof mount>) =>
+      r.result.current.runtime.thread
+        .getMessageByIndex(1)
+        .getMessagePartByToolCallId("tool-1");
+    await act(() => partOf(first).respondToToolApproval({ approved: true }));
+    expect(
+      (partOf(first).getState() as { approval?: Record<string, unknown> })
+        .approval,
+    ).toMatchObject({ approved: true });
+
+    await act(async () => {
+      first.result.current.chat.setMessages((messages) =>
+        messages.map((message) => ({
+          ...message,
+          parts: message.parts.map((part) =>
+            isToolUIPart(part) && part.state === "approval-requested"
+              ? ({
+                  ...part,
+                  state: "output-available",
+                  output: "deployed",
+                } as (typeof message.parts)[number])
+              : part,
+          ),
+        })),
+      );
+    });
+    expect(
+      (partOf(first).getState() as { approval?: Record<string, unknown> })
+        .approval,
+    ).toMatchObject({ id: "approval-1", approved: true });
+
+    first.unmount();
+    const second = mount();
+    await waitFor(() =>
+      expect(second.result.current.chat.messages.length).toBeGreaterThan(0),
+    );
+
+    const settled = (
+      partOf(second).getState() as { approval?: Record<string, unknown> }
+    ).approval;
+    expect(settled).toMatchObject({ id: "approval-1", approved: true });
+    second.unmount();
+  });
+
+  it("stores a run paused on an unanswered approval, so a reload still shows the request", async () => {
+    historyState.remoteId = "remote-pending-approval";
+    onTestFinished(() => {
+      historyState.remoteId = undefined;
+    });
+    const append = vi.fn(async (_item: { message: UIMessage }) => {});
+    const history = {
+      load: vi.fn(),
+      append: vi.fn(),
+      withFormat: vi.fn().mockReturnValue({
+        load: vi.fn(async () => ({ headId: null, messages: [] })),
+        append,
+        update: vi.fn(async () => {}),
+      }),
+    } as unknown as ThreadHistoryAdapter;
+    const { chat, thread } = await setup(undefined, { history });
+
+    await act(() => chat().sendMessage({ text: "deploy" }));
+    await waitFor(() => expect(chat().status).toBe("ready"));
+
+    expect(thread().getMessageByIndex(1).getState().status).toMatchObject({
+      type: "requires-action",
+      reason: "interrupt",
+    });
+    await waitFor(() =>
+      expect(
+        append.mock.calls.find(
+          ([item]) => item.message.id === "assistant-1",
+        )?.[0].message.parts,
+      ).toContainEqual(
+        expect.objectContaining({
+          state: "approval-requested",
+          approval: { id: "approval-1" },
+        }),
+      ),
+    );
+  });
+
+  it("keeps a settled host answer in history after the run ends and reloads", async () => {
+    historyState.remoteId = "remote-settled-approval";
+    onTestFinished(() => {
+      historyState.remoteId = undefined;
+    });
+    const stored = [
+      { parentId: null, message: userMessage },
+      {
+        parentId: "user-1",
+        message: approvalMessage("assistant-1", "tool-1", "approval-1"),
+      },
+    ];
+    const load = vi.fn(async () => ({
+      headId: "assistant-1",
+      messages: stored,
+    }));
+    const update = vi.fn(async (item: (typeof stored)[number], id: string) => {
+      const index = stored.findIndex(({ message }) => message.id === id);
+      stored[index] = item;
+    });
+    const history = {
+      load: vi.fn(),
+      append: vi.fn(),
+      withFormat: vi.fn().mockReturnValue({ load, append: vi.fn(), update }),
+    } as unknown as ThreadHistoryAdapter;
+    const first = await setup(() => async () => {}, {
+      history,
+      request: toolOutput,
+      hostApprovalOwner: true,
+    });
+    await waitFor(() => expect(first.chat().messages).toHaveLength(2));
+
+    await first.respond();
+    await waitFor(() =>
+      expect(stored[1]?.message.metadata).toMatchObject({
+        __aui_toolApprovalResponses: { "approval-1": { approved: true } },
+      }),
+    );
+    await act(() => first.chat().sendMessage());
+    await waitFor(() => expect(first.chat().status).toBe("ready"));
+    await waitFor(() =>
+      expect(first.toolPart()).toMatchObject({ state: "output-available" }),
+    );
+    expect(first.approval()).toMatchObject({ approved: true });
+    await waitFor(() =>
+      expect(stored[1]?.message.parts).toMatchObject([
+        { state: "output-available" },
+      ]),
+    );
+    expect(stored[1]?.message.metadata).toMatchObject({
+      __aui_toolApprovalResponses: { "approval-1": { approved: true } },
+    });
+
+    first.unmount();
+    const second = await setup(() => async () => {}, { history });
+    await waitFor(() => expect(second.chat().messages).toHaveLength(2));
+    expect(second.approval()).toMatchObject({
+      id: "approval-1",
+      approved: true,
+    });
+    second.unmount();
+  });
+
+  it("persists a successful host answer after the owner changes", async () => {
+    historyState.remoteId = "remote-owner-change";
+    onTestFinished(() => {
+      historyState.remoteId = undefined;
+    });
+    const stored = [
+      { parentId: null, message: userMessage },
+      {
+        parentId: "user-1",
+        message: approvalMessage("assistant-1", "tool-1", "approval-1"),
+      },
+    ];
+    const load = vi.fn(async () => ({
+      headId: "assistant-1",
+      messages: stored,
+    }));
+    const update = vi.fn(async (item: (typeof stored)[number], id: string) => {
+      const index = stored.findIndex(({ message }) => message.id === id);
+      stored[index] = item;
+    });
+    const history = {
+      load: vi.fn(),
+      append: vi.fn(),
+      withFormat: vi.fn().mockReturnValue({ load, append: vi.fn(), update }),
+    } as unknown as ThreadHistoryAdapter;
+    const chatA = new Chat<UIMessage>({
+      id: "chat-owner-a",
+      transport: {
+        sendMessages: async () => streamOf([]),
+        reconnectToStream: async () => null,
+      },
+    });
+    const ownerB = {};
+    let owner: object = chatA;
+    let resolveHandler!: () => void;
+    const handler = vi.fn<ApprovalHandler>(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveHandler = resolve;
+        }),
+    );
+    const view = renderHook(() => {
+      const chat = useChat({ chat: chatA });
+      return {
+        chat,
+        runtime: useAISDKRuntime(chat, {
+          adapters: { history },
+          onRespondToToolApproval: handler,
+          unstable_hostApprovalOwner: owner,
+        }),
+      };
+    });
+    const part = () =>
+      view.result.current.runtime.thread
+        .getMessageByIndex(1)
+        .getMessagePartByToolCallId("tool-1");
+
+    await waitFor(() =>
+      expect(view.result.current.chat.messages).toHaveLength(2),
+    );
+    const responding = part().respondToToolApproval({ approved: true });
+    await waitFor(() => expect(handler).toHaveBeenCalledOnce());
+
+    owner = ownerB;
+    view.rerender();
+    await act(async () => {
+      resolveHandler();
+      await responding;
+    });
+
+    expect(stored[1]?.message.metadata).toMatchObject({
+      __aui_toolApprovalResponses: { "approval-1": { approved: true } },
+    });
+    view.unmount();
+
+    const reloaded = await setup(() => async () => {}, {
+      history,
+      hostApprovalOwner: true,
+    });
+    await waitFor(() => expect(reloaded.chat().messages).toHaveLength(2));
+    expect(reloaded.approval()).toMatchObject({
+      id: "approval-1",
+      approved: true,
+    });
+    reloaded.unmount();
+  });
+
+  it("rolls a rejected answer back to its own owner after the owner changes", async () => {
+    const sendMessages = vi.fn<ChatTransport<UIMessage>["sendMessages"]>(
+      async () => streamOf(approvalStep()),
+    );
+    const chatA = new Chat<UIMessage>({
+      id: "chat-owner-a",
+      transport: { sendMessages, reconnectToStream: async () => null },
+    });
+    const ownerB = {};
+    let rejectHandler!: (err: Error) => void;
+    // Owner A's answer is held open so it can be rejected after the switch;
+    // owner B's resolves, so B holds a real answer under the same approval id.
+    let owner: object = chatA;
+    const handler = vi.fn<ApprovalHandler>(() =>
+      owner === chatA
+        ? new Promise<void>((_resolve, reject) => {
+            rejectHandler = reject;
+          })
+        : Promise.resolve(),
+    );
+
+    const mountOver = (approvalOwner: object) =>
+      renderHook(() => {
+        const chat = useChat({ chat: chatA });
+        return {
+          chat,
+          runtime: useAISDKRuntime(chat, {
+            onRespondToToolApproval: handler,
+            unstable_hostApprovalOwner: approvalOwner,
+          }),
+        };
+      });
+
+    const approvalIn = (r: ReturnType<typeof mountOver>) =>
+      (
+        r.result.current.runtime.thread
+          .getMessageByIndex(1)
+          .getMessagePartByToolCallId("tool-1")
+          .getState() as { approval?: Record<string, unknown> }
+      ).approval;
+
+    const view = renderHook(() => {
+      const chat = useChat({ chat: chatA });
+      return {
+        chat,
+        runtime: useAISDKRuntime(chat, {
+          onRespondToToolApproval: handler,
+          unstable_hostApprovalOwner: owner,
+        }),
+      };
+    });
+
+    await act(() => view.result.current.chat.sendMessage({ text: "deploy" }));
+    await waitFor(() => expect(view.result.current.chat.status).toBe("ready"));
+
+    const part = () =>
+      view.result.current.runtime.thread
+        .getMessageByIndex(1)
+        .getMessagePartByToolCallId("tool-1");
+    const answering = part()
+      .respondToToolApproval({ approved: true })
+      .catch(() => {});
+    await waitFor(() => expect(handler).toHaveBeenCalledOnce());
+
+    // The runtime moves to a different owner while the answer is in flight.
+    owner = ownerB;
+    view.rerender();
+
+    // Owner B answers the same approval id, so the rollback below has a
+    // same-id neighbour it could wrongly delete.
+    await waitFor(() => expect(approvalIn(view)?.approved).toBeUndefined());
+    await act(() => part().respondToToolApproval({ approved: false }));
+    await waitFor(() => expect(approvalIn(view)?.approved).toBe(false));
+
+    await act(async () => {
+      rejectHandler(new Error("host refused"));
+      await answering;
+    });
+
+    // The rollback belongs to chat A, so the owner on screen keeps its own
+    // answer rather than being reopened alongside A.
+    await waitFor(() => expect(approvalIn(view)?.approved).toBe(false));
+    view.unmount();
+
+    const reopened = mountOver(chatA);
+    await waitFor(() => expect(approvalIn(reopened)?.approved).toBeUndefined());
+    reopened.unmount();
+
+    const stillAnswered = mountOver(ownerB);
+    await waitFor(() =>
+      expect(approvalIn(stillAnswered)?.approved).toBe(false),
+    );
+    stillAnswered.unmount();
   });
 
   it("renders a streamed request as its approvalDescriptor declares", async () => {
@@ -295,8 +1111,53 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
     expect(sendMessages).toHaveBeenCalledTimes(2);
   });
 
-  it("leaves a request handed back to the AI SDK as the AI SDK does", async () => {
-    const { approval, toolPart, sendMessages, respond } = await setup(
+  it("cancels an unanswered approval when a staged message follows it", async () => {
+    const { thread, approval, part, toolPart } = await setup(
+      () =>
+        (_response, { respondViaAISDK }) =>
+          respondViaAISDK(),
+    );
+
+    await act(() =>
+      thread().append({
+        role: "user",
+        content: [{ type: "text", text: "later" }],
+        startRun: false,
+      }),
+    );
+
+    expect(toolPart()).toMatchObject({ state: "approval-requested" });
+    expect(approval()).toMatchObject({
+      id: "approval-1",
+      resolution: "cancelled",
+    });
+    expect(part().getState().status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+  });
+
+  it("preserves a host answer when a staged message follows it", async () => {
+    const { thread, approval, respond } = await setup(() => async () => {});
+
+    await respond();
+    await act(() =>
+      thread().append({
+        role: "user",
+        content: [{ type: "text", text: "later" }],
+        startRun: false,
+      }),
+    );
+
+    expect(approval()).toMatchObject({
+      id: "approval-1",
+      approved: true,
+    });
+    expect(approval()).not.toHaveProperty("resolution");
+  });
+
+  it("rejects a stale approval even when consecutive assistant messages are joined", async () => {
+    const { approval, part, toolPart, sendMessages, respond } = await setup(
       () =>
         (_response, { respondViaAISDK }) =>
           respondViaAISDK(),
@@ -329,10 +1190,705 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
       },
     );
 
-    await respond();
-
     expect(toolPart()).toMatchObject({ state: "approval-requested" });
-    expect(approval()).not.toHaveProperty("approved");
+    expect(approval()).toMatchObject({
+      id: "approval-1",
+      resolution: "cancelled",
+    });
+    expect(part().getState().status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+    expect(() => respond()).toThrow("Tool call has no pending approval");
+    expect(sendMessages).not.toHaveBeenCalled();
+  });
+
+  it("cancels the approval chunk before a voice assistant message", async () => {
+    const { thread } = await setup(undefined, {
+      messages: [
+        userMessage,
+        approvalMessage("assistant-1", "tool-1", "approval-1"),
+        {
+          id: "voice-1",
+          role: "assistant",
+          parts: [{ type: "text", text: "Hello" }],
+          metadata: { modality: "voice" },
+        },
+      ],
+    });
+
+    expect(thread().getMessageByIndex(1).getState().status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+    expect(thread().getMessageByIndex(2).getState().status).toMatchObject({
+      type: "complete",
+    });
+  });
+
+  it("keeps a joined message answerable when its last approval is open", async () => {
+    const handler = vi.fn<ApprovalHandler>(async () => {});
+    const { thread } = await setup(() => handler, {
+      messages: [
+        userMessage,
+        approvalMessage("assistant-1", "tool-1", "approval-1"),
+        approvalMessage("assistant-2", "tool-2", "approval-2"),
+      ],
+    });
+    const message = () => thread().getMessageByIndex(1);
+    const earlier = () => message().getMessagePartByToolCallId("tool-1");
+    const last = () => message().getMessagePartByToolCallId("tool-2");
+
+    expect(message().getState().status).toMatchObject({
+      type: "requires-action",
+    });
+    expect(
+      (earlier().getState() as { approval?: Record<string, unknown> }).approval,
+    ).toMatchObject({
+      resolution: "cancelled",
+    });
+    await act(() => last().respondToToolApproval({ approved: true }));
+    expect(handler).toHaveBeenCalledWith(
+      { approvalId: "approval-2", approved: true },
+      expect.objectContaining({ toolCallId: "tool-2" }),
+    );
+    expect(
+      (last().getState() as { approval?: Record<string, unknown> }).approval,
+    ).toMatchObject({
+      approved: true,
+    });
+  });
+
+  it("keeps a joined human tool call open after an earlier approval is superseded", async () => {
+    const { thread } = await setup(undefined, {
+      messages: [
+        userMessage,
+        approvalMessage("assistant-1", "tool-1", "approval-1"),
+        {
+          id: "assistant-2",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-lookup",
+              toolCallId: "tool-2",
+              state: "input-available",
+              input: {},
+            },
+          ],
+        },
+      ],
+    });
+    const message = thread().getMessageByIndex(1);
+
+    expect(
+      (
+        message.getMessagePartByToolCallId("tool-1").getState() as {
+          approval?: Record<string, unknown>;
+        }
+      ).approval,
+    ).toMatchObject({ resolution: "cancelled" });
+    expect(message.getState().status).toMatchObject({
+      type: "requires-action",
+    });
+    expect(
+      message.getMessagePartByToolCallId("tool-2").getState().status,
+    ).toMatchObject({
+      type: "requires-action",
+    });
+  });
+
+  it("keeps a joined host-answered approval open after an earlier approval is superseded", async () => {
+    const handler = vi.fn<ApprovalHandler>(async () => {});
+    const { thread } = await setup(() => handler, {
+      messages: [
+        userMessage,
+        approvalMessage("assistant-1", "tool-1", "approval-1"),
+        approvalMessage("assistant-2", "tool-2", "approval-2"),
+      ],
+    });
+    const message = () => thread().getMessageByIndex(1);
+    const last = () => message().getMessagePartByToolCallId("tool-2");
+
+    await act(() => last().respondToToolApproval({ approved: true }));
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(
+      (
+        message().getMessagePartByToolCallId("tool-1").getState() as {
+          approval?: Record<string, unknown>;
+        }
+      ).approval,
+    ).toMatchObject({ resolution: "cancelled" });
+    expect(message().getState().status).toMatchObject({
+      type: "requires-action",
+    });
+    expect(last().getState()).toMatchObject({
+      approval: { approved: true },
+      status: { type: "requires-action" },
+    });
+  });
+
+  it("keeps the last joined message running while the chat streams", async () => {
+    let stream!: ReadableStreamDefaultController<UIMessageChunk>;
+    const { chat, thread } = await setup(undefined, {
+      messages: [
+        userMessage,
+        approvalMessage("assistant-1", "tool-1", "approval-1"),
+      ],
+      continuation: () =>
+        new ReadableStream({
+          start(controller) {
+            stream = controller;
+          },
+        }),
+    });
+
+    act(() => {
+      void chat().sendMessage();
+    });
+    await act(async () => {
+      stream.enqueue({ type: "start", messageId: "assistant-2" });
+      stream.enqueue({ type: "text-start", id: "text-2" });
+      stream.enqueue({ type: "text-delta", id: "text-2", delta: "working" });
+    });
+    await waitFor(() => expect(chat().status).toBe("streaming"));
+    expect(thread().getMessageByIndex(1).getState().status).toMatchObject({
+      type: "running",
+    });
+
+    await act(async () => {
+      stream.enqueue({ type: "text-end", id: "text-2" });
+      stream.enqueue({ type: "finish" });
+      stream.close();
+    });
+  });
+
+  it.each([
+    {
+      situation: "without superseded approvals",
+      middle: {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [{ type: "text", text: "Earlier reply" }],
+      } as UIMessage,
+    },
+    {
+      situation: "with unchanged superseded approval ids",
+      middle: approvalMessage("assistant-1", "tool-1", "approval-1"),
+    },
+  ])(
+    "keeps earlier messages stable while a reply streams $situation",
+    async ({ middle }) => {
+      let stream!: ReadableStreamDefaultController<UIMessageChunk>;
+      const { chat, thread } = await setup(undefined, {
+        messages: [
+          userMessage,
+          middle,
+          {
+            id: "user-2",
+            role: "user",
+            parts: [{ type: "text", text: "Continue" }],
+          },
+        ],
+        continuation: () =>
+          new ReadableStream({
+            start(controller) {
+              stream = controller;
+            },
+          }),
+      });
+
+      act(() => {
+        void chat().sendMessage();
+      });
+      await act(async () => {
+        stream.enqueue({ type: "start", messageId: "assistant-2" });
+        stream.enqueue({ type: "text-start", id: "text-2" });
+        stream.enqueue({ type: "text-delta", id: "text-2", delta: "One" });
+      });
+      await waitFor(() => expect(chat().status).toBe("streaming"));
+      const earlierMessage = thread().getState().messages[1];
+
+      await act(async () => {
+        stream.enqueue({ type: "text-delta", id: "text-2", delta: " two" });
+      });
+
+      expect(chat().messages.at(-1)?.parts).toMatchObject([
+        { type: "text", text: "One two" },
+      ]);
+      expect(thread().getState().messages[1]).toBe(earlierMessage);
+
+      await act(async () => {
+        stream.enqueue({ type: "text-end", id: "text-2" });
+        stream.enqueue({ type: "finish" });
+        stream.close();
+      });
+    },
+  );
+
+  it.each(["host", "AI SDK"] as const)(
+    "rejects a direct response to a superseded approval through the %s path",
+    async (path) => {
+      const handler = vi.fn<ApprovalHandler>(async () => {});
+      const { chat, thread } = await setup(
+        path === "host" ? () => handler : undefined,
+        {
+          messages: [
+            userMessage,
+            approvalMessage("assistant-1", "tool-1", "approval-1"),
+            {
+              id: "user-2",
+              role: "user",
+              parts: [{ type: "text", text: "later" }],
+            },
+          ],
+        },
+      );
+      const addToolApprovalResponse = vi.spyOn(
+        chat(),
+        "addToolApprovalResponse",
+      );
+
+      expect(
+        (
+          thread()
+            .getMessageByIndex(1)
+            .getMessagePartByToolCallId("tool-1")
+            .getState() as { approval?: Record<string, unknown> }
+        ).approval,
+      ).toMatchObject({ resolution: "cancelled" });
+      const threadCore = (
+        thread() as unknown as {
+          __internal_threadBinding: { getState(): ThreadRuntimeCore };
+        }
+      ).__internal_threadBinding.getState();
+      await expect(
+        threadCore.respondToToolApproval({
+          approvalId: "approval-1",
+          approved: true,
+        }),
+      ).rejects.toThrow(
+        "Tool approval approval-1 is not waiting for a response.",
+      );
+      expect(handler).not.toHaveBeenCalled();
+      expect(addToolApprovalResponse).not.toHaveBeenCalled();
+    },
+  );
+
+  it('cancels only the approval message with joinStrategy "none"', async () => {
+    const { thread } = await setup(undefined, {
+      joinStrategy: "none",
+      messages: [
+        userMessage,
+        approvalMessage("assistant-1", "tool-1", "approval-1"),
+        {
+          id: "assistant-2",
+          role: "assistant",
+          parts: [{ type: "text", text: "Later" }],
+        },
+      ],
+    });
+
+    expect(thread().getMessageByIndex(1).getState().status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+    expect(thread().getMessageByIndex(2).getState().status).toMatchObject({
+      type: "complete",
+    });
+  });
+
+  it("restores a superseded approval through external history", async () => {
+    historyState.remoteId = "remote-thread";
+    onTestFinished(() => {
+      historyState.remoteId = undefined;
+    });
+    const load = vi.fn(async () => ({
+      headId: "voice-1",
+      messages: [
+        { parentId: null, message: userMessage },
+        {
+          parentId: "user-1",
+          message: approvalMessage("assistant-1", "tool-1", "approval-1"),
+        },
+        {
+          parentId: "assistant-1",
+          message: {
+            id: "voice-1",
+            role: "assistant" as const,
+            parts: [{ type: "text" as const, text: "Hello" }],
+            metadata: { modality: "voice" },
+          },
+        },
+      ],
+    }));
+    const history = {
+      load: vi.fn(),
+      append: vi.fn(),
+      withFormat: vi.fn().mockReturnValue({ load, append: vi.fn() }),
+    } as unknown as ThreadHistoryAdapter;
+    const { chat, thread } = await setup(undefined, { history });
+
+    await waitFor(() => expect(chat().messages).toHaveLength(3));
+    expect(history.withFormat).toHaveBeenCalled();
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(thread().getMessageByIndex(1).getState().status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+    expect(thread().getMessageByIndex(2).getState().status).toMatchObject({
+      type: "complete",
+    });
+  });
+
+  it("keeps a host answer when another approval in the same message is superseded", async () => {
+    const handler = vi.fn<ApprovalHandler>(async () => {});
+    const { chat, thread } = await setup(() => handler, {
+      messages: [
+        userMessage,
+        {
+          id: "assistant-1",
+          role: "assistant",
+          parts: [
+            ...approvalMessage("assistant-1", "tool-1", "approval-1").parts,
+            ...approvalMessage("assistant-1", "tool-2", "approval-2").parts,
+          ],
+        },
+      ],
+    });
+    const message = () => thread().getMessageByIndex(1);
+    const first = () => message().getMessagePartByToolCallId("tool-1");
+    const second = () => message().getMessagePartByToolCallId("tool-2");
+
+    await act(() => first().respondToToolApproval({ approved: true }));
+    act(() =>
+      chat().setMessages([
+        ...chat().messages,
+        {
+          id: "user-2",
+          role: "user",
+          parts: [{ type: "text", text: "later" }],
+        },
+      ]),
+    );
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(
+      (first().getState() as { approval?: Record<string, unknown> }).approval,
+    ).toMatchObject({
+      approved: true,
+    });
+    expect(
+      (second().getState() as { approval?: Record<string, unknown> }).approval,
+    ).toMatchObject({
+      resolution: "cancelled",
+    });
+    expect(message().getState().status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+    expect(chat().messages[1]?.parts).toMatchObject([
+      { state: "approval-requested" },
+      { state: "approval-requested" },
+    ]);
+  });
+
+  it("settles a staged approval with cancellation on send disabled", async () => {
+    const handler = vi.fn<ApprovalHandler>(async () => {});
+    const { thread, approval, toolPart, sendMessages } = await setup(
+      () => handler,
+      {
+        cancelPendingToolCallsOnSend: false,
+      },
+    );
+
+    await act(() =>
+      thread().append({
+        role: "user",
+        content: [{ type: "text", text: "later" }],
+        startRun: false,
+      }),
+    );
+
+    expect(approval()).toMatchObject({ resolution: "cancelled" });
+    expect(thread().getMessageByIndex(1).getState().status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+    expect(toolPart()).toMatchObject({
+      state: "approval-requested",
+    });
+    expect(handler).not.toHaveBeenCalled();
+    expect(sendMessages).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses the AI SDK response path without a host handler", async () => {
+    const { chat, thread, toolPart, respond, sendMessages } =
+      await setup(undefined);
+
+    await respond();
+    await waitFor(() => expect(sendMessages).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(toolPart()).toMatchObject({
+        state: "output-available",
+        approval: { id: "approval-1", approved: true },
+      }),
+    );
+
+    act(() =>
+      chat().setMessages([
+        userMessage,
+        approvalMessage("assistant-1", "tool-1", "approval-1"),
+        {
+          id: "user-2",
+          role: "user",
+          parts: [{ type: "text", text: "later" }],
+        },
+      ]),
+    );
+    expect(thread().getMessageByIndex(1).getState().status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+  });
+
+  it("stores a late successful tool result in its original message without sending", async () => {
+    const { chat, part, toolPart, sendMessages, sendAutomaticallyWhen } =
+      await setup(() => async () => {}, {
+        messages: [
+          {
+            id: "user-1",
+            role: "user",
+            parts: [{ type: "text", text: "deploy" }],
+          },
+          {
+            id: "assistant-1",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-deploy",
+                toolCallId: "tool-1",
+                state: "input-available",
+                input: {},
+              },
+            ],
+          },
+          {
+            id: "user-2",
+            role: "user",
+            parts: [{ type: "text", text: "later" }],
+          },
+        ],
+      });
+    const automaticSendChecks = sendAutomaticallyWhen.mock.calls.length;
+
+    act(() => part().addToolResult("deployed"));
+
+    await waitFor(() =>
+      expect(toolPart()).toMatchObject({
+        state: "output-available",
+        output: "deployed",
+      }),
+    );
+    expect(chat().messages[2]).toMatchObject({
+      id: "user-2",
+      parts: [{ type: "text", text: "later" }],
+    });
+    expect(sendAutomaticallyWhen).toHaveBeenCalledTimes(automaticSendChecks);
+    expect(sendMessages).not.toHaveBeenCalled();
+  });
+
+  it("clears a preliminary marker when a late final tool result is stored", async () => {
+    const { part, toolPart, sendMessages, sendAutomaticallyWhen } = await setup(
+      () => async () => {},
+      {
+        messages: [
+          {
+            id: "user-1",
+            role: "user",
+            parts: [{ type: "text", text: "deploy" }],
+          },
+          {
+            id: "assistant-1",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-deploy",
+                toolCallId: "tool-1",
+                state: "output-available",
+                input: {},
+                output: "preview",
+                preliminary: true,
+              },
+            ],
+          },
+          {
+            id: "user-2",
+            role: "user",
+            parts: [{ type: "text", text: "later" }],
+          },
+        ],
+      },
+    );
+    const automaticSendChecks = sendAutomaticallyWhen.mock.calls.length;
+
+    act(() => part().addToolResult("deployed"));
+
+    await waitFor(() =>
+      expect(toolPart()).toMatchObject({
+        state: "output-available",
+        output: "deployed",
+      }),
+    );
+    expect(toolPart()).not.toHaveProperty("preliminary");
+    expect(part().getState()).not.toHaveProperty("isPreliminary");
+    expect(sendAutomaticallyWhen).toHaveBeenCalledTimes(automaticSendChecks);
+    expect(sendMessages).not.toHaveBeenCalled();
+  });
+
+  it("stores a late tool result in the correct raw message when assistant messages are joined", async () => {
+    const { chat, part, sendMessages, sendAutomaticallyWhen } = await setup(
+      () => async () => {},
+      {
+        messages: [
+          {
+            id: "user-1",
+            role: "user",
+            parts: [{ type: "text", text: "deploy" }],
+          },
+          {
+            id: "assistant-1",
+            role: "assistant",
+            parts: [{ type: "text", text: "Preparing." }],
+          },
+          {
+            id: "assistant-2",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-deploy",
+                toolCallId: "tool-1",
+                state: "input-available",
+                input: {},
+              },
+            ],
+          },
+          {
+            id: "user-2",
+            role: "user",
+            parts: [{ type: "text", text: "later" }],
+          },
+        ],
+      },
+    );
+    const automaticSendChecks = sendAutomaticallyWhen.mock.calls.length;
+
+    act(() => part().addToolResult("deployed"));
+
+    await waitFor(() =>
+      expect(
+        chat()
+          .messages.find((message) => message.id === "assistant-2")
+          ?.parts.find(
+            (candidate) =>
+              candidate.type === "tool-deploy" &&
+              candidate.toolCallId === "tool-1",
+          ),
+      ).toMatchObject({
+        state: "output-available",
+        output: "deployed",
+      }),
+    );
+    expect(sendAutomaticallyWhen).toHaveBeenCalledTimes(automaticSendChecks);
+    expect(sendMessages).not.toHaveBeenCalled();
+  });
+
+  it("stores a late failed tool result in its original message without sending", async () => {
+    const { part, toolPart, sendMessages, sendAutomaticallyWhen } = await setup(
+      () => async () => {},
+      {
+        messages: [
+          {
+            id: "user-1",
+            role: "user",
+            parts: [{ type: "text", text: "deploy" }],
+          },
+          {
+            id: "assistant-1",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-deploy",
+                toolCallId: "tool-1",
+                state: "input-available",
+                input: {},
+              },
+            ],
+          },
+          {
+            id: "user-2",
+            role: "user",
+            parts: [{ type: "text", text: "later" }],
+          },
+        ],
+      },
+    );
+    const automaticSendChecks = sendAutomaticallyWhen.mock.calls.length;
+
+    act(() =>
+      part().addToolResult(
+        new ToolResponse({ result: "deploy failed", isError: true }),
+      ),
+    );
+
+    await waitFor(() =>
+      expect(toolPart()).toMatchObject({
+        state: "output-error",
+        errorText: "deploy failed",
+      }),
+    );
+    expect(sendAutomaticallyWhen).toHaveBeenCalledTimes(automaticSendChecks);
+    expect(sendMessages).not.toHaveBeenCalled();
+  });
+
+  it("keeps a settled tool result in an earlier message when a late result arrives", async () => {
+    const cancelled = "User cancelled tool call by sending a new message.";
+    const { part, toolPart, sendMessages } = await setup(() => async () => {}, {
+      messages: [
+        {
+          id: "user-1",
+          role: "user",
+          parts: [{ type: "text", text: "deploy" }],
+        },
+        {
+          id: "assistant-1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-deploy",
+              toolCallId: "tool-1",
+              state: "output-error",
+              input: {},
+              errorText: cancelled,
+            },
+          ],
+        },
+        {
+          id: "user-2",
+          role: "user",
+          parts: [{ type: "text", text: "later" }],
+        },
+      ],
+    });
+
+    await act(async () => {
+      await part().addToolResult("deployed");
+    });
+
+    expect(toolPart()).toMatchObject({
+      state: "output-error",
+      errorText: cancelled,
+    });
     expect(sendMessages).not.toHaveBeenCalled();
   });
 });

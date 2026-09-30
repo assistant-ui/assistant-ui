@@ -65,6 +65,38 @@ describe("ImageGallery", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
+  it("keeps the same image open when the collection is reordered", () => {
+    const { rerender } = render(
+      <ImageGallery images={images} maxVisible={8} />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open image: Image 1" }),
+    );
+    rerender(<ImageGallery images={[...images].reverse()} maxVisible={8} />);
+
+    expect(
+      within(screen.getByRole("dialog")).getByAltText("Image 1"),
+    ).toBeTruthy();
+    expect(screen.getByText("8 / 8")).toBeTruthy();
+  });
+
+  it("keeps the lightbox closed after the active image is removed", async () => {
+    const { rerender } = render(
+      <ImageGallery images={images} maxVisible={8} />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open image: Image 1" }),
+    );
+    rerender(<ImageGallery images={images.slice(1)} maxVisible={8} />);
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+
+    rerender(<ImageGallery images={images} maxVisible={8} />);
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
   it("navigates with arrow keys and buttons and disables navigation at the ends", async () => {
     render(<ImageGallery images={images} maxVisible={8} />);
 

@@ -3,20 +3,20 @@ title: "Streaming text"
 description: "Tokens arrive softly: the newest words land in blue and settle into ink."
 ---
 
-Word by word text with the newest handful tinted blue and a caret at the end while it streams; older words fade back to plain text over the next few hundred milliseconds. With a runtime you feed it a part's growing text and its running status; standalone you hold the segments and a reveal count yourself.
+Word by word text with the newest two words tinted blue and a caret at the end while it streams; older words fade back to plain text over the next few hundred milliseconds. With a runtime you feed it a part's growing text and its running status; standalone you hold the segments and a reveal count yourself.
 
 ## Getting started
 
 <RuntimeMode>
 
-`MessagePrimitive.Parts` hands a custom part renderer the part's own fields as props, `text` and `status` included, so there is no selector to write at all: `count` just tracks how many words that string currently has.
+`MessagePrimitive.Parts` hands a custom part renderer the part's own fields as props, `text` and `status` included, so there is no selector to write: `count` is the number of words in that string.
 
 <Steps>
   <Step>
 
 ### Register it as a part renderer
 
-```tsx title="components/assistant-ui/elements/streaming-text.tsx"
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
 "use client";
 
 import { useMemo } from "react";
@@ -123,7 +123,7 @@ const segments: Segment[] = [
 
 ### Restyle the text
 
-Both lanes take `className` on the root, which starts as `min-h-[8.5rem] max-w-sm text-sm leading-relaxed`. The tint and the caret are both fixed to `text-blue-500`/`bg-blue-500`; there is no prop for either color.
+Both lanes take `className` on the root, which starts as `min-h-[8.5rem] max-w-sm text-sm leading-relaxed text-pretty`. The tint and the caret are both fixed to `text-blue-500`/`bg-blue-500`; there is no prop for either color.
 
 ```tsx
 <StreamingText className="max-w-none text-base" /* ... */ />

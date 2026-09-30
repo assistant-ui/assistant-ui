@@ -253,7 +253,7 @@ POST /v1/threads/{thread_id}/messages/{message_id}/feedback
 | `thread_id` | string | yes | 1 to 255 characters. |
 | `message_id` | string | yes | 1 to 255 characters. |
 | `type` | string | yes | `positive` or `negative`. |
-| `comment` | string | no | Optional. The trimmed value must be 1 to 2,000 characters when present. |
+| `comment` | string | no | The trimmed value must be 1 to 2,000 characters when present. |
 
 ```bash title="curl"
 curl https://backend.assistant-api.com/v1/threads/thread_0qzof3jPoDwr7K3agyJN3D4U/messages/msg_0qzof3jPoDwr7K3agyJN3D4U/feedback \

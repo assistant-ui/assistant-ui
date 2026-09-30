@@ -6,12 +6,18 @@ import {
   AuiConfig,
   createAssistantClient,
   type AssistantConfigSource,
+  useAssistantEmit,
 } from "@assistant-ui/store/client";
 import type { ThreadHistoryAdapter } from "../../adapters/thread-history";
+import { ExternalStoreRuntimeCore } from "../../runtimes/external-store/external-store-runtime-core";
+import type { ExternalStoreAdapter } from "../../runtimes/external-store/external-store-adapter";
 import type {
   RemoteThreadListAdapter,
   RemoteThreadMetadata,
 } from "../../runtimes/remote-thread-list/types";
+import { AssistantRuntimeImpl } from "../../runtime/internal";
+import { ThreadClient } from "../../store/runtime-clients/thread-runtime-client";
+import type { AppendMessage } from "../../types/message";
 import {
   useRuntimeAdapters,
   type RuntimeAdapters,
@@ -181,6 +187,109 @@ const mountArchivedInitializingThread = async () => {
 };
 
 describe("RemoteThreadList", () => {
+  it.each([false, true])(
+    "delivers thread-scoped composer.send events with backgroundThreads=%s",
+    async (backgroundThreads) => {
+      const onNew = vi.fn<(message: AppendMessage) => Promise<void>>(
+        async () => {},
+      );
+      const adapter: ExternalStoreAdapter<{
+        role: "user";
+        text: string;
+      }> = {
+        messages: [],
+        convertMessage: (message) => ({
+          role: message.role,
+          content: [{ type: "text", text: message.text }],
+        }),
+        onNew,
+      };
+      const runtime = new AssistantRuntimeImpl(
+        new ExternalStoreRuntimeCore(adapter),
+      );
+      const handle = createAssistantClient(
+        AuiConfig({
+          threads: RemoteThreadList({
+            adapter: makeAdapter(),
+            backgroundThreads,
+            thread: () => ThreadClient({ runtime: runtime.thread }),
+          }),
+        }),
+      );
+      handle.subscribe(() => {});
+      const aui = handle.getClient();
+      const scoped = vi.fn();
+      const global = vi.fn();
+      aui.on({ scope: "thread", event: "composer.send" }, scoped);
+      aui.on({ scope: "*", event: "composer.send" }, global);
+
+      flushTapSync(() => aui.thread.append("hello"));
+      await new Promise((resolve) => setTimeout(resolve));
+
+      expect(onNew).toHaveBeenCalledTimes(1);
+      expect(scoped).toHaveBeenCalledTimes(1);
+      expect(global).toHaveBeenCalledTimes(1);
+      handle.destroy();
+    },
+  );
+
+  it("routes composer.send to the new main body after a switch", async () => {
+    const emitters = new Map<string, () => void>();
+    const useEmittingThread = ({ threadId }: { threadId: string }) => {
+      const emit = useAssistantEmit();
+      emitters.set(threadId, () =>
+        emit("composer.send", {
+          threadId,
+          chars: 1,
+          attachments: 0,
+        }),
+      );
+      return useStubThread({ threadId });
+    };
+    const EmittingThread = resource(useEmittingThread);
+    const handle = createAssistantClient(
+      AuiConfig({
+        threads: RemoteThreadList({
+          adapter: makeAdapter({
+            list: vi.fn(async () => ({
+              threads: [
+                { status: "regular" as const, remoteId: "t1", title: "One" },
+              ],
+            })),
+          }),
+          backgroundThreads: true,
+          thread: (id) =>
+            withKey(id, EmittingThread({ threadId: id }) as never),
+        }),
+      }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    const previousId = aui.threads.getState().mainThreadId;
+    expect(previousId).not.toBe("t1");
+    const scoped = vi.fn();
+    const global = vi.fn();
+    aui.on({ scope: "thread", event: "composer.send" }, scoped);
+    aui.on({ scope: "*", event: "composer.send" }, global);
+
+    flushTapSync(() => aui.threads.switchToThread("t1"));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t1");
+    });
+    emitters.get("t1")!();
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(scoped).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ threadId: "t1" }),
+    );
+
+    emitters.get(previousId)!();
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(scoped).toHaveBeenCalledTimes(1);
+    expect(global).toHaveBeenCalledTimes(2);
+    handle.destroy();
+  });
+
   it("loads adapter threads on a standalone client", async () => {
     const adapter = makeAdapter({
       list: vi.fn(async () => ({

@@ -69,7 +69,7 @@ type TeamsConversionWarning = {
 | `CheckboxGroup` | `Input.ChoiceSet`, expanded, with `isMultiSelect` | Its value is the checked values joined by commas, so a value that contains a comma cannot be told apart; descriptions append to the choice title |
 | `Checkbox` | `Input.Toggle` | Its value is the string `"true"` or `"false"`; the `switch` variant uses the same element |
 | `Slider` | `Input.Number` | `min`, `max`, `defaultValue`, and `label` map directly; submitted values are numbers |
-| `Input` | `Input.Text` | |
+| `Input` | `Input.Text` | Password uses `style: "password"`; number stays text and submits a string without native numeric validation |
 | `DatePicker` | `Input.Date` | `value`, `min`, and `max` are kept only in `YYYY-MM-DD` form, otherwise dropped silently |
 | `Form` | Children inline, then a "Submit" `ActionSet` | Adaptive Cards has no form container; inputs on the card submit together |
 | `Row` | `ColumnSet` with one auto-width column per child | Beyond three columns you get a warning, but all columns are kept |
@@ -92,13 +92,13 @@ Two vocabulary components behave differently here than anywhere else, because Ad
 - A `Divider` emits nothing and sets `separator: true` on the next element that does emit.
 - A `Spacer` emits nothing and sets `spacing: "large"` on the next element that does emit.
 
-A component that emits nothing, such as an `Icon`, does not consume a pending mark; it carries through to the next real element. A `Divider` or `Spacer` with nothing after it disappears entirely, without a warning. The practical consequence is that a trailing separator you would see on Slack is simply absent on Teams.
+A component that emits nothing, such as an `Icon`, does not consume a pending mark; it carries through to the next real element. A `Divider` or `Spacer` with nothing after it disappears entirely, without a warning. As a result, a trailing separator you would see on Slack is absent on Teams.
 
 Two consolidations also apply, both run-based rather than global: consecutive `Fact` siblings merge into one `FactSet`, and consecutive `Button` siblings merge into one `ActionSet`. A different component between them breaks the run and starts a new set.
 
 ## Inputs
 
-Adaptive Cards merges every input's current value into one submit object keyed by the input's `id`, which has two consequences worth knowing.
+Adaptive Cards merges every input's current value into one submit object keyed by the input's `id`, which has two consequences.
 
 **Ids come from `name`.** Each control's `id` is its `name` prop, falling back to a per-type default (`"select"`, `"radiogroup"`, `"checkboxgroup"`, `"slider"`, `"input"`, `"datepicker"`). `Checkbox` is the exception: it falls back to its `label` first and only then to `"checkbox"`, so an unnamed checkbox keys the submit object by its visible label. Two controls that share a name on the same card would collide, so the converter renames the later one and warns. The key `aui` is reserved for the action envelope; a control named `aui` is renamed too.
 
@@ -118,7 +118,7 @@ A node's `$action` is carried inside the submit payload's reserved `aui` key, so
 }
 ```
 
-Unlike Slack, the payload is not serialized to a string and carries no size cap of its own, so the converter never drops or truncates it the way an oversized Slack button value is dropped. Size is checked once, against the whole card, and that check only warns; whether an oversized card is then accepted is Teams' call, not the converter's.
+Unlike Slack, the payload is not serialized to a string and carries no size cap of its own, so the converter never drops or truncates it the way an oversized Slack button value is dropped. Size is checked once, against the whole card, and that check only warns; whether an oversized card is then accepted is decided by Teams.
 
 ### Inbound
 

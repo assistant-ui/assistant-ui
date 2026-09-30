@@ -1,4 +1,20 @@
-import type { ElementDoc } from "./element-docs";
+interface ElementPropRow {
+  name: string;
+  type: string;
+  required?: boolean;
+  defaultValue?: string;
+  description: string;
+}
+
+interface ElementPropsTable {
+  component: string;
+  rows: ElementPropRow[];
+}
+
+interface ElementDoc {
+  usage: string;
+  props: ElementPropsTable[];
+}
 
 const usageOnly = (usage: string): ElementDoc => ({ usage, props: [] });
 
