@@ -30,7 +30,8 @@ export namespace Checkout {
   /**
    * product: the agent proposes adding a product to this checkout, such as one
    * another product depends on. The browser owns the catalog, so it answers
-   * with `checkout/add-product`; dismissing the input declines.
+   * with `checkout/add-product` as soon as the input arrives, and dismisses a
+   * slug the catalog does not carry.
    */
   export type InputKind = "text" | "choice" | "model" | "product";
 
