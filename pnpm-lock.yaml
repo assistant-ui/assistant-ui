@@ -4971,7 +4971,7 @@ importers:
   packages/react-pi:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.21
+        specifier: workspace:^
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.15

@@ -53,7 +53,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.21",
+    "@assistant-ui/core": "workspace:^",
     "@assistant-ui/store": "^0.3.15",
     "@standard-schema/spec": "^1.1.0",
     "assistant-cloud": "*",
