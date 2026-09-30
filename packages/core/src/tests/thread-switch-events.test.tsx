@@ -7,7 +7,11 @@ import { AssistantRuntimeProvider } from "../react/AssistantRuntimeProvider";
 import { useExternalStoreRuntime } from "../react/runtimes/useExternalStoreRuntime";
 import { useLocalRuntime } from "../react/runtimes/useLocalRuntime";
 import { useRemoteThreadListRuntime } from "../react/runtimes/useRemoteThreadListRuntime";
-import { deferred, makeAdapter } from "./remote-thread-list-test-helpers";
+import {
+  actSettled,
+  deferred,
+  makeAdapter,
+} from "./remote-thread-list-test-helpers";
 import { RuntimeAdapter } from "../react/RuntimeAdapter";
 import {
   AssistantRuntimeImpl,
@@ -348,9 +352,7 @@ const renderRemoteList = (
 };
 
 const switchTo = async (runtime: AssistantRuntime, remoteId: string) => {
-  await act(async () => {
-    await runtime.threads.switchToThread(remoteId);
-  });
+  await actSettled(() => runtime.threads.switchToThread(remoteId));
   await waitFor(() => {
     expect(runtime.threads.mainItem.getState().remoteId).toBe(remoteId);
   });
