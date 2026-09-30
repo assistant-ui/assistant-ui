@@ -254,6 +254,7 @@ export class RunAggregator {
   >();
   private readonly lastResolvedToolCallIdByScope = new Map<string, string>();
   private readonly partOrder: PartOrderEntry[] = [];
+  private lastReasoningBeforeToolCall: PartOrderEntry | undefined;
   private textPartCounter = 0;
   private serverMessageIdReported = false;
   private reportedServerMessageId: string | undefined;
@@ -781,6 +782,7 @@ export class RunAggregator {
     this.activityParts.clear();
     this.lastResolvedToolCallIdByScope.clear();
     this.partOrder.length = 0;
+    this.lastReasoningBeforeToolCall = undefined;
     this.textPartCounter = 0;
     this.activeTextMessageIdByScope.clear();
     this.reportedServerMessageId = undefined;
@@ -835,7 +837,11 @@ export class RunAggregator {
       anonymous: boolean;
     }[] = [];
     let last = this.partOrder.at(-1);
-    while (last?.kind === "reasoning" && last.subagentRunId === undefined) {
+    while (
+      last?.kind === "reasoning" &&
+      last.subagentRunId === undefined &&
+      last !== this.lastReasoningBeforeToolCall
+    ) {
       this.partOrder.pop();
       parts.unshift({
         key: last.key,
@@ -978,6 +984,13 @@ export class RunAggregator {
         (part) => part.kind === "tool-call" && part.toolCallId === id,
       )
     ) {
+      // Tool insertion can precede existing reasoning in display order.
+      if (scope === ROOT_SCOPE) {
+        this.lastReasoningBeforeToolCall = this.partOrder.findLast(
+          (part) =>
+            part.kind === "reasoning" && part.subagentRunId === undefined,
+        );
+      }
       this.insertToolPart(scope, id, parentMessageId);
     }
     const state: ToolCallState = {
