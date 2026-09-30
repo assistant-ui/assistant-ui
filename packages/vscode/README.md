@@ -2,6 +2,8 @@
 
 Run [assistant-ui](https://www.assistant-ui.com/) inside a VS Code extension webview.
 
+See the [VS Code guide](https://www.assistant-ui.com/docs/guides/vscode) for the architecture, a quick start with `npx assistant-ui create -t vscode`, and the limitations of webviews.
+
 A webview cannot reach your backend with `fetch`, so this package tunnels `fetch` over the webview's `postMessage` channel. Your route handlers (`(req: Request) => Response`) run unchanged in the extension host, and their responses stream back to the webview.
 
 ## Entry points

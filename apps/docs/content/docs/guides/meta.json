@@ -37,6 +37,7 @@
     "chatgpt-subscription",
     "---Environments---",
     "electron",
+    "vscode",
     "---Resilience---",
     "resumable-streams",
     "resumable-stream-stores",
