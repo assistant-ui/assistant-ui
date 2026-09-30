@@ -100,7 +100,8 @@ describe("scope-filtered on", () => {
             let wrapper = wrappers.get(client);
             if (!wrapper) {
               wrapper = new Proxy(client, {
-                get: (target, prop) => Reflect.get(target, prop),
+                get: (target, prop, receiver) =>
+                  Reflect.get(target, prop, receiver),
               });
               wrappers.set(client, wrapper);
             }

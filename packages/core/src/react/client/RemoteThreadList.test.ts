@@ -241,7 +241,7 @@ describe("RemoteThreadList", () => {
         emit("composer.send", {
           threadId,
           chars: 1,
-          attachments: [],
+          attachments: 0,
         }),
       );
       return useStubThread({ threadId });

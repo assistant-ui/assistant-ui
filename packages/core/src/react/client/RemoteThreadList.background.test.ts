@@ -129,11 +129,11 @@ describe("RemoteThreadList backgroundThreads", () => {
         threads: [{ status: "regular" as const, remoteId: "t1", title: "One" }],
       })),
     });
-    const emitters = new Map<string, (value: string) => void>();
+    const emitters = new Map<string, () => void>();
     const useEmittingThread = ({ threadId }: { threadId: string }) => {
       const emit = useAssistantEmit();
-      emitters.set(threadId, (value) =>
-        emit("thread.pinged" as never, { value } as never),
+      emitters.set(threadId, () =>
+        emit("composer.send", { threadId, chars: 1, attachments: 0 }),
       );
       return {
         getState: () => ({ isRunning: false, messages: [] }),
@@ -158,20 +158,24 @@ describe("RemoteThreadList backgroundThreads", () => {
     const previousId = aui.threads.getState().mainThreadId;
     const scoped = vi.fn();
     const global = vi.fn();
-    aui.on({ scope: "thread", event: "thread.pinged" as never }, scoped);
-    aui.on({ scope: "*", event: "thread.pinged" as never }, global);
+    aui.on({ scope: "thread", event: "composer.send" }, scoped);
+    aui.on({ scope: "*", event: "composer.send" }, global);
 
     flushTapSync(() => aui.threads.switchToThread("t1"));
     await vi.waitFor(() => {
       expect(aui.threads.getState().mainThreadId).toBe("t1");
     });
-    emitters.get("t1")!("main");
-    emitters.get(previousId)!("background");
+    emitters.get("t1")!();
+    emitters.get(previousId)!();
     await new Promise((resolve) => setTimeout(resolve));
 
-    expect(scoped).toHaveBeenCalledExactlyOnceWith({ value: "main" });
+    expect(scoped).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ threadId: "t1" }),
+    );
     expect(global).toHaveBeenCalledTimes(2);
-    expect(global).toHaveBeenCalledWith({ value: "background" });
+    expect(global).toHaveBeenCalledWith(
+      expect.objectContaining({ threadId: previousId }),
+    );
     handle.destroy();
   });
 
