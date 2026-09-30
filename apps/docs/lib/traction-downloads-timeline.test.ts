@@ -251,6 +251,26 @@ describe("fetchTimelineSeries", () => {
     });
   });
 
+  it("keeps a package's settled months when only its in-flight tail cannot be read", async () => {
+    getDownloadsRange.mockImplementation(
+      (pkg: string, start: string, end: string) =>
+        Promise.resolve(
+          pkg === "quiet" && start.startsWith("2026-09")
+            ? []
+            : daysIn(start, end),
+        ),
+    );
+
+    const timeline = await fetchTimelineSeries(["loud", "quiet"]);
+
+    const august = timeline.data.find((row) => row.date === "2026-08")!;
+    expect(august["s0"]).toBe(31 * PER_DAY);
+    expect(august["s1"]).toBe(31 * PER_DAY);
+    const september = timeline.data.find((row) => row.date === "2026-09")!;
+    expect("s0_proj" in september).toBe(true);
+    expect("s1_proj" in september).toBe(false);
+  });
+
   it("leaves a package it could not read out of the row rather than calling it zero", async () => {
     getDownloadsRange.mockImplementation(
       (pkg: string, start: string, end: string) =>
