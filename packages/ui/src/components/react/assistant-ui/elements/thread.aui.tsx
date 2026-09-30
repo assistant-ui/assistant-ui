@@ -5,7 +5,7 @@ import {
   ComposerAttachments,
   UserMessageAttachments,
 } from "@/components/assistant-ui/elements/attachment.aui";
-import { File } from "@/components/assistant-ui/elements/file";
+import { File, getFileHref } from "@/components/assistant-ui/elements/file";
 import { ThreadFollowupSuggestions } from "@/components/assistant-ui/elements/follow-up-suggestions.aui";
 import { Image } from "@/components/assistant-ui/elements/image";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
@@ -612,7 +612,7 @@ const AssistantMessage: FC = () => {
               case "file":
                 return (
                   <div data-slot="aui_assistant-message-file" className="py-1">
-                    <File {...part} />
+                    <MessageFile {...part} />
                   </div>
                 );
               case "image":
@@ -717,9 +717,24 @@ const AssistantActionBar: FC = () => {
   );
 };
 
+const MessageFile: FileMessagePartComponent = (part) => {
+  const image = part.mimeType.toLowerCase().startsWith("image/")
+    ? getFileHref(part.data, part.mimeType, part.sourceType)
+    : null;
+  if (!image) return <File {...part} />;
+  return (
+    <Image
+      type="image"
+      image={image}
+      status={part.status}
+      {...(part.filename !== undefined && { filename: part.filename })}
+    />
+  );
+};
+
 const UserFilePart: FileMessagePartComponent = (part) => (
   <div data-slot="aui_user-message-file" className="py-1">
-    <File {...part} />
+    <MessageFile {...part} />
   </div>
 );
 
