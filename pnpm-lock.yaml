@@ -3679,6 +3679,9 @@ importers:
       '@vscode/test-electron':
         specifier: ^3.1.0
         version: 3.1.0(supports-color@10.2.2)
+      assistant-ui:
+        specifier: workspace:*
+        version: link:../../packages/cli
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2

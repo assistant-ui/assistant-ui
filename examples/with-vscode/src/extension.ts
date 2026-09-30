@@ -57,6 +57,7 @@ export function activate(context: vscode.ExtensionContext) {
   };
 
   const runner = new ProbeRunner(HOST_PROBES, () => ({
+    extensionPath: context.extensionPath,
     switchboard: readSwitchboard(),
     webviews,
     showAssistant,
