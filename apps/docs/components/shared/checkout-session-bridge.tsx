@@ -148,12 +148,20 @@ function CheckoutSessionBridge({
     [state],
   );
   const settling = useRef(new Set<string>());
+  const rejected = useRef(new Set<string>());
   const warned = useRef(new Set<string>());
   useEffect(() => {
     for (const input of proposals) {
       if (settling.current.has(input.id)) continue;
       settling.current.add(input.id);
       const product = getCatalogItem(input.product ?? "");
+      // Another tab on the same session may have won the add, so only a proposal still open at the next tick was refused.
+      if (rejected.current.has(input.id) && !warned.current.has(input.id)) {
+        warned.current.add(input.id);
+        toast.error(
+          `Could not add ${product?.name ?? "the product"} to this setup. Trying again.`,
+        );
+      }
       const settled = product
         ? commands["checkout/add-product"]({
             inputId: input.id,
@@ -166,11 +174,7 @@ function CheckoutSessionBridge({
         : commands["checkout/dismiss"]({ inputId: input.id });
       settled.catch(() => {
         settling.current.delete(input.id);
-        if (warned.current.has(input.id)) return;
-        warned.current.add(input.id);
-        toast.error(
-          `Could not add ${product?.name ?? "the product"} to this setup. Trying again.`,
-        );
+        rejected.current.add(input.id);
       });
     }
   }, [proposals, commands, tick]);

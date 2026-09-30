@@ -169,7 +169,7 @@ describe("CheckoutSessionBridge", () => {
     expect(wire.dismiss).toHaveBeenCalledOnce();
   });
 
-  it("says once that a proposed product could not be added and keeps retrying every tick", async () => {
+  it("says once, as the retry starts, that a proposed product could not be added and keeps retrying every tick", async () => {
     vi.useFakeTimers();
     try {
       wire.addProduct
@@ -185,17 +185,44 @@ describe("CheckoutSessionBridge", () => {
       expect(wire.addProduct).toHaveBeenCalledOnce();
 
       await act(() => Promise.resolve());
+      expect(mocks.toastError).not.toHaveBeenCalled();
       act(() => vi.advanceTimersByTime(5000));
       expect(wire.addProduct).toHaveBeenCalledTimes(2);
-
-      await act(() => Promise.resolve());
-      act(() => vi.advanceTimersByTime(5000));
-      expect(wire.addProduct).toHaveBeenCalledTimes(3);
-
       expect(mocks.toastError).toHaveBeenCalledOnce();
       expect(mocks.toastError).toHaveBeenCalledWith(
         "Could not add assistant-ui to this setup. Trying again.",
       );
+
+      await act(() => Promise.resolve());
+      act(() => vi.advanceTimersByTime(5000));
+      expect(wire.addProduct).toHaveBeenCalledTimes(3);
+      expect(mocks.toastError).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stays quiet when a refused proposal is answered before the retry, as when another tab added it", async () => {
+    vi.useFakeTimers();
+    try {
+      wire.addProduct.mockRejectedValueOnce(new Error("input-closed"));
+      wire.state = {
+        ...previous(),
+        id: "s2",
+        status: "planning",
+        inputs: [proposal("p1", "assistant-ui")],
+      };
+      render(<CheckoutSessionBridge session={session} onChange={vi.fn()} />);
+      expect(wire.addProduct).toHaveBeenCalledOnce();
+
+      await act(() => Promise.resolve());
+      setWire({
+        ...wire.state!,
+        inputs: [{ ...proposal("p1", "assistant-ui"), status: "answered" }],
+      });
+      act(() => vi.advanceTimersByTime(5000));
+      expect(wire.addProduct).toHaveBeenCalledOnce();
+      expect(mocks.toastError).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
     }
