@@ -102,13 +102,13 @@ export function ConversationSearch({
         )}
       </div>
 
-      <div className="bg-foreground/[0.04] relative w-1.5 shrink-0 rounded-full">
+      <div className="bg-foreground/[0.04] inset-ring-border relative w-1.5 shrink-0 rounded-full inset-ring forced-colors:border">
         {hits.map((hit, i) => (
           <span
             key={hit.id}
             aria-hidden
             className={cn(
-              "absolute inset-x-0 h-1 rounded-full transition-colors duration-200",
+              "absolute inset-x-0 h-1 rounded-full transition-colors duration-200 forced-color-adjust-none",
               i === index ? "bg-amber-500" : "bg-amber-500/35",
             )}
             style={{ top: `${hit.position}%` }}

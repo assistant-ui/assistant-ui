@@ -169,11 +169,11 @@ export function JobProgress({
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={announced(progressPercent)}
-        className="bg-foreground/[0.06] h-1 w-full overflow-hidden rounded-full"
+        className="bg-foreground/[0.06] inset-ring-border h-1 w-full overflow-hidden rounded-full inset-ring forced-colors:border"
       >
         <span
           className={cn(
-            "block h-full rounded-full transition-[width] duration-500 ease-out motion-reduce:transition-none",
+            "block h-full rounded-full transition-[width] duration-500 ease-out forced-color-adjust-none motion-reduce:transition-none",
             outcomeBar ??
               (finished ? "bg-emerald-500" : "bg-blue-500 dark:bg-blue-400"),
           )}

@@ -222,11 +222,11 @@ export function QuestionFlow({
         aria-valuemin={1}
         aria-valuemax={steps.length}
         aria-valuetext={`Question ${currentIndex + 1} of ${steps.length}`}
-        className="bg-foreground/[0.08] mx-2 h-[3px] overflow-hidden rounded-full"
+        className="bg-foreground/[0.08] inset-ring-border mx-2 h-[3px] overflow-hidden rounded-full inset-ring forced-colors:outline"
       >
         <div
           style={{ width: `${((currentIndex + 1) / steps.length) * 100}%` }}
-          className="bg-foreground/80 h-full transition-[width] duration-200 motion-reduce:transition-none"
+          className="bg-foreground/80 h-full transition-[width] duration-200 forced-color-adjust-none motion-reduce:transition-none"
         />
       </div>
       <div className="flex flex-col gap-0.5 px-2">
