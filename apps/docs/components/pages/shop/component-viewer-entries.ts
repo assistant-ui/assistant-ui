@@ -774,6 +774,26 @@ export const ENTRIES: readonly Entry[] = [
       ),
   },
   {
+    id: "cloud-project",
+    label: "Text, cloud project",
+    group: "Questions",
+    controls: [
+      { kind: "text", key: "prompt", label: "Prompt" },
+      { kind: "toggle", key: "optional", label: "Optional" },
+    ],
+    defaults: {
+      prompt: "Which Assistant Cloud project should this app use?",
+      optional: false,
+    },
+    scene: (values) =>
+      question(
+        inputOf({
+          prompt: str(values, "prompt"),
+          optional: on(values, "optional"),
+        }),
+      ),
+  },
+  {
     id: "secret",
     label: "Text, secret guard",
     group: "Questions",
