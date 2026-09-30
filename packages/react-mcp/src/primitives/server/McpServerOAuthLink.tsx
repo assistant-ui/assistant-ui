@@ -6,15 +6,6 @@ import {
 import { Primitive } from "@radix-ui/react-primitive";
 import { useAuiState } from "@assistant-ui/store";
 
-const isSafeAuthorizationHref = (href: string) => {
-  try {
-    const url = new URL(href, "http://localhost");
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
-};
-
 export namespace McpServerPrimitiveOAuthLink {
   export type Element = ComponentRef<typeof Primitive.a>;
   export type Props = Omit<
@@ -32,7 +23,7 @@ export const McpServerPrimitiveOAuthLink = forwardRef<
 >(({ href, ...props }, ref) => {
   const url = useAuiState((s) => s.mcpServer.authorizationUrl);
   const effective = href ?? url;
-  if (!effective || !isSafeAuthorizationHref(effective)) return null;
+  if (!effective) return null;
   return (
     <Primitive.a
       target="_blank"

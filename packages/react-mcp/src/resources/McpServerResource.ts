@@ -267,9 +267,13 @@ const useMcpServerResourceInstance = (
           storage: props.storage,
           redirectUri: props.redirectUri,
           onAuthorizationUrl: (url) => {
-            if (isCurrentConnection(generationOwner.current)) {
-              setAuthorizationUrl(url.toString());
+            if (!isCurrentConnection(generationOwner.current)) return;
+            if (url.protocol !== "http:" && url.protocol !== "https:") {
+              throw new Error(
+                `Unsupported MCP OAuth authorization URL protocol: ${url.protocol}`,
+              );
             }
+            setAuthorizationUrl(url.toString());
           },
         });
         const transport = new StreamableHTTPClientTransport(
