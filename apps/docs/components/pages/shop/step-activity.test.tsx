@@ -74,6 +74,39 @@ describe("StepActivity", () => {
     expect(screen.queryByRole("log")).toBeNull();
   });
 
+  it("mounts an empty, hidden live log before the first line, and keeps that element once lines arrive", () => {
+    const { rerender } = render(
+      <StepActivity
+        entries={[]}
+        live
+        agentName="Codex"
+        stepTitle="Add the route"
+      />,
+    );
+    const log = screen.getByRole("log", { name: "What Codex did" });
+    expect(log.textContent).toBe("");
+    expect(log.className).toBe("sr-only");
+    expect(log.getAttribute("aria-live")).toBe("polite");
+    expect(screen.queryByRole("button")).toBeNull();
+
+    rerender(
+      <StepActivity
+        entries={[lines[0]!]}
+        live
+        agentName="Codex"
+        stepTitle="Add the route"
+      />,
+    );
+    expect(screen.getByRole("log", { name: "What Codex did" })).toBe(log);
+    expect(log.className).not.toContain("sr-only");
+    expect(log.textContent).toBe("Reading app/api");
+    expect(
+      screen
+        .getByRole("button", { name: "1 line from Codex for Add the route" })
+        .getAttribute("aria-expanded"),
+    ).toBe("true");
+  });
+
   it("keeps the user's choice over the step's state", () => {
     const { rerender } = render(
       <StepActivity
