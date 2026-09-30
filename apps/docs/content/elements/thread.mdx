@@ -60,7 +60,7 @@ A message with `metadata.modality: "voice"` renders as a spoken row (`aui_spoken
 
 With `components.TaskGroup` set, a tool call that carries a nested conversation (`part.messages`) and has no registered UI renders through that slot instead of the tool group, and the kit's `TaskGroup` shows sibling delegations as `aui_task-group` lanes, four at a time. MCP app calls (a `ui://` app resource) keep the standalone tool path, and without the slot every such call renders like any other tool call. See [Task card](/elements/task-card).
 
-Consecutive source parts render as one row of [Sources](/elements/sources) chips (`aui_assistant-message-sources`).
+Consecutive source parts render as one row of [Sources](/elements/sources) chips (`aui_assistant-message-sources`). A file part whose `mimeType` is `image/*` renders as an [Image](/elements/image) preview, and any other file part as a [File](/elements/file) row.
 
 </RuntimeMode>
 

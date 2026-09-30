@@ -128,6 +128,9 @@ function AssistantContentTestThread({
   );
 }
 
+const PNG_DATA_URI =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+
 function VoiceRuntimeAccess({
   onReady,
 }: {
@@ -271,6 +274,36 @@ describe("Thread", () => {
       "Webview API",
       "assistant-ui.com",
     ]);
+  });
+
+  it("previews image file parts and names unnamed files by type", () => {
+    render(
+      <AssistantContentTestThread
+        content={[
+          { type: "file", mimeType: "image/png", data: PNG_DATA_URI },
+          {
+            type: "file",
+            mimeType: "text/plain",
+            data: "data:text/plain;base64,aGk=",
+          },
+        ]}
+      />,
+    );
+
+    const files = document.querySelectorAll<HTMLElement>(
+      '[data-slot="aui_assistant-message-file"]',
+    );
+    expect(files).toHaveLength(2);
+    expect(
+      files[0]!
+        .querySelector('[data-slot="image-preview"] img')
+        ?.getAttribute("src"),
+    ).toBe(PNG_DATA_URI);
+    expect(files[0]!.querySelector('[data-slot="file-name"]')).toBeNull();
+    expect(
+      files[1]!.querySelector('[data-slot="file-name"]')?.textContent,
+    ).toBe("Text file");
+    expect(screen.queryByText("Unnamed file")).toBeNull();
   });
 
   it("shows feedback actions only when the runtime supports feedback", () => {
