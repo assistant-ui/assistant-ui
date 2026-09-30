@@ -21,6 +21,8 @@ on:
       - "scripts/check-skills-commit.test.mjs"
       - "scripts/deploy-examples-changes.mjs"
       - "scripts/deploy-examples-changes.test.mjs"
+      - "scripts/api-reference-inputs.mjs"
+      - "scripts/api-reference-inputs.test.mjs"
       - ".github/workflows/deploy-examples.yaml"
       - ".github/workflows/expo-native-bundle.yaml"
       - "scripts/lib/script-options.mjs"
@@ -51,6 +53,8 @@ on:
       - "scripts/check-skills-commit.test.mjs"
       - "scripts/deploy-examples-changes.mjs"
       - "scripts/deploy-examples-changes.test.mjs"
+      - "scripts/api-reference-inputs.mjs"
+      - "scripts/api-reference-inputs.test.mjs"
       - ".github/workflows/deploy-examples.yaml"
       - ".github/workflows/expo-native-bundle.yaml"
       - "scripts/lib/script-options.mjs"
@@ -233,6 +237,9 @@ jobs:
       - name: Test API surface generator
         run: pnpm run api-surface:test
 
+      - name: Test API reference input detector
+        run: pnpm run api-reference-inputs:test
+
       # The pull_request checkout is the merge commit, so HEAD^1 is the base it merges into.
       - name: Measure bundle sizes against the base
         if: github.event_name == 'pull_request'
@@ -313,7 +320,7 @@ jobs:
       - name: Detect API reference inputs
         id: api_ref
         run: |
-          set -eu
+          set -euo pipefail
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE="origin/${{ github.base_ref }}"
           else
@@ -323,30 +330,8 @@ jobs:
             echo "Unable to resolve API reference diff base: $BASE"
             exit 1
           fi
-          changed="$(git diff --name-only "$BASE" -- \
-            "packages/react/" \
-            "packages/core/" \
-            "packages/store/" \
-            "packages/tap/" \
-            "packages/cloud/" \
-            "packages/assistant-stream/" \
-            "packages/react-generative-ui/" \
-            "packages/ai-sdk/" \
-            "packages/react-ai-sdk/" \
-            "packages/react-data-stream/" \
-            "packages/eve/" \
-            "packages/safe-content-frame/" \
-            "apps/docs/scripts/" \
-            "apps/docs/content/types-to-generate/" \
-            "apps/docs/content/docs/(reference)/api-reference/" \
-            "apps/docs/package.json" \
-            "apps/docs/tsconfig.json" \
-            ".github/workflows/code-quality.yaml")"
-          if [ -n "$changed" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          fi
+          run="$(git diff --name-only --no-renames -z "$BASE" | node scripts/api-reference-inputs.mjs)"
+          echo "run=$run" >> "$GITHUB_OUTPUT"
 
       - name: Setup pnpm and node.js
         if: steps.api_ref.outputs.run == 'true'
