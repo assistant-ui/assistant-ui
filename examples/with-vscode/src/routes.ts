@@ -1,11 +1,15 @@
 import type { RouteHandler, WebviewRoutes } from "@assistant-ui/vscode/host";
+import * as vscode from "vscode";
 import { POST as chat } from "./fixtures/route";
 import { POST as model } from "./fixtures/model-route";
 import { readFixtureRequest } from "./fixtures/request";
 import {
   CHAT_ROUTE,
+  COLOR_THEME_ROUTE,
   MODEL_ROUTE,
   SERVED_REQUESTS_ROUTE,
+  type ColorThemeState,
+  type ColorThemeUpdate,
   type ServedRequest,
 } from "./protocol";
 
@@ -75,11 +79,35 @@ class ServedRequestLog {
   }
 }
 
+/** Lets the theme-follows probe switch the colour theme and restore it. */
+const colorTheme = {
+  GET: () => {
+    const config = vscode.workspace.getConfiguration("workbench");
+    const state: ColorThemeState = {
+      current: config.get<string>("colorTheme") ?? "",
+      userValue: config.inspect<string>("colorTheme")?.globalValue ?? null,
+    };
+    return Response.json(state);
+  },
+  PUT: async (req: Request) => {
+    const { theme } = (await req.json()) as ColorThemeUpdate;
+    await vscode.workspace
+      .getConfiguration("workbench")
+      .update(
+        "colorTheme",
+        theme ?? undefined,
+        vscode.ConfigurationTarget.Global,
+      );
+    return new Response(null, { status: 204 });
+  },
+};
+
 export const createWebviewRoutes = (): WebviewRoutes => {
   const log = new ServedRequestLog();
   return {
     [CHAT_ROUTE]: { POST: log.record(CHAT_ROUTE, chat) },
     [MODEL_ROUTE]: { POST: log.record(MODEL_ROUTE, model) },
     [SERVED_REQUESTS_ROUTE]: { GET: () => Response.json(log.list()) },
+    [COLOR_THEME_ROUTE]: colorTheme,
   };
 };

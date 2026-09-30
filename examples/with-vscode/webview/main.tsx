@@ -21,6 +21,7 @@ import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { Thread } from "@assistant-ui/ui/components/assistant-ui/elements/thread.aui.tsx";
 import { FIXTURES } from "../src/fixtures/fixtures";
 import {
+  BOOT_ATTRIBUTE,
   CHAT_ROUTE,
   MODEL_ROUTE,
   type WebviewBootConfig,
@@ -29,7 +30,7 @@ import type { SWITCHBOARD, Switchboard } from "../src/switchboard";
 import { toolkit } from "./tools";
 
 const boot = JSON.parse(
-  document.getElementById("aui-testbed-boot")?.textContent ?? "null",
+  document.body.getAttribute(BOOT_ATTRIBUTE) ?? "null",
 ) as WebviewBootConfig;
 
 let client: AssistantClient | undefined;

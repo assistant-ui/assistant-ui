@@ -1,7 +1,10 @@
-import { randomBytes } from "node:crypto";
-import { serveWebviewRoutes } from "@assistant-ui/vscode/host";
+import {
+  renderWebviewHtml,
+  serveWebviewRoutes,
+} from "@assistant-ui/vscode/host";
 import * as vscode from "vscode";
 import {
+  BOOT_ATTRIBUTE,
   isTestbedMessage,
   TESTBED_CHANNEL,
   type HostToWebviewMessage,
@@ -31,44 +34,21 @@ const renderHtml = (
   extensionUri: vscode.Uri,
   switchboard: Switchboard,
 ) => {
-  const nonce = randomBytes(16).toString("base64");
   const asset = (file: string) =>
-    webview.asWebviewUri(
-      vscode.Uri.joinPath(extensionUri, "dist", "webview", file),
-    );
-  // A nonce in style-src makes browsers ignore 'unsafe-inline', so relaxed mode drops it.
-  const styleSrc =
-    switchboard.csp === "strict"
-      ? `${webview.cspSource} 'nonce-${nonce}'`
-      : `${webview.cspSource} 'unsafe-inline'`;
-  const csp = [
-    "default-src 'none'",
-    `script-src 'nonce-${nonce}'`,
-    `style-src ${styleSrc}`,
-    `img-src ${webview.cspSource} blob: data: https:`,
-    `font-src ${webview.cspSource}`,
-  ].join("; ");
+    vscode.Uri.joinPath(extensionUri, "dist", "webview", file);
   const boot: WebviewBootConfig = {
     switchboard,
     unimplemented: unimplementedSettings(switchboard),
   };
-
-  return `<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta http-equiv="Content-Security-Policy" content="${csp}" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="${asset("app.css")}" />
-    <link rel="stylesheet" href="${asset("main.css")}" />
-    <title>Assistant</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script nonce="${nonce}" id="aui-testbed-boot" type="application/json">${JSON.stringify(boot).replace(/</g, "\\u003c")}</script>
-    <script nonce="${nonce}" src="${asset("main.js")}"></script>
-  </body>
-</html>`;
+  return renderWebviewHtml(webview, {
+    scripts: [asset("main.js")],
+    styles: [asset("app.css"), asset("main.css")],
+    title: "Assistant",
+    csp: switchboard.csp,
+    surface: switchboard.location,
+    scriptType: "classic",
+    bodyAttributes: { [BOOT_ATTRIBUTE]: JSON.stringify(boot) },
+  });
 };
 
 type AttachedWebview = {
