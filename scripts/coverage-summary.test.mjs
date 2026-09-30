@@ -21,6 +21,10 @@ const totals = (covered, total) => ({
   branches: metric(covered, total),
 });
 
+/**
+ * Create a temporary repository with package manifests and optional coverage
+ * totals keyed by workspace path. The caller must remove the returned directory.
+ */
 function createRepo(workspaces) {
   const root = mkdtempSync(path.join(tmpdir(), "aui-coverage-summary-"));
   for (const [dir, { name, total }] of Object.entries(workspaces)) {
