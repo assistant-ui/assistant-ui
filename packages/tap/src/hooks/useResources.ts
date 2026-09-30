@@ -84,6 +84,7 @@ export function useResources<E extends ResourceElement<any>>(
   const { version, createFiber } = useResourceFiberHost();
   const hasAnyContextDepsChanged = hasAnyChildContextDepsChanged(fibers);
 
+  let releases = false;
   const val = useRenderMemo(
     () => {
       void version;
@@ -127,6 +128,7 @@ export function useResources<E extends ResourceElement<any>>(
           );
           const value = renderResourceFiber(fiber, element.args);
           state.next = { value: value, deps: element.deps, remount: fiber };
+          releases = true;
         } else if (canReuse(state, element.deps)) {
           if (typeof state.next === "object") {
             discardWipRender(state.fiber);
@@ -152,6 +154,7 @@ export function useResources<E extends ResourceElement<any>>(
         for (const key of fibers.keys()) {
           if (!seenKeys.has(key)) {
             fibers.get(key)!.next = "delete";
+            releases = true;
           }
         }
       }
@@ -167,18 +170,18 @@ export function useResources<E extends ResourceElement<any>>(
   useEffect(() => {
     void val; // as a performance optimization, we only run if the results have changed
 
-    let released: ResourceFiber<unknown>[] | undefined;
-    for (const [key, state] of fibers.entries()) {
-      const next = state.next;
-      if (next === "delete") {
-        (released ??= []).push(state.fiber);
-        fibers.delete(key);
-      } else if (next !== "skip" && next.remount) {
-        (released ??= []).push(state.fiber);
-        state.fiber = next.remount;
+    if (releases) {
+      const released: ResourceFiber<unknown>[] = [];
+      for (const [key, state] of fibers.entries()) {
+        const next = state.next;
+        if (next === "delete") {
+          released.push(state.fiber);
+          fibers.delete(key);
+        } else if (next !== "skip" && next.remount) {
+          released.push(state.fiber);
+          state.fiber = next.remount;
+        }
       }
-    }
-    if (released !== undefined) {
       for (const fiber of released) fiber.isReleased = true;
       unmountResourceFibers(released);
     }
@@ -198,7 +201,7 @@ export function useResources<E extends ResourceElement<any>>(
         state.next = "skip";
       }
     }
-  }, [val, fibers]);
+  }, [val, fibers, releases]);
 
   return val;
 }

@@ -24,29 +24,40 @@ import { useDevStrictMode } from "./useDevStrictMode";
 import { useHostCell, type HostTarget } from "./useHostCell";
 import type { HostCell, ResourceFiber } from "../../core/types";
 
-const getHostedFibers = (target: HostTarget): ResourceFiber<unknown>[] =>
-  target instanceof Map
-    ? Array.from(target.values(), ({ fiber }) => fiber)
-    : [target];
+const forEachHostedFiber = (
+  target: HostTarget,
+  visit: (fiber: ResourceFiber<unknown>) => void,
+): void => {
+  if (!(target instanceof Map)) return visit(target);
+  for (const { fiber } of target.values()) visit(fiber);
+};
+
+const acquire = (fiber: ResourceFiber<unknown>) => {
+  fiber.isReleased = false;
+};
+
+const release = (fiber: ResourceFiber<unknown>) => {
+  fiber.isReleased = true;
+  if (!fiber.isMounted) {
+    queueMicrotask(() => {
+      if (fiber.isReleased) unmountResourceFiber(fiber, true);
+    });
+  }
+};
 
 const useHostLifecycleReact = (target: HostTarget): void => {
   useInsertionEffect(() => {
-    for (const fiber of getHostedFibers(target)) fiber.isReleased = false;
-    return () => {
-      for (const fiber of getHostedFibers(target)) {
-        fiber.isReleased = true;
-        if (!fiber.isMounted) {
-          queueMicrotask(() => {
-            if (fiber.isReleased) unmountResourceFiber(fiber, true);
-          });
-        }
-      }
-    };
+    forEachHostedFiber(target, acquire);
+    return () => forEachHostedFiber(target, release);
   }, [target]);
 
   useEffect(
     () => () => {
-      unmountResourceFibers(getHostedFibers(target));
+      unmountResourceFibers(
+        target instanceof Map
+          ? Array.from(target.values(), ({ fiber }) => fiber)
+          : [target],
+      );
     },
     [target],
   );
