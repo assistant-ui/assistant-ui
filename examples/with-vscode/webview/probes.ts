@@ -8,10 +8,13 @@ import {
 import { vscodeFetch } from "@assistant-ui/vscode/webview";
 import {
   CHAT_ROUTE,
+  COLOR_THEME_ROUTE,
   isTestbedMessage,
   MODEL_ROUTE,
   SERVED_REQUESTS_ROUTE,
   TESTBED_CHANNEL,
+  type ColorThemeState,
+  type ColorThemeUpdate,
   type HostToWebviewMessage,
   type ServedRequest,
   type WebviewBootConfig,
@@ -152,6 +155,128 @@ const waitForServed = async (
 const fixtureText = (steps: readonly FixtureStep[]) =>
   steps.map((s) => (s.type === "text" ? s.text : "")).join("");
 
+type Surface = WebviewBootConfig["switchboard"]["location"];
+
+/** Each token and the `--vscode-*` variables theme.css resolves it to, in fallback order. */
+const THEME_TOKENS = (surface: Surface): Record<string, readonly string[]> => ({
+  "--background": {
+    sidebar: ["--vscode-sideBar-background", "--vscode-editor-background"],
+    panel: ["--vscode-panel-background", "--vscode-editor-background"],
+    editor: ["--vscode-editor-background"],
+  }[surface],
+  "--primary": ["--vscode-button-background"],
+  "--border": ["--vscode-panel-border", "--vscode-widget-border"],
+  "--ring": ["--vscode-focusBorder"],
+  "--muted-foreground": ["--vscode-descriptionForeground"],
+});
+
+const isDarkTheme = () =>
+  document.body.classList.contains("vscode-dark") ||
+  (document.body.classList.contains("vscode-high-contrast") &&
+    !document.body.classList.contains("vscode-high-contrast-light"));
+
+type ThemeSample = {
+  dark: boolean;
+  colorScheme: string;
+  bodyBackground: string;
+  utilityBackground: string;
+  darkVariantDisplay: string;
+  /** Elements that still carry a background from VS Code's default webview styles. */
+  defaultStyleLeaks: string[];
+  tokens: Record<string, { token: string; vscode: string; from: string }>;
+};
+
+/** Resolves colours through elements, so `var()` chains compare as rgb values. */
+const sampleTheme = (surface: Surface): ThemeSample => {
+  const rootStyle = getComputedStyle(document.documentElement);
+  const probe = document.createElement("div");
+  probe.hidden = true;
+  const swatch = document.createElement("span");
+  const utility = document.createElement("span");
+  utility.className = "bg-background";
+  const darkVariant = document.createElement("span");
+  darkVariant.className = "block dark:hidden";
+  const unstyled = ["code", "kbd", "blockquote"].map((tag) =>
+    document.createElement(tag),
+  );
+  probe.append(swatch, utility, darkVariant, ...unstyled);
+  document.body.append(probe);
+  try {
+    const resolve = (value: string) => {
+      swatch.style.backgroundColor = value;
+      return getComputedStyle(swatch).backgroundColor;
+    };
+    const tokens: ThemeSample["tokens"] = {};
+    for (const [token, chain] of Object.entries(THEME_TOKENS(surface))) {
+      const from = chain.find(
+        (name) => rootStyle.getPropertyValue(name).trim() !== "",
+      );
+      if (!from) throw new Error(`None of ${chain.join(", ")} is set`);
+      tokens[token] = {
+        token: resolve(`var(${token})`),
+        vscode: resolve(`var(${from})`),
+        from,
+      };
+    }
+    return {
+      dark: isDarkTheme(),
+      colorScheme: getComputedStyle(document.body).colorScheme,
+      bodyBackground: getComputedStyle(document.body).backgroundColor,
+      utilityBackground: getComputedStyle(utility).backgroundColor,
+      darkVariantDisplay: getComputedStyle(darkVariant).display,
+      defaultStyleLeaks: unstyled
+        .map((el) => [el.localName, getComputedStyle(el).backgroundColor])
+        .filter(([, background]) => background !== "rgba(0, 0, 0, 0)")
+        .map(([tag, background]) => `${tag} ${background}`),
+      tokens,
+    };
+  } finally {
+    probe.remove();
+  }
+};
+
+/** Returns why `sample` does not follow the VS Code theme, or `undefined`. */
+const themeMismatch = (sample: ThemeSample) => {
+  for (const [token, { token: value, vscode, from }] of Object.entries(
+    sample.tokens,
+  )) {
+    if (value !== vscode) return `${token} is ${value}, ${from} is ${vscode}`;
+  }
+  const background = sample.tokens["--background"]?.vscode;
+  if (sample.bodyBackground !== background) {
+    return `body background is ${sample.bodyBackground}, expected ${background}`;
+  }
+  if (sample.utilityBackground !== background) {
+    return `bg-background is ${sample.utilityBackground}, expected ${background}`;
+  }
+  const scheme = sample.dark ? "dark" : "light";
+  if (sample.colorScheme !== scheme) {
+    return `color-scheme is ${sample.colorScheme} under a ${scheme} theme`;
+  }
+  if (sample.defaultStyleLeaks.length > 0) {
+    return `VS Code default styles leak: ${sample.defaultStyleLeaks.join(", ")}`;
+  }
+  const display = sample.dark ? "none" : "block";
+  if (sample.darkVariantDisplay !== display) {
+    return `"block dark:hidden" displays ${sample.darkVariantDisplay} under a ${scheme} theme`;
+  }
+  return undefined;
+};
+
+const setColorTheme = async (theme: string | null) => {
+  const update: ColorThemeUpdate = { theme };
+  const response = await vscodeFetch(COLOR_THEME_ROUTE, {
+    method: "PUT",
+    body: JSON.stringify(update),
+  });
+  if (!response.ok) {
+    throw new Error(`${COLOR_THEME_ROUTE} answered ${response.status}`);
+  }
+};
+
+const LIGHT_THEME = "Default Light Modern";
+const DARK_THEME = "Default Dark Modern";
+
 export const WEBVIEW_PROBES: Partial<Record<ProbeId, WebviewProbe>> = {
   "bridge-roundtrip": async (ctx) => {
     const aui = requireThread(ctx);
@@ -277,6 +402,70 @@ export const WEBVIEW_PROBES: Partial<Record<ProbeId, WebviewProbe>> = {
     return {
       state: "fail",
       detail: `${ctx.cspViolations.length} violations: ${kinds.join("; ")}`,
+    };
+  },
+
+  "theme-follows": async (ctx) => {
+    const { location } = ctx.boot.switchboard;
+    const before = sampleTheme(location);
+    const initialMismatch = themeMismatch(before);
+    if (initialMismatch) {
+      return { state: "fail", detail: `Before the switch: ${initialMismatch}` };
+    }
+
+    const response = await vscodeFetch(COLOR_THEME_ROUTE);
+    const original = (await response.json()) as ColorThemeState;
+    const target = before.dark ? LIGHT_THEME : DARK_THEME;
+    let after: ThemeSample;
+    try {
+      await setColorTheme(target);
+      await waitFor(
+        () => isDarkTheme() !== before.dark,
+        10_000,
+        () => `the webview to switch to ${target}`,
+      );
+      await waitFor(
+        () =>
+          sampleTheme(location).tokens["--background"]?.vscode !==
+          before.tokens["--background"]?.vscode,
+        5_000,
+        () => `the --vscode-* variables of ${target}`,
+      );
+      after = sampleTheme(location);
+    } finally {
+      await setColorTheme(original.userValue);
+      await waitFor(
+        () => isDarkTheme() === before.dark,
+        10_000,
+        () => `the webview to switch back to ${original.current}`,
+      );
+    }
+
+    const restoredMismatch = themeMismatch(sampleTheme(location));
+    if (restoredMismatch) {
+      return {
+        state: "fail",
+        detail: `After restoring ${original.current}: ${restoredMismatch}`,
+      };
+    }
+
+    const switchedMismatch = themeMismatch(after);
+    if (switchedMismatch) {
+      return { state: "fail", detail: `After ${target}: ${switchedMismatch}` };
+    }
+    const unchanged = Object.keys(before.tokens).filter(
+      (token) => before.tokens[token]?.token === after.tokens[token]?.token,
+    );
+    if (unchanged.length > 0) {
+      return {
+        state: "fail",
+        detail: `${unchanged.join(", ")} did not change after ${target}`,
+      };
+    }
+    const bg = (s: ThemeSample) => s.tokens["--background"]?.token;
+    return {
+      state: "pass",
+      detail: `surface=${location}: ${original.current} ${bg(before)} -> ${target} ${bg(after)}, ${Object.keys(before.tokens).length} tokens and dark: follow`,
     };
   },
 

@@ -24,6 +24,15 @@ The webview reaches the extension host through `@assistant-ui/vscode`: `vscodeFe
 | `POST /api/chat` | `src/fixtures/route.ts`, an AI SDK UI message stream | `auiTest.runtime=ai-sdk`: `useChatRuntime` with `AssistantChatTransport({ fetch: vscodeFetch })` |
 | `POST /api/model` | `src/fixtures/model-route.ts`, an assistant-stream data stream | `auiTest.runtime=local`: `useLocalRuntime(createVSCodeModelAdapter())` |
 | `GET /testbed/served-requests` | the request log in `src/routes.ts` | probes that check what the host served and whether `req.signal` fired |
+| `GET`, `PUT /testbed/color-theme` | `src/routes.ts`, reads and sets the user `workbench.colorTheme` | `theme-follows` |
+
+## HTML, CSP and theme
+
+`src/webviews.ts` renders the webview with `renderWebviewHtml` from `@assistant-ui/vscode/host`: `auiTest.csp` picks the strict or relaxed policy, and `auiTest.location` sets the theme surface (`sidebar`, `panel` or `editor`). The boot config travels in the `data-aui-testbed-boot` attribute of `<body>`, so the page needs no inline script.
+
+`webview/app.css` imports `@assistant-ui/vscode/theme.css` after Tailwind, so the default shadcn components take the VS Code colour theme (`auiTest.style=shadcn`). `theme-follows` checks the mapped tokens against the `--vscode-*` variables, switches between Default Dark Modern and Default Light Modern, checks that the tokens and `dark:` utilities follow, and restores the theme.
+
+`pnpm screenshots` runs the probes like `pnpm test`, then saves a screenshot of the window with the Assistant view open under Default Dark Modern and Default Light Modern to `screenshots/` (gitignored), captured over the DevTools Protocol.
 
 ## Switchboard
 

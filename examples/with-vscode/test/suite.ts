@@ -2,8 +2,12 @@ import { writeFile } from "node:fs/promises";
 import * as vscode from "vscode";
 import type { ProbeReport } from "../src/readiness/runner";
 import { SWITCHBOARD } from "../src/switchboard";
+import { captureThemeScreenshots } from "./screenshots";
 
-export type TestbedReport = { runs: (ProbeReport & { runtime: string })[] };
+export type TestbedReport = {
+  runs: (ProbeReport & { runtime: string })[];
+  screenshots?: { files: string[]; error?: string };
+};
 
 export async function run() {
   const reportPath = process.env.AUI_TESTBED_REPORT;
@@ -25,6 +29,21 @@ export async function run() {
       "auiTest.runAllProbes",
     );
     report.runs.push({ runtime, ...result });
+  }
+
+  const cdpPort = Number(process.env.AUI_TESTBED_CDP_PORT);
+  const screenshotDir = process.env.AUI_TESTBED_SCREENSHOTS;
+  if (cdpPort && screenshotDir) {
+    report.screenshots = await captureThemeScreenshots(
+      cdpPort,
+      screenshotDir,
+    ).then(
+      (files) => ({ files }),
+      (error: unknown) => ({
+        files: [],
+        error: error instanceof Error ? error.message : String(error),
+      }),
+    );
   }
   await writeFile(reportPath, JSON.stringify(report));
 }

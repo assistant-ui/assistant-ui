@@ -13,6 +13,7 @@
     "build": "tsx scripts/build.mts",
     "dev": "tsx scripts/build.mts --watch",
     "test": "tsx scripts/build.mts && tsx test/run.mts",
+    "screenshots": "tsx scripts/build.mts && tsx test/run.mts --screenshots",
     "typecheck": "tsc --noEmit"
   },
   "contributes": {
@@ -159,8 +160,8 @@
             "vscode"
           ],
           "enumDescriptions": [
-            "Stock shadcn tokens",
-            "shadcn tokens mapped to --vscode-* variables"
+            "Default shadcn components themed by @assistant-ui/vscode/theme.css",
+            "VS Code-native component style"
           ],
           "default": "shadcn",
           "description": "Theme applied to the webview."

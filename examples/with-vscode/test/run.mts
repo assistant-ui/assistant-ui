@@ -1,4 +1,5 @@
 import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { runTests } from "@vscode/test-electron";
@@ -8,6 +9,25 @@ const rootDir = path.resolve(import.meta.dirname, "..");
 const phase = Number(process.env.AUI_TESTBED_PHASE ?? "0");
 const tempDir = await mkdtemp(path.join(tmpdir(), "aui-testbed-"));
 const reportPath = path.join(tempDir, "report.json");
+const screenshotDir = process.argv.includes("--screenshots")
+  ? path.join(rootDir, "screenshots")
+  : undefined;
+
+const freePort = () =>
+  new Promise<number>((resolve, reject) => {
+    const server = createServer();
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      server.close(() =>
+        typeof address === "object" && address
+          ? resolve(address.port)
+          : reject(new Error("No port")),
+      );
+    });
+  });
+// The suite captures the window over the DevTools Protocol on this port.
+const cdpPort = screenshotDir ? await freePort() : undefined;
 
 // Variables inherited from a VS Code terminal make the test instance start as plain Node.
 for (const key of Object.keys(process.env)) {
@@ -25,6 +45,8 @@ try {
     extensionTestsEnv: {
       AUI_TESTBED_REPORT: reportPath,
       AUI_TESTBED_RUNTIMES: process.env.AUI_TESTBED_RUNTIMES,
+      AUI_TESTBED_CDP_PORT: cdpPort?.toString(),
+      AUI_TESTBED_SCREENSHOTS: screenshotDir,
     },
     launchArgs: [
       "--disable-extensions",
@@ -36,6 +58,7 @@ try {
       "--skip-welcome",
       "--skip-release-notes",
       `--user-data-dir=${path.join(tempDir, "user-data")}`,
+      ...(cdpPort ? [`--remote-debugging-port=${cdpPort}`] : []),
     ],
   });
 } catch (error) {
@@ -93,6 +116,15 @@ for (const run of report.runs) {
     );
   }
   if (!run.webviewReady || failures.length > 0) failed = true;
+}
+
+if (screenshotDir) {
+  const { files = [], error } = report.screenshots ?? {};
+  if (files.length > 0) console.log(`\nScreenshots:\n${files.join("\n")}`);
+  if (error || files.length === 0) {
+    console.error(`\nScreenshots failed: ${error ?? "none were taken"}`);
+    failed = true;
+  }
 }
 
 if (launchError) console.error("\nVS Code test run failed:", launchError);
