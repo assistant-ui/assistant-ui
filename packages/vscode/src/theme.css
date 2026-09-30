@@ -79,18 +79,14 @@
     );
     --primary: var(--vscode-button-background, #0078d4);
     --primary-foreground: var(--vscode-button-foreground, #ffffff);
-    --secondary: var(
-      --vscode-button-secondaryBackground,
-      light-dark(#e5e5e5, #313131)
-    );
-    --secondary-foreground: var(
-      --vscode-button-secondaryForeground,
-      light-dark(#3b3b3b, #cccccc)
-    );
-    --muted: var(
-      --vscode-input-background,
-      color-mix(in srgb, var(--foreground) 8%, var(--background))
-    );
+    /*
+     * Derived from the surface: the VS Code candidates equal a surface in some
+     * default theme (input and editor in Light Modern) or are transparent
+     * (secondary buttons in Dark Modern).
+     */
+    --secondary: color-mix(in srgb, var(--foreground) 12%, var(--background));
+    --secondary-foreground: var(--foreground);
+    --muted: color-mix(in srgb, var(--foreground) 6%, var(--background));
     --muted-foreground: var(--vscode-descriptionForeground, GrayText);
     --accent: var(
       --vscode-list-hoverBackground,
@@ -175,7 +171,10 @@
     color-scheme: dark;
   }
 
+  /* Dark High Contrast sets --vscode-button-background to its black background. */
   body:is(.vscode-high-contrast, .vscode-high-contrast-light) {
+    --primary: var(--vscode-textLink-foreground, LinkText);
+    --primary-foreground: var(--background);
     --border: var(--vscode-contrastBorder, CanvasText);
     --input: var(--vscode-contrastBorder, CanvasText);
     --ring: var(
@@ -278,6 +277,36 @@ blockquote {
     [role="tooltip"]
   ) {
   outline: 1px solid var(--vscode-contrastBorder, CanvasText);
+  outline-offset: -1px;
+}
+
+:is(.vscode-high-contrast, .vscode-high-contrast-light)
+  :is(
+    .aui-user-message-content,
+    [data-slot="composer-quote"],
+    [data-slot="chat-panel-user-message"]
+  ) {
+  outline: 1px solid var(--vscode-contrastBorder, CanvasText);
+  outline-offset: -1px;
+}
+
+:is(.vscode-high-contrast, .vscode-high-contrast-light)
+  [data-slot="aui_thread-list-item"]:is([data-active], :hover) {
+  outline: 1px dashed
+    var(--vscode-contrastActiveBorder, var(--vscode-focusBorder, Highlight));
+  outline-offset: -1px;
+}
+
+:is(.vscode-high-contrast, .vscode-high-contrast-light)
+  [data-slot="aui_thread-list-item"][data-active] {
+  outline-style: solid;
+}
+
+:is(.vscode-high-contrast, .vscode-high-contrast-light)
+  [data-slot="thread-list"]
+  [aria-current="true"] {
+  outline: 1px solid
+    var(--vscode-contrastActiveBorder, var(--vscode-focusBorder, Highlight));
   outline-offset: -1px;
 }
 
