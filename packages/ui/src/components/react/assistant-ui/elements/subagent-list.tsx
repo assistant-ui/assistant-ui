@@ -37,10 +37,7 @@ export function SubagentList({
   return (
     <div
       data-slot="subagent-list"
-      className={cn(
-        "flex min-h-[14.5rem] w-full max-w-xs flex-col gap-2",
-        className,
-      )}
+      className={cn("flex w-full max-w-xs flex-col gap-2", className)}
 
       {...props}
     >
