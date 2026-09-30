@@ -4,7 +4,7 @@ description: Make React components visible and interactive to assistants via hig
 platforms: ["react"]
 ---
 
-`makeAssistantVisible` is a higher-order component (HOC) that makes React components "visible" by the assistant, allowing it to understand and interact with the component's HTML structure.
+`makeAssistantVisible` is a higher-order component (HOC) that makes React components visible to the assistant. The assistant can read the component's HTML and, when configured, click or edit it.
 
 ## Usage
 
@@ -78,5 +78,5 @@ When a component is made readable:
 - If `clickable` is true, a unique `data-click-id` is added and a `click` tool is provided
 - The click tool uses `querySelector` and simulates a click event
 - If `editable` is true, a unique `data-edit-id` is added and an `edit` tool is provided
-- The edit tool uses `querySelector` to find an `<input>` or `<textarea>` and sets its value, dispatching `input` and `change` events
-- All props and refs are properly forwarded to maintain component functionality
+- The edit tool uses `querySelector` to find the element carrying `data-edit-id`, which must be an `<input>` or `<textarea>`, and sets its value, dispatching `input` and `change` events
+- Props and refs are forwarded to the wrapped component

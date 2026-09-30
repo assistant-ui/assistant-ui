@@ -43,7 +43,7 @@ Pass `components.ToolFallback` to `Thread` to swap the renderer used whenever a 
 
 <StandaloneMode>
 
-Standalone, there's nothing to fall back to: `ToolFallback` exists specifically to render whatever `ToolCallMessagePart` a runtime handed it and to call back into that same run, so a props-only version would just be a static picture of the same shape you already have. Build your own tool-call card directly against your own data instead of reaching for this element.
+Standalone, there's nothing to fall back to: `ToolFallback` exists specifically to render whatever `ToolCallMessagePart` a runtime handed it and to call back into that same run, so a props-only version would be a static picture of the same shape you already have. Build your own tool-call card directly against your own data instead of reaching for this element.
 
 </StandaloneMode>
 
@@ -55,7 +55,7 @@ Standalone, there's nothing to fall back to: `ToolFallback` exists specifically 
 <div> {/* ToolFallbackRoot, a Collapsible */}
   <button aria-expanded={/* open */}>
     {/* status icon: spinner / check / X-circle / alert */}
-    <span>{/* "Used tool: <name>" or "Cancelled tool: <name>" */}</span>
+    <span>{/* "Running tool: <name>", "Waiting on tool: <name>", "Failed tool: <name>", "Cancelled tool: <name>", or "Used tool: <name>" */}</span>
     <span>{/* elapsed duration, while known */}</span>
     {/* chevron, rotates open */}
   </button>
@@ -68,7 +68,7 @@ Standalone, there's nothing to fall back to: `ToolFallback` exists specifically 
 </div>
 ```
 
-The row opens by default whenever the tool call's status is `"requires-action"`, and stays exactly as the user left it otherwise. Duration only shows once the call has a recorded start; it keeps counting up once per second while the call is running, and freezes at the recorded total once it completes.
+The row opens by default whenever the tool call's status is `"requires-action"`, and stays as the user left it otherwise. Duration only shows once the call has a recorded start; it keeps counting up once per second while the call is running, and freezes at the recorded total once it completes.
 
 </RuntimeMode>
 
@@ -150,8 +150,8 @@ import { ToolFallbackTrigger, ToolFallbackContent } from "@/components/assistant
 
 | Part | Renders | Notes |
 |------|---------|-------|
-| `ToolFallback` | full composition | The default export; a complete `ToolCallMessagePartComponent`. |
-| `ToolFallbackRoot` | `div` | Collapsible container. Opens automatically on `"requires-action"`. |
+| `ToolFallback` | full composition | The composed renderer; a complete `ToolCallMessagePartComponent`. |
+| `ToolFallbackRoot` | `div` | Collapsible container. Takes `open`, `onOpenChange`, and `defaultOpen`; `ToolFallback` opens it on `"requires-action"`. |
 | `ToolFallbackTrigger` | `button` | Takes `toolName` and `status`. |
 | `ToolFallbackContent` | `div` | The collapsible panel. |
 | `ToolFallbackArgs` | `pre` | Takes `argsText`; renders `null` when empty. |

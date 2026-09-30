@@ -76,12 +76,16 @@ export type AISDKMessageConverterMetadata =
     toolInteractions?: ReadonlyMap<string, Unstable_ToolInteractionLog>;
     supportsRichToolApprovalResponses?: boolean;
     toolApprovalResponses?: ReadonlyMap<string, RespondToToolApprovalOptions>;
+    cancelledToolApprovalIds?: ReadonlySet<string>;
+    cancelledStatusMessageIds?: ReadonlySet<string>;
     /** Id of the currently-streaming message, flagged optimistic (#4037). */
     optimisticMessageId?: string | undefined;
   };
 
 function stripClosingDelimiters(json: string): string {
-  return json.replace(/[}\]"]+$/, "");
+  let end = json.length;
+  while (end > 0 && '}]"'.includes(json[end - 1]!)) end--;
+  return json.slice(0, end);
 }
 
 const MCP_APP_METADATA_CACHE_MAX = 100;
@@ -258,15 +262,23 @@ function getToolApprovalAndInterrupt(
   toolApprovalResponses:
     | ReadonlyMap<string, RespondToToolApprovalOptions>
     | undefined,
+  cancelledToolApprovalIds: ReadonlySet<string> | undefined,
 ): {
   approval?: NonNullable<ToolCallMessagePart["approval"]>;
   interrupt?: NonNullable<ToolCallMessagePart["interrupt"]>;
 } {
   if (part.approval) {
-    const approval = {
+    const rawApproval = {
       ...readApprovalDescriptor(part.approval.descriptor),
       ...part.approval,
     };
+    const approval =
+      typeof rawApproval.id === "string" &&
+      rawApproval.approved === undefined &&
+      rawApproval.resolution === undefined &&
+      cancelledToolApprovalIds?.has(rawApproval.id)
+        ? { ...rawApproval, resolution: "cancelled" as const }
+        : rawApproval;
     const response =
       typeof approval.id === "string" &&
       approval.approved === undefined &&
@@ -523,6 +535,7 @@ function convertParts(
             toolStatus,
             metadata.supportsRichToolApprovalResponses === true,
             metadata.toolApprovalResponses,
+            metadata.cancelledToolApprovalIds,
           ),
         } satisfies ToolCallMessagePart;
       }
@@ -661,6 +674,15 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
           id: message.id,
           createdAt,
           content,
+          ...(message.role === "assistant" &&
+          metadata.cancelledStatusMessageIds?.has(message.id)
+            ? {
+                status: {
+                  type: "incomplete" as const,
+                  reason: "cancelled" as const,
+                },
+              }
+            : undefined),
           metadata: {
             ...toThreadMetadata(message.metadata),
             ...(timing && { timing }),

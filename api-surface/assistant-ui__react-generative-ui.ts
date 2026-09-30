@@ -676,6 +676,7 @@ type SlackActionElement = SlackButtonElement | SlackStaticSelectElement | SlackD
 
 interface SlackActionsBlock {
   readonly type: "actions";
+  readonly block_id?: string;
   readonly elements: readonly SlackActionElement[];
 }
 
@@ -777,6 +778,7 @@ interface SlackImageBlock {
 
 interface SlackInputBlock {
   readonly type: "input";
+  readonly block_id?: string;
   readonly label: SlackPlainText;
   readonly element: SlackPlainTextInputElement;
 }
@@ -1013,6 +1015,7 @@ interface TeamsInputDate {
 interface TeamsInputText {
   readonly type: "Input.Text";
   readonly id: string;
+  readonly style?: "password";
   readonly label?: string;
   readonly placeholder?: string;
   readonly value?: string;
@@ -1497,7 +1500,7 @@ declare function convertSurfaceToUISpec(surface: A2uiSurfaceState, options?: {
 
 declare function createActionRegistry(handlers: Readonly<Record<string, ActionHandler>>): ActionRegistry;
 
-declare function decodeBlockAction(action: unknown): Action | undefined;
+declare function decodeBlockAction(action: unknown, stateValues?: unknown): Action | undefined;
 
 declare function decodeSubmitData(value: unknown): Action | undefined;
 

@@ -25,8 +25,6 @@ The request's frontend tools are merged into the provider call. The cloud stops 
 
 Every assistant run records a run with source `server`, its spans, thread run linkage, and the daily run aggregate. The record can have status `completed`, `incomplete`, or `error`. A noncompleted assistant run records `timeout`, `aborted`, `rate_limited`, `provider_error`, or `server_error` when that condition is known; an incomplete stream with no captured error has no reason. A completed assistant run can trigger a thread title after the first completed thread run.
 
-The cost uses the project price overrides and the provider's catalog key. If the provider has no catalog key, its provider type is used instead.
-
 ## Configure
 
 ![Assistants on the demo project](../images/assistants.webp)

@@ -5,6 +5,8 @@ import {
   type ExpressionPart,
 } from "./valueFunctions";
 import { MAX_AUTO_VIVIFY_ARRAY_INDEX } from "./reducer";
+import type { A2uiBinding } from "./BindingContext";
+import { decodePointer, resolvePointer } from "./dataModel";
 
 const DEPTH_CAP = 32;
 const TEMPLATE_ITEM_CAP = 100;
@@ -101,29 +103,6 @@ const childTemplateOf = (children: unknown): ChildTemplate | undefined => {
     typeof template["path"] === "string"
     ? { componentId: template["componentId"], path: template["path"] }
     : undefined;
-};
-
-const decodePointer = (path: string): string[] => {
-  if (path === "" || path === "/") return [];
-  return (path.startsWith("/") ? path.slice(1) : path)
-    .split("/")
-    .map((segment) => segment.replaceAll("~1", "/").replaceAll("~0", "~"));
-};
-
-const resolvePointer = (source: unknown, path: string): unknown => {
-  let current = source;
-  for (const segment of decodePointer(path)) {
-    if (Array.isArray(current)) {
-      if (!/^(0|[1-9]\d*)$/.test(segment)) return undefined;
-      current = current[Number(segment)];
-      continue;
-    }
-    if (!isRecord(current) || !Object.hasOwn(current, segment)) {
-      return undefined;
-    }
-    current = current[segment];
-  }
-  return current;
 };
 
 const bindingPath = (value: unknown): string | undefined =>
@@ -226,10 +205,13 @@ function materialize(
   positional = false,
 ): unknown {
   if (isBinding(value)) {
-    return resolvePointer(
-      value.path.startsWith("/") ? context.surface.dataModel : source,
+    const pointer = pointerIn(
+      { data: source, path: context.scopePath },
       value.path,
     );
+    const resolved = resolvePointer(context.surface.dataModel, pointer);
+    context.dependencies?.set(pointer, resolved);
+    return resolved;
   }
   if (Array.isArray(value)) {
     const entries = value.map((entry) =>
@@ -306,6 +288,7 @@ const sourceSurfaceId = (surface: A2uiSurfaceState): string =>
 
 type ConversionContext = {
   readonly surface: A2uiSurfaceState;
+  readonly stepModel: unknown;
   readonly surfaceId: string;
   readonly warnings: string[];
   emittedNodes: number;
@@ -328,6 +311,19 @@ type ConversionContext = {
     readonly pointer: string;
   }[];
   readonly keepUnknownComponents: boolean;
+  readonly bindings: Map<string, A2uiBinding> | undefined;
+  readonly cache: Map<string, CachedComponent> | undefined;
+  dependencies: Map<string, unknown> | undefined;
+  scopePath: string;
+};
+
+type CachedComponent = {
+  readonly props: Record<string, unknown>;
+  readonly mapped: UIElement | undefined;
+  readonly dependencies: ReadonlyMap<string, unknown>;
+  readonly evaluations: number;
+  children?: readonly UIElement[];
+  result?: UIElement;
 };
 
 const BOUND_KEYS = ["text", "value", "binding"] as const;
@@ -382,35 +378,25 @@ const recordBindings = (
   const name = mapped["name"];
   const boundKey = BOUND_KEYS.find((key) => node[key] !== undefined);
   const value = boundKey === undefined ? undefined : props[boundKey];
-  // A date input cannot show a time, so its binding keeps the value the agent sent.
-  const holdsValue =
-    component !== "DateTimeInput" ||
-    typeof value !== "string" ||
-    value === "" ||
-    DATE_PATTERN.test(value);
   if (INPUT_COMPONENTS.has(String(component)) && typeof name === "string") {
-    // Controls that share a name collect as a list, so only a lone text control collects one string.
     context.textFields.set(
       name,
-      !context.textFields.has(name) &&
-        holdsValue &&
+      (!context.textFields.has(name) || context.bindings !== undefined) &&
         (component === "TextField" || component === "DateTimeInput"),
     );
-    if (holdsValue) {
-      const field = (fallback: unknown) =>
-        fallback === undefined ? { $field: name } : { $field: name, fallback };
-      // A single-choice picker collects one string, while the spec binds it to a string list.
-      const listValued =
-        component === "ChoicePicker" &&
-        mapped.$type !== "CheckboxGroup" &&
-        typeof value !== "string";
-      context.inputFields.set(
-        name,
-        listValued
-          ? [field(Array.isArray(value) ? value[0] : undefined)]
-          : field(value),
-      );
-    }
+    const field = (fallback: unknown) =>
+      fallback === undefined ? { $field: name } : { $field: name, fallback };
+    // A single-choice picker collects one string, while the spec binds it to a string list.
+    const listValued =
+      component === "ChoicePicker" &&
+      mapped.$type !== "CheckboxGroup" &&
+      typeof value !== "string";
+    context.inputFields.set(
+      name,
+      listValued
+        ? [field(Array.isArray(value) ? value[0] : undefined)]
+        : field(value),
+    );
   }
   const action = mapped.$action;
   const raw = node["action"];
@@ -724,6 +710,12 @@ const mappedProps = (
 
   if (component === "TextField") {
     const placeholder = stringProp(props, ["placeholder"]);
+    const inputType =
+      props["variant"] === "obscured"
+        ? "password"
+        : props["variant"] === "number"
+          ? "number"
+          : undefined;
     const multiline =
       typeof props["multiline"] === "boolean"
         ? props["multiline"]
@@ -740,6 +732,7 @@ const mappedProps = (
           : undefined;
     return {
       $type: "Input",
+      ...(inputType !== undefined ? { inputType } : {}),
       ...(placeholder !== undefined ? { placeholder } : {}),
       ...(multiline !== undefined ? { multiline } : {}),
       ...(label !== undefined ? { label } : {}),
@@ -763,7 +756,14 @@ const mappedProps = (
     const max = finiteNumber(props["max"]);
     if (max === undefined || max < min) return undefined;
     const value = finiteNumber(props["value"]);
-    const step = sliderStep(min, max, value, props["steps"]);
+    const step = sliderStep(
+      min,
+      max,
+      name === undefined
+        ? value
+        : finiteNumber(resolvePointer(context.stepModel, name)),
+      props["steps"],
+    );
     return {
       $type: "Slider",
       min,
@@ -794,17 +794,6 @@ const mappedProps = (
       };
     }
     const [defaultValue] = selected;
-    if (props["displayStyle"] === "chips") {
-      const placeholder = stringProp(props, ["placeholder"]);
-      return {
-        $type: "Select",
-        options,
-        ...(placeholder !== undefined ? { placeholder } : {}),
-        ...(label !== undefined ? { label } : {}),
-        ...(name !== undefined ? { name } : {}),
-        ...(defaultValue !== undefined ? { defaultValue } : {}),
-      };
-    }
     return {
       $type: "RadioGroup",
       options,
@@ -816,6 +805,21 @@ const mappedProps = (
 
   if (component === "DateTimeInput") {
     const value = stringProp(props, ["value"]);
+    const shapeValue =
+      name === undefined ? value : resolvePointer(context.stepModel, name);
+    if (
+      props["enableTime"] === true ||
+      (typeof shapeValue === "string" &&
+        shapeValue !== "" &&
+        !DATE_PATTERN.test(shapeValue))
+    ) {
+      return {
+        $type: "Input",
+        ...(value !== undefined ? { defaultValue: value } : {}),
+        ...(label !== undefined ? { label } : {}),
+        ...(name !== undefined ? { name } : {}),
+      };
+    }
     const min = stringProp(props, ["min"]);
     const max = stringProp(props, ["max"]);
     return {
@@ -843,7 +847,10 @@ const convertTemplate = (
   if (!reserveNode(context)) return null;
   const container = converted ?? { $type: "ListView" };
   const itemized = container.$type === "ListView";
-  const list = materialize({ path: template.path }, scope.data, context);
+  const list = resolvePointer(
+    context.surface.dataModel,
+    pointerIn(scope, template.path),
+  );
   const listPointer = pointerIn(scope, template.path);
   if (!Array.isArray(list)) {
     context.warnings.push(
@@ -924,25 +931,87 @@ function convertComponent(
       );
       return null;
     }
-    const props: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(node)) {
-      if (
-        key === "id" ||
-        key === "component" ||
-        key === "children" ||
-        key === "child"
-      ) {
-        continue;
+    const cacheKey = context.cache
+      ? JSON.stringify([componentId, scope.path, depth])
+      : "";
+    let cached = context.cache?.get(cacheKey);
+    if (
+      cached &&
+      (context.evaluations + cached.evaluations > EVALUATION_BUDGET ||
+        [...cached.dependencies].some(
+          ([path, value]) =>
+            !Object.is(resolvePointer(context.surface.dataModel, path), value),
+        ))
+    )
+      cached = undefined;
+    let props: Record<string, unknown>;
+    let mapped: UIElement | undefined;
+    if (cached) {
+      props = cached.props;
+      mapped = cached.mapped;
+      context.evaluations += cached.evaluations;
+    } else {
+      props = {};
+      const dependencies = new Map<string, unknown>();
+      const evaluations = context.evaluations;
+      context.dependencies = dependencies;
+      context.scopePath = scope.path;
+      for (const [key, value] of Object.entries(node)) {
+        if (
+          key === "id" ||
+          key === "component" ||
+          key === "children" ||
+          key === "child"
+        )
+          continue;
+        const resolved = materialize(
+          value,
+          scope.data,
+          context,
+          key !== "checks",
+        );
+        if (resolved !== undefined) setOwnProperty(props, key, resolved);
       }
-      const resolved = materialize(
-        value,
-        scope.data,
-        context,
-        key !== "checks",
-      );
-      if (resolved !== undefined) setOwnProperty(props, key, resolved);
+      context.dependencies = undefined;
+      mapped = mappedProps(node, props, context, scope);
+      if (context.cache && context.warnings.length === 0 && !mapped?.$action) {
+        cached = {
+          props,
+          mapped,
+          dependencies,
+          evaluations: context.evaluations - evaluations,
+        };
+        context.cache.set(cacheKey, cached);
+      }
     }
-    const mapped = mappedProps(node, props, context, scope);
+    if (
+      mapped &&
+      context.bindings &&
+      typeof mapped["name"] === "string" &&
+      INPUT_COMPONENTS.has(component)
+    ) {
+      const field = mapped.$type === "Checkbox" ? "checked" : "value";
+      const defaultField =
+        mapped.$type === "Checkbox" ? "defaultChecked" : "defaultValue";
+      const fallback =
+        mapped.$type === "Checkbox"
+          ? false
+          : mapped.$type === "CheckboxGroup"
+            ? []
+            : mapped.$type === "Slider"
+              ? mapped["min"]
+              : "";
+      const { [defaultField]: initialValue, ...rest } = mapped;
+      mapped = { ...rest, [field]: initialValue ?? mapped[field] ?? fallback };
+      context.bindings.set(mapped["name"] as string, {
+        value: mapped[field],
+        arrayValue:
+          component === "ChoicePicker" &&
+          mapped.$type !== "CheckboxGroup" &&
+          typeof props["value"] !== "string",
+      });
+    }
+
     if (!mapped && SUPPORTED_COMPONENTS.has(component)) {
       context.warnings.push(
         `A2UI component "${component}" could not be mapped and was skipped.`,
@@ -982,10 +1051,21 @@ function convertComponent(
       component === "List" && mapped?.$type === "ListView"
         ? children.map((child) => ({ $type: "ListViewItem", children: child }))
         : children;
-    return {
+    if (
+      cached?.result &&
+      cached.children?.length === listChildren.length &&
+      cached.children.every((child, index) => child === listChildren[index])
+    )
+      return cached.result;
+    const result = {
       ...converted,
       ...(listChildren.length > 0 ? { children: listChildren } : {}),
     };
+    if (cached) {
+      cached.children = listChildren;
+      cached.result = result;
+    }
+    return result;
   } finally {
     visited.delete(componentId);
   }
@@ -993,11 +1073,41 @@ function convertComponent(
 
 export function convertSurfaceToUISpec(
   surface: A2uiSurfaceState,
-  options: { readonly keepUnknownComponents?: boolean } = {},
+  options: {
+    readonly keepUnknownComponents?: boolean;
+  } = {},
 ): {
   spec: UIElement | null;
   warnings: string[];
 } {
+  return convertSurface(surface, options.keepUnknownComponents === true);
+}
+
+export const createLiveSurfaceConverter = (surface: A2uiSurfaceState) => {
+  const cache = new Map<string, CachedComponent>();
+  const templates = new Map<string, ExpressionPart[] | null>();
+  return (dataModel: unknown) => {
+    const bindings = new Map<string, A2uiBinding>();
+    const converted = convertSurface(
+      { ...surface, dataModel, [A2UI_SURFACE_ID]: sourceSurfaceId(surface) },
+      false,
+      bindings,
+      cache,
+      templates,
+      surface.dataModel,
+    );
+    return { ...converted, bindings };
+  };
+};
+
+function convertSurface(
+  surface: A2uiSurfaceState & { [A2UI_SURFACE_ID]?: string },
+  keepUnknownComponents: boolean,
+  bindings?: Map<string, A2uiBinding>,
+  cache?: Map<string, CachedComponent>,
+  templates = new Map<string, ExpressionPart[] | null>(),
+  stepModel: unknown = surface.dataModel,
+): { spec: UIElement | null; warnings: string[] } {
   const warnings: string[] = [];
   if (!surface.components.has("root")) {
     return {
@@ -1007,6 +1117,7 @@ export function convertSurfaceToUISpec(
   }
   const context: ConversionContext = {
     surface,
+    stepModel,
     surfaceId: sourceSurfaceId(surface),
     warnings,
     emittedNodes: 0,
@@ -1016,12 +1127,16 @@ export function convertSurfaceToUISpec(
     evaluations: 0,
     evaluationBudgetWarned: false,
     functionDepthWarned: false,
-    templates: new Map(),
+    templates,
     inputFields: new Map(),
     textFields: new Map(),
     boundActionEntries: [],
     boundUserMessages: [],
-    keepUnknownComponents: options.keepUnknownComponents === true,
+    keepUnknownComponents,
+    bindings,
+    cache,
+    dependencies: undefined,
+    scopePath: "",
   };
   try {
     const spec = convertComponent(

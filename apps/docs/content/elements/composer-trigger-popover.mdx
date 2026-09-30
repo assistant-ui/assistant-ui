@@ -79,7 +79,7 @@ Trigger detection reads the composer's live text and cursor position from the ru
 </div>
 ```
 
-The two views are exclusive. Categories show only when the adapter reports at least one and the query is empty; typing narrows the visible categories by label. Anything else, from drilling into a category to a category-less adapter to a non-empty query, shows items: filtered locally against a category's items, or from `adapter.search(query)` (falling back to a manual cross-category filter when the adapter omits `search`). Backspace on an empty query returns from a drilled-into category to the list; it does nothing for a category-less adapter, since there is nothing to return to.
+The two views are exclusive. Categories show only when the adapter reports at least one, the query is empty, and no category is active. Anything else, from drilling into a category to a category-less adapter to a non-empty query, shows items: filtered locally against a category's items, or from `adapter.search(query)` (falling back to a manual cross-category filter when the adapter omits `search`). Backspace on an empty query returns from a drilled-into category to the list; it does nothing for a category-less adapter, since there is nothing to return to.
 
 </RuntimeMode>
 
@@ -183,13 +183,13 @@ Multiple popovers share one `TriggerPopoverRoot`; each reads its own state from 
 |------|------|---------|-------------|
 | `char` | `string` | required | Trigger character, unique within the root. |
 | `matcher` | `Unstable_TriggerMatcher` | whitespace-terminated | Overrides trigger detection and the replaced text span. |
-| `adapter` | `Unstable_TriggerAdapter` | required | Supplies categories, items, and search. |
+| `adapter` | `Unstable_TriggerAdapter` | | Supplies categories, items, and search. The popover lists nothing without one. |
 | `directive` | `{ formatter?, onInserted? }` | | Inserts a directive chip on selection. Mutually exclusive with `action`. |
 | `action` | `{ formatter?, onExecute, removeOnExecute? }` | | Fires a handler on selection. Mutually exclusive with `directive`. |
-| `iconMap` | `Record<string, IconComponent>` | | Maps an item's or category's `metadata.icon` string to a component. |
+| `iconMap` | `Record<string, IconComponent>` | | Maps an item's `metadata.icon` string, or a category's `id`, to a component. |
 | `fallbackIcon` | `IconComponent` | `SparklesIcon` | Used when `iconMap` has no match. |
 | `backLabel` | `string` | `"Back"` | Label on the button that returns from items to categories. |
-| `emptyCategoriesLabel` | `string` | `"No items available"` | Shown when the adapter has no categories. |
+| `emptyCategoriesLabel` | `string` | `"No items available"` | Shown when the categories view has no entries. An adapter without categories shows the items view instead. |
 | `emptyItemsLabel` | `string` | `"No matching items"` | Shown when the current view's item list is empty. |
 | `isLoading` | `boolean` | `false` | Swaps `emptyItemsLabel` for `loadingLabel` while true. |
 | `loadingLabel` | `string` | `"Loading…"` | Shown in place of `emptyItemsLabel` while `isLoading`. |
@@ -202,7 +202,7 @@ All other props forward to the popover's root `div`.
 |-------|------|-------------|
 | `categories()` | `() => readonly Unstable_TriggerCategory[]` | Top-level categories. Return `[]` for a flat, search-only adapter. |
 | `categoryItems(id)` | `(categoryId: string) => readonly Unstable_TriggerItem[]` | Items inside a category. |
-| `search(query)` | `(query: string) => readonly Unstable_TriggerItem[]` | Optional. Without it, a category-less adapter's items come from a manual filter over `categoryItems` instead. |
+| `search(query)` | `(query: string) => readonly Unstable_TriggerItem[]` | Optional. Without it, a query filters the `categoryItems` of every category instead. |
 
 `Unstable_TriggerItem` is `{ id, type, label, description?, metadata? }`; the directive formatter's default serialization writes `:type[label]{name=id}`, omitting `{name=…}` when `id` equals `label`.
 
@@ -227,6 +227,6 @@ All other props forward to the popover's root `div`.
 
 ### Accessibility
 
-The popover implements the WAI-ARIA editable combobox pattern: the list has `role="listbox"` and each entry `role="option"` with `aria-selected`. While a popover is open, the composer's `ComposerPrimitive.Input` automatically receives `aria-controls`, `aria-expanded="true"`, `aria-haspopup="listbox"`, and `aria-activedescendant` pointing at the highlighted option; these are removed when it closes. Rendering `ComposerPrimitive.Input` outside a `TriggerPopoverRoot` adds none of these attributes.
+The popover implements the WAI-ARIA editable combobox pattern: the list has `role="listbox"` and each entry `role="option"` with `aria-selected`. While a popover is open, the composer's `ComposerPrimitive.Input` receives `aria-controls`, `aria-expanded="true"`, `aria-haspopup="listbox"`, and `aria-activedescendant` pointing at the highlighted option; these are removed when it closes. Rendering `ComposerPrimitive.Input` outside a `TriggerPopoverRoot` adds none of these attributes.
 
 </RuntimeMode>

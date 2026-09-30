@@ -10,7 +10,7 @@ This page covers the few places tap deliberately differs.
 ## Effects run in call order
 
 In React, effects run children-first (inside-out), because a component can only
-reach its children by returning them. In tap, `useResource` is just another hook,
+reach its children by returning them. In tap, `useResource` is a hook,
 so **effects run in the exact order they are called**, and you can place effects
 before or after a child.
 

@@ -211,6 +211,8 @@ There is no dedicated trace primitive: the depth, id, and status mapping above a
 | `visibleCount` | `number` | required | How many spans from the start of `spans` to render. |
 | `className` | `string` | | Merged onto the root. |
 
+All other `div` props are forwarded to the root.
+
 ### TraceSpan
 
 | Field | Type | Description |
@@ -221,7 +223,5 @@ There is no dedicated trace primitive: the depth, id, and status mapping above a
 | `startMs` | `number` | Position along the axis. |
 | `durationMs` | `number` | Bar width along the axis, and the row's own label. |
 | `status` | `"running" \| "completed" \| "failed"` | Bar color; `"running"` also pulses. |
-
-All other `div` props are forwarded to the root.
 
 </StandaloneMode>
