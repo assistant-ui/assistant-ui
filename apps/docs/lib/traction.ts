@@ -230,6 +230,11 @@ export const PACKAGES: PackageInfo[] = [
     category: "platforms",
   },
   {
+    name: "@assistant-ui/vscode",
+    description: "VS Code extension webview bridge and theme.",
+    category: "platforms",
+  },
+  {
     name: "@assistant-ui/react-markdown",
     description: "Streaming-aware markdown renderer.",
     category: "ui",
