@@ -45,7 +45,7 @@ export function ContextBreakdown({
             "tabular-nums",
             pressure > 0.85
               ? "text-amber-600 dark:text-amber-400"
-              : "text-foreground/35",
+              : "text-muted-foreground",
           )}
         >
           {fmt(used)} / {fmt(limit)}
@@ -86,7 +86,10 @@ export function ContextBreakdown({
               {segment.label}
             </span>
             <span
-              className={cn(mono, "text-foreground/35 shrink-0 tabular-nums")}
+              className={cn(
+                mono,
+                "text-muted-foreground shrink-0 tabular-nums",
+              )}
             >
               {fmt(segment.tokens)}
             </span>
@@ -97,11 +100,11 @@ export function ContextBreakdown({
             aria-hidden
             className="bg-foreground/[0.08] size-2 shrink-0 rounded-full"
           />
-          <span className="text-foreground/35 min-w-0 flex-1 truncate text-[13px]">
+          <span className="text-muted-foreground min-w-0 flex-1 truncate text-[13px]">
             Headroom
           </span>
           <span
-            className={cn(mono, "text-foreground/25 shrink-0 tabular-nums")}
+            className={cn(mono, "text-muted-foreground shrink-0 tabular-nums")}
           >
             {fmt(Math.max(0, limit - used))}
           </span>

@@ -43,10 +43,7 @@ export function Timeline({
           <span
             className={cn(
               mono,
-              "pt-[3px] text-end tabular-nums",
-              event.when === "future"
-                ? "text-foreground/25"
-                : "text-foreground/40",
+              "text-muted-foreground pt-[3px] text-end tabular-nums",
             )}
           >
             {event.time}
@@ -85,7 +82,7 @@ export function Timeline({
               className={cn(
                 "text-[13px] break-words",
                 event.when === "future"
-                  ? "text-foreground/40"
+                  ? "text-muted-foreground"
                   : "text-foreground/90",
                 event.when === "now" && "font-medium",
               )}
@@ -93,7 +90,7 @@ export function Timeline({
               {event.title}
             </span>
             {event.detail && (
-              <span className="text-foreground/45 text-xs leading-relaxed break-words">
+              <span className="text-muted-foreground text-xs leading-relaxed break-words">
                 {event.detail}
               </span>
             )}

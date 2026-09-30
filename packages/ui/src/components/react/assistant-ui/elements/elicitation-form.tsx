@@ -54,25 +54,27 @@ export function ElicitationForm({
       {...props}
     >
       <div className="flex items-center gap-2.5">
-        <span className="bg-foreground/[0.05] text-foreground/45 flex size-7 shrink-0 items-center justify-center rounded-lg">
+        <span className="bg-foreground/[0.05] text-muted-foreground flex size-7 shrink-0 items-center justify-center rounded-lg">
           <PlugIcon className="size-3.5" />
         </span>
         <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
           {server}
         </span>
-        <span className={cn(mono, "text-foreground/30 shrink-0")}>
+        <span className={cn(mono, "text-muted-foreground shrink-0")}>
           needs input
         </span>
       </div>
 
-      <p className="text-foreground/55 text-xs leading-relaxed">{message}</p>
+      <p className="text-muted-foreground text-xs leading-relaxed">{message}</p>
 
       <div className="flex flex-col gap-2.5">
         {fields.map((item) => (
           <div key={item.name} className="flex flex-col gap-1">
-            <span className={cn(mono, "text-foreground/35")}>
+            <span className={cn(mono, "text-muted-foreground")}>
               {item.label}
-              {item.required && <span className="text-foreground/25"> *</span>}
+              {item.required && (
+                <span className="text-muted-foreground"> *</span>
+              )}
             </span>
             {item.kind === "choice" ? (
               <div className="flex flex-wrap gap-1.5">
@@ -83,7 +85,7 @@ export function ElicitationForm({
                       "rounded-full px-2.5 py-1 text-xs transition-colors",
                       option === item.value
                         ? "bg-foreground text-background"
-                        : cn(field, "text-foreground/55"),
+                        : cn(field, "text-muted-foreground"),
                     )}
                   >
                     {option}
@@ -108,7 +110,7 @@ export function ElicitationForm({
                     )}
                   />
                 </span>
-                <span className="text-foreground/55 text-xs">
+                <span className="text-muted-foreground text-xs">
                   {item.value === "true" ? "On" : "Off"}
                 </span>
               </span>
@@ -132,7 +134,7 @@ export function ElicitationForm({
             <button
               type="button"
               onClick={onDecline}
-              className="text-foreground/55 hover:bg-foreground/[0.06] hover:text-foreground/90 h-8 rounded-full px-3.5 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.96]"
+              className="text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground/90 h-8 rounded-full px-3.5 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.96]"
             >
               Decline
             </button>
@@ -150,7 +152,7 @@ export function ElicitationForm({
         ) : (
           <span
             key={state}
-            className="fade-in animate-in text-foreground/55 flex items-center gap-2 text-xs duration-300"
+            className="fade-in animate-in text-muted-foreground flex items-center gap-2 text-xs duration-300"
           >
             {state === "accepted" ? (
               <>
@@ -159,7 +161,7 @@ export function ElicitationForm({
               </>
             ) : (
               <>
-                <XIcon className="text-foreground/45 size-3.5" />
+                <XIcon className="text-muted-foreground size-3.5" />
                 Declined
               </>
             )}

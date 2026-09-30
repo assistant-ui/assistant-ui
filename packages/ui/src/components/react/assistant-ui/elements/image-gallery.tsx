@@ -121,7 +121,7 @@ export function ImageGallery({
               )}
             >
               {failed ? (
-                <span className="text-foreground/35 flex size-full items-center justify-center">
+                <span className="text-muted-foreground flex size-full items-center justify-center">
                   <ImageOffIcon aria-hidden className="size-6" />
                 </span>
               ) : (
@@ -155,7 +155,7 @@ export function ImageGallery({
             </DialogTitle>
             <div className="flex min-h-0 items-center justify-center px-10">
               {failedImages.has(keyForImage(activeImage)) ? (
-                <div className="text-foreground/35 flex h-[min(75vh,32rem)] w-full items-center justify-center">
+                <div className="text-muted-foreground flex h-[min(75vh,32rem)] w-full items-center justify-center">
                   <ImageOffIcon aria-hidden className="size-8" />
                 </div>
               ) : (
@@ -192,7 +192,7 @@ export function ImageGallery({
                       href={sourceHref}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-foreground/50 hover:text-foreground/80 flex min-w-0 items-center gap-1 truncate transition-colors"
+                      className="text-muted-foreground hover:text-foreground/80 flex min-w-0 items-center gap-1 truncate transition-colors"
                     >
                       <span className="truncate">
                         {activeImage.source.label}
@@ -204,13 +204,13 @@ export function ImageGallery({
                       <span className="sr-only">(opens in a new tab)</span>
                     </a>
                   ) : (
-                    <span className="text-foreground/50 truncate">
+                    <span className="text-muted-foreground truncate">
                       {activeImage.source.label}
                     </span>
                   )
                 ) : null}
               </div>
-              <span className={cn(mono, "text-foreground/45 shrink-0")}>
+              <span className={cn(mono, "text-muted-foreground shrink-0")}>
                 {index + 1} / {images.length}
               </span>
               <button

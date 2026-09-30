@@ -44,7 +44,7 @@ export function ResearchReport({
     >
       <div className="flex flex-col gap-1">
         <span className="text-[13.5px] font-medium">{title}</span>
-        <span className={cn(mono, "text-foreground/30 tabular-nums")}>
+        <span className={cn(mono, "text-muted-foreground tabular-nums")}>
           {done}/{sections.length} sections · {sourcesRead} sources read
         </span>
       </div>
@@ -58,7 +58,7 @@ export function ResearchReport({
             <div className="flex items-center gap-2">
               <span className="flex size-3.5 shrink-0 items-center justify-center">
                 {section.state === "done" ? (
-                  <CheckIcon className="text-foreground/35 size-3" />
+                  <CheckIcon className="text-muted-foreground size-3" />
                 ) : section.state === "writing" ? (
                   <Loader2Icon className="size-3 animate-spin text-blue-500 motion-reduce:animate-none dark:text-blue-400" />
                 ) : (
@@ -72,20 +72,20 @@ export function ResearchReport({
                 className={cn(
                   "min-w-0 flex-1 truncate text-[13px]",
                   section.state === "pending"
-                    ? "text-foreground/35"
+                    ? "text-muted-foreground"
                     : "text-foreground/85",
                 )}
               >
                 {section.heading}
               </span>
               {section.sources > 0 && (
-                <span className={cn(mono, "text-foreground/25 shrink-0")}>
+                <span className={cn(mono, "text-muted-foreground shrink-0")}>
                   {section.sources} src
                 </span>
               )}
             </div>
             {section.preview && (
-              <p className="text-foreground/50 fade-in animate-in ps-5.5 text-xs leading-relaxed duration-300">
+              <p className="text-muted-foreground fade-in animate-in ps-5.5 text-xs leading-relaxed duration-300">
                 {section.preview}
               </p>
             )}
