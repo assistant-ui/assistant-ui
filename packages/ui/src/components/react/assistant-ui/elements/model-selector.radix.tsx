@@ -381,8 +381,10 @@ export type ModelSelectorContentProps = Omit<
 
 // The popover re-evaluates collision flipping whenever the popup resizes, so
 // filtering the list down flips the popup back to the preferred side
-// mid-interaction. Feed the rendered side back as the preferred side, making
-// the popup keep its side until it no longer fits.
+// mid-interaction. Adopt the side the popup first flips to as the preferred
+// side for the rest of the open. Adopting every change can alternate between
+// sides without end: after a preference change the popup can render on the
+// opposite side even when both sides fit.
 function useLazyFlipSide(): {
   side: ModelSelectorContentProps["side"];
   popupRef: (node: HTMLDivElement | null) => void;
@@ -396,12 +398,12 @@ function useLazyFlipSide(): {
       setSide(undefined);
       return;
     }
-    const sync = () => {
+    const observer = new MutationObserver(() => {
       const rendered = node.getAttribute("data-side");
-      if (rendered) setSide(rendered as ModelSelectorContentProps["side"]);
-    };
-    sync();
-    const observer = new MutationObserver(sync);
+      if (!rendered) return;
+      observer.disconnect();
+      setSide(rendered as ModelSelectorContentProps["side"]);
+    });
     observer.observe(node, {
       attributes: true,
       attributeFilter: ["data-side"],
