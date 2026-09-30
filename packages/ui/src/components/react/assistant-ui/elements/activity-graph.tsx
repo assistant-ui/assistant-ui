@@ -56,7 +56,7 @@ export function ActivityGraph({
         weekStart="monday"
         className="flex flex-col gap-2"
       >
-        <div className="flex gap-2 overflow-x-auto">
+        <div className="flex gap-2">
           <div className="flex shrink-0 flex-col gap-[3px]">
             <HeatGraph.DayLabels>
               {({ label }) => (
@@ -74,16 +74,19 @@ export function ActivityGraph({
             </HeatGraph.DayLabels>
           </div>
 
-          <HeatGraph.Grid className="gap-[3px]">
-            {({ cell }) => (
-              <HeatGraph.Cell
-                className={cn(
-                  "size-[9px] rounded-[2px]",
-                  LEVEL_TINT[cell.level] ?? LEVEL_TINT[0],
-                )}
-              />
-            )}
-          </HeatGraph.Grid>
+          {/* A reversed row starts scrolled to its end, so a narrow graph opens on the newest weeks. */}
+          <div className="flex min-w-0 flex-row-reverse overflow-x-auto">
+            <HeatGraph.Grid className="shrink-0 gap-[3px]">
+              {({ cell }) => (
+                <HeatGraph.Cell
+                  className={cn(
+                    "size-[9px] rounded-[2px]",
+                    LEVEL_TINT[cell.level] ?? LEVEL_TINT[0],
+                  )}
+                />
+              )}
+            </HeatGraph.Grid>
+          </div>
         </div>
 
         <div className="flex items-center gap-1.5 self-end">
