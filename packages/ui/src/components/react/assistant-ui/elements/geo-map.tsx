@@ -255,12 +255,12 @@ export function GeoMap({
           field,
           "relative overflow-hidden rounded-xl",
           "[&_.leaflet-bar]:border-foreground/10! [&_.leaflet-bar_a]:border-foreground/10! [&_.leaflet-bar_a]:bg-background! [&_.leaflet-bar_a]:text-foreground/80! [&_.leaflet-bar_a:hover]:bg-foreground/[0.06]! [&_.leaflet-bar]:shadow-none!",
-          "[&_.leaflet-control-attribution]:bg-background/80! [&_.leaflet-control-attribution]:text-foreground/55! [&_.leaflet-control-attribution_a]:text-foreground/70!",
+          "[&_.leaflet-control-attribution]:bg-background/80! [&_.leaflet-control-attribution]:text-muted-foreground! [&_.leaflet-control-attribution_a]:text-foreground/70!",
           tileUrl === undefined && TILE_INK[theme],
         )}
       >
         {!mapReady ? (
-          <span className="text-foreground/45 absolute inset-0 flex items-center justify-center text-xs">
+          <span className="text-muted-foreground absolute inset-0 flex items-center justify-center text-xs">
             Loading map
           </span>
         ) : null}
@@ -285,7 +285,7 @@ export function GeoMap({
                     {place.label}
                   </span>
                   {place.description ? (
-                    <span className="text-foreground/45 block text-xs leading-4 break-words">
+                    <span className="text-muted-foreground block text-xs leading-4 break-words">
                       {place.description}
                     </span>
                   ) : null}
@@ -293,7 +293,7 @@ export function GeoMap({
                 <span
                   className={cn(
                     mono,
-                    "text-foreground/35 shrink-0 pt-0.5 tabular-nums",
+                    "text-muted-foreground shrink-0 pt-0.5 tabular-nums",
                   )}
                 >
                   {place.lat.toFixed(4)}, {place.lng.toFixed(4)}
