@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { appBuilderAgent, learnAgent } from "./agents";
 import type { XuluxAgentDefinition } from "./agents";
 
 const mocks = vi.hoisted(() => ({
@@ -7,6 +8,11 @@ const mocks = vi.hoisted(() => ({
   getDistinctId: vi.fn(() => "analytics-distinct-id"),
   beginTurn: vi.fn(),
   finishTurn: vi.fn(),
+  resolveChatModel: vi.fn(() => ({
+    model: {},
+    providerOptions: undefined,
+    reasoning: false,
+  })),
   streamText: vi.fn(),
 }));
 
@@ -53,11 +59,7 @@ vi.mock("@/lib/validate-input", async (importOriginal) => ({
 
 vi.mock("@/lib/ai/provider", async (importOriginal) => ({
   ...(await importOriginal()),
-  resolveChatModel: () => ({
-    model: {},
-    providerOptions: undefined,
-    reasoning: false,
-  }),
+  resolveChatModel: mocks.resolveChatModel,
 }));
 
 vi.mock("@assistant-ui/ai-sdk", async (importOriginal) => ({
@@ -81,12 +83,13 @@ const agent: XuluxAgentDefinition = {
   prepareTools: () => ({}),
 };
 
-const request = () =>
+const request = (config?: Record<string, unknown>) =>
   new Request("https://www.assistant-ui.com/api/xulux/chat", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       sessionId: "xulux-chat-session",
+      ...(config ? { config } : {}),
       messages: [
         {
           id: "user-message",
@@ -97,7 +100,43 @@ const request = () =>
     }),
   });
 
+const readyForChat = () => {
+  mocks.resolveChatModel.mockClear();
+  mocks.requireSession.mockReturnValue({
+    id: "signed-session-1234567890",
+    expiresAt: Date.now() + 60_000,
+  });
+  mocks.checkRateLimit.mockResolvedValue(null);
+  mocks.beginTurn.mockResolvedValue({
+    denied: null,
+    budgetDate: "2026-08-27",
+  });
+  mocks.streamText.mockReturnValue({
+    toUIMessageStreamResponse: () => new Response("ok"),
+  });
+};
+
 describe("createXuluxChatHandler access boundary", () => {
+  it.each([
+    ["app builder", appBuilderAgent],
+    ["Learn chat", learnAgent],
+  ])(
+    "pins the %s model when the request names another model",
+    async (_, xuluxAgent) => {
+      readyForChat();
+
+      const response = await createXuluxChatHandler({
+        ...xuluxAgent,
+        prepareTools: () => ({}),
+      })(request({ modelName: "grok/grok-4.3" }));
+
+      expect(response.status).toBe(200);
+      expect(mocks.resolveChatModel).toHaveBeenLastCalledWith({
+        modelName: "gpt-6-luna",
+      });
+    },
+  );
+
   it("rejects requests without a valid public assistant session", async () => {
     mocks.requireSession.mockReturnValue(
       Response.json({ error: "website required" }, { status: 403 }),
