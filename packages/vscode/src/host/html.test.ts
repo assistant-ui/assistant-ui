@@ -85,6 +85,24 @@ describe("createWebviewCsp", () => {
     expect(csp.get("frame-src")).toEqual(["https://www.youtube.com"]);
   });
 
+  it("accepts VS Code's multi-source cspSource", () => {
+    const csp = directives(
+      createWebviewCsp(
+        { cspSource: "'self'  https://*.vscode-cdn.net" },
+        { nonce: "abc" },
+      ),
+    );
+    expect(csp.get("style-src")).toEqual([
+      "'self'",
+      "https://*.vscode-cdn.net",
+      "'nonce-abc'",
+    ]);
+    expect(csp.get("connect-src")).toEqual([
+      "'self'",
+      "https://*.vscode-cdn.net",
+    ]);
+  });
+
   it("rejects sources and nonces that would inject directives", () => {
     expect(() =>
       createWebviewCsp(webview, {
@@ -100,6 +118,9 @@ describe("createWebviewCsp", () => {
         { cspSource: "https://x; script-src *" },
         { nonce: "n" },
       ),
+    ).toThrow(/cspSource/);
+    expect(() =>
+      createWebviewCsp({ cspSource: "'self' 'unsafe-eval'" }, { nonce: "n" }),
     ).toThrow(/cspSource/);
     expect(() =>
       createWebviewCsp(webview, { nonce: "n' 'unsafe-inline" }),

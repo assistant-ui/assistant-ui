@@ -1,4 +1,5 @@
 export type WebviewCspSource = {
+  /** A source list, such as VS Code's `'self' https://*.vscode-cdn.net`. */
   readonly cspSource: string;
 };
 
@@ -74,6 +75,16 @@ const sources = (directive: string, values: readonly string[]) => {
   return values;
 };
 
+const cspSourceList = (cspSource: string) => {
+  const list = cspSource.split(/\s+/).filter((value) => value !== "");
+  if (list.length === 0) throw new Error("Invalid cspSource: empty");
+  sources(
+    "cspSource",
+    list.filter((value) => value !== "'self'"),
+  );
+  return list.join(" ");
+};
+
 const attributes = (values: Readonly<Record<string, string>>) =>
   Object.entries(values)
     .map(([name, value]) => {
@@ -106,8 +117,7 @@ export function createWebviewCsp(
 ): string {
   const { nonce, csp = "strict" } = options;
   assertNonce(nonce);
-  const { cspSource } = webview;
-  sources("cspSource", [cspSource]);
+  const cspSource = cspSourceList(webview.cspSource);
   const frameSrc = sources("frame-src", options.frameSrc ?? []);
 
   const directives: [string, ...string[]][] = [

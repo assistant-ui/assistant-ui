@@ -137,4 +137,39 @@ describe("theme.css", () => {
     );
     expect(before).toContain(".dark\\:bg-background:is(.dark *)");
   });
+
+  it("reverts the webview defaults VS Code injects as @layer vscode-default", async () => {
+    const css = await build(
+      '@layer vscode-default { blockquote { background: red; } }\n@import "tailwindcss";\n@import "@assistant-ui/vscode/theme.css";',
+      [],
+    );
+    const baseStart = css.indexOf("@layer base {");
+    expect(baseStart).toBeGreaterThan(css.indexOf("@layer vscode-default"));
+    const base = css.slice(baseStart);
+    const ruleOf = (selector: string) => {
+      const start = base.indexOf(`${selector} {`);
+      expect(start, selector).toBeGreaterThan(-1);
+      return base.slice(start, base.indexOf("}", start));
+    };
+
+    // Declarations of VS Code's default webview sheet that preflight leaves unset.
+    for (const [selector, properties] of [
+      [":where(img, video)", ["max-height"]],
+      [":where(a code)", ["color"]],
+      [
+        ":where(a, input, select, textarea):focus",
+        ["outline", "outline-offset"],
+      ],
+      [":where(code, kbd)", ["color", "background-color", "border-radius"]],
+      [":where(kbd)", ["box-shadow", "vertical-align"]],
+      [":where(blockquote)", ["background"]],
+    ] as const) {
+      const rule = ruleOf(selector);
+      for (const property of properties) {
+        expect(rule, `${selector} ${property}`).toMatch(
+          new RegExp(`\\b${property}: revert;`),
+        );
+      }
+    }
+  });
 });
