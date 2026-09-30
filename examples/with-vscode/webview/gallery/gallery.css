@@ -8,3 +8,15 @@
   transition: none !important;
   caret-color: transparent !important;
 }
+
+/* A section shown alone with an open overlay: the body is the overlay's
+   containing block, sized like a webview, and as wide as the section at a
+   fixed gallery width. */
+body[data-gallery-overlay] {
+  contain: layout;
+  min-height: 48rem;
+}
+
+body[data-gallery-overlay="fixed-width"] {
+  width: fit-content;
+}

@@ -1,6 +1,12 @@
 import type { GalleryView } from "../../src/protocol";
 import { setActiveSection } from "./recorder";
 
+/**
+ * Set on the body while a section shown alone holds an open overlay; the
+ * value is `fixed-width` when the gallery forces a section width.
+ */
+export const OVERLAY_ATTRIBUTE = "data-gallery-overlay";
+
 let current: GalleryView = { section: null, width: null };
 const listeners = new Set<() => void>();
 const waiting = new Map<GalleryView, () => void>();

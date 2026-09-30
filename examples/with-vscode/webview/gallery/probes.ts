@@ -14,7 +14,7 @@ import {
 import { getVSCodeApi } from "../vscode-api";
 import { ALL_SECTIONS, issueMark, issuesSince, type Issue } from "./recorder";
 import { sectionConflicts, SECTIONS } from "./registry";
-import { galleryView } from "./view";
+import { galleryView, OVERLAY_ATTRIBUTE } from "./view";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const nextFrame = () => new Promise((r) => requestAnimationFrame(r));
@@ -253,7 +253,9 @@ const GALLERY_TASKS = {
     const target =
       view.section === null
         ? document.querySelector("[data-gallery-root]")
-        : cardOf(view.section);
+        : document.body.hasAttribute(OVERLAY_ATTRIBUTE)
+          ? document.body
+          : cardOf(view.section);
     const rect = target?.getBoundingClientRect();
     return {
       rect: rect

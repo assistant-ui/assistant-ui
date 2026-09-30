@@ -43,7 +43,6 @@ export default defineSections([
       <ClickWhenAlone
         id="image-gallery-lightbox"
         selector='[data-slot="image-gallery"] button'
-        className="min-h-screen"
       >
         <ImageGallery images={GALLERY} maxVisible={3} />
       </ClickWhenAlone>

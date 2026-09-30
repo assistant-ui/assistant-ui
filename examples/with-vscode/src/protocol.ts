@@ -36,7 +36,7 @@ export type ViewportRect = {
 
 /** What `gallery-show` returns once the view has rendered and settled. */
 export type GalleryShown = {
-  /** The card of the shown section, or the whole gallery. */
+  /** The card of the shown section, the body while it holds an open overlay, or the whole gallery. */
   rect: ViewportRect | null;
   viewport: { width: number; height: number };
 };
