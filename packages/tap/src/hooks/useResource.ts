@@ -1,47 +1,88 @@
-import type { ExtractResourceReturnType, ResourceElement } from "../core/types";
+import type {
+  ExtractResourceReturnType,
+  ResourceElement,
+  ResourceFiber,
+} from "../core/types";
 import {
   renderResourceFiber,
   commitResourceFiber,
+  unmountResourceFiber,
 } from "../core/ResourceFiber";
 import { hasContextDepsChanged } from "../core/context";
 import {
   useHostLifecycle,
   useResourceFiberHost,
 } from "./utils/useResourceFiberHostUtils";
-import { useEffect, useMemo, useState } from "react";
-import { useRenderMemo } from "./utils/useRenderMemo";
+import { useEffect, useMemo, useRef } from "react";
+import { depsShallowEqual } from "./utils/depsShallowEqual";
+
+type HostState<R> = {
+  fiber: ResourceFiber<R>;
+  key: string | number | undefined;
+  currentDeps: readonly unknown[] | null;
+  current: { value: R } | null;
+  wipDeps: readonly unknown[] | null;
+  wip: { value: R } | null;
+};
+
+const createHostState = <R>(
+  fiber: ResourceFiber<R>,
+  key: string | number | undefined,
+): HostState<R> => ({
+  fiber,
+  key,
+  currentDeps: null,
+  current: null,
+  wipDeps: null,
+  wip: null,
+});
 
 export function useResource<E extends ResourceElement<any>>(
   element: E,
 ): ExtractResourceReturnType<E> {
   const { version, createFiber } = useResourceFiberHost();
-  const [host] = useState(() => ({
-    fiber: createFiber(element.hook, element.key),
-    key: element.key,
-  }));
+  const stateRef = useRef<HostState<ExtractResourceReturnType<E>>>(null);
+  const state = (stateRef.current ??= createHostState(
+    createFiber(element.hook, element.key),
+    element.key,
+  ));
   const fiber = useMemo(
     () =>
-      host.fiber.hook === element.hook &&
-      host.key === element.key &&
-      !host.fiber.isReleased
-        ? host.fiber
+      state.fiber.hook === element.hook &&
+      state.key === element.key &&
+      !state.fiber.isReleased
+        ? state.fiber
         : createFiber(element.hook, element.key),
-    [host, element.hook, element.key, createFiber],
+    [state, element.hook, element.key, createFiber],
   );
 
-  const result = useRenderMemo(
-    () => ({ value: renderResourceFiber(fiber, element.args) }),
-    [fiber, version, element.args],
-    hasContextDepsChanged(fiber),
-  );
+  state.wipDeps = state.currentDeps;
+  state.wip = state.current;
+  const deps = [fiber, version, element.args];
+  if (
+    hasContextDepsChanged(fiber) ||
+    state.currentDeps === null ||
+    !depsShallowEqual(state.currentDeps, deps)
+  ) {
+    state.wipDeps = deps;
+    state.wip = { value: renderResourceFiber(fiber, element.args) };
+  }
+  const result = state.wip!;
 
-  useHostLifecycle(fiber);
+  const cell = useHostLifecycle(fiber);
   useEffect(() => {
-    void result;
-    host.fiber = fiber;
-    host.key = element.key;
+    state.currentDeps = state.wipDeps;
+    state.current = state.wip;
+    state.fiber = fiber;
+    state.key = element.key;
     commitResourceFiber(fiber);
-  }, [host, fiber, element.key, result]);
+    if (cell !== null) {
+      return () => {
+        if (cell.fiber !== fiber) unmountResourceFiber(fiber, true);
+      };
+    }
+    return undefined;
+  }, [state, cell, fiber, element.key, result]);
 
   return result.value;
 }

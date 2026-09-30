@@ -54,8 +54,8 @@ export function discardWipRender<R>(fiber: ResourceFiber<R>): void {
 function cleanupResourceFiber<R>(
   fiber: ResourceFiber<R>,
   insertion: boolean,
-  errors: unknown[],
-): void {
+  errors: unknown[] | undefined,
+): unknown[] | undefined {
   try {
     if (insertion) {
       fiber.isReleased = true;
@@ -65,30 +65,31 @@ function cleanupResourceFiber<R>(
       cleanupCells(fiber.effectCells);
     }
   } catch (error) {
-    errors.push(error);
+    (errors ??= []).push(error);
   }
   if (fiber.hostCells !== null) {
     for (const cell of fiber.hostCells) {
       if (cell.fiber !== null) {
-        cleanupResourceFiber(cell.fiber, insertion, errors);
+        errors = cleanupResourceFiber(cell.fiber, insertion, errors);
       }
       if (cell.fibers !== null) {
         for (const { fiber } of cell.fibers.values()) {
-          cleanupResourceFiber(fiber, insertion, errors);
+          errors = cleanupResourceFiber(fiber, insertion, errors);
         }
       }
     }
   }
+  return errors;
 }
 
 export function unmountResourceFiber<R>(
   fiber: ResourceFiber<R>,
   permanent = true,
 ): void {
-  const errors: unknown[] = [];
-  if (permanent) cleanupResourceFiber(fiber, true, errors);
-  cleanupResourceFiber(fiber, false, errors);
-  throwAggregated(errors, "Errors during cleanup");
+  let errors: unknown[] | undefined;
+  if (permanent) errors = cleanupResourceFiber(fiber, true, errors);
+  errors = cleanupResourceFiber(fiber, false, errors);
+  if (errors !== undefined) throwAggregated(errors, "Errors during cleanup");
 }
 
 export function renderResourceFiber<R>(

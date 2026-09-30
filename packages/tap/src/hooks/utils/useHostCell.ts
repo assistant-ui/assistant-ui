@@ -1,8 +1,6 @@
-import { unmountResourceFiber } from "../../core/ResourceFiber";
 import { getCurrentResourceFiber } from "../../core/helpers/execution-context";
 import { addCommit } from "../../core/helpers/root";
 import type { HostCell, ResourceFiber } from "../../core/types";
-import { useEffect } from "../../react-hooks/useEffect";
 import {
   throwHookOrderChanged,
   throwRenderedMoreHooks,
@@ -12,7 +10,7 @@ export type HostTarget =
   | ResourceFiber<unknown>
   | NonNullable<HostCell["fibers"]>;
 
-export const useHostCell = (target: HostTarget): void => {
+export const useHostCell = (target: HostTarget): HostCell => {
   const parent = getCurrentResourceFiber();
   const index = parent.currentIndex++;
   const existing = parent.cells[index];
@@ -20,10 +18,11 @@ export const useHostCell = (target: HostTarget): void => {
 
   if (existing === undefined) {
     if (!parent.isFirstRender) throwRenderedMoreHooks();
+    const isMap = target instanceof Map;
     cell = {
       type: "host",
-      fiber: target instanceof Map ? null : target,
-      fibers: target instanceof Map ? target : null,
+      fiber: isMap ? null : target,
+      fibers: isMap ? target : null,
     };
     parent.cells[index] = cell;
     (parent.hostCells ??= []).push(cell);
@@ -32,18 +31,11 @@ export const useHostCell = (target: HostTarget): void => {
     cell = existing as HostCell;
   }
 
-  if (!(target instanceof Map) && cell.fiber !== target) {
+  if (cell.fibers === null && cell.fiber !== target) {
     addCommit(parent, () => {
-      cell.fiber = target;
+      cell.fiber = target as ResourceFiber<unknown>;
     });
   }
 
-  useEffect(
-    () => () => {
-      if (!(target instanceof Map) && cell.fiber !== target) {
-        unmountResourceFiber(target, true);
-      }
-    },
-    [cell, target],
-  );
+  return cell;
 };

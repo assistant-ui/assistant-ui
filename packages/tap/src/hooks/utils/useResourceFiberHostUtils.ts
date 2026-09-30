@@ -22,6 +22,7 @@ import {
 import { useDevStrictMode } from "./useDevStrictMode";
 import { useHostCell, type HostTarget } from "./useHostCell";
 import { throwAggregated } from "../../core/helpers/throwAggregated";
+import type { HostCell } from "../../core/types";
 
 const getHostedFibers = (target: HostTarget) =>
   target instanceof Map ? target.values() : [{ fiber: target }];
@@ -58,13 +59,14 @@ const useHostLifecycleReact = (target: HostTarget): void => {
   );
 };
 
-export const useHostLifecycle = (target: HostTarget): void => {
+export const useHostLifecycle = (target: HostTarget): HostCell | null => {
   if (peekResourceFiber()) {
     // oxlint-disable-next-line react-hooks/rules-of-hooks
-    useHostCell(target);
+    return useHostCell(target);
   } else {
     // oxlint-disable-next-line react-hooks/rules-of-hooks
     useHostLifecycleReact(target);
+    return null;
   }
 };
 
