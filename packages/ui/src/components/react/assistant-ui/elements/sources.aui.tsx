@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, type ComponentProps } from "react";
+import { forwardRef, memo, useState, type ComponentProps } from "react";
 import { FileTextIcon } from "lucide-react";
 import { cva, type VariantProps } from "class-variance-authority";
 import type { SourceMessagePartComponent } from "@assistant-ui/react";
@@ -45,15 +45,16 @@ const sourceVariants = cva(
 const defaultFaviconUrl = (domain: string) =>
   `https://icons.duckduckgo.com/ip3/${domain}.ico`;
 
-function SourceIcon({
-  url,
-  className,
-  faviconUrl = defaultFaviconUrl,
-  ...props
-}: ComponentProps<"span"> & {
-  url: string;
-  faviconUrl?: ((domain: string) => string) | undefined;
-}) {
+const SourceIcon = forwardRef<
+  HTMLSpanElement,
+  ComponentProps<"span"> & {
+    url: string;
+    faviconUrl?: ((domain: string) => string) | undefined;
+  }
+>(function SourceIcon(
+  { url, className, faviconUrl = defaultFaviconUrl, ...props },
+  ref,
+) {
   const domain = hostOf(url);
   const src = domain === undefined ? undefined : faviconUrl(domain);
   const [errorSrc, setErrorSrc] = useState<string | undefined>(undefined);
@@ -62,6 +63,7 @@ function SourceIcon({
   if (hasError) {
     return (
       <span
+        ref={ref}
         data-slot="source-icon-fallback"
         className={cn(
           "bg-muted flex size-3 shrink-0 items-center justify-center rounded-sm text-[10px] font-medium",
@@ -88,7 +90,7 @@ function SourceIcon({
       }}
     />
   );
-}
+});
 
 function SourceTitle({ className, ...props }: ComponentProps<"span">) {
   return (

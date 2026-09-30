@@ -101,6 +101,7 @@ export {
   type AbortableThreadLoadPurpose,
 } from "./runtime/utils/abortable-thread-load";
 export { createCloudThreadListAdapterCreateFallback } from "./react/runtimes/cloud/createCloudThreadListAdapterCreateFallback";
+export { useLatestRef } from "./react/runtimes/assistant-transport/useLatestRef";
 
 export * from "./runtime/internal";
 export * from "./runtimes/internal";

@@ -15,11 +15,10 @@ import type {
   ThreadMessage,
   ThreadMessageLike,
 } from "@assistant-ui/react";
-import { invokeUserCallback } from "@assistant-ui/core/internal";
+import { invokeUserCallback, useLatestRef } from "@assistant-ui/core/internal";
 import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import {
   useEffect,
-  useEffectEvent,
   useCallback,
   useMemo,
   useRef,
@@ -249,14 +248,14 @@ const usePiThreadStore = (
   const isLoading = state.loadState === "loading";
   const isRunning = isPiStateRunning(state);
 
-  const onLoadError = useEffectEvent((error: unknown) => {
+  const onLoadError = useLatestRef((error: unknown) => {
     invokePiErrorCallback(onError, error);
   });
 
   useEffect(() => {
     if (controller === NOOP_CONTROLLER) return;
-    void controller.load().catch(onLoadError);
-  }, [controller]);
+    void controller.load().catch((error) => onLoadError.current(error));
+  }, [controller, onLoadError]);
 
   // A running thread must stream live events even when this client never
   // called `sendMessage` — e.g. the first message of a new thread starts the

@@ -1,6 +1,12 @@
 "use client";
 
-import { memo, useCallback, useRef } from "react";
+import {
+  forwardRef,
+  memo,
+  useCallback,
+  useImperativeHandle,
+  useRef,
+} from "react";
 import {
   useScrollLock,
   useAuiState,
@@ -22,12 +28,12 @@ import {
 export type { ReasoningRootProps } from "./reasoning";
 
 /** `ReasoningRoot` with the thread viewport scroll locked during disclosure animations. */
-function ReasoningRoot({
-  ref,
-  onAnimationStart,
-  ...props
-}: ReasoningRootProps) {
+const ReasoningRoot = forwardRef<
+  HTMLDivElement,
+  Omit<ReasoningRootProps, "ref">
+>(function ReasoningRoot({ onAnimationStart, ...props }, ref) {
   const collapsibleRef = useRef<HTMLDivElement | null>(null);
+  useImperativeHandle(ref, () => collapsibleRef.current!, [ref]);
   const lockScroll = useScrollLock(collapsibleRef, ANIMATION_DURATION);
 
   const handleAnimationStart = useCallback(() => {
@@ -35,17 +41,9 @@ function ReasoningRoot({
     onAnimationStart?.();
   }, [lockScroll, onAnimationStart]);
 
-  const composedRef = useCallback(
-    (node: HTMLDivElement | null) => {
-      collapsibleRef.current = node;
-      if (typeof ref === "function") {
-        ref(node);
-      } else if (ref) {
-        ref.current = node;
-      }
-    },
-    [ref],
-  );
+  const composedRef = useCallback((node: HTMLDivElement | null) => {
+    collapsibleRef.current = node;
+  }, []);
 
   return (
     <ReasoningRootBase
@@ -54,7 +52,7 @@ function ReasoningRoot({
       {...props}
     />
   );
-}
+});
 
 const ReasoningImpl: ReasoningMessagePartComponent = () => <MarkdownText />;
 

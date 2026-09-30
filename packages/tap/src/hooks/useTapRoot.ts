@@ -176,13 +176,17 @@ const createInstance = <R>(
 export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
   const [, forceHostRender] = useState(0);
   const getDevStrictMode = useDevStrictMode();
+  const devStrictMode = getDevStrictMode();
 
   const instRef = useRef<Instance<R> | null>(null);
   const inst = (instRef.current ??= createInstance(
     render,
-    getDevStrictMode(),
+    devStrictMode,
     forceHostRender,
   ));
+  if (devStrictMode && inst.fiber.devStrictMode === null) {
+    inst.fiber.devStrictMode = devStrictMode;
+  }
 
   const context = cloneCurrentTapContext();
 
