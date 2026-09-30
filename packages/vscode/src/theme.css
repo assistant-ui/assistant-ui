@@ -164,6 +164,15 @@
     color-scheme: light;
   }
 
+  /* Light Modern sets --vscode-descriptionForeground to its foreground colour. */
+  body.vscode-light:not(.vscode-high-contrast) {
+    --muted-foreground: color-mix(
+      in srgb,
+      var(--foreground) 72%,
+      var(--background)
+    );
+  }
+
   body:is(
     .vscode-dark,
     .vscode-high-contrast:not(.vscode-high-contrast-light)
@@ -284,7 +293,8 @@ blockquote {
   :is(
     .aui-user-message-content,
     [data-slot="composer-quote"],
-    [data-slot="chat-panel-user-message"]
+    [data-slot="chat-panel-user-message"],
+    [data-slot="chat-panel-composer"]
   ) {
   outline: 1px solid var(--vscode-contrastBorder, CanvasText);
   outline-offset: -1px;
