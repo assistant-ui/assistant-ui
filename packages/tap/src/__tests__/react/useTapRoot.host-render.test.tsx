@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { Component, useState, useSyncExternalStore } from "react";
+import { Component, StrictMode, useState, useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
 import { render, screen, act, cleanup } from "@testing-library/react";
 import { useTapRoot, flushTapSync } from "../../index";
@@ -126,6 +126,32 @@ describe("useTapRoot host renders", () => {
     expect(() => flushTapSync(() => setCount(1))).toThrow(error);
     expect(laterSubscriber).toHaveBeenCalledOnce();
     expect(root.getValue()).toBe(1);
+  });
+
+  it("replays tap root updates under React StrictMode", () => {
+    let setCount!: (value: number) => void;
+    let renders = 0;
+
+    function Host() {
+      useTapRoot(function Counter() {
+        const [count, set] = useResourceState(0);
+        setCount = set;
+        renders++;
+        return count;
+      });
+      return null;
+    }
+
+    render(
+      <StrictMode>
+        <Host />
+      </StrictMode>,
+    );
+    renders = 0;
+
+    act(() => flushTapSync(() => setCount(1)));
+
+    expect(renders).toBe(2);
   });
 
   it("a host render consumes pending updates and the scheduled flush no-ops", async () => {

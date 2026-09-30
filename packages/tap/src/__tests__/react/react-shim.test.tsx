@@ -71,18 +71,21 @@ describe("@assistant-ui/tap/react-shim", () => {
       expect(renderTest(providerFirstDefaultFiber)).toBe("default");
     });
 
-    it("forwards non-context use values to React.use", () => {
-      const promise = Promise.resolve("react");
-      const useSpy = vi
-        .spyOn(React, "use")
-        .mockImplementation(() => "react-use");
-      const testFiber = createTestResource(() => use(promise));
+    it.skipIf(typeof React.use !== "function")(
+      "forwards non-context use values to React.use",
+      () => {
+        const promise = Promise.resolve("react");
+        const useSpy = vi
+          .spyOn(React, "use")
+          .mockImplementation(() => "react-use");
+        const testFiber = createTestResource(() => use(promise));
 
-      expect(renderTest(testFiber)).toBe("react-use");
-      expect(useSpy).toHaveBeenCalledWith(promise);
+        expect(renderTest(testFiber)).toBe("react-use");
+        expect(useSpy).toHaveBeenCalledWith(promise);
 
-      useSpy.mockRestore();
-    });
+        useSpy.mockRestore();
+      },
+    );
 
     it("suspends on promises in tap's direct use hook", () => {
       const promise = Promise.resolve();
@@ -196,6 +199,22 @@ describe("@assistant-ui/tap/react-shim", () => {
   });
 
   describe("inside a React component", () => {
+    it("uses React context through use()", () => {
+      const TestContext = createContext("default");
+
+      function Child() {
+        return <div data-testid="out">{use(TestContext)}</div>;
+      }
+
+      render(
+        <TestContext.Provider value="react">
+          <Child />
+        </TestContext.Provider>,
+      );
+
+      expect(screen.getByTestId("out").textContent).toBe("react");
+    });
+
     it("uses shim-created contexts as regular React contexts", () => {
       const TestContext = createContext("default");
 
