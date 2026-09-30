@@ -1,0 +1,60 @@
+name: VS Code Test Bed
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/vscode-test-bed.yaml
+      - examples/with-vscode/**
+      - package.json
+      - packages/**
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - turbo.json
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/vscode-test-bed.yaml
+      - examples/with-vscode/**
+      - package.json
+      - packages/**
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - turbo.json
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  probes:
+    name: Headless probes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        with:
+          runtime: node@24
+          cache: true
+          install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build workspace packages
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+        run: pnpm turbo build --filter='with-vscode^...'
+
+      - name: Run probes in VS Code
+        run: xvfb-run -a pnpm --filter with-vscode test
