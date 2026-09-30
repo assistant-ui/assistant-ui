@@ -50,6 +50,8 @@ export function ImageGallery({
     () => new Set(),
   );
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const previousRef = useRef<HTMLButtonElement>(null);
+  const nextRef = useRef<HTMLButtonElement>(null);
   const index = images.findIndex((image) => image.id === activeId);
   if (activeId !== null && index === -1) setActiveId(null);
   const activeImage = index === -1 ? undefined : images[index];
@@ -62,23 +64,45 @@ export function ImageGallery({
     triggerRef.current?.focus();
   }, []);
 
+  const focusDialog = useCallback((node: HTMLDivElement | null) => {
+    node?.focus();
+  }, []);
+
+  const show = useCallback(
+    (nextIndex: number) => {
+      const image = images[nextIndex];
+      if (!image) return;
+      const focused = document.activeElement;
+      if (nextIndex === 0 && focused === previousRef.current) {
+        nextRef.current?.focus();
+      } else if (
+        nextIndex === images.length - 1 &&
+        focused === nextRef.current
+      ) {
+        previousRef.current?.focus();
+      }
+      setActiveId(image.id);
+    },
+    [images],
+  );
+
   useEffect(() => {
     if (activeImage === undefined) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "ArrowLeft" && index > 0) {
         event.preventDefault();
-        setActiveId(images[index - 1]?.id ?? null);
+        show(index - 1);
       } else if (event.key === "ArrowRight" && index < images.length - 1) {
         event.preventDefault();
-        setActiveId(images[index + 1]?.id ?? null);
+        show(index + 1);
       }
     };
     // The dialog stops keydown propagation, so only a capture listener sees the arrows.
     document.addEventListener("keydown", onKeyDown, true);
 
     return () => document.removeEventListener("keydown", onKeyDown, true);
-  }, [activeImage, images, index]);
+  }, [activeImage, images.length, index, show]);
 
   const open = (nextIndex: number, trigger: HTMLButtonElement) => {
     const image = images[nextIndex];
@@ -149,7 +173,10 @@ export function ImageGallery({
             if (!nextOpen) close();
           }}
         >
-          <DialogContent className="gap-3 p-3 duration-150 motion-reduce:animate-none sm:max-w-4xl">
+          <DialogContent
+            ref={focusDialog}
+            className="gap-3 p-3 duration-150 motion-reduce:animate-none sm:max-w-[min(56rem,calc(100%-2rem))]"
+          >
             <DialogTitle className="sr-only">
               Image {index + 1} of {images.length}
             </DialogTitle>
@@ -169,10 +196,11 @@ export function ImageGallery({
             </div>
             <div className="flex min-w-0 items-center gap-2">
               <button
+                ref={previousRef}
                 type="button"
                 aria-label="Previous image"
                 disabled={index === 0}
-                onClick={() => setActiveId(images[index - 1]?.id ?? null)}
+                onClick={() => show(index - 1)}
                 className={cn(
                   ghostButton,
                   "size-8 shrink-0 disabled:pointer-events-none disabled:opacity-30",
@@ -214,10 +242,11 @@ export function ImageGallery({
                 {index + 1} / {images.length}
               </span>
               <button
+                ref={nextRef}
                 type="button"
                 aria-label="Next image"
                 disabled={index === images.length - 1}
-                onClick={() => setActiveId(images[index + 1]?.id ?? null)}
+                onClick={() => show(index + 1)}
                 className={cn(
                   ghostButton,
                   "size-8 shrink-0 disabled:pointer-events-none disabled:opacity-30",
