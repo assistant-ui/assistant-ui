@@ -30,8 +30,12 @@ export type ProbeReport = {
 
 export const WEBVIEW_READY_TIMEOUT_MS = 20_000;
 export const PROBE_TIMEOUT_MS = 60_000;
-/** The gallery probes sweep every section, which grows with the gallery. */
-export const GALLERY_PROBE_TIMEOUT_MS = 300_000;
+/**
+ * The gallery probes sweep every section alone and then all at once, so their
+ * timeout grows with the gallery.
+ */
+export const galleryProbeTimeoutMs = (sections: number) =>
+  60_000 + sections * 1_500;
 
 const withTimeout = (promise: Promise<ProbeResult>, ms: number) =>
   Promise.race([
@@ -95,10 +99,10 @@ export class ProbeRunner implements vscode.Disposable {
     const ctx = this.getContext();
     const hostProbe = this.hostProbes[id];
     if (hostProbe) {
-      const timeout = id.startsWith("gallery-")
-        ? GALLERY_PROBE_TIMEOUT_MS
-        : PROBE_TIMEOUT_MS;
-      return withTimeout(hostProbe(ctx), timeout);
+      // A gallery probe bounds itself once the gallery reports its size.
+      return id.startsWith("gallery-")
+        ? hostProbe(ctx)
+        : withTimeout(hostProbe(ctx), PROBE_TIMEOUT_MS);
     }
 
     await ctx.showAssistant();

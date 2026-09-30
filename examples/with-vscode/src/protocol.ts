@@ -88,6 +88,8 @@ export type WebviewToHostMessage =
       channel: typeof TESTBED_CHANNEL;
       type: "ready";
       implementedProbes: ProbeId[];
+      /** The gallery's section count, which sizes the timeout of its sweep. */
+      sections?: number;
     }
   | {
       channel: typeof TESTBED_CHANNEL;
