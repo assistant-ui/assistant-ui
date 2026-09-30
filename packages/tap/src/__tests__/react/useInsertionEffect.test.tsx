@@ -194,14 +194,12 @@ describe.each(hosts)("$name insertion lifetime", ({ useHost, size }) => {
             .map((event) => event.kind),
         ).toEqual(["insertion", "passive"]);
       }
-      if (nested) {
-        expect(f.events.map((event) => event.kind)).toEqual([
-          "parent insertion",
-          ...Array<string>(size).fill("insertion"),
-          "parent passive",
-          ...Array<string>(size).fill("passive"),
-        ]);
-      }
+      expect(f.events.map((event) => event.kind)).toEqual([
+        ...(nested ? ["parent insertion"] : []),
+        ...Array<string>(size).fill("insertion"),
+        ...(nested ? ["parent passive"] : []),
+        ...Array<string>(size).fill("passive"),
+      ]);
     });
 
     it("releases the old host once on a React key remount", () => {
@@ -508,6 +506,52 @@ describe.each([false, true])(
           view.unmount();
           expect(f.release.mock.calls).toEqual(f.setup.mock.calls);
         });
+    });
+  },
+);
+
+describe.each([false, true])(
+  "keys removed in one update, nested in a resource: %s",
+  (nested) => {
+    it("runs every insertion cleanup before any passive cleanup", () => {
+      const events: string[] = [];
+      const Child = resource(function useChild({ id }: { id: string }) {
+        useEffect(
+          () => () => {
+            events.push(`passive ${id}`);
+          },
+          [id],
+        );
+        useInsertionEffect(
+          () => () => {
+            events.push(`insertion ${id}`);
+          },
+          [id],
+        );
+      });
+      const useChildren = (ids: readonly string[]) =>
+        useResources(ids.map((id) => withKey(id, Child({ id }))));
+      const Parent = resource(function useParent({
+        ids,
+      }: {
+        ids: readonly string[];
+      }) {
+        useChildren(ids);
+      });
+      function Host({ ids }: { ids: readonly string[] }) {
+        if (nested) useResource(Parent({ ids }));
+        else useChildren(ids);
+        return null;
+      }
+      const view = render(<Host ids={["a", "b", "c"]} />);
+      view.rerender(<Host ids={["c"]} />);
+      expect(events).toEqual([
+        "insertion a",
+        "insertion b",
+        "passive a",
+        "passive b",
+      ]);
+      view.unmount();
     });
   },
 );

@@ -92,6 +92,19 @@ export function unmountResourceFiber<R>(
   if (errors !== undefined) throwAggregated(errors, "Errors during cleanup");
 }
 
+export function unmountResourceFibers(
+  fibers: readonly ResourceFiber<unknown>[],
+): void {
+  let errors: unknown[] | undefined;
+  for (const fiber of fibers) {
+    if (fiber.isReleased) errors = cleanupResourceFiber(fiber, true, errors);
+  }
+  for (const fiber of fibers) {
+    errors = cleanupResourceFiber(fiber, false, errors);
+  }
+  if (errors !== undefined) throwAggregated(errors, "Errors during cleanup");
+}
+
 export function renderResourceFiber<R>(
   fiber: ResourceFiber<R>,
   args: readonly unknown[],

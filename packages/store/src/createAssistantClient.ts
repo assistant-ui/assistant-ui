@@ -206,6 +206,11 @@ export const createAssistantClient = (
     };
   };
 
+  const release = () => {
+    unwire?.();
+    root.unmount();
+  };
+
   return {
     getClient: () => root.getValue().client,
     subscribe: (listener) => {
@@ -221,7 +226,7 @@ export const createAssistantClient = (
         }
         // A mount notification can destroy the handle before wire() assigns
         // unwire; complete that destroy now
-        if (destroyed && unwire) flushTapSync(unwire);
+        if (destroyed) release();
       }
       let isSubscribed = true;
       return () => {
@@ -235,9 +240,10 @@ export const createAssistantClient = (
       if (destroyed) return;
       destroyed = true;
       destroyController.abort();
-      // Wired: flushTapSync lands the soft unmount before returning. Already
-      // released: the soft unmount tap scheduled then completes on its task
-      if (unwire) flushTapSync(unwire);
+      // A destroy from a mount notification lands while wire() is still
+      // mounting; subscribe completes it
+      if (subscriberCount > 0 && unwire === null) return;
+      release();
     },
   };
 };

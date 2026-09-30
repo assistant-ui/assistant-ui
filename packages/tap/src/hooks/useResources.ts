@@ -5,7 +5,7 @@ import type {
 } from "../core/types";
 import {
   discardWipRender,
-  unmountResourceFiber,
+  unmountResourceFibers,
   renderResourceFiber,
   commitResourceFiber,
 } from "../core/ResourceFiber";
@@ -167,21 +167,30 @@ export function useResources<E extends ResourceElement<any>>(
   useEffect(() => {
     void val; // as a performance optimization, we only run if the results have changed
 
+    let released: ResourceFiber<unknown>[] | undefined;
     for (const [key, state] of fibers.entries()) {
       const next = state.next;
       if (next === "delete") {
-        unmountResourceFiber(state.fiber, true);
+        (released ??= []).push(state.fiber);
         fibers.delete(key);
-      } else if (next === "skip") {
+      } else if (next !== "skip" && next.remount) {
+        (released ??= []).push(state.fiber);
+        state.fiber = next.remount;
+      }
+    }
+    if (released !== undefined) {
+      for (const fiber of released) fiber.isReleased = true;
+      unmountResourceFibers(released);
+    }
+
+    for (const state of fibers.values()) {
+      const next = state.next;
+      if (next === "skip") {
         // Bailed this render: nothing to commit, keep committed deps/value.
         if (!state.fiber.isNeverMounted && !state.fiber.isMounted) {
           commitResourceFiber(state.fiber);
         }
-      } else {
-        if (next.remount) {
-          unmountResourceFiber(state.fiber, true);
-          state.fiber = next.remount;
-        }
+      } else if (next !== "delete") {
         commitResourceFiber(state.fiber);
         state.committedDeps = next.deps;
         state.committedValue = next.value;

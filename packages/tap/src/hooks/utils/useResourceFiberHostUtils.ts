@@ -18,20 +18,22 @@ import {
 import {
   createResourceFiber,
   unmountResourceFiber,
+  unmountResourceFibers,
 } from "../../core/ResourceFiber";
 import { useDevStrictMode } from "./useDevStrictMode";
 import { useHostCell, type HostTarget } from "./useHostCell";
-import { throwAggregated } from "../../core/helpers/throwAggregated";
-import type { HostCell } from "../../core/types";
+import type { HostCell, ResourceFiber } from "../../core/types";
 
-const getHostedFibers = (target: HostTarget) =>
-  target instanceof Map ? target.values() : [{ fiber: target }];
+const getHostedFibers = (target: HostTarget): ResourceFiber<unknown>[] =>
+  target instanceof Map
+    ? Array.from(target.values(), ({ fiber }) => fiber)
+    : [target];
 
 const useHostLifecycleReact = (target: HostTarget): void => {
   useInsertionEffect(() => {
-    for (const { fiber } of getHostedFibers(target)) fiber.isReleased = false;
+    for (const fiber of getHostedFibers(target)) fiber.isReleased = false;
     return () => {
-      for (const { fiber } of getHostedFibers(target)) {
+      for (const fiber of getHostedFibers(target)) {
         fiber.isReleased = true;
         if (!fiber.isMounted) {
           queueMicrotask(() => {
@@ -44,16 +46,7 @@ const useHostLifecycleReact = (target: HostTarget): void => {
 
   useEffect(
     () => () => {
-      let errors: unknown[] | undefined;
-      for (const { fiber } of getHostedFibers(target)) {
-        try {
-          unmountResourceFiber(fiber, fiber.isReleased);
-        } catch (error) {
-          (errors ??= []).push(error);
-        }
-      }
-      if (errors !== undefined)
-        throwAggregated(errors, "Errors during cleanup");
+      unmountResourceFibers(getHostedFibers(target));
     },
     [target],
   );
