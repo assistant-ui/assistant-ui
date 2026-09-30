@@ -272,6 +272,31 @@ describe("CloudProjectInputCard", () => {
   });
 });
 
+describe("CloudProjectInputCard notes", () => {
+  it("sends a note along with the URL", async () => {
+    mocks.session = { status: "disabled" };
+    mocks.projects = { status: "unavailable" };
+    const { answer } = setup();
+    fireEvent.change(field(), {
+      target: { value: "https://proj-abc.assistant-api.com" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Add a note for your agent" }),
+    );
+    fireEvent.change(screen.getByLabelText("Note for your agent"), {
+      target: { value: "Staging project for now" },
+    });
+    fireEvent.click(next());
+    await waitFor(() =>
+      expect(answer).toHaveBeenCalledWith({
+        inputId: "q1",
+        answer: "https://proj-abc.assistant-api.com",
+        note: "Staging project for now",
+      }),
+    );
+  });
+});
+
 describe("asksForCloudProject", () => {
   it.each([
     "Which Assistant Cloud project should this app use?",

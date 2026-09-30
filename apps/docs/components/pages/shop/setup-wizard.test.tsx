@@ -58,6 +58,7 @@ window.matchMedia = (query: string) =>
   }) as unknown as MediaQueryList;
 
 afterEach(() => {
+  vi.useRealTimers();
   cleanup();
   vi.unstubAllGlobals();
   reducedMotion = false;
@@ -1628,6 +1629,28 @@ describe("SetupWizard messages", () => {
     );
     act(() => vi.advanceTimersByTime(5000));
     expect(verb()).toBe("Mapping");
+    vi.useRealTimers();
+  });
+
+  it("cycles the exploring verbs back to the first", () => {
+    vi.useFakeTimers();
+    render(
+      <SetupWizard
+        checkout={context(connected({ status: "planning" }), true, false, {
+          id: "exploring-cycle",
+        })}
+      />,
+    );
+    const verb = () =>
+      screen.getByRole("heading", { level: 1 }).querySelector("[aria-hidden]")!
+        .textContent;
+    const seen = new Set<string>();
+    for (let swap = 0; swap < 7; swap++) {
+      seen.add(verb()!);
+      act(() => vi.advanceTimersByTime(2400));
+    }
+    expect(seen.size).toBe(7);
+    expect(verb()).toBe("Exploring");
     vi.useRealTimers();
   });
 
