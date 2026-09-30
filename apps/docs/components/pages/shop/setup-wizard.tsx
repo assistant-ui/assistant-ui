@@ -4,9 +4,11 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
+  type RefObject,
 } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -14,6 +16,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   LoaderCircleIcon,
+  MoreHorizontalIcon,
   WifiOffIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -28,6 +31,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useSetupNavigation } from "@/components/shared/setup-navigation";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import {
@@ -37,13 +46,13 @@ import {
   useAgentName,
 } from "@/components/pages/shop/agent-status";
 import { FinishProposal } from "@/components/pages/shop/finish-proposal";
-import { LicenseAgreement } from "@/components/pages/shop/license-agreement";
 import { AnswerReview } from "@/components/pages/shop/answer-review";
 import { InputCard } from "@/components/pages/shop/input-card";
 import { PlanCard, PlanMarkdown } from "@/components/pages/shop/plan-card";
 import { AgentChat, conversation } from "@/components/pages/shop/agent-chat";
 import { SetupIntro } from "@/components/pages/shop/setup-intro";
 import { SetupBackButton } from "@/components/pages/shop/setup-back-button";
+import { StepActivity } from "@/components/pages/shop/step-activity";
 import {
   livePage,
   pageKey,
@@ -62,15 +71,14 @@ import type { CheckoutContextValue } from "@/components/shared/checkout-provider
 import { analytics } from "@/lib/analytics";
 import { getCatalogItem } from "@/lib/catalog";
 import { abandonCheckout, finishCheckout } from "@/lib/checkout/flow";
-import {
-  acceptSetupLicense,
-  acknowledgeSetupIntro,
-} from "@/lib/checkout/session-store";
+import { acknowledgeSetupIntro } from "@/lib/checkout/session-store";
 import { useSyntheticProgress } from "@/components/pages/shop/use-synthetic-progress";
 import { useElapsed } from "@/components/pages/shop/use-elapsed";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import {
   finishProposed,
   inputPrompt,
+  stepActivity,
   stepsFinalized,
   unreadAgentEntries,
   type Checkout,
@@ -83,6 +91,9 @@ const listProducts = (names: string[]) =>
   new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(
     names,
   );
+
+/** The most products the welcome title names; a longer list, or a shorter one that wraps, moves under it, so the title stays on one line. */
+const TITLE_PRODUCTS = 2;
 
 function ConnectionNotice({
   connection,
@@ -119,50 +130,20 @@ function ConnectionNotice({
   );
 }
 
-function DisconnectedDialog({
-  checkout,
-  name,
-  open,
-}: {
-  checkout: CheckoutContextValue;
-  name: string;
-  open: boolean;
-}) {
-  return (
-    <Dialog open={open} disablePointerDismissal>
-      <DialogContent showCloseButton={false} className="rounded-none">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <WifiOffIcon aria-hidden="true" className="size-4 shrink-0" />
-            {name} disconnected
-          </DialogTitle>
-        </DialogHeader>
-        <AgentStatus checkout={checkout} inline />
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function CancelButton({
+function EndSetupDialog({
   checkout,
   onEnd,
+  open,
+  onOpenChange,
+  trigger,
 }: {
   checkout: CheckoutContextValue;
   onEnd: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  trigger: RefObject<HTMLButtonElement | null>;
 }) {
   const fromCart = checkout.session.fromCart === true;
-  const [open, setOpen] = useState(false);
-  const trigger = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || event.defaultPrevented) return;
-      if (!(event.target instanceof Element)) return;
-      if (event.target.closest('[role="dialog"]') !== null) return;
-      setOpen(true);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
   const end = async () => {
     analytics.setup.cancelled();
     try {
@@ -175,29 +156,124 @@ function CancelButton({
     onEnd();
   };
   return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent finalFocus={trigger}>
+        <DialogHeader>
+          <DialogTitle>End this setup?</DialogTitle>
+          <DialogDescription>
+            Your agent will be told to stop and the progress shown here will be
+            lost.{fromCart ? " Its products go back into your cart." : ""}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose render={<Button variant="outline" />}>
+            Keep going
+          </DialogClose>
+          <Button variant="destructive" onClick={end}>
+            End setup
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DisconnectedDialog({
+  checkout,
+  name,
+  open,
+  onLeave,
+  onEnd,
+}: {
+  checkout: CheckoutContextValue;
+  name: string;
+  open: boolean;
+  onLeave: () => void;
+  onEnd: () => void;
+}) {
+  const [ending, setEnding] = useState(false);
+  if (!open && ending) setEnding(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  return (
+    <Dialog open={open} disablePointerDismissal>
+      <DialogContent showCloseButton={false} className="rounded-none">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <WifiOffIcon aria-hidden="true" className="size-4 shrink-0" />
+            {name} disconnected
+          </DialogTitle>
+        </DialogHeader>
+        <AgentStatus
+          checkout={checkout}
+          inline
+          quietActions={
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    ref={trigger}
+                    variant="outline"
+                    size="icon"
+                    aria-label="More options"
+                  />
+                }
+              >
+                <MoreHorizontalIcon />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-auto">
+                <DropdownMenuItem onClick={onLeave}>
+                  Leave, setup keeps running
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setEnding(true)}>
+                  End setup
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          }
+        />
+        <EndSetupDialog
+          checkout={checkout}
+          onEnd={onEnd}
+          open={ending}
+          onOpenChange={setEnding}
+          trigger={trigger}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CancelButton({
+  checkout,
+  onEnd,
+}: {
+  checkout: CheckoutContextValue;
+  onEnd: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (!(event.target instanceof Element)) return;
+      if (event.target.closest('[role="dialog"]') !== null) return;
+      setOpen(true);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+  return (
     <>
       <Button ref={trigger} variant="outline" onClick={() => setOpen(true)}>
         Cancel
       </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent finalFocus={trigger}>
-          <DialogHeader>
-            <DialogTitle>End this setup?</DialogTitle>
-            <DialogDescription>
-              Your agent will be told to stop and the progress shown here will
-              be lost.{fromCart ? " Its products go back into your cart." : ""}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" />}>
-              Keep going
-            </DialogClose>
-            <Button variant="destructive" onClick={end}>
-              End setup
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <EndSetupDialog
+        checkout={checkout}
+        onEnd={onEnd}
+        open={open}
+        onOpenChange={setOpen}
+        trigger={trigger}
+      />
     </>
   );
 }
@@ -272,6 +348,46 @@ function WorkingProgress({
   );
 }
 
+const EXPLORING_VERBS = [
+  "Exploring",
+  "Reading",
+  "Mapping",
+  "Scanning",
+  "Surveying",
+  "Inspecting",
+  "Studying",
+];
+const VERB_MS = 2400;
+
+/** Swaps the title's verb while the agent works; the accessible name stays "Exploring your project". */
+function ExploringTitle({ active }: { active: boolean }) {
+  const reduced = useReducedMotion();
+  const [index, setIndex] = useState(0);
+  const rotating = active && !reduced;
+  useEffect(() => {
+    if (!rotating) return;
+    const timer = setInterval(
+      () => setIndex((current) => (current + 1) % EXPLORING_VERBS.length),
+      VERB_MS,
+    );
+    return () => clearInterval(timer);
+  }, [rotating]);
+  const verb = EXPLORING_VERBS[index]!;
+  return (
+    <>
+      <span
+        key={verb}
+        aria-hidden="true"
+        className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 inline-block motion-safe:duration-300"
+      >
+        {verb}
+      </span>
+      <span className="sr-only">{EXPLORING_VERBS[0]}</span>
+      {" your project"}
+    </>
+  );
+}
+
 const STEP_FILL_TAU_MS = 20_000;
 
 const stepFill = (elapsed: number) => 1 - Math.exp(-elapsed / STEP_FILL_TAU_MS);
@@ -316,6 +432,29 @@ function useLeaving(present: boolean) {
   return leaving;
 }
 
+const scrollKeys = new Set([
+  "ArrowUp",
+  "ArrowDown",
+  "PageUp",
+  "PageDown",
+  "Home",
+  "End",
+  " ",
+]);
+
+/** jsdom computes no overflow, so there the list stands in for its scroller. */
+function scrollerOf(element: HTMLElement): HTMLElement {
+  for (
+    let node: HTMLElement | null = element;
+    node !== null;
+    node = node.parentElement
+  ) {
+    const { overflowY } = getComputedStyle(node);
+    if (overflowY === "auto" || overflowY === "scroll") return node;
+  }
+  return element;
+}
+
 function InstallSteps({
   checkout,
   state,
@@ -326,21 +465,93 @@ function InstallSteps({
   const closed = state.status === "done" || state.status === "cancelled";
   const drafting = !closed && !finishProposed(state) && !stepsFinalized(state);
   const leaving = useLeaving(drafting);
+  const name = useAgentName(checkout);
   const activeId = state.steps.find((step) => step.status === "active")?.id;
+  const activeLast =
+    activeId === undefined
+      ? undefined
+      : stepActivity(state, activeId).at(-1)?.id;
   const list = useRef<HTMLOListElement>(null);
-  useEffect(() => {
-    if (activeId === undefined) return;
+  const following = useRef(true);
+  const center = () => {
+    if (activeId === undefined || !following.current) return;
     list.current
       ?.querySelector('[aria-current="step"]')
       ?.scrollIntoView({ block: "center" });
+  };
+  useEffect(() => {
+    following.current = true;
+    const element = list.current;
+    if (!element) return;
+    const scroller = scrollerOf(element);
+    let interacted = false;
+    const pause = (event: Event) => {
+      const target = event.target as Element | null;
+      const log = target?.closest<HTMLElement>('[role="log"]');
+      if (log && log.scrollHeight > log.clientHeight) return;
+      if (event.type === "keydown") {
+        const { key } = event as KeyboardEvent;
+        if (!scrollKeys.has(key)) return;
+        if (key === " " && target?.closest("button")) return;
+      }
+      if (event.type === "pointerdown" && target !== scroller) return;
+      interacted = true;
+      following.current = false;
+    };
+    const interactions = [
+      "wheel",
+      "touchmove",
+      "keydown",
+      "pointerdown",
+    ] as const;
+    for (const type of interactions) {
+      scroller.addEventListener(type, pause, { passive: true });
+    }
+    // Rows mount at 0fr and unfold over 0.3s, so a list that fit at mount time has grown by the time the animation ends, and the growth may have pushed the row out of view; a row the agent adds later unfolds too, but must not pull the reader back.
+    const mounted = new Set(element.querySelectorAll("li"));
+    const unfolded = (event: Event) => {
+      if (
+        (event as AnimationEvent).animationName !== "unfold" ||
+        interacted ||
+        !mounted.has(event.target as HTMLLIElement)
+      ) {
+        return;
+      }
+      following.current = true;
+      center();
+    };
+    element.addEventListener("animationend", unfolded);
+    let observer: IntersectionObserver | undefined;
+    const row = element.querySelector('[aria-current="step"]');
+    // jsdom has no IntersectionObserver, so the list always follows there.
+    if (row && typeof IntersectionObserver !== "undefined") {
+      observer = new IntersectionObserver(
+        (entries) => {
+          const entry = entries.at(-1);
+          if (!entry) return;
+          if (entry.intersectionRatio >= 1) following.current = true;
+          else if (!entry.isIntersecting) following.current = false;
+        },
+        { threshold: [0, 1] },
+      );
+      observer.observe(row);
+    }
+    return () => {
+      observer?.disconnect();
+      for (const type of interactions) {
+        scroller.removeEventListener(type, pause);
+      }
+      element.removeEventListener("animationend", unfolded);
+    };
   }, [activeId]);
+  useEffect(center, [activeId, activeLast]);
   let lastProduct: string | undefined;
   return (
     <ol
       ref={list}
       role="list"
       aria-label="Installation steps"
-      className={cn("flex flex-col", !closed && "py-[50cqh]")}
+      className={cn("flex flex-col", !closed && "pb-6")}
     >
       {state.steps.map((step) => {
         const inputs = checkout.openInputs.filter(
@@ -354,6 +565,7 @@ function InstallSteps({
             : undefined;
         lastProduct = step.product ?? lastProduct;
         const glyph = product ? getCatalogItem(product.slug)?.glyph : undefined;
+        const activity = stepActivity(state, step.id);
         return (
           <TimelineEntry
             key={step.id}
@@ -369,7 +581,16 @@ function InstallSteps({
                 </p>
               ) : undefined
             }
-          />
+          >
+            {activity.length > 0 || step.id === activeId ? (
+              <StepActivity
+                entries={activity}
+                live={step.id === activeId}
+                agentName={name}
+                stepTitle={step.title}
+              />
+            ) : null}
+          </TimelineEntry>
         );
       })}
       {drafting || leaving ? (
@@ -388,7 +609,7 @@ function InstallSteps({
 }
 
 type PageView = {
-  title: string;
+  title: ReactNode;
   subtitle?: string | undefined;
   header?: ReactNode;
   body: ReactNode;
@@ -471,6 +692,27 @@ export function SetupWizard({
     : checkout.session.products.map(
         (slug) => getCatalogItem(slug)?.name ?? slug,
       );
+  const productList = listProducts(products);
+  const [wrappedList, setWrappedList] = useState<string>();
+  const titleNamesProducts =
+    page.id === "welcome" &&
+    products.length <= TITLE_PRODUCTS &&
+    wrappedList !== productList;
+  const titleText = useRef<HTMLSpanElement>(null);
+  // An inline element has one client rect per line box, and the frame never widens on its own, so a title that wrapped once stays short.
+  useLayoutEffect(() => {
+    if (!titleNamesProducts) return;
+    const demoteIfWrapped = () => {
+      if ((titleText.current?.getClientRects().length ?? 0) > 1)
+        setWrappedList(productList);
+    };
+    demoteIfWrapped();
+    const block = heading.current;
+    if (typeof ResizeObserver !== "function" || block === null) return;
+    const observer = new ResizeObserver(demoteIfWrapped);
+    observer.observe(block);
+    return () => observer.disconnect();
+  }, [titleNamesProducts, productList]);
   const done = state?.status === "done";
   useEffect(() => {
     if (done) analytics.setup.installFinished();
@@ -479,7 +721,7 @@ export function SetupWizard({
     onExit?.();
     if (finished) finishCheckout();
     else abandonCheckout();
-    if (fromCart) router.push(finished ? "/shop" : "/shop/cart");
+    if (fromCart) router.push(finished ? "/components" : "/components/cart");
     else leaveSetup();
   };
   const leave = () => exit(done);
@@ -497,18 +739,13 @@ export function SetupWizard({
     switch (page.id) {
       case "welcome":
         return {
-          title: `Welcome to the setup wizard for ${listProducts(products)}`,
+          title: titleNamesProducts
+            ? `Welcome to the setup wizard for ${productList}`
+            : "Welcome to the setup wizard",
+          subtitle: titleNamesProducts
+            ? undefined
+            : `Setting up ${productList}.`,
           body: <SetupIntro onContinue={acknowledgeSetupIntro} />,
-        };
-      case "license":
-        return {
-          title: "License agreement",
-          body: (
-            <LicenseAgreement
-              accepted={checkout.session.licenseAccepted === true}
-              onAccept={acceptSetupLicense}
-            />
-          ),
         };
       case "connect":
         return {
@@ -563,7 +800,11 @@ export function SetupWizard({
       case "working": {
         const revising = checkout.plan?.status === "changes-requested";
         return {
-          title: revising ? "Revising the plan" : "Exploring your project",
+          title: revising ? (
+            "Revising the plan"
+          ) : (
+            <ExploringTitle active={agentWorking(checkout)} />
+          ),
           body: state ? (
             <div className="flex flex-col gap-4">
               <WorkingProgress
@@ -684,6 +925,8 @@ export function SetupWizard({
             open={
               phase === "quiet" && page.id !== "connect" && !checkout.degraded
             }
+            onLeave={leaveSetup}
+            onEnd={() => exit(false)}
           />
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="shrink-0 px-5 pt-8 sm:px-6 sm:pt-10">
@@ -693,7 +936,7 @@ export function SetupWizard({
                 tabIndex={-1}
                 className="text-lg font-semibold text-balance"
               >
-                {view.title}
+                <span ref={titleText}>{view.title}</span>
               </h1>
               {view.subtitle ? (
                 <p className="text-muted-foreground motion-safe:animate-in motion-safe:fade-in mt-1 text-sm motion-safe:duration-300">

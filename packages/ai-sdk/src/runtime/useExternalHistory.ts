@@ -51,9 +51,20 @@ export const toExportedMessageRepository = <TMessage>(
   };
 };
 
+const hasUnansweredApproval = (message: ThreadMessage) =>
+  message.content.some(
+    (part) =>
+      part.type === "tool-call" &&
+      part.approval != null &&
+      part.approval.approved === undefined &&
+      part.approval.resolution === undefined,
+  );
+
+// Core reports a run paused on an unanswered approval as an interrupt, not as tool calls.
 const isAwaitingToolApproval = (message: ThreadMessage) =>
   message.status?.type === "requires-action" &&
-  message.status.reason === "tool-calls";
+  (message.status.reason === "tool-calls" ||
+    (message.status.reason === "interrupt" && hasUnansweredApproval(message)));
 
 const isTerminalMessage = (message: ThreadMessage) =>
   message.status === undefined ||

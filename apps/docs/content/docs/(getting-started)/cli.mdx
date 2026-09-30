@@ -4,23 +4,24 @@ description: Scaffold projects, add components, and manage updates from the comm
 platforms: ["react"]
 ---
 
-Use the `assistant-ui` CLI to quickly set up new projects and add components to existing ones.
+Use the `assistant-ui` CLI to set up new projects and add components to existing ones.
 
 ## init
 
-Use the `init` command to initialize configuration and dependencies for a new project.
-
-The `init` command installs dependencies, adds components, and configures your project for assistant-ui.
+Use the `init` command to add assistant-ui to an existing project.
 
 ```bash
 npx assistant-ui@latest init
 ```
 
 This will:
-- Detect if you have an existing project with a `package.json`
+- Exit with a notice if the project already has a `components.json`
+- Run `create` instead if the directory has no `package.json`
+- Run `shadcn init` to configure the project
 - Use `shadcn add` to install the assistant-ui quick-start component
 - Add the default assistant-ui components (thread, composer, etc.) to your project
-- Configure TypeScript paths and imports
+
+When `init` sets up an existing project in a non-interactive shell such as CI, pass `--yes`. Without it, `init` exits with an error because it cannot prompt.
 
 **When to use:**
 - Adding assistant-ui to an **existing** Next.js project
@@ -29,13 +30,23 @@ This will:
 **Options**
 
 ```bash
-Usage: assistant-ui init [options]
+Usage: assistant-ui init [options] [project-directory]
 
-initialize assistant-ui in a new or existing project
+initialize assistant-ui in an existing project
+
+Arguments:
+  project-directory  directory for the new project
 
 Options:
-  -c, --cwd <cwd>  the working directory. defaults to the current directory.
-  -h, --help       display help for command
+  -y, --yes          skip confirmation prompt. (default: false)
+  -o, --overwrite    overwrite existing files. (default: false)
+  -c, --cwd <cwd>    the working directory. defaults to the current directory.
+  --use-npm          explicitly use npm
+  --use-pnpm         explicitly use pnpm
+  --use-yarn         explicitly use yarn
+  --use-bun          explicitly use bun
+  --skip-install     skip installing packages
+  -h, --help         display help for command
 ```
 
 ## create
@@ -133,6 +144,8 @@ Options:
   --use-yarn                     explicitly use yarn
   --use-bun                      explicitly use bun
   --skip-install                 skip installing packages
+  --skills                       add assistant-ui agent skills for AI coding assistants
+  --no-skills                    skip adding assistant-ui agent skills
   -h, --help                     display help for command
 ```
 
@@ -144,10 +157,7 @@ Use the `add` command to add individual components to your project.
 npx assistant-ui@latest add [component]
 ```
 
-The `add` command fetches components from the assistant-ui registry and adds them to your project. It automatically:
-- Installs required dependencies
-- Adds TypeScript types
-- Configures imports
+The `add` command runs `shadcn add` against the assistant-ui registry. It copies each component's source into your project and installs the dependencies the component needs.
 
 **Popular Components**
 
@@ -180,12 +190,16 @@ Options:
   -o, --overwrite        overwrite existing files. (default: false)
   -c, --cwd <cwd>        the working directory. defaults to the current directory.
   -p, --path <path>      the path to add the component to.
+  --use-npm              explicitly use npm
+  --use-pnpm             explicitly use pnpm
+  --use-yarn             explicitly use yarn
+  --use-bun              explicitly use bun
   -h, --help             display help for command
 ```
 
 ## update
 
-Use the `update` command to update all `@assistant-ui/*` packages to their latest versions.
+Use the `update` command to update all `@assistant-ui/*`, `assistant-stream`, and `assistant-cloud` packages to their latest versions.
 
 ```bash
 npx assistant-ui@latest update
@@ -211,33 +225,29 @@ npx assistant-ui update --dry
 ```bash
 Usage: assistant-ui update [options]
 
-update all '@assistant-ui/*' packages to latest versions
+Update all '@assistant-ui/*' and 'assistant-*' packages in package.json to latest versions using your package manager.
 
 Options:
-  --dry          print the command instead of running it
+  --dry            Print the package manager command instead of running it.
   -c, --cwd <cwd>  the working directory. defaults to the current directory.
   -h, --help       display help for command
 ```
 
+The command matches `@assistant-ui/*`, `assistant-stream`, and `assistant-cloud` in `dependencies` and `devDependencies`.
+
 ## upgrade
 
-Use the `upgrade` command to automatically migrate your codebase when there are breaking changes.
+Use the `upgrade` command to migrate your codebase after breaking changes.
 
 ```bash
 npx assistant-ui@latest upgrade
 ```
 
 This command:
-- Runs codemods to transform your code
-- Updates import paths and API usage
-- Detects required dependency changes
-- Prompts to install new packages
-
-**What it does:**
-- Applies the current bundled codemods sequentially
-- Shows progress bar with file count
+- Applies the current bundled codemods sequentially to update import paths and API usage
+- Shows a progress bar with file count
 - Reports any transformation errors
-- Automatically detects and offers to install new dependencies
+- Detects new package dependencies and prompts to install them
 
 The latest upgrade excludes the historical v0.8 UI package split because its
 `@assistant-ui/react-ui` destination is incompatible with current runtime versions.
@@ -247,10 +257,11 @@ Do not run `codemod v0-8/ui-package-split` as part of a v0.15 upgrade.
 
 ```bash
 Starting upgrade...
+Analyzing codebase...
 Found 24 files to process.
 Progress |████████████████████| 100% | ETA: 0s || Running v0-11/content-part-to-message-part...
 Checking for package dependencies...
-✅ Upgrade complete!
+✓ Upgrade complete!
 ```
 
 **Options**
@@ -258,13 +269,13 @@ Checking for package dependencies...
 ```bash
 Usage: assistant-ui upgrade [options]
 
-upgrade and apply codemods for breaking changes
+Upgrade ai package dependencies and apply codemods
 
 Options:
-  -d, --dry              dry run (no changes are made to files)
-  -p, --print            print transformed files to stdout
-  --verbose              show more information about the transform process
-  -j, --jscodeshift <options>  pass options directly to jscodeshift
+  -d, --dry              Dry run (no changes are made to files)
+  -p, --print            Print transformed files to stdout
+  --verbose              Show more information about the transform process
+  -j, --jscodeshift <options>  Pass options directly to jscodeshift
   -h, --help             display help for command
 ```
 
@@ -276,7 +287,7 @@ Use the `codemod` command to run a specific codemod transformation.
 npx assistant-ui@latest codemod <codemod> <source>
 ```
 
-This is useful when you want to run a specific migration rather than all available upgrades.
+Use it to run one migration instead of the full `upgrade` bundle.
 
 **Examples**
 
@@ -296,17 +307,17 @@ npx assistant-ui codemod v0-11/content-part-to-message-part ./src --print
 ```bash
 Usage: assistant-ui codemod [options] <codemod> <source>
 
-run a specific codemod transformation
+CLI tool for running codemods
 
 Arguments:
-  codemod                codemod to run
-  source                 path to source files or directory to transform
+  codemod                Codemod to run (e.g., rewrite-framework-imports)
+  source                 Path to source files or directory to transform
 
 Options:
-  -d, --dry              dry run (no changes are made to files)
-  -p, --print            print transformed files to stdout
-  --verbose              show more information about the transform process
-  -j, --jscodeshift <options>  pass options directly to jscodeshift
+  -d, --dry              Dry run (no changes are made to files)
+  -p, --print            Print transformed files to stdout
+  --verbose              Show more information about the transform process
+  -j, --jscodeshift <options>  Pass options directly to jscodeshift
   -h, --help             display help for command
 ```
 
@@ -429,6 +440,32 @@ Options:
   -h, --help       display help for command
 ```
 
+## doctor
+
+Use the `doctor` command to find duplicate or outdated assistant-ui packages in `node_modules`, including transitive ones.
+
+```bash
+npx assistant-ui@latest doctor
+```
+
+This command:
+- Reports packages installed in more than one version and exits with code 1 when it finds any
+- Checks the npm registry and reports packages that are behind the latest version
+- Recommends `npx assistant-ui update` to fix either problem
+
+**Options**
+
+```bash
+Usage: assistant-ui doctor [options]
+
+Diagnose mismatched or outdated assistant-ui packages (including transitive ones).
+
+Options:
+  -c, --cwd <cwd>  the working directory. defaults to the current directory.
+  --no-network     Skip the npm registry check for latest versions.
+  -h, --help       display help for command
+```
+
 ## Common Workflows
 
 ### Starting a new project
@@ -485,7 +522,7 @@ npx assistant-ui@latest update
 
 ## Component Registry
 
-The CLI pulls components from our public registry at [r.assistant-ui.com](https://r.assistant-ui.com).
+The CLI pulls components from the public registry at [r.assistant-ui.com](https://r.assistant-ui.com).
 
 Configure the style-aware URL in `components.json` so `@assistant-ui/*` installs match your shadcn style:
 
@@ -499,13 +536,7 @@ Configure the style-aware URL in `components.json` so `@assistant-ui/*` installs
 
 The `{style}` placeholder is filled from your `components.json` `style` field. Styles whose name starts with `base-` resolve to Base UI flavored components; every other style resolves to Radix. Existing Radix projects can keep `https://r.assistant-ui.com/{name}.json` as a fallback.
 
-Each component includes:
-- Full TypeScript source code
-- All required dependencies
-- Tailwind CSS configuration
-- Usage examples
-
-Components are added directly to your project's source code, giving you full control to customize them.
+Each registry item lists its TypeScript source files and the dependencies to install. Components are added to your project's source code, so you can edit them.
 
 ## Troubleshooting
 

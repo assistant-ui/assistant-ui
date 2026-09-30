@@ -577,12 +577,16 @@ export function convertElement(
       const input: TeamsCardElement = {
         type: "Input.Text",
         id: reservedSafeId(name || "input", "Input", context),
+        ...(props["inputType"] === "password" ? { style: "password" } : {}),
         ...(label ? { label } : {}),
         ...(placeholder ? { placeholder } : {}),
         ...(typeof defaultValue === "string" && defaultValue
           ? { value: defaultValue }
           : {}),
-        ...(props["multiline"] === true ? { isMultiline: true } : {}),
+        ...(props["multiline"] === true &&
+        (props["inputType"] === undefined || props["inputType"] === "text")
+          ? { isMultiline: true }
+          : {}),
       };
       return withCompanionSubmit(element, input, context);
     }
