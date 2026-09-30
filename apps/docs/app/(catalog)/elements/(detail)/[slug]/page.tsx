@@ -20,7 +20,7 @@ import {
   ShadcnInstallTabs,
 } from "@/components/pages/docs/fumadocs/install/package-manager-tabs";
 import { ParametersTable } from "@/components/pages/docs/parameters-table";
-import { ELEMENT_DOCS } from "@/components/pages/elements/element-docs";
+import { AUI_ELEMENT_DOCS } from "@/components/pages/elements/aui-element-docs";
 import { ElementPager } from "@/components/pages/elements/element-pager";
 import { ELEMENTS, getElement } from "@/components/pages/elements/registry";
 import { AgentSetup } from "@/components/shared/shop-entry";
@@ -109,14 +109,16 @@ export default async function ElementPage({
   const element = getElement(slug);
   if (!element) notFound();
 
-  const doc = ELEMENT_DOCS[slug];
+  const doc = AUI_ELEMENT_DOCS[slug];
+  const mdxPage = elementsDocs.getPage([slug]);
   const generativeEntry = element.generative
     ? getGenerativeElement(slug)
     : undefined;
   const registryName =
     element.registryName ?? `elements-${element.installName ?? element.slug}`;
   const source = element.file ? await readElementSource(element.file) : null;
-  const highlightedUsage = doc ? await highlightElementSource(doc.usage) : null;
+  const highlightedUsage =
+    doc && !mdxPage ? await highlightElementSource(doc.usage) : null;
   const specJson = generativeEntry
     ? JSON.stringify(generativeEntry.template.tree, null, 2)
     : null;
@@ -127,7 +129,6 @@ export default async function ElementPage({
     ? await highlightElementSource(GENERATIVE_USAGE)
     : null;
 
-  const mdxPage = elementsDocs.getPage([slug]);
   const mdxData = mdxPage ? await mdxPage.data.load() : undefined;
   const MdxBody = mdxData?.body;
   const mdxHasApi = Boolean(

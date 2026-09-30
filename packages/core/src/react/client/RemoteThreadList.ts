@@ -17,7 +17,11 @@ import {
   useClientResource,
   useConfiguredAui,
 } from "@assistant-ui/store/client";
-import { isDevelopment, useThreadSelectionEvents } from "../../store/internal";
+import { isDevelopment } from "../../store/internal";
+import {
+  useThreadListItemSelectionEvents,
+  useThreadSelectionEvents,
+} from "../../store/clients/thread-selection-events";
 import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-state";
 import {
   classifyThreads,
@@ -116,6 +120,8 @@ const toInitializeResult = (
 
 const useThreadListItemClient = (props: {
   data: RemoteThreadData;
+  isMain: boolean;
+  isInitialMain: boolean;
   isRunning: boolean;
   onSwitchTo: (options?: { unarchive?: boolean }) => void;
   onRename: (title: string) => void;
@@ -132,6 +138,8 @@ const useThreadListItemClient = (props: {
 }): ClientOutput<"threadListItem"> => {
   const {
     data,
+    isMain,
+    isInitialMain,
     isRunning,
     onSwitchTo,
     onRename,
@@ -156,6 +164,7 @@ const useThreadListItemClient = (props: {
     }),
     [data, isRunning],
   );
+  useThreadListItemSelectionEvents(data.id, isMain, isInitialMain);
 
   return {
     getState: () => state,
@@ -311,6 +320,7 @@ const useMainThreadFacade = (
 const useRemoteThreadListView = ({
   listState,
   mainThreadId,
+  initialMainId,
   startedIds,
   backgroundThreads,
   threadFactory,
@@ -327,6 +337,7 @@ const useRemoteThreadListView = ({
 }: {
   listState: RemoteThreadState;
   mainThreadId: string;
+  initialMainId: string;
   startedIds: readonly string[];
   backgroundThreads: boolean;
   threadFactory: RemoteThreadListProps["thread"];
@@ -372,9 +383,15 @@ const useRemoteThreadListView = ({
     return ids;
   }, [backgroundThreads, listState, mainThreadId, startedIds]);
 
-  const itemElementFor = (data: RemoteThreadData, isRunning: boolean) =>
+  const itemElementFor = (
+    data: RemoteThreadData,
+    isRunning: boolean,
+    reportsSelection: boolean,
+  ) =>
     ThreadListItemClient({
       data,
+      isMain: reportsSelection && itemMatchesId(data, listState, mainThreadId),
+      isInitialMain: data.id === initialMainId,
       isRunning,
       onSwitchTo: (options) =>
         handleThreadListAction("switch", () => onSwitchTo(data.id, options)),
@@ -427,7 +444,8 @@ const useRemoteThreadListView = ({
               id,
               status: data.status,
               remoteId: data.remoteId,
-              item: (isRunning) => itemElementFor(data, isRunning),
+              // The list's own item reports selection; a body copy would repeat it.
+              item: (isRunning) => itemElementFor(data, isRunning, false),
               thread: wrapped,
             })
           : wrapped;
@@ -465,6 +483,7 @@ const useRemoteThreadListView = ({
             ? (bodyStateOf(data.id)?.isRunning ?? false)
             : itemMatchesId(data, listState, mainThreadId) &&
                 mainThreadClient.state.isRunning,
+          true,
         ),
       ),
     ),
@@ -1249,6 +1268,7 @@ const useRemoteThreadList = (
     useRemoteThreadListView({
       listState,
       mainThreadId,
+      initialMainId,
       startedIds,
       backgroundThreads,
       threadFactory,

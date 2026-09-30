@@ -108,7 +108,8 @@ export const ReasoningTrigger: FC<ReasoningTriggerProps> = ({
       )}
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ expanded: isOpen, busy: active === true }}
+      aria-expanded={isOpen}
+      aria-busy={active === true}
       hitSlop={textButtonHitSlop}
       onPress={(event) => {
         onPress?.(event);

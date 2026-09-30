@@ -32,6 +32,7 @@ import {
 
 const createHost = (
   env: Pick<ChatThreadEnvironment, "stopOnClientDestroy" | "chat">,
+  onRuntime?: (runtime: ReturnType<typeof useChatThread>) => void,
 ) => {
   const useHost = (options: Parameters<typeof useChatThread>[0]) => {
     const [threadListItem] = useState(() => ({
@@ -43,6 +44,7 @@ const createHost = (
       getThreadListItem: () => threadListItem,
       ...env,
     });
+    onRuntime?.(runtime);
     return useResource(RuntimeAdapter(runtime));
   };
   attachTransformScopes(useHost, runtimeAdapterTransformScopes);
@@ -76,6 +78,28 @@ const streamThenDestroy = async (
 };
 
 describe("useChatThread", () => {
+  it.each([
+    { adapters: undefined, threadId: "main" },
+    {
+      adapters: { threadList: { threadId: "caller-id" } },
+      threadId: "caller-id",
+    },
+  ])("uses $threadId as the runtime thread id", ({ adapters, threadId }) => {
+    let runtime: ReturnType<typeof useChatThread> | undefined;
+    const Host = createHost({}, (value) => {
+      runtime = value;
+    });
+    const handle = createAssistantClient(
+      AuiConfig({ threads: Host({ adapters }) }),
+    );
+    try {
+      handle.subscribe(() => {});
+      expect(runtime?.thread.getState().threadId).toBe(threadId);
+    } finally {
+      handle.destroy();
+    }
+  });
+
   it.each(["send", "resume"])(
     "ignores errors from a subsequent %s when a resume finishes",
     async (nextRequest) => {

@@ -377,7 +377,10 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
   );
 
   const runtime = useAISDKRuntime(chat, {
-    adapters,
+    adapters: {
+      ...adapters,
+      threadList: { threadId: id, ...adapters?.threadList },
+    },
     ...pickExternalStoreSharedOptions(options ?? {}),
     ...(toCreateMessage && { toCreateMessage }),
     ...(onResume

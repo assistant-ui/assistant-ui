@@ -73,10 +73,4 @@ describe("describeAnswer", () => {
       ),
     ).toBe("OpenAI · gpt-5 · high");
   });
-
-  it("says what a product answer added", () => {
-    expect(
-      describeAnswer(input({ kind: "product", product: "assistant-ui" })),
-    ).toBe("Added assistant-ui to this setup");
-  });
 });

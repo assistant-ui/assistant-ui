@@ -16,6 +16,8 @@ export default {
     // The generated repo source tree is a verbatim copy of the monorepo, and
     // vitest discovers dotted directories, so its tests would be collected here.
     exclude: [...defaultExclude, "generated/.repo-source/**"],
+    // Extensionless next imports in aui-auth's ESM build only resolve once vitest transforms it.
+    server: { deps: { inline: ["aui-auth"] } },
   },
   resolve: {
     alias: {
