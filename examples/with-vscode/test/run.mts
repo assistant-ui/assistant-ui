@@ -76,8 +76,16 @@ if (!report) {
   process.exit(1);
 }
 
+if (!report.finished) {
+  console.error(
+    `\nThe suite stopped during "${report.step ?? "startup"}" without finishing.`,
+  );
+}
+if (report.error) console.error(`\nThe suite threw: ${report.error}`);
+
 const columns = ["probe", "phase", "gated", "state", "detail"] as const;
-let failed = report.runs.length === 0;
+let failed =
+  report.runs.length === 0 || !report.finished || report.error !== undefined;
 
 for (const run of report.runs) {
   const rows = run.results.map((r) => ({

@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import * as vscode from "vscode";
 import { RICH_FIXTURES } from "../src/fixtures/fixtures";
@@ -258,18 +258,33 @@ ${fixtureRows}
 `;
 };
 
+type Step = (name: string) => Promise<void>;
+
+/** Runs `run` as the step `name`, and names the step in its error. */
+const inStep = async <T>(step: Step, name: string, run: () => Promise<T>) => {
+  await step(name);
+  try {
+    return await run();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`${name}: ${message}`, { cause: error });
+  }
+};
+
 /**
  * Captures every gallery section under each gallery theme at editor and
  * sidebar width, and the Assistant view after each rich fixture, into
  * `<outDir>/gallery/`, plus an `index.html` contact sheet.
  */
-const captureGallery = async (workbench: Workbench, outDir: string) => {
-  const galleryDir = path.join(outDir, "gallery");
-  const files: string[] = [];
+const captureGallery = async (
+  workbench: Workbench,
+  galleryDir: string,
+  files: string[],
+  step: Step,
+) => {
   const truncated = new Set<string>();
-  const sections = await runTask<GallerySectionInfo[]>(
-    "gallery",
-    "gallery-sections",
+  const sections = await inStep(step, "gallery: list sections", () =>
+    runTask<GallerySectionInfo[]>("gallery", "gallery-sections"),
   );
 
   for (const theme of GALLERY_THEMES) {
@@ -279,41 +294,54 @@ const captureGallery = async (workbench: Workbench, outDir: string) => {
       const dir = path.join(galleryDir, theme.name, name);
       await mkdir(dir, { recursive: true });
       for (const section of sections) {
-        const view: GalleryView = {
-          section: section.id,
-          width,
-          noMotion: true,
-        };
-        const shown = await runTask<GalleryShown>(
-          "gallery",
-          "gallery-show",
-          view,
-        );
-        if (!shown.rect)
-          throw new Error(`Section ${section.id} did not render`);
-        const frame = await workbench.webviewFrame(shown.viewport);
         const file = path.join(dir, `${section.id}.png`);
-        const clip = clipTo(frame, shown.rect, shown.viewport);
-        if (clip.height < shown.rect.height - 1) {
-          truncated.add(path.relative(galleryDir, file));
-        }
-        await writeFile(file, await workbench.capture(clip));
+        await inStep(
+          step,
+          `gallery ${theme.name}/${name}/${section.id}`,
+          async () => {
+            const view: GalleryView = {
+              section: section.id,
+              width,
+              noMotion: true,
+            };
+            const shown = await runTask<GalleryShown>(
+              "gallery",
+              "gallery-show",
+              view,
+            );
+            if (!shown.rect) throw new Error("the section did not render");
+            const frame = await workbench.webviewFrame(shown.viewport);
+            const clip = clipTo(frame, shown.rect, shown.viewport);
+            if (clip.height < shown.rect.height - 1) {
+              truncated.add(path.relative(galleryDir, file));
+            }
+            await writeFile(file, await workbench.capture(clip));
+          },
+        );
         files.push(file);
       }
     }
-    await runTask("gallery", "gallery-show", { section: null, width: null });
+    await inStep(step, `gallery ${theme.name}: reset`, () =>
+      runTask("gallery", "gallery-show", { section: null, width: null }),
+    );
 
     const dir = path.join(galleryDir, theme.name, "assistant");
     await mkdir(dir, { recursive: true });
     for (const fixture of RICH_FIXTURES) {
-      const viewport = await runTask<{ width: number; height: number }>(
-        "assistant",
-        "run-fixture",
-        fixture.prompt,
-      );
-      const frame = await workbench.webviewFrame(viewport);
       const file = path.join(dir, `${fixture.name}.png`);
-      await writeFile(file, await workbench.capture(frame));
+      await inStep(
+        step,
+        `assistant ${theme.name}/${fixture.name}`,
+        async () => {
+          const viewport = await runTask<{ width: number; height: number }>(
+            "assistant",
+            "run-fixture",
+            fixture.prompt,
+          );
+          const frame = await workbench.webviewFrame(viewport);
+          await writeFile(file, await workbench.capture(frame));
+        },
+      );
       files.push(file);
     }
   }
@@ -321,32 +349,46 @@ const captureGallery = async (workbench: Workbench, outDir: string) => {
   const index = path.join(galleryDir, "index.html");
   await writeFile(index, contactSheet(sections, RICH_FIXTURES, truncated));
   files.push(index);
-  return files;
+};
+
+/** Deletes the captures of an earlier run, so none passes for fresh output. */
+const clearCaptures = async (outDir: string, galleryDir: string) => {
+  await rm(galleryDir, { recursive: true, force: true });
+  const stale = (await readdir(outDir)).filter((f) => f.endsWith(".png"));
+  await Promise.all(stale.map((f) => rm(path.join(outDir, f))));
 };
 
 /**
  * Saves a window screenshot with the Assistant view open under a dark and a
- * light theme, then the gallery matrix, and restores the user's theme.
+ * light theme, then the gallery matrix, and restores the user's theme. Each
+ * file is pushed to `files` once written; `step` is called before each step.
  */
-export const captureThemeScreenshots = async (port: number, outDir: string) => {
+export const captureThemeScreenshots = async (
+  port: number,
+  outDir: string,
+  files: string[],
+  step: Step,
+) => {
+  const galleryDir = path.join(outDir, "gallery");
   await mkdir(outDir, { recursive: true });
+  await clearCaptures(outDir, galleryDir);
   const workbench = await Workbench.connect(port);
-  const files: string[] = [];
   try {
     await withColorTheme(async () => {
       for (const theme of THEMES) {
-        await vscode.commands.executeCommand("auiTest.showAssistant");
-        await setColorTheme(theme.colorTheme);
         const file = path.join(outDir, `assistant-${theme.name}.png`);
-        await writeFile(file, await workbench.capture());
+        await inStep(step, `assistant window ${theme.name}`, async () => {
+          await vscode.commands.executeCommand("auiTest.showAssistant");
+          await setColorTheme(theme.colorTheme);
+          await writeFile(file, await workbench.capture());
+        });
         files.push(file);
       }
-      await workbench.withViewport(GALLERY_VIEWPORT, async () => {
-        files.push(...(await captureGallery(workbench, outDir)));
-      });
+      await workbench.withViewport(GALLERY_VIEWPORT, () =>
+        captureGallery(workbench, galleryDir, files, step),
+      );
     });
   } finally {
     workbench.close();
   }
-  return files;
 };
