@@ -158,7 +158,7 @@ const ansiColor = (color: AnsiColor, ink: boolean) => {
     35: "text-fuchsia-600 dark:text-fuchsia-400",
     36: "text-cyan-600 dark:text-cyan-400",
     37: "text-foreground/85",
-    90: "text-foreground/45",
+    90: "text-muted-foreground",
     91: "text-red-500 dark:text-red-400",
     92: "text-emerald-500 dark:text-emerald-400",
     93: "text-amber-500 dark:text-amber-400",
@@ -176,7 +176,7 @@ const ansiColor = (color: AnsiColor, ink: boolean) => {
     35: "text-fuchsia-400 dark:text-fuchsia-400",
     36: "text-cyan-300 dark:text-cyan-300",
     37: "text-background/90 dark:text-foreground/90",
-    90: "text-background/50 dark:text-foreground/50",
+    90: "text-background/50 dark:text-muted-foreground",
     91: "text-red-400 dark:text-red-400",
     92: "text-emerald-400 dark:text-emerald-400",
     93: "text-amber-300 dark:text-amber-300",
@@ -296,8 +296,8 @@ export function TerminalBlock({
             <span
               className={cn(
                 ink
-                  ? "text-background/40 dark:text-foreground/40"
-                  : "text-foreground/40",
+                  ? "text-background/40 dark:text-muted-foreground"
+                  : "text-muted-foreground",
               )}
             >
               {cwd} ${" "}
@@ -318,8 +318,8 @@ export function TerminalBlock({
                 failed
                   ? "text-red-600 dark:text-red-400"
                   : ink
-                    ? "text-background/40 dark:text-foreground/40"
-                    : "text-foreground/40",
+                    ? "text-background/40 dark:text-muted-foreground"
+                    : "text-muted-foreground",
               )}
             >
               exit {exitCode}
@@ -329,8 +329,8 @@ export function TerminalBlock({
                 className={cn(
                   mono,
                   ink
-                    ? "text-background/40 dark:text-foreground/40"
-                    : "text-foreground/40",
+                    ? "text-background/40 dark:text-muted-foreground"
+                    : "text-muted-foreground",
                 )}
               >
                 {formatDuration(durationMs)}
@@ -349,7 +349,7 @@ export function TerminalBlock({
                   ghostButton,
                   "size-6",
                   ink &&
-                    "text-background/45 hover:text-background dark:text-foreground/45 dark:hover:text-foreground",
+                    "text-background/45 hover:text-background dark:text-muted-foreground dark:hover:text-foreground",
                 )}
               >
                 {isCopied ? (
@@ -365,8 +365,8 @@ export function TerminalBlock({
             className={cn(
               "size-3 animate-spin motion-reduce:animate-none",
               ink
-                ? "text-background/35 dark:text-foreground/35"
-                : "text-foreground/35",
+                ? "text-background/35 dark:text-muted-foreground"
+                : "text-muted-foreground",
             )}
           />
         )}
@@ -375,8 +375,8 @@ export function TerminalBlock({
         className={cn(
           "flex min-h-[8.5rem] flex-col gap-1 px-4 pt-1 pb-3.5",
           ink
-            ? "text-background/55 dark:text-foreground/50"
-            : "text-foreground/50",
+            ? "text-background/55 dark:text-muted-foreground"
+            : "text-muted-foreground",
         )}
       >
         <div id={outputId} className="flex flex-col gap-1">
@@ -423,7 +423,7 @@ export function TerminalBlock({
               ghostButton,
               "h-7 self-start px-2 text-xs",
               ink &&
-                "text-background/45 hover:text-background dark:text-foreground/45 dark:hover:text-foreground",
+                "text-background/45 hover:text-background dark:text-muted-foreground dark:hover:text-foreground",
             )}
           >
             {expanded ? "Show less" : `Show all ${revealedLines.length} lines`}
@@ -434,8 +434,8 @@ export function TerminalBlock({
             className={cn(
               mono,
               ink
-                ? "text-background/35 dark:text-foreground/35"
-                : "text-foreground/35",
+                ? "text-background/35 dark:text-muted-foreground"
+                : "text-muted-foreground",
             )}
           >
             output truncated

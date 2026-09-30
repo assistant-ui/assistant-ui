@@ -56,7 +56,7 @@ export function TodoList({
         <div className="min-w-0">
           <span className="text-[13.5px] font-medium">{title}</span>
           {description ? (
-            <p className="text-foreground/45 text-xs leading-4 break-words">
+            <p className="text-muted-foreground text-xs leading-4 break-words">
               {description}
             </p>
           ) : null}
@@ -64,7 +64,7 @@ export function TodoList({
         <span
           className={cn(
             mono,
-            "text-foreground/35 shrink-0 whitespace-nowrap tabular-nums",
+            "text-muted-foreground shrink-0 whitespace-nowrap tabular-nums",
           )}
         >
           {revision === undefined
@@ -89,14 +89,14 @@ export function TodoList({
               >
                 {item.status === "done" ? (
                   <span className="border-foreground/20 bg-foreground/[0.06] flex size-3.5 items-center justify-center rounded-[5px] border">
-                    <CheckIcon className="text-foreground/45 size-2.5" />
+                    <CheckIcon className="text-muted-foreground size-2.5" />
                   </span>
                 ) : item.status === "failed" ? (
                   <span className="flex size-3.5 items-center justify-center rounded-[5px] border border-red-600/25 bg-red-600/[0.08] dark:border-red-400/25 dark:bg-red-400/[0.08]">
                     <XIcon className="size-2.5 text-red-600 dark:text-red-400" />
                   </span>
                 ) : item.status === "cancelled" ? (
-                  <span className="border-foreground/15 text-foreground/30 flex size-3.5 items-center justify-center rounded-[5px] border">
+                  <span className="border-foreground/15 text-muted-foreground flex size-3.5 items-center justify-center rounded-[5px] border">
                     <MinusIcon className="size-2.5" />
                   </span>
                 ) : item.status === "active" ? (
@@ -110,25 +110,25 @@ export function TodoList({
                 <span
                   className={cn(
                     item.status === "done" &&
-                      "text-foreground/35 line-through decoration-[1.5px]",
+                      "text-muted-foreground line-through decoration-[1.5px]",
                     item.status === "active" && "text-foreground/90",
-                    item.status === "pending" && "text-foreground/50",
+                    item.status === "pending" && "text-muted-foreground",
                     item.status === "failed" &&
                       "text-red-600 dark:text-red-400",
                     item.status === "cancelled" &&
-                      "text-foreground/30 line-through decoration-[1.5px]",
+                      "text-muted-foreground line-through decoration-[1.5px]",
                   )}
                 >
                   {item.text}
                 </span>
                 {item.status === "failed" ? (
                   item.reason ? (
-                    <p className="text-foreground/45 text-xs leading-4 break-words">
+                    <p className="text-muted-foreground text-xs leading-4 break-words">
                       {item.reason}
                     </p>
                   ) : null
                 ) : item.status !== "cancelled" && item.description ? (
-                  <p className="text-foreground/45 text-xs leading-4 break-words">
+                  <p className="text-muted-foreground text-xs leading-4 break-words">
                     {item.description}
                   </p>
                 ) : null}
