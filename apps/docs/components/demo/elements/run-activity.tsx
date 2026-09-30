@@ -45,16 +45,20 @@ type ActivityPresentation = {
 };
 
 export function convertRun(run: ActivityRun): ThreadMessageLike {
+  // Match runtime normalization before deriving the parallel presentation entries.
+  const parts = run.parts.filter(
+    ({ part }) => part.type !== "text" || part.text.trim().length > 0,
+  );
   return {
     id: run.id,
     role: "assistant",
     status: run.status,
-    content: run.parts.map((entry) => entry.part),
+    content: parts.map((entry) => entry.part),
     metadata: {
       custom: {
         activityPresentation: {
           timing: run.timing,
-          entries: run.parts.map(({ id, kind, label }) => ({
+          entries: parts.map(({ id, kind, label }) => ({
             id,
             kind,
             label,

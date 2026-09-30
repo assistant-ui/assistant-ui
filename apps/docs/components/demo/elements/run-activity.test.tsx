@@ -120,6 +120,80 @@ describe("run activity external-store recipe", () => {
     ).toBeTruthy();
   });
 
+  it.each(["", "\n\n", " \t "])(
+    "keeps the answer and activity parts aligned after blank commentary %j",
+    async (text) => {
+      render(
+        <ActivityRunExample
+          run={{
+            ...RUN,
+            parts: [
+              RUN.parts[0]!,
+              {
+                id: "blank-commentary",
+                kind: "commentary",
+                label: "Pending commentary",
+                part: { type: "text", text },
+              },
+              ...RUN.parts.slice(1),
+            ],
+          }}
+        />,
+      );
+      expect(await screen.findByText("The final answer.")).toBeTruthy();
+      expect(screen.queryByText("I’ll inspect the files.")).toBeNull();
+      fireEvent.click(
+        screen.getByRole("button", { name: "Worked for 2m 13s" }),
+      );
+      expect(screen.queryByText("Pending commentary")).toBeNull();
+      expect(
+        screen
+          .getAllByRole("listitem")
+          .map((item) => item.getAttribute("data-activity-kind")),
+      ).toEqual(["commentary", "tool", "commentary"]);
+    },
+  );
+
+  it("keeps classification aligned as an empty streaming part gains text", async () => {
+    const pending: ActivityRun["parts"][number] = {
+      id: "pending-commentary",
+      kind: "commentary",
+      label: "More context",
+      part: { type: "text", text: "\n" },
+    };
+    const running: ActivityRun = {
+      ...RUN,
+      status: { type: "running" },
+      timing: { startedAt: Date.now() },
+      parts: [RUN.parts[0]!, pending, ...RUN.parts.slice(1, 3)],
+    };
+    const view = render(<ActivityRunExample run={running} />);
+    const trigger = await screen.findByRole("button", { name: /Working/ });
+    expect(screen.getByText("Checking the fix")).toBeTruthy();
+    fireEvent.click(trigger);
+    await act(async () =>
+      view.rerender(
+        <ActivityRunExample
+          run={{
+            ...RUN,
+            parts: [
+              RUN.parts[0]!,
+              {
+                ...pending,
+                part: { type: "text", text: "More context arrived." },
+              },
+              ...RUN.parts.slice(1),
+            ],
+          }}
+        />,
+      ),
+    );
+    expect(screen.getByText("More context arrived.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Worked for 2m 13s" }));
+    expect(screen.queryByText("More context arrived.")).toBeNull();
+    expect(screen.getByText("The final answer.")).toBeTruthy();
+  });
+
   it("preserves expansion through a real runtime streaming-to-complete update", async () => {
     const running: ActivityRun = {
       ...RUN,
