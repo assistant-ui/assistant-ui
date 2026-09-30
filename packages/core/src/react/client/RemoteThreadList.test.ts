@@ -245,6 +245,32 @@ describe("RemoteThreadList", () => {
       expect(starTo).toHaveBeenCalledExactlyOnceWith({ threadId: "B" });
       expect(itemAway).not.toHaveBeenCalled();
       expect(itemTo).toHaveBeenCalledExactlyOnceWith({ threadId: "B" });
+
+      starTo.mockClear();
+      starAway.mockClear();
+      itemTo.mockClear();
+      flushTapSync(() => aui.threads.switchToNewThread());
+      await vi.waitFor(() =>
+        expect(aui.threads.getState().mainThreadId).not.toBe("B"),
+      );
+      const newId = aui.threads.getState().mainThreadId;
+      expect(starAway).toHaveBeenCalledExactlyOnceWith({ threadId: "B" });
+      expect(starTo).toHaveBeenCalledExactlyOnceWith({ threadId: newId });
+      expect(itemAway).not.toHaveBeenCalled();
+      expect(itemTo).toHaveBeenCalledExactlyOnceWith({ threadId: newId });
+
+      starTo.mockClear();
+      starAway.mockClear();
+      itemTo.mockClear();
+      flushTapSync(() => aui.threads.switchToThread("fetched"));
+      await vi.waitFor(() =>
+        expect(aui.threads.getState().mainThreadId).toBe("fetched"),
+      );
+      expect(adapter.fetch).toHaveBeenCalledWith("fetched");
+      expect(starAway).toHaveBeenCalledExactlyOnceWith({ threadId: newId });
+      expect(starTo).toHaveBeenCalledExactlyOnceWith({ threadId: "fetched" });
+      expect(itemAway).not.toHaveBeenCalled();
+      expect(itemTo).toHaveBeenCalledExactlyOnceWith({ threadId: "fetched" });
       handle.destroy();
     },
   );

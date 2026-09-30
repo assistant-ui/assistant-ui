@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { resource, withKey, type ResourceElement } from "@assistant-ui/tap";
 import type {
   AssistantClient,
@@ -11,10 +11,12 @@ import {
   attachTransformScopes,
   useClientResource,
   useDestroySignalProvider,
-  useAssistantEmit,
 } from "@assistant-ui/store/client";
 import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
-import { useThreadSelectionEvents } from "../../store/internal";
+import {
+  useThreadListItemSelectionEvents,
+  useThreadSelectionEvents,
+} from "../../store/clients/thread-selection-events";
 import { generateId } from "../../utils/id";
 import { ModelContext } from "../../store/clients/model-context-client";
 import { Tools } from "./Tools";
@@ -44,6 +46,7 @@ type ThreadData = {
 const useThreadListItemClient = (props: {
   data: ThreadData;
   isMain: boolean;
+  isInitialMain: boolean;
   isRunning: boolean;
   onSwitchTo: () => void;
   onRename: (title: string) => void;
@@ -55,6 +58,7 @@ const useThreadListItemClient = (props: {
   const {
     data,
     isMain,
+    isInitialMain,
     isRunning,
     onSwitchTo,
     onRename,
@@ -75,17 +79,7 @@ const useThreadListItemClient = (props: {
     }),
     [data.id, data.title, data.status, data.custom, isRunning],
   );
-  const emit = useAssistantEmit();
-  const threadId = data.id;
-  const selectionRef = useRef({ isMain, threadId });
-  useEffect(() => {
-    const previous = selectionRef.current;
-    if (previous.isMain === isMain && previous.threadId === threadId) return;
-    selectionRef.current = { isMain, threadId };
-    emit(isMain ? "threadListItem.switchedTo" : "threadListItem.switchedAway", {
-      threadId,
-    });
-  }, [isMain, threadId, emit]);
+  useThreadListItemSelectionEvents(data.id, isMain, isInitialMain);
 
   return {
     getState: () => state,
@@ -157,6 +151,8 @@ const useOwnedThread = ({
 
 const OwnedThread = resource(useOwnedThread);
 
+const INITIAL_THREAD_ID = "main";
+
 // InMemoryThreadList Client
 const useInMemoryThreadList = (
   props: InMemoryThreadListProps,
@@ -179,8 +175,10 @@ const useInMemoryThreadList = (
     threads: readonly ThreadData[];
     mainThreadId: string;
   }>(() => ({
-    threads: [{ id: "main", title: "Main Thread", status: "regular" }],
-    mainThreadId: "main",
+    threads: [
+      { id: INITIAL_THREAD_ID, title: "Main Thread", status: "regular" },
+    ],
+    mainThreadId: INITIAL_THREAD_ID,
   }));
   const setThreads = (
     update: (prev: readonly ThreadData[]) => readonly ThreadData[],
@@ -280,6 +278,7 @@ const useInMemoryThreadList = (
         ThreadListItemClient({
           data: t,
           isMain: t.id === mainThreadId,
+          isInitialMain: t.id === INITIAL_THREAD_ID,
           isRunning: t.id === mainThreadId && mainThreadClient.state.isRunning,
           onSwitchTo: () => handleSwitchToThread(t.id),
           onRename: (title) => handleRename(t.id, title),

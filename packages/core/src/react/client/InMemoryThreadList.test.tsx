@@ -170,20 +170,34 @@ describe("InMemoryThreadList selection events", () => {
     });
     const secondId = aui.threads.getState().mainThreadId;
     expect(secondId).not.toBe("main");
-    await act(async () => {
-      aui.threads.switchToThread("main");
-    });
-    starTo.mockClear();
-    starAway.mockClear();
-    itemTo.mockClear();
-    itemAway.mockClear();
-    await act(async () => {
-      aui.threads.switchToThread(secondId);
-    });
     expect(starAway).toHaveBeenCalledExactlyOnceWith({ threadId: "main" });
     expect(starTo).toHaveBeenCalledExactlyOnceWith({ threadId: secondId });
     expect(itemAway).not.toHaveBeenCalled();
     expect(itemTo).toHaveBeenCalledExactlyOnceWith({ threadId: secondId });
+
+    starTo.mockClear();
+    starAway.mockClear();
+    itemTo.mockClear();
+    await act(async () => {
+      aui.threads.switchToThread("main");
+    });
+    expect(starAway).toHaveBeenCalledExactlyOnceWith({ threadId: secondId });
+    expect(starTo).toHaveBeenCalledExactlyOnceWith({ threadId: "main" });
+    expect(itemAway).not.toHaveBeenCalled();
+    expect(itemTo).toHaveBeenCalledExactlyOnceWith({ threadId: "main" });
+
+    await act(async () => {
+      aui.threads.item({ id: secondId }).delete();
+    });
+    starTo.mockClear();
+    itemTo.mockClear();
+    await act(async () => {
+      aui.threads.item({ id: "main" }).delete();
+    });
+    const fallbackId = aui.threads.getState().mainThreadId;
+    expect(fallbackId).not.toBe("main");
+    expect(starTo).toHaveBeenCalledExactlyOnceWith({ threadId: fallbackId });
+    expect(itemTo).toHaveBeenCalledExactlyOnceWith({ threadId: fallbackId });
     view.unmount();
   });
 
