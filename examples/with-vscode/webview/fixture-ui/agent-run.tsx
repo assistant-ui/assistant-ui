@@ -68,9 +68,6 @@ import {
   type WebFetchResult,
 } from "../../src/fixtures/rich/agent-run";
 import { defineFixtureUI } from "../define-fixture-ui";
-import { installGenerativeUIStyle } from "./_generative-ui-style";
-
-installGenerativeUIStyle();
 
 const CARD = "my-2";
 

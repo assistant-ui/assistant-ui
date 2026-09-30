@@ -3706,6 +3706,9 @@ importers:
       tw-animate-css:
         specifier: ^1.4.0
         version: 1.4.0
+      tw-shimmer:
+        specifier: workspace:*
+        version: link:../../packages/tw-shimmer
       typescript:
         specifier: ^7.0.2
         version: 7.0.2

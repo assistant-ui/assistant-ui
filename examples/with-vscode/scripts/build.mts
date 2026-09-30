@@ -3,6 +3,7 @@ import { promises as fs, watch as fsWatch } from "node:fs";
 import path from "node:path";
 import postcss from "postcss";
 import tailwindcss from "@tailwindcss/postcss";
+import { generativeUiCss } from "./generative-ui-css.ts";
 
 const isWatch = process.argv.includes("--watch");
 const rootDir = path.resolve(import.meta.dirname, "..");
@@ -81,6 +82,24 @@ const globModules: Plugin = {
   },
 };
 
+/**
+ * Writes `generative-ui.css`, the registry's `generative-ui-style` rules that
+ * `shadcn add` puts in an app's CSS, next to `app.css`.
+ */
+const generativeUiStyle: Plugin = {
+  name: "generative-ui-style",
+  setup(b) {
+    b.onEnd(async (result) => {
+      if (result.errors.length > 0) return;
+      await fs.mkdir(path.join(distDir, "webview"), { recursive: true });
+      await fs.writeFile(
+        path.join(distDir, "webview", "generative-ui.css"),
+        `${generativeUiCss()}\n`,
+      );
+    });
+  },
+};
+
 const nodeOptions: BuildOptions = {
   bundle: true,
   format: "cjs",
@@ -137,7 +156,7 @@ const testbedWebviewOptions: BuildOptions = {
   outdir: path.join(distDir, "webview"),
   // leaflet.css, imported by the kit's geo-map, references PNG images; img-src allows data:.
   loader: { ".png": "dataurl" },
-  plugins: [...(webviewOptions.plugins ?? []), globModules],
+  plugins: [...(webviewOptions.plugins ?? []), globModules, generativeUiStyle],
 };
 
 const allOptions = [hostOptions, testOptions, testbedWebviewOptions];

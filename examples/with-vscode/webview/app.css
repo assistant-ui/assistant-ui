@@ -1,6 +1,45 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "tw-shimmer";
 @import "@assistant-ui/vscode/theme.css";
+
+@custom-variant data-open (&:where([data-state="open"], [data-open]:not([data-open="false"])));
+@custom-variant data-closed (&:where([data-state="closed"], [data-closed]:not([data-closed="false"])));
+
+@theme inline {
+  @keyframes collapsible-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(
+        --radix-collapsible-content-height,
+        var(--collapsible-panel-height, auto)
+      );
+    }
+  }
+  @keyframes collapsible-up {
+    from {
+      height: var(
+        --radix-collapsible-content-height,
+        var(--collapsible-panel-height, auto)
+      );
+    }
+    to {
+      height: 0;
+    }
+  }
+  --animate-shimmer: shimmer-sweep var(--shimmer-duration, 1000ms) linear
+    infinite both;
+  @keyframes shimmer-sweep {
+    from {
+      background-position: 150% 0;
+    }
+    to {
+      background-position: -100% 0;
+    }
+  }
+}
 
 @source "../../../packages/ui/src";
 @source ".";
