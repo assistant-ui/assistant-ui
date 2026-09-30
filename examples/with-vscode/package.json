@@ -74,6 +74,12 @@
         "category": "AUI Test Bed"
       },
       {
+        "command": "auiTest.openGallery",
+        "title": "Open Component Gallery",
+        "category": "AUI Test Bed",
+        "icon": "$(symbol-color)"
+      },
+      {
         "command": "auiTest.reloadWebview",
         "title": "Reload Assistant Webview",
         "category": "AUI Test Bed",
@@ -102,6 +108,11 @@
           "command": "auiTest.openSettings",
           "when": "view == auiTest.readiness",
           "group": "navigation@3"
+        },
+        {
+          "command": "auiTest.openGallery",
+          "when": "view == auiTest.readiness",
+          "group": "navigation@4"
         }
       ],
       "view/item/context": [

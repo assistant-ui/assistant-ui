@@ -13,30 +13,40 @@ export async function POST(req: Request): Promise<Response> {
 
   const stream = createUIMessageStream({
     execute: async ({ writer }) => {
-      let openText: string | undefined;
-      const closeText = () => {
-        if (openText === undefined) return;
-        writer.write({ type: "text-end", id: openText });
-        openText = undefined;
+      let open: { kind: "text" | "reasoning"; id: string } | undefined;
+      const closeOpen = () => {
+        if (open === undefined) return;
+        writer.write({ type: `${open.kind}-end`, id: open.id });
+        open = undefined;
+      };
+      const openPart = (kind: "text" | "reasoning", id: string) => {
+        if (open?.id === id) return;
+        closeOpen();
+        open = { kind, id };
+        writer.write({ type: `${kind}-start`, id });
       };
 
       writer.write({ type: "start-step" });
       for await (const event of playFixture(steps, { signal: req.signal })) {
         switch (event.type) {
           case "text-delta":
-            if (openText !== event.id) {
-              closeText();
-              openText = event.id;
-              writer.write({ type: "text-start", id: event.id });
-            }
+            openPart("text", event.id);
             writer.write({
               type: "text-delta",
               id: event.id,
               delta: event.delta,
             });
             break;
+          case "reasoning-delta":
+            openPart("reasoning", event.id);
+            writer.write({
+              type: "reasoning-delta",
+              id: event.id,
+              delta: event.delta,
+            });
+            break;
           case "tool-call":
-            closeText();
+            closeOpen();
             writer.write({
               type: "tool-input-available",
               toolCallId: event.toolCallId,
@@ -46,20 +56,53 @@ export async function POST(req: Request): Promise<Response> {
             });
             break;
           case "tool-result":
+            writer.write(
+              event.isError
+                ? {
+                    type: "tool-output-error",
+                    toolCallId: event.toolCallId,
+                    errorText:
+                      typeof event.result === "string"
+                        ? event.result
+                        : JSON.stringify(event.result),
+                    providerExecuted: true,
+                  }
+                : {
+                    type: "tool-output-available",
+                    toolCallId: event.toolCallId,
+                    output: event.result,
+                    providerExecuted: true,
+                  },
+            );
+            break;
+          case "source":
+            closeOpen();
             writer.write({
-              type: "tool-output-available",
-              toolCallId: event.toolCallId,
-              output: event.result,
-              providerExecuted: true,
+              type: "source-url",
+              sourceId: event.id,
+              url: event.url,
+              ...(event.title !== undefined && { title: event.title }),
             });
             break;
+          case "file":
+            closeOpen();
+            writer.write({
+              type: "file",
+              url: event.data,
+              mediaType: event.mediaType,
+            });
+            break;
+          case "data":
+            closeOpen();
+            writer.write({ type: `data-${event.name}`, data: event.data });
+            break;
           case "error":
-            closeText();
+            closeOpen();
             writer.write({ type: "error", errorText: event.message });
             return;
         }
       }
-      closeText();
+      closeOpen();
       writer.write({ type: "finish-step" });
     },
   });

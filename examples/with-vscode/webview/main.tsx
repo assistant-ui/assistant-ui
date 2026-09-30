@@ -32,6 +32,7 @@ import {
   type WebviewBootConfig,
 } from "../src/protocol";
 import type { SWITCHBOARD, Switchboard } from "../src/switchboard";
+import { FIXTURE_TOOLKIT, FixtureDataUIs } from "./fixture-uis";
 import { threadStorage, threadStoragePrefix } from "./thread-storage";
 import { toolkit } from "./tools";
 
@@ -61,7 +62,7 @@ const threadListAdapter: RemoteThreadListAdapter =
     : localStorageAdapter;
 
 const config = AuiConfig({
-  tools: Tools({ toolkit }),
+  tools: Tools({ toolkit: { ...FIXTURE_TOOLKIT, ...toolkit } }),
   suggestions: Suggestions(
     FIXTURES.map((f) => ({
       title: f.name,
@@ -121,6 +122,7 @@ function FixtureThreads({
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>
       <CaptureClient />
+      <FixtureDataUIs />
       <div className="flex h-full flex-col">
         <nav
           aria-label="Threads"

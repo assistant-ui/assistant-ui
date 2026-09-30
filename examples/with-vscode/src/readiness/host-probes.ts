@@ -1,10 +1,11 @@
 import * as vscode from "vscode";
 import { isImplemented, SWITCHBOARD } from "../switchboard";
 import type { SeededThread } from "../protocol";
-import type { AttachedWebview } from "../webviews";
+import { isAssistant, isGallery, type AttachedWebview } from "../webviews";
 import type { ProbeId, ProbeResult } from "./probes";
 import { scaffoldMatches } from "./scaffold";
 import {
+  GALLERY_PROBE_TIMEOUT_MS,
   PROBE_TIMEOUT_MS,
   WEBVIEW_READY_TIMEOUT_MS,
   type HostProbe,
@@ -89,7 +90,7 @@ const readyWebview = async (
 ) => {
   const webview = await ctx.webviews.waitForReady(
     WEBVIEW_READY_TIMEOUT_MS,
-    accept,
+    (entry) => isAssistant(entry) && (accept?.(entry) ?? true),
   );
   if (!webview) throw new Error(`The webview was not ready ${when}`);
   return webview;
@@ -148,8 +149,24 @@ const threadsPersist: HostProbe = async (ctx) => {
   };
 };
 
+/** Opens the component gallery and runs `id` in it. */
+const galleryProbe =
+  (id: ProbeId): HostProbe =>
+  async (ctx) => {
+    await ctx.openGallery();
+    const gallery = await ctx.webviews.waitForReady(
+      WEBVIEW_READY_TIMEOUT_MS,
+      isGallery,
+    );
+    if (!gallery) throw new Error("The component gallery was not ready");
+    return ctx.webviews.runProbe(gallery, id, GALLERY_PROBE_TIMEOUT_MS);
+  };
+
 export const HOST_PROBES: Partial<Record<ProbeId, HostProbe>> = {
   "every-runtime": everyRuntime,
   "threads-persist": threadsPersist,
   "scaffold-matches": scaffoldMatches,
+  "gallery-csp": galleryProbe("gallery-csp"),
+  "gallery-errors": galleryProbe("gallery-errors"),
+  "gallery-overflow": galleryProbe("gallery-overflow"),
 };

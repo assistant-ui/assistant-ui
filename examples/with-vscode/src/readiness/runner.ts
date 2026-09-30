@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import type { GalleryView } from "../protocol";
 import type { Switchboard } from "../switchboard";
 import type { AssistantWebviews } from "../webviews";
 import {
@@ -14,6 +15,8 @@ export type HostProbeContext = {
   switchboard: Switchboard;
   webviews: AssistantWebviews;
   showAssistant(): Promise<void>;
+  /** Opens (or reveals) the component gallery panel, optionally switching its view. */
+  openGallery(view?: GalleryView): Promise<void>;
 };
 
 export type HostProbe = (ctx: HostProbeContext) => Promise<ProbeResult>;
@@ -27,6 +30,8 @@ export type ProbeReport = {
 
 export const WEBVIEW_READY_TIMEOUT_MS = 20_000;
 export const PROBE_TIMEOUT_MS = 60_000;
+/** The gallery probes sweep every section, which grows with the gallery. */
+export const GALLERY_PROBE_TIMEOUT_MS = 300_000;
 
 const withTimeout = (promise: Promise<ProbeResult>, ms: number) =>
   Promise.race([
@@ -89,7 +94,12 @@ export class ProbeRunner implements vscode.Disposable {
   private async execute(id: ProbeId): Promise<ProbeResult> {
     const ctx = this.getContext();
     const hostProbe = this.hostProbes[id];
-    if (hostProbe) return withTimeout(hostProbe(ctx), PROBE_TIMEOUT_MS);
+    if (hostProbe) {
+      const timeout = id.startsWith("gallery-")
+        ? GALLERY_PROBE_TIMEOUT_MS
+        : PROBE_TIMEOUT_MS;
+      return withTimeout(hostProbe(ctx), timeout);
+    }
 
     await ctx.showAssistant();
     const webview = await ctx.webviews.waitForReady(WEBVIEW_READY_TIMEOUT_MS);
