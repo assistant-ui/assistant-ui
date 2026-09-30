@@ -5146,6 +5146,9 @@ importers:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
+      '@assistant-ui/x-react18':
+        specifier: workspace:*
+        version: link:../x-react18
       '@streamdown/code':
         specifier: ^1.1.1
         version: 1.1.1(react@19.3.0)
