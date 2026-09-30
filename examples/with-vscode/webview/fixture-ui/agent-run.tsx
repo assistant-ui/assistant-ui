@@ -1,6 +1,3 @@
-// `probes.ts` loads the fixture UIs before `main.tsx` sets zod to jitless, and
-// `JSONGenerativeUI` builds its zod schemas at import.
-import "../zod-jitless";
 import { useState } from "react";
 import {
   FileSearchIcon,

@@ -1,5 +1,5 @@
-import { startProbeListener } from "./probes";
 import "./zod-jitless";
+import { startProbeListener } from "./probes";
 import { useEffect, useMemo } from "react";
 import { createLocalStorageAdapter } from "@assistant-ui/core/react";
 import { createRoot } from "react-dom/client";
