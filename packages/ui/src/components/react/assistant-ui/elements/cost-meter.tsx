@@ -43,8 +43,10 @@ export function CostMeter({
         <span className="text-2xl font-medium tracking-tight tabular-nums">
           {runCost}
         </span>
-        <span className={cn(mono, "text-foreground/30")}>this run</span>
-        <span className={cn(mono, "text-foreground/35 ms-auto tabular-nums")}>
+        <span className={cn(mono, "text-muted-foreground")}>this run</span>
+        <span
+          className={cn(mono, "text-muted-foreground ms-auto tabular-nums")}
+        >
           {sessionCost} session
         </span>
       </div>

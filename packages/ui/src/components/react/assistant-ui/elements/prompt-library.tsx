@@ -85,7 +85,7 @@ export function PromptLibrary({
           "flex items-center gap-2 rounded-xl px-2.5 py-1.5",
         )}
       >
-        <BookmarkIcon className="text-foreground/30 size-3.5 shrink-0" />
+        <BookmarkIcon className="text-muted-foreground size-3.5 shrink-0" />
         <input
           value={query}
           onChange={(event) => onQueryChange?.(event.target.value)}
@@ -97,7 +97,7 @@ export function PromptLibrary({
           aria-controls={listId}
           aria-autocomplete="list"
           aria-activedescendant={selected ? optionId(selected.id) : undefined}
-          className="text-foreground/85 placeholder:text-foreground/30 min-w-0 flex-1 bg-transparent text-[13px] outline-none"
+          className="text-foreground/85 placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-[13px] outline-none"
         />
       </div>
 
@@ -165,7 +165,7 @@ export function PromptLibrary({
         })}
       </div>
       {matches.length === 0 && (
-        <span className="text-foreground/30 block px-2 py-3 text-center text-xs break-words">
+        <span className="text-muted-foreground block px-2 py-3 text-center text-xs break-words">
           Nothing matches “{query}”
         </span>
       )}
@@ -187,7 +187,7 @@ export function PromptLibrary({
                   key={variable}
                   className={cn(
                     mono,
-                    "bg-background/70 text-foreground/50 rounded px-1.5 py-0.5",
+                    "bg-background/70 text-muted-foreground rounded px-1.5 py-0.5",
                   )}
                 >
                   {`{${variable}}`}
