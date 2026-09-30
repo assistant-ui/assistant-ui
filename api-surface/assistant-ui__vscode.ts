@@ -392,6 +392,19 @@ type ReasoningMessagePart = {
   readonly parentId?: string;
 };
 
+type RenderWebviewHtmlOptions<U> = Omit<WebviewCspOptions, "nonce"> & {
+  scripts: readonly U[];
+  styles?: readonly U[];
+  title?: string;
+  lang?: string;
+  nonce?: string;
+  surface?: WebviewSurface;
+  rootId?: string | null;
+  scriptType?: "classic" | "module";
+  htmlAttributes?: Readonly<Record<string, string>>;
+  bodyAttributes?: Readonly<Record<string, string>>;
+};
+
 type RouteHandler = (request: Request) => Response | Promise<Response>;
 
 type RouteHandlers = {
@@ -750,6 +763,21 @@ type VSCodeModelRequest = {
   [key: string]: unknown;
 };
 
+type WebviewCspMode = "relaxed" | "strict";
+
+type WebviewCspOptions = {
+  nonce: string;
+  csp?: WebviewCspMode;
+  scriptSrc?: readonly string[];
+  connectSrc?: readonly string[];
+  frameSrc?: readonly string[];
+  wasmUnsafeEval?: boolean;
+};
+
+type WebviewCspSource = {
+  readonly cspSource: string;
+};
+
 type WebviewLike = {
   postMessage(message: any): PromiseLike<boolean>;
   onDidReceiveMessage(listener: (message: any) => unknown): {
@@ -757,13 +785,27 @@ type WebviewLike = {
   };
 };
 
+type WebviewResourceLike<U> = WebviewCspSource & {
+  asWebviewUri(uri: U): {
+    toString(): string;
+  };
+};
+
 type WebviewRoutes = Record<string, RouteHandlers>;
 
+type WebviewSurface = "editor" | "panel" | "sidebar";
+
 type WebviewToHostMessage = FetchRequestMessage | FetchAbortMessage;
+
+declare function createCspNonce(): string;
 
 declare function createVSCodeFetch(port?: VSCodeBridgePort): VSCodeFetch;
 
 declare function createVSCodeModelAdapter(_param0?: VSCodeModelAdapterOptions): ChatModelAdapter;
+
+declare function createWebviewCsp(webview: WebviewCspSource, options: WebviewCspOptions): string;
+
+declare function getCspNonce(): string | undefined;
 
 declare function getVSCodeApi<TState = unknown>(): VSCodeApi<TState>;
 
@@ -775,19 +817,21 @@ declare global {
 }
 
 declare namespace entry_host_exports {
-  export { BridgeHeaders, BridgeMessage, Disposable, FetchAbortMessage, FetchChunkMessage, FetchEndMessage, FetchErrorMessage, FetchHeadMessage, FetchRequestMessage, HostToWebviewMessage, HttpMethod, RouteHandler, RouteHandlers, ServeWebviewRoutesOptions, VSCODE_BRIDGE_CHANNEL, VSCODE_VIRTUAL_ORIGIN, VSCodeModelRequest, WebviewLike, WebviewRoutes, WebviewToHostMessage, isHostToWebviewMessage, isWebviewToHostMessage, serveWebviewRoutes };
+  export { BridgeHeaders, BridgeMessage, Disposable, FetchAbortMessage, FetchChunkMessage, FetchEndMessage, FetchErrorMessage, FetchHeadMessage, FetchRequestMessage, HostToWebviewMessage, HttpMethod, RenderWebviewHtmlOptions, RouteHandler, RouteHandlers, ServeWebviewRoutesOptions, VSCODE_BRIDGE_CHANNEL, VSCODE_VIRTUAL_ORIGIN, VSCodeModelRequest, WebviewCspMode, WebviewCspOptions, WebviewCspSource, WebviewLike, WebviewResourceLike, WebviewRoutes, WebviewSurface, WebviewToHostMessage, createCspNonce, createWebviewCsp, isHostToWebviewMessage, isWebviewToHostMessage, renderWebviewHtml, serveWebviewRoutes };
 }
 
 declare const isHostToWebviewMessage: (value: unknown) => value is HostToWebviewMessage;
 
 declare const isWebviewToHostMessage: (value: unknown) => value is WebviewToHostMessage;
 
+declare function renderWebviewHtml<U>(webview: WebviewResourceLike<U>, options: RenderWebviewHtmlOptions<U>): string;
+
 declare function serveWebviewRoutes(webview: WebviewLike, routes: WebviewRoutes, _param1?: ServeWebviewRoutesOptions): Disposable;
 
 declare const vscodeFetch: VSCodeFetch;
 
 declare namespace entry_webview_exports {
-  export { BridgeHeaders, BridgeMessage, FetchAbortMessage, FetchChunkMessage, FetchEndMessage, FetchErrorMessage, FetchHeadMessage, FetchRequestMessage, HostToWebviewMessage, VSCODE_BRIDGE_CHANNEL, VSCODE_VIRTUAL_ORIGIN, VSCodeApi, VSCodeBridgePort, VSCodeFetch, VSCodeModelAdapterOptions, VSCodeModelRequest, WebviewToHostMessage, createVSCodeFetch, createVSCodeModelAdapter, getVSCodeApi, isHostToWebviewMessage, isWebviewToHostMessage, vscodeFetch };
+  export { BridgeHeaders, BridgeMessage, FetchAbortMessage, FetchChunkMessage, FetchEndMessage, FetchErrorMessage, FetchHeadMessage, FetchRequestMessage, HostToWebviewMessage, VSCODE_BRIDGE_CHANNEL, VSCODE_VIRTUAL_ORIGIN, VSCodeApi, VSCodeBridgePort, VSCodeFetch, VSCodeModelAdapterOptions, VSCodeModelRequest, WebviewToHostMessage, createVSCodeFetch, createVSCodeModelAdapter, getCspNonce, getVSCodeApi, isHostToWebviewMessage, isWebviewToHostMessage, vscodeFetch };
 }
 
 export { entry_host_exports as entry_host, entry_webview_exports as entry_webview };
