@@ -8,6 +8,10 @@ const METRICS = ["lines", "statements", "functions", "branches"];
 
 const readJson = (file) => JSON.parse(readFileSync(file, "utf8"));
 
+/**
+ * Collect workspace coverage totals under the repository root, sorted by package
+ * name. Workspaces without a coverage summary are omitted.
+ */
 export function collectCoverageSummaries(root = repoRoot) {
   return WORKSPACE_ROOTS.flatMap((workspaceRoot) => {
     const dir = path.join(root, workspaceRoot);
@@ -27,6 +31,10 @@ export function collectCoverageSummaries(root = repoRoot) {
   }).sort((a, b) => a.name.localeCompare(b.name));
 }
 
+/**
+ * Combine coverage counts across workspaces and calculate percentages weighted
+ * by metric totals. Metrics with no coverable items count as fully covered.
+ */
 function combine(summaries) {
   return Object.fromEntries(
     METRICS.map((metric) => {
@@ -48,6 +56,10 @@ function combine(summaries) {
 
 const formatPct = (pct) => `${Number(pct).toFixed(1)}%`;
 
+/**
+ * Render workspace coverage as a Markdown table, adding a weighted combined row
+ * for multiple workspaces or an explanatory message when no reports exist.
+ */
 export function renderCoverageMarkdown(summaries) {
   if (summaries.length === 0) {
     return "## Test coverage\n\nNo changed package produced a coverage report.\n";
