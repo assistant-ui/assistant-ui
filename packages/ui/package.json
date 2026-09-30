@@ -38,6 +38,7 @@
     "react-syntax-highlighter": "^16.1.1",
     "recharts": "^3.10.1",
     "remark-gfm": "^4.0.1",
+    "shiki": "^4.4.3",
     "sonner": "^2.0.8",
     "vaul": "^1.1.2",
     "zustand": "^5.0.15"

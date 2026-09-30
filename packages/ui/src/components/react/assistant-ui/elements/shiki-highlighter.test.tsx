@@ -1,15 +1,53 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import type { ShikiHighlighterProps } from "react-shiki";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { useShikiHighlighterMock } = vi.hoisted(() => ({
+const {
+  actual,
+  useShikiHighlighterMock,
+  createHighlighterCoreMock,
+  createJavaScriptRegexEngineMock,
+  createOnigurumaEngineMock,
+} = vi.hoisted(() => ({
+  actual: {} as {
+    useShikiHighlighter?: typeof import("react-shiki/core").useShikiHighlighter;
+  },
   useShikiHighlighterMock: vi.fn(),
+  createHighlighterCoreMock: vi.fn(),
+  createJavaScriptRegexEngineMock: vi.fn(),
+  createOnigurumaEngineMock: vi.fn(),
 }));
 
-vi.mock("react-shiki", () => ({
-  useShikiHighlighter: useShikiHighlighterMock,
-}));
+vi.mock("react-shiki/core", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("react-shiki/core")>();
+  actual.useShikiHighlighter = mod.useShikiHighlighter;
+  return { ...mod, useShikiHighlighter: useShikiHighlighterMock };
+});
 
+vi.mock("shiki/core", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("shiki/core")>();
+  createHighlighterCoreMock.mockImplementation(mod.createHighlighterCore);
+  return { ...mod, createHighlighterCore: createHighlighterCoreMock };
+});
+
+vi.mock("shiki/engine/javascript", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("shiki/engine/javascript")>();
+  createJavaScriptRegexEngineMock.mockImplementation(
+    mod.createJavaScriptRegexEngine,
+  );
+  return {
+    ...mod,
+    createJavaScriptRegexEngine: createJavaScriptRegexEngineMock,
+  };
+});
+
+vi.mock("shiki/engine/oniguruma", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("shiki/engine/oniguruma")>();
+  createOnigurumaEngineMock.mockImplementation(mod.createOnigurumaEngine);
+  return { ...mod, createOnigurumaEngine: createOnigurumaEngineMock };
+});
+
+import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 import { SyntaxHighlighter } from "./shiki-highlighter";
 
 type HighlighterOptions = Omit<
@@ -61,10 +99,40 @@ const renderHighlightedCode = (options?: HighlighterOptions) => {
 
 describe("SyntaxHighlighter", () => {
   beforeEach(() => {
-    useShikiHighlighterMock.mockReturnValue(null);
+    useShikiHighlighterMock.mockImplementation(actual.useShikiHighlighter!);
   });
 
-  it("marks only the requested one-based lines after highlighting resolves", () => {
+  it("highlights with the JavaScript engine by default, without WebAssembly", async () => {
+    const { container } = render(
+      <SyntaxHighlighter code="const answer = 42;" language="ts" delay={0} />,
+    );
+
+    await waitFor(() =>
+      expect(container.querySelector("pre.shiki span[style]")).toBeTruthy(),
+    );
+    expect(createJavaScriptRegexEngineMock).toHaveBeenCalled();
+    expect(createOnigurumaEngineMock).not.toHaveBeenCalled();
+  });
+
+  it("honors an explicitly passed engine", async () => {
+    const engine = createJavaScriptRegexEngine();
+    const { container } = render(
+      <SyntaxHighlighter
+        code="const answer = 42;"
+        language="ts"
+        delay={0}
+        engine={engine}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(container.querySelector("pre.shiki span[style]")).toBeTruthy(),
+    );
+    expect(createHighlighterCoreMock).toHaveBeenCalledWith({ engine });
+  });
+
+  it("marks only the requested one-based lines after highlighting resolves", async () => {
+    useShikiHighlighterMock.mockReturnValue(null);
     const { rerender } = render(
       <SyntaxHighlighter
         code={"one\ntwo\nthree"}
@@ -91,6 +159,9 @@ describe("SyntaxHighlighter", () => {
       />,
     );
 
+    await waitFor(() =>
+      expect(document.querySelectorAll(".highlighted")).toHaveLength(2),
+    );
     expect(screen.getAllByText(/one|two|three/)).toHaveLength(3);
     expect(document.querySelectorAll(".highlighted")).toHaveLength(2);
     expect(document.querySelectorAll(".highlighted")[0]?.textContent).toBe(
