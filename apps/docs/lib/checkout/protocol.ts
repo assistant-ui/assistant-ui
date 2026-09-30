@@ -519,6 +519,32 @@ export const isValidModelAnswer = (input: Checkout.Input, answer: string) => {
   );
 };
 
+/** The checkout worker logs "Completed: <title>" or "Skipped: <title>" with the stepId when a step closes; the step list already shows that. */
+export const isStepClosingLine = (
+  entry: Checkout.LogEntry,
+  state: Checkout.State,
+) => {
+  if (entry.role !== "agent") return false;
+  const step = state.steps.find((candidate) => candidate.id === entry.stepId);
+  return (
+    step !== undefined &&
+    ["Completed", "Skipped"].some(
+      (verb) =>
+        entry.text === `${verb}: ${step.title}` ||
+        entry.text.startsWith(`${verb}: ${step.title}\n\n`),
+    )
+  );
+};
+
+/** What the agent said while working on a step, oldest first, without the line that closed it. */
+export const stepActivity = (state: Checkout.State, stepId: string) =>
+  state.log.filter(
+    (entry) =>
+      entry.role === "agent" &&
+      entry.stepId === stepId &&
+      !isStepClosingLine(entry, state),
+  );
+
 export const stepProgress = (state: Checkout.State) => ({
   total: state.steps.length,
   done: state.steps.filter(

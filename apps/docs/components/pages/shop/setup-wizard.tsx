@@ -52,6 +52,7 @@ import { PlanCard, PlanMarkdown } from "@/components/pages/shop/plan-card";
 import { AgentChat, conversation } from "@/components/pages/shop/agent-chat";
 import { SetupIntro } from "@/components/pages/shop/setup-intro";
 import { SetupBackButton } from "@/components/pages/shop/setup-back-button";
+import { StepActivity } from "@/components/pages/shop/step-activity";
 import {
   livePage,
   pageKey,
@@ -77,6 +78,7 @@ import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import {
   finishProposed,
   inputPrompt,
+  stepActivity,
   stepsFinalized,
   unreadAgentEntries,
   type Checkout,
@@ -430,6 +432,29 @@ function useLeaving(present: boolean) {
   return leaving;
 }
 
+const scrollKeys = new Set([
+  "ArrowUp",
+  "ArrowDown",
+  "PageUp",
+  "PageDown",
+  "Home",
+  "End",
+  " ",
+]);
+
+/** jsdom computes no overflow, so there the list stands in for its scroller. */
+function scrollerOf(element: HTMLElement): HTMLElement {
+  for (
+    let node: HTMLElement | null = element;
+    node !== null;
+    node = node.parentElement
+  ) {
+    const { overflowY } = getComputedStyle(node);
+    if (overflowY === "auto" || overflowY === "scroll") return node;
+  }
+  return element;
+}
+
 function InstallSteps({
   checkout,
   state,
@@ -440,14 +465,86 @@ function InstallSteps({
   const closed = state.status === "done" || state.status === "cancelled";
   const drafting = !closed && !finishProposed(state) && !stepsFinalized(state);
   const leaving = useLeaving(drafting);
+  const name = useAgentName(checkout);
   const activeId = state.steps.find((step) => step.status === "active")?.id;
+  const activeLast =
+    activeId === undefined
+      ? undefined
+      : stepActivity(state, activeId).at(-1)?.id;
   const list = useRef<HTMLOListElement>(null);
-  useEffect(() => {
-    if (activeId === undefined) return;
+  const following = useRef(true);
+  const center = () => {
+    if (activeId === undefined || !following.current) return;
     list.current
       ?.querySelector('[aria-current="step"]')
       ?.scrollIntoView({ block: "center" });
+  };
+  useEffect(() => {
+    following.current = true;
+    const element = list.current;
+    if (!element) return;
+    const scroller = scrollerOf(element);
+    let interacted = false;
+    const pause = (event: Event) => {
+      const target = event.target as Element | null;
+      const log = target?.closest<HTMLElement>('[role="log"]');
+      if (log && log.scrollHeight > log.clientHeight) return;
+      if (event.type === "keydown") {
+        const { key } = event as KeyboardEvent;
+        if (!scrollKeys.has(key)) return;
+        if (key === " " && target?.closest("button")) return;
+      }
+      if (event.type === "pointerdown" && target !== scroller) return;
+      interacted = true;
+      following.current = false;
+    };
+    const interactions = [
+      "wheel",
+      "touchmove",
+      "keydown",
+      "pointerdown",
+    ] as const;
+    for (const type of interactions) {
+      scroller.addEventListener(type, pause, { passive: true });
+    }
+    // Rows mount at 0fr and unfold over 0.3s, so a list that fit at mount time has grown by the time the animation ends, and the growth may have pushed the row out of view; a row the agent adds later unfolds too, but must not pull the reader back.
+    const mounted = new Set(element.querySelectorAll("li"));
+    const unfolded = (event: Event) => {
+      if (
+        (event as AnimationEvent).animationName !== "unfold" ||
+        interacted ||
+        !mounted.has(event.target as HTMLLIElement)
+      ) {
+        return;
+      }
+      following.current = true;
+      center();
+    };
+    element.addEventListener("animationend", unfolded);
+    let observer: IntersectionObserver | undefined;
+    const row = element.querySelector('[aria-current="step"]');
+    // jsdom has no IntersectionObserver, so the list always follows there.
+    if (row && typeof IntersectionObserver !== "undefined") {
+      observer = new IntersectionObserver(
+        (entries) => {
+          const entry = entries.at(-1);
+          if (!entry) return;
+          if (entry.intersectionRatio >= 1) following.current = true;
+          else if (!entry.isIntersecting) following.current = false;
+        },
+        { threshold: [0, 1] },
+      );
+      observer.observe(row);
+    }
+    return () => {
+      observer?.disconnect();
+      for (const type of interactions) {
+        scroller.removeEventListener(type, pause);
+      }
+      element.removeEventListener("animationend", unfolded);
+    };
   }, [activeId]);
+  useEffect(center, [activeId, activeLast]);
   let lastProduct: string | undefined;
   return (
     <ol
@@ -468,6 +565,7 @@ function InstallSteps({
             : undefined;
         lastProduct = step.product ?? lastProduct;
         const glyph = product ? getCatalogItem(product.slug)?.glyph : undefined;
+        const activity = stepActivity(state, step.id);
         return (
           <TimelineEntry
             key={step.id}
@@ -483,7 +581,16 @@ function InstallSteps({
                 </p>
               ) : undefined
             }
-          />
+          >
+            {activity.length > 0 || step.id === activeId ? (
+              <StepActivity
+                entries={activity}
+                live={step.id === activeId}
+                agentName={name}
+                stepTitle={step.title}
+              />
+            ) : null}
+          </TimelineEntry>
         );
       })}
       {drafting || leaving ? (

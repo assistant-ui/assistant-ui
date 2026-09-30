@@ -224,6 +224,29 @@ const stepsOf = (values: Values): Checkout.Step[] =>
     ...(str(row, "product") && { product: str(row, "product") }),
   }));
 
+const ACTIVITY: Record<string, (step: Checkout.Step) => string[]> = {
+  s0: (step) => [
+    "Checked the package manager: pnpm, from pnpm-lock.yaml.",
+    "Ran pnpm add @assistant-ui/react ai @ai-sdk/react.",
+    `Completed: ${step.title}`,
+  ],
+  s1: () => [
+    "Reading app/api for an existing route.",
+    "Writing app/api/chat/route.ts on the AI SDK with streamText.",
+  ],
+};
+const activityOf = (steps: Checkout.Step[]): Checkout.LogEntry[] =>
+  steps.flatMap((step, index) =>
+    (ACTIVITY[step.id]?.(step) ?? []).map((text, line) => ({
+      phase: "installing" as const,
+      id: `a${index}-${line}`,
+      role: "agent" as const,
+      at: 2000 + index * 10 + line,
+      text,
+      stepId: step.id,
+    })),
+  );
+
 const messageBlank: Values = {
   role: "agent",
   text: "I found a Next.js app in apps/web and will put the chat route there.",
@@ -576,6 +599,7 @@ export const ENTRIES: readonly Entry[] = [
       },
       stepsControl,
       productsControl,
+      { kind: "toggle", key: "activity", label: "Agent lines under steps" },
       { kind: "toggle", key: "proposal", label: "Finish proposed" },
       { kind: "toggle", key: "reviewing", label: "Reviewing, question open" },
       { kind: "toggle", key: "present", label: "Agent present" },
@@ -584,6 +608,7 @@ export const ENTRIES: readonly Entry[] = [
       phase: "running",
       steps: DEFAULT_STEPS,
       products: PRODUCTS,
+      activity: true,
       proposal: false,
       reviewing: false,
       present: true,
@@ -605,6 +630,7 @@ export const ENTRIES: readonly Entry[] = [
           status: "installing",
           products: productsOf(values),
           steps,
+          log: on(values, "activity") ? activityOf(steps) : [],
           inputs: reviewing
             ? [
                 inputOf({
