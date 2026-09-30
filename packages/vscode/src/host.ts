@@ -8,4 +8,5 @@ export {
   type WebviewLike,
   type WebviewRoutes,
 } from "./host/router";
+export type { VSCodeModelRequest } from "./model-request";
 export * from "./protocol";
