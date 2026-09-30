@@ -36,6 +36,7 @@
     "build": "aui-build",
     "dev": "vite demo",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

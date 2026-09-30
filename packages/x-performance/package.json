@@ -11,6 +11,7 @@
   },
   "scripts": {
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "bench": "vitest bench --run",
     "perf:record": "node ./bin/aui-perf.mjs record",

@@ -28,9 +28,9 @@
   "scripts": {
     "build": "aui-build && node scripts/copy-cloud-harness-template.mjs",
     "test": "vitest run && node --test scripts/copy-cloud-harness-template.test.mjs",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@assistant-ui/agent-launcher": "workspace:^",

@@ -34,6 +34,7 @@
     "build": "aui-build",
     "dev": "tsx src/stdio.ts",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "test:watch": "vitest"
   },
