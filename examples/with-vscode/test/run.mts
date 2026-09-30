@@ -45,6 +45,7 @@ try {
     extensionTestsEnv: {
       AUI_TESTBED_REPORT: reportPath,
       AUI_TESTBED_RUNTIMES: process.env.AUI_TESTBED_RUNTIMES,
+      AUI_TESTBED_STUB_OPEN_EXTERNAL: "1",
       AUI_TESTBED_CDP_PORT: cdpPort?.toString(),
       AUI_TESTBED_SCREENSHOTS: screenshotDir,
     },

@@ -3,10 +3,12 @@ import * as vscode from "vscode";
 import { POST as chat } from "./fixtures/route";
 import { POST as model } from "./fixtures/model-route";
 import { readFixtureRequest } from "./fixtures/request";
+import type { ExternalOpener } from "./open-external";
 import {
   CHAT_ROUTE,
   COLOR_THEME_ROUTE,
   MODEL_ROUTE,
+  OPEN_EXTERNAL_ROUTE,
   SERVED_REQUESTS_ROUTE,
   type ColorThemeState,
   type ColorThemeUpdate,
@@ -102,12 +104,22 @@ const colorTheme = {
   },
 };
 
-export const createWebviewRoutes = (): WebviewRoutes => {
+export const createWebviewRoutes = (
+  externalOpener: ExternalOpener,
+): WebviewRoutes => {
   const log = new ServedRequestLog();
   return {
     [CHAT_ROUTE]: { POST: log.record(CHAT_ROUTE, chat) },
     [MODEL_ROUTE]: { POST: log.record(MODEL_ROUTE, model) },
     [SERVED_REQUESTS_ROUTE]: { GET: () => Response.json(log.list()) },
     [COLOR_THEME_ROUTE]: colorTheme,
+    [OPEN_EXTERNAL_ROUTE]: {
+      GET: () => Response.json(externalOpener.state()),
+      PUT: async (req) => {
+        const { stub } = (await req.json()) as { stub: boolean };
+        externalOpener.stub = stub;
+        return new Response(null, { status: 204 });
+      },
+    },
   };
 };

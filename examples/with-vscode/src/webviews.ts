@@ -1,17 +1,17 @@
-import {
-  renderWebviewHtml,
-  serveWebviewRoutes,
-} from "@assistant-ui/vscode/host";
+import { renderWebviewHtml, serveWebviewHost } from "@assistant-ui/vscode/host";
 import * as vscode from "vscode";
 import {
   BOOT_ATTRIBUTE,
   isTestbedMessage,
   TESTBED_CHANNEL,
   type HostToWebviewMessage,
+  type TaskResult,
   type WebviewBootConfig,
+  type WebviewTaskId,
   type WebviewToHostMessage,
 } from "./protocol";
 import type { ProbeId, ProbeResult } from "./readiness/probes";
+import { ExternalOpener } from "./open-external";
 import { createWebviewRoutes } from "./routes";
 import {
   SWITCHBOARD_KEYS,
@@ -51,7 +51,7 @@ const renderHtml = (
   });
 };
 
-type AttachedWebview = {
+export type AttachedWebview = {
   webview: vscode.Webview;
   switchboard: Switchboard;
   ready: boolean;
@@ -60,12 +60,16 @@ type AttachedWebview = {
 
 export class AssistantWebviews implements vscode.Disposable {
   private readonly attached = new Set<AttachedWebview>();
-  private readonly pending = new Map<string, (result: ProbeResult) => void>();
+  private readonly pending = new Map<string, (result: unknown) => void>();
   private readonly readyEmitter = new vscode.EventEmitter<void>();
-  private readonly routes = createWebviewRoutes();
+  private readonly externalOpener = new ExternalOpener();
+  private readonly routes = createWebviewRoutes(this.externalOpener);
   private nextRequestId = 0;
 
-  constructor(private readonly extensionUri: vscode.Uri) {}
+  constructor(
+    private readonly extensionUri: vscode.Uri,
+    private readonly storage: vscode.Memento,
+  ) {}
 
   attach(webview: vscode.Webview): vscode.Disposable & { hidden(): void } {
     webview.options = {
@@ -84,7 +88,11 @@ export class AssistantWebviews implements vscode.Disposable {
     const subscription = webview.onDidReceiveMessage((message: unknown) =>
       this.onMessage(entry, message),
     );
-    const server = serveWebviewRoutes(webview, this.routes);
+    const server = serveWebviewHost(webview, {
+      routes: this.routes,
+      openExternal: this.externalOpener.open,
+      storage: this.storage,
+    });
     this.render(entry);
     return {
       hidden: () => {
@@ -103,11 +111,15 @@ export class AssistantWebviews implements vscode.Disposable {
   }
 
   /** Resolves with a webview that booted with the current switchboard. */
-  async waitForReady(timeoutMs: number) {
+  async waitForReady(
+    timeoutMs: number,
+    accept: (entry: AttachedWebview) => boolean = () => true,
+  ) {
     const find = () => {
       const switchboard = readSwitchboard();
       return [...this.attached].findLast(
-        (e) => e.ready && sameSwitchboard(e.switchboard, switchboard),
+        (e) =>
+          e.ready && sameSwitchboard(e.switchboard, switchboard) && accept(e),
       );
     };
     const existing = find();
@@ -128,24 +140,60 @@ export class AssistantWebviews implements vscode.Disposable {
   }
 
   runProbe(entry: AttachedWebview, probeId: ProbeId, timeoutMs: number) {
-    const requestId = String(this.nextRequestId++);
-    return new Promise<ProbeResult>((resolve) => {
-      const timer = setTimeout(() => {
-        this.pending.delete(requestId);
-        resolve({ state: "fail", detail: `Timed out after ${timeoutMs} ms` });
-      }, timeoutMs);
-      this.pending.set(requestId, (result) => {
-        clearTimeout(timer);
-        this.pending.delete(requestId);
-        resolve(result);
-      });
-      const message: HostToWebviewMessage = {
+    return this.request<ProbeResult>(
+      entry,
+      (requestId) => ({
         channel: TESTBED_CHANNEL,
         type: "run-probe",
         requestId,
         probeId,
-      };
-      void entry.webview.postMessage(message);
+      }),
+      timeoutMs,
+      { state: "fail", detail: `Timed out after ${timeoutMs} ms` },
+    );
+  }
+
+  /** Runs a step of a host probe in the webview. */
+  async runTask(
+    entry: AttachedWebview,
+    task: WebviewTaskId,
+    arg: unknown,
+    timeoutMs: number,
+  ) {
+    const result = await this.request<TaskResult>(
+      entry,
+      (requestId) => ({
+        channel: TESTBED_CHANNEL,
+        type: "run-task",
+        requestId,
+        task,
+        arg,
+      }),
+      timeoutMs,
+      { ok: false, error: `${task} timed out after ${timeoutMs} ms` },
+    );
+    if (!result.ok) throw new Error(`${task}: ${result.error}`);
+    return result.value;
+  }
+
+  private request<T>(
+    entry: AttachedWebview,
+    message: (requestId: string) => HostToWebviewMessage,
+    timeoutMs: number,
+    onTimeout: T,
+  ) {
+    const requestId = String(this.nextRequestId++);
+    return new Promise<T>((resolve) => {
+      const timer = setTimeout(() => {
+        this.pending.delete(requestId);
+        resolve(onTimeout);
+      }, timeoutMs);
+      this.pending.set(requestId, (result) => {
+        clearTimeout(timer);
+        this.pending.delete(requestId);
+        resolve(result as T);
+      });
+      void entry.webview.postMessage(message(requestId));
     });
   }
 
@@ -171,7 +219,7 @@ export class AssistantWebviews implements vscode.Disposable {
       entry.ready = true;
       entry.implementedProbes = new Set(message.implementedProbes);
       this.readyEmitter.fire();
-    } else if (message.type === "probe-result") {
+    } else {
       this.pending.get(message.requestId)?.(message.result);
     }
   }
