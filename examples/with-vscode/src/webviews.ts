@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { serveWebviewRoutes } from "@assistant-ui/vscode/host";
 import * as vscode from "vscode";
 import {
   isTestbedMessage,
@@ -8,6 +9,7 @@ import {
   type WebviewToHostMessage,
 } from "./protocol";
 import type { ProbeId, ProbeResult } from "./readiness/probes";
+import { createWebviewRoutes } from "./routes";
 import {
   SWITCHBOARD_KEYS,
   unimplementedSettings,
@@ -20,6 +22,9 @@ export const readSwitchboard = (): Switchboard => {
     SWITCHBOARD_KEYS.map((key) => [key, config.get<string>(key)]),
   ) as Switchboard;
 };
+
+const sameSwitchboard = (a: Switchboard, b: Switchboard) =>
+  SWITCHBOARD_KEYS.every((key) => a[key] === b[key]);
 
 const renderHtml = (
   webview: vscode.Webview,
@@ -68,6 +73,7 @@ const renderHtml = (
 
 type AttachedWebview = {
   webview: vscode.Webview;
+  switchboard: Switchboard;
   ready: boolean;
   implementedProbes: ReadonlySet<ProbeId>;
 };
@@ -76,6 +82,7 @@ export class AssistantWebviews implements vscode.Disposable {
   private readonly attached = new Set<AttachedWebview>();
   private readonly pending = new Map<string, (result: ProbeResult) => void>();
   private readonly readyEmitter = new vscode.EventEmitter<void>();
+  private readonly routes = createWebviewRoutes();
   private nextRequestId = 0;
 
   constructor(private readonly extensionUri: vscode.Uri) {}
@@ -89,6 +96,7 @@ export class AssistantWebviews implements vscode.Disposable {
     };
     const entry: AttachedWebview = {
       webview,
+      switchboard: readSwitchboard(),
       ready: false,
       implementedProbes: new Set(),
     };
@@ -96,6 +104,7 @@ export class AssistantWebviews implements vscode.Disposable {
     const subscription = webview.onDidReceiveMessage((message: unknown) =>
       this.onMessage(entry, message),
     );
+    const server = serveWebviewRoutes(webview, this.routes);
     this.render(entry);
     return {
       hidden: () => {
@@ -103,6 +112,7 @@ export class AssistantWebviews implements vscode.Disposable {
       },
       dispose: () => {
         subscription.dispose();
+        server.dispose();
         this.attached.delete(entry);
       },
     };
@@ -112,8 +122,14 @@ export class AssistantWebviews implements vscode.Disposable {
     for (const entry of this.attached) this.render(entry);
   }
 
+  /** Resolves with a webview that booted with the current switchboard. */
   async waitForReady(timeoutMs: number) {
-    const find = () => [...this.attached].findLast((e) => e.ready);
+    const find = () => {
+      const switchboard = readSwitchboard();
+      return [...this.attached].findLast(
+        (e) => e.ready && sameSwitchboard(e.switchboard, switchboard),
+      );
+    };
     const existing = find();
     if (existing) return existing;
     return new Promise<AttachedWebview | undefined>((resolve) => {
@@ -122,9 +138,11 @@ export class AssistantWebviews implements vscode.Disposable {
         resolve(undefined);
       }, timeoutMs);
       const subscription = this.readyEmitter.event(() => {
+        const entry = find();
+        if (!entry) return;
         clearTimeout(timer);
         subscription.dispose();
-        resolve(find());
+        resolve(entry);
       });
     });
   }
@@ -158,10 +176,11 @@ export class AssistantWebviews implements vscode.Disposable {
 
   private render(entry: AttachedWebview) {
     entry.ready = false;
+    entry.switchboard = readSwitchboard();
     entry.webview.html = renderHtml(
       entry.webview,
       this.extensionUri,
-      readSwitchboard(),
+      entry.switchboard,
     );
   }
 

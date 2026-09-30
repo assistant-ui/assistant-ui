@@ -5,14 +5,23 @@ import {
   type ProbeId,
   type ProbeResult,
 } from "../src/readiness/probes";
+import { vscodeFetch } from "@assistant-ui/vscode/webview";
 import {
+  CHAT_ROUTE,
   isTestbedMessage,
+  MODEL_ROUTE,
+  SERVED_REQUESTS_ROUTE,
   TESTBED_CHANNEL,
   type HostToWebviewMessage,
+  type ServedRequest,
   type WebviewBootConfig,
   type WebviewToHostMessage,
 } from "../src/protocol";
-import { APPROVAL_TOOL_NAME } from "../src/fixtures/fixtures";
+import {
+  APPROVAL_TOOL_NAME,
+  selectFixture,
+  type FixtureStep,
+} from "../src/fixtures/fixtures";
 import { getVSCodeApi } from "./vscode-api";
 
 type CspViolation = { directive: string; blocked: string; sample: string };
@@ -85,7 +94,170 @@ const sendAndSettle = async (aui: AssistantClient, prompt: string) => {
   return last;
 };
 
+const ROUTES: Partial<
+  Record<WebviewBootConfig["switchboard"]["runtime"], string>
+> = {
+  "ai-sdk": CHAT_ROUTE,
+  local: MODEL_ROUTE,
+};
+
+const routeOf = (ctx: WebviewProbeContext) => {
+  const { runtime } = ctx.boot.switchboard;
+  const route = ROUTES[runtime];
+  if (!route) throw new Error(`No bridge route for auiTest.runtime=${runtime}`);
+  return route;
+};
+
+const fetchServedRequests = async () => {
+  const response = await vscodeFetch(SERVED_REQUESTS_ROUTE);
+  if (!response.ok) {
+    throw new Error(`${SERVED_REQUESTS_ROUTE} answered ${response.status}`);
+  }
+  return (await response.json()) as ServedRequest[];
+};
+
+/** Returns the requests to `route` for `fixture` the host served after `since`. */
+const servedSince = async (since: number, route: string, fixture: string) =>
+  (await fetchServedRequests()).filter(
+    (r) =>
+      r.seq > since &&
+      r.path === route &&
+      selectFixture(r.prompt).name === fixture,
+  );
+
+const lastServedSeq = async () =>
+  (await fetchServedRequests()).at(-1)?.seq ?? 0;
+
+const waitForServed = async (
+  since: number,
+  route: string,
+  fixture: string,
+  condition: (requests: ServedRequest[]) => boolean,
+  what: string,
+) => {
+  let requests: ServedRequest[] = [];
+  const deadline = Date.now() + 5_000;
+  while (true) {
+    requests = await servedSince(since, route, fixture);
+    if (condition(requests)) return requests;
+    if (Date.now() > deadline) {
+      throw new Error(
+        `Host ${route} never ${what} (served: ${JSON.stringify(requests)})`,
+      );
+    }
+    await sleep(50);
+  }
+};
+
+const fixtureText = (steps: readonly FixtureStep[]) =>
+  steps.map((s) => (s.type === "text" ? s.text : "")).join("");
+
 export const WEBVIEW_PROBES: Partial<Record<ProbeId, WebviewProbe>> = {
+  "bridge-roundtrip": async (ctx) => {
+    const aui = requireThread(ctx);
+    const route = routeOf(ctx);
+    const fixture = selectFixture("text");
+    const expected = fixtureText(
+      fixture.script({ prompt: fixture.prompt, toolResults: new Map() }),
+    );
+    const since = await lastServedSeq();
+    const index = aui.thread().getState().messages.length + 1;
+
+    const snapshots: string[] = [];
+    const unsubscribe = aui.subscribe(() => {
+      const reply = aui.thread().getState().messages[index];
+      const text = reply?.role === "assistant" ? textOf(reply) : "";
+      if (text && text !== snapshots.at(-1)) snapshots.push(text);
+    });
+    try {
+      await sendAndSettle(aui, fixture.prompt);
+    } finally {
+      unsubscribe();
+    }
+
+    const final = textOf(aui.thread().getState().messages[index]);
+    if (final !== expected) {
+      return {
+        state: "fail",
+        detail: `Reply ${JSON.stringify(final)} does not match the fixture`,
+      };
+    }
+    const outOfOrder = snapshots.find((text) => !expected.startsWith(text));
+    if (outOfOrder !== undefined) {
+      return {
+        state: "fail",
+        detail: `Streamed text ${JSON.stringify(outOfOrder)} is not a prefix of the fixture`,
+      };
+    }
+    if (snapshots.length < 2) {
+      return {
+        state: "fail",
+        detail: `Reply arrived in ${snapshots.length} update(s), not streamed`,
+      };
+    }
+    const [served] = await waitForServed(
+      since,
+      route,
+      fixture.name,
+      (requests) => requests.some((r) => r.completed),
+      "completed the request",
+    );
+    if (served?.aborted) {
+      return { state: "fail", detail: `Host ${route} saw an abort` };
+    }
+    return {
+      state: "pass",
+      detail: `runtime=${ctx.boot.switchboard.runtime} via ${route}: ${snapshots.length} updates, ${served?.bytes} bytes`,
+    };
+  },
+
+  abort: async (ctx) => {
+    const aui = requireThread(ctx);
+    const route = routeOf(ctx);
+    const fixture = selectFixture("markdown");
+    const since = await lastServedSeq();
+    const index = aui.thread().getState().messages.length + 1;
+
+    aui.thread().append(fixture.prompt);
+    await waitFor(
+      () => textOf(aui.thread().getState().messages[index]).length > 0,
+      15_000,
+      () => "the markdown reply to start streaming",
+    );
+    aui.thread().cancelRun();
+    await waitFor(
+      () => !aui.thread().getState().isRunning,
+      15_000,
+      () => "the cancelled run to settle",
+    );
+
+    const reply = aui.thread().getState().messages[index];
+    const status = reply?.status;
+    if (status?.type !== "incomplete" || status.reason !== "cancelled") {
+      return {
+        state: "fail",
+        detail: `Cancelled reply has status ${JSON.stringify(status)}`,
+      };
+    }
+    const [served] = await waitForServed(
+      since,
+      route,
+      fixture.name,
+      (requests) => requests.some((r) => r.aborted),
+      "saw req.signal abort",
+    );
+    if (served?.completed) {
+      return {
+        state: "fail",
+        detail: `Host ${route} finished streaming despite the abort`,
+      };
+    }
+    return {
+      state: "pass",
+      detail: `runtime=${ctx.boot.switchboard.runtime}: req.signal fired after ${served?.bytes} bytes`,
+    };
+  },
+
   "csp-zero": async (ctx) => {
     if (ctx.boot.switchboard.csp !== "strict") {
       return { state: "fail", detail: "Requires auiTest.csp=strict" };
@@ -110,6 +282,8 @@ export const WEBVIEW_PROBES: Partial<Record<ProbeId, WebviewProbe>> = {
 
   "frontend-tool-hitl": async (ctx) => {
     const aui = requireThread(ctx);
+    const route = routeOf(ctx);
+    const since = await lastServedSeq();
     const pending = await sendAndSettle(aui, "approval");
     const index = aui.thread().getState().messages.length - 1;
     const call = pending.content.find(
@@ -134,7 +308,21 @@ export const WEBVIEW_PROBES: Partial<Record<ProbeId, WebviewProbe>> = {
       45_000,
       () => "the continued run to finish",
     );
-    return { state: "pass", detail: `runtime=${ctx.boot.switchboard.runtime}` };
+    await waitForServed(
+      since,
+      route,
+      "approval",
+      (requests) =>
+        requests.length === 2 &&
+        requests[0]?.toolResults === 0 &&
+        requests[1]?.toolResults === 1 &&
+        requests.every((r) => r.completed),
+      "served the request and its approved continuation",
+    );
+    return {
+      state: "pass",
+      detail: `runtime=${ctx.boot.switchboard.runtime}: approval continued over ${route}`,
+    };
   },
 };
 

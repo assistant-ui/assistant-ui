@@ -3621,15 +3621,24 @@ importers:
 
   examples/with-vscode:
     dependencies:
+      '@assistant-ui/ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/ai-sdk
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
       '@assistant-ui/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@assistant-ui/vscode':
+        specifier: workspace:*
+        version: link:../../packages/vscode
       ai:
         specifier: ^7.0.101
         version: 7.0.101(zod@4.6.5)
+      assistant-stream:
+        specifier: workspace:*
+        version: link:../../packages/assistant-stream
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -3645,6 +3654,9 @@ importers:
       react-dom:
         specifier: ^19.3.0
         version: 19.3.0(react@19.3.0)
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
     devDependencies:
       '@tailwindcss/postcss':
         specifier: ^4.3.3

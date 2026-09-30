@@ -34,3 +34,18 @@ export const isTestbedMessage = (
   typeof data === "object" &&
   data !== null &&
   (data as { channel?: unknown }).channel === TESTBED_CHANNEL;
+
+export const CHAT_ROUTE = "/api/chat";
+export const MODEL_ROUTE = "/api/model";
+export const SERVED_REQUESTS_ROUTE = "/testbed/served-requests";
+
+/** A request a fixture route served over the fetch bridge. */
+export type ServedRequest = {
+  seq: number;
+  path: string;
+  prompt: string;
+  toolResults: number;
+  bytes: number;
+  completed: boolean;
+  aborted: boolean;
+};
