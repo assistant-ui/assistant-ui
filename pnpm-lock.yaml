@@ -3881,6 +3881,9 @@ importers:
       semver:
         specifier: ^7.8.5
         version: 7.8.5
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
     devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*

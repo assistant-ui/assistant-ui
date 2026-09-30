@@ -2,7 +2,11 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { reconcileAssistantUIImportLayout } from "./create-project";
+import { parse } from "yaml";
+import {
+  reconcileAssistantUIImportLayout,
+  transformProject,
+} from "./create-project";
 
 describe("reconcileAssistantUIImportLayout", () => {
   let projectDir: string;
@@ -171,5 +175,72 @@ describe("reconcileAssistantUIImportLayout", () => {
       reconcileAssistantUIImportLayout(projectDir),
     ).resolves.toBeUndefined();
     expect(read("app/broken.ts")).toBe(source);
+  });
+});
+
+describe("transformProject", () => {
+  let projectDir: string;
+
+  beforeEach(() => {
+    projectDir = fs.mkdtempSync(path.join(os.tmpdir(), "aui-cli-test-"));
+  });
+
+  afterEach(() => {
+    fs.rmSync(projectDir, { recursive: true, force: true });
+  });
+
+  it("creates pnpm workspace settings from package overrides", async () => {
+    fs.writeFileSync(
+      path.join(projectDir, "package.json"),
+      JSON.stringify({
+        name: "starter",
+        pnpm: { overrides: { "eve>undici": "8.10.2" } },
+      }),
+    );
+
+    await transformProject(projectDir, {
+      hasLocalComponents: true,
+      skipInstall: true,
+      packageManager: "pnpm",
+    });
+
+    expect(
+      parse(
+        fs.readFileSync(path.join(projectDir, "pnpm-workspace.yaml"), "utf8"),
+      ),
+    ).toEqual({ overrides: { "eve>undici": "8.10.2" } });
+  });
+
+  it("lifts pnpm overrides without replacing workspace settings", async () => {
+    fs.writeFileSync(
+      path.join(projectDir, "package.json"),
+      JSON.stringify({
+        name: "starter",
+        pnpm: { overrides: { "eve>undici": "8.10.2" } },
+      }),
+    );
+    fs.writeFileSync(
+      path.join(projectDir, "pnpm-workspace.yaml"),
+      "packages:\n  - apps/*\ncatalog:\n  react: ^19.3.0\noverrides:\n  existing: 1.0.0\n",
+    );
+
+    await transformProject(projectDir, {
+      hasLocalComponents: true,
+      skipInstall: true,
+      packageManager: "pnpm",
+    });
+
+    expect(
+      parse(
+        fs.readFileSync(path.join(projectDir, "pnpm-workspace.yaml"), "utf8"),
+      ),
+    ).toEqual({
+      packages: ["apps/*"],
+      catalog: { react: "^19.3.0" },
+      overrides: {
+        existing: "1.0.0",
+        "eve>undici": "8.10.2",
+      },
+    });
   });
 });
