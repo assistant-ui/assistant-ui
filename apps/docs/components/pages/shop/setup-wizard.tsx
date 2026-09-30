@@ -484,6 +484,7 @@ function InstallSteps({
     const element = list.current;
     if (!element) return;
     const scroller = scrollerOf(element);
+    let interacted = false;
     const pause = (event: Event) => {
       const target = event.target as Element | null;
       if (target?.closest('[role="log"]')) return;
@@ -493,6 +494,7 @@ function InstallSteps({
         if (key === " " && target?.closest("button")) return;
       }
       if (event.type === "pointerdown" && target !== scroller) return;
+      interacted = true;
       following.current = false;
     };
     const interactions = [
@@ -504,9 +506,12 @@ function InstallSteps({
     for (const type of interactions) {
       scroller.addEventListener(type, pause, { passive: true });
     }
-    // Rows mount at 0fr and unfold over 0.3s, so a list that fit at mount time has grown by the time the animation ends.
+    // Rows mount at 0fr and unfold over 0.3s, so a list that fit at mount time has grown by the time the animation ends, and the growth may have pushed the row out of view.
     const unfolded = (event: Event) => {
-      if ((event as AnimationEvent).animationName === "unfold") center();
+      if ((event as AnimationEvent).animationName !== "unfold" || interacted)
+        return;
+      following.current = true;
+      center();
     };
     element.addEventListener("animationend", unfolded);
     let observer: IntersectionObserver | undefined;

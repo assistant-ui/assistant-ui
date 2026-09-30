@@ -681,10 +681,10 @@ describe("SetupWizard", () => {
       );
     const row = () => screen.getByRole("listitem", { current: "step" });
 
-    it("re-centers the row once its unfold animation ends, unless the reader has paused following", () => {
-      observeRow();
+    it("re-centers the row once its unfold animation ends, even when the unfolding pushed it out of view, unless the reader has paused following", () => {
+      const observer = observeRow();
       scrollIntoView.mockClear();
-      render(<SetupWizard checkout={stream(1)} />);
+      const { rerender } = render(<SetupWizard checkout={stream(1)} />);
       expect(centered()).toEqual(["Step 1"]);
       const list = screen.getByRole("list", { name: "Installation steps" });
       // jsdom has no AnimationEvent, so the name is pinned onto a plain event.
@@ -700,9 +700,15 @@ describe("SetupWizard", () => {
       animationEnd("unfold");
       expect(centered()).toEqual(["Step 1", "Step 1"]);
 
+      observer.intersect(false);
+      animationEnd("unfold");
+      expect(centered()).toEqual(["Step 1", "Step 1", "Step 1"]);
+      rerender(<SetupWizard checkout={stream(2)} />);
+      expect(centered()).toEqual(["Step 1", "Step 1", "Step 1", "Step 1"]);
+
       fireEvent.wheel(list);
       animationEnd("unfold");
-      expect(centered()).toEqual(["Step 1", "Step 1"]);
+      expect(centered()).toEqual(["Step 1", "Step 1", "Step 1", "Step 1"]);
     });
 
     it("re-centers the row on every line of a sustained stream while it stays in view", () => {
