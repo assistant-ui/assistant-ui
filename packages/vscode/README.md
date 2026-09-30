@@ -118,8 +118,8 @@ The strict policy (the default) is:
 
 ```
 default-src 'none'; script-src 'nonce-…'; style-src <cspSource> 'nonce-…';
-img-src <cspSource> blob: data: https:; font-src <cspSource> data:;
-connect-src <cspSource>; frame-src 'none'
+img-src <cspSource> blob: data: https:; media-src <cspSource> blob: data: https:;
+font-src <cspSource> data:; connect-src <cspSource>; frame-src 'none'
 ```
 
 - `csp: "relaxed"` replaces the style nonce with `'unsafe-inline'`, for libraries that inject `<style>` tags without a nonce. Browsers ignore `'unsafe-inline'` next to a nonce, so the nonce is dropped from `style-src`. `script-src` keeps it.

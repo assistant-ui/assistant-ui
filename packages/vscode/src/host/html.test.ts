@@ -35,6 +35,7 @@ describe("createWebviewCsp", () => {
         "script-src 'nonce-abc123'",
         `style-src ${CSP_SOURCE} 'nonce-abc123'`,
         `img-src ${CSP_SOURCE} blob: data: https:`,
+        `media-src ${CSP_SOURCE} blob: data: https:`,
         `font-src ${CSP_SOURCE} data:`,
         `connect-src ${CSP_SOURCE}`,
         "frame-src 'none'",

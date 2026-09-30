@@ -10,8 +10,7 @@ export default defineSections([
     id: "media-player",
     title: "Media player",
     category: "content",
-    notes:
-      "Audio and video players over a data: WAV. The CSP has no media-src, so default-src 'none' governs the media elements.",
+    notes: "Audio and video players over a data: WAV. media-src allows data:.",
     render: () => (
       <div className="flex flex-col gap-3">
         <AudioPlayer
