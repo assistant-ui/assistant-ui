@@ -33,7 +33,8 @@ export function QuotaBanner({
 }) {
   const left = Math.max(0, limit - used);
   const ratio = limit === 0 ? 0 : used / limit;
-  const tight = ratio >= 0.9;
+  const exhausted = limit > 0 && left === 0;
+  const tight = !exhausted && ratio >= 0.9;
 
   return (
     <div
@@ -50,6 +51,7 @@ export function QuotaBanner({
         <span
           className={cn(
             "text-[13.5px] font-medium",
+            exhausted && "text-red-600 dark:text-red-400",
             tight && "text-amber-700 dark:text-amber-400",
           )}
         >
@@ -72,7 +74,11 @@ export function QuotaBanner({
         <span
           className={cn(
             "block h-full rounded-full transition-[width] duration-500 motion-reduce:transition-none",
-            tight ? "bg-amber-500" : "bg-foreground/40",
+            exhausted
+              ? "bg-red-500"
+              : tight
+                ? "bg-amber-500"
+                : "bg-foreground/40",
           )}
           style={{ width: `${pct(used, limit)}%` }}
         />
