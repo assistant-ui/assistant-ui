@@ -160,6 +160,18 @@ describe("theme.css", () => {
     expect(block).toMatch(/--ring:\s*var\(\s*--vscode-contrastActiveBorder\b/);
   });
 
+  it("keeps secondary text lighter than the foreground in light themes", async () => {
+    const theme = await read(themePath);
+    const start = theme.indexOf(
+      "body.vscode-light:not(.vscode-high-contrast) {",
+    );
+    expect(start).toBeGreaterThan(-1);
+    const block = theme.slice(start, theme.indexOf("}", start));
+    expect(block).toMatch(
+      /--muted-foreground:\s*color-mix\(\s*in srgb,\s*var\(--foreground\) \d+%,\s*var\(--background\)\s*\);/,
+    );
+  });
+
   it("outlines the kit's muted surfaces under high contrast", async () => {
     const css = await build(
       '@import "tailwindcss";\n@import "@assistant-ui/vscode/theme.css";',
@@ -170,6 +182,7 @@ describe("theme.css", () => {
       ".aui-user-message-content",
       '[data-slot="composer-quote"]',
       '[data-slot="chat-panel-user-message"]',
+      '[data-slot="chat-panel-composer"]',
       '[data-slot="aui_thread-list-item"]',
       '[data-slot="thread-list"]',
     ]) {
