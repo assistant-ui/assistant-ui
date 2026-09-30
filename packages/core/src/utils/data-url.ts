@@ -7,9 +7,9 @@ export type FilePartSource =
 export function parseDataUrl(
   value: string,
 ): { mimeType: string; data: string } | null {
-  const match = value.match(/^data:([^;,]+)(?:;[^;,]+)*;base64,(.*)$/i);
+  const match = value.match(/^data:([^;,]*)(?:;[^;,]+)*;base64,(.*)$/i);
   if (!match) return null;
-  return { mimeType: match[1]!.toLowerCase(), data: match[2]! };
+  return { mimeType: match[1]!.toLowerCase() || "text/plain", data: match[2]! };
 }
 
 export const resolveFilePartSource = (part: {
@@ -25,7 +25,7 @@ export const resolveFilePartSource = (part: {
   return {
     kind: "data",
     data: parsed?.data ?? part.data,
-    mimeType: parsed?.mimeType ?? part.mimeType,
+    mimeType: (parsed && dataUrlMediaType(part.data)) ?? part.mimeType,
   };
 };
 

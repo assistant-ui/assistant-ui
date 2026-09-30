@@ -146,17 +146,21 @@ const retrying = useAuiState((s) => s.thread.isRunning);
 
 <RuntimeMode>
 
-`useMessageError()` returns the same string `ErrorPrimitive.Message` falls back to: the run's `status.error`, coerced to a string, an `error.message` when the error is object-shaped, or `"An error occurred"` when neither is available. Call it directly if you need the text outside `MessagePrimitive.Error`.
+`useMessageError()` returns the value `ErrorPrimitive.Message` renders: the run's `status.error` when it is a string, its `message` when the error is an object with a string `message`, the raw error value otherwise, or `"An error occurred"` when the status carries no error. `ErrorPrimitive.Message` passes that value through `String()`. Call the hook directly if you need the error outside `MessagePrimitive.Error`.
 
 ```tsx
+import { useMessageError } from "@assistant-ui/core/react";
+
 const error = useMessageError();
 ```
+
+The hook is exported from `@assistant-ui/core/react` and not from `@assistant-ui/react`, so add `@assistant-ui/core` to the app's dependencies.
 
 </RuntimeMode>
 
 <StandaloneMode>
 
-`title` and `detail` are just the two strings you pass; split your caught error into a short title and a longer detail however makes sense for your source (a fetch error's `name` and `message`, for instance).
+`title` and `detail` are the two strings you pass; split your caught error into a short title and a longer detail however makes sense for your source (a fetch error's `name` and `message`, for instance).
 
 </StandaloneMode>
 
@@ -186,7 +190,7 @@ Both lanes take `className` on the root; the failure banner's red tint and the r
 | Selector | Type | Description |
 |----------|------|-------------|
 | `s.message.status?.type` | `"running" \| "complete" \| "incomplete" \| "requires-action"` | `"incomplete"` with `reason: "error"` is what a failed run looks like. |
-| `useMessageError()` | `() => string \| undefined` | The error text, or `undefined` when the message didn't fail. |
+| `useMessageError()` | `() => string \| number \| boolean \| ReadonlyJSONObject \| ReadonlyJSONArray \| undefined` | The error value, or `undefined` when the message didn't fail. Exported from `@assistant-ui/core/react`. |
 | `aui.message.reload(config?)` | `(config?: { runConfig?: RunConfig }) => void` | Retries by regenerating this message. |
 
 </RuntimeMode>

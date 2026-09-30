@@ -17,13 +17,13 @@ flowchart LR
 
 The slash command system is built on the same [trigger popover architecture](#trigger-popover-architecture) as mentions. A slash command declares its behavior with a `<TriggerPopover.Action>` sub-primitive whose `onExecute` callback fires when an item is chosen.
 
-By default `Action` leaves a directive chip in the composer — giving the user (and the LLM) an audit trail of which commands were invoked. Pass `removeOnExecute` to strip the `/command` text entirely.
+By default `Action` leaves a directive chip in the composer, which gives the user and the LLM a record of the commands that were invoked. Pass `removeOnExecute` to strip the `/command` text instead.
 
 ## Quick Start
 
 ### 1. Define Commands with `unstable_useSlashCommandAdapter`
 
-Declare commands (data + `execute` bundled together, like a toolkit entry). The hook returns `{ adapter, action }` — wire both into a single `<TriggerPopover>`:
+Declare commands (data + `execute` bundled together, like a toolkit entry). The hook returns `{ adapter, action }`. Wire both into a single `<TriggerPopover>`:
 
 ```tsx
 import {
@@ -93,18 +93,18 @@ The label defaults to `/${id}`; override via `label` on the command. Icons are s
 
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
-| `commands` | `Unstable_SlashCommand[]` | — | Command definitions — each has `id`, optional `label`, `description`, `icon`, and an `execute` callback (required) |
+| `commands` | `Unstable_SlashCommand[]` | — | Command definitions. Each has `id`, optional `label`, `description`, `icon`, and an `execute` callback (required) |
 | `removeOnExecute` | `boolean` | `false` | When `true`, strips the trigger text from the composer after executing instead of leaving a directive chip |
 | `iconMap` | `Record<string, IconComponent>` | — | Maps `metadata.icon` / category `id` strings to React icon components; forwarded to `ComposerTriggerPopover` |
 | `fallbackIcon` | `IconComponent` | — | Fallback when no `iconMap` entry matches; forwarded to `ComposerTriggerPopover` |
 
-The hook returns `{ adapter, action, iconMap?, fallbackIcon? }` — spread directly into `<ComposerTriggerPopover char="/" {...slash} />` for one-line wiring.
+The hook returns `{ adapter, action, iconMap?, fallbackIcon? }`, which you can spread into `<ComposerTriggerPopover char="/" {...slash} />`.
 
 ### 2. Controlling the Chip
 
-By default, a selected `/summarize` is converted into a directive chip (`:command[/summarize]{name=summarize}`) in the composer text and the command's `execute` fires. This keeps an audit trail of which commands were invoked.
+By default, a selected `/summarize` is converted into a directive chip (`:command[/summarize]{name=summarize}`) in the composer text and the command's `execute` fires.
 
-To strip the trigger text entirely — useful for purely transient commands — pass `removeOnExecute` on the hook options:
+To strip the trigger text instead, pass `removeOnExecute` in the hook options:
 
 ```tsx
 const slash = unstable_useSlashCommandAdapter({
@@ -204,7 +204,7 @@ const commandHandlers: Record<string, () => void> = {
 
 ## Combining with Mentions
 
-Slash commands and mentions live under the same `TriggerPopoverRoot`. Declare one `TriggerPopover` per trigger — each with its own behavior sub-primitive:
+Slash commands and mentions live under the same `TriggerPopoverRoot`. Declare one `TriggerPopover` per trigger, each with its own behavior sub-primitive:
 
 ```tsx
 <ComposerPrimitive.Unstable_TriggerPopoverRoot>
@@ -245,11 +245,11 @@ Slash commands and mentions live under the same `TriggerPopoverRoot`. Declare on
 </ComposerPrimitive.Unstable_TriggerPopoverRoot>
 ```
 
-Each `TriggerPopover` is its own scope — the `@` popover and the `/` popover read state from their own declaration and never collide. Keyboard events route to whichever popover is currently active.
+Each `TriggerPopover` is its own scope. The `@` popover and the `/` popover read state from their own declaration and never collide. Keyboard events route to whichever popover is currently active.
 
 ## Commands with Arguments
 
-Some commands accept inline arguments typed after the command word — for example `/translate en` or `/ask what is TypeScript`. Because the adapter's `search` method receives the full text after `/`, you can split on the first space to separate the command from its arguments:
+Some commands accept inline arguments typed after the command word, for example `/translate en` or `/ask what is TypeScript`. Whitespace closes a trigger query by default, so pass a `matcher` that keeps the query open across spaces. The adapter's `search` method then receives the full text after `/`, and you split on the first space to separate the command from its arguments:
 
 ```tsx
 const SLASH_COMMANDS: readonly Unstable_SlashCommand[] = [
@@ -264,6 +264,13 @@ const SLASH_COMMANDS: readonly Unstable_SlashCommand[] = [
     execute: () => {/* arguments extracted separately, see below */},
   },
 ];
+
+const matchWithArgs: Unstable_TriggerMatcher = (text, triggerChar, cursorPosition) => {
+  if (!text.startsWith(triggerChar)) return null;
+  const query = text.slice(triggerChar.length, cursorPosition);
+  if (query.includes("\n")) return null;
+  return { query, offset: 0, endOffset: cursorPosition };
+};
 
 function MyComposer() {
   const composerRef = useRef<HTMLTextAreaElement>(null);
@@ -281,12 +288,20 @@ function MyComposer() {
     })),
     removeOnExecute: true,
   });
+  const adapter = useMemo<Unstable_TriggerAdapter>(
+    () => ({
+      ...slash.adapter,
+      // Match on the command word; the rest of the query is the argument
+      search: (query) => slash.adapter.search?.(query.split(" ")[0] ?? "") ?? [],
+    }),
+    [slash.adapter],
+  );
 
   return (
     <ComposerPrimitive.Unstable_TriggerPopoverRoot>
       <ComposerPrimitive.Root>
         <ComposerPrimitive.Input ref={composerRef} placeholder="Type / for commands..." />
-        <ComposerPrimitive.Unstable_TriggerPopover char="/" adapter={slash.adapter}>
+        <ComposerPrimitive.Unstable_TriggerPopover char="/" matcher={matchWithArgs} adapter={adapter}>
           <ComposerPrimitive.Unstable_TriggerPopover.Action {...slash.action} />
           <ComposerPrimitive.Unstable_TriggerPopoverItems>
             {(items) => items.map((item, i) => (
@@ -304,7 +319,7 @@ function MyComposer() {
 }
 ```
 
-`removeOnExecute: true` strips the `/translate en` text from the composer so the argument is consumed by the handler rather than sent to the LLM.
+`removeOnExecute: true` strips the text from `/` to the cursor, so the argument is consumed by the handler and is not sent to the LLM.
 
 ## Async Command Loading
 
@@ -349,12 +364,8 @@ See [ComposerTriggerPopover keyboard navigation](/elements/composer-trigger-popo
 
 Both mentions and slash commands are built on a generic trigger popover system where each `Unstable_TriggerPopover` declares one trigger character, an adapter, and exactly one behavior sub-primitive (`Directive` or `Action`). Multiple triggers coexist under a single `Unstable_TriggerPopoverRoot`. See the [Composer Primitives](/docs/primitives/composer) reference for the complete API.
 
-## Primitives Reference
-
-See the [Composer Primitives](/docs/primitives/composer) reference for the full list of trigger popover primitives and their props.
-
 ## Related
 
-- [Mentions Guide](/docs/guides/mentions) — `@`-mention system built on the same architecture
-- [Suggestions Guide](/docs/guides/suggestions) — static follow-up prompts (different from slash commands)
-- [Composer Primitives](/docs/primitives/composer) — underlying composer primitives
+- [Mentions Guide](/docs/guides/mentions): `@`-mention system built on the same architecture
+- [Suggestions Guide](/docs/guides/suggestions): static follow-up prompts (different from slash commands)
+- [Composer Primitives](/docs/primitives/composer): underlying composer primitives

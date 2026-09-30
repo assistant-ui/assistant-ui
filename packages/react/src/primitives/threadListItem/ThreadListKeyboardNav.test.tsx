@@ -60,6 +60,36 @@ const menu = (): HTMLElement | null =>
   document.querySelector<HTMLElement>('[role="menu"]');
 
 describe("thread list keyboard navigation", () => {
+  it.each(["altKey", "ctrlKey", "metaKey", "shiftKey"])(
+    "leaves arrows modified with %s available to ancestor shortcuts",
+    (modifier) => {
+      const prevented: boolean[] = [];
+      const { container } = render(
+        <div onKeyDown={(event) => prevented.push(event.defaultPrevented)}>
+          <ThreadListPrimitiveRoot>
+            {[0, 1].map((i) => (
+              <ThreadListItemPrimitiveRoot key={i}>
+                <ThreadListItemPrimitiveTrigger>
+                  item {i}
+                </ThreadListItemPrimitiveTrigger>
+              </ThreadListItemPrimitiveRoot>
+            ))}
+          </ThreadListPrimitiveRoot>
+        </div>,
+      );
+      const [first, second] = triggers(container);
+
+      first!.focus();
+      fireEvent.keyDown(first!, { key: "ArrowDown", [modifier]: true });
+      expect(document.activeElement).toBe(first);
+
+      second!.focus();
+      fireEvent.keyDown(second!, { key: "ArrowUp", [modifier]: true });
+      expect(document.activeElement).toBe(second);
+      expect(prevented).toEqual([false, false]);
+    },
+  );
+
   it("moves focus between items with the up/down arrows", () => {
     const { container } = render(
       <ThreadListPrimitiveRoot>
@@ -101,6 +131,41 @@ describe("thread list keyboard navigation", () => {
 
     expect(menu()).not.toBeNull();
   });
+
+  it.each(["altKey", "ctrlKey", "metaKey", "shiftKey"])(
+    "leaves the More menu closed on ArrowRight modified with %s",
+    (modifier) => {
+      const { more } = renderItem();
+
+      more.focus();
+      const unhandled = fireEvent.keyDown(more, {
+        key: "ArrowRight",
+        [modifier]: true,
+      });
+
+      expect(menu()).toBeNull();
+      expect(document.activeElement).toBe(more);
+      expect(unhandled).toBe(true);
+    },
+  );
+
+  it.each(["altKey", "ctrlKey", "metaKey", "shiftKey"])(
+    "leaves the More menu open on ArrowLeft modified with %s",
+    (modifier) => {
+      renderItem({ defaultOpen: true });
+      const content = menu()!;
+
+      content.focus();
+      const unhandled = fireEvent.keyDown(content, {
+        key: "ArrowLeft",
+        [modifier]: true,
+      });
+
+      expect(menu()).toBe(content);
+      expect(document.activeElement).toBe(content);
+      expect(unhandled).toBe(true);
+    },
+  );
 
   it.each(["ArrowLeft", "Escape"])(
     "closes the menu on %s and returns focus to the More button",

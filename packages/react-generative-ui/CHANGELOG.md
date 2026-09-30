@@ -1,5 +1,25 @@
 # @assistant-ui/react-generative-ui
 
+## 0.0.21
+
+### Patch Changes
+
+- [#8375](https://github.com/assistant-ui/assistant-ui/pull/8375) [`b20a7bc`](https://github.com/assistant-ui/assistant-ui/commit/b20a7bcb199ae6cfed9fed5951645fa3d8516071) - fix: the A2UI converter follows v0.9 and v1.0 `child` references, so a spec `Card` keeps its content and a spec `Button` takes its label from its child `Text` (any other child, such as an `Icon`, renders inside the button); a button action written as `{ event: { name, context } }` dispatches like the bare `{ name, context }` form; with `keepUnknownComponents`, a kept `Modal` or `Tabs` keeps the components it references as children, and a child reference the converter cannot follow is reported as a warning ([@okisdev](https://github.com/okisdev))
+
+## 0.0.20
+
+### Patch Changes
+
+- [#8059](https://github.com/assistant-ui/assistant-ui/pull/8059) [`bc3f835`](https://github.com/assistant-ui/assistant-ui/commit/bc3f835989feefc5252243602fb21948ae3a335c) - feat: `surfaceToOperations` turns a reduced A2UI surface into operations that replay it, `convertSurfaceToUISpec` can keep unknown components with `keepUnknownComponents`, and `Icon`, `List`, `ChoicePicker` and `DateTimeInput` now render ([@okisdev](https://github.com/okisdev))
+
+- [#7739](https://github.com/assistant-ui/assistant-ui/pull/7739) [`a9a5978`](https://github.com/assistant-ui/assistant-ui/commit/a9a5978a2c9b10bf12ada704bea7fd6cf46d959c) - fix: preserve model-provided children when rendering `RadioGroup` ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#8066](https://github.com/assistant-ui/assistant-ui/pull/8066) [`981eec1`](https://github.com/assistant-ui/assistant-ui/commit/981eec19def73df8341cb51bc88a612858d2d544) - feat: an action fired in `present` or `prompt_user` output is recorded on its tool call, and a value returned by a `prompt_user` action handler becomes the tool result ([@okisdev](https://github.com/okisdev))
+
+- [#7375](https://github.com/assistant-ui/assistant-ui/pull/7375) [`36da8b7`](https://github.com/assistant-ui/assistant-ui/commit/36da8b72c88586cfc42d3ac2f21757702952a2be) - fix: preserve recursive component schema references in generative UI tool parameters. ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`9619b42`](https://github.com/assistant-ui/assistant-ui/commit/9619b4207b96cad96ec649856454db2a937aea79), [`dcd43fd`](https://github.com/assistant-ui/assistant-ui/commit/dcd43fd08ea0194425ed9148e7ae0ce64a1e67d5), [`e046327`](https://github.com/assistant-ui/assistant-ui/commit/e04632746cee8bc3fbc29b58cf23df4e12b12990), [`e525f14`](https://github.com/assistant-ui/assistant-ui/commit/e525f14b0bd7acbd1f3b4d268aa21d175afa9a94), [`4b069f9`](https://github.com/assistant-ui/assistant-ui/commit/4b069f90fbcb58953ebc7b9c4becca0bf4607842)]:
+  - assistant-stream@0.3.45
+
 ## 0.0.19
 
 ### Patch Changes

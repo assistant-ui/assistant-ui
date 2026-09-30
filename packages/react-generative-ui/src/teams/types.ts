@@ -109,11 +109,12 @@ export interface TeamsInputChoice {
   readonly value: string;
 }
 
-/** A dropdown (`compact`) or radio group (`expanded`) input. */
+/** A dropdown (`compact`), radio group (`expanded`), or checkbox group (`expanded` with `isMultiSelect`) input. */
 export interface TeamsInputChoiceSet {
   readonly type: "Input.ChoiceSet";
   readonly id: string;
   readonly style: "compact" | "expanded";
+  readonly isMultiSelect?: true;
   readonly choices: readonly TeamsInputChoice[];
   readonly placeholder?: string;
   readonly label?: string;
@@ -138,8 +139,10 @@ export interface TeamsInputToggle {
 export interface TeamsInputText {
   readonly type: "Input.Text";
   readonly id: string;
+  readonly style?: "password";
   readonly label?: string;
   readonly placeholder?: string;
+  readonly value?: string;
   readonly isMultiline?: true;
   readonly separator?: true;
   readonly spacing?: "large";

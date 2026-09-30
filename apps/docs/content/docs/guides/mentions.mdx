@@ -17,15 +17,15 @@ flowchart LR
 
 The mention system has three layers:
 
-1. **Trigger detection** — the composer input watches for a trigger character (`@` by default) and extracts the query
-2. **Adapter** — provides the categories and items to display in the popover (e.g. registered tools)
-3. **Formatter** — serializes a selected item into directive text (`:type[label]{name=id}`) and parses it back for rendering
+1. **Trigger detection**: the composer input watches for a trigger character (`@` by default) and extracts the query
+2. **Adapter**: provides the categories and items to display in the popover (e.g. registered tools)
+3. **Formatter**: serializes a selected item into directive text (`:type[label]{name=id}`) and parses it back for rendering
 
-Under the hood, mentions are one kind of [trigger popover](/docs/guides/slash-commands#trigger-popover-architecture). A mention declares its behavior with a `<TriggerPopover.Directive>` sub-primitive, which writes the formatter-serialized directive into the composer on selection.
+Mentions are one kind of [trigger popover](/docs/guides/slash-commands#trigger-popover-architecture). A mention declares its behavior with a `<TriggerPopover.Directive>` sub-primitive, which writes the formatter-serialized directive into the composer on selection.
 
 ## Quick Start
 
-The fastest path is the pre-built [Mention UI components](/elements/composer-trigger-popover), which wire everything together with two shadcn components — the popover picker and the message-side chip renderer:
+The pre-built [Mention UI components](/elements/composer-trigger-popover) cover the full setup with two shadcn components, the popover picker and the message-side chip renderer:
 
 <InstallCommand shadcn={["composer-trigger-popover", "directive-text"]} />
 
@@ -35,7 +35,7 @@ The rest of this guide covers the underlying concepts and customization points.
 
 ## Trigger Adapter
 
-A `Unstable_TriggerAdapter` provides the data for the popover. All methods are **synchronous** — use external state management (React Query, SWR, local state) for async data, then expose loaded results through the adapter.
+A `Unstable_TriggerAdapter` provides the data for the popover. All methods are **synchronous**. For async data, load it with external state management (React Query, SWR, local state), then expose the loaded results through the adapter.
 
 ```ts
 import type { Unstable_TriggerAdapter } from "@assistant-ui/core";
@@ -112,7 +112,7 @@ function MentionPopover() {
 }
 ```
 
-The adapter interface is itself synchronous, so you can also wire async data by hand when you need a custom cache, no debounce, or an existing query client. Load results into React state (or a query cache) and read the current snapshot inside the adapter methods. The adapter re-creates on each render, so the popover always sees the latest results.
+You can also wire async data by hand when you need a custom cache, no debounce, or an existing query client. Load results into React state (or a query cache) and read the current snapshot inside the adapter methods. Re-create the adapter when the results change so the popover reads the latest ones.
 
 **With React state and `useEffect`:**
 
@@ -148,6 +148,7 @@ function useUserMentionAdapter(query: string) {
 **With React Query:**
 
 ```tsx
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { Unstable_TriggerAdapter } from "@assistant-ui/core";
 
@@ -300,9 +301,9 @@ const mention = unstable_useMentionAdapter({
 | `iconMap` | `Record<string, IconComponent>` | Maps `metadata.icon` / category `id` strings to React components |
 | `fallbackIcon` | `IconComponent` | Fallback when no entry in `iconMap` matches |
 
-`icon` on each mention is a shortcut for `metadata.icon` that the picker UI resolves via `iconMap`. Dedup between custom items and model-context tools is by `id` — explicit items win.
+`icon` on each mention is a shortcut for `metadata.icon` that the picker UI resolves via `iconMap`. Custom items and model-context tools are deduplicated by `id`, and explicit items win.
 
-The hook returns `{ adapter, directive, iconMap?, fallbackIcon? }` — spread into `<ComposerTriggerPopover {...mention} />` for one-line wiring. Callers consuming the raw primitives instead destructure: `mention.adapter`, `mention.directive.formatter`, etc.
+The hook returns `{ adapter, directive, iconMap?, fallbackIcon? }`. Spread it into `<ComposerTriggerPopover {...mention} />`, or read `mention.adapter` and `mention.directive.formatter` when you use the raw primitives.
 
 ## Directive Format
 
@@ -394,7 +395,7 @@ The mention system supports two input modes:
 
 With **textarea**, selecting a mention inserts the directive string directly into the text. The user sees `:tool[Get Weather]{name=get_weather}` in the input.
 
-With **Lexical**, selected mentions appear as styled inline chips that behave as atomic units — they can be selected, deleted, and undone as a whole. The underlying text still uses the directive format.
+With **Lexical**, selected mentions appear as styled inline chips that behave as atomic units: they are selected, deleted, and undone as a whole. The underlying text still uses the directive format.
 
 ```tsx
 import { LexicalComposerInput } from "@assistant-ui/react-lexical";
@@ -570,8 +571,8 @@ Mentions and slash commands coexist on the same composer. See [Combining Slash C
 
 ## Related
 
-- [ComposerTriggerPopover UI Component](/elements/composer-trigger-popover) — pre-built shadcn component
-- [DirectiveText UI Component](/elements/directive-text) — renders mention chips in user messages
-- [Slash Commands Guide](/docs/guides/slash-commands) — `/` command system built on the same architecture
-- [Tools Guide](/docs/tools/defining-tools) — register tools that appear in the mention picker
-- [Composer Primitives](/docs/primitives/composer) — underlying composer primitives
+- [ComposerTriggerPopover UI Component](/elements/composer-trigger-popover): pre-built shadcn component
+- [DirectiveText UI Component](/elements/directive-text): renders mention chips in user messages
+- [Slash Commands Guide](/docs/guides/slash-commands): `/` command system built on the same architecture
+- [Tools Guide](/docs/tools/defining-tools): register tools that appear in the mention picker
+- [Composer Primitives](/docs/primitives/composer): underlying composer primitives

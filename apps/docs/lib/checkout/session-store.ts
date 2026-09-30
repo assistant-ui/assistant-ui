@@ -10,9 +10,12 @@ export type CheckoutSession = {
   instructions?: string;
   /** The products came out of the cart and return to it when the setup is abandoned. */
   fromCart?: boolean;
+  /** The user read how a setup works and chose to continue. */
+  introSeen?: boolean;
 };
 
 const storageKey = "aui-checkout-session";
+const linkKey = "aui-agent-link";
 const listeners = new Set<() => void>();
 let session: CheckoutSession | null = null;
 let loaded = false;
@@ -24,7 +27,7 @@ export const checkoutUrl = (id: string) =>
 const ID_ALPHABET =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
-const createSessionId = () => {
+const createId = () => {
   const bytes = crypto.getRandomValues(new Uint8Array(12));
   return Array.from(
     bytes,
@@ -34,10 +37,8 @@ const createSessionId = () => {
 
 const normalize = (value: unknown): CheckoutSession | null => {
   if (typeof value !== "object" || value === null) return null;
-  const { id, products, startedAt, instructions, fromCart } = value as Record<
-    string,
-    unknown
-  >;
+  const { id, products, startedAt, instructions, fromCart, introSeen } =
+    value as Record<string, unknown>;
   if (typeof id !== "string" || !Array.isArray(products)) return null;
   const slugs = products.filter(
     (entry): entry is string => typeof entry === "string",
@@ -50,6 +51,7 @@ const normalize = (value: unknown): CheckoutSession | null => {
     ...(typeof instructions === "string" &&
       instructions.trim() && { instructions: instructions.trim() }),
     ...(fromCart === true && { fromCart }),
+    ...(introSeen === true && { introSeen }),
   };
 };
 
@@ -113,6 +115,24 @@ export const getCheckoutSession = (): CheckoutSession | null => {
   return session;
 };
 
+let linkId: string | null = null;
+
+/** The browser's link to its coding agent. It is created once and outlives every setup, so an agent that keeps its stream open stays connected for the next one. */
+export const getAgentLinkId = () => {
+  if (linkId !== null) return linkId;
+  linkId = createId();
+  try {
+    const stored = window.localStorage.getItem(linkKey);
+    if (stored) linkId = stored;
+    else window.localStorage.setItem(linkKey, linkId);
+  } catch {
+    // Storage can be blocked; the link then lives for this tab only.
+  }
+  return linkId;
+};
+
+export const agentLinkUrl = () => checkoutUrl(getAgentLinkId());
+
 /** Opens a checkout for the given catalog slugs; returns the running one if it exists. The store stays free of the catalog because the root providers import it on every route, so callers pass slugs they already resolved. */
 export const startCheckout = (
   products: readonly string[],
@@ -125,7 +145,7 @@ export const startCheckout = (
   const slugs = [...new Set(products)];
   if (slugs.length === 0) return null;
   session = {
-    id: createSessionId(),
+    id: createId(),
     products: slugs,
     startedAt: Date.now(),
     ...(instructions.trim() && { instructions: instructions.trim() }),
@@ -134,6 +154,25 @@ export const startCheckout = (
   writeStored(session);
   notify();
   return session;
+};
+
+export const acknowledgeSetupIntro = () => {
+  load();
+  if (session === null || session.introSeen) return;
+  session = { ...session, introSeen: true };
+  writeStored(session);
+  notify();
+};
+
+/** Records products that joined the running checkout after it started. */
+export const addCheckoutProducts = (products: readonly string[]) => {
+  load();
+  if (session === null) return;
+  const added = products.filter((slug) => !session!.products.includes(slug));
+  if (added.length === 0) return;
+  session = { ...session, products: [...session.products, ...added] };
+  writeStored(session);
+  notify();
 };
 
 export const endCheckout = () => {

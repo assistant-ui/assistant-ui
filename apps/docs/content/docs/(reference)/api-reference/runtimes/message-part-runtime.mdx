@@ -18,7 +18,8 @@ import { EnrichedPartState, MessagePartRuntime, MessagePartState, PartState } fr
 
 Enriched part state passed to children render functions.
 
-For tool-call parts, adds `toolUI`, `addResult`, and `resume`.
+For tool-call parts, adds `toolUI`, `addResult`, `resume`, and
+`unstable_recordInteraction`.
 For data parts, adds `dataRendererUI`.
 
 The render function is also invoked once with a synthetic empty text part

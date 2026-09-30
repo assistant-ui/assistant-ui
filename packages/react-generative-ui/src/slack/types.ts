@@ -35,6 +35,7 @@ export interface SlackStaticSelectElement {
   readonly type: "static_select";
   readonly action_id: string;
   readonly options: readonly SlackOption[];
+  readonly initial_option?: SlackOption;
   readonly placeholder?: SlackPlainText;
 }
 
@@ -66,6 +67,7 @@ export interface SlackPlainTextInputElement {
   readonly type: "plain_text_input";
   readonly action_id: string;
   readonly multiline?: boolean;
+  readonly initial_value?: string;
   readonly placeholder?: SlackPlainText;
 }
 
@@ -112,12 +114,14 @@ export interface SlackDividerBlock {
 /** A Slack actions block. */
 export interface SlackActionsBlock {
   readonly type: "actions";
+  readonly block_id?: string;
   readonly elements: readonly SlackActionElement[];
 }
 
 /** A Slack input block. */
 export interface SlackInputBlock {
   readonly type: "input";
+  readonly block_id?: string;
   readonly label: SlackPlainText;
   readonly element: SlackPlainTextInputElement;
 }

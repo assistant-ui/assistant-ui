@@ -329,6 +329,7 @@ export class PiThreadSupervisor {
     pendingOpen?.controller.abort();
     const record = this.records.get(threadId);
     const info = record ? undefined : await this.findSessionInfo(threadId);
+    if (!record && !info) return;
     const sessionFile = record?.session.sessionFile ?? info?.path;
     const workspacePath = record?.workspacePath ?? info?.cwd;
     if (!sessionFile) throw new Error(`Unknown Pi thread: ${threadId}`);

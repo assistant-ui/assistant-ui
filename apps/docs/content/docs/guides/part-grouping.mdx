@@ -10,7 +10,7 @@ import { PartGroupingSample } from "@/components/pages/docs/samples/part-groupin
 
 ## Basic Usage
 
-For adjacent grouping, use `MessagePrimitive.GroupedParts`. For the common case — grouping by `part.type` — pass `groupPartByType` to map each part type to a group-key path. Adjacent parts that share a group key are coalesced and rendered through the group case.
+For adjacent grouping, use `MessagePrimitive.GroupedParts`. To group by `part.type`, the common case, pass `groupPartByType` to map each part type to a group-key path. Adjacent parts that share a group key are coalesced and rendered through the group case.
 
 ```tsx title="/components/assistant-ui/elements/thread.aui.tsx"
 import { MessagePrimitive, groupPartByType } from "@assistant-ui/react";
@@ -43,13 +43,13 @@ const AssistantMessage: FC = () => {
 };
 ```
 
-Reach for an inline `groupBy={(part) => …}` only when the helper isn't expressive enough — e.g. you need to branch on `part.parentId` or part metadata.
+Use an inline `groupBy={(part) => …}` only when the helper cannot express the grouping, for example when you branch on `part.parentId` or on a data part's payload.
 
 ## How Adjacent Grouping Works
 
 `groupBy` receives each part and returns either `null` for an ungrouped leaf or a group-key path such as `["group-chainOfThought", "group-tool"]`. Group keys must start with `"group-"` so your render function can distinguish synthetic groups from real part types.
 
-The render function receives both group nodes and leaf parts through `{ part, children }`. Only group cases should render `children`; leaf cases should render their own UI or return `null`.
+The render function receives both group nodes and leaf parts through `{ part, children }`. Only group cases should render `children`. For a leaf, returning `null` renders its registered tool or data UI when one exists. Return an empty fragment (`<></>`) when you want to suppress a registered UI, or return your own component for a custom leaf renderer. Text and other unregistered leaves render nothing when `null` is returned.
 
 <Callout type="warn">
   `MessagePrimitive.Unstable_PartsGrouped` remains available for rare non-adjacent clustering where one group needs to collect parts from different positions in the message. For normal consecutive reasoning/tool grouping, use `GroupedParts`.
@@ -179,7 +179,7 @@ Use an inline `groupBy` when the group key must be derived dynamically from the 
 
 ### Group Consecutive Text Parts
 
-Combine multiple text parts into cohesive blocks:
+Wrap adjacent text parts in one block:
 
 ```tsx
 <MessagePrimitive.GroupedParts
@@ -257,7 +257,7 @@ const toolkit = defineToolkit({
 });
 ```
 
-The synthetic `"standalone-tool-call"` key on `groupPartByType` matches all of these. `MessagePrimitive.GroupedParts` passes the live tool-UI registry to `groupBy` as a second `context` argument, and the helper reads it to resolve the registry-driven cases — MCP-app calls are detected from the part alone, so nothing is threaded in:
+The synthetic `"standalone-tool-call"` key on `groupPartByType` matches all of these. `MessagePrimitive.GroupedParts` passes the live tool-UI registry to `groupBy` as a second `context` argument, and the helper reads it to resolve the registry-driven cases. MCP-app calls are detected from the part alone, so you pass nothing else in:
 
 ```tsx
 <MessagePrimitive.GroupedParts
@@ -313,10 +313,10 @@ The previous section keeps `"tool-call"` folded into the chain-of-thought and on
 </MessagePrimitive.GroupedParts>
 ```
 
-Adjacent `reasoning` parts still coalesce into one `group-thought`, while each tool call is a leaf at the same level as text — the `"standalone-tool-call"` entry is mapped to `[]` too so human-in-the-loop and generative-UI tools stay flat alongside routine calls instead of falling through to `"tool-call"`. Tool-call leaves keep their stable identity keys across re-renders, so rows don't remount as the message streams.
+Adjacent `reasoning` parts still coalesce into one `group-thought`, while each tool call is a leaf at the same level as text. The `"standalone-tool-call"` entry is mapped to `[]` too so human-in-the-loop and generative-UI tools stay flat alongside routine calls instead of falling through to `"tool-call"`. Tool-call leaves keep their stable identity keys across re-renders, so rows don't remount as the message streams.
 
 <Callout type="warn">
-  This renders tool calls flat **in the message flow** — each leaf sits where the part appears, in order. It does not pin, portal, float, or otherwise move tool UIs out of the flow into a sidebar or fixed region. For out-of-flow placement you still own the layout outside `GroupedParts`.
+  This renders tool calls flat **in the message flow**: each leaf sits where the part appears, in order. It does not pin, portal, float, or otherwise move tool UIs out of the flow into a sidebar or fixed region. For out-of-flow placement you still own the layout outside `GroupedParts`.
 
   For MCP Apps, keep one host-owned container mounted for the lifetime of the app. Switching between an inline element and a portal, or changing a portal's target, remounts the frame. Reparenting its live iframe with `appendChild` or `insertBefore` also reloads the document and loses in-app state.
 
@@ -327,7 +327,7 @@ Adjacent `reasoning` parts still coalesce into one `group-thought`, while each t
 
 ### Group by Custom Metadata
 
-Use any custom metadata in your parts for grouping:
+Message parts have no free-form metadata field. Carry custom values in a `data` part and group on its payload:
 
 ```tsx
 const priorityStyles = {
@@ -338,7 +338,8 @@ const priorityStyles = {
 
 <MessagePrimitive.GroupedParts
   groupBy={(part) => {
-    const priority = part.metadata?.priority;
+    if (part.type !== "data") return [];
+    const priority = part.data?.priority;
     if (!priority) return [];
     return [`group-priority-${priority}`];
   }}
@@ -367,7 +368,7 @@ const priorityStyles = {
 
 ## Integration with Assistant Streams
 
-When using assistant-stream libraries, you can add custom metadata to parts:
+With the assistant-stream libraries, you can set a parent ID on parts and send custom values in data parts:
 
 ### Python (assistant-stream)
 
@@ -383,7 +384,7 @@ async def my_run(controller):
     tool.set_response("climate data results")
     research_controller.append_text("Key findings from the research:")
 
-    # Add text with a different parent_id
+    # Add text without a parent_id
     controller.append_text("High priority finding")
 ```
 
@@ -401,12 +402,15 @@ const stream = createAssistantStream(async (controller) => {
     args: { query: "climate data" },
   });
 
-  // Add parts with custom metadata
-  controller.appendPart({
-    type: "text",
-    text: "High priority finding",
-    priority: "high",
-    category: "findings",
+  // Add a data part with custom values
+  controller.appendData({
+    type: "data",
+    name: "finding",
+    data: {
+      text: "High priority finding",
+      priority: "high",
+      category: "findings",
+    },
   });
 });
 ```
@@ -420,16 +424,23 @@ const stream = createAssistantStream(async (controller) => {
   parameters={[
     {
       name: "groupBy",
-      type: "(part: PartState) => readonly `group-${string}`[]",
+      type: "(part: PartState, context: GroupByContext) => readonly `group-${string}`[] | null",
       description:
-        "Maps a part to a group-key path. Return `[]` to leave the part ungrouped. Group keys must start with `group-`. Prefer `groupPartByType` for the common `part.type → path` case.",
+        "Maps a part to a group-key path. Return `[]` or `null` to leave the part ungrouped. Group keys must start with `group-`. Prefer `groupPartByType` for the common `part.type → path` case.",
       required: true,
+    },
+    {
+      name: "indicator",
+      type: '"never" | "empty" | "no-text" | "always"',
+      default: '"no-text"',
+      description:
+        "When to call the render function with a trailing `indicator` part. It is only emitted while the message is running: `empty` when the message has no parts yet, `no-text` when it has no parts or the last part is not text or reasoning, `always` whenever it is running.",
     },
     {
       name: "children",
       type: "({ part, children }) => ReactNode",
       description:
-        "Render function called for group nodes and leaf parts. Group nodes expose children; leaf parts should render their own UI or return null.",
+        "Render function called for group nodes and leaf parts. Group nodes expose children. Returning null for a tool or data leaf renders its registered UI; an empty fragment suppresses it. Other leaves render nothing when null is returned.",
       required: true,
     },
   ]}

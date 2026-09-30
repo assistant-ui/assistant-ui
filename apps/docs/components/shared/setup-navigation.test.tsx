@@ -59,7 +59,7 @@ describe("setup navigation", () => {
     expect(sessionStorage.getItem("aui-setup-return-to")).toBe(
       "/docs?tab=react#installation",
     );
-    visit("/shop/setup");
+    visit("/components/setup");
     rerender(app());
     fireEvent.click(screen.getByText("Back"));
     expect(navigation.back).toHaveBeenCalledOnce();
@@ -67,10 +67,10 @@ describe("setup navigation", () => {
   });
 
   it("returns home from the cart and explains resuming only on the first exit", () => {
-    visit("/shop/cart");
+    visit("/components/cart");
     const { rerender } = render(app());
     fireEvent.click(screen.getByText("Open setup"));
-    visit("/shop/setup");
+    visit("/components/setup");
     rerender(app());
     fireEvent.click(screen.getByText("Back"));
     expect(navigation.replace).toHaveBeenCalledWith("/");
@@ -81,7 +81,7 @@ describe("setup navigation", () => {
     fireEvent.click(screen.getByText("Dismiss"));
     expect(screen.queryByText("Resume setup anytime")).toBeNull();
     fireEvent.click(screen.getByText("Open setup"));
-    visit("/shop/setup");
+    visit("/components/setup");
     rerender(app());
     visit("/");
     rerender(app());
@@ -93,7 +93,7 @@ describe("setup navigation", () => {
       "aui-setup-return-to",
       "/docs?tab=react#installation",
     );
-    visit("/shop/setup");
+    visit("/components/setup");
     render(app());
     fireEvent.click(screen.getByText("Back"));
     expect(navigation.replace).toHaveBeenCalledWith(
@@ -102,12 +102,12 @@ describe("setup navigation", () => {
     expect(navigation.back).not.toHaveBeenCalled();
   });
 
-  it.each([null, "//example.com", "/\\example.com", "/shop/setup"])(
+  it.each([null, "//example.com", "/\\example.com", "/components/setup"])(
     "returns home for an absent or invalid origin (%s)",
     (origin) => {
       if (origin !== null)
         sessionStorage.setItem("aui-setup-return-to", origin);
-      visit("/shop/setup");
+      visit("/components/setup");
       render(app());
       fireEvent.click(screen.getByText("Back"));
       expect(navigation.replace).toHaveBeenCalledWith("/");

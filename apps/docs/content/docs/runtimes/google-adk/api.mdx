@@ -9,7 +9,7 @@ Reference for the runtime's wire-up surface. Start with [quickstart](/docs/runti
 
 Creates an `AdkStreamCallback` that connects to an ADK endpoint via SSE. Supports two modes.
 
-**proxy mode** — POST to your own API route:
+**Proxy mode** posts to your own API route:
 
 ```ts
 import { createAdkStream } from "@assistant-ui/react-google-adk";
@@ -17,7 +17,7 @@ import { createAdkStream } from "@assistant-ui/react-google-adk";
 const stream = createAdkStream({ api: "/api/chat" });
 ```
 
-**direct mode** — connect directly to an ADK server:
+**Direct mode** connects directly to an ADK server:
 
 ```ts
 const stream = createAdkStream({
@@ -103,7 +103,7 @@ export const POST = createAdkApiRoute({
 });
 ```
 
-Both `userId` and `sessionId` accept a static string or a function `(req: Request) => string` for dynamic resolution.
+Both `userId` and `sessionId` accept a static string or a function `(req: Request) => string | Promise<string>` for dynamic resolution.
 
 ### adkEventStream
 
@@ -163,7 +163,7 @@ const runtime = useAdkRuntime({
 
 ### Cloud persistence
 
-For persistent thread history via assistant-cloud, pass a `cloud` instance:
+Pass a `cloud` instance to use Assistant Cloud for the thread list and a dashboard copy of settled messages. Thread history loads through the `load` function from the ADK session, not from Assistant Cloud:
 
 ```ts
 const runtime = useAdkRuntime({

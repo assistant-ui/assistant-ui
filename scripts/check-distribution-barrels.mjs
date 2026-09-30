@@ -82,7 +82,7 @@ export const EXCEPTIONS = [
     from: "@assistant-ui/core/store",
     missingFrom: ["@assistant-ui/react"],
     reason:
-      "the web barrel binds these names to the runtime API state types, so it cannot carry the store scope types under them until the legacy runtime retires (#7839)",
+      "the web barrel binds these names to the deprecated runtime API state aliases until @assistant-ui/react 0.16, so it cannot carry the store scope types under them yet (#7839)",
   },
   {
     names: [
@@ -95,7 +95,7 @@ export const EXCEPTIONS = [
     from: "@assistant-ui/core",
     missingFrom: ["@assistant-ui/react-native", "@assistant-ui/react-ink"],
     reason:
-      "the native and terminal barrels bind these names to the store scope types, so they cannot carry the runtime API state types under them until the legacy runtime retires (#7839)",
+      "these names are the deprecated aliases of the runtime API state types, which every barrel carries as ThreadRuntimeState and its siblings; the native and terminal barrels bind the names to the store scope types (#7839)",
   },
 ];
 
@@ -289,7 +289,10 @@ export function collectBarrelParity({
     for (const symbol of exportsOf(barrel.file)) {
       const target = resolve(symbol);
       const origin = originOf(target);
-      if (!isShared(origin)) continue;
+      // Every unresolved export shares TypeScript's unknown symbol, which would
+      // otherwise reach publicNames and pair unrelated names.
+      if (origin === undefined) continue;
+      if (!isShared(origin) && !publicNames.has(target)) continue;
       let byName = groups.get(target);
       if (!byName) {
         byName = new Map();
@@ -412,7 +415,7 @@ function main() {
       console.error("");
     }
     console.error(
-      "A symbol that @assistant-ui/core, @assistant-ui/store or @assistant-ui/tap declares reaches",
+      "A symbol that @assistant-ui/core, @assistant-ui/store or @assistant-ui/tap declares or re-exports reaches",
     );
     console.error(
       "consumers only through the distribution they installed, and an app never installs two",

@@ -1,43 +1,23 @@
 "use client";
 
-import { useState } from "react";
-import {
-  BellIcon,
-  BellOffIcon,
-  BellRingIcon,
-  CheckIcon,
-  ChevronDownIcon,
-  CopyIcon,
-  LoaderCircleIcon,
-} from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { CheckIcon, CopyIcon, LoaderCircleIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { AgentKindIcon } from "@/components/shared/agent-kind-icon";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import {
-  SHIPPING_METHODS,
   agentKindName,
-  setShippingMethod,
   useShippingMethod,
   type ShippingMethod,
 } from "@/lib/catalog/shipping-store";
-import {
-  requestNotifications,
-  useNotificationState,
-} from "@/lib/checkout/notifications";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { cn } from "@/lib/utils";
 import { getCatalogItem } from "@/lib/catalog";
+import { useWizardNext } from "@/components/pages/shop/wizard-actions";
 
 export const agentPrompt = (url: string, products: readonly string[]) =>
-  `Install ${new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(products)}.\nRun \`npx agent-checkout ${url}\` to fetch installation steps.`;
+  `Install ${new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(products)}.\nRun \`npx setup-agent ${url}\` to fetch installation steps.`;
 
 const agentName = (agent: ShippingMethod) =>
   agent.id === "other" ? "your agent" : agent.name;
@@ -82,8 +62,6 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   });
   return (
     <Button
-      size="sm"
-      className="w-full sm:w-auto"
       aria-label={label}
       onClick={() => {
         if (typeof navigator === "undefined" || !navigator.clipboard) {
@@ -103,14 +81,30 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   );
 }
 
-function AgentSnippet({ url, products }: { url: string; products: string[] }) {
+function AgentSnippet({
+  url,
+  products,
+  actions,
+  aside,
+}: {
+  url: string;
+  products: string[];
+  actions?: ReactNode;
+  aside?: ReactNode;
+}) {
   const text = agentPrompt(url, products);
   return (
-    <div className="flex flex-col items-start gap-3">
-      <div className="border-foreground/10 bg-background w-full rounded-lg border px-3 py-3 text-sm leading-6 wrap-anywhere whitespace-pre-wrap">
+    <div className="flex flex-col gap-3">
+      <div className="bg-muted w-full rounded-lg p-4 text-sm leading-6 wrap-anywhere whitespace-pre-wrap">
         {text}
       </div>
-      <CopyButton text={text} label="Copy prompt" />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <CopyButton text={text} label="Copy prompt" />
+          {actions}
+        </div>
+        {aside}
+      </div>
     </div>
   );
 }
@@ -118,35 +112,28 @@ function AgentSnippet({ url, products }: { url: string; products: string[] }) {
 function BeginPlanBody({ checkout }: { checkout: CheckoutContextValue }) {
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string>();
+  const begin = async () => {
+    setStarting(true);
+    setError(undefined);
+    try {
+      await checkout.commands["checkout/begin-plan"]();
+    } catch {
+      setError("Could not start planning. Please try again.");
+    } finally {
+      setStarting(false);
+    }
+  };
+  useWizardNext({
+    label: "Next",
+    disabled: starting || checkout.degraded,
+    onClick: () => void begin(),
+  });
   return (
     <div className="flex flex-col items-start gap-4">
       <p className="text-muted-foreground text-sm leading-relaxed">
-        Follow your agent’s progress, answer questions, and steer it here. Begin
-        when you’re ready. Your agent will inspect your project and propose a
-        plan for you to approve.
+        Your agent will inspect your project and propose a plan for you to
+        approve.
       </p>
-      <Button
-        disabled={starting || checkout.degraded}
-        onClick={async () => {
-          setStarting(true);
-          setError(undefined);
-          try {
-            await checkout.commands["checkout/begin-plan"]();
-          } catch {
-            setError("Could not start planning. Please try again.");
-          } finally {
-            setStarting(false);
-          }
-        }}
-      >
-        {starting ? (
-          <LoaderCircleIcon
-            className="size-4 motion-safe:animate-spin"
-            aria-hidden="true"
-          />
-        ) : null}
-        {starting ? "Starting…" : "Begin plan"}
-      </Button>
       {error ? (
         <p role="alert" className="text-destructive text-sm">
           {error}
@@ -156,161 +143,196 @@ function BeginPlanBody({ checkout }: { checkout: CheckoutContextValue }) {
   );
 }
 
-function NotifyButton() {
-  const permission = useNotificationState();
-  if (permission === "unsupported") return null;
-  if (permission === "granted") {
-    return (
-      <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
-        <BellRingIcon className="size-3.5" />
-        We will notify you when your agent needs you.
-      </p>
-    );
-  }
-  if (permission === "denied") {
-    return (
-      <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
-        <BellOffIcon className="size-3.5" />
-        Notifications are blocked for this site in your browser.
-      </p>
-    );
-  }
+const WORKS_WITH = ["claude", "codex", "cursor", "gemini", "opencode"] as const;
+
+function WorksWith() {
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={() => void requestNotifications()}
-    >
-      <BellIcon data-icon="inline-start" />
-      Notify me when it needs me
-    </Button>
+    <div className="text-muted-foreground flex items-center gap-x-2 text-xs">
+      <span>Works with</span>
+      <ul className="flex items-center gap-2">
+        {WORKS_WITH.map((kind) => (
+          <li key={kind} className="flex" title={agentKindName(kind)}>
+            <AgentKindIcon kind={kind} className="size-3.5" />
+            <span className="sr-only">{agentKindName(kind)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
-function ConnectBody({ url, products }: { url: string; products: string[] }) {
-  const agent = useShippingMethod();
+function ConnectBody({
+  url,
+  products,
+  detected,
+}: {
+  url: string;
+  products: string[];
+  detected: boolean;
+}) {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-muted-foreground text-sm leading-relaxed">
-        Copy this prompt to your coding agent, then return here to begin. You’ll
-        review a plan before installation starts.
+        Paste this prompt into your coding agent. Once it runs the command, it
+        stays connected to this browser for your next setups too.
       </p>
-      <label className="flex flex-col gap-1.5 text-sm">
-        <span className="text-muted-foreground">Coding agent</span>
-        <Select
-          value={agent.id}
-          onValueChange={(id) => {
-            if (id !== null) setShippingMethod(id);
-          }}
-          items={SHIPPING_METHODS.map((method) => ({
-            value: method.id,
-            label: method.name,
-          }))}
-        >
-          <SelectTrigger className="w-full sm:w-64">
-            <SelectValue>
-              <AgentKindIcon kind={agent.id} className="size-4" />
-              {agent.name}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent align="start">
-            {SHIPPING_METHODS.map((method) => (
-              <SelectItem key={method.id} value={method.id}>
-                <AgentKindIcon kind={method.id} className="size-4" />
-                {method.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </label>
-      <AgentSnippet url={url} products={products} />
+      <AgentSnippet url={url} products={products} aside={<WorksWith />} />
       <p
         role="status"
-        className="text-muted-foreground flex items-center gap-2 text-base sm:text-sm"
+        className="text-muted-foreground flex items-center gap-2 text-sm"
       >
         <LoaderCircleIcon
           aria-hidden="true"
           className="size-4 shrink-0 motion-safe:animate-spin"
         />
-        Waiting for connection…
+        {detected ? "Agent detected. Connecting…" : "Waiting for connection…"}
       </p>
     </div>
   );
 }
 
-function WaitingBody() {
-  return (
-    <div className="flex flex-col items-start gap-3">
-      <p
-        role="status"
-        className="text-muted-foreground flex items-center gap-2 text-base sm:text-sm"
-      >
-        <LoaderCircleIcon
-          aria-hidden="true"
-          className="size-4 shrink-0 motion-safe:animate-spin"
-        />
-        Agent detected. Connecting…
-      </p>
-      <NotifyButton />
-    </div>
-  );
-}
-
-function QuietBody({ url, products }: { url: string; products: string[] }) {
-  const [open, setOpen] = useState(false);
+function QuietBody({
+  url,
+  products,
+  actions,
+}: {
+  url: string;
+  products: string[];
+  actions?: ReactNode;
+}) {
   return (
     <div className="flex flex-col gap-3">
       <p className="text-muted-foreground text-sm">
-        Its stream stopped. If it is still working, ask it to run the command
-        again and it picks up where it left off.
+        Paste this prompt into your coding agent and it picks up where it left
+        off.
       </p>
-      {open ? (
-        <AgentSnippet url={url} products={products} />
-      ) : (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="text-muted-foreground hover:text-foreground flex items-center gap-1 self-start text-sm"
-        >
-          Show the prompt
-          <ChevronDownIcon className="size-3.5" />
-        </button>
-      )}
+      <AgentSnippet url={url} products={products} actions={actions} />
     </div>
   );
 }
 
-function StatusDot({ phase }: { phase: AgentPhase }) {
+const dotClassName = (phase: AgentPhase) =>
+  cn(
+    phase === "connected" && "bg-emerald-500",
+    phase === "waiting" && "bg-foreground/50 animate-pulse",
+    phase === "quiet" && "bg-amber-500",
+    phase === "finished" && "bg-foreground",
+    (phase === "unconnected" || phase === "stopped") && "bg-foreground/20",
+  );
+
+function StatusDot({
+  phase,
+  className,
+}: {
+  phase: AgentPhase;
+  className: string;
+}) {
   return (
     <span
       aria-hidden
       className={cn(
-        "absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2",
-        "border-background",
-        phase === "connected" && "bg-emerald-500",
-        phase === "waiting" && "bg-foreground/50 animate-pulse",
-        phase === "quiet" && "bg-amber-500",
-        phase === "finished" && "bg-foreground",
-        (phase === "unconnected" || phase === "stopped") && "bg-foreground/20",
+        "border-background absolute size-3 rounded-full border-2",
+        className,
+        dotClassName(phase),
       )}
     />
+  );
+}
+
+/** The agent's mark with its phase on the corner, for the wizard's footer; it opens the messages. Nothing until the agent has connected once. */
+export function AgentIndicator({
+  checkout,
+  unread,
+  onClick,
+}: {
+  checkout: CheckoutContextValue;
+  unread: number;
+  onClick: () => void;
+}) {
+  const phase = agentPhase(checkout);
+  const name = useAgentName(checkout);
+  const status = checkout.state?.status;
+  const needsYou = checkout.openInputs.length > 0 || checkout.planPending;
+  if (phase === "unconnected" || phase === "waiting") return null;
+  const label = checkout.degraded
+    ? "Reconnecting…"
+    : phase === "quiet"
+      ? `${name} disconnected`
+      : phase === "finished"
+        ? "Setup finished"
+        : phase === "stopped"
+          ? "Setup cancelled"
+          : needsYou
+            ? `${name} needs you`
+            : status === "planning"
+              ? `${name} is exploring`
+              : status === "installing"
+                ? `${name} is working`
+                : `${name} connected`;
+  return (
+    <button
+      type="button"
+      data-testid="agent-indicator"
+      title={label}
+      onClick={onClick}
+      className="border-foreground/10 text-muted-foreground hover:border-foreground/30 hover:text-foreground focus-visible:ring-ring relative flex size-8 shrink-0 items-center justify-center rounded-full border transition-colors focus-visible:ring-2 focus-visible:outline-none"
+    >
+      <AgentKindIcon kind={checkout.state?.agent.kind} className="size-4" />
+      <span
+        aria-hidden
+        className={cn(
+          "border-background absolute -top-0.5 -right-0.5 size-3 rounded-full border-2",
+          checkout.degraded
+            ? "animate-pulse bg-amber-500"
+            : dotClassName(phase),
+        )}
+      />
+      {unread > 0 ? (
+        <span
+          aria-hidden
+          className="bg-foreground text-background absolute -right-1.5 -bottom-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] leading-none font-medium"
+        >
+          {unread > 9 ? "9+" : unread}
+        </span>
+      ) : null}
+      <span className="sr-only">
+        {`Messages. ${label}.${unread > 0 ? ` ${unread} unread.` : ""}`}
+      </span>
+    </button>
+  );
+}
+
+/** The agent's mark with a dot for its connection phase. */
+export function AgentAvatar({ checkout }: { checkout: CheckoutContextValue }) {
+  const chosen = useShippingMethod();
+  return (
+    <span className="border-foreground/10 relative flex size-9 shrink-0 items-center justify-center rounded-full border">
+      <AgentKindIcon
+        kind={checkout.state?.agent.kind ?? chosen.id}
+        className="size-4"
+      />
+      <StatusDot
+        phase={agentPhase(checkout)}
+        className="-right-0.5 -bottom-0.5"
+      />
+    </span>
   );
 }
 
 export function AgentStatus({
   checkout,
   inline = false,
+  quietActions,
 }: {
   checkout: CheckoutContextValue;
   inline?: boolean;
+  quietActions?: ReactNode;
 }) {
   const phase = agentPhase(checkout);
   const name = useAgentName(checkout);
   const { state } = checkout;
   const cwd = state?.agent.cwd ?? null;
   const lastSeen = state?.agent.lastSeenAt ?? null;
-  const chosen = useShippingMethod();
-  const kind = state?.agent.kind ?? chosen.id;
   const products = state?.products.length
     ? state.products.map((product) => product.name)
     : checkout.session.products.map(
@@ -337,14 +359,20 @@ export function AgentStatus({
   })();
 
   const body =
-    phase === "unconnected" ? (
-      <ConnectBody url={checkout.url} products={products} />
-    ) : phase === "waiting" ? (
-      <WaitingBody />
+    phase === "unconnected" || phase === "waiting" ? (
+      <ConnectBody
+        url={checkout.url}
+        products={products}
+        detected={phase === "waiting"}
+      />
     ) : phase === "connected" && state?.status === "waiting" ? (
       <BeginPlanBody checkout={checkout} />
     ) : phase === "quiet" && !checkout.degraded ? (
-      <QuietBody url={checkout.url} products={products} />
+      <QuietBody
+        url={checkout.url}
+        products={products}
+        actions={quietActions}
+      />
     ) : null;
 
   if (inline && body)
@@ -355,14 +383,11 @@ export function AgentStatus({
       aria-label="Agent status"
       className={cn(
         "rounded-document border",
-        body ? "border-foreground" : "border-foreground/15",
+        body ? "border-foreground" : "border-foreground/10",
       )}
     >
       <div className="flex items-center gap-3 px-4 py-3 sm:px-5">
-        <span className="border-foreground/15 relative flex size-9 shrink-0 items-center justify-center rounded-full border">
-          <AgentKindIcon kind={kind} className="size-4" />
-          <StatusDot phase={phase} />
-        </span>
+        <AgentAvatar checkout={checkout} />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">{name}</p>
           <p

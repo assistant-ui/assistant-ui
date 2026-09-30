@@ -49,6 +49,36 @@ describe("useCopyToClipboard", () => {
     expect(writeText).toHaveBeenNthCalledWith(2, "second");
   });
 
+  it("does not show copied when the clipboard write fails", async () => {
+    const writeText = vi
+      .fn()
+      .mockRejectedValue(new Error("clipboard permission denied"));
+    stubClipboard(writeText);
+    const { result } = renderHook(() => useCopyToClipboard());
+
+    await act(async () => {
+      result.current.copyToClipboard("value");
+      await Promise.resolve();
+    });
+
+    expect(result.current.isCopied).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(writeText).toHaveBeenCalledWith("value");
+  });
+
+  it("does not show copied when the clipboard is unavailable", async () => {
+    vi.stubGlobal("navigator", { ...navigator, clipboard: undefined });
+    const { result } = renderHook(() => useCopyToClipboard());
+
+    await act(async () => {
+      result.current.copyToClipboard("value");
+      await Promise.resolve();
+    });
+
+    expect(result.current.isCopied).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("clears its timer on unmount", async () => {
     stubClipboard(vi.fn().mockResolvedValue(undefined));
     const { result, unmount } = renderHook(() => useCopyToClipboard());

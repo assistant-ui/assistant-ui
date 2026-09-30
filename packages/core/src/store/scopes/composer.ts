@@ -5,6 +5,7 @@ import type { RunConfig } from "../../types/message";
 import type { ComposerRuntime } from "../../runtime/api/composer-runtime";
 import type {
   AttachmentAddErrorReason,
+  ComposerSubmission,
   DictationState,
   SendOptions,
 } from "../../runtime/interfaces/composer-runtime-core";
@@ -66,6 +67,20 @@ export type ComposerState = {
    * Empty when no messages are queued.
    */
   readonly queue: readonly QueueItemState[];
+
+  /**
+   * The message this composer sent while its attachments are prepared. The
+   * thread renders it as its last message until the runtime takes it.
+   * Undefined when no send is being prepared.
+   */
+  readonly submission?: ComposerSubmission | undefined;
+
+  /**
+   * Messages this composer handed to the runtime that the thread does not
+   * show yet, oldest first. The thread renders them after its own messages
+   * until the runtime shows each one.
+   */
+  readonly inTransit?: readonly ComposerSubmission[] | undefined;
 };
 
 export type ComposerMethods = {

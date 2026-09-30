@@ -14,6 +14,7 @@ import type { FeedbackAdapter } from "../../adapters/feedback";
 import type {
   AddToolResultOptions,
   RespondToToolApprovalOptions,
+  Unstable_RecordToolInteractionOptions,
   StartRunConfig,
   ResumeRunConfig,
   ThreadSuggestion,
@@ -84,6 +85,11 @@ type ExternalStoreMessageConverterAdapter<T> = {
 };
 
 type ExternalStoreAdapterBase<T> = {
+  /**
+   * The runtime writes its messages to the thread list's history adapter
+   * itself, so `useExternalStoreRuntime` does not copy them.
+   */
+  unstable_persistsHistory?: boolean | undefined;
   /**
    * Whether the entire thread is disabled. When `true`, the composer's input
    * is also disabled (the user cannot type, attach files, or submit). For a
@@ -164,6 +170,13 @@ type ExternalStoreAdapterBase<T> = {
   /** Opt in to message queuing. Typically produced by `createMessageQueue`. */
   queue?: ExternalThreadQueueAdapter | undefined;
   onEdit?: ((message: AppendMessage) => Promise<void>) | undefined;
+  /**
+   * Removes a message from the host's store. The runtime drops the message
+   * from its branches when `messages` stops carrying the id, and reads a
+   * `messages` update that still carries it after every call for it has
+   * settled as a declined delete. A host that accepts the delete therefore
+   * publishes the removal before the returned promise settles.
+   */
   onDelete?: ((messageId: string) => Promise<void> | void) | undefined;
   onReload?: // TODO: remove parentId in 0.12.0
     | ((parentId: string | null, config: StartRunConfig) => Promise<void>)
@@ -187,6 +200,14 @@ type ExternalStoreAdapterBase<T> = {
     | undefined;
   onRespondToToolApproval?:
     | ((options: RespondToToolApprovalOptions) => Promise<void> | void)
+    | undefined;
+  /**
+   * Stores a user interaction on a tool call part of a message this store
+   * owns and exposes it on that part's `unstable_interactions`. Without it,
+   * recording an interaction rejects and nothing is kept.
+   */
+  unstable_onRecordToolInteraction?:
+    | ((options: Unstable_RecordToolInteractionOptions) => Promise<void> | void)
     | undefined;
   convertMessage?: ExternalStoreMessageConverter<T> | undefined;
   adapters?:
