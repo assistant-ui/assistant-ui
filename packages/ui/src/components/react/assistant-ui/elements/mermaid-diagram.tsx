@@ -28,6 +28,20 @@ export type MermaidDiagramProps = {
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 4;
 
+const DANGLING_LINK = /(?:--|==|-\.|~~)[-.=~]*[>ox]?\s*(?:\|[^|]*\|)?$/;
+
+const isIncompleteDiagram = (code: string, svg: string) => {
+  if (/^<svg\b[^>]*\swidth="0"/.test(svg)) return true;
+  const lines = code
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("%%"));
+  return (
+    /^(?:graph|flowchart)\b/i.test(lines[0] ?? "") &&
+    lines.slice(1).some((line) => DANGLING_LINK.test(line))
+  );
+};
+
 const splitSvgStyles = (svg: string) => {
   let css = "";
   const markup = svg
@@ -351,17 +365,18 @@ const MermaidDiagramImpl: FC<MermaidDiagramProps> = ({
   const result = useMemo(() => {
     if (streaming) return null;
     try {
-      return {
-        svg: renderMermaidSVG(code, {
-          bg: "var(--background)",
-          fg: "var(--foreground)",
-          muted: "var(--muted-foreground)",
-          border: "var(--border)",
-          accent: "var(--foreground)",
-          transparent: true,
-        }),
-        error: null,
-      };
+      const svg = renderMermaidSVG(code, {
+        bg: "var(--background)",
+        fg: "var(--foreground)",
+        muted: "var(--muted-foreground)",
+        border: "var(--border)",
+        accent: "var(--foreground)",
+        transparent: true,
+      });
+      if (isIncompleteDiagram(code, svg)) {
+        throw new Error("Incomplete mermaid diagram");
+      }
+      return { svg, error: null };
     } catch (err) {
       return {
         svg: null,
