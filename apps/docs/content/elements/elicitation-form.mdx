@@ -38,7 +38,7 @@ export function McpElicitationForm({ serverName }: { serverName: string }) {
           className={cn(paper, "flex w-full max-w-sm flex-col gap-3.5 rounded-[20px] p-4")}
         >
           <div className="flex items-center gap-2.5">
-            <span className="bg-foreground/[0.05] text-foreground/45 flex size-7 items-center justify-center rounded-lg">
+            <span className="bg-foreground/[0.05] text-muted-foreground flex size-7 items-center justify-center rounded-lg">
               <PlugIcon className="size-3.5" />
             </span>
             <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
@@ -46,14 +46,14 @@ export function McpElicitationForm({ serverName }: { serverName: string }) {
             </span>
           </div>
 
-          <McpElicitationPrimitive.Message className="text-foreground/55 text-xs leading-relaxed" />
+          <McpElicitationPrimitive.Message className="text-muted-foreground text-xs leading-relaxed" />
           <McpElicitationPrimitive.Error className="text-xs text-red-600 dark:text-red-400" />
 
           <div className="flex flex-col gap-2.5">
             <McpElicitationPrimitive.Fields>
               {({ name, schema, value, setValue }) => (
                 <div className="flex flex-col gap-1">
-                  <span className={cn(mono, "text-foreground/35")}>{name}</span>
+                  <span className={cn(mono, "text-muted-foreground")}>{name}</span>
                   {fieldKind(schema) === "toggle" ? (
                     <input
                       type="checkbox"
@@ -73,7 +73,7 @@ export function McpElicitationForm({ serverName }: { serverName: string }) {
           </div>
 
           <div className="flex h-8 items-center justify-end gap-2">
-            <McpElicitationPrimitive.Decline className="text-foreground/55 h-8 rounded-full px-3.5 text-xs font-medium">
+            <McpElicitationPrimitive.Decline className="text-muted-foreground h-8 rounded-full px-3.5 text-xs font-medium">
               Decline
             </McpElicitationPrimitive.Decline>
             <McpElicitationPrimitive.Accept
@@ -229,7 +229,7 @@ const required = new Set(
 The protocol has three terminal actions: `McpElicitationPrimitive.Cancel` submits `{ action: "cancel" }` alongside Accept's `"accept"` and Decline's `"decline"`. Add it as a third control when your host distinguishes "explicitly declined" from "dismissed without answering":
 
 ```tsx
-<McpElicitationPrimitive.Cancel className="text-foreground/45 h-8 rounded-full px-3.5 text-xs">
+<McpElicitationPrimitive.Cancel className="text-muted-foreground h-8 rounded-full px-3.5 text-xs">
   Dismiss
 </McpElicitationPrimitive.Cancel>
 ```

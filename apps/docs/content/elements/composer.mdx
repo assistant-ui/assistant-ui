@@ -127,7 +127,7 @@ export function ChatBox() {
 
 ### Read the toolbar's own behavior
 
-`ComposerAttachButton` disables itself when it receives no `onClick`, so an unwired button never renders as clickable. `ComposerSend` never disables itself; it only changes appearance between a dim fill (`idle`), the ink send button (`!idle`), and the ink stop button (`streaming`). To disable it, pass `disabled`, which is forwarded to the `button`.
+`ComposerAttachButton` disables itself when it receives no `onClick`, so an unwired button never renders as clickable. `ComposerSend` never disables itself; it only changes appearance between a muted fill edged with the theme's `border` color (`idle`), the ink send button (`!idle`), and the ink stop button (`streaming`). To disable it, pass `disabled`, which is forwarded to the `button`.
 
   </Step>
 </Steps>
@@ -270,6 +270,6 @@ Plain `div`s (`data-slot="composer-toolbar"` and `data-slot="composer-actions"`)
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `streaming` | `boolean` | required | Shows the stop icon and the ink fill. |
-| `idle` | `boolean` | required | Whether there is nothing to send. Shows a dim fill while `true` and not streaming; the ink fill otherwise. |
+| `idle` | `boolean` | required | Whether there is nothing to send. Shows a muted fill with a `border`-colored edge while `true` and not streaming; the ink fill otherwise. |
 
 </StandaloneMode>
