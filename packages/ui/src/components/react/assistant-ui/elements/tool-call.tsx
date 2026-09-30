@@ -45,9 +45,12 @@ export function ToolCall({
       onOpenChange={onOpenChange}
       className={cn("w-full max-w-sm", className)}
     >
-      <CollapsibleTrigger className="group/trigger text-foreground/55 hover:text-foreground/90 flex items-center gap-2 rounded-md py-1 text-[13.5px] transition-colors outline-none">
+      <CollapsibleTrigger className="group/trigger text-foreground/55 hover:text-foreground/90 flex w-full items-center gap-2 rounded-md py-1 text-[13.5px] transition-colors outline-none">
         <ChevronRightIcon className="size-3.5 shrink-0 opacity-60 transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-data-open/trigger:rotate-90 group-data-panel-open/trigger:rotate-90 motion-reduce:transition-none" />
-        <SwapLabel active={running ? 0 : 1} className="text-start">
+        <SwapLabel
+          active={running ? 0 : 1}
+          className="shrink-0 text-start whitespace-nowrap"
+        >
           <ShimmerLabel
             active={running}
             className="relative inline-block leading-none"
@@ -59,12 +62,12 @@ export function ToolCall({
         <span
           className={cn(
             mono,
-            "bg-foreground/[0.06] text-foreground/70 rounded-md px-1.5 py-0.5",
+            "bg-foreground/[0.06] text-foreground/70 min-w-0 truncate rounded-md px-1.5 py-0.5",
           )}
         >
           {query}
         </span>
-        <span className="ms-auto flex w-4 items-center justify-end">
+        <span className="ms-auto flex w-4 shrink-0 items-center justify-end">
           {!running && (
             <CheckIcon className="fade-in zoom-in-90 animate-in size-3.5 text-emerald-500 duration-200" />
           )}
@@ -74,12 +77,14 @@ export function ToolCall({
         <div className={cn(field, "mt-2 overflow-hidden rounded-2xl text-xs")}>
           <div className="px-3.5 pt-2.5 pb-2">
             <p className={cn(mono, "text-foreground/35 mb-1")}>Request</p>
-            <p className="text-foreground/55 font-mono">{request}</p>
+            <p className="text-foreground/55 font-mono break-words">
+              {request}
+            </p>
           </div>
           <div className="bg-foreground/[0.06] mx-3.5 h-px" />
           <div className="px-3.5 pt-2 pb-2.5">
             <p className={cn(mono, "text-foreground/35 mb-1")}>Result</p>
-            <p className="text-foreground/90">{result}</p>
+            <p className="text-foreground/90 break-words">{result}</p>
           </div>
         </div>
       </CollapsibleContent>
