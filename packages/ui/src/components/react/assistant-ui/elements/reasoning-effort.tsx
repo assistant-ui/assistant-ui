@@ -88,10 +88,10 @@ export function ReasoningEffort({
         aria-valuemax={100}
         aria-valuenow={announced(used)}
         aria-valuetext={`${fmt(spent)} of ${fmt(budget)}`}
-        className="bg-foreground/[0.06] h-[3px] w-full overflow-hidden rounded-full"
+        className="bg-foreground/[0.06] inset-ring-border h-[3px] w-full overflow-hidden rounded-full inset-ring forced-colors:outline"
       >
         <span
-          className="block h-full rounded-full bg-blue-500 transition-[width] duration-500 motion-reduce:transition-none dark:bg-blue-400"
+          className="block h-full rounded-full bg-blue-500 transition-[width] duration-500 forced-color-adjust-none motion-reduce:transition-none dark:bg-blue-400"
           style={{ width: `${used}%` }}
         />
       </span>

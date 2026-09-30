@@ -97,10 +97,10 @@ export function RetrievalChunks({
               aria-valuemax={100}
               aria-valuenow={announced(pct(chunk.score, 1))}
               aria-valuetext={`${chunk.score.toFixed(2)} of 1.00`}
-              className="bg-foreground/[0.06] h-[2px] w-full overflow-hidden rounded-full"
+              className="bg-foreground/[0.06] inset-ring-border h-[2px] w-full overflow-hidden rounded-full inset-ring forced-colors:outline"
             >
               <span
-                className="block h-full rounded-full bg-blue-500/70 transition-[width] duration-500 dark:bg-blue-400/70"
+                className="block h-full rounded-full bg-blue-500/70 transition-[width] duration-500 forced-color-adjust-none dark:bg-blue-400/70"
                 style={{ width: `${pct(chunk.score, 1)}%` }}
               />
             </span>

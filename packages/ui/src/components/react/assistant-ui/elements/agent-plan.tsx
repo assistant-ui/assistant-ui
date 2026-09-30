@@ -48,11 +48,11 @@ export function AgentPlan({
         aria-valuemax={100}
         aria-valuenow={announced(progress)}
         aria-valuetext={`${completed} of ${total} steps`}
-        className="bg-foreground/[0.06] h-[3px] w-full overflow-hidden rounded-full"
+        className="bg-foreground/[0.06] inset-ring-border h-[3px] w-full overflow-hidden rounded-full inset-ring forced-colors:outline"
       >
         <span
           aria-hidden
-          className="bg-foreground/80 block h-full rounded-full transition-[width] duration-500 motion-reduce:transition-none"
+          className="bg-foreground/80 block h-full rounded-full transition-[width] duration-500 forced-color-adjust-none motion-reduce:transition-none"
           style={{ width: `${progress}%` }}
         />
       </div>
@@ -84,7 +84,7 @@ export function AgentPlan({
                 ) : (
                   <span
                     aria-hidden
-                    className="bg-foreground/15 size-1.5 rounded-full"
+                    className="bg-foreground/15 inset-ring-border size-1.5 rounded-full inset-ring forced-colors:border"
                   />
                 )}
               </span>

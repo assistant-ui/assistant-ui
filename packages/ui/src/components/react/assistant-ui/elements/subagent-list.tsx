@@ -73,11 +73,11 @@ export function SubagentList({
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={percentage}
-              className="bg-foreground/[0.06] h-[3px] w-full overflow-hidden rounded-full"
+              className="bg-foreground/[0.06] inset-ring-border h-[3px] w-full overflow-hidden rounded-full inset-ring forced-colors:outline"
             >
               <span
                 className={cn(
-                  "block h-full rounded-full transition-[width] duration-700",
+                  "block h-full rounded-full transition-[width] duration-700 forced-color-adjust-none",
                   done ? "bg-emerald-500/70" : "bg-foreground/60",
                 )}
                 style={{ width: `${percentage}%` }}
@@ -107,7 +107,7 @@ export function SubagentList({
             aria-label={`${summaryAgent.name} progress`}
             aria-valuemin={0}
             aria-valuemax={100}
-            className="bg-foreground/[0.06] h-[3px] w-full overflow-hidden rounded-full"
+            className="bg-foreground/[0.06] inset-ring-border h-[3px] w-full overflow-hidden rounded-full inset-ring forced-colors:outline"
           >
             <span className="shimmer shimmer-bg block h-full w-full rounded-full motion-reduce:animate-none" />
           </span>

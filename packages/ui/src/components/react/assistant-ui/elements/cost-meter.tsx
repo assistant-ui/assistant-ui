@@ -51,7 +51,7 @@ export function CostMeter({
         </span>
       </div>
 
-      <div className="bg-foreground/[0.06] flex h-1.5 w-full overflow-hidden rounded-full">
+      <div className="bg-foreground/[0.06] inset-ring-border flex h-1.5 w-full overflow-hidden rounded-full inset-ring forced-colors:border">
         {lines.map((line, i) => {
           const width = pct(line.share, 1);
           if (announced(width) === 0) return null;
@@ -64,7 +64,7 @@ export function CostMeter({
               aria-valuemax={100}
               aria-valuenow={announced(width)}
               className={cn(
-                "h-full transition-[width] duration-500 motion-reduce:transition-none",
+                "h-full transition-[width] duration-500 forced-color-adjust-none motion-reduce:transition-none",
                 i === 0
                   ? "bg-blue-500 dark:bg-blue-400"
                   : i === 1

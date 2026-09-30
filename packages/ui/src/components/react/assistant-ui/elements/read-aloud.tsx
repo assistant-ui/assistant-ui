@@ -90,10 +90,10 @@ export function ReadAloud({
           aria-valuemax={100}
           aria-valuenow={announced(progress)}
           aria-valuetext={`${elapsed} of ${duration}`}
-          className="bg-foreground/[0.08] h-[3px] min-w-0 flex-1 overflow-hidden rounded-full"
+          className="bg-foreground/[0.08] inset-ring-border h-[3px] min-w-0 flex-1 overflow-hidden rounded-full inset-ring forced-colors:outline"
         >
           <span
-            className="block h-full rounded-full bg-blue-500 transition-[width] duration-200 ease-linear motion-reduce:transition-none dark:bg-blue-400"
+            className="block h-full rounded-full bg-blue-500 transition-[width] duration-200 ease-linear forced-color-adjust-none motion-reduce:transition-none dark:bg-blue-400"
             style={{ width: `${progress}%` }}
           />
         </span>

@@ -52,7 +52,7 @@ export function ContextBreakdown({
         </span>
       </div>
 
-      <div className="bg-foreground/[0.06] flex h-2 w-full overflow-hidden rounded-full">
+      <div className="bg-foreground/[0.06] inset-ring-border flex h-2 w-full overflow-hidden rounded-full inset-ring forced-colors:border">
         {segments.map((segment) => {
           const width = share(segment.tokens);
           if (announced(width) === 0) return null;
@@ -66,7 +66,7 @@ export function ContextBreakdown({
               aria-valuenow={announced(width)}
               aria-valuetext={`${fmt(segment.tokens)} of ${fmt(limit)}`}
               className={cn(
-                "h-full transition-[width] duration-500 ease-out motion-reduce:transition-none",
+                "h-full transition-[width] duration-500 ease-out forced-color-adjust-none motion-reduce:transition-none",
                 segment.tint,
               )}
               style={{ width: `${width}%` }}
@@ -80,7 +80,10 @@ export function ContextBreakdown({
           <div key={segment.label} className="flex items-center gap-2">
             <span
               aria-hidden
-              className={cn("size-2 shrink-0 rounded-full", segment.tint)}
+              className={cn(
+                "size-2 shrink-0 rounded-full forced-color-adjust-none",
+                segment.tint,
+              )}
             />
             <span className="text-foreground/70 min-w-0 flex-1 truncate text-[13px]">
               {segment.label}
@@ -98,7 +101,7 @@ export function ContextBreakdown({
         <div className="flex items-center gap-2">
           <span
             aria-hidden
-            className="bg-foreground/[0.08] size-2 shrink-0 rounded-full"
+            className="bg-foreground/[0.08] inset-ring-border size-2 shrink-0 rounded-full inset-ring forced-colors:border"
           />
           <span className="text-muted-foreground min-w-0 flex-1 truncate text-[13px]">
             Headroom
