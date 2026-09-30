@@ -105,9 +105,16 @@ const setupPendingAttachmentSend = async () => {
 
 const setup = () => {
   const selectionChanged = vi.fn();
+  const switchedTo = vi.fn();
+  const switchedAway = vi.fn();
   let aui!: ReturnType<typeof useAui>;
   const Consumer = () => {
     useAuiEvent("threads.selectionChanged" as never, selectionChanged as never);
+    useAuiEvent("threadListItem.switchedTo" as never, switchedTo as never);
+    useAuiEvent(
+      { scope: "*", event: "threadListItem.switchedAway" } as never,
+      switchedAway as never,
+    );
     return null;
   };
   const Harness = () => {
@@ -123,18 +130,20 @@ const setup = () => {
     );
   };
   render(<Harness />);
-  return { getAui: () => aui, selectionChanged };
+  return { getAui: () => aui, selectionChanged, switchedTo, switchedAway };
 };
 
 describe("InMemoryThreadList selection events", () => {
   it("does not emit for the initially selected thread on mount", async () => {
-    const { selectionChanged } = setup();
+    const { selectionChanged, switchedTo, switchedAway } = setup();
     await act(async () => {});
     expect(selectionChanged).not.toHaveBeenCalled();
+    expect(switchedTo).not.toHaveBeenCalled();
+    expect(switchedAway).not.toHaveBeenCalled();
   });
 
   it("emits on switchToNewThread and on switching back", async () => {
-    const { getAui, selectionChanged } = setup();
+    const { getAui, selectionChanged, switchedTo, switchedAway } = setup();
     await act(async () => {});
 
     await act(async () => {
@@ -148,6 +157,10 @@ describe("InMemoryThreadList selection events", () => {
       threadId: newThreadId,
       previousThreadId: "main",
     });
+    expect(switchedTo).toHaveBeenCalledExactlyOnceWith({
+      threadId: newThreadId,
+    });
+    expect(switchedAway).toHaveBeenCalledExactlyOnceWith({ threadId: "main" });
 
     await act(async () => {
       getAui().threads.switchToThread("main");
@@ -159,6 +172,10 @@ describe("InMemoryThreadList selection events", () => {
       threadId: "main",
       previousThreadId: newThreadId,
     });
+    expect(switchedTo).toHaveBeenCalledTimes(2);
+    expect(switchedTo).toHaveBeenLastCalledWith({ threadId: "main" });
+    expect(switchedAway).toHaveBeenCalledTimes(2);
+    expect(switchedAway).toHaveBeenLastCalledWith({ threadId: newThreadId });
   });
 
   it("emits when deleting the selected thread falls back to another", async () => {

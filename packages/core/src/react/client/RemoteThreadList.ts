@@ -17,7 +17,11 @@ import {
   useClientResource,
   useConfiguredAui,
 } from "@assistant-ui/store/client";
-import { isDevelopment, useThreadSelectionEvents } from "../../store/internal";
+import { isDevelopment } from "../../store/internal";
+import {
+  useThreadListItemSelectionEvents,
+  useThreadSelectionEventsWithPrevious,
+} from "../../store/clients/thread-selection-events";
 import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-state";
 import {
   classifyThreads,
@@ -117,6 +121,8 @@ const toInitializeResult = (
 const useThreadListItemClient = (props: {
   data: RemoteThreadData;
   isRunning: boolean;
+  isMain: boolean;
+  wasMain: boolean;
   onSwitchTo: (options?: { unarchive?: boolean }) => void;
   onRename: (title: string) => void;
   onUpdateCustom: (custom: Record<string, unknown> | undefined) => void;
@@ -133,6 +139,8 @@ const useThreadListItemClient = (props: {
   const {
     data,
     isRunning,
+    isMain,
+    wasMain,
     onSwitchTo,
     onRename,
     onUpdateCustom,
@@ -156,6 +164,7 @@ const useThreadListItemClient = (props: {
     }),
     [data, isRunning],
   );
+  useThreadListItemSelectionEvents(data.id, isMain, wasMain);
 
   return {
     getState: () => state,
@@ -311,6 +320,7 @@ const useMainThreadFacade = (
 const useRemoteThreadListView = ({
   listState,
   mainThreadId,
+  previousMainThreadId,
   startedIds,
   backgroundThreads,
   threadFactory,
@@ -327,6 +337,7 @@ const useRemoteThreadListView = ({
 }: {
   listState: RemoteThreadState;
   mainThreadId: string;
+  previousMainThreadId: string;
   startedIds: readonly string[];
   backgroundThreads: boolean;
   threadFactory: RemoteThreadListProps["thread"];
@@ -376,6 +387,8 @@ const useRemoteThreadListView = ({
     ThreadListItemClient({
       data,
       isRunning,
+      isMain: itemMatchesId(data, listState, mainThreadId),
+      wasMain: itemMatchesId(data, listState, previousMainThreadId),
       onSwitchTo: (options) =>
         handleThreadListAction("switch", () => onSwitchTo(data.id, options)),
       onRename: (title) =>
@@ -530,7 +543,8 @@ const useRemoteThreadList = (
     },
     [session],
   );
-  useThreadSelectionEvents(mainThreadId);
+  const previousMainThreadId =
+    useThreadSelectionEventsWithPrevious(mainThreadId);
   useEffect(() => {
     // Publishing after commit keeps imperative actions on the adapter the committed tree renders with; an abandoned render must not reach them.
     session.adapter = adapter;
@@ -1249,6 +1263,7 @@ const useRemoteThreadList = (
     useRemoteThreadListView({
       listState,
       mainThreadId,
+      previousMainThreadId,
       startedIds,
       backgroundThreads,
       threadFactory,

@@ -13,7 +13,10 @@ import {
   useDestroySignalProvider,
 } from "@assistant-ui/store/client";
 import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
-import { useThreadSelectionEvents } from "../../store/internal";
+import {
+  useThreadListItemSelectionEvents,
+  useThreadSelectionEventsWithPrevious,
+} from "../../store/clients/thread-selection-events";
 import { generateId } from "../../utils/id";
 import { ModelContext } from "../../store/clients/model-context-client";
 import { Tools } from "./Tools";
@@ -43,6 +46,8 @@ type ThreadData = {
 const useThreadListItemClient = (props: {
   data: ThreadData;
   isRunning: boolean;
+  isMain: boolean;
+  wasMain: boolean;
   onSwitchTo: () => void;
   onRename: (title: string) => void;
   onUpdateCustom: (custom: Record<string, unknown> | undefined) => void;
@@ -53,6 +58,8 @@ const useThreadListItemClient = (props: {
   const {
     data,
     isRunning,
+    isMain,
+    wasMain,
     onSwitchTo,
     onRename,
     onUpdateCustom,
@@ -72,6 +79,7 @@ const useThreadListItemClient = (props: {
     }),
     [data.id, data.title, data.status, data.custom, isRunning],
   );
+  useThreadListItemSelectionEvents(data.id, isMain, wasMain);
 
   return {
     getState: () => state,
@@ -172,7 +180,8 @@ const useInMemoryThreadList = (
     update: (prev: readonly ThreadData[]) => readonly ThreadData[],
   ) => setListState((prev) => ({ ...prev, threads: update(prev.threads) }));
 
-  useThreadSelectionEvents(mainThreadId);
+  const previousMainThreadId =
+    useThreadSelectionEventsWithPrevious(mainThreadId);
 
   const handleSwitchToThread = (threadId: string) => {
     setListState((prev) => ({ ...prev, mainThreadId: threadId }));
@@ -266,6 +275,8 @@ const useInMemoryThreadList = (
         ThreadListItemClient({
           data: t,
           isRunning: t.id === mainThreadId && mainThreadClient.state.isRunning,
+          isMain: t.id === mainThreadId,
+          wasMain: t.id === previousMainThreadId,
           onSwitchTo: () => handleSwitchToThread(t.id),
           onRename: (title) => handleRename(t.id, title),
           onUpdateCustom: (custom) => handleUpdateCustom(t.id, custom),

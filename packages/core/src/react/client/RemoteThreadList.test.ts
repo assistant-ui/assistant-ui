@@ -181,6 +181,57 @@ const mountArchivedInitializingThread = async () => {
 };
 
 describe("RemoteThreadList", () => {
+  it("emits legacy thread item events when switching the main thread", async () => {
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          { status: "regular" as const, remoteId: "t1", title: "One" },
+          { status: "regular" as const, remoteId: "t2", title: "Two" },
+        ],
+      })),
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    const switchedTo = vi.fn();
+    const switchedToAll = vi.fn();
+    const switchedAway = vi.fn();
+    const selectionChanged = vi.fn();
+    aui.on("threads.selectionChanged" as never, selectionChanged as never);
+    aui.on("threadListItem.switchedTo" as never, switchedTo as never);
+    aui.on(
+      { scope: "*", event: "threadListItem.switchedTo" } as never,
+      switchedToAll as never,
+    );
+    aui.on(
+      { scope: "*", event: "threadListItem.switchedAway" } as never,
+      switchedAway as never,
+    );
+
+    await aui.threads.getLoadThreadsPromise();
+    expect(switchedTo).not.toHaveBeenCalled();
+    expect(switchedToAll).not.toHaveBeenCalled();
+    expect(switchedAway).not.toHaveBeenCalled();
+    expect(selectionChanged).not.toHaveBeenCalled();
+    const initialThreadId = aui.threads.getState().mainThreadId;
+
+    flushTapSync(() => aui.threads.switchToThread("t1"));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t1");
+    });
+    await new Promise((resolve) => setTimeout(resolve));
+
+    expect(switchedTo).toHaveBeenCalledExactlyOnceWith({ threadId: "t1" });
+    expect(switchedToAll).toHaveBeenCalledExactlyOnceWith({ threadId: "t1" });
+    expect(switchedAway).toHaveBeenCalledExactlyOnceWith({
+      threadId: initialThreadId,
+    });
+    expect(selectionChanged).toHaveBeenCalledExactlyOnceWith({
+      threadId: "t1",
+      previousThreadId: initialThreadId,
+    });
+    handle.destroy();
+  });
+
   it("loads adapter threads on a standalone client", async () => {
     const adapter = makeAdapter({
       list: vi.fn(async () => ({
