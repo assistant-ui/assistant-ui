@@ -2,10 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import {
-  reconcileAssistantUIImportLayout,
-  transformProject,
-} from "./create-project";
+import { reconcileAssistantUIImportLayout } from "./create-project";
 
 describe("reconcileAssistantUIImportLayout", () => {
   let projectDir: string;
@@ -174,65 +171,5 @@ describe("reconcileAssistantUIImportLayout", () => {
       reconcileAssistantUIImportLayout(projectDir),
     ).resolves.toBeUndefined();
     expect(read("app/broken.ts")).toBe(source);
-  });
-});
-
-describe("transformProject", () => {
-  let projectDir: string;
-
-  beforeEach(() => {
-    projectDir = fs.mkdtempSync(path.join(os.tmpdir(), "aui-cli-test-"));
-    fs.writeFileSync(
-      path.join(projectDir, "package.json"),
-      JSON.stringify({
-        name: "eve-starter",
-        dependencies: { eve: "^0.56.0" },
-      }),
-    );
-  });
-
-  afterEach(() => {
-    fs.rmSync(projectDir, { recursive: true, force: true });
-  });
-
-  it.each(["npm", "bun"] as const)(
-    "pins Eve's Undici dependency for %s",
-    async (packageManager) => {
-      await transformProject(projectDir, {
-        hasLocalComponents: true,
-        skipInstall: true,
-        packageManager,
-      });
-
-      const pkg = JSON.parse(
-        fs.readFileSync(path.join(projectDir, "package.json"), "utf8"),
-      );
-      expect(pkg.overrides).toEqual({ eve: { undici: "8.10.2" } });
-    },
-  );
-
-  it("pins Eve's Undici dependency for Yarn", async () => {
-    await transformProject(projectDir, {
-      hasLocalComponents: true,
-      skipInstall: true,
-      packageManager: "yarn",
-    });
-
-    const pkg = JSON.parse(
-      fs.readFileSync(path.join(projectDir, "package.json"), "utf8"),
-    );
-    expect(pkg.resolutions).toEqual({ "eve/undici": "8.10.2" });
-  });
-
-  it("pins Eve's Undici dependency for pnpm", async () => {
-    await transformProject(projectDir, {
-      hasLocalComponents: true,
-      skipInstall: true,
-      packageManager: "pnpm",
-    });
-
-    expect(
-      fs.readFileSync(path.join(projectDir, "pnpm-workspace.yaml"), "utf8"),
-    ).toBe("overrides:\n  eve>undici: 8.10.2\n");
   });
 });

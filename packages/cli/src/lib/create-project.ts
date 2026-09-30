@@ -293,7 +293,7 @@ export async function transformProject(
   opts: TransformOptions,
 ): Promise<TransformResult> {
   logger.step("Transforming package.json...");
-  transformPackageJson(projectDir, opts.packageManager);
+  transformPackageJson(projectDir);
 
   logger.step("Transforming project files...");
   transformTsConfig(projectDir);
@@ -345,12 +345,7 @@ function resolveRegistryComponents(
   ];
 }
 
-const EVE_UNDICI_VERSION = "8.10.2";
-
-function transformPackageJson(
-  projectDir: string,
-  packageManager: PackageManagerName,
-): void {
+function transformPackageJson(projectDir: string): void {
   const pkgPath = path.join(projectDir, "package.json");
   const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
 
@@ -379,28 +374,6 @@ function transformPackageJson(
   // Update package name to be unique
   const dirName = path.basename(projectDir);
   pkg.name = dirName;
-
-  if (pkg.dependencies?.eve || pkg.devDependencies?.eve) {
-    if (packageManager === "pnpm") {
-      fs.writeFileSync(
-        path.join(projectDir, "pnpm-workspace.yaml"),
-        `overrides:\n  eve>undici: ${EVE_UNDICI_VERSION}\n`,
-      );
-    } else if (packageManager === "yarn") {
-      pkg.resolutions = {
-        ...pkg.resolutions,
-        "eve/undici": EVE_UNDICI_VERSION,
-      };
-    } else {
-      pkg.overrides = {
-        ...pkg.overrides,
-        eve: {
-          ...(typeof pkg.overrides?.eve === "object" ? pkg.overrides.eve : {}),
-          undici: EVE_UNDICI_VERSION,
-        },
-      };
-    }
-  }
 
   fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
 }
