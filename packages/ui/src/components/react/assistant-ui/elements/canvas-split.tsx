@@ -5,17 +5,23 @@ import { CheckIcon, CopyIcon, FileTextIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, ghostButton, mono, paper } from "./surfaces";
 
-export function CanvasSplit({ className, ...props }: ComponentProps<"div">) {
+export function CanvasSplit({
+  className,
+  children,
+  ...props
+}: ComponentProps<"div">) {
   return (
     <div
       data-slot="canvas-split"
       className={cn(
         paper,
-        "flex w-full max-w-3xl flex-col overflow-hidden rounded-[20px] md:h-80 md:flex-row",
+        "@container w-full max-w-3xl overflow-hidden rounded-[20px]",
         className,
       )}
       {...props}
-    />
+    >
+      <div className="flex flex-col @xl:h-80 @xl:flex-row">{children}</div>
+    </div>
   );
 }
 
@@ -27,7 +33,7 @@ export function CanvasSplitThread({
     <div
       data-slot="canvas-split-thread"
       className={cn(
-        "border-foreground/[0.07] flex flex-col gap-3 border-b p-4 md:w-[15rem] md:shrink-0 md:overflow-y-auto md:border-r md:border-b-0",
+        "border-foreground/[0.07] flex flex-col gap-3 border-b p-4 @xl:w-[15rem] @xl:shrink-0 @xl:overflow-y-auto @xl:border-r @xl:border-b-0",
         className,
       )}
       {...props}
