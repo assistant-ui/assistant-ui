@@ -45,7 +45,7 @@ export function ToolCall({
       onOpenChange={onOpenChange}
       className={cn("w-full max-w-sm", className)}
     >
-      <CollapsibleTrigger className="group/trigger text-foreground/55 hover:text-foreground/90 flex w-full items-center gap-2 rounded-md py-1 text-[13.5px] transition-colors outline-none">
+      <CollapsibleTrigger className="group/trigger text-muted-foreground hover:text-foreground/90 flex w-full items-center gap-2 rounded-md py-1 text-[13.5px] transition-colors outline-none">
         <ChevronRightIcon className="size-3.5 shrink-0 opacity-60 transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-data-open/trigger:rotate-90 group-data-panel-open/trigger:rotate-90 motion-reduce:transition-none" />
         <SwapLabel
           active={running ? 0 : 1}
@@ -76,14 +76,14 @@ export function ToolCall({
       <CollapsibleContent className={cn(collapsePanel, "outline-none")}>
         <div className={cn(field, "mt-2 overflow-hidden rounded-2xl text-xs")}>
           <div className="px-3.5 pt-2.5 pb-2">
-            <p className={cn(mono, "text-foreground/35 mb-1")}>Request</p>
-            <p className="text-foreground/55 font-mono break-words">
+            <p className={cn(mono, "text-muted-foreground mb-1")}>Request</p>
+            <p className="text-muted-foreground font-mono break-words">
               {request}
             </p>
           </div>
           <div className="bg-foreground/[0.06] mx-3.5 h-px" />
           <div className="px-3.5 pt-2 pb-2.5">
-            <p className={cn(mono, "text-foreground/35 mb-1")}>Result</p>
+            <p className={cn(mono, "text-muted-foreground mb-1")}>Result</p>
             <p className="text-foreground/90 break-words">{result}</p>
           </div>
         </div>

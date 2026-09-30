@@ -17,7 +17,7 @@ export function ThinkingIndicator({
     <div
       data-slot="thinking-indicator"
       className={cn(
-        "text-foreground/55 flex items-center gap-2.5 text-sm",
+        "text-muted-foreground flex items-center gap-2.5 text-sm",
         className,
       )}
 
@@ -34,7 +34,9 @@ export function ThinkingIndicator({
         {label}
       </ShimmerLabel>
       {elapsed !== undefined && (
-        <span className={cn(mono, "text-foreground/30 shrink-0 tabular-nums")}>
+        <span
+          className={cn(mono, "text-muted-foreground shrink-0 tabular-nums")}
+        >
           {elapsed}
         </span>
       )}

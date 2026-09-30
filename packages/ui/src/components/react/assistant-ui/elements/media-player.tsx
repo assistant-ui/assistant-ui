@@ -192,7 +192,7 @@ export function AudioPlayer({
           className="accent-foreground w-full cursor-pointer disabled:cursor-default"
         />
       </div>
-      <span className={cn(mono, "text-foreground/45 shrink-0 tabular-nums")}>
+      <span className={cn(mono, "text-muted-foreground shrink-0 tabular-nums")}>
         {formatDuration(currentTime)} / {durationLabel}
       </span>
       <audio
@@ -211,7 +211,7 @@ export function AudioPlayer({
         onError={() => update({ hasError: true, playing: false })}
       />
       {hasError ? (
-        <span role="alert" className="text-foreground/45 text-xs">
+        <span role="alert" className="text-muted-foreground text-xs">
           Can't play this audio
         </span>
       ) : null}
@@ -278,7 +278,10 @@ export function VideoPlayer({
           ) : null}
           {duration !== undefined ? (
             <span
-              className={cn(mono, "text-foreground/45 shrink-0 tabular-nums")}
+              className={cn(
+                mono,
+                "text-muted-foreground shrink-0 tabular-nums",
+              )}
             >
               {formatDuration(duration)}
             </span>
