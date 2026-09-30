@@ -16,6 +16,7 @@ import {
   useClientLookup,
   useClientResource,
   useConfiguredAui,
+  useAssistantEmit,
 } from "@assistant-ui/store/client";
 import { isDevelopment, useThreadSelectionEvents } from "../../store/internal";
 import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-state";
@@ -116,6 +117,8 @@ const toInitializeResult = (
 
 const useThreadListItemClient = (props: {
   data: RemoteThreadData;
+  isMain: boolean;
+  trackSelection: boolean;
   isRunning: boolean;
   onSwitchTo: (options?: { unarchive?: boolean }) => void;
   onRename: (title: string) => void;
@@ -132,6 +135,8 @@ const useThreadListItemClient = (props: {
 }): ClientOutput<"threadListItem"> => {
   const {
     data,
+    isMain,
+    trackSelection,
     isRunning,
     onSwitchTo,
     onRename,
@@ -156,6 +161,18 @@ const useThreadListItemClient = (props: {
     }),
     [data, isRunning],
   );
+  const emit = useAssistantEmit();
+  const threadId = data.id;
+  const selectionRef = useRef({ isMain, threadId });
+  useEffect(() => {
+    if (!trackSelection) return;
+    const previous = selectionRef.current;
+    if (previous.isMain === isMain && previous.threadId === threadId) return;
+    selectionRef.current = { isMain, threadId };
+    emit(isMain ? "threadListItem.switchedTo" : "threadListItem.switchedAway", {
+      threadId,
+    });
+  }, [isMain, threadId, emit, trackSelection]);
 
   return {
     getState: () => state,
@@ -372,9 +389,15 @@ const useRemoteThreadListView = ({
     return ids;
   }, [backgroundThreads, listState, mainThreadId, startedIds]);
 
-  const itemElementFor = (data: RemoteThreadData, isRunning: boolean) =>
+  const itemElementFor = (
+    data: RemoteThreadData,
+    isRunning: boolean,
+    trackSelection: boolean,
+  ) =>
     ThreadListItemClient({
       data,
+      isMain: itemMatchesId(data, listState, mainThreadId),
+      trackSelection,
       isRunning,
       onSwitchTo: (options) =>
         handleThreadListAction("switch", () => onSwitchTo(data.id, options)),
@@ -427,7 +450,7 @@ const useRemoteThreadListView = ({
               id,
               status: data.status,
               remoteId: data.remoteId,
-              item: (isRunning) => itemElementFor(data, isRunning),
+              item: (isRunning) => itemElementFor(data, isRunning, false),
               thread: wrapped,
             })
           : wrapped;
@@ -465,6 +488,7 @@ const useRemoteThreadListView = ({
             ? (bodyStateOf(data.id)?.isRunning ?? false)
             : itemMatchesId(data, listState, mainThreadId) &&
                 mainThreadClient.state.isRunning,
+          true,
         ),
       ),
     ),

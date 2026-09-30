@@ -188,6 +188,68 @@ const mountArchivedInitializingThread = async () => {
 
 describe("RemoteThreadList", () => {
   it.each([false, true])(
+    "emits item switch events once to both scopes with backgroundThreads=%s",
+    async (backgroundThreads) => {
+      const adapter = makeAdapter({
+        list: vi.fn(async () => ({
+          threads: [
+            { status: "regular" as const, remoteId: "A", title: "A" },
+            { status: "regular" as const, remoteId: "B", title: "B" },
+          ],
+        })),
+      });
+      const handle = createAssistantClient(
+        AuiConfig({
+          threads: RemoteThreadList({
+            adapter,
+            backgroundThreads,
+            thread: (threadId) => StubThread({ threadId }) as never,
+          }),
+        }),
+      );
+      const aui = handle.getClient();
+      const starTo = vi.fn();
+      const starAway = vi.fn();
+      const itemTo = vi.fn();
+      const itemAway = vi.fn();
+      aui.on({ scope: "*", event: "threadListItem.switchedTo" }, starTo);
+      aui.on({ scope: "*", event: "threadListItem.switchedAway" }, starAway);
+      aui.on(
+        { scope: "threadListItem", event: "threadListItem.switchedTo" },
+        itemTo,
+      );
+      aui.on(
+        { scope: "threadListItem", event: "threadListItem.switchedAway" },
+        itemAway,
+      );
+      handle.subscribe(() => {});
+      await aui.threads.getLoadThreadsPromise();
+      expect(starTo).not.toHaveBeenCalled();
+      expect(starAway).not.toHaveBeenCalled();
+      expect(itemTo).not.toHaveBeenCalled();
+      expect(itemAway).not.toHaveBeenCalled();
+
+      flushTapSync(() => aui.threads.switchToThread("A"));
+      await vi.waitFor(() =>
+        expect(aui.threads.getState().mainThreadId).toBe("A"),
+      );
+      starTo.mockClear();
+      starAway.mockClear();
+      itemTo.mockClear();
+      itemAway.mockClear();
+      flushTapSync(() => aui.threads.switchToThread("B"));
+      await vi.waitFor(() =>
+        expect(aui.threads.getState().mainThreadId).toBe("B"),
+      );
+      expect(starAway).toHaveBeenCalledExactlyOnceWith({ threadId: "A" });
+      expect(starTo).toHaveBeenCalledExactlyOnceWith({ threadId: "B" });
+      expect(itemAway).not.toHaveBeenCalled();
+      expect(itemTo).toHaveBeenCalledExactlyOnceWith({ threadId: "B" });
+      handle.destroy();
+    },
+  );
+
+  it.each([false, true])(
     "delivers thread-scoped composer.send events with backgroundThreads=%s",
     async (backgroundThreads) => {
       const onNew = vi.fn<(message: AppendMessage) => Promise<void>>(

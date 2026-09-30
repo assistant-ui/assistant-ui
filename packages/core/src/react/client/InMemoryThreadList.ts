@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { resource, withKey, type ResourceElement } from "@assistant-ui/tap";
 import type {
   AssistantClient,
@@ -11,6 +11,7 @@ import {
   attachTransformScopes,
   useClientResource,
   useDestroySignalProvider,
+  useAssistantEmit,
 } from "@assistant-ui/store/client";
 import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
 import { useThreadSelectionEvents } from "../../store/internal";
@@ -42,6 +43,7 @@ type ThreadData = {
 // ThreadListItem Client
 const useThreadListItemClient = (props: {
   data: ThreadData;
+  isMain: boolean;
   isRunning: boolean;
   onSwitchTo: () => void;
   onRename: (title: string) => void;
@@ -52,6 +54,7 @@ const useThreadListItemClient = (props: {
 }): ClientOutput<"threadListItem"> => {
   const {
     data,
+    isMain,
     isRunning,
     onSwitchTo,
     onRename,
@@ -72,6 +75,17 @@ const useThreadListItemClient = (props: {
     }),
     [data.id, data.title, data.status, data.custom, isRunning],
   );
+  const emit = useAssistantEmit();
+  const threadId = data.id;
+  const selectionRef = useRef({ isMain, threadId });
+  useEffect(() => {
+    const previous = selectionRef.current;
+    if (previous.isMain === isMain && previous.threadId === threadId) return;
+    selectionRef.current = { isMain, threadId };
+    emit(isMain ? "threadListItem.switchedTo" : "threadListItem.switchedAway", {
+      threadId,
+    });
+  }, [isMain, threadId, emit]);
 
   return {
     getState: () => state,
@@ -265,6 +279,7 @@ const useInMemoryThreadList = (
         t.id,
         ThreadListItemClient({
           data: t,
+          isMain: t.id === mainThreadId,
           isRunning: t.id === mainThreadId && mainThreadClient.state.isRunning,
           onSwitchTo: () => handleSwitchToThread(t.id),
           onRename: (title) => handleRename(t.id, title),
