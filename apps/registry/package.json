@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsx ./scripts/build-registry.ts",
     "test": "node --test scripts/build-registry.test.mjs",
+    "test:coverage": "pnpm run test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
