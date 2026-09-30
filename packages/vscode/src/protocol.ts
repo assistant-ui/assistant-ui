@@ -35,22 +35,39 @@ export type FetchErrorMessage = BridgeEnvelope<"fetch:error"> & {
   message: string;
 };
 
-export type WebviewToHostMessage = FetchRequestMessage | FetchAbortMessage;
+export type RpcRequestMessage = BridgeEnvelope<"rpc:request"> & {
+  method: string;
+  params: unknown[];
+};
+
+export type RpcResponseMessage = BridgeEnvelope<"rpc:response"> &
+  ({ ok: true; result: unknown } | { ok: false; message: string });
+
+export type WebviewToHostMessage =
+  | FetchRequestMessage
+  | FetchAbortMessage
+  | RpcRequestMessage;
 
 export type HostToWebviewMessage =
   | FetchHeadMessage
   | FetchChunkMessage
   | FetchEndMessage
-  | FetchErrorMessage;
+  | FetchErrorMessage
+  | RpcResponseMessage;
 
 export type BridgeMessage = WebviewToHostMessage | HostToWebviewMessage;
 
-const WEBVIEW_TO_HOST_KINDS = new Set(["fetch:request", "fetch:abort"]);
+const WEBVIEW_TO_HOST_KINDS = new Set([
+  "fetch:request",
+  "fetch:abort",
+  "rpc:request",
+]);
 const HOST_TO_WEBVIEW_KINDS = new Set([
   "fetch:head",
   "fetch:chunk",
   "fetch:end",
   "fetch:error",
+  "rpc:response",
 ]);
 
 const isEnvelope = (

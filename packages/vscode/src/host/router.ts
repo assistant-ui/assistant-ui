@@ -201,7 +201,7 @@ export function serveWebviewRoutes(
   const subscription = webview.onDidReceiveMessage((message: unknown) => {
     if (!isWebviewToHostMessage(message)) return;
     if (message.kind === "fetch:request") void handle(message);
-    else inflight.get(message.id)?.abort();
+    else if (message.kind === "fetch:abort") inflight.get(message.id)?.abort();
   });
 
   return {

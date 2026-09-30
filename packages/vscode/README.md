@@ -49,6 +49,30 @@ const adapter = createVSCodeModelAdapter();
 const runtime = useLocalRuntime(adapter);
 ```
 
+## Host services
+
+`serveWebviewHost` serves the same `routes` as `serveWebviewRoutes` and also answers the webview's calls into the host. Use it in place of `serveWebviewRoutes`:
+
+```ts
+import { serveWebviewHost } from "@assistant-ui/vscode/host";
+
+const host = serveWebviewHost(view.webview, {
+  routes: { "/api/chat": { POST } },
+  openExternal: (url) => vscode.env.openExternal(vscode.Uri.parse(url)),
+});
+view.onDidDispose(() => host.dispose());
+```
+
+### External links
+
+A webview cannot navigate away or open windows. `installLinkInterceptor()` catches clicks on absolute `http:`, `https:`, and `mailto:` links, plus `window.open` calls, and asks the host to open them with `openExternal`. The host checks the scheme again against `externalSchemes` before calling it. Relative links, `#anchors`, and clicks the app already `preventDefault`ed are left alone.
+
+```ts
+import { installLinkInterceptor } from "@assistant-ui/vscode/webview";
+
+installLinkInterceptor();
+```
+
 `acquireVsCodeApi()` may only be called once per webview. Use `getVSCodeApi()` wherever your webview code needs the API.
 
 ## Webview HTML and Content Security Policy

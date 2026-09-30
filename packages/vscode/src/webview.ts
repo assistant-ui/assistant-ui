@@ -10,5 +10,9 @@ export {
   createVSCodeModelAdapter,
   type VSCodeModelAdapterOptions,
 } from "./webview/model-adapter";
+export {
+  installLinkInterceptor,
+  type LinkInterceptorOptions,
+} from "./webview/links";
 export type { VSCodeModelRequest } from "./model-request";
 export * from "./protocol";
