@@ -5,6 +5,7 @@ import { finishProposed, type Checkout } from "@/lib/checkout/protocol";
 /**
  * welcome, connect, plan, install and every answer the user gave are
  * pages the user can step back to; the rest exist only while they are the live page.
+ * A product the agent proposed is added without a page, so it leaves no answer.
  */
 export type WizardPage =
   | { id: "welcome" }
@@ -67,7 +68,12 @@ const answersIn = (
   phase: Checkout.Status,
 ): WizardPage[] =>
   state.inputs
-    .filter((input) => input.phase === phase && input.status !== "open")
+    .filter(
+      (input) =>
+        input.phase === phase &&
+        input.status !== "open" &&
+        input.kind !== "product",
+    )
     .sort(
       (a, b) =>
         (a.answeredAt ?? a.createdAt) - (b.answeredAt ?? b.createdAt) ||
