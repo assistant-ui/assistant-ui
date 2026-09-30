@@ -857,7 +857,21 @@ describe("SetupWizard", () => {
       expect(centered()).toEqual(["Step 1", "Step 1"]);
     });
 
-    it("keeps following when the reader scrolls inside the running step's panel", () => {
+    it("keeps following when the reader scrolls inside the running step's panel, as long as the panel itself can scroll", () => {
+      observeRow();
+      scrollIntoView.mockClear();
+      const { rerender } = render(<SetupWizard checkout={stream(1)} />);
+      expect(centered()).toEqual(["Step 1"]);
+      const log = within(row()).getByRole("log");
+      Object.defineProperty(log, "scrollHeight", { value: 400 });
+      Object.defineProperty(log, "clientHeight", { value: 160 });
+
+      fireEvent.wheel(log);
+      rerender(<SetupWizard checkout={stream(2)} />);
+      expect(centered()).toEqual(["Step 1", "Step 1"]);
+    });
+
+    it("pauses when the reader wheels over a panel that does not scroll, since the list takes that scroll", () => {
       observeRow();
       scrollIntoView.mockClear();
       const { rerender } = render(<SetupWizard checkout={stream(1)} />);
@@ -865,7 +879,7 @@ describe("SetupWizard", () => {
 
       fireEvent.wheel(within(row()).getByRole("log"));
       rerender(<SetupWizard checkout={stream(2)} />);
-      expect(centered()).toEqual(["Step 1", "Step 1"]);
+      expect(centered()).toEqual(["Step 1"]);
     });
   });
 

@@ -487,7 +487,8 @@ function InstallSteps({
     let interacted = false;
     const pause = (event: Event) => {
       const target = event.target as Element | null;
-      if (target?.closest('[role="log"]')) return;
+      const log = target?.closest<HTMLElement>('[role="log"]');
+      if (log && log.scrollHeight > log.clientHeight) return;
       if (event.type === "keydown") {
         const { key } = event as KeyboardEvent;
         if (!scrollKeys.has(key)) return;

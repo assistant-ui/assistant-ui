@@ -67,7 +67,7 @@ export function StepActivity({
           className={
             empty
               ? "sr-only"
-              : "bg-muted motion-safe:animate-in motion-safe:fade-in flex max-h-40 flex-col gap-1.5 overflow-y-auto rounded-lg p-3 text-sm motion-safe:duration-300"
+              : "bg-muted motion-safe:animate-in motion-safe:fade-in flex max-h-40 flex-col gap-1.5 overflow-y-auto overscroll-y-contain rounded-lg p-3 text-sm motion-safe:duration-300"
           }
         >
           {entries.map((entry) => (
