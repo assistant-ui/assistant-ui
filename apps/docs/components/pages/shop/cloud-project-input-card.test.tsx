@@ -238,6 +238,9 @@ describe("CloudProjectInputCard", () => {
     expect(
       screen.queryByRole("textbox", { name: "Frontend API URL" }),
     ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Add a note for your agent" }),
+    ).toBeNull();
     expect(screen.queryByRole("link", { name: "Sign in" })).toBeNull();
     expect(mocks.enabled).not.toContain(true);
     mocks.session = { status: "signed-in", cloudHistory: false, user };

@@ -179,7 +179,7 @@ export function CloudProjectInputCard({
             ) : null}
           </div>
         ) : null}
-        <NoteField value={note} onChange={setNote} />
+        {loading ? null : <NoteField value={note} onChange={setNote} />}
       </fieldset>
       <SubmitRow
         input={input}
