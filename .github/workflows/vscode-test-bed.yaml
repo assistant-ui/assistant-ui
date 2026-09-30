@@ -5,6 +5,8 @@ on:
     paths:
       - .github/workflows/vscode-test-bed.yaml
       - examples/with-vscode/**
+      - templates/vscode/**
+      - templates/default/app/api/chat/route.ts
       - package.json
       - packages/**
       - pnpm-lock.yaml
@@ -16,6 +18,8 @@ on:
     paths:
       - .github/workflows/vscode-test-bed.yaml
       - examples/with-vscode/**
+      - templates/vscode/**
+      - templates/default/app/api/chat/route.ts
       - package.json
       - packages/**
       - pnpm-lock.yaml

@@ -10,6 +10,7 @@ import {
 } from "./probes";
 
 export type HostProbeContext = {
+  extensionPath: string;
   switchboard: Switchboard;
   webviews: AssistantWebviews;
   showAssistant(): Promise<void>;

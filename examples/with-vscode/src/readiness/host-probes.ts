@@ -3,6 +3,7 @@ import { isImplemented, SWITCHBOARD } from "../switchboard";
 import type { SeededThread } from "../protocol";
 import type { AttachedWebview } from "../webviews";
 import type { ProbeId, ProbeResult } from "./probes";
+import { scaffoldMatches } from "./scaffold";
 import {
   PROBE_TIMEOUT_MS,
   WEBVIEW_READY_TIMEOUT_MS,
@@ -150,4 +151,5 @@ const threadsPersist: HostProbe = async (ctx) => {
 export const HOST_PROBES: Partial<Record<ProbeId, HostProbe>> = {
   "every-runtime": everyRuntime,
   "threads-persist": threadsPersist,
+  "scaffold-matches": scaffoldMatches,
 };
