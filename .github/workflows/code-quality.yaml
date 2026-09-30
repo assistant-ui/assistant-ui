@@ -569,8 +569,7 @@ jobs:
           else
             FILTER="...[HEAD^1]"
           fi
-          pnpm turbo test:coverage --concurrency=1 --filter="$FILTER" -- \
-            --coverage.reporter=json-summary --coverage.reporter=lcov --coverage.reporter=text-summary
+          pnpm turbo test:coverage --concurrency=1 --filter="$FILTER"
 
       - name: Write the coverage summary
         if: always()

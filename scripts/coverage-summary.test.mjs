@@ -1,5 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -21,10 +28,6 @@ const totals = (covered, total) => ({
   branches: metric(covered, total),
 });
 
-/**
- * Create a temporary repository with package manifests and optional coverage
- * totals keyed by workspace path. The caller must remove the returned directory.
- */
 function createRepo(workspaces) {
   const root = mkdtempSync(path.join(tmpdir(), "aui-coverage-summary-"));
   for (const [dir, { name, total }] of Object.entries(workspaces)) {
@@ -76,6 +79,57 @@ test("omits the combined row for a single package", () => {
   assert.doesNotMatch(markdown, /\*\*All\*\*/);
 });
 
-test("says so when no package produced a report", () => {
-  assert.match(renderCoverageMarkdown([]), /No changed package/);
+test("says so when no package wrote a report", () => {
+  assert.match(
+    renderCoverageMarkdown([]),
+    /No package wrote a coverage report/,
+  );
+});
+
+const runScript = (root, args) =>
+  spawnSync(
+    process.execPath,
+    [path.join(import.meta.dirname, "coverage-summary.mjs"), ...args],
+    {
+      encoding: "utf8",
+      env: { ...process.env, COVERAGE_SUMMARY_ROOT: root },
+    },
+  );
+
+test("prints the table, or writes it where --report points, however pnpm passes the flag", () => {
+  const root = createRepo({
+    "packages/core": { name: "@assistant-ui/core", total: totals(1, 2) },
+  });
+  try {
+    const printed = runScript(root, []);
+    assert.equal(printed.status, 0);
+    assert.match(printed.stdout, /`@assistant-ui\/core` \| 50\.0%/);
+
+    const a = path.join(root, "a.md");
+    const b = path.join(root, "b.md");
+    const c = path.join(root, "c.md");
+    for (const [file, args] of [
+      [a, ["--report", a]],
+      [b, ["--", "--report", b]],
+      [c, [`--report=${c}`]],
+    ]) {
+      const result = runScript(root, args);
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(result.stdout, "");
+      assert.equal(readFileSync(file, "utf8"), printed.stdout);
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("fails when --report has no path", () => {
+  const root = createRepo({});
+  try {
+    const result = runScript(root, ["--report"]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Missing value for --report/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
