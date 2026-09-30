@@ -173,5 +173,10 @@ jobs:
         env:
           DEPLOY_SHA: ${{ steps.deploy-sha.outputs.value || inputs.releaseSha }}
         run: |
-          echo "::error::The registry deploy failed for ${DEPLOY_SHA}, so the registry still serves the previous release."
-          echo "::error::Rerun this job, or run Deploy Shadcn Registry via workflow_dispatch with releaseSha=${DEPLOY_SHA}."
+          if [ -n "$DEPLOY_SHA" ]; then
+            echo "::error::The registry deploy failed for ${DEPLOY_SHA}, so the registry still serves the previous release."
+            echo "::error::Rerun this job, or run Deploy Shadcn Registry via workflow_dispatch with releaseSha=${DEPLOY_SHA}."
+          else
+            echo "::error::The registry deploy failed before it resolved a commit, so the registry still serves the previous release."
+            echo "::error::Rerun this job, or run Deploy Shadcn Registry via workflow_dispatch without releaseSha to deploy the latest default-branch commit."
+          fi

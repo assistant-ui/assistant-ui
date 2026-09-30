@@ -173,9 +173,14 @@ jobs:
 
               const publishJob = jobs.find((job) => job.name === "Publish to npm");
 
-              if (publishJob?.status === "in_progress") {
+              // Once publish has run, an open run is either publishing or
+              // deploying the registry for that release.
+              if (
+                publishJob?.status === "in_progress" ||
+                publishJob?.status === "completed"
+              ) {
                 core.info(
-                  `Keeping run ${run.id} because Publish to npm is in progress`,
+                  `Keeping run ${run.id} because Publish to npm is ${publishJob.status}`,
                 );
                 continue;
               }
