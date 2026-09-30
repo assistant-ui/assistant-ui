@@ -659,7 +659,7 @@ export function DataTable({
                 </div>
               ) : null}
               {columns.length > 1 ? (
-                <dl className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1 text-[12px] leading-4">
+                <dl className="mt-1.5 grid grid-cols-1 gap-x-4 gap-y-1 text-[12px] leading-4 @xs:grid-cols-2">
                   {columns
                     .filter((column) => column.key !== primaryColumn?.key)
                     .map((column) => (

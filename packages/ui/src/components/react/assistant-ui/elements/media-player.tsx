@@ -169,7 +169,7 @@ export function AudioPlayer({
           <PlayIcon aria-hidden className="ml-0.5 size-4" />
         )}
       </button>
-      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+      <div className="flex min-w-16 flex-1 flex-col gap-1.5">
         <span className="truncate text-[13.5px] font-medium">
           {displayTitle}
         </span>
@@ -211,7 +211,7 @@ export function AudioPlayer({
         onError={() => update({ hasError: true, playing: false })}
       />
       {hasError ? (
-        <span role="alert" className="text-foreground/45 shrink-0 text-xs">
+        <span role="alert" className="text-foreground/45 text-xs">
           Can't play this audio
         </span>
       ) : null}

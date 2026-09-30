@@ -286,7 +286,7 @@ export function TerminalBlock({
       <div className="flex items-center justify-between gap-3 px-4 pt-3 pb-1.5">
         <span
           className={cn(
-            "min-w-0 break-all",
+            "min-w-0 break-words",
             ink
               ? "text-background/90 dark:text-foreground/90"
               : "text-foreground/90",

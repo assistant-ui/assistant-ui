@@ -61,7 +61,12 @@ export function TodoList({
             </p>
           ) : null}
         </div>
-        <span className={cn(mono, "text-foreground/35 tabular-nums")}>
+        <span
+          className={cn(
+            mono,
+            "text-foreground/35 shrink-0 whitespace-nowrap tabular-nums",
+          )}
+        >
           {revision === undefined
             ? `${done}/${total}`
             : `${done}/${total} · rev ${revision}`}
