@@ -226,7 +226,7 @@ type GenericUserMessage = {
   content: (GenericTextPart | GenericFilePart)[];
 };
 
-type HostToWebviewMessage = FetchHeadMessage | FetchChunkMessage | FetchEndMessage | FetchErrorMessage;
+type HostToWebviewMessage = FetchHeadMessage | FetchChunkMessage | FetchEndMessage | FetchErrorMessage | RpcResponseMessage;
 
 type HttpMethod = "DELETE" | "GET" | "HEAD" | "OPTIONS" | "PATCH" | "POST" | "PUT";
 
@@ -264,6 +264,12 @@ type LanguageModelV1CallSettings = {
   frequencyPenalty?: number;
   seed?: number;
   headers?: Record<string, string | undefined>;
+};
+
+type LinkInterceptorOptions = {
+  schemes?: readonly string[];
+  onError?: (error: unknown) => void;
+  port?: VSCodeBridgePort;
 };
 
 type MaybePromise<T> = T | Promise<T>;
@@ -411,8 +417,27 @@ type RouteHandlers = {
   [M in HttpMethod]?: RouteHandler;
 };
 
+type RpcRequestMessage = BridgeEnvelope<"rpc:request"> & {
+  method: string;
+  params: unknown[];
+};
+
+type RpcResponseMessage = BridgeEnvelope<"rpc:response"> & ({
+  ok: true;
+  result: unknown;
+} | {
+  ok: false;
+  message: string;
+});
+
 type RunConfig = {
   readonly custom?: Record<string, unknown>;
+};
+
+type ServeWebviewHostOptions = ServeWebviewRoutesOptions & {
+  routes?: WebviewRoutes;
+  openExternal?: (url: string) => PromiseLike<boolean> | boolean | void;
+  externalSchemes?: readonly string[];
 };
 
 type ServeWebviewRoutesOptions = {
@@ -795,7 +820,7 @@ type WebviewRoutes = Record<string, RouteHandlers>;
 
 type WebviewSurface = "editor" | "panel" | "sidebar";
 
-type WebviewToHostMessage = FetchRequestMessage | FetchAbortMessage;
+type WebviewToHostMessage = FetchRequestMessage | FetchAbortMessage | RpcRequestMessage;
 
 declare function createCspNonce(): string;
 
@@ -817,8 +842,10 @@ declare global {
 }
 
 declare namespace entry_host_exports {
-  export { BridgeHeaders, BridgeMessage, Disposable, FetchAbortMessage, FetchChunkMessage, FetchEndMessage, FetchErrorMessage, FetchHeadMessage, FetchRequestMessage, HostToWebviewMessage, HttpMethod, RenderWebviewHtmlOptions, RouteHandler, RouteHandlers, ServeWebviewRoutesOptions, VSCODE_BRIDGE_CHANNEL, VSCODE_VIRTUAL_ORIGIN, VSCodeModelRequest, WebviewCspMode, WebviewCspOptions, WebviewCspSource, WebviewLike, WebviewResourceLike, WebviewRoutes, WebviewSurface, WebviewToHostMessage, createCspNonce, createWebviewCsp, isHostToWebviewMessage, isWebviewToHostMessage, renderWebviewHtml, serveWebviewRoutes };
+  export { BridgeHeaders, BridgeMessage, Disposable, FetchAbortMessage, FetchChunkMessage, FetchEndMessage, FetchErrorMessage, FetchHeadMessage, FetchRequestMessage, HostToWebviewMessage, HttpMethod, RenderWebviewHtmlOptions, RouteHandler, RouteHandlers, RpcRequestMessage, RpcResponseMessage, ServeWebviewHostOptions, ServeWebviewRoutesOptions, VSCODE_BRIDGE_CHANNEL, VSCODE_VIRTUAL_ORIGIN, VSCodeModelRequest, WebviewCspMode, WebviewCspOptions, WebviewCspSource, WebviewLike, WebviewResourceLike, WebviewRoutes, WebviewSurface, WebviewToHostMessage, createCspNonce, createWebviewCsp, isHostToWebviewMessage, isWebviewToHostMessage, renderWebviewHtml, serveWebviewHost, serveWebviewRoutes };
 }
+
+declare function installLinkInterceptor(_param1?: LinkInterceptorOptions): () => void;
 
 declare const isHostToWebviewMessage: (value: unknown) => value is HostToWebviewMessage;
 
@@ -826,12 +853,14 @@ declare const isWebviewToHostMessage: (value: unknown) => value is WebviewToHost
 
 declare function renderWebviewHtml<U>(webview: WebviewResourceLike<U>, options: RenderWebviewHtmlOptions<U>): string;
 
-declare function serveWebviewRoutes(webview: WebviewLike, routes: WebviewRoutes, _param1?: ServeWebviewRoutesOptions): Disposable;
+declare function serveWebviewHost(webview: WebviewLike, _param2?: ServeWebviewHostOptions): Disposable;
+
+declare function serveWebviewRoutes(webview: WebviewLike, routes: WebviewRoutes, _param3?: ServeWebviewRoutesOptions): Disposable;
 
 declare const vscodeFetch: VSCodeFetch;
 
 declare namespace entry_webview_exports {
-  export { BridgeHeaders, BridgeMessage, FetchAbortMessage, FetchChunkMessage, FetchEndMessage, FetchErrorMessage, FetchHeadMessage, FetchRequestMessage, HostToWebviewMessage, VSCODE_BRIDGE_CHANNEL, VSCODE_VIRTUAL_ORIGIN, VSCodeApi, VSCodeBridgePort, VSCodeFetch, VSCodeModelAdapterOptions, VSCodeModelRequest, WebviewToHostMessage, createVSCodeFetch, createVSCodeModelAdapter, getCspNonce, getVSCodeApi, isHostToWebviewMessage, isWebviewToHostMessage, vscodeFetch };
+  export { BridgeHeaders, BridgeMessage, FetchAbortMessage, FetchChunkMessage, FetchEndMessage, FetchErrorMessage, FetchHeadMessage, FetchRequestMessage, HostToWebviewMessage, LinkInterceptorOptions, RpcRequestMessage, RpcResponseMessage, VSCODE_BRIDGE_CHANNEL, VSCODE_VIRTUAL_ORIGIN, VSCodeApi, VSCodeBridgePort, VSCodeFetch, VSCodeModelAdapterOptions, VSCodeModelRequest, WebviewToHostMessage, createVSCodeFetch, createVSCodeModelAdapter, getCspNonce, getVSCodeApi, installLinkInterceptor, isHostToWebviewMessage, isWebviewToHostMessage, vscodeFetch };
 }
 
 export { entry_host_exports as entry_host, entry_webview_exports as entry_webview };

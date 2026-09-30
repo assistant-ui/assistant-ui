@@ -22,7 +22,7 @@ const NULL_BODY_STATUSES = new Set([101, 204, 205, 304]);
 const idPrefix = Math.random().toString(36).slice(2, 10);
 let nextId = 0;
 
-const webviewPort: VSCodeBridgePort = {
+export const webviewPort: VSCodeBridgePort = {
   postMessage: (message) => getVSCodeApi().postMessage(message),
   onMessage: (listener) => {
     const handler = (event: MessageEvent) => listener(event.data);
