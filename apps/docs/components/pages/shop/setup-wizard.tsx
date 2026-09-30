@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
@@ -51,6 +52,7 @@ import { PlanCard, PlanMarkdown } from "@/components/pages/shop/plan-card";
 import { AgentChat, conversation } from "@/components/pages/shop/agent-chat";
 import { SetupIntro } from "@/components/pages/shop/setup-intro";
 import { SetupBackButton } from "@/components/pages/shop/setup-back-button";
+import { StepActivity } from "@/components/pages/shop/step-activity";
 import {
   livePage,
   pageKey,
@@ -72,9 +74,11 @@ import { abandonCheckout, finishCheckout } from "@/lib/checkout/flow";
 import { acknowledgeSetupIntro } from "@/lib/checkout/session-store";
 import { useSyntheticProgress } from "@/components/pages/shop/use-synthetic-progress";
 import { useElapsed } from "@/components/pages/shop/use-elapsed";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import {
   finishProposed,
   inputPrompt,
+  stepActivity,
   stepsFinalized,
   unreadAgentEntries,
   type Checkout,
@@ -87,6 +91,8 @@ const listProducts = (names: string[]) =>
   new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(
     names,
   );
+
+const TITLE_PRODUCTS = 2;
 
 function ConnectionNotice({
   connection,
@@ -341,6 +347,45 @@ function WorkingProgress({
   );
 }
 
+const EXPLORING_VERBS = [
+  "Exploring",
+  "Reading",
+  "Mapping",
+  "Scanning",
+  "Surveying",
+  "Inspecting",
+  "Studying",
+];
+const VERB_MS = 2400;
+
+function ExploringTitle({ active }: { active: boolean }) {
+  const reduced = useReducedMotion();
+  const [index, setIndex] = useState(0);
+  const rotating = active && !reduced;
+  useEffect(() => {
+    if (!rotating) return;
+    const timer = setInterval(
+      () => setIndex((current) => (current + 1) % EXPLORING_VERBS.length),
+      VERB_MS,
+    );
+    return () => clearInterval(timer);
+  }, [rotating]);
+  const verb = EXPLORING_VERBS[index]!;
+  return (
+    <>
+      <span
+        key={verb}
+        aria-hidden="true"
+        className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 inline-block motion-safe:duration-300"
+      >
+        {verb}
+      </span>
+      <span className="sr-only">{EXPLORING_VERBS[0]}</span>
+      {" your project"}
+    </>
+  );
+}
+
 const STEP_FILL_TAU_MS = 20_000;
 
 const stepFill = (elapsed: number) => 1 - Math.exp(-elapsed / STEP_FILL_TAU_MS);
@@ -385,6 +430,28 @@ function useLeaving(present: boolean) {
   return leaving;
 }
 
+const scrollKeys = new Set([
+  "ArrowUp",
+  "ArrowDown",
+  "PageUp",
+  "PageDown",
+  "Home",
+  "End",
+  " ",
+]);
+
+function scrollerOf(element: HTMLElement): HTMLElement {
+  for (
+    let node: HTMLElement | null = element;
+    node !== null;
+    node = node.parentElement
+  ) {
+    const { overflowY } = getComputedStyle(node);
+    if (overflowY === "auto" || overflowY === "scroll") return node;
+  }
+  return element;
+}
+
 function InstallSteps({
   checkout,
   state,
@@ -395,14 +462,66 @@ function InstallSteps({
   const closed = state.status === "done" || state.status === "cancelled";
   const drafting = !closed && !finishProposed(state) && !stepsFinalized(state);
   const leaving = useLeaving(drafting);
+  const name = useAgentName(checkout);
   const activeId = state.steps.find((step) => step.status === "active")?.id;
+  const activeLast =
+    activeId === undefined
+      ? undefined
+      : stepActivity(state, activeId).at(-1)?.id;
   const list = useRef<HTMLOListElement>(null);
+  const following = useRef(true);
   useEffect(() => {
-    if (activeId === undefined) return;
+    following.current = true;
+    const element = list.current;
+    if (!element) return;
+    const scroller = scrollerOf(element);
+    const pause = (event: Event) => {
+      const target = event.target as Element | null;
+      if (target?.closest('[role="log"]')) return;
+      if (event.type === "keydown") {
+        const { key } = event as KeyboardEvent;
+        if (!scrollKeys.has(key)) return;
+        if (key === " " && target?.closest("button")) return;
+      }
+      if (event.type === "pointerdown" && target !== scroller) return;
+      following.current = false;
+    };
+    const interactions = [
+      "wheel",
+      "touchmove",
+      "keydown",
+      "pointerdown",
+    ] as const;
+    for (const type of interactions) {
+      scroller.addEventListener(type, pause, { passive: true });
+    }
+    let observer: IntersectionObserver | undefined;
+    const row = element.querySelector('[aria-current="step"]');
+    if (row && typeof IntersectionObserver !== "undefined") {
+      observer = new IntersectionObserver(
+        (entries) => {
+          const entry = entries.at(-1);
+          if (!entry) return;
+          if (entry.intersectionRatio >= 1) following.current = true;
+          else if (!entry.isIntersecting) following.current = false;
+        },
+        { threshold: [0, 1] },
+      );
+      observer.observe(row);
+    }
+    return () => {
+      observer?.disconnect();
+      for (const type of interactions) {
+        scroller.removeEventListener(type, pause);
+      }
+    };
+  }, [activeId]);
+  useEffect(() => {
+    if (activeId === undefined || !following.current) return;
     list.current
       ?.querySelector('[aria-current="step"]')
       ?.scrollIntoView({ block: "center" });
-  }, [activeId]);
+  }, [activeId, activeLast]);
   let lastProduct: string | undefined;
   return (
     <ol
@@ -423,6 +542,7 @@ function InstallSteps({
             : undefined;
         lastProduct = step.product ?? lastProduct;
         const glyph = product ? getCatalogItem(product.slug)?.glyph : undefined;
+        const activity = stepActivity(state, step.id);
         return (
           <TimelineEntry
             key={step.id}
@@ -438,7 +558,16 @@ function InstallSteps({
                 </p>
               ) : undefined
             }
-          />
+          >
+            {activity.length > 0 ? (
+              <StepActivity
+                entries={activity}
+                live={step.id === activeId}
+                agentName={name}
+                stepTitle={step.title}
+              />
+            ) : null}
+          </TimelineEntry>
         );
       })}
       {drafting || leaving ? (
@@ -457,7 +586,7 @@ function InstallSteps({
 }
 
 type PageView = {
-  title: string;
+  title: ReactNode;
   subtitle?: string | undefined;
   header?: ReactNode;
   body: ReactNode;
@@ -540,6 +669,27 @@ export function SetupWizard({
     : checkout.session.products.map(
         (slug) => getCatalogItem(slug)?.name ?? slug,
       );
+  const productList = listProducts(products);
+  const [wrappedList, setWrappedList] = useState<string>();
+  const titleNamesProducts =
+    page.id === "welcome" &&
+    products.length <= TITLE_PRODUCTS &&
+    wrappedList !== productList;
+  const titleText = useRef<HTMLSpanElement>(null);
+  // An inline element has one client rect per line box, and the frame never widens on its own, so a title that wrapped once stays short.
+  useLayoutEffect(() => {
+    if (!titleNamesProducts) return;
+    const demoteIfWrapped = () => {
+      if ((titleText.current?.getClientRects().length ?? 0) > 1)
+        setWrappedList(productList);
+    };
+    demoteIfWrapped();
+    const block = heading.current;
+    if (typeof ResizeObserver !== "function" || block === null) return;
+    const observer = new ResizeObserver(demoteIfWrapped);
+    observer.observe(block);
+    return () => observer.disconnect();
+  }, [titleNamesProducts, productList]);
   const done = state?.status === "done";
   useEffect(() => {
     if (done) analytics.setup.installFinished();
@@ -566,7 +716,12 @@ export function SetupWizard({
     switch (page.id) {
       case "welcome":
         return {
-          title: `Welcome to the setup wizard for ${listProducts(products)}`,
+          title: titleNamesProducts
+            ? `Welcome to the setup wizard for ${productList}`
+            : "Welcome to the setup wizard",
+          subtitle: titleNamesProducts
+            ? undefined
+            : `Setting up ${productList}.`,
           body: <SetupIntro onContinue={acknowledgeSetupIntro} />,
         };
       case "connect":
@@ -622,7 +777,11 @@ export function SetupWizard({
       case "working": {
         const revising = checkout.plan?.status === "changes-requested";
         return {
-          title: revising ? "Revising the plan" : "Exploring your project",
+          title: revising ? (
+            "Revising the plan"
+          ) : (
+            <ExploringTitle active={agentWorking(checkout)} />
+          ),
           body: state ? (
             <div className="flex flex-col gap-4">
               <WorkingProgress
@@ -754,7 +913,7 @@ export function SetupWizard({
                 tabIndex={-1}
                 className="text-lg font-semibold text-balance"
               >
-                {view.title}
+                <span ref={titleText}>{view.title}</span>
               </h1>
               {view.subtitle ? (
                 <p className="text-muted-foreground motion-safe:animate-in motion-safe:fade-in mt-1 text-sm motion-safe:duration-300">

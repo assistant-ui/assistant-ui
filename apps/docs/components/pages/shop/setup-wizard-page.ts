@@ -67,7 +67,12 @@ const answersIn = (
   phase: Checkout.Status,
 ): WizardPage[] =>
   state.inputs
-    .filter((input) => input.phase === phase && input.status !== "open")
+    .filter(
+      (input) =>
+        input.phase === phase &&
+        input.status !== "open" &&
+        input.kind !== "product",
+    )
     .sort(
       (a, b) =>
         (a.answeredAt ?? a.createdAt) - (b.answeredAt ?? b.createdAt) ||

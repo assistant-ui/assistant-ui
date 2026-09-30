@@ -2,7 +2,11 @@ import "server-only";
 
 import { Redis } from "@upstash/redis";
 import { after } from "next/server";
-import { createAccountsAuth, createMemorySessionStore } from "aui-auth";
+import {
+  createAccountsAuth,
+  createMemorySessionStore,
+  type AccountsFetchOptions,
+} from "aui-auth";
 import { createAesGcmCodec } from "aui-auth/database";
 import { createRedisSessionStore } from "aui-auth/database/redis";
 import { withNextRequestScope } from "aui-auth/next";
@@ -48,6 +52,14 @@ export const accounts =
       })
     : null;
 
-export const getSession = accounts
-  ? withNextRequestScope(accounts).getSession
-  : async () => null;
+export const accountsOptions: AccountsFetchOptions | null = issuer
+  ? { issuer }
+  : null;
+
+const scope = accounts ? withNextRequestScope(accounts) : null;
+
+export const getSession = scope ? scope.getSession : async () => null;
+
+export const getAccessToken = scope
+  ? scope.getAccessToken
+  : async (): Promise<string | null> => null;

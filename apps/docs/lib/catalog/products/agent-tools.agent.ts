@@ -3,7 +3,7 @@ import "server-only";
 export const AGENT_TOOLS_AGENT_PROMPTS = new Map<string, string>([
   [
     "agent-tools",
-    `This product assumes assistant-ui is already installed with a chat route on the AI SDK. If it is not, do not scaffold it as a side effect. In a setup session, propose adding it (\`ask "<why>" --product assistant-ui --wait\`) and install it first once the user accepts; otherwise stop and tell the user to set up assistant-ui first.
+    `This product assumes assistant-ui is already installed with a chat route on the AI SDK. If it is not, do not scaffold it as a side effect. In a setup session, add it (\`ask "<why>" --product assistant-ui --wait\`; the browser accepts the product and answers at once) and install it first; outside one, stop and tell the user to set up assistant-ui first.
 
 1. Ask what the tools should do if the user has not said: \`ask "What should the agent be able to do? Name each action and the data it needs." --wait\`. For each tool in the answer derive a snake_case name, a one-line description, the parameters, and where it runs: in the browser when it reads app state or drives the UI, on the server when it calls an API or needs a secret. Ask for any URL or key the executor needs with --wait; never invent one.
 2. Enable the "use generative" compiler: wrap next.config.ts with \`withAui\` from @assistant-ui/next, add \`aui()\` from @assistant-ui/vite on Vite and TanStack Start, or wrap metro.config.js with \`withAui\` from @assistant-ui/metro on Expo. Install that package and zod with the project's package manager, detected from its lockfile.
