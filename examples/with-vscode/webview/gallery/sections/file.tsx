@@ -51,7 +51,7 @@ export default defineSections([
     title: "File (audio part)",
     category: "content",
     notes:
-      "An audio/wav data: URL renders the kit's AudioPlayer. The CSP has no media-src, so default-src 'none' governs <audio>.",
+      "An audio/wav data: URL renders the kit's AudioPlayer. media-src allows data:.",
     render: () => (
       <File
         type="file"

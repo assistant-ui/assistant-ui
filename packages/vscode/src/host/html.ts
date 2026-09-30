@@ -134,6 +134,7 @@ export function createWebviewCsp(
       csp === "relaxed" ? "'unsafe-inline'" : `'nonce-${nonce}'`,
     ],
     ["img-src", cspSource, "blob:", "data:", "https:"],
+    ["media-src", cspSource, "blob:", "data:", "https:"],
     ["font-src", cspSource, "data:"],
     [
       "connect-src",
