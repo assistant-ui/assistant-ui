@@ -159,7 +159,9 @@ function CheckoutSessionBridge({
       if (rejected.current.has(input.id) && !warned.current.has(input.id)) {
         warned.current.add(input.id);
         toast.error(
-          `Could not add ${product?.name ?? "the product"} to this setup. Trying again.`,
+          product
+            ? `Could not add ${product.name} to this setup. Trying again.`
+            : "Could not decline the agent's product proposal. Trying again.",
         );
       }
       const settled = product

@@ -202,6 +202,34 @@ describe("CheckoutSessionBridge", () => {
     }
   });
 
+  it("says once, as the retry starts, that a proposal the catalog lacks could not be declined and declines it again", async () => {
+    vi.useFakeTimers();
+    try {
+      wire.dismiss.mockRejectedValueOnce(new Error("refused"));
+      wire.state = {
+        ...previous(),
+        id: "s2",
+        status: "planning",
+        inputs: [proposal("p2", "nope")],
+      };
+      render(<CheckoutSessionBridge session={session} onChange={vi.fn()} />);
+      expect(wire.dismiss).toHaveBeenCalledOnce();
+
+      await act(() => Promise.resolve());
+      expect(mocks.toastError).not.toHaveBeenCalled();
+      act(() => vi.advanceTimersByTime(5000));
+      expect(wire.dismiss).toHaveBeenCalledTimes(2);
+      expect(wire.dismiss).toHaveBeenLastCalledWith({ inputId: "p2" });
+      expect(wire.addProduct).not.toHaveBeenCalled();
+      expect(mocks.toastError).toHaveBeenCalledOnce();
+      expect(mocks.toastError).toHaveBeenCalledWith(
+        "Could not decline the agent's product proposal. Trying again.",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("stays quiet when a refused proposal is answered before the retry, as when another tab added it", async () => {
     vi.useFakeTimers();
     try {
