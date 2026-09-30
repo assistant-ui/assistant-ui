@@ -125,6 +125,53 @@ describe("@assistant-ui/tap/react resource API", () => {
       expect(values).toEqual([5, 0]);
     });
 
+    it("reuses clean no-deps children during a child update", () => {
+      const renders: Record<string, number> = {};
+      const setters: Record<string, (n: number) => void> = {};
+      const useItem = (id: string) => {
+        renders[id] = (renders[id] ?? 0) + 1;
+        const [value, setValue] = useResourceState(0);
+        setters[id] = setValue;
+        return value;
+      };
+      const Item = resource(useItem);
+      const elements = [withKey("a", Item("a")), withKey("b", Item("b"))];
+
+      let values: number[] = [];
+      function App() {
+        values = useResources(elements);
+        return null;
+      }
+
+      render(<App />);
+      expect(renders).toEqual({ a: 1, b: 1 });
+
+      act(() => setters.a!(5));
+      expect(values).toEqual([5, 0]);
+      expect(renders).toEqual({ a: 2, b: 1 });
+    });
+
+    it("re-renders no-deps children when the parent rebuilds the list", () => {
+      const renders: Record<string, number> = {};
+      let setTick: (value: number) => void = () => {};
+      const Item = resource(({ id }: { id: string }) => {
+        renders[id] = (renders[id] ?? 0) + 1;
+        return id;
+      });
+
+      function App() {
+        const [, set] = useState(0);
+        setTick = set;
+        useResources([withKey("a", Item({ id: "a" }))]);
+        return null;
+      }
+
+      render(<App />);
+      expect(renders).toEqual({ a: 1 });
+      act(() => setTick(1));
+      expect(renders).toEqual({ a: 2 });
+    });
+
     it("skips re-rendering a child whose withKey deps are unchanged", () => {
       const renders: Record<string, number> = {};
       const useItem = (p: { id: string; text: string }) => {
