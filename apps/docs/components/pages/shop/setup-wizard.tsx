@@ -563,7 +563,7 @@ function InstallSteps({
               ) : undefined
             }
           >
-            {activity.length > 0 ? (
+            {activity.length > 0 || step.id === activeId ? (
               <StepActivity
                 entries={activity}
                 live={step.id === activeId}

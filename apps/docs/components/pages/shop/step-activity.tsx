@@ -8,6 +8,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import type { Checkout } from "@/lib/checkout/protocol";
+import { cn } from "@/lib/utils";
 
 /** The agent's lines under an install step: open while the step runs, folded once it is done, unless the user toggled it. */
 export function StepActivity({
@@ -24,7 +25,10 @@ export function StepActivity({
   stepTitle: string;
 }) {
   const [toggled, setToggled] = useState<boolean>();
-  const open = toggled ?? live;
+  const count = entries.length;
+  const empty = count === 0;
+  // Screen readers only announce changes to a live region that already existed, so the log is mounted, empty and hidden, before the first line.
+  const open = empty || (toggled ?? live);
   const list = useRef<HTMLOListElement>(null);
   const pinned = useRef(true);
   const last = entries.at(-1)?.id;
@@ -36,15 +40,20 @@ export function StepActivity({
     if (!open || element === null || !pinned.current) return;
     element.scrollTop = element.scrollHeight;
   }, [open, last]);
-  const count = entries.length;
   return (
-    <Collapsible open={open} onOpenChange={setToggled}>
-      <CollapsibleTrigger className="text-muted-foreground hover:text-foreground group flex items-center gap-1.5 text-sm">
-        {count} {count === 1 ? "line" : "lines"} from {agentName}{" "}
-        <span className="sr-only">for {stepTitle}</span>
-        <ChevronDownIcon className="size-3.5 transition-transform group-data-[panel-open]:rotate-180" />
-      </CollapsibleTrigger>
-      <CollapsibleContent className="mt-2">
+    <Collapsible
+      open={open}
+      onOpenChange={setToggled}
+      className={cn(!empty && "mt-3")}
+    >
+      {empty ? null : (
+        <CollapsibleTrigger className="text-muted-foreground hover:text-foreground group flex items-center gap-1.5 text-sm">
+          {count} {count === 1 ? "line" : "lines"} from {agentName}{" "}
+          <span className="sr-only">for {stepTitle}</span>
+          <ChevronDownIcon className="size-3.5 transition-transform group-data-[panel-open]:rotate-180" />
+        </CollapsibleTrigger>
+      )}
+      <CollapsibleContent className={cn(!empty && "mt-2")}>
         <ol
           ref={list}
           role="log"
@@ -55,7 +64,11 @@ export function StepActivity({
               event.currentTarget;
             pinned.current = scrollHeight - scrollTop - clientHeight < 8;
           }}
-          className="bg-muted motion-safe:animate-in motion-safe:fade-in flex max-h-40 flex-col gap-1.5 overflow-y-auto rounded-lg p-3 text-sm motion-safe:duration-300"
+          className={
+            empty
+              ? "sr-only"
+              : "bg-muted motion-safe:animate-in motion-safe:fade-in flex max-h-40 flex-col gap-1.5 overflow-y-auto rounded-lg p-3 text-sm motion-safe:duration-300"
+          }
         >
           {entries.map((entry) => (
             <li

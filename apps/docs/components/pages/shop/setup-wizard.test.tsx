@@ -580,6 +580,69 @@ describe("SetupWizard", () => {
     ).toBe("true");
   });
 
+  it("mounts the running step's log before its first line, so a screen reader announces that line too", () => {
+    const step = (
+      id: string,
+      title: string,
+      status: Checkout.StepStatus,
+    ): Checkout.Step => ({ id, title, status, createdAt: 0 });
+    const installing = (...log: Checkout.LogEntry[]) =>
+      context(
+        connected({
+          status: "installing",
+          steps: [
+            step("s1", "Add the route", "done"),
+            step("s2", "Wire the runtime", "active"),
+          ],
+          log,
+        }),
+      );
+    const rows = () =>
+      Array.from(
+        screen
+          .getByRole("list", { name: "Installation steps" })
+          .querySelectorAll(":scope > li"),
+      ) as HTMLElement[];
+    const { rerender } = render(<SetupWizard checkout={installing()} />);
+    const [done, running] = rows();
+    expect(within(done!).queryByRole("log")).toBeNull();
+    expect(within(done!).queryByRole("button")).toBeNull();
+    const log = within(running!).getByRole("log");
+    expect(log.getAttribute("aria-live")).toBe("polite");
+    expect(log.textContent).toBe("");
+    expect(log.className).toBe("sr-only");
+    expect(within(running!).queryByRole("button")).toBeNull();
+
+    rerender(
+      <SetupWizard
+        checkout={installing({
+          id: "l1",
+          role: "agent",
+          phase: "installing",
+          at: 1,
+          text: "Installing @assistant-ui/react",
+          stepId: "s2",
+        })}
+      />,
+    );
+    const row = rows()[1]!;
+    expect(within(row).getByRole("log")).toBe(log);
+    expect(log.className).not.toContain("sr-only");
+    expect(log.className).toContain("bg-muted");
+    expect(
+      within(log)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual(["Installing @assistant-ui/react"]);
+    expect(
+      within(row)
+        .getByRole("button", {
+          name: "1 line from Claude Code for Wire the runtime",
+        })
+        .getAttribute("aria-expanded"),
+    ).toBe("true");
+  });
+
   describe("following the step in progress", () => {
     const step = (id: string, status: Checkout.StepStatus): Checkout.Step => ({
       id,
