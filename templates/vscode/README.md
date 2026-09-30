@@ -10,7 +10,7 @@ npm install
 
 Open this folder in VS Code and press F5. The `dev` task builds the extension in watch mode, and an Extension Development Host window opens with the **Assistant** view in the secondary side bar.
 
-The first time the view opens, it asks for your OpenAI API key and stores it in VS Code's secret storage. Run **Assistant: Set OpenAI API Key** from the Command Palette to change it. Without a stored key, the extension reads `OPENAI_API_KEY` from its environment.
+The first time the view opens, it prompts you to set your OpenAI API key, which it stores in VS Code's secret storage. Run **Assistant: Set OpenAI API Key** from the Command Palette to change it. Without a stored key, the extension reads `OPENAI_API_KEY` from its environment.
 
 ## How it works
 
