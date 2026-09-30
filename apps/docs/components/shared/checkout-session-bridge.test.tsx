@@ -172,93 +172,81 @@ describe("CheckoutSessionBridge", () => {
 
   it("says once, as the retry starts, that a proposed product could not be added and keeps retrying every tick until it lands", async () => {
     vi.useFakeTimers();
-    try {
-      wire.addProduct
-        .mockRejectedValueOnce(new Error("refused"))
-        .mockRejectedValueOnce(new Error("refused"));
-      wire.state = {
-        ...previous(),
-        id: "s2",
-        status: "planning",
-        inputs: [proposal("p1", "assistant-ui")],
-      };
-      render(<CheckoutSessionBridge session={session} onChange={vi.fn()} />);
-      expect(wire.addProduct).toHaveBeenCalledOnce();
+    wire.addProduct
+      .mockRejectedValueOnce(new Error("refused"))
+      .mockRejectedValueOnce(new Error("refused"));
+    wire.state = {
+      ...previous(),
+      id: "s2",
+      status: "planning",
+      inputs: [proposal("p1", "assistant-ui")],
+    };
+    render(<CheckoutSessionBridge session={session} onChange={vi.fn()} />);
+    expect(wire.addProduct).toHaveBeenCalledOnce();
 
-      await act(() => Promise.resolve());
-      expect(mocks.toastError).not.toHaveBeenCalled();
-      act(() => vi.advanceTimersByTime(5000));
-      expect(wire.addProduct).toHaveBeenCalledTimes(2);
-      expect(mocks.toastError).toHaveBeenCalledOnce();
-      expect(mocks.toastError).toHaveBeenCalledWith(
-        "Could not add assistant-ui to this setup. Trying again.",
-      );
+    await act(() => Promise.resolve());
+    expect(mocks.toastError).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(5000));
+    expect(wire.addProduct).toHaveBeenCalledTimes(2);
+    expect(mocks.toastError).toHaveBeenCalledOnce();
+    expect(mocks.toastError).toHaveBeenCalledWith(
+      "Could not add assistant-ui to this setup. Trying again.",
+    );
 
-      await act(() => Promise.resolve());
-      act(() => vi.advanceTimersByTime(5000));
-      expect(wire.addProduct).toHaveBeenCalledTimes(3);
-      expect(mocks.toastError).toHaveBeenCalledOnce();
+    await act(() => Promise.resolve());
+    act(() => vi.advanceTimersByTime(5000));
+    expect(wire.addProduct).toHaveBeenCalledTimes(3);
+    expect(mocks.toastError).toHaveBeenCalledOnce();
 
-      await act(() => Promise.resolve());
-      act(() => vi.advanceTimersByTime(5000));
-      expect(wire.addProduct).toHaveBeenCalledTimes(3);
-    } finally {
-      vi.useRealTimers();
-    }
+    await act(() => Promise.resolve());
+    act(() => vi.advanceTimersByTime(5000));
+    expect(wire.addProduct).toHaveBeenCalledTimes(3);
   });
 
   it("says once, as the retry starts, that a proposal the catalog lacks could not be declined and declines it again", async () => {
     vi.useFakeTimers();
-    try {
-      wire.dismiss.mockRejectedValueOnce(new Error("refused"));
-      wire.state = {
-        ...previous(),
-        id: "s2",
-        status: "planning",
-        inputs: [proposal("p2", "nope")],
-      };
-      render(<CheckoutSessionBridge session={session} onChange={vi.fn()} />);
-      expect(wire.dismiss).toHaveBeenCalledOnce();
+    wire.dismiss.mockRejectedValueOnce(new Error("refused"));
+    wire.state = {
+      ...previous(),
+      id: "s2",
+      status: "planning",
+      inputs: [proposal("p2", "nope")],
+    };
+    render(<CheckoutSessionBridge session={session} onChange={vi.fn()} />);
+    expect(wire.dismiss).toHaveBeenCalledOnce();
 
-      await act(() => Promise.resolve());
-      expect(mocks.toastError).not.toHaveBeenCalled();
-      act(() => vi.advanceTimersByTime(5000));
-      expect(wire.dismiss).toHaveBeenCalledTimes(2);
-      expect(wire.dismiss).toHaveBeenLastCalledWith({ inputId: "p2" });
-      expect(wire.addProduct).not.toHaveBeenCalled();
-      expect(mocks.toastError).toHaveBeenCalledOnce();
-      expect(mocks.toastError).toHaveBeenCalledWith(
-        "Could not decline the agent's product proposal. Trying again.",
-      );
-    } finally {
-      vi.useRealTimers();
-    }
+    await act(() => Promise.resolve());
+    expect(mocks.toastError).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(5000));
+    expect(wire.dismiss).toHaveBeenCalledTimes(2);
+    expect(wire.dismiss).toHaveBeenLastCalledWith({ inputId: "p2" });
+    expect(wire.addProduct).not.toHaveBeenCalled();
+    expect(mocks.toastError).toHaveBeenCalledOnce();
+    expect(mocks.toastError).toHaveBeenCalledWith(
+      "Could not decline the agent's product proposal. Trying again.",
+    );
   });
 
   it("stays quiet when a refused proposal is answered before the retry, as when another tab added it", async () => {
     vi.useFakeTimers();
-    try {
-      wire.addProduct.mockRejectedValueOnce(new Error("input-closed"));
-      wire.state = {
-        ...previous(),
-        id: "s2",
-        status: "planning",
-        inputs: [proposal("p1", "assistant-ui")],
-      };
-      render(<CheckoutSessionBridge session={session} onChange={vi.fn()} />);
-      expect(wire.addProduct).toHaveBeenCalledOnce();
+    wire.addProduct.mockRejectedValueOnce(new Error("input-closed"));
+    wire.state = {
+      ...previous(),
+      id: "s2",
+      status: "planning",
+      inputs: [proposal("p1", "assistant-ui")],
+    };
+    render(<CheckoutSessionBridge session={session} onChange={vi.fn()} />);
+    expect(wire.addProduct).toHaveBeenCalledOnce();
 
-      await act(() => Promise.resolve());
-      setWire({
-        ...wire.state!,
-        inputs: [{ ...proposal("p1", "assistant-ui"), status: "answered" }],
-      });
-      act(() => vi.advanceTimersByTime(5000));
-      expect(wire.addProduct).toHaveBeenCalledOnce();
-      expect(mocks.toastError).not.toHaveBeenCalled();
-    } finally {
-      vi.useRealTimers();
-    }
+    await act(() => Promise.resolve());
+    setWire({
+      ...wire.state!,
+      inputs: [{ ...proposal("p1", "assistant-ui"), status: "answered" }],
+    });
+    act(() => vi.advanceTimersByTime(5000));
+    expect(wire.addProduct).toHaveBeenCalledOnce();
+    expect(mocks.toastError).not.toHaveBeenCalled();
   });
 
   it("leaves a proposal alone once the checkout is closed", () => {

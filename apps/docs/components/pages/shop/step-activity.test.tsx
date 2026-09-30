@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { StepActivity } from "./step-activity";
 import type { Checkout } from "../../../lib/checkout/protocol";
 
@@ -20,6 +20,25 @@ const lines = [line("l1", "Reading app/api"), line("l2", "Writing route.ts")];
 
 const toggle = () => screen.getByRole("button", { name: /lines? from Codex/ });
 const expanded = () => toggle().getAttribute("aria-expanded");
+
+const measure = (log: HTMLElement) => {
+  let top = 0;
+  Object.defineProperty(log, "scrollHeight", {
+    value: 400,
+    configurable: true,
+  });
+  Object.defineProperty(log, "clientHeight", {
+    value: 160,
+    configurable: true,
+  });
+  Object.defineProperty(log, "scrollTop", {
+    get: () => top,
+    set: (value: number) => {
+      top = value;
+    },
+    configurable: true,
+  });
+};
 
 describe("StepActivity", () => {
   it("opens while the step runs, reads its lines out live, and folds once the step is done", () => {
@@ -113,16 +132,7 @@ describe("StepActivity", () => {
       />,
     );
     const log = screen.getByRole("log");
-    const scrolled = vi.fn();
-    Object.defineProperty(log, "scrollHeight", {
-      value: 480,
-      configurable: true,
-    });
-    Object.defineProperty(log, "scrollTop", {
-      get: () => 0,
-      set: scrolled,
-      configurable: true,
-    });
+    measure(log);
     rerender(
       <StepActivity
         entries={lines}
@@ -131,6 +141,86 @@ describe("StepActivity", () => {
         stepTitle="Add the route"
       />,
     );
-    expect(scrolled).toHaveBeenLastCalledWith(480);
+    expect(log.scrollTop).toBe(400);
+  });
+
+  it("keeps the place of a reader who scrolled up", () => {
+    const { rerender } = render(
+      <StepActivity
+        entries={[lines[0]!]}
+        live
+        agentName="Codex"
+        stepTitle="Add the route"
+      />,
+    );
+    const log = screen.getByRole("log");
+    measure(log);
+    log.scrollTop = 0;
+    fireEvent.scroll(log);
+    rerender(
+      <StepActivity
+        entries={lines}
+        live
+        agentName="Codex"
+        stepTitle="Add the route"
+      />,
+    );
+    expect(log.scrollTop).toBe(0);
+  });
+
+  it("follows again once the reader is back at the bottom", () => {
+    const { rerender } = render(
+      <StepActivity
+        entries={[lines[0]!]}
+        live
+        agentName="Codex"
+        stepTitle="Add the route"
+      />,
+    );
+    const log = screen.getByRole("log");
+    measure(log);
+    log.scrollTop = 0;
+    fireEvent.scroll(log);
+    log.scrollTop = 235;
+    fireEvent.scroll(log);
+    rerender(
+      <StepActivity
+        entries={lines}
+        live
+        agentName="Codex"
+        stepTitle="Add the route"
+      />,
+    );
+    expect(log.scrollTop).toBe(400);
+  });
+
+  it("follows again in a reopened panel, which is a new element", () => {
+    const { rerender } = render(
+      <StepActivity
+        entries={[lines[0]!]}
+        live
+        agentName="Codex"
+        stepTitle="Add the route"
+      />,
+    );
+    const log = screen.getByRole("log");
+    measure(log);
+    log.scrollTop = 0;
+    fireEvent.scroll(log);
+    fireEvent.click(toggle());
+    expect(screen.queryByRole("log")).toBeNull();
+    fireEvent.click(toggle());
+    const reopened = screen.getByRole("log");
+    expect(reopened).not.toBe(log);
+    measure(reopened);
+    rerender(
+      <StepActivity
+        entries={lines}
+        live
+        agentName="Codex"
+        stepTitle="Add the route"
+      />,
+    );
+    expect(reopened.scrollTop).toBe(400);
   });
 });
