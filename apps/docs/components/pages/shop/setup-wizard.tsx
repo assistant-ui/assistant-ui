@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
@@ -87,6 +88,9 @@ const listProducts = (names: string[]) =>
   new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(
     names,
   );
+
+/** The most products the welcome title names; a longer list, or a shorter one that wraps, moves under it, so the title stays on one line. */
+const TITLE_PRODUCTS = 2;
 
 function ConnectionNotice({
   connection,
@@ -540,6 +544,27 @@ export function SetupWizard({
     : checkout.session.products.map(
         (slug) => getCatalogItem(slug)?.name ?? slug,
       );
+  const productList = listProducts(products);
+  const [wrappedList, setWrappedList] = useState<string>();
+  const titleNamesProducts =
+    page.id === "welcome" &&
+    products.length <= TITLE_PRODUCTS &&
+    wrappedList !== productList;
+  const titleText = useRef<HTMLSpanElement>(null);
+  // An inline element has one client rect per line box, and the frame never widens on its own, so a title that wrapped once stays short.
+  useLayoutEffect(() => {
+    if (!titleNamesProducts) return;
+    const demoteIfWrapped = () => {
+      if ((titleText.current?.getClientRects().length ?? 0) > 1)
+        setWrappedList(productList);
+    };
+    demoteIfWrapped();
+    const block = heading.current;
+    if (typeof ResizeObserver !== "function" || block === null) return;
+    const observer = new ResizeObserver(demoteIfWrapped);
+    observer.observe(block);
+    return () => observer.disconnect();
+  }, [titleNamesProducts, productList]);
   const done = state?.status === "done";
   useEffect(() => {
     if (done) analytics.setup.installFinished();
@@ -566,7 +591,12 @@ export function SetupWizard({
     switch (page.id) {
       case "welcome":
         return {
-          title: `Welcome to the setup wizard for ${listProducts(products)}`,
+          title: titleNamesProducts
+            ? `Welcome to the setup wizard for ${productList}`
+            : "Welcome to the setup wizard",
+          subtitle: titleNamesProducts
+            ? undefined
+            : `Setting up ${productList}.`,
           body: <SetupIntro onContinue={acknowledgeSetupIntro} />,
         };
       case "connect":
@@ -754,7 +784,7 @@ export function SetupWizard({
                 tabIndex={-1}
                 className="text-lg font-semibold text-balance"
               >
-                {view.title}
+                <span ref={titleText}>{view.title}</span>
               </h1>
               {view.subtitle ? (
                 <p className="text-muted-foreground motion-safe:animate-in motion-safe:fade-in mt-1 text-sm motion-safe:duration-300">
