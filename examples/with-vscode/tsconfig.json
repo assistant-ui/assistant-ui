@@ -15,6 +15,9 @@
       "@/components/assistant-ui/*": [
         "../../packages/ui/src/components/react/assistant-ui/*"
       ],
+      "@/components/icons/*": [
+        "../../packages/ui/src/components/react/icons/*"
+      ],
       "@/components/ui/*": [
         "../../packages/ui/src/components/react/ui/base/*",
         "../../packages/ui/src/components/react/ui/radix/*"
