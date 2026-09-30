@@ -36,6 +36,7 @@ export const assistantUi: CatalogProduct = {
     "thread",
     "markdown-text",
     "reasoning",
+    "sources",
     "tool-fallback",
     "tool-group",
     "attachment",

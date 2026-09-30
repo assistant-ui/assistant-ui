@@ -16,6 +16,7 @@ import {
   ReasoningText,
   ReasoningTrigger,
 } from "@/components/assistant-ui/elements/reasoning.aui";
+import { Sources } from "@/components/assistant-ui/elements/sources.aui";
 import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.aui";
 import {
   ToolGroupContent,
@@ -98,13 +99,15 @@ const messageGroupBy = groupPartByType({
   reasoning: ["group-chainOfThought", "group-reasoning"],
   "tool-call": ["group-chainOfThought", "group-tool"],
   "standalone-tool-call": [],
+  source: ["group-source"],
 });
 
 type ThreadGroupKey =
   | "group-chainOfThought"
   | "group-reasoning"
   | "group-tool"
-  | "group-task";
+  | "group-task"
+  | "group-source";
 
 const TASK_GROUP_PATH: readonly ThreadGroupKey[] = [
   "group-chainOfThought",
@@ -601,6 +604,15 @@ const AssistantMessage: FC = () => {
                   </ReasoningRoot>
                 );
               }
+              case "group-source":
+                return (
+                  <div
+                    data-slot="aui_assistant-message-sources"
+                    className="flex flex-wrap gap-1.5 py-1"
+                  >
+                    {children}
+                  </div>
+                );
               case "text":
                 return <MarkdownText />;
               case "reasoning":
@@ -609,6 +621,8 @@ const AssistantMessage: FC = () => {
                 return part.toolUI ?? <ToolFallbackComponent {...part} />;
               case "data":
                 return part.dataRendererUI;
+              case "source":
+                return <Sources {...part} />;
               case "file":
                 return (
                   <div data-slot="aui_assistant-message-file" className="py-1">

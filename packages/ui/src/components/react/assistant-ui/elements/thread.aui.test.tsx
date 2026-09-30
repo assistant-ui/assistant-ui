@@ -12,6 +12,7 @@ import {
   type ChatModelAdapter,
   ExportedMessageRepository,
   type RealtimeVoiceAdapter,
+  type ThreadMessageLike,
   useAui,
   useLocalRuntime,
 } from "@assistant-ui/react";
@@ -101,6 +102,28 @@ function FeedbackTestThread({ submit }: { submit?: () => void }) {
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+
+function AssistantContentTestThread({
+  content,
+}: {
+  content: Exclude<ThreadMessageLike["content"], string>;
+}) {
+  const runtime = useLocalRuntime(adapter, {
+    initialMessages: [
+      {
+        role: "assistant",
+        content,
+        status: { type: "complete", reason: "stop" },
+      },
+    ],
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread autoFocus={false} />
     </AssistantRuntimeProvider>
   );
 }
@@ -211,6 +234,43 @@ describe("Thread", () => {
 
     expect(picker.classList.contains("col-span-full")).toBe(true);
     expect(picker.className).not.toMatch(/row-start-/);
+  });
+
+  it("renders source parts as one row of links", () => {
+    render(
+      <AssistantContentTestThread
+        content={[
+          { type: "text", text: "Webviews use a strict CSP." },
+          {
+            type: "source",
+            sourceType: "url",
+            id: "webview",
+            url: "https://code.visualstudio.com/api/extension-guides/webview",
+            title: "Webview API",
+          },
+          {
+            type: "source",
+            sourceType: "url",
+            id: "docs",
+            url: "https://www.assistant-ui.com/docs",
+          },
+        ]}
+      />,
+    );
+
+    const rows = document.querySelectorAll(
+      '[data-slot="aui_assistant-message-sources"]',
+    );
+    expect(rows).toHaveLength(1);
+    const links = within(rows[0] as HTMLElement).getAllByRole("link");
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "https://code.visualstudio.com/api/extension-guides/webview",
+      "https://www.assistant-ui.com/docs",
+    ]);
+    expect(links.map((link) => link.textContent)).toEqual([
+      "Webview API",
+      "assistant-ui.com",
+    ]);
   });
 
   it("shows feedback actions only when the runtime supports feedback", () => {
