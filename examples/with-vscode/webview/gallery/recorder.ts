@@ -1,7 +1,9 @@
 /**
  * Records what goes wrong while the gallery renders and attributes it to the
  * section being shown in isolation, or to `ALL_SECTIONS` when every section
- * is mounted. Import it first so it sees errors from the first render.
+ * is mounted. A CSP violation goes to the section of the element it blocked,
+ * which outlives a switch of the view. Import it first so it sees errors
+ * from the first render.
  */
 
 export const ALL_SECTIONS = "(all sections)";
@@ -25,8 +27,9 @@ export const recordIssue = (
   issues.push({ section, kind, message: message.slice(0, 300) });
 };
 
-/** Issues recorded after `mark`, which `issueMark()` returned earlier. */
-export const issuesSince = (mark: number) => issues.slice(mark);
+/** Issues recorded after `mark`, which `issueMark()` returned earlier, and before `end`. */
+export const issuesSince = (mark: number, end?: number) =>
+  issues.slice(mark, end);
 
 export const issueMark = () => issues.length;
 
@@ -40,11 +43,22 @@ const describe = (value: unknown): string => {
   }
 };
 
+/** The gallery section `target` renders in, also after it was unmounted. */
+const sectionOf = (target: EventTarget | null) =>
+  target instanceof Element
+    ? (target
+        .closest("[data-gallery-section]")
+        ?.getAttribute("data-gallery-section") ?? undefined)
+    : undefined;
+
 document.addEventListener("securitypolicyviolation", (event) => {
-  recordIssue(
-    "csp",
-    `${event.effectiveDirective} ${event.blockedURI || event.sample}`.trim(),
-  );
+  const message =
+    `${event.effectiveDirective} ${event.blockedURI || event.sample}`.trim();
+  const source = sectionOf(event.target);
+  if (!source) recordIssue("csp", message);
+  else if (active === ALL_SECTIONS) {
+    recordIssue("csp", `${message} (in ${source})`);
+  } else recordIssue("csp", message, source);
 });
 
 window.addEventListener("error", (event) => {
