@@ -47,7 +47,19 @@ vi.mock("../../../lib/checkout/flow", async (importOriginal) => ({
 const scrollIntoView = vi.fn();
 Element.prototype.scrollIntoView = scrollIntoView;
 
-afterEach(cleanup);
+let reducedMotion = false;
+window.matchMedia = (query: string) =>
+  ({
+    matches: query === "(prefers-reduced-motion: reduce)" && reducedMotion,
+    media: query,
+    addEventListener() {},
+    removeEventListener() {},
+  }) as unknown as MediaQueryList;
+
+afterEach(() => {
+  cleanup();
+  reducedMotion = false;
+});
 
 const commands = {
   "checkout/message": vi.fn().mockResolvedValue(undefined),
@@ -1124,6 +1136,56 @@ describe("SetupWizard messages", () => {
     await waitFor(() =>
       expect(name()).toBe("1Messages. Claude Code is working. 1 unread."),
     );
+  });
+
+  it("swaps the exploring title's verb while the agent works, holds it while the agent is away, and keeps the accessible name", () => {
+    const heading = () =>
+      screen.getByRole("heading", { level: 1, hidden: true });
+    const verb = () => heading().querySelector("[aria-hidden]")!.textContent;
+    vi.useFakeTimers();
+    const { rerender } = render(
+      <SetupWizard
+        checkout={context(connected({ status: "planning" }), true, false, {
+          id: "exploring-title",
+        })}
+      />,
+    );
+    expect(verb()).toBe("Exploring");
+    expect(heading().querySelector(".sr-only")!.textContent).toBe("Exploring");
+    expect(heading().textContent).toContain(" your project");
+    act(() => vi.advanceTimersByTime(2400));
+    expect(verb()).toBe("Reading");
+    act(() => vi.advanceTimersByTime(2400));
+    expect(verb()).toBe("Mapping");
+    expect(heading().querySelector(".sr-only")!.textContent).toBe("Exploring");
+    rerender(
+      <SetupWizard
+        checkout={context(connected({ status: "planning" }), false, false, {
+          id: "exploring-title",
+        })}
+      />,
+    );
+    act(() => vi.advanceTimersByTime(5000));
+    expect(verb()).toBe("Mapping");
+    vi.useRealTimers();
+  });
+
+  it("keeps the exploring title still under reduced motion", () => {
+    reducedMotion = true;
+    vi.useFakeTimers();
+    render(
+      <SetupWizard
+        checkout={context(connected({ status: "planning" }), true, false, {
+          id: "exploring-title",
+        })}
+      />,
+    );
+    act(() => vi.advanceTimersByTime(5000));
+    expect(
+      screen.getByRole("heading", { level: 1 }).querySelector("[aria-hidden]")!
+        .textContent,
+    ).toBe("Exploring");
+    vi.useRealTimers();
   });
 
   it("fills the exploring bar with time and holds it while the agent is away", () => {

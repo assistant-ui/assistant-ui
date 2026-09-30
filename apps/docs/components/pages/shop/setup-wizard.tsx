@@ -73,6 +73,7 @@ import { abandonCheckout, finishCheckout } from "@/lib/checkout/flow";
 import { acknowledgeSetupIntro } from "@/lib/checkout/session-store";
 import { useSyntheticProgress } from "@/components/pages/shop/use-synthetic-progress";
 import { useElapsed } from "@/components/pages/shop/use-elapsed";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import {
   finishProposed,
   inputPrompt,
@@ -345,6 +346,46 @@ function WorkingProgress({
   );
 }
 
+const EXPLORING_VERBS = [
+  "Exploring",
+  "Reading",
+  "Mapping",
+  "Scanning",
+  "Surveying",
+  "Inspecting",
+  "Studying",
+];
+const VERB_MS = 2400;
+
+/** Swaps the title's verb while the agent works; the accessible name stays "Exploring your project". */
+function ExploringTitle({ active }: { active: boolean }) {
+  const reduced = useReducedMotion();
+  const [index, setIndex] = useState(0);
+  const rotating = active && !reduced;
+  useEffect(() => {
+    if (!rotating) return;
+    const timer = setInterval(
+      () => setIndex((current) => (current + 1) % EXPLORING_VERBS.length),
+      VERB_MS,
+    );
+    return () => clearInterval(timer);
+  }, [rotating]);
+  const verb = EXPLORING_VERBS[index]!;
+  return (
+    <>
+      <span
+        key={verb}
+        aria-hidden="true"
+        className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 inline-block motion-safe:duration-300"
+      >
+        {verb}
+      </span>
+      <span className="sr-only">{EXPLORING_VERBS[0]}</span>
+      {" your project"}
+    </>
+  );
+}
+
 const STEP_FILL_TAU_MS = 20_000;
 
 const stepFill = (elapsed: number) => 1 - Math.exp(-elapsed / STEP_FILL_TAU_MS);
@@ -461,7 +502,7 @@ function InstallSteps({
 }
 
 type PageView = {
-  title: string;
+  title: ReactNode;
   subtitle?: string | undefined;
   header?: ReactNode;
   body: ReactNode;
@@ -652,7 +693,11 @@ export function SetupWizard({
       case "working": {
         const revising = checkout.plan?.status === "changes-requested";
         return {
-          title: revising ? "Revising the plan" : "Exploring your project",
+          title: revising ? (
+            "Revising the plan"
+          ) : (
+            <ExploringTitle active={agentWorking(checkout)} />
+          ),
           body: state ? (
             <div className="flex flex-col gap-4">
               <WorkingProgress
