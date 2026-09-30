@@ -6,6 +6,15 @@ const packageRoot = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfig({
   test: {
+    coverage: {
+      thresholds: {
+        lines: 93,
+        functions: 85,
+        branches: 85,
+        statements: 92,
+        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+      },
+    },
     projects: [
       {
         test: {

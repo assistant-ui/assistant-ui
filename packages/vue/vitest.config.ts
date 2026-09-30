@@ -14,6 +14,15 @@ export default defineConfig({
     ],
   },
   test: {
+    coverage: {
+      thresholds: {
+        lines: 95,
+        functions: 95,
+        branches: 85,
+        statements: 93,
+        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+      },
+    },
     environment: "jsdom",
     fsModuleCache: true,
     globals: true,

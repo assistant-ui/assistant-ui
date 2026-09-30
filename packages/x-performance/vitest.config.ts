@@ -31,6 +31,15 @@ const refPlugins: Plugin[] = refRoot
 export default defineConfig({
   plugins: refPlugins,
   test: {
+    coverage: {
+      thresholds: {
+        lines: 76,
+        functions: 80,
+        branches: 75,
+        statements: 76,
+        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+      },
+    },
     environment: "jsdom",
     pool: "forks",
     execArgv: ["--expose-gc"],

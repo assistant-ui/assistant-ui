@@ -7,6 +7,15 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   test: {
+    coverage: {
+      thresholds: {
+        lines: 88,
+        functions: 85,
+        branches: 80,
+        statements: 86,
+        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+      },
+    },
     fsModuleCache: true,
     projects: [
       {

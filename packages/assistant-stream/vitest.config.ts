@@ -2,6 +2,15 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
+    coverage: {
+      thresholds: {
+        lines: 92,
+        functions: 92,
+        branches: 86,
+        statements: 90,
+        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+      },
+    },
     environment: "node",
     include: ["src/**/*.test.ts"],
     globals: true,

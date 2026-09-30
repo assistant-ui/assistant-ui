@@ -7,6 +7,15 @@ export default defineConfig({
     },
   },
   test: {
+    coverage: {
+      thresholds: {
+        lines: 98,
+        functions: 97,
+        branches: 92,
+        statements: 98,
+        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+      },
+    },
     environment: "jsdom",
     pool: "threads",
     fsModuleCache: true,

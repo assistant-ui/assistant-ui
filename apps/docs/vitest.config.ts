@@ -6,6 +6,15 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default {
   test: {
+    coverage: {
+      thresholds: {
+        lines: 68,
+        functions: 61,
+        branches: 56,
+        statements: 67,
+        autoUpdate: (threshold: number) => Math.ceil(threshold) - 1,
+      },
+    },
     environment: "node",
     pool: "threads",
     fsModuleCache: true,

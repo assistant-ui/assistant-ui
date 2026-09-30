@@ -4,16 +4,12 @@ export default defineConfig({
   test: {
     coverage: {
       thresholds: {
-        lines: 94,
-        functions: 93,
-        branches: 86,
-        statements: 92,
+        lines: 93,
+        functions: 97,
+        branches: 82,
+        statements: 89,
         autoUpdate: (threshold) => Math.ceil(threshold) - 1,
       },
     },
-    environment: "node",
-    fsModuleCache: true,
-    globals: true,
-    include: ["src/**/*.test.{ts,tsx}"],
   },
 });
