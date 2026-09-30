@@ -8047,6 +8047,18 @@ describe("AGUIThreadRuntimeCore", () => {
         },
       });
     };
+    const startAnswer = (subscriber: any) => {
+      subscriber.onTextMessageStartEvent?.({
+        event: { type: "TEXT_MESSAGE_START", messageId: "assistant-2" },
+      });
+      subscriber.onTextMessageContentEvent?.({
+        event: {
+          type: "TEXT_MESSAGE_CONTENT",
+          messageId: "assistant-2",
+          delta: "Done.",
+        },
+      });
+    };
     const toolCall = {
       id: "call-1",
       type: "function",
@@ -8065,16 +8077,7 @@ describe("AGUIThreadRuntimeCore", () => {
         reason(subscriber, "r-1", "plan the call");
         callTool(subscriber);
         reason(subscriber, "r-2", "write the answer");
-        subscriber.onTextMessageStartEvent?.({
-          event: { type: "TEXT_MESSAGE_START", messageId: "assistant-2" },
-        });
-        subscriber.onTextMessageContentEvent?.({
-          event: {
-            type: "TEXT_MESSAGE_CONTENT",
-            messageId: "assistant-2",
-            delta: "Done.",
-          },
-        });
+        startAnswer(subscriber);
         subscriber.onTextMessageEndEvent?.({
           event: { type: "TEXT_MESSAGE_END", messageId: "assistant-2" },
         });
@@ -8100,36 +8103,9 @@ describe("AGUIThreadRuntimeCore", () => {
         subscriber.onThinkingEndEvent?.({ event: { type: "THINKING_END" } });
       };
       const runAgent = vi.fn(async (_input, subscriber) => {
-        subscriber.onToolCallStartEvent?.({
-          event: {
-            type: "TOOL_CALL_START",
-            toolCallId: "call-1",
-            toolCallName: "lookup",
-            parentMessageId: "assistant-1",
-          },
-        });
-        subscriber.onToolCallEndEvent?.({
-          event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
-        });
-        subscriber.onToolCallResultEvent?.({
-          event: {
-            type: "TOOL_CALL_RESULT",
-            toolCallId: "call-1",
-            messageId: "tool-1",
-            content: "ok",
-          },
-        });
+        callTool(subscriber);
         think(subscriber, "before the answer");
-        subscriber.onTextMessageStartEvent?.({
-          event: { type: "TEXT_MESSAGE_START", messageId: "assistant-2" },
-        });
-        subscriber.onTextMessageContentEvent?.({
-          event: {
-            type: "TEXT_MESSAGE_CONTENT",
-            messageId: "assistant-2",
-            delta: "Done.",
-          },
-        });
+        startAnswer(subscriber);
         think(subscriber, "after the answer");
         notifyRunFinished(subscriber, "run-1");
         notifyRunFinalized(subscriber);
@@ -8184,36 +8160,9 @@ describe("AGUIThreadRuntimeCore", () => {
       };
       const runAgent = vi.fn(async (_input, subscriber) => {
         reason(subscriber, "r-1", "sig-1");
-        subscriber.onToolCallStartEvent?.({
-          event: {
-            type: "TOOL_CALL_START",
-            toolCallId: "call-1",
-            toolCallName: "lookup",
-            parentMessageId: "assistant-1",
-          },
-        });
-        subscriber.onToolCallEndEvent?.({
-          event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
-        });
-        subscriber.onToolCallResultEvent?.({
-          event: {
-            type: "TOOL_CALL_RESULT",
-            toolCallId: "call-1",
-            messageId: "tool-1",
-            content: "ok",
-          },
-        });
+        callTool(subscriber);
         reason(subscriber, "r-2", "sig-2");
-        subscriber.onTextMessageStartEvent?.({
-          event: { type: "TEXT_MESSAGE_START", messageId: "assistant-2" },
-        });
-        subscriber.onTextMessageContentEvent?.({
-          event: {
-            type: "TEXT_MESSAGE_CONTENT",
-            messageId: "assistant-2",
-            delta: "Done.",
-          },
-        });
+        startAnswer(subscriber);
         notifyRunFinished(subscriber, "run-1");
         notifyRunFinalized(subscriber);
       });
@@ -8279,16 +8228,7 @@ describe("AGUIThreadRuntimeCore", () => {
           event: { type: "MESSAGES_SNAPSHOT", messages: step },
         });
         reason(subscriber, "r-2", "write the answer");
-        subscriber.onTextMessageStartEvent?.({
-          event: { type: "TEXT_MESSAGE_START", messageId: "assistant-2" },
-        });
-        subscriber.onTextMessageContentEvent?.({
-          event: {
-            type: "TEXT_MESSAGE_CONTENT",
-            messageId: "assistant-2",
-            delta: "Done.",
-          },
-        });
+        startAnswer(subscriber);
         subscriber.onTextMessageEndEvent?.({
           event: { type: "TEXT_MESSAGE_END", messageId: "assistant-2" },
         });
@@ -8321,16 +8261,7 @@ describe("AGUIThreadRuntimeCore", () => {
           reason(subscriber, "r-1", "plan the call");
           callTool(subscriber);
           reason(subscriber, "r-2", "write the answer");
-          subscriber.onTextMessageStartEvent?.({
-            event: { type: "TEXT_MESSAGE_START", messageId: "assistant-2" },
-          });
-          subscriber.onTextMessageContentEvent?.({
-            event: {
-              type: "TEXT_MESSAGE_CONTENT",
-              messageId: "assistant-2",
-              delta: "Done.",
-            },
-          });
+          startAnswer(subscriber);
           notifyRunFinished(subscriber, "run-1");
         }
         notifyRunFinalized(subscriber);
