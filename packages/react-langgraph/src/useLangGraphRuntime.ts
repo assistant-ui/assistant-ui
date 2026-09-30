@@ -227,9 +227,7 @@ const useLangGraphRuntimeImpl = (
   // still emit sibling tool calls, and releasing the result early would resume
   // the graph with an incomplete tool-call group (see #8270).
   const activeRunIdsRef = useRef(new Set<string>());
-  const flushBufferedToolResultsRef = useRef<(runId: string) => void>(
-    () => {},
-  );
+  const flushBufferedToolResultsRef = useRef<(runId: string) => void>(() => {});
   const interruptRunConfigRef = useRef<unknown>(undefined);
 
   const rememberMessageOwnership = useCallback(
@@ -581,8 +579,7 @@ const useLangGraphRuntimeImpl = (
         toolResultBufferRef.current.has(id),
       );
       if (buffered.length === 0) return;
-      if (!expected.every((id) => toolResultBufferRef.current.has(id)))
-        return;
+      if (!expected.every((id) => toolResultBufferRef.current.has(id))) return;
       const batch = expected.map((id) => toolResultBufferRef.current.get(id)!);
       for (const id of expected) toolResultBufferRef.current.delete(id);
       void releaseToolResultBatch(`run:${runId}`, batch);

@@ -97,7 +97,9 @@ describe("useLangGraphRuntime parallel tool results", () => {
       }
     });
 
-    const host = renderHook(() => useLangGraphRuntime({ stream: emptyStream() }));
+    const host = renderHook(() =>
+      useLangGraphRuntime({ stream: emptyStream() }),
+    );
     const capture: { runtime: AssistantRuntime | null } = { runtime: null };
     const Nested = () => {
       capture.runtime = useLangGraphRuntime({
@@ -123,9 +125,7 @@ describe("useLangGraphRuntime parallel tool results", () => {
     // Wait until `c1`'s tool-call part is live on the client.
     await waitFor(() => {
       expect(
-        runtime.thread
-          .getState()
-          .messages.some((m) => m.role === "assistant"),
+        runtime.thread.getState().messages.some((m) => m.role === "assistant"),
       ).toBe(true);
     });
 
