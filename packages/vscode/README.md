@@ -50,3 +50,29 @@ const runtime = useLocalRuntime(adapter);
 ```
 
 `acquireVsCodeApi()` may only be called once per webview. Use `getVSCodeApi()` wherever your webview code needs the API.
+
+## Theme
+
+`@assistant-ui/vscode/theme.css` maps the shadcn tokens used by assistant-ui's components (`--background`, `--primary`, `--muted-foreground`, `--border`, `--ring`, `--sidebar-*`, `--chart-*`, `--radius`, and the rest) to VS Code's `--vscode-*` theme variables, so the webview restyles itself when the user switches colour theme. It also re-points Tailwind's `dark:` variant at VS Code's `vscode-dark` and dark high-contrast body classes, sets `color-scheme`, uses the VS Code UI and editor fonts for `font-sans` and `font-mono`, and adds contrast borders and focus outlines under high-contrast themes.
+
+Import it after Tailwind:
+
+```css
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@assistant-ui/vscode/theme.css";
+```
+
+If you keep an existing `globals.css` (such as the one from the assistant-ui templates), import the theme at the end of the file instead. Tailwind keeps the last `@custom-variant dark` and the last `@theme` value for a key, so a theme imported above the template's own `@custom-variant dark (&:is(.dark *))` and `--font-sans` leaves those in charge. The colour tokens are set on `body`, so they override a template's `:root` values in either position.
+
+To override a token, set it on `body`:
+
+```css
+body {
+  --radius: 0.25rem;
+}
+```
+
+The background follows a webview view in the sidebar by default. Set `data-aui-vscode-surface` on `<html>` or `<body>` to `"editor"` for a webview panel in an editor tab, or to `"panel"` for a view in the bottom panel.
+
+VS Code injects a default stylesheet into every webview (body padding, link and `code` colours, focus outlines). The theme hands those properties back to Tailwind's layers.
