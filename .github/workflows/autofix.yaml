@@ -37,7 +37,7 @@ jobs:
         env:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
-        run: pnpm api-surface
+        run: pnpm api-surface -- --base="origin/${{ github.base_ref }}"
 
       - name: Update API reference pages
         run: pnpm -C apps/docs generate:api-reference
