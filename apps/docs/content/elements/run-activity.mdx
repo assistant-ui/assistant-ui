@@ -67,20 +67,25 @@ Keep one stable assistant message ID for each application-defined run. Your adap
 const runtime = useExternalStoreRuntime<ActivityRun>({
   messages: runs,
   isRunning,
-  convertMessage: (run) => ({
-    id: run.id,
-    role: "assistant",
-    status: run.status,
-    content: run.parts.map((entry) => entry.part),
-    metadata: {
-      custom: {
-        activityPresentation: {
-          timing: run.timing,
-          entries: run.parts.map(({ id, kind, label }) => ({ id, kind, label })),
+  convertMessage: (run) => {
+    const parts = run.parts.filter(
+      ({ part }) => part.type !== "text" || part.text.trim().length > 0,
+    );
+    return {
+      id: run.id,
+      role: "assistant",
+      status: run.status,
+      content: parts.map((entry) => entry.part),
+      metadata: {
+        custom: {
+          activityPresentation: {
+            timing: run.timing,
+            entries: parts.map(({ id, kind, label }) => ({ id, kind, label })),
+          },
         },
       },
-    },
-  }),
+    };
+  },
   onNew: sendMessage,
   onRespondToToolApproval: respondToApproval,
   onAddToolResult: recordToolResult,
@@ -88,13 +93,15 @@ const runtime = useExternalStoreRuntime<ActivityRun>({
 });
 ```
 
+Both arrays must come from the same normalized list so their indexes match `s.message.parts`. This abridged adapter supports text and tool-call parts, filtering blank text as the runtime does. If you add reasoning parts, also remove any whose `text` and `unstable_summary` are both missing, empty, or whitespace-only.
+
 In the message renderer, read the annotations alongside `s.message.parts` and `s.message.status` with `useAuiState`. Render each classified part with `MessagePrimitive.PartByIndex`, using its index in the converted message and your existing text/tool components. Put `commentary` and `tool` entries in the disclosure, `answer` parts in `children`, and `attention` parts in `attention`. Unclassified parts stay outside the disclosure. Do not also render `MessagePrimitive.Parts` for the whole message: that would duplicate the content.
 
 The example keeps approvals, tool interruptions, tool errors, and runtime `requires-action` parts in `attention` even if their original classification was `tool`. This includes status-only tool decisions without an approval or interrupt payload. Once surfaced, an entry stays in the visible slot for that message instance after settlement. Persist its `attention` classification or approval/interrupt metadata to retain that placement after a reload. The attention wrapper returns focus to that result only if the focused decision control was removed; it does not take focus from another control. It uses the existing `ToolFallback`, so the runtime's approval or tool-result callback still receives the response. Supply your app's clarification and recovery renderers there as well. Classification alone does not implement an approval or retry: wire the appropriate external-store callbacks to your backend and persist their result.
 
 For adjacent activity groups, prefer [`MessagePrimitive.GroupedParts`](/docs/guides/part-grouping) with a custom `groupBy` and standalone tool handling. This recipe uses `PartByIndex` because a single run disclosure must include activity on both sides of a visible decision: `GroupedParts` coalesces adjacent parts, so an ungrouped decision splits that sequence into separate disclosures. The props-only element works with any runtime; this adapter example specifically covers external-store runs with explicit classification.
 
-If your backend emits several messages per run, project them into one stable assistant message in the adapter, preserving their part order and explicit final-answer markers. Do not infer an answer from the last text part, punctuation, or a tool finishing. Retain stable part positions while a run streams; start a new run/message ID for a new turn.
+If your backend emits several messages per run, project them into one stable assistant message in the adapter, preserving their part order and explicit final-answer markers. Do not infer an answer from the last text part, punctuation, or a tool finishing. Retain stable part IDs and order while a run streams; start a new run/message ID for a new turn.
 
 ## Lifecycle and persisted time
 
