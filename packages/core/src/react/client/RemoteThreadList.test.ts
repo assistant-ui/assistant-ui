@@ -389,13 +389,10 @@ describe("RemoteThreadList", () => {
     });
     const { handle } = mountList(adapter);
     await handle.getClient().threads.getLoadThreadsPromise();
-    await vi.waitFor(() => {
-      const state = handle.getClient().threads.getState();
-      expect(state.threadIds).toEqual(["t1"]);
-      expect(state.archivedThreadIds).toEqual(["t2"]);
-      expect(state.isLoading).toBe(false);
-    });
     const state = handle.getClient().threads.getState();
+    expect(state.threadIds).toEqual(["t1"]);
+    expect(state.archivedThreadIds).toEqual(["t2"]);
+    expect(state.isLoading).toBe(false);
     expect(adapter.list).toHaveBeenCalledOnce();
     expect(state.newThreadId).toMatch(/^__LOCALID_/);
     expect(state.mainThreadId).toBe(state.newThreadId);
@@ -1147,8 +1144,8 @@ describe("RemoteThreadList", () => {
 
     await vi.waitFor(() => {
       expect(aui.threads.getState().threadIds).toEqual([localId]);
+      expect(aui.threads.getState().archivedThreadIds).toEqual([]);
     });
-    expect(aui.threads.getState().archivedThreadIds).toEqual([]);
     expect(aui.threads.item({ id: "remote-1" }).getState().id).toBe(localId);
     handle.destroy();
   });
