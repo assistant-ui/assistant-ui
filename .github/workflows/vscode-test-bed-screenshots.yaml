@@ -1,30 +1,22 @@
-name: VS Code Test Bed
+name: VS Code Test Bed Screenshots
 
 on:
   pull_request:
     paths:
-      - .github/workflows/vscode-test-bed.yaml
+      - .github/workflows/vscode-test-bed-screenshots.yaml
       - examples/with-vscode/**
+      - packages/ui/**
+      - packages/vscode/**
       - templates/vscode/**
-      - templates/default/app/api/chat/route.ts
-      - package.json
-      - packages/**
-      - pnpm-lock.yaml
-      - pnpm-workspace.yaml
-      - turbo.json
   push:
     branches:
       - main
     paths:
-      - .github/workflows/vscode-test-bed.yaml
+      - .github/workflows/vscode-test-bed-screenshots.yaml
       - examples/with-vscode/**
+      - packages/ui/**
+      - packages/vscode/**
       - templates/vscode/**
-      - templates/default/app/api/chat/route.ts
-      - package.json
-      - packages/**
-      - pnpm-lock.yaml
-      - pnpm-workspace.yaml
-      - turbo.json
   workflow_dispatch:
 
 permissions:
@@ -35,18 +27,14 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Pinned so a VS Code release cannot turn CI red on its own; examples/with-vscode/README.md explains how to bump it.
+  # Keep in step with vscode-test-bed.yaml.
   AUI_TESTBED_VSCODE_VERSION: 1.140.0
 
 jobs:
-  probes:
-    name: Phase 1 probes (${{ matrix.runtime }})
+  screenshots:
+    name: Screenshots
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-    strategy:
-      fail-fast: false
-      matrix:
-        runtime: [ai-sdk, local]
+    timeout-minutes: 30
     steps:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
@@ -80,17 +68,31 @@ jobs:
           path: examples/with-vscode/.vscode-test
           key: vscode-test-${{ runner.os }}-${{ runner.arch }}-${{ env.AUI_TESTBED_VSCODE_VERSION }}
 
-      - name: Run probes in VS Code
-        env:
-          AUI_TESTBED_PHASE: 1
-          AUI_TESTBED_RUNTIMES: ${{ matrix.runtime }}
-        run: xvfb-run -a pnpm --filter with-vscode test
+      - name: Take screenshots in VS Code
+        run: xvfb-run -a pnpm --filter with-vscode screenshots
 
-      - name: Upload probe report
+      - name: Upload screenshots
+        id: upload
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # ratchet:actions/upload-artifact@v7.0.1
         with:
-          name: vscode-test-bed-probes-${{ matrix.runtime }}
+          name: vscode-test-bed-screenshots
+          path: examples/with-vscode/screenshots/
+          retention-days: ${{ github.ref == 'refs/heads/main' && 30 || 14 }}
+          if-no-files-found: warn
+
+      - name: Link the contact sheet
+        if: always() && steps.upload.outputs.artifact-url != ''
+        env:
+          ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
+        run: |
+          echo "Download [vscode-test-bed-screenshots]($ARTIFACT_URL), unzip it and open \`gallery/index.html\` for the contact sheet." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload probe report and VS Code logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # ratchet:actions/upload-artifact@v7.0.1
+        with:
+          name: vscode-test-bed-screenshots-report
           path: examples/with-vscode/test-results/
           retention-days: 14
           if-no-files-found: warn
