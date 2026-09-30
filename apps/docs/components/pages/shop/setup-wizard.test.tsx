@@ -123,12 +123,17 @@ const captureEvents = () => {
 
 const observeRow = () => {
   let callback: IntersectionObserverCallback | undefined;
+  let options: IntersectionObserverInit | undefined;
   let target: Element | undefined;
   vi.stubGlobal(
     "IntersectionObserver",
     class {
-      constructor(observe: IntersectionObserverCallback) {
+      constructor(
+        observe: IntersectionObserverCallback,
+        init?: IntersectionObserverInit,
+      ) {
         callback = observe;
+        options = init;
       }
       observe(element: Element) {
         target = element;
@@ -140,9 +145,19 @@ const observeRow = () => {
   );
   return {
     observed: () => target,
-    intersect: (isIntersecting: boolean) =>
+    options: () => options,
+    intersect: (
+      isIntersecting: boolean,
+      intersectionRatio = isIntersecting ? 1 : 0,
+    ) =>
       callback?.(
-        [{ target, isIntersecting } as IntersectionObserverEntry],
+        [
+          {
+            target,
+            isIntersecting,
+            intersectionRatio,
+          } as IntersectionObserverEntry,
+        ],
         {} as IntersectionObserver,
       ),
   };
@@ -631,6 +646,34 @@ describe("SetupWizard", () => {
         <SetupWizard checkout={installing("s2", ["s1", "s1", "s2", "s2"])} />,
       );
       expect(centered()).toEqual(["Step 1", "Step 2", "Step 2"]);
+    });
+
+    it("pauses once the reader moves the list and resumes when the row is fully back in view", () => {
+      const observer = observeRow();
+      scrollIntoView.mockClear();
+      const { rerender } = render(<SetupWizard checkout={stream(1)} />);
+      expect(centered()).toEqual(["Step 1"]);
+      expect(observer.options()).toEqual({ threshold: [0, 1] });
+      const list = screen.getByRole("list", { name: "Installation steps" });
+
+      fireEvent.wheel(list);
+      rerender(<SetupWizard checkout={stream(2)} />);
+      expect(centered()).toEqual(["Step 1"]);
+      observer.intersect(true, 0.5);
+      rerender(<SetupWizard checkout={stream(3)} />);
+      expect(centered()).toEqual(["Step 1"]);
+
+      observer.intersect(true);
+      rerender(<SetupWizard checkout={stream(4)} />);
+      expect(centered()).toEqual(["Step 1", "Step 1"]);
+
+      fireEvent.wheel(list);
+      rerender(
+        <SetupWizard
+          checkout={installing("s2", ["s1", "s1", "s1", "s1", "s2"])}
+        />,
+      );
+      expect(centered()).toEqual(["Step 1", "Step 1", "Step 2"]);
     });
   });
 

@@ -452,14 +452,36 @@ function InstallSteps({
   const following = useRef(true);
   useEffect(() => {
     following.current = true;
-    const row = list.current?.querySelector('[aria-current="step"]');
+    const element = list.current;
+    if (!element) return;
+    const pause = () => {
+      following.current = false;
+    };
+    const interactions = ["wheel", "touchmove"] as const;
+    for (const type of interactions) {
+      element.addEventListener(type, pause, { passive: true });
+    }
+    let observer: IntersectionObserver | undefined;
+    const row = element.querySelector('[aria-current="step"]');
     // jsdom has no IntersectionObserver, so the list always follows there.
-    if (!row || typeof IntersectionObserver === "undefined") return;
-    const observer = new IntersectionObserver((entries) => {
-      following.current = entries.at(-1)?.isIntersecting ?? true;
-    });
-    observer.observe(row);
-    return () => observer.disconnect();
+    if (row && typeof IntersectionObserver !== "undefined") {
+      observer = new IntersectionObserver(
+        (entries) => {
+          const entry = entries.at(-1);
+          if (!entry) return;
+          if (entry.intersectionRatio >= 1) following.current = true;
+          else if (!entry.isIntersecting) following.current = false;
+        },
+        { threshold: [0, 1] },
+      );
+      observer.observe(row);
+    }
+    return () => {
+      observer?.disconnect();
+      for (const type of interactions) {
+        element.removeEventListener(type, pause);
+      }
+    };
   }, [activeId]);
   useEffect(() => {
     if (activeId === undefined || !following.current) return;
