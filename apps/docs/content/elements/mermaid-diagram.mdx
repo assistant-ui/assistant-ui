@@ -81,7 +81,7 @@ While `streaming` is true it shows a skeleton instead of parsing; set it to `fal
 </div>
 ```
 
-Rendering is synchronous: the diagram is built from `code` with `useMemo`, so a parse error is caught in the same pass rather than surfacing as a thrown render error. The colors passed to the renderer (`bg`, `fg`, `muted`, `border`, `accent`) are CSS variables (`--background`, `--foreground`, and so on), so a diagram matches the active theme automatically. The zoom trigger appears on hover (or on focus) and opens a full-screen overlay: scroll to zoom between 0.5x and 4x centered on the pointer, drag to pan, `+`/`-`/reset/close buttons, Escape to close, and a focus trap while it is open.
+Rendering is synchronous: the diagram is built from `code` with `useMemo`, so a parse error is caught in the same pass rather than surfacing as a thrown render error. The colors passed to the renderer (`bg`, `fg`, `muted`, `border`, `accent`) are CSS variables (`--background`, `--foreground`, and so on), so a diagram matches the active theme automatically. The renderer's `<style>` rules go into a constructed stylesheet and its inline `style` attributes are applied through the CSSOM, so diagrams render under a Content Security Policy without `'unsafe-inline'`; its Google Fonts `@import` is not loaded, so labels use Inter only when the page already provides it and `system-ui` otherwise. The zoom trigger appears on hover (or on focus) and opens a full-screen overlay: scroll to zoom between 0.5x and 4x centered on the pointer, drag to pan, `+`/`-`/reset/close buttons, Escape to close, and a focus trap while it is open.
 
 ## Examples
 

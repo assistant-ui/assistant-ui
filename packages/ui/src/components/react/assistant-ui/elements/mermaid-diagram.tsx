@@ -6,11 +6,14 @@ import {
   type FC,
   type ReactNode,
   memo,
+  type ComponentProps,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
@@ -24,6 +27,100 @@ export type MermaidDiagramProps = {
 
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 4;
+
+const splitSvgStyles = (svg: string) => {
+  let css = "";
+  const markup = svg
+    .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/g, (_, rules: string) => {
+      css += rules;
+      return "";
+    })
+    .replace(/(<[^>]*?)\sstyle="([^"]*)"/g, '$1 data-aui-style="$2"');
+  return { markup, css: css.replace(/@import[^;]*;/g, "").trim() };
+};
+
+type StyleRoot = Document | ShadowRoot;
+type AdoptedSheet = { sheet: CSSStyleSheet; count: number };
+
+const adoptedStyles = new WeakMap<StyleRoot, Map<string, AdoptedSheet>>();
+
+const adoptStyles = (root: StyleRoot, css: string) => {
+  const sheets = adoptedStyles.get(root) ?? new Map<string, AdoptedSheet>();
+  adoptedStyles.set(root, sheets);
+  let entry = sheets.get(css);
+  if (!entry) {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(css);
+    root.adoptedStyleSheets = [...root.adoptedStyleSheets, sheet];
+    entry = { sheet, count: 0 };
+    sheets.set(css, entry);
+  }
+  entry.count++;
+  const adopted = entry;
+  return () => {
+    if (--adopted.count > 0) return;
+    root.adoptedStyleSheets = root.adoptedStyleSheets.filter(
+      (s) => s !== adopted.sheet,
+    );
+    sheets.delete(css);
+  };
+};
+
+const subscribeNothing = () => () => {};
+
+type MermaidSvgProps = Omit<
+  ComponentProps<"div">,
+  "dangerouslySetInnerHTML"
+> & {
+  svg: string;
+};
+
+/**
+ * Renders beautiful-mermaid's SVG without inline `<style>` or `style=""`,
+ * which a Content Security Policy without 'unsafe-inline' blocks: its CSS
+ * goes into a constructed stylesheet and its inline styles are set through
+ * the CSSOM. Server and hydration renders keep the original markup.
+ */
+function MermaidSvg({ svg, ...props }: MermaidSvgProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const hydrated = useSyncExternalStore(
+    subscribeNothing,
+    () => true,
+    () => false,
+  );
+  const { markup, css } = useMemo(() => splitSvgStyles(svg), [svg]);
+
+  useLayoutEffect(() => {
+    const container = ref.current;
+    if (!hydrated || !container) return;
+    for (const el of container.querySelectorAll<SVGElement>(
+      "[data-aui-style]",
+    )) {
+      for (const declaration of (el.dataset["auiStyle"] ?? "").split(";")) {
+        const colon = declaration.indexOf(":");
+        if (colon <= 0) continue;
+        el.style.setProperty(
+          declaration.slice(0, colon).trim(),
+          declaration.slice(colon + 1).trim(),
+        );
+      }
+    }
+    if (!css) return;
+    const root = container.getRootNode();
+    return adoptStyles(
+      root instanceof ShadowRoot ? root : container.ownerDocument,
+      css,
+    );
+  }, [hydrated, markup, css]);
+
+  return (
+    <div
+      ref={ref}
+      {...props}
+      dangerouslySetInnerHTML={{ __html: hydrated ? markup : svg }}
+    />
+  );
+}
 
 type MermaidZoomProps = {
   svg: string;
@@ -191,14 +288,14 @@ function MermaidZoom({ svg, children }: MermaidZoomProps) {
               onPointerUp={onPointerUp}
               onPointerCancel={onPointerUp}
             >
-              <div
+              <MermaidSvg
                 data-slot="mermaid-zoom-content"
                 className="aui-mermaid-zoom-content flex h-full w-full items-center justify-center [&_svg]:max-h-[80vh] [&_svg]:max-w-[90vw]"
                 style={{
                   transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
                   transformOrigin: "0 0",
                 }}
-                dangerouslySetInnerHTML={{ __html: zoomSvg }}
+                svg={zoomSvg}
               />
             </div>
             <div
@@ -311,13 +408,13 @@ const MermaidDiagramImpl: FC<MermaidDiagramProps> = ({
 
   return (
     <MermaidZoom svg={result.svg}>
-      <div
+      <MermaidSvg
         data-slot="mermaid-diagram"
         className={cn(
           "aui-mermaid-diagram bg-muted overflow-x-auto rounded-b-lg p-2 [&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full",
           className,
         )}
-        dangerouslySetInnerHTML={{ __html: result.svg }}
+        svg={result.svg}
       />
     </MermaidZoom>
   );
