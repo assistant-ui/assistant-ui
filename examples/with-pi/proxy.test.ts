@@ -5,15 +5,21 @@ import { proxy } from "./proxy";
 const request = (
   headers?: HeadersInit,
   url = "http://localhost:3000/api/pi/threads",
-) =>
-  new NextRequest(url, {
+) => {
+  const requestHeaders = new Headers(headers);
+  if (!requestHeaders.has("host")) {
+    requestHeaders.set("host", new URL(url).host);
+  }
+
+  return new NextRequest(url, {
     method: "POST",
-    ...(headers === undefined ? {} : { headers }),
+    headers: requestHeaders,
     body: JSON.stringify({
       workspacePath: "/tmp/project",
       initialMessage: "Read the local files",
     }),
   });
+};
 
 describe("Pi API proxy", () => {
   afterEach(() => {
@@ -56,20 +62,37 @@ describe("Pi API proxy", () => {
     expect(response.headers.get("x-middleware-next")).toBe("1");
   });
 
-  it("rejects same-origin requests addressed to a non-loopback host", () => {
+  it("rejects same-origin requests with a non-loopback Host header", () => {
     vi.stubEnv("NODE_ENV", "development");
 
     expect(
       proxy(
         request(
           {
+            host: "attacker.example:3000",
             origin: "http://attacker.example:3000",
             "sec-fetch-site": "same-origin",
           },
-          "http://attacker.example:3000/api/pi/threads",
+          "http://127.0.0.1:3000/api/pi/threads",
         ),
       ).status,
     ).toBe(403);
+  });
+
+  it("uses the Host header for the origin fallback", () => {
+    vi.stubEnv("NODE_ENV", "development");
+
+    expect(
+      proxy(
+        request(
+          {
+            host: "localhost:3000",
+            origin: "http://localhost:3000",
+          },
+          "http://127.0.0.1:3000/api/pi/threads",
+        ),
+      ).headers.get("x-middleware-next"),
+    ).toBe("1");
   });
 
   it("allows non-browser requests in development", () => {

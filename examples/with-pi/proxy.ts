@@ -6,14 +6,25 @@ export const config = {
 
 const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
-const isAllowedRequestContext = (request: NextRequest) => {
+const getRequestOrigin = (request: NextRequest) => {
+  const host = request.headers.get("host");
+  if (host === null) return undefined;
+
+  try {
+    return new URL(`${request.nextUrl.protocol}//${host}`);
+  } catch {
+    return undefined;
+  }
+};
+
+const isAllowedRequestContext = (request: NextRequest, requestOrigin: URL) => {
   const fetchSite = request.headers.get("sec-fetch-site");
   if (fetchSite !== null) {
     return fetchSite === "same-origin" || fetchSite === "none";
   }
 
   const origin = request.headers.get("origin");
-  return origin === null || origin === request.nextUrl.origin;
+  return origin === null || origin === requestOrigin.origin;
 };
 
 export function proxy(request: NextRequest) {
@@ -21,11 +32,15 @@ export function proxy(request: NextRequest) {
     return new NextResponse(null, { status: 404 });
   }
 
-  if (!LOOPBACK_HOSTNAMES.has(request.nextUrl.hostname)) {
+  const requestOrigin = getRequestOrigin(request);
+  if (
+    requestOrigin === undefined ||
+    !LOOPBACK_HOSTNAMES.has(requestOrigin.hostname)
+  ) {
     return new NextResponse(null, { status: 403 });
   }
 
-  if (!isAllowedRequestContext(request)) {
+  if (!isAllowedRequestContext(request, requestOrigin)) {
     return new NextResponse(null, { status: 403 });
   }
 
