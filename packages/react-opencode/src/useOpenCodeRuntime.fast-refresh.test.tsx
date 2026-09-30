@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { Activity, act, type ReactNode } from "react";
+import { Activity, act, type ReactNode, version } from "react";
 import type { Root } from "react-dom/client";
 import { afterAll, afterEach, expect, it, vi } from "vitest";
 import type { OpencodeClient } from "@opencode-ai/sdk/v2/client";
@@ -110,6 +110,25 @@ vi.mock("./OpenCodeThreadController", async (importOriginal) => ({
 import { EMPTY_OPENCODE_THREAD_STATE } from "./openCodeThreadState";
 import { useOpenCodeRuntime } from "./useOpenCodeRuntime";
 
+const onReact18 = version.startsWith("18.");
+
+// Fails on React 18: TypeError: useEffectEvent is not a function (useOpenCodeRuntime imports useEffectEvent from react, which React 18 does not export). Shipped React 18 incompatibility, so on React 18 these tests assert that error, and fail once it's fixed.
+const itBrokenOnReact18 = (
+  name: string,
+  fn: () => void | Promise<void>,
+  timeout?: number,
+) =>
+  onReact18
+    ? it(
+        name,
+        () =>
+          expect(Promise.resolve().then(fn)).rejects.toThrow(
+            /useEffectEvent\)? is not a function/,
+          ),
+        timeout,
+      )
+    : it(name, fn, timeout);
+
 mocks.state = EMPTY_OPENCODE_THREAD_STATE;
 
 const refresh = async (Before: unknown, After: unknown) => {
@@ -138,85 +157,95 @@ afterEach(() => {
 });
 afterAll(() => vi.unstubAllGlobals());
 
-it("keeps the client, registry, thread list, and event source through Fast Refresh", async () => {
-  const Before = () => {
-    useOpenCodeRuntime({ baseUrl: "http://localhost:4096" });
-    return null;
-  };
-  const After = () => {
-    useOpenCodeRuntime({ baseUrl: "http://localhost:4096" });
-    return null;
-  };
-  const view = render(<Before />);
-  const client = mocks.controllers[0]!.client;
-  const controller = mocks.controllers[0]!;
-  const source = mocks.sources[0]!;
-  const adapter = mocks.adapters[0];
+itBrokenOnReact18(
+  "keeps the client, registry, thread list, and event source through Fast Refresh",
+  async () => {
+    const Before = () => {
+      useOpenCodeRuntime({ baseUrl: "http://localhost:4096" });
+      return null;
+    };
+    const After = () => {
+      useOpenCodeRuntime({ baseUrl: "http://localhost:4096" });
+      return null;
+    };
+    const view = render(<Before />);
+    const client = mocks.controllers[0]!.client;
+    const controller = mocks.controllers[0]!;
+    const source = mocks.sources[0]!;
+    const adapter = mocks.adapters[0];
 
-  await refresh(Before, After);
+    await refresh(Before, After);
 
-  expect(mocks.controllers).toHaveLength(1);
-  expect(mocks.controllers[0]!.client).toBe(client);
-  expect(mocks.sources).toHaveLength(1);
-  expect(source.subscribe).toHaveBeenCalledOnce();
-  expect(mocks.adapters.at(-1)).toBe(adapter);
-  expect(mocks.reloads).toBe(1);
-  expect(controller.dispose).not.toHaveBeenCalled();
-  expect(source.dispose).not.toHaveBeenCalled();
+    expect(mocks.controllers).toHaveLength(1);
+    expect(mocks.controllers[0]!.client).toBe(client);
+    expect(mocks.sources).toHaveLength(1);
+    expect(source.subscribe).toHaveBeenCalledOnce();
+    expect(mocks.adapters.at(-1)).toBe(adapter);
+    expect(mocks.reloads).toBe(1);
+    expect(controller.dispose).not.toHaveBeenCalled();
+    expect(source.dispose).not.toHaveBeenCalled();
 
-  view.unmount();
-  await act(async () => {});
-  expect(controller.dispose).toHaveBeenCalledOnce();
-  expect(source.dispose).toHaveBeenCalledOnce();
-});
+    view.unmount();
+    await act(async () => {});
+    expect(controller.dispose).toHaveBeenCalledOnce();
+    expect(source.dispose).toHaveBeenCalledOnce();
+  },
+);
 
-it("replaces the client, registry, and thread list when baseUrl changes", async () => {
-  const App = ({ baseUrl }: { baseUrl: string }) => {
-    useOpenCodeRuntime({ baseUrl });
-    return null;
-  };
-  const view = render(<App baseUrl="http://localhost:4096" />);
-  const oldController = mocks.controllers[0]!;
-  const oldSource = mocks.sources[0]!;
-  const oldAdapter = mocks.adapters.at(-1);
+itBrokenOnReact18(
+  "replaces the client, registry, and thread list when baseUrl changes",
+  async () => {
+    const App = ({ baseUrl }: { baseUrl: string }) => {
+      useOpenCodeRuntime({ baseUrl });
+      return null;
+    };
+    const view = render(<App baseUrl="http://localhost:4096" />);
+    const oldController = mocks.controllers[0]!;
+    const oldSource = mocks.sources[0]!;
+    const oldAdapter = mocks.adapters.at(-1);
 
-  view.rerender(<App baseUrl="http://localhost:4097" />);
-  await act(async () => {});
+    view.rerender(<App baseUrl="http://localhost:4097" />);
+    await act(async () => {});
 
-  expect(mocks.controllers[1]!.client).not.toBe(oldController.client);
-  expect(mocks.adapters.at(-1)).not.toBe(oldAdapter);
-  expect(mocks.reloads).toBe(2);
-  expect(oldController.dispose).toHaveBeenCalledOnce();
-  expect(oldSource.dispose).toHaveBeenCalledOnce();
-});
+    expect(mocks.controllers[1]!.client).not.toBe(oldController.client);
+    expect(mocks.adapters.at(-1)).not.toBe(oldAdapter);
+    expect(mocks.reloads).toBe(2);
+    expect(oldController.dispose).toHaveBeenCalledOnce();
+    expect(oldSource.dispose).toHaveBeenCalledOnce();
+  },
+);
 
-it("replaces the registry when the explicit client changes and disposes on Activity hide", async () => {
-  const clientA = {} as OpencodeClient;
-  const clientB = {} as OpencodeClient;
-  const App = ({
-    client,
-    mode,
-  }: {
-    client: OpencodeClient;
-    mode: "visible" | "hidden";
-  }) => (
-    <Activity mode={mode}>
-      <Host client={client} />
-    </Activity>
-  );
-  const Host = ({ client }: { client: OpencodeClient }) => {
-    useOpenCodeRuntime({ client });
-    return null;
-  };
-  const view = render(<App client={clientA} mode="visible" />);
-  const oldController = mocks.controllers[0]!;
+// Activity is React 19 only.
+it.skipIf(onReact18)(
+  "replaces the registry when the explicit client changes and disposes on Activity hide",
+  async () => {
+    const clientA = {} as OpencodeClient;
+    const clientB = {} as OpencodeClient;
+    const App = ({
+      client,
+      mode,
+    }: {
+      client: OpencodeClient;
+      mode: "visible" | "hidden";
+    }) => (
+      <Activity mode={mode}>
+        <Host client={client} />
+      </Activity>
+    );
+    const Host = ({ client }: { client: OpencodeClient }) => {
+      useOpenCodeRuntime({ client });
+      return null;
+    };
+    const view = render(<App client={clientA} mode="visible" />);
+    const oldController = mocks.controllers[0]!;
 
-  view.rerender(<App client={clientB} mode="visible" />);
-  await act(async () => {});
-  expect(mocks.controllers[1]!.client).toBe(clientB);
-  expect(oldController.dispose).toHaveBeenCalledOnce();
+    view.rerender(<App client={clientB} mode="visible" />);
+    await act(async () => {});
+    expect(mocks.controllers[1]!.client).toBe(clientB);
+    expect(oldController.dispose).toHaveBeenCalledOnce();
 
-  view.rerender(<App client={clientB} mode="hidden" />);
-  await act(async () => {});
-  expect(mocks.controllers[1]!.dispose).toHaveBeenCalledOnce();
-});
+    view.rerender(<App client={clientB} mode="hidden" />);
+    await act(async () => {});
+    expect(mocks.controllers[1]!.dispose).toHaveBeenCalledOnce();
+  },
+);
