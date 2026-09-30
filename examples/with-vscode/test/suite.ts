@@ -1,11 +1,22 @@
 import { writeFile } from "node:fs/promises";
 import * as vscode from "vscode";
+import type { ProbeResult } from "../src/readiness/probes";
 import type { ProbeReport } from "../src/readiness/runner";
+import type { ReadinessNode } from "../src/readiness/tree";
 import { SWITCHBOARD } from "../src/switchboard";
 import { captureThemeScreenshots } from "./screenshots";
 
+export type TestbedProbeResult = ProbeReport["results"][number] & {
+  /** The first attempt of a gated probe that failed once and was run again. */
+  firstAttempt?: ProbeResult;
+};
+
 export type TestbedReport = {
-  runs: (ProbeReport & { runtime: string })[];
+  runs: {
+    runtime: string;
+    webviewReady: boolean;
+    results: TestbedProbeResult[];
+  }[];
   screenshots?: { files: string[]; error?: string };
   /** Set when the suite itself threw, with the stack. */
   error?: string;
@@ -39,9 +50,11 @@ async function runSuite(
   report: TestbedReport,
   step: (name: string) => Promise<void>,
 ) {
+  const phase = Number(process.env.AUI_TESTBED_PHASE ?? "0");
+  const requested =
+    process.env.AUI_TESTBED_RUNTIMES?.split(",").filter(Boolean) ?? [];
   const runtimes =
-    process.env.AUI_TESTBED_RUNTIMES?.split(",").filter(Boolean) ??
-    SWITCHBOARD.runtime.implemented;
+    requested.length > 0 ? requested : SWITCHBOARD.runtime.implemented;
 
   const extension = vscode.extensions.getExtension("assistant-ui.with-vscode");
   if (!extension)
@@ -55,7 +68,26 @@ async function runSuite(
     const result = await vscode.commands.executeCommand<ProbeReport>(
       "auiTest.runAllProbes",
     );
-    report.runs.push({ runtime, ...result });
+    const results: TestbedProbeResult[] = [];
+    for (const probe of result.results) {
+      if (probe.phase > phase || probe.state !== "fail") {
+        results.push(probe);
+        continue;
+      }
+      await step(`retry ${probe.id} (runtime=${runtime})`);
+      const node: ReadinessNode = { kind: "probe", probe };
+      const retry = await vscode.commands.executeCommand<ProbeResult>(
+        "auiTest.runProbe",
+        node,
+      );
+      const { state, detail, ...definition } = probe;
+      results.push({
+        ...definition,
+        ...retry,
+        firstAttempt: detail === undefined ? { state } : { state, detail },
+      });
+    }
+    report.runs.push({ runtime, webviewReady: result.webviewReady, results });
   }
 
   const cdpPort = Number(process.env.AUI_TESTBED_CDP_PORT);
