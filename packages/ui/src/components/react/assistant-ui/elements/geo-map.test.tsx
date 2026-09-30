@@ -160,6 +160,27 @@ describe("GeoMap", () => {
     expect(leaflet.tileLayer).toHaveBeenCalledTimes(1);
   });
 
+  it("inks auto tiles through the dark variant rather than the system preference", async () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn(() => ({
+        matches: true,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    );
+    const { container } = render(<GeoMap places={PLACES} />);
+
+    await waitFor(() => expect(leaflet.tileLayer).toHaveBeenCalledTimes(1));
+    const frame = container.querySelector<HTMLElement>('[role="region"]')!;
+    const classes = frame.className.split(/\s+/);
+    expect(frame.getAttribute("data-theme")).toBe("auto");
+    expect(classes).toContain("[&_.leaflet-tile-pane]:grayscale");
+    expect(classes).toContain("dark:[&_.leaflet-tile-pane]:invert");
+    expect(classes).not.toContain("[&_.leaflet-tile-pane]:invert");
+    vi.unstubAllGlobals();
+  });
+
   it("leaves custom tiles as the provider draws them", async () => {
     const { container } = render(
       <GeoMap
