@@ -53,11 +53,7 @@ export default defineSections([
     notes:
       "The zoom overlay, opened when this section is shown alone (the overlay is fixed and would cover the gallery).",
     render: () => (
-      <ClickWhenAlone
-        id="image-zoom"
-        selector=".aui-image-zoom-trigger"
-        className="min-h-screen"
-      >
+      <ClickWhenAlone id="image-zoom" selector=".aui-image-zoom-trigger">
         <Image
           type="image"
           image={IMAGES.dawn}

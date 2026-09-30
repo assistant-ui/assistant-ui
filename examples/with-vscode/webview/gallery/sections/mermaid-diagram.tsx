@@ -81,7 +81,6 @@ export default defineSections([
       <ClickWhenAlone
         id="mermaid-diagram-zoom"
         selector='[data-slot="mermaid-zoom-trigger"]'
-        className="min-h-screen"
       >
         <MermaidDiagram code={FLOW} />
       </ClickWhenAlone>
