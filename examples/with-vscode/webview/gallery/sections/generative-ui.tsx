@@ -1,10 +1,7 @@
 import { renderGenerativeUI } from "@assistant-ui/react-generative-ui";
 import { styledGenerativeUILibrary } from "@assistant-ui/ui/components/assistant-ui/elements/generative-ui.tsx";
-import { installGenerativeUIStyle } from "../../fixture-ui/_generative-ui-style";
 import { defineSections } from "../types";
 import { State, States } from "./_states";
-
-installGenerativeUIStyle();
 
 const WEATHER = {
   $type: "Card",

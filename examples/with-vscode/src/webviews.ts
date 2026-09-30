@@ -51,6 +51,7 @@ const renderHtml = (
       scripts: [asset("gallery.js")],
       styles: [
         asset("app.css"),
+        asset("generative-ui.css"),
         ...(existsSync(galleryCss.fsPath) ? [galleryCss] : []),
       ],
       title: "Component Gallery",
@@ -62,7 +63,7 @@ const renderHtml = (
   }
   return renderWebviewHtml(webview, {
     scripts: [asset("main.js")],
-    styles: [asset("app.css"), asset("main.css")],
+    styles: [asset("app.css"), asset("generative-ui.css"), asset("main.css")],
     title: "Assistant",
     csp: switchboard.csp,
     surface: switchboard.location,
