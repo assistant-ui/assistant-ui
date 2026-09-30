@@ -5073,6 +5073,9 @@ importers:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
+      '@assistant-ui/x-react18':
+        specifier: workspace:*
+        version: link:../x-react18
       '@earendil-works/pi-coding-agent':
         specifier: ^0.85.1
         version: 0.85.1(supports-color@10.2.2)(ws@8.21.3)(zod@4.6.5)
