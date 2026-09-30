@@ -711,6 +711,44 @@ describe("SetupWizard", () => {
       expect(centered()).toEqual(["Step 1", "Step 1", "Step 1", "Step 1"]);
     });
 
+    it("ignores the unfold of a step the agent adds later, so it does not pull a reader back", () => {
+      const observer = observeRow();
+      scrollIntoView.mockClear();
+      const { rerender } = render(<SetupWizard checkout={stream(1)} />);
+      expect(centered()).toEqual(["Step 1"]);
+      observer.intersect(false);
+
+      rerender(
+        <SetupWizard
+          checkout={context(
+            connected({
+              status: "installing",
+              steps: [
+                step("s1", "active"),
+                step("s2", "pending"),
+                step("s3", "pending"),
+              ],
+              log: [
+                {
+                  id: "l1",
+                  role: "agent",
+                  phase: "installing",
+                  at: 1,
+                  text: "Line 1",
+                  stepId: "s1",
+                },
+              ],
+            }),
+          )}
+        />,
+      );
+      const added = screen.getByText("Step 3").closest("li")!;
+      const event = createEvent.animationEnd(added);
+      Object.defineProperty(event, "animationName", { value: "unfold" });
+      fireEvent(added, event);
+      expect(centered()).toEqual(["Step 1"]);
+    });
+
     it("re-centers the row on every line of a sustained stream while it stays in view", () => {
       const observer = observeRow();
       scrollIntoView.mockClear();

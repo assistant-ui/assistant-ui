@@ -506,10 +506,16 @@ function InstallSteps({
     for (const type of interactions) {
       scroller.addEventListener(type, pause, { passive: true });
     }
-    // Rows mount at 0fr and unfold over 0.3s, so a list that fit at mount time has grown by the time the animation ends, and the growth may have pushed the row out of view.
+    // Rows mount at 0fr and unfold over 0.3s, so a list that fit at mount time has grown by the time the animation ends, and the growth may have pushed the row out of view; a row the agent adds later unfolds too, but must not pull the reader back.
+    const mounted = new Set(element.querySelectorAll("li"));
     const unfolded = (event: Event) => {
-      if ((event as AnimationEvent).animationName !== "unfold" || interacted)
+      if (
+        (event as AnimationEvent).animationName !== "unfold" ||
+        interacted ||
+        !mounted.has(event.target as HTMLLIElement)
+      ) {
         return;
+      }
       following.current = true;
       center();
     };
