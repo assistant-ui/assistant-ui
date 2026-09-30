@@ -473,6 +473,12 @@ function InstallSteps({
       : stepActivity(state, activeId).at(-1)?.id;
   const list = useRef<HTMLOListElement>(null);
   const following = useRef(true);
+  const center = () => {
+    if (activeId === undefined || !following.current) return;
+    list.current
+      ?.querySelector('[aria-current="step"]')
+      ?.scrollIntoView({ block: "center" });
+  };
   useEffect(() => {
     following.current = true;
     const element = list.current;
@@ -498,6 +504,11 @@ function InstallSteps({
     for (const type of interactions) {
       scroller.addEventListener(type, pause, { passive: true });
     }
+    // Rows mount at 0fr and unfold over 0.3s, so a list that fit at mount time has grown by the time the animation ends.
+    const unfolded = (event: Event) => {
+      if ((event as AnimationEvent).animationName === "unfold") center();
+    };
+    element.addEventListener("animationend", unfolded);
     let observer: IntersectionObserver | undefined;
     const row = element.querySelector('[aria-current="step"]');
     // jsdom has no IntersectionObserver, so the list always follows there.
@@ -518,14 +529,10 @@ function InstallSteps({
       for (const type of interactions) {
         scroller.removeEventListener(type, pause);
       }
+      element.removeEventListener("animationend", unfolded);
     };
   }, [activeId]);
-  useEffect(() => {
-    if (activeId === undefined || !following.current) return;
-    list.current
-      ?.querySelector('[aria-current="step"]')
-      ?.scrollIntoView({ block: "center" });
-  }, [activeId, activeLast]);
+  useEffect(center, [activeId, activeLast]);
   let lastProduct: string | undefined;
   return (
     <ol

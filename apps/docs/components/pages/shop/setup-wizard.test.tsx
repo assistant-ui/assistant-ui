@@ -8,6 +8,7 @@ import {
   screen,
   waitFor,
   within,
+  createEvent,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SetupWizard } from "./setup-wizard";
@@ -679,6 +680,30 @@ describe("SetupWizard", () => {
           within(element as HTMLElement).getByText(/^Step \d$/).textContent,
       );
     const row = () => screen.getByRole("listitem", { current: "step" });
+
+    it("re-centers the row once its unfold animation ends, unless the reader has paused following", () => {
+      observeRow();
+      scrollIntoView.mockClear();
+      render(<SetupWizard checkout={stream(1)} />);
+      expect(centered()).toEqual(["Step 1"]);
+      const list = screen.getByRole("list", { name: "Installation steps" });
+      // jsdom has no AnimationEvent, so the name is pinned onto a plain event.
+      const animationEnd = (animationName: string) => {
+        const event = createEvent.animationEnd(row());
+        Object.defineProperty(event, "animationName", { value: animationName });
+        fireEvent(row(), event);
+      };
+
+      animationEnd("fade-in");
+      expect(centered()).toEqual(["Step 1"]);
+
+      animationEnd("unfold");
+      expect(centered()).toEqual(["Step 1", "Step 1"]);
+
+      fireEvent.wheel(list);
+      animationEnd("unfold");
+      expect(centered()).toEqual(["Step 1", "Step 1"]);
+    });
 
     it("re-centers the row on every line of a sustained stream while it stays in view", () => {
       const observer = observeRow();
