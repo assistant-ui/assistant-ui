@@ -14,5 +14,6 @@ export {
   installLinkInterceptor,
   type LinkInterceptorOptions,
 } from "./webview/links";
+export { createVSCodeStorage } from "./webview/storage";
 export type { VSCodeModelRequest } from "./model-request";
 export * from "./protocol";

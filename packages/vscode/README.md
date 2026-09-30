@@ -59,6 +59,7 @@ import { serveWebviewHost } from "@assistant-ui/vscode/host";
 const host = serveWebviewHost(view.webview, {
   routes: { "/api/chat": { POST } },
   openExternal: (url) => vscode.env.openExternal(vscode.Uri.parse(url)),
+  storage: context.globalState,
 });
 view.onDidDispose(() => host.dispose());
 ```
@@ -71,6 +72,26 @@ A webview cannot navigate away or open windows. `installLinkInterceptor()` catch
 import { installLinkInterceptor } from "@assistant-ui/vscode/webview";
 
 installLinkInterceptor();
+```
+
+### Thread persistence
+
+`createVSCodeStorage()` stores threads in the Memento passed as `storage` (`context.globalState` or `context.workspaceState`), so they survive reloading the window. Its keys are namespaced by `storagePrefix` (default `"@assistant-ui/vscode:"`).
+
+```tsx
+import { createLocalStorageAdapter } from "@assistant-ui/core/react";
+import { useLocalRuntime, useRemoteThreadListRuntime } from "@assistant-ui/react";
+import { createVSCodeModelAdapter, createVSCodeStorage } from "@assistant-ui/vscode/webview";
+
+const threads = createLocalStorageAdapter({ storage: createVSCodeStorage() });
+const model = createVSCodeModelAdapter();
+
+const runtime = useRemoteThreadListRuntime({
+  adapter: threads,
+  runtimeHook: function useThreadRuntime() {
+    return useLocalRuntime(model);
+  },
+});
 ```
 
 `acquireVsCodeApi()` may only be called once per webview. Use `getVSCodeApi()` wherever your webview code needs the API.

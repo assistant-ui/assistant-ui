@@ -8,6 +8,12 @@ type AsNumber<K> = K extends `${infer N extends number}` ? N | K : never;
 
 type AsyncIterableStream<T> = AsyncIterable<T> & ReadableStream<T>;
 
+type AsyncStorageLike = {
+  getItem(key: string): Promise<string | null>;
+  setItem(key: string, value: string): Promise<void>;
+  removeItem(key: string): Promise<void>;
+};
+
 type BackendTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
   type: "backend";
   description?: undefined;
@@ -308,6 +314,11 @@ type McpTool = ToolBase<Record<string, unknown>, unknown> & {
   providerOptions?: undefined;
 };
 
+type MementoLike = {
+  get(key: string): unknown;
+  update(key: string, value: unknown): PromiseLike<void>;
+};
+
 type MessageCommonProps = {
   readonly id: string;
   readonly createdAt: Date;
@@ -438,6 +449,8 @@ type ServeWebviewHostOptions = ServeWebviewRoutesOptions & {
   routes?: WebviewRoutes;
   openExternal?: (url: string) => PromiseLike<boolean> | boolean | void;
   externalSchemes?: readonly string[];
+  storage?: MementoLike;
+  storagePrefix?: string;
 };
 
 type ServeWebviewRoutesOptions = {
@@ -828,6 +841,8 @@ declare function createVSCodeFetch(port?: VSCodeBridgePort): VSCodeFetch;
 
 declare function createVSCodeModelAdapter(_param0?: VSCodeModelAdapterOptions): ChatModelAdapter;
 
+declare function createVSCodeStorage(port?: VSCodeBridgePort): AsyncStorageLike;
+
 declare function createWebviewCsp(webview: WebviewCspSource, options: WebviewCspOptions): string;
 
 declare function getCspNonce(): string | undefined;
@@ -842,7 +857,7 @@ declare global {
 }
 
 declare namespace entry_host_exports {
-  export { BridgeHeaders, BridgeMessage, Disposable, FetchAbortMessage, FetchChunkMessage, FetchEndMessage, FetchErrorMessage, FetchHeadMessage, FetchRequestMessage, HostToWebviewMessage, HttpMethod, RenderWebviewHtmlOptions, RouteHandler, RouteHandlers, RpcRequestMessage, RpcResponseMessage, ServeWebviewHostOptions, ServeWebviewRoutesOptions, VSCODE_BRIDGE_CHANNEL, VSCODE_VIRTUAL_ORIGIN, VSCodeModelRequest, WebviewCspMode, WebviewCspOptions, WebviewCspSource, WebviewLike, WebviewResourceLike, WebviewRoutes, WebviewSurface, WebviewToHostMessage, createCspNonce, createWebviewCsp, isHostToWebviewMessage, isWebviewToHostMessage, renderWebviewHtml, serveWebviewHost, serveWebviewRoutes };
+  export { BridgeHeaders, BridgeMessage, Disposable, FetchAbortMessage, FetchChunkMessage, FetchEndMessage, FetchErrorMessage, FetchHeadMessage, FetchRequestMessage, HostToWebviewMessage, HttpMethod, MementoLike, RenderWebviewHtmlOptions, RouteHandler, RouteHandlers, RpcRequestMessage, RpcResponseMessage, ServeWebviewHostOptions, ServeWebviewRoutesOptions, VSCODE_BRIDGE_CHANNEL, VSCODE_VIRTUAL_ORIGIN, VSCodeModelRequest, WebviewCspMode, WebviewCspOptions, WebviewCspSource, WebviewLike, WebviewResourceLike, WebviewRoutes, WebviewSurface, WebviewToHostMessage, createCspNonce, createWebviewCsp, isHostToWebviewMessage, isWebviewToHostMessage, renderWebviewHtml, serveWebviewHost, serveWebviewRoutes };
 }
 
 declare function installLinkInterceptor(_param1?: LinkInterceptorOptions): () => void;
@@ -860,7 +875,7 @@ declare function serveWebviewRoutes(webview: WebviewLike, routes: WebviewRoutes,
 declare const vscodeFetch: VSCodeFetch;
 
 declare namespace entry_webview_exports {
-  export { BridgeHeaders, BridgeMessage, FetchAbortMessage, FetchChunkMessage, FetchEndMessage, FetchErrorMessage, FetchHeadMessage, FetchRequestMessage, HostToWebviewMessage, LinkInterceptorOptions, RpcRequestMessage, RpcResponseMessage, VSCODE_BRIDGE_CHANNEL, VSCODE_VIRTUAL_ORIGIN, VSCodeApi, VSCodeBridgePort, VSCodeFetch, VSCodeModelAdapterOptions, VSCodeModelRequest, WebviewToHostMessage, createVSCodeFetch, createVSCodeModelAdapter, getCspNonce, getVSCodeApi, installLinkInterceptor, isHostToWebviewMessage, isWebviewToHostMessage, vscodeFetch };
+  export { BridgeHeaders, BridgeMessage, FetchAbortMessage, FetchChunkMessage, FetchEndMessage, FetchErrorMessage, FetchHeadMessage, FetchRequestMessage, HostToWebviewMessage, LinkInterceptorOptions, RpcRequestMessage, RpcResponseMessage, VSCODE_BRIDGE_CHANNEL, VSCODE_VIRTUAL_ORIGIN, VSCodeApi, VSCodeBridgePort, VSCodeFetch, VSCodeModelAdapterOptions, VSCodeModelRequest, WebviewToHostMessage, createVSCodeFetch, createVSCodeModelAdapter, createVSCodeStorage, getCspNonce, getVSCodeApi, installLinkInterceptor, isHostToWebviewMessage, isWebviewToHostMessage, vscodeFetch };
 }
 
 export { entry_host_exports as entry_host, entry_webview_exports as entry_webview };
