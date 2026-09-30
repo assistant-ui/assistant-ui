@@ -433,7 +433,7 @@ jobs:
   test:
     name: Test Changed Packages
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     # assistant-stream's resumable store advertises a peer union over ioredis 5
     # and 6 and node-redis; both legs need a live server or their suites skip.
     services:
@@ -481,6 +481,69 @@ jobs:
             pnpm install --frozen-lockfile
           fi
 
+      - name: Build packages
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            pnpm turbo build --filter="...[origin/${{ github.base_ref }}]" --filter="!./apps/*" --filter="!./examples/*" --filter="!./templates/*"
+          else
+            pnpm turbo build --filter="...[HEAD^1]" --filter="!./apps/*" --filter="!./examples/*" --filter="!./templates/*"
+          fi
+
+      # Each vitest run already spreads its files across every core, so parallel test tasks oversubscribe this runner and push tests past vitest's 5s timeout; the builds above keep turbo's default concurrency.
+      - name: Run tests
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # PR: Test packages changed compared to base branch
+            pnpm turbo test --concurrency=1 --filter="...[origin/${{ github.base_ref }}]"
+          else
+            # Push to main: Test packages changed in last commit
+            pnpm turbo test --concurrency=1 --filter="...[HEAD^1]"
+          fi
+
+      - name: Run React Compiler tests
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+        run: pnpm test:react-compiler
+
+  coverage:
+    name: Coverage of Changed Packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      redis:
+        image: redis:8-alpine # ratchet:exclude
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      REDIS_URL: redis://127.0.0.1:6379
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        with:
+          runtime: node@24
+          cache: true
+          install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Test the coverage summary
         run: pnpm run coverage:test
 
@@ -495,7 +558,7 @@ jobs:
             pnpm turbo build --filter="...[HEAD^1]" --filter="!./apps/*" --filter="!./examples/*" --filter="!./templates/*"
           fi
 
-      # Each vitest run already spreads its files across every core, so parallel test tasks oversubscribe this runner and push tests past vitest's 5s timeout; the builds above keep turbo's default concurrency.
+      # Concurrency 1 for the same reason as the Test job; coverage instrumentation slows each file further.
       - name: Run tests with coverage
         env:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
@@ -523,12 +586,6 @@ jobs:
             examples/*/coverage/
           if-no-files-found: ignore
           retention-days: 14
-
-      - name: Run React Compiler tests
-        env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
-        run: pnpm test:react-compiler
 
   typecheck:
     name: Typecheck Changed Packages
