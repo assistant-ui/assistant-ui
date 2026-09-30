@@ -62,6 +62,9 @@ document.addEventListener("securitypolicyviolation", (event) => {
 });
 
 window.addEventListener("error", (event) => {
+  if (event.error == null && event.message.startsWith("ResizeObserver loop")) {
+    return;
+  }
   recordIssue("error", describe(event.error ?? event.message));
 });
 
