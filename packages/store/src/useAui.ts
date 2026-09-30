@@ -25,7 +25,7 @@ import type {
   ClientNames,
   ClientMethods,
 } from "./types/client";
-import { useDerived } from "./Derived";
+import { isDerivedHook } from "./derived-hook";
 import {
   useAssistantContextValue,
   useAssistantContextProvider,
@@ -99,8 +99,7 @@ export const applyTransformScopes = (
   return scopes;
 };
 
-const isDerivedElement = (element: ScopeElement) =>
-  element.hook === (useDerived as unknown);
+const isDerivedElement = (element: ScopeElement) => isDerivedHook(element.hook);
 
 const metaOf = (element: ScopeElement): ScopeMeta => {
   if (!isDerivedElement(element)) return { source: "root", query: {} };
