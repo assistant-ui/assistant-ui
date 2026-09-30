@@ -675,6 +675,66 @@ describe("SetupWizard", () => {
       );
       expect(centered()).toEqual(["Step 1", "Step 1", "Step 2"]);
     });
+
+    it("pauses when the reader scrolls the list with the keyboard", () => {
+      const observer = observeRow();
+      scrollIntoView.mockClear();
+      const { rerender } = render(<SetupWizard checkout={stream(1)} />);
+      expect(centered()).toEqual(["Step 1"]);
+      const list = screen.getByRole("list", { name: "Installation steps" });
+
+      fireEvent.keyDown(list, { key: "a" });
+      rerender(<SetupWizard checkout={stream(2)} />);
+      expect(centered()).toEqual(["Step 1", "Step 1"]);
+
+      fireEvent.keyDown(
+        within(row()).getByRole("button", {
+          name: "2 lines from Claude Code for Step 1",
+        }),
+        { key: " " },
+      );
+      rerender(<SetupWizard checkout={stream(3)} />);
+      expect(centered()).toEqual(["Step 1", "Step 1", "Step 1"]);
+
+      fireEvent.keyDown(list, { key: "PageUp" });
+      rerender(<SetupWizard checkout={stream(4)} />);
+      expect(centered()).toEqual(["Step 1", "Step 1", "Step 1"]);
+
+      observer.intersect(true);
+      rerender(<SetupWizard checkout={stream(5)} />);
+      expect(centered()).toEqual(["Step 1", "Step 1", "Step 1", "Step 1"]);
+    });
+
+    it("pauses on a press on the list itself but not on a step's disclosure", () => {
+      observeRow();
+      scrollIntoView.mockClear();
+      const { rerender } = render(<SetupWizard checkout={stream(1)} />);
+      expect(centered()).toEqual(["Step 1"]);
+      const list = screen.getByRole("list", { name: "Installation steps" });
+
+      fireEvent.pointerDown(
+        within(row()).getByRole("button", {
+          name: "1 line from Claude Code for Step 1",
+        }),
+      );
+      rerender(<SetupWizard checkout={stream(2)} />);
+      expect(centered()).toEqual(["Step 1", "Step 1"]);
+
+      fireEvent.pointerDown(list);
+      rerender(<SetupWizard checkout={stream(3)} />);
+      expect(centered()).toEqual(["Step 1", "Step 1"]);
+    });
+
+    it("keeps following when the reader scrolls inside the running step's panel", () => {
+      observeRow();
+      scrollIntoView.mockClear();
+      const { rerender } = render(<SetupWizard checkout={stream(1)} />);
+      expect(centered()).toEqual(["Step 1"]);
+
+      fireEvent.wheel(within(row()).getByRole("log"));
+      rerender(<SetupWizard checkout={stream(2)} />);
+      expect(centered()).toEqual(["Step 1", "Step 1"]);
+    });
   });
 
   it("fills the install bar with time within the current step and snaps to the step count when one completes", () => {

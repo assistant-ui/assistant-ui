@@ -26,10 +26,14 @@ export function StepActivity({
   const [toggled, setToggled] = useState<boolean>();
   const open = toggled ?? live;
   const list = useRef<HTMLOListElement>(null);
+  const pinned = useRef(true);
   const last = entries.at(-1)?.id;
   useEffect(() => {
+    if (open) pinned.current = true;
+  }, [open]);
+  useEffect(() => {
     const element = list.current;
-    if (!open || element === null) return;
+    if (!open || element === null || !pinned.current) return;
     element.scrollTop = element.scrollHeight;
   }, [open, last]);
   const count = entries.length;
@@ -46,6 +50,11 @@ export function StepActivity({
           role="log"
           aria-live={live ? "polite" : "off"}
           aria-label={`What ${agentName} did`}
+          onScroll={(event) => {
+            const { scrollHeight, scrollTop, clientHeight } =
+              event.currentTarget;
+            pinned.current = scrollHeight - scrollTop - clientHeight < 8;
+          }}
           className="bg-muted motion-safe:animate-in motion-safe:fade-in flex max-h-40 flex-col gap-1.5 overflow-y-auto rounded-lg p-3 text-sm motion-safe:duration-300"
         >
           {entries.map((entry) => (

@@ -432,6 +432,29 @@ function useLeaving(present: boolean) {
   return leaving;
 }
 
+const scrollKeys = new Set([
+  "ArrowUp",
+  "ArrowDown",
+  "PageUp",
+  "PageDown",
+  "Home",
+  "End",
+  " ",
+]);
+
+/** jsdom computes no overflow, so there the list stands in for its scroller. */
+function scrollerOf(element: HTMLElement): HTMLElement {
+  for (
+    let node: HTMLElement | null = element;
+    node !== null;
+    node = node.parentElement
+  ) {
+    const { overflowY } = getComputedStyle(node);
+    if (overflowY === "auto" || overflowY === "scroll") return node;
+  }
+  return element;
+}
+
 function InstallSteps({
   checkout,
   state,
@@ -454,12 +477,26 @@ function InstallSteps({
     following.current = true;
     const element = list.current;
     if (!element) return;
-    const pause = () => {
+    const scroller = scrollerOf(element);
+    const pause = (event: Event) => {
+      const target = event.target as Element | null;
+      if (target?.closest('[role="log"]')) return;
+      if (event.type === "keydown") {
+        const { key } = event as KeyboardEvent;
+        if (!scrollKeys.has(key)) return;
+        if (key === " " && target?.closest("button")) return;
+      }
+      if (event.type === "pointerdown" && target !== scroller) return;
       following.current = false;
     };
-    const interactions = ["wheel", "touchmove"] as const;
+    const interactions = [
+      "wheel",
+      "touchmove",
+      "keydown",
+      "pointerdown",
+    ] as const;
     for (const type of interactions) {
-      element.addEventListener(type, pause, { passive: true });
+      scroller.addEventListener(type, pause, { passive: true });
     }
     let observer: IntersectionObserver | undefined;
     const row = element.querySelector('[aria-current="step"]');
@@ -479,7 +516,7 @@ function InstallSteps({
     return () => {
       observer?.disconnect();
       for (const type of interactions) {
-        element.removeEventListener(type, pause);
+        scroller.removeEventListener(type, pause);
       }
     };
   }, [activeId]);
