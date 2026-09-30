@@ -203,7 +203,7 @@ const THEME_TOKENS = (surface: Surface): Record<string, readonly string[]> => ({
   "--primary": ["--vscode-button-background"],
   "--border": ["--vscode-panel-border", "--vscode-widget-border"],
   "--ring": ["--vscode-focusBorder"],
-  "--muted-foreground": ["--vscode-descriptionForeground"],
+  "--foreground": ["--vscode-foreground"],
 });
 
 const isDarkTheme = () =>
@@ -217,6 +217,7 @@ type ThemeSample = {
   bodyBackground: string;
   utilityBackground: string;
   darkVariantDisplay: string;
+  mutedForeground: string;
   /** Elements that still carry a background from VS Code's default webview styles. */
   defaultStyleLeaks: string[];
   tokens: Record<string, { token: string; vscode: string; from: string }>;
@@ -260,6 +261,7 @@ const sampleTheme = (surface: Surface): ThemeSample => {
       bodyBackground: getComputedStyle(document.body).backgroundColor,
       utilityBackground: getComputedStyle(utility).backgroundColor,
       darkVariantDisplay: getComputedStyle(darkVariant).display,
+      mutedForeground: resolve("var(--muted-foreground)"),
       defaultStyleLeaks: unstyled
         .map((el) => [el.localName, getComputedStyle(el).backgroundColor])
         .filter(([, background]) => background !== "rgba(0, 0, 0, 0)")
@@ -284,6 +286,9 @@ const themeMismatch = (sample: ThemeSample) => {
   }
   if (sample.utilityBackground !== background) {
     return `bg-background is ${sample.utilityBackground}, expected ${background}`;
+  }
+  if (sample.mutedForeground === sample.tokens["--foreground"]?.token) {
+    return `--muted-foreground is the same colour as --foreground (${sample.mutedForeground})`;
   }
   const scheme = sample.dark ? "dark" : "light";
   if (sample.colorScheme !== scheme) {
