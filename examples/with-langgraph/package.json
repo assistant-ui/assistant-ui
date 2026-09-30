@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary"
   },
   "dependencies": {
     "@assistant-ui/react": "workspace:*",
