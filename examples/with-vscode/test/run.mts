@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { runTests } from "@vscode/test-electron";
-import type { ProbeReport } from "../src/readiness/runner.ts";
+import type { TestbedReport } from "./suite.ts";
 
 const rootDir = path.resolve(import.meta.dirname, "..");
 const phase = Number(process.env.AUI_TESTBED_PHASE ?? "0");
@@ -22,7 +22,10 @@ try {
     version: process.env.AUI_TESTBED_VSCODE_VERSION ?? "stable",
     extensionDevelopmentPath: rootDir,
     extensionTestsPath: path.join(rootDir, "dist", "test", "suite.js"),
-    extensionTestsEnv: { AUI_TESTBED_REPORT: reportPath },
+    extensionTestsEnv: {
+      AUI_TESTBED_REPORT: reportPath,
+      AUI_TESTBED_RUNTIMES: process.env.AUI_TESTBED_RUNTIMES,
+    },
     launchArgs: [
       "--disable-extensions",
       // Chromium otherwise throttles timers in an occluded window, which stalls fixture streams.
@@ -40,7 +43,7 @@ try {
 }
 
 const report = await readFile(reportPath, "utf-8")
-  .then((text) => JSON.parse(text) as ProbeReport)
+  .then((text) => JSON.parse(text) as TestbedReport)
   .catch(() => undefined);
 await rm(tempDir, { recursive: true, force: true });
 
@@ -49,41 +52,49 @@ if (!report) {
   process.exit(1);
 }
 
-const rows = report.results.map((r) => ({
-  probe: r.id,
-  phase: String(r.phase),
-  gated: r.phase <= phase ? "yes" : "",
-  state: r.state,
-  detail: r.detail ?? "",
-}));
 const columns = ["probe", "phase", "gated", "state", "detail"] as const;
-const widths = columns.map((c) =>
-  Math.max(c.length, ...rows.map((row) => row[c].length)),
-);
-const line = (cells: readonly string[]) =>
-  cells
-    .map((cell, i) => cell.padEnd(widths[i] ?? 0))
-    .join("  ")
-    .trimEnd();
+let failed = report.runs.length === 0;
 
-console.log(`\nAUI test bed probes (AUI_TESTBED_PHASE=${phase})\n`);
-console.log(line(columns));
-console.log(line(widths.map((w) => "-".repeat(w))));
-for (const row of rows) console.log(line(columns.map((c) => row[c])));
-
-const failures = report.results.filter(
-  (r) => r.phase <= phase && r.state !== "pass",
-);
-if (!report.webviewReady) {
-  console.error("\nThe Assistant webview never reported ready.");
-}
-if (failures.length > 0) {
-  console.error(
-    `\n${failures.length} probe(s) expected green by phase ${phase} are not passing: ${failures.map((f) => f.id).join(", ")}`,
+for (const run of report.runs) {
+  const rows = run.results.map((r) => ({
+    probe: r.id,
+    phase: String(r.phase),
+    gated: r.phase <= phase ? "yes" : "",
+    state: r.state,
+    detail: r.detail ?? "",
+  }));
+  const widths = columns.map((c) =>
+    Math.max(c.length, ...rows.map((row) => row[c].length)),
   );
+  const line = (cells: readonly string[]) =>
+    cells
+      .map((cell, i) => cell.padEnd(widths[i] ?? 0))
+      .join("  ")
+      .trimEnd();
+
+  console.log(
+    `\nAUI test bed probes (auiTest.runtime=${run.runtime}, AUI_TESTBED_PHASE=${phase})\n`,
+  );
+  console.log(line(columns));
+  console.log(line(widths.map((w) => "-".repeat(w))));
+  for (const row of rows) console.log(line(columns.map((c) => row[c])));
+
+  const failures = run.results.filter(
+    (r) => r.phase <= phase && r.state !== "pass",
+  );
+  if (!run.webviewReady) {
+    console.error(
+      `\nThe Assistant webview never reported ready (runtime=${run.runtime}).`,
+    );
+  }
+  if (failures.length > 0) {
+    console.error(
+      `\n${failures.length} probe(s) expected green by phase ${phase} are not passing under runtime=${run.runtime}: ${failures.map((f) => f.id).join(", ")}`,
+    );
+  }
+  if (!run.webviewReady || failures.length > 0) failed = true;
 }
+
 if (launchError) console.error("\nVS Code test run failed:", launchError);
 
-process.exit(
-  report.webviewReady && failures.length === 0 && !launchError ? 0 : 1,
-);
+process.exit(failed || launchError ? 1 : 0);

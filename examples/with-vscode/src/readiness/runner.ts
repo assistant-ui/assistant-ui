@@ -24,8 +24,8 @@ export type ProbeReport = {
   results: (Probe & ProbeResult)[];
 };
 
-const WEBVIEW_READY_TIMEOUT_MS = 20_000;
-const PROBE_TIMEOUT_MS = 60_000;
+export const WEBVIEW_READY_TIMEOUT_MS = 20_000;
+export const PROBE_TIMEOUT_MS = 60_000;
 
 const withTimeout = (promise: Promise<ProbeResult>, ms: number) =>
   Promise.race([

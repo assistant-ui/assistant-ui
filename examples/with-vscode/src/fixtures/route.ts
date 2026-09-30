@@ -1,52 +1,15 @@
 import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
-import { playFixture, selectFixture } from "./fixtures";
-
-type LooseMessage = {
-  role?: string;
-  content?: unknown;
-  parts?: unknown;
-};
-
-const partsOf = (message: LooseMessage): Record<string, unknown>[] => {
-  const parts = message.parts ?? message.content;
-  if (typeof parts === "string") return [{ type: "text", text: parts }];
-  return Array.isArray(parts) ? parts : [];
-};
-
-const lastUserText = (messages: readonly LooseMessage[]) => {
-  const last = messages.findLast((m) => m.role === "user");
-  if (!last) return "";
-  return partsOf(last)
-    .map((part) =>
-      part["type"] === "text" && typeof part["text"] === "string"
-        ? part["text"]
-        : "",
-    )
-    .join("");
-};
-
-const toolResultsOf = (messages: readonly LooseMessage[]) => {
-  const results = new Map<string, unknown>();
-  for (const message of messages) {
-    for (const part of partsOf(message)) {
-      const id = part["toolCallId"];
-      const result = part["output"] ?? part["result"];
-      if (typeof id === "string" && result !== undefined) {
-        results.set(id, result);
-      }
-    }
-  }
-  return results;
-};
+import { playFixture } from "./fixtures";
+import { fixtureStepsFor } from "./request";
 
 export async function POST(req: Request): Promise<Response> {
-  const body = (await req.json()) as { messages?: LooseMessage[] };
-  const messages = body.messages ?? [];
-  const prompt = lastUserText(messages);
-  const steps = selectFixture(prompt).script({
-    prompt,
-    toolResults: toolResultsOf(messages),
-  });
+  const steps = await fixtureStepsFor(req);
+  // A call the fixture answers runs on the server; the rest wait for the client.
+  const serverToolCalls = new Set(
+    steps.flatMap((s) =>
+      s.type === "tool-call" && s.result !== undefined ? [s.toolCallId] : [],
+    ),
+  );
 
   const stream = createUIMessageStream({
     execute: async ({ writer }) => {
@@ -57,6 +20,7 @@ export async function POST(req: Request): Promise<Response> {
         openText = undefined;
       };
 
+      writer.write({ type: "start-step" });
       for await (const event of playFixture(steps, { signal: req.signal })) {
         switch (event.type) {
           case "text-delta":
@@ -78,6 +42,7 @@ export async function POST(req: Request): Promise<Response> {
               toolCallId: event.toolCallId,
               toolName: event.toolName,
               input: event.args,
+              providerExecuted: serverToolCalls.has(event.toolCallId),
             });
             break;
           case "tool-result":
@@ -85,6 +50,7 @@ export async function POST(req: Request): Promise<Response> {
               type: "tool-output-available",
               toolCallId: event.toolCallId,
               output: event.result,
+              providerExecuted: true,
             });
             break;
           case "error":
@@ -94,6 +60,7 @@ export async function POST(req: Request): Promise<Response> {
         }
       }
       closeText();
+      writer.write({ type: "finish-step" });
     },
   });
 

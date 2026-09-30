@@ -1,5 +1,6 @@
 import { startProbeListener } from "./probes";
-import { useEffect, useMemo } from "react";
+import "./zod-jitless";
+import { useEffect, useMemo, type FC } from "react";
 import { createRoot } from "react-dom/client";
 import {
   AssistantRuntimeProvider,
@@ -9,11 +10,22 @@ import {
   useAui,
   useLocalRuntime,
   type AssistantClient,
+  type AssistantRuntime,
 } from "@assistant-ui/react";
+import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
+import {
+  createVSCodeModelAdapter,
+  vscodeFetch,
+} from "@assistant-ui/vscode/webview";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { Thread } from "@assistant-ui/ui/components/assistant-ui/elements/thread.aui.tsx";
 import { FIXTURES } from "../src/fixtures/fixtures";
-import { createFixtureModelAdapter } from "../src/fixtures/model-adapter";
-import type { WebviewBootConfig } from "../src/protocol";
+import {
+  CHAT_ROUTE,
+  MODEL_ROUTE,
+  type WebviewBootConfig,
+} from "../src/protocol";
+import type { SWITCHBOARD, Switchboard } from "../src/switchboard";
 import { toolkit } from "./tools";
 
 const boot = JSON.parse(
@@ -45,9 +57,7 @@ function CaptureClient() {
   return null;
 }
 
-function FixtureThread() {
-  const adapter = useMemo(() => createFixtureModelAdapter(), []);
-  const runtime = useLocalRuntime(adapter);
+function FixtureThread({ runtime }: { runtime: AssistantRuntime }) {
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>
       <CaptureClient />
@@ -55,6 +65,34 @@ function FixtureThread() {
     </AssistantRuntimeProvider>
   );
 }
+
+function LocalThread() {
+  const adapter = useMemo(
+    () => createVSCodeModelAdapter({ api: MODEL_ROUTE }),
+    [],
+  );
+  return <FixtureThread runtime={useLocalRuntime(adapter)} />;
+}
+
+function AiSdkThread() {
+  const transport = useMemo(
+    () => new AssistantChatTransport({ api: CHAT_ROUTE, fetch: vscodeFetch }),
+    [],
+  );
+  const runtime = useChatRuntime({
+    transport,
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+  });
+  return <FixtureThread runtime={runtime} />;
+}
+
+const RUNTIME_THREADS: Record<
+  (typeof SWITCHBOARD.runtime.implemented)[number],
+  FC
+> = {
+  "ai-sdk": AiSdkThread,
+  local: LocalThread,
+};
 
 function NotImplementedBanner() {
   if (boot.unimplemented.length === 0) return null;
@@ -72,14 +110,17 @@ function NotImplementedBanner() {
 }
 
 function App() {
+  const RuntimeThread = (
+    RUNTIME_THREADS as Partial<Record<Switchboard["runtime"], FC>>
+  )[boot.switchboard.runtime];
   const canMountThread = !boot.unimplemented.some(
-    ({ key }) => key === "runtime" || key === "backend",
+    ({ key }) => key === "backend",
   );
   return (
     <main className="flex h-screen flex-col">
       <NotImplementedBanner />
       <div className="min-h-0 flex-1">
-        {canMountThread && <FixtureThread />}
+        {canMountThread && RuntimeThread && <RuntimeThread />}
       </div>
     </main>
   );
