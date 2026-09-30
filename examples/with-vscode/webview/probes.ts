@@ -60,9 +60,16 @@ console.error = (...args: unknown[]) => {
   );
   consoleError(...args);
 };
-window.addEventListener("error", (event) =>
-  recordConsoleError(String(event.error ?? event.message)),
-);
+// Browsers report a ResizeObserver whose callback changed layout as a window
+// error with no Error object; the spec treats it as benign and delivers the
+// notifications on the next frame.
+const isResizeObserverLoop = (event: ErrorEvent) =>
+  event.error == null && event.message.startsWith("ResizeObserver loop");
+
+window.addEventListener("error", (event) => {
+  if (isResizeObserverLoop(event)) return;
+  recordConsoleError(String(event.error ?? event.message));
+});
 window.addEventListener("unhandledrejection", (event) =>
   recordConsoleError(`Unhandled rejection: ${String(event.reason)}`),
 );
