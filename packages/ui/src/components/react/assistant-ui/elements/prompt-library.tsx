@@ -122,8 +122,8 @@ export function PromptLibrary({
                 {prompt.name}
               </span>
               {prompt.variables.length > 0 && (
-                <span className={cn(mono, "text-foreground/25 shrink-0")}>
-                  {prompt.variables.length} vars
+                <span className={cn(mono, "text-muted-foreground shrink-0")}>
+                  {`${prompt.variables.length} ${prompt.variables.length === 1 ? "var" : "vars"}`}
                 </span>
               )}
             </>
