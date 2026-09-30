@@ -73,14 +73,29 @@ function clientOnlyReactImports(file: string): string[] {
   return names;
 }
 
-describe("react-server entry", () => {
-  const graph = collectGraph(join(SRC_DIR, "index.server.ts"));
+// Server code reaches every entry: the subpaths carry no react-server
+// condition, and the docs app resolves the root to its source through
+// tsconfig paths, which skip that condition.
+const ENTRIES = [
+  "index.server.ts",
+  "index.ts",
+  "ir.ts",
+  "a2ui.ts",
+  "slack.ts",
+  "teams.ts",
+];
 
-  it("reaches the vocabulary", () => {
+describe("published entries", () => {
+  const graph = new Set(
+    ENTRIES.flatMap((entry) => [...collectGraph(join(SRC_DIR, entry))]),
+  );
+
+  it("reach the vocabulary and the client renderer", () => {
     expect(graph).toContain(join(SRC_DIR, "vocabulary", "interactive.tsx"));
+    expect(graph).toContain(join(SRC_DIR, "JSONGenerativeUI.client.tsx"));
   });
 
-  it("never names a client-only React API in an import", () => {
+  it("never name a client-only React API in an import", () => {
     const violations = [...graph].flatMap((file) =>
       clientOnlyReactImports(file).map(
         (name) => `${relative(SRC_DIR, file)}: ${name}`,

@@ -76,7 +76,7 @@ function AssistantReply() {
 }
 ```
 
-The `Thread` element already ships a user and assistant message composed this closely, though its action row uses `autohide="not-last"` (hover-gated on older replies, always visible on the newest one) rather than the strict hover-only behavior modeled here; install `@assistant-ui/thread` for the full, richer version.
+The `Thread` element ships the same user and assistant composition, but its action row uses `autohide="not-last"`: hover-gated on older replies, always visible on the newest one. Install `@assistant-ui/thread` to get it.
 
   </Step>
 </Steps>
@@ -147,7 +147,7 @@ Pass `onCopy` and `onRegenerate` to show the matching buttons and own their beha
 </div>
 ```
 
-Hovering or focusing anywhere in the reply's group reveals the action row through `opacity-0` to `opacity-100`; each word fades in on its own, and the newest two words tint blue while `streaming` is true before settling to ink over 700ms. A trailing cursor blinks after the last word while streaming and disappears once `streaming` is false or nothing has been revealed yet. Standalone this reveal is driven by `visibleWords` catching up to `words.length`, a controlled typewriter useful for demos and replays. A runtime instead just renders the accumulated text as it streams in: there is no separate reveal count to manage, and the default `Text` part renderer shows a trailing "●" (through `MessagePartPrimitive.InProgress`) rather than a colored trailing edge, so the per-word blue tint is specific to this design.
+Hovering or focusing anywhere in the reply's group reveals the action row, which goes from `opacity-0` to `opacity-100`. Each word fades in on its own, and while `streaming` is true the newest two words are tinted blue before settling to ink over 700ms. A trailing cursor blinks after the last word while streaming; it is absent when `streaming` is false or no word is shown yet. Standalone, `visibleWords` drives the reveal as it catches up to `words.length`. A runtime renders the accumulated text as it streams, with no reveal count to manage, and its default `Text` part renderer shows a trailing "●" (through `MessagePartPrimitive.InProgress`), so the per-word blue tint exists only in the standalone element.
 
 ## Examples
 
@@ -155,12 +155,12 @@ Hovering or focusing anywhere in the reply's group reveals the action row throug
 
 <RuntimeMode>
 
-There is no `variant` prop at runtime; flip the same two classes on the bubble you compose in "Compose the pair":
+There is no `variant` prop at runtime. Choose between the same two class sets on the bubble you compose in "Compose the pair", from a `variant` value of your own:
 
 ```tsx
 <div
   className={
-    role === "user"
+    variant === "flat"
       ? "text-foreground/90 self-end text-end text-sm"
       : cn(paper, "max-w-[85%] self-end rounded-2xl px-3.5 py-2 text-sm")
   }

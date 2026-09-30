@@ -3,7 +3,7 @@ title: "Message timing"
 description: "Streaming statistics for the current message, including first token, total time, and speed."
 ---
 
-Message timing turns a stream's own telemetry into a small badge: a duration on the trigger, and first token time, total time, speed, and chunk count in its tooltip. With a runtime it reads the timing recorded on the current assistant message; there is no standalone form of this exact badge, since a badge with nothing to time has nothing to show. It comes in two designs: the runtime variant reads that live telemetry into a hover tooltip, and the static variant renders the same numbers as a props-driven stats row instead (see [The timing-footer design](#the-timing-footer-design)).
+Message timing turns a stream's telemetry into a small badge: a duration on the trigger, and first token time, total time, speed, and chunk count in its tooltip. The badge reads the timing recorded on the current assistant message, so it needs a runtime. A second, props-driven design renders the same numbers as a stats row and works without one (see [The timing-footer design](#the-timing-footer-design)).
 
 ## Getting started
 
@@ -73,7 +73,7 @@ export const MessageTiming: FC<{
 
 Drop `MessageTiming` next to copy and reload so it inherits the action bar's own hover and autohide behavior from `ActionBarPrimitive.Root`.
 
-```tsx title="components/assistant-ui/elements/thread.aui.tsx" {3,10}
+```tsx title="components/assistant-ui/elements/thread.aui.tsx" {3,11}
 import { ActionBarPrimitive } from "@assistant-ui/react";
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import { MessageTiming } from "@/components/assistant-ui/elements/message-timing.aui";
@@ -99,7 +99,7 @@ function AssistantActionBar() {
 
 <StandaloneMode>
 
-Standalone, there is nothing to time. The badge exists to surface a runtime's own stream telemetry, and a value you already hold in a variable does not need a hover tooltip to reveal it. Render your own stats row from [The timing-footer design](#the-timing-footer-design) instead, which takes the same kind of numbers as plain props.
+Standalone, there is nothing to time, because the badge reads a runtime's stream telemetry. Use the stats row from [The timing-footer design](#the-timing-footer-design), which takes the numbers as props.
 
 </StandaloneMode>
 

@@ -20,7 +20,7 @@ import {
   formatMinutes,
   resolveProducts,
 } from "@/lib/catalog";
-import { parseCartItems } from "@/lib/catalog/install-prompt";
+import { parseItemSlugs } from "@/lib/catalog/install-guide";
 import {
   removeFromCart,
   replaceCart,
@@ -79,7 +79,7 @@ export function CartView() {
   // so removing an item here does not resurrect it on the next render.
   useEffect(() => {
     if (!hydrated || session !== null) return;
-    const linked = resolveProducts(parseCartItems(linkedItems)).map(
+    const linked = resolveProducts(parseItemSlugs(linkedItems)).map(
       (product) => product.slug,
     );
     if (linked.length > 0) replaceCart(linked);
@@ -93,15 +93,16 @@ export function CartView() {
         {session !== null ? <ActiveCheckoutBanner /> : null}
         <h1 className={typePage}>Your cart is empty.</h1>
         <p className={cn("mt-4", typeDeck)}>
-          Open a product in the shop and add it here. Everything is free.
+          Open a product on the Components page and add it here. Everything is
+          free.
         </p>
         <Button
           nativeButton={false}
           className="mt-8"
-          render={<Link href="/shop" />}
+          render={<Link href="/components" />}
         >
           <ArrowLeftIcon data-icon="inline-start" />
-          Browse the shop
+          Browse components
         </Button>
       </div>
     );

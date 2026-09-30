@@ -139,6 +139,7 @@ export interface TeamsInputToggle {
 export interface TeamsInputText {
   readonly type: "Input.Text";
   readonly id: string;
+  readonly style?: "password";
   readonly label?: string;
   readonly placeholder?: string;
   readonly value?: string;

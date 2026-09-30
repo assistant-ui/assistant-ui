@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
+import { ArrowLeftIcon, ArrowRightIcon, ChevronDownIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { buttonVariants } from "@/components/ui/button";
 import { CodeBlock } from "@/components/ui/code-block";
+import { checkoutEnabled } from "@/lib/checkout/config";
 import { createOgMetadata } from "@/lib/og";
 import {
   highlightElementSource,
@@ -171,6 +173,50 @@ export default async function ElementPage({
 
   const showToc = toc.length >= 3;
 
+  const manualInstall = element.generative ? (
+    <PackageManagerTabs packages={["@assistant-ui/react-generative-ui"]} />
+  ) : hasModes ? (
+    <>
+      <ElementModeToggle className="mb-6" />
+      <RuntimeMode>
+        <ShadcnInstallTabs urls={[`"@assistant-ui/${registryName}"`]} />
+        <RuntimeSetup />
+      </RuntimeMode>
+      <StandaloneMode>
+        {runtimeComposedOnly ? (
+          <p className="text-muted-foreground text-sm">
+            This component is composed from runtime primitives and has no
+            standalone build.
+            {counterpart && (
+              <>
+                {" "}
+                The runtime-free design ships as{" "}
+                <Link
+                  href={`/elements/${counterpart.slug}`}
+                  className="text-foreground underline underline-offset-4 transition-colors hover:no-underline"
+                >
+                  {counterpart.title}
+                </Link>
+                .
+              </>
+            )}
+          </p>
+        ) : (
+          <>
+            <ShadcnInstallTabs
+              urls={[`"@assistant-ui/${standaloneRegistryName}"`]}
+            />
+            <p className="text-muted-foreground mt-4 text-sm">
+              Props-driven: no runtime or provider required.
+            </p>
+          </>
+        )}
+      </StandaloneMode>
+    </>
+  ) : (
+    <ShadcnInstallTabs urls={[`"@assistant-ui/${registryName}"`]} />
+  );
+
   return (
     <ElementModeProvider
       native={Boolean(nativeRegistryName)}
@@ -201,18 +247,9 @@ export default async function ElementPage({
                 </Link>
               </p>
             )}
-            {(hasModes || nativeRegistryName) && (
-              <div className="border-border/60 mt-6 flex items-end justify-between gap-6 border-b">
-                {hasModes ? (
-                  <ReactLane>
-                    <ElementModeToggle className="border-b-0" />
-                  </ReactLane>
-                ) : (
-                  <span />
-                )}
-                {nativeRegistryName && (
-                  <ElementPlatformToggle className="ms-auto mb-2" />
-                )}
+            {nativeRegistryName && (
+              <div className="mt-6 flex justify-end">
+                <ElementPlatformToggle />
               </div>
             )}
           </header>
@@ -271,56 +308,30 @@ export default async function ElementPage({
                   </NativeLane>
                 )}
                 <ReactLane>
-                  <AgentSetup product={elementProductSlug(element.slug)} />
-                  {element.generative ? (
-                    <PackageManagerTabs
-                      packages={["@assistant-ui/react-generative-ui"]}
-                    />
-                  ) : hasModes ? (
+                  {checkoutEnabled ? (
                     <>
-                      <RuntimeMode>
-                        <ShadcnInstallTabs
-                          urls={[`"@assistant-ui/${registryName}"`]}
-                        />
-                        <RuntimeSetup />
-                      </RuntimeMode>
-                      <StandaloneMode>
-                        {runtimeComposedOnly ? (
-                          <p className="text-muted-foreground text-sm">
-                            This component is composed from runtime primitives
-                            and has no standalone build.
-                            {counterpart && (
-                              <>
-                                {" "}
-                                The runtime-free design ships as{" "}
-                                <Link
-                                  href={`/elements/${counterpart.slug}`}
-                                  className="text-foreground underline underline-offset-4 transition-colors hover:no-underline"
-                                >
-                                  {counterpart.title}
-                                </Link>
-                                .
-                              </>
-                            )}
-                          </p>
-                        ) : (
-                          <>
-                            <ShadcnInstallTabs
-                              urls={[
-                                `"@assistant-ui/${standaloneRegistryName}"`,
-                              ]}
-                            />
-                            <p className="text-muted-foreground mt-4 text-sm">
-                              Props-driven: no runtime or provider required.
-                            </p>
-                          </>
-                        )}
-                      </StandaloneMode>
+                      <AgentSetup
+                        product={elementProductSlug(element.slug)}
+                        prominent
+                      />
+                      <details className="group/manual">
+                        <summary
+                          className={cn(
+                            buttonVariants({ variant: "outline", size: "sm" }),
+                            "not-prose cursor-pointer list-none [&::-webkit-details-marker]:hidden",
+                          )}
+                        >
+                          Install manually
+                          <ChevronDownIcon
+                            aria-hidden
+                            className="transition-[rotate] group-open/manual:rotate-180 motion-reduce:transition-none"
+                          />
+                        </summary>
+                        <div className="mt-6">{manualInstall}</div>
+                      </details>
                     </>
                   ) : (
-                    <ShadcnInstallTabs
-                      urls={[`"@assistant-ui/${registryName}"`]}
-                    />
+                    manualInstall
                   )}
                 </ReactLane>
               </div>
