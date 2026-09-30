@@ -1,6 +1,14 @@
 "use client";
 
-import { type ComponentProps, useMemo } from "react";
+import {
+  type ComponentProps,
+  type RefObject,
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ArrowUpIcon,
   CheckIcon,
@@ -139,16 +147,72 @@ export function ComposerBar({
   );
 }
 
+function useFitInComposer(menuRef: RefObject<HTMLDivElement | null>) {
+  const [fit, setFit] = useState<{ shift: number; maxWidth: number } | null>(
+    null,
+  );
+
+  useLayoutEffect(() => {
+    const menu = menuRef.current;
+    if (!menu) return undefined;
+    const bounds =
+      menu.closest<HTMLElement>('[data-slot="composer"]') ??
+      document.documentElement;
+    const measure = () => {
+      const parent = menu.offsetParent;
+      if (!parent) return;
+      const { left: min, right: max } = bounds.getBoundingClientRect();
+      const left = parent.getBoundingClientRect().left + menu.offsetLeft;
+      const width = Math.min(menu.offsetWidth, max - min);
+      const shift = Math.max(min - left, Math.min(0, max - left - width));
+      setFit((current) =>
+        current?.shift === shift && current.maxWidth === max - min
+          ? current
+          : { shift, maxWidth: max - min },
+      );
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(bounds);
+    observer.observe(menu);
+    return () => observer.disconnect();
+  }, [menuRef]);
+
+  return fit;
+}
+
 export function ComposerMenu({
   open,
   align = "start",
   className,
+  style,
+  ref,
   ...props
 }: ComponentProps<"div"> & { open: boolean; align?: "start" | "end" }) {
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const fit = useFitInComposer(menuRef);
+  const composedRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      menuRef.current = node;
+      if (typeof ref === "function") {
+        ref(node);
+      } else if (ref) {
+        ref.current = node;
+      }
+    },
+    [ref],
+  );
+
   return (
     <div
+      ref={composedRef}
       data-slot="composer-menu"
       data-open={open || undefined}
+      style={
+        fit
+          ? { maxWidth: fit.maxWidth, translate: `${fit.shift}px 0`, ...style }
+          : style
+      }
       className={cn(
         floating,
         "absolute bottom-full z-10 mb-2 flex w-72 flex-col gap-0.5 rounded-2xl p-1.5",
