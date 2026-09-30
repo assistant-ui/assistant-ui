@@ -48,6 +48,7 @@
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/vue": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@assistant-ui/x-react18": "workspace:*",
     "@lucide/vue": "^1.46.0",
     "@testing-library/react": "^16.3.3",
     "@types/leaflet": "^1.9.22",
@@ -81,6 +82,8 @@
   },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json && tsc --noEmit -p src/components/react-native/tsconfig.json && tsc --noEmit -p src/components/react-native/tsconfig.test.json"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json && tsc --noEmit -p src/components/react-native/tsconfig.json && tsc --noEmit -p src/components/react-native/tsconfig.test.json",
+    "test:peer-react18": "vitest run --config vitest.peer-react18.config.ts",
+    "test:types:peer-react18": "aui-react18-types tsconfig.peer-react18.json src/components/react-native/tsconfig.peer-react18.json"
   }
 }
