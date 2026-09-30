@@ -67,7 +67,7 @@ export function ComposerBar() {
                   className="data-[highlighted]:bg-foreground/[0.04] flex w-full flex-col items-start gap-0.5 rounded-[10px] px-2.5 py-2 text-start outline-none"
                 >
                   <span className="text-[13.5px] font-medium">/{item.id}</span>
-                  {item.description && <span className="text-foreground/45 text-xs">{item.description}</span>}
+                  {item.description && <span className="text-muted-foreground text-xs">{item.description}</span>}
                 </ComposerPrimitive.Unstable_TriggerPopoverItem>
               ))}
             </div>
