@@ -78,6 +78,8 @@ export type AttachedWebview = {
   switchboard: Switchboard;
   ready: boolean;
   implementedProbes: ReadonlySet<ProbeId>;
+  /** The gallery's section count; 0 for the Assistant view. */
+  sections: number;
 };
 
 export const isAssistant = (entry: AttachedWebview) => !entry.gallery;
@@ -112,6 +114,7 @@ export class AssistantWebviews implements vscode.Disposable {
       switchboard: readSwitchboard(),
       ready: false,
       implementedProbes: new Set(),
+      sections: 0,
     };
     this.attached.add(entry);
     const subscription = webview.onDidReceiveMessage((message: unknown) =>
@@ -255,6 +258,7 @@ export class AssistantWebviews implements vscode.Disposable {
     if (message.type === "ready") {
       entry.ready = true;
       entry.implementedProbes = new Set(message.implementedProbes);
+      entry.sections = message.sections ?? 0;
       this.readyEmitter.fire();
     } else {
       this.pending.get(message.requestId)?.(message.result);

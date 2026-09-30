@@ -98,6 +98,7 @@ type Sweep = {
   /** Issues while every section was mounted at once. */
   all: Issue[];
   pageOverflow: number;
+  seconds: number;
 };
 
 /**
@@ -105,6 +106,7 @@ type Sweep = {
  * and records the issues and the overflow of each.
  */
 const runSweep = async (): Promise<Sweep> => {
+  const start = performance.now();
   const sections: SectionReport[] = [];
   for (const { id } of SECTIONS) {
     const mark = issueMark();
@@ -121,7 +123,8 @@ const runSweep = async (): Promise<Sweep> => {
     document.documentElement.scrollWidth - document.documentElement.clientWidth;
   const all = issuesSince(mark).filter((i) => i.section === ALL_SECTIONS);
   await show({ section: null, width: null });
-  return { sections, all, pageOverflow };
+  const seconds = Math.round((performance.now() - start) / 1000);
+  return { sections, all, pageOverflow, seconds };
 };
 
 // The three gallery probes share one sweep per page load; a switchboard
@@ -130,15 +133,20 @@ let sweep: Promise<Sweep> | undefined;
 const getSweep = () => (sweep ??= runSweep());
 
 const summarize = (
+  sweepResult: Sweep,
   label: string,
   offenders: { id: string; detail: string }[],
 ): ProbeResult => {
+  const swept = `swept in ${sweepResult.seconds} s`;
   if (offenders.length === 0) {
-    return { state: "pass", detail: `${SECTIONS.length} sections, 0 ${label}` };
+    return {
+      state: "pass",
+      detail: `${SECTIONS.length} sections, 0 ${label}, ${swept}`,
+    };
   }
   return {
     state: "fail",
-    detail: `${offenders.length}/${SECTIONS.length} sections: ${offenders
+    detail: `${offenders.length}/${SECTIONS.length} sections (${swept}): ${offenders
       .map(({ id, detail }) => `${id} (${detail})`)
       .join("; ")}`,
   };
@@ -174,13 +182,14 @@ export const GALLERY_PROBES: Partial<
     }
     const result = await getSweep();
     return withConflicts(
-      summarize("violations", issueOffenders(result, ["csp"])),
+      summarize(result, "violations", issueOffenders(result, ["csp"])),
     );
   },
   "gallery-errors": async () => {
     const result = await getSweep();
     return withConflicts(
       summarize(
+        result,
         "errors",
         issueOffenders(result, ["error", "console", "boundary"]),
       ),
@@ -198,7 +207,7 @@ export const GALLERY_PROBES: Partial<
       });
     }
     return withConflicts(
-      summarize(`overflowing at ${NARROW_WIDTH}px`, offenders),
+      summarize(result, `overflowing at ${NARROW_WIDTH}px`, offenders),
     );
   },
 };
@@ -274,5 +283,6 @@ export const startGalleryListener = (boot: WebviewBootConfig) => {
     channel: TESTBED_CHANNEL,
     type: "ready",
     implementedProbes: Object.keys(GALLERY_PROBES) as ProbeId[],
+    sections: SECTIONS.length,
   });
 };
