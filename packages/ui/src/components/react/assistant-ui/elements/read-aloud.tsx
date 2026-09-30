@@ -58,7 +58,7 @@ export function ReadAloud({
             className={cn(
               "transition-colors duration-200 motion-reduce:transition-none",
               i < spokenIndex
-                ? "text-foreground/40"
+                ? "text-muted-foreground"
                 : i === spokenIndex
                   ? "text-foreground/95 rounded bg-blue-500/12 dark:bg-blue-400/15"
                   : "text-foreground/70",
@@ -98,7 +98,9 @@ export function ReadAloud({
           />
         </span>
 
-        <span className={cn(mono, "text-foreground/35 shrink-0 tabular-nums")}>
+        <span
+          className={cn(mono, "text-muted-foreground shrink-0 tabular-nums")}
+        >
           {elapsed} / {duration}
         </span>
 
@@ -109,7 +111,7 @@ export function ReadAloud({
           className={cn(
             field,
             mono,
-            "text-foreground/55 hover:text-foreground/90 shrink-0 rounded-full px-2 py-1 tabular-nums transition-colors",
+            "text-muted-foreground hover:text-foreground/90 shrink-0 rounded-full px-2 py-1 tabular-nums transition-colors",
           )}
         >
           {rate}×

@@ -75,7 +75,7 @@ export function Sources({
               <span
                 key={`${domain}-${index}`}
                 data-slot="sources-badge"
-                className="bg-foreground/[0.08] text-foreground/55 ring-background dark:ring-popover flex size-4 items-center justify-center rounded-full text-[8px] font-medium ring-1"
+                className="bg-foreground/[0.08] text-muted-foreground ring-background dark:ring-popover flex size-4 items-center justify-center rounded-full text-[8px] font-medium ring-1"
               >
                 {domain.charAt(0).toUpperCase()}
               </span>
@@ -83,7 +83,7 @@ export function Sources({
           </span>
         ) : null}
         <span>Sources</span>
-        <span className={cn(mono, "text-foreground/35 tabular-nums")}>
+        <span className={cn(mono, "text-muted-foreground tabular-nums")}>
           {sources.length}
         </span>
         <ChevronDownIcon className="size-3 opacity-60 transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-data-open/trigger:rotate-180 group-data-panel-open/trigger:rotate-180 motion-reduce:transition-none" />
@@ -107,10 +107,12 @@ export function Sources({
               <>
                 {domain ? (
                   <div className="flex items-center gap-1.5">
-                    <span className="bg-foreground/[0.06] text-foreground/45 flex size-4 shrink-0 items-center justify-center rounded text-[9px] font-medium">
+                    <span className="bg-foreground/[0.06] text-muted-foreground flex size-4 shrink-0 items-center justify-center rounded text-[9px] font-medium">
                       {domain.charAt(0).toUpperCase()}
                     </span>
-                    <span className={cn(mono, "text-foreground/40 truncate")}>
+                    <span
+                      className={cn(mono, "text-muted-foreground truncate")}
+                    >
                       {domain}
                     </span>
                   </div>
@@ -120,12 +122,12 @@ export function Sources({
                     {source.title}
                   </span>
                   {source.snippet ? (
-                    <span className="text-foreground/50 line-clamp-2 text-xs leading-relaxed">
+                    <span className="text-muted-foreground line-clamp-2 text-xs leading-relaxed">
                       {source.snippet}
                     </span>
                   ) : null}
                   {meta ? (
-                    <span className="text-foreground/40 truncate text-xs">
+                    <span className="text-muted-foreground truncate text-xs">
                       {meta}
                     </span>
                   ) : null}

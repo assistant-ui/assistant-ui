@@ -42,7 +42,7 @@ export function ReasoningEffort({
     >
       <div className="flex items-baseline justify-between">
         <span className="text-[13.5px] font-medium">Thinking</span>
-        <span className={cn(mono, "text-foreground/35 tabular-nums")}>
+        <span className={cn(mono, "text-muted-foreground tabular-nums")}>
           {fmt(spent)} / {fmt(budget)}
         </span>
       </div>
@@ -56,8 +56,8 @@ export function ReasoningEffort({
             active
               ? "bg-background text-foreground/90"
               : onSelect
-                ? "text-foreground/45 hover:text-foreground/70"
-                : "text-foreground/45",
+                ? "text-muted-foreground hover:text-foreground/70"
+                : "text-muted-foreground",
           );
           return onSelect ? (
             <button

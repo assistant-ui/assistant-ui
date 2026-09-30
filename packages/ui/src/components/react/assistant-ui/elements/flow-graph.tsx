@@ -98,11 +98,11 @@ export function FlowGraph({
             className={cn(
               "fade-in zoom-in-95 animate-in fill-mode-both absolute flex items-center justify-center rounded-xl border text-center text-[11.5px] leading-tight duration-300",
               node.state === "done" &&
-                "border-foreground/10 bg-foreground/[0.04] text-foreground/50",
+                "border-foreground/10 bg-foreground/[0.04] text-muted-foreground",
               node.state === "active" &&
                 "text-foreground/90 border-blue-500/30 bg-blue-500/10 dark:border-blue-400/30",
               node.state === "pending" &&
-                "border-foreground/8 text-foreground/35 border-dashed",
+                "border-foreground/8 text-muted-foreground border-dashed",
             )}
             style={{
               left: node.column * COL_W,

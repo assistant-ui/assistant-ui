@@ -47,7 +47,7 @@ export function ScoreBreakdown({
         <span className="text-2xl font-medium tracking-tight tabular-nums">
           {total.toFixed(1)}
         </span>
-        <span className={cn(mono, "text-foreground/30 tabular-nums")}>
+        <span className={cn(mono, "text-muted-foreground tabular-nums")}>
           / {outOf}
         </span>
         <span
@@ -74,11 +74,14 @@ export function ScoreBreakdown({
               <span className="text-foreground/75 min-w-0 flex-1 truncate text-[13px]">
                 {criterion.label}
               </span>
-              <span className={cn(mono, "text-foreground/25 shrink-0")}>
+              <span className={cn(mono, "text-muted-foreground shrink-0")}>
                 ×{criterion.weight}
               </span>
               <span
-                className={cn(mono, "text-foreground/55 shrink-0 tabular-nums")}
+                className={cn(
+                  mono,
+                  "text-muted-foreground shrink-0 tabular-nums",
+                )}
               >
                 {criterion.score.toFixed(1)}
               </span>
@@ -100,7 +103,7 @@ export function ScoreBreakdown({
               />
             </span>
             {criterion.note && (
-              <span className="text-foreground/40 text-xs leading-relaxed break-words">
+              <span className="text-muted-foreground text-xs leading-relaxed break-words">
                 {criterion.note}
               </span>
             )}
