@@ -108,4 +108,4 @@ body {
 
 The background follows a webview view in the sidebar by default. Set `data-aui-vscode-surface` on `<html>` or `<body>` to `"editor"` for a webview panel in an editor tab, or to `"panel"` for a view in the bottom panel.
 
-VS Code injects a default stylesheet into every webview (body padding, link and `code` colours, focus outlines). The theme hands those properties back to Tailwind's layers.
+VS Code injects a default stylesheet into every webview (body padding, link, `code`, `kbd` and block quote colours, focus outlines), unlayered in older releases and as `@layer vscode-default` in newer ones. The theme resets those properties in either case, so Tailwind's preflight and your utilities decide them.

@@ -184,6 +184,41 @@
     );
     --sidebar-border: var(--border);
   }
+
+  /*
+   * Recent VS Code releases inject the webview defaults as
+   * @layer vscode-default, which ranks below Tailwind's layers but still
+   * applies wherever preflight sets nothing, and which the unlayered
+   * revert-layer rules below would fall back to. revert here drops them to the
+   * browser defaults.
+   */
+  :where(img, video) {
+    max-height: revert;
+  }
+
+  :where(a code) {
+    color: revert;
+  }
+
+  :where(a, input, select, textarea):focus {
+    outline: revert;
+    outline-offset: revert;
+  }
+
+  :where(code, kbd) {
+    color: revert;
+    background-color: revert;
+    border-radius: revert;
+  }
+
+  :where(kbd) {
+    box-shadow: revert;
+    vertical-align: revert;
+  }
+
+  :where(blockquote) {
+    background: revert;
+  }
 }
 
 /*
