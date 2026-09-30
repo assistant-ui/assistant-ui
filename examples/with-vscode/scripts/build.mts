@@ -134,6 +134,7 @@ const webviewOptions: BuildOptions = {
   sourcemap: true,
   minify: !isWatch,
   resolveExtensions: [".tsx", ".ts", ".jsx", ".js"],
+  loader: { ".png": "dataurl" },
   entryPoints: [path.join(rootDir, "webview", "main.tsx")],
   outfile: path.join(distDir, "webview", "main.js"),
   define: {
@@ -154,8 +155,6 @@ const testbedWebviewOptions: BuildOptions = {
   },
   outfile: undefined,
   outdir: path.join(distDir, "webview"),
-  // leaflet.css, imported by the kit's geo-map, references PNG images; img-src allows data:.
-  loader: { ".png": "dataurl" },
   plugins: [...(webviewOptions.plugins ?? []), globModules, generativeUiStyle],
 };
 

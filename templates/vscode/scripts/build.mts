@@ -62,6 +62,7 @@ const webviewOptions: BuildOptions = {
   sourcemap: true,
   minify: !isWatch,
   resolveExtensions: [".tsx", ".ts", ".jsx", ".js"],
+  loader: { ".png": "dataurl" },
   entryPoints: [path.join(rootDir, "src", "webview", "main.tsx")],
   outfile: path.join(distDir, "webview", "main.js"),
   define: {
