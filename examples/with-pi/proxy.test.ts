@@ -2,8 +2,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { proxy } from "./proxy";
 
-const request = (headers?: HeadersInit) =>
-  new NextRequest("http://localhost:3000/api/pi/threads", {
+const request = (
+  headers?: HeadersInit,
+  url = "http://localhost:3000/api/pi/threads",
+) =>
+  new NextRequest(url, {
     method: "POST",
     ...(headers === undefined ? {} : { headers }),
     body: JSON.stringify({
@@ -17,11 +20,14 @@ describe("Pi API proxy", () => {
     vi.unstubAllEnvs();
   });
 
-  it("hides the local control API in production", () => {
-    vi.stubEnv("NODE_ENV", "production");
+  it.each(["production", "test"])(
+    "hides the local control API in %s",
+    (environment) => {
+      vi.stubEnv("NODE_ENV", environment);
 
-    expect(proxy(request()).status).toBe(404);
-  });
+      expect(proxy(request()).status).toBe(404);
+    },
+  );
 
   it("rejects cross-origin browser requests in development", () => {
     vi.stubEnv("NODE_ENV", "development");
@@ -48,6 +54,22 @@ describe("Pi API proxy", () => {
     );
 
     expect(response.headers.get("x-middleware-next")).toBe("1");
+  });
+
+  it("rejects same-origin requests addressed to a non-loopback host", () => {
+    vi.stubEnv("NODE_ENV", "development");
+
+    expect(
+      proxy(
+        request(
+          {
+            origin: "http://attacker.example:3000",
+            "sec-fetch-site": "same-origin",
+          },
+          "http://attacker.example:3000/api/pi/threads",
+        ),
+      ).status,
+    ).toBe(403);
   });
 
   it("allows non-browser requests in development", () => {
