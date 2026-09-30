@@ -235,10 +235,13 @@ function ContextDisplayContent({
             {formatTokenCount(modelContextWindow)}
           </span>
         </div>
-        <div className="bg-muted mt-2.5 h-1 overflow-hidden rounded-full">
+        <div
+          data-slot="context-display-track"
+          className="bg-muted inset-ring-border mt-2.5 h-1 overflow-hidden rounded-full inset-ring forced-colors:border"
+        >
           <div
             className={cn(
-              "h-full w-(--usage-width) rounded-full transition-[width] duration-300",
+              "h-full w-(--usage-width) rounded-full transition-[width] duration-300 forced-color-adjust-none",
               totalTokens > 0 && "min-w-1",
               getBarColor(percent),
             )}
@@ -287,7 +290,7 @@ function RingVisual() {
         r={RING_RADIUS}
         fill="none"
         strokeWidth={RING_STROKE}
-        className="stroke-muted"
+        className="stroke-border"
       />
       <circle
         cx={RING_SIZE / 2}
@@ -344,10 +347,13 @@ function BarVisual() {
 
   return (
     <div className="flex items-center gap-2">
-      <div className="bg-muted h-1.5 w-16 overflow-hidden rounded-full">
+      <div
+        data-slot="context-display-track"
+        className="bg-muted inset-ring-border h-1.5 w-16 overflow-hidden rounded-full inset-ring forced-colors:border"
+      >
         <div
           className={cn(
-            "h-full rounded-full transition-all duration-300",
+            "h-full rounded-full transition-all duration-300 forced-color-adjust-none",
             getBarColor(percent),
           )}
           style={{ width: `${percent}%` }}

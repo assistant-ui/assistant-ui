@@ -57,7 +57,9 @@ export function QuotaBanner({
         >
           {left} {unit} left
         </span>
-        <span className={cn(mono, "text-foreground/30 ms-auto tabular-nums")}>
+        <span
+          className={cn(mono, "text-muted-foreground ms-auto tabular-nums")}
+        >
           resets in {resetsIn}
         </span>
       </div>
@@ -85,7 +87,7 @@ export function QuotaBanner({
       </span>
 
       <div className="flex items-center gap-2">
-        <span className={cn(mono, "text-foreground/30 tabular-nums")}>
+        <span className={cn(mono, "text-muted-foreground tabular-nums")}>
           {used} of {limit} used
         </span>
         <button

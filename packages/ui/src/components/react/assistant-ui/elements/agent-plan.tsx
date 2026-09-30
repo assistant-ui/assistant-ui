@@ -37,7 +37,7 @@ export function AgentPlan({
     >
       <div className="flex items-center justify-between">
         <span className="text-[13.5px] font-medium">{title}</span>
-        <span className={cn(mono, "text-foreground/35 tabular-nums")}>
+        <span className={cn(mono, "text-muted-foreground tabular-nums")}>
           {completed} of {total}
         </span>
       </div>
@@ -74,7 +74,7 @@ export function AgentPlan({
                 {done ? (
                   <CheckIcon
                     aria-hidden
-                    className="text-foreground/35 size-3.5"
+                    className="text-muted-foreground size-3.5"
                   />
                 ) : active ? (
                   <Loader2Icon
@@ -91,16 +91,16 @@ export function AgentPlan({
               <span className="min-w-0">
                 <span
                   className={cn(
-                    done && "text-foreground/40",
+                    done && "text-muted-foreground",
                     active && "text-foreground/90",
-                    !done && !active && "text-foreground/35",
+                    !done && !active && "text-muted-foreground",
                   )}
                 >
                   {item.label}
                 </span>
                 <span className="sr-only">{` ${status}`}</span>
                 {active && item.description ? (
-                  <span className="text-foreground/45 mt-0.5 block text-xs">
+                  <span className="text-muted-foreground mt-0.5 block text-xs">
                     {item.description}
                   </span>
                 ) : null}
