@@ -1,0 +1,61 @@
+{
+  "name": "@assistant-ui/vscode",
+  "version": "0.0.0",
+  "description": "Run assistant-ui inside VS Code extension webviews by tunnelling fetch to the extension host",
+  "keywords": [
+    "vscode",
+    "vscode-extension",
+    "webview",
+    "assistant-ui",
+    "ai",
+    "chat"
+  ],
+  "author": "AgentbaseAI Inc.",
+  "license": "MIT",
+  "homepage": "https://www.assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/vscode"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "type": "module",
+  "exports": {
+    "./webview": {
+      "types": "./dist/webview.d.ts",
+      "default": "./dist/webview.js"
+    },
+    "./host": {
+      "types": "./dist/host.d.ts",
+      "default": "./dist/host.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "aui-build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@assistant-ui/core": "^0.3.21",
+    "assistant-stream": "^0.3.45"
+  },
+  "devDependencies": {
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@types/node": "^26.5.1",
+    "ai": "^7.0.101",
+    "vitest": "^5.0.1"
+  }
+}
