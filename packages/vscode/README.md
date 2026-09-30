@@ -135,6 +135,8 @@ The nonce is also written to `<meta property="csp-nonce">`, the tag Vite reads. 
 
 `@assistant-ui/vscode/theme.css` maps the shadcn tokens used by assistant-ui's components (`--background`, `--primary`, `--muted-foreground`, `--border`, `--ring`, `--sidebar-*`, `--chart-*`, `--radius`, and the rest) to VS Code's `--vscode-*` theme variables, so the webview restyles itself when the user switches colour theme. It also re-points Tailwind's `dark:` variant at VS Code's `vscode-dark` and dark high-contrast body classes, sets `color-scheme`, uses the VS Code UI and editor fonts for `font-sans` and `font-mono`, and adds contrast borders and focus outlines under high-contrast themes.
 
+`--muted` and `--secondary` mix 6% and 12% of `--foreground` into `--background`, because no VS Code variable stays distinct from every surface: `--vscode-input-background` equals the editor background in Light Modern, and `--vscode-button-secondaryBackground` is transparent in Dark Modern. Under high-contrast themes, `--primary` is `--vscode-textLink-foreground` with `--background` as its foreground, since Dark High Contrast sets `--vscode-button-background` to its black background, and user message bubbles, the composer quote, and the active thread in the thread list get a contrast outline.
+
 Import it after Tailwind:
 
 ```css
