@@ -135,6 +135,8 @@ const testbedWebviewOptions: BuildOptions = {
   },
   outfile: undefined,
   outdir: path.join(distDir, "webview"),
+  // leaflet.css, imported by the kit's geo-map, references PNG images; img-src allows data:.
+  loader: { ".png": "dataurl" },
   plugins: [...(webviewOptions.plugins ?? []), globModules],
 };
 
