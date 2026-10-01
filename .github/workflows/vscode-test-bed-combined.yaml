@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       base:
-        description: Branch to check out
+        description: Branch to check out; it must contain examples/with-vscode
         required: true
-        default: vscode/08-ci
+        default: main
         type: string
       branches:
         description: Branches whose commits since origin/main are applied on top of base, separated by spaces or commas
