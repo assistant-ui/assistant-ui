@@ -3,7 +3,9 @@ import { useCallback, useEffect, useState } from "react";
 /**
  * Delays a promise until the client has committed a render of the source
  * state current at settlement, so a caller awaiting it reads the result from
- * the client's `getState()`. `getLatestState` must be stable.
+ * the client's `getState()`. Each source promise maps to one delayed promise,
+ * keeping it stable for `use()` and Suspense caches. `getLatestState` must be
+ * stable.
  */
 export const useAfterStateCommit = <TState>(
   renderedState: TState,
@@ -12,6 +14,7 @@ export const useAfterStateCommit = <TState>(
   const [session] = useState(() => ({
     committed: undefined as { state: TState } | undefined,
     waiters: new Set<() => void>(),
+    delayed: new WeakMap<Promise<unknown>, Promise<unknown>>(),
   }));
 
   useEffect(() => {
@@ -33,8 +36,10 @@ export const useAfterStateCommit = <TState>(
   );
 
   return useCallback(
-    <T>(promise: Promise<T>): Promise<T> =>
-      promise.then(
+    <T>(promise: Promise<T>): Promise<T> => {
+      const cached = session.delayed.get(promise);
+      if (cached) return cached as Promise<T>;
+      const delayed = promise.then(
         (value) =>
           new Promise<T>((resolve) => {
             const committed = session.committed;
@@ -47,7 +52,10 @@ export const useAfterStateCommit = <TState>(
             }
             session.waiters.add(() => resolve(value));
           }),
-      ),
+      );
+      session.delayed.set(promise, delayed);
+      return delayed;
+    },
     [session, getLatestState],
   );
 };
