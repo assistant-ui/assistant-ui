@@ -26,7 +26,7 @@ const nextFiberMemoCache = (
 
   const index = memoCache.index++;
   let cache = data[index];
-  if (cache === undefined) {
+  if (cache === undefined || fiber.isRefreshing) {
     cache = createMemoCache(size);
     data[index] = cache;
   } else if (isDevelopment && cache.length !== size) {

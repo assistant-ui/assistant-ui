@@ -49,7 +49,7 @@ export const useMemo = <T>(fn: () => T, deps: readonly unknown[]): T => {
   }
 
   const memoCell = cell as MemoCell<T>;
-  if (depsShallowEqual(memoCell.wipDeps, deps)) {
+  if (!fiber.isRefreshing && depsShallowEqual(memoCell.wipDeps, deps)) {
     if (memoCell.isDirty) {
       addMemoCommit(fiber, memoCell);
     }

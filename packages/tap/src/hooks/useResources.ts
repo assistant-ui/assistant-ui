@@ -14,6 +14,7 @@ import {
   hasChangedContexts,
   hasContextDepsChanged,
 } from "../core/context";
+import { peekResourceFiber } from "../core/helpers/execution-context";
 import {
   useHostLifecycle,
   useResourceFiberHost,
@@ -82,6 +83,7 @@ export function useResources<E extends ResourceElement<any>>(
   // Process each element
 
   const { version, createFiber } = useResourceFiberHost();
+  const isRefreshing = peekResourceFiber()?.isRefreshing ?? false;
   const hasAnyContextDepsChanged = hasAnyChildContextDepsChanged(fibers);
 
   let releases = false;
@@ -129,7 +131,7 @@ export function useResources<E extends ResourceElement<any>>(
           const value = renderResourceFiber(fiber, element.args);
           state.next = { value: value, deps: element.deps, remount: fiber };
           releases = true;
-        } else if (canReuse(state, element.deps)) {
+        } else if (!isRefreshing && canReuse(state, element.deps)) {
           if (typeof state.next === "object") {
             discardWipRender(state.fiber);
           }
@@ -162,7 +164,7 @@ export function useResources<E extends ResourceElement<any>>(
       return values;
     },
     [elements, fibers, createFiber, version],
-    hasAnyContextDepsChanged,
+    isRefreshing || hasAnyContextDepsChanged,
   );
 
   useHostLifecycle(fibers);
