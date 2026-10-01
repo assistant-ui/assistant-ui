@@ -34,9 +34,10 @@ export function installLinkInterceptor({
     openExternal(url);
   };
 
+  let installed = true;
   const originalOpen = window.open;
   const patchedOpen: typeof window.open = function (url, ...rest) {
-    const external = parseExternalUrl(url, schemes);
+    const external = installed ? parseExternalUrl(url, schemes) : null;
     if (!external) return originalOpen.call(window, url, ...rest);
     openExternal(external);
     return null;
@@ -47,6 +48,7 @@ export function installLinkInterceptor({
   window.open = patchedOpen;
 
   return () => {
+    installed = false;
     document.removeEventListener("click", onClick);
     document.removeEventListener("auxclick", onClick);
     if (window.open === patchedOpen) window.open = originalOpen;

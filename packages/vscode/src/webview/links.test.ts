@@ -152,6 +152,22 @@ describe("installLinkInterceptor", () => {
     expect(click(render('<a href="https://example.com/">x</a>'))).toBe(false);
   });
 
+  it("leaves window.open unintercepted after interceptors are removed out of order", async () => {
+    const original = vi.fn(() => null);
+    window.open = original;
+    const first = setup();
+    const second = setup();
+
+    first.uninstall();
+    second.uninstall();
+    window.open("https://example.com/a", "_blank");
+    await settle();
+
+    expect(original).toHaveBeenCalledWith("https://example.com/a", "_blank");
+    expect(first.openExternal).not.toHaveBeenCalled();
+    expect(second.openExternal).not.toHaveBeenCalled();
+  });
+
   it("reports a URL the host refuses", async () => {
     const bridge = createInMemoryBridge();
     const openExternal = vi.fn();
