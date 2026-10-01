@@ -29,12 +29,18 @@ export type ThreadsMethods = {
       | { index: number; archived?: boolean },
   ): ThreadListItemMethods;
   thread(selector: "main"): ThreadMethods;
-  /** Resolves once `getState()` reports the loaded thread list, or its `loadError` when loading fails. */
+  /**
+   * Resolves once `getState()` reports the loaded thread list, or its `loadError` when loading fails.
+   * Awaited inside the React `act()` scope that completes the load, it settles only after that `act()` exits.
+   */
   getLoadThreadsPromise(): Promise<void>;
   /** Refetches the thread list; resolves like `getLoadThreadsPromise()`. */
   reload(): Promise<void>;
   reloadMainThread(): Promise<void>;
-  /** Loads the next page; resolves once `getState()` reports it, or after a failed request, which is logged. */
+  /**
+   * Loads the next page; resolves once `getState()` reports it, or after a failed request, which is logged.
+   * Awaited inside the React `act()` scope that completes the load, it settles only after that `act()` exits.
+   */
   loadMore(): Promise<void>;
   __internal_getAssistantRuntime?(): AssistantRuntime;
 };
