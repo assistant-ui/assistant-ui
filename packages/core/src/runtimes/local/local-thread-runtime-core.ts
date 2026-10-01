@@ -757,7 +757,7 @@ export class LocalThreadRuntimeCore
       if (runResult.status === "rejected") throw runResult.reason;
       if (historyResult.status === "rejected") throw historyResult.reason;
     } else {
-      this.repository.resetHead(newMessage.id);
+      this.repository.switchToBranch(newMessage.id);
       this._notifySubscribers();
       await historyWrite;
     }
@@ -1137,7 +1137,7 @@ export class LocalThreadRuntimeCore
       });
 
       // Switch to the new message branch right after adding it for the first time
-      this.repository.resetHead(message.id);
+      this.repository.switchToBranch(message.id);
       this._notifySubscribers();
 
       this._lastRunConfig = runConfig ?? {};

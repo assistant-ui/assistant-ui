@@ -3308,6 +3308,105 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     expect(appended[2]?.parentId).toBe(appended[1]?.message.id);
   });
 
+  it("keeps a turn a subscriber appends while a resumed message starts running", async () => {
+    const { history, appended } = createHistory();
+    let runs = 0;
+    const thread = createThread(
+      {
+        async run() {
+          if (++runs === 1) {
+            return {
+              content: [toolCallPart("send_email")],
+              status: { type: "requires-action", reason: "tool-calls" },
+            };
+          }
+          return { content: [{ type: "text", text: "done" }] };
+        },
+      },
+      { history },
+    );
+
+    await thread.append(userMessage("send an email"));
+    await flush();
+    const paused = thread.messages.at(-1)!;
+    expect(paused.status?.type).toBe("requires-action");
+
+    let followUp: Promise<void> | undefined;
+    let child: ThreadMessage | undefined;
+    const unsubscribe = thread.subscribe(() => {
+      const message = thread.getMessageById(paused.id)?.message;
+      if (message?.status?.type !== "running") return;
+      unsubscribe();
+      followUp = thread.append({
+        ...userMessage("keep this turn"),
+        parentId: message.id,
+        startRun: false,
+      });
+      child = thread.messages.at(-1);
+    });
+
+    thread.addToolResult({
+      messageId: paused.id,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result: { sent: true },
+      isError: false,
+    });
+    expect(followUp).toBeDefined();
+    await followUp;
+    await flush();
+
+    expect(runs).toBe(2);
+    expect(child).toMatchObject({
+      role: "user",
+      content: [{ type: "text", text: "keep this turn" }],
+    });
+    expect(appended).toContainEqual(
+      expect.objectContaining({ parentId: paused.id, message: child }),
+    );
+    expect(thread.messages).toContainEqual(child);
+    expect(thread.getMessageById(child!.id)).toEqual(
+      expect.objectContaining({ parentId: paused.id, message: child }),
+    );
+  });
+
+  it("keeps a turn a subscriber appends under a turn added without a run", async () => {
+    const { history, appended } = createHistory();
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [{ type: "text", text: "done" }] };
+        },
+      },
+      { history },
+    );
+
+    let nested: Promise<void> | undefined;
+    let child: ThreadMessage | undefined;
+    const unsubscribe = thread.subscribe(() => {
+      const parent = thread.messages.at(-1);
+      if (parent?.role !== "user") return;
+      unsubscribe();
+      nested = thread.append({
+        ...userMessage("and this"),
+        parentId: parent.id,
+        startRun: false,
+      });
+      child = thread.messages.at(-1);
+    });
+
+    await thread.append({ ...userMessage("first"), startRun: false });
+    await nested;
+    await flush();
+
+    expect(child).toMatchObject({
+      role: "user",
+      content: [{ type: "text", text: "and this" }],
+    });
+    expect(thread.messages).toContainEqual(child);
+    expect(appended.map((i) => i.message.id)).toContain(child!.id);
+  });
+
   it("stores messages through a history whose append returns nothing", async () => {
     const appended: ExportedMessageRepositoryItem[] = [];
     const append = (item: ExportedMessageRepositoryItem) => {
