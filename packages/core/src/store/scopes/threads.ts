@@ -29,12 +29,12 @@ export type ThreadsMethods = {
       | { index: number; archived?: boolean },
   ): ThreadListItemMethods;
   thread(selector: "main"): ThreadMethods;
-  /** Resolves once `getState()` reports the loaded thread list. */
+  /** Resolves once `getState()` reports the loaded thread list, or its `loadError` when loading fails. */
   getLoadThreadsPromise(): Promise<void>;
-  /** Refetches the thread list; resolves once `getState()` reports it. */
+  /** Refetches the thread list; resolves like `getLoadThreadsPromise()`. */
   reload(): Promise<void>;
   reloadMainThread(): Promise<void>;
-  /** Loads the next page; resolves once `getState()` reports it. */
+  /** Loads the next page; resolves once `getState()` reports it, or after a failed request, which is logged. */
   loadMore(): Promise<void>;
   __internal_getAssistantRuntime?(): AssistantRuntime;
 };
