@@ -185,7 +185,15 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Detect package build inputs
+        id: package_build_inputs
+        run: |
+          set -euo pipefail
+          run=$(git diff --name-only -z HEAD^1 HEAD | node scripts/package-build-inputs.mjs)
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
       - name: Setup pnpm and node.js
+        if: steps.package_build_inputs.outputs.run == 'true'
         uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
         with:
           runtime: node@24
@@ -193,9 +201,11 @@ jobs:
           install: false
 
       - name: Install dependencies
+        if: steps.package_build_inputs.outputs.run == 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Build packages
+        if: steps.package_build_inputs.outputs.run == 'true'
         env:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
@@ -209,6 +219,7 @@ jobs:
           fi
 
       - name: Check API surface
+        if: steps.package_build_inputs.outputs.run == 'true'
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             # PR: Check API surface for packages changed compared to base branch
@@ -219,9 +230,11 @@ jobs:
           fi
 
       - name: Check distribution barrels
+        if: steps.package_build_inputs.outputs.run == 'true'
         run: pnpm run distributions:check
 
       - name: Check built declarations
+        if: steps.package_build_inputs.outputs.run == 'true'
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             pnpm run declarations:check -- --filter="...[origin/${{ github.base_ref }}]"
@@ -230,23 +243,32 @@ jobs:
           fi
 
       - name: Test built declaration checker
+        if: steps.package_build_inputs.outputs.run == 'true'
         run: pnpm run declarations:test
 
       - name: Test the distribution barrel checker
+        if: steps.package_build_inputs.outputs.run == 'true'
         run: pnpm run distributions:test
 
       - name: Test the deploy examples planner
+        if: steps.package_build_inputs.outputs.run == 'true'
         run: pnpm run deploy-examples:test
 
       - name: Test API surface generator
+        if: steps.package_build_inputs.outputs.run == 'true'
         run: pnpm run api-surface:test
 
       - name: Test API reference input detector
+        if: steps.package_build_inputs.outputs.run == 'true'
         run: pnpm run api-reference-inputs:test
+
+      - name: Test package build input detector
+        if: steps.package_build_inputs.outputs.run == 'true'
+        run: node --test scripts/package-build-inputs.test.mjs
 
       # The pull_request checkout is the merge commit, so HEAD^1 is the base it merges into.
       - name: Measure bundle sizes against the base
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.package_build_inputs.outputs.run == 'true'
         env:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
