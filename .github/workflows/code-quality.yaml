@@ -198,7 +198,11 @@ jobs:
           else
             BASE="${{ github.event.before }}"
           fi
-          run=$(git diff --name-only --no-renames -z "$BASE" HEAD | node scripts/package-build-inputs.mjs)
+          if git rev-parse --verify --quiet "${BASE}^{commit}" > /dev/null; then
+            run=$(git diff --name-only --no-renames -z "$BASE" HEAD | node scripts/package-build-inputs.mjs)
+          else
+            run=true
+          fi
           echo "run=$run" >> "$GITHUB_OUTPUT"
 
       - name: Setup pnpm and node.js

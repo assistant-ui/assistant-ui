@@ -100,7 +100,12 @@ test("the workflow gates dependency-backed package steps", () => {
   assert.match(detector, /node scripts\/package-build-inputs\.mjs/);
   assert.match(detector, /BASE=HEAD\^1/);
   assert.match(detector, /BASE="\$\{\{ github\.event\.before \}\}"/);
+  assert.match(
+    detector,
+    /git rev-parse --verify --quiet "\$\{BASE\}\^\{commit\}"/,
+  );
   assert.match(detector, /git diff --name-only --no-renames -z "\$BASE" HEAD/);
+  assert.match(detector, /else\n            run=true/);
 
   for (const name of [
     "Setup pnpm and node.js",
