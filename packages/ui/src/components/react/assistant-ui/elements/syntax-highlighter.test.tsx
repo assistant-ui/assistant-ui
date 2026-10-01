@@ -24,6 +24,10 @@ describe("SyntaxHighlighter", () => {
     for (const pre of getAllByTestId("pre")) {
       expect(pre.style.background).toBe("");
       expect(pre.style.backgroundColor).toBe("");
+      const code = pre.querySelector("code");
+      expect(code).not.toBeNull();
+      expect(["", "none"]).toContain(code!.style.background);
+      expect(["", "transparent"]).toContain(code!.style.backgroundColor);
     }
   });
 });
