@@ -143,7 +143,7 @@ Three workflows in `.github/workflows/` run the test bed on `ubuntu-latest` unde
 
 - **VS Code Test Bed** (`vscode-test-bed.yaml`) runs `pnpm test` at `AUI_TESTBED_PHASE=1`, one job per runtime (`ai-sdk`, `local`), and uploads `test-results/` as `vscode-test-bed-probes-<runtime>` (kept 14 days), pass or fail.
 - **VS Code Test Bed Screenshots** (`vscode-test-bed-screenshots.yaml`) runs `pnpm screenshots` when a change touches `packages/ui`, `packages/vscode`, `examples/with-vscode` or `templates/vscode`, or on demand, and uploads `screenshots/` as `vscode-test-bed-screenshots` (kept 14 days, 30 on `main`). Download it from the run's summary and open `gallery/index.html`.
-- **VS Code Test Bed (combined branches)** (`vscode-test-bed-combined.yaml`) is started by hand: it checks out `base`, applies the commits each branch in `branches` has since `origin/main` (`git cherry-pick --no-commit`), and runs both probe jobs and the screenshots on the combined tree. It fails on the first branch that conflicts and names it.
+- **VS Code Test Bed (combined branches)** (`vscode-test-bed-combined.yaml`) is started by hand: it checks out `base`, applies the commits each branch in `branches` has since `origin/main` (`git cherry-pick --no-commit`), and runs both probe jobs and the screenshots on the combined tree. It fails on the first branch that conflicts and names it. `base` defaults to `main`; pass the branch that carries the test bed when it has not reached `main` yet.
 
 To bump VS Code, set `AUI_TESTBED_VSCODE_VERSION` to the new release in all three workflows, run `AUI_TESTBED_VSCODE_VERSION=<version> AUI_TESTBED_PHASE=1 pnpm test` locally, and fix what it turns up in the same PR. The new version gets a new cache key, so the first run downloads it.
 
