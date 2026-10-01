@@ -111,7 +111,7 @@ export class ExternalStoreThreadRuntimeCore
   }
   private _pendingResume: Promise<void> | undefined;
 
-  private _clearPendingResume(pending = this._pendingResume) {
+  private _clearPendingResume(pending: Promise<void> | undefined) {
     if (!pending || this._pendingResume !== pending) return;
     this._pendingResume = undefined;
     this._notifySubscribers();
@@ -968,7 +968,7 @@ export class ExternalStoreThreadRuntimeCore
    * without run-cancel semantics (`onCancel`, composer draft restoration).
    */
   public unstable_notifySessionReset(): void {
-    this._clearPendingResume();
+    this._clearPendingResume(this._pendingResume);
     this._runTrackerUpdate(() => this._toolInvocations?.reset());
     this._store.queue?.__internal_notifyCancelled?.();
   }

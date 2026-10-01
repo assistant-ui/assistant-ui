@@ -313,6 +313,36 @@ describe("ExternalStoreThreadRuntimeCore resume lifecycle", () => {
     },
   );
 
+  it.each(["reset", "external state"] as const)(
+    "keeps a resume started by the adapter during %s",
+    async (boundary) => {
+      let finish!: () => void;
+      let pending!: Promise<void>;
+      const onResume = vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            finish = resolve;
+          }),
+      );
+      const startResume = () => {
+        pending = runtime.resumeRun(config);
+      };
+      const runtime = createRuntime({
+        canResume: true,
+        onResume,
+        setMessages: startResume,
+        onLoadExternalState: startResume,
+      });
+      if (boundary === "reset") runtime.reset();
+      else runtime.importExternalState({});
+      expect(runtime.canResume).toBe(false);
+      const duplicate = runtime.resumeRun(config);
+      expect(onResume).toHaveBeenCalledOnce();
+      finish();
+      await Promise.all([pending, duplicate]);
+    },
+  );
+
   it("keeps the pending resume when switching to the current branch", async () => {
     let finish!: () => void;
     const onResume = vi.fn(
