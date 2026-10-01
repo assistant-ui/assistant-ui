@@ -160,7 +160,7 @@ export function serveRoutes(
       });
       const response = await dispatch(request, url.pathname);
       if (controller.signal.aborted) {
-        await response.body?.cancel().catch(() => undefined);
+        void response.body?.cancel().catch(() => undefined);
         return;
       }
       post(
@@ -175,7 +175,7 @@ export function serveRoutes(
         controller,
       );
       if (request.method === "HEAD") {
-        await response.body?.cancel().catch(() => undefined);
+        void response.body?.cancel().catch(() => undefined);
       } else if (response.body) {
         await pump(id, response.body, controller);
       }

@@ -245,6 +245,22 @@ describe("vscodeFetch over serveWebviewRoutes", () => {
     expect(kinds(bridge.hostToWebview, "fetch:chunk")).toHaveLength(0);
   });
 
+  it("ends a HEAD response whose body never finishes cancelling", async () => {
+    const { fetch, bridge } = setup({
+      "/api/meta": {
+        HEAD: () =>
+          new Response(
+            new ReadableStream({ cancel: () => new Promise(() => undefined) }),
+          ),
+      },
+    });
+
+    const response = await fetch("/api/meta", { method: "HEAD" });
+
+    expect(response.status).toBe(200);
+    await waitFor(() => kinds(bridge.hostToWebview, "fetch:end").length === 1);
+  });
+
   it("rejects when aborted while the request body is still being read", async () => {
     let cancelled = false;
     const { fetch, bridge } = setup({});
@@ -491,6 +507,49 @@ describe("vscodeFetch over serveWebviewRoutes", () => {
 
     await waitFor(() => cancelled);
     expect(kinds(bridge.hostToWebview, "fetch:head")).toHaveLength(0);
+  });
+
+  it("frees the id of an aborted request whose response never finishes cancelling", async () => {
+    let release!: () => void;
+    let calls = 0;
+    const { bridge } = setup({
+      "/api/late": {
+        GET: async () => {
+          calls += 1;
+          if (calls > 1) return new Response("second");
+          await new Promise<void>((resolve) => {
+            release = resolve;
+          });
+          return new Response(
+            new ReadableStream({ cancel: () => new Promise(() => undefined) }),
+          );
+        },
+      },
+    });
+    const request: FetchRequestMessage = {
+      channel: VSCODE_BRIDGE_CHANNEL,
+      kind: "fetch:request",
+      id: "reused",
+      url: `${VSCODE_VIRTUAL_ORIGIN}/api/late`,
+      method: "GET",
+      headers: [],
+      body: null,
+    };
+
+    bridge.port.postMessage(request);
+    await waitFor(() => calls === 1);
+    bridge.port.postMessage({
+      channel: VSCODE_BRIDGE_CHANNEL,
+      kind: "fetch:abort",
+      id: "reused",
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    bridge.port.postMessage(request);
+
+    await waitFor(() => kinds(bridge.hostToWebview, "fetch:end").length === 1);
+    expect(calls).toBe(2);
   });
 
   it("aborts the handler when the webview stops accepting messages", async () => {
