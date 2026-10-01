@@ -74,10 +74,12 @@ export function collectFormValues(
         : element.type === "range"
           ? Number(element.value)
           : fieldValue && element.value !== ""
-            ? element.value ===
-              (temporalType === "time"
-                ? normalizeTemporalInputValue(fieldValue)
-                : toPickerLocalDateTime(fieldValue))
+            ? normalizeTemporalInputValue(element.value) ===
+              normalizeTemporalInputValue(
+                temporalType === "time"
+                  ? fieldValue
+                  : toPickerLocalDateTime(fieldValue),
+              )
               ? fieldValue
               : temporalType === "datetime-local"
                 ? fromLocalDateTime(element.value, fieldValue)

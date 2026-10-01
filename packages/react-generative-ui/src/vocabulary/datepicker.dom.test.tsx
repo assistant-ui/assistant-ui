@@ -120,6 +120,73 @@ describe("DatePicker temporal contract", () => {
     });
   });
 
+  it.each(["2025-11-02T01:30:00.25", "2025-11-02T01:30:00.250"])(
+    "submits an untouched repeated hour instant when the browser reports %s",
+    async (reported) => {
+      const anchor = "2025-11-02T06:30:00.250Z";
+      const container = await mount(
+        view({ inputType: "datetime", value: anchor }),
+      );
+      const input = container.querySelector("input")!;
+      vi.spyOn(input, "value", "get").mockReturnValue(reported);
+      expect(collectFormValues([input])).toEqual({ when: anchor });
+    },
+  );
+
+  it.each([
+    [
+      "2026-07-15T12:34:56.123456Z",
+      "2026-07-15T08:34:56.123",
+      "2026-07-16T08:34:56.123",
+      "2026-07-16T12:34:56.123456Z",
+    ],
+    [
+      "2026-07-15T12:34:56.5Z",
+      "2026-07-15T08:34:56.500",
+      "2026-07-16T08:34:56.500",
+      "2026-07-16T12:34:56.5Z",
+    ],
+  ])(
+    "keeps the fraction's precision when only the day changes from %s",
+    async (value, displayed, edited, emitted) => {
+      const dispatch = vi.fn();
+      const container = await mount(
+        view(
+          { inputType: "datetime", value, $action: { type: "save" } },
+          dispatch,
+        ),
+      );
+      const input = container.querySelector("input")!;
+      expect(input.value).toBe(displayed);
+      await change(input, edited);
+      expect(dispatch).toHaveBeenLastCalledWith({
+        type: "save",
+        $input: emitted,
+      });
+      expect(collectFormValues([input])).toEqual({ when: emitted });
+    },
+  );
+
+  it("pads edited milliseconds to the anchor precision", async () => {
+    const dispatch = vi.fn();
+    const container = await mount(
+      view(
+        {
+          inputType: "datetime",
+          value: "2026-07-15T12:34:56.123456Z",
+          $action: { type: "save" },
+        },
+        dispatch,
+      ),
+    );
+    const input = container.querySelector("input")!;
+    await change(input, "2026-07-16T08:34:56.789");
+    expect(dispatch).toHaveBeenLastCalledWith({
+      type: "save",
+      $input: "2026-07-16T12:34:56.789000Z",
+    });
+  });
+
   it("submits a cleared instant fraction in its original offset", async () => {
     const dispatch = vi.fn();
     const container = await mount(
@@ -257,7 +324,7 @@ describe("DatePicker temporal contract", () => {
     );
     const input = container.querySelector("input")!;
     expect(input.min).toBe("2026-07-15T00:00:00.123");
-    expect(input.max).toBe("2026-07-15T14:30:00.456789");
+    expect(input.max).toBe("2026-07-15T14:30:00.456");
     expect(input.step).toBe("any");
     expect(input.validity.stepMismatch).toBe(false);
   });
@@ -484,6 +551,14 @@ describe("DatePicker temporal contract", () => {
   it.each([
     ["time", "12:00:00", "12:00", "12:00:00", "1"],
     ["time", "12:00:05.1200", "12:00:05.12", "12:00:05.1200", "any"],
+    ["time", "12:00:05.123456", "12:00:05.123", "12:00:05.123456", "any"],
+    [
+      "datetime",
+      "2025-12-15T12:00:05.123456",
+      "2025-12-15T12:00:05.123",
+      "2025-12-15T12:00:05.123456",
+      "any",
+    ],
     [
       "datetime",
       "2025-12-15T17:00:00Z",

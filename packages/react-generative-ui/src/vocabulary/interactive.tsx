@@ -963,19 +963,19 @@ export const interactiveVocabulary = {
         .string()
         .optional()
         .describe(
-          "Initial value: YYYY-MM-DD for date, HH:mm or HH:mm:ss with optional fraction for time, YYYY-MM-DDTHH:mm with optional :ss and fraction for datetime. A datetime with Z or ±HH:mm is an instant, displayed in the viewer's time zone and submitted with the same offset and precision. A datetime without an offset is local and submitted unchanged. An empty datetime submits with the viewer's offset and seconds.",
+          "Initial value: YYYY-MM-DD for date, HH:mm or HH:mm:ss with optional fraction of at most 9 digits for time, YYYY-MM-DDTHH:mm with optional :ss and fraction of at most 9 digits for datetime. A datetime with Z or ±HH:mm is an instant, displayed in the viewer's time zone and submitted with the same offset and precision. A datetime without an offset is local and submitted unchanged. An empty datetime submits with the viewer's offset and seconds.",
         ),
       min: z
         .string()
         .optional()
         .describe(
-          "Minimum value: YYYY-MM-DD for date, HH:mm or HH:mm:ss with optional fraction for time, YYYY-MM-DDTHH:mm with optional :ss and fraction for datetime. Datetimes with Z or ±HH:mm are converted to the viewer's time zone.",
+          "Minimum value: YYYY-MM-DD for date, HH:mm or HH:mm:ss with optional fraction of at most 9 digits for time, YYYY-MM-DDTHH:mm with optional :ss and fraction of at most 9 digits for datetime. Datetimes with Z or ±HH:mm are converted to the viewer's time zone.",
         ),
       max: z
         .string()
         .optional()
         .describe(
-          "Maximum value: YYYY-MM-DD for date, HH:mm or HH:mm:ss with optional fraction for time, YYYY-MM-DDTHH:mm with optional :ss and fraction for datetime. Datetimes with Z or ±HH:mm are converted to the viewer's time zone.",
+          "Maximum value: YYYY-MM-DD for date, HH:mm or HH:mm:ss with optional fraction of at most 9 digits for time, YYYY-MM-DDTHH:mm with optional :ss and fraction of at most 9 digits for datetime. Datetimes with Z or ±HH:mm are converted to the viewer's time zone.",
         ),
       label: z
         .string()

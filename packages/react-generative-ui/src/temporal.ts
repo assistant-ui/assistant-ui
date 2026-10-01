@@ -28,7 +28,7 @@ const INPUT_PATTERN =
 export const normalizeTemporalInputValue = (value: string): string => {
   const match = INPUT_PATTERN.exec(value);
   if (!match || match[2] === undefined) return value;
-  const digits = match[3] ?? "";
+  const digits = match[3]?.slice(0, 3) ?? "";
   let end = digits.length;
   while (end > 0 && digits[end - 1] === "0") end--;
   const fraction = digits.slice(0, end);
@@ -109,8 +109,7 @@ export const splitTemporalMinutes = (
   return {
     ...(temporal.kind === "time" ? {} : { date: wallTime.slice(0, 10) }),
     time: wallTime.slice(end - 5, end),
-    droppedPrecision:
-      normalizeTemporalInputValue(wallTime) !== wallTime.slice(0, end),
+    droppedPrecision: /[1-9]/.test(wallTime.slice(end)),
   };
 };
 
@@ -244,11 +243,17 @@ export const fromLocalDateTime = (
   return formatTemporalInstant({
     ...previous,
     epochMs: date.getTime(),
-    ...(typeof temporal.precision === "number" && !/\.0+$/.test(value)
-      ? {
-          precision: temporal.precision,
-          subMillisecondDigits: value.slice(value.indexOf(".") + 4),
-        }
-      : { subMillisecondDigits: "" }),
+    ...(typeof temporal.precision === "number" &&
+    date.getMilliseconds() === new Date(previous.epochMs).getUTCMilliseconds()
+      ? {}
+      : typeof temporal.precision === "number"
+        ? {
+            precision: Math.max(
+              temporal.precision,
+              typeof previous.precision === "number" ? previous.precision : 0,
+            ),
+            subMillisecondDigits: value.slice(value.indexOf(".") + 4),
+          }
+        : { subMillisecondDigits: "" }),
   });
 };
