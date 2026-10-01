@@ -30,6 +30,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --ignore-scripts
 
+      - name: Check resource memoization (React Compiler)
+        run: pnpm check:resource-memo
+
       - name: Lint fix
         run: pnpm lint:fix
 
