@@ -204,6 +204,18 @@ export const toLocalDateTime = (
     : `${wallTime}:${pad(date.getSeconds())}${typeof precision === "number" ? formatTemporalInstant(temporal, "Z", precision).slice(19, -1) : ""}`;
 };
 
+export const toPickerLocalDateTime = (value: string): string => {
+  const temporal = classifyTemporal(value);
+  if (temporal.kind !== "instant") return normalizeTemporalInputValue(value);
+  const local = toLocalDateTime(
+    value,
+    typeof temporal.precision === "number" ? 3 : temporal.precision,
+  );
+  return typeof temporal.precision !== "number" || local.endsWith(".000")
+    ? normalizeTemporalInputValue(local)
+    : local;
+};
+
 export const fromLocalDateTime = (
   value: string,
   previousValue?: string,
@@ -213,7 +225,12 @@ export const fromLocalDateTime = (
   if (temporal.kind !== "floating" || previous.kind === "floating") {
     return value;
   }
-  const date = new Date(value);
+  const date = new Date(
+    value.replace(
+      /\.(\d{1,2})$/,
+      (_, digits: string) => `.${digits.padEnd(3, "0")}`,
+    ),
+  );
   const minutes = -date.getTimezoneOffset();
   const offset = `${minutes < 0 ? "-" : "+"}${pad(Math.floor(Math.abs(minutes) / 60))}:${pad(Math.abs(minutes) % 60)}`;
   if (previous.kind !== "instant") {
@@ -224,19 +241,14 @@ export const fromLocalDateTime = (
       precision: "seconds",
     });
   }
-  const editedFraction =
-    typeof temporal.precision === "number" && !value.endsWith(".000");
-  if (!editedFraction) {
-    date.setMilliseconds(new Date(previous.epochMs).getUTCMilliseconds());
-  }
   return formatTemporalInstant({
     ...previous,
     epochMs: date.getTime(),
-    ...(editedFraction
+    ...(typeof temporal.precision === "number" && !/\.0+$/.test(value)
       ? {
           precision: temporal.precision,
           subMillisecondDigits: value.slice(value.indexOf(".") + 4),
         }
-      : {}),
+      : { subMillisecondDigits: "" }),
   });
 };

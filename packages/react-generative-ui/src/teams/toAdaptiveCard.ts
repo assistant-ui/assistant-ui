@@ -31,11 +31,7 @@ import {
   buildSubmitAction,
   utf8ByteLength,
 } from "./constants";
-import {
-  encodeTemporalInputId,
-  ESCAPED_TEMPORAL_INPUT_PREFIX,
-  TEMPORAL_INPUT_PREFIX,
-} from "./temporalId";
+import { encodeTemporalInputId } from "./temporalId";
 import type {
   AdaptiveCardResult,
   TeamsActionSet,
@@ -118,11 +114,11 @@ function reservedSafeId(
   context: ConversionContext,
 ): string {
   const reserved = id === RESERVED_INPUT_ID;
-  const temporalReserved = id.startsWith(TEMPORAL_INPUT_PREFIX);
+  const temporalReserved = /^_*aui:datetime:/.test(id);
   const base = reserved
     ? `${RESERVED_INPUT_ID}_`
     : temporalReserved
-      ? `${ESCAPED_TEMPORAL_INPUT_PREFIX}${id.slice(TEMPORAL_INPUT_PREFIX.length)}`
+      ? `_${id}`
       : id;
   let candidate = base;
   let n = 2;
@@ -666,7 +662,11 @@ export function convertElement(
             context,
             "dropped",
             "DatePicker",
-            "Nonzero seconds were dropped from the time maximum.",
+            rawMax.slice(6, 8) === "00"
+              ? "Nonzero fractional seconds were dropped from the time maximum."
+              : /\.\d*[1-9]/.test(rawMax)
+                ? "Nonzero seconds and fractional seconds were dropped from the time maximum."
+                : "Nonzero seconds were dropped from the time maximum.",
           );
         }
         const input: TeamsCardElement = {

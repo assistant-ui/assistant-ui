@@ -2,8 +2,6 @@ import { classifyTemporal } from "../temporal";
 import type { TeamsTemporalField } from "./types";
 
 export const TEMPORAL_INPUT_PREFIX = "aui:datetime:";
-export const ESCAPED_TEMPORAL_INPUT_PREFIX = `_${TEMPORAL_INPUT_PREFIX}`;
-
 export const encodeTemporalInputId = (field: TeamsTemporalField): string =>
   `${TEMPORAL_INPUT_PREFIX}${field.role}:${encodeURIComponent(field.fieldId)}${field.role === "time" ? `:${encodeURIComponent(field.previousValue ?? "")}` : ""}`;
 

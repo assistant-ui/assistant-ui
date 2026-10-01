@@ -178,8 +178,8 @@ describe("temporal values", () => {
         });
         if (parsed.kind !== "instant") throw new Error("Expected an instant");
         expect(formatTemporalInstant(parsed)).toBe(value);
-        const wallTime = toLocalDateTime(value);
-        expect(wallTime).toBe(`${local}${suffix.slice(0, 3)}`);
+        const wallTime = toLocalDateTime(value, parsed.precision);
+        expect(wallTime).toBe(`${local}${suffix}`);
         expect(fromLocalDateTime(wallTime, value)).toBe(value);
       },
     );
@@ -199,10 +199,10 @@ describe("temporal values", () => {
     );
   });
 
-  it("preserves offset spelling and fractional digits when editing an instant", () => {
+  it("preserves offset spelling and uses the edited fractional digits", () => {
     expect(
       fromLocalDateTime(
-        "2026-07-16T10:20:30",
+        "2026-07-16T10:20:30.123456789",
         "2026-07-15T12:34:56.123456789-00:00",
       ),
     ).toBe("2026-07-16T14:20:30.123456789-00:00");
@@ -210,7 +210,8 @@ describe("temporal values", () => {
 
   it.each([
     ["2025-12-15T12:00:00.750", "2025-12-15T17:00:00.750Z", 3],
-    ["2025-12-15T12:00:00", "2025-12-15T17:00:00.250Z", undefined],
+    ["2025-12-15T12:00:00.75", "2025-12-15T17:00:00.75Z", 2],
+    ["2025-12-15T12:00:00", "2025-12-15T17:00:00.000Z", undefined],
     ["2025-12-15T12:00:00.250", "2025-12-15T17:00:00.250Z", 3],
     ["2025-12-15T12:00:00.750987", "2025-12-15T17:00:00.750987Z", 6],
   ])(
@@ -222,10 +223,13 @@ describe("temporal values", () => {
     },
   );
 
-  it("retains the anchor fraction for a native zero fraction", () => {
+  it("uses zero for a native zero or omitted fraction", () => {
     expect(
       fromLocalDateTime("2025-12-15T12:00:00.000", "2025-12-15T17:00:00.250Z"),
-    ).toBe("2025-12-15T17:00:00.250Z");
+    ).toBe("2025-12-15T17:00:00.000Z");
+    expect(
+      fromLocalDateTime("2025-12-15T12:00:00", "2025-12-15T17:00:00.250123Z"),
+    ).toBe("2025-12-15T17:00:00.000000Z");
   });
 
   it.each([
@@ -240,13 +244,13 @@ describe("temporal values", () => {
     {
       value: "2026-03-08T02:30:45",
       parts: [2026, 2, 8, 2, 30, 45] as const,
-      expected: "2026-03-08T07:30:45.123456Z",
+      expected: "2026-03-08T07:30:45.000000Z",
       local: "2026-03-08T03:30:45",
     },
     {
       value: "2026-11-01T01:30:45",
       parts: [2026, 10, 1, 1, 30, 45] as const,
-      expected: "2026-11-01T05:30:45.123456Z",
+      expected: "2026-11-01T05:30:45.000000Z",
       local: "2026-11-01T01:30:45",
     },
   ])(
@@ -256,7 +260,7 @@ describe("temporal values", () => {
       expect(result).toBe(expected);
       const [year, month, day, hour, minute, second] = parts;
       expect(Date.parse(result)).toBe(
-        new Date(year, month, day, hour, minute, second).getTime() + 123,
+        new Date(year, month, day, hour, minute, second).getTime(),
       );
       expect(toLocalDateTime(result)).toBe(local);
       expect(fromLocalDateTime(value, value)).toBe(value);

@@ -8,7 +8,7 @@ import {
 import {
   fromLocalDateTime,
   normalizeTemporalInputValue,
-  toLocalDateTime,
+  toPickerLocalDateTime,
 } from "../temporal";
 
 /**
@@ -75,11 +75,9 @@ export function collectFormValues(
           ? Number(element.value)
           : fieldValue && element.value !== ""
             ? element.value ===
-              normalizeTemporalInputValue(
-                temporalType === "time"
-                  ? fieldValue
-                  : toLocalDateTime(fieldValue),
-              )
+              (temporalType === "time"
+                ? normalizeTemporalInputValue(fieldValue)
+                : toPickerLocalDateTime(fieldValue))
               ? fieldValue
               : temporalType === "datetime-local"
                 ? fromLocalDateTime(element.value, fieldValue)

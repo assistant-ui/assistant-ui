@@ -67,7 +67,7 @@ describe("DatePicker temporal contract", () => {
     ["2026-07-15T12:34:56+08:00", "2026-07-16T21:45:00+08:00", "1"],
     [
       "2026-07-15T12:34:56.123456-00:00",
-      "2026-07-16T13:45:00.123456-00:00",
+      "2026-07-16T13:45:00.000000-00:00",
       "any",
     ],
   ])(
@@ -117,6 +117,39 @@ describe("DatePicker temporal contract", () => {
     });
     expect(collectFormValues([input])).toEqual({
       when: "2025-12-15T17:00:00.750Z",
+    });
+  });
+
+  it("submits a cleared instant fraction in its original offset", async () => {
+    const dispatch = vi.fn();
+    const container = await mount(
+      renderGenerativeUI(
+        {
+          $type: "Form",
+          $action: { type: "submit" },
+          children: [
+            {
+              $type: "DatePicker",
+              name: "when",
+              inputType: "datetime",
+              value: "2025-12-15T17:00:00.250-00:00",
+            },
+            { $type: "Button", label: "Submit", submit: true },
+          ],
+        },
+        defaultGenerativeUILibrary,
+        { status: "done", dispatch },
+      ),
+    );
+    const input = container.querySelector("input")!;
+    expect(input.step).toBe("any");
+    expect(input.value).toBe("2025-12-15T12:00:00.250");
+    await change(input, "2025-12-15T12:00:00");
+    expect(input.value).toBe("2025-12-15T12:00");
+    await React.act(async () => container.querySelector("button")!.click());
+    expect(dispatch).toHaveBeenLastCalledWith({
+      type: "submit",
+      $input: { when: "2025-12-15T17:00:00.000-00:00" },
     });
   });
 
@@ -172,7 +205,7 @@ describe("DatePicker temporal contract", () => {
 
   it.each([
     ["2025-12-15T17:00Z", "2025-12-16T14:30Z"],
-    ["2025-12-15T17:00:00.120000-00:00", "2025-12-16T14:30:00.120000-00:00"],
+    ["2025-12-15T17:00:00.120000-00:00", "2025-12-16T14:30:00.000000-00:00"],
   ])(
     "collects the live instant without an input event using %s",
     async (value, emitted) => {
@@ -516,9 +549,9 @@ describe("DatePicker temporal contract", () => {
     },
     {
       value: "2026-07-15T12:34:56.123456-05:30",
-      displayed: "2026-07-15T14:04:56",
+      displayed: "2026-07-15T14:04:56.123",
       edited: "2026-07-16T09:45:30",
-      emitted: "2026-07-16T08:15:30.123456-05:30",
+      emitted: "2026-07-16T08:15:30.000000-05:30",
       step: "any",
     },
   ])(
@@ -875,12 +908,12 @@ describe("DatePicker temporal contract", () => {
     expect(input.type).toBe("datetime-local");
     expect(input.readOnly).toBe(false);
     expect(input.value).toBe(
-      nativeValue("datetime-local", "2026-07-15T00:34:56"),
+      nativeValue("datetime-local", "2026-07-15T00:34:56.123"),
     );
     await change(input, "2026-07-16T09:45:30");
     expect(dispatch).toHaveBeenLastCalledWith({
       type: "save",
-      $input: "2026-07-16T21:45:30.123+08:00",
+      $input: "2026-07-16T21:45:30.000+08:00",
     });
     expect(onRecoverableError).not.toHaveBeenCalled();
     expect(error).not.toHaveBeenCalled();

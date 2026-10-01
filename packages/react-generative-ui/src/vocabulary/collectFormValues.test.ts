@@ -10,7 +10,11 @@ import {
   FIELD_VALUE_ATTR,
   GENERATED_NAME_ATTR,
 } from "../constants";
-import { normalizeTemporalInputValue, toLocalDateTime } from "../temporal";
+import {
+  normalizeTemporalInputValue,
+  toLocalDateTime,
+  toPickerLocalDateTime,
+} from "../temporal";
 
 const el = (
   partial: Partial<FormControlElementLike>,
@@ -47,7 +51,7 @@ describe("collectFormValues", () => {
 
   it("uses the declared datetime-local type when the browser reports text", () => {
     const anchor = "2025-12-15T17:00:00.250Z";
-    const displayed = normalizeTemporalInputValue(toLocalDateTime(anchor));
+    const displayed = toPickerLocalDateTime(anchor);
     const getAttribute = (name: string) =>
       name === "type"
         ? "datetime-local"
@@ -59,8 +63,13 @@ describe("collectFormValues", () => {
     expect(collectFormValues([control(displayed)])).toEqual({
       when: anchor,
     });
-    expect(collectFormValues([control(`${displayed}:00.750`)])).toEqual({
+    expect(
+      collectFormValues([control(displayed.replace(".250", ".750"))]),
+    ).toEqual({
       when: "2025-12-15T17:00:00.750Z",
+    });
+    expect(collectFormValues([control(displayed.slice(0, -4))])).toEqual({
+      when: "2025-12-15T17:00:00.000Z",
     });
   });
 

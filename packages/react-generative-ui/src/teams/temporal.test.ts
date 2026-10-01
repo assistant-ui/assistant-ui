@@ -87,6 +87,76 @@ describe("Teams temporal DatePicker", () => {
     },
   );
 
+  it("round trips distinct ordinary ids in the datetime namespace", () => {
+    const names = ["aui:datetime:x", "_aui:datetime:x", "__aui:datetime:x"];
+    const { card, warnings } = toAdaptiveCard([
+      {
+        $type: "Button",
+        label: "Save",
+        $action: {
+          type: "save",
+          selected: names.map((name) => ({ $field: name })),
+        },
+      },
+      ...names.map((name) => ({ $type: "Input", name })),
+    ]);
+    const action = card.body.find((element) => element.type === "ActionSet");
+    if (action?.type !== "ActionSet") throw new Error("Missing action");
+    const inputs = card.body.filter((element) => element.type === "Input.Text");
+    expect(inputs.map((input) => input.id)).toEqual(
+      names.map((name) => `_${name}`),
+    );
+    const values = Object.fromEntries(
+      inputs.map((input, index) => [input.id, String(index)]),
+    );
+    expect(decodeSubmitData({ ...action.actions[0]!.data, ...values })).toEqual(
+      {
+        type: "save",
+        selected: ["0", "1", "2"],
+        $input: values,
+      },
+    );
+    expect(warnings).toEqual([
+      expect.objectContaining({ code: "fallback", component: "Input" }),
+      expect.objectContaining({ code: "fallback", component: "Input" }),
+      expect.objectContaining({ code: "fallback", component: "Input" }),
+    ]);
+  });
+
+  it.each(["aui:datetime:x", "_aui:datetime:x", "__aui:datetime:x"])(
+    "round trips datetime field %s through the reserved namespace",
+    (name) => {
+      const { card } = toAdaptiveCard({
+        $type: "DatePicker",
+        name,
+        inputType: "datetime",
+        value: "2025-12-15T17:00:30.123456Z",
+        $action: { type: "pick", selected: { $field: name } },
+      });
+      const inputs = card.body.filter(
+        (element) =>
+          element.type === "Input.Date" || element.type === "Input.Time",
+      );
+      const action = card.body.find((element) => element.type === "ActionSet");
+      if (action?.type !== "ActionSet") throw new Error("Missing action");
+      expect(inputs.map((input) => input.id)).toEqual([
+        `aui:datetime:date:${encodeURIComponent(`_${name}`)}`,
+        `aui:datetime:time:${encodeURIComponent(`_${name}`)}:2025-12-15T17%3A00%3A30.123456Z`,
+      ]);
+      expect(
+        decodeSubmitData({
+          ...action.actions[0]!.data,
+          [inputs[0]!.id]: "2025-12-16",
+          [inputs[1]!.id]: "18:20",
+        }),
+      ).toEqual({
+        type: "pick",
+        selected: "2025-12-16T18:20:30.123456Z",
+        $input: { [`_${name}`]: "2025-12-16T18:20:30.123456Z" },
+      });
+    },
+  );
+
   describe.each([
     "aui:datetime:",
     "aui:datetime:date:when",
@@ -142,6 +212,7 @@ describe("Teams temporal DatePicker", () => {
   it.each([
     ["20:45:30", true],
     ["20:45:00.000001", true],
+    ["20:45:30.000001", true],
     ["20:45:00.000", false],
     ["20:45", false],
     ["2025-12-15T20:45:30Z", false],
@@ -157,7 +228,12 @@ describe("Teams temporal DatePicker", () => {
             {
               code: "dropped",
               component: "DatePicker",
-              detail: "Nonzero seconds were dropped from the time maximum.",
+              detail:
+                max === "20:45:00.000001"
+                  ? "Nonzero fractional seconds were dropped from the time maximum."
+                  : max === "20:45:30.000001"
+                    ? "Nonzero seconds and fractional seconds were dropped from the time maximum."
+                    : "Nonzero seconds were dropped from the time maximum.",
             },
           ]
         : [],

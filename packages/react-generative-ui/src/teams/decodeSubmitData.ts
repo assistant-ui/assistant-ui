@@ -5,11 +5,7 @@ import {
   fromOffsetDateTime,
   mergeTemporalMinutes,
 } from "../temporal";
-import {
-  decodeTemporalInputId,
-  ESCAPED_TEMPORAL_INPUT_PREFIX,
-  TEMPORAL_INPUT_PREFIX,
-} from "./temporalId";
+import { decodeTemporalInputId, TEMPORAL_INPUT_PREFIX } from "./temporalId";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -99,13 +95,10 @@ export function decodeSubmitData(value: unknown): Action | undefined {
         Object.fromEntries(payloadEntries),
         Object.fromEntries(
           Object.entries(input).flatMap(([id, submitted]) =>
-            id.startsWith(ESCAPED_TEMPORAL_INPUT_PREFIX)
+            /^_+aui:datetime:/.test(id)
               ? [
                   [id, submitted],
-                  [
-                    `${TEMPORAL_INPUT_PREFIX}${id.slice(ESCAPED_TEMPORAL_INPUT_PREFIX.length)}`,
-                    submitted,
-                  ],
+                  [id.slice(1), submitted],
                 ]
               : [[id, submitted]],
           ),

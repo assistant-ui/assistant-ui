@@ -24,6 +24,7 @@ import {
   getTemporalInputStep,
   normalizeTemporalInputValue,
   toLocalDateTime,
+  toPickerLocalDateTime,
 } from "../temporal";
 
 const optionSchema = z.object({
@@ -453,11 +454,9 @@ function DatePickerRender({
   const displayValue =
     currentValue === undefined
       ? undefined
-      : normalizeTemporalInputValue(
-          inputType === "datetime" && hydrated
-            ? toLocalDateTime(currentValue)
-            : currentValue,
-        );
+      : inputType === "datetime" && hydrated
+        ? toPickerLocalDateTime(currentValue)
+        : normalizeTemporalInputValue(currentValue);
   return (
     <input
       key={isBound ? undefined : initialValue}
