@@ -102,7 +102,7 @@ export function SubProjectLayout({
         >
           <div className="flex min-w-0 items-center">
             <HeaderBrandLink labelClassName="hidden sm:inline" />
-            <span className="text-muted-foreground/40 ml-3">/</span>
+            <span className="text-muted-foreground/40 ml-2 sm:ml-3">/</span>
             <Select
               value={name}
               onValueChange={(value) => {
@@ -110,7 +110,7 @@ export function SubProjectLayout({
               }}
               items={projects}
             >
-              <SelectTrigger className="hover:[&_svg:not([class*='text-'])]:text-foreground h-8 gap-1 border-0 bg-transparent px-2 shadow-none hover:bg-transparent [&_svg]:transition-colors">
+              <SelectTrigger className="hover:[&_svg:not([class*='text-'])]:text-foreground h-8 min-w-0 gap-1 border-0 bg-transparent px-2 shadow-none hover:bg-transparent *:data-[slot=select-value]:block *:data-[slot=select-value]:truncate [&_svg]:transition-colors">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent align="start">
@@ -142,7 +142,7 @@ export function SubProjectLayout({
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <div
               data-sub-project-header-portal
               className="flex items-center gap-1"
@@ -151,7 +151,7 @@ export function SubProjectLayout({
               href={githubPath}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors"
+              className="text-muted-foreground hover:text-foreground hidden size-8 items-center justify-center transition-colors sm:flex"
               aria-label="View on GitHub"
             >
               <GitHubIcon className="size-4" />
