@@ -8,6 +8,7 @@ import {
   screen,
   waitFor,
   within,
+  createEvent,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SetupWizard } from "./setup-wizard";
@@ -47,7 +48,21 @@ vi.mock("../../../lib/checkout/flow", async (importOriginal) => ({
 const scrollIntoView = vi.fn();
 Element.prototype.scrollIntoView = scrollIntoView;
 
-afterEach(cleanup);
+let reducedMotion = false;
+window.matchMedia = (query: string) =>
+  ({
+    matches: query === "(prefers-reduced-motion: reduce)" && reducedMotion,
+    media: query,
+    addEventListener() {},
+    removeEventListener() {},
+  }) as unknown as MediaQueryList;
+
+afterEach(() => {
+  vi.useRealTimers();
+  cleanup();
+  vi.unstubAllGlobals();
+  reducedMotion = false;
+});
 
 const commands = {
   "checkout/message": vi.fn().mockResolvedValue(undefined),
@@ -108,6 +123,48 @@ const captureEvents = () => {
       .map(([, properties]) => properties);
 };
 
+const observeRow = () => {
+  let callback: IntersectionObserverCallback | undefined;
+  let options: IntersectionObserverInit | undefined;
+  let target: Element | undefined;
+  vi.stubGlobal(
+    "IntersectionObserver",
+    class {
+      constructor(
+        observe: IntersectionObserverCallback,
+        init?: IntersectionObserverInit,
+      ) {
+        callback = observe;
+        options = init;
+      }
+      observe(element: Element) {
+        target = element;
+      }
+      disconnect() {
+        target = undefined;
+      }
+    },
+  );
+  return {
+    observed: () => target,
+    options: () => options,
+    intersect: (
+      isIntersecting: boolean,
+      intersectionRatio = isIntersecting ? 1 : 0,
+    ) =>
+      callback?.(
+        [
+          {
+            target,
+            isIntersecting,
+            intersectionRatio,
+          } as IntersectionObserverEntry,
+        ],
+        {} as IntersectionObserver,
+      ),
+  };
+};
+
 describe("SetupWizard", () => {
   it("offers a Back control that keeps the setup running in the mobile header", () => {
     render(<SetupWizard checkout={context(initialCheckoutState())} />);
@@ -134,6 +191,110 @@ describe("SetupWizard", () => {
       "disabled",
       false,
     );
+  });
+
+  it("keeps the introduction's title to one line and lists a longer set of products under it", () => {
+    render(
+      <SetupWizard
+        checkout={context(initialCheckoutState(), false, false, {
+          products: ["assistant-ui", "cloud", "agent-tools"],
+        })}
+      />,
+    );
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "Welcome to the setup wizard",
+    );
+    expect(
+      screen.getByText(
+        "Setting up assistant-ui, Assistant Cloud, and Agent tools.",
+      ).className,
+    ).toContain("text-muted-foreground");
+  });
+
+  it("names the products in the title only while that fits on one line, and lists them under it otherwise", () => {
+    const lines = vi.spyOn(Element.prototype, "getClientRects");
+    const intro = (lineCount: number) => {
+      lines.mockReturnValue(
+        Array.from(
+          { length: lineCount },
+          () => new DOMRect(),
+        ) as unknown as DOMRectList,
+      );
+      render(
+        <SetupWizard
+          checkout={context(initialCheckoutState(), false, false, {
+            products: ["assistant-ui", "cloud"],
+          })}
+        />,
+      );
+      return screen.getByRole("heading", { level: 1 }).textContent;
+    };
+    try {
+      expect(intro(1)).toBe(
+        "Welcome to the setup wizard for assistant-ui and Assistant Cloud",
+      );
+      expect(screen.queryByText(/^Setting up/)).toBeNull();
+      cleanup();
+      expect(intro(2)).toBe("Welcome to the setup wizard");
+      expect(
+        screen.getByText("Setting up assistant-ui and Assistant Cloud.")
+          .className,
+      ).toContain("text-muted-foreground");
+    } finally {
+      lines.mockRestore();
+    }
+  });
+
+  it("shortens the title already on screen when the heading resizes and the products wrap to a second line", () => {
+    const lines = vi.spyOn(Element.prototype, "getClientRects");
+    const rects = (lineCount: number) =>
+      Array.from(
+        { length: lineCount },
+        () => new DOMRect(),
+      ) as unknown as DOMRectList;
+    const observed = new Map<Element, () => void>();
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        readonly callback: ResizeObserverCallback;
+        constructor(callback: ResizeObserverCallback) {
+          this.callback = callback;
+        }
+        observe(target: Element) {
+          observed.set(target, () => this.callback([], this));
+        }
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    try {
+      lines.mockReturnValue(rects(1));
+      render(
+        <SetupWizard
+          checkout={context(initialCheckoutState(), false, false, {
+            products: ["assistant-ui", "cloud"],
+          })}
+        />,
+      );
+      const heading = screen.getByRole("heading", { level: 1 });
+      expect(heading.textContent).toBe(
+        "Welcome to the setup wizard for assistant-ui and Assistant Cloud",
+      );
+      const resized = observed.get(heading);
+      expect(resized).toBeDefined();
+      lines.mockReturnValue(rects(2));
+      act(() => resized!());
+      expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+        "Welcome to the setup wizard",
+      );
+      expect(
+        screen.getByText("Setting up assistant-ui and Assistant Cloud.")
+          .className,
+      ).toContain("text-muted-foreground");
+    } finally {
+      lines.mockRestore();
+      vi.unstubAllGlobals();
+    }
   });
 
   it("keeps the frame at one fixed size on every page", () => {
@@ -304,6 +465,423 @@ describe("SetupWizard", () => {
     act(() => vi.advanceTimersByTime(300));
     expect(screen.queryByText("Writing the next step…")).toBeNull();
     vi.useRealTimers();
+  });
+
+  it("streams the agent's lines under their step, keeping it centered as they arrive, open while it runs and folded once it is done", () => {
+    const step = (
+      id: string,
+      title: string,
+      status: Checkout.StepStatus,
+    ): Checkout.Step => ({ id, title, status, createdAt: 0 });
+    const line = (
+      id: string,
+      stepId: string,
+      text: string,
+    ): Checkout.LogEntry => ({
+      id,
+      role: "agent",
+      phase: "installing",
+      at: Number(id.slice(1)),
+      text,
+      stepId,
+    });
+    const installing = (
+      second: Checkout.StepStatus,
+      third: Checkout.StepStatus,
+      ...later: Checkout.LogEntry[]
+    ) =>
+      context(
+        connected({
+          status: "installing",
+          steps: [
+            step("s1", "Add the route", "done"),
+            step("s2", "Wire the runtime", second),
+            step("s3", "Mount the thread", third),
+          ],
+          log: [
+            line("l1", "s1", "Created app/api/chat/route.ts"),
+            line("l2", "s1", "Completed: Add the route"),
+            line("l3", "s2", "Installing @assistant-ui/react"),
+            line("l4", "s2", "Writing app/assistant.tsx"),
+            ...later,
+          ],
+        }),
+      );
+    const rows = () =>
+      Array.from(
+        screen
+          .getByRole("list", { name: "Installation steps" })
+          .querySelectorAll(":scope > li"),
+      ) as HTMLElement[];
+    const centered = () =>
+      scrollIntoView.mock.contexts.map(
+        (element) => (element as HTMLElement).querySelector("p")!.textContent,
+      );
+    scrollIntoView.mockClear();
+    const { rerender } = render(
+      <SetupWizard checkout={installing("active", "pending")} />,
+    );
+    const [first, second, third] = rows();
+    const doneToggle = within(first!).getByRole("button", {
+      name: "1 line from Claude Code for Add the route",
+    });
+    expect(doneToggle.getAttribute("aria-expanded")).toBe("false");
+    expect(within(first!).queryByRole("log")).toBeNull();
+    const liveToggle = within(second!).getByRole("button", {
+      name: "2 lines from Claude Code for Wire the runtime",
+    });
+    expect(liveToggle.getAttribute("aria-expanded")).toBe("true");
+    const live = within(second!).getByRole("log");
+    expect(live.getAttribute("aria-live")).toBe("polite");
+    expect(
+      within(live)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual(["Installing @assistant-ui/react", "Writing app/assistant.tsx"]);
+    expect(within(third!).queryByRole("button")).toBeNull();
+    expect(centered()).toEqual(["Wire the runtime"]);
+
+    fireEvent.click(doneToggle);
+    expect(
+      within(within(first!).getByRole("log"))
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual(["Created app/api/chat/route.ts"]);
+    expect(within(first!).getByRole("log").getAttribute("aria-live")).toBe(
+      "off",
+    );
+
+    const wrapped = line("l5", "s2", "Wrapped the app in the runtime provider");
+    rerender(
+      <SetupWizard checkout={installing("active", "pending", wrapped)} />,
+    );
+    expect(centered()).toEqual(["Wire the runtime", "Wire the runtime"]);
+    expect(scrollIntoView).toHaveBeenLastCalledWith({ block: "center" });
+    rerender(
+      <SetupWizard
+        checkout={installing(
+          "active",
+          "pending",
+          wrapped,
+          line("l6", "s1", "Re-exported the route handler"),
+        )}
+      />,
+    );
+    expect(centered()).toEqual(["Wire the runtime", "Wire the runtime"]);
+
+    rerender(<SetupWizard checkout={installing("done", "active")} />);
+    expect(
+      within(rows()[1]!)
+        .getByRole("button", { name: /^2 lines from Claude Code/ })
+        .getAttribute("aria-expanded"),
+    ).toBe("false");
+    expect(
+      within(rows()[0]!)
+        .getByRole("button", { name: /^1 line from Claude Code/ })
+        .getAttribute("aria-expanded"),
+    ).toBe("true");
+  });
+
+  it("mounts the running step's log before its first line, so a screen reader announces that line too", () => {
+    const step = (
+      id: string,
+      title: string,
+      status: Checkout.StepStatus,
+    ): Checkout.Step => ({ id, title, status, createdAt: 0 });
+    const installing = (...log: Checkout.LogEntry[]) =>
+      context(
+        connected({
+          status: "installing",
+          steps: [
+            step("s1", "Add the route", "done"),
+            step("s2", "Wire the runtime", "active"),
+          ],
+          log,
+        }),
+      );
+    const rows = () =>
+      Array.from(
+        screen
+          .getByRole("list", { name: "Installation steps" })
+          .querySelectorAll(":scope > li"),
+      ) as HTMLElement[];
+    const { rerender } = render(<SetupWizard checkout={installing()} />);
+    const [done, running] = rows();
+    expect(within(done!).queryByRole("log")).toBeNull();
+    expect(within(done!).queryByRole("button")).toBeNull();
+    const log = within(running!).getByRole("log");
+    expect(log.getAttribute("aria-live")).toBe("polite");
+    expect(log.textContent).toBe("");
+    expect(log.className).toBe("sr-only");
+    expect(within(running!).queryByRole("button")).toBeNull();
+
+    rerender(
+      <SetupWizard
+        checkout={installing({
+          id: "l1",
+          role: "agent",
+          phase: "installing",
+          at: 1,
+          text: "Installing @assistant-ui/react",
+          stepId: "s2",
+        })}
+      />,
+    );
+    const row = rows()[1]!;
+    expect(within(row).getByRole("log")).toBe(log);
+    expect(log.className).not.toContain("sr-only");
+    expect(log.className).toContain("bg-muted");
+    expect(
+      within(log)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual(["Installing @assistant-ui/react"]);
+    expect(
+      within(row)
+        .getByRole("button", {
+          name: "1 line from Claude Code for Wire the runtime",
+        })
+        .getAttribute("aria-expanded"),
+    ).toBe("true");
+  });
+
+  describe("following the step in progress", () => {
+    const step = (id: string, status: Checkout.StepStatus): Checkout.Step => ({
+      id,
+      title: `Step ${id.slice(1)}`,
+      status,
+      createdAt: 0,
+    });
+    const installing = (activeId: "s1" | "s2", lines: string[]) =>
+      context(
+        connected({
+          status: "installing",
+          steps: [
+            step("s1", activeId === "s1" ? "active" : "done"),
+            step("s2", activeId === "s2" ? "active" : "pending"),
+          ],
+          log: lines.map((stepId, index): Checkout.LogEntry => ({
+            id: `l${index + 1}`,
+            role: "agent",
+            phase: "installing",
+            at: index + 1,
+            text: `Line ${index + 1}`,
+            stepId,
+          })),
+        }),
+      );
+    const stream = (count: number) =>
+      installing(
+        "s1",
+        Array.from({ length: count }, () => "s1"),
+      );
+    const centered = () =>
+      scrollIntoView.mock.contexts.map(
+        (element) =>
+          within(element as HTMLElement).getByText(/^Step \d$/).textContent,
+      );
+    const row = () => screen.getByRole("listitem", { current: "step" });
+
+    it("re-centers the row once its unfold animation ends, even when the unfolding pushed it out of view, unless the reader has paused following", () => {
+      const observer = observeRow();
+      scrollIntoView.mockClear();
+      const { rerender } = render(<SetupWizard checkout={stream(1)} />);
+      expect(centered()).toEqual(["Step 1"]);
+      const list = screen.getByRole("list", { name: "Installation steps" });
+      // jsdom has no AnimationEvent, so the name is pinned onto a plain event.
+      const animationEnd = (animationName: string) => {
+        const event = createEvent.animationEnd(row());
+        Object.defineProperty(event, "animationName", { value: animationName });
+        fireEvent(row(), event);
+      };
+
+      animationEnd("fade-in");
+      expect(centered()).toEqual(["Step 1"]);
+
+      animationEnd("unfold");
+      expect(centered()).toEqual(["Step 1", "Step 1"]);
+
+      observer.intersect(false);
+      animationEnd("unfold");
+      expect(centered()).toEqual(["Step 1", "Step 1", "Step 1"]);
+      rerender(<SetupWizard checkout={stream(2)} />);
+      expect(centered()).toEqual(["Step 1", "Step 1", "Step 1", "Step 1"]);
+
+      fireEvent.wheel(list);
+      animationEnd("unfold");
+      expect(centered()).toEqual(["Step 1", "Step 1", "Step 1", "Step 1"]);
+    });
+
+    it("ignores the unfold of a step the agent adds later, so it does not pull a reader back", () => {
+      const observer = observeRow();
+      scrollIntoView.mockClear();
+      const { rerender } = render(<SetupWizard checkout={stream(1)} />);
+      expect(centered()).toEqual(["Step 1"]);
+      observer.intersect(false);
+
+      rerender(
+        <SetupWizard
+          checkout={context(
+            connected({
+              status: "installing",
+              steps: [
+                step("s1", "active"),
+                step("s2", "pending"),
+                step("s3", "pending"),
+              ],
+              log: [
+                {
+                  id: "l1",
+                  role: "agent",
+                  phase: "installing",
+                  at: 1,
+                  text: "Line 1",
+                  stepId: "s1",
+                },
+              ],
+            }),
+          )}
+        />,
+      );
+      const added = screen.getByText("Step 3").closest("li")!;
+      const event = createEvent.animationEnd(added);
+      Object.defineProperty(event, "animationName", { value: "unfold" });
+      fireEvent(added, event);
+      expect(centered()).toEqual(["Step 1"]);
+    });
+
+    it("re-centers the row on every line of a sustained stream while it stays in view", () => {
+      const observer = observeRow();
+      scrollIntoView.mockClear();
+      const { rerender } = render(<SetupWizard checkout={stream(1)} />);
+      expect(observer.observed()).toBe(row());
+      observer.intersect(true);
+      for (let count = 2; count <= 10; count += 1) {
+        rerender(<SetupWizard checkout={stream(count)} />);
+        observer.intersect(true);
+      }
+      expect(centered()).toEqual(Array.from({ length: 10 }, () => "Step 1"));
+    });
+
+    it("stays put once the row has scrolled out of view and follows again when the step changes", () => {
+      const observer = observeRow();
+      scrollIntoView.mockClear();
+      const { rerender } = render(<SetupWizard checkout={stream(1)} />);
+      expect(centered()).toEqual(["Step 1"]);
+      observer.intersect(false);
+      rerender(<SetupWizard checkout={stream(2)} />);
+      expect(centered()).toEqual(["Step 1"]);
+
+      rerender(<SetupWizard checkout={installing("s2", ["s1", "s1", "s2"])} />);
+      expect(centered()).toEqual(["Step 1", "Step 2"]);
+      expect(observer.observed()).toBe(row());
+      rerender(
+        <SetupWizard checkout={installing("s2", ["s1", "s1", "s2", "s2"])} />,
+      );
+      expect(centered()).toEqual(["Step 1", "Step 2", "Step 2"]);
+    });
+
+    it("pauses once the reader moves the list and resumes when the row is fully back in view", () => {
+      const observer = observeRow();
+      scrollIntoView.mockClear();
+      const { rerender } = render(<SetupWizard checkout={stream(1)} />);
+      expect(centered()).toEqual(["Step 1"]);
+      expect(observer.options()).toEqual({ threshold: [0, 1] });
+      const list = screen.getByRole("list", { name: "Installation steps" });
+
+      fireEvent.wheel(list);
+      rerender(<SetupWizard checkout={stream(2)} />);
+      expect(centered()).toEqual(["Step 1"]);
+      observer.intersect(true, 0.5);
+      rerender(<SetupWizard checkout={stream(3)} />);
+      expect(centered()).toEqual(["Step 1"]);
+
+      observer.intersect(true);
+      rerender(<SetupWizard checkout={stream(4)} />);
+      expect(centered()).toEqual(["Step 1", "Step 1"]);
+
+      fireEvent.wheel(list);
+      rerender(
+        <SetupWizard
+          checkout={installing("s2", ["s1", "s1", "s1", "s1", "s2"])}
+        />,
+      );
+      expect(centered()).toEqual(["Step 1", "Step 1", "Step 2"]);
+    });
+
+    it("pauses when the reader scrolls the list with the keyboard", () => {
+      const observer = observeRow();
+      scrollIntoView.mockClear();
+      const { rerender } = render(<SetupWizard checkout={stream(1)} />);
+      expect(centered()).toEqual(["Step 1"]);
+      const list = screen.getByRole("list", { name: "Installation steps" });
+
+      fireEvent.keyDown(list, { key: "a" });
+      rerender(<SetupWizard checkout={stream(2)} />);
+      expect(centered()).toEqual(["Step 1", "Step 1"]);
+
+      fireEvent.keyDown(
+        within(row()).getByRole("button", {
+          name: "2 lines from Claude Code for Step 1",
+        }),
+        { key: " " },
+      );
+      rerender(<SetupWizard checkout={stream(3)} />);
+      expect(centered()).toEqual(["Step 1", "Step 1", "Step 1"]);
+
+      fireEvent.keyDown(list, { key: "PageUp" });
+      rerender(<SetupWizard checkout={stream(4)} />);
+      expect(centered()).toEqual(["Step 1", "Step 1", "Step 1"]);
+
+      observer.intersect(true);
+      rerender(<SetupWizard checkout={stream(5)} />);
+      expect(centered()).toEqual(["Step 1", "Step 1", "Step 1", "Step 1"]);
+    });
+
+    it("pauses on a press on the list itself but not on a step's disclosure", () => {
+      observeRow();
+      scrollIntoView.mockClear();
+      const { rerender } = render(<SetupWizard checkout={stream(1)} />);
+      expect(centered()).toEqual(["Step 1"]);
+      const list = screen.getByRole("list", { name: "Installation steps" });
+
+      fireEvent.pointerDown(
+        within(row()).getByRole("button", {
+          name: "1 line from Claude Code for Step 1",
+        }),
+      );
+      rerender(<SetupWizard checkout={stream(2)} />);
+      expect(centered()).toEqual(["Step 1", "Step 1"]);
+
+      fireEvent.pointerDown(list);
+      rerender(<SetupWizard checkout={stream(3)} />);
+      expect(centered()).toEqual(["Step 1", "Step 1"]);
+    });
+
+    it("keeps following when the reader scrolls inside the running step's panel, as long as the panel itself can scroll", () => {
+      observeRow();
+      scrollIntoView.mockClear();
+      const { rerender } = render(<SetupWizard checkout={stream(1)} />);
+      expect(centered()).toEqual(["Step 1"]);
+      const log = within(row()).getByRole("log");
+      Object.defineProperty(log, "scrollHeight", { value: 400 });
+      Object.defineProperty(log, "clientHeight", { value: 160 });
+
+      fireEvent.wheel(log);
+      rerender(<SetupWizard checkout={stream(2)} />);
+      expect(centered()).toEqual(["Step 1", "Step 1"]);
+    });
+
+    it("pauses when the reader wheels over a panel that does not scroll, since the list takes that scroll", () => {
+      observeRow();
+      scrollIntoView.mockClear();
+      const { rerender } = render(<SetupWizard checkout={stream(1)} />);
+      expect(centered()).toEqual(["Step 1"]);
+
+      fireEvent.wheel(within(row()).getByRole("log"));
+      rerender(<SetupWizard checkout={stream(2)} />);
+      expect(centered()).toEqual(["Step 1"]);
+    });
   });
 
   it("fills the install bar with time within the current step and snaps to the step count when one completes", () => {
@@ -915,12 +1493,12 @@ describe("SetupWizard messages", () => {
       ],
     });
     render(<SetupWizard checkout={context(state)} />);
-    expect(screen.queryByRole("log")).toBeNull();
+    expect(screen.queryByRole("log", { name: "Messages" })).toBeNull();
     expect(
       screen.queryByRole("textbox", { name: "Message your agent" }),
     ).toBeNull();
     openMessages();
-    const log = await screen.findByRole("log");
+    const log = await screen.findByRole("log", { name: "Messages" });
     expect(log.textContent).toContain("You: Use pnpm");
     expect(log.textContent).toContain("Claude Code: Switching to pnpm.");
     expect(log.textContent).not.toContain("Completed: Add the route");
@@ -1020,6 +1598,78 @@ describe("SetupWizard messages", () => {
     await waitFor(() =>
       expect(name()).toBe("1Messages. Claude Code is working. 1 unread."),
     );
+  });
+
+  it("swaps the exploring title's verb while the agent works, holds it while the agent is away, and keeps the accessible name", () => {
+    const heading = () =>
+      screen.getByRole("heading", { level: 1, hidden: true });
+    const verb = () => heading().querySelector("[aria-hidden]")!.textContent;
+    vi.useFakeTimers();
+    const { rerender } = render(
+      <SetupWizard
+        checkout={context(connected({ status: "planning" }), true, false, {
+          id: "exploring-title",
+        })}
+      />,
+    );
+    expect(verb()).toBe("Exploring");
+    expect(heading().querySelector(".sr-only")!.textContent).toBe("Exploring");
+    expect(heading().textContent).toContain(" your project");
+    act(() => vi.advanceTimersByTime(2400));
+    expect(verb()).toBe("Reading");
+    act(() => vi.advanceTimersByTime(2400));
+    expect(verb()).toBe("Mapping");
+    expect(heading().querySelector(".sr-only")!.textContent).toBe("Exploring");
+    rerender(
+      <SetupWizard
+        checkout={context(connected({ status: "planning" }), false, false, {
+          id: "exploring-title",
+        })}
+      />,
+    );
+    act(() => vi.advanceTimersByTime(5000));
+    expect(verb()).toBe("Mapping");
+    vi.useRealTimers();
+  });
+
+  it("cycles the exploring verbs back to the first", () => {
+    vi.useFakeTimers();
+    render(
+      <SetupWizard
+        checkout={context(connected({ status: "planning" }), true, false, {
+          id: "exploring-cycle",
+        })}
+      />,
+    );
+    const verb = () =>
+      screen.getByRole("heading", { level: 1 }).querySelector("[aria-hidden]")!
+        .textContent;
+    const seen = new Set<string>();
+    for (let swap = 0; swap < 7; swap++) {
+      seen.add(verb()!);
+      act(() => vi.advanceTimersByTime(2400));
+    }
+    expect(seen.size).toBe(7);
+    expect(verb()).toBe("Exploring");
+    vi.useRealTimers();
+  });
+
+  it("keeps the exploring title still under reduced motion", () => {
+    reducedMotion = true;
+    vi.useFakeTimers();
+    render(
+      <SetupWizard
+        checkout={context(connected({ status: "planning" }), true, false, {
+          id: "exploring-title",
+        })}
+      />,
+    );
+    act(() => vi.advanceTimersByTime(5000));
+    expect(
+      screen.getByRole("heading", { level: 1 }).querySelector("[aria-hidden]")!
+        .textContent,
+    ).toBe("Exploring");
+    vi.useRealTimers();
   });
 
   it("fills the exploring bar with time and holds it while the agent is away", () => {
