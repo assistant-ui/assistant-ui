@@ -65,7 +65,7 @@ export function ImageGallery({
   }, []);
 
   const focusDialog = useCallback((node: HTMLDivElement | null) => {
-    node?.focus();
+    node?.closest<HTMLElement>('[role="dialog"]')?.focus();
   }, []);
 
   const show = useCallback(
@@ -173,14 +173,14 @@ export function ImageGallery({
             if (!nextOpen) close();
           }}
         >
-          <DialogContent
-            ref={focusDialog}
-            className="gap-3 p-3 duration-150 motion-reduce:animate-none sm:max-w-[min(56rem,calc(100%-2rem))]"
-          >
+          <DialogContent className="gap-3 p-3 duration-150 motion-reduce:animate-none sm:max-w-[min(56rem,calc(100%-2rem))]">
             <DialogTitle className="sr-only">
               Image {index + 1} of {images.length}
             </DialogTitle>
-            <div className="flex min-h-0 items-center justify-center px-10">
+            <div
+              ref={focusDialog}
+              className="flex min-h-0 items-center justify-center px-10"
+            >
               {failedImages.has(keyForImage(activeImage)) ? (
                 <div className="text-muted-foreground flex h-[min(75vh,32rem)] w-full items-center justify-center">
                   <ImageOffIcon aria-hidden className="size-8" />

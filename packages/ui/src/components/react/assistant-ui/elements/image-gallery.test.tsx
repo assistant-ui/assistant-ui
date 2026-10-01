@@ -6,9 +6,22 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
+import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ImageGallery, type GalleryImage } from "./image-gallery";
+
+vi.mock("@/components/ui/dialog", async (importOriginal) => {
+  const dialog =
+    await importOriginal<typeof import("@/components/ui/dialog")>();
+  const DialogContentWithoutRef = ({
+    ref: _ref,
+    ...props
+  }: ComponentProps<typeof dialog.DialogContent>) => (
+    <dialog.DialogContent {...props} />
+  );
+  return { ...dialog, DialogContent: DialogContentWithoutRef };
+});
 
 const images: readonly GalleryImage[] = Array.from(
   { length: 8 },
