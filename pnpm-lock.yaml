@@ -4430,6 +4430,9 @@ importers:
       '@assistant-ui/x-performance':
         specifier: workspace:*
         version: link:../x-performance
+      '@assistant-ui/x-react18':
+        specifier: workspace:*
+        version: link:../x-react18
       '@tailwindcss/cli':
         specifier: ^4.3.3
         version: 4.3.3
