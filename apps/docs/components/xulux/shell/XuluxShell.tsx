@@ -89,6 +89,7 @@ type PromptStart = {
 
 export function XuluxShell({
   mode,
+  headerActionsVisible,
   courseId,
   autoStart,
   autoStartSource,
@@ -102,6 +103,7 @@ export function XuluxShell({
   onResetSession,
 }: {
   mode: XuluxMode;
+  headerActionsVisible: boolean;
   courseId: string;
   autoStart: boolean;
   autoStartSource: LearnAutoStartSource;
@@ -556,7 +558,7 @@ export function XuluxShell({
         />
 
         <XuluxHeaderActions
-          visible
+          visible={headerActionsVisible}
           showChatActions={viewMode !== "landing"}
           onNewChat={handleNewChat}
           onShowTemplates={() => setTemplatesOpen(true)}

@@ -70,6 +70,7 @@ export function XuluxHistoryMenu({
             variant="outline"
             size="sm"
             className="relative h-7 gap-1.5 px-2.5 text-xs"
+            aria-label="History"
           />
         }
       >
