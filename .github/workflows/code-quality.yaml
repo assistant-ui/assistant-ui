@@ -189,7 +189,7 @@ jobs:
         id: package_build_inputs
         run: |
           set -euo pipefail
-          run=$(git diff --name-only -z HEAD^1 HEAD | node scripts/package-build-inputs.mjs)
+          run=$(git diff --name-only --no-renames -z HEAD^1 HEAD | node scripts/package-build-inputs.mjs)
           echo "run=$run" >> "$GITHUB_OUTPUT"
 
       - name: Setup pnpm and node.js

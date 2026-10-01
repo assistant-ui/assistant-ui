@@ -83,10 +83,9 @@ const step = (name) => {
 };
 
 test("the workflow gates dependency-backed package steps", () => {
-  assert.match(
-    step("Detect package build inputs"),
-    /node scripts\/package-build-inputs\.mjs/,
-  );
+  const detector = step("Detect package build inputs");
+  assert.match(detector, /node scripts\/package-build-inputs\.mjs/);
+  assert.match(detector, /git diff --name-only --no-renames -z HEAD\^1 HEAD/);
 
   for (const name of [
     "Setup pnpm and node.js",
