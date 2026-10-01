@@ -1,104 +1,74 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { createRef, Suspense, use, type ReactNode } from "react";
+import { act, cleanup, render, screen } from "@testing-library/react";
+import { resource } from "@assistant-ui/tap";
+import {
+  AuiConfig,
+  AuiProvider,
+  type AssistantClient,
+  useAui,
+  useAuiState,
+} from "@assistant-ui/store";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { useAui, useAuiState, type AssistantClient } from "@assistant-ui/store";
-import { Suspense, use, useEffect, type ReactNode } from "react";
 import {
   deferred,
   makeAdapter,
 } from "../../tests/remote-thread-list-test-helpers";
 import type { RemoteThreadListAdapter } from "../../runtimes/remote-thread-list/types";
-import { AssistantRuntimeProvider } from "../AssistantRuntimeProvider";
-import { useExternalStoreRuntime } from "./useExternalStoreRuntime";
-import { useRemoteThreadListRuntime } from "./useRemoteThreadListRuntime";
-
-const EMPTY_MESSAGES: readonly never[] = [];
+import { RemoteThreadList } from "./RemoteThreadList";
 
 type ListPage = Awaited<ReturnType<RemoteThreadListAdapter["list"]>>;
+
+const composer = { getState: () => ({}) };
+const suggestions = { getState: () => ({ suggestions: [] }) };
+const threadState = { isRunning: false, messages: [] };
+const StubThread = resource(() => ({
+  getState: () => threadState,
+  composer: () => composer,
+  suggestions: () => suggestions,
+}));
 
 afterEach(() => {
   cleanup();
 });
 
-const useThreadRuntime = () =>
-  useExternalStoreRuntime({
-    messages: EMPTY_MESSAGES,
-    onNew: async () => {},
-  } as never);
-
-const mount = async (
+const mount = (
   adapter: RemoteThreadListAdapter,
   children: ReactNode = null,
 ) => {
-  let client: AssistantClient | undefined;
-  const Capture = () => {
-    const aui = useAui();
-    useEffect(() => {
-      client = aui;
-    }, [aui]);
-    return null;
-  };
-
-  const App = () => {
-    const runtime = useRemoteThreadListRuntime({
-      adapter,
-      runtimeHook: useThreadRuntime,
-    });
-    return (
-      <AssistantRuntimeProvider runtime={runtime}>
-        <Capture />
-        {children}
-      </AssistantRuntimeProvider>
-    );
-  };
-
-  render(<App />);
-  await waitFor(() => expect(client).toBeDefined());
-  return client!;
+  const clientRef = createRef<AssistantClient>();
+  render(
+    <AuiProvider
+      ref={clientRef as never}
+      config={AuiConfig({
+        threads: RemoteThreadList({
+          adapter,
+          thread: () => StubThread() as never,
+        }),
+      })}
+    >
+      {children}
+    </AuiProvider>,
+  );
+  return clientRef.current!;
 };
 
-describe("useRemoteThreadListRuntime list promises", () => {
-  it("resolve after the threads client reports the loaded list", async () => {
-    const list = deferred<ListPage>();
-    const adapter = makeAdapter({ list: vi.fn(() => list.promise) });
-    const aui = await mount(adapter);
-    expect(aui.threads().getState().isLoading).toBe(true);
-
-    const loaded = aui.threads().getLoadThreadsPromise();
-    list.resolve({
-      threads: [{ remoteId: "t1", status: "regular", title: "One" }],
-    });
-    await loaded;
-
-    expect(aui.threads().getState().isLoading).toBe(false);
-    expect(aui.threads().getState().threadIds).toEqual(["t1"]);
-
-    vi.mocked(adapter.list).mockResolvedValueOnce({
-      threads: [
-        { remoteId: "t1", status: "regular", title: "One" },
-        { remoteId: "t2", status: "regular", title: "Two" },
-      ],
-    });
-    await aui.threads().reload();
-
-    expect(aui.threads().getState().threadIds).toEqual(["t1", "t2"]);
-  });
-
+describe("RemoteThreadList list promises", () => {
   it("returns one promise per load", async () => {
     const list = deferred<ListPage>();
     const adapter = makeAdapter({ list: vi.fn(() => list.promise) });
-    const aui = await mount(adapter);
+    const aui = mount(adapter);
 
-    const first = aui.threads().getLoadThreadsPromise();
-    expect(aui.threads().getLoadThreadsPromise()).toBe(first);
+    const first = aui.threads.getLoadThreadsPromise();
+    expect(aui.threads.getLoadThreadsPromise()).toBe(first);
     list.resolve({ threads: [] });
     await first;
-    expect(aui.threads().getLoadThreadsPromise()).toBe(first);
+    expect(aui.threads.getLoadThreadsPromise()).toBe(first);
 
-    const reloaded = aui.threads().reload();
+    const reloaded = aui.threads.reload();
     expect(reloaded).not.toBe(first);
-    expect(aui.threads().getLoadThreadsPromise()).toBe(reloaded);
+    expect(aui.threads.getLoadThreadsPromise()).toBe(reloaded);
     await reloaded;
   });
 
@@ -108,12 +78,12 @@ describe("useRemoteThreadListRuntime list promises", () => {
     const consoleError = vi.spyOn(console, "error");
     const Threads = () => {
       const aui = useAui();
-      use(aui.threads().getLoadThreadsPromise());
+      use(aui.threads.getLoadThreadsPromise());
       const ids = useAuiState((s) => s.threads.threadIds);
       return <p>{ids.join(",")}</p>;
     };
 
-    await mount(
+    mount(
       adapter,
       <Suspense fallback={<p>loading</p>}>
         <Threads />
@@ -146,12 +116,12 @@ describe("useRemoteThreadListRuntime list promises", () => {
     const Threads = () => {
       renders++;
       const aui = useAui();
-      read(aui.threads().getLoadThreadsPromise());
+      read(aui.threads.getLoadThreadsPromise());
       const ids = useAuiState((s) => s.threads.threadIds);
       return <p>{ids.join(",")}</p>;
     };
 
-    await mount(
+    mount(
       adapter,
       <Suspense fallback={<p>loading</p>}>
         <Threads />
@@ -166,20 +136,20 @@ describe("useRemoteThreadListRuntime list promises", () => {
   });
 
   it("resolves inside act() once the loaded list is committed", async () => {
-    const aui = await mount(makeAdapter());
-    await aui.threads().getLoadThreadsPromise();
+    const aui = mount(makeAdapter());
+    await aui.threads.getLoadThreadsPromise();
 
     await act(async () => {
-      await aui.threads().getLoadThreadsPromise();
+      await aui.threads.getLoadThreadsPromise();
     });
-    expect(aui.threads().getState().isLoading).toBe(false);
+    expect(aui.threads.getState().isLoading).toBe(false);
   });
 
   it("waits for act() to exit when the load settles inside it", async () => {
     const list = deferred<ListPage>();
     const adapter = makeAdapter({ list: vi.fn(() => list.promise) });
-    const aui = await mount(adapter);
-    const loaded = aui.threads().getLoadThreadsPromise();
+    const aui = mount(adapter);
+    const loaded = aui.threads.getLoadThreadsPromise();
     let settled = false;
     void loaded.then(() => {
       settled = true;
@@ -194,6 +164,6 @@ describe("useRemoteThreadListRuntime list promises", () => {
     });
 
     await loaded;
-    expect(aui.threads().getState().threadIds).toEqual(["t1"]);
+    expect(aui.threads.getState().threadIds).toEqual(["t1"]);
   });
 });
