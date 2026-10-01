@@ -109,7 +109,9 @@ export function ConversationSearch({
             aria-hidden
             className={cn(
               "absolute inset-x-0 h-1 rounded-full transition-colors duration-200 forced-color-adjust-none",
-              i === index ? "bg-amber-500" : "bg-amber-500/35",
+              i === index
+                ? "bg-amber-500 forced-colors:bg-[Highlight]"
+                : "bg-amber-500/35 forced-colors:bg-[CanvasText]",
             )}
             style={{ top: `${hit.position}%` }}
           />
