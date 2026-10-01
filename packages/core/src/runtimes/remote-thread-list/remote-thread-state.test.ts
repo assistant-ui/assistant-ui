@@ -3,6 +3,7 @@ import {
   classifyThreads,
   createEmptyRemoteThreadState,
   createThreadMappingId,
+  deleteThreadReducer,
   getThreadData,
   promoteNewThreadReducer,
   reconcileInitializedThread,
@@ -271,5 +272,30 @@ describe("remote thread state", () => {
       expect(deleted.threadIds).toEqual([]);
       expect(deleted.archivedThreadIds).toEqual([]);
     }
+  });
+
+  it("deletes a local thread a stale listing re-minted under its remote id", () => {
+    const draft = initializedDraft();
+    const deleted = updateStatusReducer(draft.state, draft.id, "deleted");
+    const relisted = {
+      ...deleted,
+      ...classifyThreads([{ status: "regular", remoteId: "remote-1" }], {
+        threadIds: [],
+        archivedThreadIds: [],
+        threadIdMap: deleted.threadIdMap,
+        threadData: deleted.threadData,
+      }),
+    };
+    expect(
+      getThreadData(
+        updateStatusReducer(relisted, draft.id, "deleted"),
+        "remote-1",
+      ),
+    ).toBeDefined();
+
+    const replayed = deleteThreadReducer(relisted, draft.id, "remote-1");
+
+    expect(getThreadData(replayed, "remote-1")).toBeUndefined();
+    expect(replayed.threadIds).toEqual([]);
   });
 });

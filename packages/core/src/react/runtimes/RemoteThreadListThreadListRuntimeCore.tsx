@@ -20,6 +20,7 @@ import {
   classifyThreads,
   createEmptyRemoteThreadState,
   createThreadMappingId,
+  deleteThreadReducer,
   getThreadData,
   normalizeCursor,
   reconcileInitializedThread,
@@ -1106,15 +1107,20 @@ export class RemoteThreadListThreadListRuntimeCore
 
     await this._ensureThreadIsNotMain(data.id);
     this._requireAdapterGeneration(adapterGeneration);
+    let remoteId: string | undefined;
     const result = await this._state.optimisticUpdate({
       execute: async () => {
-        const { remoteId } = await data.initializeTask;
+        ({ remoteId } = await data.initializeTask);
         this._requireAdapterGeneration(adapterGeneration);
         return await adapter.delete(remoteId);
       },
-      optimistic: (state) => {
-        return updateStatusReducer(state, data.id, "deleted");
-      },
+      optimistic: (state) =>
+        deleteThreadReducer(
+          state,
+          data.id,
+          // A replacement adapter can list its own thread under this remote id.
+          this._options.adapter === adapter ? remoteId : undefined,
+        ),
     });
     // The optimistic layer survives an adapter swap, so a resolved deletion has
     // dropped the slot from `threadData`, where `_replaceWithThreads` would

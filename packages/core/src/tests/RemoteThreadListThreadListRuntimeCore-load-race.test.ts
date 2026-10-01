@@ -193,6 +193,35 @@ describe("RemoteThreadListThreadListRuntimeCore load race", () => {
     expect(core.threadIds).toEqual([localId]);
     expect(core.archivedThreadIds).toEqual([]);
   });
+
+  it("keeps a thread deleted during the list() flight deleted", async () => {
+    const listDeferred = deferred<ListResult>();
+    const adapter = makeAdapter({
+      list: vi.fn(() => listDeferred.promise),
+      initialize: vi.fn(async () => ({
+        remoteId: "remote-1",
+        externalId: "remote-1",
+      })),
+    });
+    const core = createCore(adapter);
+
+    const loadPromise = core.getLoadThreadsPromise();
+    await core.switchToNewThread();
+    const localId = core.newThreadId!;
+    await core.initialize(localId);
+    await core.delete(localId);
+    expect(adapter.delete).toHaveBeenCalledWith("remote-1");
+
+    listDeferred.resolve({
+      threads: [
+        { status: "regular", remoteId: "remote-1", externalId: "remote-1" },
+      ],
+    });
+    await loadPromise;
+
+    expect(core.getItemById("remote-1")).toBeUndefined();
+    expect(core.threadIds).toEqual([]);
+  });
 });
 
 describe("preserveMidLoadTransitions", () => {
