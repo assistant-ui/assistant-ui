@@ -1,5 +1,17 @@
 # @assistant-ui/react-streamdown
 
+## 0.3.18
+
+### Patch Changes
+
+- [#8562](https://github.com/assistant-ui/assistant-ui/pull/8562) [`b48b05d`](https://github.com/assistant-ui/assistant-ui/commit/b48b05d05b9714e71453435712552eac40ed76f3) - preserve currency and math delimiters inside html blocks during preprocessing. ([@okisdev](https://github.com/okisdev))
+
+- [#8564](https://github.com/assistant-ui/assistant-ui/pull/8564) [`92f42ee`](https://github.com/assistant-ui/assistant-ui/commit/92f42eeae1bea5edb440be32ec02933a1091e75e) - preserve raw html bodies inside list and blockquote containers during streaming repair. ([@okisdev](https://github.com/okisdev))
+
+- [#8563](https://github.com/assistant-ui/assistant-ui/pull/8563) [`31970dc`](https://github.com/assistant-ui/assistant-ui/commit/31970dcafcb86ad27dc87731dd3708c00f9a8c55) - keep comparison escapes within each line without splitting settled prose or slowing down on blank lines. ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`b48b05d`](https://github.com/assistant-ui/assistant-ui/commit/b48b05d05b9714e71453435712552eac40ed76f3)]:
+  - @assistant-ui/react-markdown@0.14.18
+
 ## 0.3.17
 
 ### Patch Changes
