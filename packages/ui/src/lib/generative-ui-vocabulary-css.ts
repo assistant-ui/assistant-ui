@@ -875,9 +875,10 @@ export const generativeUiVocabularyCss: CssRuleset = {
   },
   '[data-aui="markdown"] th, [data-aui="markdown"] td': {
     padding: "0.375rem 0.75rem",
-    "text-align": "start",
     "vertical-align": "top",
   },
+  '[data-aui="markdown"] th:not([align]), [data-aui="markdown"] td:not([align])':
+    { "text-align": "start" },
   '[data-aui="markdown"] th': {
     "font-weight": "500",
     "border-bottom": `1px solid ${auiHairlineBorder}`,
