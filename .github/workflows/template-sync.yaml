@@ -1,0 +1,69 @@
+name: Template Sync
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/sync-templates.sh"
+      - "packages/ui/src/**/*.ts"
+      - "packages/ui/src/**/*.tsx"
+      - "packages/ui/src/**/*.vue"
+      - "apps/**/*.ts"
+      - "apps/**/*.tsx"
+      - "apps/**/*.vue"
+      - "apps/*/tsconfig.json"
+      - "examples/**/*.ts"
+      - "examples/**/*.tsx"
+      - "examples/**/*.vue"
+      - "examples/*/tsconfig.json"
+      - "templates/**/*.ts"
+      - "templates/**/*.tsx"
+      - "templates/**/*.vue"
+      - "templates/*/tsconfig.json"
+      - ".github/workflows/template-sync.yaml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/sync-templates.sh"
+      - "packages/ui/src/**/*.ts"
+      - "packages/ui/src/**/*.tsx"
+      - "packages/ui/src/**/*.vue"
+      - "apps/**/*.ts"
+      - "apps/**/*.tsx"
+      - "apps/**/*.vue"
+      - "apps/*/tsconfig.json"
+      - "examples/**/*.ts"
+      - "examples/**/*.tsx"
+      - "examples/**/*.vue"
+      - "examples/*/tsconfig.json"
+      - "templates/**/*.ts"
+      - "templates/**/*.tsx"
+      - "templates/**/*.vue"
+      - "templates/*/tsconfig.json"
+      - ".github/workflows/template-sync.yaml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  template-sync:
+    name: Template Sync
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Setup node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # ratchet:actions/setup-node@v7.0.0
+        with:
+          node-version: 24
+
+      - name: Verify templates match packages/ui source
+        run: bash scripts/sync-templates.sh
