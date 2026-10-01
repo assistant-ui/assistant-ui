@@ -55,6 +55,7 @@ type AuiV0ToolApproval = {
 type AuiV0MessagePart =
   | {
       readonly type: "text";
+      readonly id?: string;
       readonly text: string;
       readonly providerMetadata?: NonNullable<
         TextMessagePart["providerMetadata"]
@@ -63,6 +64,7 @@ type AuiV0MessagePart =
     }
   | {
       readonly type: "reasoning";
+      readonly id?: string;
       readonly text: string;
       readonly unstable_summary?: string;
       readonly providerMetadata?: NonNullable<
@@ -93,6 +95,7 @@ type AuiV0MessagePart =
       ({ readonly args: ReadonlyJSONObject } | { readonly argsText: string }))
   | {
       readonly type: "image";
+      readonly id?: string;
       readonly image: string;
       readonly filename?: string;
       readonly providerMetadata?: NonNullable<
@@ -101,6 +104,7 @@ type AuiV0MessagePart =
     }
   | {
       readonly type: "file";
+      readonly id?: string;
       readonly data: string;
       readonly mimeType: string;
       readonly filename?: string;
@@ -112,6 +116,7 @@ type AuiV0MessagePart =
     }
   | {
       readonly type: "data";
+      readonly id?: string;
       readonly name: string;
       readonly data: ReadonlyJSONValue;
     }
@@ -388,6 +393,7 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
         case "text":
           return {
             type: "text",
+            ...(part.id !== undefined ? { id: part.id } : undefined),
             text: part.text,
             ...(part.providerMetadata !== undefined
               ? { providerMetadata: part.providerMetadata }
@@ -400,6 +406,7 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
         case "reasoning":
           return {
             type: "reasoning",
+            ...(part.id !== undefined ? { id: part.id } : undefined),
             text: part.text,
             ...(part.unstable_summary !== undefined
               ? { unstable_summary: part.unstable_summary }
@@ -515,6 +522,7 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
         case "image":
           return {
             type: "image",
+            ...(part.id !== undefined ? { id: part.id } : undefined),
             image: part.image,
             ...(part.filename != null
               ? { filename: part.filename }
@@ -527,6 +535,7 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
         case "file":
           return {
             type: "file",
+            ...(part.id !== undefined ? { id: part.id } : undefined),
             data: part.data,
             mimeType: part.mimeType,
             ...(part.filename != null
@@ -547,6 +556,7 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
           }
           return {
             type: "data",
+            ...(part.id !== undefined ? { id: part.id } : undefined),
             name: part.name,
             data: part.data as ReadonlyJSONValue,
           };

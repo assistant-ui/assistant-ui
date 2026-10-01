@@ -1483,6 +1483,42 @@ describe("AISDKMessageConverter", () => {
     expect(converted[0]?.content[2]).not.toHaveProperty("providerMetadata");
   });
 
+  it("forwards reasoning part ids and leaves text parts without one", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          { type: "reasoning", id: "reasoning-1", text: "thinking" },
+          { type: "text", text: "answer" },
+        ],
+      } as any,
+    ]);
+
+    expect(converted[0]?.content[0]).toMatchObject({
+      type: "reasoning",
+      id: "reasoning-1",
+    });
+    expect(converted[0]?.content[1]).not.toHaveProperty("id");
+  });
+
+  it("forwards data part ids", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "data-chart", id: "data-1", data: { x: 1 } }],
+      } as any,
+    ]);
+
+    expect(converted[0]?.content[0]).toMatchObject({
+      type: "data",
+      id: "data-1",
+      name: "chart",
+      data: { x: 1 },
+    });
+  });
+
   it("maps TextUIPart.state onto the per-part status", () => {
     const converted = AISDKMessageConverter.toThreadMessages([
       {

@@ -33,16 +33,18 @@ Assistant Cloud stores a format name with every message. The format preserves th
 
 | Type | Fields |
 |---|---|
-| `text` | `text`, optional `providerMetadata` and `parentId`. |
-| `reasoning` | `text`, optional `unstable_summary`, `providerMetadata`, and `parentId`. |
+| `text` | `text`, optional `id`, `providerMetadata`, and `parentId`. |
+| `reasoning` | `text`, optional `id`, `unstable_summary`, `providerMetadata`, and `parentId`. |
 | `source` with `sourceType: "url"` | `id`, `url`, optional `title`, `providerMetadata`, and `parentId`. |
 | `source` with `sourceType: "document"` | `id`, `title`, `mediaType`, optional `filename`, `providerMetadata`, and `parentId`. |
 | `tool-call` | `toolCallId`, `toolName`, one of `args` or `argsText`, and optional `result`, `artifact`, `modelContent`, `providerMetadata`, `isPreliminary`, `isError`, `interrupt`, `timing`, `mcp`, `approval`, `parentId`, nested `messages`, and `unstable_interactions`. |
-| `image` | `image`, optional `filename` and `providerMetadata`. |
-| `file` | `data`, `mimeType`, optional `filename`, `sourceType`, `providerMetadata`, and `parentId`. |
-| `data` | `name`, `data`. |
+| `image` | `image`, optional `id`, `filename`, and `providerMetadata`. |
+| `file` | `data`, `mimeType`, optional `id`, `filename`, `sourceType`, `providerMetadata`, and `parentId`. |
+| `data` | `name`, `data`, optional `id`. |
 | `audio` | `audio: { data, format }`, where format is `mp3` or `wav`. |
 | `generative-ui` | `spec`, optional `id` and `parentId`. |
+
+For text, reasoning, image, file, and data parts, `id` is a stable identity the host supplies to keep a part's component state when parts are replaced or reordered; without it, a part is keyed by its type and position.
 
 ### Attachments and metadata
 

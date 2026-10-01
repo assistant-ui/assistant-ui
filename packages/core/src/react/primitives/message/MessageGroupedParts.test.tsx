@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render } from "@testing-library/react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ThreadMessageLike } from "../../../runtime/utils/thread-message-like";
 import { useAui } from "@assistant-ui/store";
@@ -62,9 +62,131 @@ const convertMessage = (message: Msg): ThreadMessageLike => ({
   content: message.content,
 });
 
+const StateProbe = ({ text }: { text: string }) => {
+  const [seed] = useState(text);
+  return <span>{`${seed}:${text}`}</span>;
+};
+
+const renderIdentityGroups = (
+  content: ThreadMessageLike["content"],
+  grouped: boolean,
+) => {
+  const Message = () => (
+    <MessagePrimitiveGroupedParts
+      groupBy={groupPartByType(
+        grouped
+          ? {
+              text: ["group-parts"],
+              image: ["group-parts"],
+            }
+          : {},
+      )}
+    >
+      {({ part, children }) => {
+        if (part.type === "group-parts") return <section>{children}</section>;
+        if (part.type === "text") return <StateProbe text={part.text} />;
+        if (part.type === "image")
+          return (
+            <StateProbe text={part.image.split("/").pop()!.split(".")[0]!} />
+          );
+        return null;
+      }}
+    </MessagePrimitiveGroupedParts>
+  );
+  const App = ({ content }: { content: ThreadMessageLike["content"] }) => {
+    const runtime = useExternalStoreRuntime({
+      messages: [{ id: "message", role: "assistant", content }],
+      convertMessage: (message: ThreadMessageLike) => message,
+      isRunning: true,
+      onNew: async () => {},
+    });
+    return (
+      <AssistantRuntimeProvider runtime={runtime}>
+        <ThreadPrimitiveMessages components={{ Message }} />
+      </AssistantRuntimeProvider>
+    );
+  };
+  const view = render(<App content={content} />);
+  return {
+    setContent: (content: ThreadMessageLike["content"]) =>
+      view.rerender(<App content={content} />),
+    values: () =>
+      Array.from(
+        view.container.querySelectorAll("span"),
+        (el) => el.textContent,
+      ),
+  };
+};
+
 afterEach(cleanup);
 
 describe("MessagePrimitive.GroupedParts", () => {
+  describe.each([false, true])("grouped=%s identity", (grouped) => {
+    it("keeps the seed while streaming and resets it for a replacement id", () => {
+      const view = renderIdentityGroups(
+        [{ type: "text", id: "p1", text: "old" }],
+        grouped,
+      );
+      view.setContent([{ type: "text", id: "p1", text: "old streamed" }]);
+      expect(view.values()).toEqual(["old:old streamed"]);
+      view.setContent([{ type: "text", id: "p2", text: "new" }]);
+      expect(view.values()).toEqual(["new:new"]);
+    });
+
+    it("keeps each seed with its id when parts swap within a stable group", () => {
+      const view = renderIdentityGroups(
+        [
+          { type: "text", id: "anchor", text: "anchor" },
+          { type: "text", id: "p1", text: "first" },
+          { type: "text", id: "p2", text: "second" },
+        ],
+        grouped,
+      );
+      view.setContent([
+        { type: "text", id: "anchor", text: "anchor" },
+        { type: "text", id: "p2", text: "second updated" },
+        { type: "text", id: "p1", text: "first updated" },
+      ]);
+      expect(view.values()).toEqual([
+        "anchor:anchor",
+        "second:second updated",
+        "first:first updated",
+      ]);
+    });
+
+    it("mounts fresh state when anonymous text becomes an image", () => {
+      const view = renderIdentityGroups(
+        [{ type: "text", text: "old" }],
+        grouped,
+      );
+      view.setContent([
+        { type: "image", image: "https://example.com/new.png" },
+      ]);
+      expect(view.values()).toEqual(["new:new"]);
+    });
+
+    it("renders duplicate ids and resets a replaced leaf in a stable group", () => {
+      const view = renderIdentityGroups(
+        [
+          { type: "text", id: "anchor", text: "anchor" },
+          { type: "text", id: "p1", text: "first" },
+          { type: "text", id: "p1", text: "second" },
+        ],
+        grouped,
+      );
+      view.setContent([
+        { type: "text", id: "anchor", text: "anchor" },
+        { type: "text", id: "p2", text: "new" },
+        { type: "text", id: "p1", text: "second" },
+      ]);
+      expect(view.values()).toEqual([
+        "anchor:anchor",
+        "new:new",
+        "first:second",
+      ]);
+    });
+  });
+
   it("passes status counts to a tool-name group", () => {
     let group:
       | {

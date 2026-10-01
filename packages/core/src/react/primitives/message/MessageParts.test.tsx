@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render } from "@testing-library/react";
+import { useState, type PropsWithChildren } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ThreadMessageLike } from "../../../runtime/utils/thread-message-like";
 import { AssistantRuntimeProvider } from "../../AssistantRuntimeProvider";
@@ -41,9 +42,172 @@ const dataPart = (name: string): ThreadMessageLike["content"] => [
   { type: "data", name, data: 1 },
 ];
 
+const StateProbe = ({ text, image }: { text?: string; image?: string }) => {
+  const value = text ?? image?.split("/").pop()?.split(".")[0] ?? "";
+  const [seed] = useState(value);
+  return <span>{`${seed}:${value}`}</span>;
+};
+
+const renderIdentityParts = (
+  content: ThreadMessageLike["content"],
+  mode: "children" | "components",
+  components: MessagePrimitiveParts.Props["components"] = {
+    Text: StateProbe,
+    Image: StateProbe,
+    Reasoning: StateProbe,
+  },
+) => {
+  const Message = () =>
+    mode === "children" ? (
+      <MessagePrimitiveParts>
+        {({ part }) =>
+          part.type === "text" || part.type === "image" ? (
+            <StateProbe {...part} />
+          ) : null
+        }
+      </MessagePrimitiveParts>
+    ) : (
+      <MessagePrimitiveParts
+        components={components}
+        unstable_showEmptyOnNonTextEnd={false}
+      />
+    );
+  const App = ({ content }: { content: ThreadMessageLike["content"] }) => {
+    const runtime = useExternalStoreRuntime({
+      messages: [{ id: "message", role: "assistant", content }],
+      convertMessage: (message: ThreadMessageLike) => message,
+      isRunning: true,
+      onNew: async () => {},
+    });
+    return (
+      <AssistantRuntimeProvider runtime={runtime}>
+        <ThreadPrimitiveMessages components={{ Message }} />
+      </AssistantRuntimeProvider>
+    );
+  };
+  const view = render(<App content={content} />);
+  return {
+    ...view,
+    setContent: (content: ThreadMessageLike["content"]) =>
+      view.rerender(<App content={content} />),
+    values: () =>
+      Array.from(
+        view.container.querySelectorAll("span"),
+        (el) => el.textContent,
+      ),
+  };
+};
+
 afterEach(cleanup);
 
 describe("MessagePrimitive.Parts", () => {
+  describe.each(["children", "components"] as const)("%s identity", (mode) => {
+    it("keeps the seed while streaming and resets it for a replacement id", () => {
+      const view = renderIdentityParts(
+        [{ type: "text", id: "p1", text: "old" }],
+        mode,
+      );
+      view.setContent([{ type: "text", id: "p1", text: "old streamed" }]);
+      expect(view.values()).toEqual(["old:old streamed"]);
+      view.setContent([{ type: "text", id: "p2", text: "new" }]);
+      expect(view.values()).toEqual(["new:new"]);
+    });
+
+    it("keeps each seed with its id when parts swap", () => {
+      const view = renderIdentityParts(
+        [
+          { type: "text", id: "p1", text: "first" },
+          { type: "text", id: "p2", text: "second" },
+        ],
+        mode,
+      );
+      view.setContent([
+        { type: "text", id: "p2", text: "second updated" },
+        { type: "text", id: "p1", text: "first updated" },
+      ]);
+      expect(view.values()).toEqual([
+        "second:second updated",
+        "first:first updated",
+      ]);
+    });
+
+    it("mounts fresh state when anonymous text becomes an image", () => {
+      const view = renderIdentityParts([{ type: "text", text: "old" }], mode);
+      view.setContent([
+        { type: "image", image: "https://example.com/new.png" },
+      ]);
+      expect(view.values()).toEqual(["new:new"]);
+    });
+
+    it("renders duplicate ids and remounts a replacement id", () => {
+      const view = renderIdentityParts(
+        [
+          { type: "text", id: "p1", text: "first" },
+          { type: "text", id: "p1", text: "second" },
+        ],
+        mode,
+      );
+      view.setContent([
+        { type: "text", id: "p1", text: "first streamed" },
+        { type: "text", id: "p1", text: "second streamed" },
+      ]);
+      expect(view.values()).toEqual([
+        "first:first streamed",
+        "second:second streamed",
+      ]);
+      view.setContent([
+        { type: "text", id: "p2", text: "new" },
+        { type: "text", id: "p1", text: "second streamed" },
+      ]);
+      expect(view.values()).toEqual(["new:new", "first:second streamed"]);
+    });
+  });
+
+  it("keeps a reasoning group mounted when its first part moves", () => {
+    let mounts = 0;
+    const ReasoningGroup = ({ children }: PropsWithChildren) => {
+      const [mount] = useState(() => ++mounts);
+      return <section data-mount={mount}>{children}</section>;
+    };
+    const view = renderIdentityParts(
+      [{ type: "reasoning", id: "r1", text: "old" }],
+      "components",
+      { Reasoning: StateProbe, ReasoningGroup, Text: StateProbe },
+    );
+    view.setContent([
+      { type: "text", text: "prefix" },
+      { type: "reasoning", id: "r1", text: "new" },
+    ]);
+    expect(view.container.querySelector("section")?.dataset.mount).toBe("1");
+    expect(view.values()).toEqual(["prefix:prefix", "old:new"]);
+  });
+
+  it("keys reasoning leaves within a stable group by their ids", () => {
+    const view = renderIdentityParts(
+      [
+        { type: "reasoning", id: "anchor", text: "anchor" },
+        { type: "reasoning", id: "r1", text: "first" },
+        { type: "reasoning", id: "r2", text: "second" },
+      ],
+      "components",
+    );
+    view.setContent([
+      { type: "reasoning", id: "anchor", text: "anchor" },
+      { type: "reasoning", id: "r2", text: "second updated" },
+      { type: "reasoning", id: "r1", text: "first updated" },
+    ]);
+    expect(view.values()).toEqual([
+      "anchor:anchor",
+      "second:second updated",
+      "first:first updated",
+    ]);
+    view.setContent([
+      { type: "reasoning", id: "anchor", text: "anchor" },
+      { type: "reasoning", id: "r3", text: "new" },
+    ]);
+    expect(view.values()).toEqual(["anchor:anchor", "new:new"]);
+  });
+
   it.each(["toString", "constructor", "__proto__"])(
     "falls back for a tool call named %s that only Object.prototype has",
     (toolName) => {

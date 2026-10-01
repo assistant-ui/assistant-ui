@@ -910,7 +910,7 @@ useExternalStoreRuntime({
       name: "content",
       type: "string | readonly ThreadMessageLikePart[]",
       description:
-        "Message content as string or structured message parts. Supports data-* prefixed types (e.g. { type: \"data-workflow\", data: {...} }) which are automatically converted to DataMessagePart.",
+        "Message content as string or structured message parts. Supports data-* prefixed types (e.g. { type: \"data-workflow\", data: {...} }) which are automatically converted to DataMessagePart. A part's optional id is a stable identity the host supplies to keep its component state when parts are replaced or reordered; without it, the part is keyed by its type and position.",
       required: true,
     },
     {
