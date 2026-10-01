@@ -716,6 +716,7 @@ type DataMessagePart<T = any> = {
 
 type DataPrefixedPart = {
   readonly type: `data-${string}`;
+  readonly id?: string;
   readonly data: any;
 };
 

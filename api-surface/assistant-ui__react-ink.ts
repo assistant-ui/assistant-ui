@@ -1506,6 +1506,7 @@ type DataMessagePartProps<T = any> = MessagePartState & DataMessagePart<T>;
 
 type DataPrefixedPart = {
   readonly type: `data-${string}`;
+  readonly id?: string;
   readonly data: any;
 };
 
