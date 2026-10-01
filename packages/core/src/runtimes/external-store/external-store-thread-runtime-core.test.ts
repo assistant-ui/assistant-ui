@@ -2,6 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import type { ModelContextProvider } from "../../model-context/types";
 import type { Unstable_RecordToolInteractionOptions } from "../../runtime/interfaces/thread-runtime-core";
 import type { ExternalStoreAdapter } from "./external-store-adapter";
+import {
+  ExportedMessageRepository,
+  MessageRepository,
+} from "../../runtime/utils/message-repository";
 import { ExternalStoreThreadRuntimeCore } from "./external-store-thread-runtime-core";
 
 const modelContextProvider: ModelContextProvider = {
@@ -174,4 +178,162 @@ describe("ExternalStoreThreadRuntimeCore resume compatibility", () => {
       expect(subscriber).not.toHaveBeenCalled();
     },
   );
+});
+
+describe("ExternalStoreThreadRuntimeCore resume lifecycle", () => {
+  const config = { parentId: null, sourceId: null, runConfig: {} };
+
+  it.each([undefined, false, true])(
+    "preserves the adapter receiver with canResume=%s",
+    async (canResume) => {
+      const onResume = vi.fn(function (this: ExternalStoreAdapter) {
+        expect(this).toBe(adapter);
+        return Promise.resolve();
+      });
+      const adapter: ExternalStoreAdapter = {
+        messages: [],
+        onNew: async () => {},
+        canResume,
+        onResume,
+      };
+      const runtime = new ExternalStoreThreadRuntimeCore(
+        modelContextProvider,
+        adapter,
+      );
+      await runtime.resumeRun(config);
+      expect(onResume).toHaveBeenCalledExactlyOnceWith(config);
+    },
+  );
+
+  it.each([undefined, false, true])(
+    "preserves synchronous adapter errors with canResume=%s",
+    async (canResume) => {
+      const error = new Error("adapter resume failed");
+      const adapter: ExternalStoreAdapter = {
+        messages: [],
+        onNew: async () => {},
+        canResume,
+        onResume() {
+          expect(this).toBe(adapter);
+          throw error;
+        },
+      };
+      const runtime = new ExternalStoreThreadRuntimeCore(
+        modelContextProvider,
+        adapter,
+      );
+      await expect(runtime.resumeRun(config)).rejects.toBe(error);
+      expect(runtime.canResume).toBe(canResume === true);
+    },
+  );
+
+  it.each([
+    "session",
+    "reset",
+    "import",
+    "external state",
+    "repository",
+    "branch",
+  ] as const)(
+    "allows a new resume after %s changes without the old completion clearing it",
+    async (boundary) => {
+      const finish: Array<() => void> = [];
+      const onResume = vi.fn(
+        () => new Promise<void>((resolve) => finish.push(resolve)),
+      );
+      const adapter: ExternalStoreAdapter = {
+        messageRepository: ExportedMessageRepository.fromBranchableArray(
+          [
+            {
+              parentId: null,
+              message: {
+                id: "first",
+                role: "assistant",
+                content: "First branch",
+              },
+            },
+            {
+              parentId: null,
+              message: {
+                id: "other",
+                role: "assistant",
+                content: "Other branch",
+              },
+            },
+          ],
+          { headId: "first" },
+        ),
+        onNew: async () => {},
+        onResume,
+        canResume: true,
+        setMessages: vi.fn(),
+        onLoadExternalState: vi.fn(),
+      };
+      const runtime = new ExternalStoreThreadRuntimeCore(
+        modelContextProvider,
+        adapter,
+      );
+      const first = runtime.resumeRun(config);
+      expect(runtime.canResume).toBe(false);
+
+      switch (boundary) {
+        case "session":
+          runtime.unstable_notifySessionReset();
+          break;
+        case "reset":
+          runtime.reset();
+          break;
+        case "import":
+          runtime.import(ExportedMessageRepository.fromArray([]));
+          break;
+        case "external state":
+          runtime.importExternalState({});
+          break;
+        case "repository":
+          runtime.__internal_setAdapter({
+            ...adapter,
+            unstable_messageRepositoryInstance: new MessageRepository(),
+          });
+          break;
+        case "branch":
+          runtime.switchToBranch("other");
+          break;
+      }
+      expect(runtime.canResume).toBe(true);
+      const second = runtime.resumeRun(config);
+      expect(onResume).toHaveBeenCalledTimes(2);
+      finish[0]!();
+      await first;
+      expect(runtime.canResume).toBe(false);
+      const duplicate = runtime.resumeRun(config);
+      expect(onResume).toHaveBeenCalledTimes(2);
+      finish[1]!();
+      await Promise.all([second, duplicate]);
+      expect(runtime.canResume).toBe(true);
+    },
+  );
+
+  it("keeps the pending resume when switching to the current branch", async () => {
+    let finish!: () => void;
+    const onResume = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const runtime = createRuntime({
+      messageRepository: ExportedMessageRepository.fromArray([
+        { id: "first", role: "assistant", content: "First branch" },
+      ]),
+      setMessages: vi.fn(),
+      canResume: true,
+      onResume,
+    });
+    const first = runtime.resumeRun(config);
+    runtime.switchToBranch("first");
+    const duplicate = runtime.resumeRun(config);
+    expect(onResume).toHaveBeenCalledOnce();
+    finish();
+    await Promise.all([first, duplicate]);
+  });
 });

@@ -957,6 +957,10 @@ With `canResume: true`, `useExternalStoreRuntime` and `ExternalThread` share one
 pending resume attempt per thread. Later calls join that attempt even if the
 callback or run configuration changes; the first call's configuration is used.
 Once it settles, a new call uses the current callback and its own configuration.
+`useExternalStoreRuntime` also releases a pending attempt when the runtime resets,
+imports state, switches branches, or receives a different message repository.
+Adapters that discard a backing session without replacing the runtime should call
+`unstable_notifySessionReset()`. An older attempt settling does not clear a newer one.
 Without this opt-in, explicit resume calls retain their existing independent behavior.
 A rejected callback re-enables the control for retry; report the failure through your
 adapter's normal error state. The runtime also suppresses repeated clicks

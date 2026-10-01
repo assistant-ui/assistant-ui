@@ -150,9 +150,10 @@ describe("checkpoint resume", () => {
       duplicate = second.resume();
       expect(onResume).toHaveBeenCalledOnce();
     });
-    await waitFor(() => expect(onResume).toHaveBeenCalledOnce());
-    expect(first.disabled).toBe(true);
-    expect(second.disabled).toBe(true);
+    await waitFor(() => {
+      expect(first.disabled).toBe(true);
+      expect(second.disabled).toBe(true);
+    });
     let duplicateSettled = false;
     void duplicate.then(() => {
       duplicateSettled = true;
@@ -429,7 +430,7 @@ describe("checkpoint resume", () => {
       expect(runtime.canResume).toBe(false);
       finishSecond();
       await next;
-      expect(runtime.canResume).toBe(!!canResume);
+      expect(runtime.canResume).toBe(false);
     },
   );
 
