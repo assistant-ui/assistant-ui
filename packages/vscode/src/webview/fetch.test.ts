@@ -1,9 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  serveWebviewRoutes,
-  type ServeWebviewRoutesOptions,
-  type WebviewRoutes,
-} from "../host/router";
+import type { ServeWebviewRoutesOptions, WebviewRoutes } from "../host/router";
+import { serveWebviewRoutes } from "../host/serve";
 import {
   VSCODE_BRIDGE_CHANNEL,
   VSCODE_VIRTUAL_ORIGIN,

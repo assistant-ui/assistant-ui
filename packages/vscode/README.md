@@ -24,7 +24,7 @@ export function resolveWebviewView(view: vscode.WebviewView) {
 }
 ```
 
-Unknown paths answer `404`, unsupported methods `405`, and a handler that throws `500`. Aborting the request in the webview aborts `req.signal` in the handler.
+Unknown paths answer `404`, unsupported methods `405`, and a handler that throws `500`. Aborting the request in the webview aborts `req.signal` in the handler. `serveWebviewRoutes` serves routes only: host calls from `installLinkInterceptor` or `createVSCodeStorage` reject in the webview, so use [`serveWebviewHost`](#host-services) when the webview uses them.
 
 ## Webview
 

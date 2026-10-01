@@ -6,7 +6,8 @@ import type {
 import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 import { createAssistantStreamResponse, type Tool } from "assistant-stream";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { serveWebviewRoutes, type WebviewRoutes } from "../host/router";
+import type { WebviewRoutes } from "../host/router";
+import { serveWebviewRoutes } from "../host/serve";
 import type { VSCodeModelRequest } from "../model-request";
 import { createInMemoryBridge } from "../testUtils";
 import { createVSCodeFetch } from "./fetch";
