@@ -5088,10 +5088,58 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
 
     const cancelled = { status: { type: "incomplete", reason: "cancelled" } };
     expect(runs).toBe(1);
-    expect(thread.getMessageById(paused.id)?.message).toMatchObject(cancelled);
+    expect(thread.getMessageById(paused.id)?.message).toMatchObject({
+      ...cancelled,
+      content: [{ result: { sent: true } }],
+    });
     expect(
       appended.filter((i) => i.message.id === paused.id).at(-1)?.message,
     ).toMatchObject(cancelled);
+  });
+
+  it("rejects an approval answer after the follow-up turn that ended its pause is deleted", async () => {
+    const { history } = createHistory();
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let runs = 0;
+    const thread = createThread(
+      {
+        async *run() {
+          runs++;
+          if (runs === 1) {
+            yield {
+              content: [toolCallPart("send_email", { id: "a1" })],
+              status: { type: "requires-action", reason: "tool-calls" },
+            };
+            await released;
+            return;
+          }
+          yield { content: [{ type: "text", text: "noted" }] };
+        },
+      },
+      { history: { ...history, async delete() {} } },
+    );
+
+    void thread.append(userMessage("send an email"));
+    await flush();
+    const paused = thread.messages[1]!;
+    await thread.append({ ...userMessage("fyi"), parentId: paused.id });
+    const [, , followUp, reply] = thread.messages;
+    await thread.deleteMessage(reply!.id);
+    await thread.deleteMessage(followUp!.id);
+
+    try {
+      expect(() =>
+        thread.respondToToolApproval({ approvalId: "a1", approved: true }),
+      ).toThrow(
+        "Tried to respond to a tool approval that was cancelled or expired",
+      );
+      expect(runs).toBe(2);
+    } finally {
+      release();
+    }
   });
 
   it("stores a result added while a turn's start follows the message without resuming it", async () => {
@@ -5150,6 +5198,9 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
 
     const ids = appended.map((i) => i.message.id);
     expect(resumes).toBe(0);
+    expect(thread.getMessageById(paused.id)?.message).toMatchObject({
+      content: [{ result: { sent: true } }],
+    });
     expect(child.id).not.toBe(paused.id);
     expect(ids).toContain(child.id);
     expect(ids.lastIndexOf(paused.id)).toBeLessThan(ids.indexOf(child.id));

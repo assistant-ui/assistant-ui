@@ -1491,6 +1491,10 @@ export class LocalThreadRuntimeCore
       throw new Error(
         "Tried to respond to a tool approval on a message that later messages follow",
       );
+    if (this._followedDuringRun.has(message.id))
+      throw new Error(
+        "Tried to respond to a tool approval that was cancelled or expired",
+      );
 
     const target = message.content.find(
       (c) => c.type === "tool-call" && c.approval?.id === approvalId,
