@@ -123,6 +123,39 @@ describe("Teams temporal DatePicker", () => {
     ]);
   });
 
+  it("resolves adjacent escaped namespace ids in submission order", () => {
+    const { card } = toAdaptiveCard([
+      {
+        $type: "Button",
+        label: "Save",
+        $action: {
+          type: "save",
+          underscored: { $field: "_aui:datetime:x" },
+          plain: { $field: "aui:datetime:x" },
+        },
+      },
+      { $type: "Input", name: "_aui:datetime:x" },
+      { $type: "Input", name: "aui:datetime:x" },
+    ]);
+    const action = card.body[0];
+    if (action?.type !== "ActionSet") throw new Error("Missing action");
+    expect(
+      decodeSubmitData({
+        ...action.actions[0]!.data,
+        "__aui:datetime:x": "underscored value",
+        "_aui:datetime:x": "plain value",
+      }),
+    ).toEqual({
+      type: "save",
+      underscored: "underscored value",
+      plain: "plain value",
+      $input: {
+        "__aui:datetime:x": "underscored value",
+        "_aui:datetime:x": "plain value",
+      },
+    });
+  });
+
   it.each(["aui:datetime:x", "_aui:datetime:x", "__aui:datetime:x"])(
     "round trips datetime field %s through the reserved namespace",
     (name) => {
@@ -262,40 +295,44 @@ describe("Teams temporal DatePicker", () => {
     },
   );
 
-  it.each(["__proto__", "constructor", "/dates/a:b % 🗓"])(
-    "round trips the field name %j as an own property",
-    (name) => {
-      const previousValue = "2025-12-15T17:00:30.123456-00:00";
-      const metadata: TeamsTemporalField = {
-        fieldId: name,
-        role: "time",
-        previousValue,
-      };
-      const { card } = toAdaptiveCard({
-        $type: "DatePicker",
-        name,
-        inputType: "datetime",
-        value: previousValue,
-        $action: { type: "pick", selected: { $field: name } },
-      });
-      const input = card.body[1] as TeamsInputTime;
-      const action = card.body[2];
-      if (action?.type !== "ActionSet") throw new Error("Missing action");
-      expect(input.id).toBe(encodeTemporalInputId(metadata));
-      const decoded = decodeSubmitData({
-        ...action.actions[0]!.data,
-        [encodeTemporalInputId({ fieldId: name, role: "date" })]: "2025-12-16",
-        [input.id]: "18:20",
-      });
-      expect(decoded).toEqual({
-        type: "pick",
-        selected: "2025-12-16T18:20:30.123456-00:00",
-        $input: { [name]: "2025-12-16T18:20:30.123456-00:00" },
-      });
-      expect(Object.hasOwn(decoded?.["$input"] as object, name)).toBe(true);
-      expect(Object.getPrototypeOf(decoded?.["$input"])).toBe(Object.prototype);
-    },
-  );
+  it.each([
+    "__proto__",
+    "constructor",
+    "/dates/a:b % 🗓",
+    "lone-\uD800",
+    "lone-\uDC00",
+    "literal-%uD800",
+  ])("round trips the field name %j as an own property", (name) => {
+    const previousValue = "2025-12-15T17:00:30.123456-00:00";
+    const metadata: TeamsTemporalField = {
+      fieldId: name,
+      role: "time",
+      previousValue,
+    };
+    const { card } = toAdaptiveCard({
+      $type: "DatePicker",
+      name,
+      inputType: "datetime",
+      value: previousValue,
+      $action: { type: "pick", selected: { $field: name } },
+    });
+    const input = card.body[1] as TeamsInputTime;
+    const action = card.body[2];
+    if (action?.type !== "ActionSet") throw new Error("Missing action");
+    expect(input.id).toBe(encodeTemporalInputId(metadata));
+    const decoded = decodeSubmitData({
+      ...action.actions[0]!.data,
+      [encodeTemporalInputId({ fieldId: name, role: "date" })]: "2025-12-16",
+      [input.id]: "18:20",
+    });
+    expect(decoded).toEqual({
+      type: "pick",
+      selected: "2025-12-16T18:20:30.123456-00:00",
+      $input: { [name]: "2025-12-16T18:20:30.123456-00:00" },
+    });
+    expect(Object.hasOwn(decoded?.["$input"] as object, name)).toBe(true);
+    expect(Object.getPrototypeOf(decoded?.["$input"])).toBe(Object.prototype);
+  });
 
   it("keeps each field's precision and offset scoped to its own date", () => {
     const values = [

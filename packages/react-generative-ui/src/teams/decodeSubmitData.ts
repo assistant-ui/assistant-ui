@@ -96,10 +96,7 @@ export function decodeSubmitData(value: unknown): Action | undefined {
         Object.fromEntries(
           Object.entries(input).flatMap(([id, submitted]) =>
             /^_+aui:datetime:/.test(id)
-              ? [
-                  [id, submitted],
-                  [id.slice(1), submitted],
-                ]
+              ? [[id.slice(1), submitted]]
               : [[id, submitted]],
           ),
         ),
