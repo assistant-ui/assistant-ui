@@ -313,6 +313,7 @@ interface ComponentNode extends Record<string, unknown> {
 
 type DataMessagePart<T = any> = {
   readonly type: "data";
+  readonly id?: string;
   readonly name: string;
   readonly data: T;
 };
@@ -344,6 +345,7 @@ type EventSource<T extends AssistantEventName> = T extends `${infer Source}.${st
 
 type FileMessagePart = {
   readonly type: "file";
+  readonly id?: string;
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
@@ -471,6 +473,7 @@ type IconName = (typeof ICON_NAMES)[number];
 
 type ImageMessagePart = {
   readonly type: "image";
+  readonly id?: string;
   readonly image: string;
   readonly filename?: string;
   readonly providerMetadata?: PartProviderMetadata;
@@ -657,6 +660,7 @@ type ReadonlyJSONValue = null | string | number | boolean | ReadonlyJSONObject |
 
 type ReasoningMessagePart = {
   readonly type: "reasoning";
+  readonly id?: string;
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
   readonly unstable_summary?: string;
@@ -1088,6 +1092,7 @@ type TeamsTextSize = "extraLarge" | "large" | "medium" | "small";
 
 type TextMessagePart = {
   readonly type: "text";
+  readonly id?: string;
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;

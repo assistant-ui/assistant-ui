@@ -585,6 +585,9 @@ function convertParts(
       if (part.type.startsWith("data-")) {
         return {
           type: "data",
+          ...("id" in part && typeof part.id === "string"
+            ? { id: part.id }
+            : undefined),
           name: part.type.substring(5),
           data: (part as any).data,
         } satisfies DataMessagePart;
