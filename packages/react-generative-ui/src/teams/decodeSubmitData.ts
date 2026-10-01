@@ -5,7 +5,11 @@ import {
   fromOffsetDateTime,
   mergeTemporalMinutes,
 } from "../temporal";
-import { decodeTemporalInputId, TEMPORAL_INPUT_PREFIX } from "./temporalId";
+import {
+  decodeTemporalInputId,
+  ESCAPED_TEMPORAL_INPUT_PREFIX,
+  TEMPORAL_INPUT_PREFIX,
+} from "./temporalId";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -55,42 +59,57 @@ export function decodeSubmitData(value: unknown): Action | undefined {
     );
     const inputEntries = Object.entries(value).filter(([key]) => key !== "aui");
     const input = Object.fromEntries(inputEntries);
-    const temporalFields = new Set<string>();
-    for (const [id, time] of inputEntries) {
+    const temporalFields = new Map<
+      string,
+      { date?: string; time?: string; previousValue?: string }
+    >();
+    for (const [id, submitted] of inputEntries) {
       if (!id.startsWith(TEMPORAL_INPUT_PREFIX)) continue;
       const metadata = decodeTemporalInputId(id);
       if (
         !metadata ||
-        temporalFields.has(metadata.dateId) ||
-        !Object.hasOwn(input, metadata.dateId)
+        Object.hasOwn(input, metadata.fieldId) ||
+        typeof submitted !== "string" ||
+        (submitted !== "" && classifyTemporal(submitted).kind !== metadata.role)
       )
         return undefined;
-      const date = input[metadata.dateId];
-      if (
-        typeof date !== "string" ||
-        typeof time !== "string" ||
-        (date !== "" && classifyTemporal(date).kind !== "date") ||
-        (time !== "" && classifyTemporal(time).kind !== "time")
-      )
-        return undefined;
-      temporalFields.add(metadata.dateId);
-      Object.defineProperty(input, metadata.dateId, {
+      const field = temporalFields.get(metadata.fieldId) ?? {};
+      if (field[metadata.role] !== undefined) return undefined;
+      field[metadata.role] = submitted;
+      if (metadata.role === "time" && metadata.previousValue !== undefined)
+        field.previousValue = metadata.previousValue;
+      temporalFields.set(metadata.fieldId, field);
+      delete input[id];
+    }
+    for (const [fieldId, field] of temporalFields) {
+      Object.defineProperty(input, fieldId, {
         value: fromOffsetDateTime(
-          mergeTemporalMinutes(date, time),
-          metadata.previousValue,
+          mergeTemporalMinutes(field.date ?? "", field.time ?? ""),
+          field.previousValue,
         ),
         enumerable: true,
         configurable: true,
         writable: true,
       });
-      delete input[id];
     }
     const hasInput = inputEntries.length > 0;
 
     return {
       ...(resolveFieldReferences(
         Object.fromEntries(payloadEntries),
-        input,
+        Object.fromEntries(
+          Object.entries(input).flatMap(([id, submitted]) =>
+            id.startsWith(ESCAPED_TEMPORAL_INPUT_PREFIX)
+              ? [
+                  [id, submitted],
+                  [
+                    `${TEMPORAL_INPUT_PREFIX}${id.slice(ESCAPED_TEMPORAL_INPUT_PREFIX.length)}`,
+                    submitted,
+                  ],
+                ]
+              : [[id, submitted]],
+          ),
+        ),
       ) as Record<string, unknown>),
       type,
       ...(hasInput ? { $input: input } : {}),

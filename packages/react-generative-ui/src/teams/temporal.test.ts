@@ -30,8 +30,10 @@ const submit = (
     inputs.map((input) => [
       input.id,
       overrides[
-        input.type === "Input.Time" && inputType === "datetime"
-          ? "when_time"
+        inputType === "datetime"
+          ? input.type === "Input.Time"
+            ? "when_time"
+            : "when"
           : input.id
       ] ??
         input.value ??
@@ -46,11 +48,153 @@ const submit = (
 };
 
 describe("Teams temporal DatePicker", () => {
+  it.each(["Input", "DatePicker"])(
+    "round trips a %s named in the datetime namespace",
+    ($type) => {
+      const name = "aui:datetime:when";
+      const { card, warnings } = toAdaptiveCard({
+        $type,
+        name,
+        inputType: "datetime",
+        value: "2025-12-15T17:00:30.123456Z",
+        $action: { type: "pick", selected: { $field: name } },
+      });
+      const inputs = card.body.filter((element) => "id" in element);
+      const action = card.body.find((element) => element.type === "ActionSet");
+      if (action?.type !== "ActionSet") throw new Error("Missing action");
+      const values = Object.fromEntries(
+        inputs.map((input) => [
+          input.id,
+          input.type === "Input.Date"
+            ? "2025-12-16"
+            : input.type === "Input.Time"
+              ? "18:20"
+              : "ordinary",
+        ]),
+      );
+      const selected =
+        $type === "DatePicker" ? "2025-12-16T18:20:30.123456Z" : "ordinary";
+      expect(
+        decodeSubmitData({ ...action.actions[0]!.data, ...values }),
+      ).toEqual({
+        type: "pick",
+        selected,
+        $input: { [`_${name}`]: selected },
+      });
+      expect(warnings).toContainEqual(
+        expect.objectContaining({ code: "fallback", component: $type }),
+      );
+    },
+  );
+
+  describe.each([
+    "aui:datetime:",
+    "aui:datetime:date:when",
+    "aui:datetime:time:when:2025-12-15T17%3A00%3A00Z",
+  ])("ordinary input named %j", (name) => {
+    it.each([false, true])(
+      "stays separate from a datetime picker (input first: %s)",
+      (inputFirst) => {
+        const input = { $type: "Input", name };
+        const datetime = {
+          $type: "DatePicker",
+          name: "when",
+          inputType: "datetime",
+          value: "2025-12-15T17:00:00Z",
+        };
+        const { card } = toAdaptiveCard([
+          {
+            $type: "Button",
+            label: "Save",
+            $action: {
+              type: "save",
+              ordinary: { $field: name },
+              datetime: { $field: "when" },
+            },
+          },
+          ...(inputFirst ? [input, datetime] : [datetime, input]),
+        ]);
+        const action = card.body[0];
+        if (action?.type !== "ActionSet") throw new Error("Missing action");
+        const values = Object.fromEntries(
+          card.body.flatMap((element) => {
+            if (element.type === "Input.Text") {
+              expect(element.id).toBe(`_${name}`);
+              return [[element.id, "ordinary"]];
+            }
+            if (element.type === "Input.Date" || element.type === "Input.Time")
+              return [[element.id, element.value]];
+            return [];
+          }),
+        );
+        expect(
+          decodeSubmitData({ ...action.actions[0]!.data, ...values }),
+        ).toEqual({
+          type: "save",
+          ordinary: "ordinary",
+          datetime: "2025-12-15T17:00:00Z",
+          $input: { [`_${name}`]: "ordinary", when: "2025-12-15T17:00:00Z" },
+        });
+      },
+    );
+  });
+
+  it.each([
+    ["20:45:30", true],
+    ["20:45:00.000001", true],
+    ["20:45:00.000", false],
+    ["20:45", false],
+    ["2025-12-15T20:45:30Z", false],
+  ])("reports lost time maximum precision for %s", (max, dropped) => {
+    const { warnings } = toAdaptiveCard({
+      $type: "DatePicker",
+      inputType: "time",
+      max,
+    });
+    expect(warnings).toEqual(
+      dropped
+        ? [
+            {
+              code: "dropped",
+              component: "DatePicker",
+              detail: "Nonzero seconds were dropped from the time maximum.",
+            },
+          ]
+        : [],
+    );
+  });
+
+  it.each(["datetime-local", "unknown", "", null, 42])(
+    "warns when an unsupported inputType %j falls back to date",
+    (inputType) => {
+      const { card, warnings } = toAdaptiveCard({
+        $type: "DatePicker",
+        inputType,
+        value: "2025-12-15",
+      });
+      expect(card.body).toEqual([
+        { type: "Input.Date", id: "datepicker", value: "2025-12-15" },
+      ]);
+      expect(warnings).toEqual([
+        {
+          code: "dropped",
+          component: "DatePicker",
+          detail:
+            "Unsupported inputType was dropped; the picker was rendered as a date input.",
+        },
+      ]);
+    },
+  );
+
   it.each(["__proto__", "constructor", "/dates/a:b % 🗓"])(
     "round trips the field name %j as an own property",
     (name) => {
       const previousValue = "2025-12-15T17:00:30.123456-00:00";
-      const metadata: TeamsTemporalField = { dateId: name, previousValue };
+      const metadata: TeamsTemporalField = {
+        fieldId: name,
+        role: "time",
+        previousValue,
+      };
       const { card } = toAdaptiveCard({
         $type: "DatePicker",
         name,
@@ -64,7 +208,7 @@ describe("Teams temporal DatePicker", () => {
       expect(input.id).toBe(encodeTemporalInputId(metadata));
       const decoded = decodeSubmitData({
         ...action.actions[0]!.data,
-        [name]: "2025-12-16",
+        [encodeTemporalInputId({ fieldId: name, role: "date" })]: "2025-12-16",
         [input.id]: "18:20",
       });
       expect(decoded).toEqual({
@@ -131,7 +275,11 @@ describe("Teams temporal DatePicker", () => {
       expect(
         card.body.filter((item) => item.type === "ActionSet"),
       ).toHaveLength(count);
-      expect(serialized.match(/aui:datetime:/g)).toHaveLength(count);
+      expect(serialized.match(/aui:datetime:date:/g)).toHaveLength(count);
+      expect(serialized.match(/aui:datetime:time:/g)).toHaveLength(count);
+      expect(
+        serialized.match(/2025-12-15T17%3A00%3A30.123456%2B02%3A00/g),
+      ).toHaveLength(count);
       expect(serialized).not.toContain('"temporal"');
       return new TextEncoder().encode(serialized).length;
     });
@@ -260,7 +408,7 @@ describe("Teams temporal DatePicker", () => {
       expect(result.inputs).toEqual([
         {
           type: "Input.Date",
-          id: "when",
+          id: "aui:datetime:date:when",
           label: "When",
           ...(value ? { value: "2025-12-15" } : {}),
         },
@@ -268,8 +416,12 @@ describe("Teams temporal DatePicker", () => {
           type: "Input.Time",
           id:
             value.endsWith("Z") || value.endsWith("+02:00")
-              ? encodeTemporalInputId({ dateId: "when", previousValue: value })
-              : "aui:datetime:when:",
+              ? encodeTemporalInputId({
+                  fieldId: "when",
+                  role: "time",
+                  previousValue: value,
+                })
+              : "aui:datetime:time:when:",
           label: timeLabel,
           ...(value ? { value: "17:00" } : {}),
         },
@@ -303,10 +455,10 @@ describe("Teams temporal DatePicker", () => {
       value: "2025-12-15T17:00:00Z",
     });
     expect(card.body).toEqual([
-      { type: "Input.Date", id: "when", value: "2025-12-15" },
+      { type: "Input.Date", id: "aui:datetime:date:when", value: "2025-12-15" },
       {
         type: "Input.Time",
-        id: "aui:datetime:when:2025-12-15T17%3A00%3A00Z",
+        id: "aui:datetime:time:when:2025-12-15T17%3A00%3A00Z",
         label: "Time (UTC)",
         value: "17:00",
       },
@@ -321,8 +473,8 @@ describe("Teams temporal DatePicker", () => {
       value: "2025-12-15T17:00",
     });
     expect(card.body).toEqual([
-      { type: "Input.Date", id: "when", value: "2025-12-15" },
-      { type: "Input.Time", id: "aui:datetime:when:", value: "17:00" },
+      { type: "Input.Date", id: "aui:datetime:date:when", value: "2025-12-15" },
+      { type: "Input.Time", id: "aui:datetime:time:when:", value: "17:00" },
     ]);
   });
 
@@ -338,16 +490,22 @@ describe("Teams temporal DatePicker", () => {
     });
   });
 
-  it.each([{ when: "" }, { when_time: "" }])(
-    "clears the field when either datetime half is empty",
-    (overrides) => {
-      expect(
-        submit("datetime", "2025-12-15T17:00:00Z", overrides).decoded,
-      ).toEqual({
-        type: "pick",
-        selected: "",
-        $input: { when: "" },
-      });
+  describe.each(["2025-12-15T17:00:00Z", "2025-12-15T17:00", ""])(
+    "clearing datetime %j",
+    (value) => {
+      it.each([
+        { when: "", when_time: "17:00" },
+        { when: "2025-12-15", when_time: "" },
+      ])(
+        "clears the field when either datetime half is empty (%j)",
+        (overrides) => {
+          expect(submit("datetime", value, overrides).decoded).toEqual({
+            type: "pick",
+            selected: "",
+            $input: { when: "" },
+          });
+        },
+      );
     },
   );
 
@@ -374,7 +532,7 @@ describe("Teams temporal DatePicker", () => {
     expect(card.body).toEqual([
       {
         type: "Input.Date",
-        id: "when",
+        id: "aui:datetime:date:when",
         label: "When",
         value: "2025-12-15",
         min: "2025-12-15",
@@ -382,7 +540,7 @@ describe("Teams temporal DatePicker", () => {
       },
       {
         type: "Input.Time",
-        id: "aui:datetime:when:2025-12-15T17%3A00%3A00%2B02%3A00",
+        id: "aui:datetime:time:when:2025-12-15T17%3A00%3A00%2B02%3A00",
         label: "When time (UTC+02:00)",
         value: "17:00",
       },
@@ -408,8 +566,8 @@ describe("Teams temporal DatePicker", () => {
     expect(
       decodeSubmitData({
         ...button.actions[0]!.data,
-        when: "2025-12-16",
-        "aui:datetime:when:2025-12-15T17%3A00%3A00Z": "18:20",
+        "aui:datetime:date:when": "2025-12-16",
+        "aui:datetime:time:when:2025-12-15T17%3A00%3A00Z": "18:20",
       }),
     ).toEqual({
       type: "save",
@@ -431,15 +589,20 @@ describe("Teams temporal DatePicker", () => {
     ]);
     expect(
       card.body.map((element) => ("id" in element ? element.id : undefined)),
-    ).toEqual(["when_time", "when", "aui:datetime:when:", undefined]);
+    ).toEqual([
+      "when_time",
+      "aui:datetime:date:when",
+      "aui:datetime:time:when:",
+      undefined,
+    ]);
     const actionSet = card.body[3];
     if (actionSet?.type !== "ActionSet") throw new Error("Missing action");
     expect(
       decodeSubmitData({
         ...actionSet.actions[0]!.data,
         when_time: "other",
-        when: "2025-12-15",
-        "aui:datetime:when:": "17:00",
+        "aui:datetime:date:when": "2025-12-15",
+        "aui:datetime:time:when:": "17:00",
       }),
     ).toEqual({
       type: "pick",
@@ -458,14 +621,14 @@ describe("Teams temporal DatePicker", () => {
     });
     expect(
       card.body.map((element) => ("id" in element ? element.id : undefined)),
-    ).toEqual(["aui_", "aui:datetime:aui_:", undefined]);
+    ).toEqual(["aui:datetime:date:aui_", "aui:datetime:time:aui_:", undefined]);
     const actionSet = card.body[2];
     if (actionSet?.type !== "ActionSet") throw new Error("Missing action");
     expect(
       decodeSubmitData({
         ...actionSet.actions[0]!.data,
-        aui_: "2025-12-15",
-        "aui:datetime:aui_:": "17:00",
+        "aui:datetime:date:aui_": "2025-12-15",
+        "aui:datetime:time:aui_:": "17:00",
       }),
     ).toEqual({ type: "pick", $input: { aui_: "2025-12-15T17:00" } });
   });

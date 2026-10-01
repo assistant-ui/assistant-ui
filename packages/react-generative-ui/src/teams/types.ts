@@ -55,10 +55,10 @@ export interface TeamsSubmitData {
   };
 }
 
-export type TeamsTemporalField = {
-  readonly dateId: string;
-  readonly previousValue?: string;
-};
+export type TeamsTemporalField = { readonly fieldId: string } & (
+  | { readonly role: "date" }
+  | { readonly role: "time"; readonly previousValue?: string }
+);
 
 /**
  * A submit action. `data` carries the resume payload under an `aui` key so

@@ -60,8 +60,12 @@ export function collectFormValues(
       continue;
     }
 
-    const fieldValue =
+    const temporalType =
       element.type === "datetime-local" || element.type === "time"
+        ? element.type
+        : element.getAttribute?.("type");
+    const fieldValue =
+      temporalType === "datetime-local" || temporalType === "time"
         ? element.getAttribute?.(FIELD_VALUE_ATTR)
         : undefined;
     const value: string | number | boolean =
@@ -72,12 +76,12 @@ export function collectFormValues(
           : fieldValue && element.value !== ""
             ? element.value ===
               normalizeTemporalInputValue(
-                element.type === "time"
+                temporalType === "time"
                   ? fieldValue
                   : toLocalDateTime(fieldValue),
               )
               ? fieldValue
-              : element.type === "datetime-local"
+              : temporalType === "datetime-local"
                 ? fromLocalDateTime(element.value, fieldValue)
                 : element.value
             : element.value;

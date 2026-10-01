@@ -209,6 +209,26 @@ describe("temporal values", () => {
   });
 
   it.each([
+    ["2025-12-15T12:00:00.750", "2025-12-15T17:00:00.750Z", 3],
+    ["2025-12-15T12:00:00", "2025-12-15T17:00:00.250Z", undefined],
+    ["2025-12-15T12:00:00.250", "2025-12-15T17:00:00.250Z", 3],
+    ["2025-12-15T12:00:00.750987", "2025-12-15T17:00:00.750987Z", 6],
+  ])(
+    "round trips a local fraction edit of %s",
+    (local, expected, precision) => {
+      const result = fromLocalDateTime(local!, "2025-12-15T17:00:00.250Z");
+      expect(result).toBe(expected);
+      expect(toLocalDateTime(result, precision)).toBe(local);
+    },
+  );
+
+  it("retains the anchor fraction for a native zero fraction", () => {
+    expect(
+      fromLocalDateTime("2025-12-15T12:00:00.000", "2025-12-15T17:00:00.250Z"),
+    ).toBe("2025-12-15T17:00:00.250Z");
+  });
+
+  it.each([
     ["2026-01-15T12:34", "2026-01-15T12:34:00-05:00"],
     ["2026-07-15T12:34", "2026-07-15T12:34:00-04:00"],
   ])("uses the viewer offset at %s for an empty value", (value, expected) => {

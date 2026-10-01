@@ -224,6 +224,19 @@ export const fromLocalDateTime = (
       precision: "seconds",
     });
   }
-  date.setMilliseconds(new Date(previous.epochMs).getUTCMilliseconds());
-  return formatTemporalInstant({ ...previous, epochMs: date.getTime() });
+  const editedFraction =
+    typeof temporal.precision === "number" && !value.endsWith(".000");
+  if (!editedFraction) {
+    date.setMilliseconds(new Date(previous.epochMs).getUTCMilliseconds());
+  }
+  return formatTemporalInstant({
+    ...previous,
+    epochMs: date.getTime(),
+    ...(editedFraction
+      ? {
+          precision: temporal.precision,
+          subMillisecondDigits: value.slice(value.indexOf(".") + 4),
+        }
+      : {}),
+  });
 };

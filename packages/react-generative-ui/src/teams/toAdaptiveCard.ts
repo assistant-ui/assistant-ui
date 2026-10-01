@@ -31,7 +31,11 @@ import {
   buildSubmitAction,
   utf8ByteLength,
 } from "./constants";
-import { encodeTemporalInputId } from "./temporalId";
+import {
+  encodeTemporalInputId,
+  ESCAPED_TEMPORAL_INPUT_PREFIX,
+  TEMPORAL_INPUT_PREFIX,
+} from "./temporalId";
 import type {
   AdaptiveCardResult,
   TeamsActionSet,
@@ -114,7 +118,12 @@ function reservedSafeId(
   context: ConversionContext,
 ): string {
   const reserved = id === RESERVED_INPUT_ID;
-  const base = reserved ? `${RESERVED_INPUT_ID}_` : id;
+  const temporalReserved = id.startsWith(TEMPORAL_INPUT_PREFIX);
+  const base = reserved
+    ? `${RESERVED_INPUT_ID}_`
+    : temporalReserved
+      ? `${ESCAPED_TEMPORAL_INPUT_PREFIX}${id.slice(TEMPORAL_INPUT_PREFIX.length)}`
+      : id;
   let candidate = base;
   let n = 2;
   while (context.usedInputIds.has(candidate)) {
@@ -127,6 +136,13 @@ function reservedSafeId(
       "fallback",
       component,
       `the input id "${RESERVED_INPUT_ID}" collides with the submit envelope's reserved key and was renamed to "${candidate}".`,
+    );
+  } else if (temporalReserved) {
+    warn(
+      context,
+      "fallback",
+      component,
+      `the input id "${id}" collides with the reserved datetime namespace and was renamed to "${candidate}".`,
     );
   } else if (candidate !== base) {
     warn(
@@ -639,7 +655,20 @@ export function convertElement(
             min = `${String(Math.floor(minuteOfDay / 60)).padStart(2, "0")}:${String(minuteOfDay % 60).padStart(2, "0")}`;
           }
         }
-        const max = splitTemporalMinutes(asString(props["max"]))?.time;
+        const rawMax = asString(props["max"]);
+        const maxParts = splitTemporalMinutes(rawMax);
+        const max = maxParts?.time;
+        if (
+          classifyTemporal(rawMax).kind === "time" &&
+          maxParts?.droppedPrecision
+        ) {
+          warn(
+            context,
+            "dropped",
+            "DatePicker",
+            "Nonzero seconds were dropped from the time maximum.",
+          );
+        }
         const input: TeamsCardElement = {
           type: "Input.Time",
           id,
@@ -650,8 +679,7 @@ export function convertElement(
           ...(classifyTemporal(rawMin).kind === "time" && min !== undefined
             ? { min }
             : {}),
-          ...(classifyTemporal(asString(props["max"])).kind === "time" &&
-          max !== undefined
+          ...(classifyTemporal(rawMax).kind === "time" && max !== undefined
             ? { max }
             : {}),
         };
@@ -660,21 +688,17 @@ export function convertElement(
       if (mode === "datetime") {
         const rawValue = asString(props["value"]);
         const temporal = classifyTemporal(rawValue);
-        let dateId = reservedSafeId(
+        const fieldId = reservedSafeId(
           name || "datepicker",
           "DatePicker",
           context,
         );
-        const metadata = {
-          dateId,
+        const dateId = encodeTemporalInputId({ fieldId, role: "date" });
+        const timeId = encodeTemporalInputId({
+          fieldId,
+          role: "time",
           ...(temporal.kind === "instant" ? { previousValue: rawValue } : {}),
-        };
-        let timeId = encodeTemporalInputId(metadata);
-        while (context.usedInputIds.has(timeId)) {
-          dateId = reservedSafeId(dateId, "DatePicker", context);
-          timeId = encodeTemporalInputId({ ...metadata, dateId });
-        }
-        context.usedInputIds.add(timeId);
+        });
         const parts = splitTemporalMinutes(rawValue);
         if (temporal.kind === "floating" && parts?.droppedPrecision) {
           warn(
@@ -721,6 +745,14 @@ export function convertElement(
           context,
         );
         return [dateInput, input!, submit!];
+      }
+      if (mode !== undefined && mode !== "date") {
+        warn(
+          context,
+          "dropped",
+          "DatePicker",
+          "Unsupported inputType was dropped; the picker was rendered as a date input.",
+        );
       }
       const rawValue = props["value"];
       const value =

@@ -97,6 +97,29 @@ describe("DatePicker temporal contract", () => {
     },
   );
 
+  it("submits an edited instant fraction", async () => {
+    const dispatch = vi.fn();
+    const container = await mount(
+      view(
+        {
+          inputType: "datetime",
+          value: "2025-12-15T17:00:00.250Z",
+          $action: { type: "save" },
+        },
+        dispatch,
+      ),
+    );
+    const input = container.querySelector("input")!;
+    await change(input, "2025-12-15T12:00:00.750");
+    expect(dispatch).toHaveBeenLastCalledWith({
+      type: "save",
+      $input: "2025-12-15T17:00:00.750Z",
+    });
+    expect(collectFormValues([input])).toEqual({
+      when: "2025-12-15T17:00:00.750Z",
+    });
+  });
+
   it("preserves the anchor through binding echoes and replaces it on an external update", async () => {
     const dispatch = vi.fn();
     const BindingContext = A2uiBindingContext!;

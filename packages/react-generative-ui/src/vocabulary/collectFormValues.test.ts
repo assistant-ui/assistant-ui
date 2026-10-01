@@ -45,6 +45,43 @@ describe("collectFormValues", () => {
     ).toEqual({ canonical: "2025-12-15T17:00:00Z", ordinary: "live" });
   });
 
+  it("uses the declared datetime-local type when the browser reports text", () => {
+    const anchor = "2025-12-15T17:00:00.250Z";
+    const displayed = normalizeTemporalInputValue(toLocalDateTime(anchor));
+    const getAttribute = (name: string) =>
+      name === "type"
+        ? "datetime-local"
+        : name === FIELD_VALUE_ATTR
+          ? anchor
+          : null;
+    const control = (value: string) =>
+      el({ name: "when", type: "text", value, getAttribute });
+    expect(collectFormValues([control(displayed)])).toEqual({
+      when: anchor,
+    });
+    expect(collectFormValues([control(`${displayed}:00.750`)])).toEqual({
+      when: "2025-12-15T17:00:00.750Z",
+    });
+  });
+
+  it("uses the declared time type when the browser reports text", () => {
+    expect(
+      collectFormValues([
+        el({
+          name: "when",
+          type: "text",
+          value: "12:00",
+          getAttribute: (name) =>
+            name === "type"
+              ? "time"
+              : name === FIELD_VALUE_ATTR
+                ? "12:00:00"
+                : null,
+        }),
+      ]),
+    ).toEqual({ when: "12:00:00" });
+  });
+
   it.each([
     ["time", "17:00:00", "17:00", "08:30:45"],
     [
