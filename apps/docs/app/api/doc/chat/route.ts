@@ -122,6 +122,8 @@ function resolveDocPage(slugs: string[]) {
 
 export const maxDuration = 300;
 
+const MAX_PAGE_CONTEXT_CHARS = 4_000;
+
 export const DOC_CHAT_PRUNE_OPTIONS = {
   toolCalls: "before-last-2-messages",
   reasoning: "none",
@@ -307,7 +309,16 @@ export async function POST(req: Request): Promise<Response> {
     if (rateLimitResponse) return rateLimitResponse;
 
     const body = await req.json();
-    const { messages, tools, system: pageContext, config } = body;
+    const { messages, tools, system: rawPageContext, config } = body;
+
+    if (
+      typeof rawPageContext === "string" &&
+      rawPageContext.length > MAX_PAGE_CONTEXT_CHARS
+    ) {
+      return new Response("Page context too long", { status: 400 });
+    }
+    const pageContext =
+      typeof rawPageContext === "string" ? rawPageContext : undefined;
 
     const toolsError = validateFrontendToolsInput(tools);
     if (toolsError) return toolsError;
