@@ -447,7 +447,7 @@ export default function PlaygroundPage() {
             )}
             aria-hidden={mode !== "agent"}
           >
-            <XuluxApp />
+            <XuluxApp active={mode === "agent"} />
           </div>
         )}
         {visitedModes.builder && (

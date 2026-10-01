@@ -46,6 +46,7 @@ import {
   updateXuluxPendingUserMessage,
   updateXuluxThreadContext,
   updateXuluxThreadStatus,
+  useNormalizeInterruptedXuluxThreads,
   useXuluxStoredThreads,
 } from "../runtime/xulux-local-storage";
 import type {
@@ -92,6 +93,7 @@ export function XuluxShell({
   courseId,
   autoStart,
   autoStartSource,
+  active,
   learnProgress,
   learnReady,
   onUpdateLearnProgress,
@@ -105,6 +107,7 @@ export function XuluxShell({
   courseId: string;
   autoStart: boolean;
   autoStartSource: LearnAutoStartSource;
+  active: boolean;
   learnProgress: LearnProgress;
   learnReady: boolean;
   onUpdateLearnProgress: (progress: LearnProgress) => void;
@@ -125,6 +128,7 @@ export function XuluxShell({
   const currentRemoteId = useAuiState((state) => state.threadListItem.remoteId);
   const isThreadRunning = useAuiState((state) => state.thread.isRunning);
   const threadMessages = useAuiState((state) => state.thread.messages);
+  useNormalizeInterruptedXuluxThreads();
   const storedThreads = useXuluxStoredThreads();
   const [viewMode, setViewMode] = useState<XuluxViewMode>("landing");
   const [selectedTemplate, setSelectedTemplate] =
@@ -556,7 +560,7 @@ export function XuluxShell({
         />
 
         <XuluxHeaderActions
-          visible
+          visible={active}
           showChatActions={viewMode !== "landing"}
           onNewChat={handleNewChat}
           onShowTemplates={() => setTemplatesOpen(true)}
