@@ -109,7 +109,7 @@ function needsAttention(part: PartState) {
     Boolean(
       part.status.type === "requires-action" ||
       part.isError ||
-      part.approval ||
+      (part.approval && !part.approval.isAutomatic) ||
       part.interrupt,
     )
   );

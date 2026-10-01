@@ -255,6 +255,106 @@ describe("run activity external-store recipe", () => {
     });
   });
 
+  it("keeps automatically approved tools in history through completion", async () => {
+    const tool: ToolCallMessagePart = {
+      type: "tool-call",
+      toolCallId: "automatic",
+      toolName: "read_file",
+      args: {},
+      argsText: "{}",
+      approval: { id: "automatic-1", approved: true, isAutomatic: true },
+    };
+    const run: ActivityRun = {
+      ...RUN,
+      status: { type: "running" },
+      parts: [
+        RUN.parts[0]!,
+        { id: "automatic", kind: "tool", label: "Reading source", part: tool },
+      ],
+    };
+    const view = render(<ActivityRunExample run={run} />);
+    const trigger = await screen.findByRole("button", { name: /Working/ });
+    expect(screen.queryByRole("group", { name: "Reading source" })).toBeNull();
+    fireEvent.click(trigger);
+    expect(
+      screen
+        .getAllByRole("listitem")
+        .map((item) => item.getAttribute("data-activity-kind")),
+    ).toEqual(["commentary", "tool"]);
+    fireEvent.click(trigger);
+
+    await act(async () =>
+      view.rerender(
+        <ActivityRunExample
+          run={{
+            ...run,
+            status: RUN.status,
+            parts: [
+              run.parts[0]!,
+              {
+                ...run.parts[1]!,
+                part: { ...tool, result: "Automatic result" },
+              },
+              RUN.parts[3]!,
+            ],
+          }}
+        />,
+      ),
+    );
+    expect(screen.getByText("The final answer.")).toBeTruthy();
+    expect(screen.queryByText("Automatic result")).toBeNull();
+    expect(screen.queryByRole("group", { name: "Reading source" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Worked for 2m 13s" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Used tool: read_file" }),
+    );
+    expect(screen.getByText("Automatic result")).toBeTruthy();
+  });
+
+  it.each(["error", "interrupt"] as const)(
+    "surfaces an automatically approved tool that later needs attention for an %s",
+    async (reason) => {
+      render(
+        <ActivityRunExample
+          run={{
+            ...RUN,
+            status:
+              reason === "error"
+                ? RUN.status
+                : { type: "requires-action", reason: "interrupt" },
+            parts: [
+              RUN.parts[0]!,
+              {
+                id: "automatic",
+                kind: "tool",
+                label: "Reading source",
+                part: {
+                  type: "tool-call",
+                  toolCallId: "automatic",
+                  toolName: "read_file",
+                  args: {},
+                  argsText: "{}",
+                  approval: {
+                    id: "automatic-1",
+                    approved: true,
+                    isAutomatic: true,
+                  },
+                  ...(reason === "error"
+                    ? { result: "Read failed", isError: true }
+                    : { interrupt: { type: "human", payload: {} } }),
+                },
+              },
+            ],
+          }}
+        />,
+      );
+      expect(
+        await screen.findByRole("group", { name: "Reading source" }),
+      ).toBeTruthy();
+      expect(screen.queryByText("I’ll inspect the files.")).toBeNull();
+    },
+  );
+
   it("keeps one history disclosure across a visible decision between activity parts", async () => {
     render(
       <ActivityRunExample
