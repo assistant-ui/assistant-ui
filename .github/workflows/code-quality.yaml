@@ -441,7 +441,12 @@ jobs:
           else
             BASE=HEAD^1
           fi
-          if git diff --quiet "$BASE" HEAD -- package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json; then
+          if git diff --quiet "$BASE" HEAD -- \
+            package.json \
+            pnpm-lock.yaml \
+            pnpm-workspace.yaml \
+            turbo.json \
+            packages/x-buildutils; then
             pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/react-devtools..." --filter="@assistant-ui/ai-sdk..." --filter="@assistant-ui/core..." --filter="@assistant-ui/store..." --filter="...[$BASE]..."
           else
             pnpm install --frozen-lockfile
