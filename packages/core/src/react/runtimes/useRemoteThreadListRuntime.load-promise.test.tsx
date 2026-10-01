@@ -175,7 +175,7 @@ describe("useRemoteThreadListRuntime list promises", () => {
     expect(aui.threads().getState().isLoading).toBe(false);
   });
 
-  it("waits for act() to exit when the load settles inside it", async () => {
+  it("holds the promise while the completing act() defers the commit", async () => {
     const list = deferred<ListPage>();
     const adapter = makeAdapter({ list: vi.fn(() => list.promise) });
     const aui = await mount(adapter);
@@ -194,6 +194,21 @@ describe("useRemoteThreadListRuntime list promises", () => {
     });
 
     await loaded;
+    expect(aui.threads().getState().threadIds).toEqual(["t1"]);
+  });
+
+  it("resolves inside the completing act() once the commit wait times out", async () => {
+    const list = deferred<ListPage>();
+    const adapter = makeAdapter({ list: vi.fn(() => list.promise) });
+    const aui = await mount(adapter);
+
+    await act(async () => {
+      list.resolve({
+        threads: [{ remoteId: "t1", status: "regular", title: "One" }],
+      });
+      await aui.threads().getLoadThreadsPromise();
+    });
+
     expect(aui.threads().getState().threadIds).toEqual(["t1"]);
   });
 
