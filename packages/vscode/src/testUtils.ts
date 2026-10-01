@@ -21,7 +21,9 @@ export function createInMemoryBridge(): InMemoryBridge {
   const deliver = (listeners: Set<Listener>, message: unknown) => {
     const cloned = structuredClone(message);
     queueMicrotask(() => {
-      for (const listener of listeners) listener(cloned);
+      for (const listener of [...listeners]) {
+        if (listeners.has(listener)) listener(cloned);
+      }
     });
   };
 
