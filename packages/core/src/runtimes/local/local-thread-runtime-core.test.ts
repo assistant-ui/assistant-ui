@@ -5045,6 +5045,167 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     }
   });
 
+  it("keeps a paused message cancelled after the follow-up that ended it is deleted", async () => {
+    const { history, appended } = createHistory({ update: false });
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let runs = 0;
+    const thread = createThread(
+      {
+        async *run() {
+          runs++;
+          yield {
+            content: [toolCallPart("send_email")],
+            status: { type: "requires-action", reason: "tool-calls" },
+          };
+          await released;
+        },
+      },
+      { history: { ...history, async delete() {} } },
+    );
+
+    void thread.append(userMessage("send an email"));
+    await flush();
+    const paused = thread.messages[1]!;
+    await thread.append({
+      ...userMessage("fyi"),
+      parentId: paused.id,
+      startRun: false,
+    });
+    await thread.deleteMessage(thread.messages.at(-1)!.id);
+    thread.addToolResult({
+      messageId: paused.id,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result: { sent: true },
+      isError: false,
+    });
+    await flush();
+    release();
+    await flush();
+
+    const cancelled = { status: { type: "incomplete", reason: "cancelled" } };
+    expect(runs).toBe(1);
+    expect(thread.getMessageById(paused.id)?.message).toMatchObject({
+      ...cancelled,
+      content: [{ result: { sent: true } }],
+    });
+    expect(
+      appended.filter((i) => i.message.id === paused.id).at(-1)?.message,
+    ).toMatchObject(cancelled);
+  });
+
+  it("rejects an approval answer after the follow-up turn that ended its pause is deleted", async () => {
+    const { history } = createHistory();
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let runs = 0;
+    const thread = createThread(
+      {
+        async *run() {
+          runs++;
+          if (runs === 1) {
+            yield {
+              content: [toolCallPart("send_email", { id: "a1" })],
+              status: { type: "requires-action", reason: "tool-calls" },
+            };
+            await released;
+            return;
+          }
+          yield { content: [{ type: "text", text: "noted" }] };
+        },
+      },
+      { history: { ...history, async delete() {} } },
+    );
+
+    void thread.append(userMessage("send an email"));
+    await flush();
+    const paused = thread.messages[1]!;
+    await thread.append({ ...userMessage("fyi"), parentId: paused.id });
+    const [, , followUp, reply] = thread.messages;
+    await thread.deleteMessage(reply!.id);
+    await thread.deleteMessage(followUp!.id);
+
+    try {
+      expect(() =>
+        thread.respondToToolApproval({ approvalId: "a1", approved: true }),
+      ).toThrow(
+        "Tried to respond to a tool approval that was cancelled or expired",
+      );
+      expect(runs).toBe(2);
+    } finally {
+      release();
+    }
+  });
+
+  it("stores a result added while a turn's start follows the message without resuming it", async () => {
+    const { history, appended } = createHistory({ update: false });
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let pausedId: string | undefined;
+    let resumes = 0;
+    const thread = createThread(
+      {
+        async *run(options) {
+          if (pausedId === undefined) {
+            yield {
+              content: [toolCallPart("send_email")],
+              status: { type: "requires-action", reason: "tool-calls" },
+            };
+            await released;
+            return;
+          }
+          if (options.unstable_assistantMessageId === pausedId) {
+            resumes++;
+            return;
+          }
+          yield { content: [{ type: "text", text: "noted" }] };
+        },
+      },
+      { history },
+    );
+
+    void thread.append(userMessage("send an email"));
+    await flush();
+    const paused = thread.messages[1]!;
+    pausedId = paused.id;
+    let added = false;
+    thread.unstable_on("runStart", () => {
+      if (added) return;
+      added = true;
+      thread.addToolResult({
+        messageId: paused.id,
+        toolCallId: "call-send_email",
+        toolName: "send_email",
+        result: { sent: true },
+        isError: false,
+      });
+    });
+    await thread.startRun({
+      parentId: paused.id,
+      sourceId: null,
+      runConfig: {},
+    });
+    const child = thread.messages.at(-1)!;
+    release();
+    await flush();
+
+    const ids = appended.map((i) => i.message.id);
+    expect(resumes).toBe(0);
+    expect(thread.getMessageById(paused.id)?.message).toMatchObject({
+      content: [{ result: { sent: true } }],
+    });
+    expect(child.id).not.toBe(paused.id);
+    expect(ids).toContain(child.id);
+    expect(ids.lastIndexOf(paused.id)).toBeLessThan(ids.indexOf(child.id));
+  });
+
   it("persists a partial approval decision while another tool call is still pending", async () => {
     const { history, updated } = createHistory();
     const runs: ChatModelRunOptions[] = [];
