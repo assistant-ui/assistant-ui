@@ -145,13 +145,13 @@ export function SubProjectLayout({
           <div className="flex items-center gap-1 sm:gap-2">
             <div
               data-sub-project-header-portal
-              className="flex items-center gap-1"
+              className="peer flex items-center gap-1"
             />
             <a
               href={githubPath}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-muted-foreground hover:text-foreground hidden size-8 items-center justify-center transition-colors sm:flex"
+              className="text-muted-foreground hover:text-foreground hidden size-8 items-center justify-center transition-colors peer-empty:flex sm:flex"
               aria-label="View on GitHub"
             >
               <GitHubIcon className="size-4" />
