@@ -1,0 +1,268 @@
+import { renderWebviewHtml, serveWebviewHost } from "@assistant-ui/vscode/host";
+import { existsSync } from "node:fs";
+import * as vscode from "vscode";
+import {
+  BOOT_ATTRIBUTE,
+  isTestbedMessage,
+  TESTBED_CHANNEL,
+  type GalleryView,
+  type HostToWebviewMessage,
+  type TaskResult,
+  type WebviewBootConfig,
+  type WebviewTaskId,
+  type WebviewToHostMessage,
+} from "./protocol";
+import type { ProbeId, ProbeResult } from "./readiness/probes";
+import { ExternalOpener } from "./open-external";
+import { createWebviewRoutes } from "./routes";
+import {
+  SWITCHBOARD_KEYS,
+  unimplementedSettings,
+  type Switchboard,
+} from "./switchboard";
+
+export const readSwitchboard = (): Switchboard => {
+  const config = vscode.workspace.getConfiguration("auiTest");
+  return Object.fromEntries(
+    SWITCHBOARD_KEYS.map((key) => [key, config.get<string>(key)]),
+  ) as Switchboard;
+};
+
+const sameSwitchboard = (a: Switchboard, b: Switchboard) =>
+  SWITCHBOARD_KEYS.every((key) => a[key] === b[key]);
+
+const renderHtml = (
+  webview: vscode.Webview,
+  extensionUri: vscode.Uri,
+  switchboard: Switchboard,
+  gallery: GalleryView | undefined,
+) => {
+  const asset = (file: string) =>
+    vscode.Uri.joinPath(extensionUri, "dist", "webview", file);
+  const boot: WebviewBootConfig = {
+    switchboard,
+    unimplemented: unimplementedSettings(switchboard),
+    ...(gallery && { gallery }),
+  };
+  if (gallery) {
+    // esbuild emits gallery.css only when a section imports CSS.
+    const galleryCss = asset("gallery.css");
+    return renderWebviewHtml(webview, {
+      scripts: [asset("gallery.js")],
+      styles: [
+        asset("app.css"),
+        asset("generative-ui.css"),
+        ...(existsSync(galleryCss.fsPath) ? [galleryCss] : []),
+      ],
+      title: "Component Gallery",
+      csp: switchboard.csp,
+      surface: "editor",
+      scriptType: "classic",
+      bodyAttributes: { [BOOT_ATTRIBUTE]: JSON.stringify(boot) },
+    });
+  }
+  return renderWebviewHtml(webview, {
+    scripts: [asset("main.js")],
+    styles: [asset("app.css"), asset("generative-ui.css"), asset("main.css")],
+    title: "Assistant",
+    csp: switchboard.csp,
+    surface: switchboard.location,
+    scriptType: "classic",
+    bodyAttributes: { [BOOT_ATTRIBUTE]: JSON.stringify(boot) },
+  });
+};
+
+export type AttachedWebview = {
+  webview: vscode.Webview;
+  /** Set for the component gallery panel. */
+  gallery: GalleryView | undefined;
+  switchboard: Switchboard;
+  ready: boolean;
+  implementedProbes: ReadonlySet<ProbeId>;
+  /** The gallery's section count; 0 for the Assistant view. */
+  sections: number;
+};
+
+export const isAssistant = (entry: AttachedWebview) => !entry.gallery;
+export const isGallery = (entry: AttachedWebview) => !!entry.gallery;
+
+export class AssistantWebviews implements vscode.Disposable {
+  private readonly attached = new Set<AttachedWebview>();
+  private readonly pending = new Map<string, (result: unknown) => void>();
+  private readonly readyEmitter = new vscode.EventEmitter<void>();
+  private readonly externalOpener = new ExternalOpener();
+  private readonly routes = createWebviewRoutes(this.externalOpener);
+  private nextRequestId = 0;
+
+  constructor(
+    private readonly extensionUri: vscode.Uri,
+    private readonly storage: vscode.Memento,
+  ) {}
+
+  attach(
+    webview: vscode.Webview,
+    gallery?: GalleryView,
+  ): vscode.Disposable & { hidden(): void; show(view: GalleryView): void } {
+    webview.options = {
+      enableScripts: true,
+      localResourceRoots: [
+        vscode.Uri.joinPath(this.extensionUri, "dist", "webview"),
+      ],
+    };
+    const entry: AttachedWebview = {
+      webview,
+      gallery,
+      switchboard: readSwitchboard(),
+      ready: false,
+      implementedProbes: new Set(),
+      sections: 0,
+    };
+    this.attached.add(entry);
+    const subscription = webview.onDidReceiveMessage((message: unknown) =>
+      this.onMessage(entry, message),
+    );
+    const server = serveWebviewHost(webview, {
+      routes: this.routes,
+      openExternal: this.externalOpener.open,
+      storage: this.storage,
+    });
+    this.render(entry);
+    return {
+      hidden: () => {
+        entry.ready = false;
+      },
+      show: (view) => {
+        entry.gallery = view;
+        this.render(entry);
+      },
+      dispose: () => {
+        subscription.dispose();
+        server.dispose();
+        this.attached.delete(entry);
+      },
+    };
+  }
+
+  reloadAll() {
+    for (const entry of this.attached) this.render(entry);
+  }
+
+  /**
+   * Resolves with a webview that booted with the current switchboard: an
+   * Assistant view unless `accept` says otherwise.
+   */
+  async waitForReady(
+    timeoutMs: number,
+    accept: (entry: AttachedWebview) => boolean = isAssistant,
+  ) {
+    const find = () => {
+      const switchboard = readSwitchboard();
+      return [...this.attached].findLast(
+        (e) =>
+          e.ready && sameSwitchboard(e.switchboard, switchboard) && accept(e),
+      );
+    };
+    const existing = find();
+    if (existing) return existing;
+    return new Promise<AttachedWebview | undefined>((resolve) => {
+      const timer = setTimeout(() => {
+        subscription.dispose();
+        resolve(undefined);
+      }, timeoutMs);
+      const subscription = this.readyEmitter.event(() => {
+        const entry = find();
+        if (!entry) return;
+        clearTimeout(timer);
+        subscription.dispose();
+        resolve(entry);
+      });
+    });
+  }
+
+  runProbe(entry: AttachedWebview, probeId: ProbeId, timeoutMs: number) {
+    return this.request<ProbeResult>(
+      entry,
+      (requestId) => ({
+        channel: TESTBED_CHANNEL,
+        type: "run-probe",
+        requestId,
+        probeId,
+      }),
+      timeoutMs,
+      { state: "fail", detail: `Timed out after ${timeoutMs} ms` },
+    );
+  }
+
+  /** Runs a step of a host probe in the webview. */
+  async runTask(
+    entry: AttachedWebview,
+    task: WebviewTaskId,
+    arg: unknown,
+    timeoutMs: number,
+  ) {
+    const result = await this.request<TaskResult>(
+      entry,
+      (requestId) => ({
+        channel: TESTBED_CHANNEL,
+        type: "run-task",
+        requestId,
+        task,
+        arg,
+      }),
+      timeoutMs,
+      { ok: false, error: `${task} timed out after ${timeoutMs} ms` },
+    );
+    if (!result.ok) throw new Error(`${task}: ${result.error}`);
+    return result.value;
+  }
+
+  private request<T>(
+    entry: AttachedWebview,
+    message: (requestId: string) => HostToWebviewMessage,
+    timeoutMs: number,
+    onTimeout: T,
+  ) {
+    const requestId = String(this.nextRequestId++);
+    return new Promise<T>((resolve) => {
+      const timer = setTimeout(() => {
+        this.pending.delete(requestId);
+        resolve(onTimeout);
+      }, timeoutMs);
+      this.pending.set(requestId, (result) => {
+        clearTimeout(timer);
+        this.pending.delete(requestId);
+        resolve(result as T);
+      });
+      void entry.webview.postMessage(message(requestId));
+    });
+  }
+
+  dispose() {
+    this.readyEmitter.dispose();
+    this.attached.clear();
+  }
+
+  private render(entry: AttachedWebview) {
+    entry.ready = false;
+    entry.switchboard = readSwitchboard();
+    entry.webview.html = renderHtml(
+      entry.webview,
+      this.extensionUri,
+      entry.switchboard,
+      entry.gallery,
+    );
+  }
+
+  private onMessage(entry: AttachedWebview, data: unknown) {
+    if (!isTestbedMessage(data)) return;
+    const message = data as WebviewToHostMessage;
+    if (message.type === "ready") {
+      entry.ready = true;
+      entry.implementedProbes = new Set(message.implementedProbes);
+      entry.sections = message.sections ?? 0;
+      this.readyEmitter.fire();
+    } else {
+      this.pending.get(message.requestId)?.(message.result);
+    }
+  }
+}

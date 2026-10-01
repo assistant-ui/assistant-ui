@@ -1,0 +1,96 @@
+name: VS Code Test Bed
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/vscode-test-bed.yaml
+      - examples/with-vscode/**
+      - templates/vscode/**
+      - templates/default/app/api/chat/route.ts
+      - package.json
+      - packages/**
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - turbo.json
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/vscode-test-bed.yaml
+      - examples/with-vscode/**
+      - templates/vscode/**
+      - templates/default/app/api/chat/route.ts
+      - package.json
+      - packages/**
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - turbo.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Pinned so a VS Code release cannot turn CI red on its own; examples/with-vscode/README.md explains how to bump it.
+  AUI_TESTBED_VSCODE_VERSION: 1.140.0
+
+jobs:
+  probes:
+    name: Phase 1 probes (${{ matrix.runtime }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        runtime: [ai-sdk, local]
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        with:
+          runtime: node@24
+          cache: true
+          install: false
+
+      - name: Install VS Code system libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends xvfb libgtk-3-0t64 libnss3 libasound2t64 libgbm1
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build workspace packages
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+        run: pnpm turbo build --filter='with-vscode^...'
+
+      - name: Cache VS Code
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache@v6.1.0
+        with:
+          path: examples/with-vscode/.vscode-test
+          key: vscode-test-${{ runner.os }}-${{ runner.arch }}-${{ env.AUI_TESTBED_VSCODE_VERSION }}
+
+      - name: Run probes in VS Code
+        env:
+          AUI_TESTBED_PHASE: 1
+          AUI_TESTBED_RUNTIMES: ${{ matrix.runtime }}
+        run: xvfb-run -a pnpm --filter with-vscode test
+
+      - name: Upload probe report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # ratchet:actions/upload-artifact@v7.0.1
+        with:
+          name: vscode-test-bed-probes-${{ matrix.runtime }}
+          path: examples/with-vscode/test-results/
+          retention-days: 14
+          if-no-files-found: warn

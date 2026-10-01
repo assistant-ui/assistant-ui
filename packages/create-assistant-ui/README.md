@@ -28,6 +28,7 @@ This wraps the `assistant-ui create` command from the [`assistant-ui` CLI](https
 | `langchain`    | Next.js + LangGraph agent via the react-langchain adapter. |
 | `mcp`          | Next.js + an MCP server integration.                       |
 | `eve`          | Next.js + Eve agent backend.                               |
+| `vscode`       | VS Code extension with a chat webview.                     |
 
 ## Documentation
 
