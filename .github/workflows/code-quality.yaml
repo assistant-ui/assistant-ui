@@ -25,6 +25,8 @@ on:
       - "scripts/deploy-examples-changes.test.mjs"
       - "scripts/api-reference-inputs.mjs"
       - "scripts/api-reference-inputs.test.mjs"
+      - "scripts/package-build-inputs.mjs"
+      - "scripts/package-build-inputs.test.mjs"
       - ".github/workflows/deploy-examples.yaml"
       - ".github/workflows/expo-native-bundle.yaml"
       - "scripts/lib/script-options.mjs"
@@ -59,6 +61,8 @@ on:
       - "scripts/deploy-examples-changes.test.mjs"
       - "scripts/api-reference-inputs.mjs"
       - "scripts/api-reference-inputs.test.mjs"
+      - "scripts/package-build-inputs.mjs"
+      - "scripts/package-build-inputs.test.mjs"
       - ".github/workflows/deploy-examples.yaml"
       - ".github/workflows/expo-native-bundle.yaml"
       - "scripts/lib/script-options.mjs"
@@ -189,7 +193,12 @@ jobs:
         id: package_build_inputs
         run: |
           set -euo pipefail
-          run=$(git diff --name-only --no-renames -z HEAD^1 HEAD | node scripts/package-build-inputs.mjs)
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE=HEAD^1
+          else
+            BASE="${{ github.event.before }}"
+          fi
+          run=$(git diff --name-only --no-renames -z "$BASE" HEAD | node scripts/package-build-inputs.mjs)
           echo "run=$run" >> "$GITHUB_OUTPUT"
 
       - name: Setup pnpm and node.js
@@ -263,7 +272,6 @@ jobs:
         run: pnpm run api-reference-inputs:test
 
       - name: Test package build input detector
-        if: steps.package_build_inputs.outputs.run == 'true'
         run: node --test scripts/package-build-inputs.test.mjs
 
       # The pull_request checkout is the merge commit, so HEAD^1 is the base it merges into.

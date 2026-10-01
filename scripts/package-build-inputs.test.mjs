@@ -72,6 +72,19 @@ test("the detector watches its own implementation", () => {
   assert.ok(PACKAGE_BUILD_INPUTS.includes("scripts"));
 });
 
+test("the workflow runs for detector changes", () => {
+  for (const file of [
+    "scripts/package-build-inputs.mjs",
+    "scripts/package-build-inputs.test.mjs",
+  ]) {
+    assert.equal(
+      workflow.match(new RegExp(`      - "${file}"`, "g"))?.length,
+      2,
+      file,
+    );
+  }
+});
+
 const step = (name) => {
   const match = buildJob[0].match(
     new RegExp(
@@ -85,7 +98,9 @@ const step = (name) => {
 test("the workflow gates dependency-backed package steps", () => {
   const detector = step("Detect package build inputs");
   assert.match(detector, /node scripts\/package-build-inputs\.mjs/);
-  assert.match(detector, /git diff --name-only --no-renames -z HEAD\^1 HEAD/);
+  assert.match(detector, /BASE=HEAD\^1/);
+  assert.match(detector, /BASE="\$\{\{ github\.event\.before \}\}"/);
+  assert.match(detector, /git diff --name-only --no-renames -z "\$BASE" HEAD/);
 
   for (const name of [
     "Setup pnpm and node.js",
@@ -99,7 +114,6 @@ test("the workflow gates dependency-backed package steps", () => {
     "Test the deploy examples planner",
     "Test API surface generator",
     "Test API reference input detector",
-    "Test package build input detector",
     "Measure bundle sizes against the base",
   ]) {
     assert.match(
@@ -109,6 +123,10 @@ test("the workflow gates dependency-backed package steps", () => {
     );
   }
 
+  assert.doesNotMatch(
+    step("Test package build input detector"),
+    /steps\.package_build_inputs\.outputs\.run/,
+  );
   assert.doesNotMatch(
     step("Post the size report as a sticky PR comment"),
     /steps\.package_build_inputs\.outputs\.run/,
