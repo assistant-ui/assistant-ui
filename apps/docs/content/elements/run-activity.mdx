@@ -93,7 +93,7 @@ const runtime = useExternalStoreRuntime<ActivityRun>({
 });
 ```
 
-Both arrays must come from the same normalized list so their indexes match `s.message.parts`. This abridged adapter supports text and tool-call parts, filtering blank text as the runtime does. If you add reasoning parts, also remove any whose `text` and `unstable_summary` are both missing, empty, or whitespace-only.
+Both arrays must come from the same normalized list so their indexes match `s.message.parts`. This abridged adapter is limited to text and tool-call parts, filtering blank text as the runtime does. Supporting other part types requires updating normalization and rendering together, with regression tests that verify annotations still match the runtime parts after normalization.
 
 In the message renderer, read the annotations alongside `s.message.parts` and `s.message.status` with `useAuiState`. Render each classified part with `MessagePrimitive.PartByIndex`, using its index in the converted message and your existing text/tool components. Put `commentary` and `tool` entries in the disclosure, `answer` parts in `children`, and `attention` parts in `attention`. Unclassified parts stay outside the disclosure. Do not also render `MessagePrimitive.Parts` for the whole message: that would duplicate the content.
 
