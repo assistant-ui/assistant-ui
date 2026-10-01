@@ -53,15 +53,39 @@ const expectedPaths = [
   workflowFile,
 ].sort();
 
-const workflowPathBlocks = [
-  ...workflow.matchAll(/^    paths:\n((?:      - .*\n)+)/gm),
-].map((match) =>
-  match[1]
-    .trim()
-    .split("\n")
-    .map((line) => JSON.parse(line.replace(/^\s*- /, "")))
-    .sort(),
-);
+const parseWorkflowPathBlocks = (source) => {
+  const lines = source.split(/\r?\n/);
+  const blocks = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const pathsMatch = lines[index].match(/^([ \t]*)paths:[ \t]*$/);
+    if (!pathsMatch) continue;
+
+    const pathsIndent = pathsMatch[1].length;
+    const paths = [];
+    for (index += 1; index < lines.length; index += 1) {
+      const itemMatch = lines[index].match(/^([ \t]*)-[ \t]+(.+?)[ \t]*$/);
+      if (!itemMatch || itemMatch[1].length <= pathsIndent) break;
+
+      const scalar = itemMatch[2];
+      const quote = scalar[0];
+      if ((quote === '"' || quote === "'") && scalar.at(-1) === quote) {
+        paths.push(
+          quote === '"'
+            ? JSON.parse(scalar)
+            : scalar.slice(1, -1).replaceAll("''", "'"),
+        );
+      } else {
+        paths.push(scalar);
+      }
+    }
+    blocks.push(paths.sort());
+  }
+
+  return blocks;
+};
+
+const workflowPathBlocks = parseWorkflowPathBlocks(workflow);
 
 const globToRegExp = (glob) => {
   let source = "^";
@@ -90,6 +114,15 @@ test("push and pull request paths match every tracked script input", () => {
   assert.equal(workflowPathBlocks.length, 2);
   assert.deepEqual(workflowPathBlocks[0], expectedPaths);
   assert.deepEqual(workflowPathBlocks[1], expectedPaths);
+});
+
+test("workflow path parsing ignores indentation and quote style", () => {
+  assert.deepEqual(
+    parseWorkflowPathBlocks(
+      `on:\n  pull_request:\n    paths:\n        - unquoted\n        - 'single-quoted'\n        - "double-quoted"\n`,
+    ),
+    [["double-quoted", "single-quoted", "unquoted"]],
+  );
 });
 
 test("tracked directories and mirrors are covered by the workflow", () => {
