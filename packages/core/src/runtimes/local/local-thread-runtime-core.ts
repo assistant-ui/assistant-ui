@@ -308,13 +308,16 @@ export class LocalThreadRuntimeCore
   }
 
   // A message that a later turn follows never resumes, since a roundtrip
-  // restarts from it and would drop that turn. The resume starts from the
-  // stored entry, which a subscriber may have replaced while it was notified.
+  // restarts from it and would drop that turn. A follow-up recorded while its
+  // run was open ended the pause too, even once that turn is deleted. The
+  // resume starts from the stored entry, which a subscriber may have replaced
+  // while it was notified.
   private _resumeIfReady(messageId: string) {
     const stored = this.getMessageById(messageId);
     if (
       stored?.message.role !== "assistant" ||
       this.repository.hasChildren(messageId) ||
+      this._followedDuringRun.has(messageId) ||
       !shouldContinue(stored.message, this._options.unstable_humanToolNames)
     )
       return false;
@@ -776,9 +779,6 @@ export class LocalThreadRuntimeCore
     await adapter.delete(items);
 
     this.repository.deleteMessage(messageId);
-    // Deleting the last turn under a message undoes the follow-up its run recorded.
-    if (parentId !== null && !this.repository.hasChildren(parentId))
-      this._followedDuringRun.delete(parentId);
     this._notifySubscribers();
   }
 

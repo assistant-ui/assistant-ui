@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-fix: append a resumed message to a history without `update` after the follow-up an earlier roundtrip saw is deleted
+fix: never resume a pause that a follow-up ended, even after the follow-up is deleted

@@ -5045,7 +5045,7 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     }
   });
 
-  it("appends a resumed message again when the follow-up its replaced roundtrip saw was deleted", async () => {
+  it("keeps a paused message cancelled after the follow-up that ended it is deleted", async () => {
     const { history, appended } = createHistory({ update: false });
     let release!: () => void;
     const released = new Promise<void>((resolve) => {
@@ -5056,15 +5056,11 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
       {
         async *run() {
           runs++;
-          if (runs === 1) {
-            yield {
-              content: [toolCallPart("send_email")],
-              status: { type: "requires-action", reason: "tool-calls" },
-            };
-            await released;
-            return;
-          }
-          yield { content: [{ type: "text", text: "sent" }] };
+          yield {
+            content: [toolCallPart("send_email")],
+            status: { type: "requires-action", reason: "tool-calls" },
+          };
+          await released;
         },
       },
       { history: { ...history, async delete() {} } },
@@ -5090,41 +5086,35 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     release();
     await flush();
 
-    const completed = {
-      status: { type: "complete" },
-      content: [{ result: { sent: true } }, { type: "text", text: "sent" }],
-    };
-    expect(thread.getMessageById(paused.id)?.message).toMatchObject(completed);
+    const cancelled = { status: { type: "incomplete", reason: "cancelled" } };
+    expect(runs).toBe(1);
+    expect(thread.getMessageById(paused.id)?.message).toMatchObject(cancelled);
     expect(
       appended.filter((i) => i.message.id === paused.id).at(-1)?.message,
-    ).toMatchObject(completed);
+    ).toMatchObject(cancelled);
   });
 
-  it("never appends a resumed message after a turn whose start resumed it", async () => {
+  it("stores a result added while a turn's start follows the message without resuming it", async () => {
     const { history, appended } = createHistory({ update: false });
-    let releaseFirst!: () => void;
-    const firstReleased = new Promise<void>((resolve) => {
-      releaseFirst = resolve;
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
     });
-    let releaseResumed!: () => void;
-    const resumedReleased = new Promise<void>((resolve) => {
-      releaseResumed = resolve;
-    });
-    let runs = 0;
+    let pausedId: string | undefined;
+    let resumes = 0;
     const thread = createThread(
       {
-        async *run() {
-          runs++;
-          if (runs === 1) {
+        async *run(options) {
+          if (pausedId === undefined) {
             yield {
               content: [toolCallPart("send_email")],
               status: { type: "requires-action", reason: "tool-calls" },
             };
-            await firstReleased;
+            await released;
             return;
           }
-          if (runs === 2) {
-            await resumedReleased;
+          if (options.unstable_assistantMessageId === pausedId) {
+            resumes++;
             return;
           }
           yield { content: [{ type: "text", text: "noted" }] };
@@ -5136,10 +5126,11 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     void thread.append(userMessage("send an email"));
     await flush();
     const paused = thread.messages[1]!;
-    let resumed = false;
+    pausedId = paused.id;
+    let added = false;
     thread.unstable_on("runStart", () => {
-      if (resumed) return;
-      resumed = true;
+      if (added) return;
+      added = true;
       thread.addToolResult({
         messageId: paused.id,
         toolCallId: "call-send_email",
@@ -5154,12 +5145,11 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
       runConfig: {},
     });
     const child = thread.messages.at(-1)!;
-    releaseResumed();
-    await flush();
-    releaseFirst();
+    release();
     await flush();
 
     const ids = appended.map((i) => i.message.id);
+    expect(resumes).toBe(0);
     expect(child.id).not.toBe(paused.id);
     expect(ids).toContain(child.id);
     expect(ids.lastIndexOf(paused.id)).toBeLessThan(ids.indexOf(child.id));
