@@ -33,13 +33,14 @@ export function HeatGraph({ data }: { data: HeatGraphPrimitive.DataPoint[] }) {
   );
 }
 
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-
-// A month is labelled at its first week, so the leading partial month and a month starting in the current week stay unlabelled instead of colliding with a neighbour or running past the grid.
+// A month is labelled over the first week that starts in it, so a month whose first week falls before the grid, and a month starting in the current week, stay unlabelled instead of colliding with a neighbour or running past the grid.
 function labelsMonth({ date, row }: HeatGraphPrimitive.CellData) {
-  return (
-    row === 0 && date.getDate() <= 7 && date.getTime() + WEEK_MS <= Date.now()
+  const weekLater = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate() + 7,
   );
+  return row === 0 && date.getDate() <= 7 && weekLater.getTime() <= Date.now();
 }
 
 function MonthLabels() {

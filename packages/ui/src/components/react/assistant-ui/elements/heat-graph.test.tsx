@@ -1,5 +1,5 @@
-import { cleanup, render } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { HeatGraph } from "./heat-graph";
 
 afterEach(cleanup);
@@ -46,6 +46,23 @@ describe("HeatGraph", () => {
     expect(months.length).toBeGreaterThan(1);
     for (const month of months) {
       expect(scroller?.contains(month)).toBe(true);
+    }
+    expect(scroller?.querySelector(".rounded-sm")).not.toBeNull();
+  });
+
+  it("labels a month once a calendar week has passed, across a DST change", () => {
+    const timeZone = process.env["TZ"];
+    process.env["TZ"] = "America/New_York";
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date(2026, 2, 9, 0, 30));
+      render(<HeatGraph data={[]} />);
+
+      expect(screen.queryAllByText("Mar")).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+      if (timeZone === undefined) delete process.env["TZ"];
+      else process.env["TZ"] = timeZone;
     }
   });
 
