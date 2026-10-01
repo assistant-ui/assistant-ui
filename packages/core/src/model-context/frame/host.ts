@@ -3,6 +3,7 @@ import type { Unsubscribe } from "../../types/unsubscribe";
 import type { Tool } from "assistant-stream";
 import { notifySubscribers as notifyStateSubscribers } from "../../subscribable/subscribable";
 import { generateId } from "../../utils/id";
+import { getAbortReason } from "../../utils/abortable-promise";
 import {
   type FrameMessage,
   FRAME_MESSAGE_CHANNEL,
@@ -51,13 +52,6 @@ const deserializeModelContext = (
     ),
   }),
 });
-
-const getAbortReason = (signal: AbortSignal): unknown => {
-  if (signal.reason !== undefined) return signal.reason;
-  const error = new Error("Tool call was aborted");
-  error.name = "AbortError";
-  return error;
-};
 
 export class AssistantFrameHost implements ModelContextProvider {
   private _context: ModelContext = {};
@@ -165,7 +159,9 @@ export class AssistantFrameHost implements ModelContextProvider {
       return Promise.reject(new Error("AssistantFrameHost has been disposed"));
     }
     if (abortSignal?.aborted) {
-      return Promise.reject(getAbortReason(abortSignal));
+      return Promise.reject(
+        getAbortReason(abortSignal, "Tool call was aborted"),
+      );
     }
 
     return new Promise((resolve, reject) => {
@@ -175,7 +171,7 @@ export class AssistantFrameHost implements ModelContextProvider {
         const pending = this._pendingRequests.get(message.id);
         if (pending) {
           this.cancelToolCall(message.id);
-          pending.reject(getAbortReason(abortSignal));
+          pending.reject(getAbortReason(abortSignal, "Tool call was aborted"));
           this._pendingRequests.delete(message.id);
         }
       };
