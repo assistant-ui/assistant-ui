@@ -100,7 +100,7 @@ jobs:
           install: false
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --filter . --filter @assistant-ui/x-buildutils --ignore-scripts
 
       - name: Run oxlint + oxfmt
         run: pnpm lint
