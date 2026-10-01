@@ -1,5 +1,13 @@
 # assistant-stream
 
+## 0.3.46
+
+### Patch Changes
+
+- [#8415](https://github.com/assistant-ui/assistant-ui/pull/8415) [`b1a3211`](https://github.com/assistant-ui/assistant-ui/commit/b1a32114e94dbe60decea1590b9f4acb011fc721) - fix: a message sent while a local run is paused ends the pause instead of stranding it: open approvals record `resolution: "cancelled"`, the paused message settles as cancelled, and a result added to it later no longer resumes the run and drops the turns after it; `toGenericMessages` closes out the calls of an earlier or settled message as not completed ([@okisdev](https://github.com/okisdev))
+
+- [#8597](https://github.com/assistant-ui/assistant-ui/pull/8597) [`ce5b7ed`](https://github.com/assistant-ui/assistant-ui/commit/ce5b7ed5e07bd2a26c9e30e02455b9749c31ae53) - fix: remove runtime import cycles from development bundles ([@rupic-app](https://github.com/apps/rupic-app))
+
 ## 0.3.45
 
 ### Patch Changes
