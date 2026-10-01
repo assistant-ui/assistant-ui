@@ -1,7 +1,6 @@
 import { isMcpAppUri } from "../../types/message";
 import type { PartState } from "../../store/scopes/part";
 import type { ToolsState } from "../types/scopes/tools";
-import { getMessagePartGroupIdentity } from "../../utils/getMessagePartKeys";
 
 /**
  * Registry context passed to a `groupBy` function as its second argument by
@@ -126,8 +125,7 @@ export interface GroupNodeGroup {
   /** Structural React key: sibling-index path, e.g. `"0.1.0"`. */
   readonly nodeKey: string;
   /**
-   * Identity key (`"id:<type>:<partId>"`) from the group's smallest member identity; undefined
-   * when absent or already claimed by an earlier sibling.
+   * Identity key (`"id:<type>:<partId>"`) from the group's first part; undefined when absent or already claimed by an earlier sibling.
    */
   readonly idKey: string | undefined;
   /** Indices of parts in this subtree, in order. */
@@ -193,16 +191,12 @@ export const buildGroupTree = (
   const closeTop = (): void => {
     const closing = stack.pop()!;
     const parent = stack[stack.length - 1]!;
+    const id = partIds?.[closing.indices[0]!];
     parent.children.push({
       type: "group",
       key: closing.key,
       nodeKey: closing.nodeKey,
-      idKey: claimIdKey(
-        parent,
-        getMessagePartGroupIdentity(
-          closing.indices.map((index) => partIds?.[index]),
-        ),
-      ),
+      idKey: claimIdKey(parent, id?.includes(":") ? id : undefined),
       indices: closing.indices,
       children: closing.children,
     });

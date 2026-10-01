@@ -108,6 +108,147 @@ const renderIdentityParts = (
 afterEach(cleanup);
 
 describe("MessagePrimitive.Parts", () => {
+  describe.each([false, true])(
+    "streaming with chain of thought=%s",
+    (chainOfThought) => {
+      it.each(["tool-call", "reasoning"] as const)(
+        "keeps wrappers and mounted state when a tool call is appended after %s",
+        (firstType) => {
+          let mounts = 0;
+          const Group = ({ children }: PropsWithChildren) => {
+            const [mount] = useState(() => ++mounts);
+            return <section data-mount={mount}>{children}</section>;
+          };
+          const Tool = ({ argsText }: { argsText: string }) => (
+            <StateProbe text={argsText} />
+          );
+          const ChainOfThought = () => (
+            <Group>
+              <ChainOfThoughtPrimitiveParts
+                components={{
+                  Reasoning: StateProbe,
+                  tools: { Fallback: Tool },
+                }}
+              />
+            </Group>
+          );
+          const first =
+            firstType === "tool-call"
+              ? {
+                  type: "tool-call" as const,
+                  toolCallId: "t2",
+                  toolName: "task",
+                  args: {},
+                  argsText: "draft",
+                }
+              : { type: "reasoning" as const, text: "draft" };
+          const view = renderIdentityParts(
+            [first],
+            "components",
+            chainOfThought
+              ? { ChainOfThought }
+              : {
+                  Reasoning: StateProbe,
+                  ReasoningGroup: Group,
+                  ToolGroup: Group,
+                  tools: { Fallback: Tool },
+                },
+          );
+          const wrapper = view.container.querySelector("section");
+          const appended = {
+            type: "tool-call" as const,
+            toolCallId: "t1",
+            toolName: "task",
+            args: {},
+            argsText: "appended",
+          };
+          const streamed =
+            first.type === "tool-call"
+              ? { ...first, argsText: "streamed" }
+              : { ...first, text: "streamed" };
+          view.setContent([streamed, appended]);
+          expect(view.container.querySelector("section")).toBe(wrapper);
+          expect(wrapper?.dataset.mount).toBe("1");
+          expect(view.values()).toEqual([
+            "draft:streamed",
+            "appended:appended",
+          ]);
+          const wrappers = Array.from(
+            view.container.querySelectorAll("section"),
+          );
+          view.setContent([
+            streamed,
+            { ...appended, argsText: "updated" },
+            { ...appended, toolCallId: "t0", argsText: "last" },
+          ]);
+          expect(
+            Array.from(view.container.querySelectorAll("section")),
+          ).toEqual(wrappers);
+          expect(view.values()).toEqual([
+            "draft:streamed",
+            "appended:updated",
+            "last:last",
+          ]);
+        },
+      );
+
+      it("keeps t1's wrapper and tool UI state when reasoning appears before text on settle", () => {
+        let mounts = 0;
+        const Group = ({ children }: PropsWithChildren) => {
+          const [mount] = useState(() => ++mounts);
+          return <section data-mount={mount}>{children}</section>;
+        };
+        const Tool = ({ argsText }: { argsText: string }) => (
+          <StateProbe text={argsText} />
+        );
+        const ChainOfThought = () => (
+          <Group>
+            <ChainOfThoughtPrimitiveParts
+              components={{ Reasoning: StateProbe, tools: { Fallback: Tool } }}
+            />
+          </Group>
+        );
+        const text = { type: "text" as const, text: "prefix" };
+        const tool = {
+          type: "tool-call" as const,
+          toolCallId: "t1",
+          toolName: "task",
+          args: {},
+          argsText: "draft",
+        };
+        const view = renderIdentityParts(
+          [text, tool],
+          "components",
+          chainOfThought
+            ? { Text: StateProbe, ChainOfThought }
+            : {
+                Text: StateProbe,
+                Reasoning: StateProbe,
+                ReasoningGroup: Group,
+                ToolGroup: Group,
+                tools: { Fallback: Tool },
+              },
+        );
+        const wrapper = view.container.querySelector("section");
+        view.setContent(
+          [
+            { type: "reasoning", text: "earlier" },
+            text,
+            { ...tool, argsText: "settled" },
+          ],
+          false,
+        );
+        expect(view.container.querySelectorAll("section")[1]).toBe(wrapper);
+        expect(wrapper?.dataset.mount).toBe("1");
+        expect(view.values()).toEqual([
+          "earlier:earlier",
+          "prefix:prefix",
+          "draft:settled",
+        ]);
+      });
+    },
+  );
+
   describe.each(["children", "components"] as const)("%s identity", (mode) => {
     it("keeps the seed while streaming and resets it for a replacement id", () => {
       const view = renderIdentityParts(
@@ -194,7 +335,7 @@ describe("MessagePrimitive.Parts", () => {
   });
 
   it.each(["reasoning", "tool-call", "chain-of-thought"] as const)(
-    "keeps the %s wrapper and every leaf seed when the first two children swap",
+    "keeps the %s wrapper and every leaf seed when later children swap",
     (kind) => {
       let mounts = 0;
       const Group = ({ children }: PropsWithChildren) => {
@@ -239,12 +380,12 @@ describe("MessagePrimitive.Parts", () => {
           ? { ...part, argsText: `${part.argsText} updated` }
           : { ...part, text: `${part.text} updated` },
       );
-      view.setContent([updated[1]!, updated[0]!, updated[2]!]);
+      view.setContent([updated[0]!, updated[2]!, updated[1]!]);
       expect(view.container.querySelector("section")?.dataset.mount).toBe("1");
       expect(view.values()).toEqual([
-        "second:second updated",
         "first:first updated",
         "third:third updated",
+        "second:second updated",
       ]);
     },
   );
@@ -343,7 +484,7 @@ describe("MessagePrimitive.Parts", () => {
   );
 
   it.each([false, true])(
-    "keys groups without identified members by ordinal with chain of thought=%s",
+    "keys groups without identified members by start index with chain of thought=%s",
     (chainOfThought) => {
       let mounts = 0;
       const Group = ({ children }: PropsWithChildren) => {
@@ -375,7 +516,7 @@ describe("MessagePrimitive.Parts", () => {
           view.container.querySelectorAll("section"),
           (el) => el.dataset.mount,
         ),
-      ).toEqual(["1", "2"]);
+      ).toEqual(["3", "4"]);
     },
   );
 

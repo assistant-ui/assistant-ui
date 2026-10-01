@@ -69,7 +69,7 @@ const StateProbe = ({ text }: { text: string }) => {
 
 const renderIdentityGroups = (
   content: ThreadMessageLike["content"],
-  grouped: boolean | "nested" | "thought" | "nested-thought",
+  grouped: boolean | "nested" | "thought" | "nested-thought" | "named-tools",
 ) => {
   let mounts = 0;
   const Group = ({ children }: PropsWithChildren) => {
@@ -82,20 +82,26 @@ const renderIdentityGroups = (
       : (["group-parts"] as const);
   const Message = () => (
     <MessagePrimitiveGroupedParts
-      groupBy={groupPartByType(
-        grouped === "thought" || grouped === "nested-thought"
-          ? { reasoning: path, "tool-call": path }
-          : grouped
-            ? {
-                text: path,
-                image: path,
-              }
-            : {},
-      )}
+      groupBy={
+        grouped === "named-tools"
+          ? (part) =>
+              part.type === "tool-call"
+                ? [part.toolName as `group-${string}`]
+                : []
+          : groupPartByType(
+              grouped === "thought" || grouped === "nested-thought"
+                ? { reasoning: path, "tool-call": path }
+                : grouped
+                  ? {
+                      text: path,
+                      image: path,
+                    }
+                  : {},
+            )
+      }
     >
       {({ part, children }) => {
-        if (part.type === "group-parts" || part.type === "group-leaves")
-          return <Group>{children}</Group>;
+        if (part.type.startsWith("group-")) return <Group>{children}</Group>;
         if (part.type === "text" || part.type === "reasoning")
           return <StateProbe text={part.text} />;
         if (part.type === "tool-call")
@@ -147,6 +153,84 @@ const renderIdentityGroups = (
 afterEach(cleanup);
 
 describe("MessagePrimitive.GroupedParts", () => {
+  it("keeps group names and part ids with key delimiters separate", () => {
+    const first = {
+      type: "tool-call" as const,
+      toolCallId: "x-id:tool-call:y",
+      toolName: "group-a",
+      args: {},
+      argsText: "first",
+    };
+    const second = {
+      type: "tool-call" as const,
+      toolCallId: "y",
+      toolName: "group-a-id:tool-call:x",
+      args: {},
+      argsText: "second",
+    };
+    const view = renderIdentityGroups([first, second], "named-tools");
+    view.setContent([
+      { ...second, argsText: "second updated" },
+      { ...first, argsText: "first updated" },
+    ]);
+    expect(view.groupMounts()).toEqual(["2", "1"]);
+    expect(view.values()).toEqual([
+      "second:second updated",
+      "first:first updated",
+    ]);
+  });
+
+  describe.each(["thought", "nested-thought"] as const)(
+    "streaming %s groups",
+    (grouped) => {
+      it.each(["tool-call", "reasoning"] as const)(
+        "keeps every wrapper and mounted state when a tool call is appended after %s",
+        (firstType) => {
+          const first =
+            firstType === "tool-call"
+              ? {
+                  type: "tool-call" as const,
+                  toolCallId: "t2",
+                  toolName: "task",
+                  args: {},
+                  argsText: "draft",
+                }
+              : { type: "reasoning" as const, text: "draft" };
+          const view = renderIdentityGroups([first], grouped);
+          const mounts = view.groupMounts();
+          const appended = {
+            type: "tool-call" as const,
+            toolCallId: "t1",
+            toolName: "task",
+            args: {},
+            argsText: "appended",
+          };
+          const streamed =
+            first.type === "tool-call"
+              ? { ...first, argsText: "streamed" }
+              : { ...first, text: "streamed" };
+          view.setContent([streamed, appended]);
+          expect(view.groupMounts()).toEqual(mounts);
+          expect(view.values()).toEqual([
+            "draft:streamed",
+            "appended:appended",
+          ]);
+          view.setContent([
+            streamed,
+            { ...appended, argsText: "updated" },
+            { ...appended, toolCallId: "t0", argsText: "last" },
+          ]);
+          expect(view.groupMounts()).toEqual(mounts);
+          expect(view.values()).toEqual([
+            "draft:streamed",
+            "appended:updated",
+            "last:last",
+          ]);
+        },
+      );
+    },
+  );
+
   it.each(["thought", "nested-thought"] as const)(
     "keeps the %s wrappers and tool UI state when reasoning appears before text on settle",
     (grouped) => {
@@ -178,7 +262,7 @@ describe("MessagePrimitive.GroupedParts", () => {
   );
 
   it.each([true, "nested"] as const)(
-    "keys groups without identified members by ordinal with grouped=%s",
+    "keys groups without identified members by sibling path with grouped=%s",
     (grouped) => {
       const parts = [
         { type: "text" as const, text: "first" },
@@ -188,7 +272,9 @@ describe("MessagePrimitive.GroupedParts", () => {
       const view = renderIdentityGroups(parts, grouped);
       const mounts = view.groupMounts();
       view.setContent([{ type: "reasoning", text: "prefix" }, ...parts]);
-      expect(view.groupMounts()).toEqual(mounts);
+      expect(view.groupMounts()).toEqual(
+        mounts.map((mount) => String(Number(mount) + mounts.length)),
+      );
     },
   );
 
@@ -227,7 +313,7 @@ describe("MessagePrimitive.GroupedParts", () => {
         ]);
       });
 
-      it("keeps every wrapper and leaf seed when the first two identified children swap", () => {
+      it("keeps every wrapper and leaf seed when later identified children swap", () => {
         const view = renderIdentityGroups(
           [
             { type: "text", id: "p1", text: "first" },
@@ -238,15 +324,15 @@ describe("MessagePrimitive.GroupedParts", () => {
         );
         const groupMounts = view.groupMounts();
         view.setContent([
-          { type: "text", id: "p2", text: "second updated" },
           { type: "text", id: "p1", text: "first updated" },
           { type: "text", id: "p3", text: "third updated" },
+          { type: "text", id: "p2", text: "second updated" },
         ]);
         expect(view.groupMounts()).toEqual(groupMounts);
         expect(view.values()).toEqual([
-          "second:second updated",
           "first:first updated",
           "third:third updated",
+          "second:second updated",
         ]);
       });
 

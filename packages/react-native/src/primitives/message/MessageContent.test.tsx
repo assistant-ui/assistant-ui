@@ -101,6 +101,29 @@ describe("MessageContent", () => {
     expect(container.textContent).toBe("new:new");
   });
 
+  it("keeps each seed with its id when identified parts swap", async () => {
+    const SeededText = ({ text }: { text: string }) => {
+      const [seed] = useState(text);
+      return <span>{`${seed}:${text}`}</span>;
+    };
+    const renderText: NonNullable<
+      Parameters<typeof MessageContent>[0]["renderText"]
+    > = ({ part }) => <SeededText text={part.text} />;
+    h.state.message.content = [
+      { type: "text", id: "p1", text: "first" },
+      { type: "text", id: "p2", text: "second" },
+    ];
+    await mount({ renderText });
+    h.state.message.content = [
+      { type: "text", id: "p2", text: "second updated" },
+      { type: "text", id: "p1", text: "first updated" },
+    ];
+    await mount({ renderText });
+    expect(
+      Array.from(container.querySelectorAll("span"), (el) => el.textContent),
+    ).toEqual(["second:second updated", "first:first updated"]);
+  });
+
   it("renders a text part through the default text renderer", async () => {
     h.state.message.content = [{ type: "text", text: "hello world" }];
     await mount();

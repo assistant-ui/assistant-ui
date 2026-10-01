@@ -139,6 +139,20 @@ describe("ThreadMessageClient", () => {
           args: {},
           argsText: "{}",
         },
+        {
+          type: "tool-call",
+          toolCallId: "call-2",
+          toolName: "weather",
+          args: { city: "Tokyo" },
+          argsText: '{"city":"Tokyo"}',
+        },
+        {
+          type: "tool-call",
+          toolCallId: "call-3",
+          toolName: "weather",
+          args: { city: "Paris" },
+          argsText: '{"city":"Paris"}',
+        },
       ],
       status: { type: "complete", reason: "stop" },
       metadata: {
@@ -157,6 +171,15 @@ describe("ThreadMessageClient", () => {
       expect(root.getValue().part({ toolCallId: "call-1" }).getState()).toEqual(
         root.getValue().part({ index: 0 }).getState(),
       );
+      for (const [index, part] of message.content.entries()) {
+        if (part.type !== "tool-call") throw new Error("expected tool call");
+        const state = root
+          .getValue()
+          .part({ toolCallId: part.toolCallId })
+          .getState();
+        expect(state).toMatchObject(part);
+        expect(state).toEqual(root.getValue().part({ index }).getState());
+      }
       await expect(
         root.getValue().part({ index: 0 }).unstable_recordInteraction!({
           type: "action",

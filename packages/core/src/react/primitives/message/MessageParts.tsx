@@ -41,10 +41,7 @@ import {
 import type { DataRenderersState } from "../../types/scopes/dataRenderers";
 import type { ToolsState } from "../../types/scopes/tools";
 import { useShallowSelector } from "@assistant-ui/store/internal";
-import {
-  getMessagePartKeys,
-  getMessagePartGroupIdentity,
-} from "../../../utils/getMessagePartKeys";
+import { getMessagePartKeys } from "../../../utils/getMessagePartKeys";
 
 type MessagePartRange =
   | { type: "single"; index: number }
@@ -161,10 +158,8 @@ export const groupMessageParts = (
     const claimed = new Set<string>();
     for (const range of ranges) {
       if (range.type === "single") continue;
-      const id = getMessagePartGroupIdentity(
-        partIds.slice(range.startIndex, range.endIndex + 1),
-      );
-      if (id !== undefined && !claimed.has(id)) {
+      const id = partIds[range.startIndex];
+      if (id?.includes(":") && !claimed.has(id)) {
         claimed.add(id);
         range.idKey = `id:${id}`;
       }
@@ -884,7 +879,6 @@ const MessagePrimitivePartsCompat: FC<{
       return <EmptyParts components={components} />;
     }
 
-    const groupOrdinals = new Map<string, number>();
     return messageRanges.map((range) => {
       if (range.type === "single") {
         return (
@@ -896,11 +890,10 @@ const MessagePrimitivePartsCompat: FC<{
         );
       }
 
-      const ordinal = groupOrdinals.get(range.type) ?? 0;
-      groupOrdinals.set(range.type, ordinal + 1);
-      const groupKey = range.idKey
-        ? `${range.type}-${range.idKey}`
-        : `${range.type}@${ordinal}`;
+      const groupKey = JSON.stringify([
+        range.type,
+        range.idKey ?? range.startIndex,
+      ]);
       if (range.type === "chainOfThoughtGroup") {
         const ChainOfThoughtComponent = components?.ChainOfThought;
         if (!ChainOfThoughtComponent) return null;

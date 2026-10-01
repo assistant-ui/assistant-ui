@@ -47,6 +47,39 @@ afterEach(() => {
 });
 
 describe("MessageContent", () => {
+  it("keeps each seed with its id when identified parts swap", async () => {
+    const SeededText = ({ text }: { text: string }) => {
+      const [seed] = useState(text);
+      return <Text>{`${seed}:${text}`}</Text>;
+    };
+    const renderText: NonNullable<
+      Parameters<typeof MessageContent>[0]["renderText"]
+    > = ({ part }) => <SeededText text={part.text} />;
+    mockMessageState(mockUseAuiState, {
+      message: {
+        parts: [
+          { type: "text", id: "p1", text: "first" },
+          { type: "text", id: "p2", text: "second" },
+        ],
+      },
+    });
+    const instance = render(<MessageContent renderText={renderText} />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    mockMessageState(mockUseAuiState, {
+      message: {
+        parts: [
+          { type: "text", id: "p2", text: "second updated" },
+          { type: "text", id: "p1", text: "first updated" },
+        ],
+      },
+    });
+    instance.rerender(<MessageContent renderText={renderText} />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(instance.lastFrame()).toBe(
+      "second:second updated\nfirst:first updated",
+    );
+  });
+
   it("keeps a text seed while streaming and resets it for a replacement id", async () => {
     let content = [{ type: "text", id: "p1", text: "old" }];
     mockMessageState(mockUseAuiState, { message: { parts: content } });

@@ -2,7 +2,35 @@ import { describe, expect, it } from "vitest";
 import { groupMessageParts } from "../react/primitives/message/MessageParts";
 
 describe("groupMessageParts idKey", () => {
-  it("ignores positional keys when selecting the smallest identity in a mixed group", () => {
+  it("uses only the first identity key, including its type and delimiters", () => {
+    expect(
+      groupMessageParts(["reasoning", "tool-call", "reasoning"], true, [
+        "reasoning:b@1",
+        "tool-call:a",
+        "reasoning:a",
+      ]),
+    ).toEqual([
+      {
+        type: "chainOfThoughtGroup",
+        startIndex: 0,
+        endIndex: 2,
+        idKey: "id:reasoning:b@1",
+      },
+    ]);
+  });
+
+  it("leaves empty and unidentified groups to the structural fallback", () => {
+    expect(groupMessageParts([], true, [])).toEqual([]);
+    expect(
+      groupMessageParts(["reasoning", "tool-call", "reasoning"], true, [
+        "reasoning@0",
+        "tool-call@1",
+        undefined,
+      ]),
+    ).toEqual([{ type: "chainOfThoughtGroup", startIndex: 0, endIndex: 2 }]);
+  });
+
+  it("keeps a mixed group structural when its first key is positional", () => {
     const ranges = groupMessageParts(
       ["reasoning", "tool-call", "reasoning"],
       true,
@@ -13,7 +41,6 @@ describe("groupMessageParts idKey", () => {
         type: "chainOfThoughtGroup",
         startIndex: 0,
         endIndex: 2,
-        idKey: "id:reasoning:z",
       },
     ]);
   });
@@ -32,7 +59,7 @@ describe("groupMessageParts idKey", () => {
     expect(ranges).toEqual([{ type: "toolGroup", startIndex: 0, endIndex: 1 }]);
   });
 
-  it("derives a tool group's idKey from its smallest member identity", () => {
+  it("derives a tool group's idKey from its first member identity", () => {
     const ranges = groupMessageParts(
       ["text", "tool-call", "tool-call"],
       false,
@@ -44,7 +71,7 @@ describe("groupMessageParts idKey", () => {
         type: "toolGroup",
         startIndex: 1,
         endIndex: 2,
-        idKey: "id:tool-call:t1",
+        idKey: "id:tool-call:t2",
       },
     ]);
   });
@@ -87,7 +114,7 @@ describe("groupMessageParts idKey", () => {
     ]);
   });
 
-  it("derives a chain-of-thought group identity when it opens with anonymous reasoning", () => {
+  it("keeps a chain-of-thought group structural when it opens with reasoning", () => {
     const ranges = groupMessageParts(["reasoning", "tool-call"], true, [
       undefined,
       "tool-call:t1",
@@ -97,7 +124,6 @@ describe("groupMessageParts idKey", () => {
         type: "chainOfThoughtGroup",
         startIndex: 0,
         endIndex: 1,
-        idKey: "id:tool-call:t1",
       },
     ]);
   });

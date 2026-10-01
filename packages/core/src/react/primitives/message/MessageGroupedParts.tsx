@@ -199,7 +199,6 @@ const renderNode = <TKey extends `group-${string}`>(
   node: GroupNode,
   parts: readonly PartState[],
   render: (info: MessagePrimitiveGroupedParts.RenderInfo<TKey>) => ReactNode,
-  groupOrdinals: Map<string, number>,
 ): ReactNode => {
   if (node.type === "part") {
     return (
@@ -217,8 +216,6 @@ const renderNode = <TKey extends `group-${string}`>(
   }
 
   const { status, counts } = getGroupSummary(parts, node.indices);
-  const ordinal = groupOrdinals.get(node.key) ?? 0;
-  groupOrdinals.set(node.key, ordinal + 1);
   const groupPart: MessagePrimitiveGroupedParts.GroupPart<TKey> = {
     type: node.key as TKey,
     status,
@@ -227,17 +224,11 @@ const renderNode = <TKey extends `group-${string}`>(
   };
 
   return (
-    <Fragment
-      key={node.idKey ? `${node.key}-${node.idKey}` : `${node.key}@${ordinal}`}
-    >
+    <Fragment key={JSON.stringify([node.key, node.idKey ?? node.nodeKey])}>
       {render({
         part: groupPart,
         children: (
-          <>
-            {node.children.map((child) =>
-              renderNode(child, parts, render, groupOrdinals),
-            )}
-          </>
+          <>{node.children.map((child) => renderNode(child, parts, render))}</>
         ),
       })}
     </Fragment>
@@ -309,10 +300,9 @@ export const MessagePrimitiveGroupedParts = <TKey extends `group-${string}`>({
     // oxlint-disable-next-line react/exhaustive-deps -- groupBy is captured via memoDep (either its identity or the helper's memoKey fingerprint); listing it directly would defeat the helper-tagged memo path
   }, [parts, memoDep, toolUIs]);
 
-  const groupOrdinals = new Map<string, number>();
   return (
     <>
-      {tree.map((node) => renderNode(node, parts, children, groupOrdinals))}
+      {tree.map((node) => renderNode(node, parts, children))}
       {shouldShowIndicator(indicator, parts, isRunning) &&
         children({
           part: { type: "indicator" },

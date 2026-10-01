@@ -330,7 +330,7 @@ describe("groupPartByType", () => {
 describe("buildGroupTree idKey", () => {
   const ids = (values: readonly (string | undefined)[]) => values;
 
-  it("selects the smallest identity at every group depth and ignores positional keys", () => {
+  it("keeps every group depth structural when the first key is positional", () => {
     const tree = buildGroupTree(
       [
         ["a", "b"],
@@ -340,9 +340,9 @@ describe("buildGroupTree idKey", () => {
       ["reasoning@0", "tool-call:a", "reasoning:z"],
     );
     const group = tree[0]!;
-    expect(group.idKey).toBe("id:reasoning:z");
+    expect(group.idKey).toBeUndefined();
     if (group.type !== "group") throw new Error("expected group");
-    expect(group.children[0]!.idKey).toBe("id:reasoning:z");
+    expect(group.children[0]!.idKey).toBeUndefined();
   });
 
   it("leaves groups with only positional keys without an idKey", () => {
@@ -359,21 +359,21 @@ describe("buildGroupTree idKey", () => {
     }
   });
 
-  it("derives group idKey from the smallest member identity", () => {
+  it("derives group idKey from the first member identity", () => {
     const tree = buildGroupTree(
       asPaths([["a"], ["a"]]),
       ids(["tool-call:t2", "tool-call:t1"]),
     );
     const group = tree[0]!;
-    expect(group.idKey).toBe("id:tool-call:t1");
+    expect(group.idKey).toBe("id:tool-call:t2");
   });
 
-  it("derives group idKey when the first part has no identity", () => {
+  it("keeps group idKey undefined when the first part has no identity", () => {
     const tree = buildGroupTree(
       asPaths([["a"], ["a"]]),
       ids([undefined, "tool-call:t2"]),
     );
-    expect(tree[0]!.idKey).toBe("id:tool-call:t2");
+    expect(tree[0]!.idKey).toBeUndefined();
   });
 
   it("assigns leaf idKeys and lets a group and its first leaf share an id across levels", () => {

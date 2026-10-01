@@ -31,15 +31,3 @@ export const getMessagePartKeys = (
   keysByParts.set(parts, keys);
   return keys;
 };
-
-export const getMessagePartGroupIdentity = (
-  partKeys: readonly (string | undefined)[],
-): string | undefined => {
-  let smallest: string | undefined;
-  for (const key of partKeys) {
-    if (key?.includes(":") && (smallest === undefined || key < smallest)) {
-      smallest = key;
-    }
-  }
-  return smallest;
-};

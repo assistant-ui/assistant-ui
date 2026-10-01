@@ -105,7 +105,7 @@ const convertDataPrefixedPart = (
     type: "data",
     name: type.substring(5),
     data,
-    ...(id !== undefined && { id }),
+    ...(typeof id === "string" && { id }),
   };
 };
 

@@ -3,6 +3,33 @@ import { fromThreadMessageLike } from "./thread-message-like";
 
 describe("fromThreadMessageLike", () => {
   it.each(["assistant", "user"] as const)(
+    "drops non-string data-prefixed part ids on %s messages",
+    (role) => {
+      const invalidIds = [null, 42, true, {}, []];
+      const message = fromThreadMessageLike(
+        {
+          role,
+          content: invalidIds.map((id) => ({
+            type: "data-workflow",
+            id: id as unknown as string,
+            data: { step: 1 },
+          })),
+        },
+        "message",
+        { type: "complete", reason: "unknown" },
+      );
+      expect(message.content).toEqual(
+        invalidIds.map(() => ({
+          type: "data",
+          name: "workflow",
+          data: { step: 1 },
+        })),
+      );
+      for (const part of message.content) expect(part).not.toHaveProperty("id");
+    },
+  );
+
+  it.each(["assistant", "user"] as const)(
     "round-trips data-prefixed part ids on %s messages",
     (role) => {
       const message = fromThreadMessageLike(
