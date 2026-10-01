@@ -33,6 +33,8 @@ import { useXuluxTemplateContext } from "./XuluxTemplateContext";
 import { LearnCourseResultFooter, XuluxToolCall } from "./XuluxToolCall";
 import { XuluxUsageLimitBanner } from "./XuluxUsageLimitBanner";
 
+const XULUX_MODEL_CONTEXT = { config: { modelName: XULUX_MODEL_ID } };
+
 export function XuluxThread({
   onNewThread,
   learn,
@@ -124,6 +126,14 @@ function XuluxComposer({
 }): ReactNode {
   const aui = useAui();
   const analyticsCtx = useXuluxAnalytics();
+
+  useEffect(
+    () =>
+      aui.modelContext.register({
+        getModelContext: () => XULUX_MODEL_CONTEXT,
+      }),
+    [aui],
+  );
 
   return (
     <div>
