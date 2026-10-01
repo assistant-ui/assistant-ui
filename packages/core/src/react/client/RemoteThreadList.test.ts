@@ -1143,10 +1143,10 @@ describe("RemoteThreadList", () => {
     const { handle, aui, localId } = await mountRacedInitialize("archived");
 
     await vi.waitFor(() => {
-      expect(aui.threads.getState().threadIds).toEqual([localId]);
-      expect(aui.threads.getState().archivedThreadIds).toEqual([]);
+      expect(aui.threads.item({ id: "remote-1" }).getState().id).toBe(localId);
     });
-    expect(aui.threads.item({ id: "remote-1" }).getState().id).toBe(localId);
+    expect(aui.threads.getState().threadIds).toEqual([localId]);
+    expect(aui.threads.getState().archivedThreadIds).toEqual([]);
     handle.destroy();
   });
 
