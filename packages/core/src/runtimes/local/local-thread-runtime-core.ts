@@ -193,6 +193,7 @@ export class LocalThreadRuntimeCore
   >();
 
   private _historyWrites = new Map<string, Promise<void>>();
+  private _deletedMessages = new Set<string>();
 
   // Writes for one message id must land in issue order; an earlier paused
   // snapshot arriving after the terminal write would resurrect the pause.
@@ -200,6 +201,8 @@ export class LocalThreadRuntimeCore
     id: string,
     write: () => Promise<void>,
   ): Promise<void> {
+    if (this._deletedMessages.has(id)) return Promise.resolve();
+
     // The first write for an id is issued synchronously, so it reaches the adapter before a turn appended under that message in the same tick.
     const pending = this._historyWrites.get(id);
     let next: Promise<void>;
@@ -776,7 +779,15 @@ export class LocalThreadRuntimeCore
     const parentId = messages[messageIndex - 1]?.id ?? null;
     const items = [{ parentId, message }];
 
-    await adapter.delete(items);
+    const pending = this._historyWrites.get(messageId);
+    this._deletedMessages.add(messageId);
+    try {
+      await adapter.delete(items);
+    } catch (error) {
+      this._deletedMessages.delete(messageId);
+      throw error;
+    }
+    void pending?.then(() => adapter.delete!(items)).catch(() => {});
 
     this.repository.deleteMessage(messageId);
     this._notifySubscribers();
@@ -796,6 +807,7 @@ export class LocalThreadRuntimeCore
     this._roundtripsInFlight.clear();
     this._followedDuringRun.clear();
     this._unwrittenMessages.clear();
+    this._deletedMessages.clear();
     super.import(withLocalPauseReasons(data));
   }
 
