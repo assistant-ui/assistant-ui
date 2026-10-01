@@ -58,6 +58,18 @@
     "@assistant-ui/core": "^0.3.21",
     "assistant-stream": "^0.3.45"
   },
+  "peerDependencies": {
+    "@types/react": "*",
+    "react": "^18 || ^19"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
