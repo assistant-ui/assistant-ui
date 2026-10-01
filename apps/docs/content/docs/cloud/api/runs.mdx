@@ -180,7 +180,7 @@ The response streams from the selected assistant.
 | `400` | `{ "error": "Schema validation error", "details": […] }` | `Accept` is missing or is not `text/plain` or `text/event-stream`, or the body failed validation. |
 | `400` | `{ "error": "Invalid messages format: <Zod error message>" }` | A message does not have an allowed role, content array, or typed content item. |
 | `400` | `{ "error": "Invalid response format" }` | A normal assistant run did not request `vercel-ai-data-stream/v1`. |
-| `400` | `{ "error": "Provider base URL must be a valid URL" }`, `Provider base URL must use HTTPS`, `Provider base URL must use HTTP or HTTPS` or `Provider base URL must not target a private or loopback address` | The selected assistant's provider base URL was refused. |
+| `400` | `{ "error": "<message>" }`, where the message is `Provider base URL must be a valid URL`, `Provider base URL must use HTTPS`, `Provider base URL must use HTTP or HTTPS`, or `Provider base URL must not target a private or loopback address` | The selected assistant's provider base URL was refused. |
 | `404` | `{ "error": "Thread not found" }` | The thread is not in the caller's workspace. |
 | `404` | `{ "error": "Assistant not found" }` | No selected assistant is available to the caller. |
 | `401` or `403` | An authentication error. | The caller was not accepted. See [Conventions](/docs/cloud/api). |

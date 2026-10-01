@@ -150,12 +150,12 @@ Content-Type: application/json
 | Status | Body | When |
 |---|---|---|
 | `200` | Stream | The assistant run starts. |
-| `400` | `Invalid messages format: <zod message>` | A message does not have a supported role and content array. |
-| `400` | `Invalid response format` | `response_format` is not `vercel-ai-data-stream/v1` for a normal assistant. |
+| `400` | `{ "error": "Invalid messages format: <Zod error message>" }` | A message does not have a supported role and content array. |
+| `400` | `{ "error": "Invalid response format" }` | `response_format` is not `vercel-ai-data-stream/v1` for a normal assistant. |
 | `400` | `{ "error": "Schema validation error", "details": […] }` | `Accept` is missing or is not `text/plain` or `text/event-stream`, or a required field fails validation. |
-| `400` | `Provider base URL must be a valid URL`, `Provider base URL must use HTTPS`, `Provider base URL must use HTTP or HTTPS`, or `Provider base URL must not target a private or loopback address` | The assistant's provider base URL fails the outbound URL check. |
-| `404` | `Thread not found` | The thread is not in the caller's workspace. |
-| `404` | `Assistant not found` | The assistant does not exist in the project. |
+| `400` | `{ "error": "<message>" }`, where the message is `Provider base URL must be a valid URL`, `Provider base URL must use HTTPS`, `Provider base URL must use HTTP or HTTPS`, or `Provider base URL must not target a private or loopback address` | The assistant's provider base URL fails the outbound URL check. |
+| `404` | `{ "error": "Thread not found" }` | The thread is not in the caller's workspace. |
+| `404` | `{ "error": "Assistant not found" }` | The assistant does not exist in the project. |
 
 ## Costs and limits
 
