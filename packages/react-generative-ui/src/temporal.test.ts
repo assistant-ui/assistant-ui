@@ -117,6 +117,17 @@ describe("temporal values", () => {
     expect(normalizeTemporalInputValue(value!)).toBe(expected);
   });
 
+  it("completes normalization of a 100000 digit zero fraction", () => {
+    const zeros = "0".repeat(100_000);
+    for (const value of [zeros, `12:00:00.${zeros}`, `12:00:00.${zeros}1`]) {
+      expect(normalizeTemporalInputValue(value)).toBe(value);
+    }
+    expect(normalizeTemporalInputValue("12:00:00.000000000")).toBe("12:00");
+    expect(normalizeTemporalInputValue("12:00:00.100000000")).toBe(
+      "12:00:00.1",
+    );
+  });
+
   it("uses a fixed viewer time zone with seasonal offsets", () => {
     expect(Intl.DateTimeFormat().resolvedOptions().timeZone).toBe(
       "America/New_York",

@@ -1550,6 +1550,7 @@ describe.each([
       title: "time only",
       field: { component: "DateTimeInput", enableTime: true },
       initial: "17:00:00",
+      submitted: "17:00",
       edited: "08:30:45",
       type: "time",
     },
@@ -1601,7 +1602,7 @@ describe.each([
     },
   ])(
     "preserves untouched, edited, and cleared $title values",
-    async ({ field, initial, edited, type }) => {
+    async ({ field, initial, submitted, edited, type }) => {
       const { container, render, submit } = await mountSurface(field, initial);
       const input = () =>
         container.querySelector<HTMLInputElement>('input[name="/form/value"]')!;
@@ -1624,7 +1625,7 @@ describe.each([
         initial === "17:00:00" ? "17:00" : (initial ?? ""),
       );
       if (type === "number") expect(input().step).toBe("any");
-      await submit(initial ?? "");
+      await submit(submitted ?? initial ?? "");
 
       await edit(edited);
       expect(input().value).toBe(edited);

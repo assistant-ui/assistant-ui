@@ -738,7 +738,7 @@ describe("convertSurfaceToUISpec", () => {
         inputType === "date"
           ? { min: "2025-01-01", max: "2025-12-31" }
           : inputType === "datetime"
-            ? { min: "2025-01-01T00:00", max: "2025-12-31T23:59" }
+            ? { min: "2025-01-01T00:00", max: "2025-12-31T23:59:59.999" }
             : {};
       expect(result.warnings).toEqual(
         inputType === "time"
@@ -907,7 +907,7 @@ describe("convertSurfaceToUISpec", () => {
       mode: { enableDate: true, enableTime: true },
       bounds: { min: "2025-01-01", max: "2025-12-31" },
       inputType: "datetime",
-      expected: { min: "2025-01-01T00:00", max: "2025-12-31T23:59" },
+      expected: { min: "2025-01-01T00:00", max: "2025-12-31T23:59:59.999" },
       warnings: [],
     },
   ] as const)(

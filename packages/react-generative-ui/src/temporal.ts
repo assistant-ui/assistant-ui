@@ -21,14 +21,16 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/;
 const DATETIME_PATTERN =
   /^(\d{4}-\d{2}-\d{2})T([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d)(?:\.(\d+))?)?(Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)?$/;
+const INPUT_PATTERN =
+  /^((?:\d{4}-\d{2}-\d{2}T)?(?:[01]\d|2[0-3]):[0-5]\d)(?::([0-5]\d)(?:\.(\d{1,9}))?)?$/;
 
 export const normalizeTemporalInputValue = (value: string): string => {
-  const match =
-    /^((?:\d{4}-\d{2}-\d{2}T)?(?:[01]\d|2[0-3]):[0-5]\d)(?::([0-5]\d)(?:\.(\d+))?)?$/.exec(
-      value,
-    );
+  const match = INPUT_PATTERN.exec(value);
   if (!match || match[2] === undefined) return value;
-  const fraction = match[3]?.replace(/0+$/, "");
+  const digits = match[3] ?? "";
+  let end = digits.length;
+  while (end > 0 && digits[end - 1] === "0") end--;
+  const fraction = digits.slice(0, end);
   if (match[2] === "00" && !fraction) return match[1]!;
   return `${match[1]}:${match[2]}${fraction ? `.${fraction}` : ""}`;
 };
@@ -69,6 +71,22 @@ export const classifyTemporal = (value: string): TemporalValue => {
       ? { subMillisecondDigits: datetime[5].slice(3) }
       : {}),
   };
+};
+
+export const getTemporalInputStep = (
+  ...values: (string | undefined)[]
+): "any" | 1 | undefined => {
+  let step: 1 | undefined;
+  for (const value of values) {
+    const temporal = classifyTemporal(value ?? "");
+    const precision =
+      "precision" in temporal
+        ? temporal.precision
+        : INPUT_PATTERN.exec(value ?? "")?.[3]?.length;
+    if (typeof precision === "number") return "any";
+    if (precision === "seconds") step = 1;
+  }
+  return step;
 };
 
 export const splitTemporalMinutes = (
@@ -171,14 +189,17 @@ export const fromOffsetDateTime = (
   });
 };
 
-export const toLocalDateTime = (value: string): string => {
+export const toLocalDateTime = (
+  value: string,
+  precision?: TemporalPrecision,
+): string => {
   const temporal = classifyTemporal(value);
   if (temporal.kind !== "instant") return value;
   const date = new Date(temporal.epochMs);
   const wallTime = `${pad(date.getFullYear(), 4)}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-  return temporal.precision === "minutes"
+  return (precision ?? temporal.precision) === "minutes"
     ? wallTime
-    : `${wallTime}:${pad(date.getSeconds())}`;
+    : `${wallTime}:${pad(date.getSeconds())}${typeof precision === "number" ? formatTemporalInstant(temporal, "Z", precision).slice(19, -1) : ""}`;
 };
 
 export const fromLocalDateTime = (

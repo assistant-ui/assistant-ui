@@ -21,6 +21,7 @@ import { useRadioGroupName } from "../RadioGroupScope";
 import {
   classifyTemporal,
   fromLocalDateTime,
+  getTemporalInputStep,
   normalizeTemporalInputValue,
   toLocalDateTime,
 } from "../temporal";
@@ -408,12 +409,25 @@ function DatePickerRender({
   const [selection, setSelection] = React.useState({
     initialValue,
     value: initialValue,
+    anchor: initialValue,
   });
   if (selection.initialValue !== initialValue) {
-    setSelection({ initialValue, value: initialValue });
+    setSelection({
+      initialValue,
+      value: initialValue,
+      anchor:
+        isBound && initialValue === selection.value
+          ? selection.anchor
+          : initialValue,
+    });
   }
   const currentValue = isBound ? initialValue : selection.value;
   const temporal = classifyTemporal(currentValue ?? "");
+  const anchor = classifyTemporal(selection.anchor ?? "");
+  const hasInstantAnchor =
+    inputType === "datetime" && anchor.kind === "instant";
+  const minimum = classifyTemporal(min ?? "");
+  const maximum = classifyTemporal(max ?? "");
   const hydrated = React.useSyncExternalStore(
     subscribeToHydration,
     clientHydrationSnapshot,
@@ -442,7 +456,11 @@ function DatePickerRender({
       readOnly={showRawValue || undefined}
       data-aui="datepicker"
       data-aui-action={actionAttr($action)}
-      {...{ [FIELD_VALUE_ATTR]: currentValue }}
+      {...{
+        [FIELD_VALUE_ATTR]: hasInstantAnchor
+          ? currentValue || selection.anchor
+          : undefined,
+      }}
       name={name}
       aria-label={label}
       {...(isBound || inputType === "datetime"
@@ -450,37 +468,49 @@ function DatePickerRender({
         : { defaultValue: displayValue })}
       min={
         inputType === "datetime" && hydrated && min !== undefined
-          ? normalizeTemporalInputValue(toLocalDateTime(min))
+          ? normalizeTemporalInputValue(
+              toLocalDateTime(
+                min,
+                minimum.kind === "instant" ? minimum.precision : undefined,
+              ),
+            )
           : min === undefined
             ? undefined
             : normalizeTemporalInputValue(min)
       }
       max={
         inputType === "datetime" && hydrated && max !== undefined
-          ? normalizeTemporalInputValue(toLocalDateTime(max))
+          ? normalizeTemporalInputValue(
+              toLocalDateTime(
+                max,
+                maximum.kind === "instant" ? maximum.precision : undefined,
+              ),
+            )
           : max === undefined
             ? undefined
             : normalizeTemporalInputValue(max)
       }
       step={
-        inputType !== "date" &&
-        (("precision" in temporal && temporal.precision !== "minutes") ||
-          (inputType === "time" &&
-            /^(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d\.\d+$/.test(
-              currentValue ?? "",
-            )))
-          ? 1
+        inputType !== "date"
+          ? getTemporalInputStep(selection.anchor, currentValue, min, max)
           : undefined
       }
       onChange={(e) => {
         const nextValue =
           inputType === "datetime"
-            ? fromLocalDateTime(e.currentTarget.value, currentValue)
+            ? fromLocalDateTime(e.currentTarget.value, selection.anchor)
             : e.currentTarget.value;
-        e.currentTarget.setAttribute(FIELD_VALUE_ATTR, nextValue);
-        if (!isBound) {
-          setSelection({ initialValue, value: nextValue });
+        if (hasInstantAnchor) {
+          e.currentTarget.setAttribute(
+            FIELD_VALUE_ATTR,
+            nextValue || selection.anchor!,
+          );
         }
+        setSelection({
+          initialValue,
+          value: nextValue,
+          anchor: selection.anchor,
+        });
         updateBinding?.(nextValue);
         fire($action, $dispatch, nextValue, e.currentTarget);
       }}

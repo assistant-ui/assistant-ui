@@ -72,55 +72,118 @@ describe("Teams temporal DatePicker", () => {
     ).toBe(dropped);
   });
 
-  it("maps time bounds to HH:mm and drops nonzero seconds", () => {
+  it("rounds a time minimum up and truncates a time maximum to HH:mm", () => {
     const { card } = toAdaptiveCard({
       $type: "DatePicker",
       inputType: "time",
       value: "17:00:30",
       min: "08:15:30",
-      max: "20:45:00",
+      max: "20:45:30",
     });
     expect(card.body).toEqual([
       {
         type: "Input.Time",
         id: "datepicker",
         value: "17:00",
-        min: "08:15",
+        min: "08:16",
         max: "20:45",
       },
     ]);
   });
 
-  it.each([
-    ["2025-12-15T17:00:00Z", "When (UTC)"],
-    ["2025-12-15T17:00:00+02:00", "When (UTC+02:00)"],
-    ["2025-12-15T17:00", "When"],
-    ["", "When"],
-  ])("round trips datetime %j through the paired inputs", (value, label) => {
-    const result = submit("datetime", value);
-    expect(result.inputs).toEqual([
+  it("drops a time minimum that rounds past 23:59", () => {
+    const { card, warnings } = toAdaptiveCard({
+      $type: "DatePicker",
+      inputType: "time",
+      min: "23:59:30",
+    });
+    expect(card.body).toEqual([{ type: "Input.Time", id: "datepicker" }]);
+    expect(warnings).toEqual([
       {
-        type: "Input.Date",
-        id: "when",
-        label,
-        ...(value ? { value: "2025-12-15" } : {}),
+        code: "dropped",
+        component: "DatePicker",
+        detail: "The time minimum rounds past 23:59 and was dropped.",
       },
+    ]);
+  });
+
+  it.each([
+    ["2025-12-15T17:00:00Z", "When time (UTC)"],
+    ["2025-12-15T17:00:00+02:00", "When time (UTC+02:00)"],
+    ["2025-12-15T17:00", "When time"],
+    ["", "When time"],
+  ])(
+    "round trips datetime %j through the paired inputs",
+    (value, timeLabel) => {
+      const result = submit("datetime", value);
+      expect(result.inputs).toEqual([
+        {
+          type: "Input.Date",
+          id: "when",
+          label: "When",
+          ...(value ? { value: "2025-12-15" } : {}),
+        },
+        {
+          type: "Input.Time",
+          id: "when_time",
+          label: timeLabel,
+          ...(value ? { value: "17:00" } : {}),
+        },
+      ]);
+      expect(result.action.data.aui.temporal?.["when"]).toMatchObject({
+        mode: "datetime",
+        dateId: "when",
+        timeId: "when_time",
+      });
+      expect(result.decoded).toEqual({
+        type: "pick",
+        selected: value,
+        $input: { when: value },
+      });
+    },
+  );
+
+  it.each([
+    ["2025-12-15T17:00", "When time"],
+    ["2025-12-15T17:00:00Z", "When time (UTC)"],
+    ["2025-12-15T17:00:00+02:00", "When time (UTC+02:00)"],
+  ])("labels both datetime inputs for %s", (value, timeLabel) => {
+    const { card } = picker("datetime", value);
+    expect(card.body.slice(0, 2)).toMatchObject([
+      { type: "Input.Date", label: "When" },
+      { type: "Input.Time", label: timeLabel },
+    ]);
+  });
+
+  it("names only the offset of an unlabeled instant", () => {
+    const { card } = toAdaptiveCard({
+      $type: "DatePicker",
+      name: "when",
+      inputType: "datetime",
+      value: "2025-12-15T17:00:00Z",
+    });
+    expect(card.body).toEqual([
+      { type: "Input.Date", id: "when", value: "2025-12-15" },
       {
         type: "Input.Time",
         id: "when_time",
-        ...(value ? { value: "17:00" } : {}),
+        label: "Time (UTC)",
+        value: "17:00",
       },
     ]);
-    expect(result.action.data.aui.temporal?.["when"]).toMatchObject({
-      mode: "datetime",
-      dateId: "when",
-      timeId: "when_time",
+  });
+
+  it("leaves both datetime inputs unlabeled for an unlabeled local value", () => {
+    const { card } = toAdaptiveCard({
+      $type: "DatePicker",
+      name: "when",
+      inputType: "datetime",
+      value: "2025-12-15T17:00",
     });
-    expect(result.decoded).toEqual({
-      type: "pick",
-      selected: value,
-      $input: { when: value },
-    });
+    expect(card.body).toEqual([
+      { type: "Input.Date", id: "when", value: "2025-12-15" },
+      { type: "Input.Time", id: "when_time", value: "17:00" },
+    ]);
   });
 
   it("submits a newly selected empty datetime as a local wall minute", () => {
@@ -172,12 +235,17 @@ describe("Teams temporal DatePicker", () => {
       {
         type: "Input.Date",
         id: "when",
-        label: "When (UTC+02:00)",
+        label: "When",
         value: "2025-12-15",
         min: "2025-12-15",
         max: "2025-12-21",
       },
-      { type: "Input.Time", id: "when_time", value: "17:00" },
+      {
+        type: "Input.Time",
+        id: "when_time",
+        label: "When time (UTC+02:00)",
+        value: "17:00",
+      },
     ]);
   });
 

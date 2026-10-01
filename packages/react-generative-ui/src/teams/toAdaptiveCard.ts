@@ -620,7 +620,29 @@ export function convertElement(
           );
         }
         const value = parts?.time;
-        const min = splitTemporalMinutes(asString(props["min"]))?.time;
+        const rawMin = asString(props["min"]);
+        const minParts = splitTemporalMinutes(rawMin);
+        let min = minParts?.time;
+        if (
+          classifyTemporal(rawMin).kind === "time" &&
+          minParts?.droppedPrecision
+        ) {
+          const minuteOfDay =
+            Number(minParts.time.slice(0, 2)) * 60 +
+            Number(minParts.time.slice(3, 5)) +
+            1;
+          if (minuteOfDay === 24 * 60) {
+            min = undefined;
+            warn(
+              context,
+              "dropped",
+              "DatePicker",
+              "The time minimum rounds past 23:59 and was dropped.",
+            );
+          } else {
+            min = `${String(Math.floor(minuteOfDay / 60)).padStart(2, "0")}:${String(minuteOfDay % 60).padStart(2, "0")}`;
+          }
+        }
         const max = splitTemporalMinutes(asString(props["max"]))?.time;
         const input: TeamsCardElement = {
           type: "Input.Time",
@@ -629,8 +651,7 @@ export function convertElement(
           ...(classifyTemporal(rawValue).kind === "time" && value !== undefined
             ? { value }
             : {}),
-          ...(classifyTemporal(asString(props["min"])).kind === "time" &&
-          min !== undefined
+          ...(classifyTemporal(rawMin).kind === "time" && min !== undefined
             ? { min }
             : {}),
           ...(classifyTemporal(asString(props["max"])).kind === "time" &&
@@ -667,13 +688,7 @@ export function convertElement(
         const dateInput: TeamsCardElement = {
           type: "Input.Date",
           id: dateId,
-          ...(offsetLabel || label
-            ? {
-                label: offsetLabel
-                  ? `${label ? `${label} ` : ""}(${offsetLabel})`
-                  : label,
-              }
-            : {}),
+          ...(label ? { label } : {}),
           ...(parts?.date !== undefined ? { value: parts.date } : {}),
           ...(min !== undefined ? { min } : {}),
           ...(max !== undefined ? { max } : {}),
@@ -681,6 +696,11 @@ export function convertElement(
         const timeInput: TeamsCardElement = {
           type: "Input.Time",
           id: timeId,
+          ...(label || offsetLabel
+            ? {
+                label: `${label ? `${label} time` : "Time"}${offsetLabel ? ` (${offsetLabel})` : ""}`,
+              }
+            : {}),
           ...(parts?.time !== undefined ? { value: parts.time } : {}),
         };
         if (element.action === undefined) return [dateInput, timeInput];

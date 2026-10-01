@@ -846,7 +846,7 @@ const mappedProps = (
       const boundType = dateInputType(boundValue);
       if (boundType === inputType) return boundValue;
       if (inputType === "datetime" && boundType === "date") {
-        return `${boundValue}T${edge === "min" ? "00:00" : "23:59"}`;
+        return `${boundValue}T${edge === "min" ? "00:00" : "23:59:59.999"}`;
       }
       context.warnings.push(
         `A2UI DateTimeInput "${edge}" of "${boundValue}" is not a ${inputType} value and was dropped.`,
