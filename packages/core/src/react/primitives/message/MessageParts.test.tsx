@@ -7,6 +7,7 @@ import { AssistantRuntimeProvider } from "../../AssistantRuntimeProvider";
 import { ThreadPrimitiveMessages } from "../thread/ThreadMessages";
 import { useExternalStoreRuntime } from "../../runtimes/useExternalStoreRuntime";
 import { MessagePrimitiveParts } from "./MessageParts";
+import { ChainOfThoughtPrimitiveParts } from "../chainOfThought/ChainOfThoughtParts";
 
 const Named = () => <b>named</b>;
 const Fallback = () => <i>fallback</i>;
@@ -139,7 +140,7 @@ describe("MessagePrimitive.Parts", () => {
       expect(view.values()).toEqual(["new:new"]);
     });
 
-    it("renders duplicate ids and remounts a replacement id", () => {
+    it("keys duplicate ids positionally and remounts newly unique ids", () => {
       const view = renderIdentityParts(
         [
           { type: "text", id: "p1", text: "first" },
@@ -156,12 +157,91 @@ describe("MessagePrimitive.Parts", () => {
         "second:second streamed",
       ]);
       view.setContent([
+        { type: "text", id: "p1", text: "second moved" },
+        { type: "text", id: "p1", text: "first moved" },
+      ]);
+      expect(view.values()).toEqual([
+        "first:second moved",
+        "second:first moved",
+      ]);
+      view.setContent([
         { type: "text", id: "p2", text: "new" },
         { type: "text", id: "p1", text: "second streamed" },
       ]);
-      expect(view.values()).toEqual(["new:new", "first:second streamed"]);
+      expect(view.values()).toEqual([
+        "new:new",
+        "second streamed:second streamed",
+      ]);
+    });
+
+    it("mounts fresh state when removing a duplicate makes an id unique", () => {
+      const view = renderIdentityParts(
+        [
+          { type: "text", id: "p1", text: "first" },
+          { type: "text", id: "p1", text: "second" },
+        ],
+        mode,
+      );
+      view.setContent([{ type: "text", id: "p1", text: "second updated" }]);
+      expect(view.values()).toEqual(["second updated:second updated"]);
     });
   });
+
+  it.each(["reasoning", "tool-call", "chain-of-thought"] as const)(
+    "keeps the %s wrapper and every leaf seed when the first two children swap",
+    (kind) => {
+      let mounts = 0;
+      const Group = ({ children }: PropsWithChildren) => {
+        const [mount] = useState(() => ++mounts);
+        return <section data-mount={mount}>{children}</section>;
+      };
+      const Tool = ({ argsText }: { argsText: string }) => (
+        <StateProbe text={argsText} />
+      );
+      const ChainOfThought = () => (
+        <Group>
+          <ChainOfThoughtPrimitiveParts
+            components={{ Reasoning: StateProbe, tools: { Fallback: Tool } }}
+          />
+        </Group>
+      );
+      const parts = ["first", "second", "third"].map((text, index) =>
+        kind === "tool-call" || (kind === "chain-of-thought" && index === 1)
+          ? {
+              type: "tool-call" as const,
+              toolCallId: text,
+              toolName: "task",
+              args: {},
+              argsText: text,
+            }
+          : { type: "reasoning" as const, id: text, text },
+      );
+      const view = renderIdentityParts(
+        parts,
+        "components",
+        kind === "chain-of-thought"
+          ? { ChainOfThought }
+          : {
+              Reasoning: StateProbe,
+              ReasoningGroup: Group,
+              ToolGroup: Group,
+              tools: { Fallback: Tool },
+            },
+      );
+      const updated = parts.map((part) =>
+        part.type === "tool-call"
+          ? { ...part, argsText: `${part.argsText} updated` }
+          : { ...part, text: `${part.text} updated` },
+      );
+      view.setContent([updated[1]!, updated[0]!, updated[2]!]);
+      expect(view.container.querySelector("section")?.dataset.mount).toBe("1");
+      expect(view.values()).toEqual([
+        "second:second updated",
+        "first:first updated",
+        "third:third updated",
+      ]);
+    },
+  );
 
   it("keeps a reasoning group mounted when its first part moves", () => {
     let mounts = 0;

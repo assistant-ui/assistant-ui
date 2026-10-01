@@ -33,6 +33,7 @@ import { readToolInteractionLog } from "./tool-interactions";
 
 type DataPrefixedPart = {
   readonly type: `data-${string}`;
+  readonly id?: string;
   readonly data: any;
 };
 
@@ -97,9 +98,15 @@ export type ThreadMessageLike = {
 const convertDataPrefixedPart = (
   type: string,
   data: unknown,
+  id?: string,
 ): DataMessagePart | undefined => {
   if (!type.startsWith("data-")) return undefined;
-  return { type: "data", name: type.substring(5), data };
+  return {
+    type: "data",
+    name: type.substring(5),
+    data,
+    ...(id !== undefined && { id }),
+  };
 };
 
 /**
@@ -222,7 +229,11 @@ export const fromThreadMessageLike = (
 
               default: {
                 const dataType: `data-${string}` = type;
-                const converted = convertDataPrefixedPart(dataType, part.data);
+                const converted = convertDataPrefixedPart(
+                  dataType,
+                  part.data,
+                  part.id,
+                );
                 if (converted) return converted;
                 throw new Error(
                   `Unsupported assistant message part type: ${dataType}`,
@@ -276,7 +287,11 @@ export const fromThreadMessageLike = (
 
             default: {
               const dataType: `data-${string}` = type;
-              const converted = convertDataPrefixedPart(dataType, part.data);
+              const converted = convertDataPrefixedPart(
+                dataType,
+                part.data,
+                part.id,
+              );
               if (converted) return converted;
               throw new Error(
                 `Unsupported user message part type: ${dataType}`,
@@ -290,6 +305,7 @@ export const fromThreadMessageLike = (
             const converted = convertDataPrefixedPart(
               part.type,
               (part as DataPrefixedPart).data,
+              "id" in part ? part.id : undefined,
             );
             return converted ?? (part as ThreadUserMessagePart);
           }),

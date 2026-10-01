@@ -11,22 +11,22 @@ export const getMessagePartKeys = (
   const cached = keysByParts.get(parts);
   if (cached) return cached;
 
-  const claimed = new Set<string>();
-  const keys = parts.map((part, index) => {
+  const keyCounts = new Map<string, number>();
+  const identityKeys = parts.map((part) => {
     const identity =
       part.type === "tool-call"
         ? part.toolCallId
-        : "id" in part && part.id
+        : "id" in part
           ? part.id
           : undefined;
-    if (identity !== undefined) {
-      const key = `${part.type}:${identity}`;
-      if (!claimed.has(key)) {
-        claimed.add(key);
-        return key;
-      }
-    }
-    return `${part.type}@${index}`;
+    if (!identity) return undefined;
+    const key = `${part.type}:${identity}`;
+    keyCounts.set(key, (keyCounts.get(key) ?? 0) + 1);
+    return key;
+  });
+  const keys = parts.map((part, index) => {
+    const key = identityKeys[index];
+    return key && keyCounts.get(key) === 1 ? key : `${part.type}@${index}`;
   });
   keysByParts.set(parts, keys);
   return keys;

@@ -41,7 +41,7 @@ The model provider is irrelevant to rendering; swap `openai.image(...)` for any 
 
 ## Store it as an `ImageMessagePart`
 
-An `ImageMessagePart` only needs `image` (a `data:` URI, an `https://` URL, or a `blob:` URL) plus an optional `filename`. Its optional `id` is a stable identity the host supplies to keep the part's component state when parts are replaced or reordered; without it, the part is keyed by its type and position. Keep any provenance you want to display, the prompt, a revised prompt, a model id, in your own component state or in message metadata; the part itself stays minimal.
+An `ImageMessagePart` only needs `image` (a `data:` URI, an `https://` URL, or a `blob:` URL) plus an optional `filename`. Its optional `id` keys the part when it is non-empty and unique within its message, preserving component state when parts are reordered or updated with the same id. Every part with a missing, empty, or duplicate id is keyed by its type and position. Keep any provenance you want to display, the prompt, a revised prompt, a model id, in your own component state or in message metadata; the part itself stays minimal.
 
 ```ts
 const part: ImageMessagePart = {

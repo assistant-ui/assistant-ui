@@ -159,6 +159,7 @@ type AuiV0ToolCallPart = {
 type AuiV0AttachmentPart =
   | {
       readonly type: "text";
+      readonly id?: string;
       readonly text: string;
       readonly providerMetadata?: NonNullable<
         TextMessagePart["providerMetadata"]
@@ -167,6 +168,7 @@ type AuiV0AttachmentPart =
     }
   | {
       readonly type: "image";
+      readonly id?: string;
       readonly image: string;
       readonly filename?: string;
       readonly providerMetadata?: NonNullable<
@@ -175,6 +177,7 @@ type AuiV0AttachmentPart =
     }
   | {
       readonly type: "file";
+      readonly id?: string;
       readonly data: string;
       readonly mimeType: string;
       readonly filename?: string;
@@ -193,6 +196,7 @@ type AuiV0AttachmentPart =
     }
   | {
       readonly type: "data";
+      readonly id?: string;
       readonly name: string;
       readonly data: ReadonlyJSONValue;
     };
@@ -235,6 +239,7 @@ const encodeAttachmentPart = (
     case "text":
       return {
         type: "text",
+        ...(part.id !== undefined ? { id: part.id } : undefined),
         text: part.text,
         ...(part.providerMetadata !== undefined
           ? { providerMetadata: part.providerMetadata }
@@ -247,6 +252,7 @@ const encodeAttachmentPart = (
     case "image":
       return {
         type: "image",
+        ...(part.id !== undefined ? { id: part.id } : undefined),
         image: part.image,
         ...(part.filename != null ? { filename: part.filename } : undefined),
         ...(part.providerMetadata !== undefined
@@ -257,6 +263,7 @@ const encodeAttachmentPart = (
     case "file":
       return {
         type: "file",
+        ...(part.id !== undefined ? { id: part.id } : undefined),
         data: part.data,
         mimeType: part.mimeType,
         ...(part.filename != null ? { filename: part.filename } : undefined),
@@ -283,6 +290,7 @@ const encodeAttachmentPart = (
       }
       return {
         type: "data",
+        ...(part.id !== undefined ? { id: part.id } : undefined),
         name: part.name,
         data: part.data as ReadonlyJSONValue,
       };

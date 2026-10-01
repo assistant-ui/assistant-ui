@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { render, screen, waitFor } from "@testing-library/react";
-import { useEffect, type FC, type ReactNode } from "react";
+import { useEffect, useState, type FC, type ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 import type { ThreadMessageLike } from "@assistant-ui/core";
 import {
@@ -88,6 +88,36 @@ const Example = ({
 };
 
 describe("MessagePrimitive.Unstable_PartsGroupedByParentId", () => {
+  it("keeps a text seed while streaming and resets it for a replacement id", () => {
+    const SeededText = ({ text }: { text: string }) => {
+      const [seed] = useState(text);
+      return <span>{`${seed}:${text}`}</span>;
+    };
+    const Message = partsMessage({ Text: SeededText });
+    const view = render(
+      <Example
+        Message={Message}
+        content={[{ type: "text", id: "p1", text: "old" }]}
+      />,
+    );
+
+    view.rerender(
+      <Example
+        Message={Message}
+        content={[{ type: "text", id: "p1", text: "old streamed" }]}
+      />,
+    );
+    expect(view.container.textContent).toBe("old:old streamed");
+
+    view.rerender(
+      <Example
+        Message={Message}
+        content={[{ type: "text", id: "p2", text: "new" }]}
+      />,
+    );
+    expect(view.container.textContent).toBe("new:new");
+  });
+
   it("keeps parent IDs separate from ungrouped parts across content updates", () => {
     const { rerender } = render(
       <Example

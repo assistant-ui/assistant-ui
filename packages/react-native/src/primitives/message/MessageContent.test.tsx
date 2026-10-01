@@ -1,4 +1,4 @@
-import { act, type ReactElement } from "react";
+import { act, useState, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MessageContent } from "./MessageContent";
@@ -78,6 +78,28 @@ describe("MessageContent", () => {
       root.render(<MessageContent {...props} />);
     });
   };
+
+  it("keeps a text seed while streaming and resets it for a replacement id", async () => {
+    const SeededText = ({ text }: { text: string }) => {
+      const [seed] = useState(text);
+      return <span>{`${seed}:${text}`}</span>;
+    };
+    const renderText: NonNullable<
+      Parameters<typeof MessageContent>[0]["renderText"]
+    > = ({ part }) => <SeededText text={part.text} />;
+
+    h.state.message.content = [{ type: "text", id: "p1", text: "old" }];
+    await mount({ renderText });
+    h.state.message.content = [
+      { type: "text", id: "p1", text: "old streamed" },
+    ];
+    await mount({ renderText });
+    expect(container.textContent).toBe("old:old streamed");
+
+    h.state.message.content = [{ type: "text", id: "p2", text: "new" }];
+    await mount({ renderText });
+    expect(container.textContent).toBe("new:new");
+  });
 
   it("renders a text part through the default text renderer", async () => {
     h.state.message.content = [{ type: "text", text: "hello world" }];

@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { resource, withKey } from "@assistant-ui/tap";
+import { getMessagePartKeys } from "../../utils/getMessagePartKeys";
 import type { ClientElement, ClientOutput } from "@assistant-ui/store";
 import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
 import {
@@ -193,10 +194,11 @@ const useMessageClient = ({
   const [isCopied, setIsCopied] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
 
+  const partKeys = getMessagePartKeys(message.content);
   const partClients = useClientLookup(
     message.content.map((part, idx) =>
       withKey(
-        idx,
+        partKeys[idx]!,
         PartResource({
           part,
           status: derivePartStatus(message, idx, part),

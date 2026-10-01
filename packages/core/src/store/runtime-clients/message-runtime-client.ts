@@ -167,7 +167,12 @@ const useMessageClient = ({
       if ("index" in selector) {
         return parts.get({ index: selector.index });
       } else {
-        return parts.get({ key: `tool-call:${selector.toolCallId}` });
+        const index = runtimeState.content.findIndex(
+          (part) =>
+            part.type === "tool-call" &&
+            part.toolCallId === selector.toolCallId,
+        );
+        return parts.get({ index });
       }
     },
 

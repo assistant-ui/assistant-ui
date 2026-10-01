@@ -104,13 +104,18 @@ describe("ChainOfThoughtPrimitive.Parts identity", () => {
       1,
     );
     view.setContent([
+      { type: "reasoning", id: "p1", text: "inside moved" },
+      { type: "reasoning", id: "p1", text: "outside moved" },
+    ]);
+    expect(view.values()).toEqual(["inside:outside moved"]);
+    view.setContent([
       { type: "reasoning", id: "p2", text: "outside" },
       { type: "reasoning", id: "p1", text: "new" },
     ]);
     expect(view.values()).toEqual(["new:new"]);
   });
 
-  it("renders duplicate tool call ids without sharing component state", () => {
+  it("keys duplicate tool call ids positionally and remounts a newly unique id", () => {
     const view = renderThoughtParts([
       {
         type: "tool-call",
@@ -128,5 +133,32 @@ describe("ChainOfThoughtPrimitive.Parts identity", () => {
       },
     ]);
     expect(view.values()).toEqual(["first:first", "second:second"]);
+    view.setContent([
+      {
+        type: "tool-call",
+        toolCallId: "call",
+        toolName: "task",
+        args: {},
+        argsText: "second moved",
+      },
+      {
+        type: "tool-call",
+        toolCallId: "call",
+        toolName: "task",
+        args: {},
+        argsText: "first moved",
+      },
+    ]);
+    expect(view.values()).toEqual(["first:second moved", "second:first moved"]);
+    view.setContent([
+      {
+        type: "tool-call",
+        toolCallId: "call",
+        toolName: "task",
+        args: {},
+        argsText: "second updated",
+      },
+    ]);
+    expect(view.values()).toEqual(["second updated:second updated"]);
   });
 });

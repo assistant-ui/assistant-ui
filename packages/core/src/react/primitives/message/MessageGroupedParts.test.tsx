@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render } from "@testing-library/react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type PropsWithChildren } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ThreadMessageLike } from "../../../runtime/utils/thread-message-like";
 import { useAui } from "@assistant-ui/store";
@@ -69,21 +69,31 @@ const StateProbe = ({ text }: { text: string }) => {
 
 const renderIdentityGroups = (
   content: ThreadMessageLike["content"],
-  grouped: boolean,
+  grouped: boolean | "nested",
 ) => {
+  let mounts = 0;
+  const Group = ({ children }: PropsWithChildren) => {
+    const [mount] = useState(() => ++mounts);
+    return <section data-mount={mount}>{children}</section>;
+  };
+  const path =
+    grouped === "nested"
+      ? (["group-parts", "group-leaves"] as const)
+      : (["group-parts"] as const);
   const Message = () => (
     <MessagePrimitiveGroupedParts
       groupBy={groupPartByType(
         grouped
           ? {
-              text: ["group-parts"],
-              image: ["group-parts"],
+              text: path,
+              image: path,
             }
           : {},
       )}
     >
       {({ part, children }) => {
-        if (part.type === "group-parts") return <section>{children}</section>;
+        if (part.type === "group-parts" || part.type === "group-leaves")
+          return <Group>{children}</Group>;
         if (part.type === "text") return <StateProbe text={part.text} />;
         if (part.type === "image")
           return (
@@ -110,6 +120,11 @@ const renderIdentityGroups = (
   return {
     setContent: (content: ThreadMessageLike["content"]) =>
       view.rerender(<App content={content} />),
+    groupMounts: () =>
+      Array.from(
+        view.container.querySelectorAll("section"),
+        (el) => el.dataset.mount,
+      ),
     values: () =>
       Array.from(
         view.container.querySelectorAll("span"),
@@ -121,71 +136,107 @@ const renderIdentityGroups = (
 afterEach(cleanup);
 
 describe("MessagePrimitive.GroupedParts", () => {
-  describe.each([false, true])("grouped=%s identity", (grouped) => {
-    it("keeps the seed while streaming and resets it for a replacement id", () => {
-      const view = renderIdentityGroups(
-        [{ type: "text", id: "p1", text: "old" }],
-        grouped,
-      );
-      view.setContent([{ type: "text", id: "p1", text: "old streamed" }]);
-      expect(view.values()).toEqual(["old:old streamed"]);
-      view.setContent([{ type: "text", id: "p2", text: "new" }]);
-      expect(view.values()).toEqual(["new:new"]);
-    });
+  describe.each([false, true, "nested"] as const)(
+    "grouped=%s identity",
+    (grouped) => {
+      it("keeps the seed while streaming and resets it for a replacement id", () => {
+        const view = renderIdentityGroups(
+          [{ type: "text", id: "p1", text: "old" }],
+          grouped,
+        );
+        view.setContent([{ type: "text", id: "p1", text: "old streamed" }]);
+        expect(view.values()).toEqual(["old:old streamed"]);
+        view.setContent([{ type: "text", id: "p2", text: "new" }]);
+        expect(view.values()).toEqual(["new:new"]);
+      });
 
-    it("keeps each seed with its id when parts swap within a stable group", () => {
-      const view = renderIdentityGroups(
-        [
+      it("keeps each seed with its id when parts swap within a stable group", () => {
+        const view = renderIdentityGroups(
+          [
+            { type: "text", id: "anchor", text: "anchor" },
+            { type: "text", id: "p1", text: "first" },
+            { type: "text", id: "p2", text: "second" },
+          ],
+          grouped,
+        );
+        view.setContent([
           { type: "text", id: "anchor", text: "anchor" },
-          { type: "text", id: "p1", text: "first" },
-          { type: "text", id: "p2", text: "second" },
-        ],
-        grouped,
-      );
-      view.setContent([
-        { type: "text", id: "anchor", text: "anchor" },
-        { type: "text", id: "p2", text: "second updated" },
-        { type: "text", id: "p1", text: "first updated" },
-      ]);
-      expect(view.values()).toEqual([
-        "anchor:anchor",
-        "second:second updated",
-        "first:first updated",
-      ]);
-    });
+          { type: "text", id: "p2", text: "second updated" },
+          { type: "text", id: "p1", text: "first updated" },
+        ]);
+        expect(view.values()).toEqual([
+          "anchor:anchor",
+          "second:second updated",
+          "first:first updated",
+        ]);
+      });
 
-    it("mounts fresh state when anonymous text becomes an image", () => {
-      const view = renderIdentityGroups(
-        [{ type: "text", text: "old" }],
-        grouped,
-      );
-      view.setContent([
-        { type: "image", image: "https://example.com/new.png" },
-      ]);
-      expect(view.values()).toEqual(["new:new"]);
-    });
+      it("keeps every wrapper and leaf seed when the first two identified children swap", () => {
+        const view = renderIdentityGroups(
+          [
+            { type: "text", id: "p1", text: "first" },
+            { type: "text", id: "p2", text: "second" },
+            { type: "text", id: "p3", text: "third" },
+          ],
+          grouped,
+        );
+        const groupMounts = view.groupMounts();
+        view.setContent([
+          { type: "text", id: "p2", text: "second updated" },
+          { type: "text", id: "p1", text: "first updated" },
+          { type: "text", id: "p3", text: "third updated" },
+        ]);
+        expect(view.groupMounts()).toEqual(groupMounts);
+        expect(view.values()).toEqual([
+          "second:second updated",
+          "first:first updated",
+          "third:third updated",
+        ]);
+      });
 
-    it("renders duplicate ids and resets a replaced leaf in a stable group", () => {
-      const view = renderIdentityGroups(
-        [
+      it("mounts fresh state when anonymous text becomes an image", () => {
+        const view = renderIdentityGroups(
+          [{ type: "text", text: "old" }],
+          grouped,
+        );
+        view.setContent([
+          { type: "image", image: "https://example.com/new.png" },
+        ]);
+        expect(view.values()).toEqual(["new:new"]);
+      });
+
+      it("keys duplicate ids positionally and remounts newly unique leaves", () => {
+        const view = renderIdentityGroups(
+          [
+            { type: "text", id: "anchor", text: "anchor" },
+            { type: "text", id: "p1", text: "first" },
+            { type: "text", id: "p1", text: "second" },
+          ],
+          grouped,
+        );
+        view.setContent([
           { type: "text", id: "anchor", text: "anchor" },
-          { type: "text", id: "p1", text: "first" },
+          { type: "text", id: "p1", text: "second moved" },
+          { type: "text", id: "p1", text: "first moved" },
+        ]);
+        expect(view.values()).toEqual([
+          "anchor:anchor",
+          "first:second moved",
+          "second:first moved",
+        ]);
+        view.setContent([
+          { type: "text", id: "anchor", text: "anchor" },
+          { type: "text", id: "p2", text: "new" },
           { type: "text", id: "p1", text: "second" },
-        ],
-        grouped,
-      );
-      view.setContent([
-        { type: "text", id: "anchor", text: "anchor" },
-        { type: "text", id: "p2", text: "new" },
-        { type: "text", id: "p1", text: "second" },
-      ]);
-      expect(view.values()).toEqual([
-        "anchor:anchor",
-        "new:new",
-        "first:second",
-      ]);
-    });
-  });
+        ]);
+        expect(view.values()).toEqual([
+          "anchor:anchor",
+          "new:new",
+          "second:second",
+        ]);
+      });
+    },
+  );
 
   it("passes status counts to a tool-name group", () => {
     let group:

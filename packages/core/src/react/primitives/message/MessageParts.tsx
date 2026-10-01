@@ -186,7 +186,7 @@ const useMessagePartsGroups = (
       return { ranges: [], partIds };
     }
     return {
-      ranges: groupMessageParts(messageTypes, useChainOfThought, partIds),
+      ranges: groupMessageParts(messageTypes, useChainOfThought),
       partIds,
     };
   }, [messageTypes, partIds, useChainOfThought]);
@@ -881,6 +881,7 @@ const MessagePrimitivePartsCompat: FC<{
       return <EmptyParts components={components} />;
     }
 
+    const groupOrdinals = new Map<string, number>();
     return messageRanges.map((range) => {
       if (range.type === "single") {
         return (
@@ -890,12 +891,17 @@ const MessagePrimitivePartsCompat: FC<{
             components={components}
           />
         );
-      } else if (range.type === "chainOfThoughtGroup") {
+      }
+
+      const ordinal = groupOrdinals.get(range.type) ?? 0;
+      groupOrdinals.set(range.type, ordinal + 1);
+      const groupKey = `${range.type}@${ordinal}`;
+      if (range.type === "chainOfThoughtGroup") {
         const ChainOfThoughtComponent = components?.ChainOfThought;
         if (!ChainOfThoughtComponent) return null;
         return (
           <ChainOfThoughtByIndicesProvider
-            key={`chainOfThought-${range.idKey ?? range.startIndex}`}
+            key={groupKey}
             startIndex={range.startIndex}
             endIndex={range.endIndex}
           >
@@ -907,7 +913,7 @@ const MessagePrimitivePartsCompat: FC<{
           components?.ToolGroup ?? defaultComponents.ToolGroup;
         return (
           <ToolGroupComponent
-            key={`tool-${range.idKey ?? range.startIndex}`}
+            key={groupKey}
             startIndex={range.startIndex}
             endIndex={range.endIndex}
           >
@@ -931,7 +937,7 @@ const MessagePrimitivePartsCompat: FC<{
           components?.ReasoningGroup ?? defaultComponents.ReasoningGroup;
         return (
           <ReasoningGroupComponent
-            key={`reasoning-${range.idKey ?? range.startIndex}`}
+            key={groupKey}
             startIndex={range.startIndex}
             endIndex={range.endIndex}
           >

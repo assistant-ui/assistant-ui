@@ -44,18 +44,18 @@ Assistant Cloud stores a format name with every message. The format preserves th
 | `audio` | `audio: { data, format }`, where format is `mp3` or `wav`. |
 | `generative-ui` | `spec`, optional `id` and `parentId`. |
 
-For text, reasoning, image, file, and data parts, `id` is a stable identity the host supplies to keep a part's component state when parts are replaced or reordered; without it, a part is keyed by its type and position.
+For text, reasoning, image, file, and data parts, the host-supplied `id` keys the part when it is non-empty and unique within its message, preserving component state when parts are reordered or updated with the same id. Every part with a missing, empty, or duplicate id is keyed by its type and position. The format preserves optional ids on attachment content parts too.
 
 ### Attachments and metadata
 
 | Item | Fields |
 |---|---|
 | Attachment wrapper | `id`, `type`, `name`, optional `contentType`, `status`, and `content`. |
-| Attachment `text` | `text`, optional `providerMetadata` and `parentId`. |
-| Attachment `image` | `image`, optional `filename` and `providerMetadata`. |
-| Attachment `file` | `data`, `mimeType`, optional `filename`, `sourceType`, `providerMetadata`, and `parentId`. |
+| Attachment `text` | `text`, optional `id`, `providerMetadata`, and `parentId`. |
+| Attachment `image` | `image`, optional `id`, `filename`, and `providerMetadata`. |
+| Attachment `file` | `data`, `mimeType`, optional `id`, `filename`, `sourceType`, `providerMetadata`, and `parentId`. |
 | Attachment `audio` | `audio: { data, format }`, where format is `mp3` or `wav`. |
-| Attachment `data` | `name`, `data`. |
+| Attachment `data` | `name`, `data`, optional `id`. |
 | `metadata.unstable_state` | Optional JSON value. |
 | `metadata.unstable_annotations` | Array of JSON values. |
 | `metadata.unstable_data` | Array of JSON values. |
