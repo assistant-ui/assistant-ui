@@ -1,3 +1,4 @@
+# Temporary CI cache benchmark input; removed before merge.
 packages:
   - api-surface
   - packages/*
