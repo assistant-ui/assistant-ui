@@ -427,7 +427,6 @@ const receiptIcons = {
 type ApprovalFocusTarget = {
   element: HTMLElement;
   container: HTMLDivElement;
-  requestId: string | undefined;
 };
 
 const ToolFallbackApprovalReceipt = forwardRef<
@@ -445,7 +444,7 @@ const ToolFallbackApprovalReceipt = forwardRef<
   useLayoutEffect(() => {
     const target = focusTargetRef.current;
     focusTargetRef.current = null;
-    if (!target || target.requestId !== approval.id) return;
+    if (!target) return;
     const document = target.element.ownerDocument;
     if (
       document.activeElement === document.body ||
@@ -453,7 +452,7 @@ const ToolFallbackApprovalReceipt = forwardRef<
     ) {
       receiptRef.current?.focus({ preventScroll: true });
     }
-  }, [approval.id, focusTargetRef]);
+  }, [focusTargetRef]);
 
   const receipt = approvalReceipt(approval);
   const Icon = receiptIcons[receipt.outcome];
@@ -551,7 +550,7 @@ function ToolFallbackApprovalImpl({
     !isSettled(approval) &&
     status !== undefined &&
     status.type !== "requires-action" &&
-    !submitted;
+    !(submitted && status.type === "running");
   useLayoutEffect(() => {
     if (hidePendingApproval) focusTargetRef.current = null;
   }, [hidePendingApproval]);
@@ -569,7 +568,6 @@ function ToolFallbackApprovalImpl({
       focusTargetRef.current = {
         element: event.target,
         container: event.currentTarget,
-        requestId: approval?.id,
       };
       onFocusCapture?.(event);
     },

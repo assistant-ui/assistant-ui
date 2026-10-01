@@ -396,6 +396,37 @@ describe("settled approval receipts", () => {
     },
   );
 
+  it.each([
+    { type: "complete" },
+    { type: "incomplete", reason: "cancelled" },
+    { type: "incomplete", reason: "error" },
+  ] satisfies ToolCallMessagePartProps["status"][])(
+    "removes submitted controls when the run ends without a receipt: %j",
+    async (status) => {
+      const props = {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "test-tool",
+        args: {},
+        argsText: "{}",
+        status: { type: "requires-action", reason: "tool-calls" },
+        approval: pendingApproval,
+        addResult: vi.fn(),
+        resume: vi.fn(),
+        respondToApproval: vi.fn(async () => {}),
+      } satisfies ToolCallMessagePartProps;
+      const view = render(<ToolFallback {...props} />);
+      await act(async () => fireEvent.click(button("Allow")));
+      expect(button("Allow").disabled).toBe(true);
+
+      view.rerender(<ToolFallback {...props} status={status} />);
+
+      expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Deny" })).toBeNull();
+      expect(receipt()).toBeNull();
+    },
+  );
+
   it("keeps focus when a focused request expires without a submission", () => {
     const view = render(<ToolFallbackApproval approval={pendingApproval} />);
     button("Deny").focus();

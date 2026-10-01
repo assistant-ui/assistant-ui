@@ -107,7 +107,7 @@ Once `approval.approved` or `approval.resolution` is set, the controls give way 
 
 When the controls are replaced while they hold keyboard focus, focus moves to the receipt without scrolling. A decision that settles after focus moves elsewhere leaves that focus in place; historical receipts do not take focus when they mount.
 
-An explicit `approval` record keeps the component mounted across run-status updates, including when an external-store adapter updates the run status before the approval. Controls appear only while the request requires action, or while a submitted decision is awaiting its receipt; submitted controls stay locked. An unanswered approval in a running or finished message does not expose new actions.
+An explicit `approval` record keeps the component mounted across run-status updates, including when an external-store adapter updates the run status before the approval. Controls appear only while the request requires action, or while a submitted decision is still running and awaiting its receipt; submitted controls stay locked. If the run ends without settling the approval, the controls disappear. An unanswered approval in a running or finished message does not expose new actions.
 
 Changing `approval.id` starts a fresh request in both the default renderer and `ToolFallback.Approval`, clearing the previous request's input, confirmation, error, and submission state.
 
