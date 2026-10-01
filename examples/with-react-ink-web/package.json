@@ -26,6 +26,6 @@
     "@types/node": "^26.6.3",
     "@types/react": "^19.3.0",
     "typescript": "^7.0.2",
-    "vercel": "59.5.0"
+    "vercel": "^62.0.0"
   }
 }

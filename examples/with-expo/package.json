@@ -55,7 +55,7 @@
     "tailwindcss": "^4.3.3",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-7": "npm:typescript@~7.0.2",
-    "vercel": "59.5.0",
+    "vercel": "^62.0.0",
     "vitest": "^5.0.3"
   },
   "private": true
