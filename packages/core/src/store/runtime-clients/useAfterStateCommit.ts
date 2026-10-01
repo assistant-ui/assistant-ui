@@ -4,9 +4,10 @@ import { useCallback, useEffect, useState } from "react";
  * How long a settled promise waits for the client to commit before resolving
  * anyway. The client cannot commit while a Suspense boundary hides it, so a
  * reader suspended on the promise inside that boundary would otherwise wait
- * forever. There is no hide signal to release it sooner: a layout effect
- * cleanup here runs only on unmount, not when the boundary hides the client.
- * The value is a bound on that wait, not a tuned delay.
+ * forever. There is no hide signal to release it sooner: React cleans up
+ * layout effects in hidden content, but tap does not pass that through to this
+ * hook (a layout effect cleanup here ran only on unmount when tested). The
+ * value is a bound on that wait, not a tuned delay.
  */
 const COMMIT_TIMEOUT_MS = 100;
 
