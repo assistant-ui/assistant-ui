@@ -25,7 +25,7 @@ import type {
   ClientNames,
   ClientMethods,
 } from "./types/client";
-import { isDerivedHook } from "./derived-hook";
+import { isDerivedHook } from "./utils/derived-hook";
 import {
   useAssistantContextValue,
   useAssistantContextProvider,

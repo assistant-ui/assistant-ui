@@ -5,7 +5,7 @@ import type {
   AssistantClientAccessor,
   ClientMeta,
 } from "./types/client";
-import { markDerivedHook } from "./derived-hook";
+import { markDerivedHook } from "./utils/derived-hook";
 import { useAui } from "./useAui";
 import { useAuiState } from "./useAuiState";
 
