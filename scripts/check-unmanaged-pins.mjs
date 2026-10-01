@@ -14,6 +14,8 @@ const repoRoot = path.resolve(
 const COURSE_PROJECT_GLOB =
   "apps/docs/lib/xulux/learn/courses/*/shared/project/package.json";
 
+const EXPO_PROJECT = "examples/with-expo/package.json";
+
 const VERSION_FIELDS = ["dependencies", "devDependencies"];
 
 export function parseVersion(value) {
@@ -156,6 +158,17 @@ export function findStaleCoursePins(courses, floors, published) {
   return problems;
 }
 
+export function findDriftedMetroConfigPins(projects) {
+  const problems = [];
+  for (const { file, pkg } of projects) {
+    const reactNative = pkg.dependencies?.["react-native"];
+    if (!reactNative) continue;
+    const pin = pkg.devDependencies?.["@react-native/metro-config"] ?? null;
+    if (pin !== reactNative) problems.push({ file, pin, reactNative });
+  }
+  return problems;
+}
+
 function readWorkflows(root) {
   return globSync(".github/workflows/*.{yaml,yml}", { cwd: root })
     .map(posixPath)
@@ -229,6 +242,9 @@ export function runCheck(root = repoRoot) {
     .map(posixPath)
     .sort()
     .map((file) => ({ file, pkg: readJson(path.join(root, file)) }));
+  const expoProjects = globSync(EXPO_PROJECT, { cwd: root })
+    .map(posixPath)
+    .map((file) => ({ file, pkg: readJson(path.join(root, file)) }));
   return {
     workflowCount: workflows.length,
     courseCount: courses.length,
@@ -242,6 +258,7 @@ export function runCheck(root = repoRoot) {
       readLockedIds(root),
     ),
     coursePins: findStaleCoursePins(courses, floors, published),
+    metroConfigPins: findDriftedMetroConfigPins(expoProjects),
   };
 }
 
@@ -319,6 +336,28 @@ function main() {
     console.error(
       "move on every release, which the course projects do not participate in.\n",
     );
+  }
+
+  if (result.metroConfigPins.length > 0) {
+    failed = true;
+    console.error(
+      "The Expo example's Metro config pin does not match its React Native:\n",
+    );
+    for (const { file, pin, reactNative } of result.metroConfigPins) {
+      console.error(
+        `  ${file}: "@react-native/metro-config" is ${pin ?? "missing"}, "react-native" is ${reactNative}`,
+      );
+    }
+    console.error(
+      "\nNothing imports this pin. It satisfies `@react-native/community-cli-plugin`'s exact optional",
+    );
+    console.error(
+      "peer, which otherwise resolves to the version the rest of the workspace installs. Neither taze",
+    );
+    console.error(
+      "nor `expo install --fix` keeps it in step, and a dropped pin fails nothing until the next fresh",
+    );
+    console.error("resolve. Pin it to the `react-native` version.\n");
   }
 
   if (failed) process.exit(1);
