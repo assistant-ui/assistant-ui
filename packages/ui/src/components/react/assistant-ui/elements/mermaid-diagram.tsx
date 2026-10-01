@@ -61,6 +61,8 @@ type AdoptedSheet = { sheet: CSSStyleSheet; count: number };
 
 const adoptedStyles = new WeakMap<StyleRoot, Map<string, AdoptedSheet>>();
 
+const SCOPE = "[data-aui-mermaid-svg]";
+
 const adoptStyles = (root: StyleRoot, css: string) => {
   const sheets = adoptedStyles.get(root) ?? new Map<string, AdoptedSheet>();
   adoptedStyles.set(root, sheets);
@@ -68,6 +70,11 @@ const adoptStyles = (root: StyleRoot, css: string) => {
   if (!entry) {
     const sheet = new CSSStyleSheet();
     sheet.replaceSync(css);
+    for (const rule of sheet.cssRules) {
+      if (rule instanceof CSSStyleRule) {
+        rule.selectorText = `:where(${SCOPE}) :is(${rule.selectorText})`;
+      }
+    }
     root.adoptedStyleSheets = [...root.adoptedStyleSheets, sheet];
     entry = { sheet, count: 0 };
     sheets.set(css, entry);
@@ -100,8 +107,8 @@ type MermaidSvgProps = Omit<
 /**
  * Renders beautiful-mermaid's SVG without inline `<style>` or `style=""`,
  * which a Content Security Policy without 'unsafe-inline' blocks: its CSS
- * goes into a constructed stylesheet and its inline styles are set through
- * the CSSOM. Server and hydration renders, and browsers without
+ * goes into a constructed stylesheet scoped to the diagram and its inline
+ * styles are set through the CSSOM. Server and hydration renders, and browsers without
  * constructable stylesheets, keep the original markup.
  */
 function MermaidSvg({ svg, ...props }: MermaidSvgProps) {
@@ -140,6 +147,7 @@ function MermaidSvg({ svg, ...props }: MermaidSvgProps) {
     <div
       ref={ref}
       {...props}
+      data-aui-mermaid-svg=""
       dangerouslySetInnerHTML={{ __html: constructable ? markup : svg }}
     />
   );

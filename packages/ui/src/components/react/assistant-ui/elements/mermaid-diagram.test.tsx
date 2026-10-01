@@ -40,17 +40,52 @@ describe("MermaidDiagram", () => {
   });
 
   it("keeps the label font rule that follows the font @import", () => {
-    render(<MermaidDiagram code={FLOW} />);
+    const { container } = render(<MermaidDiagram code={FLOW} />);
 
+    const label = container.querySelector("svg text");
     const textRule = document.adoptedStyleSheets
       .flatMap((sheet) => [...sheet.cssRules])
       .find(
         (rule): rule is CSSStyleRule =>
-          rule instanceof CSSStyleRule && rule.selectorText === "text",
+          rule instanceof CSSStyleRule &&
+          label !== null &&
+          label.matches(rule.selectorText) &&
+          rule.style.getPropertyValue("font-family") !== "",
       );
     expect(textRule?.style.getPropertyValue("font-family")).toMatch(
       /^["']Inter["'],\s*system-ui,\s*sans-serif$/,
     );
+  });
+
+  it("scopes the adopted rules to the diagram, leaving other SVGs alone", () => {
+    const { container } = render(
+      <>
+        <MermaidDiagram code={FLOW} />
+        <svg aria-hidden data-testid="other">
+          <text>other</text>
+        </svg>
+      </>,
+    );
+
+    const inside = container.querySelector('[data-slot="mermaid-diagram"]');
+    const other = screen.getByTestId("other");
+    const rules = document.adoptedStyleSheets.flatMap((sheet) =>
+      [...sheet.cssRules].filter(
+        (rule): rule is CSSStyleRule => rule instanceof CSSStyleRule,
+      ),
+    );
+    expect(rules.length).toBeGreaterThan(0);
+    expect(
+      rules.some((rule) =>
+        inside?.querySelector("svg")?.matches(rule.selectorText),
+      ),
+    ).toBe(true);
+    for (const rule of rules) {
+      expect(other.matches(rule.selectorText)).toBe(false);
+      expect(other.querySelector("text")?.matches(rule.selectorText)).toBe(
+        false,
+      );
+    }
   });
 
   it("renders the original markup without constructable stylesheets", () => {
