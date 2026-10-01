@@ -128,6 +128,7 @@ type ModelSelectorContextValue = {
   /** Effort resolved against the selected model's supported levels. */
   effort: string | undefined;
   setEffort: (effort: string) => void;
+  open: boolean;
   setOpen: (open: boolean) => void;
 };
 
@@ -215,6 +216,7 @@ function ModelSelectorRoot({
       efforts,
       effort: activeEffort,
       setEffort,
+      open: open ?? false,
       setOpen,
     }),
     [
@@ -225,6 +227,7 @@ function ModelSelectorRoot({
       efforts,
       activeEffort,
       setEffort,
+      open,
       setOpen,
     ],
   );

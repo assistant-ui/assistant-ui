@@ -127,6 +127,7 @@ type ModelSelectorContextValue = {
   /** Effort resolved against the selected model's supported levels. */
   effort: string | undefined;
   setEffort: (effort: string) => void;
+  open: boolean;
   setOpen: (open: boolean) => void;
 };
 
@@ -214,6 +215,7 @@ function ModelSelectorRoot({
       efforts,
       effort: activeEffort,
       setEffort,
+      open: open ?? false,
       setOpen,
     }),
     [
@@ -224,6 +226,7 @@ function ModelSelectorRoot({
       efforts,
       activeEffort,
       setEffort,
+      open,
       setOpen,
     ],
   );
@@ -384,32 +387,47 @@ export type ModelSelectorContentProps = Omit<
 // mid-interaction. Adopt the side the popup first flips to as the preferred
 // side for the rest of the open. Adopting every change can alternate between
 // sides without end: after a preference change the popup can render on the
-// opposite side even when both sides fit.
-function useLazyFlipSide(): {
+// opposite side even when both sides fit. A force-mounted popup keeps its node
+// and position while closed, so the side resets on close and a reopen adopts
+// a side the popup already flipped to.
+function useLazyFlipSide(
+  open: boolean,
+  preferred: NonNullable<ModelSelectorContentProps["side"]>,
+): {
   side: ModelSelectorContentProps["side"];
   popupRef: (node: HTMLDivElement | null) => void;
 } {
   const [side, setSide] = useState<ModelSelectorContentProps["side"]>();
   const observerRef = useRef<MutationObserver | null>(null);
-  const popupRef = useCallback((node: HTMLDivElement | null) => {
-    observerRef.current?.disconnect();
-    observerRef.current = null;
-    if (!node) {
-      setSide(undefined);
-      return;
-    }
-    const observer = new MutationObserver(() => {
-      const rendered = node.getAttribute("data-side");
-      if (!rendered) return;
-      observer.disconnect();
-      setSide(rendered as ModelSelectorContentProps["side"]);
-    });
-    observer.observe(node, {
-      attributes: true,
-      attributeFilter: ["data-side"],
-    });
-    observerRef.current = observer;
-  }, []);
+  const preferredRef = useRef(preferred);
+  preferredRef.current = preferred;
+  const popupRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      observerRef.current?.disconnect();
+      observerRef.current = null;
+      if (!node || !open) {
+        setSide(undefined);
+        return;
+      }
+      const current = node.getAttribute("data-side");
+      if (current && current !== preferredRef.current) {
+        setSide(current as ModelSelectorContentProps["side"]);
+        return;
+      }
+      const observer = new MutationObserver(() => {
+        const rendered = node.getAttribute("data-side");
+        if (!rendered) return;
+        observer.disconnect();
+        setSide(rendered as ModelSelectorContentProps["side"]);
+      });
+      observer.observe(node, {
+        attributes: true,
+        attributeFilter: ["data-side"],
+      });
+      observerRef.current = observer;
+    },
+    [open],
+  );
   return { side, popupRef };
 }
 
@@ -435,8 +453,11 @@ function ModelSelectorContent({
   children,
   ...props
 }: ModelSelectorContentProps) {
-  const { value } = useModelSelectorContext();
-  const { side: renderedSide, popupRef } = useLazyFlipSide();
+  const { value, open } = useModelSelectorContext();
+  const { side: renderedSide, popupRef } = useLazyFlipSide(
+    open,
+    side ?? "bottom",
+  );
   const unfiltered =
     searchable === false || (!searchable && children === undefined);
 
