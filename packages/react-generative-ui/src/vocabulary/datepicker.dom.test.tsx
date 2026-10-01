@@ -8,6 +8,7 @@ import { A2uiBindingContext } from "../a2ui/BindingContext";
 import { AnsweredValuesProvider } from "../answeredValues";
 import { FIELD_VALUE_ATTR } from "../constants";
 import { renderGenerativeUI } from "../renderGenerativeUI";
+import { normalizeTemporalInputValue } from "../temporal";
 import type { GenerativeUIDispatch } from "../types";
 import { defaultGenerativeUILibrary } from "./index";
 import { interactiveVocabulary } from "./interactive";
@@ -60,6 +61,9 @@ const nativeValue = (type: string, value: string) => {
   input.value = value;
   return input.value;
 };
+
+const normalizedNativeValue = (type: string, value: string) =>
+  normalizeTemporalInputValue(nativeValue(type, value));
 
 describe("DatePicker temporal contract", () => {
   it.each([
@@ -157,7 +161,7 @@ describe("DatePicker temporal contract", () => {
         ),
       );
       const input = container.querySelector("input")!;
-      expect(input.value).toBe(displayed);
+      expect(input.value).toBe(nativeValue(input.type, displayed));
       await change(input, edited);
       expect(dispatch).toHaveBeenLastCalledWith({
         type: "save",
@@ -210,9 +214,11 @@ describe("DatePicker temporal contract", () => {
     );
     const input = container.querySelector("input")!;
     expect(input.step).toBe("any");
-    expect(input.value).toBe("2025-12-15T12:00:00.250");
+    expect(input.value).toBe(
+      nativeValue(input.type, "2025-12-15T12:00:00.250"),
+    );
     await change(input, "2025-12-15T12:00:00");
-    expect(input.value).toBe("2025-12-15T12:00");
+    expect(input.value).toBe(nativeValue(input.type, "2025-12-15T12:00:00"));
     await React.act(async () => container.querySelector("button")!.click());
     expect(dispatch).toHaveBeenLastCalledWith({
       type: "submit",
@@ -775,6 +781,14 @@ describe("DatePicker temporal contract", () => {
       step: "1",
     },
     {
+      inputType: "time",
+      value: "12:34:56",
+      min: "09:00:01",
+      max: "17:00:59",
+      edited: "13:45:30.500",
+      step: "1",
+    },
+    {
       inputType: "datetime",
       value: "2026-07-15T12:34",
       min: "2026-07-15T09:00",
@@ -789,11 +803,10 @@ describe("DatePicker temporal contract", () => {
       max: "2026-07-15T17:00:59",
       edited: "2026-07-15T13:45:30",
       step: "1",
-      editedFieldValue: "2026-07-15T13:45:30.000",
     },
   ])(
-    "passes $inputType value $value and bounds through unchanged",
-    async ({ inputType, value, min, max, edited, step, editedFieldValue }) => {
+    "passes $inputType value $value and bounds through, then normalizes edits",
+    async ({ inputType, value, min, max, edited, step }) => {
       const dispatch = vi.fn();
       const container = await mount(
         view(
@@ -808,7 +821,7 @@ describe("DatePicker temporal contract", () => {
       expect(input.getAttribute("value")).toBe(value);
       expect(input.hasAttribute(FIELD_VALUE_ATTR)).toBe(false);
       expect(collectFormValues([input])).toEqual({
-        when: nativeValue(input.type, value),
+        when: normalizedNativeValue(input.type, value),
       });
       expect(input.value).toBe(nativeValue(input.type, value));
       expect(input.min).toBe(min);
@@ -817,13 +830,12 @@ describe("DatePicker temporal contract", () => {
       await change(input, edited);
       expect(dispatch).toHaveBeenLastCalledWith({
         type: "save",
-        $input: nativeValue(input.type, edited),
+        $input: normalizedNativeValue(input.type, edited),
       });
-      expect(input.getAttribute(FIELD_VALUE_ATTR)).toBe(
-        editedFieldValue ?? null,
-      );
+      expect(input.value).toBe(nativeValue(input.type, edited));
+      expect(input.getAttribute(FIELD_VALUE_ATTR)).toBe(null);
       expect(collectFormValues([input])).toEqual({
-        when: nativeValue(input.type, edited),
+        when: normalizedNativeValue(input.type, edited),
       });
     },
   );
