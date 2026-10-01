@@ -21,7 +21,7 @@
       ]
     },
     "dev": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", "generate:type-docs"],
       "cache": false,
       "persistent": true
     },

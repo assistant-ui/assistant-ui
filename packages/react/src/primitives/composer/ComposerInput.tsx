@@ -22,6 +22,7 @@ import { useEscapeKeydown } from "radix-ui/internal";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useMediaQuery } from "../../utils/hooks/useMediaQuery";
 import { renderSlot } from "../../utils/Primitive";
+import { isCompositionKey } from "../../utils/isCompositionKey";
 import { useAui } from "@assistant-ui/store";
 import { flushTapSync } from "@assistant-ui/tap";
 import { useComposerInputPluginRegistryOptional } from "./ComposerInputPluginContext";
@@ -200,7 +201,7 @@ export const ComposerPrimitiveInput = forwardRef<
       if (!textareaRef.current?.contains(e.target as Node)) return;
 
       // ignore IME composition events
-      if (e.isComposing) return;
+      if (isCompositionKey(e)) return;
 
       // Let registered plugins (mention, slash command, etc.) handle Escape first
       if (pluginRegistry) {
@@ -222,7 +223,7 @@ export const ComposerPrimitiveInput = forwardRef<
       if (isDisabled) return;
 
       // ignore IME composition events
-      if (e.nativeEvent.isComposing) return;
+      if (isCompositionKey(e.nativeEvent)) return;
 
       // Let registered plugins (mention, slash command, etc.) handle keyboard events first
       if (pluginRegistry) {

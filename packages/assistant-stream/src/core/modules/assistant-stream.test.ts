@@ -2,8 +2,8 @@ import { describe, it, expect, vi } from "vitest";
 import {
   createAssistantStream,
   createAssistantStreamController,
-  createAssistantStreamResponse,
 } from "./assistant-stream";
+import { createAssistantStreamResponse } from "./assistant-stream-response";
 import { AssistantStream } from "../AssistantStream";
 import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import { DataStreamDecoder } from "../serialization/data-stream/DataStream";

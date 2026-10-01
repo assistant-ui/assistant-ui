@@ -1,5 +1,11 @@
 # @assistant-ui/tap
 
+## 0.9.20
+
+### Patch Changes
+
+- [#8590](https://github.com/assistant-ui/assistant-ui/pull/8590) [`c980b36`](https://github.com/assistant-ui/assistant-ui/commit/c980b36c33a0b8c384184eded99acc46122484e3) - fix: run `useInsertionEffect` cleanups only when a resource is released for good, as React does, let `createTapRoot().unmount()` release a `mountOnSubscribe` root instead of throwing, and have `destroy()` release an assistant client's resources for good ([@okisdev](https://github.com/okisdev))
+
 ## 0.9.19
 
 ### Patch Changes

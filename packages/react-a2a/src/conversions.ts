@@ -63,10 +63,11 @@ export function a2uiPartsToOperations(
 export function a2aPartToContent(
   part: A2APart,
 ): ThreadAssistantMessage["content"][number] {
-  if (part.text !== undefined) {
+  if (!isRecord(part)) return { type: "text", text: "" };
+  if (part.text != null) {
     return { type: "text", text: part.text };
   }
-  if (part.url !== undefined) {
+  if (part.url != null) {
     if (isImageMediaType(part.mediaType)) {
       return {
         type: "image",
@@ -82,7 +83,7 @@ export function a2aPartToContent(
       ...(part.filename && { filename: part.filename }),
     };
   }
-  if (part.raw !== undefined) {
+  if (part.raw != null) {
     if (isImageMediaType(part.mediaType)) {
       return {
         type: "image",
@@ -107,7 +108,7 @@ export function a2aPartsToContent(
   parts: A2APart[],
 ): ThreadAssistantMessage["content"] {
   return (Array.isArray(parts) ? parts : [])
-    .filter((part) => !isA2uiDataPart(part))
+    .filter((part) => isRecord(part) && !isA2uiDataPart(part))
     .map(a2aPartToContent);
 }
 

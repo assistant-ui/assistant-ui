@@ -9,6 +9,7 @@ import {
   NoteField,
   SubmitRow,
   inputCardClassName,
+  tileClassName,
   useInputActions,
 } from "@/components/pages/shop/input-shared";
 import { useWizardFormId } from "@/components/pages/shop/wizard-actions";
@@ -87,14 +88,6 @@ export function ChoiceInputCard({
   };
 
   const pickType = input.multiple ? "checkbox" : "radio";
-
-  const tileClassName = (active: boolean) =>
-    cn(
-      "has-focus-visible:ring-ring flex min-w-0 cursor-pointer gap-3 rounded-lg border p-3 [overflow-wrap:anywhere] transition-colors has-focus-visible:ring-2",
-      active
-        ? "border-foreground bg-muted"
-        : "border-foreground/10 hover:border-foreground/30",
-    );
 
   return (
     <form

@@ -619,7 +619,8 @@ export async function fetchTimelineSeries(
   const fetched = await Promise.all(
     series.map(async (item) => ({
       ...item,
-      points: await fetchDownloadsTimelineForEnd(item.pkg, npmEnd, revalidate),
+      points: (await fetchDownloadsTimelineForEnd(item.pkg, npmEnd, revalidate))
+        .points,
     })),
   );
 
@@ -701,6 +702,8 @@ async function getNpmEnd(revalidate?: number): Promise<string | null> {
   return (await getLastWeek(FLAGSHIP_PACKAGE, revalidate))?.end ?? null;
 }
 
+// Returns nothing unless every window was read, so a render cached as complete
+// never draws a year that is missing its in-flight month.
 export async function fetchDownloadsTimeline(
   name: string,
   revalidate?: number,
@@ -708,14 +711,19 @@ export async function fetchDownloadsTimeline(
   const npmEnd = await getNpmEnd(revalidate);
   if (!npmEnd) return [];
 
-  return fetchDownloadsTimelineForEnd(name, npmEnd, revalidate);
+  const { points, complete } = await fetchDownloadsTimelineForEnd(
+    name,
+    npmEnd,
+    revalidate,
+  );
+  return complete ? points : [];
 }
 
 async function fetchDownloadsTimelineForEnd(
   name: string,
   npmEnd: string,
   revalidate?: number,
-): Promise<TimelinePoint[]> {
+): Promise<{ points: TimelinePoint[]; complete: boolean }> {
   const cutoff = inflightMonth(npmEnd);
   const months = monthKeysBack(npmEnd, TIMELINE_MONTHS_BACK);
   const start = `${months[0]}-01`;
@@ -729,27 +737,28 @@ async function fetchDownloadsTimelineForEnd(
 
   const dailies: NpmDailyDownloads[] = [];
   if (settled) {
-    dailies.push(
-      ...(await getDownloadsRange(
-        name,
-        start,
-        monthEnd(settled),
-        revalidate ?? NPM_REVALIDATE.COLD,
-      )),
+    const settledDailies = await getDownloadsRange(
+      name,
+      start,
+      monthEnd(settled),
+      revalidate ?? NPM_REVALIDATE.COLD,
     );
+    if (!settledDailies.length) return { points: [], complete: false };
+    dailies.push(...settledDailies);
   }
+  let complete = true;
   const tail = settled ? shiftDays(monthEnd(settled), 1) : start;
   if (tail <= npmEnd) {
-    dailies.push(
-      ...(await getDownloadsRange(
-        name,
-        tail,
-        npmEnd,
-        revalidate ?? NPM_REVALIDATE.WARM,
-      )),
+    const tailDailies = await getDownloadsRange(
+      name,
+      tail,
+      npmEnd,
+      revalidate ?? NPM_REVALIDATE.WARM,
     );
+    if (tailDailies.length) dailies.push(...tailDailies);
+    else complete = false;
   }
-  if (!dailies.length) return [];
+  if (!dailies.length) return { points: [], complete: false };
 
   const byMonth = new Map<string, MonthBucket>();
   for (const point of dailies) {
@@ -767,13 +776,20 @@ async function fetchDownloadsTimelineForEnd(
   const lastFullMonth = fullMonths.at(-1);
   const priorFullMonth = fullMonths.at(-2);
 
-  return buckets.map((bucket) => ({
-    date: bucket.month,
-    value:
-      bucket.month === cutoff
-        ? projectInflightMonth(bucket, lastFullMonth?.sum, priorFullMonth?.sum)
-        : bucket.sum,
-  }));
+  return {
+    points: buckets.map((bucket) => ({
+      date: bucket.month,
+      value:
+        bucket.month === cutoff
+          ? projectInflightMonth(
+              bucket,
+              lastFullMonth?.sum,
+              priorFullMonth?.sum,
+            )
+          : bucket.sum,
+    })),
+    complete,
+  };
 }
 
 function projectInflightMonth(

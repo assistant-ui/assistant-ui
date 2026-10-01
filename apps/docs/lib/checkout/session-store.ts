@@ -12,8 +12,6 @@ export type CheckoutSession = {
   fromCart?: boolean;
   /** The user read how a setup works and chose to continue. */
   introSeen?: boolean;
-  /** The user accepted the license agreement the wizard shows before connecting. */
-  licenseAccepted?: boolean;
 };
 
 const storageKey = "aui-checkout-session";
@@ -39,15 +37,8 @@ const createId = () => {
 
 const normalize = (value: unknown): CheckoutSession | null => {
   if (typeof value !== "object" || value === null) return null;
-  const {
-    id,
-    products,
-    startedAt,
-    instructions,
-    fromCart,
-    introSeen,
-    licenseAccepted,
-  } = value as Record<string, unknown>;
+  const { id, products, startedAt, instructions, fromCart, introSeen } =
+    value as Record<string, unknown>;
   if (typeof id !== "string" || !Array.isArray(products)) return null;
   const slugs = products.filter(
     (entry): entry is string => typeof entry === "string",
@@ -61,7 +52,6 @@ const normalize = (value: unknown): CheckoutSession | null => {
       instructions.trim() && { instructions: instructions.trim() }),
     ...(fromCart === true && { fromCart }),
     ...(introSeen === true && { introSeen }),
-    ...(licenseAccepted === true && { licenseAccepted }),
   };
 };
 
@@ -170,14 +160,6 @@ export const acknowledgeSetupIntro = () => {
   load();
   if (session === null || session.introSeen) return;
   session = { ...session, introSeen: true };
-  writeStored(session);
-  notify();
-};
-
-export const acceptSetupLicense = () => {
-  load();
-  if (session === null || session.licenseAccepted) return;
-  session = { ...session, licenseAccepted: true };
   writeStored(session);
   notify();
 };

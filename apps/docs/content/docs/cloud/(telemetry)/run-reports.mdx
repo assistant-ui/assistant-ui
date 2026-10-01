@@ -77,8 +77,8 @@ The thread history adapter reports a terminal assistant message after persistenc
 
 | Integration | What it reports | What it cannot supply by itself |
 |---|---|---|
-| Local runtime with `aui/v0` | Status, outcome, error, client duration and first token time, step timing, text, tool calls, and metadata based usage, model, provider, and trace id. Tool calls have no `tool_source`. | Server model, provider, usage, and trace values unless the adapter places them in `metadata.custom`. |
-| AI SDK runtime with `ai-sdk/v6` | The same message state and timing, text across assistant messages, steps, tool calls, sampling calls, and usage. Static tools are `frontend`, dynamic tools are `mcp`, and a step that calls a tool is marked `tool-calls`. | The provider finish reason for each step. It only observes the stored message. |
+| Local runtime with `aui/v0` | Status, outcome, error, first token time from `metadata.timing`, text, tool calls, and metadata based usage, model, provider, and trace id. Tool calls have no `tool_source`. | Run duration and step timing. Server model, provider, usage, and trace values unless the adapter places them in `metadata.custom`. |
+| AI SDK runtime with `ai-sdk/v6` | The same message state and first token time, client duration and step timing, text across assistant messages, steps, tool calls, sampling calls, and usage. Static tools are `frontend`, dynamic tools are `mcp`, and a step that calls a tool is marked `tool-calls`. | The provider finish reason for each step. It only observes the stored message. |
 | LangGraph, LangChain, and Google ADK | The cloud thread list, titles, a copy of settled messages, feedback, and engagement when configured with a cloud client. | Run reports, because the model work happens on the server. Send [traces](/docs/cloud/traces) for it. |
 
 For both message formats, report construction reads only assistant messages. A message waiting for tool approval is not reported, so a paused run is not counted as completed or reported twice.

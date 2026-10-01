@@ -7,7 +7,7 @@ Primitives are thin wrappers around Ink components (`Box`, `Text`) that integrat
 
 Primitives use namespace imports, the same pattern as the web package (e.g. `ThreadPrimitive.Root`, `ComposerPrimitive.Input`).
 
-Many primitives share their core logic with `@assistant-ui/react` via `@assistant-ui/core/react` — only the UI layer (Ink vs DOM) differs.
+Many primitives share their core logic with `@assistant-ui/react` via `@assistant-ui/core/react`. Only the UI layer (Ink instead of DOM) differs.
 
 ## Thread
 
@@ -41,7 +41,10 @@ Renders the message list with automatic runtime integration. Each message is wra
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `components` | `MessageComponents` | Component map with `Message`, `UserMessage`, `AssistantMessage`, `SystemMessage`, and edit composer variants |
+| `children` | `(value: { message: ThreadMessage }) => ReactNode` | Render function for each message. Hoist or memoize it so per-message memoization applies |
+| `components` | `MessageComponents` | Alternative to `children`. Component map with `Message`, `UserMessage`, `AssistantMessage`, `SystemMessage`, and edit composer variants |
+| `windowSize` | `number` | Number of recent messages kept in the live render region. Older messages move into terminal scrollback through Ink's `<Static>` and stop repainting. When unset, all messages stay live |
+| `windowOverscan` | `number` | Extra live messages kept above the window (default: `4`) |
 
 ### AuiIf
 
@@ -102,21 +105,23 @@ Conditional rendering based on thread state.
 
 ### MessageByIndex
 
-Low-level provider that sets up the message context for a specific message by index. Used internally by `ThreadPrimitive.Messages`.
+Renders the message at a specific index and sets up its message context. Shared from `@assistant-ui/core/react`.
 
 ```tsx
-<ThreadPrimitive.MessageByIndex index={0}>
-  {/* content rendered with message context */}
-</ThreadPrimitive.MessageByIndex>
+<ThreadPrimitive.MessageByIndex
+  index={0}
+  components={{ Message: MyMessage }}
+/>
 ```
 
 | Prop | Type | Description |
 |------|------|-------------|
 | `index` | `number` | Zero-based message index |
+| `components` | `MessageComponents` | Same component map as `ThreadPrimitive.Messages` |
 
 ### Suggestions
 
-Renders all thread suggestions using a provided component. Each suggestion is wrapped in a `SuggestionByIndexProvider` context.
+Renders all thread suggestions through a `children` render function. Each suggestion is wrapped in a `SuggestionByIndexProvider` context.
 
 ```tsx
 <ThreadPrimitive.Suggestions>
@@ -126,35 +131,40 @@ Renders all thread suggestions using a provided component. Each suggestion is wr
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `children` | `() => ReactElement` | Render function for each suggestion |
+| `children` | `(value: { suggestion: SuggestionState }) => ReactNode` | Render function for each suggestion |
 
 ### SuggestionByIndex
 
-Low-level provider that sets up the suggestion context for a specific suggestion by index. Used internally by `ThreadPrimitive.Suggestions`.
+Renders the suggestion at a specific index and sets up its suggestion context.
 
 ```tsx
-<ThreadPrimitive.SuggestionByIndex index={0}>
-  <SuggestionPrimitive.Title />
-</ThreadPrimitive.SuggestionByIndex>
-```
-
-| Prop | Type | Description |
-|------|------|-------------|
-| `index` | `number` | Zero-based suggestion index |
-
-### Suggestion
-
-Renders a suggestion button. Uses Ink `Box` + `Text`.
-
-```tsx
-<ThreadPrimitive.Suggestion
-  prompt="What is the weather?"
-  send
+<ThreadPrimitive.SuggestionByIndex
+  index={0}
+  components={{ Suggestion: MySuggestion }}
 />
 ```
 
 | Prop | Type | Description |
 |------|------|-------------|
+| `index` | `number` | Zero-based suggestion index |
+| `components` | `{ Suggestion: ComponentType }` | Component to render for the suggestion |
+
+### Suggestion
+
+Pressable that sends a fixed prompt or inserts it into the composer. It renders its `children` and needs no suggestion context.
+
+```tsx
+<ThreadPrimitive.Suggestion
+  prompt="What is the weather?"
+  send
+>
+  <Text>What is the weather?</Text>
+</ThreadPrimitive.Suggestion>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `ReactNode` | Button content |
 | `prompt` | `string` | The suggestion text |
 | `send` | `boolean` | When true, automatically sends the message |
 | `clearComposer` | `boolean` | When true (default), replaces composer text; when false, appends |
@@ -166,8 +176,7 @@ import { LoadingPrimitive } from "@assistant-ui/react-ink";
 ```
 
 Composable loading UI for active runs. `LoadingPrimitive.Root` only renders
-while the current thread is running, so it pairs naturally with status rows in
-terminal chat layouts.
+while the current thread is running.
 
 ```tsx
 <LoadingPrimitive.Root gap={1}>
@@ -192,8 +201,8 @@ Runtime-aware `Box` container that renders children only while
 
 ### Spinner
 
-Animated loader indicator. Supports the existing `ink-spinner` path plus a few
-built-in text-based variants for more terminal-native styles.
+Animated loader indicator. `variant="spinner"` uses `ink-spinner`; the other
+variants are built-in text animations.
 
 | Prop | Type | Description |
 |------|------|-------------|
@@ -276,9 +285,11 @@ Supported keyboard bindings:
 | `Alt+D` | Kill the word after the cursor | Terminals that emit meta-key sequences |
 | `Shift+Enter` | Insert a newline | Multi-line submit mode, terminals that distinguish it |
 
+`Alt+Up` and `Alt+Down` are left to the application and do not move the input cursor.
+
 Word boundaries and grapheme stepping use `Intl.Segmenter`, so emoji, accented letters, skin-tone modifiers, ZWJ sequences, and CJK ideographs each move and delete as a single character.
 
-Some bindings depend on terminal capabilities. iTerm2, Windows Terminal, and most Linux terminals emit `Alt`-letter combinations as `Esc`-prefixed sequences that Ink decodes as meta-key input; macOS Terminal.app requires enabling "Use Option as Meta key" in its preferences before `Alt+B` / `Alt+F` / `Alt+D` work as expected. `Shift+Enter` requires a terminal that supports the CSI-u protocol (iTerm2 3.4+, kitty, foot, and similar) — terminals that conflate it with `Enter` will fall back to the `submitOnEnter` behaviour.
+Some bindings depend on terminal capabilities. iTerm2, Windows Terminal, and most Linux terminals emit `Alt`-letter combinations as `Esc`-prefixed sequences that Ink decodes as meta-key input; macOS Terminal.app requires enabling "Use Option as Meta key" in its preferences before `Alt+B` / `Alt+F` / `Alt+D` work as expected. `Shift+Enter` requires a terminal that supports the CSI-u protocol (iTerm2 3.4+, kitty, foot, and similar). Terminals that conflate it with `Enter` fall back to the `submitOnEnter` behaviour.
 
 Example with custom submit handling:
 
@@ -314,7 +325,7 @@ Example with custom submit handling:
 
 ### Attachments
 
-Renders composer attachments using the provided component configuration.
+Renders composer attachments through a `children` render function.
 
 ```tsx
 <ComposerPrimitive.Attachments>
@@ -324,11 +335,12 @@ Renders composer attachments using the provided component configuration.
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `components` | `{ Image?, Document?, File?, Attachment? }` | Component renderers by attachment type |
+| `children` | `(value: { attachment: Attachment }) => ReactNode` | Render function called for each attachment |
+| `components` | `{ Image?, Document?, File?, Attachment? }` | Deprecated, use `children`. Component renderers by attachment type |
 
 ### AddAttachment
 
-Triggers attachment addition.
+Pressable for an attach control. It is disabled while the composer is not editable. It has no press handler and does not accept `onPress`, so add attachments by calling `aui.composer.addAttachment()` from your own code.
 
 ```tsx
 <ComposerPrimitive.AddAttachment>
@@ -407,7 +419,7 @@ Pressable that clears the active quote by calling `aui.composer.setQuote(undefin
 | Prop | Type | Description |
 |------|------|-------------|
 | `children` | `ReactNode` | Button content |
-| `disabled` | `boolean` | Disable Enter activation and focus |
+| `disabled` | `boolean` | Disable Enter and Space activation and focus |
 | `...rest` | `BoxProps` | Standard Ink Box props |
 
 ### Conditional Rendering (Composer)
@@ -422,17 +434,19 @@ Use `AuiIf` for conditional rendering based on composer state:
 
 ### AttachmentByIndex
 
-Low-level provider that sets up the attachment context for a specific attachment by index. Used internally by `ComposerPrimitive.Attachments`.
+Renders the composer attachment at a specific index and sets up its attachment context.
 
 ```tsx
-<ComposerPrimitive.AttachmentByIndex index={0}>
-  <AttachmentPrimitive.Name />
-</ComposerPrimitive.AttachmentByIndex>
+<ComposerPrimitive.AttachmentByIndex
+  index={0}
+  components={{ Attachment: MyAttachment }}
+/>
 ```
 
 | Prop | Type | Description |
 |------|------|-------------|
 | `index` | `number` | Zero-based attachment index |
+| `components` | `{ Image?, Document?, File?, Attachment? }` | Component renderers by attachment type |
 
 ### If (deprecated)
 
@@ -475,7 +489,7 @@ Container `Box` for a single message.
 
 ### Parts
 
-Renders message content parts via a `components` prop. Tool call and data parts automatically render registered toolkit renderers and data UIs (via `useAssistantDataUI`), falling back to components provided here. Default terminal-safe renderers are provided for text, reasoning, source, image, file, and data parts.
+Renders message content parts through a `children` render function or a `components` map. Tool call and data parts automatically render registered toolkit renderers and data UIs (via `useAssistantDataUI`), falling back to components provided here. Default terminal-safe renderers are provided for text, reasoning, source, image, file, and data parts.
 
 ```tsx
 <MessagePrimitive.Parts>
@@ -555,36 +569,42 @@ Composable primitives for rendering the current message part inside part context
 | `MessagePartPrimitive.Image` | Renders `[image: filename]` or `[image]`; never emits image data or terminal image protocols |
 | `MessagePartPrimitive.File` | Renders `[file: filename mimeType]` or `[file: mimeType]`; never prints file data |
 | `MessagePartPrimitive.Source` | Renders source title and/or URL metadata |
-| `MessagePartPrimitive.Reasoning` | Renders conservative reasoning text by default; override or return `null` to suppress |
+| `MessagePartPrimitive.Reasoning` | Renders the reasoning text with Ink `<Text>`; override or return `null` to suppress |
 | `MessagePartPrimitive.Data` | Renders `[data: name]` when no registered data renderer is available |
 
 ### PartByIndex
 
-Low-level provider that sets up the part context for a specific message part by index. Used internally by `MessagePrimitive.Parts`.
+Renders the message part at a specific index and sets up its part context.
 
 ```tsx
-<MessagePrimitive.PartByIndex index={0}>
-  {/* content rendered with part context */}
-</MessagePrimitive.PartByIndex>
+<MessagePrimitive.PartByIndex
+  index={0}
+  components={{
+    Text: () => <MessagePartPrimitive.Text />,
+  }}
+/>
 ```
 
 | Prop | Type | Description |
 |------|------|-------------|
 | `index` | `number` | Zero-based part index |
+| `components` | `object` | Same component map as `MessagePrimitive.Parts` |
 
 ### AttachmentByIndex
 
-Low-level provider that sets up the attachment context for a specific message attachment by index. Used internally by `MessagePrimitive.Attachments`.
+Renders the message attachment at a specific index and sets up its attachment context.
 
 ```tsx
-<MessagePrimitive.AttachmentByIndex index={0}>
-  <AttachmentPrimitive.Name />
-</MessagePrimitive.AttachmentByIndex>
+<MessagePrimitive.AttachmentByIndex
+  index={0}
+  components={{ Attachment: MyAttachment }}
+/>
 ```
 
 | Prop | Type | Description |
 |------|------|-------------|
 | `index` | `number` | Zero-based attachment index |
+| `components` | `{ Image?, Document?, File?, Attachment? }` | Component renderers by attachment type |
 
 ### Conditional Rendering (Message)
 
@@ -627,7 +647,7 @@ Conditional rendering based on message properties.
 
 ### Attachments
 
-Renders user message attachments using the provided component configuration.
+Renders user message attachments through a `children` render function.
 
 ```tsx
 <MessagePrimitive.Attachments>
@@ -637,7 +657,8 @@ Renders user message attachments using the provided component configuration.
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `components` | `{ Image?, Document?, File?, Attachment? }` | Component renderers by attachment type |
+| `children` | `(value: { attachment: Attachment }) => ReactNode` | Render function called for each attachment |
+| `components` | `{ Image?, Document?, File?, Attachment? }` | Deprecated, use `children`. Component renderers by attachment type |
 
 ## Attachment
 
@@ -666,7 +687,7 @@ Container `Box` for an attachment. Forwards all `Box` props.
 
 ### Thumb
 
-`Text` component displaying a short identifier for the attachment. Renders the file extension (`.pdf`, `.png`, …) when the name has one. Falls back to the attachment `type` (e.g. `image`, `document`) otherwise, and finally to `file`. Passing `children` overrides the automatic label.
+`Text` component displaying a short identifier for the attachment. Renders the file extension (such as `.pdf` or `.png`) when the name has one, and the attachment `type` (e.g. `image`, `document`) otherwise. Passing `children` overrides the automatic label.
 
 | Prop | Type | Description |
 |------|------|-------------|
@@ -684,12 +705,12 @@ Container `Box` for an attachment. Forwards all `Box` props.
 
 ### Remove
 
-`Pressable` that calls `aui.attachment.remove()` when activated (Enter while focused). Disabled when not focused or when the `disabled` prop is set.
+`Pressable` that calls `aui.attachment.remove()` when activated (Enter or Space while focused). Disabled when not focused or when the `disabled` prop is set.
 
 | Prop | Type | Description |
 |------|------|-------------|
 | `children` | `ReactNode` | Visual content for the button |
-| `disabled` | `boolean` | Skip focus registration and ignore Enter |
+| `disabled` | `boolean` | Skip focus registration and ignore Enter and Space |
 | `...rest` | `ComponentProps<typeof Box>` | Forwarded to the underlying Pressable's `Box` |
 
 ```tsx
@@ -737,7 +758,7 @@ Pressable that removes the queue item by calling `aui.queueItem.remove()`.
 | Prop | Type | Description |
 |------|------|-------------|
 | `children` | `ReactNode` | Button content |
-| `disabled` | `boolean` | Disable Enter activation and focus |
+| `disabled` | `boolean` | Disable Enter and Space activation and focus |
 
 Remaining props are forwarded to the underlying `Pressable` (Ink `Box` props).
 
@@ -754,7 +775,7 @@ Pressable that promotes the queue item to run next by calling `aui.queueItem.ste
 | Prop | Type | Description |
 |------|------|-------------|
 | `children` | `ReactNode` | Button content |
-| `disabled` | `boolean` | Disable Enter activation and focus |
+| `disabled` | `boolean` | Disable Enter and Space activation and focus |
 
 Remaining props are forwarded to the underlying `Pressable` (Ink `Box` props).
 
@@ -966,7 +987,7 @@ Pressable that toggles the collapsed state of the chain of thought.
 
 ### Parts
 
-Renders the individual parts of a chain of thought using a provided components map. Shared from `@assistant-ui/core/react`.
+Renders the individual parts of a chain of thought through a `children` render function. Shared from `@assistant-ui/core/react`.
 
 ```tsx
 <ChainOfThoughtPrimitive.Root>
@@ -974,7 +995,7 @@ Renders the individual parts of a chain of thought using a provided components m
     <Text dimColor>[Toggle reasoning]</Text>
   </ChainOfThoughtPrimitive.AccordionTrigger>
   <ChainOfThoughtPrimitive.Parts>
-    {({ part }) => part.type === "text" ? <Text dimColor>{part.text}</Text> : null}
+    {({ part }) => part.type === "reasoning" ? <Text dimColor>{part.text}</Text> : null}
   </ChainOfThoughtPrimitive.Parts>
 </ChainOfThoughtPrimitive.Root>
 ```
@@ -992,7 +1013,7 @@ A built-in component for rendering tool calls with expandable/collapsible output
 ```tsx
 <MessagePrimitive.Parts>
   {({ part }) => {
-    if (part.type === "tool-call") return <ToolCallPrimitive.Fallback part={part} />;
+    if (part.type === "tool-call") return <ToolCallPrimitive.Fallback {...part} />;
     return null;
   }}
 </MessagePrimitive.Parts>
@@ -1000,7 +1021,7 @@ A built-in component for rendering tool calls with expandable/collapsible output
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `part` | `ToolCallMessagePartProps` | The tool call message part (pass the component prop directly) |
+| `...part` | `ToolCallMessagePartProps` | The tool call part fields (`toolName`, `args`, `argsText`, `result`, `status`, and so on), spread onto the component |
 | `expanded` | `boolean` | Force expanded or collapsed. When unset, auto-expands while running, awaiting action, or errored |
 | `maxArgLines` | `number` | Maximum lines to show for args when expanded (default: 20) |
 | `maxResultLines` | `number` | Maximum lines to show for result when expanded (default: 20) |
@@ -1019,9 +1040,9 @@ Components for rendering code diffs in the terminal.
 
 ### DiffView
 
-Pre-composed component that combines all diff primitives for easy diff rendering. Accepts either a unified diff patch string or old/new file content for inline comparison.
+Pre-composed component that combines all diff primitives. Accepts either a unified diff patch string or old/new file content for inline comparison.
 
-When a replacement is rendered as an equal-length adjacent `-`/`+` run, `DiffView` also highlights the changed word spans inside those lines. The existing prefixes, line numbers, folding, and primitive API surface stay the same. This intra-line behavior is internal to `DiffView`; `DiffPrimitive.Line` remains a line-level primitive.
+When a replacement is rendered as an equal-length adjacent `-`/`+` run, `DiffView` also highlights the changed word spans inside those lines. Prefixes, line numbers, and folding are unaffected. This intra-line behavior is internal to `DiffView`; `DiffPrimitive.Line` remains a line-level primitive.
 
 ```tsx
 // From a patch string
@@ -1051,23 +1072,17 @@ When a replacement is rendered as an equal-length adjacent `-`/`+` run, `DiffVie
 
 ### Root
 
-Container `Box` that provides diff context to child components. Parses the patch or computes the diff from old/new file content.
+Container `Box` that provides parsed diff files to child components. It does not parse a patch or compare file contents; pass already parsed files, or use `DiffView` to render from a patch string or file contents.
 
 ```tsx
-<DiffPrimitive.Root
-  patch={patchString}
-  oldFile={{ content: oldContent, name: "file.txt" }}
-  newFile={{ content: newContent, name: "file.txt" }}
->
+<DiffPrimitive.Root files={files}>
   {children}
 </DiffPrimitive.Root>
 ```
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `patch` | `string` | Unified diff patch string |
-| `oldFile` | `{ content: string; name?: string }` | Old file for inline diff |
-| `newFile` | `{ content: string; name?: string }` | New file for inline diff |
+| `files` | `ParsedFile[]` | Parsed files (`oldName`, `newName`, `lines`, `additions`, `deletions`) read by the child primitives |
 
 ### Header
 
@@ -1140,7 +1155,7 @@ Displays diff statistics (additions and deletions count).
 For custom layouts, use the primitives directly:
 
 ```tsx
-<DiffPrimitive.Root patch={patchString}>
+<DiffPrimitive.Root files={files}>
   <Box flexDirection="column">
     <DiffPrimitive.Header />
     <DiffPrimitive.Stats />
@@ -1171,7 +1186,7 @@ Container `Box` for the status bar. Forwards all `Box` props; pass `gap` to spac
 
 ### ModelName
 
-`Text` component displaying the current model name. The name is supplied as a prop — the primitive does not infer it from state.
+`Text` component displaying the current model name. The name is supplied as a prop. The primitive does not infer it from state.
 
 | Prop | Type | Description |
 |------|------|-------------|
@@ -1230,7 +1245,7 @@ Container `Box` for the status bar. Forwards all `Box` props; pass `gap` to spac
 import { TextInput } from "@assistant-ui/react-ink";
 ```
 
-Store-free, controlled single/multi-line text field. Ink ships no native text input, so this is the terminal equivalent of the DOM `<textarea>` or React Native's `<TextInput>` — the editing engine (buffer, grapheme-aware cursor, and the full emacs/arrow keymap) without any runtime or composer coupling. `ComposerPrimitive.Input` is a thin adapter that wraps `TextInput` and binds it to the composer store; reach for `TextInput` directly when you need an editable field outside the thread composer (for example, editing a value before confirming an action).
+Store-free, controlled single/multi-line text field. Ink ships no native text input, so this is the terminal equivalent of the DOM `<textarea>` or React Native's `<TextInput>`: the editing engine (buffer, grapheme-aware cursor, and the full emacs/arrow keymap) without any runtime or composer coupling. `ComposerPrimitive.Input` is a thin adapter that wraps `TextInput` and binds it to the composer store. Use `TextInput` directly when you need an editable field outside the thread composer (for example, editing a value before confirming an action).
 
 It is controlled on `value`/`onChange`, so an external owner can override the text at any time (the buffer absorbs the echo without thrashing the cursor). An owner may also transform the emitted text in `onChange` (uppercase, mask, reject); the buffer applies the corrected value while keeping the cursor at the edit position, snapped to a grapheme boundary. A replacement that does not respond to an edit (a programmatic set while idle) still places the cursor at the end:
 

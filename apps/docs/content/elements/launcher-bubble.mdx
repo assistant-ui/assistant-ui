@@ -79,7 +79,7 @@ export function Launcher() {
 }
 ```
 
-`ThreadPrimitive.Suggestion` defaults to replacing the composer text rather than sending, so picking a prompt loads it for the user to glance at before `ComposerPrimitive.Send` (which disables itself while the composer is empty) actually starts the run.
+`ThreadPrimitive.Suggestion` defaults to replacing the composer text rather than sending, so picking a prompt loads it into the composer, and `ComposerPrimitive.Send` (disabled while the composer is empty) starts the run.
 
   </Step>
 </Steps>

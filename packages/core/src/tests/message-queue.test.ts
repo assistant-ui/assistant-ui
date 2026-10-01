@@ -73,6 +73,26 @@ describe("createMessageQueue", () => {
     expect(queue.adapter.items).toEqual([]);
   });
 
+  it("keeps draining after a subscriber cancels while the queue dispatches", () => {
+    const run = vi.fn(() => queue.notifyBusy());
+    const queue = createMessageQueue({ run });
+    queue.adapter.enqueue(msg("first"));
+    queue.adapter.enqueue(msg("second"));
+
+    let cancelled = false;
+    queue.subscribe(() => {
+      if (cancelled || queue.adapter.items.length !== 0) return;
+      cancelled = true;
+      queue.notifyCancelled();
+    });
+    queue.notifyIdle();
+    queue.notifyIdle();
+    queue.adapter.enqueue(msg("third"));
+
+    expect(run).toHaveBeenCalledTimes(3);
+    expect(run).toHaveBeenLastCalledWith(msg("third"), { steer: false });
+  });
+
   it("runs immediately when idle and holds while running", () => {
     const run = vi.fn();
     const { adapter, notifyIdle } = createMessageQueue({ run });

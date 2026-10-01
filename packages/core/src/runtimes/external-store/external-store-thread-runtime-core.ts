@@ -256,6 +256,13 @@ export class ExternalStoreThreadRuntimeCore
     if (repositoryChanged) {
       this.repository = repositoryInstance;
       this._pendingDeleteEvictions.clear();
+      // Keep the live placeholder so resetHead cannot evict an id still used
+      // by clients rendering the previous snapshot.
+      const head = this.repository.getMessages();
+      const tail = head.at(-1);
+      this._optimistic = tail?.metadata.isOptimistic
+        ? { id: tail.id, parentId: head.at(-2)?.id ?? null }
+        : null;
     }
     if (oldStore?.queue !== store.queue) {
       this._transformedQueue = undefined;
