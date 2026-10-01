@@ -31,6 +31,7 @@ const StubThread = resource(() => ({
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
 });
 
 const mount = (
@@ -99,7 +100,6 @@ describe("RemoteThreadList list promises", () => {
     expect(consoleError).not.toHaveBeenCalledWith(
       expect.stringContaining("uncached promise"),
     );
-    consoleError.mockRestore();
   });
 
   it("settles a suspense cache keyed on the load promise", async () => {
@@ -135,14 +135,29 @@ describe("RemoteThreadList list promises", () => {
     expect(renders).toBeLessThan(10);
   });
 
-  it("resolves inside act() once the loaded list is committed", async () => {
-    const aui = mount(makeAdapter());
+  it("resolves loadMore() once the threads state reports the appended page", async () => {
+    const page = deferred<ListPage>();
+    const adapter = makeAdapter({
+      list: vi
+        .fn<RemoteThreadListAdapter["list"]>()
+        .mockResolvedValueOnce({
+          threads: [{ remoteId: "t1", status: "regular", title: "One" }],
+          nextCursor: "c1",
+        })
+        .mockImplementationOnce(() => page.promise),
+    });
+    const aui = mount(adapter);
     await aui.threads.getLoadThreadsPromise();
 
-    await act(async () => {
-      await aui.threads.getLoadThreadsPromise();
+    const loaded = aui.threads.loadMore();
+    page.resolve({
+      threads: [{ remoteId: "t2", status: "regular", title: "Two" }],
     });
-    expect(aui.threads.getState().isLoading).toBe(false);
+    await loaded;
+
+    const state = aui.threads.getState();
+    expect(state.threadIds).toEqual(["t1", "t2"]);
+    expect(state.isLoadingMore).toBe(false);
   });
 
   it("holds the promise while the completing act() defers the commit", async () => {

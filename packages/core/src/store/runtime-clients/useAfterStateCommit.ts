@@ -4,16 +4,19 @@ import { useCallback, useEffect, useState } from "react";
  * How long a settled promise waits for the client to commit before resolving
  * anyway. The client cannot commit while a Suspense boundary hides it, so a
  * reader suspended on the promise inside that boundary would otherwise wait
- * forever.
+ * forever. There is no hide signal to release it sooner: a layout effect
+ * cleanup here runs only on unmount, not when the boundary hides the client.
+ * The value is a bound on that wait, not a tuned delay.
  */
 const COMMIT_TIMEOUT_MS = 100;
 
 /**
  * Delays a promise until the client has committed a render of the source
  * state current at settlement, so a caller awaiting it reads the result from
- * the client's `getState()`, or until `COMMIT_TIMEOUT_MS` passes. Each source promise maps to one delayed promise,
- * keeping it stable for `use()` and Suspense caches. `getLatestState` must be
- * stable.
+ * the client's `getState()`. A promise that settles before the first commit
+ * waits for it. The wait ends after `COMMIT_TIMEOUT_MS`, and at once after
+ * unmount. Each source promise maps to one delayed promise, keeping it stable
+ * for `use()` and Suspense caches. `getLatestState` must be stable.
  */
 export const useAfterStateCommit = <TState>(
   renderedState: TState,
@@ -21,6 +24,7 @@ export const useAfterStateCommit = <TState>(
 ) => {
   const [session] = useState(() => ({
     committed: undefined as { state: TState } | undefined,
+    unmounted: false,
     waiters: new Set<() => void>(),
     delayed: new WeakMap<Promise<unknown>, Promise<unknown>>(),
   }));
@@ -33,15 +37,16 @@ export const useAfterStateCommit = <TState>(
     for (const resolve of waiters) resolve();
   });
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    session.unmounted = false;
+    return () => {
+      session.unmounted = true;
       session.committed = undefined;
       const waiters = [...session.waiters];
       session.waiters.clear();
       for (const resolve of waiters) resolve();
-    },
-    [session],
-  );
+    };
+  }, [session]);
 
   return useCallback(
     <T>(promise: Promise<T>): Promise<T> => {
@@ -52,8 +57,9 @@ export const useAfterStateCommit = <TState>(
           new Promise<T>((resolve) => {
             const committed = session.committed;
             if (
-              committed === undefined ||
-              Object.is(committed.state, getLatestState())
+              session.unmounted ||
+              (committed !== undefined &&
+                Object.is(committed.state, getLatestState()))
             ) {
               resolve(value);
               return;
