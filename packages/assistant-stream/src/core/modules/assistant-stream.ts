@@ -158,7 +158,6 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
   }
 
   __internal_endOpenInputs() {
-    this._state.append?.controller.close();
     this._state.append = undefined;
     for (const end of this._state.openInputs) end();
     this._state.openInputs.clear();
@@ -264,7 +263,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       strict: this._state.strict,
     });
     this._addPart(this._withParentIdOption({ type: "text" }), stream, () =>
-      controller.close(),
+      controller.__internal_close(),
     );
     return controller;
   }
@@ -276,7 +275,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     this._addPart(
       this._withParentIdOption({ type: "reasoning", ...options }),
       stream,
-      () => controller.close(),
+      () => controller.__internal_close(),
     );
     return controller;
   }

@@ -159,6 +159,57 @@ describe("raw chunk ordering", () => {
 });
 
 describe("createAssistantStream task settlement", () => {
+  it.each(["text", "reasoning", "tool-call"] as const)(
+    "ignores a background %s writer after the callback fails",
+    async (type) => {
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let lateWrite!: Promise<void>;
+      const chunks = await collectChunks(
+        createAssistantStream((controller) => {
+          const part =
+            type === "text"
+              ? controller.addTextPart()
+              : type === "reasoning"
+                ? controller.addReasoningPart()
+                : controller.addToolCallPart("search").argsText;
+          lateWrite = gate.then(() => {
+            part.append("late");
+          });
+          throw new Error("provider failed");
+        }),
+      );
+
+      release();
+      await expect(lateWrite).resolves.toBeUndefined();
+      expect(chunks.filter((chunk) => chunk.type === "text-delta")).toEqual([]);
+    },
+  );
+
+  it.each(["text", "reasoning", "tool-call"] as const)(
+    "keeps strict writes after an explicit %s close when the callback fails",
+    async (type) => {
+      let append!: () => void;
+      await collectChunks(
+        createAssistantStream((controller) => {
+          const part =
+            type === "text"
+              ? controller.addTextPart()
+              : type === "reasoning"
+                ? controller.addReasoningPart()
+                : controller.addToolCallPart("search").argsText;
+          part.close();
+          append = () => part.append("late");
+          throw new Error("provider failed");
+        }),
+      );
+
+      expect(append).toThrow("Cannot append to a closed TextStreamController");
+    },
+  );
+
   it("finishes open text and reasoning parts and cuts off open tool calls when the callback throws", async () => {
     const chunks = await collectChunks(
       createAssistantStream(async (controller) => {

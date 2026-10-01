@@ -20,6 +20,7 @@ export class TextStreamControllerImpl implements TextStreamController {
   private _controller: ReadableStreamDefaultController<AssistantStreamChunk>;
   private _strict: boolean;
   private _isClosed = false;
+  private _ignoreAppends = false;
   private _warnedDropped = false;
 
   constructor(
@@ -31,6 +32,7 @@ export class TextStreamControllerImpl implements TextStreamController {
   }
 
   append(textDelta: string) {
+    if (this._ignoreAppends) return this;
     const chunk: AssistantStreamChunk = {
       type: "text-delta",
       path: [],
@@ -63,8 +65,15 @@ export class TextStreamControllerImpl implements TextStreamController {
     closeIfOpen(this._controller);
   }
 
+  __internal_close() {
+    if (this._isClosed) return;
+    this._ignoreAppends = true;
+    this.close();
+  }
+
   __internal_truncate() {
     if (this._isClosed) return;
+    this._ignoreAppends = true;
     this._isClosed = true;
     closeIfOpen(this._controller);
   }
