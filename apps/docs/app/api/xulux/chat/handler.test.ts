@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { appBuilderAgent, learnAgent } from "./agents";
+import { XULUX_MODEL_ID } from "@/lib/xulux/usage-budget-codes";
 import type { XuluxAgentDefinition } from "./agents";
 
 const mocks = vi.hoisted(() => ({
@@ -100,43 +100,7 @@ const request = (config?: Record<string, unknown>) =>
     }),
   });
 
-const readyForChat = () => {
-  mocks.resolveChatModel.mockClear();
-  mocks.requireSession.mockReturnValue({
-    id: "signed-session-1234567890",
-    expiresAt: Date.now() + 60_000,
-  });
-  mocks.checkRateLimit.mockResolvedValue(null);
-  mocks.beginTurn.mockResolvedValue({
-    denied: null,
-    budgetDate: "2026-08-27",
-  });
-  mocks.streamText.mockReturnValue({
-    toUIMessageStreamResponse: () => new Response("ok"),
-  });
-};
-
 describe("createXuluxChatHandler access boundary", () => {
-  it.each([
-    ["app builder", appBuilderAgent],
-    ["Learn chat", learnAgent],
-  ])(
-    "pins the %s model when the request names another model",
-    async (_, xuluxAgent) => {
-      readyForChat();
-
-      const response = await createXuluxChatHandler({
-        ...xuluxAgent,
-        prepareTools: () => ({}),
-      })(request({ modelName: "grok/grok-4.3" }));
-
-      expect(response.status).toBe(200);
-      expect(mocks.resolveChatModel).toHaveBeenLastCalledWith({
-        modelName: "gpt-6-luna",
-      });
-    },
-  );
-
   it("rejects requests without a valid public assistant session", async () => {
     mocks.requireSession.mockReturnValue(
       Response.json({ error: "website required" }, { status: 403 }),
@@ -198,19 +162,39 @@ describe("createXuluxChatHandler access boundary", () => {
 
     const usage = { inputTokens: 10, outputTokens: 5, totalTokens: 15 };
     const options = mocks.streamText.mock.calls[0]?.[0] as {
-      onFinish: (result: {
-        usage: typeof usage;
-        response: { modelId: string };
-      }) => Promise<void>;
+      onFinish: (result: { usage: typeof usage }) => Promise<void>;
     };
-    await options.onFinish({ usage, response: { modelId: "test-model" } });
+    await options.onFinish({ usage });
 
     expect(mocks.finishTurn).toHaveBeenCalledWith(
       `${publicSession.id}:xulux-chat-session`,
       publicSession.id,
       usage,
-      "test-model",
       "2026-08-27",
     );
+  });
+
+  it("runs the metered model whatever model the request names", async () => {
+    mocks.requireSession.mockReturnValue({
+      id: "signed-session-1234567890",
+      expiresAt: Date.now() + 60_000,
+    });
+    mocks.checkRateLimit.mockResolvedValue(null);
+    mocks.beginTurn.mockResolvedValue({
+      denied: null,
+      budgetDate: "2026-08-27",
+    });
+    mocks.streamText.mockReturnValue({
+      toUIMessageStreamResponse: () => new Response("ok"),
+    });
+
+    const response = await createXuluxChatHandler(agent)(
+      request({ modelName: "grok/grok-4.3", reasoningEffort: "medium" }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.resolveChatModel).toHaveBeenLastCalledWith({
+      modelName: XULUX_MODEL_ID,
+    });
   });
 });

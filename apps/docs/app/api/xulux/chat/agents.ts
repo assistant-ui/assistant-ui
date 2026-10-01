@@ -21,7 +21,6 @@ export type XuluxAgentDefinition = {
   systemPrompt: string;
   maxSteps: number;
   maxOutputTokens?: number;
-  modelName?: string;
   traceName?: string;
   getTraceMetadata?: (options: {
     body: Record<string, unknown>;
@@ -40,7 +39,6 @@ export type XuluxAgentDefinition = {
 export const appBuilderAgent: XuluxAgentDefinition = {
   systemPrompt: APP_BUILDER_SYSTEM_PROMPT,
   maxSteps: 50,
-  modelName: "gpt-6-luna",
   prepareTools: ({ clientTools, routeUrl }) =>
     createAppBuilderTools({ clientTools, routeUrl }),
 };
@@ -48,7 +46,6 @@ export const appBuilderAgent: XuluxAgentDefinition = {
 export const learnAgent: XuluxAgentDefinition = {
   systemPrompt: LEARN_SYSTEM_PROMPT,
   maxSteps: 50,
-  modelName: "gpt-6-luna",
   activeToolsAfterFirstStep: [
     "inspectSourceMap",
     "readSourceMapFile",
