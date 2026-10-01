@@ -24,6 +24,8 @@ const DOC_CHAT_LIMITS: InputLimits = {
   maxSingleMessageChars: 24_000, // ~6k tokens
 };
 
+const MAX_FRONTEND_TOOLS_CHARS = 96_000;
+
 function measureMessageChars(messages: unknown[]): {
   totalChars: number;
   maxChars: number;
@@ -81,6 +83,14 @@ export function validateDocChatInput(messages: unknown): Response | null {
   const error = validateWithLimits(messages, DOC_CHAT_LIMITS);
   if (error) {
     return new Response(error, { status: 400 });
+  }
+  return null;
+}
+
+export function validateFrontendToolsInput(tools: unknown): Response | null {
+  const serializedTools = JSON.stringify(tools ?? {});
+  if (serializedTools.length > MAX_FRONTEND_TOOLS_CHARS) {
+    return new Response("Tools too large", { status: 400 });
   }
   return null;
 }
