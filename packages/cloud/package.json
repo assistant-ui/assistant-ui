@@ -1,6 +1,6 @@
 {
   "name": "assistant-cloud",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Cloud integration for assistant-ui",
   "keywords": [
     "assistant",
@@ -44,7 +44,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "assistant-stream": "^0.3.45"
+    "assistant-stream": "^0.3.46"
   },
   "peerDependencies": {
     "@opentelemetry/api": "^1.9.0",
@@ -72,10 +72,10 @@
     "@opentelemetry/exporter-trace-otlp-http": "^0.222.0",
     "@opentelemetry/sdk-trace-base": "^2.11.0",
     "@types/node": "^26.6.3",
-    "ai": "^7.0.118",
-    "ai-v6": "npm:ai@^6.0.293",
-    "jsdom": "^30.1.1",
-    "vitest": "^5.0.2"
+    "ai": "^7.0.123",
+    "ai-v6": "npm:ai@^6.0.277",
+    "jsdom": "^30.0.1",
+    "vitest": "^5.0.3"
   },
   "publishConfig": {
     "access": "public",

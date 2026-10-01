@@ -2,7 +2,6 @@ import {
   commitResourceFiber,
   createResourceFiber,
   renderResourceFiber,
-  unmountResourceFiber,
 } from "../core/ResourceFiber";
 import { scheduleNotify, UpdateScheduler } from "../core/scheduler";
 import { isDevelopment } from "../core/helpers/env";
@@ -17,6 +16,7 @@ import { throwAggregated } from "../core/helpers/throwAggregated";
 import type { ResourceContext, ResourceFiber } from "../core/types";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDevStrictMode } from "./utils/useDevStrictMode";
+import { useHostLifecycle } from "./utils/useResourceFiberHostUtils";
 
 export namespace useTapRoot {
   export type Unsubscribe = () => void;
@@ -216,9 +216,10 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
     inst.isMounted = true;
     return () => {
       inst.isMounted = false;
-      unmountResourceFiber(inst.fiber);
     };
   }, [inst]);
+
+  useHostLifecycle(inst.fiber);
 
   useEffect(() => {
     if (renderState.processed) {

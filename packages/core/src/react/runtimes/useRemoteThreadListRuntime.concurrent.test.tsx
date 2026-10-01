@@ -13,7 +13,10 @@ import { createRoot } from "react-dom/client";
 import { describe, expect, it, vi } from "vitest";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import type { AppendMessage, ThreadMessage } from "../../types/message";
-import { makeAdapter } from "../../tests/remote-thread-list-test-helpers";
+import {
+  actSettled,
+  makeAdapter,
+} from "../../tests/remote-thread-list-test-helpers";
 import { AssistantRuntimeProvider } from "../AssistantRuntimeProvider";
 import { useExternalStoreRuntime } from "./useExternalStoreRuntime";
 import { useRemoteThreadListRuntime } from "./useRemoteThreadListRuntime";
@@ -132,8 +135,8 @@ describe("useRemoteThreadListRuntime concurrent options", () => {
     });
     expect(renderB).toHaveBeenCalled();
 
+    await actSettled(() => runtimeRef.current!.threads.switchToNewThread());
     await act(async () => {
-      await runtimeRef.current!.threads.switchToNewThread();
       await getThreadCore(runtimeRef.current!).append(userMessage("second"));
     });
 

@@ -6,9 +6,9 @@ platforms: ["react"]
 
 import { DevToolsSample, DevToolsModalSample } from "@/components/pages/docs/samples/devtools";
 
-The assistant-ui DevTools allows you to debug the assistant-ui state and context, and events without resorting to `console.log`. It's an easy way to see how data flows to the assistant-ui's runtime layer.
+The assistant-ui DevTools let you inspect assistant-ui state, context, and events without resorting to `console.log`. They show how data flows to the runtime layer.
 
-Try it below — the chat on top is a live assistant-ui app, and the panel underneath is the real DevTools inspecting it. Send a message, trigger a tool call, and switch between the Thread, Context, and Activity tabs.
+Try it below. The chat on top is a live assistant-ui app, and the panel underneath is the real DevTools inspecting it. Send a message, trigger a tool call, and switch between the Thread, Context, and Activity tabs.
 
 <DevToolsSample />
 
@@ -48,9 +48,9 @@ export function AssistantApp() {
 
 ### Verify the DevTools overlay
 
-That's it! In development builds you should now see the DevTools launcher in the lower-right corner of your site. The panel renders inline in an isolated shadow root, and the whole component is stripped from production builds.
+In development builds you should now see the DevTools launcher in the lower-right corner of your site. The panel renders inline in an isolated shadow root, and the whole component is stripped from production builds.
 
-Try it here — click the launcher in the lower-right corner of the frame, then use "Run a demo turn" to watch events stream into the open panel. In your app the window opens over a dimmed, click-to-close backdrop; the demo omits it so the app stays usable while the panel is open:
+Try it here: click the launcher in the lower-right corner of the frame, then use "Run a demo turn" to watch events stream into the open panel. In your app the window opens over a dimmed, click-to-close backdrop; the demo omits it so the app stays usable while the panel is open:
 
 <DevToolsModalSample />
 

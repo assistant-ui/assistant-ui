@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "heat-graph": "workspace:*",
-    "next": "^16.3.6",
+    "next": "^16.3.8",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },

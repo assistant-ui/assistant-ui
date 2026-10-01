@@ -30,7 +30,8 @@ export namespace Checkout {
   /**
    * product: the agent proposes adding a product to this checkout, such as one
    * another product depends on. The browser owns the catalog, so it answers
-   * with `checkout/add-product`; dismissing the input declines.
+   * with `checkout/add-product` as soon as the input arrives, and dismisses a
+   * slug the catalog does not carry.
    */
   export type InputKind = "text" | "choice" | "model" | "product";
 
@@ -517,6 +518,32 @@ export const isValidModelAnswer = (input: Checkout.Input, answer: string) => {
     (input.options?.some((option) => option.id === parsed.provider) ?? false)
   );
 };
+
+/** The checkout worker logs "Completed: <title>" or "Skipped: <title>" with the stepId when a step closes; the step list already shows that. */
+export const isStepClosingLine = (
+  entry: Checkout.LogEntry,
+  state: Checkout.State,
+) => {
+  if (entry.role !== "agent") return false;
+  const step = state.steps.find((candidate) => candidate.id === entry.stepId);
+  return (
+    step !== undefined &&
+    ["Completed", "Skipped"].some(
+      (verb) =>
+        entry.text === `${verb}: ${step.title}` ||
+        entry.text.startsWith(`${verb}: ${step.title}\n\n`),
+    )
+  );
+};
+
+/** What the agent said while working on a step, oldest first, without the line that closed it. */
+export const stepActivity = (state: Checkout.State, stepId: string) =>
+  state.log.filter(
+    (entry) =>
+      entry.role === "agent" &&
+      entry.stepId === stepId &&
+      !isStepClosingLine(entry, state),
+  );
 
 export const stepProgress = (state: Checkout.State) => ({
   total: state.steps.length,

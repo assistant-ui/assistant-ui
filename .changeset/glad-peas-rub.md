@@ -13,6 +13,7 @@
 "@assistant-ui/next": patch
 "@assistant-ui/react-a2a": patch
 "@assistant-ui/react-ag-ui": patch
+"@assistant-ui/react-ai-sdk": patch
 "@assistant-ui/react-data-stream": patch
 "@assistant-ui/react-devtools": patch
 "@assistant-ui/react-generative-ui": patch
@@ -30,6 +31,7 @@
 "@assistant-ui/react-opencode": patch
 "@assistant-ui/react-pi": patch
 "@assistant-ui/react-streamdown": patch
+"@assistant-ui/react-syntax-highlighter": patch
 "@assistant-ui/react": patch
 "safe-content-frame": patch
 "@assistant-ui/store": patch

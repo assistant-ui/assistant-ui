@@ -21,7 +21,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup pnpm and node.js
-        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        uses: pnpm/setup@fbda4c85fc2e1e08721cd8763afea8f48d60f024 # ratchet:pnpm/setup@v3.0.0
         with:
           runtime: node@24
           cache: true
@@ -33,13 +33,26 @@ jobs:
       - name: Lint fix
         run: pnpm lint:fix
 
+      - name: Detect API reference inputs
+        id: api_ref
+        run: |
+          set -euo pipefail
+          BASE="origin/${{ github.base_ref }}"
+          if ! git rev-parse --verify "$BASE" >/dev/null; then
+            echo "Unable to resolve API reference diff base: $BASE"
+            exit 1
+          fi
+          run="$(git diff --name-only --no-renames -z "$BASE" | node scripts/api-reference-inputs.mjs)"
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
       - name: Update API surface snapshots
         env:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
-        run: pnpm api-surface
+        run: pnpm api-surface -- --base="origin/${{ github.base_ref }}"
 
       - name: Update API reference pages
+        if: steps.api_ref.outputs.run == 'true'
         run: pnpm -C apps/docs generate:api-reference
 
       - uses: autofix-ci/action@c5b2d67aa2274e7b5a18224e8171550871fc7e4a # ratchet:autofix-ci/action@v1.3.4

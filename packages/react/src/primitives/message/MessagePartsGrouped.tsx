@@ -27,6 +27,7 @@ import type {
 } from "@assistant-ui/core/react";
 import { MessagePartPrimitiveInProgress } from "../messagePart/MessagePartInProgress";
 import type { MessagePartStatus } from "@assistant-ui/core";
+import { getMessagePartKeys } from "@assistant-ui/core/internal";
 
 type MessagePartGroup = {
   groupKey: string | undefined;
@@ -73,15 +74,16 @@ const groupMessagePartsByParentId: GroupingFunction = (
 
 const useMessagePartsGrouped = (
   groupingFunction: GroupingFunction,
-): MessagePartGroup[] => {
+): { groups: MessagePartGroup[]; partKeys: string[] } => {
   const parts = useAuiState((s) => s.message.parts);
 
-  return useMemo(() => {
+  const groups = useMemo(() => {
     if (parts.length === 0) {
       return [];
     }
     return groupingFunction(parts);
   }, [parts, groupingFunction]);
+  return { groups, partKeys: getMessagePartKeys(parts) };
 };
 
 export namespace MessagePrimitiveUnstable_PartsGrouped {
@@ -463,7 +465,8 @@ export const MessagePrimitiveUnstable_PartsGrouped: FC<
   MessagePrimitiveUnstable_PartsGrouped.Props
 > = ({ groupingFunction, components }) => {
   const contentLength = useAuiState((s) => s.message.parts.length);
-  const messageGroups = useMessagePartsGrouped(groupingFunction);
+  const { groups: messageGroups, partKeys } =
+    useMessagePartsGrouped(groupingFunction);
 
   const partsElements = useMemo(() => {
     if (contentLength === 0) {
@@ -472,16 +475,21 @@ export const MessagePrimitiveUnstable_PartsGrouped: FC<
 
     return messageGroups.map((group, groupIndex) => {
       const GroupComponent = components?.Group ?? defaultComponents.Group;
+      const identity = partKeys[group.indices[0]!];
 
       return (
         <GroupComponent
-          key={`group-${groupIndex}-${group.groupKey ?? "ungrouped"}`}
+          key={JSON.stringify([
+            "group",
+            group.groupKey ?? null,
+            identity?.includes(":") ? `id:${identity}` : groupIndex,
+          ])}
           groupKey={group.groupKey}
           indices={group.indices}
         >
           {group.indices.map((partIndex) => (
             <MessagePart
-              key={partIndex}
+              key={partKeys[partIndex]}
               partIndex={partIndex}
               components={components}
             />
@@ -489,7 +497,7 @@ export const MessagePrimitiveUnstable_PartsGrouped: FC<
         </GroupComponent>
       );
     });
-  }, [messageGroups, components, contentLength]);
+  }, [messageGroups, components, contentLength, partKeys]);
 
   return <>{partsElements}</>;
 };

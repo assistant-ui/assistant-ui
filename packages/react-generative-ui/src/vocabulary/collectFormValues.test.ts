@@ -5,7 +5,16 @@ import {
   collectFormValues,
   type FormControlElementLike,
 } from "./collectFormValues";
-import { CHECKBOX_GROUP_ATTR, GENERATED_NAME_ATTR } from "../constants";
+import {
+  CHECKBOX_GROUP_ATTR,
+  FIELD_VALUE_ATTR,
+  GENERATED_NAME_ATTR,
+} from "../constants";
+import {
+  normalizeTemporalInputValue,
+  toLocalDateTime,
+  toPickerLocalDateTime,
+} from "../temporal";
 
 const el = (
   partial: Partial<FormControlElementLike>,
@@ -19,6 +28,146 @@ const el = (
 });
 
 describe("collectFormValues", () => {
+  it("uses an instant anchor only for datetime-local controls", () => {
+    expect(
+      collectFormValues([
+        el({
+          name: "canonical",
+          type: "datetime-local",
+          value: normalizeTemporalInputValue(
+            toLocalDateTime("2025-12-15T17:00:00Z"),
+          ),
+          getAttribute: (name) =>
+            name === FIELD_VALUE_ATTR ? "2025-12-15T17:00:00Z" : null,
+        }),
+        el({
+          name: "ordinary",
+          value: "live",
+          getAttribute: (name) => (name === FIELD_VALUE_ATTR ? "stale" : null),
+        }),
+      ]),
+    ).toEqual({ canonical: "2025-12-15T17:00:00Z", ordinary: "live" });
+  });
+
+  it("uses the declared datetime-local type when the browser reports text", () => {
+    const anchor = "2025-12-15T17:00:00.250Z";
+    const displayed = toPickerLocalDateTime(anchor);
+    const getAttribute = (name: string) =>
+      name === "type"
+        ? "datetime-local"
+        : name === FIELD_VALUE_ATTR
+          ? anchor
+          : null;
+    const control = (value: string) =>
+      el({ name: "when", type: "text", value, getAttribute });
+    expect(collectFormValues([control(displayed)])).toEqual({
+      when: anchor,
+    });
+    expect(
+      collectFormValues([control(displayed.replace(".250", ".750"))]),
+    ).toEqual({
+      when: "2025-12-15T17:00:00.750Z",
+    });
+    expect(collectFormValues([control(displayed.slice(0, -4))])).toEqual({
+      when: "2025-12-15T17:00:00.000Z",
+    });
+  });
+
+  it("uses the declared time type when the browser reports text", () => {
+    expect(
+      collectFormValues([
+        el({
+          name: "when",
+          type: "text",
+          value: "12:00",
+          getAttribute: (name) =>
+            name === "type"
+              ? "time"
+              : name === FIELD_VALUE_ATTR
+                ? "12:00:00"
+                : null,
+        }),
+      ]),
+    ).toEqual({ when: "12:00:00" });
+  });
+
+  it.each([
+    ["time", "17:00:00", "17:00", "08:30:45"],
+    [
+      "datetime-local",
+      "2025-12-15T17:00:00",
+      "2025-12-15T17:00",
+      "2025-12-16T08:30:45",
+    ],
+  ])(
+    "uses the canonical %s value only while its projection matches",
+    (type, canonical, displayed, edited) => {
+      const getAttribute = (name: string) =>
+        name === FIELD_VALUE_ATTR ? canonical : null;
+      expect(
+        collectFormValues([
+          el({ name: "value", type, value: displayed, getAttribute }),
+        ]),
+      ).toEqual({ value: canonical });
+      expect(
+        collectFormValues([
+          el({ name: "value", type, value: edited, getAttribute }),
+        ]),
+      ).toEqual({ value: edited });
+      expect(
+        collectFormValues([
+          el({ name: "value", type, value: "", getAttribute }),
+        ]),
+      ).toEqual({ value: "" });
+    },
+  );
+
+  it("ignores instant anchors on other control types", () => {
+    const getAttribute = (name: string) =>
+      name === FIELD_VALUE_ATTR ? "2025-12-15T17:00:00Z" : null;
+    expect(
+      collectFormValues([
+        el({ name: "date", type: "date", value: "", getAttribute }),
+        el({ name: "time", type: "time", value: "12:34", getAttribute }),
+        el({ name: "text", value: "live", getAttribute }),
+        el({
+          name: "select",
+          type: "select-one",
+          value: "chosen",
+          getAttribute,
+        }),
+        el({ name: "textarea", type: "textarea", value: "text", getAttribute }),
+        el({
+          name: "radio",
+          type: "radio",
+          value: "chosen",
+          checked: true,
+          getAttribute,
+        }),
+        el({ name: "checkbox", type: "checkbox", checked: true, getAttribute }),
+        el({
+          name: "group",
+          type: "checkbox",
+          value: "chosen",
+          checked: true,
+          hasAttribute: (name) => name === CHECKBOX_GROUP_ATTR,
+          getAttribute,
+        }),
+        el({ name: "range", type: "range", value: "7", getAttribute }),
+      ]),
+    ).toEqual({
+      date: "",
+      time: "12:34",
+      text: "live",
+      select: "chosen",
+      textarea: "text",
+      radio: "chosen",
+      checkbox: true,
+      group: ["chosen"],
+      range: 7,
+    });
+  });
+
   it("resolves a checkbox to its checked boolean", () => {
     expect(
       collectFormValues([

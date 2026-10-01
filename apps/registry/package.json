@@ -12,7 +12,7 @@
     "radix-ui": "^1.6.7"
   },
   "devDependencies": {
-    "@ai-sdk/openai": "^4.0.78",
+    "@ai-sdk/openai": "^4.0.82",
     "@assistant-ui/ai-sdk": "workspace:*",
     "@assistant-ui/eve": "workspace:*",
     "@assistant-ui/react": "workspace:*",
@@ -26,9 +26,9 @@
     "@types/react-dom": "^19.3.0",
     "@types/react-syntax-highlighter": "^15.5.13",
     "@vue/compiler-sfc": "^3.5.43",
-    "ai": "^7.0.118",
+    "ai": "^7.0.123",
     "class-variance-authority": "^0.7.1",
-    "lucide-react": "^1.48.0",
+    "lucide-react": "^1.49.0",
     "postcss": "^8.5.28",
     "react": "^19.3.0",
     "react-resizable-panels": "^4.14.1",
