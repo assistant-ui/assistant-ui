@@ -11,7 +11,7 @@ import { useShallowSelector } from "@assistant-ui/store/internal";
 import { getMessagePartKeys } from "../../../utils/getMessagePartKeys";
 import type { PartState } from "../../../store/scopes/part";
 import { ChainOfThoughtPartByIndexProvider } from "../../providers/ChainOfThoughtPartByIndexProvider";
-import { ChainOfThoughtPartKeysContext } from "../../providers/ChainOfThoughtByIndicesProvider";
+import { ChainOfThoughtPartsContext } from "../../providers/ChainOfThoughtByIndicesProvider";
 import { MessagePartComponent } from "../message/MessageParts";
 import type {
   ReasoningMessagePartComponent,
@@ -48,10 +48,11 @@ export namespace ChainOfThoughtPrimitiveParts {
 const ChainOfThoughtPrimitivePartsInner: FC<{
   children: (value: { part: PartState }) => ReactNode;
 }> = ({ children }) => {
-  const messagePartKeys = useContext(ChainOfThoughtPartKeysContext);
+  const partsContext = useContext(ChainOfThoughtPartsContext);
   const partKeys = useAuiState(
     useShallowSelector(
-      (s) => messagePartKeys ?? getMessagePartKeys(s.chainOfThought.parts),
+      (s) =>
+        partsContext?.partKeys ?? getMessagePartKeys(s.chainOfThought.parts),
     ),
   );
 

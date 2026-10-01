@@ -27,7 +27,10 @@ import type {
 } from "@assistant-ui/core/react";
 import { MessagePartPrimitiveInProgress } from "../messagePart/MessagePartInProgress";
 import type { MessagePartStatus } from "@assistant-ui/core";
-import { getMessagePartKeys } from "@assistant-ui/core/internal";
+import {
+  getMessagePartKeys,
+  getMessagePartGroupIdentity,
+} from "@assistant-ui/core/internal";
 
 type MessagePartGroup = {
   groupKey: string | undefined;
@@ -473,12 +476,20 @@ export const MessagePrimitiveUnstable_PartsGrouped: FC<
       return <EmptyParts components={components} />;
     }
 
-    return messageGroups.map((group, groupIndex) => {
+    const groupOrdinals = new Map<string, number>();
+    return messageGroups.map((group) => {
       const GroupComponent = components?.Group ?? defaultComponents.Group;
+      const kind =
+        group.groupKey === undefined ? "ungrouped" : `group:${group.groupKey}`;
+      const ordinal = groupOrdinals.get(kind) ?? 0;
+      groupOrdinals.set(kind, ordinal + 1);
+      const identity = getMessagePartGroupIdentity(
+        group.indices.map((index) => partKeys[index]),
+      );
 
       return (
         <GroupComponent
-          key={`group-${groupIndex}-${group.groupKey ?? "ungrouped"}`}
+          key={identity ? `${kind}-id:${identity}` : `${kind}@${ordinal}`}
           groupKey={group.groupKey}
           indices={group.indices}
         >

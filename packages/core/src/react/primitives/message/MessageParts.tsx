@@ -41,7 +41,10 @@ import {
 import type { DataRenderersState } from "../../types/scopes/dataRenderers";
 import type { ToolsState } from "../../types/scopes/tools";
 import { useShallowSelector } from "@assistant-ui/store/internal";
-import { getMessagePartKeys } from "../../../utils/getMessagePartKeys";
+import {
+  getMessagePartKeys,
+  getMessagePartGroupIdentity,
+} from "../../../utils/getMessagePartKeys";
 
 type MessagePartRange =
   | { type: "single"; index: number }
@@ -107,8 +110,6 @@ const createGroupState = <
  * Groups consecutive tool-call and reasoning message parts into ranges.
  * Always groups tool calls and reasoning parts, even if there's only one.
  * When useChainOfThought is true, groups tool-call and reasoning parts together.
- * `partIds[i]` optionally carries a stable identity for part `i`; group
- * ranges derive an `idKey` from their first part's id (first claim wins).
  */
 export const groupMessageParts = (
   messageTypes: readonly string[],
@@ -160,7 +161,9 @@ export const groupMessageParts = (
     const claimed = new Set<string>();
     for (const range of ranges) {
       if (range.type === "single") continue;
-      const id = partIds[range.startIndex];
+      const id = getMessagePartGroupIdentity(
+        partIds.slice(range.startIndex, range.endIndex + 1),
+      );
       if (id !== undefined && !claimed.has(id)) {
         claimed.add(id);
         range.idKey = `id:${id}`;
@@ -186,7 +189,7 @@ const useMessagePartsGroups = (
       return { ranges: [], partIds };
     }
     return {
-      ranges: groupMessageParts(messageTypes, useChainOfThought),
+      ranges: groupMessageParts(messageTypes, useChainOfThought, partIds),
       partIds,
     };
   }, [messageTypes, partIds, useChainOfThought]);
@@ -895,7 +898,9 @@ const MessagePrimitivePartsCompat: FC<{
 
       const ordinal = groupOrdinals.get(range.type) ?? 0;
       groupOrdinals.set(range.type, ordinal + 1);
-      const groupKey = `${range.type}@${ordinal}`;
+      const groupKey = range.idKey
+        ? `${range.type}-${range.idKey}`
+        : `${range.type}@${ordinal}`;
       if (range.type === "chainOfThoughtGroup") {
         const ChainOfThoughtComponent = components?.ChainOfThought;
         if (!ChainOfThoughtComponent) return null;

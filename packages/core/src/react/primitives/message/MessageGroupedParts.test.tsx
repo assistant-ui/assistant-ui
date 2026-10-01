@@ -69,7 +69,7 @@ const StateProbe = ({ text }: { text: string }) => {
 
 const renderIdentityGroups = (
   content: ThreadMessageLike["content"],
-  grouped: boolean | "nested",
+  grouped: boolean | "nested" | "thought" | "nested-thought",
 ) => {
   let mounts = 0;
   const Group = ({ children }: PropsWithChildren) => {
@@ -77,24 +77,29 @@ const renderIdentityGroups = (
     return <section data-mount={mount}>{children}</section>;
   };
   const path =
-    grouped === "nested"
+    grouped === "nested" || grouped === "nested-thought"
       ? (["group-parts", "group-leaves"] as const)
       : (["group-parts"] as const);
   const Message = () => (
     <MessagePrimitiveGroupedParts
       groupBy={groupPartByType(
-        grouped
-          ? {
-              text: path,
-              image: path,
-            }
-          : {},
+        grouped === "thought" || grouped === "nested-thought"
+          ? { reasoning: path, "tool-call": path }
+          : grouped
+            ? {
+                text: path,
+                image: path,
+              }
+            : {},
       )}
     >
       {({ part, children }) => {
         if (part.type === "group-parts" || part.type === "group-leaves")
           return <Group>{children}</Group>;
-        if (part.type === "text") return <StateProbe text={part.text} />;
+        if (part.type === "text" || part.type === "reasoning")
+          return <StateProbe text={part.text} />;
+        if (part.type === "tool-call")
+          return <StateProbe text={part.argsText} />;
         if (part.type === "image")
           return (
             <StateProbe text={part.image.split("/").pop()!.split(".")[0]!} />
@@ -103,11 +108,17 @@ const renderIdentityGroups = (
       }}
     </MessagePrimitiveGroupedParts>
   );
-  const App = ({ content }: { content: ThreadMessageLike["content"] }) => {
+  const App = ({
+    content,
+    isRunning = true,
+  }: {
+    content: ThreadMessageLike["content"];
+    isRunning?: boolean;
+  }) => {
     const runtime = useExternalStoreRuntime({
       messages: [{ id: "message", role: "assistant", content }],
       convertMessage: (message: ThreadMessageLike) => message,
-      isRunning: true,
+      isRunning,
       onNew: async () => {},
     });
     return (
@@ -118,8 +129,8 @@ const renderIdentityGroups = (
   };
   const view = render(<App content={content} />);
   return {
-    setContent: (content: ThreadMessageLike["content"]) =>
-      view.rerender(<App content={content} />),
+    setContent: (content: ThreadMessageLike["content"], isRunning = true) =>
+      view.rerender(<App content={content} isRunning={isRunning} />),
     groupMounts: () =>
       Array.from(
         view.container.querySelectorAll("section"),
@@ -136,6 +147,51 @@ const renderIdentityGroups = (
 afterEach(cleanup);
 
 describe("MessagePrimitive.GroupedParts", () => {
+  it.each(["thought", "nested-thought"] as const)(
+    "keeps the %s wrappers and tool UI state when reasoning appears before text on settle",
+    (grouped) => {
+      const text = { type: "text" as const, text: "prefix" };
+      const tool = {
+        type: "tool-call" as const,
+        toolCallId: "t1",
+        toolName: "task",
+        args: {},
+        argsText: "draft",
+      };
+      const view = renderIdentityGroups([text, tool], grouped);
+      const mounts = view.groupMounts();
+      view.setContent(
+        [
+          { type: "reasoning", text: "earlier" },
+          text,
+          { ...tool, argsText: "settled" },
+        ],
+        false,
+      );
+      expect(view.groupMounts().slice(-mounts.length)).toEqual(mounts);
+      expect(view.values()).toEqual([
+        "earlier:earlier",
+        "prefix:prefix",
+        "draft:settled",
+      ]);
+    },
+  );
+
+  it.each([true, "nested"] as const)(
+    "keys groups without identified members by ordinal with grouped=%s",
+    (grouped) => {
+      const parts = [
+        { type: "text" as const, text: "first" },
+        { type: "reasoning" as const, text: "separator" },
+        { type: "text" as const, text: "second" },
+      ];
+      const view = renderIdentityGroups(parts, grouped);
+      const mounts = view.groupMounts();
+      view.setContent([{ type: "reasoning", text: "prefix" }, ...parts]);
+      expect(view.groupMounts()).toEqual(mounts);
+    },
+  );
+
   describe.each([false, true, "nested"] as const)(
     "grouped=%s identity",
     (grouped) => {

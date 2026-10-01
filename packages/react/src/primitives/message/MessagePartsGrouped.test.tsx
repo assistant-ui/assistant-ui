@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
 
 import { render, screen, waitFor } from "@testing-library/react";
-import { useEffect, useState, type FC, type ReactNode } from "react";
+import {
+  useEffect,
+  useState,
+  type FC,
+  type ReactNode,
+  type PropsWithChildren,
+} from "react";
 import { describe, expect, it } from "vitest";
 import type { ThreadMessageLike } from "@assistant-ui/core";
 import {
@@ -88,6 +94,94 @@ const Example = ({
 };
 
 describe("MessagePrimitive.Unstable_PartsGroupedByParentId", () => {
+  it.each([undefined, "parent"])(
+    "keeps wrapper and leaf state when identified parts swap with parent=%s",
+    (parentId) => {
+      let mounts = 0;
+      const Group = ({ children }: PropsWithChildren) => {
+        const [mount] = useState(() => ++mounts);
+        return <section data-mount={mount}>{children}</section>;
+      };
+      const Text = ({ text }: { text: string }) => {
+        const [seed] = useState(text);
+        return <span>{`${seed}:${text}`}</span>;
+      };
+      const Message = partsMessage({ Text, Group });
+      const first = {
+        type: "text" as const,
+        id: "p1",
+        text: "first",
+        ...(parentId !== undefined && { parentId }),
+      };
+      const second = {
+        type: "text" as const,
+        id: "p2",
+        text: "second",
+        ...(parentId !== undefined && { parentId }),
+      };
+      const view = render(
+        <Example Message={Message} content={[first, second]} />,
+      );
+      view.rerender(
+        <Example
+          Message={Message}
+          content={[
+            { ...second, text: "second updated" },
+            { ...first, text: "first updated" },
+          ]}
+        />,
+      );
+      expect(
+        Array.from(
+          view.container.querySelectorAll("span"),
+          (el) => el.textContent,
+        ),
+      ).toEqual(["second:second updated", "first:first updated"]);
+      expect(
+        Array.from(
+          view.container.querySelectorAll("section"),
+          (el) => el.dataset.mount,
+        ),
+      ).toEqual(parentId === undefined ? ["2", "1"] : ["1"]);
+    },
+  );
+
+  it("keys unidentified groups by ordinal among groups of the same kind", () => {
+    let mounts = 0;
+    const Group = ({
+      groupKey,
+      children,
+    }: PropsWithChildren<{ groupKey: string | undefined }>) => {
+      const [mount] = useState(() => ++mounts);
+      return (
+        <section data-mount={mount} data-parent={groupKey}>
+          {children}
+        </section>
+      );
+    };
+    const Message = partsMessage({ Group });
+    const parts = [
+      { type: "text" as const, text: "first" },
+      { type: "text" as const, text: "second" },
+    ];
+    const view = render(<Example Message={Message} content={parts} />);
+    view.rerender(
+      <Example
+        Message={Message}
+        content={[
+          { type: "text", text: "parented", parentId: "ungrouped" },
+          ...parts,
+        ]}
+      />,
+    );
+    expect(
+      Array.from(
+        view.container.querySelectorAll("section"),
+        (el) => el.dataset.mount,
+      ),
+    ).toEqual(["3", "1", "2"]);
+  });
+
   it("keeps a text seed while streaming and resets it for a replacement id", () => {
     const SeededText = ({ text }: { text: string }) => {
       const [seed] = useState(text);

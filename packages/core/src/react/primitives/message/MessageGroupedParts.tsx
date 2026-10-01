@@ -227,7 +227,9 @@ const renderNode = <TKey extends `group-${string}`>(
   };
 
   return (
-    <Fragment key={`${node.key}@${ordinal}`}>
+    <Fragment
+      key={node.idKey ? `${node.key}-${node.idKey}` : `${node.key}@${ordinal}`}
+    >
       {render({
         part: groupPart,
         children: (

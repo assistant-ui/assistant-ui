@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { ThreadMessage } from "../types/message";
-import { getMessagePartKeys } from "./getMessagePartKeys";
+import {
+  getMessagePartKeys,
+  getMessagePartGroupIdentity,
+} from "./getMessagePartKeys";
 
 describe("getMessagePartKeys", () => {
   it("keys unique identities by type and id", () => {
@@ -95,5 +98,26 @@ describe("getMessagePartKeys", () => {
 
     expect(getMessagePartKeys(parts)).toBe(keys);
     expect(getMessagePartKeys([...parts])).not.toBe(keys);
+  });
+});
+
+describe("getMessagePartGroupIdentity", () => {
+  it("compares only identity keys, including their types", () => {
+    expect(
+      getMessagePartGroupIdentity([
+        "image@0",
+        "tool-call:a",
+        "reasoning:z",
+        "reasoning:b@1",
+        undefined,
+      ]),
+    ).toBe("reasoning:b@1");
+  });
+
+  it("leaves groups without identified members to the ordinal fallback", () => {
+    expect(
+      getMessagePartGroupIdentity(["text@0", "reasoning@1", undefined]),
+    ).toBeUndefined();
+    expect(getMessagePartGroupIdentity([])).toBeUndefined();
   });
 });

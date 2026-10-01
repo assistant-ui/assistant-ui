@@ -1,4 +1,4 @@
-import { createContext, type FC, type PropsWithChildren } from "react";
+import { createContext, useMemo, type FC, type PropsWithChildren } from "react";
 import {
   useAui,
   useAuiState,
@@ -10,9 +10,10 @@ import type { ChainOfThoughtPart } from "../../store/scopes/chain-of-thought";
 import { useShallowSelector } from "@assistant-ui/store/internal";
 import { getMessagePartKeys } from "../../utils/getMessagePartKeys";
 
-export const ChainOfThoughtPartKeysContext = createContext<
-  readonly string[] | null
->(null);
+export const ChainOfThoughtPartsContext = createContext<{
+  partKeys: readonly string[];
+  startIndex: number;
+} | null>(null);
 
 export const ChainOfThoughtByIndicesProvider: FC<
   PropsWithChildren<{
@@ -28,6 +29,10 @@ export const ChainOfThoughtByIndicesProvider: FC<
     useShallowSelector((s) =>
       getMessagePartKeys(s.message.parts).slice(startIndex, endIndex + 1),
     ),
+  );
+  const partsContext = useMemo(
+    () => ({ partKeys, startIndex }),
+    [partKeys, startIndex],
   );
 
   const parentAui = useAui();
@@ -46,10 +51,10 @@ export const ChainOfThoughtByIndicesProvider: FC<
     }),
   });
   return (
-    <ChainOfThoughtPartKeysContext.Provider value={partKeys}>
+    <ChainOfThoughtPartsContext.Provider value={partsContext}>
       <AuiProvider extends={parentAui} config={config}>
         {children}
       </AuiProvider>
-    </ChainOfThoughtPartKeysContext.Provider>
+    </ChainOfThoughtPartsContext.Provider>
   );
 };

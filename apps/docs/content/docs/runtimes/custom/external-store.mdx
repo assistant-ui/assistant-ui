@@ -910,7 +910,7 @@ useExternalStoreRuntime({
       name: "content",
       type: "string | readonly ThreadMessageLikePart[]",
       description:
-        "Message content as string or structured message parts. Supports data-* prefixed types (e.g. { type: \"data-workflow\", data: {...} }) which are automatically converted to DataMessagePart. A part's optional id, including on data-* parts, keys the part when it is non-empty and unique within its message, preserving component state when parts are reordered or updated with the same id. Every part with a missing, empty, or duplicate id is keyed by its type and position.",
+        "Message content as string or structured message parts. Supports data-* prefixed types (e.g. { type: \"data-workflow\", data: {...} }) which are automatically converted to DataMessagePart. A part's optional id, including on data-* parts, keys the part when it is non-empty and no other part of the same type in the message shares it, preserving component state when parts are reordered or updated with the same id. Every part with a missing or empty id, or an id shared by another part of the same type, is keyed by its type and position.",
       required: true,
     },
     {

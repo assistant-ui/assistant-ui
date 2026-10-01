@@ -1,6 +1,7 @@
 import { isMcpAppUri } from "../../types/message";
 import type { PartState } from "../../store/scopes/part";
 import type { ToolsState } from "../types/scopes/tools";
+import { getMessagePartGroupIdentity } from "../../utils/getMessagePartKeys";
 
 /**
  * Registry context passed to a `groupBy` function as its second argument by
@@ -125,7 +126,7 @@ export interface GroupNodeGroup {
   /** Structural React key: sibling-index path, e.g. `"0.1.0"`. */
   readonly nodeKey: string;
   /**
-   * Identity key (`"id:<partId>"`) from the group's first part; undefined
+   * Identity key (`"id:<type>:<partId>"`) from the group's smallest member identity; undefined
    * when absent or already claimed by an earlier sibling.
    */
   readonly idKey: string | undefined;
@@ -174,8 +175,6 @@ const claimIdKey = (
  * Build the group tree from an array of normalized group paths.
  * `paths[i]` is the path for part `i`. The output tree contains one
  * `part` node per part and one `group` node per coalesced run.
- * `partIds[i]` optionally carries a stable identity for part `i` (e.g. a
- * tool call id), from which nodes derive an `idKey`.
  */
 export const buildGroupTree = (
   paths: readonly (readonly string[])[],
@@ -198,7 +197,12 @@ export const buildGroupTree = (
       type: "group",
       key: closing.key,
       nodeKey: closing.nodeKey,
-      idKey: claimIdKey(parent, partIds?.[closing.indices[0]!]),
+      idKey: claimIdKey(
+        parent,
+        getMessagePartGroupIdentity(
+          closing.indices.map((index) => partIds?.[index]),
+        ),
+      ),
       indices: closing.indices,
       children: closing.children,
     });

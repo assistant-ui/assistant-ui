@@ -73,11 +73,17 @@ const renderIdentityParts = (
         unstable_showEmptyOnNonTextEnd={false}
       />
     );
-  const App = ({ content }: { content: ThreadMessageLike["content"] }) => {
+  const App = ({
+    content,
+    isRunning = true,
+  }: {
+    content: ThreadMessageLike["content"];
+    isRunning?: boolean;
+  }) => {
     const runtime = useExternalStoreRuntime({
       messages: [{ id: "message", role: "assistant", content }],
       convertMessage: (message: ThreadMessageLike) => message,
-      isRunning: true,
+      isRunning,
       onNew: async () => {},
     });
     return (
@@ -89,8 +95,8 @@ const renderIdentityParts = (
   const view = render(<App content={content} />);
   return {
     ...view,
-    setContent: (content: ThreadMessageLike["content"]) =>
-      view.rerender(<App content={content} />),
+    setContent: (content: ThreadMessageLike["content"], isRunning = true) =>
+      view.rerender(<App content={content} isRunning={isRunning} />),
     values: () =>
       Array.from(
         view.container.querySelectorAll("span"),
@@ -261,6 +267,117 @@ describe("MessagePrimitive.Parts", () => {
     expect(view.container.querySelector("section")?.dataset.mount).toBe("1");
     expect(view.values()).toEqual(["prefix:prefix", "old:new"]);
   });
+
+  it.each(["reasoning", "tool-call", "chain-of-thought"] as const)(
+    "keeps the %s wrapper and tool UI state when an earlier group appears on settle",
+    (kind) => {
+      let mounts = 0;
+      const Group = ({ children }: PropsWithChildren) => {
+        const [mount] = useState(() => ++mounts);
+        return <section data-mount={mount}>{children}</section>;
+      };
+      const Tool = ({ argsText }: { argsText: string }) => (
+        <StateProbe text={argsText} />
+      );
+      const ChainOfThought = () => (
+        <Group>
+          <ChainOfThoughtPrimitiveParts
+            components={{ Reasoning: StateProbe, tools: { Fallback: Tool } }}
+          />
+        </Group>
+      );
+      const part =
+        kind === "reasoning"
+          ? { type: "reasoning" as const, id: "r1", text: "draft" }
+          : {
+              type: "tool-call" as const,
+              toolCallId: "t1",
+              toolName: "task",
+              args: {},
+              argsText: "draft",
+            };
+      const prefix = { type: "text" as const, text: "prefix" };
+      const view = renderIdentityParts(
+        [prefix, part],
+        "components",
+        kind === "chain-of-thought"
+          ? { Text: StateProbe, ChainOfThought }
+          : {
+              Text: StateProbe,
+              Reasoning: StateProbe,
+              ReasoningGroup: Group,
+              ToolGroup: Group,
+              tools: { Fallback: Tool },
+            },
+      );
+      view.setContent(
+        [
+          kind === "tool-call"
+            ? {
+                type: "tool-call",
+                toolCallId: "t0",
+                toolName: "task",
+                args: {},
+                argsText: "earlier",
+              }
+            : { type: "reasoning", id: "r0", text: "earlier" },
+          prefix,
+          part.type === "tool-call"
+            ? { ...part, argsText: "settled" }
+            : { ...part, text: "settled" },
+        ],
+        false,
+      );
+      expect(
+        Array.from(
+          view.container.querySelectorAll("section"),
+          (el) => el.dataset.mount,
+        ),
+      ).toEqual(["2", "1"]);
+      expect(view.values()).toEqual([
+        "earlier:earlier",
+        "prefix:prefix",
+        "draft:settled",
+      ]);
+    },
+  );
+
+  it.each([false, true])(
+    "keys groups without identified members by ordinal with chain of thought=%s",
+    (chainOfThought) => {
+      let mounts = 0;
+      const Group = ({ children }: PropsWithChildren) => {
+        const [mount] = useState(() => ++mounts);
+        return <section data-mount={mount}>{children}</section>;
+      };
+      const ChainOfThought = () => (
+        <Group>
+          <ChainOfThoughtPrimitiveParts
+            components={{ Reasoning: StateProbe }}
+          />
+        </Group>
+      );
+      const parts = [
+        { type: "reasoning" as const, text: "first" },
+        { type: "text" as const, text: "separator" },
+        { type: "reasoning" as const, text: "second" },
+      ];
+      const view = renderIdentityParts(
+        parts,
+        "components",
+        chainOfThought
+          ? { ChainOfThought }
+          : { Reasoning: StateProbe, ReasoningGroup: Group },
+      );
+      view.setContent([{ type: "text", text: "prefix" }, ...parts]);
+      expect(
+        Array.from(
+          view.container.querySelectorAll("section"),
+          (el) => el.dataset.mount,
+        ),
+      ).toEqual(["1", "2"]);
+    },
+  );
 
   it("keys reasoning leaves within a stable group by their ids", () => {
     const view = renderIdentityParts(

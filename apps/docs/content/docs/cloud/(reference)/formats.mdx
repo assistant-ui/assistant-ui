@@ -44,7 +44,7 @@ Assistant Cloud stores a format name with every message. The format preserves th
 | `audio` | `audio: { data, format }`, where format is `mp3` or `wav`. |
 | `generative-ui` | `spec`, optional `id` and `parentId`. |
 
-For text, reasoning, image, file, and data parts, the host-supplied `id` keys the part when it is non-empty and unique within its message, preserving component state when parts are reordered or updated with the same id. Every part with a missing, empty, or duplicate id is keyed by its type and position. The format preserves optional ids on attachment content parts too.
+For text, reasoning, image, file, and data parts, the host-supplied `id` keys the part when it is non-empty and no other part of the same type in the message shares it, preserving component state when parts are reordered or updated with the same id. Every part with a missing or empty id, or an id shared by another part of the same type, is keyed by its type and position. The format preserves optional ids on attachment content parts too.
 
 ### Attachments and metadata
 

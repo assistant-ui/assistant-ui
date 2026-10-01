@@ -32,7 +32,10 @@ export {
 
 // Message utilities
 export { getThreadMessageText } from "./utils/text";
-export { getMessagePartKeys } from "./utils/getMessagePartKeys";
+export {
+  getMessagePartKeys,
+  getMessagePartGroupIdentity,
+} from "./utils/getMessagePartKeys";
 export { toMessagePartStatus } from "./utils/normalizePartStatus";
 export { notifyEventListeners } from "./utils/notify-event-listeners";
 export { resolveToolApprovalResponse } from "./runtime/utils/resolveToolApprovalResponse";
