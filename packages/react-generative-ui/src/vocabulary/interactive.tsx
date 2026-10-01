@@ -426,6 +426,14 @@ function DatePickerRender({
   const anchor = classifyTemporal(selection.anchor ?? "");
   const hasInstantAnchor =
     inputType === "datetime" && anchor.kind === "instant";
+  const canonicalInstant = (value: string | undefined) =>
+    inputType !== "datetime"
+      ? undefined
+      : classifyTemporal(value ?? "").kind === "instant"
+        ? value
+        : hasInstantAnchor
+          ? selection.anchor
+          : undefined;
   const minimum = classifyTemporal(min ?? "");
   const maximum = classifyTemporal(max ?? "");
   const hydrated = React.useSyncExternalStore(
@@ -457,9 +465,7 @@ function DatePickerRender({
       data-aui="datepicker"
       data-aui-action={actionAttr($action)}
       {...{
-        [FIELD_VALUE_ATTR]: hasInstantAnchor
-          ? currentValue || selection.anchor
-          : undefined,
+        [FIELD_VALUE_ATTR]: canonicalInstant(currentValue),
       }}
       name={name}
       aria-label={label}
@@ -500,11 +506,9 @@ function DatePickerRender({
           inputType === "datetime"
             ? fromLocalDateTime(e.currentTarget.value, selection.anchor)
             : e.currentTarget.value;
-        if (hasInstantAnchor) {
-          e.currentTarget.setAttribute(
-            FIELD_VALUE_ATTR,
-            nextValue || selection.anchor!,
-          );
+        const canonical = canonicalInstant(nextValue);
+        if (canonical !== undefined) {
+          e.currentTarget.setAttribute(FIELD_VALUE_ATTR, canonical);
         }
         setSelection({
           initialValue,

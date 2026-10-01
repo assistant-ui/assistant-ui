@@ -308,6 +308,46 @@ describe("DatePicker temporal contract", () => {
     },
   );
 
+  it("submits a filled initially empty datetime as an instant in the viewer offset", async () => {
+    const dispatch = vi.fn();
+    const container = await mount(
+      <div data-aui="root">
+        {renderGenerativeUI(
+          {
+            $type: "Form",
+            $action: { type: "submit" },
+            children: [
+              { $type: "DatePicker", name: "when", inputType: "datetime" },
+              { $type: "Button", label: "Submit", submit: true },
+              {
+                $type: "Button",
+                label: "Reference",
+                $action: { type: "reference", when: { $field: "when" } },
+              },
+            ],
+          },
+          defaultGenerativeUILibrary,
+          { status: "done", dispatch },
+        )}
+      </div>,
+    );
+    const input = container.querySelector("input")!;
+    const [submit, reference] = container.querySelectorAll("button");
+    expect(input.hasAttribute(FIELD_VALUE_ATTR)).toBe(false);
+
+    await change(input, "2025-12-15T09:00");
+    await React.act(async () => submit!.click());
+    expect(dispatch).toHaveBeenLastCalledWith({
+      type: "submit",
+      $input: { when: "2025-12-15T09:00:00-05:00" },
+    });
+    await React.act(async () => reference!.click());
+    expect(dispatch).toHaveBeenLastCalledWith({
+      type: "reference",
+      when: "2025-12-15T09:00:00-05:00",
+    });
+  });
+
   it.each([
     ["time", "12:00:00", "12:00", null, "1"],
     ["time", "12:00:05.1200", "12:00:05.12", null, "any"],
@@ -647,7 +687,9 @@ describe("DatePicker temporal contract", () => {
       });
       expect(container.querySelector("output")!.textContent).toBe(emitted);
       expect(input.getAttribute(FIELD_VALUE_ATTR)).toBe(
-        hasInstantAnchor ? emitted : null,
+        hasInstantAnchor || /(?:Z|[+-]\d{2}:\d{2})$/.test(emitted)
+          ? emitted
+          : null,
       );
       expect(input.value).toBe(nativeValue(input.type, edited));
       await change(input, "");
