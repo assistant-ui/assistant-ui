@@ -492,7 +492,11 @@ jobs:
           else
             BASE=HEAD^1
           fi
-          pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/react-devtools..." --filter="...[$BASE]..."
+          if git diff --quiet "$BASE" HEAD -- package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json; then
+            pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/react-devtools..." --filter="...[$BASE]..."
+          else
+            pnpm install --frozen-lockfile
+          fi
 
       - name: Typecheck
         env:
