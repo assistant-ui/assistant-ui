@@ -167,9 +167,9 @@ describe("useAdkRuntime replacement runs", () => {
       render(<Inner />);
     });
     await waitFor(() => expect(capture.runtime).not.toBeNull());
-    await act(async () => {
-      await capture.runtime!.threads.switchToThread("adk-1");
-    });
+    await settleOutsideAct(() =>
+      capture.runtime!.threads.switchToThread("adk-1"),
+    );
     return capture.runtime!;
   };
 
