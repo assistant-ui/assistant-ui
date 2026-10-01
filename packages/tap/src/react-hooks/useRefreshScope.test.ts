@@ -394,6 +394,122 @@ describe("useRefreshScope", () => {
     },
   );
 
+  it.each(["discarded", "superseded"])(
+    "keeps committed memos, callbacks and caches after a refresh is %s",
+    (mode) => {
+      const factory = vi.fn((value: string) => ({ value }));
+      const cacheFactory = vi.fn((value: string) => ({ value }));
+      const events: string[] = [];
+      const fiber = createTestResource((token: number, value: string) =>
+        useRefreshScope(token, () => {
+          const memo = useMemo(() => factory(value), []);
+          const callback = useCallback(() => value, []);
+          const cache = useMemoCache(1);
+          if (cache[0] === MEMO_CACHE_SENTINEL) cache[0] = cacheFactory(value);
+          useEffect(() => {
+            events.push(`setup ${value}`);
+            return () => events.push(`cleanup ${value}`);
+          }, []);
+          return { memo, callback, cached: cache[0] };
+        }),
+      );
+
+      const first = renderTest(fiber, 0, "old");
+      setRootVersion(fiber.root, 1);
+      const abandoned = renderResourceFiber(fiber, [1, "abandoned"]);
+      expect(abandoned.memo).toEqual({ value: "abandoned" });
+      expect(abandoned.callback()).toBe("abandoned");
+      expect(abandoned.cached).toEqual({ value: "abandoned" });
+      expect(events).toEqual(["setup old"]);
+      if (mode === "discarded") discardWipRender(fiber);
+
+      const next = renderResourceFiber(fiber, [0, "ignored"]);
+      expect.soft(next.memo).toBe(first.memo);
+      expect.soft(next.callback).toBe(first.callback);
+      expect.soft(next.callback()).toBe("old");
+      expect.soft(next.cached).toBe(first.cached);
+      expect(events).toEqual(["setup old"]);
+      commitResourceFiber(fiber);
+
+      const committed = renderTest(fiber, 0, "ignored again");
+      expect.soft(committed.memo).toBe(first.memo);
+      expect.soft(committed.callback).toBe(first.callback);
+      expect.soft(committed.cached).toBe(first.cached);
+      expect(factory).toHaveBeenCalledTimes(2);
+      expect(cacheFactory).toHaveBeenCalledTimes(2);
+      expect(events).toEqual(["setup old"]);
+
+      const refreshed = renderTest(fiber, 1, "new");
+      expect(refreshed.memo).toEqual({ value: "new" });
+      expect(refreshed.callback()).toBe("new");
+      expect(refreshed.cached).toEqual({ value: "new" });
+      expect(renderTest(fiber, 1, "ignored")).toEqual(refreshed);
+      expect(factory).toHaveBeenCalledTimes(3);
+      expect(cacheFactory).toHaveBeenCalledTimes(3);
+      expect(events).toEqual(["setup old", "cleanup old", "setup new"]);
+    },
+  );
+
+  it("restores superseded cache slots without undoing another scope's refresh", () => {
+    const factory = vi.fn((value: string) => ({ value }));
+    const fiber = createTestResource(
+      (firstToken: number, secondToken: number, value: string) => {
+        const before = useMemoCache(1);
+        if (before[0] === MEMO_CACHE_SENTINEL) before[0] = factory("before");
+        const first = useRefreshScope(firstToken, () => {
+          const cache = useMemoCache(1);
+          if (cache[0] === MEMO_CACHE_SENTINEL) cache[0] = factory(value);
+          return cache[0];
+        });
+        const second = useRefreshScope(secondToken, () => {
+          const cache = useMemoCache(1);
+          if (cache[0] === MEMO_CACHE_SENTINEL) cache[0] = factory(value);
+          return cache[0];
+        });
+        const after = useMemoCache(1);
+        if (after[0] === MEMO_CACHE_SENTINEL) after[0] = factory("after");
+        return { before: before[0], first, second, after: after[0] };
+      },
+    );
+
+    const first = renderTest(fiber, 0, 0, "old");
+    renderResourceFiber(fiber, [1, 1, "abandoned"]);
+    const next = renderTest(fiber, 1, 0, "new");
+    expect(next.first).toEqual({ value: "new" });
+    expect.soft(next.second).toBe(first.second);
+    expect(next.before).toBe(first.before);
+    expect(next.after).toBe(first.after);
+    expect.soft(renderTest(fiber, 1, 0, "ignored")).toEqual({
+      ...first,
+      first: next.first,
+    });
+    expect(factory).toHaveBeenCalledTimes(7);
+  });
+
+  it("isolates useResources results mutated by a caller during refresh", () => {
+    const render = vi.fn();
+    const Child = resource(function useChild() {
+      render();
+      return "child";
+    });
+    const children = [withKey("child", Child(), [])];
+    const fiber = createTestResource((token: number, mutate: boolean) =>
+      useRefreshScope(token, () => {
+        const values = useResources(children);
+        if (mutate) {
+          values[0] = "mutated";
+          values.push("extra");
+        }
+        return values;
+      }),
+    );
+
+    expect(renderTest(fiber, 0, false)).toEqual(["child"]);
+    expect(renderTest(fiber, 1, true)).toEqual(["mutated", "extra"]);
+    expect(renderTest(fiber, 1, false)).toEqual(["child"]);
+    expect(render).toHaveBeenCalledTimes(2);
+  });
+
   it("does not refresh before the scope's first committed token", () => {
     const factory = vi.fn(() => ({}));
     const fiber = createTestResource((token: unknown) =>

@@ -35,6 +35,7 @@ export function createResourceFiber<R>(
     memoCache: {
       current: null,
       workInProgress: null,
+      refreshedIndices: null,
       index: 0,
     },
     renderPendingCells: null,
@@ -53,6 +54,7 @@ export function discardWipRender<R>(fiber: ResourceFiber<R>): void {
   fiber.wipCommitCallbacks = null;
   fiber.wipContextDeps = null;
   fiber.memoCache.workInProgress = null;
+  fiber.memoCache.refreshedIndices = null;
 }
 
 function cleanupResourceFiber<R>(
@@ -166,6 +168,7 @@ export function commitResourceFiber<R>(fiber: ResourceFiber<R>): void {
     if (fiber.memoCache.workInProgress !== null) {
       fiber.memoCache.current = fiber.memoCache.workInProgress;
       fiber.memoCache.workInProgress = null;
+      fiber.memoCache.refreshedIndices = null;
     }
 
     commitAllCallbacks(commitCallbacks);

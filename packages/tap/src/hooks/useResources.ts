@@ -205,5 +205,5 @@ export function useResources<E extends ResourceElement<any>>(
     }
   }, [val, fibers, releases]);
 
-  return val;
+  return isRefreshing ? val.slice() : val;
 }

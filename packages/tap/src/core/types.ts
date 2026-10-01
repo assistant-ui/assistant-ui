@@ -47,6 +47,7 @@ export type MemoCell<T = any> = {
   currentDeps: readonly unknown[];
   wip: T;
   wipDeps: readonly unknown[];
+  wipIsRefreshing: boolean;
   isDirty: boolean;
 };
 
@@ -136,6 +137,7 @@ export interface ResourceFiber<R> {
   memoCache: {
     current: unknown[][] | null;
     workInProgress: unknown[][] | null;
+    refreshedIndices: Set<number> | null;
     index: number;
   };
 
