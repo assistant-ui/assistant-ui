@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-streamdown",
-  "version": "0.3.17",
+  "version": "0.3.18",
   "description": "Streamdown-based markdown rendering for assistant-ui",
   "keywords": [
     "markdown",
@@ -32,11 +32,13 @@
     "build": "aui-build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "test:peer-react18": "vitest run --config vitest.peer-react18.config.ts",
+    "test:types:peer-react18": "aui-react18-types",
     "test:watch": "vitest",
     "bench": "vitest bench --run"
   },
   "dependencies": {
-    "@assistant-ui/react-markdown": "^0.14.17",
+    "@assistant-ui/react-markdown": "^0.14.18",
     "@types/hast": "^3.0.5",
     "micromark-util-html-tag-name": "^2.0.1",
     "rehype-harden": "^1.1.8",
@@ -75,12 +77,14 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@assistant-ui/x-react18": "workspace:*",
     "@streamdown/code": "^1.1.1",
     "@testing-library/react": "^16.3.3",
     "@types/react": "^19.3.0",
+    "jsdom": "^30.0.1",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.3"
   },
   "publishConfig": {
     "access": "public",

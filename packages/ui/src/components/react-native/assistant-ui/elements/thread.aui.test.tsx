@@ -256,19 +256,21 @@ vi.mock("react-native", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react-native")>();
   const React = await import("react");
 
-  const View = ({
-    children,
-    className,
-    testID,
-    accessible: _accessible,
-    accessibilityLabel,
-    accessibilityLiveRegion,
-    accessibilityRole,
-    style: _style,
-    onLayout,
-    ref,
-    ...props
-  }: any) => {
+  const View = React.forwardRef(function View(
+    {
+      children,
+      className,
+      testID,
+      accessible: _accessible,
+      accessibilityLabel,
+      accessibilityLiveRegion,
+      accessibilityRole,
+      style: _style,
+      onLayout,
+      ...props
+    }: any,
+    ref: any,
+  ) {
     React.useEffect(() => {
       onLayout?.({ nativeEvent: { layout: {} } });
     }, [onLayout]);
@@ -293,7 +295,7 @@ vi.mock("react-native", async (importOriginal) => {
       },
       children,
     );
-  };
+  });
 
   const KeyboardAvoidingView = ({ children, keyboardVerticalOffset }: any) =>
     React.createElement(

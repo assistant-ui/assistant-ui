@@ -627,8 +627,13 @@ describe("AuiProvider config", () => {
 
     let resolve!: () => void;
     let shouldSuspend = false;
+    // React 18 renders the fallback while it unwinds a suspended transition, then discards it; only a committed fallback would be visible.
+    let fallbackCommitted = false;
     const ShouldNeverFallback = () => {
-      throw new Error("should never fallback");
+      useEffect(() => {
+        fallbackCommitted = true;
+      });
+      return null;
     };
     const Suspender = () => {
       if (shouldSuspend)
@@ -687,6 +692,7 @@ describe("AuiProvider config", () => {
 
     // The attempt rendered the provider with the new entries and suspended
     // below it; the committed tree must not observe any of it
+    expect(fallbackCommitted).toBe(false);
     expect(getByTestId("count").textContent).toBe("1");
     expect(committed.counter.getState()).toEqual({ count: 1 });
     expect(() => committed.thread.getState()).toThrow(
@@ -703,6 +709,7 @@ describe("AuiProvider config", () => {
     expect(committed.thread.getState()).toEqual({ count: 1 });
     expect(commits).toEqual([1, 2]);
     expect(notified).toBeGreaterThan(0);
+    expect(fallbackCommitted).toBe(false);
   });
 
   it("AuiConfig returns its input for hoisting", () => {

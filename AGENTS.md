@@ -38,7 +38,7 @@ Composable runtime and UI primitives for AI chat in React, React Native, and the
 - Make a host-owned SDK or per-app singleton (lexical) a peer on a wide floor below any dev pin, and optional when the package works without it.
 - Raise a peer floor only when the code needs a newer API.
 - Land an upstream major in one PR that moves the package and every workspace consumer (for the AI SDK also the docs vN page, vN-legacy stub, example rename, and redirect), released as a major of the package; users on the old major pin its last release, with no backports.
-- Exercise every major a `||` peer union names in CI types and tests, and drop an untested one only in a new release line, because collapsing an advertised major breaks consumers.
+- Exercise every major a `||` peer union names in CI types and tests, and drop an untested one only in a new release line, because collapsing an advertised major breaks consumers. The newest major runs on every PR; older majors may run on a weekly schedule that opens an issue on failure, and a PR that touches their compatibility runs them on demand.
 - Change an in-repo protocol only by an additive decoder branch, and never rename a persistence or wire identifier (`"ai-sdk/v6"`, protocol headers) in a version bump.
 - Never publish a parallel `-vN` package; a transition copy stays a private package and is deleted when the migration completes.
 - Pin an upstream family released the same day to patches older than `minimumReleaseAge`, because a newer floor fails a fresh resolve that an existing lockfile hides.

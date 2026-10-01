@@ -32,6 +32,8 @@
     "build": "aui-build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "test:peer-react18": "vitest run --config vitest.peer-react18.config.ts",
+    "test:types:peer-react18": "aui-react18-types",
     "test:watch": "vitest"
   },
   "peerDependencies": {
@@ -58,16 +60,17 @@
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@assistant-ui/x-performance": "workspace:*",
-    "@lexical/history": "^0.51.0",
-    "@lexical/plain-text": "^0.51.0",
-    "@lexical/react": "^0.51.0",
-    "@lexical/utils": "^0.51.0",
+    "@assistant-ui/x-react18": "workspace:*",
+    "@lexical/history": "^0.52.0",
+    "@lexical/plain-text": "^0.52.0",
+    "@lexical/react": "^0.52.0",
+    "@lexical/utils": "^0.52.0",
     "@types/react": "^19.3.0",
     "jsdom": "^30.0.1",
-    "lexical": "^0.51.0",
+    "lexical": "^0.52.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.3"
   },
   "publishConfig": {
     "access": "public",

@@ -10,6 +10,8 @@ on:
       - "examples/**"
       - "templates/**"
       - "scripts/generate-api-surface.mjs"
+      - "scripts/update-api-surface.mjs"
+      - "scripts/update-api-surface.test.mjs"
       - "scripts/check-api-surface.mjs"
       - "scripts/check-built-declarations.mjs"
       - "scripts/check-built-declarations.test.mjs"
@@ -21,6 +23,10 @@ on:
       - "scripts/check-skills-commit.test.mjs"
       - "scripts/deploy-examples-changes.mjs"
       - "scripts/deploy-examples-changes.test.mjs"
+      - "scripts/api-reference-inputs.mjs"
+      - "scripts/api-reference-inputs.test.mjs"
+      - "scripts/package-build-inputs.mjs"
+      - "scripts/package-build-inputs.test.mjs"
       - ".github/workflows/deploy-examples.yaml"
       - ".github/workflows/expo-native-bundle.yaml"
       - "scripts/lib/script-options.mjs"
@@ -40,6 +46,8 @@ on:
       - "examples/**"
       - "templates/**"
       - "scripts/generate-api-surface.mjs"
+      - "scripts/update-api-surface.mjs"
+      - "scripts/update-api-surface.test.mjs"
       - "scripts/check-api-surface.mjs"
       - "scripts/check-built-declarations.mjs"
       - "scripts/check-built-declarations.test.mjs"
@@ -51,6 +59,10 @@ on:
       - "scripts/check-skills-commit.test.mjs"
       - "scripts/deploy-examples-changes.mjs"
       - "scripts/deploy-examples-changes.test.mjs"
+      - "scripts/api-reference-inputs.mjs"
+      - "scripts/api-reference-inputs.test.mjs"
+      - "scripts/package-build-inputs.mjs"
+      - "scripts/package-build-inputs.test.mjs"
       - ".github/workflows/deploy-examples.yaml"
       - ".github/workflows/expo-native-bundle.yaml"
       - "scripts/lib/script-options.mjs"
@@ -88,7 +100,7 @@ jobs:
           install: false
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --filter . --filter @assistant-ui/x-buildutils --ignore-scripts
 
       - name: Run oxlint + oxfmt
         run: pnpm lint
@@ -177,7 +189,24 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Detect package build inputs
+        id: package_build_inputs
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE=HEAD^1
+          else
+            BASE="${{ github.event.before }}"
+          fi
+          if git rev-parse --verify --quiet "${BASE}^{commit}" > /dev/null; then
+            run=$(git diff --name-only --no-renames -z "$BASE" HEAD | node scripts/package-build-inputs.mjs)
+          else
+            run=true
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
       - name: Setup pnpm and node.js
+        if: steps.package_build_inputs.outputs.run == 'true'
         uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
         with:
           runtime: node@24
@@ -185,9 +214,11 @@ jobs:
           install: false
 
       - name: Install dependencies
+        if: steps.package_build_inputs.outputs.run == 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Build packages
+        if: steps.package_build_inputs.outputs.run == 'true'
         env:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
@@ -201,6 +232,7 @@ jobs:
           fi
 
       - name: Check API surface
+        if: steps.package_build_inputs.outputs.run == 'true'
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             # PR: Check API surface for packages changed compared to base branch
@@ -211,9 +243,11 @@ jobs:
           fi
 
       - name: Check distribution barrels
+        if: steps.package_build_inputs.outputs.run == 'true'
         run: pnpm run distributions:check
 
       - name: Check built declarations
+        if: steps.package_build_inputs.outputs.run == 'true'
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             pnpm run declarations:check -- --filter="...[origin/${{ github.base_ref }}]"
@@ -222,20 +256,31 @@ jobs:
           fi
 
       - name: Test built declaration checker
+        if: steps.package_build_inputs.outputs.run == 'true'
         run: pnpm run declarations:test
 
       - name: Test the distribution barrel checker
+        if: steps.package_build_inputs.outputs.run == 'true'
         run: pnpm run distributions:test
 
       - name: Test the deploy examples planner
+        if: steps.package_build_inputs.outputs.run == 'true'
         run: pnpm run deploy-examples:test
 
       - name: Test API surface generator
+        if: steps.package_build_inputs.outputs.run == 'true'
         run: pnpm run api-surface:test
+
+      - name: Test API reference input detector
+        if: steps.package_build_inputs.outputs.run == 'true'
+        run: pnpm run api-reference-inputs:test
+
+      - name: Test package build input detector
+        run: node --test scripts/package-build-inputs.test.mjs
 
       # The pull_request checkout is the merge commit, so HEAD^1 is the base it merges into.
       - name: Measure bundle sizes against the base
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.package_build_inputs.outputs.run == 'true'
         env:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
@@ -313,7 +358,7 @@ jobs:
       - name: Detect API reference inputs
         id: api_ref
         run: |
-          set -eu
+          set -euo pipefail
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE="origin/${{ github.base_ref }}"
           else
@@ -323,30 +368,8 @@ jobs:
             echo "Unable to resolve API reference diff base: $BASE"
             exit 1
           fi
-          changed="$(git diff --name-only "$BASE" -- \
-            "packages/react/" \
-            "packages/core/" \
-            "packages/store/" \
-            "packages/tap/" \
-            "packages/cloud/" \
-            "packages/assistant-stream/" \
-            "packages/react-generative-ui/" \
-            "packages/ai-sdk/" \
-            "packages/react-ai-sdk/" \
-            "packages/react-data-stream/" \
-            "packages/eve/" \
-            "packages/safe-content-frame/" \
-            "apps/docs/scripts/" \
-            "apps/docs/content/types-to-generate/" \
-            "apps/docs/content/docs/(reference)/api-reference/" \
-            "apps/docs/package.json" \
-            "apps/docs/tsconfig.json" \
-            ".github/workflows/code-quality.yaml")"
-          if [ -n "$changed" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          fi
+          run="$(git diff --name-only --no-renames -z "$BASE" | node scripts/api-reference-inputs.mjs)"
+          echo "run=$run" >> "$GITHUB_OUTPUT"
 
       - name: Setup pnpm and node.js
         if: steps.api_ref.outputs.run == 'true'

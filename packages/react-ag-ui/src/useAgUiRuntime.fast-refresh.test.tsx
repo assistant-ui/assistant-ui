@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
 
-import { act, Activity } from "react";
+import { act, Activity, version, type ComponentType } from "react";
 import { afterAll, afterEach, expect, it, vi } from "vitest";
 import type { HttpAgent } from "@ag-ui/client";
 import type { AssistantRuntime } from "@assistant-ui/core";
 import { AgUiThreadRuntimeCore } from "./runtime/AgUiThreadRuntimeCore";
 import type { UseAgUiRuntimeOptions } from "./runtime/types";
 import { useAgUiRuntime, type AgUiAssistantRuntime } from "./useAgUiRuntime";
+
+const onReact18 = version.startsWith("18.");
 
 const base = vi.hoisted(() => ({ version: 0 }));
 vi.mock("@assistant-ui/core/react", async (importOriginal) => {
@@ -110,48 +112,59 @@ it("keeps the wrapper across refresh and replaces it when the base runtime chang
   expect(runtime).not.toBe(wrapper);
 });
 
-it.each(["hidden", "unmount"] as const)(
+const expectInFlightRunAcrossRefresh = async (
+  exit: "hidden" | "unmount",
+  inActivity: boolean,
+) => {
+  let resolveRun!: () => void;
+  const run = new Promise<void>((resolve) => {
+    resolveRun = resolve;
+  });
+  const agent = {
+    runAgent: vi.fn(() => run),
+    abortRun: vi.fn(),
+  } as unknown as HttpAgent;
+  const attach = vi.spyOn(AgUiThreadRuntimeCore.prototype, "attachRuntime");
+  const detach = vi.spyOn(AgUiThreadRuntimeCore.prototype, "detachRuntime");
+  options = { agent };
+  const { Before, After } = createProbe();
+  const Shell: ComponentType<{ mode: "visible" | "hidden" }> = inActivity
+    ? ({ mode }) => (
+        <Activity mode={mode}>
+          <Before />
+        </Activity>
+      )
+    : () => <Before />;
+  const view = render(<Shell mode="visible" />);
+  const wrapper = runtime;
+  const core = attach.mock.instances[0]!;
+  act(() => {
+    void runtime.thread.append("hello");
+  });
+  await waitFor(() => expect(agent.runAgent).toHaveBeenCalledOnce());
+
+  await refresh(Before, After);
+  expect(agent.abortRun).not.toHaveBeenCalled();
+  expect(detach).not.toHaveBeenCalled();
+  expect(runtime).toBe(wrapper);
+  expect(attach.mock.instances.at(-1)).toBe(core);
+
+  if (exit === "hidden") view.rerender(<Shell mode="hidden" />);
+  else view.unmount();
+  await act(async () => {});
+  expect(detach).toHaveBeenCalledOnce();
+  expect(agent.abortRun).toHaveBeenCalledOnce();
+  resolveRun();
+  await act(async () => {
+    await run;
+  });
+};
+
+// Activity is React 19 only.
+it.skipIf(onReact18).each(["hidden", "unmount"] as const)(
   "keeps an in-flight run across refresh and detaches when %s",
-  async (exit) => {
-    let resolveRun!: () => void;
-    const run = new Promise<void>((resolve) => {
-      resolveRun = resolve;
-    });
-    const agent = {
-      runAgent: vi.fn(() => run),
-      abortRun: vi.fn(),
-    } as unknown as HttpAgent;
-    const attach = vi.spyOn(AgUiThreadRuntimeCore.prototype, "attachRuntime");
-    const detach = vi.spyOn(AgUiThreadRuntimeCore.prototype, "detachRuntime");
-    options = { agent };
-    const { Before, After } = createProbe();
-    const Shell = ({ mode }: { mode: "visible" | "hidden" }) => (
-      <Activity mode={mode}>
-        <Before />
-      </Activity>
-    );
-    const view = render(<Shell mode="visible" />);
-    const wrapper = runtime;
-    const core = attach.mock.instances[0]!;
-    act(() => {
-      void runtime.thread.append("hello");
-    });
-    await waitFor(() => expect(agent.runAgent).toHaveBeenCalledOnce());
-
-    await refresh(Before, After);
-    expect(agent.abortRun).not.toHaveBeenCalled();
-    expect(detach).not.toHaveBeenCalled();
-    expect(runtime).toBe(wrapper);
-    expect(attach.mock.instances.at(-1)).toBe(core);
-
-    if (exit === "hidden") view.rerender(<Shell mode="hidden" />);
-    else view.unmount();
-    await act(async () => {});
-    expect(detach).toHaveBeenCalledOnce();
-    expect(agent.abortRun).toHaveBeenCalledOnce();
-    resolveRun();
-    await act(async () => {
-      await run;
-    });
-  },
+  (exit) => expectInFlightRunAcrossRefresh(exit, true),
 );
+
+it("keeps an in-flight run across refresh and detaches when unmounted outside an Activity", () =>
+  expectInFlightRunAcrossRefresh("unmount", false));

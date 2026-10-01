@@ -1,4 +1,5 @@
-import { createTapRoot, useResource } from "@assistant-ui/tap";
+import { useState } from "react";
+import { createTapRoot, flushTapSync, useResource } from "@assistant-ui/tap";
 import { describe, expect, it, vi } from "vitest";
 import type { Unstable_RecordToolInteractionOptions } from "../../runtime/interfaces/thread-runtime-core";
 import type { ExternalThreadMessage } from "./external-thread";
@@ -54,6 +55,41 @@ const createPart = (
 };
 
 describe("ExternalThread interaction recording", () => {
+  it("keeps a part client with its id when parts swap", () => {
+    const initial: ExternalThreadMessage = {
+      ...message,
+      content: [
+        { type: "text", id: "p1", text: "first" },
+        { type: "text", id: "p2", text: "second" },
+      ],
+    };
+    let setMessage!: (message: ExternalThreadMessage) => void;
+    const root = createTapRoot(function ExternalThreadRoot() {
+      const [current, setValue] = useState<ExternalThreadMessage>(initial);
+      setMessage = setValue;
+      return useResource(ExternalThread({ messages: [current] }));
+    });
+
+    try {
+      const first = root.getValue().message({ index: 0 }).part({ index: 0 });
+      flushTapSync(() =>
+        setMessage({
+          ...initial,
+          content: [
+            { type: "text", id: "p2", text: "second streamed" },
+            { type: "text", id: "p1", text: "first streamed" },
+          ],
+        }),
+      );
+      expect(root.getValue().message({ index: 0 }).part({ index: 1 })).toBe(
+        first,
+      );
+      expect(first.getState()).toMatchObject({ text: "first streamed" });
+    } finally {
+      root.unmount();
+    }
+  });
+
   it("threads records from parts to the callback", async () => {
     const unstable_onRecordToolInteraction = vi.fn();
     const { part, unmount } = createPart(unstable_onRecordToolInteraction);

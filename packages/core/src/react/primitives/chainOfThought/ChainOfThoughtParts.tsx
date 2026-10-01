@@ -4,10 +4,14 @@ import {
   type PropsWithChildren,
   type ReactNode,
   useMemo,
+  useContext,
 } from "react";
 import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
+import { useShallowSelector } from "@assistant-ui/store/internal";
+import { getMessagePartKeys } from "../../../utils/getMessagePartKeys";
 import type { PartState } from "../../../store/scopes/part";
 import { ChainOfThoughtPartByIndexProvider } from "../../providers/ChainOfThoughtPartByIndexProvider";
+import { ChainOfThoughtPartsContext } from "../../providers/ChainOfThoughtByIndicesProvider";
 import { MessagePartComponent } from "../message/MessageParts";
 import type {
   ReasoningMessagePartComponent,
@@ -44,12 +48,18 @@ export namespace ChainOfThoughtPrimitiveParts {
 const ChainOfThoughtPrimitivePartsInner: FC<{
   children: (value: { part: PartState }) => ReactNode;
 }> = ({ children }) => {
-  const partsLength = useAuiState((s) => s.chainOfThought.parts.length);
+  const partsContext = useContext(ChainOfThoughtPartsContext);
+  const partKeys = useAuiState(
+    useShallowSelector(
+      (s) =>
+        partsContext?.partKeys ?? getMessagePartKeys(s.chainOfThought.parts),
+    ),
+  );
 
   return useMemo(
     () =>
-      Array.from({ length: partsLength }, (_, index) => (
-        <ChainOfThoughtPartByIndexProvider key={index} index={index}>
+      partKeys.map((key, index) => (
+        <ChainOfThoughtPartByIndexProvider key={key} index={index}>
           <RenderChildrenWithAccessor
             getItemState={(aui) => aui.part.getState()}
           >
@@ -63,7 +73,7 @@ const ChainOfThoughtPrimitivePartsInner: FC<{
           </RenderChildrenWithAccessor>
         </ChainOfThoughtPartByIndexProvider>
       )),
-    [partsLength, children],
+    [partKeys, children],
   );
 };
 

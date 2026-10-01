@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/tap",
-  "version": "0.9.19",
+  "version": "0.9.20",
   "description": "Reactive state management inspired by React hooks",
   "keywords": [
     "state-management",
@@ -16,6 +16,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./internal": {
+      "types": "./dist/internal.d.ts",
+      "default": "./dist/internal.js"
     },
     "./react-shim": {
       "types": null,
@@ -61,6 +65,8 @@
     "prepublishOnly": "pnpm turbo build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "test:peer-react18": "vitest run --config vitest.peer-react18.config.ts",
+    "test:types:peer-react18": "aui-react18-types",
     "test:standalone": "vitest run --project standalone",
     "test:watch": "vitest"
   },
@@ -78,16 +84,17 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@assistant-ui/x-react18": "workspace:*",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
-    "@types/node": "^26.5.1",
+    "@types/node": "^26.6.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@vitest/ui": "^5.0.1",
+    "@vitest/ui": "^5.0.3",
     "jsdom": "^30.0.1",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.3"
   },
   "publishConfig": {
     "access": "public",
