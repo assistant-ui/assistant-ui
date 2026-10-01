@@ -89,7 +89,10 @@ beforeEach(() => {
   });
 });
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 describe("GeoMap", () => {
   it("renders a server placeholder before Leaflet loads", () => {
@@ -178,7 +181,6 @@ describe("GeoMap", () => {
     expect(classes).toContain("[&_.leaflet-tile-pane]:grayscale");
     expect(classes).toContain("dark:[&_.leaflet-tile-pane]:invert");
     expect(classes).not.toContain("[&_.leaflet-tile-pane]:invert");
-    vi.unstubAllGlobals();
   });
 
   it("leaves custom tiles as the provider draws them", async () => {
