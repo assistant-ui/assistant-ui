@@ -9,7 +9,7 @@ on:
         default: main
         type: string
       branches:
-        description: Branches whose commits since origin/main are applied on top of base, separated by spaces or commas
+        description: Branches whose commits not on origin/main or base are applied on top of base, separated by spaces or commas
         required: false
         default: ""
         type: string
@@ -84,6 +84,7 @@ jobs:
           set -f
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          base=$(git rev-parse HEAD)
           {
             echo "### Combined checkout"
             echo
@@ -95,9 +96,9 @@ jobs:
               echo "::error::Branch '$branch' was not found on origin"
               exit 1
             fi
-            commits=$(git rev-list --reverse --no-merges "origin/main..origin/$branch")
+            commits=$(git rev-list --reverse --no-merges "origin/$branch" --not origin/main "$base")
             if [ -z "$commits" ]; then
-              echo "::error::Branch '$branch' has no commits ahead of origin/main"
+              echo "::error::Branch '$branch' has no commits that origin/main and the base lack"
               exit 1
             fi
             echo "Applying $(wc -l <<< "$commits") commit(s) of $branch"
