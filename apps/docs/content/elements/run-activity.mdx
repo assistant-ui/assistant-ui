@@ -68,19 +68,25 @@ const runtime = useExternalStoreRuntime<ActivityRun>({
   messages: runs,
   isRunning,
   convertMessage: (run) => {
-    const parts = run.parts.filter(
-      ({ part }) => part.type !== "text" || part.text.trim().length > 0,
-    );
     return {
       id: run.id,
       role: "assistant",
       status: run.status,
-      content: parts.map((entry) => entry.part),
+      content: run.parts.map(({ id, part }) =>
+        part.type === "text" ? { ...part, id } : part,
+      ),
       metadata: {
         custom: {
           activityPresentation: {
             timing: run.timing,
-            entries: parts.map(({ id, kind, label }) => ({ id, kind, label })),
+            entries: Object.fromEntries(
+              run.parts.map(({ id, kind, label, part }) => [
+                part.type === "tool-call"
+                  ? `tool-call:${part.toolCallId}`
+                  : `text:${id}`,
+                { kind, label },
+              ]),
+            ),
           },
         },
       },
@@ -93,11 +99,11 @@ const runtime = useExternalStoreRuntime<ActivityRun>({
 });
 ```
 
-Both arrays must come from the same normalized list so their indexes match `s.message.parts`. This abridged adapter is limited to text and tool-call parts, filtering blank text as the runtime does. Supporting other part types requires updating normalization and rendering together, with regression tests that verify annotations still match the runtime parts after normalization.
+This adapter covers text and tool-call parts. It assigns each text part its application-owned `id` and preserves each tool's `toolCallId`. Annotations are keyed by part type and ID, so runtime normalization can remove blank text without shifting another part's classification. Supply nonempty IDs that are unique within each part type and stable throughout the run.
 
-In the message renderer, read the annotations alongside `s.message.parts` and `s.message.status` with `useAuiState`. Render each classified part with `MessagePrimitive.PartByIndex`, using its index in the converted message and your existing text/tool components. Put `commentary` and `tool` entries in the disclosure, `answer` parts in `children`, and `attention` parts in `attention`. Unclassified parts stay outside the disclosure. Do not also render `MessagePrimitive.Parts` for the whole message: that would duplicate the content.
+In the message renderer, read the annotations alongside `s.message.parts` and `s.message.status` with `useAuiState`. Look up each annotation by `text:${part.id}` or `tool-call:${part.toolCallId}`. Render each classified part with `MessagePrimitive.PartByIndex`, using its index in the converted message and your existing text/tool components. Put `commentary` and `tool` entries in the disclosure, `answer` parts in `children`, and `attention` parts in `attention`. Unclassified parts stay outside the disclosure. Do not also render `MessagePrimitive.Parts` for the whole message: that would duplicate the content.
 
-The example keeps approval requests shown to the user, tool interruptions, tool errors, and runtime `requires-action` or `incomplete` tool parts in `attention` even if their original classification was `tool`. This includes status-only tool decisions without an approval or interrupt payload. Policy-approved tools with `approval.isAutomatic` stay in the history unless they encounter an error, finish incomplete, or need further attention. Once surfaced, an entry stays in the visible slot for that message instance after settlement. Persist its `attention` classification or approval/interrupt metadata to retain that placement after a reload. The attention wrapper returns focus to that result only if the focused decision control was removed; it does not take focus from another control. It uses the existing `ToolFallback`, so the runtime's approval or tool-result callback still receives the response. Supply your app's clarification and recovery renderers there as well. Classification alone does not implement an approval or retry: wire the appropriate external-store callbacks to your backend and persist their result.
+The example keeps approval requests shown to the user, tool interruptions, tool errors, and runtime `requires-action` or `incomplete` tool parts in `attention` even if their original classification was `tool`. This includes status-only tool decisions without an approval or interrupt payload. Policy-approved tools with `approval.isAutomatic` stay in the history unless they encounter an error, finish incomplete, or need further attention. Once surfaced, an entry stays in the visible slot for that message instance after settlement. Persist its `attention` classification or approval/interrupt metadata to retain that placement after a reload. It uses the existing `ToolFallback`, so the runtime's approval or tool-result callback still receives the response. Supply your app's clarification and recovery renderers there as well. Classification alone does not implement an approval or retry: wire the appropriate external-store callbacks to your backend and persist their result.
 
 For adjacent activity groups, prefer [`MessagePrimitive.GroupedParts`](/docs/guides/part-grouping) with a custom `groupBy` and standalone tool handling. This recipe uses `PartByIndex` because a single run disclosure must include activity on both sides of a visible decision: `GroupedParts` coalesces adjacent parts, so an ungrouped decision splits that sequence into separate disclosures. The props-only element works with any runtime; this adapter example specifically covers external-store runs with explicit classification.
 

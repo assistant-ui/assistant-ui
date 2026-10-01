@@ -64,7 +64,7 @@ const RUN: ActivityRun = {
       part: { type: "text", text: "I’ll inspect the files." },
     },
     {
-      id: "tool-1",
+      id: "activity-tool-1",
       kind: "tool",
       label: "Reading source",
       part: {
@@ -95,11 +95,21 @@ describe("run activity external-store recipe", () => {
   it("preserves the explicit run boundary and part order in the runtime", () => {
     const converted = convertRun(RUN);
     expect(converted.id).toBe(RUN.id);
-    expect(converted.content).toEqual(RUN.parts.map((entry) => entry.part));
+    expect(converted.content).toEqual([
+      { ...RUN.parts[0]!.part, id: "commentary-1" },
+      RUN.parts[1]!.part,
+      { ...RUN.parts[2]!.part, id: "commentary-2" },
+      { ...RUN.parts[3]!.part, id: "answer" },
+    ]);
     expect(converted.status).toEqual(RUN.status);
     expect(converted.metadata?.custom?.activityPresentation).toEqual({
       timing: RUN.timing,
-      entries: RUN.parts.map(({ id, kind, label }) => ({ id, kind, label })),
+      entries: {
+        "text:commentary-1": { kind: "commentary", label: "Inspecting" },
+        "tool-call:tool-1": { kind: "tool", label: "Reading source" },
+        "text:commentary-2": { kind: "commentary", label: "Checking the fix" },
+        "text:answer": { kind: "answer", label: "" },
+      },
     });
   });
 
@@ -121,6 +131,27 @@ describe("run activity external-store recipe", () => {
     expect(
       screen.getByText("I found the issue; checking the fix."),
     ).toBeTruthy();
+  });
+
+  it("keeps text and tool classifications distinct when their IDs match", async () => {
+    render(
+      <ActivityRunExample
+        run={{
+          ...RUN,
+          parts: [RUN.parts[1]!, { ...RUN.parts[3]!, id: "tool-1" }],
+        }}
+      />,
+    );
+    expect(await screen.findByText("The final answer.")).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Used tool: read_file" }),
+    ).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Worked for 2m 13s" }));
+    expect(
+      screen.getByRole("button", { name: "Used tool: read_file" }),
+    ).toBeTruthy();
+    expect(screen.getAllByText("The final answer.")).toHaveLength(1);
+    expect(screen.getByText("The final answer.").closest("ol")).toBeNull();
   });
 
   it.each(["", "\n\n", " \t "])(
@@ -423,7 +454,6 @@ describe("run activity external-store recipe", () => {
       <ActivityRunExample run={run} onAddToolResult={onAddToolResult} />,
     );
     const allow = await screen.findByRole("button", { name: "Allow" });
-    allow.focus();
     fireEvent.click(allow);
     await waitFor(() => expect(onAddToolResult).toHaveBeenCalledOnce());
     expect(onAddToolResult.mock.calls[0]?.[0]).toMatchObject({
@@ -448,19 +478,14 @@ describe("run activity external-store recipe", () => {
       ),
     );
     expect(screen.getByText("Recorded tool result")).toBeTruthy();
-    expect(document.activeElement).toBe(
-      screen.getByRole("group", { name: "Run tests" }),
-    );
+    expect(
+      screen.getByRole("group", { name: "Run tests" }).closest("ol"),
+    ).toBeNull();
   });
 
-  it.each([
-    [true, false],
-    [false, false],
-    [true, true],
-    [false, true],
-  ])(
-    "keeps the decision visible with approved=%s and focus elsewhere=%s",
-    async (approved, focusElsewhere) => {
+  it.each([true, false])(
+    "keeps the decision visible with approved=%s",
+    async (approved) => {
       const approvalPart = {
         type: "tool-call" as const,
         toolCallId: "approval",
@@ -484,22 +509,16 @@ describe("run activity external-store recipe", () => {
       };
       const onRespondToToolApproval = vi.fn();
       const example = (value: ActivityRun) => (
-        <>
-          <ActivityRunExample
-            run={value}
-            onRespondToToolApproval={onRespondToToolApproval}
-          />
-          <button type="button">Other action</button>
-        </>
+        <ActivityRunExample
+          run={value}
+          onRespondToToolApproval={onRespondToToolApproval}
+        />
       );
       const view = render(example(run));
       const decision = await screen.findByRole("button", {
         name: approved ? "Allow" : "Deny",
       });
-      decision.focus();
       fireEvent.click(decision);
-      const otherAction = screen.getByRole("button", { name: "Other action" });
-      if (focusElsewhere) otherAction.focus();
       await act(async () =>
         view.rerender(
           example({
@@ -520,10 +539,9 @@ describe("run activity external-store recipe", () => {
         ),
       );
       expect(screen.getByText("Decision recorded")).toBeTruthy();
-      const attention = screen.getByRole("group", { name: "Run tests" });
-      expect(document.activeElement).toBe(
-        focusElsewhere ? otherAction : attention,
-      );
+      expect(
+        screen.getByRole("group", { name: "Run tests" }).closest("ol"),
+      ).toBeNull();
       expect(
         screen
           .getByRole("button", { name: "Worked for 2m 13s" })
@@ -531,66 +549,6 @@ describe("run activity external-store recipe", () => {
       ).toBe("false");
     },
   );
-
-  it("retains focus when a pending decision blurs before its result arrives", async () => {
-    let settle!: () => void;
-    const onRespondToToolApproval = () =>
-      new Promise<void>((resolve) => {
-        settle = resolve;
-      });
-    const tool: ToolCallMessagePart = {
-      type: "tool-call",
-      toolCallId: "pending",
-      toolName: "run_command",
-      args: {},
-      argsText: "{}",
-      approval: { id: "pending-approval", prompt: "Run the tests?" },
-    };
-    const run: ActivityRun = {
-      ...RUN,
-      status: { type: "requires-action", reason: "tool-calls" },
-      parts: [{ id: "pending", kind: "tool", label: "Run tests", part: tool }],
-    };
-    const view = render(
-      <ActivityRunExample
-        run={run}
-        onRespondToToolApproval={onRespondToToolApproval}
-      />,
-    );
-    const deny = await screen.findByRole("button", { name: "Deny" });
-    deny.focus();
-    fireEvent.click(deny);
-    await waitFor(() =>
-      expect((deny as HTMLButtonElement).disabled).toBe(true),
-    );
-    // Firefox blurs a disabled button before the asynchronous result replaces it.
-    deny.blur();
-    await act(async () => {
-      settle();
-      view.rerender(
-        <ActivityRunExample
-          onRespondToToolApproval={onRespondToToolApproval}
-          run={{
-            ...run,
-            status: RUN.status,
-            parts: [
-              {
-                ...run.parts[0]!,
-                part: {
-                  ...tool,
-                  approval: { ...tool.approval!, approved: false },
-                  result: "Decision recorded",
-                },
-              },
-            ],
-          }}
-        />,
-      );
-    });
-    expect(document.activeElement).toBe(
-      screen.getByRole("group", { name: "Run tests" }),
-    );
-  });
 
   it.each([
     [{ type: "requires-action", reason: "interrupt" }, "requires-action"],

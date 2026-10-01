@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useRef, useState } from "react";
 import {
   AssistantRuntimeProvider,
   MessagePrimitive,
@@ -41,28 +41,29 @@ export type ActivityRun = {
 
 type ActivityPresentation = {
   timing: ActivityRun["timing"];
-  entries: readonly Omit<ActivityRun["parts"][number], "part">[];
+  entries: Record<string, Pick<ActivityRun["parts"][number], "kind" | "label">>;
 };
 
 export function convertRun(run: ActivityRun): ThreadMessageLike {
-  // Match runtime normalization before deriving the parallel presentation entries.
-  const parts = run.parts.filter(
-    ({ part }) => part.type !== "text" || part.text.trim().length > 0,
-  );
   return {
     id: run.id,
     role: "assistant",
     status: run.status,
-    content: parts.map((entry) => entry.part),
+    content: run.parts.map(({ id, part }) =>
+      part.type === "text" ? { ...part, id } : part,
+    ),
     metadata: {
       custom: {
         activityPresentation: {
           timing: run.timing,
-          entries: parts.map(({ id, kind, label }) => ({
-            id,
-            kind,
-            label,
-          })),
+          entries: Object.fromEntries(
+            run.parts.map(({ id, kind, label, part }) => [
+              part.type === "tool-call"
+                ? `tool-call:${part.toolCallId}`
+                : `text:${id}`,
+              { kind, label },
+            ]),
+          ),
         } satisfies ActivityPresentation,
       },
     },
@@ -116,70 +117,6 @@ function needsAttention(part: PartState) {
   );
 }
 
-function AttentionPart({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const focusedControl = useRef<EventTarget | null>(null);
-  useLayoutEffect(() => {
-    const element = ref.current;
-    if (!element) return;
-    // A runtime part can settle independently of this message renderer.
-    const observer = new MutationObserver(() => {
-      const control = focusedControl.current as Node | null;
-      if (control && !element.contains(control)) {
-        focusedControl.current = null;
-        if (
-          element.ownerDocument.activeElement === element.ownerDocument.body
-        ) {
-          element.focus({ preventScroll: true });
-        }
-      }
-    });
-    observer.observe(element, { childList: true, subtree: true });
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <div
-      ref={ref}
-      role="group"
-      aria-label={label}
-      tabIndex={-1}
-      className="focus-visible:ring-ring rounded-md outline-none focus-visible:ring-2"
-      onFocusCapture={(event) => {
-        focusedControl.current = event.target;
-      }}
-      onBlurCapture={(event) => {
-        if (event.relatedTarget) {
-          if (!event.currentTarget.contains(event.relatedTarget)) {
-            focusedControl.current = null;
-          }
-        } else {
-          const { currentTarget, target } = event;
-          // Firefox blurs a pending decision as soon as its button is disabled,
-          // before the runtime removes it. Keep tracking that control.
-          if (target.matches(':disabled, [aria-disabled="true"]')) return;
-          queueMicrotask(() => {
-            if (
-              focusedControl.current === target &&
-              currentTarget.contains(target)
-            ) {
-              focusedControl.current = null;
-            }
-          });
-        }
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
 export function ActivityRunMessage() {
   const presentation = useAuiState(
     (s) =>
@@ -197,10 +134,14 @@ export function ActivityRunMessage() {
   const hasDuration =
     status === "running" || presentation.timing.completedAt !== undefined;
   const parts = messageParts.map((part, index) => {
-    const entry = presentation.entries[index];
-    const id =
-      entry?.id ??
-      (part.type === "tool-call" ? part.toolCallId : String(index));
+    const partId =
+      part.type === "tool-call"
+        ? `tool-call:${part.toolCallId}`
+        : part.type === "text" && part.id
+          ? `text:${part.id}`
+          : undefined;
+    const entry = partId ? presentation.entries[partId] : undefined;
+    const id = partId ?? `unclassified:${index}`;
     return {
       id,
       kind: entry?.kind ?? "attention",
@@ -255,9 +196,9 @@ export function ActivityRunMessage() {
         attention={parts
           .filter((entry) => entry.attention)
           .map((entry) => (
-            <AttentionPart key={entry.id} label={entry.label}>
+            <div key={entry.id} role="group" aria-label={entry.label}>
               {entry.content}
-            </AttentionPart>
+            </div>
           ))}
       >
         {parts
