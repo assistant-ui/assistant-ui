@@ -5164,10 +5164,10 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
       });
       const deleteMessages = vi.fn(
         async (items: ExportedMessageRepositoryItem[]) => {
-          for (const item of items) stored.delete(item.message.id);
           if (rejectDelete && deleteMessages.mock.calls.length === 2) {
             throw new Error("delete failed");
           }
+          for (const item of items) stored.delete(item.message.id);
         },
       );
       const thread = createApprovalThreadWithHistory({
@@ -5209,10 +5209,70 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
       expect(deleteMessages.mock.calls[1]![0]).toBe(
         deleteMessages.mock.calls[0]![0],
       );
-      expect(stored.has(paused!.id)).toBe(false);
-      expect(stored).toEqual(new Set(thread.messages.map((m) => m.id)));
+      if (!rejectDelete) {
+        expect(stored.has(paused!.id)).toBe(false);
+        expect(stored).toEqual(new Set(thread.messages.map((m) => m.id)));
+      }
     },
   );
+
+  it("sends one delete when the same message is deleted again while the first is in flight", async () => {
+    const { history } = createHistory();
+    let releaseDelete!: () => void;
+    const deleted = new Promise<void>((resolve) => {
+      releaseDelete = resolve;
+    });
+    const deleteMessages = vi.fn(() => deleted);
+    const thread = createApprovalThreadWithHistory({
+      ...history,
+      delete: deleteMessages,
+    });
+
+    await thread.append(userMessage("send an email"));
+    const paused = thread.messages[1]!;
+    const first = thread.deleteMessage(paused.id);
+    const second = thread.deleteMessage(paused.id);
+    releaseDelete();
+    await Promise.all([first, second]);
+
+    expect(deleteMessages).toHaveBeenCalledOnce();
+    expect(thread.getMessageById(paused.id)).toBeUndefined();
+  });
+
+  it("does not send the compensating delete for a message an import restored", async () => {
+    const { history } = createHistory({ update: false });
+    let releaseAppend!: () => void;
+    const appended = new Promise<void>((resolve) => {
+      releaseAppend = resolve;
+    });
+    const deleteMessages = vi.fn(async () => {});
+    const thread = createApprovalThreadWithHistory({
+      ...history,
+      async append(item) {
+        if (item.message.role === "assistant") await appended;
+        return history.append(item);
+      },
+      delete: deleteMessages,
+    });
+
+    await thread.append(userMessage("send an email"));
+    const paused = thread.messages[1]!;
+    const snapshot = thread.export();
+    void thread
+      .append({
+        ...userMessage("never mind"),
+        parentId: paused.id,
+        startRun: false,
+      })
+      .catch(() => {});
+    await thread.deleteMessage(paused.id);
+    thread.import(snapshot);
+    releaseAppend();
+    await flush();
+
+    expect(deleteMessages).toHaveBeenCalledOnce();
+    expect(thread.getMessageById(paused.id)).toBeDefined();
+  });
 
   it("resolves a delete and skips a follow-up write while an earlier append never settles", async () => {
     vi.useFakeTimers();
