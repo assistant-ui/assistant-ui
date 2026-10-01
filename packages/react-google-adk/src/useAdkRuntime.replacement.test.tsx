@@ -10,6 +10,7 @@ import type {
 } from "@assistant-ui/core";
 import { useAdkRuntime } from "./useAdkRuntime";
 import type { AdkEvent } from "./types";
+import { settleOutsideAct } from "./tests/settleOutsideAct";
 
 const makeThreadListAdapter = (): RemoteThreadListAdapter => ({
   list: vi.fn(async () => ({
@@ -97,9 +98,9 @@ describe("useAdkRuntime replacement runs", () => {
       render(<Inner />);
     });
     await waitFor(() => expect(capture.runtime).not.toBeNull());
-    await act(async () => {
-      await capture.runtime!.threads.switchToThread("adk-1");
-    });
+    await settleOutsideAct(() =>
+      capture.runtime!.threads.switchToThread("adk-1"),
+    );
 
     act(() => {
       capture.runtime!.thread.append({
