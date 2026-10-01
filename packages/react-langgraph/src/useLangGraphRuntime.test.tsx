@@ -14,6 +14,7 @@ import { useAui, useAuiState } from "@assistant-ui/store";
 import { useLangGraphRuntime } from "./useLangGraphRuntime";
 import { useLangGraphSend, useLangGraphSendCommand } from "./hooks";
 import { mockStreamCallbackFactory } from "./testUtils";
+import { settleOutsideAct } from "./tests/settleOutsideAct";
 import type { LangChainMessage } from "./types";
 import type {
   LangGraphInterruptState,
@@ -668,9 +669,9 @@ describe("useLangGraphRuntime", () => {
       { wrapper },
     );
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
 
     await waitFor(() =>
       expect(load).toHaveBeenCalledWith("lg-thread-1", {
@@ -706,9 +707,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     await act(async () => {
@@ -753,9 +754,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     await act(async () => {
@@ -796,9 +797,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     const { result: auiResult } = renderHook(() => useAui(), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalled());
 
     await act(async () => {
@@ -916,9 +917,9 @@ describe("useLangGraphRuntime", () => {
       { wrapper },
     );
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
 
     await waitFor(() =>
       expect(load).toHaveBeenCalledWith("lg-thread-1", {
@@ -967,9 +968,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     const { result: auiResult } = renderHook(() => useAui(), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
     await waitFor(() =>
       expect(auiResult.current.thread.getState().isLoading).toBe(false),
@@ -1018,9 +1019,9 @@ describe("useLangGraphRuntime", () => {
       { wrapper },
     );
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(isLoadingResult.current).toBe(false));
 
@@ -1087,9 +1088,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     await act(async () => {
@@ -1152,9 +1153,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     // start a run and let it stream its first chunk
@@ -1203,9 +1204,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     // stage state for the next send
@@ -1274,9 +1275,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     await act(async () => {
@@ -1328,9 +1329,9 @@ describe("useLangGraphRuntime", () => {
       { wrapper },
     );
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     act(() => {
@@ -1370,9 +1371,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     await act(async () => {
@@ -1408,9 +1409,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     // establish graph state via a run's values event
@@ -1470,9 +1471,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     let firstReload!: Promise<void>;
@@ -1528,9 +1529,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     // the initial load is already fetching what a refetch would ask for, and
@@ -1585,9 +1586,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
     expect(runtimeResult.current.thread.getState().isLoading).toBe(true);
 
@@ -1633,9 +1634,9 @@ describe("useLangGraphRuntime", () => {
       { wrapper },
     );
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
 
     await waitFor(() =>
       expect(load).toHaveBeenCalledWith("lg-thread-1", {
@@ -1669,9 +1670,9 @@ describe("useLangGraphRuntime", () => {
     const wrapper = wrapperFactory(runtimeResult.current);
     renderHook(() => useAuiState((s) => s.threads.mainThreadId), { wrapper });
 
-    await act(async () => {
-      await runtimeResult.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      runtimeResult.current.threads.switchToThread("lg-thread-1"),
+    );
 
     await waitFor(() =>
       expect(onThreadIdChange).toHaveBeenLastCalledWith("lg-thread-1"),
@@ -2897,9 +2898,9 @@ describe("useLangGraphRuntime", () => {
           { wrapper },
         );
 
-        await act(async () => {
-          await runtimeResult.current.threads.switchToThread("lg-thread-1");
-        });
+        await settleOutsideAct(() =>
+          runtimeResult.current.threads.switchToThread("lg-thread-1"),
+        );
         await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
         await act(async () => {
@@ -3225,9 +3226,9 @@ describe("useLangGraphRuntime", () => {
       const wrapper = wrapperFactory(runtimeResult.current);
       renderHook(() => useAui(), { wrapper });
 
-      await act(async () => {
-        await runtimeResult.current.threads.switchToThread("lg-thread-1");
-      });
+      await settleOutsideAct(() =>
+        runtimeResult.current.threads.switchToThread("lg-thread-1"),
+      );
       await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
       await waitFor(() => {
         const parts = runtimeResult.current.thread
