@@ -390,7 +390,7 @@ describe("checkpoint resume", () => {
     expect(runtime.canResume).toBe(false);
   });
 
-  it.each([undefined, false, true])(
+  it.each([undefined, false])(
     "forwards each external-store resume config when canResume is %s",
     async (canResume) => {
       let finishFirst!: () => void;
@@ -433,41 +433,44 @@ describe("checkpoint resume", () => {
     },
   );
 
-  it("keeps different resume requests independent after one fails", async () => {
-    let failFirst!: (error: Error) => void;
-    let finishSecond!: () => void;
-    const onResume = vi
-      .fn()
-      .mockImplementationOnce(
-        () =>
-          new Promise<void>((_resolve, reject) => {
-            failFirst = reject;
-          }),
-      )
-      .mockImplementationOnce(
-        () =>
-          new Promise<void>((resolve) => {
-            finishSecond = resolve;
-          }),
+  it.each([undefined, false])(
+    "keeps legacy resume requests independent after one fails with canResume=%s",
+    async (canResume) => {
+      let failFirst!: (error: Error) => void;
+      let finishSecond!: () => void;
+      const onResume = vi
+        .fn()
+        .mockImplementationOnce(
+          () =>
+            new Promise<void>((_resolve, reject) => {
+              failFirst = reject;
+            }),
+        )
+        .mockImplementationOnce(
+          () =>
+            new Promise<void>((resolve) => {
+              finishSecond = resolve;
+            }),
+        );
+      const runtime = new ExternalStoreThreadRuntimeCore(
+        { getModelContext: () => ({}) },
+        { messages: [], onNew: vi.fn(), onResume, canResume },
       );
-    const runtime = new ExternalStoreThreadRuntimeCore(
-      { getModelContext: () => ({}) },
-      { messages: [], onNew: vi.fn(), onResume, canResume: true },
-    );
-    const config = { parentId: null, sourceId: null, runConfig: {} };
-    const pending = runtime.resumeRun(config);
-    const next = runtime.resumeRun({
-      ...config,
-      runConfig: { custom: { mode: "second" } },
-    });
-    expect(onResume).toHaveBeenCalledTimes(2);
-    failFirst(new Error("reconnect failed"));
-    await expect(pending).rejects.toThrow("reconnect failed");
-    expect(runtime.canResume).toBe(false);
-    finishSecond();
-    await next;
-    expect(runtime.canResume).toBe(true);
-  });
+      const config = { parentId: null, sourceId: null, runConfig: {} };
+      const pending = runtime.resumeRun(config);
+      const next = runtime.resumeRun({
+        ...config,
+        runConfig: { custom: { mode: "second" } },
+      });
+      expect(onResume).toHaveBeenCalledTimes(2);
+      failFirst(new Error("reconnect failed"));
+      await expect(pending).rejects.toThrow("reconnect failed");
+      expect(runtime.canResume).toBe(false);
+      finishSecond();
+      await next;
+      expect(runtime.canResume).toBe(false);
+    },
+  );
 
   it("restores resume availability after a synchronous adapter error", async () => {
     const runtime = new ExternalStoreThreadRuntimeCore(

@@ -49,6 +49,90 @@ describe("ExternalStoreThreadRuntimeCore interaction recording", () => {
 });
 
 describe("ExternalStoreThreadRuntimeCore resume compatibility", () => {
+  it.each([
+    [false, false],
+    [false, true],
+    [true, false],
+    [true, true],
+  ])(
+    "shares one opt-in attempt across configs when callback changes=%s and availability clears=%s",
+    async (changeCallback, clearAvailability) => {
+      let finish!: () => void;
+      const onResume = vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            finish = resolve;
+          }),
+      );
+      const replacement = vi.fn(async () => {});
+      const runtime = createRuntime({ canResume: true, onResume });
+      const firstConfig = { parentId: null, sourceId: null, runConfig: {} };
+      const nextConfig = {
+        ...firstConfig,
+        runConfig: { custom: { mode: "next" } },
+      };
+      const first = runtime.resumeRun(firstConfig);
+      const currentCallback = changeCallback ? replacement : onResume;
+      runtime.__internal_setAdapter({
+        messages: [],
+        onNew: async () => {},
+        onResume: currentCallback,
+        canResume: !clearAvailability,
+      });
+      const next = runtime.resumeRun(nextConfig);
+
+      expect(onResume).toHaveBeenCalledExactlyOnceWith(firstConfig);
+      expect(replacement).not.toHaveBeenCalled();
+      expect(runtime.canResume).toBe(false);
+      finish();
+      await Promise.all([first, next]);
+      expect(runtime.canResume).toBe(!clearAvailability);
+
+      runtime.__internal_setAdapter({
+        messages: [],
+        onNew: async () => {},
+        onResume: currentCallback,
+        canResume: true,
+      });
+      onResume.mockResolvedValue(undefined);
+      await runtime.resumeRun(nextConfig);
+      expect(currentCallback).toHaveBeenLastCalledWith(nextConfig);
+      expect(currentCallback).toHaveBeenCalledTimes(changeCallback ? 1 : 2);
+      expect(runtime.canResume).toBe(true);
+    },
+  );
+
+  it("shares an opt-in failure and accepts a new config on retry", async () => {
+    let fail!: (error: Error) => void;
+    const onResume = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((_, reject) => {
+            fail = reject;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    const runtime = createRuntime({ canResume: true, onResume });
+    const config = { parentId: null, sourceId: null, runConfig: {} };
+    const nextConfig = { ...config, runConfig: { custom: { mode: "retry" } } };
+    const pending = runtime.resumeRun(config);
+    const duplicate = runtime.resumeRun(nextConfig);
+    const outcomes = Promise.allSettled([pending, duplicate]);
+    const error = new Error("Reconnect failed");
+    fail(error);
+
+    expect(await outcomes).toEqual([
+      { status: "rejected", reason: error },
+      { status: "rejected", reason: error },
+    ]);
+    expect(onResume).toHaveBeenCalledExactlyOnceWith(config);
+    expect(runtime.canResume).toBe(true);
+    await runtime.resumeRun(nextConfig);
+    expect(onResume).toHaveBeenNthCalledWith(2, nextConfig);
+    expect(runtime.canResume).toBe(true);
+  });
+
   it.each([undefined, false])(
     "does not notify subscribers for a successful resume without opt-in: %s",
     async (canResume) => {

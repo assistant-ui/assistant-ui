@@ -109,16 +109,12 @@ export class ExternalStoreThreadRuntimeCore
   public get isLoading() {
     return this._store.isLoading ?? false;
   }
-  private _pendingResumes = new Set<{
-    config: ResumeRunConfig;
-    onResume: (config: ResumeRunConfig) => Promise<void>;
-    promise: Promise<void>;
-  }>();
+  private _pendingResume: Promise<void> | undefined;
   public get canResume(): boolean {
     return (
       !!this._store.canResume &&
       !!this._store.onResume &&
-      this._pendingResumes.size === 0 &&
+      !this._pendingResume &&
       !this.isDisabled &&
       !getThreadRuntimeCoreIsRunning(this) &&
       !this.isLoading &&
@@ -911,16 +907,7 @@ export class ExternalStoreThreadRuntimeCore
     if (this._isVoiceMessage(config.sourceId))
       throw new Error("Voice transcript messages cannot be reloaded");
     const onResume = this._store.onResume;
-    for (const pending of this._pendingResumes) {
-      if (
-        pending.onResume === onResume &&
-        pending.config.parentId === config.parentId &&
-        pending.config.sourceId === config.sourceId &&
-        pending.config.stream === config.stream &&
-        shallowEqual(pending.config.runConfig, config.runConfig)
-      )
-        return pending.promise;
-    }
+    if (this._pendingResume) return this._pendingResume;
     if (this._store.canResume !== true) return onResume(config);
     let start!: () => void;
     const promise = new Promise<void>((resolve, reject) => {
@@ -932,15 +919,10 @@ export class ExternalStoreThreadRuntimeCore
         }
       };
     }).finally(() => {
-      this._pendingResumes.delete(pending);
+      this._pendingResume = undefined;
       this._notifySubscribers();
     });
-    const pending = {
-      config,
-      onResume,
-      promise,
-    };
-    this._pendingResumes.add(pending);
+    this._pendingResume = promise;
     this._notifySubscribers();
     start();
     return promise;

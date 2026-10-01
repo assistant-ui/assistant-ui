@@ -953,13 +953,11 @@ Adapters without an explicit checkpoint keep the Send/Cancel controls.
 `onResume` must continue the same assistant message and tool state. Do not implement
 it with `append`, `reload`, or an empty user message. Set `isRunning` while reconnecting
 and clear `canResume` when the checkpoint is consumed, expires, or the thread changes.
-With `canResume: true`, `useExternalStoreRuntime` shares one attempt for identical
-pending resume requests that use the same `onResume` callback. Memoize the callback
-with `useCallback` to preserve this across renders. Replacing the callback or
-changing the run configuration starts a separate attempt.
-`ExternalThread` has a parameterless `onResume`, so it shares one pending attempt
-per thread. Without this opt-in, explicit resume calls retain their existing
-independent behavior.
+With `canResume: true`, `useExternalStoreRuntime` and `ExternalThread` share one
+pending resume attempt per thread. Later calls join that attempt even if the
+callback or run configuration changes; the first call's configuration is used.
+Once it settles, a new call uses the current callback and its own configuration.
+Without this opt-in, explicit resume calls retain their existing independent behavior.
 A rejected callback re-enables the control for retry; report the failure through your
 adapter's normal error state. The runtime also suppresses repeated clicks
 across controls for the same thread while the callback is pending and preserves
