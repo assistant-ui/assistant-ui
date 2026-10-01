@@ -1069,7 +1069,6 @@ interface TeamsSubmitData {
   readonly aui: {
     readonly type: string;
     readonly payload?: Record<string, unknown>;
-    readonly temporal?: Readonly<Record<string, TeamsTemporalField>>;
   };
 }
 
@@ -1095,16 +1094,6 @@ interface TeamsTableRow {
   readonly type: "TableRow";
   readonly cells: readonly TeamsTableCell[];
 }
-
-type TeamsTemporalField = {
-  readonly mode: "time";
-  readonly id: string;
-} | {
-  readonly mode: "datetime";
-  readonly dateId: string;
-  readonly timeId: string;
-  readonly previousValue?: string;
-};
 
 interface TeamsTextBlock {
   readonly type: "TextBlock";
@@ -1588,7 +1577,7 @@ declare namespace entry_slack_exports {
 declare function surfaceToOperations(surface: A2uiSurfaceState, surfaceId?: string): readonly A2uiSurfaceSnapshotOperation[];
 
 declare namespace entry_teams_exports {
-  export { AdaptiveCardResult, TeamsActionSet, TeamsAdaptiveCard, TeamsAttachmentsResult, TeamsCardAction, TeamsCardAttachment, TeamsCardElement, TeamsColumn, TeamsColumnSet, TeamsContainer, TeamsContainerStyle, TeamsConversionWarning, TeamsFact, TeamsFactSet, TeamsImage, TeamsInputChoice, TeamsInputChoiceSet, TeamsInputDate, TeamsInputText, TeamsInputToggle, TeamsSubmitAction, TeamsSubmitData, TeamsTable, TeamsTableCell, TeamsTableColumnDefinition, TeamsTableRow, TeamsTextBlock, TeamsTextSize, ToAdaptiveCardOptions, decodeSubmitData, toAdaptiveCard, toTeamsAttachments };
+  export { AdaptiveCardResult, TeamsActionSet, TeamsAdaptiveCard, TeamsAttachmentsResult, TeamsCardAction, TeamsCardAttachment, TeamsCardElement, TeamsColumn, TeamsColumnSet, TeamsContainer, TeamsContainerStyle, TeamsConversionWarning, TeamsFact, TeamsFactSet, TeamsImage, TeamsInputChoice, TeamsInputChoiceSet, TeamsInputDate, TeamsInputText, TeamsInputTime, TeamsInputToggle, TeamsSubmitAction, TeamsSubmitData, TeamsTable, TeamsTableCell, TeamsTableColumnDefinition, TeamsTableRow, TeamsTextBlock, TeamsTextSize, ToAdaptiveCardOptions, decodeSubmitData, toAdaptiveCard, toTeamsAttachments };
 }
 
 declare function toAdaptiveCard(node: unknown, _options?: ToAdaptiveCardOptions): AdaptiveCardResult;
