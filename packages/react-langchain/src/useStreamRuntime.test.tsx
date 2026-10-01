@@ -32,6 +32,7 @@ vi.mock("@langchain/react", () => ({
 }));
 
 import { useStreamRuntime } from "./useStreamRuntime";
+import { settleOutsideAct } from "./tests/settleOutsideAct";
 
 type MockStream = {
   messages: LangChainBaseMessage[];
@@ -194,18 +195,18 @@ describe("useStreamRuntime thread options", () => {
 
     const view = render(<TestRuntime />);
 
-    await act(async () => {
-      await capture.runtime!.threads.switchToThread("thread-a");
-    });
+    await settleOutsideAct(() =>
+      capture.runtime!.threads.switchToThread("thread-a"),
+    );
 
     const threadAOptions = mockUseStream.mock.calls
       .map(([options]) => options as { threadId?: string | null })
       .findLast((options) => options.threadId === "thread-a");
     expect(threadAOptions).toBeDefined();
 
-    await act(async () => {
-      await capture.runtime!.threads.switchToThread("thread-b");
-    });
+    await settleOutsideAct(() =>
+      capture.runtime!.threads.switchToThread("thread-b"),
+    );
 
     const threadBOptions = mockUseStream.mock.calls
       .map(([options]) => options as { threadId?: string | null })
