@@ -45,6 +45,37 @@ describe("collectFormValues", () => {
     ).toEqual({ canonical: "2025-12-15T17:00:00Z", ordinary: "live" });
   });
 
+  it.each([
+    ["time", "17:00:00", "17:00", "08:30:45"],
+    [
+      "datetime-local",
+      "2025-12-15T17:00:00",
+      "2025-12-15T17:00",
+      "2025-12-16T08:30:45",
+    ],
+  ])(
+    "uses the canonical %s value only while its projection matches",
+    (type, canonical, displayed, edited) => {
+      const getAttribute = (name: string) =>
+        name === FIELD_VALUE_ATTR ? canonical : null;
+      expect(
+        collectFormValues([
+          el({ name: "value", type, value: displayed, getAttribute }),
+        ]),
+      ).toEqual({ value: canonical });
+      expect(
+        collectFormValues([
+          el({ name: "value", type, value: edited, getAttribute }),
+        ]),
+      ).toEqual({ value: edited });
+      expect(
+        collectFormValues([
+          el({ name: "value", type, value: "", getAttribute }),
+        ]),
+      ).toEqual({ value: "" });
+    },
+  );
+
   it("ignores instant anchors on other control types", () => {
     const getAttribute = (name: string) =>
       name === FIELD_VALUE_ATTR ? "2025-12-15T17:00:00Z" : null;

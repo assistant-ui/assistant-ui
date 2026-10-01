@@ -426,14 +426,21 @@ function DatePickerRender({
   const anchor = classifyTemporal(selection.anchor ?? "");
   const hasInstantAnchor =
     inputType === "datetime" && anchor.kind === "instant";
-  const canonicalInstant = (value: string | undefined) =>
-    inputType !== "datetime"
-      ? undefined
-      : classifyTemporal(value ?? "").kind === "instant"
+  const canonicalFieldValue = (value: string | undefined) => {
+    const current = value ?? "";
+    const kind = classifyTemporal(current).kind;
+    if (inputType === "time")
+      return kind === "time" && normalizeTemporalInputValue(current) !== current
         ? value
-        : hasInstantAnchor
-          ? selection.anchor
-          : undefined;
+        : undefined;
+    if (inputType !== "datetime") return undefined;
+    if (kind === "instant") return value;
+    if (hasInstantAnchor) return selection.anchor;
+    return kind === "floating" &&
+      normalizeTemporalInputValue(current) !== current
+      ? value
+      : undefined;
+  };
   const minimum = classifyTemporal(min ?? "");
   const maximum = classifyTemporal(max ?? "");
   const hydrated = React.useSyncExternalStore(
@@ -465,7 +472,7 @@ function DatePickerRender({
       data-aui="datepicker"
       data-aui-action={actionAttr($action)}
       {...{
-        [FIELD_VALUE_ATTR]: canonicalInstant(currentValue),
+        [FIELD_VALUE_ATTR]: canonicalFieldValue(currentValue),
       }}
       name={name}
       aria-label={label}
@@ -506,9 +513,11 @@ function DatePickerRender({
           inputType === "datetime"
             ? fromLocalDateTime(e.currentTarget.value, selection.anchor)
             : e.currentTarget.value;
-        const canonical = canonicalInstant(nextValue);
+        const canonical = canonicalFieldValue(nextValue);
         if (canonical !== undefined) {
           e.currentTarget.setAttribute(FIELD_VALUE_ATTR, canonical);
+        } else {
+          e.currentTarget.removeAttribute(FIELD_VALUE_ATTR);
         }
         setSelection({
           initialValue,
@@ -955,19 +964,19 @@ export const interactiveVocabulary = {
         .string()
         .optional()
         .describe(
-          "Initial value: YYYY-MM-DD for date, HH:mm or HH:mm:ss for time, YYYY-MM-DDTHH:mm with optional :ss and fraction for datetime. A datetime with Z or ±HH:mm is an instant, displayed in the viewer's time zone and submitted with the same offset and precision. A datetime without an offset is local and submitted unchanged. An empty datetime submits with the viewer's offset and seconds.",
+          "Initial value: YYYY-MM-DD for date, HH:mm or HH:mm:ss with optional fraction for time, YYYY-MM-DDTHH:mm with optional :ss and fraction for datetime. A datetime with Z or ±HH:mm is an instant, displayed in the viewer's time zone and submitted with the same offset and precision. A datetime without an offset is local and submitted unchanged. An empty datetime submits with the viewer's offset and seconds.",
         ),
       min: z
         .string()
         .optional()
         .describe(
-          "Minimum value: YYYY-MM-DD for date, HH:mm or HH:mm:ss for time, YYYY-MM-DDTHH:mm with optional :ss and fraction for datetime. Datetimes with Z or ±HH:mm are converted to the viewer's time zone.",
+          "Minimum value: YYYY-MM-DD for date, HH:mm or HH:mm:ss with optional fraction for time, YYYY-MM-DDTHH:mm with optional :ss and fraction for datetime. Datetimes with Z or ±HH:mm are converted to the viewer's time zone.",
         ),
       max: z
         .string()
         .optional()
         .describe(
-          "Maximum value: YYYY-MM-DD for date, HH:mm or HH:mm:ss for time, YYYY-MM-DDTHH:mm with optional :ss and fraction for datetime. Datetimes with Z or ±HH:mm are converted to the viewer's time zone.",
+          "Maximum value: YYYY-MM-DD for date, HH:mm or HH:mm:ss with optional fraction for time, YYYY-MM-DDTHH:mm with optional :ss and fraction for datetime. Datetimes with Z or ±HH:mm are converted to the viewer's time zone.",
         ),
       label: z
         .string()

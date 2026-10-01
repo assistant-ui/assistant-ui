@@ -182,6 +182,29 @@ describe("Slack DatePicker temporal modes", () => {
     });
   });
 
+  it.each([
+    ["2025-12-15T17:00:30.123Z", true],
+    ["2025-12-15T17:00:30.000001+02:00", true],
+    ["1969-12-31T23:59:59.999Z", true],
+    ["2025-12-15T17:00:30.000000Z", false],
+    ["2025-12-15T17:00:30Z", false],
+    ["2025-12-15T17:00Z", false],
+  ])("reports lost fractional seconds for %s", (value, dropped) => {
+    const { warnings } = renderPicker("datetime", value);
+    expect(warnings).toEqual(
+      dropped
+        ? [
+            {
+              code: "dropped",
+              component: "DatePicker",
+              detail:
+                "Fractional seconds were dropped because Slack datetimepickers only support second precision.",
+            },
+          ]
+        : [],
+    );
+  });
+
   it.each(["Z", "+02:00", "-05:30", "+00:00", "-00:00"])(
     "preserves %s offset spelling at seconds precision after an edit",
     (offset) => {

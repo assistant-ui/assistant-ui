@@ -52,18 +52,13 @@ export interface TeamsSubmitData {
   readonly aui: {
     readonly type: string;
     readonly payload?: Record<string, unknown>;
-    readonly temporal?: Readonly<Record<string, TeamsTemporalField>>;
   };
 }
 
-export type TeamsTemporalField =
-  | { readonly mode: "time"; readonly id: string }
-  | {
-      readonly mode: "datetime";
-      readonly dateId: string;
-      readonly timeId: string;
-      readonly previousValue?: string;
-    };
+export type TeamsTemporalField = {
+  readonly dateId: string;
+  readonly previousValue?: string;
+};
 
 /**
  * A submit action. `data` carries the resume payload under an `aui` key so

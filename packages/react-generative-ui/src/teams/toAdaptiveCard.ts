@@ -31,6 +31,7 @@ import {
   buildSubmitAction,
   utf8ByteLength,
 } from "./constants";
+import { encodeTemporalInputId } from "./temporalId";
 import type {
   AdaptiveCardResult,
   TeamsActionSet,
@@ -47,8 +48,6 @@ import type {
   TeamsTableRow,
   TeamsTextBlock,
   TeamsTextSize,
-  TeamsTemporalField,
-  TeamsSubmitAction,
   ToAdaptiveCardOptions,
 } from "./types";
 
@@ -56,7 +55,6 @@ import type {
 export interface ConversionContext {
   readonly warnings: TeamsConversionWarning[];
   usedInputIds: Set<string>;
-  temporalFields: Record<string, TeamsTemporalField>;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -421,7 +419,6 @@ export const discardedChild = (
     ...context,
     warnings: [],
     usedInputIds: new Set(context.usedInputIds),
-    temporalFields: Object.assign(Object.create(null), context.temporalFields),
   };
   const produced = convertSequence(child, scratch, depth).length > 0;
   const lost = scratch.warnings.filter((warning) => warning.code === "dropped");
@@ -605,7 +602,6 @@ export function convertElement(
       const mode = props["inputType"];
       if (mode === "time") {
         const id = reservedSafeId(name || "datepicker", "DatePicker", context);
-        context.temporalFields[id] = { mode, id };
         const rawValue = asString(props["value"]);
         const parts = splitTemporalMinutes(rawValue);
         if (
@@ -664,25 +660,40 @@ export function convertElement(
       if (mode === "datetime") {
         const rawValue = asString(props["value"]);
         const temporal = classifyTemporal(rawValue);
-        const dateId = reservedSafeId(
+        let dateId = reservedSafeId(
           name || "datepicker",
           "DatePicker",
           context,
         );
-        const timeId = reservedSafeId(`${dateId}_time`, "DatePicker", context);
-        context.temporalFields[dateId] = {
-          mode,
+        const metadata = {
           dateId,
-          timeId,
           ...(temporal.kind === "instant" ? { previousValue: rawValue } : {}),
         };
+        let timeId = encodeTemporalInputId(metadata);
+        while (context.usedInputIds.has(timeId)) {
+          dateId = reservedSafeId(dateId, "DatePicker", context);
+          timeId = encodeTemporalInputId({ ...metadata, dateId });
+        }
+        context.usedInputIds.add(timeId);
         const parts = splitTemporalMinutes(rawValue);
+        if (temporal.kind === "floating" && parts?.droppedPrecision) {
+          warn(
+            context,
+            "dropped",
+            "DatePicker",
+            "Nonzero seconds were dropped from the datetime value.",
+          );
+        }
         const offsetLabel = temporalOffsetLabel(rawValue);
-        const boundDate = (raw: unknown) =>
-          splitTemporalMinutes(
-            asString(raw),
-            temporal.kind === "instant" ? temporal.offset : undefined,
-          )?.date;
+        const boundDate = (raw: unknown) => {
+          const value = asString(raw);
+          return classifyTemporal(value).kind === "date"
+            ? value
+            : splitTemporalMinutes(
+                value,
+                temporal.kind === "instant" ? temporal.offset : undefined,
+              )?.date;
+        };
         const min = boundDate(props["min"]);
         const max = boundDate(props["max"]);
         const dateInput: TeamsCardElement = {
@@ -958,40 +969,8 @@ export function convertRootToCard(
   context: ConversionContext,
 ): TeamsAdaptiveCard {
   context.usedInputIds = new Set();
-  context.temporalFields = Object.create(null);
   const body = convertSequence(root, context, 0);
-  const fields = context.temporalFields;
-  const decorateAction = (action: TeamsSubmitAction): TeamsSubmitAction => ({
-    ...action,
-    data: { aui: { ...action.data.aui, temporal: fields } },
-  });
-  const decorateElement = (element: TeamsCardElement): TeamsCardElement => {
-    if (element.type === "ActionSet") {
-      return { ...element, actions: element.actions.map(decorateAction) };
-    }
-    if (element.type === "Container") {
-      return {
-        ...element,
-        items: element.items.map(decorateElement),
-        ...(element.selectAction
-          ? { selectAction: decorateAction(element.selectAction) }
-          : {}),
-      };
-    }
-    if (element.type === "ColumnSet") {
-      return {
-        ...element,
-        columns: element.columns.map((column) => ({
-          ...column,
-          items: column.items.map(decorateElement),
-        })),
-      };
-    }
-    return element;
-  };
-  const card = buildCard(
-    Object.keys(fields).length > 0 ? body.map(decorateElement) : body,
-  );
+  const card = buildCard(body);
   const size = utf8ByteLength(JSON.stringify(card));
   if (size > PAYLOAD_SOFT_CAP) {
     warn(
@@ -1021,7 +1000,6 @@ export function toAdaptiveCard(
   const context: ConversionContext = {
     warnings: [],
     usedInputIds: new Set(),
-    temporalFields: Object.create(null),
   };
   try {
     const bounded = boundSpec(node, (reason) =>

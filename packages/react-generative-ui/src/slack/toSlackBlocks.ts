@@ -467,6 +467,17 @@ const toActionElement = (
               ];
         }
         if (inputType === "datetime" && temporal.kind === "instant") {
+          if (
+            temporal.epochMs % 1000 !== 0 ||
+            /[1-9]/.test(temporal.subMillisecondDigits ?? "")
+          ) {
+            warn(
+              context,
+              "dropped",
+              "DatePicker",
+              "Fractional seconds were dropped because Slack datetimepickers only support second precision.",
+            );
+          }
           return {
             type: "datetimepicker",
             action_id: actionId,

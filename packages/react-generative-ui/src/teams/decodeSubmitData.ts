@@ -1,6 +1,11 @@
 import { resolveFieldReferences } from "../fieldReferences";
 import type { Action } from "../ir";
-import { fromOffsetDateTime, mergeTemporalMinutes } from "../temporal";
+import {
+  classifyTemporal,
+  fromOffsetDateTime,
+  mergeTemporalMinutes,
+} from "../temporal";
+import { decodeTemporalInputId, TEMPORAL_INPUT_PREFIX } from "./temporalId";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -50,34 +55,35 @@ export function decodeSubmitData(value: unknown): Action | undefined {
     );
     const inputEntries = Object.entries(value).filter(([key]) => key !== "aui");
     const input = Object.fromEntries(inputEntries);
-    const temporal = aui["temporal"];
-    if (isRecord(temporal)) {
-      for (const [field, metadata] of Object.entries(temporal)) {
-        if (!isRecord(metadata) || metadata["mode"] !== "datetime") continue;
-        const dateId = metadata["dateId"];
-        const timeId = metadata["timeId"];
-        if (typeof dateId !== "string" || typeof timeId !== "string") continue;
-        if (!Object.hasOwn(input, dateId) && !Object.hasOwn(input, timeId))
-          continue;
-        const date = input[dateId];
-        const time = input[timeId];
-        const merged = mergeTemporalMinutes(
-          typeof date === "string" ? date : "",
-          typeof time === "string" ? time : "",
-        );
-        Object.defineProperty(input, field, {
-          value: fromOffsetDateTime(
-            merged,
-            typeof metadata["previousValue"] === "string"
-              ? metadata["previousValue"]
-              : undefined,
-          ),
-          enumerable: true,
-          configurable: true,
-          writable: true,
-        });
-        if (timeId !== field) delete input[timeId];
-      }
+    const temporalFields = new Set<string>();
+    for (const [id, time] of inputEntries) {
+      if (!id.startsWith(TEMPORAL_INPUT_PREFIX)) continue;
+      const metadata = decodeTemporalInputId(id);
+      if (
+        !metadata ||
+        temporalFields.has(metadata.dateId) ||
+        !Object.hasOwn(input, metadata.dateId)
+      )
+        return undefined;
+      const date = input[metadata.dateId];
+      if (
+        typeof date !== "string" ||
+        typeof time !== "string" ||
+        (date !== "" && classifyTemporal(date).kind !== "date") ||
+        (time !== "" && classifyTemporal(time).kind !== "time")
+      )
+        return undefined;
+      temporalFields.add(metadata.dateId);
+      Object.defineProperty(input, metadata.dateId, {
+        value: fromOffsetDateTime(
+          mergeTemporalMinutes(date, time),
+          metadata.previousValue,
+        ),
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      });
+      delete input[id];
     }
     const hasInput = inputEntries.length > 0;
 

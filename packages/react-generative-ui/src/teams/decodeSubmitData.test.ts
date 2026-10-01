@@ -2,6 +2,85 @@ import { describe, expect, it } from "vitest";
 import { decodeSubmitData } from "./decodeSubmitData";
 
 describe("decodeSubmitData", () => {
+  it.each([
+    "aui:datetime:",
+    "aui:datetime:when",
+    "aui:datetime:when::extra",
+    "aui:datetime:when:%",
+    "aui:datetime:%E0%A4%A:",
+    "aui:datetime:%77hen:",
+    "aui:datetime:when:not-an-instant",
+    "aui:datetime:when:2025-02-30T17%3A00%3A00Z",
+    "aui:datetime:when:2025-12-15T17%3A00",
+    "aui:datetime:when:%7B%22dateId%22%3A%22other%22%7D",
+    "aui:datetime::",
+    "aui:datetime:aui:",
+    "aui:datetime:aui%3Adatetime%3Awhen%3A:",
+    "aui:datetime:missing:",
+    "aui:datetime:other:",
+  ])("rejects forged or malformed time input id %j", (id) => {
+    const value = {
+      aui: { type: "save", payload: { selected: { $field: "when" } } },
+      when: "2025-12-15",
+      other: "untouched",
+      [id]: "17:00",
+    };
+    expect(decodeSubmitData(value)).toBeUndefined();
+    expect(value.when).toBe("2025-12-15");
+    expect(value.other).toBe("untouched");
+  });
+
+  it.each([false, true])(
+    "rejects conflicting metadata regardless of submission order (%s)",
+    (reverse) => {
+      const entries = [
+        ["aui:datetime:when:", "17:00"],
+        ["aui:datetime:when:2025-12-15T17%3A00%3A00Z", "18:00"],
+      ];
+      expect(
+        decodeSubmitData({
+          aui: { type: "save" },
+          when: "2025-12-15",
+          ...Object.fromEntries(reverse ? entries.reverse() : entries),
+        }),
+      ).toBeUndefined();
+    },
+  );
+
+  it("never reads temporal metadata from the action envelope or its prototype", () => {
+    const temporal = {
+      get() {
+        throw new Error("Unexpected temporal read");
+      },
+    };
+    for (const aui of [
+      Object.defineProperty({ type: "save" }, "temporal", temporal),
+      Object.assign(
+        Object.create(Object.defineProperty({}, "temporal", temporal)),
+        { type: "save" },
+      ),
+    ]) {
+      expect(
+        decodeSubmitData({
+          aui,
+          when: "2025-12-15",
+          "aui:datetime:when:": "17:00",
+        }),
+      ).toEqual({
+        type: "save",
+        $input: { when: "2025-12-15T17:00" },
+      });
+    }
+  });
+
+  it("requires the date half to be an own submitted property", () => {
+    const value = Object.assign(Object.create({ when: "2025-12-15" }), {
+      aui: { type: "save" },
+      "aui:datetime:when:": "17:00",
+    });
+    expect(decodeSubmitData(value)).toBeUndefined();
+  });
+
   it("decodes the aui envelope, spreading its payload into the result", () => {
     const value = { aui: { type: "approve", payload: { requestId: "r1" } } };
     expect(decodeSubmitData(value)).toEqual({

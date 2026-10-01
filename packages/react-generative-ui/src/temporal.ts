@@ -18,7 +18,8 @@ export type TemporalValue =
   | TemporalInstant;
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/;
+const TIME_PATTERN =
+  /^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d)(?:\.(\d{1,9}))?)?$/;
 const DATETIME_PATTERN =
   /^(\d{4}-\d{2}-\d{2})T([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d)(?:\.(\d+))?)?(Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)?$/;
 const INPUT_PATTERN =
@@ -51,7 +52,8 @@ export const classifyTemporal = (value: string): TemporalValue => {
     return {
       kind: "time",
       value,
-      precision: time[3] === undefined ? "minutes" : "seconds",
+      precision:
+        time[4]?.length ?? (time[3] === undefined ? "minutes" : "seconds"),
     };
   }
   const datetime = DATETIME_PATTERN.exec(value);

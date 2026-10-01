@@ -26,7 +26,7 @@ export type FormControlElementLike = {
 };
 
 /**
- * Collects a submitted form's named control values into a plain object, keyed by `name`, in document order. Reads each control's live DOM state rather than `FormData`, so a checkbox resolves to its `checked` boolean instead of an on/off string. A radio group resolves to its checked option's `value`, or `undefined` if none is checked. A checkbox group resolves to its checked options' values in document order, or an empty array if none is checked. Any other repeated `name` resolves to an array of its controls' values, in document order. A datetime-local control's `data-aui-field-value` anchors its live value to the original offset and precision, preserving the canonical string when its local projection is unchanged. Controls without a `name`, that carry `data-aui-generated-name`, or that are effectively disabled, including through an ancestor disabled fieldset outside its first legend, are skipped entirely.
+ * Collects a submitted form's named control values into a plain object, keyed by `name`, in document order. Reads each control's live DOM state rather than `FormData`, so a checkbox resolves to its `checked` boolean instead of an on/off string. A radio group resolves to its checked option's `value`, or `undefined` if none is checked. A checkbox group resolves to its checked options' values in document order, or an empty array if none is checked. Any other repeated `name` resolves to an array of its controls' values, in document order. A time or datetime-local control's `data-aui-field-value` preserves the canonical string when its local projection is unchanged; an edited instant retains its original offset and precision. Controls without a `name`, that carry `data-aui-generated-name`, or that are effectively disabled, including through an ancestor disabled fieldset outside its first legend, are skipped entirely.
  */
 export function collectFormValues(
   elements: ArrayLike<FormControlElementLike>,
@@ -61,7 +61,7 @@ export function collectFormValues(
     }
 
     const fieldValue =
-      element.type === "datetime-local"
+      element.type === "datetime-local" || element.type === "time"
         ? element.getAttribute?.(FIELD_VALUE_ATTR)
         : undefined;
     const value: string | number | boolean =
@@ -69,11 +69,17 @@ export function collectFormValues(
         ? (element.checked ?? false)
         : element.type === "range"
           ? Number(element.value)
-          : fieldValue
+          : fieldValue && element.value !== ""
             ? element.value ===
-              normalizeTemporalInputValue(toLocalDateTime(fieldValue))
+              normalizeTemporalInputValue(
+                element.type === "time"
+                  ? fieldValue
+                  : toLocalDateTime(fieldValue),
+              )
               ? fieldValue
-              : fromLocalDateTime(element.value, fieldValue)
+              : element.type === "datetime-local"
+                ? fromLocalDateTime(element.value, fieldValue)
+                : element.value
             : element.value;
 
     if (Object.hasOwn(values, name)) {

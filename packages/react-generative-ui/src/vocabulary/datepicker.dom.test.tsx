@@ -308,6 +308,83 @@ describe("DatePicker temporal contract", () => {
     },
   );
 
+  it.each([
+    ["time", "17:00:00", "17:00", "08:30:45"],
+    ["time", "12:00:05.1200", "12:00:05.12", "08:30"],
+    ["datetime", "2025-12-15T17:00:00", "2025-12-15T17:00", "2025-12-16T08:30"],
+  ])(
+    "preserves a canonical %s value through Form and $field",
+    async (inputType, initial, displayed, edited) => {
+      const dispatch = vi.fn();
+      const container = await mount(
+        <div data-aui="root">
+          {renderGenerativeUI(
+            {
+              $type: "Form",
+              $action: { type: "submit" },
+              children: [
+                {
+                  $type: "DatePicker",
+                  name: "when",
+                  inputType,
+                  value: initial,
+                },
+                { $type: "Button", label: "Submit", submit: true },
+                {
+                  $type: "Button",
+                  label: "Reference",
+                  $action: { type: "reference", when: { $field: "when" } },
+                },
+              ],
+            },
+            defaultGenerativeUILibrary,
+            { status: "done", dispatch },
+          )}
+        </div>,
+      );
+      const input = container.querySelector("input")!;
+      const [submit, reference] = container.querySelectorAll("button");
+      expect(input.value).toBe(displayed);
+      expect(input.getAttribute(FIELD_VALUE_ATTR)).toBe(initial);
+      await React.act(async () => reference!.click());
+      expect(dispatch).toHaveBeenLastCalledWith({
+        type: "reference",
+        when: initial,
+      });
+      await React.act(async () => submit!.click());
+      expect(dispatch).toHaveBeenLastCalledWith({
+        type: "submit",
+        $input: { when: initial },
+      });
+
+      await change(input, edited);
+      expect(input.value).toBe(edited);
+      expect(input.hasAttribute(FIELD_VALUE_ATTR)).toBe(false);
+      await React.act(async () => reference!.click());
+      expect(dispatch).toHaveBeenLastCalledWith({
+        type: "reference",
+        when: edited,
+      });
+      await React.act(async () => submit!.click());
+      expect(dispatch).toHaveBeenLastCalledWith({
+        type: "submit",
+        $input: { when: edited },
+      });
+
+      input.value = "";
+      await React.act(async () => reference!.click());
+      expect(dispatch).toHaveBeenLastCalledWith({
+        type: "reference",
+        when: "",
+      });
+      await React.act(async () => submit!.click());
+      expect(dispatch).toHaveBeenLastCalledWith({
+        type: "submit",
+        $input: { when: "" },
+      });
+    },
+  );
+
   it("submits a filled initially empty datetime as an instant in the viewer offset", async () => {
     const dispatch = vi.fn();
     const container = await mount(
@@ -349,8 +426,8 @@ describe("DatePicker temporal contract", () => {
   });
 
   it.each([
-    ["time", "12:00:00", "12:00", null, "1"],
-    ["time", "12:00:05.1200", "12:00:05.12", null, "any"],
+    ["time", "12:00:00", "12:00", "12:00:00", "1"],
+    ["time", "12:00:05.1200", "12:00:05.12", "12:00:05.1200", "any"],
     [
       "datetime",
       "2025-12-15T17:00:00Z",
@@ -581,10 +658,11 @@ describe("DatePicker temporal contract", () => {
       max: "2026-07-15T17:00:59",
       edited: "2026-07-15T13:45:30",
       step: "1",
+      editedFieldValue: "2026-07-15T13:45:30.000",
     },
   ])(
     "passes $inputType value $value and bounds through unchanged",
-    async ({ inputType, value, min, max, edited, step }) => {
+    async ({ inputType, value, min, max, edited, step, editedFieldValue }) => {
       const dispatch = vi.fn();
       const container = await mount(
         view(
@@ -610,7 +688,9 @@ describe("DatePicker temporal contract", () => {
         type: "save",
         $input: nativeValue(input.type, edited),
       });
-      expect(input.hasAttribute(FIELD_VALUE_ATTR)).toBe(false);
+      expect(input.getAttribute(FIELD_VALUE_ATTR)).toBe(
+        editedFieldValue ?? null,
+      );
       expect(collectFormValues([input])).toEqual({
         when: nativeValue(input.type, edited),
       });

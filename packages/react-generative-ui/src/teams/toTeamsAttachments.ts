@@ -80,7 +80,6 @@ export function toTeamsAttachments(
   const context: ConversionContext = {
     warnings,
     usedInputIds: new Set(),
-    temporalFields: Object.create(null),
   };
   try {
     const bounded = boundSpec(node, (reason) =>
