@@ -229,7 +229,7 @@ describe("useRemoteThreadListRuntime list promises", () => {
 
   it("resolves a reload read by use() inside the boundary that hides the client", async () => {
     const actEnvironment = globalThis as {
-      IS_REACT_ACT_ENVIRONMENT?: boolean;
+      IS_REACT_ACT_ENVIRONMENT?: boolean | undefined;
     };
     const previous = actEnvironment.IS_REACT_ACT_ENVIRONMENT;
     // React only retries a suspended boundary from a ping outside act().

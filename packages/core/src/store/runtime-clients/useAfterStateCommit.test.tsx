@@ -5,7 +5,9 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { useAfterStateCommit } from "./useAfterStateCommit";
 
-const actEnvironment = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
+const actEnvironment = globalThis as {
+  IS_REACT_ACT_ENVIRONMENT?: boolean | undefined;
+};
 let previousActEnvironment: boolean | undefined;
 
 beforeEach(() => {
