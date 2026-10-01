@@ -1,6 +1,7 @@
 "use client";
 
 import * as HeatGraphPrimitive from "heat-graph";
+import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 
 const LEVEL_TINT = [
@@ -12,15 +13,17 @@ const LEVEL_TINT = [
 ] as const;
 
 export function HeatGraph({ data }: { data: HeatGraphPrimitive.DataPoint[] }) {
+  const end = useMemo(() => new Date(), [data]);
   return (
     <HeatGraphPrimitive.Root
       data={data}
+      end={end}
       weekStart="monday"
       className="flex flex-col gap-2"
     >
       <div className="overflow-x-auto">
         <div className="flex min-w-fit flex-col gap-2">
-          <MonthLabels />
+          <MonthLabels end={end} />
           <div className="flex gap-2">
             <DayLabels />
             <CellGrid />
@@ -34,23 +37,23 @@ export function HeatGraph({ data }: { data: HeatGraphPrimitive.DataPoint[] }) {
 }
 
 // A month is labelled over the first week that starts in it, so a month whose first week falls before the grid, and a month starting in the current week, stay unlabelled instead of colliding with a neighbour or running past the grid.
-function labelsMonth({ date, row }: HeatGraphPrimitive.CellData) {
+function labelsMonth({ date, row }: HeatGraphPrimitive.CellData, end: Date) {
   const weekLater = new Date(
     date.getFullYear(),
     date.getMonth(),
     date.getDate() + 7,
   );
-  return row === 0 && date.getDate() <= 7 && weekLater.getTime() <= Date.now();
+  return row === 0 && date.getDate() <= 7 && weekLater <= end;
 }
 
-function MonthLabels() {
+function MonthLabels({ end }: { end: Date }) {
   return (
     <HeatGraphPrimitive.Grid
       className="ms-10 h-5 gap-x-[3px] overflow-hidden"
       style={{ gridTemplateRows: "auto" }}
     >
       {({ cell }) =>
-        labelsMonth(cell) ? (
+        labelsMonth(cell, end) ? (
           <span
             className="text-muted-foreground w-0 text-xs whitespace-nowrap"
             style={{ gridColumn: cell.column + 1, gridRow: 1 }}

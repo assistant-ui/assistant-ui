@@ -66,6 +66,23 @@ describe("HeatGraph", () => {
     }
   });
 
+  it("keeps the month labels on the grid's window after midnight passes", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date(2026, 5, 7, 23, 59));
+      const data: { date: Date; count: number }[] = [];
+      const { rerender } = render(<HeatGraph data={data} />);
+      const labels = screen.queryAllByText("Jun").length;
+
+      vi.setSystemTime(new Date(2026, 5, 8, 0, 1));
+      rerender(<HeatGraph data={data} />);
+
+      expect(screen.queryAllByText("Jun")).toHaveLength(labels);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("labels each month at its first week, never two within a week of each other", () => {
     const { container } = render(<HeatGraph data={DATA} />);
 
