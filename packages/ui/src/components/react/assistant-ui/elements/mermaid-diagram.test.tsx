@@ -39,6 +39,48 @@ describe("MermaidDiagram", () => {
     expect(adoptedCss()).not.toContain("@import");
   });
 
+  it("keeps the label font rule that follows the font @import", () => {
+    render(<MermaidDiagram code={FLOW} />);
+
+    const textRule = document.adoptedStyleSheets
+      .flatMap((sheet) => [...sheet.cssRules])
+      .find(
+        (rule): rule is CSSStyleRule =>
+          rule instanceof CSSStyleRule && rule.selectorText === "text",
+      );
+    expect(textRule?.style.getPropertyValue("font-family")).toMatch(
+      /^["']Inter["'],\s*system-ui,\s*sans-serif$/,
+    );
+  });
+
+  it("renders the original markup without constructable stylesheets", () => {
+    Reflect.deleteProperty(document, "adoptedStyleSheets");
+    const replaceSync = Object.getOwnPropertyDescriptor(
+      CSSStyleSheet.prototype,
+      "replaceSync",
+    );
+    Reflect.deleteProperty(CSSStyleSheet.prototype, "replaceSync");
+    try {
+      const { container } = render(<MermaidDiagram code={FLOW} />);
+
+      const diagram = container.querySelector('[data-slot="mermaid-diagram"]');
+      const svg = diagram?.querySelector("svg");
+      expect(diagram?.querySelector("style")?.textContent).toContain(
+        "--_node-fill",
+      );
+      expect(svg?.getAttribute("style")).toContain("--bg:var(--background)");
+      expect(svg?.hasAttribute("data-aui-style")).toBe(false);
+    } finally {
+      if (replaceSync) {
+        Object.defineProperty(
+          CSSStyleSheet.prototype,
+          "replaceSync",
+          replaceSync,
+        );
+      }
+    }
+  });
+
   it("shares one stylesheet between diagrams and removes it with the last", () => {
     const first = render(<MermaidDiagram code={FLOW} />);
     const second = render(<MermaidDiagram code={FLOW} />);

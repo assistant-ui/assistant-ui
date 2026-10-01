@@ -42,6 +42,9 @@ const isIncompleteDiagram = (code: string, svg: string) => {
   );
 };
 
+const CSS_IMPORT =
+  /@import\s*(?:url\(\s*(?:"[^"]*"|'[^']*'|[^)]*)\s*\)|"[^"]*"|'[^']*')[^;]*(?:;|$)/g;
+
 const splitSvgStyles = (svg: string) => {
   let css = "";
   const markup = svg
@@ -50,7 +53,7 @@ const splitSvgStyles = (svg: string) => {
       return "";
     })
     .replace(/(<[^>]*?)\sstyle="([^"]*)"/g, '$1 data-aui-style="$2"');
-  return { markup, css: css.replace(/@import[^;]*;/g, "").trim() };
+  return { markup, css: css.replace(CSS_IMPORT, "").trim() };
 };
 
 type StyleRoot = Document | ShadowRoot;
@@ -82,6 +85,11 @@ const adoptStyles = (root: StyleRoot, css: string) => {
 
 const subscribeNothing = () => () => {};
 
+const supportsAdoptedStyles = () =>
+  typeof CSSStyleSheet === "function" &&
+  "replaceSync" in CSSStyleSheet.prototype &&
+  "adoptedStyleSheets" in document;
+
 type MermaidSvgProps = Omit<
   ComponentProps<"div">,
   "dangerouslySetInnerHTML"
@@ -93,20 +101,21 @@ type MermaidSvgProps = Omit<
  * Renders beautiful-mermaid's SVG without inline `<style>` or `style=""`,
  * which a Content Security Policy without 'unsafe-inline' blocks: its CSS
  * goes into a constructed stylesheet and its inline styles are set through
- * the CSSOM. Server and hydration renders keep the original markup.
+ * the CSSOM. Server and hydration renders, and browsers without
+ * constructable stylesheets, keep the original markup.
  */
 function MermaidSvg({ svg, ...props }: MermaidSvgProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const hydrated = useSyncExternalStore(
+  const constructable = useSyncExternalStore(
     subscribeNothing,
-    () => true,
+    supportsAdoptedStyles,
     () => false,
   );
   const { markup, css } = useMemo(() => splitSvgStyles(svg), [svg]);
 
   useLayoutEffect(() => {
     const container = ref.current;
-    if (!hydrated || !container) return;
+    if (!constructable || !container) return;
     for (const el of container.querySelectorAll<SVGElement>(
       "[data-aui-style]",
     )) {
@@ -121,17 +130,17 @@ function MermaidSvg({ svg, ...props }: MermaidSvgProps) {
     }
     if (!css) return;
     const root = container.getRootNode();
-    return adoptStyles(
-      root instanceof ShadowRoot ? root : container.ownerDocument,
-      css,
-    );
-  }, [hydrated, markup, css]);
+    const styleRoot =
+      root instanceof ShadowRoot ? root : container.ownerDocument;
+    if (!("adoptedStyleSheets" in styleRoot)) return;
+    return adoptStyles(styleRoot, css);
+  }, [constructable, markup, css]);
 
   return (
     <div
       ref={ref}
       {...props}
-      dangerouslySetInnerHTML={{ __html: hydrated ? markup : svg }}
+      dangerouslySetInnerHTML={{ __html: constructable ? markup : svg }}
     />
   );
 }
