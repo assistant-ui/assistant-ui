@@ -42,17 +42,26 @@ const seed = (n: number): Msg[] =>
   }));
 
 type Host = { tick: () => void; unmount: () => void };
-type Variant = "runtime only" | "all messages" | "20 message window";
+type Variant =
+  | "runtime only"
+  | "provider only"
+  | "all messages"
+  | "all messages by id"
+  | "20 message window";
 
 const mount = (n: number, variant: Variant = "all messages"): Host => {
   let setMessages!: (updater: (prev: Msg[]) => Msg[]) => void;
   const last = `m${n - 1}`;
   const body = seedText(n - 1);
-  const firstWindowIndex = Math.max(0, n - 20);
-  const windowIds = Array.from(
-    { length: n - firstWindowIndex },
-    (_, i) => `m${firstWindowIndex + i}`,
-  );
+  const byIdIds =
+    variant === "all messages by id"
+      ? Array.from({ length: n }, (_, i) => `m${i}`)
+      : variant === "20 message window"
+        ? Array.from(
+            { length: Math.min(n, 20) },
+            (_, i) => `m${Math.max(0, n - 20) + i}`,
+          )
+        : null;
   const App = () => {
     const [messages, set] = useState<Msg[]>(() => seed(n));
     setMessages = set;
@@ -61,19 +70,20 @@ const mount = (n: number, variant: Variant = "all messages"): Host => {
       convertMessage,
       onNew: async () => {},
     });
+    if (variant === "runtime only") return null;
     return (
       <AssistantRuntimeProvider runtime={runtime}>
         {variant === "all messages" ? (
           <ThreadPrimitiveMessages components={COMPONENTS} />
-        ) : variant === "20 message window" ? (
-          windowIds.map((messageId) => (
+        ) : (
+          byIdIds?.map((messageId) => (
             <ThreadPrimitiveUnstable_MessageById
               key={messageId}
               messageId={messageId}
               components={COMPONENTS}
             />
           ))
-        ) : null}
+        )}
       </AssistantRuntimeProvider>
     );
   };
@@ -84,12 +94,8 @@ const mount = (n: number, variant: Variant = "all messages"): Host => {
     tick: () => {
       flip = !flip;
       const tail = flip ? " tok a" : " tok b";
-      flushSync(() =>
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === last ? { ...m, text: `${body}${tail}` } : m,
-          ),
-        ),
+      setMessages((prev) =>
+        prev.map((m) => (m.id === last ? { ...m, text: `${body}${tail}` } : m)),
       );
     },
     unmount: () => flushSync(() => root.unmount()),
@@ -123,21 +129,23 @@ describe("external-store thread: one token changed in the last message, by threa
           },
           afterAll: () => host.unmount(),
         },
-        () => host.tick(),
+        () => flushSync(host.tick),
       ).run(inject("benchSampling"));
     });
   }
 });
 
-// These rows settle each token through `act`, so they compare with each other
-// and not with the flushSync rows above. Rendering nothing under the provider,
-// every message, or a 20 message window separates the runtime and thread
-// client from the per message scopes.
+// `act` settles each token's host update and runtime store notification.
+// Runtime only mounts the hook; provider only adds thread and message clients.
+// All messages uses the list path; all messages by id uses the ID path at full count.
+// The 20 message window uses the ID path for only the last 20 scopes.
 describe("external-store thread: one token changed in the last message, by layer", () => {
   for (const n of SIZES) {
     for (const variant of [
       "runtime only",
+      "provider only",
       "all messages",
+      "all messages by id",
       "20 message window",
     ] as const) {
       const row = `${variant}, ${n} messages`;
@@ -160,7 +168,7 @@ describe("external-store thread: one token changed in the last message, by layer
             },
           },
           async () => {
-            await act(() => host.tick());
+            await act(host.tick);
           },
         ).run(inject("benchSampling"));
       });
