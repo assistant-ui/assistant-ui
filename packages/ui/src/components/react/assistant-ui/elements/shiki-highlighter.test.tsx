@@ -171,4 +171,55 @@ describe("SyntaxHighlighter", () => {
       "three",
     );
   });
+
+  it("retries a language load that failed once", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const createHighlighterCore =
+      createHighlighterCoreMock.getMockImplementation()!;
+    let loadLanguage: ReturnType<typeof vi.fn> | undefined;
+    createHighlighterCoreMock.mockImplementationOnce(async (options) => {
+      const highlighter = await createHighlighterCore(options);
+      loadLanguage = vi
+        .spyOn(highlighter, "loadLanguage")
+        .mockRejectedValueOnce(new Error("offline"));
+      return highlighter;
+    });
+    const engine = createJavaScriptRegexEngine();
+    const code = "def answer():\n  return 42";
+
+    const first = render(
+      <SyntaxHighlighter
+        code={code}
+        language="python"
+        delay={0}
+        engine={engine}
+      />,
+    );
+    await waitFor(() => expect(consoleError).toHaveBeenCalled());
+    first.unmount();
+
+    const { container } = render(
+      <SyntaxHighlighter
+        code={code}
+        language="python"
+        delay={0}
+        engine={engine}
+      />,
+    );
+
+    await waitFor(() => expect(loadLanguage).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(
+        new Set(
+          Array.from(
+            container.querySelectorAll<HTMLElement>("pre.shiki .line span"),
+            (span) => span.style.color,
+          ),
+        ).size,
+      ).toBeGreaterThan(1),
+    );
+    consoleError.mockRestore();
+  });
 });

@@ -185,6 +185,7 @@ const useEngineHighlighter = (engine: Engine, props: CodeProps) => {
     highlighter: HighlighterCore;
   }>();
   const [, rerender] = useReducer((count: number) => count + 1, 0);
+  const [failedKey, setFailedKey] = useState<string>();
 
   useEffect(() => {
     let active = true;
@@ -215,17 +216,21 @@ const useEngineHighlighter = (engine: Engine, props: CodeProps) => {
     Promise.all([
       highlighter.loadLanguage(...load.langs),
       highlighter.loadTheme(...load.themes),
-    ])
-      .catch((error: unknown) => {
-        console.error("[shiki-highlighter] loading failed", error);
-      })
-      .finally(() => {
+    ]).then(
+      () => {
         for (const input of load.inputs) attempted.add(input);
         rerender();
-      });
+      },
+      (error: unknown) => {
+        console.error("[shiki-highlighter] loading failed", error);
+        setFailedKey(load.key);
+      },
+    );
   }, [highlighter, pending?.key]);
 
-  return pending?.key === "" ? highlighter : undefined;
+  return pending?.key === "" || pending?.key === failedKey
+    ? highlighter
+    : undefined;
 };
 
 const ShikiCode: FC<CodeProps> = ({ code, language, theme, options }) => {
