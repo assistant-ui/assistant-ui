@@ -169,7 +169,7 @@ export function AudioPlayer({
           <PlayIcon aria-hidden className="ml-0.5 size-4" />
         )}
       </button>
-      <div className="flex min-w-16 flex-1 flex-col gap-1.5">
+      <div className="flex min-w-0 grow basis-16 flex-col gap-1.5">
         <span className="truncate text-[13.5px] font-medium">
           {displayTitle}
         </span>
@@ -192,8 +192,8 @@ export function AudioPlayer({
           className="accent-foreground w-full cursor-pointer disabled:cursor-default"
         />
       </div>
-      <span className={cn(mono, "text-muted-foreground shrink-0 tabular-nums")}>
-        {formatDuration(currentTime)} / {durationLabel}
+      <span className={cn(mono, "text-muted-foreground tabular-nums")}>
+        {formatDuration(currentTime)}&nbsp;/ {durationLabel}
       </span>
       <audio
         ref={audioRef}
