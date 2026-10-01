@@ -53,7 +53,6 @@ allowBuilds:
   '@tailwindcss/oxide': false
   core-js: false
   cpu-features: false
-  esbuild: set this to true or false
   esbuild@0.27.0: true
   esbuild@0.28.1: true
   esbuild@0.28.2: true
