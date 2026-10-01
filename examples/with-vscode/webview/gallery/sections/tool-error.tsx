@@ -45,7 +45,7 @@ export default defineSections([
     title: "Tool error states",
     category: "agents",
     notes:
-      "Retrying, the last attempt, no handlers (read-only) and a long error message. Known issue: the message box does not break a long unbroken path, so it overflows the card.",
+      "Retrying, the last attempt, no handlers (read-only) and a long error message.",
     render: () => (
       <States>
         <State label="retrying (attempt 2 of 3)">

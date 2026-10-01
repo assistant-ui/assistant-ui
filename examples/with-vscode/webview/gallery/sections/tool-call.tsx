@@ -30,8 +30,7 @@ export default defineSections([
     id: "tool-call-states",
     title: "Tool call states",
     category: "agents",
-    notes:
-      "Running, settled and closed, settled and open, and a long query. Known issue: the query chip and the request and result lines do not wrap or truncate, so a long URL overflows the card.",
+    notes: "Running, settled and closed, settled and open, and a long query.",
     render: () => (
       <States>
         <State label="running">
