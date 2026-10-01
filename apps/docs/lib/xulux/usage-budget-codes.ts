@@ -1,3 +1,5 @@
+import type { KnownModelId } from "@/lib/model";
+
 export type BudgetDenyCode =
   | "CHAT_TURN_LIMIT"
   | "CHAT_BUDGET_EXCEEDED"
@@ -25,7 +27,7 @@ export type TokenUsage = {
 };
 
 /** The model every xulux turn runs on; the per-token rates below are its gateway price. */
-export const XULUX_MODEL_ID = "gpt-6-luna";
+export const XULUX_MODEL_ID = "gpt-6-luna" satisfies KnownModelId;
 
 const DEFAULT_INPUT_MICRO_USD_PER_M = 100_000;
 const DEFAULT_OUTPUT_MICRO_USD_PER_M = 500_000;
