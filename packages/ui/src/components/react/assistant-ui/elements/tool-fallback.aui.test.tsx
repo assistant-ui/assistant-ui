@@ -344,6 +344,25 @@ describe("settled approval receipts", () => {
   const receipt = () =>
     document.querySelector('[data-slot="tool-fallback-approval-receipt"]');
 
+  it.each([
+    { type: "running" },
+    { type: "complete" },
+    { type: "incomplete", reason: "cancelled" },
+    { type: "incomplete", reason: "error" },
+  ] satisfies ToolCallMessagePartProps["status"][])(
+    "does not expose unanswered controls outside requires-action: %j",
+    (status) => {
+      renderTool({
+        status,
+        approval: pendingApproval,
+        respondToApproval: vi.fn(async () => {}),
+      });
+      fireEvent.click(screen.getByText("test-tool"));
+      expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Deny" })).toBeNull();
+    },
+  );
+
   it.each([true, false])(
     "keeps keyboard focus after an asynchronous decision (%s)",
     (approved) => {
@@ -509,6 +528,129 @@ describe("settled approval receipts", () => {
       />,
     );
     expect(document.activeElement).toBe(document.body);
+  });
+
+  it("respects a deliberate body exit while a decision is pending", () => {
+    const respondToApproval = vi.fn(async () => {});
+    const view = render(
+      <ToolFallbackApproval
+        approval={pendingApproval}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    const control = button("Allow");
+    control.focus();
+    fireEvent.click(control);
+    (document.activeElement as HTMLElement).blur();
+    expect(document.activeElement).toBe(document.body);
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{ ...pendingApproval, approved: true }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  const confirmationApproval = {
+    ...pendingApproval,
+    options: [{ id: "once", kind: "allow-once", confirm: true }],
+  };
+
+  it("keeps focus within the request when entering and leaving confirmation", () => {
+    render(
+      <ToolFallbackApproval
+        approval={confirmationApproval}
+        respondToApproval={vi.fn(async () => {})}
+      />,
+    );
+    const allow = button("Allow");
+    allow.focus();
+    fireEvent.click(allow);
+    expect(
+      button("Confirm")
+        .closest('[data-slot="tool-fallback-approval-confirm"]')
+        ?.contains(document.activeElement),
+    ).toBe(true);
+    const back = button("Back");
+    back.focus();
+    fireEvent.click(back);
+    expect(
+      button("Allow")
+        .closest('[data-slot="tool-fallback-approval"]')
+        ?.contains(document.activeElement),
+    ).toBe(true);
+  });
+
+  it("does not reclaim focus after leaving confirmation for the body", () => {
+    const respondToApproval = vi.fn(async () => {});
+    const view = render(
+      <ToolFallbackApproval
+        approval={confirmationApproval}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    const allow = button("Allow");
+    allow.focus();
+    fireEvent.click(allow);
+    (document.activeElement as HTMLElement).blur();
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{ ...confirmationApproval, approved: true }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it("keeps pending confirmation focus until its receipt arrives", () => {
+    const respondToApproval = vi.fn(async () => {});
+    const view = render(
+      <ToolFallbackApproval
+        approval={confirmationApproval}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    fireEvent.click(button("Allow"));
+    const confirm = button("Confirm");
+    confirm.focus();
+    fireEvent.click(confirm);
+    expect(button("Allow").disabled).toBe(true);
+    expect(
+      button("Allow")
+        .closest('[data-slot="tool-fallback-approval"]')
+        ?.contains(document.activeElement),
+    ).toBe(true);
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{ ...confirmationApproval, approved: true }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    expect(document.activeElement).toBe(receipt());
+  });
+
+  it("starts a new approval without carrying over the previous submission lock", () => {
+    const respondToApproval = vi.fn(async () => {});
+    const view = renderTool({ approval: pendingApproval, respondToApproval });
+    fireEvent.click(button("Allow"));
+    expect(button("Allow").disabled).toBe(true);
+    view.rerender(
+      <ToolFallback
+        type="tool-call"
+        toolCallId="call-1"
+        toolName="test-tool"
+        args={{}}
+        argsText="{}"
+        status={{ type: "requires-action", reason: "tool-calls" }}
+        approval={{ id: "next-request" }}
+        addResult={vi.fn()}
+        resume={vi.fn()}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    expect(button("Allow").disabled).toBe(false);
+    expect(button("Deny").disabled).toBe(false);
   });
 
   it("records the option a gate was allowed with, without controls", () => {

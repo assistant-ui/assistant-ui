@@ -426,6 +426,7 @@ const receiptIcons = {
 
 type ApprovalFocusTarget = {
   element: HTMLElement;
+  container: HTMLDivElement;
   requestId: string | undefined;
 };
 
@@ -539,10 +540,29 @@ function ToolFallbackApproval({
   const [answer, setAnswer] = useState("");
   const [error, setError] = useState<string | null>(null);
   const focusTargetRef = useRef<ApprovalFocusTarget | null>(null);
+  const hidePendingApproval =
+    approval != null &&
+    !isSettled(approval) &&
+    status !== undefined &&
+    status.type !== "requires-action" &&
+    !submitted;
+  useLayoutEffect(() => {
+    if (hidePendingApproval) focusTargetRef.current = null;
+  }, [hidePendingApproval]);
+  const focusPendingGroup = () => {
+    const target = focusTargetRef.current;
+    if (
+      target &&
+      target.element === target.element.ownerDocument.activeElement
+    ) {
+      target.container.focus({ preventScroll: true });
+    }
+  };
   const focusProps = {
     onFocusCapture: (event: React.FocusEvent<HTMLDivElement>) => {
       focusTargetRef.current = {
         element: event.target,
+        container: event.currentTarget,
         requestId: approval?.id,
       };
       onFocusCapture?.(event);
@@ -557,13 +577,7 @@ function ToolFallbackApproval({
         onBlurCapture?.(event);
         return;
       }
-      if (
-        locked &&
-        event.relatedTarget === null &&
-        event.target !== event.currentTarget
-      ) {
-        event.currentTarget.focus({ preventScroll: true });
-      } else if (!event.currentTarget.contains(event.relatedTarget)) {
+      if (!event.currentTarget.contains(event.relatedTarget)) {
         focusTargetRef.current = null;
       }
       onBlurCapture?.(event);
@@ -582,7 +596,11 @@ function ToolFallbackApproval({
       />
     );
 
-  if (!offersInterruptAction(status, approval, interrupt)) return null;
+  if (
+    hidePendingApproval ||
+    !offersInterruptAction(status, approval, interrupt)
+  )
+    return null;
 
   const promptText = approval?.prompt ? (
     <p className="aui-tool-fallback-approval-prompt text-foreground whitespace-pre-line">
@@ -620,7 +638,9 @@ function ToolFallbackApproval({
   // A refused response leaves the request open, so the controls come back
   // rather than staying spent on a decision the runtime never recorded.
   const submit = (send: () => Promise<void> | void) => {
+    focusPendingGroup();
     setSubmitted(true);
+    setConfirmingId(null);
     setError(null);
     void (async () => {
       try {
@@ -656,7 +676,6 @@ function ToolFallbackApproval({
 
   const respondWithOption = (option: ToolApprovalOption) => {
     if (locked) return;
-    setConfirmingId(null);
     // A custom kind has no decision class for the runtime to derive, and
     // responding without one throws; picking a declared option is an answer,
     // so it resolves as approved.
@@ -686,6 +705,7 @@ function ToolFallbackApproval({
 
   const handleOption = (option: ToolApprovalOption) => {
     if (option.confirm) {
+      focusPendingGroup();
       setConfirmingId(option.id);
     } else {
       respondWithOption(option);
@@ -797,7 +817,10 @@ function ToolFallbackApproval({
             size="sm"
             variant="outline"
             className={pressable}
-            onClick={() => setConfirmingId(null)}
+            onClick={() => {
+              focusPendingGroup();
+              setConfirmingId(null);
+            }}
             disabled={locked}
           >
             Back
@@ -957,6 +980,7 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
         />
         {shouldRenderApproval && (
           <ToolFallbackApproval
+            key={approval?.id}
             addResult={addResult}
             resume={resume}
             interrupt={interrupt}

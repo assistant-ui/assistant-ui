@@ -62,7 +62,7 @@ Standalone, there's nothing to fall back to: `ToolFallback` exists specifically 
   <div> {/* ToolFallbackContent */}
     {/* error, only while status is "incomplete" and carries one */}
     {/* args, only when argsText is non-empty */}
-    {/* approval controls while unanswered, then a receipt of the decision */}
+    {/* approval controls while requires-action, then a receipt of the decision */}
     {/* result, only when result is defined */}
   </div>
 </div>
@@ -107,7 +107,7 @@ Once `approval.approved` or `approval.resolution` is set, the controls give way 
 
 When the controls are replaced while they hold keyboard focus, focus moves to the receipt without scrolling. A decision that settles after focus moves elsewhere leaves that focus in place; historical receipts do not take focus when they mount.
 
-An explicit `approval` record keeps this section mounted across run-status updates, including when an external-store adapter updates the run status before the approval. Submitted controls stay locked during that gap.
+An explicit `approval` record keeps the component mounted across run-status updates, including when an external-store adapter updates the run status before the approval. Controls appear only while the request requires action, or while a submitted decision is awaiting its receipt; submitted controls stay locked. An unanswered approval in a running or finished message does not expose new actions.
 
 ```tsx
 approval: {
