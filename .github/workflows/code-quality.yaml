@@ -88,6 +88,7 @@ concurrency:
 jobs:
   lint:
     name: Oxlint + Oxfmt
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

@@ -58,3 +58,6 @@ jobs:
       - uses: autofix-ci/action@c5b2d67aa2274e7b5a18224e8171550871fc7e4a # ratchet:autofix-ci/action@v1.3.4
         with:
           fail-fast: false
+
+      - name: Check resource memoization (React Compiler)
+        run: pnpm check:resource-memo
