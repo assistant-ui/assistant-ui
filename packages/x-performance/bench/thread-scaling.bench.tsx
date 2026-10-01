@@ -1,5 +1,5 @@
 import { describe, inject, test } from "vitest";
-import { createElement, useState } from "react";
+import { act, createElement, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { useAuiState } from "@assistant-ui/store";
@@ -8,6 +8,7 @@ import {
   AssistantRuntimeProvider,
   MessagePrimitiveParts,
   ThreadPrimitiveMessages,
+  ThreadPrimitiveUnstable_MessageById,
   useExternalStoreRuntime,
 } from "@assistant-ui/core/react";
 
@@ -41,11 +42,17 @@ const seed = (n: number): Msg[] =>
   }));
 
 type Host = { tick: () => void; unmount: () => void };
+type Variant = "runtime only" | "all messages" | "20 message window";
 
-const mount = (n: number): Host => {
+const mount = (n: number, variant: Variant = "all messages"): Host => {
   let setMessages!: (updater: (prev: Msg[]) => Msg[]) => void;
   const last = `m${n - 1}`;
   const body = seedText(n - 1);
+  const firstWindowIndex = Math.max(0, n - 20);
+  const windowIds = Array.from(
+    { length: n - firstWindowIndex },
+    (_, i) => `m${firstWindowIndex + i}`,
+  );
   const App = () => {
     const [messages, set] = useState<Msg[]>(() => seed(n));
     setMessages = set;
@@ -56,7 +63,17 @@ const mount = (n: number): Host => {
     });
     return (
       <AssistantRuntimeProvider runtime={runtime}>
-        <ThreadPrimitiveMessages components={COMPONENTS} />
+        {variant === "all messages" ? (
+          <ThreadPrimitiveMessages components={COMPONENTS} />
+        ) : variant === "20 message window" ? (
+          windowIds.map((messageId) => (
+            <ThreadPrimitiveUnstable_MessageById
+              key={messageId}
+              messageId={messageId}
+              components={COMPONENTS}
+            />
+          ))
+        ) : null}
       </AssistantRuntimeProvider>
     );
   };
@@ -109,5 +126,44 @@ describe("external-store thread: one token changed in the last message, by threa
         () => host.tick(),
       ).run(inject("benchSampling"));
     });
+  }
+});
+
+// These rows settle each token through `act`, so they compare with each other
+// and not with the flushSync rows above. Rendering nothing under the provider,
+// every message, or a 20 message window separates the runtime and thread
+// client from the per message scopes.
+describe("external-store thread: one token changed in the last message, by layer", () => {
+  for (const n of SIZES) {
+    for (const variant of [
+      "runtime only",
+      "all messages",
+      "20 message window",
+    ] as const) {
+      const row = `${variant}, ${n} messages`;
+      let host: Host;
+      test(row, async ({ bench }) => {
+        await bench(
+          row,
+          {
+            beforeAll: () => {
+              host = mount(n, variant);
+              (
+                globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+              ).IS_REACT_ACT_ENVIRONMENT = true;
+            },
+            afterAll: () => {
+              (
+                globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+              ).IS_REACT_ACT_ENVIRONMENT = false;
+              host.unmount();
+            },
+          },
+          async () => {
+            await act(() => host.tick());
+          },
+        ).run(inject("benchSampling"));
+      });
+    }
   }
 });
