@@ -2,4 +2,4 @@
 "@assistant-ui/ai-sdk": patch
 ---
 
-forward reasoning and data part ids from AI SDK messages.
+forward data part ids from AI SDK messages in both directions.

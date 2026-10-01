@@ -400,7 +400,6 @@ function convertParts(
         const status = uiPartStateToStatus(part.state);
         return {
           type: "reasoning",
-          ...(part.id !== undefined ? { id: part.id } : undefined),
           text: part.text,
           ...(status != null ? { status } : undefined),
           ...(part.providerMetadata != null

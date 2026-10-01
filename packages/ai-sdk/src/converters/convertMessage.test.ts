@@ -1483,23 +1483,23 @@ describe("AISDKMessageConverter", () => {
     expect(converted[0]?.content[2]).not.toHaveProperty("providerMetadata");
   });
 
-  it("forwards reasoning part ids and leaves text parts without one", () => {
+  it("keeps a step scoped reasoning block id off the part", () => {
     const converted = AISDKMessageConverter.toThreadMessages([
       {
         id: "a1",
         role: "assistant",
         parts: [
-          { type: "reasoning", id: "reasoning-1", text: "thinking" },
+          { type: "reasoning", id: "reasoning-0", text: "first step" },
           { type: "text", text: "answer" },
+          { type: "reasoning", id: "reasoning-0", text: "second step" },
         ],
       } as any,
     ]);
 
-    expect(converted[0]?.content[0]).toMatchObject({
-      type: "reasoning",
-      id: "reasoning-1",
-    });
+    expect(converted[0]?.content[0]).toMatchObject({ type: "reasoning" });
+    expect(converted[0]?.content[0]).not.toHaveProperty("id");
     expect(converted[0]?.content[1]).not.toHaveProperty("id");
+    expect(converted[0]?.content[2]).not.toHaveProperty("id");
   });
 
   it("forwards data part ids", () => {
