@@ -588,4 +588,5 @@ const config: NextConfig = {
 
 const withMDX = createMDX();
 
-export default withAui(withMDX(config));
+// Keep MDX outermost so Next.js waits for its collection generation.
+export default withMDX(withAui(config));
