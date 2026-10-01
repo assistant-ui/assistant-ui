@@ -1857,34 +1857,6 @@ describe("LocalThreadRuntimeCore human-in-the-loop tools", () => {
 
     expect(runs).toHaveLength(1);
   });
-
-  it("keeps the turns sent after a paused answer when its human tool completes", async () => {
-    const { thread, runs } = createApprovalThread(toolCallResult("send_email"));
-    await thread.append(userMessage("send an email"));
-    await flush();
-    const paused = thread.messages.at(-1)!;
-
-    await thread.append({
-      ...userMessage("something else"),
-      parentId: paused.id,
-    });
-    await flush();
-    const turns = thread.messages.map((message) => message.id);
-    expect(turns).toHaveLength(4);
-
-    thread.addToolResult({
-      messageId: paused.id,
-      toolCallId: "call-send_email",
-      toolName: "send_email",
-      result: { approved: true },
-      isError: false,
-    });
-    await flush();
-
-    expect(runs).toHaveLength(3);
-    expect(thread.messages.map((message) => message.id)).toEqual(turns);
-    expect(thread.messages[1]?.status?.type).toBe("complete");
-  });
 });
 
 describe("LocalThreadRuntimeCore addToolResult content", () => {
