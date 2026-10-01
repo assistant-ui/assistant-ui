@@ -206,6 +206,255 @@ describe("createAssistantClient", () => {
     parent.destroy();
   });
 
+  it("notifies child subscribers after derived scopes catch up with the parent", () => {
+    const parent = createTestClient({ thread: ThreadClient() });
+    const child = createTestClient(
+      { message: messageDerived() },
+      { parent: parent as never },
+    );
+    const seen: string[] = [];
+    child.subscribe(() => {
+      const aui = child.getClient();
+      seen.push(
+        `${aui.thread.getState().selected}:${aui.message.getState().id}`,
+      );
+    });
+    seen.length = 0;
+
+    flushTapSync(() => parent.getClient().thread.setSelected(1));
+
+    expect(seen).toEqual(["1:m1"]);
+
+    child.destroy();
+    parent.destroy();
+  });
+
+  it("notifies a child once for parent value updates and keeps its identity", () => {
+    const parent = createTestClient({ thread: ThreadClient() });
+    const child = createTestClient({}, { parent: parent as never });
+    const listener = vi.fn();
+    child.subscribe(listener);
+    const before = child.getClient();
+    listener.mockClear();
+
+    flushTapSync(() => parent.getClient().thread.setSelected(1));
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(child.getClient()).toBe(before);
+
+    child.destroy();
+    parent.destroy();
+  });
+
+  it("does not re-render child scopes when derived bindings stay the same", () => {
+    const renderLocal = vi.fn();
+    const LocalClient = resource(() => {
+      renderLocal();
+      return { getState: () => ({}) };
+    });
+    const parent = createTestClient({ thread: ThreadClient() });
+    const child = createTestClient(
+      { local: LocalClient(), message: messageDerived() },
+      { parent: parent as never },
+    );
+    const listener = vi.fn();
+    child.subscribe(listener);
+    renderLocal.mockClear();
+    listener.mockClear();
+
+    flushTapSync(() =>
+      parent.getClient().thread.message({ index: 0 }).setText("streamed"),
+    );
+
+    expect(renderLocal).not.toHaveBeenCalled();
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(child.getClient().message.getState().text).toBe("streamed");
+
+    child.destroy();
+    parent.destroy();
+  });
+
+  it("checks derived bindings against sibling scopes", () => {
+    const parent = createTestClient({ thread: ThreadClient() });
+    const child = createTestClient(
+      {
+        message: messageDerived(),
+        selectedMessage: Derived({
+          source: "message",
+          query: {},
+          get: (aui: AnyClient) => aui.message,
+        } as never),
+      },
+      { parent: parent as never },
+    );
+    child.subscribe(() => {});
+
+    expect(() =>
+      flushTapSync(() =>
+        parent.getClient().thread.message({ index: 0 }).setText("streamed"),
+      ),
+    ).not.toThrow();
+    expect(child.getClient().selectedMessage.getState().text).toBe("streamed");
+
+    child.destroy();
+    parent.destroy();
+  });
+
+  it("checks derived bindings against shadowed child scopes", () => {
+    const renderLocal = vi.fn();
+    const localMessage = { getState: () => ({ id: "local", text: "" }) };
+    const LocalThread = resource(() => {
+      renderLocal();
+      return {
+        getState: () => ({ selected: 0 }),
+        message: () => localMessage,
+      };
+    });
+    const parent = createTestClient({ thread: ThreadClient() });
+    const child = createTestClient(
+      { thread: LocalThread(), message: messageDerived() },
+      { parent: parent as never },
+    );
+    child.subscribe(() => {});
+    renderLocal.mockClear();
+
+    flushTapSync(() =>
+      parent.getClient().thread.message({ index: 0 }).setText("streamed"),
+    );
+
+    expect(renderLocal).not.toHaveBeenCalled();
+    expect(child.getClient().message.getState().id).toBe("local");
+
+    child.destroy();
+    parent.destroy();
+  });
+
+  it("notifies child subscribers after removed parent scopes are unavailable", () => {
+    let config: Record<string, unknown> = {
+      extra: MessageClient({ id: "extra" }),
+    };
+    const listeners = new Set<() => void>();
+    const notify = () => listeners.forEach((listener) => listener());
+    const parent = createAssistantClient({
+      getConfig: () => config as never,
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    });
+    const child = createTestClient({}, { parent });
+    const seen: boolean[] = [];
+    child.subscribe(() => {
+      try {
+        (child.getClient() as AnyClient).extra.getState();
+        seen.push(true);
+      } catch (error) {
+        expect((error as Error).message).toContain('does not have a "extra"');
+        seen.push(false);
+      }
+    });
+    seen.length = 0;
+
+    config = {};
+    flushTapSync(notify);
+
+    expect(seen).toEqual([false]);
+
+    child.destroy();
+    parent.destroy();
+  });
+
+  it("reads parent changes made before the child's first lazy render", () => {
+    let config: Record<string, unknown> = {
+      extra: MessageClient({ id: "extra" }),
+    };
+    const listeners = new Set<() => void>();
+    const notify = () => listeners.forEach((listener) => listener());
+    const parent = createAssistantClient({
+      getConfig: () => config as never,
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    });
+    parent.subscribe(() => {});
+    const child = createTestClient({}, { parent });
+
+    config = {};
+    flushTapSync(notify);
+
+    expect(() => child.getClient().extra.getState()).toThrow(
+      'does not have a "extra" property',
+    );
+
+    child.destroy();
+    parent.destroy();
+  });
+
+  it("refreshes an unmounted child after its first lazy render", () => {
+    let config: Record<string, unknown> = {
+      extra: MessageClient({ id: "extra" }),
+    };
+    const listeners = new Set<() => void>();
+    const notify = () => listeners.forEach((listener) => listener());
+    const parent = createAssistantClient({
+      getConfig: () => config as never,
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    });
+    parent.subscribe(() => {});
+    const child = createTestClient({}, { parent });
+    expect(child.getClient().extra.getState().id).toBe("extra");
+
+    config = {};
+    flushTapSync(notify);
+
+    expect(() => child.getClient().extra.getState()).toThrow(
+      'does not have a "extra" property',
+    );
+
+    child.destroy();
+    parent.destroy();
+  });
+
+  it("remounts with parent changes made while the child was unwired", async () => {
+    let config: Record<string, unknown> = {
+      extra: MessageClient({ id: "extra" }),
+    };
+    const listeners = new Set<() => void>();
+    const notify = () => listeners.forEach((listener) => listener());
+    const parent = createAssistantClient({
+      getConfig: () => config as never,
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    });
+    parent.subscribe(() => {});
+    const child = createTestClient({}, { parent });
+    const release = child.subscribe(() => {});
+    expect(child.getClient().extra.getState()).toEqual({
+      id: "extra",
+      text: "",
+    });
+
+    release();
+    await flushEvents();
+    config = {};
+    flushTapSync(notify);
+
+    expect(() => child.getClient().extra.getState()).toThrow(
+      'does not have a "extra" property',
+    );
+
+    child.subscribe(() => {});
+
+    child.destroy();
+    parent.destroy();
+  });
+
   it("throws the root scope error for scopes the client does not have", () => {
     const handle = createTestClient({ thread: ThreadClient() });
 
