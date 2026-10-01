@@ -5045,6 +5045,61 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     }
   });
 
+  it("appends a resumed message again when the follow-up its replaced roundtrip saw was deleted", async () => {
+    const { history, appended } = createHistory({ update: false });
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let runs = 0;
+    const thread = createThread(
+      {
+        async *run() {
+          runs++;
+          if (runs === 1) {
+            yield {
+              content: [toolCallPart("send_email")],
+              status: { type: "requires-action", reason: "tool-calls" },
+            };
+            await released;
+            return;
+          }
+          yield { content: [{ type: "text", text: "sent" }] };
+        },
+      },
+      { history: { ...history, async delete() {} } },
+    );
+
+    void thread.append(userMessage("send an email"));
+    await flush();
+    const paused = thread.messages[1]!;
+    await thread.append({
+      ...userMessage("fyi"),
+      parentId: paused.id,
+      startRun: false,
+    });
+    await thread.deleteMessage(thread.messages.at(-1)!.id);
+    thread.addToolResult({
+      messageId: paused.id,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result: { sent: true },
+      isError: false,
+    });
+    await flush();
+    release();
+    await flush();
+
+    const completed = {
+      status: { type: "complete" },
+      content: [{ result: { sent: true } }, { type: "text", text: "sent" }],
+    };
+    expect(thread.getMessageById(paused.id)?.message).toMatchObject(completed);
+    expect(
+      appended.filter((i) => i.message.id === paused.id).at(-1)?.message,
+    ).toMatchObject(completed);
+  });
+
   it("persists a partial approval decision while another tool call is still pending", async () => {
     const { history, updated } = createHistory();
     const runs: ChatModelRunOptions[] = [];

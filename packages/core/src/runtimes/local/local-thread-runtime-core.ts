@@ -248,12 +248,15 @@ export class LocalThreadRuntimeCore
 
   // A message whose roundtrip is in flight belongs to that run, even after it
   // yields a pause, so the run settles it when the roundtrip ends. `import`
-  // replaces every message both refer to, so it clears them.
+  // replaces every message it refers to, so it clears it.
   private _roundtripsInFlight = new Map<
     string,
-    { controller: AbortController; resumedFromPause: boolean }
+    {
+      controller: AbortController;
+      resumedFromPause: boolean;
+      followed: boolean;
+    }
   >();
-  private _followedDuringRun = new Set<string>();
 
   // Messages a run created that the history has not received; a message loaded from history is never in this set, so its writes are updates.
   private _unwrittenMessages = new Set<string>();
@@ -281,15 +284,16 @@ export class LocalThreadRuntimeCore
       return;
     }
     if (entry.message.role !== "assistant") return;
-    if (this._roundtripsInFlight.has(messageId)) {
-      this._followedDuringRun.add(messageId);
+    const roundtrip = this._roundtripsInFlight.get(messageId);
+    if (roundtrip) {
+      roundtrip.followed = true;
       const snapshot = withCancelledPause(entry.message);
       const history = this._options.adapters.history;
       // A followed run skips its final write, so a resumed pause a history without `update` already holds is appended again here with what the run added.
       if (
         history &&
         !history.update &&
-        this._roundtripsInFlight.get(messageId)?.resumedFromPause &&
+        roundtrip.resumedFromPause &&
         !this._unwrittenMessages.has(messageId)
       ) {
         const item = {
@@ -791,7 +795,6 @@ export class LocalThreadRuntimeCore
 
   public override import(data: ExportedMessageRepository) {
     this._roundtripsInFlight.clear();
-    this._followedDuringRun.clear();
     this._unwrittenMessages.clear();
     super.import(withLocalPauseReasons(data));
   }
@@ -1114,6 +1117,7 @@ export class LocalThreadRuntimeCore
     this._roundtripsInFlight.set(message.id, {
       controller: abortController,
       resumedFromPause: run.resumedFromPause,
+      followed: false,
     });
     try {
       const steps = message.metadata?.steps?.length ?? 0;
@@ -1220,19 +1224,17 @@ export class LocalThreadRuntimeCore
       if (this.abortController === abortController) {
         this.abortController = null;
       }
-      // A roundtrip replaced by a resume of the same message leaves it, and any
-      // follow-up recorded meanwhile, to the roundtrip that replaced it.
-      const holdsMessage =
-        this._roundtripsInFlight.get(message.id)?.controller ===
-        abortController;
+      // A roundtrip replaced by a resume of the same message leaves it to its replacement, and a follow-up marks
+      // only the roundtrip holding the message, since a resume starts only on a message no later turn follows.
+      const roundtrip = this._roundtripsInFlight.get(message.id);
+      const holdsMessage = roundtrip?.controller === abortController;
       if (holdsMessage) this._roundtripsInFlight.delete(message.id);
 
       const history = this._options.adapters.history;
       const ownsCurrentMessage = syncOwnedMessage();
       let settled = false;
       let written: Promise<void> | undefined;
-      const followedDuringRun =
-        holdsMessage && this._followedDuringRun.delete(message.id);
+      const followedDuringRun = holdsMessage && roundtrip?.followed === true;
       if (followedDuringRun) {
         const stored = this.getMessageById(message.id);
         if (stored?.message.role === "assistant") {
