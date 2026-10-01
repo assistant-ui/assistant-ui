@@ -164,7 +164,7 @@ Object steps use `id` for stable keys, `label` for the visible row, and an optio
 
 <RuntimeMode>
 
-A plan that needs to restart is just another `update_plan` call with `activeIndex` reset to `0`. There is no separate reset action; the next call is the reset.
+A plan restarts with another `update_plan` call whose `activeIndex` is `0`. There is no separate reset action.
 
 ```tsx
 render: ({ args }) => (

@@ -18,7 +18,7 @@ assistant-ui's `Thread` element already ships a complete version of this composi
 
 `ThreadPrimitive.Viewport` takes over scrolling from `ChatPanelMessages`; pass it as the `asChild` target so the panel keeps `ChatPanelMessages`'s look while the viewport owns the behavior:
 
-```tsx title="components/assistant-ui/elements/chat-panel.tsx"
+```tsx title="components/assistant-ui/elements/live-chat-panel.tsx"
 "use client";
 
 import { ThreadPrimitive, MessagePrimitive } from "@assistant-ui/react";
@@ -151,7 +151,7 @@ The send button disables itself whenever `onSend` is left `undefined`.
 </div>
 ```
 
-`ChatPanelComposer` is a shell, not a text field: `placeholder` is text it displays, not a bound value, and the send button's only behavior is calling `onSend` when present. It renders disabled whenever `onSend` is `undefined`, the same rule `EmptyStateComposer` follows. `ChatPanelTyping` and `ChatPanelUserMessage` both fade and slide in on mount; change their `key` if you want that entrance to replay for a new message.
+`ChatPanelComposer` is a shell, not a text field: `placeholder` is text it displays, not a bound value, and the send button's only behavior is calling `onSend` when present. It renders disabled whenever `onSend` is `undefined`, the same rule `EmptyStateComposer` follows. `ChatPanelUserMessage` fades and slides in on mount and `ChatPanelTyping` fades in; change their `key` if you want that entrance to replay for a new message.
 
 ## Examples
 
@@ -218,7 +218,7 @@ Standalone, render it whenever your own state says a reply is pending; nothing i
 | `ChatPanelMessages` | `div` | `className` | Scrollable, bottom-anchored message list. |
 | `ChatPanelUserMessage` | `div` | `className` | A right-aligned bubble. Fades and slides in on mount. |
 | `ChatPanelAssistantMessage` | `p` | `className` | A left-aligned, unbubbled line of text. |
-| `ChatPanelTyping` | `div` | `className` (no `children`) | Three bouncing dots. |
+| `ChatPanelTyping` | `div` | `className` (no `children`) | Three bouncing dots. Fades in on mount. |
 | `ChatPanelComposer` | `div` | `placeholder` (required `string`), `onSend?: () => void`, `className` | Shows static placeholder text and a send button; `onSend` fires on click and the button disables without it. |
 
 All other props for each part forward to its root element.

@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 
-import { act } from "react";
+import { act, useState } from "react";
 import { createRoot, hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { convertSurfaceToUISpec } from "../a2ui/convert";
+import { A2uiBindingContext } from "../a2ui/BindingContext";
 import { applyA2uiOperations } from "../a2ui/reducer";
+import { A2uiPresentRenderer } from "../a2ui/PresentRenderer";
 import { createActionRegistry, type ActionHandler } from "../actionRegistry";
 import { AnsweredValuesProvider } from "../answeredValues";
 import type { GenerativeUIDispatch, GenerativeUILibrary } from "../types";
@@ -54,6 +56,39 @@ const mount = async (
   });
   return container;
 };
+
+describe("Input", () => {
+  it("keeps password and number single-line when multiline is set", async () => {
+    const container = await mount(
+      [
+        {
+          $type: "Input",
+          name: "password",
+          inputType: "password",
+          multiline: true,
+        },
+        {
+          $type: "Input",
+          name: "number",
+          inputType: "number",
+          multiline: true,
+        },
+        { $type: "Input", name: "text", inputType: "text", multiline: true },
+        { $type: "Input", name: "default", multiline: true },
+      ],
+      {},
+    );
+
+    expect(
+      Array.from(container.querySelectorAll("input, textarea")).map(
+        (control) =>
+          control instanceof HTMLInputElement
+            ? control.type
+            : control.tagName.toLowerCase(),
+      ),
+    ).toEqual(["password", "number", "textarea", "textarea"]);
+  });
+});
 
 describe("RadioGroup", () => {
   it("keeps repeated logical fields exclusive within one root without a form", async () => {
@@ -425,6 +460,69 @@ describe("CheckboxGroup", () => {
 });
 
 describe("Button undo window", () => {
+  it("keeps counting down while a bound input changes and dispatches its latest value", async () => {
+    vi.useFakeTimers();
+    const save = vi.fn();
+    const container = document.createElement("div");
+    document.body.append(container);
+    const registry = createActionRegistry({ save });
+    const BindingContext = A2uiBindingContext!;
+    const Surface = () => {
+      const [name, setName] = useState("Initial");
+      return (
+        <BindingContext.Provider
+          value={{
+            fields: new Map([["/name", { value: name, arrayValue: false }]]),
+            update: (_path, value) => setName(String(value)),
+          }}
+        >
+          <div data-aui="root">
+            {renderGenerativeUI(
+              [
+                { $type: "Input", name: "/name", value: name },
+                {
+                  $type: "Button",
+                  label: "Save",
+                  undoable: true,
+                  $action: { type: "save", name: { $field: "/name" } },
+                },
+              ],
+              defaultGenerativeUILibrary,
+              { status: "done", dispatch: registry.dispatch },
+            )}
+          </div>
+        </BindingContext.Provider>
+      );
+    };
+    root = createRoot(container);
+    await act(async () => root!.render(<Surface />));
+    const button = container.querySelector<HTMLButtonElement>("button")!;
+    const input = container.querySelector<HTMLInputElement>("input")!;
+    await act(async () => button.click());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )!.set!.call(input, "Edited");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(button.textContent).toContain("Undo 4");
+    for (let seconds = 0; seconds < 4; seconds++) {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_000);
+      });
+    }
+    expect(save).toHaveBeenCalledWith({
+      payload: { type: "save", name: "Edited" },
+    });
+  });
+
   it("counts down for five seconds before firing once", async () => {
     vi.useFakeTimers();
     const purchase = vi.fn();
@@ -1255,7 +1353,9 @@ describe("A2UI two-way binding", () => {
       plan: container.querySelector<HTMLInputElement>(
         'input[type="radio"]:checked',
       )?.value,
-      size: container.querySelector("select")!.value,
+      size: container.querySelector<HTMLInputElement>(
+        'input[data-aui-field-name="/size"]:checked',
+      )?.value,
       extras: [
         ...container.querySelectorAll<HTMLInputElement>(
           'fieldset[data-aui="checkboxgroup"] input:checked',
@@ -1278,7 +1378,9 @@ describe("A2UI two-way binding", () => {
     container.querySelectorAll<HTMLInputElement>(
       'input[type="radio"]',
     )[1]!.checked = true;
-    container.querySelector("select")!.value = edited.size;
+    container.querySelector<HTMLInputElement>(
+      'input[data-aui-field-name="/size"][value="pro"]',
+    )!.checked = true;
     container.querySelectorAll<HTMLInputElement>(
       'fieldset[data-aui="checkboxgroup"] input',
     )[1]!.checked = true;
@@ -1311,4 +1413,287 @@ describe("A2UI two-way binding", () => {
       day: "2026-05-06",
     });
   });
+});
+
+describe.each([
+  { version: "v0.9", live: false },
+  { version: "v0.9", live: true },
+  { version: "v0.9.1", live: false },
+  { version: "v0.9.1", live: true },
+])("A2UI input contracts ($version, live: $live)", ({ version, live }) => {
+  const mountSurface = async (
+    field: Record<string, unknown>,
+    initial: unknown,
+    previewPath = "/form/value",
+  ) => {
+    const send = vi.fn();
+    const registry = createActionRegistry({ "a2ui:action": send });
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    const render = async (value: unknown) => {
+      const operations = [
+        { version, createSurface: { surfaceId: "s" } },
+        {
+          version,
+          updateComponents: {
+            surfaceId: "s",
+            components: [
+              {
+                id: "root",
+                component: "Column",
+                children: ["field", "preview", "send"],
+              },
+              {
+                id: "field",
+                label: "Value",
+                ...field,
+                value: { path: "/form/value" },
+              },
+              { id: "preview", component: "Text", text: { path: previewPath } },
+              {
+                id: "send",
+                component: "Button",
+                label: "Send",
+                action: {
+                  event: {
+                    name: "send",
+                    context: {
+                      value: { path: "/form/value" },
+                      form: { path: "/form" },
+                    },
+                  },
+                },
+              },
+            ],
+          },
+        },
+        {
+          version,
+          updateDataModel: {
+            surfaceId: "s",
+            path: "/",
+            value: { form: value === undefined ? {} : { value } },
+          },
+        },
+      ];
+      const surface = applyA2uiOperations(new Map(), operations).state.get(
+        "s",
+      )!;
+      const converted = convertSurfaceToUISpec(surface);
+      expect(converted.warnings).toEqual([]);
+      await act(async () =>
+        root!.render(
+          live ? (
+            <div data-aui="root">
+              <A2uiPresentRenderer
+                surfaceId="s"
+                operations={operations}
+                fallback={converted.spec}
+                library={defaultGenerativeUILibrary}
+                status="done"
+                dispatch={registry.dispatch}
+              />
+            </div>
+          ) : (
+            view(converted.spec, registry.dispatch)
+          ),
+        ),
+      );
+    };
+    await render(initial);
+    const submit = async (value: unknown) => {
+      await act(async () => container.querySelector("button")!.click());
+      expect(send).toHaveBeenLastCalledWith({
+        payload: {
+          type: "a2ui:action",
+          name: "send",
+          surfaceId: "s",
+          sourceComponentId: "send",
+          context: { value, form: { value } },
+        },
+      });
+    };
+    return { container, render, submit };
+  };
+
+  it.each([
+    {
+      title: "obscured text",
+      field: { component: "TextField", variant: "obscured" },
+      initial: "s3cret",
+      edited: "  new secret  ",
+      type: "password",
+    },
+    {
+      title: "number text",
+      field: { component: "TextField", variant: "number" },
+      initial: "3",
+      edited: "12.5",
+      type: "number",
+    },
+    {
+      title: "date and time",
+      field: { component: "DateTimeInput", enableDate: true, enableTime: true },
+      initial: "2025-12-15T17:00:00Z",
+      edited: "2025-12-16T08:30:45+02:00",
+      type: "text",
+    },
+    {
+      title: "timestamp in date mode",
+      field: { component: "DateTimeInput", enableDate: true },
+      initial: "2025-12-15T17:00:00Z",
+      edited: "2025-12-16T08:30:00Z",
+      type: "text",
+    },
+    {
+      title: "time only",
+      field: { component: "DateTimeInput", enableTime: true },
+      initial: "17:00:00",
+      edited: "08:30:45",
+      type: "text",
+    },
+    {
+      title: "omitted temporal flags",
+      field: { component: "DateTimeInput" },
+      initial: "2025-12-15",
+      edited: "2025-12-16",
+      type: "date",
+    },
+    {
+      title: "disabled temporal flags",
+      field: {
+        component: "DateTimeInput",
+        enableDate: false,
+        enableTime: false,
+      },
+      initial: "",
+      edited: "2025-12-16",
+      type: "date",
+    },
+    {
+      title: "date only",
+      field: { component: "DateTimeInput", enableDate: true },
+      initial: "2025-12-15",
+      edited: "2025-12-16",
+      type: "date",
+    },
+    {
+      title: "unresolved obscured text",
+      field: { component: "TextField", variant: "obscured" },
+      initial: undefined,
+      edited: "s3cret",
+      type: "password",
+    },
+    {
+      title: "unresolved number text",
+      field: { component: "TextField", variant: "number" },
+      initial: undefined,
+      edited: "12.5",
+      type: "number",
+    },
+    {
+      title: "unresolved date and time",
+      field: { component: "DateTimeInput", enableDate: true, enableTime: true },
+      initial: undefined,
+      edited: "2025-12-15T17:00:00Z",
+      type: "text",
+    },
+  ])(
+    "preserves untouched, edited, and cleared $title values",
+    async ({ field, initial, edited, type }) => {
+      const { container, render, submit } = await mountSurface(field, initial);
+      const input = () =>
+        container.querySelector<HTMLInputElement>('input[name="/form/value"]')!;
+      const preview = () =>
+        container.querySelector('[data-aui="markdown"]')?.textContent ?? "";
+      const edit = async (value: string) => {
+        await act(async () => {
+          const control = input();
+          Object.getOwnPropertyDescriptor(
+            HTMLInputElement.prototype,
+            "value",
+          )!.set!.call(control, value);
+          control.dispatchEvent(new Event("input", { bubbles: true }));
+        });
+      };
+
+      expect(input().type).toBe(type);
+      expect(input().getAttribute("aria-label")).toBe("Value");
+      expect(input().value).toBe(initial ?? "");
+      if (type === "number") expect(input().step).toBe("any");
+      await submit(initial ?? "");
+
+      await edit(edited);
+      expect(input().value).toBe(edited);
+      if (type === "number") expect(input().validity.stepMismatch).toBe(false);
+      if (live) expect(preview()).toBe(edited);
+      await submit(edited);
+
+      await edit("");
+      expect(input().type).toBe(type);
+      expect(input().value).toBe("");
+      if (live) expect(preview()).toBe("");
+      await submit("");
+
+      await render(initial);
+      expect(input().value).toBe("");
+      await submit("");
+      await render(edited);
+      expect(input().value).toBe(edited);
+      expect(preview()).toBe(edited);
+      await submit(edited);
+    },
+  );
+
+  it.each([undefined, "Pick one"])(
+    "keeps chips empty until selected with placeholder %s",
+    async (placeholder) => {
+      const { container, render, submit } = await mountSurface(
+        {
+          component: "ChoicePicker",
+          displayStyle: "chips",
+          placeholder,
+          options: [
+            { label: "A", value: "a" },
+            { label: "B", value: "b" },
+          ],
+        },
+        [],
+        "/form/value/0",
+      );
+      const radios = () => [
+        ...container.querySelectorAll<HTMLInputElement>('input[type="radio"]'),
+      ];
+      const selected = () =>
+        radios()
+          .filter((input) => input.checked)
+          .map((input) => input.value);
+
+      await submit([]);
+      expect(container.querySelector("select")).toBeNull();
+      expect(radios()).toHaveLength(2);
+      expect(
+        container.querySelector("fieldset")?.getAttribute("aria-label"),
+      ).toBe("Value");
+      expect(selected()).toEqual([]);
+
+      await act(async () => radios()[1]!.click());
+      expect(selected()).toEqual(["b"]);
+      if (live)
+        expect(
+          container.querySelector('[data-aui="markdown"]')?.textContent,
+        ).toBe("b");
+      await submit(["b"]);
+      await render([]);
+      expect(selected()).toEqual(["b"]);
+      await submit(["b"]);
+      await render(["a"]);
+      expect(selected()).toEqual(["a"]);
+      await submit(["a"]);
+      await render([]);
+      expect(selected()).toEqual([]);
+      await submit([]);
+    },
+  );
 });

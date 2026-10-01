@@ -51,7 +51,7 @@ export type MemoCell<T = any> = {
 };
 
 export type EffectCell = {
-  readonly type: "effect";
+  readonly type: "effect" | "insertion";
   setup: (() => (() => void) | undefined) | undefined;
   setupDeps: readonly unknown[] | undefined;
   cleanup: (() => void) | undefined;
@@ -60,7 +60,16 @@ export type EffectCell = {
   generation: number;
 };
 
-export type Cell = ReducerCell | MemoCell | EffectCell;
+export type HostCell = {
+  readonly type: "host";
+  fiber: ResourceFiber<unknown> | null;
+  readonly fibers: Map<
+    string | number,
+    { fiber: ResourceFiber<unknown> }
+  > | null;
+};
+
+export type Cell = ReducerCell | MemoCell | EffectCell | HostCell;
 
 export type CommitCallback = () => void;
 export type CommitCallbacks = CommitCallback[];
@@ -95,6 +104,8 @@ export interface ResourceFiber<R> {
 
   cells: Cell[];
   effectCells: EffectCell[];
+  insertionCells: EffectCell[] | null;
+  hostCells: HostCell[] | null;
 
   wipContextDeps: ResourceContextDeps | null;
   contextDeps: ResourceContextDeps | null;
@@ -113,6 +124,7 @@ export interface ResourceFiber<R> {
   renderPendingCells: Set<ReducerCell> | null;
 
   isMounted: boolean;
+  isReleased: boolean;
   isFirstRender: boolean;
   isNeverMounted: boolean;
 }

@@ -723,8 +723,8 @@ async function bundlePackageSurface(packageInfo, workspacePackagePatterns) {
     cwd: repoRoot,
     platform: "neutral",
     format: "esm",
-    // The declaration plugin's shared context keeps every TypeScript program it creates alive for the whole process; an isolated context is released when its build ends.
-    dts: { newContext: true },
+    // The synthetic entry only contains namespace re-exports, so isolated declaration generation avoids a workspace-wide TypeScript program.
+    dts: { generator: "oxc" },
     sourcemap: false,
     clean: true,
     logLevel: "silent",
