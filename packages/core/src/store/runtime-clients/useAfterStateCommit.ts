@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 
 /**
+ * How long a settled promise waits for the client to commit before resolving
+ * anyway. The client cannot commit while a Suspense boundary hides it, so a
+ * reader suspended on the promise inside that boundary would otherwise wait
+ * forever.
+ */
+const COMMIT_TIMEOUT_MS = 100;
+
+/**
  * Delays a promise until the client has committed a render of the source
  * state current at settlement, so a caller awaiting it reads the result from
- * the client's `getState()`. Each source promise maps to one delayed promise,
+ * the client's `getState()`, or until `COMMIT_TIMEOUT_MS` passes. Each source promise maps to one delayed promise,
  * keeping it stable for `use()` and Suspense caches. `getLatestState` must be
  * stable.
  */
@@ -50,7 +58,13 @@ export const useAfterStateCommit = <TState>(
               resolve(value);
               return;
             }
-            session.waiters.add(() => resolve(value));
+            const release = () => {
+              clearTimeout(timeout);
+              session.waiters.delete(release);
+              resolve(value);
+            };
+            const timeout = setTimeout(release, COMMIT_TIMEOUT_MS);
+            session.waiters.add(release);
           }),
       );
       session.delayed.set(promise, delayed);

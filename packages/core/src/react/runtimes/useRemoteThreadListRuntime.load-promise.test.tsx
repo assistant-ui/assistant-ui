@@ -3,7 +3,7 @@
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAui, useAuiState, type AssistantClient } from "@assistant-ui/store";
-import { Suspense, use, useEffect, type ReactNode } from "react";
+import { Suspense, use, useEffect, useState, type ReactNode } from "react";
 import {
   deferred,
   makeAdapter,
@@ -195,5 +195,61 @@ describe("useRemoteThreadListRuntime list promises", () => {
 
     await loaded;
     expect(aui.threads().getState().threadIds).toEqual(["t1"]);
+  });
+
+  it("resolves a reload read by use() inside the boundary that hides the client", async () => {
+    const actEnvironment = globalThis as {
+      IS_REACT_ACT_ENVIRONMENT?: boolean;
+    };
+    const previous = actEnvironment.IS_REACT_ACT_ENVIRONMENT;
+    // React only retries a suspended boundary from a ping outside act().
+    actEnvironment.IS_REACT_ACT_ENVIRONMENT = false;
+    try {
+      const adapter = makeAdapter({
+        list: vi.fn(async () => ({
+          threads: [
+            { remoteId: "t1", status: "regular" as const, title: "One" },
+          ],
+        })),
+      });
+      let reload!: () => void;
+      const Threads = () => {
+        const aui = useAui();
+        const [pending, setPending] = useState<Promise<void>>();
+        reload = () => setPending(aui.threads().reload());
+        if (pending) use(pending);
+        const ids = useAuiState((s) => s.threads.threadIds);
+        return <p>ids:{ids.join(",")}</p>;
+      };
+      const App = () => {
+        const runtime = useRemoteThreadListRuntime({
+          adapter,
+          runtimeHook: useThreadRuntime,
+        });
+        return (
+          <AssistantRuntimeProvider runtime={runtime}>
+            <Threads />
+          </AssistantRuntimeProvider>
+        );
+      };
+      render(
+        <Suspense fallback={<p>loading</p>}>
+          <App />
+        </Suspense>,
+      );
+      expect(await screen.findByText("ids:t1")).toBeDefined();
+
+      vi.mocked(adapter.list).mockResolvedValueOnce({
+        threads: [
+          { remoteId: "t1", status: "regular", title: "One" },
+          { remoteId: "t2", status: "regular", title: "Two" },
+        ],
+      });
+      reload();
+
+      expect(await screen.findByText("ids:t1,t2")).toBeDefined();
+    } finally {
+      actEnvironment.IS_REACT_ACT_ENVIRONMENT = previous;
+    }
   });
 });

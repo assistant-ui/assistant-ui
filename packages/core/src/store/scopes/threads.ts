@@ -31,7 +31,7 @@ export type ThreadsMethods = {
   thread(selector: "main"): ThreadMethods;
   /**
    * Resolves once `getState()` reports the loaded thread list, or its `loadError` when loading fails.
-   * Awaited inside the React `act()` scope that completes the load, it settles only after that `act()` exits.
+   * If the client cannot commit within 100ms, as inside the React `act()` scope that completes the load or under a Suspense boundary that hides the client, it resolves anyway and `getState()` may not report the list yet.
    */
   getLoadThreadsPromise(): Promise<void>;
   /** Refetches the thread list; resolves like `getLoadThreadsPromise()`. */
@@ -39,7 +39,7 @@ export type ThreadsMethods = {
   reloadMainThread(): Promise<void>;
   /**
    * Loads the next page; resolves once `getState()` reports it, or after a failed request, which is logged.
-   * Awaited inside the React `act()` scope that completes the load, it settles only after that `act()` exits.
+   * If the client cannot commit within 100ms, as inside the React `act()` scope that completes the load or under a Suspense boundary that hides the client, it resolves anyway and `getState()` may not report the list yet.
    */
   loadMore(): Promise<void>;
   __internal_getAssistantRuntime?(): AssistantRuntime;
