@@ -380,6 +380,29 @@ describe("MessagePrimitive.GroupedParts", () => {
     },
   );
 
+  it("rekeys the wrapper when its first member changes, as the first member rule documents", () => {
+    const view = renderIdentityGroups(
+      [
+        { type: "text", id: "p1", text: "first" },
+        { type: "text", id: "p2", text: "second" },
+        { type: "text", id: "p3", text: "third" },
+      ],
+      true,
+    );
+    const groupMounts = view.groupMounts();
+    view.setContent([
+      { type: "text", id: "p2", text: "second updated" },
+      { type: "text", id: "p1", text: "first updated" },
+      { type: "text", id: "p3", text: "third updated" },
+    ]);
+    expect(view.groupMounts()).not.toEqual(groupMounts);
+    expect(view.values()).toEqual([
+      "second updated:second updated",
+      "first updated:first updated",
+      "third updated:third updated",
+    ]);
+  });
+
   it("passes status counts to a tool-name group", () => {
     let group:
       | {

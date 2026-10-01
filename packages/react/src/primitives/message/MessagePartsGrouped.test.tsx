@@ -127,7 +127,12 @@ describe("MessagePrimitive.Unstable_PartsGroupedByParentId", () => {
               argsText: "draft",
               parentId: "parent",
             }
-          : { type: "reasoning" as const, text: "draft", parentId: "parent" };
+          : {
+              type: "reasoning" as const,
+              id: "r1",
+              text: "draft",
+              parentId: "parent",
+            };
       const view = render(
         <Example Message={Message} content={[first]} isRunning />,
       );
