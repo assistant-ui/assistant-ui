@@ -117,6 +117,31 @@ export default function ShopPage() {
     <PageFrame pad="sub">
       <h1 className="sr-only">Components</h1>
 
+      <section
+        aria-labelledby="bundles-banner-heading"
+        className="bg-foreground/[0.025] mb-10 grid items-center gap-6 rounded-(--radius-document) px-6 py-7 sm:px-8 md:grid-cols-[minmax(0,1fr)_auto]"
+      >
+        <div>
+          <h2 id="bundles-banner-heading" className={typeSection}>
+            Just getting started?
+          </h2>
+          <p className="text-muted-foreground mt-2 max-w-[60ch] text-sm leading-relaxed">
+            Start from a complete example. Explore the UI and the components
+            that make it work.
+          </p>
+        </div>
+        <Link
+          href="/components/bundles"
+          className="bg-foreground text-background group inline-flex w-fit items-center gap-3 rounded-(--radius-control) px-4 py-2.5 text-sm font-medium hover:opacity-85"
+        >
+          Explore our pre-made bundles
+          <ArrowRightIcon
+            aria-hidden
+            className="size-4 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none"
+          />
+        </Link>
+      </section>
+
       <nav
         aria-label="Component sections"
         className="mb-12 flex flex-wrap gap-x-6 gap-y-3"

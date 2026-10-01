@@ -1,0 +1,8 @@
+{
+  "extends": "@assistant-ui/x-buildutils/ts/base",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "types": ["react", "react-dom", "node"]
+  },
+  "include": ["**/*.ts", "**/*.tsx"]
+}

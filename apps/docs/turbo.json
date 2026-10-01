@@ -3,7 +3,30 @@
   "extends": ["//"],
   "tasks": {
     "build": {
-      "dependsOn": ["^build", "generate:type-docs"]
+      "dependsOn": [
+        "^build",
+        "generate:type-docs",
+        "bundle-ai-sdk#preview:build",
+        "bundle-block-editor#preview:build",
+        "bundle-blog-assistant#preview:build",
+        "bundle-data-explorer#preview:build",
+        "bundle-website-agent#preview:build"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/scripts/package-example-bundles.mjs",
+        "$TURBO_ROOT$/scripts/example-bundles.json"
+      ],
+      "outputs": [
+        "dist/**",
+        ".next/**",
+        "!.next/cache/**",
+        "!.next/dev/**",
+        "generated/**",
+        ".output/**",
+        "build/**",
+        "public/example-bundles/**"
+      ]
     },
     "generate:type-docs": {
       "dependsOn": ["^build"],
