@@ -63,35 +63,16 @@ The demo on this page runs through `useExternalStoreRuntime`, `ThreadPrimitive.V
 
 Keep one stable assistant message ID for each application-defined run. Your adapter must identify run boundaries and classify each part before rendering. The example stores only presentation annotations and timing in `metadata.custom.activityPresentation`; this is a recipe convention, not a built-in assistant-ui metadata field. Content, approval state, and message status are read from the live runtime, not copied into metadata.
 
-```tsx
-const runtime = useExternalStoreRuntime<ActivityRun>({
-  messages: runs,
+```tsx title="Abridged external-store adapter"
+const transcript: readonly ActivityMessage[] = [
+  { id: "user-1", role: "user", content: "Check the files." },
+  run,
+];
+
+const runtime = useExternalStoreRuntime<ActivityMessage>({
+  messages: transcript,
   isRunning,
-  convertMessage: (run) => {
-    return {
-      id: run.id,
-      role: "assistant",
-      status: run.status,
-      content: run.parts.map(({ id, part }) =>
-        part.type === "text" ? { ...part, id } : part,
-      ),
-      metadata: {
-        custom: {
-          activityPresentation: {
-            timing: run.timing,
-            entries: Object.fromEntries(
-              run.parts.map(({ id, kind, label, part }) => [
-                part.type === "tool-call"
-                  ? `tool-call:${part.toolCallId}`
-                  : `text:${id}`,
-                { kind, label },
-              ]),
-            ),
-          },
-        },
-      },
-    };
-  },
+  convertMessage: convertActivityMessage,
   onNew: sendMessage,
   onRespondToToolApproval: respondToApproval,
   onAddToolResult: recordToolResult,
@@ -99,7 +80,11 @@ const runtime = useExternalStoreRuntime<ActivityRun>({
 });
 ```
 
-This adapter covers text and tool-call parts. It assigns each text part its application-owned `id` and preserves each tool's `toolCallId`. Annotations are keyed by part type and ID, so runtime normalization can remove blank text without shifting another part's classification. Supply nonempty IDs that are unique within each part type and stable throughout the run.
+`ActivityMessage` is the recipe's `ActivityRun | ThreadMessageLike` union. Its `convertActivityMessage` passes ordinary messages through and annotates only explicit runs. In an application, `transcript` comes from state: `onNew` records the user turn as a normal message, sets `isRunning`, and updates the corresponding run as the response arrives. The callbacks above stand for your backend integration; the demo uses a scripted single run.
+
+Register the example's `ActivityRunMessage` as the assistant renderer. It checks for `activityPresentation` before mounting the run disclosure. Ordinary assistant messages and the runtime's optimistic placeholder use `MessagePrimitive.Parts` with the existing text/tool renderers. This keeps an empty, running transcript and a new user turn safe before the backend supplies its first run.
+
+The run conversion covers text and tool-call parts. It assigns each text part its application-owned `id` and preserves each tool's `toolCallId`. Annotations are keyed by part type and ID, so runtime normalization can remove blank text without shifting another part's classification. Supply nonempty IDs that are unique within each part type and stable throughout the run.
 
 In the message renderer, read the annotations alongside `s.message.parts` and `s.message.status` with `useAuiState`. Look up each annotation by `text:${part.id}` or `tool-call:${part.toolCallId}`. Render each classified part with `MessagePrimitive.PartByIndex`, using its index in the converted message and your existing text/tool components. Put `commentary` and `tool` entries in the disclosure, `answer` parts in `children`, and `attention` parts in `attention`. Unclassified parts stay outside the disclosure. Do not also render `MessagePrimitive.Parts` for the whole message: that would duplicate the content.
 

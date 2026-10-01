@@ -44,7 +44,12 @@ type ActivityPresentation = {
   entries: Record<string, Pick<ActivityRun["parts"][number], "kind" | "label">>;
 };
 
-export function convertRun(run: ActivityRun): ThreadMessageLike {
+export type ActivityMessage = ActivityRun | ThreadMessageLike;
+
+export function convertActivityMessage(
+  run: ActivityMessage,
+): ThreadMessageLike {
+  if ("role" in run) return run;
   return {
     id: run.id,
     role: "assistant",
@@ -120,8 +125,25 @@ function needsAttention(part: PartState) {
 export function ActivityRunMessage() {
   const presentation = useAuiState(
     (s) =>
-      s.message.metadata.custom.activityPresentation as ActivityPresentation,
+      s.message.metadata.custom.activityPresentation as
+        | ActivityPresentation
+        | undefined,
   );
+  if (!presentation) {
+    return (
+      <MessagePrimitive.Root>
+        <MessagePrimitive.Parts components={PART_COMPONENTS} />
+      </MessagePrimitive.Root>
+    );
+  }
+  return <AnnotatedActivityRunMessage presentation={presentation} />;
+}
+
+function AnnotatedActivityRunMessage({
+  presentation,
+}: {
+  presentation: ActivityPresentation;
+}) {
   const messageParts = useAuiState((s) => s.message.parts);
   const messageStatus = useAuiState((s) => s.message.status);
   const [open, setOpen] = useState(false);
@@ -229,7 +251,7 @@ export function ActivityRunExample({
   const runtime = useExternalStoreRuntime<ActivityRun>({
     messages: [run],
     isRunning: run.status.type === "running",
-    convertMessage: convertRun,
+    convertMessage: convertActivityMessage,
     onNew: async () => {},
     onRespondToToolApproval,
     onAddToolResult,

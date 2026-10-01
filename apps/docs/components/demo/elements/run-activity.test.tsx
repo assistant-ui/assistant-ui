@@ -19,12 +19,20 @@ import {
 } from "vitest";
 import {
   ActivityRunExample,
+  ActivityRunMessage,
   RunActivityDemo,
   activityStatus,
-  convertRun,
+  convertActivityMessage,
   type ActivityRun,
 } from "./run-activity";
-import type { ToolCallMessagePart } from "@assistant-ui/react";
+import {
+  AssistantRuntimeProvider,
+  MessagePrimitive,
+  ThreadPrimitive,
+  useExternalStoreRuntime,
+  type ThreadMessageLike,
+  type ToolCallMessagePart,
+} from "@assistant-ui/react";
 import { DemoStage } from "./demo-stage";
 
 beforeAll(() => {
@@ -91,9 +99,118 @@ const RUN: ActivityRun = {
   ],
 };
 
+function TranscriptAssistantMessage() {
+  return (
+    <div data-testid="assistant-message">
+      <ActivityRunMessage />
+    </div>
+  );
+}
+
+function TranscriptUserMessage() {
+  return (
+    <MessagePrimitive.Root>
+      <MessagePrimitive.Parts />
+    </MessagePrimitive.Root>
+  );
+}
+
+function RuntimeTranscript({
+  messages,
+  isRunning,
+}: {
+  messages: readonly ThreadMessageLike[];
+  isRunning: boolean;
+}) {
+  const runtime = useExternalStoreRuntime<ThreadMessageLike>({
+    messages,
+    isRunning,
+    convertMessage: (message) => message,
+    onNew: async () => {},
+  });
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <ThreadPrimitive.Root>
+        <ThreadPrimitive.Messages
+          components={{
+            AssistantMessage: TranscriptAssistantMessage,
+            UserMessage: TranscriptUserMessage,
+          }}
+        />
+      </ThreadPrimitive.Root>
+    </AssistantRuntimeProvider>
+  );
+}
+
+describe("unannotated assistant messages", () => {
+  it.each([
+    { messages: [] },
+    { messages: [{ role: "user", id: "user-1", content: "Check the files" }] },
+  ] satisfies { messages: ThreadMessageLike[] }[])(
+    "renders an optimistic assistant placeholder after %j",
+    async ({ messages }) => {
+      const view = render(<RuntimeTranscript messages={messages} isRunning />);
+      expect(screen.getAllByTestId("assistant-message")).toHaveLength(1);
+      expect(
+        screen.queryByRole("button", { name: /Working|Worked for/ }),
+      ).toBeNull();
+      await act(async () =>
+        view.rerender(
+          <RuntimeTranscript
+            messages={[...messages, convertActivityMessage(RUN)]}
+            isRunning={false}
+          />,
+        ),
+      );
+      expect(screen.getByText("The final answer.")).toBeTruthy();
+      expect(
+        screen.getByRole("button", { name: "Worked for 2m 13s" }),
+      ).toBeTruthy();
+    },
+  );
+
+  it("renders an ordinary assistant message without run metadata", () => {
+    render(
+      <RuntimeTranscript
+        messages={[
+          { role: "assistant", id: "ordinary", content: "An ordinary answer" },
+        ]}
+        isRunning={false}
+      />,
+    );
+    expect(screen.getByText("An ordinary answer")).toBeTruthy();
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("keeps a prior run visible while waiting after another user turn", () => {
+    render(
+      <RuntimeTranscript
+        messages={[
+          convertActivityMessage(RUN),
+          { role: "user", id: "user-2", content: "Check again" },
+        ]}
+        isRunning
+      />,
+    );
+    expect(screen.getAllByTestId("assistant-message")).toHaveLength(2);
+    expect(screen.getByText("The final answer.")).toBeTruthy();
+    expect(screen.getByText("Check again")).toBeTruthy();
+  });
+});
+
 describe("run activity external-store recipe", () => {
+  it("passes user and unannotated assistant messages through without adding run metadata", () => {
+    const messages: ThreadMessageLike[] = [
+      { role: "user", id: "user-1", content: "Check the files" },
+      { role: "assistant", id: "assistant-1", content: "An ordinary answer" },
+    ];
+    for (const message of messages) {
+      expect(convertActivityMessage(message)).toBe(message);
+    }
+  });
+
   it("preserves the explicit run boundary and part order in the runtime", () => {
-    const converted = convertRun(RUN);
+    const converted = convertActivityMessage(RUN);
     expect(converted.id).toBe(RUN.id);
     expect(converted.content).toEqual([
       { ...RUN.parts[0]!.part, id: "commentary-1" },
