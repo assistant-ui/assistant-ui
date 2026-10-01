@@ -79,6 +79,41 @@ describe("ComposerMenu", () => {
     expect(menu.style.translate).toBe("-48px 0");
   });
 
+  it("re-measures when its alignment changes", () => {
+    vi.spyOn(HTMLElement.prototype, "offsetLeft", "get").mockImplementation(
+      function (this: HTMLElement) {
+        return this.classList.contains("end-0") ? -100 : 0;
+      },
+    );
+    const { rerender } = render(
+      <Composer>
+        <ComposerMenu open data-testid="menu" />
+      </Composer>,
+    );
+    expect(screen.getByTestId("menu").style.translate).toBe("0px 0");
+
+    rerender(
+      <Composer>
+        <ComposerMenu open align="end" data-testid="menu" />
+      </Composer>,
+    );
+    expect(screen.getByTestId("menu").style.translate).toBe("100px 0");
+  });
+
+  it("runs the cleanup a callback ref returns", () => {
+    const cleanupRef = vi.fn();
+    const ref = vi.fn((_node: HTMLDivElement | null) => cleanupRef);
+    const { unmount } = render(
+      <Composer>
+        <ComposerMenu open ref={ref} />
+      </Composer>,
+    );
+
+    unmount();
+    expect(cleanupRef).toHaveBeenCalledOnce();
+    expect(ref).not.toHaveBeenCalledWith(null);
+  });
+
   it("forwards its ref and keeps a caller style", () => {
     const ref = createRef<HTMLDivElement>();
     render(

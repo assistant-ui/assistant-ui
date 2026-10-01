@@ -147,7 +147,10 @@ export function ComposerBar({
   );
 }
 
-function useFitInComposer(menuRef: RefObject<HTMLDivElement | null>) {
+function useFitInComposer(
+  menuRef: RefObject<HTMLDivElement | null>,
+  align: "start" | "end",
+) {
   const [fit, setFit] = useState<{ shift: number; maxWidth: number } | null>(
     null,
   );
@@ -176,7 +179,7 @@ function useFitInComposer(menuRef: RefObject<HTMLDivElement | null>) {
     observer.observe(bounds);
     observer.observe(menu);
     return () => observer.disconnect();
-  }, [menuRef]);
+  }, [menuRef, align]);
 
   return fit;
 }
@@ -190,15 +193,13 @@ export function ComposerMenu({
   ...props
 }: ComponentProps<"div"> & { open: boolean; align?: "start" | "end" }) {
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const fit = useFitInComposer(menuRef);
+  const fit = useFitInComposer(menuRef, align);
   const composedRef = useCallback(
     (node: HTMLDivElement | null) => {
       menuRef.current = node;
-      if (typeof ref === "function") {
-        ref(node);
-      } else if (ref) {
-        ref.current = node;
-      }
+      if (typeof ref === "function") return ref(node);
+      if (ref) ref.current = node;
+      return undefined;
     },
     [ref],
   );
