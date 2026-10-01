@@ -2,7 +2,6 @@ import { MermaidDiagram } from "@assistant-ui/ui/components/assistant-ui/element
 import { MermaidDiagram as AuiMermaidDiagram } from "@assistant-ui/ui/components/assistant-ui/elements/mermaid-diagram.aui.tsx";
 import { MarkdownText } from "@assistant-ui/ui/components/assistant-ui/elements/markdown-text.tsx";
 import type { TextMessagePartProps } from "@assistant-ui/react";
-import type { ComponentProps } from "react";
 import { defineSections } from "../types";
 import { SeededMessages } from "../runtime";
 import { ClickWhenAlone } from "./_open-when-alone";
@@ -27,21 +26,11 @@ ${FLOW}
 
 Every chunk takes the same path back.`;
 
-type CodeBlockProps = ComponentProps<typeof AuiMermaidDiagram>;
-
-/** MarkdownText exposes no componentsByLanguage, so the code slot picks by language. */
-function MermaidOrCode(props: CodeBlockProps) {
-  if (props.language === "mermaid") return <AuiMermaidDiagram {...props} />;
-  const { Pre, Code } = props.components;
-  return (
-    <Pre>
-      <Code>{props.code}</Code>
-    </Pre>
-  );
-}
-
 const MermaidMarkdownText = (props: TextMessagePartProps) => (
-  <MarkdownText {...props} components={{ SyntaxHighlighter: MermaidOrCode }} />
+  <MarkdownText
+    {...props}
+    componentsByLanguage={{ mermaid: { SyntaxHighlighter: AuiMermaidDiagram } }}
+  />
 );
 
 export default defineSections([
@@ -50,7 +39,7 @@ export default defineSections([
     title: "Mermaid diagram",
     category: "content",
     notes:
-      "beautiful-mermaid renders an SVG string (with its own <style>) through dangerouslySetInnerHTML.",
+      "beautiful-mermaid's SVG styles go into a constructed stylesheet, so the diagram renders under a strict CSP.",
     render: () => (
       <div className="flex flex-col gap-3">
         <MermaidDiagram code={FLOW} />
