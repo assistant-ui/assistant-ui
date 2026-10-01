@@ -167,8 +167,11 @@ export const useAdkMessages = ({
       for (const event of messagesToEvents(newMessagesWithId)) {
         accumulator.processEvent(event);
       }
-      setMessagesImmediate(accumulator.getMessages());
-      setLongRunningToolIds(accumulator.getLongRunningToolIds());
+      const initialMessages = accumulator.getMessages();
+      const initialMessageIds = new Set(initialMessages.map((m) => m.id));
+      const initialLongRunningToolIds = accumulator.getLongRunningToolIds();
+      setMessagesImmediate(initialMessages);
+      setLongRunningToolIds(initialLongRunningToolIds);
       setToolConfirmations(accumulator.getToolConfirmations());
       setAuthRequests(accumulator.getAuthRequests());
       let lastTransferToAgent: string | undefined;
@@ -265,6 +268,33 @@ export const useAdkMessages = ({
         }
       } finally {
         if (abortControllerRef.current === abortController) {
+          if (abortController.signal.aborted) {
+            setLongRunningToolIds(
+              accumulator
+                .getLongRunningToolIds()
+                .filter((id) => initialLongRunningToolIds.includes(id)),
+            );
+            const updatedMessages = messagesRef.current;
+            const lastAssistantMessage = updatedMessages.findLast(
+              (m) => m.type === "ai",
+            );
+            if (
+              lastAssistantMessage &&
+              !initialMessageIds.has(lastAssistantMessage.id) &&
+              !lastAssistantMessage.status
+            ) {
+              setMessagesImmediate(
+                updatedMessages.map((m) =>
+                  m === lastAssistantMessage
+                    ? {
+                        ...lastAssistantMessage,
+                        status: { type: "incomplete", reason: "cancelled" },
+                      }
+                    : m,
+                ),
+              );
+            }
+          }
           abortControllerRef.current = null;
         }
       }
