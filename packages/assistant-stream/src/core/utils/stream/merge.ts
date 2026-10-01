@@ -148,9 +148,6 @@ export const createMergeStream = () => {
     const item = { reader: stream.getReader(), pipeTask: handledPipeTask };
     list.push(item);
     handlePull(item);
-    return () => {
-      void item.reader.cancel().catch(() => undefined);
-    };
   };
 
   return {

@@ -186,8 +186,8 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
         await transformer.writable.abort(error).catch(() => undefined);
         throw error;
       });
-    const cancel = this._state.merger.addStream(transformer.readable, pipeTask);
-    return { pipeTask, cancel };
+    this._state.merger.addStream(transformer.readable, pipeTask);
+    return pipeTask;
   }
 
   private _trackOpenInput(pipeTask: Promise<void>, end: () => void) {
@@ -208,7 +208,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       part,
       path: [],
     });
-    const { pipeTask } = this._addTransformedStream(
+    const pipeTask = this._addTransformedStream(
       stream,
       new PathAppendEncoder(this._state.contentCounter.value),
     );
@@ -216,11 +216,10 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
   }
 
   merge(stream: AssistantStream) {
-    const { pipeTask, cancel } = this._addTransformedStream(
+    this._addTransformedStream(
       stream,
       new PathMergeEncoder(this._state.contentCounter),
     );
-    if (cancel) this._trackOpenInput(pipeTask, cancel);
   }
 
   appendText(textDelta: string) {

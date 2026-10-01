@@ -299,27 +299,38 @@ describe("createAssistantStream task settlement", () => {
     ]);
   });
 
-  it("ends when the callback throws while a merged stream is still open", async () => {
-    const cancelSource = vi.fn();
-    let chunks: AssistantStreamChunk[] = [];
-    const unhandledRejections = await captureUnhandledRejections(async () => {
-      chunks = await collectChunks(
-        createAssistantStream(async (controller) => {
-          controller.merge(
-            createAssistantStream((inner) => {
-              inner.addToolCallPart("search");
-            }),
-          );
-          controller.merge(new ReadableStream({ cancel: cancelSource }));
+  it.each([true, false])(
+    "preserves merged output when the outer callback throws (finished: %s)",
+    async (finished) => {
+      const [merged, inner] = createAssistantStreamController();
+      inner.appendText("full answer");
+      if (finished) inner.close();
+
+      const pending = collectChunks(
+        createAssistantStream((controller) => {
+          controller.merge(merged);
           throw new Error("outer failed");
         }),
       );
-    });
+      if (!finished) {
+        await Promise.resolve();
+        inner.appendText(" continued");
+        inner.close();
+      }
 
-    expect(chunks.filter((c) => c.type === "error")).toHaveLength(1);
-    expect(cancelSource).toHaveBeenCalledOnce();
-    expect(unhandledRejections).toEqual([]);
-  });
+      const chunks = await pending;
+      expect(
+        chunks
+          .filter((chunk) => chunk.type === "text-delta")
+          .map((chunk) => chunk.textDelta)
+          .join(""),
+      ).toBe(finished ? "full answer" : "full answer continued");
+      expect(chunks.filter((chunk) => chunk.type === "error")).toHaveLength(1);
+      expect(
+        chunks.filter((chunk) => chunk.type === "part-finish"),
+      ).toHaveLength(1);
+    },
+  );
 
   it("stops tracking an input once it finishes", async () => {
     let tracked: Set<unknown> | undefined;
@@ -331,7 +342,6 @@ describe("createAssistantStream task settlement", () => {
         controller.appendText("a");
         controller.addReasoningPart().close();
         controller.addToolCallPart("search").setResponse({ result: 1 });
-        controller.merge(createAssistantStream(() => {}));
       }),
     );
 
