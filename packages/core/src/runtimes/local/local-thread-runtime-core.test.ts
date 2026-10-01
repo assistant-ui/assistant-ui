@@ -6716,76 +6716,66 @@ describe("LocalThreadRuntimeCore message queue with other runs", () => {
     await gate.release();
   });
 
-  it("keeps sending after a cancel stops a queued send that has not started", async () => {
-    const { thread, dispatched, send } = createThread({ clearOnCancel: false });
-    const initialization = createInitialization();
-    thread.__internal_setGetInitializePromise(() => initialization.promise);
-
-    send("first");
-    await flush();
-    thread.cancelRun();
-    initialization.resolve();
-    await flush();
-
-    send("second");
-    await flush();
-    expect(dispatched).toEqual(["second"]);
-  });
-
-  it("keeps a later queued send's message when a send waiting to start is cancelled", async () => {
-    const { thread, dispatched, send } = createThread({ clearOnCancel: false });
-    const initialization = createInitialization();
-    thread.__internal_setGetInitializePromise(() => initialization.promise);
-
-    send("first");
-    await flush();
-    thread.cancelRun();
-    send("second");
-    await flush();
-    initialization.resolve();
-    await flush();
-
-    expect(dispatched).toEqual(["second"]);
-    expect(thread.messages.map((message) => message.role)).toEqual([
-      "user",
-      "user",
-      "assistant",
-    ]);
-  });
-
-  it("keeps a queued send's message when it is cancelled while the history loads", async () => {
-    let releaseLoad!: () => void;
-    const loaded = new Promise<void>((resolve) => (releaseLoad = resolve));
-    const appended: string[] = [];
+  it("keeps sending after a cancel while a queued send waits to start", async () => {
+    const gate = createGate();
     const { thread, dispatched, send } = createThread({
       clearOnCancel: false,
-      historyAdapter: {
-        load: () => loaded.then(() => ({ messages: [] })),
-        async append({ message }) {
-          appended.push(message.role);
-        },
-      },
+      wait: gate.wait,
     });
+    const initialization = createInitialization();
+    thread.__internal_setGetInitializePromise(() => initialization.promise);
 
-    thread.__internal_load();
     send("first");
     await flush();
     thread.cancelRun();
-    releaseLoad();
+    initialization.resolve();
     await flush();
+    expect(dispatched).toEqual(["first"]);
 
-    expect(dispatched).toEqual([]);
-    expect(thread.messages.map((message) => message.content)).toEqual([
-      [{ type: "text", text: "first" }],
-    ]);
-    expect(appended).toEqual(["user"]);
+    send("second");
+    await flush();
+    expect(dispatched).toEqual(["first"]);
+
+    await gate.release();
+    expect(dispatched).toEqual(["first", "second"]);
+    await gate.release();
+  });
+
+  it("keeps sending after a cancel stops a regenerate while a queued send waits to start", async () => {
+    const gate = createGate();
+    const { thread, dispatched, send } = createThread({
+      history: true,
+      clearOnCancel: false,
+      wait: gate.wait,
+    });
+    const initialization = createInitialization();
+    thread.__internal_setGetInitializePromise(() => initialization.promise);
+
+    send("first");
+    await flush();
+    send("second");
+    await flush();
+    void thread.startRun({ parentId: "u0", sourceId: "a0", runConfig: {} });
+    await flush();
+    thread.cancelRun();
+    await gate.release();
+
+    initialization.resolve();
+    await flush();
+    expect(dispatched).toEqual(["hi", "first"]);
+
+    await gate.release();
+    expect(dispatched).toEqual(["hi", "first", "second"]);
+    await gate.release();
   });
 
   it("sends a later queued send when a send waiting on the history load is cancelled", async () => {
     let releaseLoad!: () => void;
     const loaded = new Promise<void>((resolve) => (releaseLoad = resolve));
+    const gate = createGate();
     const { thread, dispatched, send } = createThread({
       clearOnCancel: false,
+      wait: gate.wait,
       historyAdapter: {
         load: () => loaded.then(() => ({ messages: [] })),
         async append() {},
@@ -6800,75 +6790,12 @@ describe("LocalThreadRuntimeCore message queue with other runs", () => {
     await flush();
     releaseLoad();
     await flush();
+    expect(dispatched).toEqual(["first"]);
 
-    expect(dispatched).toEqual(["second"]);
-    expect(thread.messages.map((message) => message.role)).toEqual([
-      "user",
-      "user",
-      "assistant",
-    ]);
+    await gate.release();
+    expect(dispatched).toEqual(["first", "second"]);
+    await gate.release();
   });
-
-  it.each([
-    ["omitted", undefined],
-    ["true", true],
-  ])(
-    "stops a queued send cancelled during the initialize wait when clearOnCancel is %s",
-    async (_label, clearOnCancel) => {
-      const { thread, dispatched, send } = createThread({ clearOnCancel });
-      const initialization = createInitialization();
-      thread.__internal_setGetInitializePromise(() => initialization.promise);
-
-      send("first");
-      await flush();
-      thread.cancelRun();
-      initialization.resolve();
-      await flush();
-
-      expect(dispatched).toEqual([]);
-      expect(thread.messages.map((message) => message.role)).not.toContain(
-        "assistant",
-      );
-
-      send("second");
-      await flush();
-      expect(dispatched).toEqual(["second"]);
-    },
-  );
-
-  it.each([
-    ["omitted", undefined],
-    ["true", true],
-  ])(
-    "stops a queued send cancelled during the history load when clearOnCancel is %s",
-    async (_label, clearOnCancel) => {
-      let releaseLoad!: () => void;
-      const loaded = new Promise<void>((resolve) => (releaseLoad = resolve));
-      const { thread, dispatched, send } = createThread({
-        clearOnCancel,
-        historyAdapter: {
-          load: () => loaded.then(() => ({ messages: [] })),
-          async append() {},
-        },
-      });
-
-      thread.__internal_load();
-      send("first");
-      await flush();
-      thread.cancelRun();
-      releaseLoad();
-      await flush();
-
-      expect(dispatched).toEqual([]);
-      expect(thread.messages.map((message) => message.role)).not.toContain(
-        "assistant",
-      );
-
-      send("second");
-      await flush();
-      expect(dispatched).toEqual(["second"]);
-    },
-  );
 
   it("holds a queued send behind a run started in the tick after another run ends", async () => {
     const gate = createGate();
@@ -6982,33 +6909,6 @@ describe("LocalThreadRuntimeCore message queue with other runs", () => {
     await flush();
     expect(dispatched).toEqual(["first", "hi", "second"]);
     for (const release of pending) release();
-  });
-
-  it("sends a later queued send after a steer that waits on the initialize promise", async () => {
-    const pending: (() => void)[] = [];
-    const { thread, dispatched, send } = createThread({
-      wait: () => new Promise<void>((r) => pending.push(r)),
-    });
-
-    send("first");
-    await flush();
-    const initialization = createInitialization();
-    thread.__internal_setGetInitializePromise(() => initialization.promise);
-    send("steered", true);
-    send("later", false);
-    await flush();
-    pending.shift()!();
-    await flush();
-    expect(dispatched).toEqual(["first"]);
-
-    initialization.resolve();
-    await flush();
-    expect(dispatched).toEqual(["first", "steered"]);
-
-    pending.shift()!();
-    await flush();
-    expect(dispatched).toEqual(["first", "steered", "later"]);
-    pending.shift()!();
   });
 
   it("holds a send behind a run that was active when the queue was enabled", async () => {

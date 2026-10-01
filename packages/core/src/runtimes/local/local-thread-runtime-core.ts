@@ -155,7 +155,7 @@ const withoutToolInteractions = (message: ThreadMessage): ThreadMessage => {
   return hasInteractions ? { ...message, content } : message;
 };
 
-type QueueDispatch = { started: boolean; cancelled: boolean };
+type QueueDispatch = { started: boolean };
 type LocalRun = {
   // A cancelled run's settle is owed only to the queue whose notifyCancelled
   // reserved it; a queue created since never counts on it.
@@ -196,6 +196,7 @@ export class LocalThreadRuntimeCore
   private _startingDispatch: QueueDispatch | null = null;
   private _activeRun: LocalRun | null = null;
   private _settlingRuns = new Set<LocalRun>();
+  private _parkedCancelledRun: LocalRun | null = null;
   private _runGeneration = 0;
   // A metadata change such as feedback, and a tool result on a running message, replace a message without superseding the run that is streaming it; any other replacement ends that run, whose later chunks would overwrite it.
   private _messageReplacements = new WeakMap<
@@ -471,7 +472,7 @@ export class LocalThreadRuntimeCore
         run: (message) => {
           // release the queue when the dispatch settles, even if it rejects
           // before reaching startRun's finally, so a failure can't deadlock it
-          const dispatch: QueueDispatch = { started: false, cancelled: false };
+          const dispatch: QueueDispatch = { started: false };
           this._queueRunInFlight = dispatch;
           // the tail may have moved since the message was enqueued
           void this._runAppend(
@@ -488,9 +489,11 @@ export class LocalThreadRuntimeCore
               this._queueRunInFlight = null;
               // A dispatch that never started its run settles here, unless an
               // active run's settle will; a run that did start releases from
-              // _runLoop.
-              if (!dispatch.started && this._activeRun === null)
+              // _runLoop. This settle also carries a parked cancelled run's.
+              if (!dispatch.started && this._activeRun === null) {
+                this._parkedCancelledRun = null;
                 this._queue?.notifyIdle();
+              }
             })
             .catch(() => {});
         },
@@ -788,9 +791,7 @@ export class LocalThreadRuntimeCore
       : messageWrite;
     void historyWrite?.catch(() => {});
 
-    // A queued send cancelled before its run starts keeps the message unsent.
-    const startRun =
-      (message.startRun ?? message.role === "user") && !dispatch?.cancelled;
+    const startRun = message.startRun ?? message.role === "user";
     if (startRun) {
       // startRun must reach _runLoop with no await in between, because only
       // _runLoop marks the dispatch started.
@@ -808,12 +809,8 @@ export class LocalThreadRuntimeCore
       if (runResult.status === "rejected") throw runResult.reason;
       if (historyResult.status === "rejected") throw historyResult.reason;
     } else {
-      // A cancelled queued send keeps its message without moving the head,
-      // which a later send may already have built on.
-      if (!dispatch?.cancelled) {
-        this.repository.switchToBranch(newMessage.id);
-        this._notifySubscribers();
-      }
+      this.repository.switchToBranch(newMessage.id);
+      this._notifySubscribers();
       await historyWrite;
     }
   }
@@ -949,7 +946,8 @@ export class LocalThreadRuntimeCore
     if (dispatch) dispatch.started = true;
     this._notifyEventSubscribers("runStart", {});
 
-    const replaced = this._activeRun;
+    const replaced = this._activeRun ?? this._parkedCancelledRun;
+    this._parkedCancelledRun = null;
     const run: LocalRun = {
       cancelledBy: null,
       settled: false,
@@ -962,8 +960,9 @@ export class LocalThreadRuntimeCore
     try {
       // mark busy for runs not started through the queue (regenerate, resume)
       this._queue?.notifyBusy();
-      // A cancelled run replaced before it settles settles now, once this run
-      // is busy, so the queue neither counts this run's settle in its place
+      // A cancelled run replaced before it settles, or parked when it ended
+      // while a queued send waited to start, settles now, once this run is
+      // busy, so the queue neither counts this run's settle in its place
       // nor dispatches in between. This notifyIdle is always swallowed:
       // cancelRun tags a run with the queue only after that queue's
       // notifyCancelled reserved its settle, and notifyBusy above turned that
@@ -1024,6 +1023,8 @@ export class LocalThreadRuntimeCore
           )
             this._queue?.notifyIdle();
         });
+      } else if (this._owesCancelSettle(run)) {
+        this._parkedCancelledRun = run;
       }
     }
 
@@ -1434,16 +1435,16 @@ export class LocalThreadRuntimeCore
       if (this._options.unstable_queueClearOnCancel ?? true) {
         this._queue.clear();
       } else {
-        this._queue.notifyCancelled();
-        if (this._activeRun) this._activeRun.cancelledBy = this._queue;
-        else
+        // Only an active or settling run delivers a cancel settle. Reserving
+        // one for a queued send still waiting to start would make that send's
+        // run start swallow its own settle and leave the queue busy.
+        if (this._activeRun) {
+          this._queue.notifyCancelled();
+          this._activeRun.cancelledBy = this._queue;
+        } else if (this._settlingRuns.size > 0) {
+          this._queue.notifyCancelled();
           for (const run of this._settlingRuns) run.cancelledBy = this._queue;
-      }
-      const dispatch = this._queueRunInFlight;
-      if (dispatch && !dispatch.started) {
-        dispatch.cancelled = true;
-        this._queueRunInFlight = null;
-        if (this._activeRun === null) this._queue.notifyIdle();
+        }
       }
     }
     const error = new AbortError(false);
