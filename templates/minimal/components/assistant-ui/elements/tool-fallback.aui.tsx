@@ -1,6 +1,14 @@
 "use client";
 
-import { memo, useCallback, useRef, useState } from "react";
+import {
+  forwardRef,
+  memo,
+  useCallback,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   AlertCircleIcon,
   CheckIcon,
@@ -416,13 +424,36 @@ const receiptIcons = {
   closed: CircleMinusIcon,
 } satisfies Record<ApprovalReceipt["outcome"], React.ElementType>;
 
-function ToolFallbackApprovalReceipt({
-  approval,
-  className,
-  ...props
-}: React.ComponentProps<"div"> & {
-  approval: NonNullable<ToolCallMessagePart["approval"]>;
-}) {
+type ApprovalFocusTarget = {
+  element: HTMLElement;
+  requestId: string | undefined;
+};
+
+const ToolFallbackApprovalReceipt = forwardRef<
+  HTMLDivElement,
+  React.ComponentPropsWithoutRef<"div"> & {
+    approval: NonNullable<ToolCallMessagePart["approval"]>;
+    focusTargetRef: React.MutableRefObject<ApprovalFocusTarget | null>;
+  }
+>(function ToolFallbackApprovalReceipt(
+  { approval, className, focusTargetRef, ...props },
+  ref,
+) {
+  const receiptRef = useRef<HTMLDivElement>(null);
+  useImperativeHandle(ref, () => receiptRef.current!, []);
+  useLayoutEffect(() => {
+    const target = focusTargetRef.current;
+    focusTargetRef.current = null;
+    if (!target || target.requestId !== approval.id) return;
+    const document = target.element.ownerDocument;
+    if (
+      document.activeElement === document.body ||
+      document.activeElement === target.element
+    ) {
+      receiptRef.current?.focus({ preventScroll: true });
+    }
+  }, [approval.id, focusTargetRef]);
+
   const receipt = approvalReceipt(approval);
   const Icon = receiptIcons[receipt.outcome];
   const notes = [
@@ -435,8 +466,10 @@ function ToolFallbackApprovalReceipt({
 
   return (
     <div
+      ref={receiptRef}
       data-slot="tool-fallback-approval-receipt"
       data-outcome={receipt.outcome}
+      tabIndex={-1}
       className={cn(
         "aui-tool-fallback-approval-receipt flex flex-col gap-1.5 pt-1",
         className,
@@ -465,7 +498,7 @@ function ToolFallbackApprovalReceipt({
       ))}
     </div>
   );
-}
+});
 
 const offersInterruptAction = (
   status: ToolCallMessagePartStatus | undefined,
@@ -479,6 +512,8 @@ const offersInterruptAction = (
 
 function ToolFallbackApproval({
   className,
+  onFocusCapture,
+  onBlurCapture,
   addResult,
   resume,
   interrupt,
@@ -503,12 +538,37 @@ function ToolFallbackApproval({
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [answer, setAnswer] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const focusTargetRef = useRef<ApprovalFocusTarget | null>(null);
+  const focusProps = {
+    onFocusCapture: (event: React.FocusEvent<HTMLDivElement>) => {
+      focusTargetRef.current = {
+        element: event.target,
+        requestId: approval?.id,
+      };
+      onFocusCapture?.(event);
+    },
+    onBlurCapture: (event: React.FocusEvent<HTMLDivElement>) => {
+      if (
+        locked &&
+        event.relatedTarget === null &&
+        event.target !== event.currentTarget
+      ) {
+        event.currentTarget.focus({ preventScroll: true });
+      } else if (!event.currentTarget.contains(event.relatedTarget)) {
+        focusTargetRef.current = null;
+      }
+      onBlurCapture?.(event);
+    },
+  };
 
   if (approval != null && isSettled(approval))
     return (
       <ToolFallbackApprovalReceipt
         approval={approval}
+        focusTargetRef={focusTargetRef}
         className={className}
+        onFocusCapture={onFocusCapture}
+        onBlurCapture={onBlurCapture}
         {...props}
       />
     );
@@ -526,11 +586,13 @@ function ToolFallbackApproval({
       promptText && (
         <div
           data-slot="tool-fallback-approval"
+          tabIndex={-1}
           className={cn(
             "aui-tool-fallback-approval flex flex-col gap-2 pt-1",
             className,
           )}
           {...props}
+          {...focusProps}
         >
           {promptText}
         </div>
@@ -686,11 +748,13 @@ function ToolFallbackApproval({
     return (
       <div
         data-slot="tool-fallback-approval-confirm"
+        tabIndex={-1}
         className={cn(
           "aui-tool-fallback-approval-confirm flex flex-col gap-2 pt-1",
           className,
         )}
         {...props}
+        {...focusProps}
       >
         <p className="aui-tool-fallback-approval-confirm-title font-semibold">
           {confirmMeta?.title ?? `${approvalOptionLabel(confirming)}?`}
@@ -743,11 +807,13 @@ function ToolFallbackApproval({
     return (
       <div
         data-slot="tool-fallback-approval"
+        tabIndex={-1}
         className={cn(
           "aui-tool-fallback-approval flex flex-col gap-2 pt-1",
           className,
         )}
         {...props}
+        {...focusProps}
       >
         {promptText}
         <div className="flex flex-wrap items-center gap-2">
@@ -790,11 +856,13 @@ function ToolFallbackApproval({
     return (
       <div
         data-slot="tool-fallback-approval"
+        tabIndex={-1}
         className={cn(
           "aui-tool-fallback-approval flex flex-col gap-2 pt-1",
           className,
         )}
         {...props}
+        {...focusProps}
       >
         {promptText}
         {answerField}
@@ -809,11 +877,13 @@ function ToolFallbackApproval({
   return (
     <div
       data-slot="tool-fallback-approval"
+      tabIndex={-1}
       className={cn(
         "aui-tool-fallback-approval flex flex-col gap-2 pt-1",
         className,
       )}
       {...props}
+      {...focusProps}
     >
       {promptText}
       <div className="flex items-center gap-2">

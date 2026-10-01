@@ -344,6 +344,126 @@ describe("settled approval receipts", () => {
   const receipt = () =>
     document.querySelector('[data-slot="tool-fallback-approval-receipt"]');
 
+  it.each([true, false])(
+    "keeps keyboard focus after an asynchronous decision (%s)",
+    (approved) => {
+      const respondToApproval = vi.fn(async () => {});
+      const view = render(
+        <ToolFallbackApproval
+          approval={pendingApproval}
+          respondToApproval={respondToApproval}
+        />,
+      );
+      const control = button(approved ? "Allow" : "Deny");
+      control.focus();
+      fireEvent.click(control);
+      expect(control.disabled).toBe(true);
+      control.blur();
+      expect(
+        control
+          .closest('[data-slot="tool-fallback-approval"]')
+          ?.contains(document.activeElement),
+      ).toBe(true);
+
+      view.rerender(
+        <ToolFallbackApproval
+          approval={{ ...pendingApproval, approved }}
+          respondToApproval={respondToApproval}
+        />,
+      );
+      expect(document.activeElement).toBe(receipt());
+      expect(receipt()?.getAttribute("tabindex")).toBe("-1");
+    },
+  );
+
+  it("keeps focus when a focused request expires without a submission", () => {
+    const view = render(<ToolFallbackApproval approval={pendingApproval} />);
+    button("Deny").focus();
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{ ...pendingApproval, resolution: "expired" }}
+      />,
+    );
+    expect(document.activeElement).toBe(receipt());
+  });
+
+  it("does not move focus from another control while a decision is pending", () => {
+    const respondToApproval = vi.fn(async () => {});
+    const content = (approved?: boolean) => (
+      <>
+        <input aria-label="Message" />
+        <ToolFallbackApproval
+          approval={{ ...pendingApproval, approved }}
+          respondToApproval={respondToApproval}
+        />
+      </>
+    );
+    const view = render(content());
+    const control = button("Allow");
+    control.focus();
+    fireEvent.click(control);
+    const composer = screen.getByRole("textbox", { name: "Message" });
+    composer.focus();
+    view.rerender(content(true));
+    expect(document.activeElement).toBe(composer);
+  });
+
+  it("does not reclaim focus after the user leaves an unanswered request", () => {
+    const view = render(<ToolFallbackApproval approval={pendingApproval} />);
+    const control = button("Allow");
+    control.focus();
+    control.blur();
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{ ...pendingApproval, approved: true }}
+      />,
+    );
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it("forgets the pending request after focus moves away and is cleared", () => {
+    const respondToApproval = vi.fn(async () => {});
+    const content = (approved?: boolean) => (
+      <>
+        <input aria-label="Message" />
+        <ToolFallbackApproval
+          approval={{ ...pendingApproval, approved }}
+          respondToApproval={respondToApproval}
+        />
+      </>
+    );
+    const view = render(content());
+    const control = button("Allow");
+    control.focus();
+    fireEvent.click(control);
+    control.blur();
+    const composer = screen.getByRole("textbox", { name: "Message" });
+    composer.focus();
+    composer.blur();
+    view.rerender(content(true));
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it("does not transfer focus to a different request's receipt", () => {
+    const view = render(<ToolFallbackApproval approval={pendingApproval} />);
+    button("Allow").focus();
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{ id: "another-request", approved: true }}
+      />,
+    );
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it("does not autofocus a historical receipt", () => {
+    render(
+      <ToolFallbackApproval
+        approval={{ ...pendingApproval, approved: true }}
+      />,
+    );
+    expect(document.activeElement).toBe(document.body);
+  });
+
   it("records the option a gate was allowed with, without controls", () => {
     renderTool({
       status: { type: "complete" },
