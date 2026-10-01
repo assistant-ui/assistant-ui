@@ -672,7 +672,7 @@ interface ScopeRegistry {
   [key: string]: { methods: any; meta?: any; events?: any };
 }
 
-type SlackActionElement = SlackButtonElement | SlackStaticSelectElement | SlackDatePickerElement | SlackCheckboxesElement | SlackRadioButtonsElement;
+type SlackActionElement = SlackButtonElement | SlackStaticSelectElement | SlackDatePickerElement | SlackTimePickerElement | SlackDateTimePickerElement | SlackCheckboxesElement | SlackRadioButtonsElement;
 
 interface SlackActionsBlock {
   readonly type: "actions";
@@ -761,6 +761,12 @@ interface SlackDatePickerElement {
   readonly initial_date?: string;
 }
 
+interface SlackDateTimePickerElement {
+  readonly type: "datetimepicker";
+  readonly action_id: string;
+  readonly initial_date_time?: number;
+}
+
 interface SlackDividerBlock {
   readonly type: "divider";
 }
@@ -834,6 +840,12 @@ interface SlackStaticSelectElement {
 }
 
 type SlackTextObject = SlackPlainText | SlackMrkdwnText;
+
+interface SlackTimePickerElement {
+  readonly type: "timepicker";
+  readonly action_id: string;
+  readonly initial_time?: string;
+}
 
 type SourceMessagePart = {
   readonly type: "source";
@@ -930,7 +942,7 @@ interface TeamsCardAttachment {
   readonly content: TeamsAdaptiveCard;
 }
 
-type TeamsCardElement = TeamsTextBlock | TeamsImage | TeamsFactSet | TeamsActionSet | TeamsContainer | TeamsColumnSet | TeamsInputChoiceSet | TeamsInputToggle | TeamsInputText | TeamsInputDate | TeamsTable;
+type TeamsCardElement = TeamsTextBlock | TeamsImage | TeamsFactSet | TeamsActionSet | TeamsContainer | TeamsColumnSet | TeamsInputChoiceSet | TeamsInputToggle | TeamsInputText | TeamsInputDate | TeamsInputTime | TeamsTable;
 
 interface TeamsColumn {
   readonly type: "Column";
@@ -1024,6 +1036,17 @@ interface TeamsInputText {
   readonly spacing?: "large";
 }
 
+interface TeamsInputTime {
+  readonly type: "Input.Time";
+  readonly id: string;
+  readonly label?: string;
+  readonly value?: string;
+  readonly min?: string;
+  readonly max?: string;
+  readonly separator?: true;
+  readonly spacing?: "large";
+}
+
 interface TeamsInputToggle {
   readonly type: "Input.Toggle";
   readonly id: string;
@@ -1046,6 +1069,7 @@ interface TeamsSubmitData {
   readonly aui: {
     readonly type: string;
     readonly payload?: Record<string, unknown>;
+    readonly temporal?: Readonly<Record<string, TeamsTemporalField>>;
   };
 }
 
@@ -1071,6 +1095,16 @@ interface TeamsTableRow {
   readonly type: "TableRow";
   readonly cells: readonly TeamsTableCell[];
 }
+
+type TeamsTemporalField = {
+  readonly mode: "time";
+  readonly id: string;
+} | {
+  readonly mode: "datetime";
+  readonly dateId: string;
+  readonly timeId: string;
+  readonly previousValue?: string;
+};
 
 interface TeamsTextBlock {
   readonly type: "TextBlock";
@@ -1548,7 +1582,7 @@ declare function normalizeUINode(node: unknown, partialPath?: readonly string[] 
 declare function renderGenerativeUI(node: unknown, library: GenerativeUILibrary, context?: GenerativeUIRenderContext): ReactNode;
 
 declare namespace entry_slack_exports {
-  export { FromSlackBlocksResult, SlackActionElement, SlackActionsBlock, SlackAlertBlock, SlackAlertLevel, SlackBlock, SlackBlocksResult, SlackButtonElement, SlackCardBlock, SlackCarouselBlock, SlackCheckboxesElement, SlackContextBlock, SlackConversionWarning, SlackDataTableBlock, SlackDataTableCell, SlackDataTableRawNumberCell, SlackDataTableRawTextCell, SlackDatePickerElement, SlackDividerBlock, SlackHeaderBlock, SlackImageBlock, SlackInputBlock, SlackMarkdownBlock, SlackMrkdwnText, SlackOption, SlackPlainText, SlackPlainTextInputElement, SlackRadioButtonsElement, SlackSectionBlock, SlackStaticSelectElement, SlackTextObject, ToSlackBlocksOptions, decodeBlockAction, fromSlackBlocks, toSlackBlocks };
+  export { FromSlackBlocksResult, SlackActionElement, SlackActionsBlock, SlackAlertBlock, SlackAlertLevel, SlackBlock, SlackBlocksResult, SlackButtonElement, SlackCardBlock, SlackCarouselBlock, SlackCheckboxesElement, SlackContextBlock, SlackConversionWarning, SlackDataTableBlock, SlackDataTableCell, SlackDataTableRawNumberCell, SlackDataTableRawTextCell, SlackDatePickerElement, SlackDateTimePickerElement, SlackDividerBlock, SlackHeaderBlock, SlackImageBlock, SlackInputBlock, SlackMarkdownBlock, SlackMrkdwnText, SlackOption, SlackPlainText, SlackPlainTextInputElement, SlackRadioButtonsElement, SlackSectionBlock, SlackStaticSelectElement, SlackTextObject, SlackTimePickerElement, ToSlackBlocksOptions, decodeBlockAction, fromSlackBlocks, toSlackBlocks };
 }
 
 declare function surfaceToOperations(surface: A2uiSurfaceState, surfaceId?: string): readonly A2uiSurfaceSnapshotOperation[];
