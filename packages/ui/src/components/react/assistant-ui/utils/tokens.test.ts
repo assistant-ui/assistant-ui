@@ -19,5 +19,11 @@ describe("formatTokenCount", () => {
     expect(formatTokenCount(999_950)).toBe("1M");
     expect(formatTokenCount(999_949_999)).toBe("999.9M");
     expect(formatTokenCount(999_950_000)).toBe("1B");
+    expect(formatTokenCount(999_950_000_000)).toBe("1T");
+  });
+
+  it("prints trillions in T", () => {
+    expect(formatTokenCount(1_000_000_000_000)).toBe("1T");
+    expect(formatTokenCount(2_450_000_000_000)).toBe("2.5T");
   });
 });

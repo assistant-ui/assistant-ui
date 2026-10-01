@@ -135,7 +135,7 @@ export function Usage() {
 </div>
 ```
 
-The segmented bar's color is assigned by index, not by value: the first line always gets the solid blue tone, the second a faded blue, and every line after that shares one neutral gray, regardless of how large its `share` is. Each painted segment is a named meter using that line's `share` as a `0…100` value; a line whose share rounds to no announced width is left out of the bar rather than announced as an empty segment, and the color still follows the line's own index. `share` isn't validated against the others, so shares that don't sum to 1 leave the bar under or overfull. `inputTokens` and `outputTokens` are raw numbers the component prints as-is below a thousand and otherwise to one decimal in the first of `k`, `M`, or `B` that keeps the figure under a thousand (`950` stays `"950 in"`, `48200` becomes `"48.2k in"`, `999950` becomes `"1M in"`); `runCost`, `sessionCost`, and each line's `cost` are already-formatted strings the component only displays; it does no currency math.
+The segmented bar's color is assigned by index, not by value: the first line always gets the solid blue tone, the second a faded blue, and every line after that shares one neutral gray, regardless of how large its `share` is. Each painted segment is a named meter using that line's `share` as a `0…100` value; a line whose share rounds to no announced width is left out of the bar rather than announced as an empty segment, and the color still follows the line's own index. `share` isn't validated against the others, so shares that don't sum to 1 leave the bar under or overfull. `inputTokens` and `outputTokens` are raw numbers the component prints as-is below a thousand and otherwise to one decimal in the first of `k`, `M`, `B`, or `T` that keeps the figure under a thousand (`950` stays `"950 in"`, `48200` becomes `"48.2k in"`, `999950` becomes `"1M in"`); `runCost`, `sessionCost`, and each line's `cost` are already-formatted strings the component only displays; it does no currency math.
 
 ## Examples
 
@@ -197,7 +197,7 @@ assistant-ui tracks token counts, not dollars, and `ThreadStep` carries no model
 | Field | Type | Description |
 |-------|------|-------------|
 | `model` | `string` | Row label, truncated if long. |
-| `inputTokens` | `number` | Formatted by the component as `"{n} in"`, with `n` scaled to `k`, `M`, or `B` from a thousand up. |
+| `inputTokens` | `number` | Formatted by the component as `"{n} in"`, with `n` scaled to `k`, `M`, `B`, or `T` from a thousand up. |
 | `outputTokens` | `number` | Formatted by the component as `"{n} out"`, scaled the same way. |
 | `cost` | `string` | Pre-formatted, shown as-is. |
 | `share` | `number` | This line's fraction of the segmented bar. The first two lines get distinct blue tones, the rest share one neutral tone; shares aren't normalized for you. |

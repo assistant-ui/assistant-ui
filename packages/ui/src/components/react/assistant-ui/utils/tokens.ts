@@ -6,6 +6,7 @@ const UNITS = [
   { size: 1_000, suffix: "k" },
   { size: 1_000_000, suffix: "M" },
   { size: 1_000_000_000, suffix: "B" },
+  { size: 1_000_000_000_000, suffix: "T" },
 ] as const;
 
 const tenths = (value: number) => Math.round(value * 10) / 10;
