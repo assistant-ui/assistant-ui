@@ -36,7 +36,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ai-sdk/provider": "^4.0.14",
+    "@ai-sdk/provider": "^4.0.20",
     "@assistant-ui/core": "^0.3.21",
     "assistant-cloud": "*",
     "assistant-stream": "^0.3.45"
@@ -59,7 +59,7 @@
     "jsdom": "^30.0.1",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.3"
   },
   "publishConfig": {
     "access": "public",
