@@ -25,6 +25,8 @@ on:
       - "scripts/deploy-examples-changes.test.mjs"
       - "scripts/api-reference-inputs.mjs"
       - "scripts/api-reference-inputs.test.mjs"
+      - "scripts/app-build-inputs.mjs"
+      - "scripts/app-build-inputs.test.mjs"
       - "scripts/package-build-inputs.mjs"
       - "scripts/package-build-inputs.test.mjs"
       - ".github/workflows/deploy-examples.yaml"
@@ -61,6 +63,8 @@ on:
       - "scripts/deploy-examples-changes.test.mjs"
       - "scripts/api-reference-inputs.mjs"
       - "scripts/api-reference-inputs.test.mjs"
+      - "scripts/app-build-inputs.mjs"
+      - "scripts/app-build-inputs.test.mjs"
       - "scripts/package-build-inputs.mjs"
       - "scripts/package-build-inputs.test.mjs"
       - ".github/workflows/deploy-examples.yaml"
@@ -317,7 +321,27 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Detect app build inputs
+        id: app_build_inputs
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE=HEAD^1
+          else
+            BASE="${{ github.event.before }}"
+          fi
+          if git rev-parse --verify --quiet "${BASE}^{commit}" > /dev/null; then
+            run=$(git diff --name-only --no-renames -z "$BASE" HEAD | node scripts/app-build-inputs.mjs)
+          else
+            run=true
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
+      - name: Test app build input detector
+        run: node --test scripts/app-build-inputs.test.mjs
+
       - name: Setup pnpm and node.js
+        if: steps.app_build_inputs.outputs.run == 'true'
         uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
         with:
           runtime: node@24
@@ -325,12 +349,14 @@ jobs:
           install: false
 
       - name: Install dependencies
+        if: steps.app_build_inputs.outputs.run == 'true'
         run: pnpm install --frozen-lockfile
 
       # apps/docs is excluded: its build belongs to the Vercel deployment.
       # Examples are demos, so a package change does not rebuild them; an example is built only
       # when its own files change, and deploy-examples builds the deployed ones on main.
       - name: Build apps
+        if: steps.app_build_inputs.outputs.run == 'true'
         env:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
