@@ -323,10 +323,10 @@ export async function POST(req: Request): Promise<Response> {
     const toolsError = validateFrontendToolsInput(tools);
     if (toolsError) return toolsError;
 
-    const prunedMessages = await prepareDocChatMessages(messages);
-
-    const inputError = validateDocChatInput(prunedMessages);
+    const inputError = validateDocChatInput(messages);
     if (inputError) return inputError;
+
+    const prunedMessages = await prepareDocChatMessages(messages);
 
     const { model, providerOptions } = resolveChatModel({
       modelName: config?.modelName,
