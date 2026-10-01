@@ -410,6 +410,7 @@ export default function PlaygroundPage() {
           <div className="bg-muted/70 grid grid-cols-2 rounded-lg p-1 text-xs">
             <button
               type="button"
+              aria-label="AI Builder"
               onClick={() => handleModeChange("agent")}
               className={cn(
                 "rounded-sm px-2.5 py-1 font-medium transition-colors",
@@ -418,10 +419,12 @@ export default function PlaygroundPage() {
                   : "text-foreground/45 hover:text-foreground/90",
               )}
             >
-              AI Builder
+              <span className="hidden md:inline">AI Builder</span>
+              <span className="md:hidden">AI</span>
             </button>
             <button
               type="button"
+              aria-label="UI Builder"
               onClick={() => handleModeChange("builder")}
               className={cn(
                 "rounded-sm px-2.5 py-1 font-medium transition-colors",
@@ -430,7 +433,8 @@ export default function PlaygroundPage() {
                   : "text-foreground/45 hover:text-foreground/90",
               )}
             >
-              UI Builder
+              <span className="hidden md:inline">UI Builder</span>
+              <span className="md:hidden">UI</span>
             </button>
           </div>
         </HeaderPortal>
