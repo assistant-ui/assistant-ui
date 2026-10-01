@@ -1,11 +1,14 @@
 import { createRef } from "react";
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Composer, ComposerMenu } from "./composer";
 
 const COMPOSER_WIDTH = 260;
 const MENU_WIDTH = 288;
+
+let composerWidth = COMPOSER_WIDTH;
+const resizeCallbacks: ResizeObserverCallback[] = [];
 
 const rect = (left: number, width: number) =>
   ({
@@ -21,9 +24,14 @@ const rect = (left: number, width: number) =>
   }) as DOMRect;
 
 beforeEach(() => {
+  composerWidth = COMPOSER_WIDTH;
+  resizeCallbacks.length = 0;
   vi.stubGlobal(
     "ResizeObserver",
     class {
+      constructor(callback: ResizeObserverCallback) {
+        resizeCallbacks.push(callback);
+      }
       observe() {}
       unobserve() {}
       disconnect() {}
@@ -31,7 +39,7 @@ beforeEach(() => {
   );
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
     function (this: HTMLElement) {
-      if (this.dataset["slot"] === "composer") return rect(0, COMPOSER_WIDTH);
+      if (this.dataset["slot"] === "composer") return rect(0, composerWidth);
       return rect(Number(this.dataset["left"] ?? 0), 32);
     },
   );
@@ -77,6 +85,26 @@ describe("ComposerMenu", () => {
     const menu = screen.getByTestId("menu");
     expect(menu.style.maxWidth).toBe(`${COMPOSER_WIDTH}px`);
     expect(menu.style.translate).toBe("-48px 0");
+  });
+
+  it("re-fits an open menu when the composer resizes", () => {
+    render(
+      <Composer>
+        <ComposerMenu open data-testid="menu" />
+      </Composer>,
+    );
+    expect(screen.getByTestId("menu").style.maxWidth).toBe(
+      `${COMPOSER_WIDTH}px`,
+    );
+
+    composerWidth = 200;
+    act(() => {
+      for (const callback of resizeCallbacks) {
+        callback([], {} as ResizeObserver);
+      }
+    });
+
+    expect(screen.getByTestId("menu").style.maxWidth).toBe("200px");
   });
 
   it("re-measures when its alignment changes", () => {
