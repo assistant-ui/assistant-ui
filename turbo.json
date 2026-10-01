@@ -48,6 +48,12 @@
     "typecheck": {
       "dependsOn": ["^build"]
     },
+    "test:peer-react18": {
+      "dependsOn": ["^build", "build"]
+    },
+    "test:types:peer-react18": {
+      "dependsOn": ["^build", "build"]
+    },
     "test:react-compiler": {
       "dependsOn": ["build"]
     },
