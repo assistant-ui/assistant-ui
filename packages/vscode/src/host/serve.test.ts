@@ -2,7 +2,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createInMemoryBridge } from "../testUtils";
 import { createVSCodeFetch } from "../webview/fetch";
 import { callHost } from "../webview/rpc";
-import { serveWebviewHost, type ServeWebviewHostOptions } from "./serve";
+import {
+  serveWebviewHost,
+  serveWebviewRoutes,
+  type ServeWebviewHostOptions,
+} from "./serve";
 
 const disposers: (() => void)[] = [];
 
@@ -102,5 +106,22 @@ describe("serveWebviewHost", () => {
 
     expect(openExternal).not.toHaveBeenCalled();
     expect(bridge.hostToWebview).toHaveLength(0);
+  });
+});
+
+describe("serveWebviewRoutes", () => {
+  it("rejects host calls instead of leaving them unanswered", async () => {
+    const bridge = createInMemoryBridge();
+    const server = serveWebviewRoutes(bridge.webview, {
+      "/api/ping": { GET: () => new Response("pong") },
+    });
+    disposers.push(() => server.dispose());
+
+    expect(
+      await (await createVSCodeFetch(bridge.port)("/api/ping")).text(),
+    ).toBe("pong");
+    await expect(
+      callHost(bridge.port, "storage.getItem", ["threads"]),
+    ).rejects.toThrow("storage.getItem is not served by this host");
   });
 });

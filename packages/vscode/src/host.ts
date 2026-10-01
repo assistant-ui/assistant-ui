@@ -10,7 +10,6 @@ export {
   type WebviewSurface,
 } from "./host/html";
 export {
-  serveWebviewRoutes,
   type Disposable,
   type HttpMethod,
   type RouteHandler,
@@ -21,6 +20,7 @@ export {
 } from "./host/router";
 export {
   serveWebviewHost,
+  serveWebviewRoutes,
   type MementoLike,
   type ServeWebviewHostOptions,
 } from "./host/serve";

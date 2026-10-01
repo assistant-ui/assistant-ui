@@ -6,7 +6,7 @@ import {
   type RpcResponseMessage,
 } from "../protocol";
 import {
-  serveWebviewRoutes,
+  serveRoutes,
   type Disposable,
   type ServeWebviewRoutesOptions,
   type WebviewLike,
@@ -47,7 +47,7 @@ const stringParam = (value: unknown, name: string): string => {
 /**
  * Serves `vscodeFetch` routes and the webview's host calls, such as
  * `installLinkInterceptor` opening links and `createVSCodeStorage`, for one
- * webview. Use it in place of `serveWebviewRoutes`.
+ * webview. Host calls without a handler reject in the webview.
  */
 export function serveWebviewHost(
   webview: WebviewLike,
@@ -109,7 +109,7 @@ export function serveWebviewHost(
     }
   };
 
-  const server = serveWebviewRoutes(webview, routes, routeOptions);
+  const server = serveRoutes(webview, routes, routeOptions);
   const subscription = webview.onDidReceiveMessage((message: unknown) => {
     if (isWebviewToHostMessage(message) && message.kind === "rpc:request") {
       void handle(message);
@@ -122,4 +122,18 @@ export function serveWebviewHost(
       server.dispose();
     },
   };
+}
+
+/**
+ * Serves `routes` to `createVSCodeFetch` / `vscodeFetch` calls made inside
+ * `webview`, streaming each response back as it is produced. Host calls such
+ * as `installLinkInterceptor` or `createVSCodeStorage` reject in the webview;
+ * use `serveWebviewHost` to serve them.
+ */
+export function serveWebviewRoutes(
+  webview: WebviewLike,
+  routes: WebviewRoutes,
+  options?: ServeWebviewRoutesOptions,
+): Disposable {
+  return serveWebviewHost(webview, { ...options, routes });
 }

@@ -870,7 +870,7 @@ declare function renderWebviewHtml<U>(webview: WebviewResourceLike<U>, options: 
 
 declare function serveWebviewHost(webview: WebviewLike, _param2?: ServeWebviewHostOptions): Disposable;
 
-declare function serveWebviewRoutes(webview: WebviewLike, routes: WebviewRoutes, _param3?: ServeWebviewRoutesOptions): Disposable;
+declare function serveWebviewRoutes(webview: WebviewLike, routes: WebviewRoutes, options?: ServeWebviewRoutesOptions): Disposable;
 
 declare const vscodeFetch: VSCodeFetch;
 

@@ -52,11 +52,7 @@ const concat = (parts: Uint8Array[], size: number) => {
 const errorMessage = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
-/**
- * Serves `routes` to `createVSCodeFetch` / `vscodeFetch` calls made inside
- * `webview`, streaming each response back as it is produced.
- */
-export function serveWebviewRoutes(
+export function serveRoutes(
   webview: WebviewLike,
   routes: WebviewRoutes,
   {

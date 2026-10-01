@@ -6,7 +6,8 @@ import {
   type UIMessageChunk,
 } from "ai";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { serveWebviewRoutes, type RouteHandler } from "../host/router";
+import type { RouteHandler } from "../host/router";
+import { serveWebviewRoutes } from "../host/serve";
 import { createInMemoryBridge } from "../testUtils";
 import { createVSCodeFetch } from "./fetch";
 
