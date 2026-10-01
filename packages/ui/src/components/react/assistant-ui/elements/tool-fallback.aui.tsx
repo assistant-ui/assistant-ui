@@ -549,6 +549,15 @@ function ToolFallbackApproval({
     },
     onBlurCapture: (event: React.FocusEvent<HTMLDivElement>) => {
       if (
+        event.relatedTarget === null &&
+        event.currentTarget.contains(
+          event.currentTarget.ownerDocument.activeElement,
+        )
+      ) {
+        onBlurCapture?.(event);
+        return;
+      }
+      if (
         locked &&
         event.relatedTarget === null &&
         event.target !== event.currentTarget
@@ -926,7 +935,8 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
     status?.type === "incomplete" && status.reason === "cancelled";
   const isRequiresAction = status?.type === "requires-action";
   const shouldRenderApproval =
-    isRequiresAction && offersInterruptAction(status, approval, interrupt);
+    approval != null ||
+    (isRequiresAction && offersInterruptAction(status, approval, interrupt));
 
   const [open, setOpen] = useState(isRequiresAction);
   const [prevRequiresAction, setPrevRequiresAction] =
@@ -945,7 +955,7 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
           argsText={argsText}
           className={cn(isCancelled && "opacity-60")}
         />
-        {(shouldRenderApproval || isSettled(approval)) && (
+        {shouldRenderApproval && (
           <ToolFallbackApproval
             addResult={addResult}
             resume={resume}

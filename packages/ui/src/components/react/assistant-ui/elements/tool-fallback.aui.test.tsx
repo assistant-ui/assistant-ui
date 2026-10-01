@@ -387,6 +387,53 @@ describe("settled approval receipts", () => {
     expect(document.activeElement).toBe(receipt());
   });
 
+  it("retains focus ownership when a window blur keeps the active control", () => {
+    const view = render(<ToolFallbackApproval approval={pendingApproval} />);
+    const control = button("Allow");
+    control.focus();
+    fireEvent.blur(control, { relatedTarget: null });
+    expect(document.activeElement).toBe(control);
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{ ...pendingApproval, resolution: "expired" }}
+      />,
+    );
+    expect(document.activeElement).toBe(receipt());
+  });
+
+  it.each([true, false])(
+    "keeps ToolFallback focus when status settles with approval: %s",
+    (settleTogether) => {
+      const respondToApproval = vi.fn(async () => {});
+      const view = renderTool({ approval: pendingApproval, respondToApproval });
+      const control = button("Allow");
+      control.focus();
+      fireEvent.click(control);
+      control.blur();
+      const runningTool = (approved?: boolean) => (
+        <ToolFallback
+          type="tool-call"
+          toolCallId="call-1"
+          toolName="test-tool"
+          args={{}}
+          argsText="{}"
+          status={{ type: "running" }}
+          approval={{ ...pendingApproval, approved }}
+          addResult={vi.fn()}
+          resume={vi.fn()}
+          respondToApproval={respondToApproval}
+        />
+      );
+      if (!settleTogether) {
+        view.rerender(runningTool());
+        expect(button("Allow").disabled).toBe(true);
+      }
+      view.rerender(runningTool(true));
+      expect(document.activeElement).toBe(receipt());
+      expect(receipt()?.textContent).toContain("Allowed");
+    },
+  );
+
   it("does not move focus from another control while a decision is pending", () => {
     const respondToApproval = vi.fn(async () => {});
     const content = (approved?: boolean) => (
