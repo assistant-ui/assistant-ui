@@ -53,6 +53,8 @@
     "build": "aui-build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "test:peer-react18": "vitest run --config vitest.peer-react18.config.ts",
+    "test:types:peer-react18": "aui-react18-types",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -73,6 +75,7 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@assistant-ui/x-react18": "workspace:*",
     "@types/react": "^19.3.0",
     "jsdom": "^30.0.1",
     "react": "^19.3.0",
