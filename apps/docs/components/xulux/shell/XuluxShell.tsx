@@ -128,7 +128,7 @@ export function XuluxShell({
   const currentRemoteId = useAuiState((state) => state.threadListItem.remoteId);
   const isThreadRunning = useAuiState((state) => state.thread.isRunning);
   const threadMessages = useAuiState((state) => state.thread.messages);
-  useNormalizeInterruptedXuluxThreads();
+  useNormalizeInterruptedXuluxThreads(mode === "playground");
   const storedThreads = useXuluxStoredThreads();
   const [viewMode, setViewMode] = useState<XuluxViewMode>("landing");
   const [selectedTemplate, setSelectedTemplate] =
