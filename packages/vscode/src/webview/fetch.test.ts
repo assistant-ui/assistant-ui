@@ -261,18 +261,35 @@ describe("vscodeFetch over serveWebviewRoutes", () => {
     await waitFor(() => kinds(bridge.hostToWebview, "fetch:end").length === 1);
   });
 
+  it("releases a streamed request body once it has been read", async () => {
+    const { fetch } = setup({
+      "/api/upload": { POST: async (req) => new Response(await req.text()) },
+    });
+    const body = streamOf([encoder.encode("a"), encoder.encode("b")]);
+
+    const response = await fetch("/api/upload", {
+      method: "POST",
+      body,
+      duplex: "half",
+    } as RequestInit);
+
+    expect(await response.text()).toBe("ab");
+    expect(body.locked).toBe(false);
+  });
+
   it("rejects when aborted while the request body is still being read", async () => {
     let cancelled = false;
     const { fetch, bridge } = setup({});
     const controller = new AbortController();
+    const body = new ReadableStream({
+      cancel() {
+        cancelled = true;
+      },
+    });
 
     const pending = fetch("/api/upload", {
       method: "POST",
-      body: new ReadableStream({
-        cancel() {
-          cancelled = true;
-        },
-      }),
+      body,
       duplex: "half",
       signal: controller.signal,
     } as RequestInit);
@@ -280,6 +297,7 @@ describe("vscodeFetch over serveWebviewRoutes", () => {
 
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
     expect(cancelled).toBe(true);
+    expect(body.locked).toBe(false);
     expect(bridge.webviewToHost).toHaveLength(0);
   });
 

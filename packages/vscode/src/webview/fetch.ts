@@ -62,6 +62,7 @@ const readBody = async (
     return out;
   } finally {
     signal.removeEventListener("abort", onAbort);
+    reader.releaseLock();
   }
 };
 
