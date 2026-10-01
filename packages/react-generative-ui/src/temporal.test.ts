@@ -226,6 +226,24 @@ describe("temporal values", () => {
     },
   );
 
+  it.each([
+    [
+      "2026-07-16T08:34:56",
+      "2026-07-15T12:34:56.000456Z",
+      "2026-07-16T12:34:56.000456Z",
+    ],
+    [
+      "2026-07-16T08:34",
+      "2026-07-15T12:34:00.000456Z",
+      "2026-07-16T12:34:00.000456Z",
+    ],
+  ])(
+    "keeps a sub-millisecond tail the control cannot show after an edit to %s",
+    (local, anchor, expected) => {
+      expect(fromLocalDateTime(local, anchor)).toBe(expected);
+    },
+  );
+
   it("uses zero for a native zero or omitted fraction", () => {
     expect(
       fromLocalDateTime("2025-12-15T12:00:00.000", "2025-12-15T17:00:00.250Z"),

@@ -243,8 +243,8 @@ export const fromLocalDateTime = (
   return formatTemporalInstant({
     ...previous,
     epochMs: date.getTime(),
-    ...(typeof temporal.precision === "number" &&
-    date.getMilliseconds() === new Date(previous.epochMs).getUTCMilliseconds()
+    ...(date.getMilliseconds() ===
+    new Date(previous.epochMs).getUTCMilliseconds()
       ? {}
       : typeof temporal.precision === "number"
         ? {
