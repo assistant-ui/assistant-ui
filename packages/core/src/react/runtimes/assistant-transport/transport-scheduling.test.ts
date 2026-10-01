@@ -435,8 +435,8 @@ describe("assistant transport scheduling contracts", () => {
 
     unmount();
 
-    expect(aborted).toBe(true);
     await act(async () => {});
+    expect(aborted).toBe(true);
     expect(onCancel).not.toHaveBeenCalled();
     expect(onError).not.toHaveBeenCalled();
     expect(onFinish).not.toHaveBeenCalled();

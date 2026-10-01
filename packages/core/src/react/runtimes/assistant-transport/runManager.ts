@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
+import { useCallback, useRef, useState } from "react";
 import { invokeUserCallback } from "../../../utils/invoke-user-callback";
 import { useLatestRef } from "./useLatestRef";
 
@@ -90,9 +91,7 @@ export function useRunManager(config: {
     startRun();
   }, [startRun]);
 
-  // Strict-mode effects run setup / cleanup / setup on the same instance;
-  // arming on setup undoes the cleanup's dispose.
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     stateRef.current.disposed = false;
     return () => {
       stateRef.current.disposed = true;

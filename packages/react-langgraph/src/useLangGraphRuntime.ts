@@ -41,6 +41,7 @@ import {
   useExternalStoreRuntime,
 } from "@assistant-ui/core/react";
 import { useAui } from "@assistant-ui/store";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import {
   convertLangChainMessages,
   getMessageContent,
@@ -383,7 +384,7 @@ const useLangGraphRuntimeImpl = (
   const queueRef = useRef<MessageQueueController | null>(null);
   // The purpose rides along because only a refetch may be superseded by a
   // send: aborting an initial load would strand its history and loading flag.
-  const loadController = useMemo(createAbortableThreadLoad, []);
+  const [loadController] = useState(createAbortableThreadLoad);
   const hasExecutingTools = Object.values(toolStatuses).some(
     (s) => s?.type === "executing",
   );
@@ -465,6 +466,10 @@ const useLangGraphRuntimeImpl = (
     queueRef.current?.clear();
     cancel();
   }, [runQueue, cancel]);
+  const cancelActiveRunRef = useRef(cancelActiveRun);
+  useInsertionEffect(() => {
+    cancelActiveRunRef.current = cancelActiveRun;
+  }, [cancelActiveRun]);
 
   const langGraphMessagesRef = useRef(messages);
   useInsertionEffect(() => {
@@ -752,7 +757,7 @@ const useLangGraphRuntimeImpl = (
     ],
   );
 
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     runLoad();
     return () => {
       // Whatever is current, not this effect's own controller: a refetch swaps
@@ -760,9 +765,9 @@ const useLangGraphRuntimeImpl = (
       loadController.abort();
       setIsLoadingThread(false);
     };
-  }, [loadController, runLoad]);
+  }, [threadListItem]);
 
-  useEffect(() => cancelActiveRun, [cancelActiveRun]);
+  useReplaySafeEffect(() => () => cancelActiveRunRef.current(), []);
 
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
