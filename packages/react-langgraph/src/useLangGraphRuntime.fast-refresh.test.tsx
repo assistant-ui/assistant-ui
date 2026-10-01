@@ -88,6 +88,8 @@ const adapter: RemoteThreadListAdapter = {
   }),
 };
 
+let rendered = "";
+
 const refresh = async (Before: unknown, After: unknown) => {
   const family: Family = { current: After };
   renderer!.setRefreshHandler((type) =>
@@ -102,6 +104,7 @@ const refresh = async (Before: unknown, After: unknown) => {
     }
   });
   await act(async () => {});
+  expect(rendered).toBe("after");
 };
 
 const Observer = () => {
@@ -133,11 +136,12 @@ const mountParent = async () => {
 it("pins the thread load controller across Fast Refresh", async () => {
   const pending = deferred<{ messages: LangChainMessage[] }>();
   const load = vi.fn(
-    (_id: string, _config: { signal: AbortSignal }) => pending.promise,
+    (_id: string, _config?: { signal: AbortSignal }) => pending.promise,
   );
   const stream = vi.fn(async function* () {});
   let runtime!: ReturnType<typeof useLangGraphRuntime>;
-  const host = () => () => {
+  const host = (label: string) => () => {
+    rendered = label;
     runtime = useLangGraphRuntime({
       stream,
       load,
@@ -149,8 +153,8 @@ it("pins the thread load controller across Fast Refresh", async () => {
       </AssistantRuntimeProvider>
     );
   };
-  const Before = host();
-  const After = host();
+  const Before = host("before");
+  const After = host("after");
   const parent = await mountParent();
   const view = render(
     <AssistantRuntimeProvider runtime={parent}>
@@ -170,11 +174,12 @@ it("pins the thread load controller across Fast Refresh", async () => {
 it("keeps an in-flight thread load and lands its history after Fast Refresh", async () => {
   const pending = deferred<{ messages: LangChainMessage[] }>();
   const load = vi.fn(
-    (_id: string, _config: { signal: AbortSignal }) => pending.promise,
+    (_id: string, _config?: { signal: AbortSignal }) => pending.promise,
   );
   const stream = vi.fn(async function* () {});
   let runtime!: ReturnType<typeof useLangGraphRuntime>;
-  const host = () => () => {
+  const host = (label: string) => () => {
+    rendered = label;
     runtime = useLangGraphRuntime({
       stream,
       load,
@@ -186,8 +191,8 @@ it("keeps an in-flight thread load and lands its history after Fast Refresh", as
       </AssistantRuntimeProvider>
     );
   };
-  const Before = host();
-  const After = host();
+  const Before = host("before");
+  const After = host("after");
   const parent = await mountParent();
   const view = render(
     <AssistantRuntimeProvider runtime={parent}>
@@ -195,7 +200,7 @@ it("keeps an in-flight thread load and lands its history after Fast Refresh", as
     </AssistantRuntimeProvider>,
   );
   await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
-  const signal = load.mock.calls[0]![1].signal;
+  const signal = load.mock.calls[0]![1]!.signal;
 
   await refresh(Before, After);
   expect(signal.aborted).toBe(false);
@@ -217,7 +222,7 @@ it("keeps an in-flight thread load and lands its history after Fast Refresh", as
 
 it("aborts an in-flight thread load on real unmount", async () => {
   const load = vi.fn(
-    (_id: string, _config: { signal: AbortSignal }) =>
+    (_id: string, _config?: { signal: AbortSignal }) =>
       new Promise<never>(() => {}),
   );
   const stream = vi.fn(async function* () {});
@@ -241,7 +246,7 @@ it("aborts an in-flight thread load on real unmount", async () => {
     </AssistantRuntimeProvider>,
   );
   await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
-  const signal = load.mock.calls[0]![1].signal;
+  const signal = load.mock.calls[0]![1]!.signal;
   view.unmount();
   await act(async () => {});
   expect(signal.aborted).toBe(true);
@@ -273,7 +278,8 @@ it("keeps a streaming run and queued tool-result resume across Fast Refresh", as
     }
   });
   let runtime!: ReturnType<typeof useLangGraphRuntime>;
-  const host = () => () => {
+  const host = (label: string) => () => {
+    rendered = label;
     runtime = useLangGraphRuntime({ stream });
     return (
       <AssistantRuntimeProvider runtime={runtime}>
@@ -281,8 +287,8 @@ it("keeps a streaming run and queued tool-result resume across Fast Refresh", as
       </AssistantRuntimeProvider>
     );
   };
-  const Before = host();
-  const After = host();
+  const Before = host("before");
+  const After = host("after");
   const parent = await mountParent();
   const view = render(
     <AssistantRuntimeProvider runtime={parent}>

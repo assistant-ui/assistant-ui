@@ -36,6 +36,8 @@ afterEach(() => {
 });
 afterAll(() => vi.unstubAllGlobals());
 
+let rendered = "";
+
 const refresh = (before: unknown, after: unknown) => {
   const family: Family = { current: after };
   renderer!.setRefreshHandler((type) =>
@@ -71,10 +73,12 @@ it("keeps an in-flight run and coalesced follow-up through Fast Refresh, then ab
     manager = useRunManager({ onRun, onFinish, onCancel });
   };
   const Before = () => {
+    rendered = "before";
     useManager();
     return null;
   };
   const After = () => {
+    rendered = "after";
     useManager();
     return null;
   };
@@ -87,6 +91,7 @@ it("keeps an in-flight run and coalesced follow-up through Fast Refresh, then ab
   act(() => manager.schedule());
 
   await act(async () => refresh(Before, After));
+  expect(rendered).toBe("after");
   expect(signal.aborted).toBe(false);
   expect(onCancel).not.toHaveBeenCalled();
 
@@ -109,10 +114,12 @@ it("keeps a render waiter pending through Fast Refresh until its ticket commits,
     waitForRender = useReplayRenderWait();
   };
   const Before = () => {
+    rendered = "before";
     useWaiter();
     return null;
   };
   const After = () => {
+    rendered = "after";
     useWaiter();
     return null;
   };
@@ -126,6 +133,7 @@ it("keeps a render waiter pending through Fast Refresh until its ticket commits,
     vi.runOnlyPendingTimers();
   });
   flushSync(() => refresh(Before, After));
+  expect(rendered).toBe("after");
   await Promise.resolve();
   expect(resolved).toBe(false);
 

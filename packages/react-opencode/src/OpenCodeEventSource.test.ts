@@ -91,11 +91,7 @@ describe("OpenCodeEventSource", () => {
     });
 
     unsubscribe();
-    await waitFor(() => {
-      expect(client.event.subscribe.mock.calls[0]![1].signal.aborted).toBe(
-        true,
-      );
-    });
+    await Promise.resolve();
     source.subscribe(vi.fn());
 
     await waitFor(() => {
@@ -124,11 +120,7 @@ describe("OpenCodeEventSource", () => {
     expect(firstListener).not.toHaveBeenCalled();
 
     unsubscribe();
-    await waitFor(() => {
-      expect(client.event.subscribe.mock.calls[0]![1].signal.aborted).toBe(
-        true,
-      );
-    });
+    await Promise.resolve();
     const secondListener = vi.fn();
     source.subscribe(secondListener);
 

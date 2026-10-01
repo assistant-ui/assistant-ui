@@ -77,7 +77,7 @@ export class OpenCodeEventSource {
   private readonly maxReconnectDelayMs = 30_000;
   private abortController: AbortController | null = null;
   private connectionPromise: Promise<void> | null = null;
-  private disconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private disconnectPending = false;
   private interruptReconnectWait: (() => void) | null = null;
   private stopped = false;
   private nextReconnectDelayMs = this.reconnectDelayMs;
@@ -90,9 +90,8 @@ export class OpenCodeEventSource {
   }
 
   public subscribe(listener: Listener) {
-    if (this.disconnectTimer !== null) {
-      clearTimeout(this.disconnectTimer);
-      this.disconnectTimer = null;
+    if (this.disconnectPending) {
+      this.disconnectPending = false;
       this.interruptReconnectWait?.();
     }
     this.listeners.add(listener);
@@ -100,21 +99,22 @@ export class OpenCodeEventSource {
 
     return () => {
       this.listeners.delete(listener);
-      if (this.listeners.size === 0 && this.disconnectTimer === null) {
-        this.disconnectTimer = setTimeout(() => {
-          this.disconnectTimer = null;
-          if (this.listeners.size === 0) this.disconnect();
-        }, 0);
+      // A replay unsubscribes and resubscribes within one synchronous commit,
+      // where no stream event can arrive, so only that keeps the stream open.
+      if (this.listeners.size === 0 && !this.disconnectPending) {
+        this.disconnectPending = true;
+        queueMicrotask(() => {
+          if (!this.disconnectPending) return;
+          this.disconnectPending = false;
+          this.disconnect();
+        });
       }
     };
   }
 
   public dispose() {
     this.stopped = true;
-    if (this.disconnectTimer !== null) {
-      clearTimeout(this.disconnectTimer);
-      this.disconnectTimer = null;
-    }
+    this.disconnectPending = false;
     this.disconnect();
   }
 

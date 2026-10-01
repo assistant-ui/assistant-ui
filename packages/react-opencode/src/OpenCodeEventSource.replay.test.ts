@@ -64,3 +64,24 @@ it("disconnects after a genuine last unsubscribe", async () => {
   expect(signals[0]!.aborted).toBe(true);
   source.dispose();
 });
+
+it("reconnects when a listener returns after the replay window", async () => {
+  const { source, signals, subscribe } = createSource();
+  const unsubscribe = source.subscribe(vi.fn());
+  await Promise.resolve();
+  expect(subscribe).toHaveBeenCalledOnce();
+
+  unsubscribe();
+  await Promise.resolve();
+  const listener = vi.fn();
+  source.subscribe(listener);
+
+  await vi.waitFor(() => expect(subscribe).toHaveBeenCalledTimes(2));
+  expect(signals[0]!.aborted).toBe(true);
+  await vi.waitFor(() =>
+    expect(listener).toHaveBeenCalledWith(
+      expect.objectContaining({ type: STREAM_RECONNECTED_EVENT_TYPE }),
+    ),
+  );
+  source.dispose();
+});

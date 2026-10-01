@@ -442,6 +442,23 @@ describe("assistant transport scheduling contracts", () => {
     expect(onFinish).not.toHaveBeenCalled();
   });
 
+  it("starts no run once unmounted", async () => {
+    const onRun = vi.fn(() => new Promise<void>(() => {}));
+    const onFinish = vi.fn();
+    const { result, unmount } = renderHook(() =>
+      useTransportSchedulingHarness({ onRun, onFinish }),
+    );
+
+    act(() => {
+      result.current.commandQueue.enqueue(createMessageCommand("late"));
+    });
+    unmount();
+
+    await act(async () => {});
+    expect(onRun).not.toHaveBeenCalled();
+    expect(onFinish).not.toHaveBeenCalled();
+  });
+
   it("ignores schedules after unmount", async () => {
     const { result, unmount } = renderHook(() =>
       useTransportSchedulingHarness(),
