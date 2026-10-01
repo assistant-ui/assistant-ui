@@ -26,7 +26,7 @@ const PLACES: readonly GeoMapPlace[] = [
     lat: 1.2955,
     lng: 103.7783,
     label: "Botanic Garden gate",
-    description: "The route finishes here.",
+    description: "A short walk past the museum.",
   },
 ];
 

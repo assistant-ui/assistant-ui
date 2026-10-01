@@ -6,6 +6,7 @@ const ORIGINAL = "Explain how the composer keeps its draft.";
 
 function EditMessageExample({ initialEditing }: { initialEditing: boolean }) {
   const [value, setValue] = useState(ORIGINAL);
+  const [saved, setSaved] = useState(ORIGINAL);
   const [editing, setEditing] = useState(initialEditing);
   return (
     <EditMessage
@@ -15,10 +16,13 @@ function EditMessageExample({ initialEditing }: { initialEditing: boolean }) {
       onValueChange={setValue}
       onStartEdit={() => setEditing(true)}
       onCancel={() => {
-        setValue(ORIGINAL);
+        setValue(saved);
         setEditing(false);
       }}
-      onSave={() => setEditing(false)}
+      onSave={() => {
+        setSaved(value);
+        setEditing(false);
+      }}
     />
   );
 }

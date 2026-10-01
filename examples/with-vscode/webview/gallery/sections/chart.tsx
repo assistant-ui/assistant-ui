@@ -25,6 +25,7 @@ export default defineSections([
           label="p95 latency"
           value="1.2s"
           delta="−18%"
+          upIsGood={false}
           points={POINTS}
           visibleCount={POINTS.length}
           variant="line"

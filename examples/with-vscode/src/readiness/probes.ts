@@ -46,7 +46,7 @@ export const PROBES = [
   {
     id: "external-link",
     description:
-      "Clicking a source link sends openExternal to the host (stubbed)",
+      "Clicking a Markdown link sends openExternal to the host (stubbed)",
     phase: 1,
     workstream: "Browser API shims",
   },
@@ -59,7 +59,8 @@ export const PROBES = [
   },
   {
     id: "threads-persist",
-    description: "A created thread is listed after Reload Window",
+    description:
+      "A created thread is listed after a webview reload and in a new webview",
     phase: 1,
     workstream: "Browser API shims",
   },

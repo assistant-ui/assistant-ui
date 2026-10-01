@@ -62,7 +62,7 @@ const globModules: Plugin = {
     );
     b.onLoad({ filter: /.*/, namespace: "glob-modules" }, async (args) => {
       const dir = GLOB_MODULES[args.path] as string;
-      const files = (await fs.readdir(dir).catch(() => []))
+      const files = (await fs.readdir(dir))
         .filter((f) => /\.tsx?$/.test(f) && !f.startsWith("_"))
         .filter((f) => !/\.test\.tsx?$/.test(f))
         .sort();

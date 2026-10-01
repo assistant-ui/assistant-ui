@@ -12,7 +12,7 @@ const SPANS: readonly TraceSpan[] = [
     depth: 0,
     startMs: 0,
     durationMs: 1840,
-    status: "completed",
+    status: "running",
   },
   {
     id: "model",

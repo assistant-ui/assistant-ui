@@ -44,7 +44,7 @@ export default defineSections([
     title: "Shiki highlighter (default engine)",
     category: "content",
     notes:
-      "Standalone, default react-shiki bundle, which loads the Oniguruma WASM engine: needs 'wasm-unsafe-eval' in script-src.",
+      "Standalone, with the kit's default JavaScript regex engine, so it loads no WASM and needs no 'wasm-unsafe-eval'.",
     render: () => <SyntaxHighlighter language="ts" code={CODE} delay={0} />,
   },
   {
@@ -52,7 +52,7 @@ export default defineSections([
     title: "Shiki highlighter (JavaScript engine)",
     category: "content",
     notes:
-      "Same code with engine={createJavaScriptRegexEngine()}, which needs no WASM; highlightLines marks lines 4 and 8. react-shiki keeps one Shiki singleton per page and ignores engine after the first call, so this highlights only when no default-engine highlighter ran first.",
+      "Same code with engine={createJavaScriptRegexEngine()}, which needs no WASM; highlightLines marks lines 4 and 8. The kit keeps one highlighter per engine, so the explicit engine is honored whatever rendered first.",
     render: () => (
       <SyntaxHighlighter
         language="ts"

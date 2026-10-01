@@ -25,7 +25,7 @@ export const THREAD_BRANCHES: readonly BranchItem[] = [
         {
           id: "att-shot",
           type: "image",
-          name: "composer-regression.png",
+          name: "composer-regression.svg",
           contentType: "image/svg+xml",
           status: { type: "complete" },
           content: [{ type: "image", image: SCREENSHOT_IMAGE }],

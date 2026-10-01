@@ -13,7 +13,7 @@ export default defineSections([
         <LinkPreview
           href="https://github.com/assistant-ui/assistant-ui"
           title="assistant-ui"
-          description="Typescript/React library for AI chat, now running inside a VS Code webview."
+          description="TypeScript/React library for AI chat, now running inside a VS Code webview."
           image={IMAGES.noon}
           imageAlt="A green valley"
           siteName="GitHub"

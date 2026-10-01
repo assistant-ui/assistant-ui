@@ -92,7 +92,7 @@ await rm(tempDir, { recursive: true, force: true });
 const summaryPath = process.env.GITHUB_STEP_SUMMARY;
 const summary: string[] = [];
 const escapeCell = (text: string) =>
-  text.replace(/\|/g, "\\|").replace(/\s+/g, " ").slice(0, 300);
+  text.replace(/[\\|]/g, "\\$&").replace(/\s+/g, " ").slice(0, 300);
 
 const finish = async (failed: boolean) => {
   await writeFile(
