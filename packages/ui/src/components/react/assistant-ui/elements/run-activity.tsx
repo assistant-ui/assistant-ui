@@ -71,19 +71,17 @@ export function RunActivity({
     >
       {entries.length > 0 ? (
         <Collapsible open={open} onOpenChange={onOpenChange}>
-          <CollapsibleTrigger className="group/trigger text-muted-foreground hover:text-foreground focus-visible:ring-ring flex max-w-full items-center gap-1.5 rounded-md py-1 text-sm outline-none focus-visible:ring-2 focus-visible:ring-offset-2">
+          <CollapsibleTrigger
+            aria-busy={status === "running"}
+            className="group/trigger text-muted-foreground hover:text-foreground focus-visible:ring-ring flex max-w-full items-center gap-1.5 rounded-md py-1 text-sm outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+          >
             <ChevronRightIcon
               aria-hidden="true"
               className="size-3.5 shrink-0 transition-transform duration-200 group-data-open/trigger:rotate-90 group-data-panel-open/trigger:rotate-90 motion-reduce:transition-none"
             />
             {summary}
           </CollapsibleTrigger>
-          {!open && latestActivity && (
-            <p className="text-muted-foreground ps-5 text-sm wrap-anywhere">
-              {latestActivity}
-            </p>
-          )}
-          <CollapsibleContent className={collapsePanel}>
+          <CollapsibleContent className={cn(collapsePanel, "peer")}>
             <ol className="border-border ms-1.5 flex min-w-0 flex-col gap-3 border-s ps-3.5 pt-2 text-sm wrap-anywhere">
               {entries.map((entry) => (
                 <li key={entry.id} data-activity-kind={entry.kind}>
@@ -92,13 +90,20 @@ export function RunActivity({
               ))}
             </ol>
           </CollapsibleContent>
+          {!open && latestActivity && (
+            // The panel stays mounted during its exit transition.
+            <p className="text-muted-foreground ps-5 text-sm wrap-anywhere peer-[:not([hidden])]:hidden">
+              {latestActivity}
+            </p>
+          )}
         </Collapsible>
       ) : (
         <p className="text-muted-foreground py-1 text-sm">{summary}</p>
       )}
-      {/* Streaming activity and elapsed time must not interrupt announcements. */}
+      {/* Announce the settled duration without announcing streaming timer ticks. */}
       <span role="status" aria-atomic="true" className="sr-only">
         {statusLabel}
+        {status !== "running" && durationLabel != null && <> {durationLabel}</>}
       </span>
       {attention}
       {children}

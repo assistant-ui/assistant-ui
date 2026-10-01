@@ -59,6 +59,7 @@ describe("RunActivity", () => {
     render(<Run />);
     const trigger = screen.getByRole("button", { name: "Working 12s" });
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(trigger.getAttribute("aria-busy")).toBe("true");
     expect(screen.queryByRole("link", { name: "Read source" })).toBeNull();
     expect(screen.getByRole("button", { name: "Approve search" })).toBeTruthy();
     expect(screen.getByText("Final answer")).toBeTruthy();
@@ -134,7 +135,12 @@ describe("RunActivity", () => {
     "exposes %s without a stale current activity",
     (status, label) => {
       render(<Run status={status} statusLabel={label} />);
-      expect(screen.getByRole("status").textContent).toBe(label);
+      expect(screen.getByRole("status").textContent).toBe(`${label} 12s`);
+      expect(
+        screen
+          .getByRole("button", { name: `${label} 12s` })
+          .getAttribute("aria-busy"),
+      ).toBe("false");
       expect(screen.queryByText("Checking the fix")).toBeNull();
       expect(
         screen.getByRole("button", { name: "Approve search" }),
@@ -153,7 +159,7 @@ describe("RunActivity", () => {
     );
     expect(announcement.textContent).toBe("Working");
     rerender(<Run status="error" statusLabel="Failed" />);
-    expect(announcement.textContent).toBe("Failed");
+    expect(announcement.textContent).toBe("Failed 12s");
   });
 
   it("does not invent a duration or a disclosure for an empty run", () => {

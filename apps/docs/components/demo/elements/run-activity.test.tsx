@@ -19,11 +19,13 @@ import {
 } from "vitest";
 import {
   ActivityRunExample,
+  RunActivityDemo,
   activityStatus,
   convertRun,
   type ActivityRun,
 } from "./run-activity";
 import type { ToolCallMessagePart } from "@assistant-ui/react";
+import { DemoStage } from "./demo-stage";
 
 beforeAll(() => {
   Object.defineProperty(HTMLElement.prototype, "scrollTo", {
@@ -107,6 +109,7 @@ describe("run activity external-store recipe", () => {
       await screen.findByRole("button", { name: "Worked for 2m 13s" }),
     ).toBeTruthy();
     expect(screen.getByText("The final answer.")).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toBe("Worked for 2m 13s");
     expect(screen.queryByText("I’ll inspect the files.")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Worked for 2m 13s" }));
     expect(
@@ -454,6 +457,7 @@ describe("run activity external-store recipe", () => {
     [true, false],
     [false, false],
     [true, true],
+    [false, true],
   ])(
     "keeps the decision visible with approved=%s and focus elsewhere=%s",
     async (approved, focusElsewhere) => {
@@ -528,6 +532,66 @@ describe("run activity external-store recipe", () => {
     },
   );
 
+  it("retains focus when a pending decision blurs before its result arrives", async () => {
+    let settle!: () => void;
+    const onRespondToToolApproval = () =>
+      new Promise<void>((resolve) => {
+        settle = resolve;
+      });
+    const tool: ToolCallMessagePart = {
+      type: "tool-call",
+      toolCallId: "pending",
+      toolName: "run_command",
+      args: {},
+      argsText: "{}",
+      approval: { id: "pending-approval", prompt: "Run the tests?" },
+    };
+    const run: ActivityRun = {
+      ...RUN,
+      status: { type: "requires-action", reason: "tool-calls" },
+      parts: [{ id: "pending", kind: "tool", label: "Run tests", part: tool }],
+    };
+    const view = render(
+      <ActivityRunExample
+        run={run}
+        onRespondToToolApproval={onRespondToToolApproval}
+      />,
+    );
+    const deny = await screen.findByRole("button", { name: "Deny" });
+    deny.focus();
+    fireEvent.click(deny);
+    await waitFor(() =>
+      expect((deny as HTMLButtonElement).disabled).toBe(true),
+    );
+    // Firefox blurs a disabled button before the asynchronous result replaces it.
+    deny.blur();
+    await act(async () => {
+      settle();
+      view.rerender(
+        <ActivityRunExample
+          onRespondToToolApproval={onRespondToToolApproval}
+          run={{
+            ...run,
+            status: RUN.status,
+            parts: [
+              {
+                ...run.parts[0]!,
+                part: {
+                  ...tool,
+                  approval: { ...tool.approval!, approved: false },
+                  result: "Decision recorded",
+                },
+              },
+            ],
+          }}
+        />,
+      );
+    });
+    expect(document.activeElement).toBe(
+      screen.getByRole("group", { name: "Run tests" }),
+    );
+  });
+
   it.each([
     [{ type: "requires-action", reason: "interrupt" }, "requires-action"],
     [{ type: "incomplete", reason: "cancelled" }, "cancelled"],
@@ -537,6 +601,77 @@ describe("run activity external-store recipe", () => {
     [{ type: "incomplete", reason: "tool-calls" }, "incomplete"],
   ] as const)("keeps %j distinct from success", (status, expected) => {
     expect(activityStatus(status)).toBe(expected);
+  });
+
+  it.each([
+    "tool-calls",
+    "error",
+    "cancelled",
+    "length",
+    "content-filter",
+  ] as const)(
+    "keeps an unfinished tool visible when the run ends with %s",
+    async (reason) => {
+      render(
+        <ActivityRunExample
+          run={{
+            ...RUN,
+            status: { type: "incomplete", reason },
+            parts: [
+              RUN.parts[0]!,
+              {
+                id: "unfinished",
+                kind: "tool",
+                label: "Reading source",
+                part: {
+                  type: "tool-call",
+                  toolCallId: "unfinished",
+                  toolName: "read_file",
+                  args: {},
+                  argsText: "{}",
+                },
+              },
+            ],
+          }}
+        />,
+      );
+      const attention = await screen.findByRole("group", {
+        name: "Reading source",
+      });
+      expect(attention.closest("ol")).toBeNull();
+      expect(screen.queryByText("I’ll inspect the files.")).toBeNull();
+    },
+  );
+
+  it("freezes a stopped demo and restarts its clock on replay", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+    render(
+      <DemoStage>
+        <RunActivityDemo />
+      </DemoStage>,
+    );
+    await act(async () => {
+      vi.advanceTimersByTime(2300);
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Pause animation" }));
+    expect(screen.getByRole("status").textContent).toBe("Stopped after 2.3s");
+    await act(async () => {
+      vi.advanceTimersByTime(10000);
+    });
+    expect(
+      screen.getByRole("button", { name: "Stopped after 2.3s" }),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Replay animation" }));
+    expect(screen.getByRole("button", { name: "Working <1s" })).toBeTruthy();
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(screen.getByRole("button", { name: "Working 1.0s" })).toBeTruthy();
+    await act(async () => {
+      vi.advanceTimersByTime(3800);
+    });
+    expect(screen.getByRole("status").textContent).toBe("Worked for 4.8s");
   });
 
   it("restores the recorded duration after a JSON persistence round trip", async () => {

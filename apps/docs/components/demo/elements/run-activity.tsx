@@ -108,6 +108,7 @@ function needsAttention(part: PartState) {
     part.type === "tool-call" &&
     Boolean(
       part.status.type === "requires-action" ||
+      part.status.type === "incomplete" ||
       part.isError ||
       (part.approval && !part.approval.isAutomatic) ||
       part.interrupt,
@@ -123,18 +124,25 @@ function AttentionPart({
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const focusWasWithin = useRef(false);
+  const focusedControl = useRef<EventTarget | null>(null);
   useLayoutEffect(() => {
     const element = ref.current;
-    // Settling a decision removes its focused button, but not its visible result.
-    if (
-      element &&
-      focusWasWithin.current &&
-      element.ownerDocument.activeElement === element.ownerDocument.body
-    ) {
-      element.focus({ preventScroll: true });
-    }
-  });
+    if (!element) return;
+    // A runtime part can settle independently of this message renderer.
+    const observer = new MutationObserver(() => {
+      const control = focusedControl.current as Node | null;
+      if (control && !element.contains(control)) {
+        focusedControl.current = null;
+        if (
+          element.ownerDocument.activeElement === element.ownerDocument.body
+        ) {
+          element.focus({ preventScroll: true });
+        }
+      }
+    });
+    observer.observe(element, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <div
@@ -143,13 +151,28 @@ function AttentionPart({
       aria-label={label}
       tabIndex={-1}
       className="focus-visible:ring-ring rounded-md outline-none focus-visible:ring-2"
-      onFocusCapture={() => {
-        focusWasWithin.current = true;
+      onFocusCapture={(event) => {
+        focusedControl.current = event.target;
       }}
       onBlurCapture={(event) => {
-        focusWasWithin.current = event.currentTarget.contains(
-          event.relatedTarget,
-        );
+        if (event.relatedTarget) {
+          if (!event.currentTarget.contains(event.relatedTarget)) {
+            focusedControl.current = null;
+          }
+        } else {
+          const { currentTarget, target } = event;
+          // Firefox blurs a pending decision as soon as its button is disabled,
+          // before the runtime removes it. Keep tracking that control.
+          if (target.matches(':disabled, [aria-disabled="true"]')) return;
+          queueMicrotask(() => {
+            if (
+              focusedControl.current === target &&
+              currentTarget.contains(target)
+            ) {
+              focusedControl.current = null;
+            }
+          });
+        }
       }}
     >
       {children}
@@ -215,7 +238,9 @@ export function ActivityRunMessage() {
             ? (TIMED_LABELS[status] ?? LABELS[status])
             : LABELS[status]
         }
-        durationLabel={<RunDuration timing={presentation.timing} />}
+        durationLabel={
+          hasDuration ? <RunDuration timing={presentation.timing} /> : undefined
+        }
         entries={parts.flatMap((entry) =>
           !entry.attention &&
           (entry.kind === "commentary" || entry.kind === "tool")
@@ -332,17 +357,22 @@ const PARTS: ActivityRun["parts"] = [
 const PHASES = [1200, 1200, 1200, 1200, 0] as const;
 
 export function RunActivityDemo() {
-  const { phase } = useStoryPhases(PHASES);
-  const [startedAt] = useState(() => Date.now());
+  const { phase, running } = useStoryPhases(PHASES);
+  const [timing, setTiming] = useState<ActivityRun["timing"]>(() => ({
+    startedAt: Date.now(),
+  }));
   const complete = phase === PHASES.length - 1;
+  if (!running && timing.completedAt === undefined) {
+    setTiming({ ...timing, completedAt: Date.now() });
+  }
   const run: ActivityRun = {
     id: "demo-run",
     status: complete
       ? { type: "complete", reason: "stop" }
-      : { type: "running" },
-    timing: complete
-      ? { startedAt, completedAt: startedAt + 4800 }
-      : { startedAt },
+      : running
+        ? { type: "running" }
+        : { type: "incomplete", reason: "cancelled" },
+    timing,
     parts: PARTS.slice(0, phase + 1),
   };
 
