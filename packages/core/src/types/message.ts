@@ -13,6 +13,8 @@ export type PartProviderMetadata = {
 
 export type TextMessagePart = {
   readonly type: "text";
+  /** A stable identity the host supplies for this part, used as its render and store key when non-empty and no other part of the same type in the message shares it; otherwise the part is keyed by its type and position. */
+  readonly id?: string;
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
@@ -21,6 +23,8 @@ export type TextMessagePart = {
 
 export type ReasoningMessagePart = {
   readonly type: "reasoning";
+  /** A stable identity the host supplies for this part, used as its render and store key when non-empty and no other part of the same type in the message shares it; otherwise the part is keyed by its type and position. */
+  readonly id?: string;
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
   readonly unstable_summary?: string;
@@ -54,6 +58,8 @@ export type SourceMessagePart =
 
 export type ImageMessagePart = {
   readonly type: "image";
+  /** A stable identity the host supplies for this part, used as its render and store key when non-empty and no other part of the same type in the message shares it; otherwise the part is keyed by its type and position. */
+  readonly id?: string;
   readonly image: string;
   readonly filename?: string;
   readonly providerMetadata?: PartProviderMetadata;
@@ -61,6 +67,8 @@ export type ImageMessagePart = {
 
 export type FileMessagePart = {
   readonly type: "file";
+  /** A stable identity the host supplies for this part, used as its render and store key when non-empty and no other part of the same type in the message shares it; otherwise the part is keyed by its type and position. */
+  readonly id?: string;
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
@@ -89,6 +97,8 @@ export type Unstable_AudioMessagePart = {
 
 export type DataMessagePart<T = any> = {
   readonly type: "data";
+  /** A stable identity the host supplies for this part, used as its render and store key when non-empty and no other part of the same type in the message shares it; otherwise the part is keyed by its type and position. */
+  readonly id?: string;
   readonly name: string;
   readonly data: T;
 };
@@ -137,7 +147,7 @@ export type GenerativeUIMessagePart = {
   readonly type: "generative-ui";
   /** The JSON spec describing the UI tree. */
   readonly spec: GenerativeUISpec;
-  /** Optional id (useful for replays / stable keys). */
+  /** A stable identity the host supplies for this part, used as its render and store key when non-empty and no other part of the same type in the message shares it; otherwise the part is keyed by its type and position. */
   readonly id?: string;
   readonly parentId?: string;
 };
