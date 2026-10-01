@@ -459,6 +459,7 @@ describe("convertSurfaceToUISpec", () => {
           },
           {
             $type: "DatePicker",
+            inputType: "date",
             value: "2026-06-01",
             min: "2026-01-01",
             max: "2026-12-31",
@@ -609,22 +610,44 @@ describe("convertSurfaceToUISpec", () => {
   );
 
   it.each([
-    { mode: {}, value: "2025-12-15", type: "DatePicker" },
+    { mode: {}, value: "2025-12-15", type: "DatePicker", inputType: "date" },
     {
       mode: { enableDate: false, enableTime: false },
       value: "2025-12-15",
       type: "DatePicker",
+      inputType: "date",
     },
-    { mode: { enableDate: true }, value: "2025-12-15", type: "DatePicker" },
+    {
+      mode: { enableDate: true },
+      value: "2025-12-15",
+      type: "DatePicker",
+      inputType: "date",
+    },
     {
       mode: { enableDate: true, enableTime: false },
       value: "2025-12-15",
       type: "DatePicker",
+      inputType: "date",
     },
-    { mode: { enableDate: true }, value: "", type: "DatePicker" },
-    { mode: { enableDate: true }, value: undefined, type: "DatePicker" },
-    { mode: {}, value: undefined, type: "DatePicker" },
-    { mode: {}, value: "2025-12-15T17:00:00Z", type: "Input" },
+    {
+      mode: { enableDate: true },
+      value: "",
+      type: "DatePicker",
+      inputType: "date",
+    },
+    {
+      mode: { enableDate: true },
+      value: undefined,
+      type: "DatePicker",
+      inputType: "date",
+    },
+    { mode: {}, value: undefined, type: "DatePicker", inputType: "date" },
+    {
+      mode: {},
+      value: "2025-12-15T17:00:00Z",
+      type: "DatePicker",
+      inputType: "datetime",
+    },
     {
       mode: { enableDate: true },
       value: "2025-12-15T17:00:00Z",
@@ -633,18 +656,25 @@ describe("convertSurfaceToUISpec", () => {
     {
       mode: { enableDate: true, enableTime: true },
       value: "2025-12-15T17:00:00Z",
-      type: "Input",
+      type: "DatePicker",
+      inputType: "datetime",
     },
     {
       mode: { enableDate: true, enableTime: true },
       value: "2025-12-15",
       type: "Input",
     },
-    { mode: { enableTime: true }, value: "17:00:00", type: "Input" },
+    {
+      mode: { enableTime: true },
+      value: "17:00:00",
+      type: "DatePicker",
+      inputType: "time",
+    },
     {
       mode: { enableDate: false, enableTime: true },
       value: "17:00:00",
-      type: "Input",
+      type: "DatePicker",
+      inputType: "time",
     },
     {
       mode: { enableDate: true },
@@ -653,7 +683,7 @@ describe("convertSurfaceToUISpec", () => {
     },
   ])(
     "maps DateTimeInput $mode holding $value to $type with live field references",
-    ({ mode, value, type }) => {
+    ({ mode, value, type, inputType }) => {
       const reference = {
         $field: "/form/due",
         ...(value !== undefined ? { fallback: value } : {}),
@@ -704,18 +734,30 @@ describe("convertSurfaceToUISpec", () => {
         ),
       );
 
-      expect(result.warnings).toEqual([]);
+      const bounds =
+        inputType === "date"
+          ? { min: "2025-01-01", max: "2025-12-31" }
+          : inputType === "datetime"
+            ? { min: "2025-01-01T00:00", max: "2025-12-31T23:59" }
+            : {};
+      expect(result.warnings).toEqual(
+        inputType === "time"
+          ? [
+              'A2UI DateTimeInput "min" of "2025-01-01" is not a time value and was dropped.',
+              'A2UI DateTimeInput "max" of "2025-12-31" is not a time value and was dropped.',
+            ]
+          : [],
+      );
       expect(result.spec?.children).toEqual([
         {
           $type: type,
+          ...(inputType !== undefined ? { inputType } : {}),
           label: "Due",
           name: "/form/due",
           ...(value !== undefined
             ? { [type === "DatePicker" ? "value" : "defaultValue"]: value }
             : {}),
-          ...(type === "DatePicker"
-            ? { min: "2025-01-01", max: "2025-12-31" }
-            : {}),
+          ...bounds,
         },
         {
           $type: "Button",
@@ -741,6 +783,161 @@ describe("convertSurfaceToUISpec", () => {
       ]);
     },
   );
+
+  const convertedDateTimeInput = (
+    value: string | undefined,
+    mode: Record<string, unknown> = {},
+    bounds: Record<string, unknown> = {},
+    warnings: readonly string[] = [],
+  ) => {
+    const surface = surfaceFrom(
+      [
+        {
+          id: "root",
+          component: "DateTimeInput",
+          ...mode,
+          ...bounds,
+          value: { path: "/due" },
+        },
+      ],
+      value === undefined ? {} : { due: value },
+    );
+    const result = convertSurfaceToUISpec(surface);
+    expect(result.warnings).toEqual(warnings);
+    return result.spec;
+  };
+
+  it.each([
+    [{ enableDate: true, enableTime: true }, "2025-12-15T17:00Z", "datetime"],
+    [{ enableTime: true }, "17:00", "time"],
+    [{ enableDate: true }, "2025-12-15", "date"],
+    [{ enableDate: false, enableTime: false }, "2025-12-15", "date"],
+    [{ enableDate: true, enableTime: true }, "", "datetime"],
+  ] as const)(
+    "follows DateTimeInput flags %j for %j",
+    (mode, value, inputType) => {
+      expect(convertedDateTimeInput(value, mode)).toEqual({
+        $type: "DatePicker",
+        inputType,
+        value,
+        name: "/due",
+      });
+    },
+  );
+
+  it.each([
+    ["2025-12-15", "date"],
+    ["2025-12-15T17:00", "datetime"],
+    ["2025-12-15T17:00:30.125+02:00", "datetime"],
+    ["17:00", "time"],
+    ["17:00:30", "time"],
+    ["", "date"],
+    [undefined, "date"],
+  ] as const)("infers DateTimeInput type %s from %j", (value, inputType) => {
+    expect(convertedDateTimeInput(value)).toEqual({
+      $type: "DatePicker",
+      inputType,
+      ...(value !== undefined ? { value } : {}),
+      name: "/due",
+    });
+  });
+
+  it.each([
+    ["2025-12-15T17:00", { enableDate: true }],
+    ["17:00", { enableDate: true }],
+    ["2025-12-15", { enableDate: true, enableTime: true }],
+    ["2025-12-15", { enableTime: true }],
+    ["17:00Z", { enableTime: true }],
+    ["not a date", {}],
+    ["2025-02-30", {}],
+  ] as const)(
+    "keeps incompatible DateTimeInput value %j in a text Input",
+    (value, mode) => {
+      expect(convertedDateTimeInput(value, mode)).toEqual({
+        $type: "Input",
+        defaultValue: value,
+        name: "/due",
+      });
+    },
+  );
+
+  it.each([
+    {
+      value: "2025-12-15",
+      mode: { enableDate: true },
+      bounds: { min: "2025-01-01", max: "17:00" },
+      inputType: "date",
+      expected: { min: "2025-01-01" },
+      warnings: [
+        'A2UI DateTimeInput "max" of "17:00" is not a date value and was dropped.',
+      ],
+    },
+    {
+      value: "17:00",
+      mode: { enableTime: true },
+      bounds: { min: "16:00", max: "2025-12-31" },
+      inputType: "time",
+      expected: { min: "16:00" },
+      warnings: [
+        'A2UI DateTimeInput "max" of "2025-12-31" is not a time value and was dropped.',
+      ],
+    },
+    {
+      value: "2025-12-15T17:00Z",
+      mode: { enableDate: true, enableTime: true },
+      bounds: { min: "2025-01-01T08:00+02:00", max: "17:00" },
+      inputType: "datetime",
+      expected: { min: "2025-01-01T08:00+02:00" },
+      warnings: [
+        'A2UI DateTimeInput "max" of "17:00" is not a datetime value and was dropped.',
+      ],
+    },
+    {
+      value: "17:00",
+      mode: { enableTime: true },
+      bounds: { min: "2025-12-31", max: "18:00" },
+      inputType: "time",
+      expected: { max: "18:00" },
+      warnings: [
+        'A2UI DateTimeInput "min" of "2025-12-31" is not a time value and was dropped.',
+      ],
+    },
+    {
+      value: "2025-12-15T17:00Z",
+      mode: { enableDate: true, enableTime: true },
+      bounds: { min: "2025-01-01", max: "2025-12-31" },
+      inputType: "datetime",
+      expected: { min: "2025-01-01T00:00", max: "2025-12-31T23:59" },
+      warnings: [],
+    },
+  ] as const)(
+    "resolves DateTimeInput bounds $bounds for a $inputType value",
+    ({ value, mode, bounds, inputType, expected, warnings }) => {
+      expect(convertedDateTimeInput(value, mode, bounds, warnings)).toEqual({
+        $type: "DatePicker",
+        inputType,
+        value,
+        ...expected,
+        name: "/due",
+      });
+    },
+  );
+
+  it("keeps a DateTimeInput control shape tied to the agent model during local edits", () => {
+    const surface = surfaceFrom(
+      [{ id: "root", component: "DateTimeInput", value: { path: "/due" } }],
+      { due: "2025-12-15T17:00Z" },
+    );
+    const convert = createLiveSurfaceConverter(surface);
+    expect(convert(surface.dataModel).spec).toMatchObject({
+      $type: "DatePicker",
+      inputType: "datetime",
+    });
+    expect(convert({ due: "2025-12-15" }).spec).toMatchObject({
+      $type: "DatePicker",
+      inputType: "datetime",
+    });
+  });
 
   it.each([undefined, "mutuallyExclusive"])(
     "keeps chips with variant %s list-valued when empty and selected",
@@ -1897,6 +2094,18 @@ describe("convertSurfaceToUISpec", () => {
     const { spec, warnings } = convertSurfaceToUISpec(surface);
 
     expect(warnings).toEqual([]);
+    expect(spec?.["children"]).toContainEqual({
+      $type: "DatePicker",
+      inputType: "date",
+      value: "2026-01-02",
+      name: "/form/start",
+    });
+    expect(spec?.["children"]).toContainEqual({
+      $type: "DatePicker",
+      inputType: "datetime",
+      value: "2025-12-15T17:00:00Z",
+      name: "/form/due",
+    });
     expect(spec?.["children"]).toContainEqual({
       $type: "Button",
       label: "Send",

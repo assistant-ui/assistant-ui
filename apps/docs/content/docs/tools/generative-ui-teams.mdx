@@ -70,7 +70,7 @@ type TeamsConversionWarning = {
 | `Checkbox` | `Input.Toggle` | Its value is the string `"true"` or `"false"`; the `switch` variant uses the same element |
 | `Slider` | `Input.Number` | `min`, `max`, `defaultValue`, and `label` map directly; submitted values are numbers |
 | `Input` | `Input.Text` | Password uses `style: "password"`; number stays text and submits a string without native numeric validation |
-| `DatePicker` | `Input.Date` | `value`, `min`, and `max` are kept only in `YYYY-MM-DD` form, otherwise dropped silently |
+| `DatePicker` | `Input.Date`, `Input.Time`, or both | Date mode keeps `YYYY-MM-DD` values and bounds. Time mode uses `HH:mm`; nonzero seconds in the value are dropped with a warning. Datetime mode pairs a date and time input; instants display in their own offset, shown in the label as `UTC` or `UTC±HH:mm`, because the card does not know the viewer's time zone. The date input gets date-only bounds and the time input has none. |
 | `Form` | Children inline, then a "Submit" `ActionSet` | Adaptive Cards has no form container; inputs on the card submit together |
 | `Row` | `ColumnSet` with one auto-width column per child | Beyond three columns you get a warning, but all columns are kept |
 | `Col`, `Box` | `Container` | The two become indistinguishable |
@@ -131,7 +131,7 @@ const action = decodeSubmitData(context.activity.value);
 // { type: "approve_order", orderId: "48213", $input: { quantity: "2" } }
 ```
 
-`$input` here is an **object keyed by input id**, which differs from Slack, where a single control's `$input` is a bare value. It is omitted when the card had no inputs. A `{ "$field": name }` reference in the payload resolves to the input with that id, as the string Adaptive Cards submitted, and a reference with no such input resolves to its `fallback`, or is dropped when it has none. The function returns `undefined` for a payload without a well-formed `aui` envelope and never throws; `type` always comes from the envelope, and a `$input` key smuggled into the payload is stripped.
+`$input` here is an **object keyed by input id**, which differs from Slack, where a single control's `$input` is a bare value. It is omitted when the card had no inputs. A datetime picker appears as one field in `$input`: the decoder combines its date and time inputs into `YYYY-MM-DDTHH:mm`. If the picker started with an instant, the decoded value keeps its original offset spelling and precision; if either input is empty, the value is `""`. A newly selected value from an empty picker has no offset because Teams supplies no viewer time zone. A `{ "$field": name }` reference in the payload resolves to this canonical field value, or to its `fallback` when there is no matching input. The function returns `undefined` for a payload without a well-formed `aui` envelope and never throws; `type` always comes from the envelope, and a `$input` key smuggled into the payload is stripped.
 
 The converter emits `Action.Submit`. Teams also offers [`Action.Execute`](https://learn.microsoft.com/en-us/adaptive-cards/authoring-cards/universal-action-model) from schema 1.4, which lets a bot return a replacement card in the invoke response; reaching for that means constructing the action yourself.
 

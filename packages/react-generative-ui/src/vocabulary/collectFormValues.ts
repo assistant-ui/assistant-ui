@@ -2,6 +2,7 @@ import type { FormEvent } from "react";
 import {
   CHECKBOX_GROUP_ATTR,
   FIELD_NAME_ATTR,
+  FIELD_VALUE_ATTR,
   GENERATED_NAME_ATTR,
 } from "../constants";
 
@@ -20,7 +21,7 @@ export type FormControlElementLike = {
 };
 
 /**
- * Collects a submitted form's named control values into a plain object, keyed by `name`, in document order. Reads each control's live DOM state rather than `FormData`, so a checkbox resolves to its `checked` boolean instead of an on/off string. A radio group resolves to its checked option's `value`, or `undefined` if none is checked. A checkbox group resolves to its checked options' values in document order, or an empty array if none is checked. Any other repeated `name` resolves to an array of its controls' values, in document order. Controls without a `name`, that carry `data-aui-generated-name`, or that are effectively disabled, including through an ancestor disabled fieldset outside its first legend, are skipped entirely.
+ * Collects a submitted form's named control values into a plain object, keyed by `name`, in document order. Reads each control's live DOM state rather than `FormData`, so a checkbox resolves to its `checked` boolean instead of an on/off string. A radio group resolves to its checked option's `value`, or `undefined` if none is checked. A checkbox group resolves to its checked options' values in document order, or an empty array if none is checked. Any other repeated `name` resolves to an array of its controls' values, in document order. A control's `data-aui-field-value` overrides its live `value` when present. Controls without a `name`, that carry `data-aui-generated-name`, or that are effectively disabled, including through an ancestor disabled fieldset outside its first legend, are skipped entirely.
  */
 export function collectFormValues(
   elements: ArrayLike<FormControlElementLike>,
@@ -38,8 +39,11 @@ export function collectFormValues(
     )
       continue;
 
+    const fieldValue = element.getAttribute?.(FIELD_VALUE_ATTR);
+    const controlValue = fieldValue ?? element.value;
+
     if (element.type === "radio") {
-      if (element.checked) values[name] = element.value;
+      if (element.checked) values[name] = controlValue;
       else if (!Object.hasOwn(values, name)) values[name] = undefined;
       continue;
     }
@@ -50,7 +54,7 @@ export function collectFormValues(
     ) {
       const existing = values[name];
       const checked = Array.isArray(existing) ? existing : [];
-      values[name] = element.checked ? [...checked, element.value] : checked;
+      values[name] = element.checked ? [...checked, controlValue] : checked;
       continue;
     }
 
@@ -58,8 +62,10 @@ export function collectFormValues(
       element.type === "checkbox"
         ? (element.checked ?? false)
         : element.type === "range"
-          ? Number(element.value)
-          : element.value;
+          ? fieldValue === null || fieldValue === undefined
+            ? Number(element.value)
+            : fieldValue
+          : controlValue;
 
     if (Object.hasOwn(values, name)) {
       const existing = values[name];

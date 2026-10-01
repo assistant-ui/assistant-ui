@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   CHECKBOX_GROUP_ATTR,
   FIELD_NAME_ATTR,
+  FIELD_VALUE_ATTR,
   GENERATED_NAME_ATTR,
 } from "../constants";
 import type { Action } from "../ir";
@@ -17,6 +18,12 @@ import { useAnsweredValue } from "../answeredValues";
 import { actionAttr, fire } from "./dispatch";
 import { toTextContent } from "./toTextContent";
 import { useRadioGroupName } from "../RadioGroupScope";
+import {
+  classifyTemporal,
+  fromLocalDateTime,
+  normalizeTemporalInputValue,
+  toLocalDateTime,
+} from "../temporal";
 
 const optionSchema = z.object({
   label: z.string(),
@@ -368,6 +375,7 @@ function InputRender({
 }
 
 type DatePickerRenderProps = {
+  inputType?: "date" | "datetime" | "time";
   value?: string;
   min?: string;
   max?: string;
@@ -378,7 +386,12 @@ type DatePickerRenderProps = {
   $dispatch?: GenerativeUIDispatch;
 };
 
+const subscribeToHydration = () => () => {};
+const clientHydrationSnapshot = () => true;
+const serverHydrationSnapshot = () => false;
+
 function DatePickerRender({
+  inputType = "date",
   value,
   min,
   max,
@@ -392,25 +405,84 @@ function DatePickerRender({
   const isBound = updateBinding !== undefined;
   const initialValue =
     typeof answeredValue === "string" ? answeredValue : value;
+  const [selection, setSelection] = React.useState({
+    initialValue,
+    value: initialValue,
+  });
+  if (selection.initialValue !== initialValue) {
+    setSelection({ initialValue, value: initialValue });
+  }
+  const currentValue = isBound ? initialValue : selection.value;
+  const temporal = classifyTemporal(currentValue ?? "");
+  const hydrated = React.useSyncExternalStore(
+    subscribeToHydration,
+    clientHydrationSnapshot,
+    serverHydrationSnapshot,
+  );
+  const showRawValue =
+    inputType === "datetime" && temporal.kind === "instant" && !hydrated;
+  const displayValue =
+    currentValue === undefined
+      ? undefined
+      : normalizeTemporalInputValue(
+          inputType === "datetime" && hydrated
+            ? toLocalDateTime(currentValue)
+            : currentValue,
+        );
   return (
     <input
       key={isBound ? undefined : initialValue}
-      type="date"
+      type={
+        showRawValue
+          ? "text"
+          : inputType === "datetime"
+            ? "datetime-local"
+            : inputType
+      }
+      readOnly={showRawValue || undefined}
       data-aui="datepicker"
       data-aui-action={actionAttr($action)}
+      {...{ [FIELD_VALUE_ATTR]: currentValue }}
       name={name}
       aria-label={label}
-      {...(isBound
-        ? {
-            value:
-              typeof answeredValue === "string" ? answeredValue : (value ?? ""),
-          }
-        : { defaultValue: initialValue })}
-      min={min}
-      max={max}
+      {...(isBound || inputType === "datetime"
+        ? { value: displayValue ?? "" }
+        : { defaultValue: displayValue })}
+      min={
+        inputType === "datetime" && hydrated && min !== undefined
+          ? normalizeTemporalInputValue(toLocalDateTime(min))
+          : min === undefined
+            ? undefined
+            : normalizeTemporalInputValue(min)
+      }
+      max={
+        inputType === "datetime" && hydrated && max !== undefined
+          ? normalizeTemporalInputValue(toLocalDateTime(max))
+          : max === undefined
+            ? undefined
+            : normalizeTemporalInputValue(max)
+      }
+      step={
+        inputType !== "date" &&
+        (("precision" in temporal && temporal.precision !== "minutes") ||
+          (inputType === "time" &&
+            /^(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d\.\d+$/.test(
+              currentValue ?? "",
+            )))
+          ? 1
+          : undefined
+      }
       onChange={(e) => {
-        updateBinding?.(e.currentTarget.value);
-        fire($action, $dispatch, e.currentTarget.value, e.currentTarget);
+        const nextValue =
+          inputType === "datetime"
+            ? fromLocalDateTime(e.currentTarget.value, currentValue)
+            : e.currentTarget.value;
+        e.currentTarget.setAttribute(FIELD_VALUE_ATTR, nextValue);
+        if (!isBound) {
+          setSelection({ initialValue, value: nextValue });
+        }
+        updateBinding?.(nextValue);
+        fire($action, $dispatch, nextValue, e.currentTarget);
       }}
     />
   );
@@ -837,11 +909,32 @@ export const interactiveVocabulary = {
   },
   DatePicker: {
     description:
-      "A date input. Carries `$action` describing the on-select behavior.",
+      "A date, datetime, or time input. Carries `$action` describing the on-select behavior.",
     properties: z.object({
-      value: z.string().optional().describe("Initial date (YYYY-MM-DD)."),
-      min: z.string().optional().describe("Minimum date (YYYY-MM-DD)."),
-      max: z.string().optional().describe("Maximum date (YYYY-MM-DD)."),
+      inputType: z
+        .enum(["date", "datetime", "time"])
+        .optional()
+        .describe(
+          'Temporal input type. Defaults to "date". Values remain strings.',
+        ),
+      value: z
+        .string()
+        .optional()
+        .describe(
+          "Initial value: YYYY-MM-DD for date, HH:mm or HH:mm:ss for time, YYYY-MM-DDTHH:mm with optional :ss and fraction for datetime. A datetime with Z or ±HH:mm is an instant, displayed in the viewer's time zone and submitted with the same offset and precision. A datetime without an offset is local and submitted unchanged. An empty datetime submits with the viewer's offset and seconds.",
+        ),
+      min: z
+        .string()
+        .optional()
+        .describe(
+          "Minimum value: YYYY-MM-DD for date, HH:mm or HH:mm:ss for time, YYYY-MM-DDTHH:mm with optional :ss and fraction for datetime. Datetimes with Z or ±HH:mm are converted to the viewer's time zone.",
+        ),
+      max: z
+        .string()
+        .optional()
+        .describe(
+          "Maximum value: YYYY-MM-DD for date, HH:mm or HH:mm:ss for time, YYYY-MM-DDTHH:mm with optional :ss and fraction for datetime. Datetimes with Z or ±HH:mm are converted to the viewer's time zone.",
+        ),
       label: z
         .string()
         .optional()

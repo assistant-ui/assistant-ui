@@ -1,4 +1,5 @@
 import { ICON_NAMES, type UIElement } from "../ir";
+import { classifyTemporal } from "../temporal";
 import { A2UI_SURFACE_ID, type A2uiSurfaceState } from "./types";
 import {
   evaluateA2uiValueFunction,
@@ -336,7 +337,13 @@ const INPUT_COMPONENTS: ReadonlySet<string> = new Set([
   "Slider",
 ]);
 
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+type DateInputType = "date" | "datetime" | "time";
+
+const dateInputType = (value: string): DateInputType | undefined => {
+  const kind = classifyTemporal(value).kind;
+  if (kind === "date" || kind === "time") return kind;
+  return kind === "floating" || kind === "instant" ? "datetime" : undefined;
+};
 
 const finiteNumber = (value: unknown): number | undefined =>
   typeof value === "number" && Number.isFinite(value) ? value : undefined;
@@ -807,11 +814,21 @@ const mappedProps = (
     const value = stringProp(props, ["value"]);
     const shapeValue =
       name === undefined ? value : resolvePointer(context.stepModel, name);
+    const shapeType =
+      typeof shapeValue === "string" ? dateInputType(shapeValue) : undefined;
+    let inputType: DateInputType = shapeType ?? "date";
+    if ("enableDate" in props || "enableTime" in props) {
+      inputType =
+        props["enableTime"] === true
+          ? props["enableDate"] === true
+            ? "datetime"
+            : "time"
+          : "date";
+    }
     if (
-      props["enableTime"] === true ||
-      (typeof shapeValue === "string" &&
-        shapeValue !== "" &&
-        !DATE_PATTERN.test(shapeValue))
+      typeof shapeValue === "string" &&
+      shapeValue !== "" &&
+      shapeType !== inputType
     ) {
       return {
         $type: "Input",
@@ -820,10 +837,27 @@ const mappedProps = (
         ...(name !== undefined ? { name } : {}),
       };
     }
-    const min = stringProp(props, ["min"]);
-    const max = stringProp(props, ["max"]);
+    // The spec types a bound as a date, a time or a date-time whatever the
+    // enabled flags are, so a date bound on a datetime control is the range of
+    // that whole local day rather than a mismatch.
+    const bound = (edge: "min" | "max"): string | undefined => {
+      const boundValue = stringProp(props, [edge]);
+      if (boundValue === undefined) return undefined;
+      const boundType = dateInputType(boundValue);
+      if (boundType === inputType) return boundValue;
+      if (inputType === "datetime" && boundType === "date") {
+        return `${boundValue}T${edge === "min" ? "00:00" : "23:59"}`;
+      }
+      context.warnings.push(
+        `A2UI DateTimeInput "${edge}" of "${boundValue}" is not a ${inputType} value and was dropped.`,
+      );
+      return undefined;
+    };
+    const min = bound("min");
+    const max = bound("max");
     return {
       $type: "DatePicker",
+      inputType,
       ...(value !== undefined ? { value } : {}),
       ...(min !== undefined ? { min } : {}),
       ...(max !== undefined ? { max } : {}),

@@ -6,6 +6,7 @@ import {
 import { copyBounded } from "../convert/copyBounded";
 import { isElement } from "../convert/isElement";
 import { takeRun } from "../convert/takeRun";
+import { classifyTemporal, splitTemporalMinutes } from "../temporal";
 import {
   normalizeSpec,
   type NormalizedUIElement,
@@ -53,6 +54,7 @@ import {
   buildDataTableBlock,
 } from "./constants";
 import type {
+  FieldMapping,
   SlackActionElement,
   SlackBlock,
   SlackButtonElement,
@@ -73,15 +75,10 @@ type ConversionContext = {
   readonly warnings: SlackConversionWarning[];
   readonly omittedPasswordNames: Set<string>;
   fieldBlockIdSequence: number;
+  dateTimePairSequence: number;
   markdownCharacters: number;
   markdownExhausted: boolean;
   dataTableCharacters: number;
-};
-
-type FieldMapping = {
-  readonly actionId: string;
-  readonly name: string;
-  readonly component: string;
 };
 
 const SLACK_BLOCK_ID_CAP = 255;
@@ -170,10 +167,21 @@ const serializeFieldBlockId = (
   fields: readonly FieldMapping[],
 ): string =>
   `aui:${sequence}:${JSON.stringify(
-    fields.map(({ actionId, name, component }) =>
-      component === "Checkbox"
-        ? [actionId, name, "Checkbox"]
-        : [actionId, name],
+    fields.map(
+      ({ actionId, name, component, inputType, offset, part, pairId }) =>
+        inputType !== undefined
+          ? [
+              actionId,
+              name,
+              component,
+              inputType,
+              offset ?? null,
+              part ?? null,
+              pairId ?? null,
+            ]
+          : component === "Checkbox"
+            ? [actionId, name, "Checkbox"]
+            : [actionId, name],
     ),
   )}`;
 
@@ -365,7 +373,7 @@ const warnDroppedOptions = (
 const toActionElement = (
   element: NormalizedUIElement,
   context: ConversionContext,
-): SlackActionElement | undefined => {
+): SlackActionElement | SlackActionElement[] | undefined => {
   const { props, action } = element;
   switch (element.type) {
     case "Button":
@@ -425,6 +433,58 @@ const toActionElement = (
     }
     case "DatePicker": {
       const rawDate = asString(props["value"]);
+      const inputType = props["inputType"];
+      if (inputType === "time" || inputType === "datetime") {
+        const actionId = asActionId(action, "DatePicker", context);
+        const temporal = classifyTemporal(rawDate);
+        const parts = splitTemporalMinutes(rawDate);
+        if (
+          (inputType === "time" && temporal.kind === "time") ||
+          (inputType === "datetime" && temporal.kind === "floating")
+        ) {
+          if (parts?.droppedPrecision) {
+            warn(
+              context,
+              "dropped",
+              "DatePicker",
+              "Seconds were dropped because Slack timepickers only support minute precision.",
+            );
+          }
+          const timePicker: SlackActionElement = {
+            type: "timepicker",
+            action_id: actionId,
+            initial_time: parts!.time,
+          };
+          return inputType === "time"
+            ? timePicker
+            : [
+                {
+                  type: "datepicker",
+                  action_id: actionId,
+                  initial_date: parts!.date!,
+                },
+                timePicker,
+              ];
+        }
+        if (inputType === "datetime" && temporal.kind === "instant") {
+          return {
+            type: "datetimepicker",
+            action_id: actionId,
+            initial_date_time: Math.floor(temporal.epochMs / 1000),
+          };
+        }
+        if (rawDate)
+          warn(
+            context,
+            "dropped",
+            "DatePicker",
+            `value did not match the ${inputType} format and was dropped.`,
+          );
+        return {
+          type: inputType === "time" ? "timepicker" : "datetimepicker",
+          action_id: actionId,
+        };
+      }
       const initialDate = DATE_PATTERN.test(rawDate) ? rawDate : undefined;
       if (rawDate && initialDate === undefined) {
         warn(
@@ -593,42 +653,57 @@ const convertActions = (
   elements: readonly NormalizedUIElement[],
   context: ConversionContext,
 ): SlackBlock[] => {
-  const converted = elements
-    .map((source) => ({
-      source,
-      element: toActionElement(source, context),
-    }))
-    .filter(
-      (
-        entry,
-      ): entry is {
-        readonly source: NormalizedUIElement;
-        readonly element: SlackActionElement;
-      } => entry.element !== undefined,
-    );
+  const converted = elements.flatMap((source) => {
+    const result = toActionElement(source, context);
+    if (result === undefined) return [];
+    const controls = Array.isArray(result) ? result : [result];
+    const inputType =
+      source.type === "DatePicker" ? source.props["inputType"] : undefined;
+    const temporal =
+      inputType === "datetime"
+        ? classifyTemporal(asString(source.props["value"]))
+        : undefined;
+    const pairId =
+      controls.length > 1 ? context.dateTimePairSequence++ : undefined;
+    return controls.map((element) => {
+      const name = asString(source.props["name"]);
+      const field: FieldMapping | undefined =
+        inputType === "time" || inputType === "datetime"
+          ? {
+              actionId: element.action_id,
+              name,
+              component: source.type,
+              inputType,
+              ...(temporal?.kind === "instant"
+                ? { offset: temporal.offset }
+                : {}),
+              ...(pairId !== undefined
+                ? ({
+                    part: element.type === "datepicker" ? "date" : "time",
+                    pairId,
+                  } as const)
+                : {}),
+            }
+          : name
+            ? { actionId: element.action_id, name, component: source.type }
+            : undefined;
+      return { element, field };
+    });
+  });
   const blocks: SlackBlock[] = [];
   const groups: (typeof converted)[] = [];
   let group: typeof converted = [];
   let actionIds = new Set<string>();
-  const hasFieldName = (entry: (typeof converted)[number]): boolean => {
-    const name = entry.source.props["name"];
-    return typeof name === "string" && name.length > 0;
-  };
   const fieldsFor = (entries: typeof converted): FieldMapping[] =>
-    entries.flatMap(({ source, element }) => {
-      const name = source.props["name"];
-      return typeof name === "string" && name.length > 0
-        ? [{ actionId: element.action_id, name, component: source.type }]
-        : [];
-    });
+    entries.flatMap(({ field }) => (field === undefined ? [] : [field]));
   for (const entry of converted) {
     const repeatedMappedActionId =
       actionIds.has(entry.element.action_id) &&
-      (hasFieldName(entry) ||
+      (entry.field !== undefined ||
         group.some(
           (candidate) =>
             candidate.element.action_id === entry.element.action_id &&
-            hasFieldName(candidate),
+            candidate.field !== undefined,
         ));
     if (group.length === ACTIONS_ELEMENT_CAP || repeatedMappedActionId) {
       groups.push(group);
@@ -1690,6 +1765,7 @@ export function toSlackBlocks(
     warnings: [],
     omittedPasswordNames: new Set(),
     fieldBlockIdSequence: 0,
+    dateTimePairSequence: 0,
     markdownCharacters: 0,
     markdownExhausted: false,
     dataTableCharacters: 0,

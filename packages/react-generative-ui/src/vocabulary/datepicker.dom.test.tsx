@@ -1,0 +1,562 @@
+// @vitest-environment jsdom
+
+import * as React from "react";
+import { createRoot, hydrateRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { A2uiBindingContext } from "../a2ui/BindingContext";
+import { AnsweredValuesProvider } from "../answeredValues";
+import { FIELD_VALUE_ATTR } from "../constants";
+import { renderGenerativeUI } from "../renderGenerativeUI";
+import type { GenerativeUIDispatch } from "../types";
+import { defaultGenerativeUILibrary } from "./index";
+import { interactiveVocabulary } from "./interactive";
+
+(
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
+
+let root: Root | undefined;
+
+afterEach(async () => {
+  await React.act(async () => root?.unmount());
+  root = undefined;
+  document.body.innerHTML = "";
+  vi.restoreAllMocks();
+});
+
+const view = (
+  props: Record<string, unknown>,
+  dispatch?: GenerativeUIDispatch,
+) =>
+  renderGenerativeUI(
+    { $type: "DatePicker", label: "When", name: "when", ...props },
+    interactiveVocabulary,
+    { status: "done", ...(dispatch ? { dispatch } : {}) },
+  );
+
+const mount = async (element: React.ReactNode) => {
+  const container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+  await React.act(async () => root!.render(element));
+  return container;
+};
+
+const change = async (input: HTMLInputElement, value: string) => {
+  await React.act(async () => {
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )!.set!.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+};
+
+const nativeValue = (type: string, value: string) => {
+  const input = document.createElement("input");
+  input.type = type;
+  input.value = value;
+  return input.value;
+};
+
+describe("DatePicker temporal contract", () => {
+  it.each([
+    ["2025-12-15T17:00:00Z", "2025-12-15T12:00", "2025-12-16T14:30:00Z"],
+    [
+      "2025-12-15T17:00:00+02:00",
+      "2025-12-15T10:00",
+      "2025-12-16T16:30:00+02:00",
+    ],
+  ])(
+    "submits and resolves canonical instant %s before and after editing",
+    async (initial, displayed, edited) => {
+      const dispatch = vi.fn();
+      const tree = (
+        <div data-aui="root">
+          {renderGenerativeUI(
+            {
+              $type: "Form",
+              $action: { type: "submit" },
+              children: [
+                {
+                  $type: "DatePicker",
+                  name: "when",
+                  inputType: "datetime",
+                  value: initial,
+                  $action: { type: "picker", when: { $field: "when" } },
+                },
+                { $type: "Button", label: "Submit", submit: true },
+                {
+                  $type: "Button",
+                  label: "Reference",
+                  $action: { type: "reference", when: { $field: "when" } },
+                },
+              ],
+            },
+            defaultGenerativeUILibrary,
+            { status: "done", dispatch },
+          )}
+        </div>
+      );
+      const container = await mount(tree);
+      const input = container.querySelector("input")!;
+      const [submit, reference] = container.querySelectorAll("button");
+      expect(input.value).toBe(displayed);
+      expect(input.getAttribute(FIELD_VALUE_ATTR)).toBe(initial);
+      await React.act(async () => reference!.click());
+      expect(dispatch).toHaveBeenLastCalledWith({
+        type: "reference",
+        when: initial,
+      });
+      await React.act(async () => submit!.click());
+      expect(dispatch).toHaveBeenLastCalledWith({
+        type: "submit",
+        $input: { when: initial },
+      });
+      await change(input, "2025-12-16T09:30");
+      expect(dispatch).toHaveBeenLastCalledWith({
+        type: "picker",
+        when: edited,
+        $input: edited,
+      });
+      expect(input.getAttribute(FIELD_VALUE_ATTR)).toBe(edited);
+      await React.act(async () => reference!.click());
+      expect(dispatch).toHaveBeenLastCalledWith({
+        type: "reference",
+        when: edited,
+      });
+      await React.act(async () => submit!.click());
+      expect(dispatch).toHaveBeenLastCalledWith({
+        type: "submit",
+        $input: { when: edited },
+      });
+    },
+  );
+
+  it.each([
+    ["time", "12:00:00", "12:00"],
+    ["time", "12:00:05.1200", "12:00:05.12"],
+    ["datetime", "2025-12-15T17:00:00Z", "2025-12-15T12:00"],
+  ])(
+    "keeps canonical seconds for %s without rewriting the normalized input",
+    async (inputType, canonical, normalized) => {
+      const setter = vi.spyOn(HTMLInputElement.prototype, "value", "set");
+      const container = await mount(view({ inputType, value: canonical }));
+      const input = container.querySelector("input")!;
+      expect(input.value).toBe(normalized);
+      expect(input.getAttribute("value")).toBe(normalized);
+      expect(input.getAttribute(FIELD_VALUE_ATTR)).toBe(canonical);
+      expect(input.step).toBe("1");
+      const calls = setter.mock.calls.length;
+      await React.act(async () =>
+        root!.render(view({ inputType, value: canonical })),
+      );
+      expect(setter.mock.calls.length).toBe(calls);
+    },
+  );
+
+  it("uses a fixed viewer time zone", () => {
+    expect(Intl.DateTimeFormat().resolvedOptions().timeZone).toBe(
+      "America/New_York",
+    );
+    expect(new Date("2026-07-15T12:00Z").getTimezoneOffset()).toBe(240);
+  });
+
+  it("declares the three temporal input types and defaults to date", async () => {
+    const schema = interactiveVocabulary.DatePicker.properties;
+    for (const inputType of ["date", "datetime", "time"]) {
+      expect(schema.safeParse({ inputType }).success).toBe(true);
+    }
+    expect(schema.safeParse({}).success).toBe(true);
+    expect(schema.safeParse({ inputType: "datetime-local" }).success).toBe(
+      false,
+    );
+    const container = await mount(view({ value: "2026-07-15" }));
+    expect(container.querySelector("input")!.type).toBe("date");
+  });
+
+  it.each([
+    {
+      value: "2026-07-15T12:34Z",
+      displayed: "2026-07-15T08:34",
+      edited: "2026-07-16T09:45",
+      emitted: "2026-07-16T13:45Z",
+      step: "",
+    },
+    {
+      value: "2026-07-15T12:34:56+08:00",
+      displayed: "2026-07-15T00:34:56",
+      edited: "2026-07-16T09:45:30",
+      emitted: "2026-07-16T21:45:30+08:00",
+      step: "1",
+    },
+    {
+      value: "2026-07-15T12:34:56.123456-05:30",
+      displayed: "2026-07-15T14:04:56",
+      edited: "2026-07-16T09:45:30",
+      emitted: "2026-07-16T08:15:30.123456-05:30",
+      step: "1",
+    },
+  ])(
+    "shows $value locally on the first client render and submits its offset and precision",
+    async ({ value, displayed, edited, emitted, step }) => {
+      const dispatch = vi.fn();
+      let firstType: string | undefined;
+      const Capture = () => (
+        <div
+          ref={(element) => {
+            if (element && firstType === undefined) {
+              firstType = element.querySelector("input")!.type;
+            }
+          }}
+        >
+          {view(
+            { inputType: "datetime", value, $action: { type: "save" } },
+            dispatch,
+          )}
+        </div>
+      );
+      const container = await mount(<Capture />);
+      const input = container.querySelector("input")!;
+      expect(firstType).toBe("datetime-local");
+      expect(input.getAttribute("value")).toBe(displayed);
+      expect(input.value).toBe(nativeValue("datetime-local", displayed));
+      expect(input.step).toBe(step);
+      expect(input.getAttribute("aria-label")).toBe("When");
+      expect(input.name).toBe("when");
+      expect(input.readOnly).toBe(false);
+      await change(input, edited);
+      expect(dispatch).toHaveBeenLastCalledWith({
+        type: "save",
+        $input: emitted,
+      });
+      expect(input.value).toBe(nativeValue("datetime-local", edited));
+    },
+  );
+
+  it("converts instant bounds and preserves floating bounds", async () => {
+    const container = await mount(
+      view({
+        inputType: "datetime",
+        value: "2026-07-15T12:34Z",
+        min: "2026-07-15T00:00:30+08:00",
+        max: "2026-07-16T23:59:45-05:30",
+      }),
+    );
+    const input = container.querySelector("input")!;
+    expect(input.min).toBe("2026-07-14T12:00:30");
+    expect(input.max).toBe("2026-07-17T01:29:45");
+    await React.act(async () =>
+      root!.render(
+        view({
+          inputType: "datetime",
+          value: "2026-07-15T12:34Z",
+          min: "2026-07-15T01:00",
+          max: "2026-07-15T22:00",
+        }),
+      ),
+    );
+    expect(input.min).toBe("2026-07-15T01:00");
+    expect(input.max).toBe("2026-07-15T22:00");
+  });
+
+  it("normalizes local and converted instant bounds", async () => {
+    const container = await mount(
+      view({
+        inputType: "datetime",
+        value: "2025-12-15T17:00:00Z",
+        min: "2025-12-15T17:00:00Z",
+        max: "2025-12-15T20:00:05.1200",
+      }),
+    );
+    const input = container.querySelector("input")!;
+    expect(input.min).toBe("2025-12-15T12:00");
+    expect(input.max).toBe("2025-12-15T20:00:05.12");
+  });
+
+  it.each([
+    ["2026-01-15T12:34", "2026-01-15T12:34:00-05:00"],
+    ["2026-07-15T12:34", "2026-07-15T12:34:00-04:00"],
+  ])(
+    "submits an empty datetime with the viewer offset at %s",
+    async (edited, emitted) => {
+      const dispatch = vi.fn();
+      const container = await mount(
+        view({ inputType: "datetime", $action: { type: "save" } }, dispatch),
+      );
+      const input = container.querySelector("input")!;
+      expect(input.type).toBe("datetime-local");
+      expect(input.value).toBe("");
+      await change(input, edited!);
+      expect(dispatch).toHaveBeenLastCalledWith({
+        type: "save",
+        $input: emitted,
+      });
+      expect(input.step).toBe("1");
+    },
+  );
+
+  it("keeps the last emitted offset across unbound edits until cleared", async () => {
+    const dispatch = vi.fn();
+    const container = await mount(
+      view({ inputType: "datetime", $action: { type: "save" } }, dispatch),
+    );
+    const input = container.querySelector("input")!;
+    await change(input, "2026-01-15T12:34");
+    await change(input, "2026-07-15T12:34");
+    expect(dispatch).toHaveBeenLastCalledWith({
+      type: "save",
+      $input: "2026-07-15T11:34:00-05:00",
+    });
+    await change(input, "");
+    expect(dispatch).toHaveBeenLastCalledWith({ type: "save", $input: "" });
+    await change(input, "2026-07-16T12:34");
+    expect(dispatch).toHaveBeenLastCalledWith({
+      type: "save",
+      $input: "2026-07-16T12:34:00-04:00",
+    });
+  });
+
+  it.each([
+    {
+      inputType: "date",
+      value: "2026-07-15",
+      min: "2026-01-01",
+      max: "2026-12-31",
+      edited: "2026-07-16",
+      step: "",
+    },
+    {
+      inputType: "time",
+      value: "12:34",
+      min: "09:00",
+      max: "17:00",
+      edited: "13:45",
+      step: "",
+    },
+    {
+      inputType: "time",
+      value: "12:34:56",
+      min: "09:00:01",
+      max: "17:00:59",
+      edited: "13:45:30",
+      step: "1",
+    },
+    {
+      inputType: "datetime",
+      value: "2026-07-15T12:34",
+      min: "2026-07-15T09:00",
+      max: "2026-07-15T17:00",
+      edited: "2026-07-15T13:45",
+      step: "",
+    },
+    {
+      inputType: "datetime",
+      value: "2026-07-15T12:34:56",
+      min: "2026-07-15T09:00:01",
+      max: "2026-07-15T17:00:59",
+      edited: "2026-07-15T13:45:30",
+      step: "1",
+    },
+  ])(
+    "passes $inputType value $value and bounds through unchanged",
+    async ({ inputType, value, min, max, edited, step }) => {
+      const dispatch = vi.fn();
+      const container = await mount(
+        view(
+          { inputType, value, min, max, $action: { type: "save" } },
+          dispatch,
+        ),
+      );
+      const input = container.querySelector("input")!;
+      expect(input.type).toBe(
+        inputType === "datetime" ? "datetime-local" : inputType,
+      );
+      expect(input.getAttribute("value")).toBe(value);
+      expect(input.getAttribute(FIELD_VALUE_ATTR)).toBe(value);
+      expect(input.value).toBe(nativeValue(input.type, value));
+      expect(input.min).toBe(min);
+      expect(input.max).toBe(max);
+      expect(input.step).toBe(step);
+      await change(input, edited);
+      expect(dispatch).toHaveBeenLastCalledWith({
+        type: "save",
+        $input: nativeValue(input.type, edited),
+      });
+      expect(input.getAttribute(FIELD_VALUE_ATTR)).toBe(
+        nativeValue(input.type, edited),
+      );
+    },
+  );
+
+  it.each([
+    {
+      inputType: "datetime",
+      value: "2026-07-15T12:34:56+08:00",
+      edited: "2026-07-16T09:45:30",
+      emitted: "2026-07-16T21:45:30+08:00",
+    },
+    {
+      inputType: "datetime",
+      value: "",
+      edited: "2026-07-16T09:45",
+      emitted: "2026-07-16T09:45:00-04:00",
+    },
+    {
+      inputType: "datetime",
+      value: "2026-07-15T12:34",
+      edited: "2026-07-16T09:45",
+      emitted: "2026-07-16T09:45",
+    },
+    { inputType: "time", value: "12:34", edited: "09:45", emitted: "09:45" },
+  ])(
+    "sends the same $inputType value to the binding and action for $value",
+    async ({ inputType, value, edited, emitted }) => {
+      const update = vi.fn();
+      const dispatch = vi.fn();
+      const BindingContext = A2uiBindingContext!;
+      const Surface = () => {
+        const [current, setCurrent] = React.useState(value);
+        return (
+          <BindingContext.Provider
+            value={{
+              fields: new Map([
+                ["when", { value: current, arrayValue: false }],
+              ]),
+              update: (path, next) => {
+                update(path, next);
+                setCurrent(String(next));
+              },
+            }}
+          >
+            {view(
+              { inputType, value: current, $action: { type: "save" } },
+              dispatch,
+            )}
+            <output>{current}</output>
+          </BindingContext.Provider>
+        );
+      };
+      const container = await mount(<Surface />);
+      const input = container.querySelector("input")!;
+      expect(input.getAttribute(FIELD_VALUE_ATTR)).toBe(value);
+      await change(input, edited);
+      expect(update).toHaveBeenLastCalledWith("when", emitted);
+      expect(dispatch).toHaveBeenLastCalledWith({
+        type: "save",
+        $input: emitted,
+      });
+      expect(container.querySelector("output")!.textContent).toBe(emitted);
+      expect(input.getAttribute(FIELD_VALUE_ATTR)).toBe(emitted);
+      expect(input.value).toBe(nativeValue(input.type, edited));
+      await change(input, "");
+      expect(update).toHaveBeenLastCalledWith("when", "");
+      expect(dispatch).toHaveBeenLastCalledWith({ type: "save", $input: "" });
+    },
+  );
+
+  it("uses answered values and accepts later value replacements", async () => {
+    const dispatch = vi.fn();
+    const container = await mount(
+      <AnsweredValuesProvider values={{ when: "2026-07-15T12:34:56-05:30" }}>
+        {view(
+          {
+            inputType: "datetime",
+            value: "2026-07-15T12:34Z",
+            $action: { type: "save" },
+          },
+          dispatch,
+        )}
+      </AnsweredValuesProvider>,
+    );
+    let input = container.querySelector("input")!;
+    expect(input.value).toBe(
+      nativeValue("datetime-local", "2026-07-15T14:04:56"),
+    );
+    await change(input, "2026-07-16T09:45:30");
+    expect(dispatch).toHaveBeenLastCalledWith({
+      type: "save",
+      $input: "2026-07-16T08:15:30-05:30",
+    });
+    await React.act(async () =>
+      root!.render(
+        <AnsweredValuesProvider values={undefined}>
+          {view(
+            {
+              inputType: "datetime",
+              value: "2026-07-17T12:34:56+08:00",
+              $action: { type: "save" },
+            },
+            dispatch,
+          )}
+        </AnsweredValuesProvider>,
+      ),
+    );
+    input = container.querySelector("input")!;
+    expect(input.value).toBe(
+      nativeValue("datetime-local", "2026-07-17T00:34:56"),
+    );
+    await change(input, "2026-07-18T09:45:30");
+    expect(dispatch).toHaveBeenLastCalledWith({
+      type: "save",
+      $input: "2026-07-18T21:45:30+08:00",
+    });
+  });
+
+  it("renders the raw instant on the server and hydrates without a mismatch", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const onRecoverableError = vi.fn();
+    const dispatch = vi.fn();
+    const tree = view(
+      {
+        inputType: "datetime",
+        value: "2026-07-15T12:34:56.123+08:00",
+        $action: { type: "save" },
+      },
+      dispatch,
+    );
+    const html = renderToString(tree);
+    expect(html).toContain('type="text"');
+    expect(html).toMatch(/readonly=""/i);
+    expect(html).toContain('value="2026-07-15T12:34:56.123+08:00"');
+    const container = document.createElement("div");
+    container.innerHTML = html;
+    document.body.append(container);
+    await React.act(async () => {
+      root = hydrateRoot(container, tree, { onRecoverableError });
+    });
+    const input = container.querySelector("input")!;
+    expect(input.type).toBe("datetime-local");
+    expect(input.readOnly).toBe(false);
+    expect(input.value).toBe(
+      nativeValue("datetime-local", "2026-07-15T00:34:56"),
+    );
+    await change(input, "2026-07-16T09:45:30");
+    expect(dispatch).toHaveBeenLastCalledWith({
+      type: "save",
+      $input: "2026-07-16T21:45:30.123+08:00",
+    });
+    expect(onRecoverableError).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { inputType: "date", value: "2026-07-15", type: "date" },
+    { inputType: "time", value: "12:34:56", type: "time" },
+    {
+      inputType: "datetime",
+      value: "2026-07-15T12:34:56.123",
+      type: "datetime-local",
+    },
+    { inputType: "datetime", value: "", type: "datetime-local" },
+  ])(
+    "server renders $inputType $value as an editable picker immediately",
+    ({ inputType, value, type }) => {
+      const html = renderToString(view({ inputType, value }));
+      expect(html).toContain(`type="${type}"`);
+      expect(html).toContain(`value="${value}"`);
+      expect(html.toLowerCase()).not.toContain("readonly");
+    },
+  );
+});

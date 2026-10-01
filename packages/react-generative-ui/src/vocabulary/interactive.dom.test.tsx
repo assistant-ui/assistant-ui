@@ -1533,11 +1533,11 @@ describe.each([
       type: "number",
     },
     {
-      title: "date and time",
+      title: "floating date and time",
       field: { component: "DateTimeInput", enableDate: true, enableTime: true },
-      initial: "2025-12-15T17:00:00Z",
-      edited: "2025-12-16T08:30:45+02:00",
-      type: "text",
+      initial: "2025-12-15T17:00",
+      edited: "2025-12-16T08:30",
+      type: "datetime-local",
     },
     {
       title: "timestamp in date mode",
@@ -1551,7 +1551,7 @@ describe.each([
       field: { component: "DateTimeInput", enableTime: true },
       initial: "17:00:00",
       edited: "08:30:45",
-      type: "text",
+      type: "time",
     },
     {
       title: "omitted temporal flags",
@@ -1593,11 +1593,11 @@ describe.each([
       type: "number",
     },
     {
-      title: "unresolved date and time",
-      field: { component: "DateTimeInput", enableDate: true, enableTime: true },
+      title: "unresolved time",
+      field: { component: "DateTimeInput", enableTime: true },
       initial: undefined,
-      edited: "2025-12-15T17:00:00Z",
-      type: "text",
+      edited: "08:30",
+      type: "time",
     },
   ])(
     "preserves untouched, edited, and cleared $title values",
@@ -1620,7 +1620,9 @@ describe.each([
 
       expect(input().type).toBe(type);
       expect(input().getAttribute("aria-label")).toBe("Value");
-      expect(input().value).toBe(initial ?? "");
+      expect(input().value).toBe(
+        initial === "17:00:00" ? "17:00" : (initial ?? ""),
+      );
       if (type === "number") expect(input().step).toBe("any");
       await submit(initial ?? "");
 

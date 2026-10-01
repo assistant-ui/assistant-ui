@@ -5,7 +5,11 @@ import {
   collectFormValues,
   type FormControlElementLike,
 } from "./collectFormValues";
-import { CHECKBOX_GROUP_ATTR, GENERATED_NAME_ATTR } from "../constants";
+import {
+  CHECKBOX_GROUP_ATTR,
+  FIELD_VALUE_ATTR,
+  GENERATED_NAME_ATTR,
+} from "../constants";
 
 const el = (
   partial: Partial<FormControlElementLike>,
@@ -19,6 +23,20 @@ const el = (
 });
 
 describe("collectFormValues", () => {
+  it("uses an explicit field value when present and the live value otherwise", () => {
+    expect(
+      collectFormValues([
+        el({
+          name: "canonical",
+          value: "local",
+          getAttribute: (name) =>
+            name === FIELD_VALUE_ATTR ? "2025-12-15T17:00:00Z" : null,
+        }),
+        el({ name: "ordinary", value: "live" }),
+      ]),
+    ).toEqual({ canonical: "2025-12-15T17:00:00Z", ordinary: "live" });
+  });
+
   it("resolves a checkbox to its checked boolean", () => {
     expect(
       collectFormValues([

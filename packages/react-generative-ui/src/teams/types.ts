@@ -52,8 +52,18 @@ export interface TeamsSubmitData {
   readonly aui: {
     readonly type: string;
     readonly payload?: Record<string, unknown>;
+    readonly temporal?: Readonly<Record<string, TeamsTemporalField>>;
   };
 }
+
+export type TeamsTemporalField =
+  | { readonly mode: "time"; readonly id: string }
+  | {
+      readonly mode: "datetime";
+      readonly dateId: string;
+      readonly timeId: string;
+      readonly previousValue?: string;
+    };
 
 /**
  * A submit action. `data` carries the resume payload under an `aui` key so
@@ -160,6 +170,17 @@ export interface TeamsInputDate {
   readonly spacing?: "large";
 }
 
+export interface TeamsInputTime {
+  readonly type: "Input.Time";
+  readonly id: string;
+  readonly label?: string;
+  readonly value?: string;
+  readonly min?: string;
+  readonly max?: string;
+  readonly separator?: true;
+  readonly spacing?: "large";
+}
+
 /** One cell inside a {@link TeamsTableRow}. */
 export interface TeamsTableCell {
   readonly type: "TableCell";
@@ -199,6 +220,7 @@ export type TeamsCardElement =
   | TeamsInputToggle
   | TeamsInputText
   | TeamsInputDate
+  | TeamsInputTime
   | TeamsTable;
 
 /** A Microsoft Teams Adaptive Card, pinned to schema version 1.5 (the Teams desktop/web cap; mobile clients cap at 1.2). */

@@ -1,5 +1,6 @@
 import { resolveFieldReferences } from "../fieldReferences";
 import type { Action } from "../ir";
+import { fromOffsetDateTime, mergeTemporalMinutes } from "../temporal";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -48,16 +49,45 @@ export function decodeSubmitData(value: unknown): Action | undefined {
       ([key]) => key !== "$input",
     );
     const inputEntries = Object.entries(value).filter(([key]) => key !== "aui");
-    const input =
-      inputEntries.length > 0 ? Object.fromEntries(inputEntries) : undefined;
+    const input = Object.fromEntries(inputEntries);
+    const temporal = aui["temporal"];
+    if (isRecord(temporal)) {
+      for (const [field, metadata] of Object.entries(temporal)) {
+        if (!isRecord(metadata) || metadata["mode"] !== "datetime") continue;
+        const dateId = metadata["dateId"];
+        const timeId = metadata["timeId"];
+        if (typeof dateId !== "string" || typeof timeId !== "string") continue;
+        if (!Object.hasOwn(input, dateId) && !Object.hasOwn(input, timeId))
+          continue;
+        const date = input[dateId];
+        const time = input[timeId];
+        const merged = mergeTemporalMinutes(
+          typeof date === "string" ? date : "",
+          typeof time === "string" ? time : "",
+        );
+        Object.defineProperty(input, field, {
+          value: fromOffsetDateTime(
+            merged,
+            typeof metadata["previousValue"] === "string"
+              ? metadata["previousValue"]
+              : undefined,
+          ),
+          enumerable: true,
+          configurable: true,
+          writable: true,
+        });
+        if (timeId !== field) delete input[timeId];
+      }
+    }
+    const hasInput = inputEntries.length > 0;
 
     return {
       ...(resolveFieldReferences(
         Object.fromEntries(payloadEntries),
-        input ?? {},
+        input,
       ) as Record<string, unknown>),
       type,
-      ...(input !== undefined ? { $input: input } : {}),
+      ...(hasInput ? { $input: input } : {}),
     };
   } catch {
     return undefined;
