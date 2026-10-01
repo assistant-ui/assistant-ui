@@ -5100,6 +5100,71 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     ).toMatchObject(completed);
   });
 
+  it("never appends a resumed message after a turn whose start resumed it", async () => {
+    const { history, appended } = createHistory({ update: false });
+    let releaseFirst!: () => void;
+    const firstReleased = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    let releaseResumed!: () => void;
+    const resumedReleased = new Promise<void>((resolve) => {
+      releaseResumed = resolve;
+    });
+    let runs = 0;
+    const thread = createThread(
+      {
+        async *run() {
+          runs++;
+          if (runs === 1) {
+            yield {
+              content: [toolCallPart("send_email")],
+              status: { type: "requires-action", reason: "tool-calls" },
+            };
+            await firstReleased;
+            return;
+          }
+          if (runs === 2) {
+            await resumedReleased;
+            return;
+          }
+          yield { content: [{ type: "text", text: "noted" }] };
+        },
+      },
+      { history },
+    );
+
+    void thread.append(userMessage("send an email"));
+    await flush();
+    const paused = thread.messages[1]!;
+    let resumed = false;
+    thread.unstable_on("runStart", () => {
+      if (resumed) return;
+      resumed = true;
+      thread.addToolResult({
+        messageId: paused.id,
+        toolCallId: "call-send_email",
+        toolName: "send_email",
+        result: { sent: true },
+        isError: false,
+      });
+    });
+    await thread.startRun({
+      parentId: paused.id,
+      sourceId: null,
+      runConfig: {},
+    });
+    const child = thread.messages.at(-1)!;
+    releaseResumed();
+    await flush();
+    releaseFirst();
+    await flush();
+
+    const ids = appended.map((i) => i.message.id);
+    expect(child.id).not.toBe(paused.id);
+    expect(ids).toContain(child.id);
+    expect(ids.lastIndexOf(paused.id)).toBeLessThan(ids.indexOf(child.id));
+  });
+
   it("persists a partial approval decision while another tool call is still pending", async () => {
     const { history, updated } = createHistory();
     const runs: ChatModelRunOptions[] = [];
