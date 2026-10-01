@@ -4895,6 +4895,9 @@ importers:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
+      '@assistant-ui/x-react18':
+        specifier: workspace:*
+        version: link:../x-react18
       '@testing-library/dom':
         specifier: ^10.4.2
         version: 10.4.2
