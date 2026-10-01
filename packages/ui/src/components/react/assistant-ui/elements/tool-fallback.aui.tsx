@@ -511,7 +511,22 @@ const offersInterruptAction = (
   approval != null ||
   interrupt != null;
 
-function ToolFallbackApproval({
+type ToolFallbackApprovalProps = React.ComponentProps<"div"> &
+  Partial<
+    Pick<
+      ToolCallMessagePartProps,
+      "addResult" | "resume" | "respondToApproval" | "status"
+    >
+  > & {
+    interrupt?: ToolCallMessagePart["interrupt"];
+    approval?: ToolCallMessagePart["approval"];
+  };
+
+function ToolFallbackApproval(props: ToolFallbackApprovalProps) {
+  return <ToolFallbackApprovalImpl key={props.approval?.id} {...props} />;
+}
+
+function ToolFallbackApprovalImpl({
   className,
   onFocusCapture,
   onBlurCapture,
@@ -522,16 +537,7 @@ function ToolFallbackApproval({
   respondToApproval,
   status,
   ...props
-}: React.ComponentProps<"div"> &
-  Partial<
-    Pick<
-      ToolCallMessagePartProps,
-      "addResult" | "resume" | "respondToApproval" | "status"
-    >
-  > & {
-    interrupt?: ToolCallMessagePart["interrupt"];
-    approval?: ToolCallMessagePart["approval"];
-  }) {
+}: ToolFallbackApprovalProps) {
   const [submitted, setSubmitted] = useState(false);
   const voiceActive = useAuiState((s) => s.thread.voice !== undefined);
   const canAnswer = useAuiState((s) => s.thread.capabilities.answerToolCall);
@@ -980,7 +986,6 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
         />
         {shouldRenderApproval && (
           <ToolFallbackApproval
-            key={approval?.id}
             addResult={addResult}
             resume={resume}
             interrupt={interrupt}

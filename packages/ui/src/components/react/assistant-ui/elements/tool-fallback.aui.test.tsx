@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -651,6 +652,129 @@ describe("settled approval receipts", () => {
     );
     expect(button("Allow").disabled).toBe(false);
     expect(button("Deny").disabled).toBe(false);
+  });
+
+  it("starts a new directly rendered approval without the previous lock", () => {
+    const respondToApproval = vi.fn(async () => {});
+    const view = render(
+      <ToolFallback.Approval
+        approval={pendingApproval}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    fireEvent.click(button("Allow"));
+    expect(button("Allow").disabled).toBe(true);
+
+    view.rerender(
+      <ToolFallback.Approval
+        approval={{ id: "next-request" }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+
+    expect(button("Allow").disabled).toBe(false);
+    expect(button("Deny").disabled).toBe(false);
+    fireEvent.click(button("Deny"));
+    expect(respondToApproval).toHaveBeenLastCalledWith({ approved: false });
+    expect(respondToApproval).toHaveBeenCalledTimes(2);
+  });
+
+  it("clears the previous request's draft and error", async () => {
+    const approval = {
+      ...pendingApproval,
+      display: "text" as const,
+      prompt: "Which environment?",
+    };
+    const respondToApproval = vi.fn(async () => {
+      throw new Error("Environment unavailable");
+    });
+    const view = render(
+      <ToolFallbackApproval
+        approval={approval}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: "staging" },
+    });
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{ ...approval, prompt: "Choose an environment" }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe(
+      "staging",
+    );
+    fireEvent.click(button("Send"));
+    await screen.findByRole("alert");
+
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{ ...approval, id: "next-request" }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+
+    expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("");
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(button("Send").disabled).toBe(false);
+  });
+
+  it("leaves confirmation when a different request arrives", () => {
+    const respondToApproval = vi.fn(async () => {});
+    const view = render(
+      <ToolFallbackApproval
+        approval={confirmationApproval}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    fireEvent.click(button("Allow"));
+    expect(button("Confirm")).toBeTruthy();
+
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{ ...confirmationApproval, id: "next-request" }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Confirm" })).toBeNull();
+    expect(button("Allow").disabled).toBe(false);
+    expect(respondToApproval).not.toHaveBeenCalled();
+  });
+
+  it("ignores an earlier request's rejection while the next is pending", async () => {
+    let rejectPrevious!: (error: Error) => void;
+    const previousResponse = new Promise<void>((_, reject) => {
+      rejectPrevious = reject;
+    });
+    const nextResponse = vi.fn(() => new Promise<void>(() => {}));
+    const view = render(
+      <ToolFallbackApproval
+        approval={pendingApproval}
+        respondToApproval={() => previousResponse}
+      />,
+    );
+    fireEvent.click(button("Allow"));
+
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{ id: "next-request" }}
+        respondToApproval={nextResponse}
+      />,
+    );
+    expect(button("Allow").disabled).toBe(false);
+    fireEvent.click(button("Allow"));
+    expect(nextResponse).toHaveBeenCalledTimes(1);
+
+    await act(async () =>
+      rejectPrevious(new Error("Previous request expired")),
+    );
+
+    expect(button("Allow").disabled).toBe(true);
+    expect(button("Deny").disabled).toBe(true);
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("records the option a gate was allowed with, without controls", () => {
