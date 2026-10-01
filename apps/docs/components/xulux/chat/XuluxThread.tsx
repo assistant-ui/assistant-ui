@@ -1,6 +1,5 @@
 "use client";
 
-import { ModelSelector } from "@/components/assistant-ui/elements/model-selector.aui";
 import { Button } from "@/components/ui/button";
 import { AssistantComposer } from "@/components/pages/docs/assistant/composer";
 import { AssistantActionBar } from "@/components/pages/docs/assistant/assistant-action-bar";
@@ -12,11 +11,13 @@ import { Reasoning } from "@/components/assistant-ui/elements/reasoning.aui";
 import { DotMatrix } from "@/components/ui/dot-matrix";
 import { analytics } from "@/lib/analytics";
 import { getComposerMessageMetrics } from "@/lib/assistant-analytics-helpers";
+import { getContextWindow } from "@/lib/model";
 import {
   useXuluxAnalytics,
   withXuluxContext,
 } from "@/lib/xulux/analytics-context";
 import { getXuluxThreadWelcome } from "@/lib/xulux/thread-welcome";
+import { XULUX_MODEL_ID } from "@/lib/xulux/usage-budget-codes";
 import {
   AuiIf,
   ErrorPrimitive,
@@ -26,25 +27,11 @@ import {
   useAuiState,
 } from "@assistant-ui/react";
 import { BookOpen } from "lucide-react";
-import Image from "next/image";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef } from "react";
 import { XuluxPoweredBy } from "../XuluxPoweredBy";
 import { useXuluxTemplateContext } from "./XuluxTemplateContext";
 import { LearnCourseResultFooter, XuluxToolCall } from "./XuluxToolCall";
 import { XuluxUsageLimitBanner } from "./XuluxUsageLimitBanner";
-
-const XULUX_CONTEXT_WINDOW = 1_050_000;
-const XULUX_DEFAULT_MODEL_ID = "gpt-6-luna";
-
-const XULUX_MODELS = [
-  {
-    id: "gpt-6-luna",
-    name: "GPT-6 Luna",
-    modelName: "gpt-6-luna",
-  },
-] as const;
-
-type XuluxModelId = (typeof XULUX_MODELS)[number]["id"];
 
 export function XuluxThread({
   onNewThread,
@@ -103,7 +90,7 @@ export function XuluxThread({
       <AssistantFooter
         {...(onNewThread ? { onNewThread } : {})}
         showNewThread={!learn}
-        contextWindow={XULUX_CONTEXT_WINDOW}
+        contextWindow={getContextWindow(XULUX_MODEL_ID)}
         centerContent={<XuluxPoweredBy className="min-w-0 truncate px-1" />}
       />
     </ThreadPrimitive.Root>
@@ -143,7 +130,6 @@ function XuluxComposer({
       <XuluxUsageLimitBanner {...(onNewThread ? { onNewThread } : {})} />
       <AssistantComposer
         placeholder={placeholder}
-        modelSelector={<XuluxModelSelector />}
         onSubmit={() => {
           const metrics = getComposerMessageMetrics(aui.composer.getState());
           if (!metrics) return;
@@ -192,55 +178,6 @@ function XuluxLearnWelcome({
         </Button>
       ) : null}
     </div>
-  );
-}
-
-function XuluxModelSelector(): ReactNode {
-  const aui = useAui();
-  const [modelValue, setModelValue] = useState<XuluxModelId>(
-    XULUX_DEFAULT_MODEL_ID,
-  );
-  const selectedModel =
-    XULUX_MODELS.find((model) => model.id === modelValue) ?? XULUX_MODELS[0];
-  const modelOptions = useMemo(
-    () =>
-      XULUX_MODELS.map((model) => ({
-        id: model.id,
-        name: model.name,
-        icon: (
-          <Image
-            src="/icons/openai.svg"
-            alt={model.name}
-            width={16}
-            height={16}
-            className="size-4"
-          />
-        ),
-      })),
-    [],
-  );
-
-  useEffect(() => {
-    return aui.modelContext.register({
-      getModelContext: () => ({
-        config: {
-          modelName: selectedModel.modelName,
-        },
-      }),
-    });
-  }, [aui, selectedModel]);
-
-  return (
-    <ModelSelector.Root
-      models={modelOptions}
-      value={modelValue}
-      onValueChange={(value) => {
-        if (isXuluxModelId(value)) setModelValue(value);
-      }}
-    >
-      <ModelSelector.Trigger variant="ghost" size="sm" />
-      <ModelSelector.Content />
-    </ModelSelector.Root>
   );
 }
 
@@ -319,8 +256,4 @@ function XuluxWelcome({
       </p>
     </div>
   );
-}
-
-function isXuluxModelId(value: string): value is XuluxModelId {
-  return XULUX_MODELS.some((model) => model.id === value);
 }
