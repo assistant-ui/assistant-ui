@@ -1,6 +1,7 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
+  "agentGuidance": false,
   "globalPassThroughEnv": ["ENABLE_EXPERIMENTAL_COREPACK"],
   "globalDependencies": [
     "packages/x-buildutils/bin/**",

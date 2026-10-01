@@ -13,13 +13,13 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@tailwindcss/vite": "^4.3.3",
-    "@tanstack/react-router": "^1.170.36",
-    "@tanstack/react-start": "^1.168.54",
+    "@tanstack/react-router": "^1.170.40",
+    "@tanstack/react-start": "^1.168.59",
     "class-variance-authority": "^0.7.1",
-    "cn": "^0.3.0",
-    "lucide-react": "^1.46.0",
+    "cn": "^0.4.0",
+    "lucide-react": "^1.49.0",
     "nitro": "^3.0.260311-beta",
-    "openai": "^7.15.0",
+    "openai": "^7.25.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "remark-gfm": "^4.0.1",
@@ -28,11 +28,11 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^26.5.1",
+    "@types/node": "^26.6.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "typescript": "^7.0.2",
-    "vite": "^8.3.0"
+    "vite": "^8.3.1"
   }
 }
