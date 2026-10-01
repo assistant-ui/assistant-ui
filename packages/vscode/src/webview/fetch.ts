@@ -105,19 +105,21 @@ export function createVSCodeFetch(
                 finish();
               },
             });
+        let response: Response;
         try {
-          responded = true;
-          resolve(
-            new Response(stream, {
-              status: message.status,
-              statusText: message.statusText,
-              headers: message.headers,
-            }),
-          );
+          response = new Response(stream, {
+            status: message.status,
+            statusText: message.statusText,
+            headers: message.headers,
+          });
         } catch (error) {
           sendAbort();
-          fail(error);
+          finish();
+          reject(error);
+          return;
         }
+        responded = true;
+        resolve(response);
       };
 
       const unsubscribe = port.onMessage((message) => {
