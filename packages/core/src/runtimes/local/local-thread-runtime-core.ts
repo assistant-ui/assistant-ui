@@ -193,7 +193,9 @@ export class LocalThreadRuntimeCore
   >();
 
   private _historyWrites = new Map<string, Promise<void>>();
-  private _deletedMessages = new Set<string>();
+  // A message whose delete the history has been sent, holding the writes that
+  // delete suppressed so a rejected delete can still issue them.
+  private _deletedMessages = new Map<string, (() => Promise<void>)[]>();
 
   // Writes for one message id must land in issue order; an earlier paused
   // snapshot arriving after the terminal write would resurrect the pause.
@@ -201,7 +203,11 @@ export class LocalThreadRuntimeCore
     id: string,
     write: () => Promise<void>,
   ): Promise<void> {
-    if (this._deletedMessages.has(id)) return Promise.resolve();
+    const suppressed = this._deletedMessages.get(id);
+    if (suppressed) {
+      suppressed.push(write);
+      return Promise.resolve();
+    }
 
     // The first write for an id is issued synchronously, so it reaches the adapter before a turn appended under that message in the same tick.
     const pending = this._historyWrites.get(id);
@@ -780,11 +786,15 @@ export class LocalThreadRuntimeCore
     const items = [{ parentId, message }];
 
     const pending = this._historyWrites.get(messageId);
-    this._deletedMessages.add(messageId);
+    this._deletedMessages.set(messageId, []);
     try {
       await adapter.delete(items);
     } catch (error) {
+      const suppressed = this._deletedMessages.get(messageId) ?? [];
       this._deletedMessages.delete(messageId);
+      for (const write of suppressed) {
+        void this._chainHistoryWrite(messageId, write).catch(() => {});
+      }
       throw error;
     }
     void pending?.then(() => adapter.delete!(items)).catch(() => {});

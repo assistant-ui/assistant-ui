@@ -5301,7 +5301,7 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     expect(deleteMessages).toHaveBeenCalledOnce();
   });
 
-  it("allows later feedback writes when a rejected delete lifts its tombstone", async () => {
+  it("issues the writes a rejected delete suppressed, and later ones", async () => {
     const { history, updated } = createHistory();
     const deleteError = new Error("delete failed");
     let rejectDelete!: (error: Error) => void;
@@ -5321,7 +5321,13 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     const writesDuringDelete = [...updated];
     rejectDelete(deleteError);
     await expect(deletion).rejects.toBe(deleteError);
+    await flush();
     expect(thread.getMessageById(paused.id)).toBeDefined();
+    expect(writesDuringDelete).toEqual([]);
+    expect(updated.at(-1)?.message).toMatchObject({
+      id: paused.id,
+      metadata: { submittedFeedback: { type: "positive" } },
+    });
 
     thread.submitFeedback({ messageId: paused.id, type: "negative" });
     await flush();
@@ -5330,9 +5336,42 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
       id: paused.id,
       metadata: { submittedFeedback: { type: "negative" } },
     });
-    expect(writesDuringDelete).toEqual([]);
-    expect(updated).toHaveLength(1);
+    expect(updated).toHaveLength(2);
     expect(deleteMessages).toHaveBeenCalledOnce();
+  });
+
+  it("appends a message a rejected delete suppressed to an append-only history", async () => {
+    const { history, appended } = createHistory({ update: false });
+    const deleteError = new Error("delete failed");
+    let rejectDelete!: (error: Error) => void;
+    const deleted = new Promise<void>((_, reject) => {
+      rejectDelete = reject;
+    });
+    const deleteMessages = vi.fn(() => deleted);
+    const thread = createApprovalThreadWithHistory({
+      ...history,
+      delete: deleteMessages,
+    });
+
+    await thread.append(userMessage("send an email"));
+    const paused = thread.messages[1]!;
+    expect(appended.map(({ message }) => message.id)).not.toContain(paused.id);
+    const deletion = thread.deleteMessage(paused.id);
+    await thread
+      .append({
+        ...userMessage("never mind"),
+        parentId: paused.id,
+        startRun: false,
+      })
+      .catch(() => {});
+    expect(appended.map(({ message }) => message.id)).not.toContain(paused.id);
+
+    rejectDelete(deleteError);
+    await expect(deletion).rejects.toBe(deleteError);
+    await flush();
+
+    expect(appended.map(({ message }) => message.id)).toContain(paused.id);
+    expect(thread.getMessageById(paused.id)).toBeDefined();
   });
 
   it("keeps a paused message cancelled after the follow-up that ended it is deleted", async () => {
