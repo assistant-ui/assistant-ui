@@ -6,9 +6,10 @@ import { cva, type VariantProps } from "class-variance-authority";
 import type { SourceMessagePartComponent } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { hostOf, safeHref } from "../utils/href";
 
 const sourceVariants = cva(
-  "inline-flex items-center justify-center gap-1 rounded-md text-xs font-medium transition-colors [&_svg]:size-3 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-1 rounded-md text-xs font-medium transition-colors motion-reduce:transition-none [&_svg]:size-3 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
@@ -41,14 +42,6 @@ const sourceVariants = cva(
   },
 );
 
-const extractDomain = (url: string): string => {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return url;
-  }
-};
-
 const defaultFaviconUrl = (domain: string) =>
   `https://icons.duckduckgo.com/ip3/${domain}.ico`;
 
@@ -59,12 +52,12 @@ function SourceIcon({
   ...props
 }: ComponentProps<"span"> & {
   url: string;
-  faviconUrl?: (domain: string) => string;
+  faviconUrl?: ((domain: string) => string) | undefined;
 }) {
-  const domain = extractDomain(url);
-  const src = faviconUrl(domain);
+  const domain = hostOf(url);
+  const src = domain === undefined ? undefined : faviconUrl(domain);
   const [errorSrc, setErrorSrc] = useState<string | undefined>(undefined);
-  const hasError = errorSrc === src;
+  const hasError = src === undefined || errorSrc === src;
 
   if (hasError) {
     return (
@@ -76,7 +69,7 @@ function SourceIcon({
         )}
         {...props}
       >
-        {domain.charAt(0).toUpperCase() || "?"}
+        {domain?.charAt(0).toUpperCase() || "?"}
       </span>
     );
   }
@@ -150,14 +143,25 @@ function Source({
 
 const SourcesImpl: SourceMessagePartComponent = (part) => {
   if (part.sourceType === "url" && part.url) {
-    const domain = extractDomain(part.url);
-    const displayTitle = part.title || domain;
-
-    return (
-      <Source href={part.url}>
+    const href = safeHref(part.url);
+    const domain = hostOf(part.url);
+    const displayTitle = part.title || domain || part.url;
+    const content = (
+      <>
         <SourceIcon url={part.url} />
         <SourceTitle>{displayTitle}</SourceTitle>
-      </Source>
+      </>
+    );
+
+    return href ? (
+      <Source href={href}>{content}</Source>
+    ) : (
+      <span
+        data-slot="source"
+        className={cn(sourceVariants(), "cursor-default")}
+      >
+        {content}
+      </span>
     );
   }
 

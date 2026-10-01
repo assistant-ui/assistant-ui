@@ -18,6 +18,9 @@ type A2uiCreateSurfaceOperation = {
   readonly version: "v0.9";
   readonly createSurface: A2uiCreateSurfaceV09Payload;
 } | {
+  readonly version: "v0.9.1";
+  readonly createSurface: A2uiCreateSurfaceV09Payload;
+} | {
   readonly version: "v1.0";
   readonly createSurface: A2uiCreateSurfaceV10Payload;
 };
@@ -103,7 +106,7 @@ interface A2uiUpdateDataModelPayload {
   readonly data?: unknown;
 }
 
-type A2uiVersion = "v0.9" | "v1.0";
+type A2uiVersion = "v0.9" | "v0.9.1" | "v1.0";
 
 declare const ALERT_TONES: readonly [
   "info",
@@ -302,11 +305,15 @@ type CompleteAttachmentStatus = {
 interface ComponentNode extends Record<string, unknown> {
   readonly id: string;
   readonly component: string;
-  readonly children?: readonly string[] | A2uiTemplateChildren;
+  readonly children?: readonly string[] | {
+    readonly componentId: string;
+    readonly path: string;
+  } | A2uiTemplateChildren;
 }
 
 type DataMessagePart<T = any> = {
   readonly type: "data";
+  readonly id?: string;
   readonly name: string;
   readonly data: T;
 };
@@ -338,6 +345,7 @@ type EventSource<T extends AssistantEventName> = T extends `${infer Source}.${st
 
 type FileMessagePart = {
   readonly type: "file";
+  readonly id?: string;
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
@@ -465,6 +473,7 @@ type IconName = (typeof ICON_NAMES)[number];
 
 type ImageMessagePart = {
   readonly type: "image";
+  readonly id?: string;
   readonly image: string;
   readonly filename?: string;
   readonly providerMetadata?: PartProviderMetadata;
@@ -651,6 +660,7 @@ type ReadonlyJSONValue = null | string | number | boolean | ReadonlyJSONObject |
 
 type ReasoningMessagePart = {
   readonly type: "reasoning";
+  readonly id?: string;
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
   readonly unstable_summary?: string;
@@ -666,10 +676,11 @@ interface ScopeRegistry {
   [key: string]: { methods: any; meta?: any; events?: any };
 }
 
-type SlackActionElement = SlackButtonElement | SlackStaticSelectElement | SlackDatePickerElement | SlackCheckboxesElement | SlackRadioButtonsElement;
+type SlackActionElement = SlackButtonElement | SlackStaticSelectElement | SlackDatePickerElement | SlackTimePickerElement | SlackDateTimePickerElement | SlackCheckboxesElement | SlackRadioButtonsElement;
 
 interface SlackActionsBlock {
   readonly type: "actions";
+  readonly block_id?: string;
   readonly elements: readonly SlackActionElement[];
 }
 
@@ -754,6 +765,12 @@ interface SlackDatePickerElement {
   readonly initial_date?: string;
 }
 
+interface SlackDateTimePickerElement {
+  readonly type: "datetimepicker";
+  readonly action_id: string;
+  readonly initial_date_time?: number;
+}
+
 interface SlackDividerBlock {
   readonly type: "divider";
 }
@@ -771,6 +788,7 @@ interface SlackImageBlock {
 
 interface SlackInputBlock {
   readonly type: "input";
+  readonly block_id?: string;
   readonly label: SlackPlainText;
   readonly element: SlackPlainTextInputElement;
 }
@@ -826,6 +844,12 @@ interface SlackStaticSelectElement {
 }
 
 type SlackTextObject = SlackPlainText | SlackMrkdwnText;
+
+interface SlackTimePickerElement {
+  readonly type: "timepicker";
+  readonly action_id: string;
+  readonly initial_time?: string;
+}
 
 type SourceMessagePart = {
   readonly type: "source";
@@ -922,7 +946,7 @@ interface TeamsCardAttachment {
   readonly content: TeamsAdaptiveCard;
 }
 
-type TeamsCardElement = TeamsTextBlock | TeamsImage | TeamsFactSet | TeamsActionSet | TeamsContainer | TeamsColumnSet | TeamsInputChoiceSet | TeamsInputToggle | TeamsInputText | TeamsInputDate | TeamsTable;
+type TeamsCardElement = TeamsTextBlock | TeamsImage | TeamsFactSet | TeamsActionSet | TeamsContainer | TeamsColumnSet | TeamsInputChoiceSet | TeamsInputToggle | TeamsInputText | TeamsInputDate | TeamsInputTime | TeamsTable;
 
 interface TeamsColumn {
   readonly type: "Column";
@@ -1007,10 +1031,22 @@ interface TeamsInputDate {
 interface TeamsInputText {
   readonly type: "Input.Text";
   readonly id: string;
+  readonly style?: "password";
   readonly label?: string;
   readonly placeholder?: string;
   readonly value?: string;
   readonly isMultiline?: true;
+  readonly separator?: true;
+  readonly spacing?: "large";
+}
+
+interface TeamsInputTime {
+  readonly type: "Input.Time";
+  readonly id: string;
+  readonly label?: string;
+  readonly value?: string;
+  readonly min?: string;
+  readonly max?: string;
   readonly separator?: true;
   readonly spacing?: "large";
 }
@@ -1079,6 +1115,7 @@ type TeamsTextSize = "extraLarge" | "large" | "medium" | "small";
 
 type TextMessagePart = {
   readonly type: "text";
+  readonly id?: string;
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
@@ -1491,7 +1528,7 @@ declare function convertSurfaceToUISpec(surface: A2uiSurfaceState, options?: {
 
 declare function createActionRegistry(handlers: Readonly<Record<string, ActionHandler>>): ActionRegistry;
 
-declare function decodeBlockAction(action: unknown): Action | undefined;
+declare function decodeBlockAction(action: unknown, stateValues?: unknown): Action | undefined;
 
 declare function decodeSubmitData(value: unknown): Action | undefined;
 
@@ -1539,13 +1576,13 @@ declare function normalizeUINode(node: unknown, partialPath?: readonly string[] 
 declare function renderGenerativeUI(node: unknown, library: GenerativeUILibrary, context?: GenerativeUIRenderContext): ReactNode;
 
 declare namespace entry_slack_exports {
-  export { FromSlackBlocksResult, SlackActionElement, SlackActionsBlock, SlackAlertBlock, SlackAlertLevel, SlackBlock, SlackBlocksResult, SlackButtonElement, SlackCardBlock, SlackCarouselBlock, SlackCheckboxesElement, SlackContextBlock, SlackConversionWarning, SlackDataTableBlock, SlackDataTableCell, SlackDataTableRawNumberCell, SlackDataTableRawTextCell, SlackDatePickerElement, SlackDividerBlock, SlackHeaderBlock, SlackImageBlock, SlackInputBlock, SlackMarkdownBlock, SlackMrkdwnText, SlackOption, SlackPlainText, SlackPlainTextInputElement, SlackRadioButtonsElement, SlackSectionBlock, SlackStaticSelectElement, SlackTextObject, ToSlackBlocksOptions, decodeBlockAction, fromSlackBlocks, toSlackBlocks };
+  export { FromSlackBlocksResult, SlackActionElement, SlackActionsBlock, SlackAlertBlock, SlackAlertLevel, SlackBlock, SlackBlocksResult, SlackButtonElement, SlackCardBlock, SlackCarouselBlock, SlackCheckboxesElement, SlackContextBlock, SlackConversionWarning, SlackDataTableBlock, SlackDataTableCell, SlackDataTableRawNumberCell, SlackDataTableRawTextCell, SlackDatePickerElement, SlackDateTimePickerElement, SlackDividerBlock, SlackHeaderBlock, SlackImageBlock, SlackInputBlock, SlackMarkdownBlock, SlackMrkdwnText, SlackOption, SlackPlainText, SlackPlainTextInputElement, SlackRadioButtonsElement, SlackSectionBlock, SlackStaticSelectElement, SlackTextObject, SlackTimePickerElement, ToSlackBlocksOptions, decodeBlockAction, fromSlackBlocks, toSlackBlocks };
 }
 
 declare function surfaceToOperations(surface: A2uiSurfaceState, surfaceId?: string): readonly A2uiSurfaceSnapshotOperation[];
 
 declare namespace entry_teams_exports {
-  export { AdaptiveCardResult, TeamsActionSet, TeamsAdaptiveCard, TeamsAttachmentsResult, TeamsCardAction, TeamsCardAttachment, TeamsCardElement, TeamsColumn, TeamsColumnSet, TeamsContainer, TeamsContainerStyle, TeamsConversionWarning, TeamsFact, TeamsFactSet, TeamsImage, TeamsInputChoice, TeamsInputChoiceSet, TeamsInputDate, TeamsInputText, TeamsInputToggle, TeamsSubmitAction, TeamsSubmitData, TeamsTable, TeamsTableCell, TeamsTableColumnDefinition, TeamsTableRow, TeamsTextBlock, TeamsTextSize, ToAdaptiveCardOptions, decodeSubmitData, toAdaptiveCard, toTeamsAttachments };
+  export { AdaptiveCardResult, TeamsActionSet, TeamsAdaptiveCard, TeamsAttachmentsResult, TeamsCardAction, TeamsCardAttachment, TeamsCardElement, TeamsColumn, TeamsColumnSet, TeamsContainer, TeamsContainerStyle, TeamsConversionWarning, TeamsFact, TeamsFactSet, TeamsImage, TeamsInputChoice, TeamsInputChoiceSet, TeamsInputDate, TeamsInputText, TeamsInputTime, TeamsInputToggle, TeamsSubmitAction, TeamsSubmitData, TeamsTable, TeamsTableCell, TeamsTableColumnDefinition, TeamsTableRow, TeamsTextBlock, TeamsTextSize, ToAdaptiveCardOptions, decodeSubmitData, toAdaptiveCard, toTeamsAttachments };
 }
 
 declare function toAdaptiveCard(node: unknown, _options?: ToAdaptiveCardOptions): AdaptiveCardResult;

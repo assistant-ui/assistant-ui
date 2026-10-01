@@ -318,7 +318,7 @@ export const createMessageQueue = (
   };
 
   const notifyCancelled = () => {
-    if (interrupting) return;
+    if (interrupting || dispatchPending) return;
     if (running && cancelSettles === 0) {
       paused = true;
       cancelSettles = 1;

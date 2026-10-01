@@ -1,6 +1,6 @@
 {
   "name": "assistant-stream",
-  "version": "0.3.45",
+  "version": "0.3.46",
   "description": "Streaming utilities for AI assistants",
   "keywords": [
     "ai",
@@ -76,8 +76,8 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "ioredis": "^6.0.0",
     "ioredis-v5": "npm:ioredis@^5.11.1",
-    "redis": "^6.2.1",
-    "vitest": "^5.0.1"
+    "redis": "^6.3.0",
+    "vitest": "^5.0.3"
   },
   "publishConfig": {
     "access": "public",

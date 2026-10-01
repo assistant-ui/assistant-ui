@@ -20,7 +20,7 @@ Once an hour, the cloud calculates each project's totals for the current UTC day
 | `daily_incomplete_rate_change` | Today's incomplete rate compared with the preceding 7 days. | % rise | Fewer than 3 days of history exist, either rate is unavailable, or the baseline is zero. |
 | `daily_runs_change` | Today's runs compared with the mean of the preceding 7 days. | % rise | Fewer than 3 days of history exist, or the baseline is zero. |
 
-The cloud calculates daily metrics once for the project, then evaluates its rules. A successful delivery writes a delivery event, records when the rule last triggered and clears the rule's last error. The cooldown is counted from that successful delivery. A failed delivery writes a failed event and updates the last error, but does not begin the cooldown.
+A successful delivery writes a delivery event, records when the rule last triggered and clears the rule's last error. The cooldown is counted from that successful delivery. A failed delivery writes a failed event and updates the last error, but does not begin the cooldown.
 
 ## Configure a rule
 
@@ -37,7 +37,7 @@ The cloud calculates daily metrics once for the project, then evaluates its rule
 
 The two rate metrics, `daily_error_rate` and `daily_incomplete_rate`, are stored as fractions. The form divides their displayed percentage by 100 when it saves and multiplies it by 100 when it reads it. Every other threshold is stored exactly as typed.
 
-Create returns the webhook signing secret once, and the secret dialog says `Copy this secret now. It will not be shown again.` Edit changes a rule and records `alert_rule.update`. Enable and disable are edits that change `enabled` and also record `alert_rule.update`. Rotate secret returns a new secret once and records `alert_rule.rotate_secret`. Delete removes the rule and its delivery events and records `alert_rule.delete`. **Send test** delivers immediately, records a test delivery event, and records `alert_rule.test` with the delivery status and response code. Creating a rule records `alert_rule.create`.
+Create records `alert_rule.create` and returns the webhook signing secret once, and the secret dialog says `Copy this secret now. It will not be shown again.` Edit changes a rule and records `alert_rule.update`. Enable and disable are edits that change `enabled` and also record `alert_rule.update`. Rotate secret returns a new secret once and records `alert_rule.rotate_secret`. Delete removes the rule and its delivery events and records `alert_rule.delete`. **Send test** delivers immediately, records a test delivery event, and records `alert_rule.test` with the delivery status and response code.
 
 ### Rule allowance
 

@@ -389,6 +389,22 @@ export const parseAgUiEvent = (
         },
       );
     }
+    case "ACTIVITY_DELTA": {
+      const messageId = getString("messageId");
+      const activityType = getString("activityType");
+      if (!messageId || !activityType || !Array.isArray(payload.patch)) {
+        return reject("missing messageId, activityType or patch array");
+      }
+      return withOptional(
+        {
+          type: "ACTIVITY_DELTA" as const,
+          messageId,
+          activityType,
+          patch: payload.patch as any[],
+        },
+        { subagentRunId: getString("subagentRunId") },
+      );
+    }
     case "RAW":
       return withOptional(
         { type: "RAW" as const, event: payload.event },

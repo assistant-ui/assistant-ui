@@ -1,5 +1,10 @@
+import { decodeBlockAction } from "./decodeBlockAction";
 import { describe, expect, it } from "vitest";
-import { CHILDREN_CAP, NODE_BUDGET } from "../convert/boundSpec";
+import {
+  CHILDREN_CAP,
+  MAX_TRAVERSAL_DEPTH,
+  NODE_BUDGET,
+} from "../convert/boundSpec";
 import { toSlackBlocks } from "./toSlackBlocks";
 import {
   ACTION_ID_CAP,
@@ -173,6 +178,19 @@ describe("toSlackBlocks", () => {
       expect(warnings).toEqual([]);
     });
 
+    it("appends a directional fact delta to the value text", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Fact",
+        label: "Revenue",
+        value: "$12.4k",
+        delta: "8%",
+        trend: "down",
+      });
+      expect((blocks[0] as SlackSectionBlock).fields?.[0]?.text).toBe(
+        "*Revenue*\n$12.4k (↓ 8%)",
+      );
+    });
+
     it("breaks Fact merging on a non-Fact sibling", () => {
       const root = [
         { $type: "Fact", label: "A", value: "1" },
@@ -335,7 +353,7 @@ describe("toSlackBlocks", () => {
       });
     });
 
-    it("turns $field references in value into their fallback and warns", () => {
+    it("preserves field references until state is available to the decoder", () => {
       const { blocks, warnings } = toSlackBlocks({
         $type: "Button",
         label: "Save",
@@ -351,14 +369,19 @@ describe("toSlackBlocks", () => {
       });
       expect((blocks[0] as SlackActionsBlock).elements[0]).toMatchObject({
         action_id: "save",
-        value: JSON.stringify({ form: { id: 7, name: "Ada", plan: [] } }),
+        value: JSON.stringify({
+          note: { $field: "note" },
+          form: {
+            id: 7,
+            name: { $field: "name", fallback: "Ada" },
+            plan: [{ $field: "plan" }],
+          },
+        }),
       });
-      expect(warnings).toContainEqual({
-        code: "fallback",
-        component: "Button",
-        detail:
-          "field references in value became their fallback, or were dropped without one, because Slack sends no other control's value with a button click.",
-      });
+      expect(warnings).toEqual([]);
+      expect(
+        decodeBlockAction((blocks[0] as SlackActionsBlock).elements[0]),
+      ).toEqual({ type: "save", form: { id: 7, name: "Ada", plan: [] } });
     });
 
     it(`omits value instead of truncating and warns when the serialized action payload exceeds ${BUTTON_VALUE_CAP} characters`, () => {
@@ -551,6 +574,153 @@ describe("toSlackBlocks", () => {
   });
 
   describe("Input", () => {
+    it("keeps number text and drops the omitted password's field fallback", () => {
+      const { blocks, warnings } = toSlackBlocks([
+        {
+          $type: "Input",
+          name: "quantity",
+          inputType: "number",
+          defaultValue: "2.5",
+          $action: { type: "edit_quantity" },
+        },
+        {
+          $type: "Input",
+          name: "password",
+          label: "Password",
+          inputType: "password",
+          defaultValue: "secret",
+        },
+        {
+          $type: "Button",
+          label: "Submit",
+          $action: {
+            type: "submit",
+            quantity: { $field: "quantity" },
+            password: { $field: "password", fallback: "secret" },
+          },
+        },
+      ]);
+      expect(blocks[0]).toMatchObject({
+        type: "input",
+        element: { type: "plain_text_input", initial_value: "2.5" },
+      });
+      expect(blocks[1]).toEqual({
+        type: "context",
+        elements: [
+          { type: "mrkdwn", text: "Password input omitted on Slack." },
+        ],
+      });
+      expect(blocks.filter((block) => block.type === "input")).toHaveLength(1);
+      expect(JSON.stringify(blocks)).not.toContain("secret");
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Input",
+        detail: "Password input was replaced by a Slack omission note.",
+      });
+      const button = blocks[2];
+      const numberInput = blocks[0];
+      if (
+        button?.type !== "actions" ||
+        button.elements[0]?.type !== "button" ||
+        numberInput?.type !== "input" ||
+        !numberInput.block_id
+      ) {
+        throw new Error("Expected a named number input and submit button");
+      }
+      expect(
+        decodeBlockAction(button.elements[0], {
+          [numberInput.block_id]: {
+            edit_quantity: { type: "plain_text_input", value: "3.5" },
+          },
+        }),
+      ).toEqual({
+        type: "submit",
+        quantity: "3.5",
+      });
+    });
+
+    it("drops nested password fallbacks from button values", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Col",
+        children: [
+          {
+            $type: "Input",
+            name: "password",
+            inputType: "password",
+          },
+          {
+            $type: "Button",
+            label: "Submit",
+            $action: {
+              type: "submit",
+              fields: [
+                { password: { $field: "password", fallback: "secret" } },
+              ],
+            },
+          },
+        ],
+      });
+      expect(JSON.stringify(blocks)).not.toContain("secret");
+    });
+
+    it("drops a button value that nests a password reference past the traversal limit", () => {
+      let nested: unknown = { $field: "password", fallback: "secret" };
+      for (let depth = 0; depth <= MAX_TRAVERSAL_DEPTH; depth++) {
+        nested = { nested };
+      }
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Col",
+        children: [
+          { $type: "Input", name: "password", inputType: "password" },
+          {
+            $type: "Button",
+            label: "Submit",
+            $action: { type: "submit", nested },
+          },
+        ],
+      });
+      expect(JSON.stringify(blocks)).not.toContain("secret");
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Button",
+        detail:
+          "value was dropped because the action payload could not be serialized.",
+      });
+      const button = blocks[1];
+      if (button?.type !== "actions" || button.elements[0]?.type !== "button") {
+        throw new Error("Expected a submit button");
+      }
+      expect(button.elements[0].value).toBeUndefined();
+    });
+
+    it("carries a named control in its block_id", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Input",
+        name: "email",
+        label: "Email",
+      });
+      expect(blocks[0]).toMatchObject({
+        type: "input",
+        block_id: `aui:0:${JSON.stringify([["action", "email"]])}`,
+      });
+      expect(warnings).toEqual([]);
+    });
+
+    it("warns when a name cannot fit in Slack's block_id limit", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Input",
+        name: "n".repeat(250),
+        label: "Name",
+      });
+      expect(blocks[0]).not.toHaveProperty("block_id");
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Input",
+        detail:
+          "name could not be mapped because its Slack block_id exceeded 255 characters.",
+      });
+    });
+
     it("wraps a plain_text_input element, passing multiline through", () => {
       const { blocks } = toSlackBlocks({
         $type: "Input",
@@ -576,6 +746,17 @@ describe("toSlackBlocks", () => {
         $type: "Input",
         label: "Name",
         $action: { type: "name" },
+      });
+      expect((blocks[0] as SlackInputBlock).element).not.toHaveProperty(
+        "multiline",
+      );
+    });
+
+    it("omits multiline for a number input", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Input",
+        inputType: "number",
+        multiline: true,
       });
       expect((blocks[0] as SlackInputBlock).element).not.toHaveProperty(
         "multiline",
@@ -678,6 +859,63 @@ describe("toSlackBlocks", () => {
     });
   });
 
+  describe("Slider", () => {
+    it("renders a number input block with its numeric bounds", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Slider",
+        label: "Quantity",
+        min: 1,
+        max: 12,
+        step: 0.5,
+        defaultValue: 3.5,
+        $action: { type: "set_quantity" },
+      });
+
+      expect(blocks).toEqual([
+        {
+          type: "input",
+          label: { type: "plain_text", text: "Quantity" },
+          element: {
+            type: "number_input",
+            action_id: "set_quantity",
+            min_value: 1,
+            max_value: 12,
+            initial_value: 3.5,
+            is_decimal_allowed: true,
+          },
+        },
+      ]);
+    });
+
+    it.each([
+      ["minimum", { min: 0.5, max: 2, step: 1 }],
+      ["maximum", { min: 0, max: 2.5 }],
+      ["default value", { min: 0, max: 2, step: 1, defaultValue: 0.5 }],
+    ])("allows decimals when the %s is fractional", (_property, values) => {
+      const { blocks } = toSlackBlocks({
+        $type: "Slider",
+        label: "Quantity",
+        ...values,
+      });
+
+      expect(blocks[0]).toMatchObject({
+        element: { type: "number_input", is_decimal_allowed: true },
+      });
+    });
+
+    it("uses the same input block when nested in a Form", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Form",
+        children: { $type: "Slider", label: "Quantity", min: 1, max: 12 },
+      });
+
+      expect(blocks[0]).toMatchObject({
+        type: "input",
+        element: { type: "number_input", min_value: 1, max_value: 12 },
+      });
+    });
+  });
+
   describe("Checkbox", () => {
     it("emits a single-option checkboxes element", () => {
       const { blocks } = toSlackBlocks({
@@ -688,6 +926,7 @@ describe("toSlackBlocks", () => {
       });
       expect(blocks[0]).toEqual({
         type: "actions",
+        block_id: `aui:0:${JSON.stringify([["toggle", "agree", "Checkbox"]])}`,
         elements: [
           {
             type: "checkboxes",
@@ -698,6 +937,27 @@ describe("toSlackBlocks", () => {
           },
         ],
       });
+      const block = blocks[0];
+      if (block?.type !== "actions" || !block.block_id) {
+        throw new Error("Expected a named checkbox block");
+      }
+      const checkbox = block.elements[0];
+      if (checkbox?.type !== "checkboxes") {
+        throw new Error("Expected a checkbox");
+      }
+      for (const [selectedOptions, expected] of [
+        [[], []],
+        [checkbox.options, ["agree"]],
+      ] as const) {
+        expect(
+          decodeBlockAction({
+            type: "checkboxes",
+            block_id: block.block_id,
+            action_id: checkbox.action_id,
+            selected_options: selectedOptions,
+          }),
+        ).toEqual({ type: "toggle", $input: expected });
+      }
     });
 
     it("falls back to the label as the option value when name is absent", () => {
@@ -736,9 +996,42 @@ describe("toSlackBlocks", () => {
         "initial_options",
       );
     });
+
+    it("maps a switch like a checkbox", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Checkbox",
+        label: "Agree",
+        variant: "switch",
+      });
+      expect((blocks[0] as SlackActionsBlock).elements[0]).toMatchObject({
+        type: "checkboxes",
+        options: [{ value: "Agree" }],
+      });
+    });
   });
 
   describe("RadioGroup", () => {
+    it("maps option descriptions to Slack option descriptions", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "RadioGroup",
+        options: [
+          {
+            label: "Free",
+            description: "For personal projects",
+            value: "free",
+          },
+        ],
+      });
+
+      expect((blocks[0] as SlackActionsBlock).elements[0]).toMatchObject({
+        options: [
+          {
+            description: { type: "plain_text", text: "For personal projects" },
+          },
+        ],
+      });
+    });
+
     it("names RadioGroup when the same option loss happens there", () => {
       const { warnings } = toSlackBlocks({
         $type: "RadioGroup",
@@ -1881,6 +2174,29 @@ describe("toSlackBlocks", () => {
       ]);
     });
 
+    it("formats table cells from their columns", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Table",
+        columns: [
+          { label: "Number", format: { kind: "number", decimals: 1 } },
+          {
+            label: "Revenue",
+            format: { kind: "currency", currency: "USD", decimals: 2 },
+          },
+          { label: "Share", format: { kind: "percent", decimals: 0 } },
+          { label: "Date", format: { kind: "date" } },
+        ],
+        rows: [[1234.5, 12.4, 0.08, "2024-01-02"]],
+      });
+      const table = blocks[0] as SlackDataTableBlock;
+      expect(table.rows[1]?.map((cell) => cell.text)).toEqual([
+        "1,234.5",
+        "$12.40",
+        "8%",
+        "Jan 2, 2024",
+      ]);
+    });
+
     it("requires a caption on every emitted table", () => {
       const { blocks } = toSlackBlocks({
         $type: "Table",
@@ -2245,6 +2561,7 @@ describe("toSlackBlocks", () => {
       expect(blocks).toEqual([
         {
           type: "input",
+          block_id: `aui:0:${JSON.stringify([["action", "name"]])}`,
           label: { type: "plain_text", text: "Name" },
           element: { type: "plain_text_input", action_id: "action" },
         },
@@ -2260,6 +2577,136 @@ describe("toSlackBlocks", () => {
           ],
         },
       ]);
+    });
+
+    it("maps named controls per element when they share an actions block", () => {
+      const { blocks, warnings } = toSlackBlocks([
+        {
+          $type: "Select",
+          name: "plan",
+          options: [{ label: "Pro", value: "pro" }],
+          $action: { type: "choose_plan" },
+        },
+        {
+          $type: "CheckboxGroup",
+          name: "tags",
+          options: [{ label: "News", value: "news" }],
+          $action: { type: "choose_tags" },
+        },
+        {
+          $type: "Button",
+          label: "Save",
+          $action: {
+            type: "save",
+            plan: { $field: "plan" },
+            tags: { $field: "tags" },
+          },
+        },
+      ]);
+      expect(blocks[0]).toMatchObject({
+        type: "actions",
+        block_id: `aui:0:${JSON.stringify([
+          ["choose_plan", "plan"],
+          ["choose_tags", "tags"],
+        ])}`,
+      });
+      expect(warnings).toEqual([]);
+      const block = blocks[0];
+      if (block?.type !== "actions" || !block.block_id) {
+        throw new Error("Expected a named actions block");
+      }
+      const button = block.elements.find(
+        (element) => element.type === "button",
+      );
+      if (!button) throw new Error("Expected a button");
+      for (const [selectedOptions, tags] of [
+        [[], []],
+        [[{ value: "news" }], ["news"]],
+      ] as const) {
+        expect(
+          decodeBlockAction({
+            type: "checkboxes",
+            block_id: block.block_id,
+            action_id: "choose_tags",
+            selected_options: selectedOptions,
+          }),
+        ).toEqual({ type: "choose_tags", $input: tags });
+        expect(
+          decodeBlockAction(button, {
+            [block.block_id]: {
+              choose_tags: {
+                type: "checkboxes",
+                selected_options: selectedOptions,
+              },
+            },
+          }),
+        ).toEqual({ type: "save", tags });
+      }
+    });
+
+    it("starts a new actions block when repeated action ids need distinct field mappings", () => {
+      const { blocks } = toSlackBlocks([
+        {
+          $type: "Select",
+          name: "first",
+          options: [{ label: "One", value: "one" }],
+          $action: { type: "choose" },
+        },
+        {
+          $type: "Select",
+          name: "second",
+          options: [{ label: "Two", value: "two" }],
+          $action: { type: "choose" },
+        },
+      ]);
+      expect(blocks).toHaveLength(2);
+      expect(blocks[0]).toMatchObject({
+        type: "actions",
+        block_id: `aui:0:${JSON.stringify([["choose", "first"]])}`,
+      });
+      expect(blocks[1]).toMatchObject({
+        type: "actions",
+        block_id: `aui:1:${JSON.stringify([["choose", "second"]])}`,
+      });
+    });
+
+    it("keeps unnamed controls with repeated action ids in their existing block", () => {
+      const { blocks } = toSlackBlocks([
+        {
+          $type: "Button",
+          label: "First",
+          $action: { type: "choose" },
+        },
+        {
+          $type: "Button",
+          label: "Second",
+          $action: { type: "choose" },
+        },
+      ]);
+      expect(blocks).toHaveLength(1);
+      expect(blocks[0]).not.toHaveProperty("block_id");
+      expect((blocks[0] as SlackActionsBlock).elements).toHaveLength(2);
+    });
+
+    it("splits grouped fields when their mapping would exceed Slack's block_id limit", () => {
+      const { blocks, warnings } = toSlackBlocks([
+        {
+          $type: "Select",
+          name: "a".repeat(120),
+          options: [{ label: "A", value: "a" }],
+          $action: { type: "choose_a" },
+        },
+        {
+          $type: "Select",
+          name: "b".repeat(120),
+          options: [{ label: "B", value: "b" }],
+          $action: { type: "choose_b" },
+        },
+      ]);
+      expect(blocks).toHaveLength(2);
+      expect(blocks[0]).toHaveProperty("block_id");
+      expect(blocks[1]).toHaveProperty("block_id");
+      expect(warnings).toEqual([]);
     });
   });
 
@@ -2407,11 +2854,19 @@ describe("toSlackBlocks", () => {
       expect(() =>
         toSlackBlocks({ $type: "Button", label: "Go", $action: circular }),
       ).not.toThrow();
-      const { blocks } = toSlackBlocks({
+      const { blocks, warnings } = toSlackBlocks({
         $type: "Button",
         label: "Go",
         $action: circular,
       });
+      expect(warnings).toEqual([
+        {
+          code: "dropped",
+          component: "Button",
+          detail:
+            "value was dropped because the action payload could not be serialized.",
+        },
+      ]);
       expect(blocks[0]).toEqual({
         type: "actions",
         elements: [
@@ -2569,4 +3024,42 @@ describe("toSlackBlocks data_table integrity", () => {
       ),
     ).toBe(true);
   });
+});
+
+it("resolves a Slider field reference from numeric Slack state", () => {
+  const { blocks } = toSlackBlocks([
+    {
+      $type: "Slider",
+      name: "count",
+      label: "Count",
+      min: 0,
+      max: 10,
+      $action: { type: "change_count" },
+    },
+    {
+      $type: "Button",
+      label: "Submit",
+      $action: { type: "submit", count: { $field: "count" } },
+    },
+  ]);
+  const slider = blocks.find((block) => block.type === "input");
+  const actions = blocks.find((block) => block.type === "actions");
+  if (
+    !slider ||
+    slider.type !== "input" ||
+    !slider.block_id ||
+    !actions ||
+    actions.type !== "actions"
+  )
+    throw new Error("Expected slider and action blocks");
+  const button = actions.elements[0];
+  if (!button || button.type !== "button")
+    throw new Error("Expected submit button");
+  expect(
+    decodeBlockAction(button, {
+      [slider.block_id]: {
+        change_count: { type: "number_input", value: "3" },
+      },
+    }),
+  ).toEqual({ type: "submit", count: 3 });
 });

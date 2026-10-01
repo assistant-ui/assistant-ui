@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "skipLibCheck": false,
+    "paths": {
+      "react": ["./node_modules/@types/react-v18"],
+      "react/*": ["./node_modules/@types/react-v18/*"],
+      "react-dom": ["./node_modules/@types/react-dom-v18"],
+      "react-dom/*": ["./node_modules/@types/react-dom-v18/*"]
+    }
+  }
+}

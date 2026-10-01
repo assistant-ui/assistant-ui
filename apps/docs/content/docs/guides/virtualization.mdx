@@ -120,7 +120,7 @@ The composition owns its scroll container instead of using `ThreadPrimitive.View
 
 1. **Auto-follow.** A ResizeObserver on the content wrapper re-pins the scroller to the bottom while a sticky flag is armed. The flag disarms when the user scrolls up (detected as `scrollTop` decreasing while `scrollHeight` and `clientHeight` are stable, the same heuristic the built-in viewport uses, plus wheel-up and touchmove) and re-arms when the user returns to the bottom.
 2. **Measurement guard.** While pinned at the bottom, the virtualizer's own scroll adjustments on item re-measurement are suppressed via a custom `scrollToFn`; without this the two scroll writers fight and the view rubber-bands during streaming.
-3. **Run-start jump.** A `useLayoutEffect` observes `s.thread.isRunning` flipping to true and jumps to the bottom before paint, so a just-sent message never flashes below the fold. The `thread.runStart` event is deprecated; deriving the transition from state is the supported path.
+3. **Run-start jump.** A `useLayoutEffect` observes `s.thread.isRunning` flipping to true and jumps to the bottom before paint, so a just-sent message never flashes below the fold.
 
 The production consumer this is extracted from disables streaming auto-follow entirely as a product choice; the example keeps following because it matches `ThreadPrimitive.Viewport`'s default behavior. Both are valid, and the disarm guard makes either safe.
 

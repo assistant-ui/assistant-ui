@@ -3,7 +3,7 @@ title: Quickstart
 description: From an empty project to a persisted, reported and titled conversation in the dashboard, and what to check when the first turn does not show up.
 ---
 
-The shortest path: an anonymous session, the AI SDK runtime and the assistant-ui components. The other guides swap the runtime; the cloud side stays the same.
+This guide takes the shortest path: an anonymous session, the AI SDK runtime and the assistant-ui components. The other guides swap the runtime; the cloud side stays the same.
 
 <Steps>
 <Step>
@@ -25,7 +25,7 @@ NEXT_PUBLIC_ASSISTANT_BASE_URL=https://proj-<id>.assistant-api.com
 OPENAI_API_KEY=sk-…
 ```
 
-With this variable set, the React runtimes create an anonymous cloud client on their own when you pass no `cloud`.
+On Next.js, the React runtimes create an anonymous cloud client from this variable when you pass no `cloud`. Vite, React Router and TanStack Start expose only `VITE_` variables to the browser, so name it `VITE_ASSISTANT_BASE_URL` there.
 
 </Tab>
 <Tab value="React Native">
@@ -82,7 +82,16 @@ export default function ChatPage() {
 }
 ```
 
-`useChatRuntime()` reads the base URL from the environment and posts chat requests to `/api/chat`, the AI SDK route you already have.
+`useChatRuntime()` reads the base URL from the environment on Next.js and posts chat requests to `/api/chat`, the AI SDK route you already have. On Vite, React Router or TanStack Start, create the client once, outside the component, and pass it as `useChatRuntime({ cloud })`:
+
+```ts
+import { AssistantCloud } from "@assistant-ui/react";
+
+const cloud = new AssistantCloud({
+  baseUrl: import.meta.env.VITE_ASSISTANT_BASE_URL,
+  anonymous: true,
+});
+```
 
 </Tab>
 <Tab value="React Native">
@@ -226,7 +235,7 @@ The app shows the title as soon as the model writes it; [Thread titles](/docs/cl
 
 | What you see | Why | What to do |
 |---|---|---|
-| No thread appears | The environment variable is missing, so the thread list stayed in memory; or the browser's origin is refused, so every cloud request fails | Set `NEXT_PUBLIC_ASSISTANT_BASE_URL` and restart the dev server; check **Settings › Access** and the browser console for a CORS refusal |
+| No thread appears | No cloud client was created, so the thread list stayed in memory: the environment variable is missing, or the app is not on Next.js and passes no `cloud`; or the browser's origin is refused, so every cloud request fails | Set `NEXT_PUBLIC_ASSISTANT_BASE_URL` and restart the dev server, or on Vite, React Router and TanStack Start pass the client built from `VITE_ASSISTANT_BASE_URL`; check **Settings › Access** and the browser console for a CORS refusal |
 | The thread exists but stays Untitled | The title attempt failed, for instance because the title provider refused the call; the hourly sweep retries it up to three times | Open the thread in the dashboard: the Title row of its Details rail names the error. Fix the provider under **Settings › Thread titles** |
 | The run reads *No model reported* and has no cost | The route did not return `modelId` and `usage` in its metadata | Add the `messageMetadata` callback from the step above |
 | A 402 in the console | The project's plan has reached its active user cap for the month | See [Plans and pricing](/docs/cloud/pricing) |

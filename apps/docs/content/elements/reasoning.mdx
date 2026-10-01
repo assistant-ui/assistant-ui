@@ -48,16 +48,16 @@ import {
   </Step>
   <Step>
 
-### Render a lone reasoning part
+### Render each reasoning part
 
-Most runtimes stream reasoning as consecutive parts, but a single ungrouped `reasoning` part still needs a renderer:
+`children` renders each `reasoning` part in the group through the same render function, so give the `reasoning` case a renderer:
 
 ```tsx
 case "reasoning":
   return <Reasoning {...part} />;
 ```
 
-`Reasoning` renders the part's text as markdown with no disclosure chrome. Wrap it in `ReasoningRoot` / `ReasoningTrigger` / `ReasoningContent` yourself if a lone part should still get the collapsible shell.
+`Reasoning` renders the part's text as markdown with no disclosure chrome. A `reasoning` part that your `groupBy` leaves ungrouped reaches the same case; wrap it in `ReasoningRoot` / `ReasoningTrigger` / `ReasoningContent` yourself if it should still get the collapsible shell.
 
   </Step>
 </Steps>
@@ -66,7 +66,7 @@ case "reasoning":
 
 <StandaloneMode>
 
-Standalone, the element is disclosure UI over content you already have: no message parts, no grouping, just text and a streaming flag.
+Standalone, the element is disclosure UI over content you already have. It takes text and a streaming flag, with no message parts or grouping.
 
 <Steps>
   <Step>
@@ -106,7 +106,7 @@ export function Trace({
 
 ### Control the open state
 
-Left uncontrolled, the root opens on its own while `streaming` is true and closes again once `defaultOpen` is false. Pass `open` and `onOpenChange` to drive it yourself, for example to keep the latest trace expanded:
+Left uncontrolled, the root opens while `streaming` is true and returns to `defaultOpen` (closed by default) when streaming ends. Pass `open` and `onOpenChange` to drive it yourself, for example to keep the latest trace expanded:
 
 ```tsx
 const [open, setOpen] = useState(false);
@@ -138,7 +138,7 @@ const [open, setOpen] = useState(false);
 </div>
 ```
 
-While `streaming` is true and the panel is open, the trace is a live, bottom-pinned preview: it autoscrolls to the newest tokens as they arrive and only stops if the reader scrolls up manually, resuming once they scroll back to the bottom. When streaming ends, the open state returns to `defaultOpen`, unless the reader has already toggled the disclosure by hand at least once, at which point their choice sticks and streaming no longer overrides it. `ReasoningTrigger`'s `active` prop drives both the shimmering label and the timing text; the chevron rotates on open regardless. The runtime `ReasoningRoot` additionally locks the surrounding thread viewport's scroll position for the duration of each open or close animation, so expanding a trace never yanks the message list; the standalone root has no viewport to lock, so it skips that.
+While `streaming` is true and the panel is open, the trace is a live, bottom-pinned preview: it autoscrolls to the newest tokens as they arrive and only stops if the reader scrolls up manually, resuming once they scroll back to the bottom. When streaming ends, the open state returns to `defaultOpen`, unless the reader has already toggled the disclosure by hand at least once, at which point their choice sticks and streaming no longer overrides it. `ReasoningTrigger`'s `active` prop shimmers the label and `duration` adds the timing text; the chevron rotates on open regardless. The runtime `ReasoningRoot` also locks the thread viewport's scroll position during each open or close animation, so expanding a trace does not move the message list. The standalone root has no viewport to lock.
 
 ## Examples
 
@@ -188,7 +188,7 @@ Standalone, `text` and `streaming` come from wherever you fetch them, for exampl
 
 | Export | Type | Notes |
 |--------|------|-------|
-| `Reasoning` | `ReasoningMessagePartComponent` | Renders the reasoning part's `text` as markdown. No disclosure chrome; use it for an ungrouped `reasoning` part. |
+| `Reasoning` | `ReasoningMessagePartComponent` | Renders the reasoning part's `text` as markdown. No disclosure chrome; use it for the `reasoning` parts inside a group, or for an ungrouped one. |
 
 ### Reasoning message part
 
@@ -298,7 +298,7 @@ function AssistantReasoning() {
 }
 ```
 
-`visibleSteps` is just `steps.length`: the array itself grows as new reasoning parts stream in. `open` follows `streaming` until the reader toggles it once, after which their choice sticks.
+`visibleSteps` is `steps.length`, because the array grows as new reasoning parts stream in. `open` follows `streaming` until the reader toggles it once, after which their choice sticks.
 
 </RuntimeMode>
 

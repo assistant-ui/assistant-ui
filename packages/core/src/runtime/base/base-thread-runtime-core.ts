@@ -12,7 +12,10 @@ import {
   ExportedMessageRepository,
   MessageRepository,
 } from "../utils/message-repository";
-import { captureThreadRuntimeGeneration } from "../utils/thread-runtime-lifecycle";
+import {
+  captureThreadRuntimeDisposal,
+  captureThreadRuntimeGeneration,
+} from "../utils/thread-runtime-lifecycle";
 import { DefaultThreadComposerRuntimeCore } from "./default-thread-composer-runtime-core";
 import type {
   AddToolResultOptions,
@@ -154,6 +157,11 @@ export abstract class BaseThreadRuntimeCore
   constructor(_contextProvider: ModelContextProvider) {
     super();
     this._contextProvider = _contextProvider;
+    captureThreadRuntimeDisposal(this).addEventListener("abort", () => {
+      this.composer.__internal_dispose();
+      for (const composer of this._editComposers.values())
+        composer.__internal_dispose();
+    });
   }
 
   public getModelContext() {

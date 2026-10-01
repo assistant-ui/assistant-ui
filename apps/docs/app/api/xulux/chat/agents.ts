@@ -21,7 +21,6 @@ export type XuluxAgentDefinition = {
   systemPrompt: string;
   maxSteps: number;
   maxOutputTokens?: number;
-  modelName?: string;
   traceName?: string;
   getTraceMetadata?: (options: {
     body: Record<string, unknown>;

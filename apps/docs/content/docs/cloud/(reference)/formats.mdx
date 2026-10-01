@@ -33,27 +33,29 @@ Assistant Cloud stores a format name with every message. The format preserves th
 
 | Type | Fields |
 |---|---|
-| `text` | `text`, optional `providerMetadata` and `parentId`. |
-| `reasoning` | `text`, optional `unstable_summary`, `providerMetadata`, and `parentId`. |
+| `text` | `text`, optional `id`, `providerMetadata`, and `parentId`. |
+| `reasoning` | `text`, optional `id`, `unstable_summary`, `providerMetadata`, and `parentId`. |
 | `source` with `sourceType: "url"` | `id`, `url`, optional `title`, `providerMetadata`, and `parentId`. |
 | `source` with `sourceType: "document"` | `id`, `title`, `mediaType`, optional `filename`, `providerMetadata`, and `parentId`. |
 | `tool-call` | `toolCallId`, `toolName`, one of `args` or `argsText`, and optional `result`, `artifact`, `modelContent`, `providerMetadata`, `isPreliminary`, `isError`, `interrupt`, `timing`, `mcp`, `approval`, `parentId`, nested `messages`, and `unstable_interactions`. |
-| `image` | `image`, optional `filename` and `providerMetadata`. |
-| `file` | `data`, `mimeType`, optional `filename`, `sourceType`, `providerMetadata`, and `parentId`. |
-| `data` | `name`, `data`. |
+| `image` | `image`, optional `id`, `filename`, and `providerMetadata`. |
+| `file` | `data`, `mimeType`, optional `id`, `filename`, `sourceType`, `providerMetadata`, and `parentId`. |
+| `data` | `name`, `data`, optional `id`. |
 | `audio` | `audio: { data, format }`, where format is `mp3` or `wav`. |
 | `generative-ui` | `spec`, optional `id` and `parentId`. |
+
+For text, reasoning, image, file, and data parts, the host-supplied `id` keys the part when it is non-empty and no other part of the same type in the message shares it, preserving component state when parts are reordered or updated with the same id. Every part with a missing or empty id, or an id shared by another part of the same type, is keyed by its type and position. The format preserves optional ids on attachment content parts too.
 
 ### Attachments and metadata
 
 | Item | Fields |
 |---|---|
 | Attachment wrapper | `id`, `type`, `name`, optional `contentType`, `status`, and `content`. |
-| Attachment `text` | `text`, optional `providerMetadata` and `parentId`. |
-| Attachment `image` | `image`, optional `filename` and `providerMetadata`. |
-| Attachment `file` | `data`, `mimeType`, optional `filename`, `sourceType`, `providerMetadata`, and `parentId`. |
+| Attachment `text` | `text`, optional `id`, `providerMetadata`, and `parentId`. |
+| Attachment `image` | `image`, optional `id`, `filename`, and `providerMetadata`. |
+| Attachment `file` | `data`, `mimeType`, optional `id`, `filename`, `sourceType`, `providerMetadata`, and `parentId`. |
 | Attachment `audio` | `audio: { data, format }`, where format is `mp3` or `wav`. |
-| Attachment `data` | `name`, `data`. |
+| Attachment `data` | `name`, `data`, optional `id`. |
 | `metadata.unstable_state` | Optional JSON value. |
 | `metadata.unstable_annotations` | Array of JSON values. |
 | `metadata.unstable_data` | Array of JSON values. |

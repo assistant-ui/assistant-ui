@@ -105,6 +105,31 @@ export const generativeUiVocabularyCss: CssRuleset = {
     "font-size": "0.875rem",
     "font-variant-numeric": "tabular-nums",
   },
+  '[data-aui="fact-delta"]': {
+    display: "inline-flex",
+    "align-items": "center",
+    gap: "0.125rem",
+    margin: "0 0 0 0.375rem",
+    padding: "0.125rem 0.375rem",
+    "border-radius": "9999px",
+    "font-size": "0.6875rem",
+    "font-weight": "500",
+    "vertical-align": "middle",
+  },
+  '[data-aui="fact-delta"][data-aui-tone="good"]': {
+    "background-color":
+      "color-mix(in oklab, var(--aui-success) 15%, transparent)",
+    color: "var(--aui-success)",
+  },
+  '[data-aui="fact-delta"][data-aui-tone="bad"]': {
+    "background-color":
+      "color-mix(in oklab, var(--destructive) 15%, transparent)",
+    color: "var(--destructive)",
+  },
+  '[data-aui="fact-delta"][data-aui-tone="neutral"]': {
+    "background-color": "var(--secondary)",
+    color: "var(--secondary-foreground)",
+  },
 
   '[data-aui="button"], [data-aui="card-confirm"], [data-aui="card-cancel"]': {
     display: "inline-flex",
@@ -172,6 +197,22 @@ export const generativeUiVocabularyCss: CssRuleset = {
     "background-color":
       "color-mix(in oklab, var(--destructive) 90%, transparent)",
   },
+  '[data-aui="button"][data-aui-state="pending"]': {
+    "background-color":
+      "color-mix(in oklab, var(--secondary) 72%, transparent)",
+    "font-variant-numeric": "tabular-nums",
+  },
+  '[data-aui="button-undo-status"]': {
+    position: "absolute",
+    width: "1px",
+    height: "1px",
+    padding: "0",
+    margin: "-1px",
+    overflow: "hidden",
+    clip: "rect(0, 0, 0, 0)",
+    "white-space": "nowrap",
+    border: "0",
+  },
   '[data-aui="button"][data-aui-block]': { width: "100%" },
 
   '[data-aui="select"], [data-aui="input"], [data-aui="datepicker"]': {
@@ -202,6 +243,58 @@ export const generativeUiVocabularyCss: CssRuleset = {
       outline: "2px solid var(--ring)",
       "outline-offset": "2px",
     },
+  '[data-aui="slider-field"]': {
+    display: "flex",
+    "flex-direction": "column",
+    gap: "0.375rem",
+  },
+  '[data-aui="slider-label"]': {
+    "font-size": "var(--aui-control-font-size, 0.875rem)",
+    "font-weight": "500",
+  },
+  '[data-aui="slider"]': {
+    width: "100%",
+    height: "1.25rem",
+    margin: "0",
+    cursor: "pointer",
+    "accent-color": "var(--foreground)",
+    appearance: "none",
+    "background-color": "transparent",
+  },
+  '[data-aui="slider"]::-webkit-slider-runnable-track': {
+    height: "0.25rem",
+    "border-radius": "9999px",
+    "background-color": "var(--foreground)",
+  },
+  '[data-aui="slider"]::-moz-range-track': {
+    height: "0.25rem",
+    "border-radius": "9999px",
+    "background-color": "var(--foreground)",
+  },
+  '[data-aui="slider"]::-webkit-slider-thumb': {
+    width: "1rem",
+    height: "1rem",
+    "margin-top": "-0.375rem",
+    "border-radius": "9999px",
+    appearance: "none",
+    "background-color": "var(--foreground)",
+  },
+  '[data-aui="slider"]::-moz-range-thumb': {
+    width: "1rem",
+    height: "1rem",
+    border: "0",
+    "border-radius": "9999px",
+    "background-color": "var(--foreground)",
+  },
+  '[data-aui="slider"]:focus-visible': {
+    outline: "2px solid var(--ring)",
+    "outline-offset": "2px",
+  },
+  '[data-aui="slider-value"]': {
+    "font-size": "0.75rem",
+    "font-variant-numeric": "tabular-nums",
+    color: "color-mix(in oklab, currentColor 62%, transparent)",
+  },
 
   '[data-aui="checkbox"]': {
     display: "inline-flex",
@@ -211,9 +304,18 @@ export const generativeUiVocabularyCss: CssRuleset = {
   },
   '[data-aui="radiogroup-option"], [data-aui="checkboxgroup-option"]': {
     display: "flex",
-    "align-items": "center",
+    "align-items": "flex-start",
     gap: "0.5rem",
     cursor: "pointer",
+  },
+  '[data-aui="option-content"]': {
+    display: "flex",
+    "flex-direction": "column",
+  },
+  '[data-aui="option-description"]': {
+    "font-size": "0.75rem",
+    "line-height": "1.4",
+    color: "color-mix(in oklab, currentColor 62%, transparent)",
   },
   '[data-aui="checkbox"] input, [data-aui="radiogroup-option"] input, [data-aui="checkboxgroup-option"] input':
     {
@@ -223,6 +325,34 @@ export const generativeUiVocabularyCss: CssRuleset = {
       margin: "0",
       cursor: "pointer",
     },
+  '[data-aui="radiogroup-option"] input, [data-aui="checkboxgroup-option"] input':
+    { "margin-top": "0.125rem" },
+  '[data-aui="checkbox"][data-aui-variant="switch"] input': {
+    width: "2.25rem",
+    height: "1.25rem",
+    border: "0",
+    "border-radius": "9999px",
+    appearance: "none",
+    "background-color":
+      "color-mix(in oklab, var(--foreground) 30%, transparent)",
+    transition: "background-color 0.15s ease",
+  },
+  '[data-aui="checkbox"][data-aui-variant="switch"] input::before': {
+    content: '""',
+    display: "block",
+    width: "1rem",
+    height: "1rem",
+    margin: "0.125rem",
+    "border-radius": "9999px",
+    "background-color": "var(--background)",
+    transition: "transform 0.15s ease",
+  },
+  '[data-aui="checkbox"][data-aui-variant="switch"] input:checked': {
+    "background-color": "var(--foreground)",
+  },
+  '[data-aui="checkbox"][data-aui-variant="switch"] input:checked::before': {
+    transform: "translateX(1rem)",
+  },
   '[data-aui="checkbox"] input:focus-visible, [data-aui="radiogroup-option"] input:focus-visible, [data-aui="checkboxgroup-option"] input:focus-visible':
     {
       outline: "2px solid var(--ring)",
@@ -236,6 +366,17 @@ export const generativeUiVocabularyCss: CssRuleset = {
     "flex-direction": "column",
     gap: "0.25rem",
   },
+  'fieldset[data-aui="answered"]': {
+    border: "0",
+    margin: "0",
+    padding: "0",
+    "min-inline-size": "0",
+  },
+  'fieldset[data-aui="answered"] [data-aui="button"], fieldset[data-aui="answered"] [data-aui="card-confirm"], fieldset[data-aui="answered"] [data-aui="card-cancel"], fieldset[data-aui="answered"] [data-aui="select"], fieldset[data-aui="answered"] [data-aui="input"], fieldset[data-aui="answered"] [data-aui="datepicker"], fieldset[data-aui="answered"] [data-aui="checkbox"], fieldset[data-aui="answered"] [data-aui="radiogroup-option"], fieldset[data-aui="answered"] [data-aui="checkboxgroup-option"]':
+    {
+      cursor: "not-allowed",
+      opacity: "0.55",
+    },
 
   // The surface spaces itself: several `present` calls land as adjacent blocks
   // in a host container this stylesheet does not own. In a block context these
@@ -393,6 +534,29 @@ export const generativeUiVocabularyCss: CssRuleset = {
     "text-align": "left",
     "font-variant-numeric": "tabular-nums",
   },
+  '[data-aui="table-col"][data-aui-align="end"], [data-aui="table"] td[data-aui-align="end"]':
+    { "text-align": "end" },
+  '[data-aui="table-sort"]': {
+    appearance: "none",
+    padding: "0",
+    border: "0",
+    "background-color": "transparent",
+    color: "inherit",
+    "font-family": "inherit",
+    "font-size": "inherit",
+    "font-weight": "inherit",
+    "letter-spacing": "inherit",
+    "line-height": "inherit",
+    "text-align": "inherit",
+    cursor: "pointer",
+  },
+  '[data-aui="table-sort-direction"]': {
+    margin: "0 0 0 0.25rem",
+  },
+  '[data-aui="table-sort"]:focus-visible': {
+    outline: "2px solid var(--ring)",
+    "outline-offset": "2px",
+  },
   '[data-aui="table"] tbody tr:not(:last-child) td': {
     "border-bottom": `1px solid ${auiHairlineBorder}`,
   },
@@ -405,6 +569,10 @@ export const generativeUiVocabularyCss: CssRuleset = {
   },
   '[data-aui="chart"] polyline, [data-aui="chart"] polygon': {
     "stroke-width": "1.5",
+  },
+  '[data-aui="chart-zero"]': {
+    stroke: "var(--muted-foreground)",
+    "stroke-opacity": "0.5",
   },
   '[data-aui="chart"][data-aui-color] [data-aui="chart-series"]:only-child': {
     color: "inherit",
@@ -473,19 +641,68 @@ export const generativeUiVocabularyCss: CssRuleset = {
     width: "0.625rem",
     height: "0.625rem",
     "border-radius": "calc(var(--radius) - 4px)",
-    "background-color": "currentColor",
+    "background-color": "var(--aui-series-color, currentColor)",
   },
-  '[data-aui="chart-series"][data-aui-series="0"], [data-aui="chart-legend-item"][data-aui-series="0"]':
-    { color: "var(--chart-1)" },
-  '[data-aui="chart-series"][data-aui-series="1"], [data-aui="chart-legend-item"][data-aui-series="1"]':
-    { color: "var(--chart-2)" },
-  '[data-aui="chart-series"][data-aui-series="2"], [data-aui="chart-legend-item"][data-aui-series="2"]':
-    { color: "var(--chart-3)" },
-  '[data-aui="chart-series"][data-aui-series="3"], [data-aui="chart-legend-item"][data-aui-series="3"]':
-    { color: "var(--chart-4)" },
-  '[data-aui="chart-series"][data-aui-series="4"], [data-aui="chart-legend-item"][data-aui-series="4"]':
-    { color: "var(--chart-5)" },
+  '[data-aui="chart-series"][data-aui-series="0"]': { color: "var(--chart-1)" },
+  '[data-aui="chart-series"][data-aui-series="1"]': { color: "var(--chart-2)" },
+  '[data-aui="chart-series"][data-aui-series="2"]': { color: "var(--chart-3)" },
+  '[data-aui="chart-series"][data-aui-series="3"]': { color: "var(--chart-4)" },
+  '[data-aui="chart-series"][data-aui-series="4"]': { color: "var(--chart-5)" },
+  '[data-aui="chart-legend-item"][data-aui-series="0"]': {
+    "--aui-series-color": "var(--chart-1)",
+  },
+  '[data-aui="chart-legend-item"][data-aui-series="1"]': {
+    "--aui-series-color": "var(--chart-2)",
+  },
+  '[data-aui="chart-legend-item"][data-aui-series="2"]': {
+    "--aui-series-color": "var(--chart-3)",
+  },
+  '[data-aui="chart-legend-item"][data-aui-series="3"]': {
+    "--aui-series-color": "var(--chart-4)",
+  },
+  '[data-aui="chart-legend-item"][data-aui-series="4"]': {
+    "--aui-series-color": "var(--chart-5)",
+  },
+  '[data-aui="chart-series"][data-aui-color="emphasis"]': {
+    color: "var(--foreground)",
+  },
+  '[data-aui="chart-legend-item"][data-aui-color="emphasis"]': {
+    "--aui-series-color": "var(--foreground)",
+  },
+  '[data-aui="chart-series"][data-aui-color="secondary"]': {
+    color: "color-mix(in oklab, var(--foreground) 62%, transparent)",
+  },
+  '[data-aui="chart-legend-item"][data-aui-color="secondary"]': {
+    "--aui-series-color":
+      "color-mix(in oklab, var(--foreground) 62%, transparent)",
+  },
+  '[data-aui="chart-series"][data-aui-color="alpha-70"]': {
+    color: "color-mix(in oklab, var(--foreground) 70%, transparent)",
+  },
+  '[data-aui="chart-legend-item"][data-aui-color="alpha-70"]': {
+    "--aui-series-color":
+      "color-mix(in oklab, var(--foreground) 70%, transparent)",
+  },
+  '[data-aui="chart-series"][data-aui-color="white"]': { color: "white" },
+  '[data-aui="chart-legend-item"][data-aui-color="white"]': {
+    "--aui-series-color": "white",
+  },
+  '[data-aui="chart-series"][data-aui-color="white-70"]': {
+    color: "color-mix(in oklab, white 70%, transparent)",
+  },
+  '[data-aui="chart-legend-item"][data-aui-color="white-70"]': {
+    "--aui-series-color": "color-mix(in oklab, white 70%, transparent)",
+  },
+  '[data-aui="chart-series"][data-aui-color="white-50"]': {
+    color: "color-mix(in oklab, white 50%, transparent)",
+  },
+  '[data-aui="chart-legend-item"][data-aui-color="white-50"]': {
+    "--aui-series-color": "color-mix(in oklab, white 50%, transparent)",
+  },
 
+  '[data-aui="carousel-frame"]': {
+    "min-width": "0",
+  },
   '[data-aui="carousel"]': {
     display: "flex",
     "overflow-x": "auto",
@@ -504,8 +721,45 @@ export const generativeUiVocabularyCss: CssRuleset = {
     flex: "0 0 auto",
     "min-width": "14rem",
   },
+  '[data-aui="carousel-controls"]': {
+    display: "flex",
+    "justify-content": "flex-end",
+    gap: "0.25rem",
+    margin: "0.5rem 0 0",
+  },
+  '[data-aui="carousel-prev"], [data-aui="carousel-next"]': {
+    display: "inline-flex",
+    "align-items": "center",
+    "justify-content": "center",
+    width: "2rem",
+    height: "2rem",
+    padding: "0",
+    border: "0",
+    "border-radius": "calc(var(--radius) - 2px)",
+    appearance: "none",
+    "background-color": "transparent",
+    color: "inherit",
+    cursor: "pointer",
+  },
+  '[data-aui="carousel-prev"]:hover, [data-aui="carousel-next"]:hover': {
+    "background-color": "var(--muted)",
+  },
+  '[data-aui="carousel-prev"]:focus-visible, [data-aui="carousel-next"]:focus-visible':
+    {
+      outline: "2px solid var(--ring)",
+      "outline-offset": "2px",
+    },
+  '[data-aui="carousel-prev"]:disabled, [data-aui="carousel-next"]:disabled': {
+    opacity: "0.5",
+    cursor: "default",
+  },
   "@media (prefers-reduced-motion: reduce)": {
     '[data-aui="carousel"]': { "scroll-behavior": "auto" },
+    '[data-aui="checkbox"][data-aui-variant="switch"] input, [data-aui="checkbox"][data-aui-variant="switch"] input::before':
+      { transition: "none" },
+    '[data-aui="button"][data-aui-state="pending"]': {
+      transition: "none",
+    },
   },
 
   '[data-aui="listview"]': {
@@ -776,12 +1030,12 @@ export const generativeUiElementsThemeCss: CssRuleset = {
     {
       "background-color": inkFill(6),
     },
-  [`${T} [data-aui="button"][data-aui-style="ghost"], ${T} [data-aui="card-cancel"]`]:
+  [`${T} [data-aui="button"][data-aui-style="ghost"], ${T} [data-aui="card-cancel"], ${T} [data-aui="carousel-prev"], ${T} [data-aui="carousel-next"]`]:
     {
       "background-color": "transparent",
       color: inkFill(55),
     },
-  [`${T} [data-aui="button"][data-aui-style="ghost"]:hover, ${T} [data-aui="card-cancel"]:hover`]:
+  [`${T} [data-aui="button"][data-aui-style="ghost"]:hover, ${T} [data-aui="card-cancel"]:hover, ${T} [data-aui="carousel-prev"]:hover, ${T} [data-aui="carousel-next"]:hover`]:
     {
       "background-color": inkFill(6),
       color: inkFill(90),
@@ -852,16 +1106,74 @@ export const generativeUiElementsThemeCss: CssRuleset = {
   [`${T} [data-aui="chart"] polygon`]: {
     "fill-opacity": "0.12",
   },
-  [`${T} [data-aui="chart-series"][data-aui-series="0"], ${T} [data-aui="chart-legend-item"][data-aui-series="0"]`]:
-    { color: inkFill(80) },
-  [`${T} [data-aui="chart-series"][data-aui-series="1"], ${T} [data-aui="chart-legend-item"][data-aui-series="1"]`]:
-    { color: "var(--aui-live)" },
-  [`${T} [data-aui="chart-series"][data-aui-series="2"], ${T} [data-aui="chart-legend-item"][data-aui-series="2"]`]:
-    { color: inkFill(45) },
-  [`${T} [data-aui="chart-series"][data-aui-series="3"], ${T} [data-aui="chart-legend-item"][data-aui-series="3"]`]:
-    { color: "var(--aui-success)" },
-  [`${T} [data-aui="chart-series"][data-aui-series="4"], ${T} [data-aui="chart-legend-item"][data-aui-series="4"]`]:
-    { color: inkFill(30) },
+  [`${T} [data-aui="chart-series"][data-aui-series="0"]`]: {
+    color: inkFill(80),
+  },
+  [`${T} [data-aui="chart-series"][data-aui-series="1"]`]: {
+    color: "var(--aui-live)",
+  },
+  [`${T} [data-aui="chart-series"][data-aui-series="2"]`]: {
+    color: inkFill(45),
+  },
+  [`${T} [data-aui="chart-series"][data-aui-series="3"]`]: {
+    color: "var(--aui-success)",
+  },
+  [`${T} [data-aui="chart-series"][data-aui-series="4"]`]: {
+    color: inkFill(30),
+  },
+  [`${T} [data-aui="chart-legend-item"][data-aui-series="0"]`]: {
+    "--aui-series-color": inkFill(80),
+  },
+  [`${T} [data-aui="chart-legend-item"][data-aui-series="1"]`]: {
+    "--aui-series-color": "var(--aui-live)",
+  },
+  [`${T} [data-aui="chart-legend-item"][data-aui-series="2"]`]: {
+    "--aui-series-color": inkFill(45),
+  },
+  [`${T} [data-aui="chart-legend-item"][data-aui-series="3"]`]: {
+    "--aui-series-color": "var(--aui-success)",
+  },
+  [`${T} [data-aui="chart-legend-item"][data-aui-series="4"]`]: {
+    "--aui-series-color": inkFill(30),
+  },
+  [`${T} [data-aui="chart-series"][data-aui-color="emphasis"]`]: {
+    color: "var(--foreground)",
+  },
+  [`${T} [data-aui="chart-legend-item"][data-aui-color="emphasis"]`]: {
+    "--aui-series-color": "var(--foreground)",
+  },
+  [`${T} [data-aui="chart-series"][data-aui-color="secondary"]`]: {
+    color: "color-mix(in oklab, var(--foreground) 62%, transparent)",
+  },
+  [`${T} [data-aui="chart-legend-item"][data-aui-color="secondary"]`]: {
+    "--aui-series-color":
+      "color-mix(in oklab, var(--foreground) 62%, transparent)",
+  },
+  [`${T} [data-aui="chart-series"][data-aui-color="alpha-70"]`]: {
+    color: "color-mix(in oklab, var(--foreground) 70%, transparent)",
+  },
+  [`${T} [data-aui="chart-legend-item"][data-aui-color="alpha-70"]`]: {
+    "--aui-series-color":
+      "color-mix(in oklab, var(--foreground) 70%, transparent)",
+  },
+  [`${T} [data-aui="chart-series"][data-aui-color="white"]`]: {
+    color: "white",
+  },
+  [`${T} [data-aui="chart-legend-item"][data-aui-color="white"]`]: {
+    "--aui-series-color": "white",
+  },
+  [`${T} [data-aui="chart-series"][data-aui-color="white-70"]`]: {
+    color: "color-mix(in oklab, white 70%, transparent)",
+  },
+  [`${T} [data-aui="chart-legend-item"][data-aui-color="white-70"]`]: {
+    "--aui-series-color": "color-mix(in oklab, white 70%, transparent)",
+  },
+  [`${T} [data-aui="chart-series"][data-aui-color="white-50"]`]: {
+    color: "color-mix(in oklab, white 50%, transparent)",
+  },
+  [`${T} [data-aui="chart-legend-item"][data-aui-color="white-50"]`]: {
+    "--aui-series-color": "color-mix(in oklab, white 50%, transparent)",
+  },
   [`${T} [data-aui="chart-legend-swatch"]`]: {
     "border-radius": "9999px",
   },

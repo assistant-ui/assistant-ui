@@ -1,5 +1,11 @@
 # heat-graph
 
+## 0.0.22
+
+### Patch Changes
+
+- [#8638](https://github.com/assistant-ui/assistant-ui/pull/8638) [`d424f50`](https://github.com/assistant-ui/assistant-ui/commit/d424f507faf065f0cd29582e9c110be821581547) - fix: render heat-graph's contexts through `.Provider` so `Root` works on React 18 ([@bnb](https://github.com/bnb))
+
 ## 0.0.21
 
 ### Patch Changes

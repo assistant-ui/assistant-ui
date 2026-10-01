@@ -970,6 +970,69 @@ describe("AISDKMessageConverter", () => {
     expect(toolCall?.argsText).toBe('{"city":"NYC');
   });
 
+  it("strips exactly the trailing run of closing characters", () => {
+    const convertArgsText = (text: string) => {
+      stableStringifySpy.mockReturnValueOnce(text);
+      const converted = AISDKMessageConverter.toThreadMessages([
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-weather",
+              toolCallId: "tc-1",
+              state: "input-streaming",
+              input: {},
+            },
+          ],
+        },
+      ] as any);
+      return (converted[0]?.content[0] as any)?.argsText;
+    };
+    const alphabet = ["}", "]", '"', "a", "\\", "{", "[", "\n", " ", "😀"];
+    let seed = 7;
+    const next = () => (seed = (seed * 48271) % 0x7fffffff);
+    const texts = ["", "}", '"]}', '{"a":"x"}', '{"a":"}}x"}', "\uD800}"];
+    for (let i = 0; i < 300; i++) {
+      texts.push(
+        Array.from(
+          { length: next() % 12 },
+          () => alphabet[next() % alphabet.length],
+        ).join(""),
+      );
+    }
+
+    for (const text of texts) {
+      expect(convertArgsText(text)).toBe(text.replace(/[}\]"]+$/, ""));
+    }
+  });
+
+  it(
+    "strips a long run of closing characters inside streaming input",
+    { timeout: 5_000 },
+    () => {
+      const run = "}".repeat(200_000);
+      const converted = AISDKMessageConverter.toThreadMessages([
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-weather",
+              toolCallId: "tc-1",
+              state: "input-streaming",
+              input: { code: `${run}x` },
+            },
+          ],
+        },
+      ] as any);
+
+      expect((converted[0]?.content[0] as any)?.argsText).toBe(
+        `{"code":"${run}x`,
+      );
+    },
+  );
+
   it("attaches partial-JSON meta marking the trailing streaming field", () => {
     const converted = AISDKMessageConverter.toThreadMessages([
       {
@@ -1418,6 +1481,42 @@ describe("AISDKMessageConverter", () => {
       providerMetadata: { acme: { agentName: "researcher" } },
     });
     expect(converted[0]?.content[2]).not.toHaveProperty("providerMetadata");
+  });
+
+  it("keeps a step scoped reasoning block id off the part", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          { type: "reasoning", id: "reasoning-0", text: "first step" },
+          { type: "text", text: "answer" },
+          { type: "reasoning", id: "reasoning-0", text: "second step" },
+        ],
+      } as any,
+    ]);
+
+    expect(converted[0]?.content[0]).toMatchObject({ type: "reasoning" });
+    expect(converted[0]?.content[0]).not.toHaveProperty("id");
+    expect(converted[0]?.content[1]).not.toHaveProperty("id");
+    expect(converted[0]?.content[2]).not.toHaveProperty("id");
+  });
+
+  it("forwards data part ids", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "data-chart", id: "data-1", data: { x: 1 } }],
+      } as any,
+    ]);
+
+    expect(converted[0]?.content[0]).toMatchObject({
+      type: "data",
+      id: "data-1",
+      name: "chart",
+      data: { x: 1 },
+    });
   });
 
   it("maps TextUIPart.state onto the per-part status", () => {
