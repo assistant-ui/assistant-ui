@@ -5,6 +5,7 @@ import {
   VSCODE_BRIDGE_CHANNEL,
   VSCODE_VIRTUAL_ORIGIN,
   type BridgeMessage,
+  type FetchRequestMessage,
 } from "../protocol";
 import { createInMemoryBridge } from "../testUtils";
 import { createVSCodeFetch, type VSCodeBridgePort } from "./fetch";
@@ -229,6 +230,41 @@ describe("vscodeFetch over serveWebviewRoutes", () => {
 
     expect(response.status).toBe(204);
     expect(response.body).toBeNull();
+  });
+
+  it("returns a null body for a HEAD request whose handler sends one", async () => {
+    const { fetch, bridge } = setup({
+      "/api/meta": { HEAD: () => new Response("ignored") },
+    });
+
+    const response = await fetch("/api/meta", { method: "HEAD" });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toBeNull();
+    await waitFor(() => kinds(bridge.hostToWebview, "fetch:end").length === 1);
+    expect(kinds(bridge.hostToWebview, "fetch:chunk")).toHaveLength(0);
+  });
+
+  it("rejects when aborted while the request body is still being read", async () => {
+    let cancelled = false;
+    const { fetch, bridge } = setup({});
+    const controller = new AbortController();
+
+    const pending = fetch("/api/upload", {
+      method: "POST",
+      body: new ReadableStream({
+        cancel() {
+          cancelled = true;
+        },
+      }),
+      duplex: "half",
+      signal: controller.signal,
+    } as RequestInit);
+    controller.abort();
+
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(cancelled).toBe(true);
+    expect(bridge.webviewToHost).toHaveLength(0);
   });
 
   it("aborts the handler's request signal and ends the stream on abort", async () => {
@@ -481,6 +517,43 @@ describe("vscodeFetch over serveWebviewRoutes", () => {
     await waitFor(() => handlerSignal?.aborted === true);
   });
 
+  it("ignores a request that reuses the id of one in flight", async () => {
+    const signals: AbortSignal[] = [];
+    const onError = vi.fn();
+    const { bridge } = setup(
+      {
+        "/api/slow": {
+          GET: (req) => {
+            signals.push(req.signal);
+            return new Promise<Response>(() => undefined);
+          },
+        },
+      },
+      { onError },
+    );
+    const request: FetchRequestMessage = {
+      channel: VSCODE_BRIDGE_CHANNEL,
+      kind: "fetch:request",
+      id: "dup",
+      url: `${VSCODE_VIRTUAL_ORIGIN}/api/slow`,
+      method: "GET",
+      headers: [],
+      body: null,
+    };
+
+    bridge.port.postMessage(request);
+    bridge.port.postMessage(request);
+    await waitFor(() => onError.mock.calls.length === 1);
+    bridge.port.postMessage({
+      channel: VSCODE_BRIDGE_CHANNEL,
+      kind: "fetch:abort",
+      id: "dup",
+    });
+
+    await waitFor(() => signals[0]?.aborted === true);
+    expect(signals).toHaveLength(1);
+  });
+
   it("aborts in-flight handlers when disposed", async () => {
     let handlerSignal: AbortSignal | undefined;
     const { fetch, server } = setup({
@@ -532,6 +605,56 @@ describe("createVSCodeFetch against a misbehaving host", () => {
       "Response ended before its head",
     );
     expect(listeners.size).toBe(0);
+  });
+
+  it("rejects and stops listening when the request cannot be posted", async () => {
+    const listeners = new Set<(message: unknown) => void>();
+    const port: VSCodeBridgePort = {
+      postMessage: () => {
+        throw new Error("webview is gone");
+      },
+      onMessage: (listener) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+    };
+
+    await expect(createVSCodeFetch(port)("/api/x")).rejects.toThrow(
+      "webview is gone",
+    );
+    expect(listeners.size).toBe(0);
+  });
+
+  it("ignores a host message whose payload does not match its kind", async () => {
+    const { port } = respondWith((id) => [
+      {
+        channel: VSCODE_BRIDGE_CHANNEL,
+        kind: "fetch:head",
+        id,
+        status: 200,
+        statusText: "",
+        headers: [],
+      },
+      {
+        channel: VSCODE_BRIDGE_CHANNEL,
+        kind: "fetch:chunk",
+        id,
+        chunk: "text" as unknown as Uint8Array<ArrayBuffer>,
+      },
+      {
+        channel: VSCODE_BRIDGE_CHANNEL,
+        kind: "fetch:chunk",
+        id,
+        chunk: encoder.encode("ok"),
+      },
+      { channel: VSCODE_BRIDGE_CHANNEL, kind: "fetch:end", id },
+    ]);
+
+    const response = await createVSCodeFetch(port)("/api/x");
+
+    expect(await response.text()).toBe("ok");
   });
 
   it("rejects and aborts the host request when the head cannot become a Response", async () => {

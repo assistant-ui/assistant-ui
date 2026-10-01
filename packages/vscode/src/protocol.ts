@@ -57,34 +57,71 @@ export type HostToWebviewMessage =
 
 export type BridgeMessage = WebviewToHostMessage | HostToWebviewMessage;
 
-const WEBVIEW_TO_HOST_KINDS = new Set([
-  "fetch:request",
-  "fetch:abort",
-  "rpc:request",
-]);
-const HOST_TO_WEBVIEW_KINDS = new Set([
-  "fetch:head",
-  "fetch:chunk",
-  "fetch:end",
-  "fetch:error",
-  "rpc:response",
-]);
+type Fields = Record<string, unknown>;
 
-const isEnvelope = (
+const isString = (value: unknown): value is string => typeof value === "string";
+
+const isBytes = (value: unknown) => value instanceof Uint8Array;
+
+const isHeaders = (value: unknown) =>
+  Array.isArray(value) &&
+  value.every(
+    (entry) =>
+      Array.isArray(entry) &&
+      entry.length === 2 &&
+      isString(entry[0]) &&
+      isString(entry[1]),
+  );
+
+const hasNoPayload = () => true;
+
+const WEBVIEW_TO_HOST: Record<
+  WebviewToHostMessage["kind"],
+  (message: Fields) => boolean
+> = {
+  "fetch:request": (m) =>
+    isString(m.url) &&
+    isString(m.method) &&
+    isHeaders(m.headers) &&
+    (m.body === null || isBytes(m.body)),
+  "fetch:abort": hasNoPayload,
+  "rpc:request": (m) => isString(m.method) && Array.isArray(m.params),
+};
+
+const HOST_TO_WEBVIEW: Record<
+  HostToWebviewMessage["kind"],
+  (message: Fields) => boolean
+> = {
+  "fetch:head": (m) =>
+    typeof m.status === "number" &&
+    isString(m.statusText) &&
+    isHeaders(m.headers),
+  "fetch:chunk": (m) => isBytes(m.chunk),
+  "fetch:end": hasNoPayload,
+  "fetch:error": (m) => isString(m.message),
+  "rpc:response": (m) =>
+    m.ok === true || (m.ok === false && isString(m.message)),
+};
+
+const matches = (
+  validators: Record<string, (message: Fields) => boolean>,
   value: unknown,
-): value is { channel: string; kind: string; id: string } =>
-  typeof value === "object" &&
-  value !== null &&
-  (value as { channel?: unknown }).channel === VSCODE_BRIDGE_CHANNEL &&
-  typeof (value as { kind?: unknown }).kind === "string" &&
-  typeof (value as { id?: unknown }).id === "string";
+) => {
+  if (typeof value !== "object" || value === null) return false;
+  const message = value as Fields;
+  return (
+    message.channel === VSCODE_BRIDGE_CHANNEL &&
+    isString(message.id) &&
+    isString(message.kind) &&
+    Object.hasOwn(validators, message.kind) &&
+    validators[message.kind]!(message)
+  );
+};
 
 export const isWebviewToHostMessage = (
   value: unknown,
-): value is WebviewToHostMessage =>
-  isEnvelope(value) && WEBVIEW_TO_HOST_KINDS.has(value.kind);
+): value is WebviewToHostMessage => matches(WEBVIEW_TO_HOST, value);
 
 export const isHostToWebviewMessage = (
   value: unknown,
-): value is HostToWebviewMessage =>
-  isEnvelope(value) && HOST_TO_WEBVIEW_KINDS.has(value.kind);
+): value is HostToWebviewMessage => matches(HOST_TO_WEBVIEW, value);

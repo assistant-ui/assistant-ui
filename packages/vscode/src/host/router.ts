@@ -141,9 +141,13 @@ export function serveRoutes(
   };
 
   const handle = async (message: FetchRequestMessage) => {
-    const controller = new AbortController();
-    inflight.set(message.id, controller);
     const { id } = message;
+    if (inflight.has(id)) {
+      onError(new Error(`Ignored a request reusing the in-flight id ${id}`));
+      return;
+    }
+    const controller = new AbortController();
+    inflight.set(id, controller);
     try {
       const url = new URL(message.url);
       const request = new Request(url, {
@@ -170,7 +174,11 @@ export function serveRoutes(
         },
         controller,
       );
-      if (response.body) await pump(id, response.body, controller);
+      if (request.method === "HEAD") {
+        await response.body?.cancel().catch(() => undefined);
+      } else if (response.body) {
+        await pump(id, response.body, controller);
+      }
       if (!controller.signal.aborted) {
         post(
           { channel: VSCODE_BRIDGE_CHANNEL, kind: "fetch:end", id },

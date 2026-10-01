@@ -102,7 +102,7 @@ export function serveWebviewHost(
     try {
       const handler = Object.hasOwn(handlers, method) ? handlers[method] : null;
       if (!handler) throw new Error(`${method} is not served by this host`);
-      const result = await handler(...(Array.isArray(params) ? params : []));
+      const result = await handler(...params);
       respond({ id, ok: true, result });
     } catch (error) {
       respond({ id, ok: false, message: errorMessage(error) });

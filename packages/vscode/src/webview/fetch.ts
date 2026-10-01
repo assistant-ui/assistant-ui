@@ -34,6 +34,37 @@ export const webviewPort: VSCodeBridgePort = {
 const abortReason = (signal: AbortSignal): unknown =>
   signal.reason ?? new DOMException("This operation was aborted", "AbortError");
 
+const readBody = async (
+  body: ReadableStream<Uint8Array>,
+  signal: AbortSignal,
+) => {
+  const reader = body.getReader();
+  const onAbort = () => {
+    reader.cancel(signal.reason).catch(() => undefined);
+  };
+  signal.addEventListener("abort", onAbort, { once: true });
+  try {
+    const parts: Uint8Array[] = [];
+    let size = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (signal.aborted) throw abortReason(signal);
+      if (done) break;
+      parts.push(value);
+      size += value.byteLength;
+    }
+    const out = new Uint8Array(size);
+    let offset = 0;
+    for (const part of parts) {
+      out.set(part, offset);
+      offset += part.byteLength;
+    }
+    return out;
+  } finally {
+    signal.removeEventListener("abort", onAbort);
+  }
+};
+
 const toRequest = (input: RequestInfo | URL, init?: RequestInit) =>
   input instanceof Request
     ? new Request(input, init)
@@ -51,10 +82,7 @@ export function createVSCodeFetch(
     const { signal } = request;
     if (signal.aborted) throw abortReason(signal);
 
-    const body = request.body
-      ? new Uint8Array(await request.arrayBuffer())
-      : null;
-    if (signal.aborted) throw abortReason(signal);
+    const body = request.body ? await readBody(request.body, signal) : null;
 
     const id = `${idPrefix}-${++nextId}`;
 
@@ -93,18 +121,19 @@ export function createVSCodeFetch(
       const onHead = (
         message: Extract<HostToWebviewMessage, { kind: "fetch:head" }>,
       ) => {
-        const stream = NULL_BODY_STATUSES.has(message.status)
-          ? null
-          : new ReadableStream<Uint8Array>({
-              start: (c) => {
-                controller = c;
-              },
-              cancel: () => {
-                if (finished) return;
-                sendAbort();
-                finish();
-              },
-            });
+        const stream =
+          request.method === "HEAD" || NULL_BODY_STATUSES.has(message.status)
+            ? null
+            : new ReadableStream<Uint8Array>({
+                start: (c) => {
+                  controller = c;
+                },
+                cancel: () => {
+                  if (finished) return;
+                  sendAbort();
+                  finish();
+                },
+              });
         let response: Response;
         try {
           response = new Response(stream, {
@@ -147,15 +176,19 @@ export function createVSCodeFetch(
 
       signal.addEventListener("abort", onAbort, { once: true });
 
-      port.postMessage({
-        channel: VSCODE_BRIDGE_CHANNEL,
-        kind: "fetch:request",
-        id,
-        url: request.url,
-        method: request.method,
-        headers: [...request.headers],
-        body,
-      });
+      try {
+        port.postMessage({
+          channel: VSCODE_BRIDGE_CHANNEL,
+          kind: "fetch:request",
+          id,
+          url: request.url,
+          method: request.method,
+          headers: [...request.headers],
+          body,
+        });
+      } catch (error) {
+        fail(error);
+      }
     });
   };
 }
