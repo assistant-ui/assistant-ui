@@ -92,7 +92,7 @@ Usage comes from `metadata.usage`, or from the sum of `metadata.steps[].usage` w
 
 When converted from `aui/v0`, a tool call has `output-error` when `isError` is true, `output-available` when `result` is present, and `input-available` otherwise. `isError` wins when both are present. Any `result` other than `undefined` counts as present, including `false`, `0`, an empty string and `null`. During a v5 to v6 conversion, `output-error` becomes an error result and tries to parse `errorText` as JSON.
 
-During a server conversion from `aui/v0`, tool `artifact` and `unstable_interactions` move to the corresponding `__aui_toolArtifacts` and `__aui_toolInteractions` metadata keys. A v6 row spreads `metadata.custom` into its metadata. Generative UI becomes a `data-generative-ui` part, images and audio become `file` parts, and unknown parts become `data-<type>` parts.
+During a server conversion from `aui/v0` to `ai-sdk/v5` or `ai-sdk/v6`, tool `artifact` and `unstable_interactions` move to the corresponding `__aui_toolArtifacts` and `__aui_toolInteractions` metadata keys. A v6 row spreads `metadata.custom` into its metadata. Data parts become `data-<name>` parts, and document sources become `source-document` parts. Generative UI becomes a `data-generative-ui` part, images and audio become `file` parts, and unknown parts become `data-<type>` parts.
 
 ## Read a compatible format
 

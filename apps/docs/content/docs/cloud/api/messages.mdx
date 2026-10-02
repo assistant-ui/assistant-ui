@@ -112,10 +112,10 @@ Messages are ordered by `height`, then `created_at`, then `id`, all descending. 
 
 | Requested format | Stored format | Result |
 |---|---|---|
-| `ai-sdk/v6` | `aui/v0` | Converted to `ai-sdk/v6`. |
+| `ai-sdk/v6` | `aui/v0` | Converted to `ai-sdk/v6`, with data parts as `data-<name>` and document sources as `source-document`. |
 | `ai-sdk/v6` | `ai-sdk/v5` | Converted to `ai-sdk/v6`. |
 | `ai-sdk/v6` | `ai-sdk/v6` | Returned as stored. |
-| `ai-sdk/v5` | `aui/v0` | Converted to `ai-sdk/v5`. |
+| `ai-sdk/v5` | `aui/v0` | Converted to `ai-sdk/v5`, with data parts as `data-<name>` and document sources as `source-document`. |
 | `ai-sdk/v5` | Any other format | Returned as stored. |
 | Any other requested format | Any stored format | Returned as stored. |
 
