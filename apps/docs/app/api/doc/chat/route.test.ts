@@ -3,7 +3,15 @@ import { describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   requireSession: vi.fn(),
   checkRateLimit: vi.fn(),
-  resolveChatModel: vi.fn(),
+  resolveChatModel: vi.fn(() => ({ model: {} })),
+  streamText: vi.fn(() => ({
+    toUIMessageStream: () => (async function* () {})(),
+  })),
+}));
+
+vi.mock("ai", async (importOriginal) => ({
+  ...(await importOriginal()),
+  streamText: mocks.streamText,
 }));
 
 vi.mock("@/lib/anonymous-session", async (importOriginal) => ({
@@ -173,7 +181,7 @@ describe("POST /api/doc/chat access boundary", () => {
     expect(mocks.resolveChatModel).toHaveBeenCalledOnce();
   });
 
-  it("rejects oversized history before pruning removes old tool output", async () => {
+  it("rejects raw history above the request boundary", async () => {
     mocks.requireSession.mockReturnValue({
       id: "session_1234567890",
       expiresAt: Date.now() + 60_000,
@@ -196,7 +204,7 @@ describe("POST /api/doc/chat access boundary", () => {
                   toolCallId: "call_1",
                   state: "output-available",
                   input: {},
-                  output: "x".repeat(480_001),
+                  output: "x".repeat(4_000_001),
                 },
               ],
             },
@@ -217,18 +225,18 @@ describe("POST /api/doc/chat access boundary", () => {
     );
 
     expect(response.status).toBe(400);
-    await expect(response.text()).resolves.toBe("Input too long");
+    await expect(response.text()).resolves.toBe("Request too large");
     expect(mocks.resolveChatModel).not.toHaveBeenCalled();
   });
 
-  it("allows prunable tool output above the model per-message limit", async () => {
+  it("allows prunable tool output above the model input budget", async () => {
     mocks.requireSession.mockReturnValue({
       id: "session_1234567890",
       expiresAt: Date.now() + 60_000,
     });
     mocks.checkRateLimit.mockResolvedValue(null);
 
-    await POST(
+    const response = await POST(
       new Request("https://www.assistant-ui.com/api/doc/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -244,7 +252,7 @@ describe("POST /api/doc/chat access boundary", () => {
                   toolCallId: "call_1",
                   state: "output-available",
                   input: {},
-                  output: "x".repeat(30_000),
+                  output: "x".repeat(500_000),
                 },
               ],
             },
@@ -264,6 +272,7 @@ describe("POST /api/doc/chat access boundary", () => {
       }),
     );
 
+    expect(response.status).toBe(200);
     expect(mocks.resolveChatModel).toHaveBeenCalledOnce();
   });
 });

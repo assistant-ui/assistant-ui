@@ -24,6 +24,7 @@ const DOC_CHAT_LIMITS: InputLimits = {
   maxSingleMessageChars: 24_000, // ~6k tokens
 };
 
+const DOC_CHAT_MAX_REQUEST_CHARS = 4_000_000;
 const MAX_FRONTEND_TOOLS_CHARS = 96_000;
 
 function measureMessageChars(messages: unknown[]): {
@@ -109,8 +110,8 @@ export function validateDocChatRequestInput(
   }
 
   const { totalChars } = measureMessageChars(messages);
-  if (totalChars > DOC_CHAT_LIMITS.maxTotalChars) {
-    return new Response("Input too long", { status: 400 });
+  if (totalChars > DOC_CHAT_MAX_REQUEST_CHARS) {
+    return new Response("Request too large", { status: 400 });
   }
 
   return null;
