@@ -44,7 +44,7 @@ jobs:
           fetch-depth: 2
 
       - name: Test Python suite selection
-        if: matrix.package == 'assistant-stream' && matrix.python-version == '3.10'
+        if: strategy.job-index == 0
         working-directory: .
         run: node --test scripts/python-test-selection.test.mjs
 
