@@ -86,15 +86,17 @@ for (const mode of order) {
     names =
       scenario === "size-one"
         ? ["@assistant-ui/tap"]
-        : readdirSync(join(root, "packages")).flatMap((entry) => {
-            const pkg = JSON.parse(
-              readFileSync(
-                join(root, "packages", entry, "package.json"),
-                "utf8",
-              ),
-            );
-            return pkg.private || SIZE_IGNORE.has(pkg.name) ? [] : [pkg.name];
-          });
+        : readdirSync(join(root, "packages"), { withFileTypes: true })
+            .filter((entry) => entry.isDirectory())
+            .flatMap((entry) => {
+              const pkg = JSON.parse(
+                readFileSync(
+                  join(root, "packages", entry.name, "package.json"),
+                  "utf8",
+                ),
+              );
+              return pkg.private || SIZE_IGNORE.has(pkg.name) ? [] : [pkg.name];
+            });
   }
   if (scenario.endsWith("plan") || scenario.startsWith("empty")) {
     const file =
@@ -176,7 +178,10 @@ for (const mode of order) {
   let workMs = 0;
   if (scenario === "changesets") {
     const t = performance.now();
-    run(root, "pnpm", ["ci:version"]);
+    if (mode === "candidate") {
+      run(root, "pnpm", ["exec", "changeset", "version"]);
+      run(root, "pnpm", ["install", "--no-frozen-lockfile", "--lockfile-only"]);
+    } else run(root, "pnpm", ["ci:version"]);
     workMs = performance.now() - t;
     output = hash(run(root, "git", ["diff", "--binary"], true));
   } else if (scenario.startsWith("size")) {
