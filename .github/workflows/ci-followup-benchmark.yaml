@@ -66,3 +66,92 @@ jobs:
           node scripts/template-metrics.mjs measure-base . metrics-base-main.json
           node scripts/template-metrics.mjs report metrics-base-main.json metrics-head.json metrics-report.md metrics-comment.txt
           cat metrics-head.json
+
+  redis:
+    name: Redis / ${{ matrix.mode }} / ${{ matrix.package }} / ${{ matrix.repeat }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        include:
+          - { mode: service, package: "@assistant-ui/tap", repeat: 1 }
+          - { mode: service, package: "@assistant-ui/tap", repeat: 2 }
+          - { mode: conditional, package: "@assistant-ui/tap", repeat: 1 }
+          - { mode: conditional, package: "@assistant-ui/tap", repeat: 2 }
+          - { mode: conditional, package: "assistant-stream", repeat: 1 }
+          - { mode: conditional, package: "@assistant-ui/docs", repeat: 1 }
+    services:
+      redis:
+        image: ${{ matrix.mode == 'service' && 'redis:8-alpine' || '' }}
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      REDIS_URL: redis://127.0.0.1:6379
+      TEST_PACKAGE: ${{ matrix.package }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b
+        with:
+          runtime: node@24
+          cache: false
+          install: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --filter . --filter '@assistant-ui/react-devtools...' --filter="$TEST_PACKAGE..."
+      - name: Build test dependencies
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+        run: pnpm turbo build --filter="$TEST_PACKAGE^..." --output-logs=errors-only
+      - name: Select Redis test service
+        if: matrix.mode == 'conditional'
+        id: redis
+        run: |
+          set -euo pipefail
+          run=$(pnpm exec turbo run test --dry=json --filter="$TEST_PACKAGE" | node scripts/test-redis-inputs.mjs)
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+          if [ "$TEST_PACKAGE" = '@assistant-ui/tap' ]; then
+            test "$run" = false
+          else
+            test "$run" = true
+          fi
+      - name: Start Redis for selected tests
+        if: steps.redis.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          docker run --detach --name aui-test-redis --publish 6379:6379 redis:8-alpine
+          for attempt in {1..50}; do
+            if docker exec aui-test-redis redis-cli ping | grep -qx PONG; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs aui-test-redis
+          exit 1
+      - name: Run selected tests
+        run: |
+          set -euo pipefail
+          if [ "$TEST_PACKAGE" = '@assistant-ui/tap' ]; then
+            pnpm --filter "$TEST_PACKAGE" test
+          elif [ "$TEST_PACKAGE" = assistant-stream ]; then
+            pnpm --filter "$TEST_PACKAGE" exec vitest run src/resumable/stores/redis.test.ts
+            pnpm --filter "$TEST_PACKAGE" exec vitest run --config vitest.peer-v5.config.ts src/resumable/stores/redis.test.ts
+          else
+            pnpm --filter "$TEST_PACKAGE" exec vitest run lib/conversation-limit.redis.test.ts
+          fi
+      - name: Stop Redis
+        if: always() && steps.redis.outputs.run == 'true'
+        run: |
+          if docker inspect aui-test-redis > /dev/null 2>&1; then
+            docker rm --force aui-test-redis
+          fi
