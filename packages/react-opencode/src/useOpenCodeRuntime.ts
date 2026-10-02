@@ -19,7 +19,7 @@ import type {
 import { invokeUserCallback } from "@assistant-ui/core/internal";
 import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import { createOpencodeClient } from "@opencode-ai/sdk/v2/client";
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import { useEffectEvent, useMemo, useRef, useState } from "react";
 import type {
   OpenCodeRuntimeOptions,
   OpenCodeThreadControllerLike,
@@ -153,8 +153,9 @@ const useOpenCodeThreadStore = (
     invokeErrorCallback(options.onError, error);
   });
 
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     if (controller === NOOP_CONTROLLER) return;
+    // oxlint-disable-next-line react/rules-of-hooks -- useReplaySafeEffect runs this callback inside useEffect
     void controller.load().catch(onLoadError);
   }, [controller]);
 

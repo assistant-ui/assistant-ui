@@ -742,6 +742,9 @@ importers:
       ai:
         specifier: ^7.0.123
         version: 7.0.123(zod@4.6.5)
+      assistant-ui:
+        specifier: workspace:*
+        version: link:../../packages/cli
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
