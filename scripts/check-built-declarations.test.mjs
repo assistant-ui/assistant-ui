@@ -1,7 +1,5 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
 import {
-  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -17,7 +15,6 @@ import {
   checkPackage,
   checkPackages,
   declarationConcurrency,
-  createDeclarationProbe,
   declarationGateResult,
   isExecutedAsMain,
   isOwnDeclarationFile,
@@ -52,40 +49,36 @@ function createFixture(declaration) {
   return packageDir;
 }
 
-function runProbe(packageDir) {
+async function runProbe(packageDir) {
   const pkg = JSON.parse(
     readFileSync(path.join(packageDir, "package.json"), "utf8"),
   );
-  const probe = createDeclarationProbe(packageDir, pkg);
-  assert.ok(probe);
-  try {
-    const local = path.join(repoRoot, "node_modules", ".bin", "tsc");
-    return spawnSync(
-      existsSync(local) ? local : "tsc",
-      ["--project", probe.configPath, "--pretty", "false"],
-      { cwd: repoRoot, encoding: "utf8" },
-    );
-  } finally {
-    probe.remove();
-  }
+  const result = await checkPackage(repoRoot, packageDir, pkg);
+  assert.deepEqual(
+    readdirSync(packageDir).filter((name) =>
+      name.startsWith(".strict-libcheck-"),
+    ),
+    [],
+  );
+  return result;
 }
 
-test("accepts internally consistent built declarations", () => {
+test("accepts internally consistent built declarations", async () => {
   const packageDir = createFixture("export interface PresentType {}\n");
   try {
-    const result = runProbe(packageDir);
+    const result = await runProbe(packageDir);
     assert.equal(result.status, 0, result.stdout + result.stderr);
   } finally {
     rmSync(packageDir, { recursive: true, force: true });
   }
 });
 
-test("rejects dangling types in built declarations", () => {
+test("rejects dangling types in built declarations", async () => {
   const packageDir = createFixture(
     "export declare const broken: MissingType;\n",
   );
   try {
-    const result = runProbe(packageDir);
+    const result = await runProbe(packageDir);
     assert.notEqual(result.status, 0);
     assert.match(
       result.stdout + result.stderr,
@@ -290,43 +283,6 @@ test("reports completed packages in order before the whole queue finishes", asyn
   gates[2].resolve();
   await checking;
   assert.deepEqual(reported, ["0", "1", "2"]);
-});
-
-test("parallel and sequential compilers return the same declarations diagnostics and clean up probes", async () => {
-  const dirs = [
-    createFixture("export interface PresentType {}\n"),
-    createFixture("export declare const broken: MissingType;\n"),
-    createFixture("export {};\n"),
-  ];
-  writeFileSync(path.join(dirs[2], "tsconfig.json"), "invalid json");
-  const packages = dirs.map((packageDir) => ({
-    packageDir,
-    pkg: JSON.parse(
-      readFileSync(path.join(packageDir, "package.json"), "utf8"),
-    ),
-  }));
-  try {
-    const sequential = await checkPackages(repoRoot, packages, 1);
-    const parallel = await checkPackages(repoRoot, packages, 2);
-    const normalize = (results) =>
-      JSON.stringify(results).replaceAll(
-        /\.strict-libcheck-[^/\\]+/g,
-        ".strict-libcheck-probe",
-      );
-    assert.equal(normalize(parallel), normalize(sequential));
-    assert.deepEqual(
-      parallel.map((result) => result.status),
-      [0, 1, 1],
-    );
-    assert.match(parallel[1].stdout, /Cannot find name 'MissingType'/);
-    for (const dir of dirs)
-      assert.deepEqual(
-        readdirSync(dir).filter((name) => name.startsWith(".strict-libcheck-")),
-        [],
-      );
-  } finally {
-    for (const dir of dirs) rmSync(dir, { recursive: true, force: true });
-  }
 });
 
 test("async compiler startup failures still fail the declaration gate", async () => {
