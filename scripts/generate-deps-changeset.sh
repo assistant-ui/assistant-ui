@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Generate a changeset for dependency updates.
-# Detects which published packages had their package.json modified since the branch left the default branch (committed, staged and unstaged) and creates a changeset with patch bumps for each.
+# Detects which published packages had their package.json modified since the branch left origin/main (committed, staged and unstaged) and writes a changeset with patch bumps for each.
 
 set -euo pipefail
 
@@ -8,8 +8,10 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
 # A rerun on top of an existing dependency branch must diff against the fork point, because the earlier runs' manifest changes are already committed.
-default_ref=$(git symbolic-ref --quiet refs/remotes/origin/HEAD 2>/dev/null || echo refs/remotes/origin/main)
-base=$(git merge-base HEAD "$default_ref" 2>/dev/null || git rev-parse HEAD)
+if ! base=$(git merge-base HEAD origin/main 2>/dev/null); then
+  echo "Cannot find where this branch left origin/main; fetch origin/main (and unshallow a shallow clone) first." >&2
+  exit 1
+fi
 
 changed_pkgjsons=$(git diff --name-only "$base" -- '**/package.json' 'package.json' 2>/dev/null || true)
 if [ -z "$changed_pkgjsons" ]; then
@@ -40,8 +42,19 @@ if [ ${#packages[@]} -eq 0 ]; then
   exit 0
 fi
 
-# Generate a random changeset filename
-slug=$(node -e "
+# A rerun replaces the changeset an earlier run on this branch wrote instead of adding a second one.
+changeset_file=""
+for file in "$REPO_ROOT"/.changeset/*.md; do
+  [ -f "$file" ] || continue
+  git cat-file -e "$base:.changeset/$(basename "$file")" 2>/dev/null && continue
+  if [ "$(tail -n 1 "$file")" = "chore: update dependencies" ]; then
+    changeset_file="$file"
+    break
+  fi
+done
+
+if [ -z "$changeset_file" ]; then
+  slug=$(node -e "
 const adj=['bright','calm','cool','dull','fair','fast','flat','fond','free','full','glad','gold','good','gray','half','hard','high','holy','huge','just','keen','kind','last','lean','left','long','loud','main','mild','neat','nice','bold','pale','past','pink','poor','pure','rare','raw','rich','ripe','rude','safe','same','shy','slim','slow','soft','some','sure','tall','thin','tiny','true','ugly','vast','warm','weak','wide','wild','wise','worn','zero'];
 const noun=['ants','bats','bees','bugs','cats','cows','cups','dogs','dots','eels','eggs','elms','emus','fans','figs','fish','foes','fox','gems','hats','hens','ices','inks','jams','jars','jets','keys','kits','laws','maps','mice','moms','nets','nuts','oaks','orbs','owls','pans','peas','pens','pigs','pins','pots','rats','rays','rods','rugs','seas','suns','teas','toys','urns','vans','wars','yaks','zoos'];
 const verb=['add','aim','ask','beg','bid','bow','buy','cry','cut','dig','dip','eat','end','eye','fan','fit','fix','fly','get','gig','gum','hid','hug','jam','jog','kid','lay','let','lie','log','mix','nap','nod','own','pay','peg','pet','pin','pop','put','ran','rip','rob','rot','rub','run','saw','set','sew','sit','sly','tap','try','tug','use','vow','wag','win','yap','zip'];
@@ -49,7 +62,8 @@ const r=a=>a[Math.floor(Math.random()*a.length)];
 console.log(r(adj)+'-'+r(noun)+'-'+r(verb));
 ")
 
-changeset_file="$REPO_ROOT/.changeset/${slug}.md"
+  changeset_file="$REPO_ROOT/.changeset/${slug}.md"
+fi
 
 # Build changeset content
 {
@@ -62,5 +76,5 @@ changeset_file="$REPO_ROOT/.changeset/${slug}.md"
   echo "chore: update dependencies"
 } > "$changeset_file"
 
-echo "Created changeset: .changeset/${slug}.md (${#packages[@]} packages)"
+echo "Wrote changeset: .changeset/$(basename "$changeset_file") (${#packages[@]} packages)"
 printf "  %s\n" "${packages[@]}"
