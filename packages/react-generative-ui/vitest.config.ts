@@ -8,7 +8,7 @@ const temporalTests = [
 export default defineConfig({
   test: {
     coverage: {
-      include: ["src/**"],
+      include: ["src/**/*.{ts,tsx}"],
       thresholds: {
         lines: 97,
         functions: 98,

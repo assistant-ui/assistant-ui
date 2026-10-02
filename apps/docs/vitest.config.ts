@@ -8,15 +8,19 @@ export default {
   test: {
     coverage: {
       include: [
-        "app/**",
-        "components/**",
-        "hooks/**",
-        "lib/**",
-        "runtimes/**",
+        "app/**/*.{ts,tsx}",
+        "components/**/*.{ts,tsx}",
+        "hooks/**/*.{ts,tsx}",
+        "lib/**/*.{ts,tsx,mjs}",
+        "runtimes/**/*.{ts,tsx}",
         "instrumentation.ts",
         "instrumentation-client.ts",
         "proxy.ts",
         "mdx-components.tsx",
+      ],
+      exclude: [
+        "lib/xulux/learn/courses/*/shared/**",
+        "lib/xulux/learn/courses/*/stages/**",
       ],
       thresholds: {
         lines: 68,

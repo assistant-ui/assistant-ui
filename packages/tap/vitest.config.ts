@@ -7,7 +7,7 @@ const packageRoot = fileURLToPath(new URL(".", import.meta.url));
 export default defineConfig({
   test: {
     coverage: {
-      include: ["src/**"],
+      include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/__tests__/**"],
       thresholds: {
         lines: 93,
