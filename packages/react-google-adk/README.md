@@ -16,13 +16,21 @@ The recommended setup proxies through your own API route:
 // app/api/adk/route.ts
 import { createAdkApiRoute } from "@assistant-ui/react-google-adk/server";
 import { runner } from "./agent";
+import { requireUser } from "./auth";
 
 export const POST = createAdkApiRoute({
   runner,
-  userId: "default-user",
-  sessionId: (req) => new URL(req.url).searchParams.get("sessionId") ?? "default",
+  userId: async (req) => (await requireUser(req)).id,
+  sessionId: (_req, clientSessionId) => {
+    if (!clientSessionId) throw new Error("Missing ADK session ID");
+    return clientSessionId;
+  },
 });
 ```
+
+`createAdkStream` sends its initialized thread ID to the route. Resolve
+`userId` from authentication before accepting that identifier; a client-sent
+session ID is not proof that the caller owns the session.
 
 ```tsx
 // client component

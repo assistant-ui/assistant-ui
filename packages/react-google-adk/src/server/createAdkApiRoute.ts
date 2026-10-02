@@ -18,16 +18,24 @@ export type CreateAdkApiRouteOptions = {
   runner: AdkRunner;
 
   /**
-   * User ID to use for the ADK session. Can be a static string
-   * or a function that extracts it from the request.
+   * User ID to use for the ADK session. Production routes should resolve this
+   * from the authenticated request. A static value is suitable only for a
+   * single-user development route.
    */
   userId: string | ((req: Request) => string | Promise<string>);
 
   /**
    * Session ID to use. Can be a static string or a function
-   * that extracts it from the request (e.g. from query params or headers).
+   * that validates or transforms the client thread ID sent by
+   * `createAdkStream`. The client value is an identifier, not authorization;
+   * scope access with an authenticated `userId`.
    */
-  sessionId: string | ((req: Request) => string | Promise<string>);
+  sessionId:
+    | string
+    | ((
+        req: Request,
+        clientSessionId: string | undefined,
+      ) => string | Promise<string>);
 
   /**
    * Error handler for stream errors.
@@ -43,11 +51,15 @@ export type CreateAdkApiRouteOptions = {
  * ```ts
  * import { createAdkApiRoute } from '@assistant-ui/react-google-adk/server';
  * import { runner } from './agent';
+ * import { requireUser } from './auth';
  *
  * export const POST = createAdkApiRoute({
  *   runner,
- *   userId: "default-user",
- *   sessionId: (req) => new URL(req.url).searchParams.get("sessionId") ?? "default",
+ *   userId: async (req) => (await requireUser(req)).id,
+ *   sessionId: (_req, clientSessionId) => {
+ *     if (!clientSessionId) throw new Error("Missing ADK session ID");
+ *     return clientSessionId;
+ *   },
  * });
  * ```
  */
@@ -65,7 +77,7 @@ export function createAdkApiRoute(
 
     const sessionId =
       typeof options.sessionId === "function"
-        ? await options.sessionId(req)
+        ? await options.sessionId(req, parsed.sessionId)
         : options.sessionId;
 
     const events = options.runner.runAsync({
