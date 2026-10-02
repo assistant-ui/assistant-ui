@@ -25,7 +25,7 @@ export const AGENT_TOOL_PRESETS = [
 export const cartEntrySlug = (entry: CartEntry) =>
   typeof entry === "string" ? entry : entry.slug;
 export const cartEntryId = (entry: CartEntry) =>
-  typeof entry === "string" ? entry : entry.id;
+  typeof entry === "string" ? entry : `agent-tool:${entry.id}`;
 
 export const configuredToolInstructions = (entries: readonly CartEntry[]) => {
   const tools = entries.filter(isAgentToolCartEntry);

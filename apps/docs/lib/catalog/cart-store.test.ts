@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { cartEntryId } from "./agent-tool-config";
 
 const storageKey = "aui-catalog-cart";
 const instructionsKey = "aui-catalog-instructions";
@@ -35,6 +36,51 @@ afterEach(() => {
 });
 
 describe("cart store", () => {
+  it("preserves stored and merged products when configured tool ids match their slugs", async () => {
+    const values = setupStorage();
+    const first = {
+      id: "cloud",
+      slug: "agent-tools" as const,
+      name: "Search",
+      purpose: "Search support sources.",
+    };
+    const second = {
+      id: "elements/thread-list",
+      slug: "agent-tools" as const,
+      name: "History",
+      purpose: "Read our conversation history.",
+    };
+    values.set(storageKey, JSON.stringify([first, "cloud"]));
+    const store = await loadStore();
+    expect(store.getCartEntries()).toEqual([first, "cloud"]);
+    store.mergeIntoCart([first, second, "elements/thread-list"]);
+    expect(store.getCartEntries()).toEqual([
+      first,
+      "cloud",
+      second,
+      "elements/thread-list",
+    ]);
+    const restored = await loadStore();
+    expect(restored.getCartEntries()).toEqual([
+      first,
+      "cloud",
+      second,
+      "elements/thread-list",
+    ]);
+    restored.removeFromCart("cloud");
+    expect(restored.getCartEntries()).toEqual([
+      first,
+      second,
+      "elements/thread-list",
+    ]);
+    restored.removeFromCart(cartEntryId(first));
+    expect(restored.getCartEntries()).toEqual([second, "elements/thread-list"]);
+    restored.removeFromCart("elements/thread-list");
+    expect(restored.getCartEntries()).toEqual([second]);
+    restored.removeFromCart(cartEntryId(second));
+    expect(restored.getCartEntries()).toEqual([]);
+  });
+
   it("requires a purpose and preserves independently configured tool instances", async () => {
     const values = setupStorage();
     values.set(storageKey, JSON.stringify(["agent-tools"]));
@@ -60,7 +106,7 @@ describe("cart store", () => {
     const first = entries[0];
     if (typeof first === "string" || first === undefined)
       throw new Error("Expected configured tool");
-    restored.removeFromCart(first.id);
+    restored.removeFromCart(cartEntryId(first));
     expect(restored.getCartEntries()).toEqual([entries[1]]);
   });
 
