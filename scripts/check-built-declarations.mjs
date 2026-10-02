@@ -236,7 +236,7 @@ export async function checkPackage(repoRoot, packageDir, pkg, reportStart) {
     if (gate === "pass") return result;
     result.status = 1;
     if (gate === "spawn-failed") {
-      result.stdout += `${compiler.error ?? gate}\n`;
+      result.stdout += `${pkg.name}: ${compiler.error ?? gate}\n`;
       return result;
     }
     if (gate === "own-errors") {
@@ -248,7 +248,7 @@ export async function checkPackage(repoRoot, packageDir, pkg, reportStart) {
       result.stdout += `${lines.join("\n")}\n`;
       return result;
     }
-    result.stdout += output || `${gate}\n`;
+    result.stdout += `${pkg.name}:\n${output || `${gate}\n`}`;
     return result;
   } finally {
     probe.remove();
