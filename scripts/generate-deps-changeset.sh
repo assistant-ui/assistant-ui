@@ -1,18 +1,17 @@
 #!/usr/bin/env bash
 # Generate a changeset for dependency updates.
-# Detects which published packages had their package.json modified (staged + unstaged)
-# and creates a changeset with patch bumps for each.
+# Detects which published packages had their package.json modified since the branch left the default branch (committed, staged and unstaged) and creates a changeset with patch bumps for each.
 
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
-# Find all modified package.json files (staged + unstaged, excluding lockfile)
-changed_pkgjsons=$(git diff --name-only HEAD -- '**/package.json' 'package.json' 2>/dev/null || true)
-if [ -z "$changed_pkgjsons" ]; then
-  changed_pkgjsons=$(git diff --name-only --cached -- '**/package.json' 'package.json' 2>/dev/null || true)
-fi
+# A rerun on top of an existing dependency branch must diff against the fork point, because the earlier runs' manifest changes are already committed.
+default_ref=$(git symbolic-ref --quiet refs/remotes/origin/HEAD 2>/dev/null || echo refs/remotes/origin/main)
+base=$(git merge-base HEAD "$default_ref" 2>/dev/null || git rev-parse HEAD)
+
+changed_pkgjsons=$(git diff --name-only "$base" -- '**/package.json' 'package.json' 2>/dev/null || true)
 if [ -z "$changed_pkgjsons" ]; then
   echo "No package.json changes detected."
   exit 0
