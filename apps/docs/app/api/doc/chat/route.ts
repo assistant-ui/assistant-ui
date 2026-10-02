@@ -3,7 +3,10 @@ import { getDistinctId } from "@/lib/posthog-server";
 import { injectQuoteContext } from "@assistant-ui/ai-sdk";
 import { checkPublicAssistantRateLimit } from "@/lib/rate-limit";
 import { requirePublicAssistantSession } from "@/lib/anonymous-session";
-import { validateDocChatInput } from "@/lib/validate-input";
+import {
+  validateDocChatInput,
+  validateFrontendToolsInput,
+} from "@/lib/validate-input";
 import { source, examples as examplesSource } from "@/lib/source";
 import { resolveChatModel } from "@/lib/ai/provider";
 import { posthogTelemetry } from "@/lib/ai/telemetry";
@@ -305,6 +308,9 @@ export async function POST(req: Request): Promise<Response> {
 
     const body = await req.json();
     const { messages, tools, system: pageContext, config } = body;
+
+    const toolsError = validateFrontendToolsInput(tools);
+    if (toolsError) return toolsError;
 
     const prunedMessages = await prepareDocChatMessages(messages);
 

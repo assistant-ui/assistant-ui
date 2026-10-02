@@ -80,6 +80,40 @@ describe("POST /api/doc/chat access boundary", () => {
     );
     expect(mocks.resolveChatModel).not.toHaveBeenCalled();
   });
+
+  it("rejects oversized frontend tools before model selection", async () => {
+    mocks.requireSession.mockReturnValue({
+      id: "session_1234567890",
+      expiresAt: Date.now() + 60_000,
+    });
+    mocks.checkRateLimit.mockResolvedValue(null);
+
+    const response = await POST(
+      new Request("https://www.assistant-ui.com/api/doc/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            {
+              id: "user-message",
+              role: "user",
+              parts: [{ type: "text", text: "Search the docs" }],
+            },
+          ],
+          tools: {
+            search: {
+              description: "x".repeat(96_000),
+              parameters: { type: "object", properties: {} },
+            },
+          },
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.text()).resolves.toBe("Tools too large");
+    expect(mocks.resolveChatModel).not.toHaveBeenCalled();
+  });
 });
 
 describe("withReadDocSources", () => {
