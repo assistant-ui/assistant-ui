@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  forwardRef,
   memo,
   useCallback,
   useImperativeHandle,
@@ -424,23 +423,22 @@ const receiptIcons = {
   closed: CircleMinusIcon,
 } satisfies Record<ApprovalReceipt["outcome"], React.ElementType>;
 
-const ToolFallbackApprovalReceipt = forwardRef<
-  HTMLDivElement,
-  React.ComponentPropsWithoutRef<"div"> & {
-    approval: NonNullable<ToolCallMessagePart["approval"]>;
-    focusReceiptRef: React.MutableRefObject<string | null | undefined>;
-  }
->(function ToolFallbackApprovalReceipt(
-  { approval, className, focusReceiptRef, ...props },
-  ref,
-) {
-  const receiptRef = useRef<HTMLDivElement>(null);
-  useImperativeHandle(ref, () => receiptRef.current!, []);
+function ToolFallbackApprovalReceipt({
+  approval,
+  className,
+  focusReceiptRef,
+  receiptRef,
+  ...props
+}: React.ComponentPropsWithoutRef<"div"> & {
+  approval: NonNullable<ToolCallMessagePart["approval"]>;
+  focusReceiptRef: React.MutableRefObject<string | null | undefined>;
+  receiptRef: React.RefObject<HTMLDivElement | null>;
+}) {
   useLayoutEffect(() => {
     const shouldFocus = focusReceiptRef.current === approval.id;
     focusReceiptRef.current = null;
     if (shouldFocus) receiptRef.current?.focus({ preventScroll: true });
-  }, [approval.id, focusReceiptRef]);
+  }, [approval.id, focusReceiptRef, receiptRef]);
 
   const receipt = approvalReceipt(approval);
   const Icon = receiptIcons[receipt.outcome];
@@ -486,7 +484,7 @@ const ToolFallbackApprovalReceipt = forwardRef<
       ))}
     </div>
   );
-});
+}
 
 const offersInterruptAction = (
   status: ToolCallMessagePartStatus | undefined,
@@ -530,9 +528,9 @@ function ToolFallbackApproval({
   const pendingGroupRef = useRef<HTMLDivElement | null>(null);
   const receiptRef = useRef<HTMLDivElement>(null);
   const focusReceiptRef = useRef<string | null | undefined>(null);
-  useImperativeHandle(
+  useImperativeHandle<HTMLDivElement | null, HTMLDivElement | null>(
     ref,
-    () => (pendingGroupRef.current ?? receiptRef.current)!,
+    () => pendingGroupRef.current ?? receiptRef.current,
   );
   const setPendingGroup = useCallback(
     (element: HTMLDivElement | null) => {
@@ -565,7 +563,7 @@ function ToolFallbackApproval({
     return (
       <ToolFallbackApprovalReceipt
         approval={approval}
-        ref={receiptRef}
+        receiptRef={receiptRef}
         focusReceiptRef={focusReceiptRef}
         className={className}
         {...props}
@@ -938,11 +936,16 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
     (isRequiresAction && offersInterruptAction(status, approval, interrupt));
 
   const [open, setOpen] = useState(isRequiresAction);
+  const [approvalAttempt, setApprovalAttempt] = useState(0);
   const [prevRequiresAction, setPrevRequiresAction] =
     useState(isRequiresAction);
   if (isRequiresAction !== prevRequiresAction) {
     setPrevRequiresAction(isRequiresAction);
-    if (isRequiresAction) setOpen(true);
+    if (isRequiresAction) {
+      setOpen(true);
+      // A new action phase must not inherit the previous submission lock.
+      setApprovalAttempt(approvalAttempt + 1);
+    }
   }
 
   return (
@@ -956,6 +959,7 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
         />
         {shouldRenderApproval && (
           <ToolFallbackApproval
+            key={approvalAttempt}
             addResult={addResult}
             resume={resume}
             interrupt={interrupt}

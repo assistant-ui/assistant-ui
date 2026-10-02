@@ -485,6 +485,47 @@ describe("settled approval receipts", () => {
     },
   );
 
+  it.each(["req-1", "next-request"])(
+    "allows a fresh response when the run requests action again (%s)",
+    async (id) => {
+      let rejectPrevious!: (error: Error) => void;
+      const previousResponse = new Promise<void>((_, reject) => {
+        rejectPrevious = reject;
+      });
+      const respondToApproval = vi.fn(() => previousResponse);
+      const renderRequest = (running: boolean, approvalId = "req-1") => (
+        <ToolFallback
+          type="tool-call"
+          toolCallId="call-1"
+          toolName="test-tool"
+          args={{}}
+          argsText="{}"
+          status={
+            running
+              ? { type: "running" }
+              : { type: "requires-action", reason: "tool-calls" }
+          }
+          approval={{ id: approvalId }}
+          addResult={vi.fn()}
+          resume={vi.fn()}
+          respondToApproval={respondToApproval}
+        />
+      );
+      const view = render(renderRequest(false));
+      fireEvent.click(button("Allow"));
+      expect(button("Allow").disabled).toBe(true);
+      view.rerender(renderRequest(true));
+      expect(button("Allow").disabled).toBe(true);
+      view.rerender(renderRequest(false, id));
+      expect(button("Allow").disabled).toBe(false);
+      respondToApproval.mockImplementation(() => new Promise<void>(() => {}));
+      fireEvent.click(button("Deny"));
+      await act(async () => rejectPrevious(new Error("Old attempt failed")));
+      expect(button("Deny").disabled).toBe(true);
+      expect(screen.queryByRole("alert")).toBeNull();
+    },
+  );
+
   it("does not move focus from another control while a decision is pending", () => {
     const respondToApproval = vi.fn(async () => {});
     const content = (approved?: boolean) => (
