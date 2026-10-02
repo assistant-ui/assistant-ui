@@ -12,12 +12,13 @@ import {
   estimateAgentMinutes,
   formatMinutes,
   resolveProducts,
+  getCatalogItem,
 } from "@/lib/catalog";
 import { parseItemSlugs } from "@/lib/catalog/install-guide";
 import {
   removeFromCart,
   replaceCart,
-  useCart,
+  useCartEntries,
   useCartInstructions,
   setCartInstructions,
 } from "@/lib/catalog/cart-store";
@@ -26,6 +27,8 @@ import { checkoutCart } from "@/lib/checkout/flow";
 import { useCheckoutSession } from "@/lib/checkout/session-store";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/utils";
+import { cartEntryId, cartEntrySlug } from "@/lib/catalog/agent-tool-config";
+import { AgentToolDialog } from "./agent-tool-dialog";
 
 function ActiveCheckoutBanner() {
   return (
@@ -53,9 +56,26 @@ export function CartView() {
   const hydrated = useHydrated();
   const params = useSearchParams();
   const linkedItems = params.get("items");
-  const slugs = useCart();
+  const entries = useCartEntries();
   const session = useCheckoutSession();
-  const products = resolveProducts(slugs);
+  const products = entries.flatMap((entry) => {
+    const product = getCatalogItem(cartEntrySlug(entry));
+    return product
+      ? [
+          {
+            ...product,
+            cartId: cartEntryId(entry),
+            name: typeof entry === "string" ? product.name : entry.name,
+            tagline:
+              typeof entry === "string" ? product.tagline : entry.purpose,
+            needsConfiguration: entry === "agent-tools",
+          },
+        ]
+      : [];
+  });
+  const needsConfiguration = products.some(
+    (product) => product.needsConfiguration,
+  );
   const instructions = useCartInstructions();
 
   // A shared link restores the cart it describes, then the cart owns the state
@@ -107,7 +127,7 @@ export function CartView() {
         >
           {products.map((product) => (
             <li
-              key={product.slug}
+              key={product.cartId}
               className="group/navlink grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-5 gap-y-3 py-6 sm:gap-x-8"
             >
               <NavGlyph kind={product.glyph} />
@@ -121,6 +141,11 @@ export function CartView() {
                 <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
                   {product.tagline}
                 </p>
+                {product.slug === "agent-tools" ? (
+                  <p className="text-muted-foreground mt-2 text-xs">
+                    Agent Tool
+                  </p>
+                ) : null}
                 <p className="text-muted-foreground mt-2 text-sm">
                   Agent time {formatMinutes(product.agentMinutes)}
                 </p>
@@ -129,12 +154,17 @@ export function CartView() {
                   variant="outline"
                   size="sm"
                   aria-label={`Remove ${product.name}`}
-                  onClick={() => removeFromCart(product.slug)}
+                  onClick={() => removeFromCart(product.cartId)}
                   className="mt-3"
                 >
                   <Trash2Icon data-icon="inline-start" />
                   Remove
                 </Button>
+                {product.needsConfiguration ? (
+                  <div className="mt-3">
+                    <AgentToolDialog variant="outline" />
+                  </div>
+                ) : null}
               </div>
             </li>
           ))}
@@ -219,7 +249,7 @@ export function CartView() {
             <dd className="tabular-nums">{estimate}</dd>
           </div>
         </dl>
-        {session !== null ? (
+        {session !== null || needsConfiguration ? (
           <Button disabled className="mt-4 w-full">
             Start setup
           </Button>
@@ -233,9 +263,11 @@ export function CartView() {
           </Button>
         )}
         <p className="text-muted-foreground mt-3 text-center text-sm">
-          {session !== null
-            ? "Finish the current setup to start another."
-            : "Your coding agent handles the setup."}
+          {needsConfiguration
+            ? "Configure each agent tool before starting setup."
+            : session !== null
+              ? "Finish the current setup to start another."
+              : "Your coding agent handles the setup."}
         </p>
       </aside>
     </div>
