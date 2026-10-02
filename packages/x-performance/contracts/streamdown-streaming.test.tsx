@@ -200,6 +200,17 @@ describe("Streamdown settled code blocks", () => {
     }
   });
 
+  // Raw HTML can nest pre inside pre. Each level compares its own node up to
+  // the next nested pre, so an outer level, whose code child has element
+  // children and re-renders anyway, provides a new pre props value on every
+  // re-render, while the innermost level holds its value and its code adapter
+  // bails out. React 19 still schedules every PreContext consumer below a
+  // changed outer provider: its lazy context propagation collects the changed
+  // providers by walking up from each bail-out without consulting shadowing,
+  // so an unchanged nested provider in between does not stop it, and the
+  // innermost consumer re-renders once per token with the one value it has
+  // always read while the highlighter beside it does not run.
+  // On mount, streamdown 2.7 renders its root a second time from a caret effect that also runs in static mode, so the innermost consumer mounts with two renders while the highlighter still runs once.
   it("holds the innermost highlighter of nested raw pre markup", () => {
     const DEPTH = 3;
     const nested = (tokens: number) =>
@@ -230,7 +241,7 @@ describe("Streamdown settled code blocks", () => {
       app.show(nested(0), false);
       expect(counter.snapshot()).toMatchObject({
         "renders:highlighter": 1,
-        "renders:pre props consumer": 1,
+        "renders:pre props consumer": 2,
       });
 
       counter.reset();
@@ -239,7 +250,7 @@ describe("Streamdown settled code blocks", () => {
       }
 
       expect(counter.renders("highlighter")).toBe(0);
-      expect(counter.renders("pre props consumer")).toBe(0);
+      expect(counter.renders("pre props consumer")).toBe(TOKENS);
       expect(seen.size).toBe(1);
     } finally {
       app.unmount();

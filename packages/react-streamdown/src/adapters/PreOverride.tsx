@@ -28,8 +28,7 @@ function isSamePreProps(prev: PreOverrideProps, next: PreOverrideProps) {
   const { node: prevNode, ...prevRest } = prev;
   const { node: nextNode, ...nextRest } = next;
   return (
-    isSameHastNode(prevNode, nextNode, true) &&
-    isEqualToDepth(prevRest, nextRest, 2)
+    isSameHastNode(prevNode, nextNode) && isEqualToDepth(prevRest, nextRest, 2)
   );
 }
 
