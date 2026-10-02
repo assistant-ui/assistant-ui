@@ -64,10 +64,25 @@ const commands =
 const hash = (text) => createHash("sha256").update(text).digest("hex");
 const results = [];
 const order =
-  repeat % 2 ? ["baseline", "candidate"] : ["candidate", "baseline"];
-for (const mode of order) {
-  const root = clone(mode);
-  const store = join(dir, `store-${mode}`);
+  repeat % 2
+    ? ["baseline", "candidate", "candidate", "baseline"]
+    : ["candidate", "baseline", "baseline", "candidate"];
+const plannerRoot = join(dir, "planner-tests");
+for (const path of [
+  "scripts/ci-has-tasks.mjs",
+  "scripts/ci-has-tasks.test.mjs",
+  ".github/workflows/code-quality.yaml",
+]) {
+  const destination = join(plannerRoot, path);
+  mkdirSync(join(destination, ".."), { recursive: true });
+  writeFileSync(
+    destination,
+    run(source, "git", ["show", `48f8b77d3a:${path}`], true),
+  );
+}
+for (const [iteration, mode] of order.entries()) {
+  const root = clone(`${mode}-${iteration}`);
+  const store = join(dir, `store-${mode}-${iteration}`);
   env.npm_config_store_dir = store;
   let names = [];
   let seed;
@@ -76,7 +91,7 @@ for (const mode of order) {
     scenario === "changesets" ||
     scenario === "empty-apps"
   ) {
-    seed = clone(`seed-${mode}`);
+    seed = clone(`seed-${mode}-${iteration}`);
     run(seed, "pnpm", ["install", "--frozen-lockfile"]);
   }
   if (scenario.startsWith("size")) {
@@ -120,6 +135,16 @@ for (const mode of order) {
       "test: preparation fixture",
     ]);
   }
+  if (scenario === "changesets" && mode === "candidate") {
+    const file = join(root, "package.json");
+    writeFileSync(
+      file,
+      readFileSync(file, "utf8").replace(
+        "pnpm install --no-frozen-lockfile",
+        "pnpm install --no-frozen-lockfile --lockfile-only",
+      ),
+    );
+  }
   const start = performance.now();
   let plan;
   let planningMs = 0;
@@ -127,33 +152,18 @@ for (const mode of order) {
     (scenario.startsWith("empty") || scenario.endsWith("plan")) &&
     mode === "candidate"
   ) {
-    const locked = JSON.parse(
+    run(plannerRoot, "node", ["--test", "scripts/ci-has-tasks.test.mjs"]);
+    const selected = commands.map((args) =>
       run(
         root,
-        "pnpm",
-        [
-          "--filter=.",
-          "list",
-          "turbo",
-          "--lockfile-only",
-          "--depth=0",
-          "--json",
-        ],
+        "node",
+        [join(plannerRoot, "scripts/ci-has-tasks.mjs"), base, ...args.slice(1)],
         true,
-      ),
-    )[0].devDependencies.turbo.version;
-    plan = commands.map((args) =>
-      tasks(
-        JSON.parse(
-          run(
-            root,
-            "pnpm",
-            ["dlx", `turbo@${locked}`, ...args, "--dry=json"],
-            true,
-          ),
-        ),
-      ),
+      ).trim(),
     );
+    assert.ok(selected.every((value) => value === "true" || value === "false"));
+    if (selected.every((value) => value === "false"))
+      plan = commands.map(() => []);
     planningMs = performance.now() - start;
   }
   const needsInstall = !plan || plan.some((list) => list.length > 0);
@@ -178,11 +188,18 @@ for (const mode of order) {
   let workMs = 0;
   if (scenario === "changesets") {
     const t = performance.now();
-    if (mode === "candidate") {
-      run(root, "pnpm", ["exec", "changeset", "version"]);
-      run(root, "pnpm", ["install", "--no-frozen-lockfile", "--lockfile-only"]);
-    } else run(root, "pnpm", ["ci:version"]);
+    run(root, "pnpm", ["ci:version"]);
     workMs = performance.now() - t;
+    if (mode === "candidate") {
+      const file = join(root, "package.json");
+      writeFileSync(
+        file,
+        readFileSync(file, "utf8").replace(
+          "pnpm install --no-frozen-lockfile --lockfile-only",
+          "pnpm install --no-frozen-lockfile",
+        ),
+      );
+    }
     output = hash(run(root, "git", ["diff", "--binary"], true));
   } else if (scenario.startsWith("size")) {
     const t = performance.now();
@@ -219,6 +236,7 @@ for (const mode of order) {
   const result = {
     scenario,
     repeat,
+    iteration,
     mode,
     planningMs,
     installMs,
@@ -231,11 +249,12 @@ for (const mode of order) {
   console.log(`BENCH_RESULT ${JSON.stringify(result)}`);
   results.push(result);
 }
-assert.equal(
-  results[0].output,
-  results[1].output,
-  "baseline and candidate outputs differ",
-);
+for (const result of results)
+  assert.equal(
+    result.output,
+    results[0].output,
+    "baseline and candidate outputs differ",
+  );
 writeFileSync(
   join(process.env.RUNNER_TEMP, "preparation-result.json"),
   JSON.stringify(results, null, 2),
