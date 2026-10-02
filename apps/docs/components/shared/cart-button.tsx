@@ -27,9 +27,10 @@ import {
   getLastAdded,
   subscribeCart,
   useCart,
+  useCartEntries,
   useLastAdded,
 } from "@/lib/catalog/cart-store";
-import { getCatalogItem, resolveProducts } from "@/lib/catalog";
+import { getCatalogItem } from "@/lib/catalog";
 import { checkoutCart } from "@/lib/checkout/flow";
 import { useCheckoutSession } from "@/lib/checkout/session-store";
 import { cn } from "@/lib/utils";
@@ -180,9 +181,8 @@ function CartPopoverButton({ checkoutActive }: { checkoutActive: boolean }) {
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLAnchorElement>(null);
   const pathname = usePathname();
-  const slugs = useCart();
+  const entries = useCartEntries();
   const lastAdded = useLastAdded();
-  const products = resolveProducts(slugs);
   const added = lastAdded ? getCatalogItem(lastAdded.slug) : undefined;
 
   // The docs header mounts one cart per breakpoint, so only the visible copy
@@ -215,9 +215,9 @@ function CartPopoverButton({ checkoutActive }: { checkoutActive: boolean }) {
     dismissLastAdded();
   };
 
-  if (products.length === 0) return null;
+  if (entries.length === 0) return null;
 
-  const count = products.length;
+  const count = entries.length;
   const countLabel = `${count} ${count === 1 ? "item" : "items"}`;
 
   return (

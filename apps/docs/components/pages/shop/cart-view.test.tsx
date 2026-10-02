@@ -2,7 +2,13 @@
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { clearCart, getCart, replaceCart } from "@/lib/catalog/cart-store";
+import {
+  addAgentTool,
+  clearCart,
+  getCart,
+  getCartEntries,
+  replaceCart,
+} from "@/lib/catalog/cart-store";
 import { CartView } from "./cart-view";
 
 const mocks = vi.hoisted(() => ({
@@ -36,6 +42,43 @@ afterEach(() => {
 });
 
 describe("CartView", () => {
+  it("recovers an unconfigured legacy tool through its configuration dialog", async () => {
+    replaceCart(["agent-tools"]);
+    render(<CartView />);
+    expect(screen.getByRole("button", { name: "Start setup" })).toHaveProperty(
+      "disabled",
+      true,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Configure Agent Tool for setup" }),
+    );
+    fireEvent.click(
+      screen.getByRole("combobox", { name: "What should the tool do?" }),
+    );
+    const option = await screen.findByRole("option", { name: "Web search" });
+    fireEvent.pointerDown(option);
+    fireEvent.click(option);
+    fireEvent.click(screen.getByRole("button", { name: "Add to setup" }));
+    expect(getCartEntries()).toHaveLength(1);
+    expect(getCartEntries()[0]).toMatchObject({ name: "Web search" });
+    expect(
+      await screen.findByRole("button", { name: "Start setup" }),
+    ).not.toHaveProperty("disabled", true);
+  });
+
+  it("shows and removes configured tools separately", () => {
+    addAgentTool("Web search", "Search support sources.");
+    addAgentTool("Web search", "Search current news.");
+    render(<CartView />);
+    expect(screen.getByText("Search support sources.")).toBeTruthy();
+    expect(screen.getByText("Search current news.")).toBeTruthy();
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "Remove Web search" })[0]!,
+    );
+    expect(screen.queryByText("Search support sources.")).toBeNull();
+    expect(getCartEntries()).toHaveLength(1);
+  });
+
   it("waits for hydration before rendering the cart shell", () => {
     mocks.hydrated = false;
 

@@ -35,6 +35,46 @@ afterEach(() => {
 });
 
 describe("cart store", () => {
+  it("requires a purpose and preserves independently configured tool instances", async () => {
+    const values = setupStorage();
+    const store = await loadStore();
+    store.addToCart("agent-tools");
+    store.addAgentTool("Web search", "  ");
+    expect(store.getCart()).toEqual([]);
+    store.addAgentTool("Web search", "Search our support sources.");
+    store.addAgentTool("Web search", "Search current news.");
+    const entries = store.getCartEntries();
+    expect(entries).toHaveLength(2);
+    expect(entries[0]).toMatchObject({
+      slug: "agent-tools",
+      purpose: "Search our support sources.",
+    });
+    expect(entries[1]).toMatchObject({
+      slug: "agent-tools",
+      purpose: "Search current news.",
+    });
+    expect(JSON.parse(values.get(storageKey)!)).toEqual(entries);
+    const restored = await loadStore();
+    expect(restored.getCartEntries()).toEqual(entries);
+    const first = entries[0];
+    if (typeof first === "string" || first === undefined)
+      throw new Error("Expected configured tool");
+    restored.removeFromCart(first.id);
+    expect(restored.getCartEntries()).toEqual([entries[1]]);
+  });
+
+  it("drops incomplete stored tool configuration", async () => {
+    const values = setupStorage();
+    values.set(
+      storageKey,
+      JSON.stringify([
+        { id: "tool", slug: "agent-tools", name: "Search", purpose: "" },
+      ]),
+    );
+    const store = await loadStore();
+    expect(store.getCartEntries()).toEqual([]);
+  });
+
   it("adds known products once and persists them", async () => {
     const values = setupStorage();
     const store = await loadStore();
