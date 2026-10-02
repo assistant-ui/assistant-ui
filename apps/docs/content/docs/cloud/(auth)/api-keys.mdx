@@ -102,7 +102,7 @@ Aui-Workspace-Id: workspace_123
 
 ## Request refusals
 
-The backend host binding applies after the key is recognized. These authentication errors return JSON as `{ "error": "<message>" }`. The table lists the exact `error` value.
+The backend host binding applies after the key is recognized. These authentication errors return JSON as `{ "error": "<message>" }`, except on `/v1/mcp`, whose `401` is the authentication error object [MCP](/docs/cloud/api/mcp) describes. The table lists the exact `error` value.
 
 | Status | `error` value | Cause |
 |---|---|---|
