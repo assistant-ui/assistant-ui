@@ -309,57 +309,6 @@ jobs:
             gh api "repos/$REPO/issues/comments/$existing" --method DELETE
           fi
 
-  build-baseline:
-    name: Build Changed Packages (full-install baseline)
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Checkout code repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Setup pnpm and node.js
-        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
-        with:
-          runtime: node@24
-          cache: true
-          install: false
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build packages
-        env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
-        run: pnpm turbo build --filter="...[origin/${{ github.base_ref }}]" --filter="!./apps/*" --filter="!./examples/*" --filter="!./templates/*"
-
-      - name: Check API surface
-        run: pnpm run api-surface:check -- --skip-build --filter="...[origin/${{ github.base_ref }}]"
-
-      - name: Check distribution barrels
-        run: pnpm run distributions:check
-
-      - name: Check built declarations
-        run: pnpm run declarations:check -- --filter="...[origin/${{ github.base_ref }}]"
-
-      - name: Test build tooling
-        run: |
-          pnpm run declarations:test
-          pnpm run distributions:test
-          pnpm run deploy-examples:test
-          pnpm run api-surface:test
-          pnpm run api-reference-inputs:test
-          node --test scripts/package-build-inputs.test.mjs
-
-      - name: Measure bundle sizes against the base
-        env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
-        run: node packages/x-performance/bin/aui-perf.mjs size --ref HEAD^1
-
   build-apps:
     name: Build Changed Apps
     runs-on: blacksmith-8vcpu-ubuntu-2404
