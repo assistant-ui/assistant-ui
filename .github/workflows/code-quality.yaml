@@ -198,7 +198,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE=HEAD^1
+            BASE="origin/${{ github.base_ref }}"
           else
             BASE="${{ github.event.before }}"
           fi
