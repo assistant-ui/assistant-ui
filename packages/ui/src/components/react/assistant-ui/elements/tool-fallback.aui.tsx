@@ -1,10 +1,8 @@
 "use client";
 
 import {
-  createContext,
   memo,
   useCallback,
-  useContext,
   useImperativeHandle,
   useLayoutEffect,
   useRef,
@@ -509,9 +507,6 @@ type ToolFallbackApprovalProps = React.ComponentProps<"div"> &
     approval?: ToolCallMessagePart["approval"];
   };
 
-const ToolFallbackApprovalFocusContext =
-  createContext<React.MutableRefObject<boolean> | null>(null);
-
 function ToolFallbackApproval({
   className,
   ref,
@@ -530,10 +525,27 @@ function ToolFallbackApproval({
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [answer, setAnswer] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const isRequiresAction = status?.type === "requires-action";
+  const [prevRequiresAction, setPrevRequiresAction] =
+    useState(isRequiresAction);
+  const [attempt, setAttempt] = useState(0);
+  const attemptRef = useRef(attempt);
+  useLayoutEffect(() => {
+    attemptRef.current = attempt;
+  }, [attempt]);
+  if (isRequiresAction !== prevRequiresAction) {
+    setPrevRequiresAction(isRequiresAction);
+    if (isRequiresAction) {
+      setSubmitted(false);
+      setConfirmingId(null);
+      setAnswer("");
+      setError(null);
+      setAttempt(attempt + 1);
+    }
+  }
   const pendingGroupRef = useRef<HTMLDivElement | null>(null);
   const receiptRef = useRef<HTMLDivElement>(null);
   const focusReceiptRef = useRef<string | null | undefined>(null);
-  const sharedFocusRef = useContext(ToolFallbackApprovalFocusContext);
   useImperativeHandle<HTMLDivElement | null, HTMLDivElement | null>(
     ref,
     () => pendingGroupRef.current ?? receiptRef.current,
@@ -545,25 +557,9 @@ function ToolFallbackApproval({
         !element && group?.contains(group.ownerDocument.activeElement)
           ? approval?.id
           : null;
-      if (sharedFocusRef) {
-        if (!element) {
-          sharedFocusRef.current = !!group?.contains(
-            group.ownerDocument.activeElement,
-          );
-        } else {
-          const shouldFocus = sharedFocusRef.current;
-          sharedFocusRef.current = false;
-          if (
-            shouldFocus &&
-            element.ownerDocument.activeElement === element.ownerDocument.body
-          ) {
-            element.focus({ preventScroll: true });
-          }
-        }
-      }
       pendingGroupRef.current = element;
     },
-    [approval?.id, sharedFocusRef],
+    [approval?.id],
   );
   const hidePendingApproval =
     approval != null &&
@@ -574,10 +570,6 @@ function ToolFallbackApproval({
   useLayoutEffect(() => {
     if (hidePendingApproval) focusReceiptRef.current = null;
   }, [hidePendingApproval]);
-  useLayoutEffect(() => {
-    if (!pendingGroupRef.current && sharedFocusRef)
-      sharedFocusRef.current = false;
-  });
   const focusPendingGroup = () => {
     const group = pendingGroupRef.current;
     if (group?.contains(group.ownerDocument.activeElement)) {
@@ -646,6 +638,7 @@ function ToolFallbackApproval({
       try {
         await send();
       } catch (sendError) {
+        if (attemptRef.current !== attempt) return;
         setSubmitted(false);
         setError(
           sendError instanceof Error ? sendError.message : String(sendError),
@@ -962,21 +955,11 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
     (isRequiresAction && offersInterruptAction(status, approval, interrupt));
 
   const [open, setOpen] = useState(isRequiresAction);
-  const [approvalAttempt, setApprovalAttempt] = useState(0);
-  const approvalFocusRef = useRef(false);
-  useLayoutEffect(() => {
-    // Carry focus across a keyed replacement in this commit, not a later request.
-    approvalFocusRef.current = false;
-  });
   const [prevRequiresAction, setPrevRequiresAction] =
     useState(isRequiresAction);
   if (isRequiresAction !== prevRequiresAction) {
     setPrevRequiresAction(isRequiresAction);
-    if (isRequiresAction) {
-      setOpen(true);
-      // A new action phase must not inherit the previous submission lock.
-      setApprovalAttempt(approvalAttempt + 1);
-    }
+    if (isRequiresAction) setOpen(true);
   }
 
   return (
@@ -989,17 +972,14 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
           className={cn(isCancelled && "opacity-60")}
         />
         {shouldRenderApproval && (
-          <ToolFallbackApprovalFocusContext.Provider value={approvalFocusRef}>
-            <ToolFallbackApproval
-              key={approvalAttempt}
-              addResult={addResult}
-              resume={resume}
-              interrupt={interrupt}
-              approval={approval}
-              respondToApproval={respondToApproval}
-              status={status}
-            />
-          </ToolFallbackApprovalFocusContext.Provider>
+          <ToolFallbackApproval
+            addResult={addResult}
+            resume={resume}
+            interrupt={interrupt}
+            approval={approval}
+            respondToApproval={respondToApproval}
+            status={status}
+          />
         )}
         <ToolFallbackResult result={result} />
       </ToolFallbackContent>
