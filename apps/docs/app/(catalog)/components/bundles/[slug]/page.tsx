@@ -98,7 +98,7 @@ export default async function BundlePage({
         </div>
       </header>
       <div className="mt-10">
-        <BundlePreview slug={slug} title={example.title} />
+        <BundlePreview slug={slug} />
       </div>
       <section
         aria-labelledby="try-heading"

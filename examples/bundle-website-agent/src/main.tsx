@@ -1,7 +1,7 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
-import { AgentCursor } from "../../../packages/ui/src/components/react/ui/base/agent-cursor";
+import { AgentCursor } from "@/components/ui/agent-cursor";
 import { PreviewChat } from "../../bundle-shared/chat";
 import "./styles.css";
 

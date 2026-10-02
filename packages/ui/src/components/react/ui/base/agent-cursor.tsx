@@ -59,14 +59,31 @@ export function AgentCursor({
     if (!target) return;
     window.addEventListener("resize", update);
     window.addEventListener("scroll", update, true);
-    const element =
-      "x" in target ? null : "current" in target ? target.current : target;
-    const observer = element ? new ResizeObserver(update) : null;
-    if (element) observer?.observe(element);
+    let element: HTMLElement | null = null;
+    const observer = new ResizeObserver(update);
+    const rebind = () => {
+      const next =
+        "x" in target ? null : "current" in target ? target.current : target;
+      if (next === element) return;
+      observer.disconnect();
+      element = next;
+      if (element) observer.observe(element);
+      update();
+    };
+    rebind();
+    let frame: number | undefined;
+    if (visible && "current" in target) {
+      const trackRef = () => {
+        rebind();
+        frame = requestAnimationFrame(trackRef);
+      };
+      frame = requestAnimationFrame(trackRef);
+    }
     return () => {
       window.removeEventListener("resize", update);
       window.removeEventListener("scroll", update, true);
-      observer?.disconnect();
+      observer.disconnect();
+      if (frame !== undefined) cancelAnimationFrame(frame);
     };
   }, [target, visible]);
 

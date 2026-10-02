@@ -58,16 +58,10 @@ for (const example of examples) {
           dirname(path),
           resolve(scratch, "shared"),
         ).replaceAll("\\", "/");
-        const cursor = relative(
-          dirname(path),
-          resolve(scratch, "src/agent-cursor"),
-        ).replaceAll("\\", "/");
-        const content = (await readFile(path, "utf8"))
-          .replace(/(?:\.\.\/)+bundle-shared\//g, `${shared}/`)
-          .replace(
-            /(?:\.\.\/)+packages\/ui\/src\/components\/react\/ui\/base\/agent-cursor/g,
-            cursor.startsWith(".") ? cursor : `./${cursor}`,
-          );
+        const content = (await readFile(path, "utf8")).replace(
+          /(?:\.\.\/)+bundle-shared\//g,
+          `${shared}/`,
+        );
         const relocated = content.replace(
           /((?:from\s*|import\s*(?:\(\s*)?)(["']))(@\/[^"']+)\2/g,
           (match, prefixText, quote, specifier) => {
@@ -89,14 +83,6 @@ for (const example of examples) {
       }
     }
   }
-  if (example.package === "bundle-website-agent")
-    await cp(
-      resolve(
-        root,
-        "packages/ui/src/components/react/ui/base/agent-cursor.tsx",
-      ),
-      resolve(scratch, "src/agent-cursor.tsx"),
-    );
   await rewriteImports(resolve(scratch, "src"));
   await rewriteImports(resolve(scratch, "shared"));
   if (uiFiles.length) await rewriteImports(resolve(scratch, "ui"));
@@ -169,16 +155,14 @@ import {mkdir,writeFile} from "node:fs/promises";
 import {resolve} from "node:path";
 await mkdir("dist",{recursive:true});
 await buildPreview({stdin:{contents:'import React from "react";import{createRoot}from"react-dom/client";import App from"./src/main.tsx";import"./shared/styles.css";createRoot(document.getElementById("root")).render(React.createElement(App));',resolveDir:process.cwd(),loader:"tsx"},bundle:true,outfile:"dist/app.js",jsx:"automatic",format:"esm",minify:true,metafile:true,define:{"process.env.NODE_ENV":'"production"'}},{uiRoot:resolve("ui"),sources:[resolve("ui"),resolve("shared"),resolve("src")]});
-await writeFile("dist/index.html",'<html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="app.css"></head><body><div id="root"></div><script type="module" src="app.js"></script></body></html>');`,
+await writeFile("dist/index.html",'<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="app.css"></head><body><div id="root"></div><script type="module" src="app.js"></script></body></html>');`,
   );
   await cp(resolve(source, "README.md"), resolve(scratch, "README.md"));
   const sourceFiles = [
     "src/main.tsx",
     "shared/chat.tsx",
     "ui/components/react/assistant-ui/elements/thread.aui.tsx",
-    ...(example.slug === "website-assistant"
-      ? ["ui/components/react/assistant-ui/elements/assistant-modal.aui.tsx"]
-      : []),
+    ...(example.sourceFiles ?? []),
   ];
   await writeFile(
     resolve(target, "source.json"),

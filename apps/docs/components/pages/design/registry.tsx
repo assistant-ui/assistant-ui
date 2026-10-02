@@ -1,7 +1,6 @@
 "use client";
 
 import type { ComponentType } from "react";
-import { AgentCursorSample } from "@/components/pages/docs/samples/agent-cursor";
 import { AccordionSample } from "@/components/pages/docs/samples/accordion";
 import { BadgeSample } from "@/components/pages/docs/samples/badge";
 import { DiffViewerSample } from "@/components/pages/docs/samples/diff-viewer";
@@ -36,7 +35,6 @@ import {
 } from "@/components/pages/design/specimens";
 
 export const DESIGN_PREVIEWS: Record<string, ComponentType> = {
-  "agent-cursor": AgentCursorSample,
   button: ButtonSpecimen,
   "dropdown-menu": DropdownMenuSpecimen,
   input: InputSpecimen,

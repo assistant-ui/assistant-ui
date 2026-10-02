@@ -106,7 +106,10 @@
       "Open the assistant launcher beside the article.",
       "Ask a suggested question about the article."
     ],
-    "requirements": "React and page content to ground replies. A model backend is needed for open-ended questions."
+    "requirements": "React and page content to ground replies. A model backend is needed for open-ended questions.",
+    "sourceFiles": [
+      "ui/components/react/assistant-ui/elements/assistant-modal.aui.tsx"
+    ]
   },
   {
     "slug": "data-explorer",
@@ -169,11 +172,6 @@
         "name": "AI SDK runtime",
         "href": "/docs/runtimes/ai-sdk/v7",
         "detail": "useChatRuntime connects the UI to an AI SDK message stream."
-      },
-      {
-        "name": "Agent cursor",
-        "href": "/design/components/agent-cursor",
-        "detail": "A reusable pointer with target tracking, movement, and click feedback."
       }
     ],
     "guide": "/docs/tools/interactables",

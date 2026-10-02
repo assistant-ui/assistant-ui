@@ -1,12 +1,26 @@
 "use client";
 
 import { ArrowRight } from "lucide-react";
-import { useBeginSetup } from "@/components/shared/setup-navigation";
+import { SetupLink, useBeginSetup } from "@/components/shared/setup-navigation";
 import { Button } from "@/components/ui/button";
+import { useCheckoutSession } from "@/lib/checkout/session-store";
 import { type ExampleBundle } from "@/lib/example-bundles";
 
 export function BundleSetupButton({ example }: { example: ExampleBundle }) {
   const beginSetup = useBeginSetup();
+  const session = useCheckoutSession();
+  if (session)
+    return (
+      <div className="space-y-2">
+        <Button render={<SetupLink />} nativeButton={false}>
+          Resume current setup
+          <ArrowRight aria-hidden data-icon="inline-end" />
+        </Button>
+        <p className="text-muted-foreground text-xs">
+          Finish your current setup before starting this bundle.
+        </p>
+      </div>
+    );
   return (
     <Button
       onClick={() =>

@@ -111,6 +111,7 @@ test("source packaging relocates nested shared imports and vendors the reusable 
     const uiFiles = [
       "components/react/ui/base/button.tsx",
       "components/react/ui/base/input.tsx",
+      "components/react/ui/base/agent-cursor.tsx",
       "components/react/assistant-ui/elements/thread.aui.tsx",
       "components/react/assistant-ui/elements/assistant-modal.aui.tsx",
     ];
@@ -143,10 +144,6 @@ test("source packaging relocates nested shared imports and vendors the reusable 
         join(fixture, "packages", packageName, "package.json"),
       );
     }
-    const cursorPath =
-      "packages/ui/src/components/react/ui/base/agent-cursor.tsx";
-    await mkdir(dirname(join(fixture, cursorPath)), { recursive: true });
-    await cp(join(root, cursorPath), join(fixture, cursorPath));
     execFileSync(
       process.execPath,
       [join(fixture, "scripts/package-example-bundles.mjs")],
@@ -165,7 +162,11 @@ test("source packaging relocates nested shared imports and vendors the reusable 
       "-C",
       unpacked,
     ]);
-    assert.ok(existsSync(join(unpacked, "src/agent-cursor.tsx")));
+    assert.ok(
+      existsSync(
+        join(unpacked, "ui/components/react/ui/base/agent-cursor.tsx"),
+      ),
+    );
     for (const file of ["src/main.tsx", "src/nested/reference.tsx"]) {
       const path = join(unpacked, file);
       const text = await readFile(path, "utf8");
@@ -412,11 +413,38 @@ test(
       ),
       "Packaging code changes must invalidate the documentation build",
     );
+    assert.ok(
+      !graph.tasks.some((task) => task.task.endsWith("preview:build")),
+      "Disabled documentation builds must not depend on experimental preview builds",
+    );
     for (const example of examples) {
       assert.ok(
-        docs.dependencies.includes(`${example.package}#preview:build`),
-        `A clean documentation build must schedule the ${example.slug} artifact`,
+        Object.keys(docs.inputs).some((path) =>
+          path.endsWith(`${example.package}/src/main.tsx`),
+        ),
+        `Enabled documentation cache must track ${example.slug} source`,
       );
     }
   },
 );
+
+test("disabled preparation removes stale public artifacts without building previews", async () => {
+  const fixture = await mkdtemp(join(tmpdir(), "disabled-bundles-"));
+  try {
+    await mkdir(join(fixture, "scripts"));
+    await cp(
+      join(root, "scripts/prepare-example-bundles.mjs"),
+      join(fixture, "scripts/prepare-example-bundles.mjs"),
+    );
+    const stale = join(fixture, "apps/docs/public/example-bundles/stale");
+    await mkdir(stale, { recursive: true });
+    execFileSync(
+      process.execPath,
+      [join(fixture, "scripts/prepare-example-bundles.mjs")],
+      { env: { ...process.env, NEXT_PUBLIC_AUI_EXAMPLE_BUNDLES_ENABLED: "0" } },
+    );
+    assert.ok(!existsSync(stale));
+  } finally {
+    await rm(fixture, { recursive: true, force: true });
+  }
+});

@@ -62,12 +62,6 @@ export const DESIGN_SECTIONS: DesignSectionMeta[] = [
     label: "Display",
     components: [
       {
-        slug: "agent-cursor",
-        name: "Agent Cursor",
-        description:
-          "A moving pointer with a click pulse, driven by real elements or viewport coordinates.",
-      },
-      {
         slug: "badge",
         name: "Badge",
         description: "A small label for status, categories, or metadata.",

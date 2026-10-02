@@ -1977,23 +1977,6 @@ export const registry: RegistryItem[] = [
     css: accordionKeyframesCss,
   },
   {
-    name: "agent-cursor",
-    type: "registry:ui",
-    title: "Agent Cursor",
-    description:
-      "A pointer that moves to an element or viewport coordinate and confirms clicks with a pulse.",
-    files: [
-      {
-        type: "registry:ui",
-        path: "components/ui/agent-cursor.tsx",
-        sourcePath:
-          "../../packages/ui/src/components/react/ui/radix/agent-cursor.tsx",
-      },
-    ],
-    dependencies: [],
-    registryDependencies: [],
-  },
-  {
     name: "dot-matrix",
     type: "registry:ui",
     title: "Dot Matrix",
