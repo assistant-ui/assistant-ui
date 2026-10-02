@@ -7,7 +7,7 @@ export default defineConfig({
       exclude: ["src/__fixtures__/**"],
       thresholds: {
         lines: 66,
-        functions: 66,
+        functions: 71,
         branches: 70,
         statements: 67,
         autoUpdate: (threshold) => Math.ceil(threshold) - 1,
