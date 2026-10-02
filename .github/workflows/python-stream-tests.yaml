@@ -9,7 +9,6 @@ on:
       - ".github/workflows/python-tests.yaml"
       - ".github/workflows/python-stream-tests.yaml"
       - ".github/workflows/python-sync-server-tests.yaml"
-      - "scripts/python-test-workflows.test.mjs"
   pull_request:
     branches: [main]
     paths:
@@ -18,7 +17,6 @@ on:
       - ".github/workflows/python-tests.yaml"
       - ".github/workflows/python-stream-tests.yaml"
       - ".github/workflows/python-sync-server-tests.yaml"
-      - "scripts/python-test-workflows.test.mjs"
 
 permissions:
   contents: read
