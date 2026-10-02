@@ -77,6 +77,60 @@ const createRuntime = () => {
 };
 
 describe("thread switch events", () => {
+  it("forwards a history write failure to a store event listener", async () => {
+    const error = new Error("append failed");
+    const listener = vi.fn();
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    let runtime!: AssistantRuntime;
+    const Listener = () => {
+      useAuiEvent("thread.historyWriteError", listener);
+      return null;
+    };
+    const Harness = () => {
+      runtime = useLocalRuntime(
+        { run: async () => ({ content: [] }) },
+        {
+          adapters: {
+            history: {
+              load: async () => ({ messages: [] }),
+              append: async () => {
+                throw error;
+              },
+            },
+          },
+        },
+      );
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <Listener />
+        </AssistantRuntimeProvider>
+      );
+    };
+    render(<Harness />);
+    await act(async () => {});
+
+    await act(async () => {
+      runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hi" }],
+        startRun: false,
+      });
+    });
+
+    await waitFor(() =>
+      expect(listener).toHaveBeenCalledExactlyOnceWith({
+        threadId: runtime.thread.getState().threadId,
+        operation: "append",
+        messageIds: [runtime.thread.getState().messages[0]!.id],
+        error,
+      }),
+    );
+    expect(log).toHaveBeenCalledWith(
+      "[assistant-ui] local thread history write failed:",
+      error,
+    );
+  });
+
   it("delivers switchedTo to default-scope, star-scope, and aui.on listeners", async () => {
     const runtime = createRuntime();
     const defaultScope = vi.fn();

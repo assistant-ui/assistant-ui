@@ -81,6 +81,10 @@ const useThreadClient = ({
     }
 
     unsubscribers.push(
+      runtime.unstable_on("historyWriteError", (payload) => {
+        const threadId = runtime.getState()?.threadId || "unknown";
+        emit("thread.historyWriteError", { threadId, ...payload });
+      }),
       runtime.unstable_on("toolApprovalAnswered", (payload) => {
         const threadId = runtime.getState()?.threadId || "unknown";
         emit("thread.toolApprovalAnswered", { threadId, ...payload });

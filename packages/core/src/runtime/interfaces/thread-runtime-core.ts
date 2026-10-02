@@ -116,6 +116,14 @@ export type SubmittedFeedback = {
 };
 
 export type ThreadRuntimeEventPayload = {
+  /**
+   * Truly transient. A history adapter write rejected, so the stored history may no longer match the thread. A write whose promise reaches a caller still rejects there as well.
+   */
+  historyWriteError: {
+    operation: "append" | "update" | "delete";
+    messageIds: readonly string[];
+    error: unknown;
+  };
   toolApprovalAnswered: {
     messageId: string;
     toolCallId: string;

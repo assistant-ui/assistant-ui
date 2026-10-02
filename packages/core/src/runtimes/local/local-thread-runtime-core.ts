@@ -9,6 +9,7 @@ import { shouldContinue } from "./should-continue";
 import { getAutoStatus } from "../../runtime/utils/auto-status";
 import {
   type ExportedMessageRepository,
+  type ExportedMessageRepositoryItem,
   withoutOrphanedMessages,
 } from "../../runtime/utils/message-repository";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
@@ -193,6 +194,23 @@ export class LocalThreadRuntimeCore
   >();
 
   private _historyWrites = new Map<string, Promise<void>>();
+  private async _writeHistory(
+    operation: "append" | "update" | "delete",
+    messageIds: readonly string[],
+    write: () => Promise<void>,
+  ): Promise<void> {
+    try {
+      await write();
+    } catch (error) {
+      console.error("[assistant-ui] local thread history write failed:", error);
+      this._notifyEventSubscribers("historyWriteError", {
+        operation,
+        messageIds,
+        error,
+      });
+      throw error;
+    }
+  }
   // A message whose delete the history has been sent. While that delete is in
   // flight it holds the writes it suppressed, so a rejected delete can still
   // issue them; once it lands, later writes for the id are dropped.
@@ -280,12 +298,17 @@ export class LocalThreadRuntimeCore
   ) {
     const history = this._options.adapters.history;
     if (!history) return;
-    const write = this._unwrittenMessages.delete(message.id)
-      ? history.append.bind(history)
-      : history.update?.bind(history);
+    const operation = this._unwrittenMessages.delete(message.id)
+      ? "append"
+      : "update";
+    const write = operation === "append" ? history.append : history.update;
     if (!write) return;
     const item = { parentId, message, runConfig: this._lastRunConfig };
-    return this._chainHistoryWrite(message.id, () => write(item));
+    return this._chainHistoryWrite(message.id, () =>
+      this._writeHistory(operation, [message.id], () =>
+        write.call(history, item),
+      ),
+    );
   }
 
   private _cancelPause(messageId: string | null) {
@@ -313,7 +336,9 @@ export class LocalThreadRuntimeCore
           message: snapshot,
           runConfig: this._lastRunConfig,
         };
-        return this._chainHistoryWrite(messageId, () => history.append(item));
+        return this._chainHistoryWrite(messageId, () =>
+          this._writeHistory("append", [messageId], () => history.append(item)),
+        );
       }
       return this._persistSettled(entry.parentId, snapshot);
     }
@@ -623,7 +648,9 @@ export class LocalThreadRuntimeCore
       const history = this._options.adapters.history;
       const historyWrite = history
         ? this._chainHistoryWrite(message.id, () =>
-            history.append({ parentId, message }),
+            this._writeHistory("append", [message.id], () =>
+              history.append({ parentId, message }),
+            ),
           )
         : undefined;
       void historyWrite?.catch(() => {});
@@ -746,13 +773,15 @@ export class LocalThreadRuntimeCore
     const history = this._options.adapters.history;
     const messageWrite = history
       ? this._chainHistoryWrite(newMessage.id, () =>
-          history.append({
-            parentId: message.parentId,
-            message: newMessage,
-            ...(message.runConfig !== undefined && {
-              runConfig: message.runConfig,
+          this._writeHistory("append", [newMessage.id], () =>
+            history.append({
+              parentId: message.parentId,
+              message: newMessage,
+              ...(message.runConfig !== undefined && {
+                runConfig: message.runConfig,
+              }),
             }),
-          }),
+          ),
         )
       : undefined;
     const historyWrite = settledWrite
@@ -790,7 +819,13 @@ export class LocalThreadRuntimeCore
 
     const inFlight = this._deletedMessages.get(messageId);
     if (inFlight?.suppressed && inFlight.deletion) return inFlight.deletion;
-    const deleteHistory = adapter.delete.bind(adapter);
+    const deleteAdapter = adapter.delete.bind(adapter);
+    const deleteHistory = (items: ExportedMessageRepositoryItem[]) =>
+      this._writeHistory(
+        "delete",
+        items.map((item) => item.message.id),
+        () => deleteAdapter(items),
+      );
 
     const message = messages[messageIndex]!;
     const parentId = messages[messageIndex - 1]?.id ?? null;
@@ -1332,7 +1367,9 @@ export class LocalThreadRuntimeCore
         ) {
           const item = { parentId, message, runConfig: this._lastRunConfig };
           written = this._chainHistoryWrite(message.id, () =>
-            history.append(item),
+            this._writeHistory("append", [message.id], () =>
+              history.append(item),
+            ),
           );
         } else {
           written = this._persistSettled(parentId, message);
