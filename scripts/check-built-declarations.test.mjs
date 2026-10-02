@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  chmodSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -293,7 +294,7 @@ test("reports completed packages in order before the whole queue finishes", asyn
   assert.deepEqual(reported, ["0", "1", "2"]);
 });
 
-test("async compiler startup failures still fail the declaration gate", async () => {
+test("compiler process failures retain package context and clean up probes", async () => {
   const dir = createFixture("export {};\n");
   const bin = path.join(dir, "node_modules/.bin");
   mkdirSync(bin, { recursive: true });
@@ -304,7 +305,15 @@ test("async compiler startup failures still fail the declaration gate", async ()
     );
     const result = await checkPackage(dir, dir, pkg);
     assert.equal(result.status, 1);
-    assert.match(result.stdout, /EACCES/);
+    assert.match(result.stdout, /fixture-package: .*EACCES/);
+    writeFileSync(
+      path.join(bin, "tsc"),
+      "#!/bin/sh\necho 'error TS2688: Cannot find type definition file.'\nexit 1\n",
+    );
+    chmodSync(path.join(bin, "tsc"), 0o755);
+    const unanchored = await checkPackage(dir, dir, pkg);
+    assert.equal(unanchored.status, 1);
+    assert.match(unanchored.stdout, /fixture-package:\nerror TS2688:/);
     assert.deepEqual(
       readdirSync(dir).filter((name) => name.startsWith(".strict-libcheck-")),
       [],
