@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 const mocks = vi.hoisted(() => ({
@@ -41,6 +41,10 @@ beforeEach(() => {
   delete process.env.ASSISTANT_API_KEY;
 });
 
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
 describe("GET /api/auth/session", () => {
   it("waits for a request before answering, so a build cannot freeze its answer", async () => {
     mocks.connection.mockReturnValueOnce(new Promise<void>(() => {}));
@@ -76,7 +80,7 @@ describe("GET /api/auth/session", () => {
       enabled: true,
       cloudHistory: true,
       user: {
-        id: user.id,
+        analyticsId: expect.stringMatching(/^u_[\w-]{32}$/),
         name: user.name,
         email: user.email,
         image: null,
@@ -87,6 +91,32 @@ describe("GET /api/auth/session", () => {
       "b=2; Path=/",
     ]);
     expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("identifies the visitor to analytics by a keyed hash, never the account id", async () => {
+    vi.stubEnv("AUI_ANONYMOUS_SESSION_SECRET", "a-secret-with-enough-entropy");
+    configured({ session: { user }, cookies: [] });
+    const first = (await (await GET(request())).json()).user.analyticsId;
+
+    configured({ session: { user }, cookies: [] });
+    const again = (await (await GET(request())).json()).user.analyticsId;
+
+    configured({ session: { user: { ...user, id: "user_2" } }, cookies: [] });
+    const other = (await (await GET(request())).json()).user.analyticsId;
+
+    expect(first).not.toContain(user.id);
+    expect(again).toBe(first);
+    expect(other).not.toBe(first);
+  });
+
+  it("leaves the visitor unidentified when production has no secret", async () => {
+    vi.stubEnv("AUI_ANONYMOUS_SESSION_SECRET", "");
+    vi.stubEnv("NODE_ENV", "production");
+    configured({ session: { user }, cookies: [] });
+
+    const response = await GET(request());
+
+    expect((await response.json()).user.analyticsId).toBeNull();
   });
 
   it("still hands back the cookies that clear a session that is gone", async () => {

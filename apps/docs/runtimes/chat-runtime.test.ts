@@ -64,7 +64,7 @@ const signedInSession = (cloudHistory = true): SessionState => ({
   status: "signed-in",
   cloudHistory,
   user: {
-    id: `user_${visitor}`,
+    analyticsId: `user_${visitor}`,
     name: "Ada",
     email: `ada${visitor}@test`,
     image: null,
@@ -115,7 +115,12 @@ it("switches cloud ownership when account history or identity changes", async ()
   mocks.session = {
     status: "signed-in",
     cloudHistory: false,
-    user: { id: "user_ada", name: "Ada", email: "ada@test", image: null },
+    user: {
+      analyticsId: "user_ada",
+      name: "Ada",
+      email: "ada@test",
+      image: null,
+    },
   };
   rerender();
   expect(result.current.cloud).toBe(anonymousCloud);
@@ -123,7 +128,12 @@ it("switches cloud ownership when account history or identity changes", async ()
   mocks.session = {
     status: "signed-in",
     cloudHistory: true,
-    user: { id: "user_ada", name: "Ada", email: "ada@test", image: null },
+    user: {
+      analyticsId: "user_ada",
+      name: "Ada",
+      email: "ada@test",
+      image: null,
+    },
   };
   rerender();
 
@@ -158,7 +168,12 @@ it("switches cloud ownership when account history or identity changes", async ()
   mocks.session = {
     status: "signed-in",
     cloudHistory: true,
-    user: { id: "user_grace", name: "Grace", email: "grace@test", image: null },
+    user: {
+      analyticsId: "user_grace",
+      name: "Grace",
+      email: "grace@test",
+      image: null,
+    },
   };
   rerender();
   expect(result.current.cloud).not.toBe(accountCloud);

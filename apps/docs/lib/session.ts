@@ -47,7 +47,7 @@ const load = () => {
       // than hiding sign-in for the rest of the visit.
       if (payload === null) return setState(anonymousState);
       if (!payload.enabled) return setState(unconfiguredState);
-      syncAnalyticsUser(payload.user?.id ?? null);
+      syncAnalyticsUser(payload.user?.analyticsId ?? null);
       setState(
         payload.user
           ? {

@@ -20,7 +20,7 @@ const apply = () => {
 };
 
 /**
- * Identifies the signed-in visitor by their accounts user id, and nothing else
+ * Identifies the signed-in visitor by their pseudonymous analytics id, and nothing else
  * about them. A signed-out answer leaves the identity alone, because only an
  * explicit sign-out says the browser changed hands.
  */

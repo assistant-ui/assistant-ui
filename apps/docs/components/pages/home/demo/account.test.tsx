@@ -64,7 +64,7 @@ describe("SidebarAccount", () => {
       status: "signed-in",
       cloudHistory: false,
       user: {
-        id: "user_1",
+        analyticsId: "user_1",
         name: "Harry Yep",
         email: "harry@assistant-ui.com",
         image: null,
@@ -99,7 +99,7 @@ describe("SidebarAccount", () => {
       status: "signed-in",
       cloudHistory: false,
       user: {
-        id: "user_1",
+        analyticsId: "user_1",
         name: "Harry Yep",
         email: "harry@assistant-ui.com",
         image: null,

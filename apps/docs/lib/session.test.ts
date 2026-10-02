@@ -60,7 +60,7 @@ describe("useSession", () => {
       enabled: true,
       cloudHistory: true,
       user: {
-        id: "user_1",
+        analyticsId: "u_1",
         name: "Ada Lovelace",
         email: "ada@test",
         image: null,
@@ -70,7 +70,7 @@ describe("useSession", () => {
       status: "signed-in",
       cloudHistory: true,
       user: {
-        id: "user_1",
+        analyticsId: "u_1",
         name: "Ada Lovelace",
         email: "ada@test",
         image: null,
@@ -78,13 +78,13 @@ describe("useSession", () => {
     });
   });
 
-  it("hands analytics the account id of a signed-in visitor", async () => {
+  it("hands analytics the pseudonymous id of a signed-in visitor", async () => {
     await sessionStateFor("production", {
       enabled: true,
       cloudHistory: false,
-      user: { id: "user_1", name: "Ada", email: "ada@test", image: null },
+      user: { analyticsId: "u_1", name: "Ada", email: "ada@test", image: null },
     });
-    expect(mocks.syncAnalyticsUser).toHaveBeenCalledExactlyOnceWith("user_1");
+    expect(mocks.syncAnalyticsUser).toHaveBeenCalledExactlyOnceWith("u_1");
   });
 
   it("tells analytics about a signed-out answer only when accounts gave it", async () => {
