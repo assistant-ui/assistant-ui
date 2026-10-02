@@ -264,6 +264,34 @@ test("accepts only positive integer concurrency limits", () => {
   }
 });
 
+test("reports completed packages in order before the whole queue finishes", async () => {
+  const packages = [0, 1, 2].map((index) => ({
+    packageDir: String(index),
+    pkg: {},
+  }));
+  const gates = packages.map(() => Promise.withResolvers());
+  const reported = [];
+  const checking = checkPackages(
+    "unused",
+    packages,
+    2,
+    async (_, dir) => {
+      await gates[Number(dir)].promise;
+      return dir;
+    },
+    (result) => reported.push(result),
+  );
+  gates[1].resolve();
+  await new Promise(setImmediate);
+  assert.deepEqual(reported, []);
+  gates[0].resolve();
+  await new Promise(setImmediate);
+  assert.deepEqual(reported, ["0", "1"]);
+  gates[2].resolve();
+  await checking;
+  assert.deepEqual(reported, ["0", "1", "2"]);
+});
+
 test("parallel and sequential compilers return the same declarations diagnostics and clean up probes", async () => {
   const dirs = [
     createFixture("export interface PresentType {}\n"),

@@ -266,15 +266,20 @@ export async function checkPackages(
   packages,
   concurrency,
   check = checkPackage,
+  report = () => {},
 ) {
   const results = new Array(packages.length);
   let next = 0;
+  let printed = 0;
   await Promise.all(
     Array.from({ length: Math.min(concurrency, packages.length) }, async () => {
       while (next < packages.length) {
         const index = next++;
         const { packageDir, pkg } = packages[index];
         results[index] = await check(repoRoot, packageDir, pkg);
+        while (printed < results.length && results[printed] !== undefined) {
+          report(results[printed++]);
+        }
       }
     }),
   );
@@ -313,11 +318,17 @@ async function main() {
   }
 
   let failed = false;
-  for (const result of await checkPackages(repoRoot, packages, concurrency)) {
-    process.stdout.write(result.stdout);
-    process.stderr.write(result.stderr);
-    if (result.status !== 0) failed = true;
-  }
+  await checkPackages(
+    repoRoot,
+    packages,
+    concurrency,
+    checkPackage,
+    (result) => {
+      process.stdout.write(result.stdout);
+      process.stderr.write(result.stderr);
+      if (result.status !== 0) failed = true;
+    },
+  );
   if (failed) process.exitCode = 1;
 }
 
