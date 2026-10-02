@@ -234,7 +234,11 @@ export const mergeIntoCart = (entries: readonly CartEntry[]) => {
     ...items,
     ...normalize([...entries]).filter(
       (entry) =>
-        !items.some((item) => cartEntryId(item) === cartEntryId(entry)),
+        !items.some((item) =>
+          typeof entry === "string"
+            ? cartEntrySlug(item) === entry
+            : cartEntryId(item) === entry.id,
+        ),
     ),
   ]);
 };

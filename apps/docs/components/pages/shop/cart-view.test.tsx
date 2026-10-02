@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   addAgentTool,
@@ -12,6 +18,7 @@ import {
   replaceCart,
 } from "@/lib/catalog/cart-store";
 import { CartView } from "./cart-view";
+import { abandonCheckout, checkoutCart } from "../../../lib/checkout/flow";
 
 const mocks = vi.hoisted(() => ({
   hydrated: true,
@@ -129,6 +136,23 @@ describe("CartView", () => {
     render(<CartView />);
 
     expect(getCart()).toEqual(["cloud"]);
+  });
+
+  it("applies a deferred link after setup ends while keeping restored tool configurations", () => {
+    addAgentTool("Support search", "Search our support documents.");
+    const configured = getCartEntries()[0];
+    mocks.items = "items=agent-tools,guides/attachments";
+    mocks.session = checkoutCart();
+    const { rerender } = render(<CartView />);
+    expect(getCart()).toEqual([]);
+    act(() => abandonCheckout());
+    mocks.session = null;
+    rerender(<CartView />);
+    expect(getCartEntries()).toEqual([configured, "guides/attachments"]);
+    expect(getCartEntries()).not.toContain("agent-tools");
+    expect(
+      screen.getByRole("button", { name: "Start setup" }),
+    ).not.toHaveProperty("disabled", true);
   });
 
   it("holds Start setup while a session is stored, before its connection reports", () => {

@@ -17,6 +17,7 @@ import {
 import { parseItemSlugs } from "@/lib/catalog/install-guide";
 import {
   removeFromCart,
+  mergeIntoCart,
   replaceCart,
   useCartEntries,
   useCartInstructions,
@@ -57,6 +58,7 @@ export function CartView() {
   const params = useSearchParams();
   const linkedItems = params.get("items");
   const restoredLink = useRef<string | null | undefined>(undefined);
+  const deferredLink = useRef<string | null | undefined>(undefined);
   const entries = useCartEntries();
   const session = useCheckoutSession();
   const products = entries.flatMap((entry) => {
@@ -81,12 +83,19 @@ export function CartView() {
 
   useEffect(() => {
     if (!hydrated || restoredLink.current === linkedItems) return;
+    if (session !== null) {
+      deferredLink.current = linkedItems;
+      return;
+    }
     restoredLink.current = linkedItems;
-    if (session !== null) return;
     const linked = resolveProducts(parseItemSlugs(linkedItems)).map(
       (product) => product.slug,
     );
-    if (linked.length > 0) replaceCart(linked);
+    if (linked.length > 0) {
+      if (deferredLink.current === linkedItems) mergeIntoCart(linked);
+      else replaceCart(linked);
+    }
+    deferredLink.current = undefined;
   }, [hydrated, linkedItems, session]);
 
   if (!hydrated) return null;
@@ -142,7 +151,8 @@ export function CartView() {
                 <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
                   {product.tagline}
                 </p>
-                {product.slug === "agent-tools" ? (
+                {product.slug === "agent-tools" &&
+                !product.needsConfiguration ? (
                   <p className="text-muted-foreground mt-2 text-xs">
                     Agent Tool
                   </p>

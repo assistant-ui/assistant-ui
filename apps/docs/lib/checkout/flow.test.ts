@@ -33,6 +33,21 @@ afterEach(() => {
 });
 
 describe("checkout flow", () => {
+  it("keeps multi-line tool behavior nested within its numbered setup item", async () => {
+    setupStorage();
+    const s = await load();
+    const purpose =
+      "Read inventory.\n1. Use the existing API.\n\n  Keep returned fields.";
+    s.addAgentTool("Inventory", purpose);
+    s.addAgentTool("Search", "Find support articles.");
+    const session = s.checkoutCart();
+    expect(session?.instructions).toContain(
+      "1. Inventory: Read inventory.\n   1. Use the existing API.\n   \n     Keep returned fields.\n2. Search: Find support articles.",
+    );
+    s.abandonCheckout();
+    expect(s.getCartEntries()[0]).toMatchObject({ purpose });
+  });
+
   it("carries each configured tool into setup and restores its configuration on cancellation", async () => {
     setupStorage();
     const s = await load();

@@ -27,7 +27,6 @@ import { useCheckoutSession } from "@/lib/checkout/session-store";
 import { analytics } from "@/lib/analytics";
 
 const options = [
-  { value: "", label: "Choose an action" },
   ...AGENT_TOOL_PRESETS.map((preset) => ({
     value: preset.id,
     label: preset.name,
@@ -49,10 +48,10 @@ export function AgentToolDialog({
   const id = useId();
   const target = useCheckoutSession() ? "next setup" : "setup";
   const [open, setOpen] = useState(false);
-  const [action, setAction] = useState("");
+  const [action, setAction] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [purpose, setPurpose] = useState("");
-  const selectAction = (value: string) => {
+  const selectAction = (value: string | null) => {
     const preset = AGENT_TOOL_PRESETS.find((entry) => entry.id === value);
     setAction(value);
     setName(preset?.name ?? "");
@@ -66,7 +65,7 @@ export function AgentToolDialog({
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
-        if (next) selectAction(presetId ?? "");
+        if (next) selectAction(presetId ?? null);
       }}
     >
       <DialogTrigger
@@ -112,11 +111,11 @@ export function AgentToolDialog({
               value={action}
               items={options}
               onValueChange={(value) => {
-                if (value !== null) selectAction(value);
+                if (value !== null && value !== action) selectAction(value);
               }}
             >
               <SelectTrigger id={`${id}-action`} className="w-full">
-                <SelectValue />
+                <SelectValue placeholder="Choose an action" />
               </SelectTrigger>
               <SelectContent>
                 {options.map((option) => (

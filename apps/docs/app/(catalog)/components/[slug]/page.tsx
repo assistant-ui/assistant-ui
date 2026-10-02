@@ -74,7 +74,9 @@ export default async function ProductPage({
           )}
         </div>
       </header>
-      {product.slug === "agent-tools" ? <AgentToolPresets /> : null}
+      {product.slug === "agent-tools" ? (
+        <AgentToolPresets headingLevel={2} />
+      ) : null}
 
       {preview ? (
         <figure className="mt-12">
