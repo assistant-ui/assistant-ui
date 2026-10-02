@@ -1,0 +1,44 @@
+name: Declaration check benchmark
+
+on:
+  push:
+    branches: [perf/declaration-check-benchmark]
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        repeat: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b
+        with:
+          runtime: node@24
+          cache: false
+          install: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build packages
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+        run: pnpm turbo build --filter='./packages/*' --output-logs=errors-only
+      - name: Compare checks
+        env:
+          REPEAT: ${{ matrix.repeat }}
+        run: |
+          git show b6444661cf03cae6c5e10baba1e12c9e010b8ea0:scripts/check-built-declarations.mjs > scripts/.declarations-baseline.mjs
+          node scripts/.declaration-benchmark.mjs
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: declaration-benchmark-${{ matrix.repeat }}
+          path: declaration-benchmark.json
