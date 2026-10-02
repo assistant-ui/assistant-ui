@@ -3,7 +3,7 @@ import "server-only";
 export const CLOUD_AGENT_PROMPTS = new Map<string, string>([
   [
     "cloud",
-    `This product assumes assistant-ui is already installed and rendering a Thread. If it is not, do not scaffold it as a side effect. In a setup session, add it (\`ask "<why>" --product assistant-ui --wait\`; the browser accepts the product and answers at once) and install it first; outside one, stop and tell the user to set up assistant-ui first.
+    `This product assumes assistant-ui is already installed and rendering a Thread. If it is not, do not scaffold it as a side effect. In a setup session, read /install.md?items=assistant-ui and include the runtime prerequisite in the plan for approval, then install it first. Selected products are the starting goals; relevant prerequisites do not need to be in the starting list. Outside a setup session, tell the user which prerequisite is needed before changing it.
 
 1. Ask which project to use: \`ask "Which Assistant Cloud project should this app use?" --wait\`. The browser lists the projects on the user's account, or takes a Frontend API URL pasted from cloud.assistant-ui.com (Settings › General); the answer is that URL (https://proj-<id>.assistant-api.com). Do not invent one.
 2. Write NEXT_PUBLIC_ASSISTANT_BASE_URL=<that url> to .env.local. On Vite, React Router or TanStack Start write VITE_ASSISTANT_BASE_URL=<that url> to .env.local instead, on Expo write EXPO_PUBLIC_ASSISTANT_BASE_URL=<that url> to .env, and on Ink write ASSISTANT_BASE_URL=<that url> to .env.

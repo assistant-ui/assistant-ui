@@ -740,11 +740,9 @@ export function SetupWizard({
       case "welcome":
         return {
           title: titleNamesProducts
-            ? `Welcome to the setup wizard for ${productList}`
-            : "Welcome to the setup wizard",
-          subtitle: titleNamesProducts
-            ? undefined
-            : `Setting up ${productList}.`,
+            ? `You are installing ${productList}`
+            : "You are installing",
+          subtitle: titleNamesProducts ? undefined : `${productList}.`,
           body: <SetupIntro onContinue={acknowledgeSetupIntro} />,
         };
       case "connect":
