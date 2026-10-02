@@ -236,13 +236,22 @@ export const compareSizes = async ({ root, ref, report }) => {
 
   if (names.length > 0) build(root, names);
   const { wt } = ensureRefWorktree(base, { build: false });
-  execFileSync("pnpm", ["install"], {
-    cwd: wt,
-    stdio: ["ignore", 2, "inherit"],
-    env: { ...process.env, CI: "true" },
-  });
   const baseNames = [...publishedPackages(wt).keys()].filter(
     (name) => names.includes(name) || !onHead.has(name),
+  );
+  execFileSync(
+    "pnpm",
+    [
+      "install",
+      "--filter=.",
+      "--filter=@assistant-ui/react-devtools...",
+      ...baseNames.map((name) => `--filter=${name}...`),
+    ],
+    {
+      cwd: wt,
+      stdio: ["ignore", 2, "inherit"],
+      env: { ...process.env, CI: "true" },
+    },
   );
   if (baseNames.length > 0) build(wt, baseNames);
 
