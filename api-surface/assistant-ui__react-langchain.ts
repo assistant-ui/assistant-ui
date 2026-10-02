@@ -1962,6 +1962,7 @@ type ThreadRuntimeEventPayload = {
   historyWriteError: {
     operation: "append" | "delete" | "update";
     messageIds: readonly string[];
+    message: string;
     error: unknown;
   };
   toolApprovalAnswered: {

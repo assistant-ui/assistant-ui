@@ -1055,7 +1055,7 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   } | undefined;
   getBranches(messageId: string): string[];
   switchToBranch(branchId: string): void;
-  _notifyEventSubscribers<E extends ThreadRuntimeEventType>(event: E, payload: ThreadRuntimeEventPayload[E]): void;
+  _notifyEventSubscribers<E extends ThreadRuntimeEventType>(event: E, payload: ThreadRuntimeEventPayload[E]): boolean;
   protected _notifyToolApprovalAnswered(messageId: string, toolCallId: string, toolName: string, approved: boolean): void;
   submitFeedback(_param1: SubmitFeedbackOptions): void;
   speech: SpeechState | undefined;
@@ -4737,7 +4737,7 @@ type ThreadEvents = {
     threadId: string;
     operation: "append" | "delete" | "update";
     messageIds: readonly string[];
-    error: unknown;
+    message: string;
   };
   "thread.toolApprovalAnswered": {
     threadId: string;
@@ -5377,6 +5377,7 @@ type ThreadRuntimeEventPayload = {
   historyWriteError: {
     operation: "append" | "delete" | "update";
     messageIds: readonly string[];
+    message: string;
     error: unknown;
   };
   toolApprovalAnswered: {
