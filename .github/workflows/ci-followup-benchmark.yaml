@@ -16,9 +16,9 @@ jobs:
       fail-fast: false
       max-parallel: 6
       matrix:
-        target: [template-metrics]
+        target: [api-reference, template-metrics]
         mode: [full-cache, filtered-no-cache]
-        repeat: [3]
+        repeat: [4, 5]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -39,9 +39,9 @@ jobs:
           if [ "$MODE" = full-cache ]; then
             pnpm install --frozen-lockfile
           elif [ "$TARGET" = api-reference ]; then
-            pnpm install --frozen-lockfile --filter . --filter '@assistant-ui/docs...' --filter '@assistant-ui/react-devtools...'
+            pnpm install --frozen-lockfile --filter . --filter '@assistant-ui/docs...' --filter '@assistant-ui/eve...' --filter '@assistant-ui/react-ai-sdk...'
           else
-            pnpm install --frozen-lockfile --filter . --filter './templates/default...' --filter './templates/minimal...' --filter '@assistant-ui/react-devtools...'
+            pnpm install --frozen-lockfile --filter . --filter '{./templates/default}...' --filter '{./templates/minimal}...' --filter '@assistant-ui/react-devtools...'
           fi
       - name: Generate API reference
         if: matrix.target == 'api-reference'
@@ -68,6 +68,7 @@ jobs:
           cat metrics-head.json
 
   redis:
+    if: false
     name: Redis / ${{ matrix.mode }} / ${{ matrix.package }} / ${{ matrix.repeat }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
