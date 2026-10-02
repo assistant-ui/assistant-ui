@@ -157,7 +157,7 @@ export type ThreadEvents = {
     threadId: string;
     operation: "append" | "update" | "delete";
     messageIds: readonly string[];
-    error: unknown;
+    message: string;
   };
   "thread.toolApprovalAnswered": {
     threadId: string;

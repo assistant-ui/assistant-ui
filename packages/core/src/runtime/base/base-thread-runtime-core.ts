@@ -278,11 +278,12 @@ export abstract class BaseThreadRuntimeCore
   public _notifyEventSubscribers<E extends ThreadRuntimeEventType>(
     event: E,
     payload: ThreadRuntimeEventPayload[E],
-  ) {
+  ): boolean {
     const subscribers = this._eventSubscribers.get(event);
-    if (!subscribers) return;
+    if (!subscribers?.size) return false;
 
     notifyEventListeners(subscribers, payload, `Thread runtime "${event}"`);
+    return true;
   }
 
   protected _notifyToolApprovalAnswered(

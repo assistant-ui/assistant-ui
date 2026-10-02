@@ -202,12 +202,17 @@ export class LocalThreadRuntimeCore
     try {
       await write();
     } catch (error) {
-      console.error("[assistant-ui] local thread history write failed:", error);
-      this._notifyEventSubscribers("historyWriteError", {
+      const notified = this._notifyEventSubscribers("historyWriteError", {
         operation,
         messageIds,
+        message: error instanceof Error ? error.message : String(error),
         error,
       });
+      if (!notified)
+        console.error(
+          "[assistant-ui] local thread history write failed:",
+          error,
+        );
       throw error;
     }
   }
