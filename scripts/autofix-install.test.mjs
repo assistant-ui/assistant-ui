@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { autofixInstallArgs } from "./autofix-install.mjs";
 
@@ -36,4 +37,12 @@ test("unrelated changes still install the root autofix tools", () => {
     "--filter=!./examples/*",
     "--filter=!./templates/*",
   ]);
+});
+
+test("the autofix workflow uses the shared install planner", () => {
+  const workflow = readFileSync(
+    new URL("../.github/workflows/autofix.yaml", import.meta.url),
+    "utf8",
+  );
+  assert.match(workflow, /node scripts\/autofix-install\.mjs --base=/);
 });
