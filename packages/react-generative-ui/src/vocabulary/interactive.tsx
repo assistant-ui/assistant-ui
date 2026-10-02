@@ -508,10 +508,11 @@ function DatePickerRender({
           : undefined
       }
       onChange={(e) => {
+        const inputValue = normalizeTemporalInputValue(e.currentTarget.value);
         const nextValue =
           inputType === "datetime"
-            ? fromLocalDateTime(e.currentTarget.value, selection.anchor)
-            : e.currentTarget.value;
+            ? fromLocalDateTime(inputValue, selection.anchor)
+            : inputValue;
         const canonical = canonicalFieldValue(nextValue);
         if (canonical !== undefined) {
           e.currentTarget.setAttribute(FIELD_VALUE_ATTR, canonical);
