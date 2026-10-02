@@ -530,3 +530,46 @@ test("preparation uses Next's env-file precedence in development and production"
     await rm(fixture, { recursive: true, force: true });
   }
 });
+
+test(
+  "ignored docs env files invalidate the cached build",
+  {
+    skip: !turboReady && "Install dependencies before testing the Turbo graph",
+  },
+  async () => {
+    const envFile = join(
+      root,
+      "apps/docs",
+      `.env.bundle-cache-${process.pid}.local`,
+    );
+    const docsHash = () => {
+      const graph = JSON.parse(
+        execFileSync(
+          turbo,
+          ["run", "build", "--filter=@assistant-ui/docs", "--dry=json"],
+          { cwd: root, encoding: "utf8", timeout: 30_000 },
+        ),
+      );
+      const docs = graph.tasks.find(
+        (task) => task.taskId === "@assistant-ui/docs#build",
+      );
+      assert.ok(docs);
+      assert.ok(
+        Object.keys(docs.inputs).some(
+          (path) => path === relative(join(root, "apps/docs"), envFile),
+        ),
+      );
+      return docs.hash;
+    };
+    try {
+      await writeFile(envFile, "NEXT_PUBLIC_AUI_EXAMPLE_BUNDLES_ENABLED=0\n", {
+        flag: "wx",
+      });
+      const disabled = docsHash();
+      await writeFile(envFile, "NEXT_PUBLIC_AUI_EXAMPLE_BUNDLES_ENABLED=1\n");
+      assert.notEqual(docsHash(), disabled);
+    } finally {
+      await rm(envFile, { force: true });
+    }
+  },
+);
