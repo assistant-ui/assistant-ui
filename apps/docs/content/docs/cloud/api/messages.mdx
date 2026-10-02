@@ -75,12 +75,12 @@ curl https://backend.assistant-api.com/v1/threads/thread_0qzof3jPoDwr7K3agyJN3D4
 |---|---|---|
 | `201` | `{ "message_id": "msg_…" }` | A new message was inserted. |
 | `200` | `{ "message_id": "msg_…" }` | `external_id` matched an existing message with the same role. An identical `content` and `format` cause no write; a changed body updates the message. |
-| `400` | `{ "success": false, "error": … }` | A required field is missing, a field is invalid, content exceeds 1,048,576 serialized characters, or an unknown field was sent. |
+| `400` | `{ "error": "Schema validation error", "details": […] }` | A required field is missing, a field is invalid, content exceeds 1,048,576 serialized characters, or an unknown field was sent. |
 | `400` | `{ "error": "Parent message not found in thread" }` | `parent_id` does not identify a message in this thread. |
 | `400` | `{ "error": "Parent message with external_id not found in thread" }` | `parent_external_id` does not identify a message in this thread. |
 | `402` | `{ "error": "plan_limit_reached", "plan": …, "period_end": …, "cap": … }` | A new end user sends a `user` message after the project's active user cap. |
 | `404` | `{ "error": "Thread not found" }` | The thread is not in the caller's workspace. |
-| `404` | Plain text: `Project not found` | The project no longer exists. |
+| `404` | `{ "error": "Project not found" }` | The project no longer exists. |
 | `409` | `{ "error": "Message role cannot change" }` | An `external_id` repeat changes the stored message role. |
 | `401` or `403` | An authentication error. | The caller was not accepted. See [Conventions](/docs/cloud/api). |
 
@@ -146,7 +146,7 @@ curl "https://backend.assistant-api.com/v1/threads/thread_0qzof3jPoDwr7K3agyJN3D
 | Status | Body | When |
 |---|---|---|
 | `200` | `{ "messages": [...] }` | Always, including when no messages match or the thread is outside the caller's workspace. |
-| `400` | `{ "success": false, "error": … }` | A query value is out of range. |
+| `400` | `{ "error": "Schema validation error", "details": […] }` | A query value is out of range. |
 | `401` or `403` | An authentication error. | The caller was not accepted. See [Conventions](/docs/cloud/api). |
 
 Listing does not write message or thread state. A row that cannot be parsed or converted for the requested format is skipped with a warning, not returned as an error. When attachment storage is configured, recognized attachment URL fields are replaced with signed read URLs that last 15 minutes.
@@ -183,7 +183,7 @@ curl https://backend.assistant-api.com/v1/threads/thread_0qzof3jPoDwr7K3agyJN3D4
 | Status | Body | When |
 |---|---|---|
 | `200` | `{}` | At least one requested message was deleted. |
-| `400` | `{ "success": false, "error": … }` | `message_ids` is missing, empty, has more than 200 entries, or contains an invalid id. |
+| `400` | `{ "error": "Schema validation error", "details": […] }` | `message_ids` is missing, empty, has more than 200 entries, or contains an invalid id. |
 | `404` | `{ "error": "Messages not found" }` | None of the requested messages were deleted. |
 | `401` or `403` | An authentication error. | The caller was not accepted. See [Conventions](/docs/cloud/api). |
 
@@ -236,7 +236,7 @@ curl https://backend.assistant-api.com/v1/threads/thread_0qzof3jPoDwr7K3agyJN3D4
 | Status | Body | When |
 |---|---|---|
 | `200` | `{}` | The message was updated. |
-| `400` | `{ "success": false, "error": … }` | `content` is missing or invalid, too large, or an unknown field was sent. |
+| `400` | `{ "error": "Schema validation error", "details": […] }` | `content` is missing or invalid, too large, or an unknown field was sent. |
 | `404` | `{ "error": "Message not found" }` | The message is not in this thread. |
 | `401` or `403` | An authentication error. | The caller was not accepted. See [Conventions](/docs/cloud/api). |
 
@@ -275,7 +275,7 @@ curl https://backend.assistant-api.com/v1/threads/thread_0qzof3jPoDwr7K3agyJN3D4
 | Status | Body | When |
 |---|---|---|
 | `200` | `{ "feedback_id": "score_…", "type": "positive" or "negative", "comment": string or null }` | The feedback score was written. |
-| `400` | `{ "success": false, "error": … }` | `type` is missing, is not `positive` or `negative`, `comment` is invalid, or an unknown field was sent. |
+| `400` | `{ "error": "Schema validation error", "details": […] }` | `type` is missing, is not `positive` or `negative`, `comment` is invalid, or an unknown field was sent. |
 | `404` | `{ "error": "Thread not found" }` | The thread is not in the caller's workspace. |
 | `404` | `{ "error": "Message not found" }` | The message is not in this thread. |
 | `401` or `403` | An authentication error. | The caller was not accepted. See [Conventions](/docs/cloud/api). |

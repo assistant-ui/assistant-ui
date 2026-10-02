@@ -434,6 +434,7 @@ export class A2AThreadRuntimeCore {
         // that case out.
         if (this.currentTask === task && this.runGeneration === generation) {
           this.currentTask = updated;
+          this.notifyUpdate();
         }
       } catch {
         // Server cancel failed; local abort already handled
