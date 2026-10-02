@@ -3,8 +3,14 @@
 import { useAuiState } from "@assistant-ui/react";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, type ReactNode } from "react";
+import { analytics } from "@/lib/analytics";
+import { trackDemoSignInClick } from "@/lib/analytics-identity";
 import { refreshDemoUsage, useDemoUsage } from "@/lib/demo-usage-client";
 import { useSession } from "@/lib/session";
+
+// The gate unmounts with the composer whenever the visitor switches threads, so
+// the day it was reported for is held outside the component.
+let reportedResetAt = 0;
 
 function resetsIn(resetAt: number): string {
   const hours = Math.max(1, Math.ceil((resetAt - Date.now()) / 3_600_000));
@@ -52,14 +58,23 @@ export function ConversationBudget({
     return;
   }, [spent, resetAt]);
 
+  const gated = spent && isEmpty;
+  const signedIn = state.status === "ready" && state.usage.signedIn;
+  const limit = state.status === "ready" ? state.usage.limit : 0;
+
+  useEffect(() => {
+    if (!gated || reportedResetAt === resetAt) return;
+    reportedResetAt = resetAt;
+    analytics.demo.budgetExhausted(signedIn, limit);
+  }, [gated, signedIn, limit, resetAt]);
+
   // A conversation already under way was counted when it started, so only a new
   // one meets the gate.
-  if (!spent || !isEmpty || state.status !== "ready") return children;
+  if (!gated || state.status !== "ready") return children;
 
   // The gate does not wait for the session: leaving the composer live would let
   // a send through to a 429. Only the action it can offer waits.
   const canSignIn = session.status === "anonymous";
-  const { limit } = state.usage;
 
   return (
     <div className="border-foreground/10 bg-muted/30 rounded-thread flex flex-col gap-3 border px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
@@ -73,6 +88,7 @@ export function ConversationBudget({
       {canSignIn ? (
         <a
           href={`/api/auth/login?redirect=${encodeURIComponent(pathname)}`}
+          onClick={() => trackDemoSignInClick("budget")}
           className="bg-primary text-primary-foreground rounded-control grid h-8 shrink-0 place-items-center px-3 text-[13px] font-medium transition-opacity hover:opacity-90"
         >
           Sign in

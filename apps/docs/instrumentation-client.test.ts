@@ -3,6 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   init: vi.fn(),
   capture: vi.fn(),
+  register: vi.fn(),
+  identify: vi.fn(),
+  reset: vi.fn(),
   opt_in_capturing: vi.fn(),
   opt_out_capturing: vi.fn(),
   has_opted_out_capturing: vi.fn(() => false),
@@ -77,6 +80,75 @@ describe("client analytics bootstrap", () => {
 
     await boot();
     await vi.waitFor(() => expect(mocks.init).toHaveBeenCalledOnce());
+  });
+
+  it("pins the pageview mode and tags every event with the app and deploy", async () => {
+    stubBrowser({ consent: "granted" });
+    vi.stubEnv("NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA", "abc123");
+
+    await boot();
+
+    expect(mocks.init).toHaveBeenCalledWith(
+      "phc_test",
+      expect.objectContaining({ capture_pageview: "history_change" }),
+    );
+    expect(mocks.register).toHaveBeenCalledWith({
+      app: "docs",
+      deploy_sha: "abc123",
+    });
+  });
+
+  it("leaves the deploy out when the build carries no commit", async () => {
+    stubBrowser({ consent: "granted" });
+    vi.stubEnv("NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA", "");
+
+    await boot();
+
+    expect(mocks.register).toHaveBeenCalledWith({ app: "docs" });
+  });
+
+  it("announces itself once started, so an identity that resolved first can apply", async () => {
+    const { target } = stubBrowser({ required: true });
+    const ready = vi.fn();
+    target.addEventListener("aui-analytics-ready", ready);
+
+    await boot();
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
+    expect(ready).not.toHaveBeenCalled();
+
+    choose(target, "granted");
+    expect(ready).toHaveBeenCalledOnce();
+    window.posthog?.identify?.("user_1");
+    expect(mocks.identify).toHaveBeenCalledWith("user_1");
+  });
+
+  it("registers the app again after a sign-out resets the visitor", async () => {
+    stubBrowser({ consent: "granted" });
+
+    await boot();
+    mocks.register.mockClear();
+    window.posthog?.reset?.();
+
+    expect(mocks.reset).toHaveBeenCalledOnce();
+    expect(mocks.register).toHaveBeenCalledWith(
+      expect.objectContaining({ app: "docs" }),
+    );
+  });
+
+  it("keeps a decline in force through a sign-out reset", async () => {
+    const { target } = stubBrowser({ consent: "granted" });
+
+    await boot();
+    choose(target, "denied");
+    mocks.opt_out_capturing.mockClear();
+    mocks.has_opted_out_capturing.mockReturnValue(true);
+    window.posthog?.reset?.();
+
+    expect(mocks.reset).toHaveBeenCalledOnce();
+    expect(mocks.opt_out_capturing).toHaveBeenCalledOnce();
+    expect(mocks.reset.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.opt_out_capturing.mock.invocationCallOrder[0]!,
+    );
   });
 
   it("waits for an accept inside an opt-in region", async () => {

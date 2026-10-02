@@ -6,6 +6,7 @@ export type SessionPayload = {
   enabled: boolean;
   cloudHistory: boolean;
   user: {
+    id: string;
     name: string;
     email: string;
     image: string | null;
@@ -30,6 +31,7 @@ export async function GET(request: NextRequest) {
     cloudHistory: accounts !== null && Boolean(process.env.ASSISTANT_API_KEY),
     user: session
       ? {
+          id: session.user.id,
           name: session.user.name,
           email: session.user.email,
           image: session.user.image,

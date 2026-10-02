@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import type { SessionPayload } from "@/app/api/auth/session/route";
+import { syncAnalyticsUser } from "./analytics-identity";
 
 export type SessionUser = NonNullable<SessionPayload["user"]>;
 
@@ -46,6 +47,7 @@ const load = () => {
       // than hiding sign-in for the rest of the visit.
       if (payload === null) return setState(anonymousState);
       if (!payload.enabled) return setState(unconfiguredState);
+      syncAnalyticsUser(payload.user?.id ?? null);
       setState(
         payload.user
           ? {

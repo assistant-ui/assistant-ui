@@ -59,7 +59,7 @@ const input: Checkout.Input = {
   createdAt: 1,
 };
 
-const user = { name: "Ada", email: "ada@test", image: null };
+const user = { id: "user_1", name: "Ada", email: "ada@test", image: null };
 
 const setup = (card = input) => {
   const answer = vi.fn().mockResolvedValue(undefined);

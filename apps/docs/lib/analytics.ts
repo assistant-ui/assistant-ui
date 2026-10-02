@@ -9,6 +9,8 @@ declare global {
         event: string,
         properties?: Record<string, string | number | boolean>,
       ) => void;
+      identify?: (distinctId: string) => void;
+      reset?: () => void;
     };
   }
 }
@@ -62,6 +64,16 @@ export const analytics = {
 
     promptCopied: (properties?: AnalyticsProperties) =>
       trackEvent("prompt_copied", properties),
+  },
+
+  demo: {
+    budgetExhausted: (signedIn: boolean, limit: number) =>
+      trackEvent("demo_budget_exhausted", { signed_in: signedIn, limit }),
+
+    signInClicked: (location: string) =>
+      trackEvent("demo_sign_in_clicked", { location }),
+
+    signedIn: (location: string) => trackEvent("demo_signed_in", { location }),
   },
 
   shop: {

@@ -75,7 +75,12 @@ describe("GET /api/auth/session", () => {
     expect(await response.json()).toEqual({
       enabled: true,
       cloudHistory: true,
-      user: { name: user.name, email: user.email, image: null },
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        image: null,
+      },
     });
     expect(response.headers.getSetCookie()).toEqual([
       "a=1; Path=/",
