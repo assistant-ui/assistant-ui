@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [aui()],
   test: {
     coverage: {
-      include: ["src/**"],
+      include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/tests/**", "src/unstable/webmcp/__tests__/**"],
     },
     environment: "node",
