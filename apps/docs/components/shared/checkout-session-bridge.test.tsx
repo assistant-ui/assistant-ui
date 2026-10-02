@@ -17,7 +17,10 @@ const wire = vi.hoisted(() => ({
   dismiss: vi.fn().mockResolvedValue(undefined),
 }));
 
-const mocks = vi.hoisted(() => ({ toastError: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  toastError: vi.fn(),
+  addCheckoutProducts: vi.fn(),
+}));
 
 vi.mock("statewire", async (importOriginal) => ({
   ...(await importOriginal<typeof import("statewire")>()),
@@ -55,6 +58,7 @@ vi.mock("../../lib/checkout/session-store", async (importOriginal) => ({
     typeof import("../../lib/checkout/session-store")
   >()),
   agentLinkUrl: () => "https://checkout.test/link",
+  addCheckoutProducts: mocks.addCheckoutProducts,
 }));
 
 import { useEffect, useState } from "react";
@@ -140,6 +144,32 @@ describe("CheckoutSessionBridge", () => {
     expect(wire.create).toHaveBeenCalledOnce();
     expect(onChange.mock.lastCall?.[0]?.state).toBe(created);
     expect(onChange.mock.lastCall?.[0]?.agentPresent).toBe(true);
+  });
+
+  it("keeps inferred related work out of the starting product list and cart sync", () => {
+    wire.state = {
+      ...previous(),
+      id: "s2",
+      status: "installing",
+      products: [
+        { slug: "assistant-ui", name: "assistant-ui" },
+        { slug: "cloud", name: "Assistant Cloud" },
+      ],
+      inputs: [],
+      steps: [
+        {
+          id: "s1",
+          title: "Connect related persistence",
+          product: "cloud",
+          status: "active",
+          createdAt: 2,
+        },
+      ],
+    };
+    render(<CheckoutSessionBridge session={session} onChange={vi.fn()} />);
+    expect(mocks.addCheckoutProducts).not.toHaveBeenCalled();
+    expect(wire.addProduct).not.toHaveBeenCalled();
+    expect(session.products).toEqual(["assistant-ui"]);
   });
 
   it("adds a product the agent proposes as soon as it arrives, declines one the catalog lacks, and shows neither as a question", () => {

@@ -8,7 +8,7 @@ const preamble = `Read ${BASE_URL}/llms.txt first. Append ".md" to any docs URL 
 
 You are in a non-interactive agent shell. Never omit the flags the steps below name, and never invent keys or URLs; ask the user for them.
 
-Install the products in the order listed. Each one assumes the previous ones are in place.`;
+The listed product names are the starting goals. Read each setup guide, inspect the app, and follow dependency order. Explore related products through ${BASE_URL}/catalog.md when useful and include relevant prerequisites in the plan for approval; list membership does not constrain the implementation.`;
 
 const closing = `When every product is installed, start the dev server and run the verification line under each product. Report the exact error to the user if one fails; do not loop.`;
 

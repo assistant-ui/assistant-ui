@@ -3,6 +3,20 @@ import { CATALOG_ITEMS, resolveProducts } from "./index";
 import { buildInstallPrompt } from "./build-install-prompt";
 
 describe("buildInstallPrompt", () => {
+  it("explores named products and prerequisites without the retired product or app-setting prompts", () => {
+    const prompt = buildInstallPrompt(CATALOG_ITEMS);
+    expect(prompt).toContain("starting goals");
+    expect(prompt).toContain("dependency order");
+    expect(prompt).toContain("catalog.md");
+    expect(prompt).not.toMatch(/ask[^\n]*--product/);
+    expect(prompt).not.toMatch(/ask[^\n]*--preset project/);
+    expect(prompt).not.toContain("Install the products in the order listed");
+    expect(prompt).toContain("selected entryPoint answer");
+    expect(prompt).not.toContain("on the page the app opens with");
+    expect(prompt).toContain("use h-full inside a sized modal or sidebar");
+    expect(prompt).not.toContain('className="h-dvh"');
+  });
+
   it("numbers each product and links its markdown docs", () => {
     const prompt = buildInstallPrompt(
       resolveProducts(["assistant-ui", "cloud"]),

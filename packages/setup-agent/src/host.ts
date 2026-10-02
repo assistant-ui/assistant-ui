@@ -12,6 +12,9 @@ import {
   isAgentPresent,
   isClosed,
   isValidModelAnswer,
+  isValidEntryPointAnswer,
+  isValidEntryPointInput,
+  parseEntryPointOptions,
   parsePreviewUrl,
 } from "./protocol";
 import type { Checkout } from "./protocol";
@@ -83,6 +86,16 @@ const useCheckoutHost = (restored: unknown) => {
 
   const ask = (seed: Checkout.InputSeed & { stepId?: string }) => {
     const kind = seed.kind ?? "text";
+    const options =
+      kind === "entry-point"
+        ? parseEntryPointOptions(seed.options)
+        : seed.options;
+    if (kind === "entry-point" && !isValidEntryPointInput(seed)) {
+      throw reject(
+        "invalid-input",
+        "an entry-point input needs a prompt and 1–3 distinct options with descriptions, form factors, placements and triggers; at most one is recommended",
+      );
+    }
     if (kind === "product") {
       if (!seed.product) {
         throw reject("invalid-input", "a product input names a product");
@@ -125,7 +138,7 @@ const useCheckoutHost = (restored: unknown) => {
       ...(seed.preset !== undefined && { preset: seed.preset }),
       prompt: seed.prompt,
       ...(seed.placeholder !== undefined && { placeholder: seed.placeholder }),
-      ...(seed.options !== undefined && { options: seed.options }),
+      ...(options !== undefined && { options }),
       ...(seed.multiple && { multiple: true }),
       ...(kind === "product" && { product: seed.product }),
       ...(seed.default !== undefined && { default: seed.default }),
@@ -213,6 +226,12 @@ const useCheckoutHost = (restored: unknown) => {
             ? `"${answer}" is not a JSON array of option ids`
             : `"${answer}" names an option without a valid variant`,
         );
+      }
+      if (
+        input.kind === "entry-point" &&
+        !isValidEntryPointAnswer(input, answer)
+      ) {
+        throw reject("invalid-answer", "an entry-point answer is an option id");
       }
       if (input.kind === "model" && !isValidModelAnswer(input, answer)) {
         throw reject(
@@ -360,11 +379,11 @@ const useCheckoutHost = (restored: unknown) => {
     },
     "agent/add-step": ({ title, detail, product, active }) => {
       requireInstalling();
-      if (
-        product !== undefined &&
-        !state.products.some((candidate) => candidate.slug === product)
-      ) {
-        throw reject("unknown-product", `no product "${product}"`);
+      if (product !== undefined && product.trim() === "") {
+        throw reject(
+          "invalid-input",
+          "a step's product identifier cannot be empty",
+        );
       }
       const id = `s${state.steps.length + 1}`;
       state.steps.push({

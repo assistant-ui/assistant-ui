@@ -102,7 +102,17 @@ function CheckoutSessionBridge({
     if (products.length === 0) endCheckout();
   }, [products]);
 
-  const joined = state?.products.map((product) => product.slug).join(",");
+  const joined = state?.products
+    .filter((product) =>
+      state.inputs.some(
+        (input) =>
+          input.kind === "product" &&
+          input.status === "answered" &&
+          input.product === product.slug,
+      ),
+    )
+    .map((product) => product.slug)
+    .join(",");
   useEffect(() => {
     if (joined) addCheckoutProducts(joined.split(",").filter(isProductSlug));
   }, [joined]);

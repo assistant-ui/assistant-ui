@@ -9,12 +9,13 @@ const STEPS = [
   },
   {
     title: "Your agent explores your codebase",
-    detail: "It reads the project and asks you what the code does not decide.",
+    detail:
+      "It reads your project and each product’s setup instructions, then asks what the code does not decide.",
   },
   {
     title: "You approve the plan",
     detail:
-      "Nothing is changed until you approve, and you can ask for changes.",
+      "It proposes the selected products and any related integrations it finds. Changes begin after you approve.",
   },
   {
     title: "Your agent implements it",
