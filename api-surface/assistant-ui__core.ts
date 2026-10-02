@@ -4005,7 +4005,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
   get threadItems(): Readonly<Record<THREAD_MAPPING_ID, RemoteThreadData>>;
   getLoadThreadsPromise(): Promise<void>;
   loadMore(): Promise<void>;
-  constructor(options: RemoteThreadListOptions, contextProvider: ModelContextProvider);
+  constructor(options: RemoteThreadListOptions, contextProvider: ModelContextProvider, initialThreadIdSeed?: string);
   __internal_setOptions(options: RemoteThreadListOptions): void;
   __internal_load(): void;
   reloadMainThread(): Promise<void>;
