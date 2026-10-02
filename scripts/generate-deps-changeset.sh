@@ -13,9 +13,28 @@ if ! base=$(git merge-base HEAD origin/main 2>/dev/null); then
   exit 1
 fi
 
+# A rerun replaces the changeset an earlier run on this branch wrote instead of adding a second one, and removes it when nothing is left to release.
+changeset_file=""
+for file in "$REPO_ROOT"/.changeset/*.md; do
+  [ -f "$file" ] || continue
+  git cat-file -e "$base:.changeset/$(basename "$file")" 2>/dev/null && continue
+  if [ "$(tail -n 1 "$file")" = "chore: update dependencies" ]; then
+    changeset_file="$file"
+    break
+  fi
+done
+
+drop_stale_changeset() {
+  if [ -n "$changeset_file" ]; then
+    rm -f "$changeset_file"
+    echo "Removed .changeset/$(basename "$changeset_file"), which an earlier run wrote."
+  fi
+}
+
 changed_pkgjsons=$(git diff --name-only "$base" -- '**/package.json' 'package.json' 2>/dev/null || true)
 if [ -z "$changed_pkgjsons" ]; then
   echo "No package.json changes detected."
+  drop_stale_changeset
   exit 0
 fi
 
@@ -39,19 +58,9 @@ done <<< "$changed_pkgjsons"
 
 if [ ${#packages[@]} -eq 0 ]; then
   echo "No published packages were modified."
+  drop_stale_changeset
   exit 0
 fi
-
-# A rerun replaces the changeset an earlier run on this branch wrote instead of adding a second one.
-changeset_file=""
-for file in "$REPO_ROOT"/.changeset/*.md; do
-  [ -f "$file" ] || continue
-  git cat-file -e "$base:.changeset/$(basename "$file")" 2>/dev/null && continue
-  if [ "$(tail -n 1 "$file")" = "chore: update dependencies" ]; then
-    changeset_file="$file"
-    break
-  fi
-done
 
 if [ -z "$changeset_file" ]; then
   slug=$(node -e "
