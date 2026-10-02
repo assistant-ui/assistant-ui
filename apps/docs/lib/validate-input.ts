@@ -88,7 +88,12 @@ export function validateDocChatInput(messages: unknown): Response | null {
 }
 
 export function validateFrontendToolsInput(tools: unknown): Response | null {
-  const serializedTools = JSON.stringify(tools ?? {});
+  const normalizedTools = tools ?? {};
+  if (typeof normalizedTools !== "object" || Array.isArray(normalizedTools)) {
+    return new Response("Invalid tools format", { status: 400 });
+  }
+
+  const serializedTools = JSON.stringify(normalizedTools);
   if (serializedTools.length > MAX_FRONTEND_TOOLS_CHARS) {
     return new Response("Tools too large", { status: 400 });
   }
