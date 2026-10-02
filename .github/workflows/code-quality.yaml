@@ -408,7 +408,7 @@ jobs:
 
       - name: Install dependencies
         if: steps.api_ref.outputs.run == 'true'
-        run: pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/docs..." --filter="@assistant-ui/react-devtools..."
+        run: pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/docs..." --filter="@assistant-ui/eve..." --filter="@assistant-ui/react-ai-sdk..."
 
       - name: Generate API reference (strict)
         if: steps.api_ref.outputs.run == 'true'
