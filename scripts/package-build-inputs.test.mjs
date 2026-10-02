@@ -137,3 +137,29 @@ test("the workflow gates dependency-backed package steps", () => {
     /steps\.package_build_inputs\.outputs\.run/,
   );
 });
+
+test("the build install follows the affected package graph", () => {
+  const install = step("Install dependencies");
+  assert.match(install, /BASE=HEAD\^1/);
+  assert.match(install, /BASE="\$\{\{ github\.event\.before \}\}"/);
+  assert.match(install, /git diff --quiet "\$BASE" HEAD --/);
+  for (const input of [
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "turbo.json",
+    "packages/x-buildutils",
+  ]) {
+    assert.ok(install.includes(input), input);
+  }
+  for (const filter of [
+    ".",
+    "@assistant-ui/api-surface",
+    "@assistant-ui/x-buildutils...",
+    "@assistant-ui/x-performance",
+    "...[$BASE]...",
+  ]) {
+    assert.ok(install.includes(`--filter="${filter}"`), filter);
+  }
+  assert.match(install, /else\n\s+pnpm install --frozen-lockfile\n\s+fi/);
+});

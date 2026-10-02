@@ -195,7 +195,28 @@ jobs:
 
       - name: Install dependencies
         if: steps.package_build_inputs.outputs.run == 'true'
-        run: pnpm install --frozen-lockfile
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE=HEAD^1
+          else
+            BASE="${{ github.event.before }}"
+          fi
+          if git diff --quiet "$BASE" HEAD -- \
+            package.json \
+            pnpm-lock.yaml \
+            pnpm-workspace.yaml \
+            turbo.json \
+            packages/x-buildutils; then
+            pnpm install --frozen-lockfile \
+              --filter="." \
+              --filter="@assistant-ui/api-surface" \
+              --filter="@assistant-ui/x-buildutils..." \
+              --filter="@assistant-ui/x-performance" \
+              --filter="...[$BASE]..."
+          else
+            pnpm install --frozen-lockfile
+          fi
 
       - name: Build packages
         if: steps.package_build_inputs.outputs.run == 'true'
