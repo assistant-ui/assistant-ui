@@ -185,6 +185,38 @@ describe("SSEEventDecoder", () => {
     expect(decoder.flush()).toBeNull();
   });
 
+  it("rejects an unterminated line that exceeds the configured limit", () => {
+    const decoder = new SSEEventDecoder({ maxLineLength: 8 });
+    expect(decoder.push("data: ")).toEqual([]);
+    expect(() => decoder.push("abc")).toThrow(
+      "SSE line exceeds maxLineLength (9 > 8)",
+    );
+  });
+
+  it("rejects a complete line that exceeds the configured limit", () => {
+    const decoder = new SSEEventDecoder({ maxLineLength: 8 });
+    expect(() => decoder.push("data: abc\n")).toThrow(
+      "SSE line exceeds maxLineLength (9 > 8)",
+    );
+  });
+
+  it("rejects an event whose data lines exceed the configured limit", () => {
+    const decoder = new SSEEventDecoder({ maxEventLength: 14 });
+    expect(decoder.push("data: a\n")).toEqual([]);
+    expect(() => decoder.push("data: b\n")).toThrow(
+      "SSE event exceeds maxEventLength (16 > 14)",
+    );
+  });
+
+  it("validates configured limits", () => {
+    expect(() => new SSEEventDecoder({ maxLineLength: 0 })).toThrow(
+      "maxLineLength must be a positive safe integer",
+    );
+    expect(() => new SSEEventDecoder({ maxEventLength: Infinity })).toThrow(
+      "maxEventLength must be a positive safe integer",
+    );
+  });
+
   it.each(["\n", "\r", "\r\n"])(
     "decodes fragmented events with %j delimiters",
     (newline) => {

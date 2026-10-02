@@ -18,4 +18,5 @@ export { AssistantMetaTransformStream } from "./core/utils/stream/AssistantMetaT
 export {
   SSEEventDecoder,
   type SSEEvent,
+  type SSEEventDecoderOptions,
 } from "./core/utils/stream/SSEEventDecoder";
