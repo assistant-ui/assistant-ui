@@ -512,17 +512,68 @@ describe("settled approval receipts", () => {
         />
       );
       const view = render(renderRequest(false));
+      button("Allow").focus();
       fireEvent.click(button("Allow"));
       expect(button("Allow").disabled).toBe(true);
       view.rerender(renderRequest(true));
       expect(button("Allow").disabled).toBe(true);
       view.rerender(renderRequest(false, id));
       expect(button("Allow").disabled).toBe(false);
+      expect(document.activeElement).toBe(
+        button("Allow").closest('[data-slot="tool-fallback-approval"]'),
+      );
       respondToApproval.mockImplementation(() => new Promise<void>(() => {}));
       fireEvent.click(button("Deny"));
       await act(async () => rejectPrevious(new Error("Old attempt failed")));
       expect(button("Deny").disabled).toBe(true);
       expect(screen.queryByRole("alert")).toBeNull();
+    },
+  );
+
+  it.each(["composer", "body", "terminal"])(
+    "does not reclaim focus on re-entry after leaving the approval (%s)",
+    (departure) => {
+      const renderRequest = (
+        type: "requires-action" | "running" | "complete",
+      ) => (
+        <>
+          <ToolFallback
+            type="tool-call"
+            toolCallId="call-1"
+            toolName="test-tool"
+            args={{}}
+            argsText="{}"
+            status={
+              type === "complete"
+                ? { type }
+                : type === "requires-action"
+                  ? { type, reason: "tool-calls" }
+                  : { type }
+            }
+            approval={{ id: "req-1" }}
+            addResult={vi.fn()}
+            resume={vi.fn()}
+            respondToApproval={() => new Promise<void>(() => {})}
+          />
+          <input aria-label="Composer" />
+        </>
+      );
+      const view = render(renderRequest("requires-action"));
+      button("Allow").focus();
+      fireEvent.click(button("Allow"));
+      view.rerender(renderRequest("running"));
+      const composer = screen.getByRole("textbox", { name: "Composer" });
+      if (departure === "terminal") {
+        view.rerender(renderRequest("complete"));
+      } else {
+        composer.focus();
+        if (departure === "body") composer.blur();
+      }
+      view.rerender(renderRequest("requires-action"));
+      expect(button("Allow").disabled).toBe(false);
+      expect(document.activeElement).toBe(
+        departure === "composer" ? composer : document.body,
+      );
     },
   );
 
