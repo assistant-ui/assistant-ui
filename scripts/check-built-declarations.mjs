@@ -200,7 +200,7 @@ export function declarationGateResult({
   return "pass";
 }
 
-export async function checkPackage(repoRoot, packageDir, pkg) {
+export async function checkPackage(repoRoot, packageDir, pkg, reportStart) {
   const result = { status: 0, stdout: "", stderr: "" };
   let probe;
   try {
@@ -213,7 +213,9 @@ export async function checkPackage(repoRoot, packageDir, pkg) {
   if (!probe) return result;
 
   try {
-    result.stdout = `Checking ${pkg.name} (${probe.entries.length} declaration entries)\n`;
+    const progress = `Checking ${pkg.name} (${probe.entries.length} declaration entries)\n`;
+    if (reportStart) reportStart(progress);
+    else result.stdout = progress;
     const compiler = await spawnTsc(repoRoot, [
       "--project",
       probe.configPath,
@@ -322,7 +324,10 @@ async function main() {
     repoRoot,
     packages,
     concurrency,
-    checkPackage,
+    (root, dir, pkg) =>
+      checkPackage(root, dir, pkg, (progress) =>
+        process.stdout.write(progress),
+      ),
     (result) => {
       process.stdout.write(result.stdout);
       process.stderr.write(result.stderr);

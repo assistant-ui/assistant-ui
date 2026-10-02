@@ -53,7 +53,15 @@ async function runProbe(packageDir) {
   const pkg = JSON.parse(
     readFileSync(path.join(packageDir, "package.json"), "utf8"),
   );
-  const result = await checkPackage(repoRoot, packageDir, pkg);
+  const progress = [];
+  const checking = checkPackage(repoRoot, packageDir, pkg, (line) =>
+    progress.push(line),
+  );
+  assert.deepEqual(progress, [
+    "Checking fixture-package (1 declaration entries)\n",
+  ]);
+  const result = await checking;
+  result.stdout = progress.join("") + result.stdout;
   assert.deepEqual(
     readdirSync(packageDir).filter((name) =>
       name.startsWith(".strict-libcheck-"),
