@@ -138,6 +138,47 @@ describe("PreOverride component", () => {
     expect(values[1]).not.toBe(values[0]);
   });
 
+  it("keeps an outer pre context value while nested pre props are equal", () => {
+    const values: unknown[] = [];
+    const Consumer = memo(function Consumer() {
+      values.push(useStreamdownPreProps());
+      return null;
+    });
+    const preNode = (meta: string): Element => ({
+      type: "element",
+      tagName: "pre",
+      properties: {},
+      children: [
+        {
+          type: "element",
+          tagName: "code",
+          properties: {},
+          children: [
+            {
+              type: "element",
+              tagName: "pre",
+              properties: { metastring: meta },
+              children: [],
+            },
+          ],
+        },
+      ],
+    });
+    const view = (meta: string) => (
+      <PreOverride node={preNode(meta)}>
+        <Consumer />
+      </PreOverride>
+    );
+
+    const { rerender } = render(view("a.ts"));
+    rerender(view("a.ts"));
+    expect(values).toHaveLength(1);
+
+    rerender(view("b.ts"));
+    expect(values).toHaveLength(2);
+    expect(values[1]).not.toBe(values[0]);
+  });
+
   it("does not render an extra pre wrapper", () => {
     render(
       <PreOverride>

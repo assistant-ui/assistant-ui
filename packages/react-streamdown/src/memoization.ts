@@ -87,17 +87,27 @@ export function isEqualToDepth(a: unknown, b: unknown, depth: number): boolean {
  * recursively, `properties`, `position` and `data` one array or object level
  * deep, and any other field by identity, so plugin values nested deeper compare
  * as changed without being walked. A `pre` below the root is not walked either
- * and compares as changed: its own PreOverride compares it, and walking it from
- * every ancestor would cost the square of the nesting depth.
+ * and compares as changed by default: its own PreOverride compares it. Pre
+ * context values compare nested pre elements too, since an ancestor provider
+ * changing would re-render consumers below otherwise stable nested providers.
  */
-export function isSameHastNode(a: unknown, b: unknown): boolean {
-  return isSameHastNodeAt(a, b, true);
+export function isSameHastNode(
+  a: unknown,
+  b: unknown,
+  compareNestedPre = false,
+): boolean {
+  return isSameHastNodeAt(a, b, true, compareNestedPre);
 }
 
-function isSameHastNodeAt(a: unknown, b: unknown, root: boolean): boolean {
+function isSameHastNodeAt(
+  a: unknown,
+  b: unknown,
+  root: boolean,
+  compareNestedPre: boolean,
+): boolean {
   if (Object.is(a, b)) return true;
   if (!isPlainObject(a) || !isPlainObject(b)) return false;
-  if (!root && a.tagName === "pre") return false;
+  if (!root && !compareNestedPre && a.tagName === "pre") return false;
   const keys = Object.keys(a);
   return (
     keys.length === Object.keys(b).length &&
@@ -109,7 +119,7 @@ function isSameHastNodeAt(a: unknown, b: unknown, root: boolean): boolean {
         return (
           prev.length === next.length &&
           prev.every((child, index) =>
-            isSameHastNodeAt(child, next[index], false),
+            isSameHastNodeAt(child, next[index], false, compareNestedPre),
           )
         );
       }
