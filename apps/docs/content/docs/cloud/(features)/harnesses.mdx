@@ -110,7 +110,7 @@ When a project's plan loses the feature, the cloud suspends every harness in tha
 
 A thread Instance id or Thread id opens its harness thread page at `/harnesses/{id}/threads/{thread_id}`. The separate **Mirrored thread** link opens the cloud thread.
 
-The page's **Facts** rail shows **Thread ID**, **Workspace**, and **Backend**. **Backend** reads **Not pinned** when the thread has no pinned backend. Its **Conversation** tab shows the saved snapshot's main conversation, followed by **Subagent** sections. A saved state that is not a harness conversation falls back to JSON. **Raw** shows the saved state as JSON. When no state is saved, the page shows **No saved state**.
+The page's **Facts** rail shows **Thread ID**, **Workspace**, and **Backend**. **Backend** reads **Not pinned** when the thread has no pinned backend. Its **Conversation** tab shows the saved snapshot's main conversation, followed by **Subagent** sections. A saved state that is not a harness conversation falls back to a collapsible JSON tree. **Raw** shows the saved state in the same tree. Open or close object and array nodes, click a key to copy its path, or use the copy button to copy the full JSON value. When no state is saved, the page shows **No saved state**.
 
 **Live instances** shows the instances the hosted proxy holds for the harness. A client attached to a thread or thread list makes an instance appear, and an instance stays for five minutes after its last client leaves. The page polls every 5 seconds, waits 30 seconds after an error, and does not retry automatically.
 
