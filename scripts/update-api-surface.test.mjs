@@ -12,6 +12,7 @@ test("shared generator and build inputs require every API surface", () => {
     "api-surface/assistant-ui__react.ts",
     "packages/x-buildutils/src/index.ts",
     "scripts/generate-api-surface.mjs",
+    "scripts/autofix-install.mjs",
     "scripts/update-api-surface.mjs",
     "scripts/lib/workspace.mjs",
     "package.json",

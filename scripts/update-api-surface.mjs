@@ -9,6 +9,7 @@ export const FULL_API_SURFACE_INPUTS = [
   "api-surface",
   "packages/x-buildutils",
   "scripts/generate-api-surface.mjs",
+  "scripts/autofix-install.mjs",
   "scripts/update-api-surface.mjs",
   "scripts/lib/script-options.mjs",
   "scripts/lib/workspace.mjs",
