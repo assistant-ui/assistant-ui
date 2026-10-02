@@ -70,6 +70,7 @@ test("every tracked Redis test consumer is represented", () => {
     [
       "grep",
       "-l",
+      "-z",
       "REDIS_URL",
       "--",
       "apps/**/*.test.*",
@@ -77,8 +78,8 @@ test("every tracked Redis test consumer is represented", () => {
     ],
     { cwd: root, encoding: "utf8" },
   )
-    .trim()
-    .split("\n");
+    .split("\0")
+    .filter(Boolean);
   const consumers = new Set(
     files.map((file) => {
       const workspace = file.split("/").slice(0, 2).join("/");
