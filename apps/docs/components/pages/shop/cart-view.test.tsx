@@ -19,6 +19,7 @@ import {
 } from "@/lib/catalog/cart-store";
 import { CartView } from "./cart-view";
 import { abandonCheckout, checkoutCart } from "../../../lib/checkout/flow";
+import { endCheckout } from "../../../lib/checkout/session-store";
 
 const mocks = vi.hoisted(() => ({
   hydrated: true,
@@ -44,6 +45,7 @@ vi.mock("@/lib/checkout/session-store", async (importOriginal) => ({
 
 afterEach(() => {
   cleanup();
+  endCheckout();
   clearCart();
   mocks.hydrated = true;
   mocks.items = "";

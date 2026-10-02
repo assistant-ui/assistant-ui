@@ -33,6 +33,21 @@ afterEach(() => {
 });
 
 describe("checkout flow", () => {
+  it("replaces a queued legacy selection with every configured tool restored on abandonment", async () => {
+    setupStorage();
+    const s = await load();
+    s.addAgentTool("Web search", "Search support sources.");
+    s.addAgentTool("Web search", "Search current news.");
+    const configured = s.getCartEntries();
+    s.checkoutCart();
+    s.replaceCart(["cloud", "agent-tools"]);
+    s.abandonCheckout();
+    expect(s.getCartEntries()).toEqual(["cloud", ...configured]);
+    s.mergeIntoCart(configured);
+    expect(s.getCartEntries()).toEqual(["cloud", ...configured]);
+    expect(s.checkoutCart()?.products).toEqual(["cloud", "agent-tools"]);
+  });
+
   it("keeps multi-line tool behavior nested within its numbered setup item", async () => {
     setupStorage();
     const s = await load();

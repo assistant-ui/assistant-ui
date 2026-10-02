@@ -230,17 +230,12 @@ export const replaceCart = (slugs: readonly string[]) => {
 /** Adds the given products after the ones already in the cart. */
 export const mergeIntoCart = (entries: readonly CartEntry[]) => {
   load();
-  commit([
-    ...items,
-    ...normalize([...entries]).filter(
-      (entry) =>
-        !items.some((item) =>
-          typeof entry === "string"
-            ? cartEntrySlug(item) === entry
-            : cartEntryId(item) === entry.id,
-        ),
-    ),
-  ]);
+  const merged = normalize([...items, ...entries]);
+  commit(
+    merged.some(isAgentToolCartEntry)
+      ? merged.filter((entry) => entry !== "agent-tools")
+      : merged,
+  );
 };
 
 export const clearCart = () => {
