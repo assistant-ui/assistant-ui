@@ -8,7 +8,7 @@ export default defineConfig({
   },
   test: {
     coverage: {
-      include: ["src/**"],
+      include: ["src/**/*.{ts,tsx}"],
     },
     environment: "jsdom",
     pool: "threads",

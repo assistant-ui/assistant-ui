@@ -32,7 +32,7 @@ export default defineConfig({
   plugins: refPlugins,
   test: {
     coverage: {
-      include: ["src/**", "lib/**"],
+      include: ["src/**/*.{ts,tsx}", "lib/**/*.{ts,tsx,mts,mjs}"],
     },
     environment: "jsdom",
     pool: "forks",
