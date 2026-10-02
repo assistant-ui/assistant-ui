@@ -424,35 +424,23 @@ const receiptIcons = {
   closed: CircleMinusIcon,
 } satisfies Record<ApprovalReceipt["outcome"], React.ElementType>;
 
-type ApprovalFocusTarget = {
-  element: HTMLElement;
-  container: HTMLDivElement;
-};
-
 const ToolFallbackApprovalReceipt = forwardRef<
   HTMLDivElement,
   React.ComponentPropsWithoutRef<"div"> & {
     approval: NonNullable<ToolCallMessagePart["approval"]>;
-    focusTargetRef: React.MutableRefObject<ApprovalFocusTarget | null>;
+    focusReceiptRef: React.MutableRefObject<string | null | undefined>;
   }
 >(function ToolFallbackApprovalReceipt(
-  { approval, className, focusTargetRef, ...props },
+  { approval, className, focusReceiptRef, ...props },
   ref,
 ) {
   const receiptRef = useRef<HTMLDivElement>(null);
   useImperativeHandle(ref, () => receiptRef.current!, []);
   useLayoutEffect(() => {
-    const target = focusTargetRef.current;
-    focusTargetRef.current = null;
-    if (!target) return;
-    const document = target.element.ownerDocument;
-    if (
-      document.activeElement === document.body ||
-      document.activeElement === target.element
-    ) {
-      receiptRef.current?.focus({ preventScroll: true });
-    }
-  }, [focusTargetRef]);
+    const shouldFocus = focusReceiptRef.current === approval.id;
+    focusReceiptRef.current = null;
+    if (shouldFocus) receiptRef.current?.focus({ preventScroll: true });
+  }, [approval.id, focusReceiptRef]);
 
   const receipt = approvalReceipt(approval);
   const Icon = receiptIcons[receipt.outcome];
@@ -521,14 +509,9 @@ type ToolFallbackApprovalProps = React.ComponentProps<"div"> &
     approval?: ToolCallMessagePart["approval"];
   };
 
-function ToolFallbackApproval(props: ToolFallbackApprovalProps) {
-  return <ToolFallbackApprovalImpl key={props.approval?.id} {...props} />;
-}
-
-function ToolFallbackApprovalImpl({
+function ToolFallbackApproval({
   className,
-  onFocusCapture,
-  onBlurCapture,
+  ref,
   addResult,
   resume,
   interrupt,
@@ -544,7 +527,24 @@ function ToolFallbackApprovalImpl({
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [answer, setAnswer] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const focusTargetRef = useRef<ApprovalFocusTarget | null>(null);
+  const pendingGroupRef = useRef<HTMLDivElement | null>(null);
+  const receiptRef = useRef<HTMLDivElement>(null);
+  const focusReceiptRef = useRef<string | null | undefined>(null);
+  useImperativeHandle(
+    ref,
+    () => (pendingGroupRef.current ?? receiptRef.current)!,
+  );
+  const setPendingGroup = useCallback(
+    (element: HTMLDivElement | null) => {
+      const group = pendingGroupRef.current;
+      focusReceiptRef.current =
+        !element && group?.contains(group.ownerDocument.activeElement)
+          ? approval?.id
+          : null;
+      pendingGroupRef.current = element;
+    },
+    [approval?.id],
+  );
   const hidePendingApproval =
     approval != null &&
     !isSettled(approval) &&
@@ -552,50 +552,22 @@ function ToolFallbackApprovalImpl({
     status.type !== "requires-action" &&
     !(submitted && status.type === "running");
   useLayoutEffect(() => {
-    if (hidePendingApproval) focusTargetRef.current = null;
+    if (hidePendingApproval) focusReceiptRef.current = null;
   }, [hidePendingApproval]);
   const focusPendingGroup = () => {
-    const target = focusTargetRef.current;
-    if (
-      target &&
-      target.element === target.element.ownerDocument.activeElement
-    ) {
-      target.container.focus({ preventScroll: true });
+    const group = pendingGroupRef.current;
+    if (group?.contains(group.ownerDocument.activeElement)) {
+      group.focus({ preventScroll: true });
     }
-  };
-  const focusProps = {
-    onFocusCapture: (event: React.FocusEvent<HTMLDivElement>) => {
-      focusTargetRef.current = {
-        element: event.target,
-        container: event.currentTarget,
-      };
-      onFocusCapture?.(event);
-    },
-    onBlurCapture: (event: React.FocusEvent<HTMLDivElement>) => {
-      if (
-        event.relatedTarget === null &&
-        event.currentTarget.contains(
-          event.currentTarget.ownerDocument.activeElement,
-        )
-      ) {
-        onBlurCapture?.(event);
-        return;
-      }
-      if (!event.currentTarget.contains(event.relatedTarget)) {
-        focusTargetRef.current = null;
-      }
-      onBlurCapture?.(event);
-    },
   };
 
   if (approval != null && isSettled(approval))
     return (
       <ToolFallbackApprovalReceipt
         approval={approval}
-        focusTargetRef={focusTargetRef}
+        ref={receiptRef}
+        focusReceiptRef={focusReceiptRef}
         className={className}
-        onFocusCapture={onFocusCapture}
-        onBlurCapture={onBlurCapture}
         {...props}
       />
     );
@@ -623,7 +595,7 @@ function ToolFallbackApprovalImpl({
             className,
           )}
           {...props}
-          {...focusProps}
+          ref={setPendingGroup}
         >
           {promptText}
         </div>
@@ -787,7 +759,7 @@ function ToolFallbackApprovalImpl({
           className,
         )}
         {...props}
-        {...focusProps}
+        ref={setPendingGroup}
       >
         <p className="aui-tool-fallback-approval-confirm-title font-semibold">
           {confirmMeta?.title ?? `${approvalOptionLabel(confirming)}?`}
@@ -849,7 +821,7 @@ function ToolFallbackApprovalImpl({
           className,
         )}
         {...props}
-        {...focusProps}
+        ref={setPendingGroup}
       >
         {promptText}
         <div className="flex flex-wrap items-center gap-2">
@@ -898,7 +870,7 @@ function ToolFallbackApprovalImpl({
           className,
         )}
         {...props}
-        {...focusProps}
+        ref={setPendingGroup}
       >
         {promptText}
         {answerField}
@@ -919,7 +891,7 @@ function ToolFallbackApprovalImpl({
         className,
       )}
       {...props}
-      {...focusProps}
+      ref={setPendingGroup}
     >
       {promptText}
       <div className="flex items-center gap-2">

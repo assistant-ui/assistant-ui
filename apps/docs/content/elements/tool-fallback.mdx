@@ -109,8 +109,6 @@ On the web, when the controls are replaced while they hold keyboard focus, focus
 
 In the web renderer, an explicit `approval` record keeps the component mounted across run-status updates, including when an external-store adapter updates the run status before the approval. Controls appear only while the request requires action, or while a submitted decision is still running and awaiting its receipt; submitted controls stay locked. If the run ends without settling the approval, the controls disappear. An unanswered approval in a running or finished message does not expose new actions.
 
-On the web, changing `approval.id` starts a fresh request in both the default renderer and `ToolFallback.Approval`, clearing the previous request's input, confirmation, error, and submission state.
-
 ```tsx
 approval: {
   id: "call-1",
