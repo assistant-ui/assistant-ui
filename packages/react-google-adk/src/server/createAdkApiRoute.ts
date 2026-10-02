@@ -30,6 +30,29 @@ export type CreateAdkApiRouteOptions = {
   sessionId: string | ((req: Request) => string | Promise<string>);
 
   /**
+   * Validates or replaces the client-provided ADK run configuration.
+   * Client values are ignored unless this resolver is provided.
+   */
+  resolveRunConfig?:
+    | ((req: Request, runConfig: unknown) => unknown | Promise<unknown>)
+    | undefined;
+
+  /**
+   * Validates or replaces the client-provided ADK state delta.
+   * Client values are ignored unless this resolver is provided. In particular,
+   * `app:` and `user:` keys affect state beyond the current session.
+   */
+  resolveStateDelta?:
+    | ((
+        req: Request,
+        stateDelta: Record<string, unknown> | undefined,
+      ) =>
+        | Record<string, unknown>
+        | undefined
+        | Promise<Record<string, unknown> | undefined>)
+    | undefined;
+
+  /**
    * Error handler for stream errors.
    */
   onError?: AdkEventStreamOptions["onError"];
@@ -68,14 +91,19 @@ export function createAdkApiRoute(
         ? await options.sessionId(req)
         : options.sessionId;
 
+    const runConfig = options.resolveRunConfig
+      ? await options.resolveRunConfig(req, parsed.config.runConfig)
+      : undefined;
+    const stateDelta = options.resolveStateDelta
+      ? await options.resolveStateDelta(req, parsed.stateDelta)
+      : undefined;
+
     const events = options.runner.runAsync({
       userId,
       sessionId,
       newMessage,
-      ...(parsed.stateDelta != null && { stateDelta: parsed.stateDelta }),
-      ...(parsed.config.runConfig != null && {
-        runConfig: parsed.config.runConfig,
-      }),
+      ...(stateDelta != null && { stateDelta }),
+      ...(runConfig != null && { runConfig }),
     });
 
     return adkEventStream(
