@@ -5,6 +5,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -13,6 +14,9 @@ import path from "node:path";
 import test from "node:test";
 import {
   collectDeclarationEntries,
+  checkPackage,
+  checkPackages,
+  declarationConcurrency,
   createDeclarationProbe,
   declarationGateResult,
   isExecutedAsMain,
@@ -207,4 +211,113 @@ test("treats symlink-equivalent paths as the main module", () => {
     true,
   );
   assert.equal(isExecutedAsMain(import.meta.url, undefined), false);
+});
+
+test("limits compiler concurrency and retains package order after an early failure", async () => {
+  const packages = Array.from({ length: 4 }, (_, index) => ({
+    packageDir: String(index),
+    pkg: {},
+  }));
+  const gates = packages.map(() => Promise.withResolvers());
+  const started = [];
+  const checking = checkPackages("unused", packages, 2, async (_, dir) => {
+    const index = Number(dir);
+    started.push(index);
+    await gates[index].promise;
+    return { status: index === 1 ? 1 : 0, stdout: dir, stderr: "" };
+  });
+  assert.deepEqual(started, [0, 1]);
+  gates[1].resolve();
+  await new Promise(setImmediate);
+  assert.deepEqual(started, [0, 1, 2]);
+  gates[2].resolve();
+  await new Promise(setImmediate);
+  assert.deepEqual(started, [0, 1, 2, 3]);
+  gates[3].resolve();
+  gates[0].resolve();
+  const results = await checking;
+  assert.deepEqual(
+    results.map((result) => result.stdout),
+    ["0", "1", "2", "3"],
+  );
+  assert.deepEqual(
+    results.map((result) => result.status),
+    [0, 1, 0, 0],
+  );
+  assert.deepEqual(await checkPackages("unused", [], 2), []);
+});
+
+test("accepts only positive integer concurrency limits", () => {
+  assert.ok([1, 2].includes(declarationConcurrency()));
+  assert.equal(declarationConcurrency("1"), 1);
+  assert.equal(declarationConcurrency("2"), 2);
+  for (const value of [
+    "",
+    "0",
+    "-1",
+    "1.5",
+    "NaN",
+    "Infinity",
+    "9007199254740992",
+  ]) {
+    assert.throws(() => declarationConcurrency(value), /positive integer/);
+  }
+});
+
+test("parallel and sequential compilers return the same declarations diagnostics and clean up probes", async () => {
+  const dirs = [
+    createFixture("export interface PresentType {}\n"),
+    createFixture("export declare const broken: MissingType;\n"),
+    createFixture("export {};\n"),
+  ];
+  writeFileSync(path.join(dirs[2], "tsconfig.json"), "invalid json");
+  const packages = dirs.map((packageDir) => ({
+    packageDir,
+    pkg: JSON.parse(
+      readFileSync(path.join(packageDir, "package.json"), "utf8"),
+    ),
+  }));
+  try {
+    const sequential = await checkPackages(repoRoot, packages, 1);
+    const parallel = await checkPackages(repoRoot, packages, 2);
+    const normalize = (results) =>
+      JSON.stringify(results).replaceAll(
+        /\.strict-libcheck-[^/\\]+/g,
+        ".strict-libcheck-probe",
+      );
+    assert.equal(normalize(parallel), normalize(sequential));
+    assert.deepEqual(
+      parallel.map((result) => result.status),
+      [0, 1, 1],
+    );
+    assert.match(parallel[1].stdout, /Cannot find name 'MissingType'/);
+    for (const dir of dirs)
+      assert.deepEqual(
+        readdirSync(dir).filter((name) => name.startsWith(".strict-libcheck-")),
+        [],
+      );
+  } finally {
+    for (const dir of dirs) rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("async compiler startup failures still fail the declaration gate", async () => {
+  const dir = createFixture("export {};\n");
+  const bin = path.join(dir, "node_modules/.bin");
+  mkdirSync(bin, { recursive: true });
+  writeFileSync(path.join(bin, "tsc"), "not executable");
+  try {
+    const pkg = JSON.parse(
+      readFileSync(path.join(dir, "package.json"), "utf8"),
+    );
+    const result = await checkPackage(dir, dir, pkg);
+    assert.equal(result.status, 1);
+    assert.match(result.stdout, /EACCES/);
+    assert.deepEqual(
+      readdirSync(dir).filter((name) => name.startsWith(".strict-libcheck-")),
+      [],
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
