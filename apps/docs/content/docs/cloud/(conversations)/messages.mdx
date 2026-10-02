@@ -17,7 +17,7 @@ The local runtime writes `aui/v0`. The AI SDK runtime writes `ai-sdk/v6`, and a 
 
 | Stored row | No `format` query | `format=ai-sdk/v5` | `format=ai-sdk/v6` |
 |---|---|---|---|
-| `aui/v0` | Returned as `aui/v0` | Converted to `ai-sdk/v5` | Converted to `ai-sdk/v6` |
+| `aui/v0` | Returned as `aui/v0` | Converted to `ai-sdk/v5`, with data parts as `data-<name>` and document sources as `source-document` | Converted to `ai-sdk/v6`, with data parts as `data-<name>` and document sources as `source-document` |
 | `ai-sdk/v5` | Returned as `ai-sdk/v5` | Returned as `ai-sdk/v5` | Converted to `ai-sdk/v6` |
 | `ai-sdk/v6` | Returned as `ai-sdk/v6` | Returned as stored | Returned as `ai-sdk/v6` |
 

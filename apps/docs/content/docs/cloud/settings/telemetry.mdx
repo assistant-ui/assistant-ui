@@ -50,4 +50,4 @@ Each request can carry an `Aui-Sdk` header with up to 8 `name/semver` tokens. A 
 | A client is missing | Its requests did not supply an `Aui-Sdk` token the cloud can record, or the latest write is within the 10 minute throttle. | Send a request with the package `name/semver` token and check the list after the throttle window. |
 | A trace link does not appear on a run | The run has no trace ID, or no saved template contains `{trace_id}`. | Store the run's trace ID and save a template that includes the literal placeholder. |
 | The template is refused | It exceeds 512 characters or does not contain the required placeholder. | Shorten it if needed and include `{trace_id}` exactly. |
-| The Renderer URL is refused | It is not `https` (or `http` on localhost), carries credentials or a wildcard host, or is longer than 2,048 characters. | Use the page's `https` URL, or `http://localhost` while you develop. |
+| The Renderer URL is refused | It is not `https` (or `http` on `localhost` or `127.0.0.1`), carries credentials or a wildcard host, or is longer than 2,048 characters. | Use the page's `https` URL, or `http://localhost` or `http://127.0.0.1` while you develop. |
