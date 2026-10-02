@@ -16,8 +16,10 @@ export function collectCoverageSummaries(root = repoRoot) {
     return readdirSync(dir, { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
       .map((entry) => path.join(dir, entry.name))
-      .filter((workspaceDir) =>
-        existsSync(path.join(workspaceDir, "coverage/coverage-summary.json")),
+      .filter(
+        (workspaceDir) =>
+          existsSync(path.join(workspaceDir, "package.json")) &&
+          existsSync(path.join(workspaceDir, "coverage/coverage-summary.json")),
       )
       .map((workspaceDir) => ({
         name: readJson(path.join(workspaceDir, "package.json")).name,
@@ -41,13 +43,16 @@ function combine(summaries) {
       );
       return [
         metric,
-        { covered, total, pct: total === 0 ? 100 : (covered / total) * 100 },
+        { covered, total, pct: total === 0 ? null : (covered / total) * 100 },
       ];
     }),
   );
 }
 
-const formatPct = (pct) => `${Number(pct).toFixed(1)}%`;
+const formatPct = ({ total, pct }) =>
+  total === 0 || !Number.isFinite(Number(pct))
+    ? "N/A"
+    : `${Number(pct).toFixed(1)}%`;
 
 export function renderCoverageMarkdown(summaries) {
   if (summaries.length === 0) {
@@ -57,7 +62,7 @@ export function renderCoverageMarkdown(summaries) {
   const header = `| Package | ${METRICS.map((m) => m[0].toUpperCase() + m.slice(1)).join(" | ")} |`;
   const divider = `| --- | ${METRICS.map(() => "---:").join(" | ")} |`;
   const row = (name, total) =>
-    `| ${name} | ${METRICS.map((m) => formatPct(total[m].pct)).join(" | ")} |`;
+    `| ${name} | ${METRICS.map((m) => formatPct(total[m])).join(" | ")} |`;
 
   const rows = summaries.map(({ name, total }) => row(`\`${name}\``, total));
   if (summaries.length > 1) rows.push(row("**All**", combine(summaries)));
