@@ -81,6 +81,16 @@ const useThreadClient = ({
     }
 
     unsubscribers.push(
+      runtime.unstable_on("historyWriteError", (payload) => {
+        const threadId = runtime.getState()?.threadId || "unknown";
+        // payload.error omitted: raw Error is not store-serializable; use runtime.unstable_on for it.
+        emit("thread.historyWriteError", {
+          threadId,
+          operation: payload.operation,
+          messageIds: payload.messageIds,
+          message: payload.message,
+        });
+      }),
       runtime.unstable_on("toolApprovalAnswered", (payload) => {
         const threadId = runtime.getState()?.threadId || "unknown";
         emit("thread.toolApprovalAnswered", { threadId, ...payload });
