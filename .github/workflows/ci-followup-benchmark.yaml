@@ -1,0 +1,69 @@
+name: CI follow-up benchmark
+
+on:
+  push:
+    branches: [perf/ci-followup-benchmarks]
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    name: ${{ matrix.target }} / ${{ matrix.mode }} / ${{ matrix.repeat }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        target: [api-reference, template-metrics]
+        mode: [full-cache, filtered-cache, filtered-no-cache]
+        repeat: [1, 2]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b
+        with:
+          runtime: node@24
+          cache: ${{ matrix.mode != 'filtered-no-cache' }}
+          install: false
+      - name: Install dependencies
+        env:
+          TARGET: ${{ matrix.target }}
+          MODE: ${{ matrix.mode }}
+        run: |
+          set -euo pipefail
+          if [ "$MODE" = full-cache ]; then
+            pnpm install --frozen-lockfile
+          elif [ "$TARGET" = api-reference ]; then
+            pnpm install --frozen-lockfile --filter . --filter '@assistant-ui/docs...' --filter '@assistant-ui/react-devtools...'
+          else
+            pnpm install --frozen-lockfile --filter . --filter './templates/default...' --filter './templates/minimal...' --filter '@assistant-ui/react-devtools...'
+          fi
+      - name: Generate API reference
+        if: matrix.target == 'api-reference'
+        run: |
+          set -euo pipefail
+          pnpm -C apps/docs generate:api-reference -- --strict
+          git diff --exit-code -- 'apps/docs/content/docs/(reference)/api-reference'
+          git ls-files -z -- 'apps/docs/content/docs/(reference)/api-reference' | sort -z | xargs -0 sha256sum | sha256sum
+      - name: Build templates
+        if: matrix.target == 'template-metrics'
+        env:
+          NEXT_PUBLIC_ASSISTANT_BASE_URL: https://example.com
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_placeholder
+          NEXT_TELEMETRY_DISABLED: "1"
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+        run: pnpm turbo build --filter=./templates/default --filter=./templates/minimal
+      - name: Measure templates
+        if: matrix.target == 'template-metrics'
+        run: |
+          node scripts/template-metrics.mjs measure . metrics-head.json
+          node scripts/template-metrics.mjs measure-base . metrics-base-main.json
+          node scripts/template-metrics.mjs report metrics-base-main.json metrics-head.json metrics-report.md metrics-comment.txt
+          cat metrics-head.json
+
