@@ -2,6 +2,17 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getDistinctId } from "./posthog-server";
 
+const posthog = vi.hoisted(() => ({
+  captureExceptionImmediate: vi.fn(async () => {}),
+}));
+
+vi.mock("posthog-node", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("posthog-node")>()),
+  PostHog: class {
+    captureExceptionImmediate = posthog.captureExceptionImmediate;
+  },
+}));
+
 const withIp = (ip: string) =>
   new Request("https://www.assistant-ui.com/api/chat", {
     headers: { "x-forwarded-for": ip },
@@ -56,5 +67,95 @@ describe("analytics distinct id", () => {
     expect(
       getDistinctId(new Request("https://www.assistant-ui.com/api/chat")),
     ).toBe("anon_unknown");
+  });
+});
+
+describe("server request errors", () => {
+  const loadWithKey = async (key: string) => {
+    vi.resetModules();
+    vi.stubEnv("NEXT_PUBLIC_POSTHOG_API_KEY", key);
+    return import("./posthog-server");
+  };
+
+  const context = {
+    routerKind: "App Router",
+    routePath: "/api/chat",
+    routeType: "route",
+    revalidateReason: undefined,
+  } as const;
+
+  it("reports nothing without a project key", async () => {
+    const { captureRequestError } = await loadWithKey("");
+
+    await captureRequestError(
+      new Error("boom"),
+      { path: "/api/chat", method: "POST", headers: {} },
+      context,
+    );
+
+    expect(posthog.captureExceptionImmediate).not.toHaveBeenCalled();
+  });
+
+  it("reports the error with the path, method, and route only", async () => {
+    const { captureRequestError } = await loadWithKey("phc_test");
+    const error = Object.assign(new Error("boom"), { digest: "123" });
+
+    await captureRequestError(
+      error,
+      {
+        path: "/docs/runtimes?q=private",
+        method: "GET",
+        headers: {
+          cookie: `ph_phc_test_posthog=${encodeURIComponent(
+            JSON.stringify({ distinct_id: "person_1" }),
+          )}`,
+          authorization: "Bearer secret",
+          "user-agent": "agent",
+        },
+      },
+      {
+        routerKind: "App Router",
+        routePath: "/docs/[[...slug]]",
+        routeType: "render",
+        renderSource: "react-server-components",
+        revalidateReason: undefined,
+      },
+    );
+
+    expect(posthog.captureExceptionImmediate).toHaveBeenCalledExactlyOnceWith(
+      error,
+      "docs-server",
+      {
+        $process_person_profile: false,
+        path: "/docs/runtimes",
+        method: "GET",
+        router_kind: "App Router",
+        route_path: "/docs/[[...slug]]",
+        route_type: "render",
+        render_source: "react-server-components",
+        digest: "123",
+      },
+    );
+  });
+
+  it("sends no visitor identity, even with an address and a secret", async () => {
+    vi.stubEnv("AUI_ANONYMOUS_SESSION_SECRET", "a-secret-with-enough-entropy");
+    const { captureRequestError } = await loadWithKey("phc_test");
+
+    await captureRequestError(
+      "thrown string",
+      {
+        path: "/api/chat",
+        method: "POST",
+        headers: { "x-forwarded-for": "203.0.113.7, 70.41.3.18" },
+      },
+      context,
+    );
+
+    expect(posthog.captureExceptionImmediate).toHaveBeenCalledExactlyOnceWith(
+      "thrown string",
+      "docs-server",
+      expect.objectContaining({ path: "/api/chat", method: "POST" }),
+    );
   });
 });
