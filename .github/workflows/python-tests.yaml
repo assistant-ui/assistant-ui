@@ -1,42 +1,34 @@
 name: Python Tests
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "python/**"
-      - ".github/workflows/python-tests.yaml"
-  pull_request:
-    branches: [main]
-    paths:
-      - "python/**"
-      - ".github/workflows/python-tests.yaml"
+  workflow_call:
+    inputs:
+      package:
+        required: true
+        type: string
 
 permissions:
   contents: read
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   test:
-    name: pytest (${{ matrix.package }}, ${{ matrix.python-version }})
+    name: pytest (${{ inputs.package }}, ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
-        package:
-          - assistant-stream
-          - assistant-ui-sync-server-api
         python-version: ["3.10", "3.12", "3.14"]
     defaults:
       run:
-        working-directory: python/${{ matrix.package }}
+        working-directory: python/${{ inputs.package }}
     steps:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+
+      - name: Verify Python workflow selection
+        working-directory: .
+        run: node --test scripts/python-test-workflows.test.mjs
 
       - name: Install uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # ratchet:astral-sh/setup-uv@v10.2.0
