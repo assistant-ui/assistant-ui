@@ -549,6 +549,7 @@ The rule of thumb:
 | `message.speak`               | Speech synthesis started for the message                                     |
 | `message.error`               | The message entered an error status                                          |
 | `thread.toolApprovalAnswered` | A tool approval request was answered. Payload carries `messageId`, `toolCallId`, `toolName`, and `approved`. |
+| `thread.historyWriteError`    | A local runtime history write failed. Payload carries `threadId`, `operation` (`append`, `update`, or `delete`), affected `messageIds`, and the original `error`. The stored history may differ from the thread. |
 | `thread.voiceStarted`         | The user started a voice session on the thread                               |
 
 #### Deprecated Events
