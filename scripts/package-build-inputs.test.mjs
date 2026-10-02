@@ -156,6 +156,7 @@ test("the build install follows the affected package graph", () => {
   for (const filter of [
     ".",
     "@assistant-ui/api-surface",
+    "@assistant-ui/react-devtools...",
     "@assistant-ui/x-buildutils...",
     "@assistant-ui/x-performance",
     "...[$BASE]...",
