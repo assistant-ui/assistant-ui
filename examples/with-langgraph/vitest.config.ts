@@ -3,6 +3,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     coverage: {
+      include: ["app/**", "components/**"],
       thresholds: {
         lines: 89,
         functions: 59,
