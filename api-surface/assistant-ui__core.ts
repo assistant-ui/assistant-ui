@@ -4005,7 +4005,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
   get threadItems(): Readonly<Record<THREAD_MAPPING_ID, RemoteThreadData>>;
   getLoadThreadsPromise(): Promise<void>;
   loadMore(): Promise<void>;
-  constructor(options: RemoteThreadListOptions, contextProvider: ModelContextProvider);
+  constructor(options: RemoteThreadListOptions, contextProvider: ModelContextProvider, initialThreadIdSeed?: string);
   __internal_setOptions(options: RemoteThreadListOptions): void;
   __internal_load(): void;
   reloadMainThread(): Promise<void>;
@@ -4733,6 +4733,12 @@ type ThreadData$2 = {
 };
 
 type ThreadEvents = {
+  "thread.historyWriteError": {
+    threadId: string;
+    operation: "append" | "delete" | "update";
+    messageIds: readonly string[];
+    message: string;
+  };
   "thread.toolApprovalAnswered": {
     threadId: string;
     messageId: string;
@@ -5368,6 +5374,12 @@ type ThreadRuntimeCoreBinding = SubscribableWithState<ThreadRuntimeCore, ThreadR
 type ThreadRuntimeEventCallback<E extends ThreadRuntimeEventType> = (payload: ThreadRuntimeEventPayload[E]) => void;
 
 type ThreadRuntimeEventPayload = {
+  historyWriteError: {
+    operation: "append" | "delete" | "update";
+    messageIds: readonly string[];
+    message: string;
+    error: unknown;
+  };
   toolApprovalAnswered: {
     messageId: string;
     toolCallId: string;
