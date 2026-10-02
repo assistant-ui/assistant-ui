@@ -137,3 +137,44 @@ test("the workflow gates dependency-backed package steps", () => {
     /steps\.package_build_inputs\.outputs\.run/,
   );
 });
+
+test("the build install follows the affected package graph", () => {
+  assert.match(step("Setup pnpm and node.js"), /cache: false/);
+  const install = step("Install dependencies");
+  assert.match(install, /BASE="origin\/\$\{\{ github\.base_ref \}\}"/);
+  assert.match(install, /BASE="\$\{\{ github\.event\.before \}\}"/);
+  const guardedInstall = install.match(
+    /if git diff --quiet "\$BASE" HEAD -- \\\n(?<inputs>[\s\S]*?); then\n(?<filteredInstall>[\s\S]*?)\n\s+else/,
+  );
+  assert.ok(guardedInstall?.groups);
+  for (const input of [
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "turbo.json",
+    "packages/x-buildutils",
+  ]) {
+    assert.ok(guardedInstall.groups.inputs.includes(input), input);
+  }
+  assert.match(
+    guardedInstall.groups.filteredInstall,
+    /pnpm install --frozen-lockfile \\/,
+  );
+  for (const filter of [
+    ".",
+    "@assistant-ui/api-surface",
+    "@assistant-ui/react-devtools...",
+    "@assistant-ui/x-buildutils...",
+    "@assistant-ui/x-performance",
+    "...[$BASE]...",
+    "!./apps/*",
+    "!./examples/*",
+    "!./templates/*",
+  ]) {
+    assert.ok(
+      guardedInstall.groups.filteredInstall.includes(`--filter="${filter}"`),
+      filter,
+    );
+  }
+  assert.match(install, /else\n\s+pnpm install --frozen-lockfile\n\s+fi/);
+});
