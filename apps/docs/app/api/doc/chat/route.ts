@@ -5,6 +5,7 @@ import { checkPublicAssistantRateLimit } from "@/lib/rate-limit";
 import { requirePublicAssistantSession } from "@/lib/anonymous-session";
 import {
   validateDocChatInput,
+  validateDocChatRequestInput,
   validateFrontendToolsInput,
 } from "@/lib/validate-input";
 import { source, examples as examplesSource } from "@/lib/source";
@@ -323,10 +324,13 @@ export async function POST(req: Request): Promise<Response> {
     const toolsError = validateFrontendToolsInput(tools);
     if (toolsError) return toolsError;
 
-    const inputError = validateDocChatInput(messages);
-    if (inputError) return inputError;
+    const requestInputError = validateDocChatRequestInput(messages);
+    if (requestInputError) return requestInputError;
 
     const prunedMessages = await prepareDocChatMessages(messages);
+
+    const inputError = validateDocChatInput(prunedMessages);
+    if (inputError) return inputError;
 
     const { model, providerOptions } = resolveChatModel({
       modelName: config?.modelName,

@@ -220,6 +220,52 @@ describe("POST /api/doc/chat access boundary", () => {
     await expect(response.text()).resolves.toBe("Input too long");
     expect(mocks.resolveChatModel).not.toHaveBeenCalled();
   });
+
+  it("allows prunable tool output above the model per-message limit", async () => {
+    mocks.requireSession.mockReturnValue({
+      id: "session_1234567890",
+      expiresAt: Date.now() + 60_000,
+    });
+    mocks.checkRateLimit.mockResolvedValue(null);
+
+    await POST(
+      new Request("https://www.assistant-ui.com/api/doc/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            {
+              id: "old-tool-output",
+              role: "assistant",
+              parts: [
+                {
+                  type: "dynamic-tool",
+                  toolName: "readDoc",
+                  toolCallId: "call_1",
+                  state: "output-available",
+                  input: {},
+                  output: "x".repeat(30_000),
+                },
+              ],
+            },
+            {
+              id: "latest-user",
+              role: "user",
+              parts: [{ type: "text", text: "Summarize that page." }],
+            },
+            {
+              id: "latest-assistant",
+              role: "assistant",
+              parts: [{ type: "text", text: "I'll summarize it." }],
+            },
+          ],
+          tools: {},
+        }),
+      }),
+    );
+
+    expect(mocks.resolveChatModel).toHaveBeenCalledOnce();
+  });
 });
 
 describe("withReadDocSources", () => {

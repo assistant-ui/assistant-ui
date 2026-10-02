@@ -97,5 +97,21 @@ export function validateFrontendToolsInput(tools: unknown): Response | null {
   if (serializedTools.length > MAX_FRONTEND_TOOLS_CHARS) {
     return new Response("Tools too large", { status: 400 });
   }
+
+  return null;
+}
+
+export function validateDocChatRequestInput(
+  messages: unknown,
+): Response | null {
+  if (!Array.isArray(messages)) {
+    return new Response("Invalid messages format", { status: 400 });
+  }
+
+  const { totalChars } = measureMessageChars(messages);
+  if (totalChars > DOC_CHAT_LIMITS.maxTotalChars) {
+    return new Response("Input too long", { status: 400 });
+  }
+
   return null;
 }
