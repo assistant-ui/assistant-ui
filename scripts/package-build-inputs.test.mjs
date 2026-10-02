@@ -139,6 +139,7 @@ test("the workflow gates dependency-backed package steps", () => {
 });
 
 test("the build install follows the affected package graph", () => {
+  assert.match(step("Setup pnpm and node.js"), /cache: false/);
   const install = step("Install dependencies");
   assert.match(install, /BASE=HEAD\^1/);
   assert.match(install, /BASE="\$\{\{ github\.event\.before \}\}"/);
