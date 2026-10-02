@@ -2,6 +2,7 @@
 
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { changedFilesSince } from "./lib/changed-files.mjs";
 import { optionValues } from "./lib/script-options.mjs";
 import { requiresFullApiSurface } from "./update-api-surface.mjs";
 
@@ -18,20 +19,6 @@ export function autofixInstallArgs(changedFiles, base) {
     "--filter=!./examples/*",
     "--filter=!./templates/*",
   ];
-}
-
-function changedFilesSince(base) {
-  const result = spawnSync(
-    "git",
-    ["diff", "--name-only", "--no-renames", "-z", base],
-    { cwd: process.cwd(), encoding: "utf8" },
-  );
-  if (result.status !== 0) {
-    throw new Error(
-      `Unable to determine autofix install inputs since ${base}:\n${result.stdout}${result.stderr}`,
-    );
-  }
-  return result.stdout.split("\0").filter((file) => file !== "");
 }
 
 function main() {

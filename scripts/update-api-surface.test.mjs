@@ -14,6 +14,7 @@ test("shared generator and build inputs require every API surface", () => {
     "scripts/generate-api-surface.mjs",
     "scripts/autofix-install.mjs",
     "scripts/update-api-surface.mjs",
+    "scripts/lib/changed-files.mjs",
     "scripts/lib/workspace.mjs",
     "package.json",
     "pnpm-lock.yaml",
