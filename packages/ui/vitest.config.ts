@@ -27,6 +27,9 @@ const web = {
 
 export default defineConfig({
   test: {
+    coverage: {
+      include: ["src/**"],
+    },
     fsModuleCache: true,
     projects: [
       {

@@ -4,6 +4,10 @@ import { aui } from "@assistant-ui/vite";
 export default defineConfig({
   plugins: [aui()],
   test: {
+    coverage: {
+      include: ["src/**"],
+      exclude: ["src/tests/**", "src/unstable/webmcp/__tests__/**"],
+    },
     environment: "node",
     pool: "threads",
     fsModuleCache: true,

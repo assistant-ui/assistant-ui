@@ -14,6 +14,10 @@ export default defineConfig({
     ],
   },
   test: {
+    coverage: {
+      include: ["src/**"],
+      exclude: ["src/__tests__/**"],
+    },
     environment: "jsdom",
     fsModuleCache: true,
     globals: true,
