@@ -112,7 +112,14 @@ test("both entry workflows share unchanged test commands and Python versions", (
   for (const { source, pkg } of triggers) {
     assert.match(source, /uses: \.\/\.github\/workflows\/python-tests.yaml/);
     assert.ok(source.includes(`package: ${pkg}`));
-    assert.equal([...source.matchAll(/branches: \[main\]/g)].length, 2);
+    assert.equal(
+      [
+        ...source.matchAll(
+          /branches: \[main(?:, perf\/python-selection-benchmark)?\]/g,
+        ),
+      ].length,
+      2,
+    );
     assert.match(
       source,
       /group: \$\{\{ github.workflow \}\}-\$\{\{ github.ref \}\}/,

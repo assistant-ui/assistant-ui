@@ -2,7 +2,7 @@ name: Python Stream Tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, perf/python-selection-benchmark]
     paths:
       - "python/**"
       - "!python/assistant-ui-sync-server-api/**"
