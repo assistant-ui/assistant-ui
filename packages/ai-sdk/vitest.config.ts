@@ -9,6 +9,8 @@ const standaloneShim = "@assistant-ui/tap/standalone-shim";
 export default defineConfig({
   test: {
     coverage: {
+      include: ["src/**"],
+      exclude: ["src/__tests__/**", "src/runtime/__tests__/**"],
       thresholds: {
         lines: 96,
         functions: 93,

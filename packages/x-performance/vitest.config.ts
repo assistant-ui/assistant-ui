@@ -32,6 +32,7 @@ export default defineConfig({
   plugins: refPlugins,
   test: {
     coverage: {
+      include: ["src/**", "lib/**"],
       thresholds: {
         lines: 76,
         functions: 80,

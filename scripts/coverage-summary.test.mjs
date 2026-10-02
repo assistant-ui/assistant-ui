@@ -64,6 +64,27 @@ test("collects only workspaces that wrote a coverage summary, sorted by name", (
   }
 });
 
+test("skips leftover coverage from a workspace that no longer has a package.json", () => {
+  const root = createRepo({
+    "packages/core": { name: "@assistant-ui/core", total: totals(1, 2) },
+  });
+  try {
+    mkdirSync(path.join(root, "packages/removed/coverage"), {
+      recursive: true,
+    });
+    writeFileSync(
+      path.join(root, "packages/removed/coverage/coverage-summary.json"),
+      JSON.stringify({ total: totals(1, 2) }),
+    );
+    assert.deepEqual(
+      collectCoverageSummaries(root).map(({ name }) => name),
+      ["@assistant-ui/core"],
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("renders one row per package and a combined row weighted by size", () => {
   const markdown = renderCoverageMarkdown([
     { name: "a", total: totals(1, 2) },
@@ -72,6 +93,29 @@ test("renders one row per package and a combined row weighted by size", () => {
   assert.match(markdown, /\| `a` \| 50\.0% \| 50\.0% \| 50\.0% \| 50\.0% \|/);
   assert.match(markdown, /\| `b` \| 100\.0% /);
   assert.match(markdown, /\| \*\*All\*\* \| 90\.0% /);
+});
+
+test("shows N/A for a metric with nothing to measure", () => {
+  const empty = { covered: 0, total: 0, pct: "Unknown" };
+  const markdown = renderCoverageMarkdown([
+    {
+      name: "a",
+      total: {
+        lines: empty,
+        statements: empty,
+        functions: empty,
+        branches: empty,
+      },
+    },
+    { name: "b", total: { ...totals(1, 2), branches: empty } },
+  ]);
+  assert.match(markdown, /\| `a` \| N\/A \| N\/A \| N\/A \| N\/A \|/);
+  assert.match(markdown, /\| `b` \| 50\.0% \| 50\.0% \| 50\.0% \| N\/A \|/);
+  assert.match(
+    markdown,
+    /\| \*\*All\*\* \| 50\.0% \| 50\.0% \| 50\.0% \| N\/A \|/,
+  );
+  assert.doesNotMatch(markdown, /NaN/);
 });
 
 test("omits the combined row for a single package", () => {

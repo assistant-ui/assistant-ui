@@ -7,6 +7,17 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export default {
   test: {
     coverage: {
+      include: [
+        "app/**",
+        "components/**",
+        "hooks/**",
+        "lib/**",
+        "runtimes/**",
+        "instrumentation.ts",
+        "instrumentation-client.ts",
+        "proxy.ts",
+        "mdx-components.tsx",
+      ],
       thresholds: {
         lines: 68,
         functions: 61,

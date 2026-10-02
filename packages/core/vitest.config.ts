@@ -5,6 +5,8 @@ export default defineConfig({
   plugins: [aui()],
   test: {
     coverage: {
+      include: ["src/**"],
+      exclude: ["src/tests/**"],
       thresholds: {
         lines: 90,
         functions: 85,

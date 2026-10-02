@@ -2,9 +2,8 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    environment: "jsdom",
-    include: ["src/**/*.test.{ts,tsx}"],
     coverage: {
+      include: ["src/**"],
       thresholds: {
         lines: 99,
         functions: 99,
@@ -12,5 +11,7 @@ export default defineConfig({
         autoUpdate: (threshold) => Math.ceil(threshold) - 1,
       },
     },
+    environment: "jsdom",
+    include: ["src/**/*.test.{ts,tsx}"],
   },
 });

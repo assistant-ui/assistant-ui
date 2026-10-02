@@ -5,6 +5,8 @@ export default defineConfig({
   plugins: [aui()],
   test: {
     coverage: {
+      include: ["src/**"],
+      exclude: ["src/tests/**", "src/unstable/webmcp/__tests__/**"],
       thresholds: {
         lines: 84,
         functions: 74,

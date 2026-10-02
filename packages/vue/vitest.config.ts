@@ -15,6 +15,8 @@ export default defineConfig({
   },
   test: {
     coverage: {
+      include: ["src/**"],
+      exclude: ["src/__tests__/**"],
       thresholds: {
         lines: 95,
         functions: 95,

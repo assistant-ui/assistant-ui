@@ -8,6 +8,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   test: {
     coverage: {
+      include: ["src/**"],
       thresholds: {
         lines: 88,
         functions: 85,
