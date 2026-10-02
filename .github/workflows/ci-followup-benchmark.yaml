@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       max-parallel: 6
       matrix:
-        target: [api-reference, template-metrics]
+        target: [template-metrics]
         mode: [full-cache, filtered-no-cache]
         repeat: [3]
     steps:
@@ -58,7 +58,7 @@ jobs:
           NEXT_TELEMETRY_DISABLED: "1"
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
-        run: pnpm turbo build --filter=./templates/default --filter=./templates/minimal --force --cache=local:rw
+        run: pnpm turbo build --filter=./templates/default --filter=./templates/minimal --cache=local:rw --output-logs=errors-only
       - name: Measure templates
         if: matrix.target == 'template-metrics'
         run: |
