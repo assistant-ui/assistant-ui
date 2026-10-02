@@ -75,7 +75,11 @@ export function AgentToolDialog({
             size={size}
             variant={variant}
             className={className}
-            aria-label={`Configure ${presetName ?? "Agent Tool"} for ${target}`}
+            aria-label={
+              presetName
+                ? `Add to ${target}: ${presetName}`
+                : `Configure tool for ${target}`
+            }
           />
         }
       >

@@ -19,7 +19,7 @@ describe("AgentToolDialog", () => {
   it("requires an action and behavior before adding a custom tool", async () => {
     render(<AgentToolDialog />);
     fireEvent.click(
-      screen.getByRole("button", { name: "Configure Agent Tool for setup" }),
+      screen.getByRole("button", { name: "Configure tool for setup" }),
     );
     expect(screen.getByRole("button", { name: "Add to setup" })).toHaveProperty(
       "disabled",
@@ -56,7 +56,7 @@ describe("AgentToolDialog", () => {
       "Search current news.",
     ]) {
       fireEvent.click(
-        screen.getByRole("button", { name: "Configure Web search for setup" }),
+        screen.getByRole("button", { name: "Add to setup: Web search" }),
       );
       fireEvent.change(screen.getByRole("textbox", { name: "Tool behavior" }), {
         target: { value: behavior },

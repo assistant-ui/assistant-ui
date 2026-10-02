@@ -4,6 +4,10 @@ import { AgentToolDialog } from "./agent-tool-dialog";
 export function AgentToolPresets() {
   return (
     <div className="mt-8">
+      <p className="text-muted-foreground text-sm leading-relaxed">
+        Choose what each tool should do before adding it to your cart. Add Agent
+        Tool again for every action you need.
+      </p>
       <h3 className="text-sm font-medium">Start with a standard tool</h3>
       <ul className="mt-4 grid gap-x-16 gap-y-6 lg:grid-cols-2">
         {AGENT_TOOL_PRESETS.map((preset) => (

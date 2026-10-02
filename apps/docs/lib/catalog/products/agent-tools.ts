@@ -7,7 +7,7 @@ export const agentTools: CatalogProduct = {
   name: "Agent Tool",
   tagline: "An action the model can call, with its own UI in the thread.",
   description:
-    "Choose what a tool should do before adding it to your cart. Add Agent Tool again for each action you need; your coding agent writes its schema, executor, and chat UI into your project during setup.",
+    "A tool with a schema, an executor, and a component that renders its calls in the thread. Specify an action for each tool; your coding agent writes it into your existing assistant-ui project.",
   kind: "library",
   audience: "existing assistant-ui apps",
   license: "MIT",
