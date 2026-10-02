@@ -35,6 +35,7 @@ import {
   collectPageTextMatches,
 } from "@/lib/search/collect-page";
 import { loadSearchIndex } from "@/lib/search/load-index";
+import { createSettledQueryTracker } from "@/lib/search/query-tracking";
 import { revealPageMatch } from "@/lib/search/reveal";
 import {
   highlightMatches,
@@ -267,24 +268,20 @@ function SearchContent({
     : (results[0]?.id ?? "");
   const waiting =
     hasQuery && (indexStatus === "loading" || suggestions.loading);
-  const lastTrackedQuery = useRef("");
-  const resultsLengthRef = useRef(0);
-  resultsLengthRef.current = hasQuery ? results.length : 0;
-
-  const trackSearch = useCallback(() => {
-    if (query.length < 2 || query === lastTrackedQuery.current) return;
-    lastTrackedQuery.current = query;
-    if (resultsLengthRef.current === 0) analytics.search.noResults(query);
-    else analytics.search.querySubmitted(query, resultsLengthRef.current);
-  }, [query]);
+  const resultsReady = hasQuery && !waiting;
+  const [queryTracker] = useState(() =>
+    createSettledQueryTracker((settledQuery, resultCount) => {
+      if (resultCount === 0) analytics.search.noResults(settledQuery);
+      else analytics.search.querySubmitted(settledQuery, resultCount);
+    }),
+  );
   useEffect(() => {
-    if (waiting) return;
-    const timer = setTimeout(trackSearch, 500);
-    return () => clearTimeout(timer);
-  }, [trackSearch, waiting]);
+    queryTracker.update(query, results.length, resultsReady);
+  }, [queryTracker, query, results.length, resultsReady]);
+  useEffect(() => () => queryTracker.flush(), [queryTracker]);
 
   const handleSelect = (item: SearchHit) => {
-    trackSearch();
+    queryTracker.flush();
     analytics.search.resultClicked(
       query,
       item.url,
