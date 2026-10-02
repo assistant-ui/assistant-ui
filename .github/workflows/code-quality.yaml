@@ -25,6 +25,7 @@ on:
       - "scripts/deploy-examples-changes.test.mjs"
       - "scripts/api-reference-inputs.mjs"
       - "scripts/api-reference-inputs.test.mjs"
+      - "scripts/*example-bundle*"
       - "scripts/app-build-inputs.mjs"
       - "scripts/app-build-inputs.test.mjs"
       - "scripts/package-build-inputs.mjs"
@@ -62,6 +63,7 @@ on:
       - "scripts/deploy-examples-changes.test.mjs"
       - "scripts/api-reference-inputs.mjs"
       - "scripts/api-reference-inputs.test.mjs"
+      - "scripts/*example-bundle*"
       - "scripts/app-build-inputs.mjs"
       - "scripts/app-build-inputs.test.mjs"
       - "scripts/package-build-inputs.mjs"
@@ -371,6 +373,13 @@ jobs:
             pnpm turbo build --filter="...[HEAD^1]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs" --filter="!./examples/*"
             pnpm turbo build --filter="{./examples/*}[HEAD^1]"
           fi
+
+      - name: Verify standalone example bundle contracts
+        if: steps.app_build_inputs.outputs.run == 'true'
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+        run: pnpm test:bundles
 
   api-reference-drift:
     name: API Reference Drift

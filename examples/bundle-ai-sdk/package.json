@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node ../../scripts/build-example-bundle.mjs",
+    "build": "node ../../scripts/build-example-bundle.mjs --outdir build",
     "preview:build": "node ../../scripts/build-example-bundle.mjs",
     "typecheck": "tsc --noEmit"
   },

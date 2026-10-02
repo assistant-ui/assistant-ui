@@ -68,7 +68,8 @@
       "Edit the document directly.",
       "Ask the assistant to add a section, then undo the edit."
     ],
-    "requirements": "React and Lexical. Connect an AI SDK backend for model-directed editing."
+    "requirements": "React and Lexical. Connect an AI SDK backend for model-directed editing.",
+    "sourceFiles": ["src/history.ts"]
   },
   {
     "slug": "website-assistant",
@@ -147,7 +148,8 @@
       "Choose a suggested question to filter the data.",
       "Compare the calculated answer with the chart and table."
     ],
-    "requirements": "React and a dataset. Connect an AI SDK backend to interpret open-ended queries."
+    "requirements": "React and a dataset. Connect an AI SDK backend to interpret open-ended queries.",
+    "sourceFiles": ["src/data.ts"]
   },
   {
     "slug": "website-use-agent",
@@ -180,6 +182,7 @@
       "Ask the agent to filter or complete a task.",
       "Watch the cursor target and activate the real controls."
     ],
-    "requirements": "React and DOM controls to operate. A model backend is needed for autonomous planning."
+    "requirements": "React and DOM controls to operate. A model backend is needed for autonomous planning.",
+    "sourceFiles": ["src/agent-cursor.tsx"]
   }
 ]

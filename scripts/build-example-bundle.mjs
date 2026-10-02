@@ -1,6 +1,7 @@
 import { readFile, mkdir, writeFile, rm } from "node:fs/promises";
 import { resolve, relative, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { optionValues } from "./lib/script-options.mjs";
 import { buildPreview } from "../examples/bundle-shared/build.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -11,14 +12,17 @@ const manifest = JSON.parse(
 const pkg = JSON.parse(await readFile(resolve(cwd, "package.json"), "utf8"));
 const example = manifest.find((entry) => entry.package === pkg.name);
 if (!example) throw new Error(`No preview manifest entry for ${pkg.name}`);
-const outdir = resolve(cwd, "dist");
+const outdir = resolve(
+  cwd,
+  optionValues(process.argv.slice(2), "--outdir")[0] ?? "dist",
+);
 await rm(outdir, { recursive: true, force: true });
 await mkdir(outdir, { recursive: true });
 const started = performance.now();
 const result = await buildPreview(
   {
     stdin: {
-      contents: `import React from "react"; import {createRoot} from "react-dom/client"; import App from ${JSON.stringify("./" + example.entry)}; import "../bundle-shared/styles.css"; const params = new URLSearchParams(location.search); if(params.get("theme") === "dark") document.documentElement.dataset.theme = "dark"; if(params.get("view") === "card") document.documentElement.dataset.preview = "card"; createRoot(document.getElementById("root")).render(React.createElement(App));`,
+      contents: `import React from "react"; import {createRoot} from "react-dom/client"; import App from ${JSON.stringify("./" + example.entry)}; import "../bundle-shared/styles.css"; const params = new URLSearchParams(location.search); if(params.get("theme") === "dark") document.documentElement.dataset.theme = "dark"; createRoot(document.getElementById("root")).render(React.createElement(App));`,
       resolveDir: cwd,
       sourcefile: "preview.tsx",
       loader: "tsx",

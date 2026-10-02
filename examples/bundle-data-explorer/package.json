@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "build": "node ../../scripts/build-example-bundle.mjs",
+    "build": "node ../../scripts/build-example-bundle.mjs --outdir build",
     "test": "node --test scripts/data.test.mjs",
     "typecheck": "tsc --noEmit",
     "preview:build": "node ../../scripts/build-example-bundle.mjs"

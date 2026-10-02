@@ -54,6 +54,7 @@ export default function App() {
         <h1>{article.title}</h1>
         <p className="article-deck">{article.description}</p>
         <div
+          role="img"
           className="herb-figure"
           aria-label="Herb names: basil, parsley, thyme"
         >

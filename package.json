@@ -37,14 +37,15 @@
     "format": "pnpm exec oxfmt --check",
     "format:fix": "pnpm exec oxfmt",
     "sync-templates": "bash scripts/sync-templates.sh",
-    "test": "turbo test && pnpm test:react-compiler && pnpm typecheck",
+    "test": "turbo test && pnpm test:react-compiler && pnpm typecheck && pnpm test:bundles",
     "test:react-compiler": "turbo test:react-compiler --filter=@assistant-ui/ai-sdk --filter=@assistant-ui/core --filter=@assistant-ui/store",
     "typecheck": "bash scripts/typecheck.sh",
     "prepare": "husky && pnpm --filter @assistant-ui/react-devtools run build:css",
     "deps:check": "npx taze major -f -r",
     "deps:update": "bash scripts/update-deps.sh",
     "build:bundles": "node scripts/run-example-bundles.mjs",
-    "package:bundles": "node scripts/package-example-bundles.mjs"
+    "package:bundles": "node scripts/package-example-bundles.mjs",
+    "test:bundles": "pnpm build:bundles && pnpm package:bundles && node --test scripts/example-bundles.test.mjs examples/bundle-shared/transport.test.mjs"
   },
   "devDependencies": {
     "@assistant-ui/x-changelog": "workspace:*",

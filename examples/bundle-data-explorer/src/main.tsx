@@ -154,7 +154,9 @@ export default function App() {
           </dl>
           <div className="explorer-controls">
             <div className="flex flex-col gap-2">
-              <span id="region-label">Region</span>
+              <span id="region-label" className="text-muted-foreground text-xs">
+                Region
+              </span>
               <Select<RegionFilter>
                 value={filter}
                 onValueChange={(value) => {

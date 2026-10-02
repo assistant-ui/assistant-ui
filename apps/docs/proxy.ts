@@ -30,7 +30,7 @@ export function proxy(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith("/example-bundles")) {
     return isExampleBundlesEnabled
       ? NextResponse.next()
-      : new NextResponse(null, { status: 404 });
+      : new NextResponse("Not found", { status: 404 });
   }
   if (request.nextUrl.pathname === "/changelog") {
     return NextResponse.redirect(legacyChangelogUrl(request), 308);

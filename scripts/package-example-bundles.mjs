@@ -1,5 +1,5 @@
 import { cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
-import { resolve, dirname, relative, basename } from "node:path";
+import { resolve, dirname, relative, basename, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { uiAliases } from "../examples/bundle-shared/build.mjs";
 import { execFileSync } from "node:child_process";
@@ -9,6 +9,7 @@ const examples = JSON.parse(
   await readFile(resolve(root, "scripts/example-bundles.json"), "utf8"),
 );
 const destination = resolve(root, "apps/docs/public/example-bundles");
+await rm(destination, { recursive: true, force: true });
 await mkdir(destination, { recursive: true });
 for (const example of examples) {
   const source = resolve(root, "examples", example.package);
@@ -28,6 +29,7 @@ for (const example of examples) {
   await mkdir(scratch, { recursive: true });
   await cp(resolve(source, "src"), resolve(scratch, "src"), {
     recursive: true,
+    filter: (path) => !/\.test\.[cm]?[jt]sx?$/.test(path),
   });
   await cp(
     resolve(root, "examples/bundle-shared"),
@@ -36,13 +38,16 @@ for (const example of examples) {
       recursive: true,
       filter: (path) =>
         !path.includes("node_modules") &&
-        !["package.json", "tsconfig.json"].includes(basename(path)),
+        !/\.test\.[cm]?[jt]sx?$/.test(path) &&
+        !["package.json", "tsconfig.json", "README.md"].includes(
+          basename(path),
+        ),
     },
   );
   const uiRoot = resolve(root, "packages/ui/src");
   const uiFiles = (info.inputs ?? [])
     .map((path) => resolve(source, path))
-    .filter((path) => path.startsWith(uiRoot + "/"));
+    .filter((path) => path.startsWith(uiRoot + sep));
   for (const path of uiFiles) {
     const copy = resolve(scratch, "ui", relative(uiRoot, path));
     await mkdir(dirname(copy), { recursive: true });
@@ -161,6 +166,7 @@ await writeFile("dist/index.html",'<!doctype html><html lang="en"><head><meta ch
   const sourceFiles = [
     "src/main.tsx",
     "shared/chat.tsx",
+    "shared/transport.ts",
     "ui/components/react/assistant-ui/elements/thread.aui.tsx",
     ...(example.sourceFiles ?? []),
   ];

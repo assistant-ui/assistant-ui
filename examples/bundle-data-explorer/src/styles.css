@@ -141,21 +141,6 @@
     align-items: flex-end;
     flex-wrap: wrap;
   }
-  .explorer-controls label {
-    display: grid;
-    gap: 7px;
-    font-size: 12px;
-    color: var(--explorer-muted);
-  }
-  .explorer-controls select {
-    color: var(--explorer-ink);
-    border: 1px solid var(--explorer-line);
-    background: var(--explorer-paper);
-    border-radius: 8px;
-    padding: 8px 28px 8px 10px;
-    min-height: 38px;
-    max-width: 210px;
-  }
   .explorer-grouping {
     display: flex;
     background: var(--explorer-field);
@@ -329,19 +314,6 @@
   .explorer .chat-heading h2 {
     font-size: 19px;
   }
-  .explorer .chat-viewport {
-    padding: 20px 0;
-  }
-  .explorer .chat-welcome h3 {
-    font-family: var(--font-sans, ui-sans-serif, system-ui);
-    font-size: 15px;
-    line-height: 1.65;
-    font-weight: 400;
-    max-width: none;
-  }
-  .explorer .preview-composer {
-    margin: 0;
-  }
   .explorer-footnote {
     font-size: 12px;
     line-height: 1.6;
@@ -390,17 +362,5 @@
     .explorer-grouping button {
       padding-inline: 10px;
     }
-  }
-
-  /* Lead the catalog preview with the dataset and its chart. */
-  [data-preview="card"] .explorer {
-    padding: 16px;
-  }
-  [data-preview="card"] .explorer-header {
-    display: none;
-  }
-  [data-preview="card"] .explorer-metrics {
-    margin: 12px 0;
-    padding: 12px 0;
   }
 }

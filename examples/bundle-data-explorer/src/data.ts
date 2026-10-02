@@ -97,9 +97,19 @@ export function answerQuery(prompt: string): QueryResult {
   ) {
     return { text: unsupportedQuestion };
   }
-  const mentioned = regions.find((region) =>
+  const mentionedRegions = regions.filter((region) =>
     query.includes(region.toLowerCase()),
   );
+  const mentioned = mentionedRegions[0];
+  const comparison = /compare|by region|regional/.test(query);
+  if (
+    (mentionedRegions.length > 1 && !comparison) ||
+    (/\borders\b/.test(query) &&
+      /top|most|highest|best|leading|compare|regional|by region|monthly|by month|months|grow|grew|change|increase|trend/.test(
+        query,
+      ))
+  )
+    return { text: unsupportedQuestion };
   const totals = summarize(sales, "region").sort(
     (a, b) => b.revenue - a.revenue,
   );
@@ -130,6 +140,19 @@ export function answerQuery(prompt: string): QueryResult {
       grouping: "region",
     };
   }
+  if (/grow|grew|change|increase|trend/.test(query)) {
+    const months = summarize(
+      mentioned ? filterSales(mentioned) : sales,
+      "month",
+    );
+    const first = months[0]!;
+    const last = months[months.length - 1]!;
+    return {
+      text: `${mentioned ? `For ${mentioned}` : "Across all regions"}, monthly sample revenue increased from ${money(first.revenue)} in January to ${money(last.revenue)} in June: ${money(last.revenue - first.revenue)}, or ${((last.revenue / first.revenue - 1) * 100).toFixed(1)}%. This is a January-to-June comparison, not a forecast. I've ${mentioned ? `changed the monthly view to ${mentioned}` : "restored the monthly view across all regions"}.`,
+      filter: mentioned ?? "All regions",
+      grouping: "month",
+    };
+  }
   if (mentioned && /show|focus|filter|only|revenue|orders/.test(query)) {
     const rows = filterSales(mentioned);
     const revenue = rows.reduce((sum, row) => sum + row.revenue, 0);
@@ -137,16 +160,6 @@ export function answerQuery(prompt: string): QueryResult {
     return {
       text: `${mentioned} generated ${money(revenue)} from ${orders.toLocaleString("en-US")} sample orders, January through June. The chart and source table now show its six records.`,
       filter: mentioned,
-      grouping: "month",
-    };
-  }
-  if (/grow|grew|change|increase|trend/.test(query)) {
-    const months = summarize(sales, "month");
-    const first = months[0]!;
-    const last = months[months.length - 1]!;
-    return {
-      text: `Across all regions, monthly sample revenue increased from ${money(first.revenue)} in January to ${money(last.revenue)} in June: ${money(last.revenue - first.revenue)}, or ${((last.revenue / first.revenue - 1) * 100).toFixed(1)}%. This is a January-to-June comparison, not a forecast. I've restored the monthly view across all regions.`,
-      filter: "All regions",
       grouping: "month",
     };
   }

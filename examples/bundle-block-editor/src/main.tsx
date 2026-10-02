@@ -111,14 +111,20 @@ function EditorBridge({
   onDocumentChange,
 }: {
   editorRef: { current: LexicalEditor | null };
-  onDocumentChange: (blocks: DocumentBlock[]) => void;
+  onDocumentChange: (blocks: DocumentBlock[], text: string) => void;
 }) {
   const [editor] = useLexicalComposerContext();
   useEffect(() => {
     editorRef.current = editor;
-    editor.getEditorState().read(() => onDocumentChange(readParagraphs()));
+    editor
+      .getEditorState()
+      .read(() =>
+        onDocumentChange(readParagraphs(), $getRoot().getTextContent()),
+      );
     const unregister = editor.registerUpdateListener(({ editorState }) => {
-      editorState.read(() => onDocumentChange(readParagraphs()));
+      editorState.read(() =>
+        onDocumentChange(readParagraphs(), $getRoot().getTextContent()),
+      );
     });
     return () => {
       editorRef.current = null;
@@ -141,7 +147,20 @@ function Toolbar() {
   const [editor] = useLexicalComposerContext();
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
+  const [formats, setFormats] = useState({ bold: false, italic: false });
   useEffect(() => {
+    const unregisterFormats = editor.registerUpdateListener(
+      ({ editorState }) => {
+        editorState.read(() => {
+          const selection = $getSelection();
+          setFormats({
+            bold: $isRangeSelection(selection) && selection.hasFormat("bold"),
+            italic:
+              $isRangeSelection(selection) && selection.hasFormat("italic"),
+          });
+        });
+      },
+    );
     const unregisterUndo = editor.registerCommand(
       CAN_UNDO_COMMAND,
       (value) => {
@@ -161,6 +180,7 @@ function Toolbar() {
     return () => {
       unregisterUndo();
       unregisterRedo();
+      unregisterFormats();
     };
   }, [editor]);
 
@@ -202,6 +222,7 @@ function Toolbar() {
         variant="outline"
         type="button"
         aria-label="Bold"
+        aria-pressed={formats.bold}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "bold")}
       >
@@ -211,6 +232,7 @@ function Toolbar() {
         variant="outline"
         type="button"
         aria-label="Italic"
+        aria-pressed={formats.italic}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "italic")}
       >
@@ -247,15 +269,13 @@ export default function App() {
   );
   const [pending, setPending] = useState(false);
   const reviewRef = useRef<HTMLElement | null>(null);
-  const handleDocumentChange = useCallback((blocks: DocumentBlock[]) => {
-    blocksRef.current = blocks;
-    setWordCount(
-      blocks.reduce(
-        (count, block) => count + block.text.trim().split(/\s+/).length,
-        0,
-      ),
-    );
-  }, []);
+  const handleDocumentChange = useCallback(
+    (blocks: DocumentBlock[], text: string) => {
+      blocksRef.current = blocks;
+      setWordCount(text.trim() ? text.trim().split(/\s+/).length : 0);
+    },
+    [],
+  );
 
   function selectedParagraph(): DocumentBlock | undefined {
     let selected: DocumentBlock | undefined;
@@ -272,7 +292,7 @@ export default function App() {
         };
       }
     });
-    return selected ?? blocksRef.current[0];
+    return selected;
   }
 
   async function assist(prompt: string, signal?: AbortSignal) {
@@ -313,8 +333,11 @@ export default function App() {
       }
       if (/short|rewrite|revise|concise|tighten/.test(normalized)) {
         const block = selectedParagraph();
-        if (!block)
-          return "Write a paragraph in the document first, then select it for revision.";
+        if (!block) {
+          const message = "Select a paragraph in the document to revise it.";
+          setNotice(message);
+          return message;
+        }
         const text = concise(block.text);
         if (text === block.text) {
           return "The selected paragraph is already concise under the local demo rules. Try the opening paragraph, or add a third sentence and ask again. No changes were made.";

@@ -1,7 +1,7 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
-import { AgentCursor } from "@/components/ui/agent-cursor";
+import { AgentCursor } from "./agent-cursor";
 import { PreviewChat } from "../../bundle-shared/chat";
 import "./styles.css";
 
@@ -242,8 +242,13 @@ export default function App() {
       }
       if (/\b(?:complete|finish)\b|\bmark\b.*\bdone\b/.test(prompt)) {
         const openTasks = tasksRef.current.filter((task) => !task.done);
-        const namedTask = tasksRef.current.find((item) =>
-          prompt.includes(item.title.toLowerCase()),
+        const requestedTitle = prompt
+          .replace(/^(?:complete|finish|mark)\s+(?:the\s+)?/, "")
+          .replace(/\s+done$/, "")
+          .replace(/^[“"']|[”"']$/g, "")
+          .trim();
+        const namedTask = tasksRef.current.find(
+          (item) => requestedTitle === item.title.toLowerCase(),
         );
         if (namedTask?.done) return `“${namedTask.title}” is already complete.`;
         const task = namedTask ?? openTasks[0];

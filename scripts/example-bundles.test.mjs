@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { createRequire } from "node:module";
 import { existsSync } from "node:fs";
 import {
   cp,
@@ -19,6 +20,30 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const examples = JSON.parse(
   await readFile(join(root, "scripts/example-bundles.json"), "utf8"),
 );
+
+const { build } = createRequire(
+  join(root, "examples/bundle-shared/package.json"),
+)("esbuild");
+async function runtimeImports(path, contents) {
+  const { metafile } = await build({
+    stdin: {
+      contents,
+      sourcefile: path,
+      loader: path.endsWith(".tsx")
+        ? "tsx"
+        : path.endsWith(".ts")
+          ? "ts"
+          : "js",
+    },
+    bundle: false,
+    write: false,
+    metafile: true,
+    logLevel: "silent",
+  });
+  return Object.values(metafile.outputs).flatMap((output) =>
+    output.imports.map((item) => item.path),
+  );
+}
 
 async function filesUnder(directory) {
   const files = [];
@@ -105,13 +130,12 @@ test("source packaging relocates nested shared imports and vendors the reusable 
     await mkdir(join(source, "src/nested"), { recursive: true });
     await writeFile(
       join(source, "src/nested/reference.tsx"),
-      'export { PreviewChat } from "../../../bundle-shared/chat";',
+      'export { PreviewChat } from "../../../bundle-shared/chat"; // from "./missing-comment-path"',
     );
     const uiRoot = join(root, "packages/ui/src");
     const uiFiles = [
       "components/react/ui/base/button.tsx",
       "components/react/ui/base/input.tsx",
-      "components/react/ui/base/agent-cursor.tsx",
       "components/react/assistant-ui/elements/thread.aui.tsx",
       "components/react/assistant-ui/elements/assistant-modal.aui.tsx",
     ];
@@ -162,15 +186,11 @@ test("source packaging relocates nested shared imports and vendors the reusable 
       "-C",
       unpacked,
     ]);
-    assert.ok(
-      existsSync(
-        join(unpacked, "ui/components/react/ui/base/agent-cursor.tsx"),
-      ),
-    );
+    assert.ok(existsSync(join(unpacked, "src/agent-cursor.tsx")));
     for (const file of ["src/main.tsx", "src/nested/reference.tsx"]) {
       const path = join(unpacked, file);
       const text = await readFile(path, "utf8");
-      for (const [, specifier] of text.matchAll(/from\s*["']([^"']+)["']/g)) {
+      for (const specifier of await runtimeImports(path, text)) {
         if (!specifier.startsWith(".")) continue;
         const candidate = resolve(dirname(path), specifier);
         assert.ok(
@@ -298,9 +318,7 @@ for (const example of examples) {
         for (const path of await filesUnder(scratch)) {
           if (![".ts", ".tsx", ".js", ".mjs"].includes(extname(path))) continue;
           const text = await readFile(path, "utf8");
-          for (const [, , specifier] of text.matchAll(
-            /(?:\bfrom\s*|\bimport\s*\(?)(["'])([^"']+)\1/g,
-          )) {
+          for (const specifier of await runtimeImports(path, text)) {
             if (specifier.startsWith("node:")) continue;
             if (!specifier.startsWith(".")) {
               const name = specifier.startsWith("@")

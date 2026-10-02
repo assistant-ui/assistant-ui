@@ -1,5 +1,7 @@
 # Data exploration bundle
 
+Downloaded source: `npm install`, `npm run build`, then `npm run preview`.
+
 A client-only sales workspace with an assistant-ui thread using the shared AI SDK local preview transport. Suggested questions run actual aggregation functions against `src/data.ts` and update the visible region filter and chart grouping. The dropdown, grouping buttons, chart description, summary table, and source table expose the same data directly.
 
 ## Dataset and demo behavior
@@ -10,9 +12,9 @@ Supported queries include region revenue rankings, comparisons, region filters, 
 
 ## Build contract
 
-`src/main.tsx` exports the application consumed by the generic example bootstrap. `pnpm build` delegates to the shared standalone bundle builder; this app is compiled separately from documentation. `pnpm typecheck` checks the app and shared preview implementation. The parent example manifest controls packaging and embedding.
+`src/main.tsx` exports the application consumed by the generic example bootstrap. `pnpm build` delegates to the shared standalone bundle builder; this app is compiled separately from documentation. `pnpm typecheck` checks the app and shared preview implementation. The parent example manifest controls packaging and full-screen previews.
 
-`node --test scripts/data.test.mjs` runs seven data contracts on Node 24: known dataset totals, the three suggested questions, reset behavior, comparison precedence, and unsupported queries. The tests cover the chart's underlying calculations and filter updates.
+`node --test scripts/data.test.mjs` runs twelve data contracts on Node 24: known dataset totals, the three suggested questions, reset behavior, comparison precedence, causal questions, unsupported geography/dates/dimensions, region-scoped growth, and unsupported metric combinations. The tests cover the chart's underlying calculations and filter updates.
 
 ## Connect a real model
 

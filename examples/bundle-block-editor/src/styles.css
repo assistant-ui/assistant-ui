@@ -267,14 +267,4 @@
   }
 
   /* Keep the working document visible in the small catalog preview. */
-  [data-preview="card"] .block-editor-app {
-    padding: 16px;
-  }
-  [data-preview="card"] .block-editor-header,
-  [data-preview="card"] .editor-description {
-    display: none;
-  }
-  [data-preview="card"] .editor-content {
-    padding: 18px;
-  }
 }

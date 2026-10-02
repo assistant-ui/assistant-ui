@@ -11,7 +11,7 @@
   }
   .website-demo button,
   .website-demo input {
-    font: inherit;
+    font-family: inherit;
   }
   .website-demo button {
     cursor: pointer;
@@ -105,7 +105,7 @@
     opacity: 0.6;
   }
   .website-demo-reset {
-    font-size: 11px !important;
+    font-size: 11px;
     border: 0;
     border-radius: 8px;
     background: transparent;
@@ -174,7 +174,7 @@
     border: 0;
     color: inherit;
     background: transparent;
-    font-size: 13px !important;
+    font-size: 13px;
     line-height: 1.5;
   }
   .website-demo-task-toggle > span:last-child {
@@ -345,13 +345,4 @@
   }
 
   /* The small catalog preview opens directly on the working task board. */
-  [data-preview="card"] .website-demo {
-    padding: 16px;
-  }
-  [data-preview="card"] .website-demo-heading {
-    display: none;
-  }
-  [data-preview="card"] .website-demo-app-header {
-    padding: 12px 16px;
-  }
 }

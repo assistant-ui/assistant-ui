@@ -24,7 +24,7 @@ export type AgentCursorProps = Omit<
 };
 
 function resolveTarget(target: AgentCursorTarget) {
-  if ("x" in target) return target;
+  if (!(target instanceof HTMLElement) && "x" in target) return target;
   const element = "current" in target ? target.current : target;
   if (!element?.isConnected) return null;
   const bounds = element.getBoundingClientRect();
@@ -60,14 +60,21 @@ export function AgentCursor({
     window.addEventListener("resize", update);
     window.addEventListener("scroll", update, true);
     let element: HTMLElement | null = null;
-    const observer = new ResizeObserver(update);
+    let observer: ResizeObserver | null = null;
     const rebind = () => {
       const next =
-        "x" in target ? null : "current" in target ? target.current : target;
+        !(target instanceof HTMLElement) && "x" in target
+          ? null
+          : "current" in target
+            ? target.current
+            : target;
       if (next === element) return;
-      observer.disconnect();
+      observer?.disconnect();
       element = next;
-      if (element) observer.observe(element);
+      if (element && typeof ResizeObserver !== "undefined") {
+        observer ??= new ResizeObserver(update);
+        observer.observe(element);
+      }
       update();
     };
     rebind();
@@ -82,7 +89,7 @@ export function AgentCursor({
     return () => {
       window.removeEventListener("resize", update);
       window.removeEventListener("scroll", update, true);
-      observer.disconnect();
+      observer?.disconnect();
       if (frame !== undefined) cancelAnimationFrame(frame);
     };
   }, [target, visible]);

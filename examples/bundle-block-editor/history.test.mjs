@@ -9,9 +9,6 @@ import { fileURLToPath } from "node:url";
 
 const directory = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(join(directory, "package.json"));
-const lexicalRequire = createRequire(
-  require.resolve("@lexical/react/LexicalHistoryPlugin"),
-);
 const { build } = require("esbuild");
 
 test("first accepted suggestion is undoable and later human edits retain history", async () => {
@@ -23,7 +20,7 @@ test("first accepted suggestion is undoable and later human edits retain history
         contents: `
           import assert from "node:assert/strict";
           import {$createParagraphNode, $createTextNode, $getRoot, createEditor, HISTORY_PUSH_TAG, REDO_COMMAND, UNDO_COMMAND} from "lexical";
-          import {createEmptyHistoryState, registerHistory} from ${JSON.stringify(lexicalRequire.resolve("@lexical/history"))};
+          import {createEmptyHistoryState, registerHistory} from ${JSON.stringify(require.resolve("@lexical/history"))};
           import {seedDocumentHistory} from ${JSON.stringify(join(directory, "src/history.ts"))};
           const make = (seed) => {
             const editor = createEditor({onError: (error) => {throw error;}});
@@ -46,7 +43,7 @@ test("first accepted suggestion is undoable and later human edits retain history
           await command(editor, UNDO_COMMAND);
           assert.equal(text(editor), "Initial draft");
           seedDocumentHistory(editor, history);
-          assert.equal(history.redoStack.length, 1, "re-seeding must preserve existing redo history");
+          assert.equal(history.redoStack.length, 1, "undo preserves the undone state in redo history");
           await command(editor, REDO_COMMAND);
           assert.equal(text(editor), "Initial draft\\n\\nAssistant suggestion");
           await command(editor, UNDO_COMMAND);

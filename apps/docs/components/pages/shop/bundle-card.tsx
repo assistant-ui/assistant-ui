@@ -19,7 +19,9 @@ export function BundleCard({
   index: number;
 }) {
   const { resolvedTheme } = useTheme();
-  const previewHref = `${bundlePreviewHref(example.slug)}?theme=${resolvedTheme === "dark" ? "dark" : "light"}`;
+  const previewHref = resolvedTheme
+    ? `${bundlePreviewHref(example.slug)}?theme=${resolvedTheme === "dark" ? "dark" : "light"}`
+    : undefined;
   return (
     <article className="min-w-0">
       <div className="flex items-baseline gap-3">

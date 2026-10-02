@@ -1,5 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 
 const require = createRequire(import.meta.url);
@@ -19,7 +20,7 @@ export async function buildPreview(options, { uiRoot, sources }) {
   const theme = await readFile(new URL("./theme.css", import.meta.url), "utf8");
   const input = `@import "tailwindcss" source(none);\n@import "tw-animate-css";\n${sources.map((path) => `@source ${JSON.stringify(path)};`).join("\n")}\n${theme}`;
   const styles = await postcss([tailwind()]).process(input, {
-    from: new URL("./theme.css", import.meta.url).pathname,
+    from: fileURLToPath(new URL("./theme.css", import.meta.url)),
   });
   const css = Object.keys(result.metafile.outputs).find((path) =>
     path.endsWith(".css"),

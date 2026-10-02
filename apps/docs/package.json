@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "node ../../scripts/prepare-example-bundles.mjs && next dev",
     "build": "pnpm generate:source-snapshot && node ../../scripts/prepare-example-bundles.mjs && next build && pnpm verify:repo-source-traces",
     "generate:type-docs": "tsx ./scripts/generate-type-docs.mts",
     "generate:api-reference": "tsx ./scripts/generate-api-reference.mts",

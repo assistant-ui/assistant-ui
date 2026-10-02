@@ -7,6 +7,11 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const manifest = JSON.parse(
   readFileSync(resolve(root, "scripts/example-bundles.json"), "utf8"),
 );
+const args = process.argv.slice(2);
+if (args.some((arg) => !/^--(?:dry(?:=json)?|force|no-cache)$/.test(arg)))
+  throw new Error(
+    "Only --dry, --dry=json, --force, and --no-cache are supported.",
+  );
 execFileSync(
   "pnpm",
   [
@@ -14,7 +19,7 @@ execFileSync(
     "turbo",
     "preview:build",
     ...manifest.map(({ package: name }) => `--filter=${name}`),
-    ...process.argv.slice(2),
+    ...args,
   ],
-  { cwd: root, stdio: "inherit" },
+  { cwd: root, stdio: "inherit", shell: process.platform === "win32" },
 );

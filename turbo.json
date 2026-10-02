@@ -73,7 +73,8 @@
         "!$TURBO_ROOT$/examples/bundle-shared/node_modules/**",
         "$TURBO_ROOT$/scripts/build-example-bundle.mjs",
         "$TURBO_ROOT$/packages/ui/src/**",
-        "$TURBO_ROOT$/scripts/example-bundles.json"
+        "$TURBO_ROOT$/scripts/example-bundles.json",
+        "$TURBO_ROOT$/scripts/lib/script-options.mjs"
       ],
       "outputs": ["dist/**"]
     }

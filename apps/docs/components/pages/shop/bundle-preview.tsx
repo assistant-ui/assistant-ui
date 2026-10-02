@@ -7,7 +7,9 @@ import { bundlePreviewHref } from "@/lib/example-bundles";
 
 export function BundlePreview({ slug }: { slug: string }) {
   const { resolvedTheme } = useTheme();
-  const href = `${bundlePreviewHref(slug)}?theme=${resolvedTheme === "dark" ? "dark" : "light"}`;
+  const href = resolvedTheme
+    ? `${bundlePreviewHref(slug)}?theme=${resolvedTheme === "dark" ? "dark" : "light"}`
+    : undefined;
   return (
     <Button
       variant="outline"

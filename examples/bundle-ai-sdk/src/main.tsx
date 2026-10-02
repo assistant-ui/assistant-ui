@@ -18,7 +18,7 @@ export default function App() {
             "How do I add a real model?",
           ]}
           onPrompt={(text) => {
-            if (/model|backend|real|key/i.test(text))
+            if (/\b(model|backend|real|keys?)\b/i.test(text))
               return "This preview uses a local scripted transport. In your app, pass an AI SDK DefaultChatTransport to useChatRuntime and point it at your chat route. The existing with-ai-sdk-v7 example streams from a provider using streamText. Keep provider keys on the server.";
             if (/custom|style|component/i.test(text))
               return "This chat uses the assistant-ui shadcn Thread template and shared design system. The template includes the composer, Markdown messages, message actions, editing, and branch controls. Customize these components in your project while the runtime handles message state and streaming.";

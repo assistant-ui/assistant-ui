@@ -2,7 +2,7 @@
 
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { AgentCursor } from "../../../../../packages/ui/src/components/react/ui/base/agent-cursor";
+import { AgentCursor } from "./agent-cursor";
 
 afterEach(() => {
   cleanup();
@@ -53,8 +53,27 @@ it("tracks a stable ref when its DOM target mounts and is replaced", () => {
   target.current = null;
   tick!(2);
   expect(cursor.style.opacity).toBe("0");
+  const disconnects = disconnect.mock.calls.length;
   unmount();
   expect(cancel).toHaveBeenCalledWith(1);
-  expect(disconnect).toHaveBeenCalled();
+  expect(disconnect).toHaveBeenCalledTimes(disconnects + 1);
   next.remove();
+});
+
+it("uses an image's bounding-box center and supports coordinates without ResizeObserver", () => {
+  vi.stubGlobal("ResizeObserver", undefined);
+  const target = document.createElement("img");
+  document.body.append(target);
+  target.getBoundingClientRect = () =>
+    ({ left: 100, top: 200, width: 40, height: 60 }) as DOMRect;
+  const { container, rerender } = render(<AgentCursor target={target} />);
+  const cursor = container.querySelector<HTMLElement>(
+    '[data-slot="agent-cursor"]',
+  )!;
+  expect(cursor.style.getPropertyValue("--aui-cursor-x")).toBe("120px");
+  expect(cursor.style.getPropertyValue("--aui-cursor-y")).toBe("230px");
+  rerender(<AgentCursor target={{ x: 15, y: 25 }} />);
+  expect(cursor.style.getPropertyValue("--aui-cursor-x")).toBe("15px");
+  expect(cursor.style.getPropertyValue("--aui-cursor-y")).toBe("25px");
+  target.remove();
 });

@@ -74,9 +74,7 @@ test("unknown prompts state limitations and leave the current view unchanged", (
   assert.match(result.text, /can't infer causes or access other data/);
 });
 
-test("causal questions do not reset an existing region filter or return a growth calculation", () => {
-  const currentFilter = answerQuery("Focus on Europe").filter;
-  assert.equal(currentFilter, "Europe");
+test("causal questions leave the view unchanged and do not return a growth calculation", () => {
   for (const prompt of [
     "What caused this growth?",
     "Why did Europe revenue increase?",
@@ -88,7 +86,6 @@ test("causal questions do not reset an existing region filter or return a growth
     assert.equal(result.grouping, undefined);
     assert.match(result.text, /can't infer causes/);
     assert.doesNotMatch(result.text, /46\.4%|restored/);
-    assert.equal(result.filter ?? currentFilter, "Europe");
   }
 });
 
@@ -122,5 +119,25 @@ test("unsupported dates and data dimensions do not silently receive global total
     assert.equal(result.filter, undefined);
     assert.equal(result.grouping, undefined);
     assert.doesNotMatch(result.text, /\$192,800|chart now/);
+  }
+});
+
+test("region-scoped growth uses only that region's records", () => {
+  const result = answerQuery("How did revenue grow in Europe?");
+  assert.equal(result.filter, "Europe");
+  assert.match(result.text, /\$8,200 in January to \$12,700 in June/);
+});
+
+test("unsupported order metrics and ambiguous region filters leave the view unchanged", () => {
+  for (const prompt of [
+    "Which region has the most orders?",
+    "Compare orders by region",
+    "Show monthly orders",
+    "Focus on Europe and North America",
+  ]) {
+    const result = answerQuery(prompt);
+    assert.equal(result.filter, undefined);
+    assert.equal(result.grouping, undefined);
+    assert.match(result.text, /current view is unchanged/);
   }
 });

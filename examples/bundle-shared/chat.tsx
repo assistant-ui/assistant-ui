@@ -3,7 +3,7 @@ import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/ai-sdk";
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { AssistantModal } from "@/components/assistant-ui/elements/assistant-modal.aui";
-import type { ChatTransport, UIMessage, UIMessageChunk } from "ai";
+import { createPreviewTransport } from "./transport";
 
 export type PreviewChatProps = {
   title: string;
@@ -32,59 +32,22 @@ export function PreviewChat({
 }: PreviewChatProps) {
   const promptRef = useRef(onPrompt);
   promptRef.current = onPrompt;
-  const transport = useMemo<ChatTransport<UIMessage>>(
-    () => ({
-      async sendMessages({ messages, abortSignal }) {
-        const last = messages
-          .filter((message) => message.role === "user")
-          .at(-1);
-        const text =
-          last?.parts
-            .flatMap((part) => (part.type === "text" ? [part.text] : []))
-            .join(" ") ?? "";
-        const signal = abortSignal ?? new AbortController().signal;
-        const response = await promptRef.current(text, signal);
-        signal.throwIfAborted();
-        let cancelled = false;
-        return new ReadableStream<UIMessageChunk>({
-          async start(controller) {
-            controller.enqueue({
-              type: "start",
-              messageId: crypto.randomUUID(),
-            });
-            controller.enqueue({ type: "text-start", id: "response" });
-            try {
-              for (const delta of response.match(/.{1,18}/gs) ?? []) {
-                if (cancelled) return;
-                signal.throwIfAborted();
-                controller.enqueue({
-                  type: "text-delta",
-                  id: "response",
-                  delta,
-                });
-                await new Promise((resolve) => setTimeout(resolve, 22));
-              }
-              if (cancelled) return;
-              controller.enqueue({ type: "text-end", id: "response" });
-              controller.enqueue({ type: "finish", finishReason: "stop" });
-              controller.close();
-            } catch (error) {
-              if (!cancelled) controller.error(error);
-            }
-          },
-          cancel() {
-            cancelled = true;
-          },
-        });
-      },
-      async reconnectToStream() {
-        return null;
-      },
-    }),
+  const transport = useMemo(
+    () =>
+      createPreviewTransport((text, signal) => promptRef.current(text, signal)),
     [],
   );
   const runtime = useChatRuntime({
     transport,
+    messages: modal
+      ? [
+          {
+            id: "welcome",
+            role: "assistant",
+            parts: [{ type: "text", text: `${props.title}\n\n${props.intro}` }],
+          },
+        ]
+      : [],
     suggestions: props.suggestions.map((prompt) => ({ prompt })),
   });
   return (

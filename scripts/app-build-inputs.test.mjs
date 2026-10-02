@@ -34,6 +34,9 @@ test("detects app build inputs", () => {
     ".github/workflows/code-quality.yaml",
     "scripts/app-build-inputs.mjs",
     "scripts/app-build-inputs.test.mjs",
+    "scripts/package-example-bundles.mjs",
+    "scripts/prepare-example-bundles.mjs",
+    "scripts/example-bundles.test.mjs",
   ]) {
     assert.equal(hasAppBuildInputs([file]), true, file);
   }
@@ -105,6 +108,7 @@ test("the workflow gates dependency-backed app build steps", () => {
     "Setup pnpm and node.js",
     "Install dependencies",
     "Build apps",
+    "Verify standalone example bundle contracts",
   ]) {
     assert.match(
       step(name),

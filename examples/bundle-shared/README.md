@@ -6,8 +6,7 @@ site to enable `/components/bundles`, the catalog banner, and
 `/example-bundles/*` previews and source downloads. Leave the variable unset to
 keep these surfaces unavailable. Disabled docs builds skip preview building and
 packaging, and remove stale public bundle artifacts. Enabled production builds
-prepare their previews automatically. For an enabled development server, run
-`pnpm build:bundles` and `pnpm package:bundles` first.
+prepare their previews automatically. Enabled development servers prepare the previews before starting Next.js.
 
 The examples use the shared shadcn Thread and AssistantModal templates with
 scripted local responses. Each source archive includes the templates used by
