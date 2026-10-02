@@ -1,0 +1,36 @@
+name: CI preparation benchmark
+on:
+  push:
+    branches: [perf/ci-preparation-benchmarks]
+permissions:
+  contents: read
+jobs:
+  measure:
+    name: ${{ matrix.scenario }} / ${{ matrix.repeat }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario: [size-one, size-all, changesets, empty-typecheck, empty-apps, nonempty-plan]
+        repeat: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b
+        with:
+          runtime: node@24
+          cache: false
+          install: false
+      - name: Compare preparation and verify output
+        env:
+          SCENARIO: ${{ matrix.scenario }}
+          REPEAT: ${{ matrix.repeat }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/bench-ci-preparation.mjs
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: preparation-${{ matrix.scenario }}-${{ matrix.repeat }}
+          path: ${{ runner.temp }}/preparation-result.json
