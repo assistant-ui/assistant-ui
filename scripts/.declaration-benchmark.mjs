@@ -4,6 +4,14 @@ import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 
 const rows = [];
+const testPath = "scripts/.declarations-baseline.test.mjs";
+writeFileSync(
+  testPath,
+  readFileSync(testPath, "utf8").replace(
+    'from "./check-built-declarations.mjs"',
+    'from "./.declarations-baseline.mjs"',
+  ),
+);
 for (const mode of ["baseline", "parallel", "parallel", "baseline"]) {
   const start = performance.now();
   const result = spawnSync(
@@ -16,9 +24,25 @@ for (const mode of ["baseline", "parallel", "parallel", "baseline"]) {
     { encoding: "utf8" },
   );
   assert.equal(result.status, 0, result.stdout + result.stderr);
+  const seconds = (performance.now() - start) / 1000;
+  const suiteStart = performance.now();
+  const tests = spawnSync(
+    process.execPath,
+    [
+      "--test",
+      mode === "baseline"
+        ? testPath
+        : "scripts/check-built-declarations.test.mjs",
+    ],
+    { encoding: "utf8" },
+  );
+  assert.equal(tests.status, 0, tests.stdout + tests.stderr);
+  const testSeconds = (performance.now() - suiteStart) / 1000;
   rows.push({
     mode,
-    seconds: (performance.now() - start) / 1000,
+    seconds,
+    testSeconds,
+    totalSeconds: seconds + testSeconds,
     packages: result.stdout.split("Checking ").length - 1,
     hash: createHash("sha256")
       .update(result.stdout + result.stderr)

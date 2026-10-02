@@ -37,6 +37,7 @@ jobs:
           REPEAT: ${{ matrix.repeat }}
         run: |
           git show b6444661cf03cae6c5e10baba1e12c9e010b8ea0:scripts/check-built-declarations.mjs > scripts/.declarations-baseline.mjs
+          git show b6444661cf03cae6c5e10baba1e12c9e010b8ea0:scripts/check-built-declarations.test.mjs > scripts/.declarations-baseline.test.mjs
           node scripts/.declaration-benchmark.mjs
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
