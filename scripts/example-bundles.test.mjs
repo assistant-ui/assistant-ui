@@ -107,10 +107,27 @@ test("source packaging relocates nested shared imports and vendors the reusable 
       join(source, "src/nested/reference.tsx"),
       'export { PreviewChat } from "../../../bundle-shared/chat";',
     );
+    const uiRoot = join(root, "packages/ui/src");
+    const uiFiles = [
+      "components/react/ui/base/button.tsx",
+      "components/react/ui/base/input.tsx",
+      "components/react/assistant-ui/elements/thread.aui.tsx",
+      "components/react/assistant-ui/elements/assistant-modal.aui.tsx",
+    ];
     await writeFile(
       join(source, "dist/build-info.json"),
-      JSON.stringify({ package: example.package, slug: example.slug }),
+      JSON.stringify({
+        slug: example.slug,
+        inputs: uiFiles.map((path) =>
+          relative(join(root, "examples", example.package), join(uiRoot, path)),
+        ),
+      }),
     );
+    for (const file of uiFiles) {
+      const target = join(fixture, "packages/ui/src", file);
+      await mkdir(dirname(target), { recursive: true });
+      await cp(join(uiRoot, file), target);
+    }
     await cp(
       join(root, "examples/bundle-shared"),
       join(fixture, "examples/bundle-shared"),
@@ -119,7 +136,7 @@ test("source packaging relocates nested shared imports and vendors the reusable 
         filter: (path) => !path.split(sep).includes("node_modules"),
       },
     );
-    for (const packageName of ["react", "ai-sdk", "ui"]) {
+    for (const packageName of ["react", "ai-sdk", "ui", "react-markdown"]) {
       await mkdir(join(fixture, "packages", packageName), { recursive: true });
       await cp(
         join(root, "packages", packageName, "package.json"),
@@ -187,6 +204,12 @@ for (const example of examples) {
       assert.equal(info.slug, example.slug);
       assert.ok(info.inputs.length > 0);
       assert.ok(info.bytes > 0);
+      assert.ok(
+        info.inputs.some((path) =>
+          path.endsWith("assistant-ui/elements/thread.aui.tsx"),
+        ),
+        `${example.slug}: preview must use the shipped shadcn Thread template`,
+      );
       const html = await readFile(join(artifact, "index.html"), "utf8");
       for (const input of info.inputs) {
         const path = resolve(root, "examples", example.package, input);
@@ -246,6 +269,31 @@ for (const example of examples) {
         }
         assert.ok(existsSync(join(scratch, "build.mjs")));
         assert.ok(existsSync(join(scratch, "README.md")));
+        assert.ok(
+          existsSync(
+            join(
+              scratch,
+              "ui/components/react/assistant-ui/elements/thread.aui.tsx",
+            ),
+          ),
+        );
+        const displayedSource = JSON.parse(
+          await readFile(
+            join(
+              root,
+              "apps/docs/public/example-bundles",
+              example.slug,
+              "source.json",
+            ),
+            "utf8",
+          ),
+        );
+        for (const file of displayedSource) {
+          assert.equal(
+            file.content,
+            await readFile(join(scratch, file.path), "utf8"),
+          );
+        }
         for (const path of await filesUnder(scratch)) {
           if (![".ts", ".tsx", ".js", ".mjs"].includes(extname(path))) continue;
           const text = await readFile(path, "utf8");

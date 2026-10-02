@@ -12,7 +12,8 @@
     "@assistant-ui/ai-sdk": "workspace:*",
     "ai": "^7.0.101",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "bundle-shared": "workspace:*"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",

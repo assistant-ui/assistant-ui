@@ -9,14 +9,14 @@
     "entry": "src/main.tsx",
     "components": [
       {
-        "name": "Thread and messages",
-        "href": "/docs/primitives/thread",
-        "detail": "The assistant-ui primitives render the conversation and follow streaming replies."
+        "name": "shadcn Thread template",
+        "href": "/elements/thread",
+        "detail": "The shared Thread template renders messages, Markdown, editing, and message actions."
       },
       {
         "name": "Composer",
-        "href": "/docs/primitives/composer",
-        "detail": "Keyboard submission, cancel, and input state come from the runtime."
+        "href": "/elements/composer",
+        "detail": "The shadcn composer shares the design system and runtime behavior for submission and cancellation."
       },
       {
         "name": "AI SDK runtime",
@@ -42,14 +42,14 @@
     "entry": "src/main.tsx",
     "components": [
       {
-        "name": "Thread and messages",
-        "href": "/docs/primitives/thread",
-        "detail": "The assistant-ui primitives render the conversation and follow streaming replies."
+        "name": "shadcn Thread template",
+        "href": "/elements/thread",
+        "detail": "The shared Thread template renders messages, Markdown, editing, and message actions."
       },
       {
         "name": "Composer",
-        "href": "/docs/primitives/composer",
-        "detail": "Keyboard submission, cancel, and input state come from the runtime."
+        "href": "/elements/composer",
+        "detail": "The shadcn composer shares the design system and runtime behavior for submission and cancellation."
       },
       {
         "name": "AI SDK runtime",
@@ -80,14 +80,14 @@
     "entry": "src/main.tsx",
     "components": [
       {
-        "name": "Thread and messages",
-        "href": "/docs/primitives/thread",
-        "detail": "The assistant-ui primitives render the conversation and follow streaming replies."
+        "name": "shadcn Thread template",
+        "href": "/elements/thread",
+        "detail": "The shared Thread template renders messages, Markdown, editing, and message actions."
       },
       {
         "name": "Composer",
-        "href": "/docs/primitives/composer",
-        "detail": "Keyboard submission, cancel, and input state come from the runtime."
+        "href": "/elements/composer",
+        "detail": "The shadcn composer shares the design system and runtime behavior for submission and cancellation."
       },
       {
         "name": "AI SDK runtime",
@@ -95,15 +95,15 @@
         "detail": "useChatRuntime connects the UI to an AI SDK message stream."
       },
       {
-        "name": "Assistant modal pattern",
+        "name": "shadcn AssistantModal template",
         "href": "/elements/assistant-modal",
-        "detail": "A launcher opens the conversation without leaving the page."
+        "detail": "The shared AssistantModal template opens the conversation beside the page."
       }
     ],
     "guide": "/examples/modal",
     "upstreamSource": "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/pages/docs/samples/assistant-modal.tsx",
     "try": [
-      "Follow the invitation and open the corner launcher.",
+      "Open the assistant launcher beside the article.",
       "Ask a suggested question about the article."
     ],
     "requirements": "React and page content to ground replies. A model backend is needed for open-ended questions."
@@ -118,14 +118,14 @@
     "entry": "src/main.tsx",
     "components": [
       {
-        "name": "Thread and messages",
-        "href": "/docs/primitives/thread",
-        "detail": "The assistant-ui primitives render the conversation and follow streaming replies."
+        "name": "shadcn Thread template",
+        "href": "/elements/thread",
+        "detail": "The shared Thread template renders messages, Markdown, editing, and message actions."
       },
       {
         "name": "Composer",
-        "href": "/docs/primitives/composer",
-        "detail": "Keyboard submission, cancel, and input state come from the runtime."
+        "href": "/elements/composer",
+        "detail": "The shadcn composer shares the design system and runtime behavior for submission and cancellation."
       },
       {
         "name": "AI SDK runtime",
@@ -156,14 +156,14 @@
     "entry": "src/main.tsx",
     "components": [
       {
-        "name": "Thread and messages",
-        "href": "/docs/primitives/thread",
-        "detail": "The assistant-ui primitives render the conversation and follow streaming replies."
+        "name": "shadcn Thread template",
+        "href": "/elements/thread",
+        "detail": "The shared Thread template renders messages, Markdown, editing, and message actions."
       },
       {
         "name": "Composer",
-        "href": "/docs/primitives/composer",
-        "detail": "Keyboard submission, cancel, and input state come from the runtime."
+        "href": "/elements/composer",
+        "detail": "The shadcn composer shares the design system and runtime behavior for submission and cancellation."
       },
       {
         "name": "AI SDK runtime",

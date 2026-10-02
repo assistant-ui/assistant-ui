@@ -1,3 +1,11 @@
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { useCallback, useState } from "react";
 import { PreviewChat } from "../../bundle-shared/chat";
 import {
@@ -145,27 +153,37 @@ export default function App() {
             </div>
           </dl>
           <div className="explorer-controls">
-            <label>
-              Region
-              <select
+            <div className="flex flex-col gap-2">
+              <span id="region-label">Region</span>
+              <Select<RegionFilter>
                 value={filter}
-                onChange={(event) => {
-                  setFilter(event.target.value as RegionFilter);
-                  setUpdate(`Showing ${event.target.value}.`);
+                onValueChange={(value) => {
+                  if (value === null) return;
+                  setFilter(value);
+                  setUpdate(`Showing ${value}.`);
                 }}
               >
-                <option>All regions</option>
-                {regions.map((region) => (
-                  <option key={region}>{region}</option>
-                ))}
-              </select>
-            </label>
+                <SelectTrigger aria-labelledby="region-label">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All regions">All regions</SelectItem>
+                  {regions.map((region) => (
+                    <SelectItem key={region} value={region}>
+                      {region}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div
               className="explorer-grouping"
               role="group"
               aria-label="Group chart by"
             >
-              <button
+              <Button
+                variant="outline"
+                className="aria-pressed:bg-foreground aria-pressed:text-background"
                 type="button"
                 aria-pressed={grouping === "month"}
                 onClick={() => {
@@ -174,8 +192,10 @@ export default function App() {
                 }}
               >
                 By month
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="outline"
+                className="aria-pressed:bg-foreground aria-pressed:text-background"
                 type="button"
                 aria-pressed={grouping === "region"}
                 onClick={() => {
@@ -184,7 +204,7 @@ export default function App() {
                 }}
               >
                 By region
-              </button>
+              </Button>
             </div>
           </div>
           <figure className="explorer-figure">

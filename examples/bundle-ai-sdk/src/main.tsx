@@ -21,7 +21,7 @@ export default function App() {
             if (/model|backend|real|key/i.test(text))
               return "This preview uses a local scripted transport. In your app, pass an AI SDK DefaultChatTransport to useChatRuntime and point it at your chat route. The existing with-ai-sdk-v7 example streams from a provider using streamText. Keep provider keys on the server.";
             if (/custom|style|component/i.test(text))
-              return "Thread, Message, Composer, and ActionBar are assistant-ui primitives. Their appearance is ordinary CSS, and the runtime owns message state, streaming, cancellation, copying, and regeneration. You can change this layout while keeping the same behavior.";
+              return "This chat uses the assistant-ui shadcn Thread template and shared design system. The template includes the composer, Markdown messages, message actions, editing, and branch controls. Customize these components in your project while the runtime handles message state and streaming.";
             return "This conversation runs through useChatRuntime from @assistant-ui/ai-sdk. A browser-local AI SDK message stream supplies scripted replies. Try sending another message, copying this reply, or regenerating it. Connect the existing AI SDK example backend for live model responses.";
           }}
         />

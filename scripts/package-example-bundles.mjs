@@ -1,6 +1,7 @@
 import { cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { resolve, dirname, relative, basename } from "node:path";
 import { fileURLToPath } from "node:url";
+import { uiAliases } from "../examples/bundle-shared/build.mjs";
 import { execFileSync } from "node:child_process";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -38,6 +39,16 @@ for (const example of examples) {
         !["package.json", "tsconfig.json"].includes(basename(path)),
     },
   );
+  const uiRoot = resolve(root, "packages/ui/src");
+  const uiFiles = (info.inputs ?? [])
+    .map((path) => resolve(source, path))
+    .filter((path) => path.startsWith(uiRoot + "/"));
+  for (const path of uiFiles) {
+    const copy = resolve(scratch, "ui", relative(uiRoot, path));
+    await mkdir(dirname(copy), { recursive: true });
+    await cp(path, copy);
+  }
+  const aliases = uiAliases(resolve(scratch, "ui"));
   async function rewriteImports(directory) {
     for (const file of await readdir(directory, { withFileTypes: true })) {
       const path = resolve(directory, file.name);
@@ -57,7 +68,24 @@ for (const example of examples) {
             /(?:\.\.\/)+packages\/ui\/src\/components\/react\/ui\/base\/agent-cursor/g,
             cursor.startsWith(".") ? cursor : `./${cursor}`,
           );
-        await writeFile(path, content);
+        const relocated = content.replace(
+          /((?:from\s*|import\s*(?:\(\s*)?)(["']))(@\/[^"']+)\2/g,
+          (match, prefixText, quote, specifier) => {
+            const prefix = Object.keys(aliases).find(
+              (prefix) =>
+                specifier === prefix || specifier.startsWith(prefix + "/"),
+            );
+            if (!prefix) throw new Error(`Unknown kit alias ${specifier}`);
+            const target = aliases[prefix] + specifier.slice(prefix.length);
+            const local = relative(dirname(path), target).replaceAll("\\", "/");
+            return (
+              prefixText +
+              (local.startsWith(".") ? local : `./${local}`) +
+              quote
+            );
+          },
+        );
+        await writeFile(path, relocated);
       }
     }
   }
@@ -70,6 +98,8 @@ for (const example of examples) {
       resolve(scratch, "src/agent-cursor.tsx"),
     );
   await rewriteImports(resolve(scratch, "src"));
+  await rewriteImports(resolve(scratch, "shared"));
+  if (uiFiles.length) await rewriteImports(resolve(scratch, "ui"));
   const pkg = JSON.parse(
     await readFile(resolve(source, "package.json"), "utf8"),
   );
@@ -82,6 +112,22 @@ for (const example of examples) {
       ),
     ).dependencies,
   };
+  const kit = JSON.parse(
+    await readFile(resolve(root, "packages/ui/package.json"), "utf8"),
+  );
+  for (const path of uiFiles) {
+    const content = await readFile(path, "utf8");
+    for (const [, specifier] of content.matchAll(
+      /(?:from\s*|import\s*)["']([^"']+)["']/g,
+    )) {
+      if (specifier.startsWith(".") || specifier.startsWith("@/")) continue;
+      const name = specifier.startsWith("@")
+        ? specifier.split("/").slice(0, 2).join("/")
+        : specifier.split("/")[0];
+      if (kit.dependencies[name]) all[name] = kit.dependencies[name];
+    }
+  }
+  delete all["bundle-shared"];
   for (const [name, version] of Object.entries(all)) {
     if (version.startsWith("workspace:")) {
       const namePath = name.replace("@assistant-ui/", "");
@@ -104,7 +150,13 @@ for (const example of examples) {
         type: "module",
         scripts: { build: "node build.mjs", preview: "npx serve dist" },
         dependencies: all,
-        devDependencies: { esbuild: "^0.28.2" },
+        devDependencies: {
+          esbuild: "^0.28.2",
+          postcss: "^8.5.28",
+          "@tailwindcss/postcss": "^4.3.3",
+          tailwindcss: "^4.3.3",
+          "tw-animate-css": "^1.4.0",
+        },
       },
       null,
       2,
@@ -112,9 +164,33 @@ for (const example of examples) {
   );
   await writeFile(
     resolve(scratch, "build.mjs"),
-    `import {build} from "esbuild";import {mkdir,writeFile} from "node:fs/promises";await mkdir("dist",{recursive:true});await build({stdin:{contents:'import React from "react";import{createRoot}from"react-dom/client";import App from"./src/main.tsx";import"./shared/styles.css";createRoot(document.getElementById("root")).render(React.createElement(App));',resolveDir:process.cwd(),loader:"tsx"},bundle:true,outfile:"dist/app.js",jsx:"automatic",format:"esm",minify:true,define:{"process.env.NODE_ENV":'"production"'}});await writeFile("dist/index.html",'<html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="app.css"></head><body><div id="root"></div><script type="module" src="app.js"></script></body></html>');`,
+    `import {buildPreview} from "./shared/build.mjs";
+import {mkdir,writeFile} from "node:fs/promises";
+import {resolve} from "node:path";
+await mkdir("dist",{recursive:true});
+await buildPreview({stdin:{contents:'import React from "react";import{createRoot}from"react-dom/client";import App from"./src/main.tsx";import"./shared/styles.css";createRoot(document.getElementById("root")).render(React.createElement(App));',resolveDir:process.cwd(),loader:"tsx"},bundle:true,outfile:"dist/app.js",jsx:"automatic",format:"esm",minify:true,metafile:true,define:{"process.env.NODE_ENV":'"production"'}},{uiRoot:resolve("ui"),sources:[resolve("ui"),resolve("shared"),resolve("src")]});
+await writeFile("dist/index.html",'<html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="app.css"></head><body><div id="root"></div><script type="module" src="app.js"></script></body></html>');`,
   );
   await cp(resolve(source, "README.md"), resolve(scratch, "README.md"));
+  const sourceFiles = [
+    "src/main.tsx",
+    "shared/chat.tsx",
+    "ui/components/react/assistant-ui/elements/thread.aui.tsx",
+    ...(example.slug === "website-assistant"
+      ? ["ui/components/react/assistant-ui/elements/assistant-modal.aui.tsx"]
+      : []),
+  ];
+  await writeFile(
+    resolve(target, "source.json"),
+    JSON.stringify(
+      await Promise.all(
+        sourceFiles.map(async (path) => ({
+          path,
+          content: await readFile(resolve(scratch, path), "utf8"),
+        })),
+      ),
+    ),
+  );
   execFileSync("tar", [
     "-czf",
     resolve(target, "source.tar.gz"),

@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { BundleCard } from "@/components/pages/shop/bundle-card";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage } from "@/components/shared/type";
 import { EXAMPLE_BUNDLES } from "@/lib/example-bundles";
+import { isExampleBundlesEnabled } from "@/lib/feature-flags";
 import { createOgMetadata } from "@/lib/og";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +20,7 @@ export const metadata: Metadata = {
 };
 
 export default function BundlesPage() {
+  if (!isExampleBundlesEnabled) notFound();
   return (
     <PageFrame pad="sub">
       <Link

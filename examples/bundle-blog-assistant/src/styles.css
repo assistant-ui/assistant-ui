@@ -1,150 +1,71 @@
-.blog-example {
-  min-height: 100dvh;
-  padding: 22px 36px 110px;
-}
-.blog-masthead {
-  display: flex;
-  justify-content: space-between;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 18px;
-  font-size: 12px;
-  color: var(--muted-foreground);
-}
-.blog-masthead span:first-child {
-  font-family: Georgia, serif;
-  font-size: 22px;
-  color: var(--foreground);
-}
-.sample-article {
-  max-width: 640px;
-  margin: 48px auto;
-}
-.article-category {
-  font-size: 12px;
-  color: var(--muted-foreground);
-  margin-bottom: 15px;
-}
-.sample-article h1 {
-  font-size: 46px;
-  line-height: 1.1;
-  max-width: 16ch;
-}
-.article-deck {
-  margin-top: 20px;
-  font-size: 17px;
-  line-height: 1.6;
-  color: var(--muted-foreground);
-}
-.herb-figure {
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  min-height: 100px;
-  margin: 30px 0;
-  background: var(--muted);
-  font-family: Georgia, serif;
-  font-size: 24px;
-}
-.sample-article section {
-  margin-top: 30px;
-}
-.sample-article h2 {
-  font-size: 25px;
-  margin-bottom: 10px;
-}
-.sample-article section p {
-  line-height: 1.75;
-  font-size: 15px;
-}
-.assistant-launcher {
-  position: fixed;
-  right: 24px;
-  bottom: 20px;
-  display: flex;
-  align-items: center;
-  gap: 22px;
-  padding: 14px 17px;
-  background: var(--foreground);
-  color: var(--background);
-  z-index: 3;
-}
-.assistant-launcher:hover {
-  background: var(--foreground);
-  opacity: 0.9;
-}
-.assistant-launcher span {
-  font-size: 20px;
-}
-.launcher-invitation {
-  position: fixed;
-  right: 36px;
-  bottom: 74px;
-  display: flex;
-  align-items: center;
-  font-family: Georgia, serif;
-  font-style: italic;
-  font-size: 17px;
-  pointer-events: none;
-}
-.launcher-invitation svg {
-  width: 82px;
-  height: 60px;
-  fill: none;
-  stroke: var(--foreground);
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.article-assistant {
-  position: fixed;
-  right: 24px;
-  bottom: 78px;
-  width: 360px;
-  height: min(530px, calc(100dvh - 105px));
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 10px 35px oklch(0.22 0.009 106 / 0.1);
-  z-index: 4;
-  background: var(--background);
-}
-.article-assistant .chat-heading {
-  padding-right: 50px;
-}
-.article-assistant .preview-chat {
-  min-height: 0;
-}
-.assistant-close {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 1;
-  padding: 4px 11px;
-  border: 0;
-  font-size: 22px;
-}
-@media (max-width: 600px) {
+@layer components {
   .blog-example {
-    padding: 20px 20px 110px;
+    min-height: 100dvh;
+    padding: 22px 36px 110px;
+  }
+  .blog-masthead {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 18px;
+    font-size: 12px;
+    color: var(--muted-foreground);
+  }
+  .blog-masthead span:first-child {
+    font-family: var(--font-display);
+    font-size: 22px;
+    color: var(--foreground);
   }
   .sample-article {
-    margin-top: 35px;
+    max-width: 640px;
+    margin: 48px auto;
+  }
+  .article-category {
+    font-size: 12px;
+    color: var(--muted-foreground);
+    margin-bottom: 15px;
   }
   .sample-article h1 {
-    font-size: 36px;
+    font-size: 46px;
+    line-height: 1.1;
+    max-width: 16ch;
   }
-  .article-assistant {
-    width: calc(100% - 24px);
-    right: 12px;
+  .article-deck {
+    margin-top: 20px;
+    font-size: 17px;
+    line-height: 1.6;
+    color: var(--muted-foreground);
   }
-  .assistant-launcher {
-    right: 12px;
-    bottom: 14px;
-    font-size: 14px;
+  .herb-figure {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    min-height: 100px;
+    margin: 30px 0;
+    background: var(--muted);
+    font-family: var(--font-display);
+    font-size: 24px;
   }
-  .launcher-invitation {
-    right: 20px;
-    bottom: 66px;
+  .sample-article section {
+    margin-top: 30px;
+  }
+  .sample-article h2 {
+    font-size: 25px;
+    margin-bottom: 10px;
+  }
+  .sample-article section p {
+    line-height: 1.75;
     font-size: 15px;
+  }
+  @media (max-width: 600px) {
+    .blog-example {
+      padding: 20px 20px 110px;
+    }
+    .sample-article {
+      margin-top: 35px;
+    }
+    .sample-article h1 {
+      font-size: 36px;
+    }
   }
 }

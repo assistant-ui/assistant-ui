@@ -1,3 +1,5 @@
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
 import { AgentCursor } from "../../../packages/ui/src/components/react/ui/base/agent-cursor";
 import { PreviewChat } from "../../bundle-shared/chat";
@@ -342,7 +344,8 @@ export default function App() {
                 {tasks.length - completed} open · {completed} completed
               </p>
             </div>
-            <button
+            <Button
+              variant="outline"
               className="website-demo-reset"
               type="button"
               data-action="reset"
@@ -353,7 +356,7 @@ export default function App() {
               }}
             >
               Reset board
-            </button>
+            </Button>
           </div>
           <div
             className="website-demo-filters"
@@ -361,7 +364,9 @@ export default function App() {
             aria-label="Filter tasks"
           >
             {(["all", "open", "done"] as const).map((value) => (
-              <button
+              <Button
+                variant="outline"
+                className="aria-pressed:bg-foreground aria-pressed:text-background"
                 type="button"
                 key={value}
                 data-filter={value}
@@ -382,7 +387,7 @@ export default function App() {
                     ).length
                   }
                 </span>
-              </button>
+              </Button>
             ))}
           </div>
           <div className="website-demo-table-heading" aria-hidden="true">
@@ -392,7 +397,8 @@ export default function App() {
           <ul className="website-demo-tasks">
             {visibleTasks.map((task) => (
               <li key={task.id} data-done={task.done}>
-                <button
+                <Button
+                  variant="outline"
                   type="button"
                   className="website-demo-task-toggle"
                   data-task-id={task.id}
@@ -404,7 +410,7 @@ export default function App() {
                     {task.done ? "✓" : ""}
                   </span>
                   <span>{task.title}</span>
-                </button>
+                </Button>
                 <span className="website-demo-owner">{task.owner}</span>
               </li>
             ))}
@@ -437,7 +443,7 @@ export default function App() {
             <label className="website-demo-sr-only" htmlFor="new-task">
               New task title
             </label>
-            <input
+            <Input
               id="new-task"
               ref={inputRef}
               name="task"
@@ -445,9 +451,9 @@ export default function App() {
               placeholder="Add a task to the launch…"
               autoComplete="off"
             />
-            <button data-action="add" type="submit">
+            <Button variant="outline" data-action="add" type="submit">
               Add task
-            </button>
+            </Button>
           </form>
           <footer className="website-demo-board-footer">
             <span

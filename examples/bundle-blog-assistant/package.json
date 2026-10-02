@@ -13,7 +13,8 @@
     "@assistant-ui/react": "workspace:*",
     "ai": "^7.0.101",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "bundle-shared": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

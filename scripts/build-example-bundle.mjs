@@ -1,7 +1,7 @@
 import { readFile, mkdir, writeFile, rm } from "node:fs/promises";
-import { createRequire } from "node:module";
 import { resolve, relative, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildPreview } from "../examples/bundle-shared/build.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const cwd = process.cwd();
@@ -11,41 +11,49 @@ const manifest = JSON.parse(
 const pkg = JSON.parse(await readFile(resolve(cwd, "package.json"), "utf8"));
 const example = manifest.find((entry) => entry.package === pkg.name);
 if (!example) throw new Error(`No preview manifest entry for ${pkg.name}`);
-const require = createRequire(resolve(cwd, "package.json"));
-const { build } = require("esbuild");
 const outdir = resolve(cwd, "dist");
 await rm(outdir, { recursive: true, force: true });
 await mkdir(outdir, { recursive: true });
 const started = performance.now();
-const result = await build({
-  stdin: {
-    contents: `import React from "react"; import {createRoot} from "react-dom/client"; import App from ${JSON.stringify("./" + example.entry)}; import "../bundle-shared/styles.css"; const params = new URLSearchParams(location.search); if(params.get("theme") === "dark") document.documentElement.dataset.theme = "dark"; if(params.get("view") === "card") document.documentElement.dataset.preview = "card"; createRoot(document.getElementById("root")).render(React.createElement(App));`,
-    resolveDir: cwd,
-    sourcefile: "preview.tsx",
-    loader: "tsx",
+const result = await buildPreview(
+  {
+    stdin: {
+      contents: `import React from "react"; import {createRoot} from "react-dom/client"; import App from ${JSON.stringify("./" + example.entry)}; import "../bundle-shared/styles.css"; const params = new URLSearchParams(location.search); if(params.get("theme") === "dark") document.documentElement.dataset.theme = "dark"; if(params.get("view") === "card") document.documentElement.dataset.preview = "card"; createRoot(document.getElementById("root")).render(React.createElement(App));`,
+      resolveDir: cwd,
+      sourcefile: "preview.tsx",
+      loader: "tsx",
+    },
+    outdir,
+    bundle: true,
+    splitting: true,
+    format: "esm",
+    platform: "browser",
+    jsx: "automatic",
+    minify: true,
+    metafile: true,
+    target: "es2022",
+    entryNames: "assets/preview-[hash]",
+    chunkNames: "assets/chunk-[hash]",
+    nodePaths: [
+      resolve(cwd, "node_modules"),
+      resolve(root, "examples/bundle-shared/node_modules"),
+      resolve(root, "packages/ui/node_modules"),
+    ],
+    define: {
+      "process.env.NODE_ENV": '"production"',
+      __AUI_PACKAGE_VERSION__: '"0.0.0"',
+    },
+    logLevel: "warning",
   },
-  outdir,
-  bundle: true,
-  splitting: true,
-  format: "esm",
-  platform: "browser",
-  jsx: "automatic",
-  minify: true,
-  metafile: true,
-  target: "es2022",
-  entryNames: "assets/preview-[hash]",
-  chunkNames: "assets/chunk-[hash]",
-  nodePaths: [
-    resolve(cwd, "node_modules"),
-    resolve(root, "examples/bundle-shared/node_modules"),
-  ],
-  alias: { "@/lib/utils": resolve(root, "packages/ui/src/lib/utils.ts") },
-  define: {
-    "process.env.NODE_ENV": '"production"',
-    __AUI_PACKAGE_VERSION__: '"0.0.0"',
+  {
+    uiRoot: resolve(root, "packages/ui/src"),
+    sources: [
+      resolve(root, "packages/ui/src/components/react"),
+      resolve(root, "examples/bundle-shared"),
+      resolve(cwd, "src"),
+    ],
   },
-  logLevel: "warning",
-});
+);
 const outputs = Object.entries(result.metafile.outputs);
 const script = outputs.find(([, output]) => output.entryPoint)?.[0];
 if (!script) throw new Error("Preview build produced no entry");

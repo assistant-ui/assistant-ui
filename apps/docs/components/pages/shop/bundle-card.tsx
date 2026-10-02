@@ -1,8 +1,15 @@
+"use client";
+
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { useTheme } from "next-themes";
+import { Button } from "@/components/ui/button";
 import { typeSection } from "@/components/shared/type";
-import { bundleHref, type ExampleBundle } from "@/lib/example-bundles";
-import { BundlePreview } from "./bundle-preview";
+import {
+  bundleHref,
+  bundlePreviewHref,
+  type ExampleBundle,
+} from "@/lib/example-bundles";
 
 export function BundleCard({
   example,
@@ -11,10 +18,11 @@ export function BundleCard({
   example: ExampleBundle;
   index: number;
 }) {
+  const { resolvedTheme } = useTheme();
+  const previewHref = `${bundlePreviewHref(example.slug)}?theme=${resolvedTheme === "dark" ? "dark" : "light"}`;
   return (
     <article className="min-w-0">
-      <BundlePreview slug={example.slug} title={example.title} compact />
-      <div className="mt-5 flex items-baseline gap-3">
+      <div className="flex items-baseline gap-3">
         <span className="text-muted-foreground font-mono text-xs">
           {String(index).padStart(2, "0")}
         </span>
@@ -30,16 +38,26 @@ export function BundleCard({
       <p className="text-muted-foreground mt-3 max-w-[48ch] text-sm leading-relaxed">
         {example.summary}
       </p>
-      <Link
-        href={bundleHref(example.slug)}
-        className="group mt-5 inline-flex items-center gap-2 text-sm font-medium underline-offset-4 hover:underline"
-      >
-        Explore this bundle
-        <ArrowRight
-          aria-hidden
-          className="size-3.5 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none"
-        />
-      </Link>
+      <div className="mt-5 flex flex-wrap gap-3">
+        <Button
+          variant="outline"
+          render={
+            <a href={previewHref} target="_blank" rel="noopener noreferrer" />
+          }
+          nativeButton={false}
+        >
+          Full-screen preview
+          <ArrowUpRight aria-hidden data-icon="inline-end" />
+        </Button>
+        <Button
+          variant="ghost"
+          render={<Link href={bundleHref(example.slug)} />}
+          nativeButton={false}
+        >
+          Explore this bundle
+          <ArrowRight aria-hidden data-icon="inline-end" />
+        </Button>
+      </div>
     </article>
   );
 }

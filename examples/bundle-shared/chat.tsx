@@ -1,96 +1,35 @@
-import { useMemo, useRef } from "react";
-import {
-  ActionBarPrimitive,
-  AssistantRuntimeProvider,
-  AuiIf,
-  ComposerPrimitive,
-  MessagePrimitive,
-  ThreadPrimitive,
-  useAui,
-} from "@assistant-ui/react";
+import { useMemo, useRef, useCallback } from "react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+import { AssistantModal } from "@/components/assistant-ui/elements/assistant-modal.aui";
 import type { ChatTransport, UIMessage, UIMessageChunk } from "ai";
 
 export type PreviewChatProps = {
   title: string;
   intro: string;
   suggestions: string[];
+  modal?: boolean;
   onPrompt: (text: string, signal: AbortSignal) => string | Promise<string>;
 };
 
-function Message() {
-  return (
-    <MessagePrimitive.Root className="preview-message">
-      <AuiIf condition={(s) => s.message.role === "user"}>
-        <span className="message-author">You</span>
-      </AuiIf>
-      <AuiIf condition={(s) => s.message.role === "assistant"}>
-        <span className="message-author">Assistant</span>
-      </AuiIf>
-      <div className="message-text">
-        <MessagePrimitive.Parts />
+function ChatContents({ intro }: Omit<PreviewChatProps, "onPrompt">) {
+  const Welcome = useCallback(
+    () => (
+      <div className="aui-thread-welcome-root mb-6 flex flex-col px-2">
+        <p className="text-2xl font-medium tracking-tight">{intro}</p>
       </div>
-      <AuiIf condition={(s) => s.message.role === "assistant"}>
-        <ActionBarPrimitive.Root hideWhenRunning className="message-actions">
-          <ActionBarPrimitive.Copy>Copy</ActionBarPrimitive.Copy>
-          <ActionBarPrimitive.Reload>Regenerate</ActionBarPrimitive.Reload>
-        </ActionBarPrimitive.Root>
-      </AuiIf>
-    </MessagePrimitive.Root>
+    ),
+    [intro],
   );
+  return <Thread autoFocus={false} components={{ Welcome }} />;
 }
 
-function ChatContents({
-  title,
-  intro,
-  suggestions,
-}: Omit<PreviewChatProps, "onPrompt">) {
-  const aui = useAui();
-  return (
-    <ThreadPrimitive.Root className="preview-chat" aria-label={title}>
-      <header className="chat-heading">
-        <h2>{title}</h2>
-        <span>Local demo</span>
-      </header>
-      <ThreadPrimitive.Viewport className="chat-viewport">
-        <ThreadPrimitive.Empty>
-          <div className="chat-welcome">
-            <h3>{intro}</h3>
-            <p>Scripted responses. No model key required.</p>
-            <div className="chat-suggestions">
-              {suggestions.map((prompt) => (
-                <button
-                  key={prompt}
-                  type="button"
-                  onClick={() => aui.thread().append(prompt)}
-                >
-                  {prompt}
-                  <span aria-hidden>↗</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </ThreadPrimitive.Empty>
-        <ThreadPrimitive.Messages>{() => <Message />}</ThreadPrimitive.Messages>
-      </ThreadPrimitive.Viewport>
-      <ComposerPrimitive.Root className="preview-composer">
-        <ComposerPrimitive.Input
-          aria-label="Message the assistant"
-          placeholder="Ask a question…"
-          rows={2}
-        />
-        <AuiIf condition={(s) => !s.thread.isRunning}>
-          <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
-        </AuiIf>
-        <AuiIf condition={(s) => s.thread.isRunning}>
-          <ComposerPrimitive.Cancel>Stop</ComposerPrimitive.Cancel>
-        </AuiIf>
-      </ComposerPrimitive.Root>
-    </ThreadPrimitive.Root>
-  );
-}
-
-export function PreviewChat({ onPrompt, ...props }: PreviewChatProps) {
+export function PreviewChat({
+  onPrompt,
+  modal = false,
+  ...props
+}: PreviewChatProps) {
   const promptRef = useRef(onPrompt);
   promptRef.current = onPrompt;
   const transport = useMemo<ChatTransport<UIMessage>>(
@@ -144,10 +83,23 @@ export function PreviewChat({ onPrompt, ...props }: PreviewChatProps) {
     }),
     [],
   );
-  const runtime = useChatRuntime({ transport });
+  const runtime = useChatRuntime({
+    transport,
+    suggestions: props.suggestions.map((prompt) => ({ prompt })),
+  });
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <ChatContents {...props} />
+      {modal ? (
+        <AssistantModal />
+      ) : (
+        <section className="preview-chat" aria-label={props.title}>
+          <header className="chat-heading">
+            <h2>{props.title}</h2>
+            <span>Local demo</span>
+          </header>
+          <ChatContents {...props} />
+        </section>
+      )}
     </AssistantRuntimeProvider>
   );
 }

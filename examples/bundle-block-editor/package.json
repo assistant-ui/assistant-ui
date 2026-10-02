@@ -18,7 +18,8 @@
     "ai": "^7.0.101",
     "lexical": "^0.51.0",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "bundle-shared": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

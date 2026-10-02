@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from "react";
 import { PreviewChat } from "../../bundle-shared/chat";
 import "./styles.css";
 
@@ -44,16 +43,6 @@ function answer(text: string) {
 }
 
 export default function App() {
-  const [open, setOpen] = useState(false);
-  const launcher = useRef<HTMLButtonElement>(null);
-  const closeButton = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (open) closeButton.current?.focus();
-  }, [open]);
-  function close() {
-    setOpen(false);
-    launcher.current?.focus();
-  }
   return (
     <main className="blog-example">
       <header className="blog-masthead">
@@ -79,57 +68,17 @@ export default function App() {
           </section>
         ))}
       </article>
-      {!open && (
-        <div className="launcher-invitation">
-          <span>Questions about the article?</span>
-          <svg aria-hidden="true" viewBox="0 0 110 65">
-            <path d="M4 9 C45 -2 96 13 85 52 M73 43 L85 55 L97 42" />
-          </svg>
-        </div>
-      )}
-      <button
-        className="assistant-launcher"
-        ref={launcher}
-        type="button"
-        aria-expanded={open}
-        aria-controls="article-assistant"
-        onClick={() => (open ? close() : setOpen(true))}
-      >
-        {open ? "Close assistant" : "Ask about this article"}
-        <span aria-hidden>{open ? "×" : "↗"}</span>
-      </button>
-      {open && (
-        <section
-          id="article-assistant"
-          role="dialog"
-          aria-modal="false"
-          aria-label="Article assistant"
-          className="article-assistant"
-          onKeyDown={(event) => {
-            if (event.key === "Escape") close();
-          }}
-        >
-          <button
-            ref={closeButton}
-            className="assistant-close"
-            type="button"
-            onClick={close}
-            aria-label="Close article assistant"
-          >
-            ×
-          </button>
-          <PreviewChat
-            title="Article assistant"
-            intro="Ask about this page."
-            suggestions={[
-              "Which herbs should I start with?",
-              "How often should I water?",
-              "Summarize the article",
-            ]}
-            onPrompt={answer}
-          />
-        </section>
-      )}
+      <PreviewChat
+        modal
+        title="Article assistant"
+        intro="Ask about this page."
+        suggestions={[
+          "Which herbs should I start with?",
+          "How often should I water?",
+          "Summarize the article",
+        ]}
+        onPrompt={answer}
+      />
     </main>
   );
 }

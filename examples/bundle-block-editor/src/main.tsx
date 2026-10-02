@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LexicalComposer } from "@lexical/react/LexicalComposer";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
@@ -181,51 +182,57 @@ function Toolbar() {
       role="group"
       aria-label="Document formatting"
     >
-      <button
+      <Button
+        variant="outline"
         type="button"
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => setBlock(false)}
       >
         Paragraph
-      </button>
-      <button
+      </Button>
+      <Button
+        variant="outline"
         type="button"
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => setBlock(true)}
       >
         Heading
-      </button>
-      <button
+      </Button>
+      <Button
+        variant="outline"
         type="button"
         aria-label="Bold"
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "bold")}
       >
         <strong>B</strong>
-      </button>
-      <button
+      </Button>
+      <Button
+        variant="outline"
         type="button"
         aria-label="Italic"
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "italic")}
       >
         <em>I</em>
-      </button>
+      </Button>
       <span className="toolbar-space" />
-      <button
+      <Button
+        variant="outline"
         type="button"
         disabled={!canUndo}
         onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)}
       >
         Undo
-      </button>
-      <button
+      </Button>
+      <Button
+        variant="outline"
         type="button"
         disabled={!canRedo}
         onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}
       >
         Redo
-      </button>
+      </Button>
     </div>
   );
 }
@@ -438,14 +445,16 @@ export default function App() {
                 )}
                 <p className="review-text">{proposal.text}</p>
                 <div className="review-actions">
-                  <button
+                  <Button
+                    variant="outline"
                     type="button"
                     className="review-apply"
                     onClick={applyProposal}
                   >
                     Apply suggestion
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="outline"
                     type="button"
                     onClick={() => {
                       setProposal(null);
@@ -455,7 +464,7 @@ export default function App() {
                     }}
                   >
                     Dismiss
-                  </button>
+                  </Button>
                 </div>
               </>
             )}
@@ -476,20 +485,22 @@ export default function App() {
             onPrompt={(prompt, signal) => assist(prompt, signal)}
           />
           <div className="editor-quick-actions" aria-label="Document actions">
-            <button
+            <Button
+              variant="outline"
               type="button"
               disabled={pending}
               onClick={() => void assist("Shorten the selected paragraph")}
             >
               Shorten paragraph
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
               type="button"
               disabled={pending}
               onClick={() => void assist("Add next steps")}
             >
               Add next steps
-            </button>
+            </Button>
           </div>
           <p className="editor-assistant-note">
             Suggestions are proposals. Human edits take precedence when a

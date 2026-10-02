@@ -1,8 +1,19 @@
 import type { Metadata } from "next";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowRight, ArrowUpRight, Download } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  ArrowUpRight,
+  Code,
+  Download,
+} from "lucide-react";
 import { BundlePreview } from "@/components/pages/shop/bundle-preview";
+import { BundleSetupButton } from "@/components/pages/shop/bundle-setup-button";
+import { BundleSource } from "@/components/pages/shop/bundle-source";
+import { Button } from "@/components/ui/button";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage, typeSection } from "@/components/shared/type";
 import {
@@ -11,16 +22,20 @@ import {
   getExampleBundle,
 } from "@/lib/example-bundles";
 import { createOgMetadata } from "@/lib/og";
+import { isExampleBundlesEnabled } from "@/lib/feature-flags";
 import { cn } from "@/lib/utils";
 
 export function generateStaticParams() {
-  return EXAMPLE_BUNDLES.map(({ slug }) => ({ slug }));
+  return isExampleBundlesEnabled
+    ? EXAMPLE_BUNDLES.map(({ slug }) => ({ slug }))
+    : [];
 }
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
+  if (!isExampleBundlesEnabled) notFound();
   const { slug } = await params;
   const example = getExampleBundle(slug);
   return example
@@ -37,9 +52,16 @@ export default async function BundlePage({
 }: {
   params: Promise<{ slug: string }>;
 }) {
+  if (!isExampleBundlesEnabled) notFound();
   const { slug } = await params;
   const example = getExampleBundle(slug);
   if (!example) notFound();
+  const files: { path: string; content: string }[] = JSON.parse(
+    await readFile(
+      resolve(process.cwd(), "public/example-bundles", slug, "source.json"),
+      "utf8",
+    ),
+  );
   const next =
     EXAMPLE_BUNDLES[
       (EXAMPLE_BUNDLES.indexOf(example) + 1) % EXAMPLE_BUNDLES.length
@@ -64,21 +86,15 @@ export default async function BundlePage({
           </p>
         </div>
         <div className="flex flex-col items-start justify-end gap-4">
-          <a
-            href={`/example-bundles/${slug}/source.tar.gz`}
-            download
-            className="bg-foreground text-background inline-flex items-center gap-2 rounded-(--radius-control) px-4 py-2.5 text-sm font-medium hover:opacity-85"
+          <BundleSetupButton example={example} />
+          <Button
+            variant="ghost"
+            render={<Link href="#code" />}
+            nativeButton={false}
           >
-            <Download aria-hidden className="size-4" />
-            Download source
-          </a>
-          <Link
-            href={example.guide}
-            className="inline-flex items-center gap-2 text-sm font-medium underline-offset-4 hover:underline"
-          >
-            Open the guide
-            <ArrowUpRight aria-hidden className="size-3.5" />
-          </Link>
+            <Code aria-hidden data-icon="inline-start" />
+            Explore code
+          </Button>
         </div>
       </header>
       <div className="mt-10">
@@ -138,37 +154,70 @@ export default async function BundlePage({
       </section>
       <section
         aria-labelledby="build-heading"
-        className="border-foreground/10 mt-12 grid gap-8 border-t pt-9 md:grid-cols-2"
+        className="border-foreground/10 mt-12 grid gap-8 border-t pt-9 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]"
       >
         <div>
           <h2 id="build-heading" className={typeSection}>
-            Make it your own.
+            Set up this bundle.
           </h2>
           <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
-            The source archive includes this example and the shared preview
-            runtime. Install dependencies, build, and serve it locally.
+            Your coding agent reads your project, configures the bundle, and
+            connects your model provider through the setup process.
           </p>
-          <pre className="bg-foreground/[0.025] mt-5 overflow-x-auto rounded-(--radius-document) p-4 text-sm">
-            <code>{"npm install\nnpm run build\nnpm run preview"}</code>
-          </pre>
+          <div className="mt-5">
+            <BundleSetupButton example={example} />
+          </div>
         </div>
         <div>
-          <h3 className="text-sm font-medium">For live AI</h3>
+          <h3 className="text-sm font-medium">Configure it yourself</h3>
           <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
             {example.requirements}
           </p>
           <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
-            Replace the local scripted transport with your server-side AI SDK
-            route. The preview makes no external model calls.
+            Download the source to inspect the components and runtime. Follow
+            the guide to connect a live backend.
           </p>
-          <a
-            href={example.upstreamSource}
-            className="mt-5 inline-flex items-center gap-2 text-sm font-medium underline-offset-4 hover:underline"
-          >
-            Related existing example
-            <ArrowUpRight aria-hidden className="size-3.5" />
-          </a>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Button
+              variant="outline"
+              render={<Link href={example.guide} />}
+              nativeButton={false}
+            >
+              Configure it yourself
+              <ArrowUpRight aria-hidden data-icon="inline-end" />
+            </Button>
+            <Button
+              variant="ghost"
+              render={<Link href="#code" />}
+              nativeButton={false}
+            >
+              <Code aria-hidden data-icon="inline-start" />
+              Explore code
+            </Button>
+          </div>
         </div>
+      </section>
+      <section
+        id="code"
+        aria-labelledby="code-heading"
+        className="border-foreground/10 mt-12 border-t pt-9"
+      >
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+          <h2 id="code-heading" className={typeSection}>
+            Explore the code.
+          </h2>
+          <Button
+            variant="outline"
+            render={
+              <a href={`/example-bundles/${slug}/source.tar.gz`} download />
+            }
+            nativeButton={false}
+          >
+            <Download aria-hidden data-icon="inline-start" />
+            Download source
+          </Button>
+        </div>
+        <BundleSource files={files} />
       </section>
       <nav
         aria-label="Other bundles"
