@@ -153,6 +153,12 @@ export type ThreadMeta = {
 };
 
 export type ThreadEvents = {
+  "thread.historyWriteError": {
+    threadId: string;
+    operation: "append" | "update" | "delete";
+    messageIds: readonly string[];
+    message: string;
+  };
   "thread.toolApprovalAnswered": {
     threadId: string;
     messageId: string;
