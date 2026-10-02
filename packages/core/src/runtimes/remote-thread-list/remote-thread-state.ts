@@ -159,11 +159,12 @@ export const createEmptyRemoteThreadState = (): RemoteThreadState => ({
 
 export const seedNewThread = (
   state: RemoteThreadState,
+  initialThreadIdSeed?: string,
 ): { id: string; state: RemoteThreadState } => {
-  let id: string;
-  do {
+  let id = `${LOCAL_THREAD_ID_PREFIX}${initialThreadIdSeed ?? generateId()}`;
+  while (state.threadIdMap[id]) {
     id = `${LOCAL_THREAD_ID_PREFIX}${generateId()}`;
-  } while (state.threadIdMap[id]);
+  }
   const mappingId = createThreadMappingId(id);
   return {
     id,
