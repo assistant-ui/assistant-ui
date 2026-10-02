@@ -139,7 +139,10 @@ describe("thread switch events", () => {
         message: error.message,
       }),
     );
-    expect(log).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledWith(
+      "[assistant-ui] local thread history write failed:",
+      error,
+    );
   });
 
   it("delivers switchedTo to default-scope, star-scope, and aui.on listeners", async () => {

@@ -117,7 +117,7 @@ export type SubmittedFeedback = {
 
 export type ThreadRuntimeEventPayload = {
   /**
-   * Truly transient. A history adapter write rejected, so the stored history may no longer match the thread. A write whose promise reaches a caller still rejects there as well. With no listener, the runtime logs the failure with console.error instead.
+   * Truly transient. A history adapter write rejected, so the stored history may no longer match the thread. A write whose promise reaches a caller still rejects there as well, and the runtime logs every failed write with console.error.
    */
   historyWriteError: {
     operation: "append" | "update" | "delete";

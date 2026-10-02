@@ -36,7 +36,7 @@ Choose the runtime that owns the conversation history before a thread is used. T
 
 The AI SDK adapter pins the thread list item before it writes, so a later thread switch does not redirect an in flight history write. It waits for the run to settle, appends each unpersisted message once with its chained parent, and updates an already persisted message only when the encoded content changed. The cloud history adapter never deletes a message.
 
-When a local runtime write through a cloud history adapter fails, `thread.historyWriteError` carries its `operation`, `messageIds`, `threadId`, and a readable `message`. Listeners receive the event while bound to the affected thread. If the write fails after switching away and no listener remains on that thread, the runtime logs the failure with `console.error`. The cloud's stored tree may no longer match the thread. A write returned to its caller still rejects.
+When a local runtime write through a cloud history adapter fails, `thread.historyWriteError` carries its `operation`, `messageIds`, `threadId`, and a readable `message`. Listeners receive the event while bound to the affected thread, so a write that fails after you switch away reaches no listener; the runtime logs every failed write with `console.error` either way. The cloud's stored tree may no longer match the thread. A write returned to its caller still rejects.
 
 An external-store runtime never copies a message without a backend ID. It skips fallback IDs beginning `__external_store_fallback_`, optimistic messages, error IDs, and running assistant messages. Empty IDs and IDs longer than 255 characters are also skipped.
 

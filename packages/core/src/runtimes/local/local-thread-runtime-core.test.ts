@@ -3494,10 +3494,10 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
       message: error.message,
       error,
     });
-    expect(log).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledOnce();
   });
 
-  it("logs a failed history write once without a subscriber", async () => {
+  it("logs a failed history write once with no listener subscribed", async () => {
     const { history } = createHistory();
     const error = new Error("append failed");
     const thread = createThread(
@@ -3550,7 +3550,7 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
       message: error,
       error,
     });
-    expect(log).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledOnce();
   });
 
   it("persists a run paused for approval and rewrites it once the run finishes", async () => {
@@ -5308,7 +5308,7 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
             message: appendError.message,
             error: appendError,
           });
-          expect(log).not.toHaveBeenCalled();
+          expect(log).toHaveBeenCalled();
         }
       } else {
         expect(stored.has(paused!.id)).toBe(true);
@@ -5319,7 +5319,7 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
           message: "delete failed",
           error: expect.any(Error),
         });
-        expect(log).not.toHaveBeenCalled();
+        expect(log).toHaveBeenCalled();
       }
     },
   );
