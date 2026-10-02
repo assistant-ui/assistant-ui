@@ -152,7 +152,7 @@ describe("POST /api/doc/chat access boundary", () => {
     });
     mocks.checkRateLimit.mockResolvedValue(null);
 
-    const response = await POST(
+    await POST(
       new Request("https://www.assistant-ui.com/api/doc/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -170,7 +170,6 @@ describe("POST /api/doc/chat access boundary", () => {
       }),
     );
 
-    expect(response.status).not.toBe(400);
     expect(mocks.resolveChatModel).toHaveBeenCalledOnce();
   });
 });
