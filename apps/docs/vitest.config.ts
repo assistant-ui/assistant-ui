@@ -6,6 +6,19 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default {
   test: {
+    coverage: {
+      include: [
+        "app/**",
+        "components/**",
+        "hooks/**",
+        "lib/**",
+        "runtimes/**",
+        "instrumentation.ts",
+        "instrumentation-client.ts",
+        "proxy.ts",
+        "mdx-components.tsx",
+      ],
+    },
     environment: "node",
     pool: "threads",
     fsModuleCache: true,

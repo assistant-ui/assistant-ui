@@ -7,6 +7,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   test: {
+    coverage: {
+      include: ["src/**"],
+    },
     fsModuleCache: true,
     projects: [
       {
