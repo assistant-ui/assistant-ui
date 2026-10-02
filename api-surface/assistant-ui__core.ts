@@ -4733,6 +4733,12 @@ type ThreadData$2 = {
 };
 
 type ThreadEvents = {
+  "thread.historyWriteError": {
+    threadId: string;
+    operation: "append" | "delete" | "update";
+    messageIds: readonly string[];
+    error: unknown;
+  };
   "thread.toolApprovalAnswered": {
     threadId: string;
     messageId: string;
@@ -5368,6 +5374,11 @@ type ThreadRuntimeCoreBinding = SubscribableWithState<ThreadRuntimeCore, ThreadR
 type ThreadRuntimeEventCallback<E extends ThreadRuntimeEventType> = (payload: ThreadRuntimeEventPayload[E]) => void;
 
 type ThreadRuntimeEventPayload = {
+  historyWriteError: {
+    operation: "append" | "delete" | "update";
+    messageIds: readonly string[];
+    error: unknown;
+  };
   toolApprovalAnswered: {
     messageId: string;
     toolCallId: string;
