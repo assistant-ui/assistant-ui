@@ -297,7 +297,7 @@ function CartPopoverButton({ checkoutActive }: { checkoutActive: boolean }) {
                   <SetupLink
                     onClick={() => {
                       close();
-                      checkoutCart();
+                      checkoutCart("cart_popover");
                     }}
                   />
                 }

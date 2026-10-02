@@ -26,7 +26,7 @@ export function AgentSetup({
       <Button
         size={prominent ? "default" : "sm"}
         variant={prominent && collects ? "outline" : "default"}
-        onClick={() => beginSetup([product.slug])}
+        onClick={() => beginSetup([product.slug], "", { source: "agent_setup" })}
       >
         {session ? "Continue setup" : "Begin setup"}
       </Button>

@@ -71,8 +71,10 @@ import { OpenCodeIcon } from "@/components/icons/opencode";
 import { VercelIcon } from "@/components/icons/vercel";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import { useWizardNext } from "@/components/pages/shop/wizard-actions";
+import { analytics } from "@/lib/analytics";
 import {
   isOptionIcon,
+  parseModelAnswer,
   type Checkout,
   type OptionIcon,
 } from "@/lib/checkout/protocol";
@@ -209,16 +211,25 @@ export const useInputActions = (
       await action();
     } catch {
       toast.error(failure);
+      analytics.setup.error({ reason: "answer_failed", step: "question" });
     } finally {
       setBusy(false);
     }
   };
-  const send = (answer: string, note: string) =>
-    checkout.commands["checkout/answer"]({
+  const send = async (answer: string, note: string) => {
+    await checkout.commands["checkout/answer"]({
       inputId: input.id,
       answer,
       ...withNote(note),
     });
+    const provider =
+      input.kind === "model" ? parseModelAnswer(answer)?.provider : undefined;
+    analytics.setup.inputAnswered({
+      kind: input.kind,
+      skipped: false,
+      ...(provider !== undefined && { model_provider: provider }),
+    });
+  };
   const deposit = async (secret: string, answer: string) => {
     const setupId = checkout.state?.id;
     if (!setupId) throw new Error("setup not created");
@@ -239,10 +250,10 @@ export const useInputActions = (
         await send(answer, note);
       }, "Could not send the answer"),
     dismiss: () =>
-      run(
-        () => checkout.commands["checkout/dismiss"]({ inputId: input.id }),
-        "Could not skip the question",
-      ),
+      run(async () => {
+        await checkout.commands["checkout/dismiss"]({ inputId: input.id });
+        analytics.setup.inputAnswered({ kind: input.kind, skipped: true });
+      }, "Could not skip the question"),
   };
 };
 

@@ -1,8 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const setupStorage = () => {
+vi.mock("@vercel/analytics", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vercel/analytics")>()),
+  track: vi.fn(),
+}));
+
+const setupStorage = (capture?: (...args: unknown[]) => void) => {
   const values = new Map<string, string>();
   vi.stubGlobal("window", {
+    ...(capture && { posthog: { capture } }),
     localStorage: {
       getItem: (key: string) => values.get(key) ?? null,
       setItem: (key: string, value: string) => {
@@ -119,7 +125,7 @@ describe("checkout flow", () => {
     const s = await load();
     s.replaceCart(["elements/thread-list"]);
     s.setCartInstructions("  Use our custom offline model gateway.  ");
-    expect(s.checkoutCart()?.instructions).toBe(
+    expect(s.checkoutCart("cart_page")?.instructions).toBe(
       "Use our custom offline model gateway.",
     );
     expect(s.getCartInstructions()).toBe("");
@@ -127,7 +133,7 @@ describe("checkout flow", () => {
     expect(s.getCartInstructions()).toBe(
       "Use our custom offline model gateway.",
     );
-    s.checkoutCart();
+    s.checkoutCart("cart_page");
     const restored = await load();
     expect(restored.getCheckoutSession()?.instructions).toBe(
       "Use our custom offline model gateway.",
@@ -163,22 +169,51 @@ describe("checkout flow", () => {
     setupStorage();
     const s = await load();
     s.replaceCart(["elements/thread-list", "cloud"]);
-    const session = s.checkoutCart();
+    const session = s.checkoutCart("cart_page");
     expect(session?.products).toEqual(["elements/thread-list", "cloud"]);
     expect(s.getCart()).toEqual([]);
     s.addToCart("cloud");
-    expect(s.checkoutCart()).toBe(session);
+    expect(s.checkoutCart("cart_page")).toBe(session);
     expect(s.getCart()).toEqual(["cloud"]);
     s.abandonCheckout();
     expect(s.getCheckoutSession()).toBeNull();
     expect(s.getCart()).toEqual(["cloud", "elements/thread-list"]);
   });
 
+  it("tracks the checkout and the session it starts once, not when one is already running", async () => {
+    const capture = vi.fn();
+    setupStorage(capture);
+    const s = await load();
+    s.replaceCart(["elements/thread-list", "cloud"]);
+    s.checkoutCart("cart_popover");
+    s.addToCart("cloud");
+    s.checkoutCart("cart_page");
+    expect(capture.mock.calls).toEqual([
+      [
+        "shop_checkout_started",
+        {
+          cart_size: 2,
+          products: "elements/thread-list,cloud",
+          location: "cart_popover",
+        },
+      ],
+      [
+        "setup_session_started",
+        {
+          source: "cart",
+          location: "cart_popover",
+          products: "elements/thread-list,cloud",
+          product_count: 2,
+        },
+      ],
+    ]);
+  });
+
   it("leaves the cart alone when a finished checkout is closed", async () => {
     setupStorage();
     const s = await load();
     s.replaceCart(["elements/thread-list"]);
-    s.checkoutCart();
+    s.checkoutCart("cart_page");
     s.addToCart("cloud");
     s.finishCheckout();
     expect(s.getCheckoutSession()).toBeNull();
@@ -188,7 +223,7 @@ describe("checkout flow", () => {
   it("does nothing with an empty cart", async () => {
     setupStorage();
     const s = await load();
-    expect(s.checkoutCart()).toBeNull();
+    expect(s.checkoutCart("cart_page")).toBeNull();
     s.abandonCheckout();
     expect(s.getCart()).toEqual([]);
   });

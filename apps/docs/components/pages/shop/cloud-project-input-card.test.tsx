@@ -33,6 +33,11 @@ vi.mock("@/lib/cloud-projects-client", async (importOriginal) => ({
   },
 }));
 
+vi.mock("@vercel/analytics", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vercel/analytics")>()),
+  track: vi.fn(),
+}));
+
 vi.mock("next/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
   usePathname: () => "/components/setup",
@@ -269,6 +274,111 @@ describe("CloudProjectInputCard", () => {
       screen.queryByRole("textbox", { name: "Frontend API URL" }),
     ).toBeNull();
     expect(next()).toHaveProperty("disabled", true);
+  });
+});
+
+const twoOrgs: CloudProjectsState = {
+  status: "ready",
+  projects: [
+    {
+      id: "proj_a",
+      name: "Support desk",
+      organization: "Acme",
+      frontendUrl: "https://proj-a.assistant-api.com",
+    },
+    {
+      id: "proj_b",
+      name: "Docs bot",
+      organization: "Beta",
+      frontendUrl: "https://proj-b.assistant-api.com",
+    },
+  ],
+};
+
+const trackPosthog = () => {
+  const capture = vi.fn();
+  const group = vi.fn();
+  window.posthog = { capture, group };
+  return {
+    group,
+    events: (event: string) =>
+      capture.mock.calls
+        .filter(([name]) => name === event)
+        .map(([, properties]) => properties),
+  };
+};
+
+describe("CloudProjectInputCard analytics", () => {
+  afterEach(() => {
+    delete window.posthog;
+  });
+
+  it("tracks an existing project and groups the visitor under its id", async () => {
+    mocks.session = { status: "signed-in", cloudHistory: false, user };
+    mocks.projects = twoOrgs;
+    const { events, group } = trackPosthog();
+    const { answer } = setup();
+    fireEvent.click(screen.getByRole("radio", { name: /Docs bot/ }));
+    expect(events("setup_cloud_project_picked")).toEqual([]);
+    fireEvent.click(next());
+    await waitFor(() => expect(answer).toHaveBeenCalled());
+    expect(events("setup_cloud_project_picked")).toEqual([
+      { choice: "existing", project_count: 2, org_count: 2 },
+    ]);
+    expect(group).toHaveBeenCalledWith("project", "proj_b");
+  });
+
+  it("tracks another project without grouping", async () => {
+    mocks.session = { status: "signed-in", cloudHistory: false, user };
+    mocks.projects = twoOrgs;
+    const { events, group } = trackPosthog();
+    const { answer } = setup();
+    fireEvent.click(screen.getByRole("radio", { name: /Another project/ }));
+    fireEvent.change(field(), {
+      target: { value: "https://own.example.com" },
+    });
+    fireEvent.click(next());
+    await waitFor(() => expect(answer).toHaveBeenCalled());
+    expect(events("setup_cloud_project_picked")).toEqual([
+      { choice: "another", project_count: 2, org_count: 2 },
+    ]);
+    expect(group).not.toHaveBeenCalled();
+  });
+
+  it("tracks a pasted URL with no listing as another project", async () => {
+    mocks.session = { status: "disabled" };
+    mocks.projects = { status: "unavailable" };
+    const { events } = trackPosthog();
+    const { answer } = setup();
+    fireEvent.change(field(), {
+      target: { value: "https://proj-abc.assistant-api.com" },
+    });
+    fireEvent.click(next());
+    await waitFor(() => expect(answer).toHaveBeenCalled());
+    expect(events("setup_cloud_project_picked")).toEqual([
+      { choice: "another", project_count: 0 },
+    ]);
+  });
+
+  it("tracks the sign-in button", () => {
+    mocks.session = { status: "anonymous" };
+    const { events } = trackPosthog();
+    setup();
+    const link = screen.getByRole("link", { name: "Sign in" });
+    link.addEventListener("click", (event) => event.preventDefault());
+    fireEvent.click(link);
+    expect(events("setup_cloud_project_picked")).toEqual([
+      { choice: "sign_in_clicked", project_count: 0 },
+    ]);
+  });
+
+  it("picks an existing project without PostHog running", async () => {
+    mocks.session = { status: "signed-in", cloudHistory: false, user };
+    mocks.projects = twoOrgs;
+    const { answer } = setup();
+    fireEvent.click(screen.getByRole("radio", { name: /Support desk/ }));
+    fireEvent.click(next());
+    await waitFor(() => expect(answer).toHaveBeenCalled());
   });
 });
 

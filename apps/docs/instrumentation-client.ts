@@ -56,6 +56,7 @@ if (
         if (optedOut) posthog.opt_out_capturing();
         registerSuperProperties();
       },
+      group: (type, key) => posthog.group(type, key),
     };
     window.dispatchEvent(new Event(ANALYTICS_READY_EVENT));
   };

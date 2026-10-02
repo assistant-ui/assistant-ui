@@ -22,6 +22,11 @@ vi.mock("@/lib/checkout/providers", async (importOriginal) => ({
   testProviderKey,
 }));
 
+vi.mock("@vercel/analytics", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vercel/analytics")>()),
+  track: vi.fn(),
+}));
+
 import { ModelInputCard } from "./model-input-card";
 import { WizardHost } from "./test/wizard-host";
 
@@ -246,6 +251,34 @@ describe("ModelInputCard", () => {
     );
     expect(fetchMock).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
+  });
+
+  it("tracks the answer with the picked provider and never the model or key", async () => {
+    const capture = vi.fn();
+    window.posthog = { capture };
+    const context = checkout();
+    render(
+      <WizardHost>
+        <ModelInputCard input={input} checkout={context} />
+      </WizardHost>,
+    );
+    fireEvent.click(screen.getByRole("radio", { name: /Google/ }));
+    toKeyStep();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Skip, I’ll add it myself" }),
+    );
+    fireEvent.change(screen.getByLabelText("Model"), {
+      target: { value: "gemini-3-pro" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    await waitFor(() =>
+      expect(capture).toHaveBeenCalledWith("setup_input_answered", {
+        kind: "model",
+        skipped: false,
+        model_provider: "google",
+      }),
+    );
+    delete window.posthog;
   });
 
   it("does not show a completed key test after its key changes", async () => {
