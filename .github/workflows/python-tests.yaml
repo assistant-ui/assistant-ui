@@ -1,39 +1,86 @@
 name: Python Tests
 
 on:
-  workflow_call:
-    inputs:
-      package:
-        required: true
-        type: string
+  push:
+    branches: [perf/python-selection-benchmark]
+    paths:
+      - "python/**"
+      - ".github/workflows/python-tests.yaml"
+      - "scripts/python-test-selection.test.mjs"
+  pull_request:
+    branches: [main]
+    paths:
+      - "python/**"
+      - ".github/workflows/python-tests.yaml"
+      - "scripts/python-test-selection.test.mjs"
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
-    name: pytest (${{ inputs.package }}, ${{ matrix.python-version }})
+    name: pytest (${{ matrix.package }}, ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
+        package:
+          - assistant-stream
+          - assistant-ui-sync-server-api
         python-version: ["3.10", "3.12", "3.14"]
     defaults:
       run:
-        working-directory: python/${{ inputs.package }}
+        working-directory: python/${{ matrix.package }}
     steps:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
 
+        with:
+          fetch-depth: 2
+
+      - name: Test Python suite selection
+        if: matrix.package == 'assistant-stream' && matrix.python-version == '3.10'
+        working-directory: .
+        run: node --test scripts/python-test-selection.test.mjs
+
+      - name: Select Python suite
+        id: selection
+        working-directory: .
+        env:
+          PACKAGE: ${{ matrix.package }}
+          BASE_REF: ${{ github.event_name == 'pull_request' && 'HEAD^1' || github.event.before }}
+        run: |
+          set -euo pipefail
+          case "$PACKAGE" in
+            assistant-stream) other=assistant-ui-sync-server-api ;;
+            assistant-ui-sync-server-api) other=assistant-stream ;;
+            *) exit 1 ;;
+          esac
+          run=true
+          if git rev-parse --verify --quiet "${BASE_REF}^{commit}" > /dev/null &&
+            git diff --quiet --no-renames "$BASE_REF" HEAD -- \
+              python .github/workflows/python-tests.yaml \
+              scripts/python-test-selection.test.mjs ":(exclude)python/$other"; then
+            run=false
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
       - name: Install uv
+        if: steps.selection.outputs.run == 'true'
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # ratchet:astral-sh/setup-uv@v10.2.0
         with:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
 
       - name: Install dependencies
+        if: steps.selection.outputs.run == 'true'
         run: uv sync --all-extras
 
       - name: Run tests
+        if: steps.selection.outputs.run == 'true'
         run: uv run pytest
