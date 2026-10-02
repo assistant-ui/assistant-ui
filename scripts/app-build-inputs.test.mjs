@@ -34,6 +34,11 @@ test("detects app build inputs", () => {
     ".github/workflows/code-quality.yaml",
     "scripts/app-build-inputs.mjs",
     "scripts/app-build-inputs.test.mjs",
+    "apps/docs/content/docs/index.mdx",
+    "scripts/lib/script-options.mjs",
+    "scripts/build-example-bundle.mjs",
+    "scripts/run-example-bundles.mjs",
+    "scripts/example-bundles.json",
     "scripts/package-example-bundles.mjs",
     "scripts/prepare-example-bundles.mjs",
     "scripts/example-bundles.test.mjs",
@@ -44,7 +49,6 @@ test("detects app build inputs", () => {
 
 test("ignores changes outside app builds", () => {
   for (const file of [
-    "apps/docs/content/docs/index.mdx",
     "apps/docs/package.json",
     "api-surface/assistant-ui__react.ts",
     ".changeset/example.md",
@@ -65,7 +69,7 @@ test("the CLI reads NUL-separated paths", () => {
   assert.equal(relevant.stdout, "true\n");
 
   const unrelated = spawnSync(process.execPath, [script], {
-    input: "README.md\0apps/docs/content/docs/index.mdx\0",
+    input: "README.md\0apps/docs/package.json\0",
     encoding: "utf8",
   });
   assert.equal(unrelated.status, 0, unrelated.stderr);

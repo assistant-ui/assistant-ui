@@ -9,6 +9,7 @@ import {
   readFile,
   readdir,
   rm,
+  symlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -21,10 +22,10 @@ const examples = JSON.parse(
   await readFile(join(root, "scripts/example-bundles.json"), "utf8"),
 );
 
-const { build } = createRequire(
-  join(root, "examples/bundle-shared/package.json"),
-)("esbuild");
 async function runtimeImports(path, contents) {
+  const { build } = createRequire(
+    join(root, "examples/bundle-shared/package.json"),
+  )("esbuild");
   const { metafile } = await build({
     stdin: {
       contents,
@@ -454,7 +455,15 @@ test("disabled preparation removes stale public artifacts without building previ
       join(root, "scripts/prepare-example-bundles.mjs"),
       join(fixture, "scripts/prepare-example-bundles.mjs"),
     );
-    const stale = join(fixture, "apps/docs/public/example-bundles/stale");
+    const docs = join(fixture, "apps/docs");
+    await mkdir(docs, { recursive: true });
+    await writeFile(join(docs, "package.json"), "{}");
+    await symlink(
+      join(root, "apps/docs/node_modules"),
+      join(docs, "node_modules"),
+      "junction",
+    );
+    const stale = join(docs, "public/example-bundles/stale");
     await mkdir(stale, { recursive: true });
     execFileSync(
       process.execPath,
@@ -462,6 +471,61 @@ test("disabled preparation removes stale public artifacts without building previ
       { env: { ...process.env, NEXT_PUBLIC_AUI_EXAMPLE_BUNDLES_ENABLED: "0" } },
     );
     assert.ok(!existsSync(stale));
+  } finally {
+    await rm(fixture, { recursive: true, force: true });
+  }
+});
+
+test("preparation uses Next's env-file precedence in development and production", async () => {
+  const fixture = await mkdtemp(join(tmpdir(), "bundle-env-contract-"));
+  const flag = "NEXT_PUBLIC_AUI_EXAMPLE_BUNDLES_ENABLED";
+  try {
+    const docs = join(fixture, "apps/docs");
+    await mkdir(docs, { recursive: true });
+    await mkdir(join(fixture, "scripts"));
+    await writeFile(join(docs, "package.json"), "{}");
+    await symlink(
+      join(root, "apps/docs/node_modules"),
+      join(docs, "node_modules"),
+      "junction",
+    );
+    await cp(
+      join(root, "scripts/prepare-example-bundles.mjs"),
+      join(fixture, "scripts/prepare-example-bundles.mjs"),
+    );
+    for (const script of [
+      "run-example-bundles.mjs",
+      "package-example-bundles.mjs",
+    ]) {
+      await writeFile(
+        join(fixture, "scripts", script),
+        `import { writeFileSync } from 'node:fs'; writeFileSync('${script}.ran', '1');`,
+      );
+    }
+    const marker = join(fixture, "package-example-bundles.mjs.ran");
+    const env = { ...process.env };
+    delete env[flag];
+    delete env.NODE_ENV;
+    delete env.__NEXT_PROCESSED_ENV;
+    await writeFile(join(docs, ".env"), `${flag}=0\n`);
+    await writeFile(join(docs, ".env.local"), `${flag}=1\n`);
+    const prepare = (args = [], overrides = {}) =>
+      execFileSync(
+        process.execPath,
+        [join(fixture, "scripts/prepare-example-bundles.mjs"), ...args],
+        { cwd: fixture, env: { ...env, ...overrides }, stdio: "pipe" },
+      );
+    prepare();
+    assert.ok(existsSync(marker), ".env.local enables production previews");
+    await rm(marker);
+    prepare([], { [flag]: "0" });
+    assert.ok(!existsSync(marker), "shell environment overrides files");
+    await writeFile(join(docs, ".env.production.local"), `${flag}=0\n`);
+    prepare();
+    assert.ok(!existsSync(marker), "production-local overrides local");
+    await writeFile(join(docs, ".env.development.local"), `${flag}=1\n`);
+    prepare(["--dev"]);
+    assert.ok(existsSync(marker), "dev preparation selects development files");
   } finally {
     await rm(fixture, { recursive: true, force: true });
   }

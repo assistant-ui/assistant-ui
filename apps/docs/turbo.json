@@ -6,9 +6,6 @@
       "dependsOn": ["^build", "generate:type-docs"],
       "inputs": [
         "$TURBO_DEFAULT$",
-        "!**/*.test.{ts,tsx}",
-        "!**/*.spec.{ts,tsx}",
-        "!**/__tests__/**",
         "$TURBO_ROOT$/scripts/package-example-bundles.mjs",
         "$TURBO_ROOT$/scripts/example-bundles.json",
         "$TURBO_ROOT$/scripts/prepare-example-bundles.mjs",

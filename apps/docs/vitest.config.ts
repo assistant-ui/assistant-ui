@@ -32,10 +32,6 @@ export default {
         __dirname,
         "../../packages/ui/src/hooks/use-mobile",
       ),
-      "@/components/ui/radix": resolve(
-        __dirname,
-        "../../packages/ui/src/components/react/ui/radix",
-      ),
       "@/components/ui": resolve(
         __dirname,
         "../../packages/ui/src/components/react/ui/base",
