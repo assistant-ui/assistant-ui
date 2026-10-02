@@ -17,7 +17,7 @@ export const agentTools: CatalogProduct = {
   repo: "https://github.com/assistant-ui/assistant-ui",
   packages: ["@assistant-ui/react", "@assistant-ui/ai-sdk"],
   includes: [
-    "A tool schema and executor added to your existing toolkit",
+    "A tool schema and executor added to your project toolkit, creating one if needed",
     "A component per tool that renders the call while it runs and once it has a result",
     "Registration on the assistant and in the chat route",
   ],

@@ -31,10 +31,14 @@ export const configuredToolInstructions = (entries: readonly CartEntry[]) => {
   const tools = entries.filter(isAgentToolCartEntry);
   if (tools.length === 0) return "";
   return [
-    "Configure each of these agent tools as a separate tool in the existing assistant-ui toolkit:",
-    ...tools.map(
-      (tool, index) => `${index + 1}. ${tool.name}: ${tool.purpose}`,
-    ),
+    "Configure each of these agent tools as a separate tool in the assistant-ui toolkit, creating it if needed:",
+    ...tools.map((tool, index) => {
+      const prefix = `${index + 1}. `;
+      const purpose = tool.purpose
+        .replace(/\r\n?/g, "\n")
+        .replace(/\n/g, `\n${" ".repeat(prefix.length)}`);
+      return `${prefix}${tool.name.replace(/\s+/g, " ")}: ${purpose}`;
+    }),
     "Confirm the data sources, provider, access permissions, and credentials needed for each tool during setup. Do not invent integrations or use placeholder results. Reuse the project's existing tools where they satisfy the requested behavior.",
   ].join("\n");
 };

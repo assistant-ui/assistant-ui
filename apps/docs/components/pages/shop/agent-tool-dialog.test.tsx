@@ -58,6 +58,16 @@ describe("AgentToolDialog", () => {
       fireEvent.click(
         screen.getByRole("button", { name: "Add to setup: Web search" }),
       );
+      expect(screen.getByRole("textbox", { name: "Tool name" })).toHaveProperty(
+        "value",
+        "Web search",
+      );
+      expect(
+        screen.getByRole("textbox", { name: "Tool behavior" }),
+      ).toHaveProperty(
+        "value",
+        "Search the web for current information and return relevant results with source links.",
+      );
       fireEvent.change(screen.getByRole("textbox", { name: "Tool behavior" }), {
         target: { value: behavior },
       });

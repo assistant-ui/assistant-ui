@@ -37,14 +37,15 @@ afterEach(() => {
 describe("cart store", () => {
   it("requires a purpose and preserves independently configured tool instances", async () => {
     const values = setupStorage();
+    values.set(storageKey, JSON.stringify(["agent-tools"]));
     const store = await loadStore();
-    store.addToCart("agent-tools");
     store.addAgentTool("Web search", "  ");
-    expect(store.getCart()).toEqual([]);
+    expect(store.getCart()).toEqual(["agent-tools"]);
     store.addAgentTool("Web search", "Search our support sources.");
     store.addAgentTool("Web search", "Search current news.");
     const entries = store.getCartEntries();
     expect(entries).toHaveLength(2);
+    expect(entries).not.toContain("agent-tools");
     expect(entries[0]).toMatchObject({
       slug: "agent-tools",
       purpose: "Search our support sources.",
