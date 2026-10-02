@@ -108,7 +108,7 @@
     "shiki": "^4.4.3",
     "sonner": "^2.0.8",
     "statewire": "^0.19.4",
-    "streamdown": "^2.6.0",
+    "streamdown": "^2.7.0",
     "tailwind-scrollbar": "^4.0.2",
     "tw-shimmer": "workspace:*",
     "unified": "^11.0.5",
