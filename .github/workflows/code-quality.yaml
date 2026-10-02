@@ -214,7 +214,10 @@ jobs:
               --filter="@assistant-ui/react-devtools..." \
               --filter="@assistant-ui/x-buildutils..." \
               --filter="@assistant-ui/x-performance" \
-              --filter="...[$BASE]..."
+              --filter="...[$BASE]..." \
+              --filter="!./apps/*" \
+              --filter="!./examples/*" \
+              --filter="!./templates/*"
           else
             pnpm install --frozen-lockfile
           fi

@@ -143,7 +143,10 @@ test("the build install follows the affected package graph", () => {
   const install = step("Install dependencies");
   assert.match(install, /BASE="origin\/\$\{\{ github\.base_ref \}\}"/);
   assert.match(install, /BASE="\$\{\{ github\.event\.before \}\}"/);
-  assert.match(install, /git diff --quiet "\$BASE" HEAD --/);
+  const guardedInstall = install.match(
+    /if git diff --quiet "\$BASE" HEAD -- \\\n(?<inputs>[\s\S]*?); then\n(?<filteredInstall>[\s\S]*?)\n\s+else/,
+  );
+  assert.ok(guardedInstall?.groups);
   for (const input of [
     "package.json",
     "pnpm-lock.yaml",
@@ -151,8 +154,12 @@ test("the build install follows the affected package graph", () => {
     "turbo.json",
     "packages/x-buildutils",
   ]) {
-    assert.ok(install.includes(input), input);
+    assert.ok(guardedInstall.groups.inputs.includes(input), input);
   }
+  assert.match(
+    guardedInstall.groups.filteredInstall,
+    /pnpm install --frozen-lockfile \\/,
+  );
   for (const filter of [
     ".",
     "@assistant-ui/api-surface",
@@ -160,8 +167,14 @@ test("the build install follows the affected package graph", () => {
     "@assistant-ui/x-buildutils...",
     "@assistant-ui/x-performance",
     "...[$BASE]...",
+    "!./apps/*",
+    "!./examples/*",
+    "!./templates/*",
   ]) {
-    assert.ok(install.includes(`--filter="${filter}"`), filter);
+    assert.ok(
+      guardedInstall.groups.filteredInstall.includes(`--filter="${filter}"`),
+      filter,
+    );
   }
   assert.match(install, /else\n\s+pnpm install --frozen-lockfile\n\s+fi/);
 });
