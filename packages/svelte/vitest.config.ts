@@ -19,11 +19,13 @@ export default defineConfig({
   },
   test: {
     coverage: {
+      include: ["src/**/*.{ts,tsx,svelte}"],
+      exclude: ["src/__tests__/**"],
       thresholds: {
-        lines: 96,
-        functions: 93,
-        branches: 78,
-        statements: 93,
+        lines: 95,
+        functions: 91,
+        branches: 79,
+        statements: 92,
         autoUpdate: (threshold) => Math.ceil(threshold) - 1,
       },
     },

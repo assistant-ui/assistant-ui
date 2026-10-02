@@ -8,11 +8,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   test: {
     coverage: {
+      include: ["src/**/*.{ts,tsx,vue}"],
       thresholds: {
-        lines: 88,
-        functions: 85,
-        branches: 80,
-        statements: 86,
+        lines: 61,
+        functions: 54,
+        branches: 59,
+        statements: 60,
         autoUpdate: (threshold) => Math.ceil(threshold) - 1,
       },
     },

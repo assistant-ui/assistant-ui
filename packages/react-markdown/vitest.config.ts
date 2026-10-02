@@ -3,9 +3,10 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     coverage: {
+      include: ["src/**/*.{ts,tsx}"],
       thresholds: {
         lines: 95,
-        functions: 86,
+        functions: 87,
         branches: 90,
         statements: 93,
         autoUpdate: (threshold) => Math.ceil(threshold) - 1,

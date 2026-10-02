@@ -7,12 +7,27 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export default {
   test: {
     coverage: {
+      include: [
+        "app/**/*.{ts,tsx}",
+        "components/**/*.{ts,tsx}",
+        "hooks/**/*.{ts,tsx}",
+        "lib/**/*.{ts,tsx,mjs}",
+        "runtimes/**/*.{ts,tsx}",
+        "instrumentation.ts",
+        "instrumentation-client.ts",
+        "proxy.ts",
+        "mdx-components.tsx",
+      ],
+      exclude: [
+        "lib/xulux/learn/courses/*/shared/**",
+        "lib/xulux/learn/courses/*/stages/**",
+      ],
       thresholds: {
-        lines: 68,
-        functions: 61,
-        branches: 56,
-        statements: 67,
-        autoUpdate: (threshold: number) => Math.ceil(threshold) - 1,
+        lines: 36,
+        functions: 28,
+        branches: 32,
+        statements: 35,
+        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
       },
     },
     environment: "node",
