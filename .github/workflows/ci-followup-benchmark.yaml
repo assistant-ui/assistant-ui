@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   install:
+    if: false
     name: ${{ matrix.target }} / ${{ matrix.mode }} / ${{ matrix.repeat }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -156,3 +157,49 @@ jobs:
           if docker inspect aui-test-redis > /dev/null 2>&1; then
             docker rm --force aui-test-redis
           fi
+
+  preflight:
+    name: Preflight / ${{ matrix.mode }} / ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [baseline, preflight]
+        target: [empty, assistant-stream]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b
+        with:
+          runtime: node@24
+          cache: false
+          install: false
+      - name: Select target
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          if [ "$TARGET" = empty ]; then
+            echo 'SELECTOR=...[HEAD^1]' >> "$GITHUB_ENV"
+          else
+            echo 'SELECTOR=assistant-stream' >> "$GITHUB_ENV"
+          fi
+      - name: Install planner dependencies
+        if: matrix.mode == 'preflight'
+        run: pnpm install --frozen-lockfile --filter . --ignore-scripts
+      - name: Check task plan
+        if: matrix.mode == 'preflight'
+        id: plan
+        run: |
+          set -euo pipefail
+          pnpm exec turbo typecheck --dry=json --filter="$SELECTOR" > "$RUNNER_TEMP/plan.json"
+          node -e 'const fs=require("node:fs"); const p=JSON.parse(fs.readFileSync(process.argv[1])); if(!Array.isArray(p.tasks)) throw Error("Invalid plan"); console.log(`run=${p.tasks.length > 0}`);' "$RUNNER_TEMP/plan.json" >> "$GITHUB_OUTPUT"
+      - name: Install task dependencies
+        if: matrix.mode == 'baseline' || steps.plan.outputs.run == 'true'
+        run: pnpm install --frozen-lockfile --filter . --filter '@assistant-ui/react-devtools...' --filter "$SELECTOR..."
+      - name: Typecheck
+        if: matrix.mode == 'baseline' || steps.plan.outputs.run == 'true'
+        run: pnpm exec turbo typecheck --filter="$SELECTOR" --cache=local:rw --output-logs=errors-only
