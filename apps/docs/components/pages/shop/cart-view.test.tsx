@@ -43,14 +43,14 @@ afterEach(() => {
 
 describe("CartView", () => {
   it("recovers an unconfigured legacy tool through its configuration dialog", async () => {
-    replaceCart(["agent-tools"]);
-    render(<CartView />);
+    mocks.items = "items=agent-tools";
+    const { rerender } = render(<CartView />);
     expect(screen.getByRole("button", { name: "Start setup" })).toHaveProperty(
       "disabled",
       true,
     );
     fireEvent.click(
-      screen.getByRole("button", { name: "Configure Agent Tool for setup" }),
+      screen.getByRole("button", { name: "Configure tool for setup" }),
     );
     fireEvent.click(
       screen.getByRole("combobox", { name: "What should the tool do?" }),
@@ -64,6 +64,12 @@ describe("CartView", () => {
     expect(
       await screen.findByRole("button", { name: "Start setup" }),
     ).not.toHaveProperty("disabled", true);
+    const configured = getCartEntries();
+    mocks.session = { id: "setup", products: ["agent-tools"], startedAt: 1 };
+    rerender(<CartView />);
+    mocks.session = null;
+    rerender(<CartView />);
+    expect(getCartEntries()).toEqual(configured);
   });
 
   it("shows and removes configured tools separately", () => {
@@ -73,7 +79,9 @@ describe("CartView", () => {
     expect(screen.getByText("Search support sources.")).toBeTruthy();
     expect(screen.getByText("Search current news.")).toBeTruthy();
     fireEvent.click(
-      screen.getAllByRole("button", { name: "Remove Web search" })[0]!,
+      screen.getByRole("button", {
+        name: /^Remove Web search,.*Search support sources\./,
+      }),
     );
     expect(screen.queryByText("Search support sources.")).toBeNull();
     expect(getCartEntries()).toHaveLength(1);

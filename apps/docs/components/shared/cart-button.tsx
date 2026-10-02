@@ -254,7 +254,9 @@ function CartPopoverButton({ checkoutActive }: { checkoutActive: boolean }) {
           <div className="flex items-center gap-3 p-4">
             <NavGlyph kind={added.glyph} />
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{added.name}</p>
+              <p className="truncate text-sm font-medium">
+                {lastAdded?.name ?? added.name}
+              </p>
               <p className="text-muted-foreground text-sm">
                 {queued ? "Added to next setup" : "Added to setup"}
               </p>
@@ -285,7 +287,14 @@ function CartPopoverButton({ checkoutActive }: { checkoutActive: boolean }) {
             >
               View cart
             </Button>
-            {checkoutActive ? null : (
+            {checkoutActive ? null : entries.includes("agent-tools") ? (
+              <Button
+                nativeButton={false}
+                render={<Link href="/components/cart" onClick={close} />}
+              >
+                Configure tools
+              </Button>
+            ) : (
               <Button
                 nativeButton={false}
                 render={

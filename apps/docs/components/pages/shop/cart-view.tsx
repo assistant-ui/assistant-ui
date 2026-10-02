@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeftIcon, BotIcon, PlusIcon, Trash2Icon } from "lucide-react";
@@ -72,6 +72,7 @@ export function CartView() {
   const hydrated = useHydrated();
   const params = useSearchParams();
   const linkedItems = params.get("items");
+  const restoredLink = useRef<string | null | undefined>(undefined);
   const entries = useCartEntries();
   const session = useCheckoutSession();
   const products = entries.flatMap((entry) => {
@@ -95,10 +96,10 @@ export function CartView() {
   const shipping = useShippingMethod();
   const instructions = useCartInstructions();
 
-  // A shared link restores the cart it describes, then the cart owns the state
-  // so removing an item here does not resurrect it on the next render.
   useEffect(() => {
-    if (!hydrated || session !== null) return;
+    if (!hydrated || restoredLink.current === linkedItems) return;
+    restoredLink.current = linkedItems;
+    if (session !== null) return;
     const linked = resolveProducts(parseItemSlugs(linkedItems)).map(
       (product) => product.slug,
     );
@@ -139,7 +140,7 @@ export function CartView() {
           role="list"
           className="divide-foreground/10 border-foreground/10 mt-8 divide-y border-y"
         >
-          {products.map((product) => (
+          {products.map((product, index) => (
             <li
               key={product.cartId}
               className="group/navlink grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-5 gap-y-3 py-6 sm:grid-cols-[auto_minmax(0,1fr)_5rem_4rem] sm:gap-x-8"
@@ -167,7 +168,11 @@ export function CartView() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  aria-label={`Remove ${product.name}`}
+                  aria-label={
+                    product.slug === "agent-tools"
+                      ? `Remove ${product.name}, tool ${index + 1}: ${product.tagline}`
+                      : `Remove ${product.name}`
+                  }
                   onClick={() => removeFromCart(product.cartId)}
                   className="mt-3"
                 >

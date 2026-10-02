@@ -17,7 +17,7 @@ const emptySlugs: readonly string[] = [];
 let slugs: readonly string[] = emptySlugs;
 const listeners = new Set<() => void>();
 let items: readonly CartEntry[] = empty;
-let lastAdded: { slug: string; at: number } | null = null;
+let lastAdded: { slug: string; at: number; name?: string } | null = null;
 let loaded = false;
 let listening = false;
 
@@ -189,7 +189,7 @@ export const addAgentTool = (name: string, purpose: string) => {
     name: name.trim(),
     purpose: purpose.trim(),
   };
-  lastAdded = { slug: entry.slug, at: Date.now() };
+  lastAdded = { slug: entry.slug, at: Date.now(), name: entry.name };
   commit([...items.filter((item) => item !== "agent-tools"), entry]);
 };
 
