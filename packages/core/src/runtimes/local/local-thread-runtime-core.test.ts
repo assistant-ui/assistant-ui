@@ -3467,6 +3467,92 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     });
   });
 
+  it("reports a failed append with its message id", async () => {
+    const { history } = createHistory();
+    const error = new Error("append failed");
+    const append = vi.fn().mockRejectedValue(error);
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [] };
+        },
+      },
+      { history: { ...history, append } },
+    );
+    const listener = vi.fn();
+    thread.unstable_on("historyWriteError", listener);
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const write = thread.append({ ...userMessage("hi"), startRun: false });
+    const id = thread.messages.at(-1)!.id;
+    await expect(write).rejects.toBe(error);
+
+    expect(append).toHaveBeenCalledOnce();
+    expect(listener).toHaveBeenCalledExactlyOnceWith({
+      operation: "append",
+      messageIds: [id],
+      message: error.message,
+      error,
+    });
+    expect(log).toHaveBeenCalledOnce();
+  });
+
+  it("logs a failed history write once with no listener subscribed", async () => {
+    const { history } = createHistory();
+    const error = new Error("append failed");
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [] };
+        },
+      },
+      { history: { ...history, append: vi.fn().mockRejectedValue(error) } },
+    );
+    const unsubscribe = thread.unstable_on("historyWriteError", vi.fn());
+    unsubscribe();
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(
+      thread.append({ ...userMessage("hi"), startRun: false }),
+    ).rejects.toBe(error);
+
+    expect(log).toHaveBeenCalledExactlyOnceWith(
+      "[assistant-ui] local thread history write failed:",
+      error,
+    );
+  });
+
+  it("reports a failed background update after feedback", async () => {
+    const { history } = createHistory();
+    const error = "update failed";
+    const update = vi.fn().mockRejectedValue(error);
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [{ type: "text", text: "hello" }] };
+        },
+      },
+      { history: { ...history, update } },
+    );
+    const listener = vi.fn();
+    thread.unstable_on("historyWriteError", listener);
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await thread.append(userMessage("hi"));
+    const id = thread.messages.at(-1)!.id;
+    thread.submitFeedback({ messageId: id, type: "positive" });
+    await flush();
+
+    expect(update).toHaveBeenCalledOnce();
+    expect(listener).toHaveBeenCalledExactlyOnceWith({
+      operation: "update",
+      messageIds: [id],
+      message: error,
+      error,
+    });
+    expect(log).toHaveBeenCalledOnce();
+  });
+
   it("persists a run paused for approval and rewrites it once the run finishes", async () => {
     const { history, appended, updated } = createHistory();
     const thread = createApprovalThreadWithHistory(history);
@@ -5181,6 +5267,9 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
         },
         delete: deleteMessages,
       });
+      const historyWriteError = vi.fn();
+      thread.unstable_on("historyWriteError", historyWriteError);
+      const log = vi.spyOn(console, "error").mockImplementation(() => {});
 
       await thread.append(userMessage("send an email"));
       const [question, paused] = thread.messages;
@@ -5212,6 +5301,25 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
       if (!rejectDelete) {
         expect(stored.has(paused!.id)).toBe(false);
         expect(stored).toEqual(new Set(thread.messages.map((m) => m.id)));
+        if (rejectAppend) {
+          expect(historyWriteError).toHaveBeenCalledExactlyOnceWith({
+            operation: "append",
+            messageIds: [paused!.id],
+            message: appendError.message,
+            error: appendError,
+          });
+          expect(log).toHaveBeenCalled();
+        }
+      } else {
+        expect(stored.has(paused!.id)).toBe(true);
+        expect(thread.getMessageById(paused!.id)).toBeUndefined();
+        expect(historyWriteError).toHaveBeenCalledExactlyOnceWith({
+          operation: "delete",
+          messageIds: [paused!.id],
+          message: "delete failed",
+          error: expect.any(Error),
+        });
+        expect(log).toHaveBeenCalled();
       }
     },
   );

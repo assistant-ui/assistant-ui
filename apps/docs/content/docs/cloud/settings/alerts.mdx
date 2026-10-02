@@ -30,7 +30,7 @@ A successful delivery writes a delivery event, records when the rule last trigge
 |---|---|---|---|
 | **Name** |  | A trimmed name from 1 to 64 characters. | Names the rule and must be unique in the project. An empty name reads `Enter a name`. |
 | **Metric** | Daily cost | One of the metrics above. | Chooses the figure and unit the threshold uses. |
-| **Threshold**, **Threshold (%)** or **Threshold (% rise)** |  | A finite value of 0 or more. | The generic validation message is `Enter a value of 0 or more`. Daily error rate and daily incomplete rate also accept at most 100 with up to 2 decimal places, or read `Enter a percentage from 0 to 100 with up to two decimals`. |
+| **Threshold**, **Threshold (%)** or **Threshold (% rise)** |  | A finite value of 0 or more. | A blank value reads `Enter a threshold`. A value that is not finite or is below 0 reads `Enter a value of 0 or more`. Daily error rate and daily incomplete rate also accept at most 100 with up to 2 decimal places, or read `Enter a percentage from 0 to 100 with up to two decimals`. |
 | **Cooldown minutes** | 1,440 minutes | Whole minutes from 5 to 10,080. | Waits this long after a successful delivery. A value outside the range reads `Enter whole minutes from 5 to 10,080`. |
 | **Webhook URL** |  | A trimmed URL from 1 to 2,048 characters, using public HTTPS. | Receives a signed JSON `POST`. An empty value reads `Enter a webhook URL`. |
 | **Enabled** | On | On or off. | Off retains the rule, its secret and its history, but stops evaluation and delivery. |
