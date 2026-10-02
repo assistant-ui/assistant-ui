@@ -83,7 +83,7 @@ for (const path of [
 for (const [iteration, mode] of order.entries()) {
   const root = clone(`${mode}-${iteration}`);
   const store = join(dir, `store-${mode}-${iteration}`);
-  env.npm_config_store_dir = store;
+  env.PNPM_CONFIG_STORE_DIR = store;
   let names = [];
   let seed;
   if (
