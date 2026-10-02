@@ -1055,7 +1055,7 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   } | undefined;
   getBranches(messageId: string): string[];
   switchToBranch(branchId: string): void;
-  _notifyEventSubscribers<E extends ThreadRuntimeEventType>(event: E, payload: ThreadRuntimeEventPayload[E]): boolean;
+  _notifyEventSubscribers<E extends ThreadRuntimeEventType>(event: E, payload: ThreadRuntimeEventPayload[E]): void;
   protected _notifyToolApprovalAnswered(messageId: string, toolCallId: string, toolName: string, approved: boolean): void;
   submitFeedback(_param1: SubmitFeedbackOptions): void;
   speech: SpeechState | undefined;
