@@ -1,4 +1,5 @@
 ---
+# Temporary CI benchmark input for the full-install fallback.
 lockfileVersion: '9.0'
 
 importers:
