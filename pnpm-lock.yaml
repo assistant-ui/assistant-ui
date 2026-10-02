@@ -299,7 +299,7 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       streamdown:
-        specifier: ^2.6.0
+        specifier: ^2.7.0
         version: 2.7.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(supports-color@10.2.2)
       vite:
         specifier: ^8.3.1
@@ -606,7 +606,7 @@ importers:
         specifier: ^0.19.4
         version: 0.19.4(@types/react@19.3.0)(react@19.3.0)
       streamdown:
-        specifier: ^2.6.0
+        specifier: ^2.7.0
         version: 2.7.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(supports-color@10.2.2)
       tailwind-scrollbar:
         specifier: ^4.0.2
@@ -5137,7 +5137,7 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       streamdown:
-        specifier: ^2.6.0
+        specifier: ^2.7.0
         version: 2.7.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(supports-color@10.2.2)
     devDependencies:
       '@assistant-ui/react':

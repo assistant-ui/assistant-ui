@@ -46,7 +46,7 @@
     "rehype-sanitize": "^6.0.0",
     "remark-rehype": "^11.1.2",
     "remend": "^1.4.0",
-    "streamdown": "^2.6.0"
+    "streamdown": "^2.7.0"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.15.0",
