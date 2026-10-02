@@ -100,7 +100,9 @@ for (const mode of order) {
     const file =
       scenario === "nonempty-plan"
         ? "packages/tap/src/index.ts"
-        : "scripts/check-built-declarations.test.mjs";
+        : scenario === "empty-apps"
+          ? "packages/mcp-docs-server/src/index.ts"
+          : "scripts/check-built-declarations.test.mjs";
     appendFileSync(
       join(root, file),
       "\n// CI preparation benchmark fixture.\n",
