@@ -17,8 +17,8 @@ jobs:
       max-parallel: 6
       matrix:
         target: [api-reference, template-metrics]
-        mode: [full-cache, filtered-cache, filtered-no-cache]
-        repeat: [1, 2]
+        mode: [full-cache, filtered-no-cache]
+        repeat: [3]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -58,7 +58,7 @@ jobs:
           NEXT_TELEMETRY_DISABLED: "1"
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
-        run: pnpm turbo build --filter=./templates/default --filter=./templates/minimal
+        run: pnpm turbo build --filter=./templates/default --filter=./templates/minimal --force --cache=local:rw
       - name: Measure templates
         if: matrix.target == 'template-metrics'
         run: |
@@ -66,4 +66,3 @@ jobs:
           node scripts/template-metrics.mjs measure-base . metrics-base-main.json
           node scripts/template-metrics.mjs report metrics-base-main.json metrics-head.json metrics-report.md metrics-comment.txt
           cat metrics-head.json
-
