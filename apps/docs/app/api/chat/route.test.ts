@@ -44,6 +44,11 @@ vi.mock("@/lib/ai/chat-route", async (importOriginal) => ({
   streamDocsChat: mocks.streamDocsChat,
 }));
 
+import {
+  readMessageMetadata,
+  textModel,
+  withActiveTrace,
+} from "@/test/otel-trace";
 import { POST } from "./route";
 
 describe("POST /api/chat access boundary", () => {
@@ -426,5 +431,44 @@ describe("POST /api/chat generative UI", () => {
 
     expect(response.status).toBe(400);
     expect(await response.text()).toBe("Single message too long");
+  });
+});
+
+describe("POST /api/chat trace metadata", () => {
+  it("streams the request's trace id so feedback can join the PostHog trace", async () => {
+    const traceId = "fedcba9876543210fedcba9876543210";
+    mocks.requireSession.mockReturnValue({
+      id: "session_1234567890",
+      expiresAt: Date.now() + 60_000,
+    });
+    mocks.checkRateLimit.mockResolvedValue(null);
+    mocks.resolveChatModel.mockReturnValue({ model: textModel("Hi") });
+    const actual = await vi.importActual<
+      typeof import("@/lib/ai/chat-route")
+    >("@/lib/ai/chat-route");
+    mocks.streamDocsChat.mockImplementation(actual.streamDocsChat);
+
+    const response = await withActiveTrace(traceId, () =>
+      POST(
+        new Request("https://www.assistant-ui.com/api/chat", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            messages: [
+              {
+                id: "m1",
+                role: "user",
+                parts: [{ type: "text", text: "hello" }],
+              },
+            ],
+          }),
+        }),
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(Object.assign({}, ...(await readMessageMetadata(response)))).toEqual(
+      expect.objectContaining({ traceId, modelId: "mock-model" }),
+    );
   });
 });

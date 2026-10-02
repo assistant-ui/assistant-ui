@@ -51,11 +51,15 @@ export type SetupErrorReason =
   | "session_unreadable"
   | "answer_failed";
 
+const capturePostHog = (event: string, properties?: AnalyticsProperties) => {
+  if (typeof window === "undefined") return;
+  window.posthog?.capture?.(event, properties);
+};
+
 const trackEvent = (event: string, properties?: AnalyticsProperties) => {
   if (typeof window === "undefined") return;
 
-  // PostHog
-  window.posthog?.capture?.(event, properties);
+  capturePostHog(event, properties);
 
   // Vercel Analytics
   void getVercelTrack().then((track) => track?.(event, properties));
@@ -221,6 +225,7 @@ export const analytics = {
       assistant_response_length: number;
       tool_calls_count: number;
       tool_names?: string;
+      trace_id?: string;
     }) => {
       trackEvent("assistant_feedback_shown", props);
     },
@@ -241,6 +246,7 @@ export const analytics = {
       assistant_response_length: number;
       tool_calls_count: number;
       tool_names?: string;
+      trace_id?: string;
     }) => {
       trackEvent("assistant_feedback_clicked", props);
     },
@@ -261,6 +267,7 @@ export const analytics = {
       assistant_response_length: number;
       tool_calls_count: number;
       tool_names?: string;
+      trace_id?: string;
       error_name: string;
       error_message: string;
     }) => {
@@ -297,6 +304,7 @@ export const analytics = {
       response_output_tokens?: number;
       pathname?: string;
       model_name?: string;
+      trace_id?: string;
     }) => {
       trackEvent("assistant_response_completed", props);
     },
@@ -312,6 +320,7 @@ export const analytics = {
       response_output_tokens?: number;
       pathname?: string;
       model_name?: string;
+      trace_id?: string;
     }) => {
       trackEvent("assistant_response_failed", props);
     },
@@ -343,8 +352,35 @@ export const analytics = {
       assistant_response_length: number;
       tool_calls_count: number;
       tool_names?: string;
+      trace_id?: string;
     }) => {
       trackEvent("assistant_feedback_submitted", props);
+    },
+
+    traceFeedback: ({
+      traceId,
+      type,
+      ...props
+    }: {
+      traceId: string;
+      type: "positive" | "negative";
+      surface?: "docs_assistant" | "home_thread";
+      category?:
+        | "wrong_information"
+        | "outdated"
+        | "didnt_answer"
+        | "too_vague"
+        | "other";
+      comment_length?: number;
+    }) => {
+      // PostHog LLM analytics joins this to the generation by $ai_trace_id;
+      // Vercel Analytics has no trace to join it to, so it is not sent there.
+      capturePostHog("$ai_metric", {
+        ...props,
+        $ai_trace_id: traceId,
+        $ai_metric_name: "feedback",
+        $ai_metric_value: type,
+      });
     },
   },
 

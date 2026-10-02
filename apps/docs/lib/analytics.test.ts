@@ -1,8 +1,10 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { analytics } from "./analytics";
 
+const mocks = vi.hoisted(() => ({ vercelTrack: vi.fn() }));
+
 vi.mock("@vercel/analytics", () => ({
-  track: vi.fn(),
+  track: mocks.vercelTrack,
 }));
 
 const globalObject = globalThis as {
@@ -104,6 +106,38 @@ it("tracks assistant feedback lifecycle events to PostHog", () => {
       error_name: "TypeError",
       error_message: "Failed to submit feedback",
     }),
+  );
+});
+
+it("captures thumbs feedback as a PostHog $ai_metric on the trace", async () => {
+  const capture = vi.fn();
+  globalObject.window = { posthog: { capture } };
+
+  analytics.assistant.traceFeedback({
+    traceId: "0123456789abcdef0123456789abcdef",
+    surface: "docs_assistant",
+    type: "negative",
+    category: "outdated",
+    comment_length: 18,
+  });
+  await vi.dynamicImportSettled();
+
+  expect(capture.mock.calls).toEqual([
+    [
+      "$ai_metric",
+      {
+        surface: "docs_assistant",
+        category: "outdated",
+        comment_length: 18,
+        $ai_trace_id: "0123456789abcdef0123456789abcdef",
+        $ai_metric_name: "feedback",
+        $ai_metric_value: "negative",
+      },
+    ],
+  ]);
+  expect(mocks.vercelTrack).not.toHaveBeenCalledWith(
+    "$ai_metric",
+    expect.anything(),
   );
 });
 

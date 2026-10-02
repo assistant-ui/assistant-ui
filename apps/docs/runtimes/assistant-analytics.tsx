@@ -15,7 +15,11 @@ import {
   queueMicrotaskSafe,
   recordRunStartedAt,
 } from "@/lib/assistant-analytics-helpers";
-import { countToolCalls, getTextLength } from "@/lib/assistant-metrics";
+import {
+  countToolCalls,
+  getMessageTraceId,
+  getTextLength,
+} from "@/lib/assistant-metrics";
 
 type ThreadMessagePart = { type: string; text?: string };
 
@@ -102,6 +106,7 @@ export function AssistantAnalyticsTracker() {
       const toolCallsCount = countToolCalls(lastAssistant?.content ?? []);
       const status = lastAssistant?.status;
       const tokenUsage = getThreadMessageTokenUsage(lastAssistant);
+      const traceId = getMessageTraceId(lastAssistant?.metadata);
 
       let modelName: string | undefined;
       try {
@@ -129,6 +134,7 @@ export function AssistantAnalyticsTracker() {
           : { response_output_tokens: tokenUsage.outputTokens }),
         ...(pathnameRef.current ? { pathname: pathnameRef.current } : {}),
         ...(modelName ? { model_name: modelName } : {}),
+        ...(traceId ? { trace_id: traceId } : {}),
       };
 
       if (status?.type === "incomplete") {
