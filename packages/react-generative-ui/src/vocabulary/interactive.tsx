@@ -454,7 +454,7 @@ function DatePickerRender({
   const displayValue =
     currentValue === undefined
       ? undefined
-      : inputType === "datetime" && hydrated
+      : inputType === "time" || (inputType === "datetime" && hydrated)
         ? toPickerLocalDateTime(currentValue)
         : normalizeTemporalInputValue(currentValue);
   return (

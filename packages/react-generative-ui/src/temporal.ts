@@ -205,7 +205,15 @@ export const toLocalDateTime = (
 
 export const toPickerLocalDateTime = (value: string): string => {
   const temporal = classifyTemporal(value);
-  if (temporal.kind !== "instant") return normalizeTemporalInputValue(value);
+  if (temporal.kind !== "instant") {
+    if (temporal.kind !== "time" && temporal.kind !== "floating")
+      return normalizeTemporalInputValue(value);
+    const normalized = normalizeTemporalInputValue(value);
+    const fraction = /\.(\d+)$/.exec(normalized)?.[1];
+    return fraction
+      ? `${normalized.slice(0, -fraction.length)}${fraction.padEnd(3, "0")}`
+      : normalized;
+  }
   const local = toLocalDateTime(
     value,
     typeof temporal.precision === "number" ? 3 : temporal.precision,

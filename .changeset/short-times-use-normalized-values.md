@@ -2,4 +2,4 @@
 "@assistant-ui/react-generative-ui": patch
 ---
 
-Normalize DatePicker temporal values at the input boundary so equivalent native serializations produce the same action and form values.
+submit edited DatePicker times in the browser's normalized form, so .500 goes out as .5 whichever spelling the browser reports
