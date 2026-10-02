@@ -7,7 +7,7 @@
   "scripts": {
     "cleanup": "bash scripts/cleanup-monorepo.sh",
     "docs:dev": "turbo run dev --filter=@assistant-ui/docs",
-    "ci:version": "changeset version && pnpm install --no-frozen-lockfile",
+    "ci:version": "changeset version && pnpm install --no-frozen-lockfile --lockfile-only",
     "ci:publish": "turbo build --filter=\"./packages/*\" && changeset publish",
     "build": "turbo build --concurrency=4",
     "api-surface": "node scripts/update-api-surface.mjs",
