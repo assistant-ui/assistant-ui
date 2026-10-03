@@ -58,7 +58,7 @@ export function GET() {
     "Each of these installs the same way, by slug:",
     "",
     ...CATALOG_ITEMS.filter(
-      (item) => !CATALOG.some((product) => product.slug === item.slug),
+      (item) => !item.hidden && !CATALOG.some((product) => product.slug === item.slug),
     ).map(
       (item) =>
         `- ${item.slug}: ${item.name} (${BASE_URL}${item.docs}.md, agent time ${formatMinutes(item.agentMinutes)})`,
