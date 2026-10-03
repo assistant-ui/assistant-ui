@@ -2,18 +2,21 @@ import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { PackageDirectory, type DirectoryRow } from "./package-directory";
 
-const rows: DirectoryRow[] = ["@assistant-ui/react", "assistant-stream"].map(
-  (name) => ({
-    name,
-    description: "",
-    category: "core",
-    deprecated: false,
-    weekly: null,
-    series: [],
-    momLabel: null,
-    momTone: "flat",
-  }),
-);
+const rows: DirectoryRow[] = [
+  ["@assistant-ui/react", false],
+  ["assistant-stream", false],
+  ["@assistant-ui/react-hook-form", true],
+].map(([name, deprecated]) => ({
+  name: name as string,
+  description: "",
+  category: "core",
+  deprecated: deprecated as boolean,
+  weekly: null,
+  series: [],
+  momLabel: null,
+  momTone: "flat",
+}));
+const liveRows = rows.filter((row) => !row.deprecated).length;
 
 const render = (
   concentration: Parameters<typeof PackageDirectory>[0]["concentration"],
@@ -44,7 +47,7 @@ describe("PackageDirectory", () => {
     expect(loading).toContain('aria-busy="true"');
     expect(unavailable).not.toContain('aria-busy="true"');
     expect(unavailable).toContain("Share of weekly downloads");
-    expect(statSlots(loading)).toBe(rows.length);
-    expect(statSlots(unavailable)).toBe(rows.length);
+    expect(statSlots(loading)).toBe(liveRows);
+    expect(statSlots(unavailable)).toBe(liveRows);
   });
 });

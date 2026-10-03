@@ -243,12 +243,13 @@ function PackageRow({
             <Sparkline values={row.series} className="text-foreground/40" />
           </span>
         </span>
-      ) : (
+      ) : row.deprecated ? null : (
         <span
           aria-hidden
           className="invisible flex shrink-0 items-baseline gap-3 font-mono text-[11px]"
         >
-          0 /wk
+          <span className="md:w-20">0 /wk</span>
+          <span className="md:w-12" />
           <span className="hidden h-[18px] w-16 md:block" />
         </span>
       )}
