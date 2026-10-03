@@ -6,13 +6,23 @@ const fixture = vi.hoisted(() => ({
     version: 2,
     id: "session-a",
     status: "planning",
-    inputs: [] as { id: string; status: string }[],
+    inputs: [] as {
+      id: string;
+      status: string;
+      preset?: string;
+      help?: { href?: string };
+    }[],
   } as
     | {
         version: number;
         id: string | null;
         status: string;
-        inputs: { id: string; status: string }[];
+        inputs: {
+          id: string;
+          status: string;
+          preset?: string;
+          help?: { href?: string };
+        }[];
       }
     | undefined,
   status: "connected",
@@ -125,7 +135,7 @@ describe("cloud setup device login", () => {
       inputId: "q1",
       answer: "signed-in",
     });
-    bridge.dispose();
+    await bridge.dispose();
     expect(fixture.listeners.size).toBe(0);
   });
   it("ignores a forged answer, but cancels a dismissed input", async () => {
@@ -145,7 +155,7 @@ describe("cloud setup device login", () => {
       "cancelled",
     );
     expect(fixture.ask.mock.calls.length).toBe(count);
-    bridge.dispose();
+    await bridge.dispose();
   });
   it.each(["cancelled", "done"])(
     "cancels when the checkout becomes %s",
@@ -156,7 +166,7 @@ describe("cloud setup device login", () => {
       fixture.state!.status = status;
       update();
       expect(bridge.signal.aborted).toBe(true);
-      bridge.dispose();
+      await bridge.dispose();
     },
   );
   it("cancels when the original session is replaced", async () => {
@@ -166,7 +176,7 @@ describe("cloud setup device login", () => {
     fixture.state!.id = "session-b";
     update();
     expect(bridge.signal.aborted).toBe(true);
-    bridge.dispose();
+    await bridge.dispose();
   });
   it("disposes a connection that never supplies a snapshot before its deadline", async () => {
     fixture.state = undefined;
@@ -205,7 +215,100 @@ describe("cloud setup device login", () => {
     finish({ inputId: "q3" });
     await expect(publishing).rejects.toThrow("cancelled");
     expect(bridge.signal.aborted).toBe(true);
-    bridge.dispose();
+    await bridge.dispose();
+  });
+  it("reconciles an accepted prompt from its snapshot when the ask acknowledgment times out", async () => {
+    let finish!: (result: { inputId: string }) => void;
+    fixture.ask.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    fixture.answer.mockResolvedValue(undefined);
+    const bridge = await connectCloudLoginSetup(
+      "https://checkout.test/session-a",
+    );
+    const deadline = new AbortController();
+    const timeout = vi
+      .spyOn(AbortSignal, "timeout")
+      .mockReturnValueOnce(deadline.signal);
+    const publishing = bridge.publish(authorization(), issuer);
+    const href = fixture.ask.mock.lastCall![0].help.href;
+    fixture.state!.inputs = [
+      {
+        id: "late",
+        status: "pending",
+        preset: "assistant-ui-cli-login",
+        help: { href },
+      },
+    ];
+    update();
+    deadline.abort(new Error("ask timeout"));
+    await expect(publishing).rejects.toThrow("ask timeout");
+    expect(fixture.answer).toHaveBeenLastCalledWith({
+      inputId: "late",
+      answer: "failed",
+    });
+    const disposing = bridge.dispose();
+    finish({ inputId: "late" });
+    await disposing;
+    expect(fixture.ask).toHaveBeenCalledOnce();
+    expect(fixture.answer).toHaveBeenCalledOnce();
+    expect(fixture.listeners.size).toBe(0);
+    timeout.mockRestore();
+  });
+  it("reconciles a late accepted prompt after cancellation without replaying the ask", async () => {
+    let finish!: (result: { inputId: string }) => void;
+    fixture.ask.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    fixture.answer.mockResolvedValue(undefined);
+    const bridge = await connectCloudLoginSetup(
+      "https://checkout.test/session-a",
+    );
+    const deadline = new AbortController();
+    const timeout = vi
+      .spyOn(AbortSignal, "timeout")
+      .mockReturnValueOnce(deadline.signal);
+    const publishing = bridge.publish(authorization(), issuer);
+    deadline.abort(new Error("ask timeout"));
+    await expect(publishing).rejects.toThrow("ask timeout");
+    await bridge.complete("cancelled");
+    const disposing = bridge.dispose();
+    finish({ inputId: "late" });
+    await disposing;
+    expect(fixture.answer).toHaveBeenLastCalledWith({
+      inputId: "late",
+      answer: "cancelled",
+    });
+    expect(fixture.ask).toHaveBeenCalledOnce();
+    timeout.mockRestore();
+  });
+  it("never reconciles a late acknowledgment into a replacement session with reused input IDs", async () => {
+    let finish!: (result: { inputId: string }) => void;
+    fixture.ask.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const bridge = await connectCloudLoginSetup(
+      "https://checkout.test/session-a",
+    );
+    const publishing = bridge.publish(authorization(), issuer);
+    fixture.state!.id = "session-b";
+    fixture.state!.inputs = [{ id: "q1", status: "pending" }];
+    update();
+    await expect(publishing).rejects.toThrow("cancelled");
+    await bridge.complete("cancelled");
+    const disposing = bridge.dispose();
+    finish({ inputId: "q1" });
+    await disposing;
+    expect(fixture.answer).not.toHaveBeenCalled();
   });
   it("disposes a stopped connection before requesting a device grant", async () => {
     fixture.state = undefined;

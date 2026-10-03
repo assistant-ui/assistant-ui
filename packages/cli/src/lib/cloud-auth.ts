@@ -1,7 +1,9 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { renameSync, statSync, unlinkSync } from "node:fs";
 import {
   chmod,
+  link,
   mkdir,
   readFile,
   rename,
@@ -15,7 +17,10 @@ import {
   isAccessDenied,
   type DeviceCredentials,
 } from "aui-auth/device";
-import { connectCloudLoginSetup } from "./cloud-setup-login";
+import { abortable } from "./cloud-abort";
+import { validateCloudUrl } from "./cloud-url";
+
+export { validateCloudUrl } from "./cloud-url";
 
 export type CloudAuthConfig = {
   issuer: string;
@@ -26,26 +31,6 @@ export type CloudAuthConfig = {
 type SavedCredentials = DeviceCredentials & {
   issuer: string;
   clientId: string;
-};
-
-export const validateCloudUrl = (value: string): string => {
-  const url = new URL(value);
-  if (
-    url.username ||
-    url.password ||
-    url.search ||
-    url.hash ||
-    (url.protocol !== "https:" &&
-      !(
-        url.protocol === "http:" &&
-        ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)
-      ))
-  ) {
-    throw new Error(
-      "Cloud and accounts URLs must use HTTPS or HTTP localhost for development.",
-    );
-  }
-  return value.replace(/\/+$/, "");
 };
 
 export const cloudAuthConfig = (): CloudAuthConfig => ({
@@ -106,17 +91,45 @@ export const saveCloudCredentials = async (
     mode: 0o700,
   });
   const temporary = `${config.credentialsFile}.${randomUUID()}.tmp`;
+  const backup = `${temporary}.previous`;
+  let previous = false;
+  let replacement: ReturnType<typeof statSync> | undefined;
+  let renamed = false;
   try {
+    try {
+      await link(config.credentialsFile, backup);
+      previous = true;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
     await writeFile(
       temporary,
       `${JSON.stringify({ ...credentials, issuer: config.issuer, clientId: config.clientId }, null, 2)}\n`,
       { mode: 0o600, flag: "wx" },
     );
+    await chmod(temporary, 0o600);
+    replacement = statSync(temporary);
     signal?.throwIfAborted();
     await rename(temporary, config.credentialsFile);
-    await chmod(config.credentialsFile, 0o600);
+    renamed = true;
+    signal?.throwIfAborted();
+  } catch (error) {
+    if (renamed && replacement) {
+      let current: ReturnType<typeof statSync> | undefined;
+      try {
+        current = statSync(config.credentialsFile);
+      } catch (failure) {
+        if ((failure as NodeJS.ErrnoException).code !== "ENOENT") throw failure;
+      }
+      if (current?.dev === replacement.dev && current.ino === replacement.ino) {
+        if (previous) renameSync(backup, config.credentialsFile);
+        else unlinkSync(config.credentialsFile);
+      }
+    }
+    throw error;
   } finally {
     await rm(temporary, { force: true });
+    await rm(backup, { force: true });
   }
 };
 
@@ -150,23 +163,40 @@ export const loginToCloud = async (
       "Wizard sign-in requires the assistant-ui CLI OAuth client.",
     );
   }
-  const login = createDeviceLogin({
-    issuer: config.issuer,
-    clientId: config.clientId,
-  });
   const print = options.print ?? console.log;
   const setup = options.setupUrl
-    ? await connectCloudLoginSetup(options.setupUrl)
+    ? await (
+        await import("./cloud-setup-login")
+      ).connectCloudLoginSetup(options.setupUrl)
     : undefined;
   const signal = AbortSignal.any([
     AbortSignal.timeout(10 * 60 * 1000),
     ...(setup ? [setup.signal] : []),
   ]);
+  const login = createDeviceLogin({
+    issuer: config.issuer,
+    clientId: config.clientId,
+    fetch: (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : String(input));
+      return fetch(
+        input,
+        url.pathname === "/api/auth/device/code"
+          ? {
+              ...init,
+              signal: AbortSignal.any([
+                signal,
+                ...(init?.signal ? [init.signal] : []),
+              ]),
+            }
+          : init,
+      );
+    },
+  });
   let credentials: DeviceCredentials | undefined;
   let committed = false;
   try {
     signal.throwIfAborted();
-    const authorization = await login.start();
+    const authorization = await abortable(login.start(), signal);
     signal.throwIfAborted();
     const approvalUrl =
       (await setup?.publish(authorization, config.issuer)) ??
@@ -196,7 +226,7 @@ export const loginToCloud = async (
       .catch(() => {});
     throw error;
   } finally {
-    setup?.dispose();
+    await setup?.dispose();
   }
 };
 

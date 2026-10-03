@@ -57,6 +57,7 @@ export function CloudLoginInputCard({
     () => false,
   );
   const signIn = () => {
+    setFailure("");
     if (!details || expired) return;
     if (!canRestoreCheckoutSession(checkout.session.id, checkout.url)) {
       setFailure(

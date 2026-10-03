@@ -1,4 +1,11 @@
-import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -32,6 +39,29 @@ vi.mock("aui-auth/device", async (importOriginal) => ({
   isAccessDenied,
 }));
 
+const filesystem = vi.hoisted(() => ({
+  rename: undefined as
+    | undefined
+    | ((from: string, to: string, run: () => Promise<void>) => Promise<void>),
+  chmod: undefined as
+    | undefined
+    | ((file: string, mode: number, run: () => Promise<void>) => Promise<void>),
+}));
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs/promises")>();
+  return {
+    ...actual,
+    rename: (from: string, to: string) =>
+      filesystem.rename
+        ? filesystem.rename(from, to, () => actual.rename(from, to))
+        : actual.rename(from, to),
+    chmod: (file: string, mode: number) =>
+      filesystem.chmod
+        ? filesystem.chmod(file, mode, () => actual.chmod(file, mode))
+        : actual.chmod(file, mode),
+  };
+});
+
 const setupLogin = vi.hoisted(() => ({ connect: vi.fn() }));
 vi.mock("./cloud-setup-login", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./cloud-setup-login")>()),
@@ -60,6 +90,9 @@ const credentials = {
 };
 
 afterEach(async () => {
+  filesystem.rename = undefined;
+  filesystem.chmod = undefined;
+  vi.unstubAllGlobals();
   await Promise.all(
     directories
       .splice(0)
@@ -168,6 +201,80 @@ describe("cloud login", () => {
     expect(await readCloudCredentials(config)).toBeNull();
   });
 
+  it("leaves previous credentials untouched when cancellation arrives during temporary chmod", async () => {
+    const config = await fixture();
+    await saveCloudCredentials(config, credentials);
+    const previous = await stat(config.credentialsFile);
+    const controller = new AbortController();
+    filesystem.chmod = async (_file, _mode, run) => {
+      await run();
+      controller.abort(new Error("cancelled during chmod"));
+    };
+    await expect(
+      saveCloudCredentials(
+        config,
+        { ...credentials, user: { ...credentials.user, id: "new-user" } },
+        controller.signal,
+      ),
+    ).rejects.toThrow("cancelled during chmod");
+    expect((await stat(config.credentialsFile)).ino).toBe(previous.ino);
+    expect(await readCloudCredentials(config)).toMatchObject(credentials);
+  });
+  it.each([true, false])(
+    "rolls back a cancelled rename with previous credentials: %s",
+    async (existing) => {
+      const config = await fixture();
+      if (existing) {
+        await saveCloudCredentials(config, credentials);
+        await chmod(config.credentialsFile, 0o640);
+      }
+      const previous = existing
+        ? await stat(config.credentialsFile)
+        : undefined;
+      const controller = new AbortController();
+      filesystem.rename = async (_from, _to, run) => {
+        await run();
+        controller.abort(new Error("cancelled during rename"));
+      };
+      await expect(
+        saveCloudCredentials(
+          config,
+          { ...credentials, user: { ...credentials.user, id: "new-user" } },
+          controller.signal,
+        ),
+      ).rejects.toThrow("cancelled during rename");
+      if (existing) {
+        expect(await readCloudCredentials(config)).toMatchObject(credentials);
+        expect((await stat(config.credentialsFile)).ino).toBe(previous!.ino);
+        expect((await stat(config.credentialsFile)).mode).toBe(previous!.mode);
+      } else expect(await readCloudCredentials(config)).toBeNull();
+    },
+  );
+  it("preserves a newer concurrent replacement when its own rename is cancelled", async () => {
+    const config = await fixture();
+    await saveCloudCredentials(config, credentials);
+    const controller = new AbortController();
+    filesystem.rename = async (_from, _to, run) => {
+      await run();
+      filesystem.rename = undefined;
+      await saveCloudCredentials(config, {
+        ...credentials,
+        user: { ...credentials.user, id: "other-login" },
+      });
+      controller.abort(new Error("cancelled during rename"));
+    };
+    await expect(
+      saveCloudCredentials(
+        config,
+        {
+          ...credentials,
+          user: { ...credentials.user, id: "cancelled-login" },
+        },
+        controller.signal,
+      ),
+    ).rejects.toThrow("cancelled during rename");
+    expect((await readCloudCredentials(config))!.user.id).toBe("other-login");
+  });
   it("reports malformed saved JSON values without reading their fields", async () => {
     const config = await fixture();
     await writeFile(config.credentialsFile, "null");
@@ -273,6 +380,110 @@ describe("cloud login through the setup wizard", () => {
       "Signed in locally. The setup connection could not be updated.",
     );
     expect(setup.dispose).toHaveBeenCalledOnce();
+  });
+  it("does not connect to the wizard when saved credentials are already usable", async () => {
+    const config = await fixture();
+    await saveCloudCredentials(config, credentials);
+    login.ensureFresh.mockImplementationOnce(async (saved) => saved);
+    const connections = setupLogin.connect.mock.calls.length;
+    const starts = login.start.mock.calls.length;
+    expect(
+      await cloudAccessToken(config, {
+        setupUrl: "https://checkout.test/session",
+      }),
+    ).toBe("access-token");
+    expect(setupLogin.connect.mock.calls.length).toBe(connections);
+    expect(login.start.mock.calls.length).toBe(starts);
+  });
+  it("cancels a stalled device request without publishing or polling its late result", async () => {
+    const config = await fixture();
+    const { controller, setup } = bridge();
+    let finish!: (value: typeof authorization) => void;
+    login.start.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const waits = login.wait.mock.calls.length;
+    const started = loginToCloud(config, {
+      setupUrl: "https://checkout.test/session",
+      print: () => {},
+    });
+    await vi.waitFor(() => expect(finish).toBeDefined());
+    controller.abort(new Error("wizard cancelled"));
+    await expect(started).rejects.toThrow("wizard cancelled");
+    finish(authorization);
+    await Promise.resolve();
+    expect(setup.publish).not.toHaveBeenCalled();
+    expect(login.wait.mock.calls.length).toBe(waits);
+    expect(await readCloudCredentials(config)).toBeNull();
+    expect(setup.dispose).toHaveBeenCalledOnce();
+  });
+  it("aborts startup HTTP while allowing revocation requests after cancellation", async () => {
+    const config = await fixture();
+    const { controller } = bridge();
+    let startupSignal: AbortSignal | undefined;
+    let revokeSignal: AbortSignal | null | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_input, init) => {
+        if (String(_input).endsWith("/device/code")) {
+          startupSignal = init.signal;
+          return new Promise((_resolve, reject) =>
+            init.signal.addEventListener(
+              "abort",
+              () => reject(init.signal.reason),
+              { once: true },
+            ),
+          );
+        }
+        revokeSignal = init?.signal;
+        return new Response(null, { status: 200 });
+      }),
+    );
+    login.start.mockImplementationOnce(() =>
+      createDeviceLogin.mock.lastCall![0].fetch(
+        `${config.issuer}/api/auth/device/code`,
+      ),
+    );
+    const started = loginToCloud(config, {
+      setupUrl: "https://checkout.test/session",
+      print: () => {},
+    });
+    await vi.waitFor(() => expect(startupSignal).toBeDefined());
+    controller.abort(new Error("wizard cancelled"));
+    await expect(started).rejects.toThrow("wizard cancelled");
+    expect(startupSignal!.aborted).toBe(true);
+    await createDeviceLogin.mock.lastCall![0].fetch(
+      `${config.issuer}/api/auth/oauth2/revoke`,
+    );
+    expect(revokeSignal?.aborted).not.toBe(true);
+  });
+  it("revokes cancelled credentials after rollback restores the previous login", async () => {
+    const config = await fixture();
+    await saveCloudCredentials(config, credentials);
+    const { controller, setup } = bridge();
+    const approved = {
+      ...credentials,
+      user: { ...credentials.user, id: "cancelled-login" },
+    };
+    login.start.mockResolvedValueOnce(authorization);
+    login.wait.mockResolvedValueOnce(approved);
+    login.revoke.mockResolvedValueOnce(undefined);
+    filesystem.rename = async (_from, _to, run) => {
+      await run();
+      controller.abort(new Error("wizard cancelled"));
+    };
+    await expect(
+      loginToCloud(config, {
+        setupUrl: "https://checkout.test/session",
+        print: () => {},
+      }),
+    ).rejects.toThrow("wizard cancelled");
+    expect(login.revoke).toHaveBeenLastCalledWith(approved);
+    expect(await readCloudCredentials(config)).toMatchObject(credentials);
+    expect(setup.complete).toHaveBeenLastCalledWith("cancelled");
   });
   it("does not initiate device authorization when the setup connection fails", async () => {
     const config = await fixture();

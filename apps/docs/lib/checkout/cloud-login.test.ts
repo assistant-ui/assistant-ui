@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Checkout } from "./protocol";
 import {
   cloudLoginDetails,
@@ -108,7 +108,43 @@ describe("wizard cloud login", () => {
       expect(cloudLoginDetails(request)).toBeUndefined();
     }
   });
-  it("handles expired attempts and unavailable browser storage without trusting the return", () => {
+  it("rejects an expired return from a previously remembered matching attempt", () => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+    try {
+      const request = input();
+      const saved = storage();
+      const details = cloudLoginDetails(request)!;
+      expect(rememberCloudLogin(request, "session", saved)).toBe(true);
+      const metadata = saved.getItem(`aui-cloud-login:${attempt}`);
+      expect(JSON.parse(metadata!)).toEqual({
+        sessionId: "session",
+        inputId: request.id,
+        expiresAt: details.expiresAt,
+      });
+      expect(
+        returnedToCloudLogin(
+          request,
+          "session",
+          `#setup-login=${attempt}`,
+          saved,
+        ),
+      ).toBe(true);
+      clock.mockReturnValue(details.expiresAt + 1);
+      expect(
+        returnedToCloudLogin(
+          request,
+          "session",
+          `#setup-login=${attempt}`,
+          saved,
+        ),
+      ).toBe(false);
+      expect(rememberCloudLogin(request, "session", saved)).toBe(false);
+      expect(saved.getItem(`aui-cloud-login:${attempt}`)).toBe(metadata);
+    } finally {
+      clock.mockRestore();
+    }
+  });
+  it("handles unavailable browser storage without trusting the return", () => {
     const request = input();
     const blocked = {
       setItem: () => {
@@ -125,19 +161,6 @@ describe("wizard cloud login", () => {
         "session",
         `#setup-login=${attempt}`,
         blocked,
-      ),
-    ).toBe(false);
-    request.help!.href = request.help!.href!.replace(
-      /setup_expires=\d+/,
-      "setup_expires=1000000000000",
-    );
-    expect(rememberCloudLogin(request, "session", storage())).toBe(false);
-    expect(
-      returnedToCloudLogin(
-        request,
-        "session",
-        `#setup-login=${attempt}`,
-        storage(),
       ),
     ).toBe(false);
   });

@@ -1,12 +1,19 @@
 import { randomUUID } from "node:crypto";
 import type { DeviceAuthorization } from "aui-auth/device";
 import { StatewireClient, StatewireHttp } from "statewire";
+import { abortable } from "./cloud-abort";
+import { validateCloudUrl } from "./cloud-url";
 
 type SetupState = {
   version: number;
   id: string | null;
   status: string;
-  inputs: { id: string; status: string }[];
+  inputs: {
+    id: string;
+    status: string;
+    preset?: string;
+    help?: { href?: string };
+  }[];
 };
 
 type SetupCommands = {
@@ -17,20 +24,6 @@ type SetupCommands = {
     help: { summary: string; href: string };
   }) => { inputId: string };
   "checkout/answer": (answer: { inputId: string; answer: string }) => void;
-};
-
-const abortable = <T>(promise: Promise<T>, signal: AbortSignal): Promise<T> => {
-  if (signal.aborted) return Promise.reject(signal.reason);
-  return new Promise((resolve, reject) => {
-    const abort = () => {
-      signal.removeEventListener("abort", abort);
-      reject(signal.reason);
-    };
-    signal.addEventListener("abort", abort, { once: true });
-    promise.then(resolve, reject).finally(() => {
-      signal.removeEventListener("abort", abort);
-    });
-  });
 };
 
 export const setupLoginUrl = (
@@ -69,30 +62,49 @@ export const setupLoginUrl = (
 };
 
 export const connectCloudLoginSetup = async (url: string) => {
-  const target = new URL(url);
-  if (
-    target.username ||
-    target.password ||
-    target.search ||
-    target.hash ||
-    (target.protocol !== "https:" &&
-      !(
-        target.protocol === "http:" &&
-        ["localhost", "127.0.0.1", "[::1]"].includes(target.hostname)
-      ))
-  ) {
-    throw new Error("The setup URL must use HTTPS or HTTP localhost.");
-  }
+  const target = validateCloudUrl(url);
   const controller = new AbortController();
   const client = new StatewireClient<SetupState | undefined, SetupCommands>({
-    transport: StatewireHttp({ url: target.href.replace(/\/$/, "") }),
+    transport: StatewireHttp({ url: target }),
     onError: (error) => controller.abort(error),
   });
   let unsubscribe = () => {};
   let inputId: string | undefined;
   let sessionId: string;
+  let pendingHref: string | undefined;
+  let pendingAsk: Promise<{ inputId: string }> | undefined;
+  let terminalResult: "signed-in" | "cancelled" | "failed" | undefined;
+  let completion: Promise<void> | undefined;
+  let disposed = false;
+  const reconcile = () => {
+    const state = client.state;
+    if (
+      disposed ||
+      inputId === undefined ||
+      terminalResult === undefined ||
+      state?.id !== sessionId ||
+      !Array.isArray(state.inputs) ||
+      !["planning", "installing"].includes(state.status) ||
+      ["dismissed", "answered"].includes(
+        state.inputs.find((input) => input.id === inputId)?.status ?? "",
+      )
+    )
+      return Promise.resolve();
+    completion ??= abortable(
+      client.commands["checkout/answer"]({ inputId, answer: terminalResult }),
+      AbortSignal.timeout(10_000),
+    );
+    return completion;
+  };
   const checkSession = () => {
     const next = client.state;
+    if (next?.id === sessionId && Array.isArray(next.inputs) && pendingHref) {
+      inputId ??= next.inputs.find(
+        (input) =>
+          input.preset === "assistant-ui-cli-login" &&
+          input.help?.href === pendingHref,
+      )?.id;
+    }
     if (
       next?.version !== 2 ||
       next.id !== sessionId ||
@@ -106,10 +118,21 @@ export const connectCloudLoginSetup = async (url: string) => {
     }
     if (client.connection.status === "stopped")
       controller.abort(new Error("The setup connection stopped."));
+    void reconcile().catch(() => {});
   };
-  const dispose = () => {
-    unsubscribe();
-    client.dispose();
+  const dispose = async () => {
+    try {
+      if (pendingAsk && terminalResult) {
+        await abortable(pendingAsk, AbortSignal.timeout(10_000)).catch(
+          () => {},
+        );
+        await reconcile().catch(() => {});
+      }
+    } finally {
+      disposed = true;
+      unsubscribe();
+      client.dispose();
+    }
   };
   try {
     let resolveReady!: () => void;
@@ -146,7 +169,7 @@ export const connectCloudLoginSetup = async (url: string) => {
     unsubscribe = client.subscribe(checkSession);
     checkSession();
   } catch (error) {
-    dispose();
+    await dispose();
     throw error;
   }
   const command = <T>(run: () => Promise<T>) => {
@@ -159,33 +182,40 @@ export const connectCloudLoginSetup = async (url: string) => {
   return {
     signal: controller.signal,
     async publish(authorization: DeviceAuthorization, issuer: string) {
-      const href = setupLoginUrl(authorization, issuer);
-      const result = await command(() =>
-        client.commands["agent/ask"]({
-          kind: "text",
-          preset: "assistant-ui-cli-login",
-          prompt: "Sign in to Assistant Cloud",
-          help: {
-            summary:
-              "Authorize the CLI in your browser, then return to this setup.",
-            href,
-          },
-        }),
-      );
-      inputId = result.inputId;
-      checkSession();
       controller.signal.throwIfAborted();
+      const href = setupLoginUrl(authorization, issuer);
+      pendingHref = href;
+      pendingAsk = client.commands["agent/ask"]({
+        kind: "text",
+        preset: "assistant-ui-cli-login",
+        prompt: "Sign in to Assistant Cloud",
+        help: {
+          summary:
+            "Authorize the CLI in your browser, then return to this setup.",
+          href,
+        },
+      }).then(async (result) => {
+        if (!disposed && client.state?.id === sessionId) {
+          inputId = result.inputId;
+          checkSession();
+          await reconcile().catch(() => {});
+        }
+        return result;
+      });
+      try {
+        await command(() => pendingAsk!);
+        checkSession();
+        controller.signal.throwIfAborted();
+      } catch (error) {
+        terminalResult = controller.signal.aborted ? "cancelled" : "failed";
+        await reconcile().catch(() => {});
+        throw error;
+      }
       return href;
     },
     async complete(result: "signed-in" | "cancelled" | "failed") {
-      if (inputId === undefined || controller.signal.aborted) return;
-      const completedInputId = inputId;
-      await command(() =>
-        client.commands["checkout/answer"]({
-          inputId: completedInputId,
-          answer: result,
-        }),
-      );
+      terminalResult = result;
+      await reconcile();
     },
     dispose,
   };
