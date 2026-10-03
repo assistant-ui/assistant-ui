@@ -300,7 +300,7 @@ async function People() {
 
 const STAT_LABELS = [
   ["GitHub stars", "and counting"],
-  ["Weekly downloads", "across all packages"],
+  ["Weekly downloads", FLAGSHIP_PACKAGE],
   ["Contributors", "from the community"],
   ["Public packages", "shipped on npm"],
   ["Forks", "of the main repo"],
