@@ -2,9 +2,6 @@ import { describe, expect, it } from "vitest";
 import { getThreadState } from "../runtime/api/thread-runtime";
 import type { ThreadRuntimeCore } from "../runtime/interfaces/thread-runtime-core";
 import type { ThreadMessage } from "../types/message";
-import type { ThreadListItemRuntimeState } from "../runtime/api/thread-list-item-runtime";
-
-const listItem = { id: "t1" } as unknown as ThreadListItemRuntimeState;
 
 const baseRuntime = (
   overrides: Partial<ThreadRuntimeCore>,
@@ -49,18 +46,15 @@ const runningAssistant: ThreadMessage = {
 describe("getThreadState.isRunning", () => {
   it("falls back to last-message heuristic when runtime.isRunning is undefined", () => {
     expect(
-      getThreadState(baseRuntime({ messages: [runningAssistant] }), listItem)
-        .isRunning,
+      getThreadState(baseRuntime({ messages: [runningAssistant] })).isRunning,
     ).toBe(true);
 
     expect(
-      getThreadState(baseRuntime({ messages: [completeAssistant] }), listItem)
-        .isRunning,
+      getThreadState(baseRuntime({ messages: [completeAssistant] })).isRunning,
     ).toBe(false);
 
     expect(
-      getThreadState(baseRuntime({ messages: [userMessage] }), listItem)
-        .isRunning,
+      getThreadState(baseRuntime({ messages: [userMessage] })).isRunning,
     ).toBe(false);
   });
 
@@ -68,17 +62,14 @@ describe("getThreadState.isRunning", () => {
     expect(
       getThreadState(
         baseRuntime({ isRunning: true, messages: [completeAssistant] }),
-        listItem,
       ).isRunning,
     ).toBe(true);
   });
 
   it("prefers explicit runtime.isRunning=true when last message is a user message", () => {
     expect(
-      getThreadState(
-        baseRuntime({ isRunning: true, messages: [userMessage] }),
-        listItem,
-      ).isRunning,
+      getThreadState(baseRuntime({ isRunning: true, messages: [userMessage] }))
+        .isRunning,
     ).toBe(true);
   });
 
@@ -86,7 +77,6 @@ describe("getThreadState.isRunning", () => {
     expect(
       getThreadState(
         baseRuntime({ isRunning: false, messages: [runningAssistant] }),
-        listItem,
       ).isRunning,
     ).toBe(false);
   });

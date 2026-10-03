@@ -2156,8 +2156,6 @@ type ThreadRuntimePath = {
 };
 
 type ThreadRuntimeState = {
-  readonly threadId: string;
-  readonly metadata: ThreadListItemRuntimeState;
   readonly isDisabled: boolean;
   readonly isLoading: boolean;
   readonly isRunning: boolean;

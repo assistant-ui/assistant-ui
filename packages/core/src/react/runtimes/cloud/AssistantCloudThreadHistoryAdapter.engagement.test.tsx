@@ -250,8 +250,7 @@ describe("cloud engagement events under RemoteThreadList with backgroundThreads"
         },
       },
     };
-    return new AssistantRuntimeImpl(new ExternalStoreRuntimeCore(adapter))
-      .thread;
+    return new AssistantRuntimeImpl(new ExternalStoreRuntimeCore(adapter));
   };
 
   it("reports one event per send and per switch across mounted bodies", async () => {
@@ -261,8 +260,16 @@ describe("cloud engagement events under RemoteThreadList with backgroundThreads"
         threads: RemoteThreadList({
           adapter: createCloudThreadListAdapter({ cloud }),
           backgroundThreads: true,
-          thread: (id) =>
-            withKey(id, ThreadClient({ runtime: makeThreadRuntime(id) })),
+          thread: (id) => {
+            const runtime = makeThreadRuntime(id);
+            return withKey(
+              id,
+              ThreadClient({
+                runtime: runtime.thread,
+                threadListItem: runtime.threads.mainItem,
+              }),
+            );
+          },
         }),
       }),
     );

@@ -89,7 +89,7 @@ describe("useChatThread", () => {
     );
     try {
       handle.subscribe(() => {});
-      expect(runtime?.thread.getState().threadId).toBe(threadId);
+      expect(runtime?.threads.mainItem.getState().id).toBe(threadId);
     } finally {
       handle.destroy();
     }

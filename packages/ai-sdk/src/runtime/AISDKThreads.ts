@@ -174,7 +174,12 @@ const useAISDKChatThread = <UI_MESSAGE extends UIMessage = UIMessage>({
     [runtime],
   );
 
-  return useResource(ThreadClient({ runtime: runtime.thread }));
+  return useResource(
+    ThreadClient({
+      runtime: runtime.thread,
+      threadListItem: runtime.threads.mainItem,
+    }),
+  );
 };
 
 const AISDKChatThread = resource(useAISDKChatThread);
