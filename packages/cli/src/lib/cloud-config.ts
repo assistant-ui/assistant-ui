@@ -11,6 +11,7 @@ export type CloudProjectConfig = {
   harnessOrigin: string;
   apiOrigin: string;
   workspaceId: string;
+  backendUrl: string;
 };
 
 export const writeCloudFile = async (

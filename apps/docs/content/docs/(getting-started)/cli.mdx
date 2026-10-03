@@ -199,7 +199,13 @@ shared `hackathon` user. The browser uses `HarnessCloudThreadList` to connect
 to the hosted conversation, and the AI SDK chat route holds the model API key.
 Add application authentication to `/api/credential` for private access or
 individual users. Local development uses the runtime's browser tunnel; a
-deployed app supplies its public HTTPS chat endpoint to `--backend-url`.
+deployed app supplies its public HTTPS chat endpoint to `--backend-url` during
+initial setup. To deploy a chat already configured locally, update the harness
+backend allowlist in the Cloud dashboard and `backendUrl` in
+`.assistant-ui/cloud.json`, then rerun with the same HTTPS `--backend-url`.
+Existing conversations keep their original backend, so open the deployed app
+with a fresh thread fragment such as `#deployed-chat`, then use **Share this
+chat**. Setup rejects a changed backend URL instead of silently ignoring it.
 
 Run `assistant-ui cloud setup .` inside a generated cloud-harness app to resume
 setup. `assistant-ui cloud login` signs in separately; `cloud login --no-open`

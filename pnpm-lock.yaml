@@ -6165,7 +6165,7 @@ importers:
         version: link:../../packages/react
       '@assistant-ui/react-harness-sdk':
         specifier: file:vendor/assistant-ui-react-harness-sdk-0.0.2.tgz
-        version: file:templates/cloud-harness/vendor/assistant-ui-react-harness-sdk-0.0.2.tgz(@assistant-ui/core@packages+core)(@assistant-ui/react@packages+react)(@assistant-ui/store@packages+store)(@assistant-ui/tap@packages+tap)(harness-sdk@file:templates/cloud-harness/vendor/harness-sdk-0.3.1.tgz(@types/react@19.3.0)(ai@7.0.123(zod@4.6.5))(react@19.3.0))(next@16.3.8(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@types/node@26.6.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)
+        version: file:templates/cloud-harness/vendor/assistant-ui-react-harness-sdk-0.0.2.tgz(@assistant-ui/core@packages+core)(@assistant-ui/react@packages+react)(@assistant-ui/store@packages+store)(@assistant-ui/tap@packages+tap)(harness-sdk@file:templates/cloud-harness/vendor/harness-sdk-0.3.1.tgz(@assistant-ui/tap@packages+tap)(ai@7.0.123(zod@4.6.5))(react@19.3.0)(statewire@file:templates/cloud-harness/vendor/statewire-0.19.3.tgz(@assistant-ui/tap@packages+tap)(react@19.3.0)))(next@16.3.8(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@types/node@26.6.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown
@@ -6192,7 +6192,7 @@ importers:
         version: 0.4.0
       harness-sdk:
         specifier: file:vendor/harness-sdk-0.3.1.tgz
-        version: file:templates/cloud-harness/vendor/harness-sdk-0.3.1.tgz(@types/react@19.3.0)(ai@7.0.123(zod@4.6.5))(react@19.3.0)
+        version: file:templates/cloud-harness/vendor/harness-sdk-0.3.1.tgz(@assistant-ui/tap@packages+tap)(ai@7.0.123(zod@4.6.5))(react@19.3.0)(statewire@file:templates/cloud-harness/vendor/statewire-0.19.3.tgz(@assistant-ui/tap@packages+tap)(react@19.3.0))
       lucide-react:
         specifier: ^1.49.0
         version: 1.49.0(@types/react@19.3.0)(react@19.3.0)
@@ -6208,6 +6208,9 @@ importers:
       remark-gfm:
         specifier: ^4.0.1
         version: 4.0.1(supports-color@10.2.2)
+      statewire:
+        specifier: file:vendor/statewire-0.19.3.tgz
+        version: file:templates/cloud-harness/vendor/statewire-0.19.3.tgz(@assistant-ui/tap@packages+tap)(react@19.3.0)
       tw-animate-css:
         specifier: ^1.4.0
         version: 1.4.0
@@ -16339,11 +16342,13 @@ packages:
     resolution: {integrity: sha512-SN8LVwCOzvTq3OPNd0+EAghgXugItz56wst567D1vs7LnnKGWprhi3EG58aVOBwhN8HEbQxL4I9NDWkcXUutRw==}
 
   harness-sdk@file:templates/cloud-harness/vendor/harness-sdk-0.3.1.tgz:
-    resolution: {integrity: sha512-+d1W5yztXSli+1VrFCQJtUU5cQTFN1IhUs+0KXOfIdWbkjYoWNG4yXPk7uVZ2lfiCgl3nWB5s/L1Mx3DtLZrPQ==, tarball: file:templates/cloud-harness/vendor/harness-sdk-0.3.1.tgz}
+    resolution: {integrity: sha512-gqE7XT52UILsCwAjyzkggTiOvo7ypjb18oRD0x8HxMUJO81ac4Y+l7rhFSF9pxTS8Hx2G3oEv1PRY6s+oguKWw==, tarball: file:templates/cloud-harness/vendor/harness-sdk-0.3.1.tgz}
     version: 0.3.1
     peerDependencies:
+      '@assistant-ui/tap': ^0.9.6
       ai: ^7.0.40
       react: ^18 || ^19
+      statewire: ^0.19.0
     peerDependenciesMeta:
       ai:
         optional: true
@@ -20260,6 +20265,13 @@ packages:
     peerDependencies:
       react: ^18 || ^19
 
+  statewire@file:templates/cloud-harness/vendor/statewire-0.19.3.tgz:
+    resolution: {integrity: sha512-obRxoAHjUOie+ZJ82LefDtlyLHJ7B4q17b5fOtb38hiijP4LiuPcL4MBwvpbzA8gEqx56Mxey0EFNhBaOFm13Q==, tarball: file:templates/cloud-harness/vendor/statewire-0.19.3.tgz}
+    version: 0.19.3
+    peerDependencies:
+      '@assistant-ui/tap': ^0.9.6
+      react: ^18 || ^19
+
   statuses@1.5.0:
     resolution: {integrity: sha512-OpZ3zP+jT1PI7I8nemJX4AKmAX070ZkYPVWV/AaKTJl+tXCTGyVdC1a4SL8RUQYEwk/f34ZX8UTykN68FwrqAA==}
     engines: {node: '>= 0.6'}
@@ -21964,13 +21976,13 @@ snapshots:
       is-potential-custom-element-name: 1.0.1
       lru-cache: 11.5.3
 
-  '@assistant-ui/react-harness-sdk@file:templates/cloud-harness/vendor/assistant-ui-react-harness-sdk-0.0.2.tgz(@assistant-ui/core@packages+core)(@assistant-ui/react@packages+react)(@assistant-ui/store@packages+store)(@assistant-ui/tap@packages+tap)(harness-sdk@file:templates/cloud-harness/vendor/harness-sdk-0.3.1.tgz(@types/react@19.3.0)(ai@7.0.123(zod@4.6.5))(react@19.3.0))(next@16.3.8(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@types/node@26.6.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)':
+  '@assistant-ui/react-harness-sdk@file:templates/cloud-harness/vendor/assistant-ui-react-harness-sdk-0.0.2.tgz(@assistant-ui/core@packages+core)(@assistant-ui/react@packages+react)(@assistant-ui/store@packages+store)(@assistant-ui/tap@packages+tap)(harness-sdk@file:templates/cloud-harness/vendor/harness-sdk-0.3.1.tgz(@assistant-ui/tap@packages+tap)(ai@7.0.123(zod@4.6.5))(react@19.3.0)(statewire@file:templates/cloud-harness/vendor/statewire-0.19.3.tgz(@assistant-ui/tap@packages+tap)(react@19.3.0)))(next@16.3.8(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@types/node@26.6.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)':
     dependencies:
       '@assistant-ui/core': link:packages/core
       '@assistant-ui/react': link:packages/react
       '@assistant-ui/store': link:packages/store
       '@assistant-ui/tap': link:packages/tap
-      harness-sdk: file:templates/cloud-harness/vendor/harness-sdk-0.3.1.tgz(@types/react@19.3.0)(ai@7.0.123(zod@4.6.5))(react@19.3.0)
+      harness-sdk: file:templates/cloud-harness/vendor/harness-sdk-0.3.1.tgz(@assistant-ui/tap@packages+tap)(ai@7.0.123(zod@4.6.5))(react@19.3.0)(statewire@file:templates/cloud-harness/vendor/statewire-0.19.3.tgz(@assistant-ui/tap@packages+tap)(react@19.3.0))
       react: 19.3.0
     optionalDependencies:
       next: 16.3.8(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@types/node@26.6.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -33219,15 +33231,13 @@ snapshots:
 
   harfbuzzjs@0.10.0: {}
 
-  harness-sdk@file:templates/cloud-harness/vendor/harness-sdk-0.3.1.tgz(@types/react@19.3.0)(ai@7.0.123(zod@4.6.5))(react@19.3.0):
+  harness-sdk@file:templates/cloud-harness/vendor/harness-sdk-0.3.1.tgz(@assistant-ui/tap@packages+tap)(ai@7.0.123(zod@4.6.5))(react@19.3.0)(statewire@file:templates/cloud-harness/vendor/statewire-0.19.3.tgz(@assistant-ui/tap@packages+tap)(react@19.3.0)):
     dependencies:
-      '@assistant-ui/tap': 0.9.19(@types/react@19.3.0)(react@19.3.0)
+      '@assistant-ui/tap': link:packages/tap
       react: 19.3.0
-      statewire: 0.19.4(@types/react@19.3.0)(react@19.3.0)
+      statewire: file:templates/cloud-harness/vendor/statewire-0.19.3.tgz(@assistant-ui/tap@packages+tap)(react@19.3.0)
     optionalDependencies:
       ai: 7.0.123(zod@4.6.5)
-    transitivePeerDependencies:
-      - '@types/react'
 
   has-flag@3.0.0: {}
 
@@ -38963,6 +38973,11 @@ snapshots:
       react: 19.3.0
     transitivePeerDependencies:
       - '@types/react'
+
+  statewire@file:templates/cloud-harness/vendor/statewire-0.19.3.tgz(@assistant-ui/tap@packages+tap)(react@19.3.0):
+    dependencies:
+      '@assistant-ui/tap': link:packages/tap
+      react: 19.3.0
 
   statuses@1.5.0: {}
 

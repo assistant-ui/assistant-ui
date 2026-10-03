@@ -145,6 +145,40 @@ describe("cloud setup", () => {
     await expect(setupCloud(directory, options)).rejects.toThrow("--project");
   });
 
+  it("reuses an organization created by an interrupted setup", async () => {
+    const directory = await fixture();
+    await setupCloud(directory, {
+      ...options,
+      newOrg: "team",
+      project: "chat",
+    });
+    expect(fetchProjects).toHaveBeenCalledWith(
+      expect.anything(),
+      "oauth-access",
+      {
+        id: "org-1",
+      },
+    );
+    expect(provisionCloudHarness).toHaveBeenCalledWith(
+      options.apiUrl,
+      "oauth-access",
+      expect.objectContaining({ org_id: "org-1" }),
+    );
+  });
+
+  it("rejects a changed backend before silently reusing configured resources", async () => {
+    const directory = await fixture();
+    await setupCloud(directory, options);
+    const before = provisionCloudHarness.mock.calls.length;
+    await expect(
+      setupCloud(directory, {
+        ...options,
+        backendUrl: "https://app.example.com/api/chat",
+      }),
+    ).rejects.toThrow("backend allowlist in the Cloud dashboard");
+    expect(provisionCloudHarness.mock.calls.length).toBe(before);
+  });
+
   it("rejects conflicting selection flags before logging in", async () => {
     const directory = await fixture();
     const before = cloudAccessToken.mock.calls.length;

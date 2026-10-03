@@ -85,7 +85,12 @@ Use `--project <id-or-slug>` for an existing project. A hackathon access code
 can be supplied with `--access-code <code>` or `ASSISTANT_UI_ACCESS_CODE`.
 `--use-npm`, `--use-pnpm`, `--use-yarn`, and `--use-bun` select the installer;
 `--skip-install` leaves dependency installation to you. For a hosted app,
-pass its HTTPS chat endpoint as `--backend-url`.
+pass its HTTPS chat endpoint as `--backend-url` during initial setup. If you
+deploy a chat first configured locally, update its backend allowlist in the
+Cloud dashboard and its `backendUrl` in `.assistant-ui/cloud.json`, then rerun
+setup with the same HTTPS `--backend-url`. Existing conversations keep their
+original backend; open the deployed app with a fresh thread fragment such as
+`#deployed-chat`, then use **Share this chat**.
 
 The project API key stays in `.env.local`, with owner-only permissions and a
 Git ignore entry. `.assistant-ui/cloud.json` stores the selected project and

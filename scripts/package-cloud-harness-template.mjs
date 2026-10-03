@@ -18,6 +18,7 @@ const vendor = path.join(root, "templates/cloud-harness/vendor");
 const packages = [
   "packages/harness-sdk/core",
   "packages/harness-sdk/assistant-ui",
+  "packages/statewire/core",
 ];
 const revision = execFileSync("git", ["rev-parse", "HEAD"], {
   cwd: source,
@@ -66,12 +67,12 @@ try {
     published.license = "MIT";
     published.files = ["dist", "LICENSE"];
     const normalizations = [];
-    if (original.name === "@assistant-ui/react-harness-sdk")
-      for (const name of [
-        "@assistant-ui/core",
-        "@assistant-ui/store",
-        "@assistant-ui/tap",
-      ]) {
+    for (const name of [
+      "@assistant-ui/core",
+      "@assistant-ui/store",
+      "@assistant-ui/tap",
+    ])
+      if (published.dependencies?.[name]) {
         const specifier = published.dependencies[name];
         delete published.dependencies[name];
         published.peerDependencies[name] = specifier;
@@ -86,6 +87,12 @@ try {
       normalizations.push(
         `harness-sdk dependency becomes a required peer ^${harness.version}`,
       );
+    }
+    if (published.dependencies?.statewire) {
+      const specifier = published.dependencies.statewire;
+      delete published.dependencies.statewire;
+      published.peerDependencies.statewire = specifier;
+      normalizations.push(`statewire becomes a required peer ${specifier}`);
     }
     for (const field of [
       "dependencies",

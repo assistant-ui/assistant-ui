@@ -52,6 +52,7 @@ describe("cloud environment", () => {
         harnessOrigin: "https://harness.example.com",
         apiOrigin: "https://project.example.com",
         workspaceId: "hackathon",
+        backendUrl: "http://localhost:3000/api/chat",
       };
       await writeCloudProjectConfig(directory, config, "private-cloud-key");
       expect(await readCloudProjectConfig(directory)).toEqual(config);

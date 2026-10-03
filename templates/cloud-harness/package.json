@@ -34,7 +34,8 @@
     "zustand": "^5.0.15",
     "assistant-cloud": "workspace:*",
     "@assistant-ui/react-harness-sdk": "file:vendor/assistant-ui-react-harness-sdk-0.0.2.tgz",
-    "harness-sdk": "file:vendor/harness-sdk-0.3.1.tgz"
+    "harness-sdk": "file:vendor/harness-sdk-0.3.1.tgz",
+    "statewire": "file:vendor/statewire-0.19.3.tgz"
   },
   "devDependencies": {
     "@assistant-ui/next": "workspace:*",

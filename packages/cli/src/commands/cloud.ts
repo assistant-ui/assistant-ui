@@ -129,6 +129,10 @@ const organizationForSetup = async (
     throw new Error(
       "No organizations found. Pass --new-org <slug> to create one.",
     );
+  const existing = organizations.find(
+    (organization) => organization.slug === slug,
+  );
+  if (existing) return existing;
   const response = await fetch(`${issuer}/api/oidc/organizations`, {
     method: "POST",
     headers: {
@@ -253,6 +257,10 @@ export const setupCloud = async (
   const target = path.resolve(directory);
   const previous = await readCloudProjectConfig(target);
   if (previous) {
+    if (previous.backendUrl !== backend.href)
+      throw new Error(
+        "This harness is configured for another backend URL. Update its backend allowlist in the Cloud dashboard and the backendUrl in .assistant-ui/cloud.json before rerunning setup, or use a new directory.",
+      );
     if (
       (options.project &&
         options.project !== previous.projectId &&
@@ -333,6 +341,7 @@ export const setupCloud = async (
       harnessOrigin: result.harness_origin,
       apiOrigin: result.api_origin,
       workspaceId: result.workspace_id,
+      backendUrl: backend.href,
     },
     result.api_key,
   );
