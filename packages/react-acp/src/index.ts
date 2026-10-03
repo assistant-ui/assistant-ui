@@ -1,18 +1,27 @@
-// Main hook
 export { useAcpRuntime } from "./useAcpRuntime";
 export type { UseAcpRuntimeOptions } from "./useAcpRuntime";
+
 export {
-  useAcpConnectionState,
-  useAcpSessionId,
+  useAcpAgentCapabilities,
   useAcpAgentInfo,
-  useAcpPlan,
-  useAcpSessionTitle,
-  useAcpCurrentModeId,
   useAcpAvailableCommands,
+  useAcpConfigOptions,
+  useAcpConnectionState,
+  useAcpCurrentModeId,
+  useAcpPlan,
+  useAcpSessionId,
+  useAcpSessionTitle,
+  useAcpUsage,
 } from "./hooks";
 
-// Client
-export { AcpClient, AcpError, autoAllowPermissionHandler } from "./AcpClient";
+export { acpExtras } from "./acpExtras";
+
+export {
+  AcpClient,
+  AcpError,
+  autoAllowPermissionHandler,
+  cancelPermissionHandler,
+} from "./AcpClient";
 export type {
   AcpClientOptions,
   AcpPermissionHandler,
@@ -20,55 +29,97 @@ export type {
   AcpWebSocketLike,
 } from "./AcpClient";
 
-// Runtime core (advanced usage)
-export { AcpThreadRuntimeCore } from "./AcpThreadRuntimeCore";
+// Lower-level building blocks, deliberately public as advanced API.
+export { AcpThreadController } from "./AcpThreadController";
 export type {
-  AcpThreadRuntimeCoreOptions,
   AcpPermissionsMode,
-} from "./AcpThreadRuntimeCore";
-export { acpExtras } from "./acpExtras";
+  AcpThreadControllerLike,
+  AcpThreadControllerOptions,
+} from "./AcpThreadController";
+export {
+  createAcpThreadState,
+  isAcpStateRunning,
+  reduceAcpThreadState,
+  EMPTY_ACP_THREAD_STATE,
+} from "./acpThreadState";
+export type {
+  AcpAssistantMessage,
+  AcpLoadState,
+  AcpPendingPermission,
+  AcpRunState,
+  AcpThreadEvent,
+  AcpThreadMessage,
+  AcpThreadState,
+  AcpUserMessage,
+} from "./acpThreadState";
+export {
+  projectAcpThreadRepository,
+  toThreadMessage,
+  toThreadMessageLike,
+} from "./acpMessageProjection";
+export { useAcpControllerState } from "./useAcpControllerState";
 
 // Protocol types
 export type {
-  AcpAnnotations,
-  AcpTextContentBlock,
-  AcpImageContentBlock,
-  AcpAudioContentBlock,
-  AcpResourceLink,
-  AcpResourceContentBlock,
-  AcpContentBlock,
-  AcpToolKind,
-  AcpToolCallStatus,
-  AcpToolCallContent,
-  AcpToolCallLocation,
-  AcpToolCall,
-  AcpToolCallUpdate,
-  AcpPlanEntry,
-  AcpAvailableCommand,
-  AcpSessionUpdate,
-  AcpPermissionOptionKind,
-  AcpPermissionOption,
-  AcpPermissionRequest,
-  AcpPermissionOutcome,
-  AcpStopReason,
-  AcpPromptCapabilities,
   AcpAgentCapabilities,
+  AcpAnnotations,
+  AcpAudioContentBlock,
+  AcpAuthMethod,
+  AcpAvailableCommand,
+  AcpBlobResourceContents,
+  AcpClientCapabilities,
+  AcpConnectionState,
+  AcpContentBlock,
+  AcpCost,
+  AcpEmbeddedResourceContentBlock,
+  AcpEnvVariable,
+  AcpExtras,
+  AcpHttpHeader,
+  AcpImageContentBlock,
   AcpImplementation,
   AcpInitializeResponse,
-  AcpClientCapabilities,
+  AcpMcpCapabilities,
   AcpMcpServer,
-  AcpConnectionState,
-  AcpExtras,
+  AcpPermissionOption,
+  AcpPermissionOptionKind,
+  AcpPermissionOutcome,
+  AcpPermissionRequest,
+  AcpPlanEntry,
+  AcpPlanEntryPriority,
+  AcpPlanEntryStatus,
+  AcpPromptCapabilities,
+  AcpResourceContents,
+  AcpResourceLinkContentBlock,
+  AcpSessionConfigOption,
+  AcpSessionUpdate,
+  AcpStopReason,
+  AcpTextContentBlock,
+  AcpTextResourceContents,
+  AcpToolCall,
+  AcpToolCallContent,
+  AcpToolCallLocation,
+  AcpToolCallStatus,
+  AcpToolCallUpdate,
+  AcpToolKind,
+  AcpUsage,
 } from "./types";
 export { ACP_PROTOCOL_VERSION } from "./types";
 
 // Conversion utilities (for advanced usage)
 export {
+  appendContentBlock,
+  applySessionUpdateToContent,
+  applyToolCallUpdate,
+  attachToolCallApproval,
+  buildToolCallPart,
+  isAllowKind,
+  isRejectKind,
+  mergeToolCallPart,
+  permissionOptionToApprovalOption,
+  resolvePermissionOutcome,
+  resolveToolCallApproval,
+  stopReasonToMessageStatus,
   threadContentToAcpBlocks,
   toolCallContentToText,
-  stopReasonToMessageStatus,
-  acpToolStatusToPartStatus,
-  permissionOptionToApprovalOption,
-  isAllowKind,
-  AcpContentAccumulator,
 } from "./conversions";
+export type { AcpApprovalDecision } from "./conversions";

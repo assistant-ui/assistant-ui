@@ -3,66 +3,74 @@ import type {
   ReadonlyJSONValue,
 } from "assistant-stream/utils";
 
-/** ACP v1 protocol version. */
 export const ACP_PROTOCOL_VERSION = 1;
 
-// ---------------------------------------------------------------------------
-// Content blocks
-// ---------------------------------------------------------------------------
-
 export type AcpAnnotations = {
-  readonly audience?: readonly ("user" | "assistant")[];
-  readonly priority?: number;
+  readonly audience?: readonly ("user" | "assistant")[] | null;
+  readonly lastModified?: string | null;
+  readonly priority?: number | null;
 };
 
 export type AcpTextContentBlock = {
   readonly type: "text";
   readonly text: string;
-  readonly annotations?: AcpAnnotations;
+  readonly annotations?: AcpAnnotations | null;
 };
 
 export type AcpImageContentBlock = {
   readonly type: "image";
-  /** Base64-encoded image data. */
   readonly data: string;
   readonly mimeType: string;
-  readonly uri?: string;
-  readonly annotations?: AcpAnnotations;
+  readonly uri?: string | null;
+  readonly annotations?: AcpAnnotations | null;
 };
 
 export type AcpAudioContentBlock = {
   readonly type: "audio";
-  /** Base64-encoded audio data. */
   readonly data: string;
   readonly mimeType: string;
-  readonly annotations?: AcpAnnotations;
+  readonly annotations?: AcpAnnotations | null;
 };
 
-export type AcpResourceLink = {
+export type AcpResourceLinkContentBlock = {
+  readonly type: "resource_link";
   readonly uri: string;
-  readonly name?: string;
-  readonly description?: string;
-  readonly mimeType?: string;
-  readonly text?: string;
-  /** Base64-encoded blob, when binary. */
-  readonly blob?: string;
+  readonly name: string;
+  readonly title?: string | null;
+  readonly description?: string | null;
+  readonly mimeType?: string | null;
+  readonly size?: number | null;
+  readonly annotations?: AcpAnnotations | null;
 };
 
-export type AcpResourceContentBlock = {
+export type AcpTextResourceContents = {
+  readonly uri: string;
+  readonly text: string;
+  readonly mimeType?: string | null;
+};
+
+export type AcpBlobResourceContents = {
+  readonly uri: string;
+  readonly blob: string;
+  readonly mimeType?: string | null;
+};
+
+export type AcpResourceContents =
+  | AcpTextResourceContents
+  | AcpBlobResourceContents;
+
+export type AcpEmbeddedResourceContentBlock = {
   readonly type: "resource";
-  readonly resource: AcpResourceLink;
-  readonly annotations?: AcpAnnotations;
+  readonly resource: AcpResourceContents;
+  readonly annotations?: AcpAnnotations | null;
 };
 
 export type AcpContentBlock =
   | AcpTextContentBlock
   | AcpImageContentBlock
   | AcpAudioContentBlock
-  | AcpResourceContentBlock;
-
-// ---------------------------------------------------------------------------
-// Tool calls
-// ---------------------------------------------------------------------------
+  | AcpResourceLinkContentBlock
+  | AcpEmbeddedResourceContentBlock;
 
 export type AcpToolKind =
   | "read"
@@ -83,22 +91,24 @@ export type AcpToolCallStatus =
   | "failed";
 
 export type AcpToolCallContent =
-  | { readonly type: "content"; readonly content: readonly AcpContentBlock[] }
+  | { readonly type: "content"; readonly content: AcpContentBlock }
   | {
       readonly type: "diff";
       readonly path: string;
-      readonly oldText?: string;
+      readonly oldText?: string | null;
       readonly newText: string;
-    };
+    }
+  | { readonly type: "terminal"; readonly terminalId: string };
 
 export type AcpToolCallLocation = {
   readonly path: string;
-  readonly line?: number;
+  readonly line?: number | null;
 };
 
 export type AcpToolCall = {
   readonly toolCallId: string;
-  readonly title?: string;
+  readonly title: string;
+  readonly name?: string | null;
   readonly kind?: AcpToolKind;
   readonly status?: AcpToolCallStatus;
   readonly content?: readonly AcpToolCallContent[];
@@ -107,43 +117,70 @@ export type AcpToolCall = {
   readonly rawOutput?: ReadonlyJSONValue;
 };
 
-/** All fields except toolCallId are optional in an update. */
 export type AcpToolCallUpdate = {
   readonly toolCallId: string;
-  readonly title?: string;
-  readonly kind?: AcpToolKind;
-  readonly status?: AcpToolCallStatus;
-  readonly content?: readonly AcpToolCallContent[];
-  readonly locations?: readonly AcpToolCallLocation[];
+  readonly title?: string | null;
+  readonly name?: string | null;
+  readonly kind?: AcpToolKind | null;
+  readonly status?: AcpToolCallStatus | null;
+  readonly content?: readonly AcpToolCallContent[] | null;
+  readonly locations?: readonly AcpToolCallLocation[] | null;
   readonly rawInput?: ReadonlyJSONValue;
   readonly rawOutput?: ReadonlyJSONValue;
 };
 
-// ---------------------------------------------------------------------------
-// Session updates (server -> client notifications)
-// ---------------------------------------------------------------------------
+export type AcpPlanEntryPriority = "high" | "medium" | "low";
+
+export type AcpPlanEntryStatus = "pending" | "in_progress" | "completed";
 
 export type AcpPlanEntry = {
   readonly content: string;
-  readonly priority: "high" | "medium" | "low";
-  readonly status: "pending" | "in_progress" | "completed";
+  readonly priority: AcpPlanEntryPriority;
+  readonly status: AcpPlanEntryStatus;
 };
 
 export type AcpAvailableCommand = {
   readonly name: string;
   readonly description: string;
-  readonly input?: { readonly hint: string };
+  readonly input?: { readonly hint: string } | null;
+};
+
+export type AcpSessionConfigOption = {
+  readonly type: "select" | "boolean";
+  readonly currentValue: string | boolean;
+  readonly options?: readonly {
+    readonly value: string;
+    readonly name: string;
+    readonly description?: string | null;
+  }[];
+} & ReadonlyJSONObject;
+
+export type AcpCost = {
+  readonly amount: number;
+  readonly currency: string;
+};
+
+export type AcpUsage = {
+  readonly used: number;
+  readonly size: number;
+  readonly cost?: AcpCost | null;
 };
 
 export type AcpSessionUpdate =
   | {
+      readonly sessionUpdate: "user_message_chunk";
+      readonly content: AcpContentBlock;
+      readonly messageId?: string | null;
+    }
+  | {
       readonly sessionUpdate: "agent_message_chunk";
       readonly content: AcpContentBlock;
-      readonly stopReason?: AcpStopReason;
+      readonly messageId?: string | null;
     }
   | {
       readonly sessionUpdate: "agent_thought_chunk";
       readonly content: AcpContentBlock;
+      readonly messageId?: string | null;
     }
   | ({ readonly sessionUpdate: "tool_call" } & AcpToolCall)
   | ({ readonly sessionUpdate: "tool_call_update" } & AcpToolCallUpdate)
@@ -160,18 +197,15 @@ export type AcpSessionUpdate =
       readonly currentModeId: string;
     }
   | {
-      readonly sessionUpdate: "session_info_update";
-      readonly title?: string;
-      readonly updatedAt?: string;
+      readonly sessionUpdate: "config_option_update";
+      readonly configOptions: readonly AcpSessionConfigOption[];
     }
   | {
-      readonly sessionUpdate: "user_message_chunk";
-      readonly content: AcpContentBlock;
-    };
-
-// ---------------------------------------------------------------------------
-// Permissions
-// ---------------------------------------------------------------------------
+      readonly sessionUpdate: "session_info_update";
+      readonly title?: string | null;
+      readonly updatedAt?: string | null;
+    }
+  | ({ readonly sessionUpdate: "usage_update" } & AcpUsage);
 
 export type AcpPermissionOptionKind =
   | "allow_once"
@@ -183,7 +217,6 @@ export type AcpPermissionOption = {
   readonly optionId: string;
   readonly name: string;
   readonly kind: AcpPermissionOptionKind;
-  readonly description?: string;
 };
 
 export type AcpPermissionRequest = {
@@ -195,10 +228,6 @@ export type AcpPermissionRequest = {
 export type AcpPermissionOutcome =
   | { readonly outcome: "selected"; readonly optionId: string }
   | { readonly outcome: "cancelled" };
-
-// ---------------------------------------------------------------------------
-// Lifecycle
-// ---------------------------------------------------------------------------
 
 export type AcpStopReason =
   | "end_turn"
@@ -213,22 +242,34 @@ export type AcpPromptCapabilities = {
   readonly embeddedContext?: boolean;
 };
 
+export type AcpMcpCapabilities = {
+  readonly http?: boolean;
+  readonly sse?: boolean;
+};
+
 export type AcpAgentCapabilities = {
   readonly loadSession?: boolean;
   readonly promptCapabilities?: AcpPromptCapabilities;
-  readonly mcpCapabilities?: ReadonlyJSONObject;
+  readonly mcpCapabilities?: AcpMcpCapabilities;
 };
 
 export type AcpImplementation = {
   readonly name: string;
-  readonly title?: string;
+  readonly title?: string | null;
   readonly version: string;
 };
 
 export type AcpInitializeResponse = {
   readonly protocolVersion: number;
   readonly agentCapabilities?: AcpAgentCapabilities;
-  readonly agentInfo?: AcpImplementation;
+  readonly authMethods?: readonly AcpAuthMethod[];
+  readonly agentInfo?: AcpImplementation | null;
+};
+
+export type AcpAuthMethod = {
+  readonly id: string;
+  readonly name: string;
+  readonly description?: string | null;
 };
 
 export type AcpClientCapabilities = {
@@ -239,16 +280,35 @@ export type AcpClientCapabilities = {
   readonly terminal?: boolean;
 };
 
-export type AcpMcpServer = {
+export type AcpEnvVariable = {
   readonly name: string;
-  readonly command?: string;
-  readonly args?: readonly string[];
-  readonly url?: string;
+  readonly value: string;
 };
 
-// ---------------------------------------------------------------------------
-// Client options / extras
-// ---------------------------------------------------------------------------
+export type AcpHttpHeader = {
+  readonly name: string;
+  readonly value: string;
+};
+
+export type AcpMcpServer =
+  | {
+      readonly type: "http";
+      readonly name: string;
+      readonly url: string;
+      readonly headers: readonly AcpHttpHeader[];
+    }
+  | {
+      readonly type: "sse";
+      readonly name: string;
+      readonly url: string;
+      readonly headers: readonly AcpHttpHeader[];
+    }
+  | {
+      readonly name: string;
+      readonly command: string;
+      readonly args: readonly string[];
+      readonly env: readonly AcpEnvVariable[];
+    };
 
 export type AcpConnectionState = "disconnected" | "connecting" | "connected";
 
@@ -261,4 +321,6 @@ export type AcpExtras = {
   readonly sessionTitle: string | undefined;
   readonly currentModeId: string | undefined;
   readonly availableCommands: readonly AcpAvailableCommand[] | undefined;
+  readonly configOptions: readonly AcpSessionConfigOption[] | undefined;
+  readonly usage: AcpUsage | undefined;
 };

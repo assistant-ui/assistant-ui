@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   useExternalStoreRuntime,
   useExternalStoreSharedOptions,
@@ -20,15 +20,20 @@ import type {
   ThreadHistoryAdapter,
   ThreadMessage,
 } from "@assistant-ui/core";
+import { invokeUserCallback } from "@assistant-ui/core/internal";
 import {
   AcpClient,
   type AcpClientOptions,
   type AcpWebSocketFactory,
+  type AcpWebSocketLike,
 } from "./AcpClient";
 import {
-  AcpThreadRuntimeCore,
+  AcpThreadController,
   type AcpPermissionsMode,
-} from "./AcpThreadRuntimeCore";
+} from "./AcpThreadController";
+import { isAcpStateRunning } from "./acpThreadState";
+import { projectAcpThreadRepository } from "./acpMessageProjection";
+import { useAcpControllerState } from "./useAcpControllerState";
 import { acpExtras } from "./acpExtras";
 import type { AcpImplementation, AcpMcpServer } from "./types";
 
@@ -37,7 +42,7 @@ export type UseAcpRuntimeOptions = ExternalStoreSharedOptions & {
   client?: AcpClient;
   /** WebSocket endpoint of the ACP agent, e.g. `ws://127.0.0.1:2770/`. */
   url?: string;
-  /** Working directory passed to `session/new`. */
+  /** Working directory passed to `session/new`. Must be an absolute path. */
   cwd?: string;
   /** MCP servers passed to `session/new`. */
   mcpServers?: readonly AcpMcpServer[];
@@ -47,7 +52,8 @@ export type UseAcpRuntimeOptions = ExternalStoreSharedOptions & {
   webSocketFactory?: AcpWebSocketFactory;
   /**
    * Permission policy. `"ask"` (default) surfaces ACP permission requests as
-   * tool-call approvals in the UI; `"auto-allow"` answers them automatically.
+   * tool-call approvals in the UI; `"auto-allow"` answers them with the
+   * agent's first allow-family option.
    */
   permissions?: AcpPermissionsMode;
   /** Connect on mount. Defaults to true. */
@@ -70,65 +76,153 @@ export type UseAcpRuntimeOptions = ExternalStoreSharedOptions & {
 
 type ManagedAcpClientOptions = Pick<
   AcpClientOptions,
-  "url" | "cwd" | "mcpServers" | "clientInfo" | "webSocketFactory"
+  "url" | "cwd" | "mcpServers" | "clientInfo"
 >;
 
-const serializeManagedClientOptions = (
-  options: Omit<ManagedAcpClientOptions, "webSocketFactory">,
-): string => JSON.stringify(options);
+type AcpRegistry = {
+  readonly key: string;
+  readonly client: AcpClient;
+  readonly controller: AcpThreadController;
+  activate(): void;
+  release(): void;
+};
+
+const createRegistry = (
+  key: string,
+  client: AcpClient,
+  ownsClient: boolean,
+): AcpRegistry => {
+  let disposeTimer: ReturnType<typeof setTimeout> | undefined;
+
+  return {
+    key,
+    client,
+    controller: new AcpThreadController({ client }),
+    activate() {
+      if (disposeTimer === undefined) return;
+      clearTimeout(disposeTimer);
+      disposeTimer = undefined;
+    },
+    release() {
+      if (!ownsClient) return;
+      disposeTimer ??= setTimeout(() => {
+        disposeTimer = undefined;
+        client.dispose();
+      }, 0);
+    },
+  };
+};
+
+const toError = (error: unknown): Error =>
+  error instanceof Error ? error : new Error(String(error));
+
+const buildManagedClientOptions = (
+  options: UseAcpRuntimeOptions,
+): ManagedAcpClientOptions => {
+  const { url } = options;
+  if (!url) throw new Error("useAcpRuntime requires either `client` or `url`");
+  return {
+    url,
+    ...(options.cwd !== undefined && { cwd: options.cwd }),
+    mcpServers: options.mcpServers ?? [],
+    ...(options.clientInfo && { clientInfo: options.clientInfo }),
+  };
+};
 
 export function useAcpRuntime(options: UseAcpRuntimeOptions): AssistantRuntime {
-  const [_version, setVersion] = useState(0);
-  const notifyUpdate = useCallback(() => setVersion((v) => v + 1), []);
   const runtimeAdapters = useRuntimeAdapters();
   const historyAdapter = options.adapters?.history ?? runtimeAdapters?.history;
 
-  const managedClientOptionsKey = options.client
-    ? null
-    : options.url
-      ? serializeManagedClientOptions({
-          url: options.url,
-          cwd: options.cwd,
-          mcpServers: options.mcpServers,
-          clientInfo: options.clientInfo,
-        })
-      : null;
-
   const webSocketFactory = options.webSocketFactory;
-  const client = useMemo(() => {
-    if (options.client) return options.client;
-    if (!managedClientOptionsKey) {
-      throw new Error("useAcpRuntime requires either `client` or `url`");
-    }
+  const webSocketFactoryRef = useRef(webSocketFactory);
+  useEffect(() => {
+    webSocketFactoryRef.current = webSocketFactory;
+  }, [webSocketFactory]);
 
-    return new AcpClient({
-      ...(JSON.parse(managedClientOptionsKey) as Omit<
-        ManagedAcpClientOptions,
-        "webSocketFactory"
-      >),
-      ...(webSocketFactory && { webSocketFactory }),
-    });
-  }, [managedClientOptionsKey, options.client, webSocketFactory]);
-
-  const core = useMemo(
-    () =>
-      new AcpThreadRuntimeCore({
-        client,
-        notifyUpdate,
-      }),
-    [client, notifyUpdate],
+  const stableWebSocketFactory = useMemo<AcpWebSocketFactory>(
+    () => (url) => {
+      const factory = webSocketFactoryRef.current;
+      if (factory) return factory(url);
+      return new WebSocket(url) as unknown as AcpWebSocketLike;
+    },
+    [],
   );
 
-  core.updateOptions({
-    client,
-    permissions: options.permissions,
-    autoConnect: options.autoConnect,
-    ...(options.onError && { onError: options.onError }),
-    ...(options.onCancel && { onCancel: options.onCancel }),
-    ...(historyAdapter && { history: historyAdapter }),
-  });
+  const externalClient = options.client;
+  const managedClientOptions = externalClient
+    ? undefined
+    : buildManagedClientOptions(options);
+  const registryKey = externalClient
+    ? "external"
+    : JSON.stringify(managedClientOptions);
 
-  // Adapters
+  const createRegistryClient = () =>
+    externalClient
+      ? externalClient
+      : new AcpClient({
+          ...managedClientOptions!,
+          webSocketFactory: stableWebSocketFactory,
+        });
+
+  const [pinned, setPinned] = useState(() =>
+    createRegistry(registryKey, createRegistryClient(), !externalClient),
+  );
+
+  let registry = pinned;
+  if (registry.key !== registryKey) {
+    registry = createRegistry(
+      registryKey,
+      createRegistryClient(),
+      !externalClient,
+    );
+    setPinned(registry);
+  }
+
+  const { controller, client } = registry;
+
+  useEffect(() => {
+    registry.activate();
+    void controller.attach();
+    return () => {
+      void controller.detach();
+      registry.release();
+    };
+  }, [controller, registry]);
+
+  const permissions = options.permissions;
+  const autoConnect = options.autoConnect;
+  const onError = options.onError;
+  const onCancel = options.onCancel;
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      await controller.updateOptions({
+        client,
+        permissions,
+        autoConnect,
+        ...(onError && { onError }),
+        ...(onCancel && { onCancel }),
+        ...(historyAdapter && { history: historyAdapter }),
+      });
+      if (cancelled) return;
+      await controller.load();
+    })().catch((error: unknown) => {
+      invokeUserCallback("react-acp", "onError", onError, toError(error));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    autoConnect,
+    client,
+    controller,
+    historyAdapter,
+    onCancel,
+    onError,
+    permissions,
+  ]);
+
   const adapters = options.adapters;
   const adapterAdapters = useMemo(
     () => ({
@@ -141,56 +235,64 @@ export function useAcpRuntime(options: UseAcpRuntimeOptions): AssistantRuntime {
     [adapters, runtimeAdapters],
   );
 
-  // Build store adapter
+  const state = useAcpControllerState(controller);
+
+  const messageRepository = useMemo(
+    () => projectAcpThreadRepository(state),
+    [state],
+  );
+
+  const extras = useMemo(
+    () =>
+      acpExtras.provide({
+        connectionState: state.connectionState,
+        sessionId: state.sessionId,
+        agentInfo: state.agentInfo,
+        agentCapabilities: state.agentCapabilities,
+        plan: state.plan,
+        sessionTitle: state.sessionTitle,
+        currentModeId: state.currentModeId,
+        availableCommands: state.availableCommands,
+        configOptions: state.configOptions,
+        usage: state.usage,
+      }),
+    [state],
+  );
+
   const shared = useExternalStoreSharedOptions(options);
-  const store = useMemo(() => {
-    void _version;
+  const isLoading = state.loadState.type === "loading";
+  const isRunning = isAcpStateRunning(state);
 
-    return {
-      ...shared,
-      isLoading: core.isLoading,
-      messageRepository: core.getMessageRepository(),
-      isRunning: core.isRunning(),
-      extras: acpExtras.provide(core.getExtras()),
-      onNew: (message: AppendMessage) => core.append(message),
-      onEdit: (message: AppendMessage) => core.edit(message),
-      onReload: (parentId: string | null) => core.reload(parentId),
-      onCancel: () => core.cancel(),
-      onRespondToToolApproval: (approval: RespondToToolApprovalOptions) =>
-        core.respondToApproval(approval),
-      setMessages: (messages: readonly ThreadMessage[]) =>
-        core.applyExternalMessages(messages),
-      onImport: (messages: readonly ThreadMessage[]) =>
-        core.applyExternalMessages(messages),
-      adapters: adapterAdapters,
-    } satisfies ExternalStoreAdapter<ThreadMessage>;
-  }, [adapterAdapters, core, _version, shared]);
+  const store = useMemo(
+    () =>
+      ({
+        ...shared,
+        isLoading,
+        isRunning,
+        messageRepository,
+        extras,
+        onNew: (message: AppendMessage) => controller.append(message),
+        onEdit: (message: AppendMessage) => controller.edit(message),
+        onReload: (parentId: string | null) => controller.reload(parentId),
+        onCancel: () => controller.cancel(),
+        onRespondToToolApproval: (approval: RespondToToolApprovalOptions) =>
+          controller.respondToApproval(approval),
+        setMessages: (messages: readonly ThreadMessage[]) =>
+          controller.applyExternalMessages(messages),
+        onImport: (messages: readonly ThreadMessage[]) =>
+          controller.applyExternalMessages(messages),
+        adapters: adapterAdapters,
+      }) satisfies ExternalStoreAdapter<ThreadMessage>,
+    [
+      adapterAdapters,
+      controller,
+      extras,
+      isLoading,
+      isRunning,
+      messageRepository,
+      shared,
+    ],
+  );
 
-  const runtime = useExternalStoreRuntime(store);
-
-  // Subscribe the committed core to the client. This must run in an effect
-  // (not in the core's constructor): React runs useMemo factories for render
-  // passes it may later discard (StrictMode double-invocation, interrupted
-  // renders), and a discarded core must never steal the client's callbacks
-  // from the committed one — that silently drops every session/update
-  // notification (assistant messages complete with empty content).
-  useEffect(() => {
-    core.attachClient();
-    return () => {
-      core.detachClient();
-    };
-  }, [core]);
-
-  useEffect(() => {
-    core.attachRuntime(runtime);
-    return () => {
-      core.detachRuntime();
-    };
-  }, [core, runtime]);
-
-  useEffect(() => {
-    core.__internal_load();
-  }, [core]);
-
-  return runtime;
+  return useExternalStoreRuntime(store);
 }

@@ -1,25 +1,38 @@
 "use client";
 
 import type {
-  MessagePartStatus,
+  FileMessagePart,
+  ImageMessagePart,
   MessageStatus,
+  TextMessagePart,
   ThreadAssistantMessage,
   ThreadUserMessage,
+  ToolApprovalOption,
+  ToolApprovalOptionKind,
   ToolCallMessagePart,
 } from "@assistant-ui/core";
-import { isRecord, parseDataUrl } from "@assistant-ui/core/internal";
+import {
+  isRecord,
+  parseDataUrl,
+  resolveFilePartSource,
+} from "@assistant-ui/core/internal";
+import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import type {
   AcpContentBlock,
   AcpPermissionOption,
+  AcpPermissionOptionKind,
+  AcpPermissionOutcome,
+  AcpPermissionRequest,
   AcpStopReason,
   AcpToolCallContent,
   AcpToolCallStatus,
   AcpToolCallUpdate,
 } from "./types";
 
-// ---------------------------------------------------------------------------
-// User content -> ACP content blocks
-// ---------------------------------------------------------------------------
+type AssistantPart = ThreadAssistantMessage["content"][number];
+
+const isSettled = (status: AcpToolCallStatus) =>
+  status === "completed" || status === "failed";
 
 export function threadContentToAcpBlocks(
   content: ThreadUserMessage["content"],
@@ -34,36 +47,56 @@ export function threadContentToAcpBlocks(
       case "image": {
         if (!part.image) break;
         const parsed = parseDataUrl(part.image);
-        if (parsed) {
-          blocks.push({
-            type: "image",
-            data: parsed.data,
-            mimeType: parsed.mimeType,
-          });
-        } else {
-          blocks.push({ type: "resource", resource: { uri: part.image } });
-        }
+        blocks.push(
+          parsed
+            ? { type: "image", data: parsed.data, mimeType: parsed.mimeType }
+            : {
+                type: "resource_link",
+                uri: part.image,
+                name: part.filename || part.image,
+              },
+        );
+        break;
+      }
+      case "audio": {
+        const data = part.audio?.data;
+        if (!data) break;
+        blocks.push({
+          type: "audio",
+          data,
+          mimeType: `audio/${part.audio?.format ?? "mp3"}`,
+        });
         break;
       }
       case "file": {
-        if (part.sourceType === "url") {
+        const source = resolveFilePartSource(part);
+        if (source.kind === "url") {
           blocks.push({
-            type: "resource",
-            resource: { uri: part.data, mimeType: part.mimeType },
+            type: "resource_link",
+            uri: source.url,
+            name: part.filename || source.url,
+            ...(part.mimeType ? { mimeType: part.mimeType } : undefined),
           });
           break;
         }
-        const parsed = parseDataUrl(part.data);
-        if (parsed) {
-          blocks.push({
-            type: "resource",
-            resource: {
-              uri: `file:///${part.filename ?? "attachment"}`,
-              mimeType: parsed.mimeType,
-              blob: parsed.data,
-            },
-          });
+        const mimeType =
+          source.mimeType || part.mimeType || "application/octet-stream";
+        if (mimeType.startsWith("image/")) {
+          blocks.push({ type: "image", data: source.data, mimeType });
+          break;
         }
+        if (mimeType.startsWith("audio/")) {
+          blocks.push({ type: "audio", data: source.data, mimeType });
+          break;
+        }
+        blocks.push({
+          type: "resource",
+          resource: {
+            uri: `file:///${part.filename ?? "attachment"}`,
+            mimeType,
+            blob: source.data,
+          },
+        });
         break;
       }
     }
@@ -71,29 +104,35 @@ export function threadContentToAcpBlocks(
   return blocks;
 }
 
-// ---------------------------------------------------------------------------
-// ACP tool call content -> display text
-// ---------------------------------------------------------------------------
+const blockToText = (block: AcpContentBlock): string | undefined => {
+  switch (block.type) {
+    case "text":
+      return block.text;
+    case "resource":
+      return "text" in block.resource ? block.resource.text : undefined;
+    case "resource_link":
+      return `[${block.name}](${block.uri})`;
+    default:
+      return undefined;
+  }
+};
+
+const asBlockArray = (raw: unknown): readonly AcpContentBlock[] => {
+  if (Array.isArray(raw)) return raw as readonly AcpContentBlock[];
+  if (raw && typeof raw === "object") return [raw as AcpContentBlock];
+  return [];
+};
 
 export function toolCallContentToText(
-  content: readonly AcpToolCallContent[] | undefined,
+  content: readonly AcpToolCallContent[] | null | undefined,
 ): string | undefined {
   if (!content || content.length === 0) return undefined;
   const pieces: string[] = [];
   for (const item of content) {
     if (item.type === "content") {
-      // The spec says ContentBlock[], but some agents (e.g. crow-cli) send a
-      // single block object instead — accept both rather than throwing.
-      const raw = item.content as unknown;
-      const blocks: readonly AcpContentBlock[] = Array.isArray(raw)
-        ? (raw as readonly AcpContentBlock[])
-        : raw
-          ? [raw as AcpContentBlock]
-          : [];
-      for (const block of blocks) {
-        if (block.type === "text") pieces.push(block.text);
-        else if (block.type === "resource" && block.resource.text != null)
-          pieces.push(block.resource.text);
+      for (const block of asBlockArray(item.content)) {
+        const text = blockToText(block);
+        if (text) pieces.push(text);
       }
     } else if (item.type === "diff") {
       pieces.push(`--- ${item.path}\n+++ ${item.path}\n${item.newText}`);
@@ -102,41 +141,25 @@ export function toolCallContentToText(
   return pieces.length > 0 ? pieces.join("\n") : undefined;
 }
 
-// ---------------------------------------------------------------------------
-// Status mappings
-// ---------------------------------------------------------------------------
-
 export function stopReasonToMessageStatus(
   stopReason: AcpStopReason,
 ): MessageStatus {
   switch (stopReason) {
     case "cancelled":
       return { type: "incomplete", reason: "cancelled" };
-    case "refusal":
-      return { type: "incomplete", reason: "other" };
     case "max_tokens":
       return { type: "incomplete", reason: "length" };
+    case "refusal":
+    case "max_turn_requests":
+      return { type: "incomplete", reason: "other" };
     default:
       return { type: "complete", reason: "stop" };
   }
 }
 
-export function acpToolStatusToPartStatus(
-  status: AcpToolCallStatus,
-): MessagePartStatus {
-  switch (status) {
-    case "completed":
-      return { type: "complete" };
-    case "failed":
-      return { type: "incomplete", reason: "error" };
-    default:
-      return { type: "running" };
-  }
-}
-
 const PERMISSION_KIND_TO_APPROVAL_KIND: Record<
-  AcpPermissionOption["kind"],
-  string
+  AcpPermissionOptionKind,
+  ToolApprovalOptionKind
 > = {
   allow_once: "allow-once",
   allow_always: "allow-always",
@@ -144,236 +167,324 @@ const PERMISSION_KIND_TO_APPROVAL_KIND: Record<
   reject_always: "reject-always",
 };
 
-export function permissionOptionToApprovalOption(option: AcpPermissionOption): {
-  id: string;
-  kind: string;
-  label: string;
-  description?: string;
-} {
+export function permissionOptionToApprovalOption(
+  option: AcpPermissionOption,
+): ToolApprovalOption {
   return {
     id: option.optionId,
     kind: PERMISSION_KIND_TO_APPROVAL_KIND[option.kind] ?? option.kind,
     label: option.name,
-    ...(option.description != null && { description: option.description }),
   };
 }
 
-export function isAllowKind(kind: AcpPermissionOption["kind"]): boolean {
+export function isAllowKind(kind: AcpPermissionOptionKind): boolean {
   return kind === "allow_once" || kind === "allow_always";
 }
 
-// ---------------------------------------------------------------------------
-// Run accumulator: ACP session updates -> assistant message content
-// ---------------------------------------------------------------------------
+export function isRejectKind(kind: AcpPermissionOptionKind): boolean {
+  return kind === "reject_once" || kind === "reject_always";
+}
 
-export class AcpContentAccumulator {
-  private _content: ThreadAssistantMessage["content"] = [];
-  private readonly toolCallIndexes = new Map<string, number>();
+export type AcpApprovalDecision = {
+  readonly approvalId: string;
+  readonly approved: boolean;
+  readonly optionId?: string;
+};
 
-  get content(): ThreadAssistantMessage["content"] {
-    return this._content;
+/**
+ * An explicit `optionId` wins; otherwise the decision picks the first option
+ * of the matching family. Never cross families — the agent supplies `options`,
+ * so an `options[0]` fallback could turn a denial into a grant.
+ */
+export function resolvePermissionOutcome(
+  request: AcpPermissionRequest,
+  decision: AcpApprovalDecision,
+): AcpPermissionOutcome {
+  const matchesFamily = decision.approved ? isAllowKind : isRejectKind;
+  const chosen =
+    (decision.optionId
+      ? request.options.find((o) => o.optionId === decision.optionId)
+      : undefined) ?? request.options.find((o) => matchesFamily(o.kind));
+  return chosen
+    ? { outcome: "selected", optionId: chosen.optionId }
+    : { outcome: "cancelled" };
+}
+
+const safeStringify = (value: unknown): string => {
+  try {
+    return JSON.stringify(value) ?? "";
+  } catch {
+    return String(value);
   }
+};
 
-  /** Consume one session update. Returns true when content changed. */
-  consume(
-    update: {
-      sessionUpdate: string;
-      content?: AcpContentBlock;
-    } & Partial<AcpToolCallUpdate>,
-  ): boolean {
-    switch (update.sessionUpdate) {
-      case "agent_message_chunk":
-        return update.content
-          ? this.appendChunk(update.content, "text")
-          : false;
-      case "agent_thought_chunk":
-        return update.content
-          ? this.appendChunk(update.content, "reasoning")
-          : false;
-      case "tool_call":
-      case "tool_call_update":
-        return this.upsertToolCall(update as AcpToolCallUpdate);
-      default:
-        return false;
+const toolNameOf = (update: AcpToolCallUpdate): string | undefined => {
+  const name = update.name || update.title;
+  return name || undefined;
+};
+
+const settledResult = (
+  update: AcpToolCallUpdate,
+  previous: ToolCallMessagePart,
+): unknown => {
+  if (update.rawOutput !== undefined) return update.rawOutput;
+  if (update.content != null) {
+    return toolCallContentToText(update.content) ?? previous.result ?? null;
+  }
+  return previous.result ?? null;
+};
+
+export function buildToolCallPart(
+  update: AcpToolCallUpdate,
+): ToolCallMessagePart {
+  const args = isRecord(update.rawInput)
+    ? (update.rawInput as ReadonlyJSONObject)
+    : {};
+  const status = update.status ?? "pending";
+  const part: ToolCallMessagePart = {
+    type: "tool-call",
+    toolCallId: update.toolCallId,
+    toolName: toolNameOf(update) ?? update.kind ?? "tool_call",
+    args,
+    argsText:
+      update.rawInput !== undefined ? safeStringify(update.rawInput) : "",
+  };
+  if (!isSettled(status)) {
+    if (update.rawOutput === undefined) return part;
+    return { ...part, result: update.rawOutput, isPreliminary: true };
+  }
+  return {
+    ...part,
+    result: settledResult(update, part),
+    isError: status === "failed",
+  };
+}
+
+export function mergeToolCallPart(
+  existing: ToolCallMessagePart,
+  update: AcpToolCallUpdate,
+): ToolCallMessagePart {
+  let next = existing;
+  const set = (patch: Partial<ToolCallMessagePart>) => {
+    next = { ...next, ...patch };
+  };
+
+  const toolName = toolNameOf(update);
+  if (toolName && toolName !== next.toolName) set({ toolName });
+
+  if (update.rawInput !== undefined) {
+    const argsText = safeStringify(update.rawInput);
+    if (argsText !== next.argsText) {
+      set({
+        args: isRecord(update.rawInput)
+          ? (update.rawInput as ReadonlyJSONObject)
+          : {},
+        argsText,
+      });
     }
   }
 
-  /** Attach an approval request to a tool-call part (creates it if needed). */
-  attachApproval(
-    toolCall: AcpToolCallUpdate,
-    approval: ToolCallMessagePart["approval"],
-  ): boolean {
-    const idx = this.toolCallIndexes.get(toolCall.toolCallId);
-    if (idx === undefined) {
-      this.upsertToolCall(toolCall);
-      return this.attachApproval(toolCall, approval);
+  const status =
+    update.status ?? (next.result === undefined ? "pending" : "completed");
+
+  if (isSettled(status)) {
+    const result = settledResult(update, next);
+    const isError = status === "failed";
+    if (
+      result !== next.result ||
+      isError !== (next.isError ?? false) ||
+      next.isPreliminary
+    ) {
+      set({
+        result,
+        isError,
+        ...(next.isPreliminary ? { isPreliminary: false } : undefined),
+      });
     }
-    const existing = this._content[idx] as ToolCallMessagePart;
-    const merged: ToolCallMessagePart = { ...existing, approval };
-    this.replaceAt(idx, merged);
-    return true;
+    return next;
   }
 
-  /** Record an approval resolution on a tool-call part. */
-  resolveApproval(
-    approvalId: string,
-    resolution: { approved: boolean; optionId?: string },
-  ): boolean {
-    const idx = this._content.findIndex(
-      (part) => part.type === "tool-call" && part.approval?.id === approvalId,
-    );
-    if (idx < 0) return false;
-    const existing = this._content[idx] as ToolCallMessagePart;
-    if (!existing.approval) return false;
-    const merged: ToolCallMessagePart = {
-      ...existing,
-      approval: { ...existing.approval, ...resolution },
-    };
-    this.replaceAt(idx, merged);
-    return true;
+  if (update.rawOutput !== undefined) {
+    if (update.rawOutput !== next.result) {
+      set({ result: update.rawOutput, isPreliminary: true });
+    }
+    return next;
   }
 
-  private replaceAt(
-    index: number,
-    part: ThreadAssistantMessage["content"][number],
-  ) {
-    this._content = [
-      ...this._content.slice(0, index),
-      part,
-      ...this._content.slice(index + 1),
+  if (update.content != null && next.result === undefined) {
+    const text = toolCallContentToText(update.content);
+    if (text !== undefined) set({ result: text, isPreliminary: true });
+  }
+  return next;
+}
+
+const findToolCallIndex = (
+  content: readonly AssistantPart[],
+  toolCallId: string,
+): number => {
+  for (let i = 0; i < content.length; i++) {
+    const part = content[i]!;
+    if (part.type === "tool-call" && part.toolCallId === toolCallId) return i;
+  }
+  return -1;
+};
+
+const replaceAt = (
+  content: readonly AssistantPart[],
+  index: number,
+  part: AssistantPart,
+): AssistantPart[] => {
+  const next = content.slice();
+  next[index] = part;
+  return next;
+};
+
+export function applyToolCallUpdate(
+  content: readonly AssistantPart[],
+  update: AcpToolCallUpdate,
+): readonly AssistantPart[] | undefined {
+  const index = findToolCallIndex(content, update.toolCallId);
+  if (index === -1) return [...content, buildToolCallPart(update)];
+  const existing = content[index] as ToolCallMessagePart;
+  const merged = mergeToolCallPart(existing, update);
+  return merged === existing ? undefined : replaceAt(content, index, merged);
+}
+
+export function attachToolCallApproval(
+  content: readonly AssistantPart[],
+  update: AcpToolCallUpdate,
+  approval: NonNullable<ToolCallMessagePart["approval"]>,
+): readonly AssistantPart[] {
+  const index = findToolCallIndex(content, update.toolCallId);
+  if (index === -1) {
+    return [
+      ...content,
+      { ...buildToolCallPart(update), approval } satisfies ToolCallMessagePart,
     ];
   }
+  const existing = content[index] as ToolCallMessagePart;
+  return replaceAt(content, index, { ...existing, approval });
+}
 
-  private appendChunk(
-    block: AcpContentBlock,
-    kind: "text" | "reasoning",
-  ): boolean {
-    if (block.type === "text") {
-      const last = this._content[this._content.length - 1];
-      if (last && last.type === kind) {
-        this.replaceAt(this._content.length - 1, {
-          ...last,
-          text: last.text + block.text,
-        });
-      } else {
-        this._content = [...this._content, { type: kind, text: block.text }];
-      }
-      return true;
-    }
-    if (block.type === "image") {
-      this._content = [
-        ...this._content,
+export function resolveToolCallApproval(
+  content: readonly AssistantPart[],
+  approvalId: string,
+  resolution: Pick<
+    NonNullable<ToolCallMessagePart["approval"]>,
+    "approved" | "optionId" | "resolution"
+  >,
+): readonly AssistantPart[] | undefined {
+  for (let i = 0; i < content.length; i++) {
+    const part = content[i]!;
+    if (part.type !== "tool-call" || part.approval?.id !== approvalId) continue;
+    return replaceAt(content, i, {
+      ...part,
+      approval: { ...part.approval, ...resolution },
+    });
+  }
+  return undefined;
+}
+
+type MediaPart = TextMessagePart | ImageMessagePart | FileMessagePart;
+
+const mediaPartsFromBlock = (block: AcpContentBlock): readonly MediaPart[] => {
+  switch (block.type) {
+    case "text":
+      return block.text ? [{ type: "text", text: block.text }] : [];
+    case "image":
+      return [
         {
           type: "image",
           image: `data:${block.mimeType};base64,${block.data}`,
         },
       ];
-      return true;
-    }
-    if (block.type === "resource" && block.resource.text != null) {
-      return this.appendChunk(
-        { type: "text", text: block.resource.text },
-        kind,
-      );
-    }
-    return false;
-  }
-
-  private upsertToolCall(update: AcpToolCallUpdate): boolean {
-    const existingIdx = this.toolCallIndexes.get(update.toolCallId);
-    if (existingIdx === undefined) {
-      const part = this.buildToolCallPart(update);
-      this.toolCallIndexes.set(update.toolCallId, this._content.length);
-      this._content = [...this._content, part];
-      return true;
-    }
-
-    const existing = this._content[existingIdx] as ToolCallMessagePart;
-    const merged = this.mergeToolCallPart(existing, update);
-    if (merged === existing) return false;
-    this.replaceAt(existingIdx, merged);
-    return true;
-  }
-
-  private buildToolCallPart(update: AcpToolCallUpdate): ToolCallMessagePart {
-    const args = isRecord(update.rawInput) ? update.rawInput : {};
-    const status = update.status ?? "pending";
-    const result =
-      update.rawOutput ??
-      (status === "completed" || status === "failed"
-        ? toolCallContentToText(update.content)
-        : undefined);
-    return {
-      type: "tool-call",
-      toolCallId: update.toolCallId,
-      toolName: update.title || update.kind || "tool_call",
-      args,
-      argsText: update.rawInput != null ? safeStringify(update.rawInput) : "",
-      ...(result !== undefined && { result }),
-      ...(status === "failed" && { isError: true }),
-      status: acpToolStatusToPartStatus(status),
-    };
-  }
-
-  private mergeToolCallPart(
-    existing: ToolCallMessagePart,
-    update: AcpToolCallUpdate,
-  ): ToolCallMessagePart {
-    let next = existing;
-    let changed = false;
-    const set = (patch: Partial<ToolCallMessagePart>) => {
-      next = { ...next, ...patch };
-      changed = true;
-    };
-
-    if (update.title != null && update.title !== existing.toolName) {
-      set({ toolName: update.title });
-    }
-    if (update.rawInput !== undefined) {
-      set({
-        args: isRecord(update.rawInput) ? update.rawInput : {},
-        argsText: safeStringify(update.rawInput),
-      });
-    }
-    if (
-      update.rawOutput !== undefined &&
-      update.rawOutput !== existing.result
-    ) {
-      set({ result: update.rawOutput });
-    }
-    if (update.status != null) {
-      const partStatus = acpToolStatusToPartStatus(update.status);
-      if (
-        partStatus.type !== existing.status?.type ||
-        (partStatus.type === "incomplete" &&
-          existing.status?.type === "incomplete" &&
-          partStatus.reason !== existing.status.reason)
-      ) {
-        set({
-          status: partStatus,
-          ...(update.status === "failed" && { isError: true }),
-        });
+    case "audio":
+      return [{ type: "file", data: block.data, mimeType: block.mimeType }];
+    case "resource_link":
+      return [
+        {
+          type: "file",
+          data: block.uri,
+          mimeType: block.mimeType || "application/octet-stream",
+          sourceType: "url",
+          filename: block.name,
+        },
+      ];
+    case "resource": {
+      const resource = block.resource;
+      if ("text" in resource) {
+        return resource.text ? [{ type: "text", text: resource.text }] : [];
       }
-      if (
-        (update.status === "completed" || update.status === "failed") &&
-        next.result === undefined
-      ) {
-        const text = toolCallContentToText(update.content);
-        if (text !== undefined) set({ result: text });
+      const mimeType = resource.mimeType || "application/octet-stream";
+      if (mimeType.startsWith("image/")) {
+        return [
+          { type: "image", image: `data:${mimeType};base64,${resource.blob}` },
+        ];
       }
-    } else if (update.content != null && next.result === undefined) {
-      const text = toolCallContentToText(update.content);
-      if (text !== undefined) set({ result: text });
+      return [{ type: "file", data: resource.blob, mimeType }];
     }
-
-    return changed ? next : existing;
+    default:
+      return [];
   }
+};
+
+const messagePartsFromBlock = (
+  block: AcpContentBlock,
+  kind: "text" | "reasoning",
+): readonly AssistantPart[] => {
+  if (kind === "text") return mediaPartsFromBlock(block);
+  if (block.type === "text") {
+    return block.text ? [{ type: "reasoning", text: block.text }] : [];
+  }
+  if (block.type === "resource" && "text" in block.resource) {
+    return block.resource.text
+      ? [{ type: "reasoning", text: block.resource.text }]
+      : [];
+  }
+  return mediaPartsFromBlock(block);
+};
+
+export function appendContentBlock(
+  content: readonly AssistantPart[],
+  block: AcpContentBlock,
+  kind: "text" | "reasoning",
+): readonly AssistantPart[] | undefined {
+  const parts = messagePartsFromBlock(block, kind);
+  if (parts.length === 0) return undefined;
+  if (parts.length === 1 && parts[0]!.type === kind) {
+    const text = (parts[0] as { text: string }).text;
+    const last = content[content.length - 1];
+    if (last && last.type === kind) {
+      return replaceAt(content, content.length - 1, {
+        ...last,
+        text: last.text + text,
+      } as AssistantPart);
+    }
+  }
+  return [...content, ...parts];
 }
 
-function safeStringify(value: unknown): string {
-  try {
-    return JSON.stringify(value) ?? "";
-  } catch {
-    return String(value);
+export function applySessionUpdateToContent(
+  content: readonly AssistantPart[],
+  update: { readonly sessionUpdate: string } & Partial<AcpToolCallUpdate> & {
+      readonly content?: AcpContentBlock;
+    },
+): readonly AssistantPart[] | undefined {
+  switch (update.sessionUpdate) {
+    case "agent_message_chunk":
+      return update.content
+        ? appendContentBlock(content, update.content, "text")
+        : undefined;
+    case "agent_thought_chunk":
+      return update.content
+        ? appendContentBlock(content, update.content, "reasoning")
+        : undefined;
+    case "tool_call":
+    case "tool_call_update":
+      return typeof update.toolCallId === "string"
+        ? applyToolCallUpdate(content, update as AcpToolCallUpdate)
+        : undefined;
+    default:
+      return undefined;
   }
 }

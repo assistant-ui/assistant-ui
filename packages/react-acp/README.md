@@ -9,7 +9,7 @@ agents like [crow](https://crow-ai.dev) (`crow acp --http`).
 
 - ACP session ↔ assistant-ui thread
 - `session/update` notifications ↔ streamed assistant message parts
-  (text chunks, thought chunks, tool calls, plans)
+  (text chunks, thought chunks, tool calls)
 - `session/request_permission` server requests ↔ tool-call **approvals**
   (ACP's `allow_once`/`allow_always`/`reject_once`/`reject_always` map 1:1 to
   assistant-ui's approval option kinds)
@@ -48,19 +48,31 @@ export function App() {
 | `client`           | Pre-built `AcpClient` (alternative to `url`).                                |
 | `cwd`              | Working directory for `session/new` (default `"."`).                         |
 | `mcpServers`       | MCP servers to pass to `session/new`.                                        |
+| `clientInfo`       | Client identity for the `initialize` handshake.                              |
 | `permissions`      | `"ask"` (default) or `"auto-allow"`.                                         |
 | `autoConnect`      | Connect + `initialize` on mount (default `true`).                            |
 | `webSocketFactory` | Inject a custom WebSocket implementation (tests, proxies).                   |
 | `onError`          | Error callback (connection failures, prompt errors).                         |
-| `adapters.history` | Persist/restore the transcript (ACP v1 has no server-side history fetch).    |
+| `onCancel`         | Called after a run has been cancelled.                                       |
+| `adapters.history` | Persist/restore the transcript. This adapter does not use ACP's optional     |
+|                    | `session/load`; restoring a transcript is the history adapter's job.          |
 
 ### Extras hooks
 
+Every hook falls back to a safe default when no ACP runtime is active.
+
 ```tsx
 import {
+  useAcpAgentCapabilities,
+  useAcpAgentInfo,
+  useAcpAvailableCommands,
+  useAcpConfigOptions,
   useAcpConnectionState,
+  useAcpCurrentModeId,
   useAcpPlan,
+  useAcpSessionId,
   useAcpSessionTitle,
+  useAcpUsage,
 } from "@assistant-ui/react-acp";
 ```
 
@@ -76,7 +88,13 @@ import {
 | `tool_call` / `tool_call_update`           | tool-call content part (title, args, result, status)     |
 | `session/request_permission`               | tool-call approval (`requires-action` until answered)    |
 | `session/cancel`                           | cancel                                                   |
-| `plan` / `session_info_update` / modes     | extras hooks                                             |
+| `plan`                                     | `useAcpPlan`                                             |
+| `session_info_update`                      | `useAcpSessionTitle`                                     |
+| `current_mode_update`                      | `useAcpCurrentModeId`                                    |
+| `available_commands_update`                | `useAcpAvailableCommands`                                |
+| `config_option_update`                     | `useAcpConfigOptions`                                    |
+| `usage_update`                             | `useAcpUsage`                                            |
+| `initialize` → `agentInfo`/`agentCapabilities` | `useAcpAgentInfo` / `useAcpAgentCapabilities`        |
 
 Browser clients advertise **no** filesystem or terminal capabilities, so a
 conforming ACP agent will never send `fs/*` or `terminal/*` requests; any such

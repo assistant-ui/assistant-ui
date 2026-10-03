@@ -7,19 +7,41 @@ declare const ACP_PROTOCOL_VERSION = 1;
 type AcpAgentCapabilities = {
   readonly loadSession?: boolean;
   readonly promptCapabilities?: AcpPromptCapabilities;
-  readonly mcpCapabilities?: ReadonlyJSONObject;
+  readonly mcpCapabilities?: AcpMcpCapabilities;
 };
 
 type AcpAnnotations = {
-  readonly audience?: readonly ("assistant" | "user")[];
-  readonly priority?: number;
+  readonly audience?: readonly ("assistant" | "user")[] | null;
+  readonly lastModified?: string | null;
+  readonly priority?: number | null;
+};
+
+type AcpApprovalDecision = {
+  readonly approvalId: string;
+  readonly approved: boolean;
+  readonly optionId?: string;
+};
+
+type AcpAssistantMessage = {
+  readonly role: "assistant";
+  readonly id: string;
+  readonly parentId: string | null;
+  readonly createdAt: number;
+  readonly status: MessageStatus;
+  readonly content: readonly AssistantPart$1[];
 };
 
 type AcpAudioContentBlock = {
   readonly type: "audio";
   readonly data: string;
   readonly mimeType: string;
-  readonly annotations?: AcpAnnotations;
+  readonly annotations?: AcpAnnotations | null;
+};
+
+type AcpAuthMethod = {
+  readonly id: string;
+  readonly name: string;
+  readonly description?: string | null;
 };
 
 type AcpAvailableCommand = {
@@ -27,19 +49,26 @@ type AcpAvailableCommand = {
   readonly description: string;
   readonly input?: {
     readonly hint: string;
-  };
+  } | null;
+};
+
+type AcpBlobResourceContents = {
+  readonly uri: string;
+  readonly blob: string;
+  readonly mimeType?: string | null;
 };
 
 declare class AcpClient {
   #private;
   onSessionUpdate: ((sessionId: string, update: AcpSessionUpdate) => void) | undefined;
-  permissionHandler: AcpPermissionHandler;
   onConnectionChange: ((state: AcpConnectionState) => void) | undefined;
   constructor(options: AcpClientOptions);
   get connectionState(): AcpConnectionState;
   get sessionId(): string | undefined;
   get agentInfo(): AcpImplementation | undefined;
   get agentCapabilities(): AcpAgentCapabilities | undefined;
+  get permissionHandler(): AcpPermissionHandler;
+  set permissionHandler(handler: AcpPermissionHandler);
   connect(): Promise<AcpInitializeResponse>;
   ensureSession(): Promise<string>;
   prompt(content: readonly AcpContentBlock[]): Promise<AcpStopReason>;
@@ -62,30 +91,34 @@ type AcpClientOptions = {
   mcpServers?: readonly AcpMcpServer[];
   clientInfo?: AcpImplementation;
   webSocketFactory?: AcpWebSocketFactory;
+  requestTimeoutMs?: number;
+  permissionHandler?: AcpPermissionHandler;
 };
 
 type AcpConnectionState = "connected" | "connecting" | "disconnected";
 
-declare class AcpContentAccumulator {
-  #private;
-  get content(): ThreadAssistantMessage["content"];
-  consume(update: {
-    sessionUpdate: string;
-    content?: AcpContentBlock;
-  } & Partial<AcpToolCallUpdate>): boolean;
-  attachApproval(toolCall: AcpToolCallUpdate, approval: ToolCallMessagePart["approval"]): boolean;
-  resolveApproval(approvalId: string, resolution: {
-    approved: boolean;
-    optionId?: string;
-  }): boolean;
-}
+type AcpContentBlock = AcpTextContentBlock | AcpImageContentBlock | AcpAudioContentBlock | AcpResourceLinkContentBlock | AcpEmbeddedResourceContentBlock;
 
-type AcpContentBlock = AcpTextContentBlock | AcpImageContentBlock | AcpAudioContentBlock | AcpResourceContentBlock;
+type AcpCost = {
+  readonly amount: number;
+  readonly currency: string;
+};
+
+type AcpEmbeddedResourceContentBlock = {
+  readonly type: "resource";
+  readonly resource: AcpResourceContents;
+  readonly annotations?: AcpAnnotations | null;
+};
+
+type AcpEnvVariable = {
+  readonly name: string;
+  readonly value: string;
+};
 
 declare class AcpError extends Error {
   readonly code: number;
-  readonly data?: unknown | undefined;
-  constructor(message: string, code: number, data?: unknown | undefined);
+  readonly data: unknown;
+  constructor(message: string, code: number, data?: unknown);
 }
 
 type AcpExtras = {
@@ -97,33 +130,73 @@ type AcpExtras = {
   readonly sessionTitle: string | undefined;
   readonly currentModeId: string | undefined;
   readonly availableCommands: readonly AcpAvailableCommand[] | undefined;
+  readonly configOptions: readonly AcpSessionConfigOption[] | undefined;
+  readonly usage: AcpUsage | undefined;
+};
+
+type AcpHttpHeader = {
+  readonly name: string;
+  readonly value: string;
 };
 
 type AcpImageContentBlock = {
   readonly type: "image";
   readonly data: string;
   readonly mimeType: string;
-  readonly uri?: string;
-  readonly annotations?: AcpAnnotations;
+  readonly uri?: string | null;
+  readonly annotations?: AcpAnnotations | null;
 };
 
 type AcpImplementation = {
   readonly name: string;
-  readonly title?: string;
+  readonly title?: string | null;
   readonly version: string;
 };
 
 type AcpInitializeResponse = {
   readonly protocolVersion: number;
   readonly agentCapabilities?: AcpAgentCapabilities;
-  readonly agentInfo?: AcpImplementation;
+  readonly authMethods?: readonly AcpAuthMethod[];
+  readonly agentInfo?: AcpImplementation | null;
+};
+
+type AcpLoadState = {
+  readonly type: "idle";
+} | {
+  readonly type: "loading";
+} | {
+  readonly type: "ready";
+} | {
+  readonly type: "error";
+  readonly error: string;
+};
+
+type AcpMcpCapabilities = {
+  readonly http?: boolean;
+  readonly sse?: boolean;
 };
 
 type AcpMcpServer = {
+  readonly type: "http";
   readonly name: string;
-  readonly command?: string;
-  readonly args?: readonly string[];
-  readonly url?: string;
+  readonly url: string;
+  readonly headers: readonly AcpHttpHeader[];
+} | {
+  readonly type: "sse";
+  readonly name: string;
+  readonly url: string;
+  readonly headers: readonly AcpHttpHeader[];
+} | {
+  readonly name: string;
+  readonly command: string;
+  readonly args: readonly string[];
+  readonly env: readonly AcpEnvVariable[];
+};
+
+type AcpPendingPermission = {
+  readonly approvalId: string;
+  readonly toolCallId: string;
+  readonly options: readonly ToolApprovalOption[];
 };
 
 type AcpPermissionHandler = (request: AcpPermissionRequest) => AcpPermissionOutcome | Promise<AcpPermissionOutcome>;
@@ -132,7 +205,6 @@ type AcpPermissionOption = {
   readonly optionId: string;
   readonly name: string;
   readonly kind: AcpPermissionOptionKind;
-  readonly description?: string;
 };
 
 type AcpPermissionOptionKind = "allow_always" | "allow_once" | "reject_always" | "reject_once";
@@ -154,9 +226,13 @@ type AcpPermissionsMode = "ask" | "auto-allow";
 
 type AcpPlanEntry = {
   readonly content: string;
-  readonly priority: "high" | "low" | "medium";
-  readonly status: "completed" | "in_progress" | "pending";
+  readonly priority: AcpPlanEntryPriority;
+  readonly status: AcpPlanEntryStatus;
 };
+
+type AcpPlanEntryPriority = "high" | "low" | "medium";
+
+type AcpPlanEntryStatus = "completed" | "in_progress" | "pending";
 
 type AcpPromptCapabilities = {
   readonly image?: boolean;
@@ -164,28 +240,48 @@ type AcpPromptCapabilities = {
   readonly embeddedContext?: boolean;
 };
 
-type AcpResourceContentBlock = {
-  readonly type: "resource";
-  readonly resource: AcpResourceLink;
-  readonly annotations?: AcpAnnotations;
+type AcpResourceContents = AcpTextResourceContents | AcpBlobResourceContents;
+
+type AcpResourceLinkContentBlock = {
+  readonly type: "resource_link";
+  readonly uri: string;
+  readonly name: string;
+  readonly title?: string | null;
+  readonly description?: string | null;
+  readonly mimeType?: string | null;
+  readonly size?: number | null;
+  readonly annotations?: AcpAnnotations | null;
 };
 
-type AcpResourceLink = {
-  readonly uri: string;
-  readonly name?: string;
-  readonly description?: string;
-  readonly mimeType?: string;
-  readonly text?: string;
-  readonly blob?: string;
+type AcpRunState = {
+  readonly type: "idle";
+} | {
+  readonly type: "running";
+  readonly assistantId: string;
 };
+
+type AcpSessionConfigOption = {
+  readonly type: "boolean" | "select";
+  readonly currentValue: string | boolean;
+  readonly options?: readonly {
+    readonly value: string;
+    readonly name: string;
+    readonly description?: string | null;
+  }[];
+} & ReadonlyJSONObject;
 
 type AcpSessionUpdate = {
+  readonly sessionUpdate: "user_message_chunk";
+  readonly content: AcpContentBlock;
+  readonly messageId?: string | null;
+} | {
   readonly sessionUpdate: "agent_message_chunk";
   readonly content: AcpContentBlock;
-  readonly stopReason?: AcpStopReason;
+  readonly messageId?: string | null;
 } | {
   readonly sessionUpdate: "agent_thought_chunk";
   readonly content: AcpContentBlock;
+  readonly messageId?: string | null;
 } | ({
   readonly sessionUpdate: "tool_call";
 } & AcpToolCall) | ({
@@ -200,58 +296,145 @@ type AcpSessionUpdate = {
   readonly sessionUpdate: "current_mode_update";
   readonly currentModeId: string;
 } | {
-  readonly sessionUpdate: "session_info_update";
-  readonly title?: string;
-  readonly updatedAt?: string;
+  readonly sessionUpdate: "config_option_update";
+  readonly configOptions: readonly AcpSessionConfigOption[];
 } | {
-  readonly sessionUpdate: "user_message_chunk";
-  readonly content: AcpContentBlock;
-};
+  readonly sessionUpdate: "session_info_update";
+  readonly title?: string | null;
+  readonly updatedAt?: string | null;
+} | ({
+  readonly sessionUpdate: "usage_update";
+} & AcpUsage);
 
 type AcpStopReason = "cancelled" | "end_turn" | "max_tokens" | "max_turn_requests" | "refusal";
 
 type AcpTextContentBlock = {
   readonly type: "text";
   readonly text: string;
-  readonly annotations?: AcpAnnotations;
+  readonly annotations?: AcpAnnotations | null;
 };
 
-declare class AcpThreadRuntimeCore {
+type AcpTextResourceContents = {
+  readonly uri: string;
+  readonly text: string;
+  readonly mimeType?: string | null;
+};
+
+declare class AcpThreadController implements AcpThreadControllerLike {
   #private;
-  constructor(options: AcpThreadRuntimeCoreOptions);
-  attachClient(): void;
-  detachClient(): void;
-  updateOptions(options: Omit<AcpThreadRuntimeCoreOptions, "notifyUpdate">): void;
-  attachRuntime(runtime: AssistantRuntime): void;
-  detachRuntime(): void;
-  getRuntime(): AssistantRuntime | undefined;
-  getMessages(): readonly ThreadMessage[];
-  getMessageRepository(): ExportedMessageRepository;
-  isRunning(): boolean;
-  get isLoading(): boolean;
-  getExtras(): AcpExtras;
-  __internal_load(): Promise<void>;
+  constructor(options: AcpThreadControllerOptions);
+  getState: () => AcpThreadState;
+  subscribe: (listener: () => void) => (() => void);
+  attach(): Promise<void>;
+  detach(): Promise<void>;
+  updateOptions(options: AcpThreadControllerOptions): Promise<void>;
+  load(): Promise<void>;
   append(message: AppendMessage): Promise<void>;
   edit(message: AppendMessage): Promise<void>;
   reload(parentId: string | null): Promise<void>;
   cancel(): Promise<void>;
-  respondToApproval(options: RespondToToolApprovalOptions): void;
-  applyExternalMessages(messages: readonly ThreadMessage[]): void;
+  respondToApproval(options: RespondToToolApprovalOptions): Promise<void>;
+  applyExternalMessages(messages: readonly ThreadMessage[]): Promise<void>;
+  dispose(): Promise<void>;
 }
 
-type AcpThreadRuntimeCoreOptions = {
+type AcpThreadControllerLike = {
+  getState(): AcpThreadState;
+  subscribe(listener: () => void): () => void;
+  attach(): Promise<void>;
+  detach(): Promise<void>;
+  updateOptions(options: AcpThreadControllerOptions): Promise<void>;
+  load(): Promise<void>;
+  append(message: AppendMessage): Promise<void>;
+  edit(message: AppendMessage): Promise<void>;
+  reload(parentId: string | null): Promise<void>;
+  cancel(): Promise<void>;
+  respondToApproval(options: RespondToToolApprovalOptions): Promise<void>;
+  applyExternalMessages(messages: readonly ThreadMessage[]): Promise<void>;
+  dispose(): Promise<void>;
+};
+
+type AcpThreadControllerOptions = {
   client: AcpClient;
-  permissions?: AcpPermissionsMode;
-  autoConnect?: boolean;
+  permissions?: AcpPermissionsMode | undefined;
+  autoConnect?: boolean | undefined;
   onError?: ((error: Error) => void) | undefined;
   onCancel?: (() => void) | undefined;
   history?: ThreadHistoryAdapter | undefined;
-  notifyUpdate: () => void;
+};
+
+type AcpThreadEvent = {
+  readonly type: "load-start";
+} | {
+  readonly type: "load-ready";
+} | {
+  readonly type: "load-complete";
+  readonly items: readonly ExportedMessageRepositoryItem[];
+  readonly headId: string | null;
+} | {
+  readonly type: "load-error";
+  readonly error: string;
+} | {
+  readonly type: "connection";
+  readonly connectionState: AcpConnectionState;
+  readonly sessionId?: string | undefined;
+  readonly agentInfo?: AcpImplementation | undefined;
+  readonly agentCapabilities?: AcpAgentCapabilities | undefined;
+} | {
+  readonly type: "append-message";
+  readonly message: AcpThreadMessage;
+} | {
+  readonly type: "replace-messages";
+  readonly messages: readonly AcpThreadMessage[];
+  readonly headId: string | null;
+} | {
+  readonly type: "run-start";
+  readonly message: AcpAssistantMessage;
+} | {
+  readonly type: "session-update";
+  readonly update: AcpSessionUpdate;
+} | {
+  readonly type: "permission-request";
+  readonly approvalId: string;
+  readonly request: AcpPermissionRequest;
+} | {
+  readonly type: "permission-resolved";
+  readonly approvalId: string;
+  readonly approved: boolean;
+  readonly optionId?: string | undefined;
+  readonly cancelled: boolean;
+} | {
+  readonly type: "permissions-cancelled";
+} | {
+  readonly type: "run-end";
+  readonly status: MessageStatus;
+};
+
+type AcpThreadMessage = AcpUserMessage | AcpAssistantMessage;
+
+type AcpThreadState = {
+  readonly loadState: AcpLoadState;
+  readonly connectionState: AcpConnectionState;
+  readonly sessionId: string | undefined;
+  readonly agentInfo: AcpImplementation | undefined;
+  readonly agentCapabilities: AcpAgentCapabilities | undefined;
+  readonly messageOrder: readonly string[];
+  readonly messagesById: Readonly<Record<string, AcpThreadMessage>>;
+  readonly headId: string | null;
+  readonly run: AcpRunState;
+  readonly permissions: Readonly<Record<string, AcpPendingPermission>>;
+  readonly plan: readonly AcpPlanEntry[] | undefined;
+  readonly sessionTitle: string | undefined;
+  readonly currentModeId: string | undefined;
+  readonly availableCommands: readonly AcpAvailableCommand[] | undefined;
+  readonly configOptions: readonly AcpSessionConfigOption[] | undefined;
+  readonly usage: AcpUsage | undefined;
 };
 
 type AcpToolCall = {
   readonly toolCallId: string;
-  readonly title?: string;
+  readonly title: string;
+  readonly name?: string | null;
   readonly kind?: AcpToolKind;
   readonly status?: AcpToolCallStatus;
   readonly content?: readonly AcpToolCallContent[];
@@ -262,33 +445,51 @@ type AcpToolCall = {
 
 type AcpToolCallContent = {
   readonly type: "content";
-  readonly content: readonly AcpContentBlock[];
+  readonly content: AcpContentBlock;
 } | {
   readonly type: "diff";
   readonly path: string;
-  readonly oldText?: string;
+  readonly oldText?: string | null;
   readonly newText: string;
+} | {
+  readonly type: "terminal";
+  readonly terminalId: string;
 };
 
 type AcpToolCallLocation = {
   readonly path: string;
-  readonly line?: number;
+  readonly line?: number | null;
 };
 
 type AcpToolCallStatus = "completed" | "failed" | "in_progress" | "pending";
 
 type AcpToolCallUpdate = {
   readonly toolCallId: string;
-  readonly title?: string;
-  readonly kind?: AcpToolKind;
-  readonly status?: AcpToolCallStatus;
-  readonly content?: readonly AcpToolCallContent[];
-  readonly locations?: readonly AcpToolCallLocation[];
+  readonly title?: string | null;
+  readonly name?: string | null;
+  readonly kind?: AcpToolKind | null;
+  readonly status?: AcpToolCallStatus | null;
+  readonly content?: readonly AcpToolCallContent[] | null;
+  readonly locations?: readonly AcpToolCallLocation[] | null;
   readonly rawInput?: ReadonlyJSONValue;
   readonly rawOutput?: ReadonlyJSONValue;
 };
 
 type AcpToolKind = "delete" | "edit" | "execute" | "fetch" | "move" | "other" | "read" | "search" | "switch_mode" | "think";
+
+type AcpUsage = {
+  readonly used: number;
+  readonly size: number;
+  readonly cost?: AcpCost | null;
+};
+
+type AcpUserMessage = {
+  readonly role: "user";
+  readonly id: string;
+  readonly parentId: string | null;
+  readonly createdAt: number;
+  readonly content: readonly ThreadUserMessagePart[];
+};
 
 type AcpWebSocketFactory = (url: string) => AcpWebSocketLike;
 
@@ -362,6 +563,10 @@ type AssistantEventSelector<TEvent extends AssistantEventName> = TEvent | {
   scope: AssistantEventScope<TEvent>;
   event: TEvent;
 };
+
+type AssistantPart = ThreadAssistantMessage["content"][number];
+
+type AssistantPart$1 = ThreadAssistantMessage["content"][number];
 
 type AssistantRuntime = {
   readonly threads: ThreadListRuntime;
@@ -691,6 +896,8 @@ type DictationState = {
   readonly transcript?: string;
   readonly inputDisabled?: boolean;
 };
+
+declare const EMPTY_ACP_THREAD_STATE: AcpThreadState;
 
 type EditComposerAttachmentState = Attachment & {
   readonly source: "edit-composer";
@@ -1656,6 +1863,12 @@ type ThreadRuntime = {
 type ThreadRuntimeEventCallback<E extends ThreadRuntimeEventType> = (payload: ThreadRuntimeEventPayload[E]) => void;
 
 type ThreadRuntimeEventPayload = {
+  historyWriteError: {
+    operation: "append" | "delete" | "update";
+    messageIds: readonly string[];
+    message: string;
+    error: unknown;
+  };
   toolApprovalAnswered: {
     messageId: string;
     toolCallId: string;
@@ -2036,9 +2249,25 @@ type WildcardPayload = {
 
 declare const acpExtras: RuntimeExtras<AcpExtras>;
 
-declare function acpToolStatusToPartStatus(status: AcpToolCallStatus): MessagePartStatus;
+declare function appendContentBlock(content: readonly AssistantPart[], block: AcpContentBlock, kind: "reasoning" | "text"): readonly AssistantPart[] | undefined;
+
+declare function applySessionUpdateToContent(content: readonly AssistantPart[], update: {
+  readonly sessionUpdate: string;
+} & Partial<AcpToolCallUpdate> & {
+  readonly content?: AcpContentBlock;
+}): readonly AssistantPart[] | undefined;
+
+declare function applyToolCallUpdate(content: readonly AssistantPart[], update: AcpToolCallUpdate): readonly AssistantPart[] | undefined;
+
+declare function attachToolCallApproval(content: readonly AssistantPart[], update: AcpToolCallUpdate, approval: NonNullable<ToolCallMessagePart["approval"]>): readonly AssistantPart[];
 
 declare const autoAllowPermissionHandler: AcpPermissionHandler;
+
+declare function buildToolCallPart(update: AcpToolCallUpdate): ToolCallMessagePart;
+
+declare const cancelPermissionHandler: AcpPermissionHandler;
+
+declare const createAcpThreadState: () => AcpThreadState;
 
 declare global {
   interface Window {
@@ -2048,29 +2277,48 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { ACP_PROTOCOL_VERSION, AcpAgentCapabilities, AcpAnnotations, AcpAudioContentBlock, AcpAvailableCommand, AcpClient, AcpClientCapabilities, AcpClientOptions, AcpConnectionState, AcpContentAccumulator, AcpContentBlock, AcpError, AcpExtras, AcpImageContentBlock, AcpImplementation, AcpInitializeResponse, AcpMcpServer, AcpPermissionHandler, AcpPermissionOption, AcpPermissionOptionKind, AcpPermissionOutcome, AcpPermissionRequest, AcpPermissionsMode, AcpPlanEntry, AcpPromptCapabilities, AcpResourceContentBlock, AcpResourceLink, AcpSessionUpdate, AcpStopReason, AcpTextContentBlock, AcpThreadRuntimeCore, AcpThreadRuntimeCoreOptions, AcpToolCall, AcpToolCallContent, AcpToolCallLocation, AcpToolCallStatus, AcpToolCallUpdate, AcpToolKind, AcpWebSocketFactory, AcpWebSocketLike, UseAcpRuntimeOptions, acpExtras, acpToolStatusToPartStatus, autoAllowPermissionHandler, isAllowKind, permissionOptionToApprovalOption, stopReasonToMessageStatus, threadContentToAcpBlocks, toolCallContentToText, useAcpAgentInfo, useAcpAvailableCommands, useAcpConnectionState, useAcpCurrentModeId, useAcpPlan, useAcpRuntime, useAcpSessionId, useAcpSessionTitle };
+  export { ACP_PROTOCOL_VERSION, AcpAgentCapabilities, AcpAnnotations, AcpApprovalDecision, AcpAssistantMessage, AcpAudioContentBlock, AcpAuthMethod, AcpAvailableCommand, AcpBlobResourceContents, AcpClient, AcpClientCapabilities, AcpClientOptions, AcpConnectionState, AcpContentBlock, AcpCost, AcpEmbeddedResourceContentBlock, AcpEnvVariable, AcpError, AcpExtras, AcpHttpHeader, AcpImageContentBlock, AcpImplementation, AcpInitializeResponse, AcpLoadState, AcpMcpCapabilities, AcpMcpServer, AcpPendingPermission, AcpPermissionHandler, AcpPermissionOption, AcpPermissionOptionKind, AcpPermissionOutcome, AcpPermissionRequest, AcpPermissionsMode, AcpPlanEntry, AcpPlanEntryPriority, AcpPlanEntryStatus, AcpPromptCapabilities, AcpResourceContents, AcpResourceLinkContentBlock, AcpRunState, AcpSessionConfigOption, AcpSessionUpdate, AcpStopReason, AcpTextContentBlock, AcpTextResourceContents, AcpThreadController, AcpThreadControllerLike, AcpThreadControllerOptions, AcpThreadEvent, AcpThreadMessage, AcpThreadState, AcpToolCall, AcpToolCallContent, AcpToolCallLocation, AcpToolCallStatus, AcpToolCallUpdate, AcpToolKind, AcpUsage, AcpUserMessage, AcpWebSocketFactory, AcpWebSocketLike, EMPTY_ACP_THREAD_STATE, UseAcpRuntimeOptions, acpExtras, appendContentBlock, applySessionUpdateToContent, applyToolCallUpdate, attachToolCallApproval, autoAllowPermissionHandler, buildToolCallPart, cancelPermissionHandler, createAcpThreadState, isAcpStateRunning, isAllowKind, isRejectKind, mergeToolCallPart, permissionOptionToApprovalOption, projectAcpThreadRepository, reduceAcpThreadState, resolvePermissionOutcome, resolveToolCallApproval, stopReasonToMessageStatus, threadContentToAcpBlocks, toThreadMessage, toThreadMessageLike, toolCallContentToText, useAcpAgentCapabilities, useAcpAgentInfo, useAcpAvailableCommands, useAcpConfigOptions, useAcpConnectionState, useAcpControllerState, useAcpCurrentModeId, useAcpPlan, useAcpRuntime, useAcpSessionId, useAcpSessionTitle, useAcpUsage };
 }
 
-declare function isAllowKind(kind: AcpPermissionOption["kind"]): boolean;
+declare const isAcpStateRunning: (state: AcpThreadState) => boolean;
 
-declare function permissionOptionToApprovalOption(option: AcpPermissionOption): {
-  id: string;
-  kind: string;
-  label: string;
-  description?: string;
-};
+declare function isAllowKind(kind: AcpPermissionOptionKind): boolean;
+
+declare function isRejectKind(kind: AcpPermissionOptionKind): boolean;
+
+declare function mergeToolCallPart(existing: ToolCallMessagePart, update: AcpToolCallUpdate): ToolCallMessagePart;
+
+declare function permissionOptionToApprovalOption(option: AcpPermissionOption): ToolApprovalOption;
+
+declare function projectAcpThreadRepository(state: AcpThreadState): ExportedMessageRepository;
+
+declare const reduceAcpThreadState: (state: AcpThreadState, event: AcpThreadEvent) => AcpThreadState;
+
+declare function resolvePermissionOutcome(request: AcpPermissionRequest, decision: AcpApprovalDecision): AcpPermissionOutcome;
+
+declare function resolveToolCallApproval(content: readonly AssistantPart[], approvalId: string, resolution: Pick<NonNullable<ToolCallMessagePart["approval"]>, "approved" | "optionId" | "resolution">): readonly AssistantPart[] | undefined;
 
 declare function stopReasonToMessageStatus(stopReason: AcpStopReason): MessageStatus;
 
 declare function threadContentToAcpBlocks(content: ThreadUserMessage["content"]): AcpContentBlock[];
 
-declare function toolCallContentToText(content: readonly AcpToolCallContent[] | undefined): string | undefined;
+declare const toThreadMessage: (message: AcpThreadMessage) => ThreadMessage;
+
+declare const toThreadMessageLike: (message: AcpThreadMessage) => ThreadMessageLike;
+
+declare function toolCallContentToText(content: readonly AcpToolCallContent[] | null | undefined): string | undefined;
+
+declare const useAcpAgentCapabilities: () => AcpAgentCapabilities | undefined;
 
 declare const useAcpAgentInfo: () => AcpImplementation | undefined;
 
 declare const useAcpAvailableCommands: () => readonly AcpAvailableCommand[] | undefined;
 
+declare const useAcpConfigOptions: () => readonly AcpSessionConfigOption[] | undefined;
+
 declare const useAcpConnectionState: () => AcpConnectionState;
+
+declare const useAcpControllerState: (controller: AcpThreadControllerLike) => AcpThreadState;
 
 declare const useAcpCurrentModeId: () => string | undefined;
 
@@ -2081,5 +2329,7 @@ declare function useAcpRuntime(options: UseAcpRuntimeOptions): AssistantRuntime;
 declare const useAcpSessionId: () => string | undefined;
 
 declare const useAcpSessionTitle: () => string | undefined;
+
+declare const useAcpUsage: () => AcpUsage | undefined;
 
 export { entry_root_exports as entry_root };

@@ -1,5 +1,10 @@
-import { beforeEach, describe, expect, it } from "vitest";
-import { AcpClient, AcpError } from "./AcpClient";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  AcpClient,
+  AcpError,
+  autoAllowPermissionHandler,
+  cancelPermissionHandler,
+} from "./AcpClient";
 import type { AcpSessionUpdate } from "./types";
 
 type JsonRpcFrame = {
@@ -14,6 +19,7 @@ type JsonRpcFrame = {
 class MockWebSocket {
   static instances: MockWebSocket[] = [];
 
+  readonly url: string;
   onopen: ((event?: unknown) => void) | null = null;
   onmessage: ((event: { data: unknown }) => void) | null = null;
   onclose: ((event?: { code?: number; reason?: string }) => void) | null = null;
@@ -22,7 +28,8 @@ class MockWebSocket {
   sent: JsonRpcFrame[] = [];
   closed = false;
 
-  constructor(readonly url: string) {
+  constructor(url: string) {
+    this.url = url;
     MockWebSocket.instances.push(this);
   }
 
@@ -57,6 +64,15 @@ async function until<T>(fn: () => T | undefined, ms = 2000): Promise<T> {
 
 const lastWs = () => MockWebSocket.instances.at(-1)!;
 
+const mockClient = (
+  options?: Partial<ConstructorParameters<typeof AcpClient>[0]>,
+) =>
+  new AcpClient({
+    url: "ws://agent.test/",
+    webSocketFactory: (url) => new MockWebSocket(url),
+    ...options,
+  });
+
 async function connectClient(client: AcpClient): Promise<void> {
   const pending = client.connect();
   const ws = await until(() =>
@@ -78,17 +94,43 @@ async function connectClient(client: AcpClient): Promise<void> {
   await pending;
 }
 
+async function withSession(client: AcpClient): Promise<MockWebSocket> {
+  const sessionPromise = client.ensureSession();
+  await connectClient(client);
+  const ws = lastWs();
+  const newSession = await until(() =>
+    ws.sent.find((f) => f.method === "session/new"),
+  );
+  ws.receive({
+    jsonrpc: "2.0",
+    id: newSession.id!,
+    result: { sessionId: "s1" },
+  });
+  await sessionPromise;
+  return ws;
+}
+
+const permissionRequest = (id: number): JsonRpcFrame => ({
+  jsonrpc: "2.0",
+  id,
+  method: "session/request_permission",
+  params: {
+    sessionId: "s1",
+    toolCall: { toolCallId: "t1", title: "write_file" },
+    options: [
+      { optionId: "reject-1", name: "Reject", kind: "reject_once" },
+      { optionId: "allow-1", name: "Allow", kind: "allow_once" },
+    ],
+  },
+});
+
 beforeEach(() => {
   MockWebSocket.instances = [];
 });
 
 describe("AcpClient", () => {
   it("runs the initialize handshake over the WebSocket", async () => {
-    const client = new AcpClient({
-      url: "ws://agent.test/",
-      webSocketFactory: (url) => new MockWebSocket(url),
-    });
-
+    const client = mockClient();
     const pending = client.connect();
     expect(client.connectionState).toBe("connecting");
 
@@ -121,10 +163,7 @@ describe("AcpClient", () => {
   });
 
   it("rejects connect when the socket errors before handshake", async () => {
-    const client = new AcpClient({
-      url: "ws://agent.test/",
-      webSocketFactory: (url) => new MockWebSocket(url),
-    });
+    const client = mockClient();
     const pending = client.connect();
     lastWs().onerror?.({});
     await expect(pending).rejects.toThrow(
@@ -134,52 +173,24 @@ describe("AcpClient", () => {
   });
 
   it("creates one session and reuses it", async () => {
-    const client = new AcpClient({
-      url: "ws://agent.test/",
-      cwd: "/home/thomas/src/crow-team/menu",
-      webSocketFactory: (url) => new MockWebSocket(url),
-    });
-
+    const client = mockClient({ cwd: "/srv/app" });
     const first = client.ensureSession();
     const second = client.ensureSession();
+    const ws = await withSession(client);
 
-    await connectClient(client);
-    const ws = lastWs();
-    const newSession = await until(() =>
-      ws.sent.find((f) => f.method === "session/new"),
-    );
-    expect(newSession.params).toEqual({
-      cwd: "/home/thomas/src/crow-team/menu",
+    expect(await first).toBe("s1");
+    expect(await second).toBe("s1");
+    expect(ws.sent.filter((f) => f.method === "session/new")).toHaveLength(1);
+    expect(ws.sent.find((f) => f.method === "session/new")?.params).toEqual({
+      cwd: "/srv/app",
       mcpServers: [],
     });
-    ws.receive({
-      jsonrpc: "2.0",
-      id: newSession.id!,
-      result: { sessionId: "session-1" },
-    });
-
-    expect(await first).toBe("session-1");
-    expect(await second).toBe("session-1");
-    expect(ws.sent.filter((f) => f.method === "session/new")).toHaveLength(1);
   });
 
   it("sends prompts and dispatches session/update notifications", async () => {
-    const client = new AcpClient({
-      url: "ws://agent.test/",
-      webSocketFactory: (url) => new MockWebSocket(url),
-    });
+    const client = mockClient();
     const promptPromise = client.prompt([{ type: "text", text: "hi" }]);
-    await connectClient(client);
-    const ws = lastWs();
-
-    const newSession = await until(() =>
-      ws.sent.find((f) => f.method === "session/new"),
-    );
-    ws.receive({
-      jsonrpc: "2.0",
-      id: newSession.id!,
-      result: { sessionId: "s1" },
-    });
+    const ws = await withSession(client);
 
     const prompt = await until(() =>
       ws.sent.find((f) => f.method === "session/prompt"),
@@ -215,21 +226,9 @@ describe("AcpClient", () => {
   });
 
   it("surfaces JSON-RPC errors as AcpError", async () => {
-    const client = new AcpClient({
-      url: "ws://agent.test/",
-      webSocketFactory: (url) => new MockWebSocket(url),
-    });
+    const client = mockClient();
     const promptPromise = client.prompt([{ type: "text", text: "hi" }]);
-    await connectClient(client);
-    const ws = lastWs();
-    const newSession = await until(() =>
-      ws.sent.find((f) => f.method === "session/new"),
-    );
-    ws.receive({
-      jsonrpc: "2.0",
-      id: newSession.id!,
-      result: { sessionId: "s1" },
-    });
+    const ws = await withSession(client);
     const prompt = await until(() =>
       ws.sent.find((f) => f.method === "session/prompt"),
     );
@@ -242,101 +241,94 @@ describe("AcpClient", () => {
     await expect(promptPromise).rejects.toThrow("model exploded");
   });
 
-  it("answers permission requests with the auto-allow policy by default", async () => {
-    const client = new AcpClient({
-      url: "ws://agent.test/",
-      webSocketFactory: (url) => new MockWebSocket(url),
+  it("refuses permission requests unless the caller opts in", async () => {
+    const client = mockClient();
+    expect(client.permissionHandler).toBe(cancelPermissionHandler);
+    await connectClient(client);
+    const ws = lastWs();
+
+    ws.receive(permissionRequest(77));
+
+    const response = await until(() => ws.sent.find((f) => f.id === 77));
+    expect(response.result).toEqual({ outcome: { outcome: "cancelled" } });
+  });
+
+  it("routes permission requests through the configured handler", async () => {
+    const client = mockClient({
+      permissionHandler: autoAllowPermissionHandler,
     });
     await connectClient(client);
     const ws = lastWs();
 
-    ws.receive({
-      jsonrpc: "2.0",
-      id: 77,
-      method: "session/request_permission",
-      params: {
-        sessionId: "s1",
-        toolCall: { toolCallId: "t1", title: "write_file" },
-        options: [
-          { optionId: "reject-1", name: "Reject", kind: "reject_once" },
-          { optionId: "allow-1", name: "Allow", kind: "allow_once" },
-        ],
-      },
-    });
+    ws.receive(permissionRequest(78));
 
-    const response = await until(() => ws.sent.find((f) => f.id === 77));
+    const response = await until(() => ws.sent.find((f) => f.id === 78));
     expect(response.result).toEqual({
       outcome: { outcome: "selected", optionId: "allow-1" },
     });
   });
 
-  it("routes permission requests through a custom handler", async () => {
-    const client = new AcpClient({
-      url: "ws://agent.test/",
-      webSocketFactory: (url) => new MockWebSocket(url),
+  it("replies cancelled when the permission handler throws synchronously", async () => {
+    const client = mockClient({
+      permissionHandler: () => {
+        throw new Error("handler exploded");
+      },
     });
-    client.permissionHandler = () => ({ outcome: "cancelled" });
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     await connectClient(client);
     const ws = lastWs();
 
-    ws.receive({
-      jsonrpc: "2.0",
-      id: 78,
-      method: "session/request_permission",
-      params: {
-        sessionId: "s1",
-        toolCall: { toolCallId: "t1" },
-        options: [{ optionId: "allow-1", name: "Allow", kind: "allow_once" }],
-      },
-    });
+    ws.receive(permissionRequest(79));
 
-    const response = await until(() => ws.sent.find((f) => f.id === 78));
+    const response = await until(() => ws.sent.find((f) => f.id === 79));
     expect(response.result).toEqual({ outcome: { outcome: "cancelled" } });
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
+  it("replies cancelled to outstanding permission requests on cancel", async () => {
+    const client = mockClient({
+      permissionHandler: () => new Promise(() => {}),
+    });
+    const ws = await withSession(client);
+    ws.receive(permissionRequest(80));
+    await new Promise((r) => setTimeout(r, 0));
+
+    await client.cancel();
+
+    const response = await until(() => ws.sent.find((f) => f.id === 80));
+    expect(response.result).toEqual({ outcome: { outcome: "cancelled" } });
+    expect(ws.sent.find((f) => f.method === "session/cancel")?.params).toEqual({
+      sessionId: "s1",
+    });
   });
 
   it("rejects unsupported server requests", async () => {
-    const client = new AcpClient({
-      url: "ws://agent.test/",
-      webSocketFactory: (url) => new MockWebSocket(url),
-    });
+    const client = mockClient();
     await connectClient(client);
     const ws = lastWs();
 
     ws.receive({
       jsonrpc: "2.0",
-      id: 79,
+      id: 81,
       method: "terminal/create",
       params: {},
     });
 
-    const response = await until(() => ws.sent.find((f) => f.id === 79));
+    const response = await until(() => ws.sent.find((f) => f.id === 81));
     expect(response.error?.code).toBe(-32601);
   });
 
-  it("sends session/cancel and clears the session on close", async () => {
-    const client = new AcpClient({
-      url: "ws://agent.test/",
-      webSocketFactory: (url) => new MockWebSocket(url),
-    });
-    const sessionPromise = client.ensureSession();
-    await connectClient(client);
-    const ws = lastWs();
-    const newSession = await until(() =>
-      ws.sent.find((f) => f.method === "session/new"),
-    );
-    ws.receive({
-      jsonrpc: "2.0",
-      id: newSession.id!,
-      result: { sessionId: "s1" },
-    });
-    await sessionPromise;
+  it("sends session/cancel as a notification and clears the session on close", async () => {
+    const client = mockClient();
+    const ws = await withSession(client);
 
-    void client.cancel();
+    await client.cancel();
     const cancel = await until(() =>
       ws.sent.find((f) => f.method === "session/cancel"),
     );
     expect(cancel.params).toEqual({ sessionId: "s1" });
-    expect(cancel.id).toBeUndefined(); // notification — no response expected
+    expect(cancel.id).toBeUndefined();
 
     const states: string[] = [];
     client.onConnectionChange = (state) => states.push(state);
@@ -347,24 +339,72 @@ describe("AcpClient", () => {
   });
 
   it("rejects in-flight requests when the connection closes", async () => {
-    const client = new AcpClient({
-      url: "ws://agent.test/",
-      webSocketFactory: (url) => new MockWebSocket(url),
-    });
+    const client = mockClient();
     const promptPromise = client.prompt([{ type: "text", text: "hi" }]);
-    await connectClient(client);
-    const ws = lastWs();
-    const newSession = await until(() =>
-      ws.sent.find((f) => f.method === "session/new"),
-    );
-    ws.receive({
-      jsonrpc: "2.0",
-      id: newSession.id!,
-      result: { sessionId: "s1" },
-    });
+    const ws = await withSession(client);
     await until(() => ws.sent.find((f) => f.method === "session/prompt"));
 
     ws.onclose?.({});
     await expect(promptPromise).rejects.toThrow("connection closed");
+  });
+
+  it("ignores a superseded socket", async () => {
+    const client = mockClient();
+    const first = client.connect();
+    const stale = lastWs();
+    stale.onerror?.({});
+    await expect(first).rejects.toThrow();
+
+    const second = client.connect();
+    const current = lastWs();
+    current.open();
+    const init = await until(() =>
+      current.sent.find((f) => f.method === "initialize"),
+    );
+    current.receive({
+      jsonrpc: "2.0",
+      id: init.id!,
+      result: { protocolVersion: 1 },
+    });
+    await expect(second).resolves.toBeDefined();
+
+    stale.onclose?.({});
+    expect(client.connectionState).toBe("connected");
+  });
+
+  it("clears the session and handshake result on dispose", async () => {
+    const client = mockClient();
+    const ws = await withSession(client);
+    expect(client.sessionId).toBe("s1");
+
+    client.dispose();
+
+    expect(ws.closed).toBe(true);
+    expect(ws.onmessage).toBeNull();
+    expect(ws.onclose).toBeNull();
+    expect(client.sessionId).toBeUndefined();
+    expect(client.agentInfo).toBeUndefined();
+    expect(client.connectionState).toBe("disconnected");
+    await expect(client.connect()).rejects.toThrow("disposed");
+  });
+
+  it("keeps connect resolving when onConnectionChange throws", async () => {
+    const client = mockClient();
+    client.onConnectionChange = () => {
+      throw new Error("listener exploded");
+    };
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(connectClient(client)).resolves.toBeUndefined();
+    expect(client.connectionState).toBe("connected");
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
+  it("times out a lifecycle request the agent never answers", async () => {
+    const client = mockClient({ requestTimeoutMs: 20 });
+    const pending = client.connect();
+    lastWs().open();
+    await expect(pending).rejects.toThrow("initialize timed out after 20ms");
   });
 });

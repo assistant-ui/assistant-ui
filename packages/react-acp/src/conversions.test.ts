@@ -1,14 +1,34 @@
 import { describe, expect, it } from "vitest";
 import type { ToolCallMessagePart } from "@assistant-ui/core";
 import {
-  AcpContentAccumulator,
-  acpToolStatusToPartStatus,
+  appendContentBlock,
+  applySessionUpdateToContent,
+  applyToolCallUpdate,
+  attachToolCallApproval,
+  buildToolCallPart,
   isAllowKind,
+  isRejectKind,
+  mergeToolCallPart,
   permissionOptionToApprovalOption,
+  resolvePermissionOutcome,
+  resolveToolCallApproval,
   stopReasonToMessageStatus,
   threadContentToAcpBlocks,
   toolCallContentToText,
 } from "./conversions";
+import type { AcpPermissionRequest, AcpSessionUpdate } from "./types";
+
+const toolCall = (content: unknown, update: unknown) =>
+  applyToolCallUpdate(
+    content as Parameters<typeof applyToolCallUpdate>[0],
+    update as Parameters<typeof applyToolCallUpdate>[1],
+  )!;
+
+const chunk = (content: unknown, update: unknown) =>
+  applySessionUpdateToContent(
+    content as Parameters<typeof applySessionUpdateToContent>[0],
+    update as Parameters<typeof applySessionUpdateToContent>[1],
+  )!;
 
 describe("stopReasonToMessageStatus", () => {
   it("maps end_turn to complete", () => {
@@ -32,32 +52,21 @@ describe("stopReasonToMessageStatus", () => {
     });
   });
 
-  it("maps refusal to incomplete/other", () => {
+  it("maps refusal and max_turn_requests to incomplete/other", () => {
     expect(stopReasonToMessageStatus("refusal")).toEqual({
       type: "incomplete",
       reason: "other",
     });
-  });
-});
-
-describe("acpToolStatusToPartStatus", () => {
-  it("maps pending and in_progress to running", () => {
-    expect(acpToolStatusToPartStatus("pending")).toEqual({ type: "running" });
-    expect(acpToolStatusToPartStatus("in_progress")).toEqual({
-      type: "running",
-    });
-  });
-
-  it("maps completed to complete", () => {
-    expect(acpToolStatusToPartStatus("completed")).toEqual({
-      type: "complete",
-    });
-  });
-
-  it("maps failed to incomplete/error", () => {
-    expect(acpToolStatusToPartStatus("failed")).toEqual({
+    expect(stopReasonToMessageStatus("max_turn_requests")).toEqual({
       type: "incomplete",
-      reason: "error",
+      reason: "other",
+    });
+  });
+
+  it("treats an unknown stop reason as complete", () => {
+    expect(stopReasonToMessageStatus("something_new" as never)).toEqual({
+      type: "complete",
+      reason: "stop",
     });
   });
 });
@@ -76,72 +85,201 @@ describe("permissionOptionToApprovalOption", () => {
         optionId: "o2",
         name: "Reject always",
         kind: "reject_always",
-        description: "never again",
       }),
-    ).toEqual({
-      id: "o2",
-      kind: "reject-always",
-      label: "Reject always",
-      description: "never again",
-    });
+    ).toEqual({ id: "o2", kind: "reject-always", label: "Reject always" });
   });
 
-  it("classifies allow kinds", () => {
+  it("classifies option families", () => {
     expect(isAllowKind("allow_once")).toBe(true);
     expect(isAllowKind("allow_always")).toBe(true);
     expect(isAllowKind("reject_once")).toBe(false);
+    expect(isRejectKind("reject_once")).toBe(true);
+    expect(isRejectKind("reject_always")).toBe(true);
+    expect(isRejectKind("allow_always")).toBe(false);
+  });
+});
+
+describe("resolvePermissionOutcome", () => {
+  const request: AcpPermissionRequest = {
+    sessionId: "s1",
+    toolCall: { toolCallId: "t1" },
+    options: [
+      { optionId: "allow", name: "Allow", kind: "allow_once" },
+      { optionId: "deny", name: "Deny", kind: "reject_once" },
+    ],
+  };
+
+  it("honours an explicit optionId", () => {
+    expect(
+      resolvePermissionOutcome(request, {
+        approvalId: "a1",
+        approved: true,
+        optionId: "deny",
+      }),
+    ).toEqual({ outcome: "selected", optionId: "deny" });
+  });
+
+  it("falls back within the approved family only", () => {
+    expect(
+      resolvePermissionOutcome(request, { approvalId: "a1", approved: true }),
+    ).toEqual({ outcome: "selected", optionId: "allow" });
+    expect(
+      resolvePermissionOutcome(request, { approvalId: "a1", approved: false }),
+    ).toEqual({ outcome: "selected", optionId: "deny" });
+  });
+
+  it("cancels rather than crossing families when the agent offers no match", () => {
+    const allowOnly: AcpPermissionRequest = {
+      ...request,
+      options: [{ optionId: "allow", name: "Allow", kind: "allow_once" }],
+    };
+    expect(
+      resolvePermissionOutcome(allowOnly, {
+        approvalId: "a1",
+        approved: false,
+      }),
+    ).toEqual({ outcome: "cancelled" });
+  });
+
+  it("cancels when the agent offers no options at all", () => {
+    expect(
+      resolvePermissionOutcome(
+        { ...request, options: [] },
+        {
+          approvalId: "a1",
+          approved: true,
+        },
+      ),
+    ).toEqual({ outcome: "cancelled" });
   });
 });
 
 describe("threadContentToAcpBlocks", () => {
-  it("converts text parts", () => {
-    expect(threadContentToAcpBlocks([{ type: "text", text: "hello" }])).toEqual(
-      [{ type: "text", text: "hello" }],
-    );
+  it("converts text parts and skips empty text", () => {
+    expect(
+      threadContentToAcpBlocks([
+        { type: "text", text: "" },
+        { type: "text", text: "hello" },
+      ]),
+    ).toEqual([{ type: "text", text: "hello" }]);
   });
 
   it("converts data-url images to image blocks", () => {
-    const blocks = threadContentToAcpBlocks([
-      { type: "image", image: "data:image/png;base64,QUJD" },
-    ]);
-    expect(blocks).toEqual([
-      { type: "image", data: "QUJD", mimeType: "image/png" },
-    ]);
+    expect(
+      threadContentToAcpBlocks([
+        { type: "image", image: "data:image/png;base64,QUJD" },
+      ]),
+    ).toEqual([{ type: "image", data: "QUJD", mimeType: "image/png" }]);
   });
 
   it("converts url images to resource links", () => {
-    const blocks = threadContentToAcpBlocks([
-      { type: "image", image: "https://example.com/x.png" },
-    ]);
-    expect(blocks).toEqual([
-      { type: "resource", resource: { uri: "https://example.com/x.png" } },
+    expect(
+      threadContentToAcpBlocks([
+        { type: "image", image: "https://example.com/x.png" },
+      ]),
+    ).toEqual([
+      {
+        type: "resource_link",
+        uri: "https://example.com/x.png",
+        name: "https://example.com/x.png",
+      },
     ]);
   });
 
-  it("converts url files to resource links and skips empty text", () => {
-    const blocks = threadContentToAcpBlocks([
-      { type: "text", text: "" },
+  it("converts url files to resource links", () => {
+    expect(
+      threadContentToAcpBlocks([
+        {
+          type: "file",
+          data: "https://example.com/notes.pdf",
+          mimeType: "application/pdf",
+          sourceType: "url",
+        },
+      ]),
+    ).toEqual([
       {
-        type: "file",
-        data: "https://example.com/notes.pdf",
+        type: "resource_link",
+        uri: "https://example.com/notes.pdf",
+        name: "https://example.com/notes.pdf",
         mimeType: "application/pdf",
-        sourceType: "url",
       },
     ]);
-    expect(blocks).toEqual([
+  });
+
+  it("keeps raw base64 file data as an embedded resource", () => {
+    expect(
+      threadContentToAcpBlocks([
+        {
+          type: "file",
+          data: "QUJD",
+          mimeType: "application/pdf",
+          filename: "n.pdf",
+        },
+      ]),
+    ).toEqual([
       {
         type: "resource",
         resource: {
-          uri: "https://example.com/notes.pdf",
+          uri: "file:///n.pdf",
           mimeType: "application/pdf",
+          blob: "QUJD",
         },
       },
     ]);
   });
+
+  it("converts data-url files to embedded resources", () => {
+    expect(
+      threadContentToAcpBlocks([
+        {
+          type: "file",
+          data: "data:application/pdf;base64,QUJD",
+          mimeType: "application/pdf",
+        },
+      ]),
+    ).toEqual([
+      {
+        type: "resource",
+        resource: {
+          uri: "file:///attachment",
+          mimeType: "application/pdf",
+          blob: "QUJD",
+        },
+      },
+    ]);
+  });
+
+  it("routes image and audio files to their own block types", () => {
+    expect(
+      threadContentToAcpBlocks([
+        { type: "file", data: "QUJD", mimeType: "image/png" },
+        { type: "file", data: "QUJD", mimeType: "audio/wav" },
+      ]),
+    ).toEqual([
+      { type: "image", data: "QUJD", mimeType: "image/png" },
+      { type: "audio", data: "QUJD", mimeType: "audio/wav" },
+    ]);
+  });
+
+  it("converts audio parts", () => {
+    expect(
+      threadContentToAcpBlocks([
+        { type: "audio", audio: { data: "QUJD", format: "wav" } },
+      ]),
+    ).toEqual([{ type: "audio", data: "QUJD", mimeType: "audio/wav" }]);
+  });
 });
 
 describe("toolCallContentToText", () => {
-  it("joins text content blocks", () => {
+  it("reads the spec's single content block", () => {
+    expect(
+      toolCallContentToText([
+        { type: "content", content: { type: "text", text: "solo block" } },
+      ]),
+    ).toBe("solo block");
+  });
+
+  it("accepts an array of content blocks", () => {
     expect(
       toolCallContentToText([
         {
@@ -149,22 +287,32 @@ describe("toolCallContentToText", () => {
           content: [
             { type: "text", text: "line 1" },
             { type: "text", text: "line 2" },
-          ],
+          ] as never,
         },
       ]),
     ).toBe("line 1\nline 2");
   });
 
-  it("accepts a single content block object where the spec says array", () => {
-    // crow-cli sends {type:"content", content: <one block>} — must not throw
+  it("renders embedded text resources and resource links", () => {
     expect(
       toolCallContentToText([
         {
           type: "content",
-          content: { type: "text", text: "solo block" } as any,
+          content: {
+            type: "resource",
+            resource: { uri: "file:///a", text: "body" },
+          },
+        },
+        {
+          type: "content",
+          content: {
+            type: "resource_link",
+            uri: "https://example.com",
+            name: "example",
+          },
         },
       ]),
-    ).toBe("solo block");
+    ).toBe("body\n[example](https://example.com)");
   });
 
   it("renders diffs", () => {
@@ -176,142 +324,383 @@ describe("toolCallContentToText", () => {
   it("returns undefined for empty content", () => {
     expect(toolCallContentToText(undefined)).toBeUndefined();
     expect(toolCallContentToText([])).toBeUndefined();
+    expect(toolCallContentToText(null)).toBeUndefined();
   });
 });
 
-describe("AcpContentAccumulator", () => {
+describe("buildToolCallPart", () => {
+  it("leaves result unset while the call is running", () => {
+    const part = buildToolCallPart({
+      toolCallId: "t1",
+      title: "Searching recipes",
+      status: "in_progress",
+      rawInput: { query: "queso" },
+    });
+    expect(part.toolName).toBe("Searching recipes");
+    expect(part.args).toEqual({ query: "queso" });
+    expect(part.argsText).toBe(JSON.stringify({ query: "queso" }));
+    expect(part.result).toBeUndefined();
+    expect(part.isError).toBeUndefined();
+  });
+
+  it("prefers the programmatic name over the title", () => {
+    expect(
+      buildToolCallPart({
+        toolCallId: "t1",
+        title: "Search",
+        name: "web_search",
+      }).toolName,
+    ).toBe("web_search");
+  });
+
+  it("falls back to kind then a placeholder when unnamed", () => {
+    expect(buildToolCallPart({ toolCallId: "t1", kind: "read" }).toolName).toBe(
+      "read",
+    );
+    expect(buildToolCallPart({ toolCallId: "t1" }).toolName).toBe("tool_call");
+  });
+
+  it("marks a completed call with its raw output", () => {
+    const part = buildToolCallPart({
+      toolCallId: "t1",
+      title: "search",
+      status: "completed",
+      rawOutput: { hits: 3 },
+    });
+    expect(part.result).toEqual({ hits: 3 });
+    expect(part.isError).toBe(false);
+  });
+
+  it("keeps an explicit null output instead of substituting content", () => {
+    const part = buildToolCallPart({
+      toolCallId: "t1",
+      title: "search",
+      status: "completed",
+      rawOutput: null,
+      content: [{ type: "content", content: { type: "text", text: "body" } }],
+    });
+    expect(part.result).toBeNull();
+  });
+
+  it("derives result from content text when rawOutput is absent", () => {
+    const part = buildToolCallPart({
+      toolCallId: "t1",
+      title: "fetch",
+      status: "completed",
+      content: [{ type: "content", content: { type: "text", text: "page" } }],
+    });
+    expect(part.result).toBe("page");
+  });
+
+  it("marks a failed call as an error", () => {
+    const part = buildToolCallPart({
+      toolCallId: "t1",
+      title: "fetch",
+      status: "failed",
+    });
+    expect(part.isError).toBe(true);
+    expect(part.result).toBeNull();
+  });
+
+  it("marks an early output as preliminary", () => {
+    const part = buildToolCallPart({
+      toolCallId: "t1",
+      title: "fetch",
+      status: "in_progress",
+      rawOutput: "partial",
+    });
+    expect(part.result).toBe("partial");
+    expect(part.isPreliminary).toBe(true);
+  });
+});
+
+describe("mergeToolCallPart", () => {
+  const running = buildToolCallPart({
+    toolCallId: "t1",
+    title: "search",
+    status: "in_progress",
+    rawInput: { query: "queso" },
+  });
+
+  it("returns the same object when nothing changed", () => {
+    expect(mergeToolCallPart(running, { toolCallId: "t1" })).toBe(running);
+    expect(
+      mergeToolCallPart(running, {
+        toolCallId: "t1",
+        rawInput: { query: "queso" },
+      }),
+    ).toBe(running);
+  });
+
+  it("completes with the raw output", () => {
+    const merged = mergeToolCallPart(running, {
+      toolCallId: "t1",
+      status: "completed",
+      rawOutput: { hits: 3 },
+    });
+    expect(merged.result).toEqual({ hits: 3 });
+    expect(merged.isError).toBe(false);
+  });
+
+  it("clears isError when a failed call later completes", () => {
+    const failed = mergeToolCallPart(running, {
+      toolCallId: "t1",
+      status: "failed",
+    });
+    expect(failed.isError).toBe(true);
+    expect(
+      mergeToolCallPart(failed, { toolCallId: "t1", status: "completed" })
+        .isError,
+    ).toBe(false);
+  });
+
+  it("clears isPreliminary once the call settles", () => {
+    const preliminary = mergeToolCallPart(running, {
+      toolCallId: "t1",
+      rawOutput: "partial",
+    });
+    expect(preliminary.isPreliminary).toBe(true);
+    expect(
+      mergeToolCallPart(preliminary, {
+        toolCallId: "t1",
+        status: "completed",
+      }).isPreliminary,
+    ).toBe(false);
+  });
+
+  it("updates the tool name and args", () => {
+    const merged = mergeToolCallPart(running, {
+      toolCallId: "t1",
+      title: "Search the web",
+      rawInput: { query: "salsa" },
+    });
+    expect(merged.toolName).toBe("Search the web");
+    expect(merged.args).toEqual({ query: "salsa" });
+  });
+});
+
+describe("applySessionUpdateToContent", () => {
   it("merges consecutive text chunks into one part", () => {
-    const acc = new AcpContentAccumulator();
-    acc.consume({
+    let content = chunk([], {
       sessionUpdate: "agent_message_chunk",
       content: { type: "text", text: "Hello " },
-    } as any);
-    acc.consume({
+    });
+    content = chunk(content, {
       sessionUpdate: "agent_message_chunk",
       content: { type: "text", text: "world" },
-    } as any);
-    expect(acc.content).toEqual([{ type: "text", text: "Hello world" }]);
+    });
+    expect(content).toEqual([{ type: "text", text: "Hello world" }]);
   });
 
   it("accumulates thought chunks separately from message chunks", () => {
-    const acc = new AcpContentAccumulator();
-    acc.consume({
+    let content = chunk([], {
       sessionUpdate: "agent_thought_chunk",
       content: { type: "text", text: "thinking..." },
-    } as any);
-    acc.consume({
+    });
+    content = chunk(content, {
       sessionUpdate: "agent_message_chunk",
       content: { type: "text", text: "answer" },
-    } as any);
-    expect(acc.content).toEqual([
+    });
+    expect(content).toEqual([
       { type: "reasoning", text: "thinking..." },
       { type: "text", text: "answer" },
     ]);
   });
 
   it("starts a new text part after a tool call", () => {
-    const acc = new AcpContentAccumulator();
-    acc.consume({
+    let content = chunk([], {
       sessionUpdate: "agent_message_chunk",
       content: { type: "text", text: "before" },
-    } as any);
-    acc.consume({
+    });
+    content = chunk(content, {
       sessionUpdate: "tool_call",
       toolCallId: "t1",
       title: "web_search",
       status: "in_progress",
-    } as any);
-    acc.consume({
+    });
+    content = chunk(content, {
       sessionUpdate: "agent_message_chunk",
       content: { type: "text", text: "after" },
-    } as any);
-    expect(acc.content.map((p) => p.type)).toEqual([
-      "text",
-      "tool-call",
-      "text",
-    ]);
+    });
+    expect(content.map((p) => p.type)).toEqual(["text", "tool-call", "text"]);
   });
 
   it("creates and merges tool calls by id", () => {
-    const acc = new AcpContentAccumulator();
-    acc.consume({
+    let content = chunk([], {
       sessionUpdate: "tool_call",
       toolCallId: "t1",
       title: "Searching recipes",
       status: "in_progress",
       rawInput: { query: "queso" },
-    } as any);
-    acc.consume({
+    });
+    content = chunk(content, {
       sessionUpdate: "tool_call_update",
       toolCallId: "t1",
       status: "completed",
       rawOutput: { hits: 3 },
-    } as any);
-
-    expect(acc.content).toHaveLength(1);
-    const part = acc.content[0] as ToolCallMessagePart;
-    expect(part.type).toBe("tool-call");
-    expect(part.toolCallId).toBe("t1");
+    });
+    expect(content).toHaveLength(1);
+    const part = content[0] as ToolCallMessagePart;
     expect(part.toolName).toBe("Searching recipes");
-    expect(part.args).toEqual({ query: "queso" });
-    expect(part.argsText).toBe(JSON.stringify({ query: "queso" }));
     expect(part.result).toEqual({ hits: 3 });
-    expect(part.status).toEqual({ type: "complete" });
   });
 
-  it("derives result from content text when rawOutput is absent", () => {
-    const acc = new AcpContentAccumulator();
-    acc.consume({
-      sessionUpdate: "tool_call",
-      toolCallId: "t1",
-      title: "fetch",
-      status: "in_progress",
-    } as any);
-    acc.consume({
-      sessionUpdate: "tool_call_update",
-      toolCallId: "t1",
-      status: "completed",
-      content: [
-        { type: "content", content: [{ type: "text", text: "page body" }] },
-      ],
-    } as any);
-    const part = acc.content[0] as ToolCallMessagePart;
-    expect(part.result).toBe("page body");
+  it("converts image, audio and resource blocks", () => {
+    let content = chunk([], {
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "image", data: "QUJD", mimeType: "image/png" },
+    });
+    content = chunk(content, {
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "audio", data: "QUJD", mimeType: "audio/wav" },
+    });
+    content = chunk(content, {
+      sessionUpdate: "agent_message_chunk",
+      content: {
+        type: "resource",
+        resource: { uri: "file:///a", text: "embedded" },
+      },
+    });
+    expect(content).toEqual([
+      { type: "image", image: "data:image/png;base64,QUJD" },
+      { type: "file", data: "QUJD", mimeType: "audio/wav" },
+      { type: "text", text: "embedded" },
+    ]);
   });
 
-  it("marks failed tool calls with isError", () => {
-    const acc = new AcpContentAccumulator();
-    acc.consume({
-      sessionUpdate: "tool_call",
-      toolCallId: "t1",
-      status: "failed",
-    } as any);
-    const part = acc.content[0] as ToolCallMessagePart;
-    expect(part.isError).toBe(true);
-    expect(part.status).toEqual({ type: "incomplete", reason: "error" });
+  it("converts resource links and blob resources", () => {
+    let content = chunk([], {
+      sessionUpdate: "agent_message_chunk",
+      content: {
+        type: "resource_link",
+        uri: "https://example.com/a.pdf",
+        name: "a.pdf",
+        mimeType: "application/pdf",
+      },
+    });
+    content = chunk(content, {
+      sessionUpdate: "agent_message_chunk",
+      content: {
+        type: "resource",
+        resource: { uri: "file:///b.png", blob: "QUJD", mimeType: "image/png" },
+      },
+    });
+    expect(content).toEqual([
+      {
+        type: "file",
+        data: "https://example.com/a.pdf",
+        mimeType: "application/pdf",
+        sourceType: "url",
+        filename: "a.pdf",
+      },
+      { type: "image", image: "data:image/png;base64,QUJD" },
+    ]);
   });
 
-  it("attaches and resolves approvals on tool-call parts", () => {
-    const acc = new AcpContentAccumulator();
-    acc.attachApproval(
+  it("ignores updates it cannot represent", () => {
+    expect(
+      applySessionUpdateToContent([], {
+        sessionUpdate: "plan",
+        entries: [],
+      } as AcpSessionUpdate as never),
+    ).toBeUndefined();
+    expect(
+      applySessionUpdateToContent([], {
+        sessionUpdate: "some_future_variant",
+      } as never),
+    ).toBeUndefined();
+    expect(
+      applySessionUpdateToContent([], {
+        sessionUpdate: "tool_call_update",
+      } as never),
+    ).toBeUndefined();
+  });
+});
+
+describe("appendContentBlock", () => {
+  it("returns undefined for an empty block", () => {
+    expect(appendContentBlock([], { type: "text", text: "" }, "text")).toBe(
+      undefined,
+    );
+  });
+
+  it("tolerates an unknown block type", () => {
+    expect(
+      appendContentBlock([], { type: "hologram" } as never, "text"),
+    ).toBeUndefined();
+  });
+});
+
+describe("tool call approvals", () => {
+  const approval = {
+    id: "acp-permission-1",
+    options: [{ id: "allow", kind: "allow-once" as const }],
+  };
+
+  it("creates the tool-call part when it does not exist yet", () => {
+    const content = attachToolCallApproval(
+      [],
       { toolCallId: "t1", title: "write_file", status: "pending" },
-      { id: "acp-permission-1", options: [{ id: "a", kind: "allow-once" }] },
+      approval,
     );
-    let part = acc.content[0] as ToolCallMessagePart;
+    const part = content[0] as ToolCallMessagePart;
+    expect(part.toolName).toBe("write_file");
     expect(part.approval?.id).toBe("acp-permission-1");
-    expect(part.approved).toBeUndefined();
-
-    acc.resolveApproval("acp-permission-1", { approved: true, optionId: "a" });
-    part = acc.content[0] as ToolCallMessagePart;
-    expect(part.approval?.approved).toBe(true);
-    expect(part.approval?.optionId).toBe("a");
+    expect(part.approval?.approved).toBeUndefined();
   });
 
-  it("ignores unknown update kinds", () => {
-    const acc = new AcpContentAccumulator();
-    expect(acc.consume({ sessionUpdate: "plan", entries: [] } as any)).toBe(
-      false,
+  it("records the resolution on the matching part", () => {
+    const content = attachToolCallApproval(
+      [],
+      { toolCallId: "t1", title: "write_file" },
+      approval,
     );
-    expect(acc.content).toEqual([]);
+    const resolved = resolveToolCallApproval(content, "acp-permission-1", {
+      approved: true,
+      optionId: "allow",
+    })!;
+    const part = resolved[0] as ToolCallMessagePart;
+    expect(part.approval?.approved).toBe(true);
+    expect(part.approval?.optionId).toBe("allow");
+  });
+
+  it("returns undefined for an unknown approval id", () => {
+    const content = attachToolCallApproval(
+      [],
+      { toolCallId: "t1", title: "write_file" },
+      approval,
+    );
+    expect(resolveToolCallApproval(content, "nope", { approved: true })).toBe(
+      undefined,
+    );
+  });
+
+  it("records a cancellation without a decision", () => {
+    const content = attachToolCallApproval(
+      [],
+      { toolCallId: "t1", title: "write_file" },
+      approval,
+    );
+    const part = resolveToolCallApproval(content, "acp-permission-1", {
+      resolution: "cancelled",
+    })![0] as ToolCallMessagePart;
+    expect(part.approval?.approved).toBeUndefined();
+    expect(part.approval?.resolution).toBe("cancelled");
+  });
+});
+
+describe("applyToolCallUpdate", () => {
+  it("appends a new part for an unknown tool call id", () => {
+    const content = toolCall([], { toolCallId: "t1", title: "search" });
+    expect(content).toHaveLength(1);
+  });
+
+  it("returns undefined when the update changes nothing", () => {
+    const content = toolCall([], {
+      toolCallId: "t1",
+      title: "search",
+      status: "in_progress",
+    });
+    expect(applyToolCallUpdate(content, { toolCallId: "t1" })).toBeUndefined();
   });
 });
