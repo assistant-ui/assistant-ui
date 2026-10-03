@@ -452,7 +452,7 @@ export function AuiHeatGraphDemo() {
   return (
     <DemoSurface>
       <div className="w-full max-w-2xl min-w-125 scale-[0.82]">
-        {/* HeatGraph draws the trailing year from today, so it renders per request. */}
+        {/* HeatGraph reads today's date while rendering, so the prerender leaves it to the browser. */}
         <Suspense
           fallback={
             <Skeleton className="aspect-[5/1] w-full motion-reduce:animate-none" />
