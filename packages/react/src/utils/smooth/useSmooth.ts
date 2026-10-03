@@ -49,7 +49,7 @@ const DEFAULT_MAX_CHAR_INTERVAL_MS = 5;
 
 class TextStreamAnimator {
   private animationFrameId: number | null = null;
-  private lastUpdateTime: number = Date.now();
+  private lastUpdateTime: number = performance.now();
   public lastCommitTime: number = 0;
 
   public targetText: string = "";
@@ -68,7 +68,7 @@ class TextStreamAnimator {
 
   start() {
     if (this.animationFrameId !== null) return;
-    this.lastUpdateTime = Date.now();
+    this.lastUpdateTime = performance.now();
     this.animate();
   }
 
@@ -80,7 +80,7 @@ class TextStreamAnimator {
   }
 
   private animate = () => {
-    const currentTime = Date.now();
+    const currentTime = performance.now();
     const deltaTime = currentTime - this.lastUpdateTime;
     let timeToConsume = deltaTime;
 
