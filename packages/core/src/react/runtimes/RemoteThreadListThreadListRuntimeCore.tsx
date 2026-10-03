@@ -1025,6 +1025,9 @@ export class RemoteThreadListThreadListRuntimeCore
     });
   }
 
+  // A switch can land on the thread before the caller resumes, so callers
+  // that act on the thread afterwards repeat this until it is still not main
+  // in their own continuation.
   private async _ensureThreadIsNotMain(threadId: string) {
     if (threadId === this.newThreadId)
       throw new Error("Cannot ensure new thread is not main");
@@ -1061,7 +1064,9 @@ export class RemoteThreadListThreadListRuntimeCore
     if (data.status !== "regular")
       throw threadStatusError(threadIdOrRemoteId, data.status, "be archived");
 
-    await this._ensureThreadIsNotMain(data.id);
+    do {
+      await this._ensureThreadIsNotMain(data.id);
+    } while (data.id === this._mainThreadId);
     this._requireAdapterGeneration(adapterGeneration);
 
     return this._state.optimisticUpdate({
@@ -1113,7 +1118,9 @@ export class RemoteThreadListThreadListRuntimeCore
     if (data.status !== "regular" && data.status !== "archived")
       throw threadStatusError(threadIdOrRemoteId, data.status, "be deleted");
 
-    await this._ensureThreadIsNotMain(data.id);
+    do {
+      await this._ensureThreadIsNotMain(data.id);
+    } while (data.id === this._mainThreadId);
     this._requireAdapterGeneration(adapterGeneration);
     const result = await this._state.optimisticUpdate({
       execute: async () => {
@@ -1144,7 +1151,9 @@ export class RemoteThreadListThreadListRuntimeCore
     if (data.status !== "regular" && data.status !== "archived")
       throw threadStatusError(threadIdOrRemoteId, data.status, "be detached");
 
-    await this._ensureThreadIsNotMain(data.id);
+    do {
+      await this._ensureThreadIsNotMain(data.id);
+    } while (data.id === this._mainThreadId);
     this._requireAdapterGeneration(adapterGeneration);
     this._hookManager.stopThreadRuntime(data.id);
   }
