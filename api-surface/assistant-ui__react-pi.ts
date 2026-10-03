@@ -1522,6 +1522,7 @@ type PiClientEventBody = {
 } | {
   type: "agent_end";
   willRetry?: boolean;
+  cancelledBeforeStart?: boolean;
 } | {
   type: "agent_settled";
 } | {
