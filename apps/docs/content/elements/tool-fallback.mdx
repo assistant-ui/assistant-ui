@@ -101,7 +101,7 @@ approval: {
 
 Choosing "Always allow" here shows a confirm/back step before it calls `respondToApproval({ optionId: "always" })`; the other two resolve immediately. In a thread that cannot answer tool calls, where `s.thread.capabilities.answerToolCall` is `false` as in a sub-agent transcript, the block shows only the prompt.
 
-On the web, changing `approval.id` starts a fresh request in both the default renderer and `ToolFallback.Approval`, clearing the previous request's input, confirmation, error, and submission state.
+On the web and React Native, changing `approval.id` starts a fresh request in both the default renderer and the composed approval component, clearing the previous request's input, confirmation, error, and submission state.
 
 ### Receipt of a settled request
 
