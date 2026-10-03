@@ -5,7 +5,7 @@ import type {
   ThreadMessage,
 } from "@assistant-ui/core";
 import { AcpThreadController } from "./AcpThreadController";
-import type { AcpClient } from "./AcpClient";
+import { cancelPermissionHandler, type AcpClient } from "./AcpClient";
 import type {
   AcpConnectionState,
   AcpPermissionRequest,
@@ -34,6 +34,7 @@ class FakeClient {
 
   connectCalls = 0;
   cancelCalls = 0;
+  log: string[] | undefined = undefined;
   prompts: unknown[][] = [];
   stopReason: string = "end_turn";
   promptError: Error | undefined = undefined;
@@ -67,6 +68,7 @@ class FakeClient {
 
   async cancel() {
     this.cancelCalls += 1;
+    this.log?.push("client.cancel");
     this.release?.();
     this.release = undefined;
   }
@@ -175,7 +177,7 @@ describe("AcpThreadController", () => {
     await c.detach();
     expect(client.onSessionUpdate).toBeUndefined();
     expect(client.onConnectionChange).toBeUndefined();
-    expect(client.permissionHandler).toBeDefined();
+    expect(client.permissionHandler).toBe(cancelPermissionHandler);
   });
 
   it("connects on load and records the handshake", async () => {
@@ -374,6 +376,7 @@ describe("AcpThreadController", () => {
 
   it("cancels the turn on the wire before invoking onCancel", async () => {
     const calls: string[] = [];
+    client.log = calls;
     const onCancel = () => calls.push("onCancel");
     const c = controller(client, { onCancel });
     await c.attach();
@@ -391,7 +394,7 @@ describe("AcpThreadController", () => {
     await done;
 
     expect(client.cancelCalls).toBe(1);
-    expect(calls).toEqual(["onCancel"]);
+    expect(calls).toEqual(["client.cancel", "onCancel"]);
     expect(assistantOf(c).status).toEqual({
       type: "incomplete",
       reason: "cancelled",

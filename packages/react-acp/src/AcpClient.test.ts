@@ -388,6 +388,22 @@ describe("AcpClient", () => {
     await expect(client.connect()).rejects.toThrow("disposed");
   });
 
+  it("answers outstanding permission requests before closing on dispose", async () => {
+    const client = mockClient({
+      permissionHandler: () => new Promise(() => {}),
+    });
+    const ws = await withSession(client);
+    ws.receive(permissionRequest(90));
+    await new Promise((r) => setTimeout(r, 0));
+
+    client.dispose();
+
+    expect(ws.sent.find((f) => f.id === 90)?.result).toEqual({
+      outcome: { outcome: "cancelled" },
+    });
+    expect(ws.closed).toBe(true);
+  });
+
   it("keeps connect resolving when onConnectionChange throws", async () => {
     const client = mockClient();
     client.onConnectionChange = () => {

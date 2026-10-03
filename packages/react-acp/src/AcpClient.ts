@@ -191,6 +191,7 @@ export class AcpClient {
   }
 
   dispose(): void {
+    this.settlePermissions({ outcome: "cancelled" });
     this.disposed = true;
     const ws = this.ws;
     this.ws = undefined;
@@ -201,7 +202,6 @@ export class AcpClient {
       ws.onclose = null;
       ws.close();
     }
-    this.settlePermissions({ outcome: "cancelled" });
     this.failPending(new Error("AcpClient disposed"));
     this.initializeResult = undefined;
     this._sessionId = undefined;
