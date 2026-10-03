@@ -221,6 +221,47 @@ describe("ToolFallback", () => {
     expect(resume).toHaveBeenCalledWith({ approved: true });
   });
 
+  it("accepts another interrupt after the run resumes", () => {
+    const resume = vi.fn();
+    const part = {
+      type: "tool-call",
+      toolCallId: "call-1",
+      toolName: "test-tool",
+      args: {},
+      argsText: "{}",
+      status: { type: "requires-action", reason: "interrupt" },
+      interrupt: { type: "human", payload: { step: 1 } },
+      resume,
+      addResult: vi.fn(),
+      respondToApproval: vi.fn(async () => {}),
+    } satisfies ToolCallMessagePartProps;
+    const view = render(<ToolFallback {...part} />);
+    fireEvent.click(button("Allow"));
+    expect(button("Allow").disabled).toBe(true);
+
+    view.rerender(
+      <ToolFallback
+        {...part}
+        status={{ type: "running" }}
+        interrupt={undefined}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
+
+    view.rerender(
+      <ToolFallback
+        {...part}
+        interrupt={{ type: "human", payload: { step: 2 } }}
+      />,
+    );
+    expect(button("Deny").disabled).toBe(false);
+    fireEvent.click(button("Deny"));
+    expect(resume.mock.calls).toEqual([
+      [{ approved: true }],
+      [{ approved: false }],
+    ]);
+  });
+
   it("keeps the addResult fallback for tool-call actions", () => {
     const addResult = vi.fn();
     renderTool({

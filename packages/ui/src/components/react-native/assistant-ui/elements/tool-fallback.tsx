@@ -10,7 +10,7 @@ import {
   type ToolCallMessagePartStatus,
 } from "@assistant-ui/react-native";
 import { WrenchIcon } from "lucide-react-native";
-import { type FC, useState } from "react";
+import { type ComponentProps, type FC, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import {
   field,
@@ -170,6 +170,10 @@ const ApprovalButton: FC<{
 );
 
 export const ToolFallbackApproval: FC<
+  ComponentProps<typeof ToolFallbackApprovalImpl>
+> = (props) => <ToolFallbackApprovalImpl key={props.approval?.id} {...props} />;
+
+const ToolFallbackApprovalImpl: FC<
   Partial<
     Pick<
       ToolCallMessagePartProps,
