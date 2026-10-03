@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
+import { useEffect } from "react";
 import {
   AssistantRuntimeProvider,
   AuiConfig,
@@ -105,9 +105,7 @@ function WeatherToolChat() {
 export function ToolUIRendererSample() {
   return (
     <SampleFrame className="bg-muted/40 h-120 overflow-hidden">
-      <Suspense fallback={null}>
-        <WeatherToolChat />
-      </Suspense>
+      <WeatherToolChat />
     </SampleFrame>
   );
 }

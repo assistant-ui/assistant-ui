@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import {
   AssistantRuntimeProvider,
   BranchPickerPrimitive,
@@ -37,13 +37,11 @@ export function BranchPickerPrimitiveSample() {
   return (
     <div className="not-prose border-border/50 bg-muted/40 flex items-end rounded-xl border p-6">
       <div className="mx-auto flex w-full max-w-lg flex-col gap-3">
-        <Suspense fallback={null}>
-          <AssistantRuntimeProvider runtime={runtime}>
-            <ThreadPrimitive.Messages
-              components={{ UserMessage, AssistantMessage }}
-            />
-          </AssistantRuntimeProvider>
-        </Suspense>
+        <AssistantRuntimeProvider runtime={runtime}>
+          <ThreadPrimitive.Messages
+            components={{ UserMessage, AssistantMessage }}
+          />
+        </AssistantRuntimeProvider>
       </div>
     </div>
   );

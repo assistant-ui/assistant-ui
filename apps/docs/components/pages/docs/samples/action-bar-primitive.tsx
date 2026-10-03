@@ -1,6 +1,5 @@
 "use client";
 
-import { Suspense } from "react";
 import {
   ActionBarPrimitive,
   MessagePrimitive,
@@ -13,16 +12,14 @@ export function ActionBarPrimitiveSample() {
   return (
     <div className="not-prose border-border/50 bg-muted/40 flex items-end rounded-xl border p-4">
       <div className="mx-auto flex w-full max-w-lg flex-col gap-3">
-        <Suspense fallback={null}>
-          <SampleRuntimeProvider>
-            <ThreadPrimitive.Messages
-              components={{
-                UserMessage,
-                AssistantMessage,
-              }}
-            />
-          </SampleRuntimeProvider>
-        </Suspense>
+        <SampleRuntimeProvider>
+          <ThreadPrimitive.Messages
+            components={{
+              UserMessage,
+              AssistantMessage,
+            }}
+          />
+        </SampleRuntimeProvider>
       </div>
     </div>
   );

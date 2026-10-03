@@ -15,7 +15,7 @@ import {
   ChevronRightIcon,
   WrenchIcon,
 } from "lucide-react";
-import { Suspense, useState, type PropsWithChildren } from "react";
+import { useState, type PropsWithChildren } from "react";
 import { SampleRuntimeProvider } from "./sample-runtime-provider";
 
 const sampleMessages: ThreadMessageLike[] = [
@@ -202,13 +202,11 @@ export function ChainOfThoughtPrimitiveSample() {
   return (
     <div className="not-prose border-border/50 bg-muted/40 flex items-center rounded-xl border p-8">
       <div className="mx-auto w-full max-w-lg">
-        <Suspense fallback={null}>
-          <SampleRuntimeProvider messages={sampleMessages}>
-            <ThreadPrimitive.Messages
-              components={{ UserMessage, AssistantMessage }}
-            />
-          </SampleRuntimeProvider>
-        </Suspense>
+        <SampleRuntimeProvider messages={sampleMessages}>
+          <ThreadPrimitive.Messages
+            components={{ UserMessage, AssistantMessage }}
+          />
+        </SampleRuntimeProvider>
       </div>
     </div>
   );
