@@ -162,12 +162,13 @@ thread stays put: it keeps showing what it has and refuses to prompt.
 **Attachments the agent did not opt into are withheld.**
 ACP's baseline prompt content is text and resource links; `image`, `audio` and
 embedded `resource` blocks all need `agentCapabilities.promptCapabilities`.
-Whatever the agent cannot accept is left out of `session/prompt` and reported
-through `onError`. An embedded resource keeps what survives instead of being
+Whatever the agent cannot accept is left out of `session/prompt`, and `onError`
+reports the omission. An embedded resource keeps what survives instead of being
 withheld — its text travels as a text block, and a URI the agent can fetch
 travels as a resource link — so only inline bytes behind a client-local `file:`
-URI, which survive neither way, end up dropped and reported. The message keeps
-its attachments in the transcript either way.
+URI, which survive neither way, end up dropped and reported. A downgrade is not
+a drop: what the agent does receive is never reported as missing. The message
+keeps its attachments in the transcript either way.
 
 **`cwd` defaults to `"/"`.** ACP requires an absolute path; set `cwd` when the
 agent's file or terminal tools need a real project root.
