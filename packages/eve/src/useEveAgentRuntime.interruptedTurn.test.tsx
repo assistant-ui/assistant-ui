@@ -11,7 +11,7 @@ const meta = (second: number) => ({
   id: `t1-${second}`,
 });
 
-const failedTurn = [
+const interruptedTurn = (ending: Record<string, unknown>) => [
   { type: "turn.started", data: { sequence: 1, turnId: "t1" }, meta: meta(0) },
   {
     type: "message.received",
@@ -33,27 +33,47 @@ const failedTurn = [
     },
     meta: meta(3),
   },
-  {
-    type: "turn.failed",
-    data: { code: "internal", message: "boom", sequence: 5, turnId: "t1" },
-    meta: meta(4),
-  },
+  { ...ending, meta: meta(4) },
 ];
+
+const renderInterruptedTurn = (ending: Record<string, unknown>) => {
+  const { session } = createEveSessionFixture({});
+  return renderHook(() =>
+    useEveAgentRuntime({
+      initialEvents: interruptedTurn(ending) as never,
+      session,
+    }),
+  );
+};
 
 afterEach(() => vi.unstubAllGlobals());
 
-describe("useEveAgentRuntime with a failed turn", () => {
-  it("shows the failed turn's assistant message as an error", async () => {
-    const { session } = createEveSessionFixture({});
-    const { result } = renderHook(() =>
-      useEveAgentRuntime({ initialEvents: failedTurn as never, session }),
-    );
+describe("useEveAgentRuntime with an interrupted turn", () => {
+  it("shows a failed turn's assistant message as an error", async () => {
+    const { result } = renderInterruptedTurn({
+      type: "turn.failed",
+      data: { code: "internal", message: "boom", sequence: 5, turnId: "t1" },
+    });
 
     await waitFor(() =>
       expect(result.current.thread.getState().messages.at(-1)?.status).toEqual({
         type: "incomplete",
         reason: "error",
         error: { code: "internal", message: "boom" },
+      }),
+    );
+  });
+
+  it("shows a cancelled turn's assistant message as cancelled", async () => {
+    const { result } = renderInterruptedTurn({
+      type: "turn.cancelled",
+      data: { sequence: 5, turnId: "t1" },
+    });
+
+    await waitFor(() =>
+      expect(result.current.thread.getState().messages.at(-1)?.status).toEqual({
+        type: "incomplete",
+        reason: "cancelled",
       }),
     );
   });

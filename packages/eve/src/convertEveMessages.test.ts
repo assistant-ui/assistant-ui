@@ -6,8 +6,9 @@ import {
   type MessageStreamEvent,
 } from "eve/client";
 import {
-  collectTurnFailureEvents,
+  collectInterruptedTurnEvents,
   convertEveMessages,
+  type InterruptedTurnEventCache,
   findEveInputRequest,
   getEveMessageContent,
   toEveInputResponse,
@@ -1771,6 +1772,25 @@ describe("convertEveMessages", () => {
         });
       });
 
+      it("a cancelled turn stays cancelled after Eve settles its message", () => {
+        const cancelEvent = {
+          type: "turn.cancelled",
+          meta: eventMeta(3),
+          data: { turnId: "turn_1", sequence: 3 },
+        } as const satisfies MessageStreamEvent;
+        const state = replay([...midStreamEvents, cancelEvent]);
+
+        expect(
+          convertEveMessages(state, { isRunning: false }).at(-1)?.status,
+        ).toEqual({ type: "complete", reason: "stop" });
+        expect(
+          convertEveMessages(state, {
+            isRunning: false,
+            events: [cancelEvent],
+          }).at(-1)?.status,
+        ).toEqual({ type: "incomplete", reason: "cancelled" });
+      });
+
       it("a completed turn terminalizes the streaming marker and converts to complete", () => {
         const state = replay([
           ...midStreamEvents,
@@ -2303,7 +2323,7 @@ describe("findEveInputRequest", () => {
   });
 });
 
-describe("collectTurnFailureEvents", () => {
+describe("collectInterruptedTurnEvents", () => {
   const started = (turnId: string, sequence: number) =>
     ({
       type: "turn.started",
@@ -2316,25 +2336,35 @@ describe("collectTurnFailureEvents", () => {
       meta: eventMeta(sequence),
       data: { turnId, sequence, code: "internal", message: "boom" },
     }) as const satisfies MessageStreamEvent;
+  const cancelled = (turnId: string, sequence: number) =>
+    ({
+      type: "turn.cancelled",
+      meta: eventMeta(sequence),
+      data: { turnId, sequence },
+    }) as const satisfies MessageStreamEvent;
 
-  it("scans appended events and keeps the array until a failure arrives", () => {
-    const cache = { lastEvents: [], failures: [] };
+  it("scans only appended events and keeps the array until an interruption arrives", () => {
+    const cache: InterruptedTurnEventCache = {
+      lastEvents: [],
+      interruptions: [],
+    };
     const first = [started("t1", 0), failed("t1", 1)];
-    const failures = collectTurnFailureEvents(first, cache);
-    expect(failures).toEqual([first[1]]);
-    expect(collectTurnFailureEvents([...first, started("t2", 2)], cache)).toBe(
-      failures,
-    );
-    const second = [...first, started("t2", 2), failed("t2", 3)];
-    expect(collectTurnFailureEvents(second, cache)).toEqual([
-      first[1],
-      second[3],
-    ]);
+    const interruptions = collectInterruptedTurnEvents(first, cache);
+    expect(interruptions).toEqual([first[1]]);
+    const quiet = [...cache.lastEvents, started("t2", 2)];
+    expect(collectInterruptedTurnEvents(quiet, cache)).toBe(interruptions);
+    const appended = [...cache.lastEvents, cancelled("t2", 3)];
+    const next = collectInterruptedTurnEvents(appended, cache);
+    expect(next).toEqual([first[1], appended[3]]);
+    expect(next[0]).toBe(interruptions[0]);
   });
 
   it("rescans a log that does not extend the scanned one", () => {
-    const cache = { lastEvents: [], failures: [] };
-    collectTurnFailureEvents([started("t1", 0), failed("t1", 1)], cache);
-    expect(collectTurnFailureEvents([started("t2", 0)], cache)).toEqual([]);
+    const cache: InterruptedTurnEventCache = {
+      lastEvents: [],
+      interruptions: [],
+    };
+    collectInterruptedTurnEvents([started("t1", 0), failed("t1", 1)], cache);
+    expect(collectInterruptedTurnEvents([started("t2", 0)], cache)).toEqual([]);
   });
 });

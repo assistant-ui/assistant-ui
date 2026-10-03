@@ -66,8 +66,9 @@ export type ConvertEveMessagesOptions = {
   readonly error?: unknown;
   readonly getCreatedAt?: ((message: EveMessage) => Date) | undefined;
   /**
-   * The session's stream events. A `turn.failed` event marks its turn's
-   * assistant message as incomplete with the failure as its error.
+   * The session's stream events. A `turn.failed` or `turn.cancelled` event
+   * marks its turn's assistant message as incomplete, with a failure's code
+   * and message as its error.
    */
   readonly events?: readonly MessageStreamEvent[] | undefined;
 };
@@ -94,17 +95,15 @@ const toMessageStatus = (
   index: number,
   messages: readonly EveMessage[],
   options: ConvertEveMessagesOptions,
-  turnFailures: ReadonlyMap<string, { code: string; message: string }>,
+  interruptedTurns: ReadonlyMap<string, MessageStatus>,
 ): MessageStatus => {
   if (message.role !== "assistant") return USER_FALLBACK_STATUS;
 
-  const failure =
+  const interrupted =
     message.metadata?.turnId === undefined
       ? undefined
-      : turnFailures.get(message.metadata.turnId);
-  if (failure) {
-    return { type: "incomplete", reason: "error", error: failure };
-  }
+      : interruptedTurns.get(message.metadata.turnId);
+  if (interrupted) return interrupted;
 
   const isLast = index === messages.length - 1;
   const hasPendingApproval = message.parts.some(
@@ -483,20 +482,20 @@ export const convertEveMessage = (
   messages: readonly EveMessage[],
   options: ConvertEveMessagesOptions = {},
 ): ThreadMessage =>
-  convertEveMessageWithFailures(
+  convertEveMessageWithInterruptions(
     message,
     index,
     messages,
     options,
-    getTurnFailures(options.events),
+    getInterruptedTurns(options.events),
   );
 
-const convertEveMessageWithFailures = (
+const convertEveMessageWithInterruptions = (
   message: EveMessage,
   index: number,
   messages: readonly EveMessage[],
   options: ConvertEveMessagesOptions,
-  turnFailures: ReadonlyMap<string, { code: string; message: string }>,
+  interruptedTurns: ReadonlyMap<string, MessageStatus>,
 ): ThreadMessage => {
   const createdAt = options.getCreatedAt?.(message) ?? new Date();
   const metadata = {
@@ -529,53 +528,61 @@ const convertEveMessageWithFailures = (
   return fromThreadMessageLike(
     like,
     message.id,
-    toMessageStatus(message, index, messages, options, turnFailures),
+    toMessageStatus(message, index, messages, options, interruptedTurns),
   );
 };
 
-export type TurnFailureEventCache = {
+export type InterruptedTurnEventCache = {
   lastEvents: readonly MessageStreamEvent[];
-  failures: readonly MessageStreamEvent[];
+  interruptions: readonly MessageStreamEvent[];
 };
 
+const isTurnInterruption = (event: MessageStreamEvent) =>
+  event.type === "turn.failed" || event.type === "turn.cancelled";
+
 /**
- * Collects the `turn.failed` events of an append-only event log, scanning
- * only the events appended since the cached call. The returned array keeps
- * its identity until a new failure arrives.
+ * Collects the `turn.failed` and `turn.cancelled` events of an append-only
+ * event log, scanning only the events appended since the cached call. The
+ * returned array keeps its identity until a new interruption arrives.
  */
-export const collectTurnFailureEvents = (
+export const collectInterruptedTurnEvents = (
   events: readonly MessageStreamEvent[],
-  cache: TurnFailureEventCache,
+  cache: InterruptedTurnEventCache,
 ): readonly MessageStreamEvent[] => {
-  if (events === cache.lastEvents) return cache.failures;
+  if (events === cache.lastEvents) return cache.interruptions;
 
   const scanned = cache.lastEvents;
   const resumesScan =
     scanned.length === 0 ||
     events[scanned.length - 1] === scanned[scanned.length - 1];
 
-  let failures = resumesScan ? cache.failures : [];
+  let interruptions = resumesScan ? cache.interruptions : [];
   for (let i = resumesScan ? scanned.length : 0; i < events.length; i++) {
     const event = events[i]!;
-    if (event.type === "turn.failed") failures = [...failures, event];
+    if (isTurnInterruption(event)) interruptions = [...interruptions, event];
   }
 
   cache.lastEvents = events;
-  cache.failures = failures;
-  return failures;
+  cache.interruptions = interruptions;
+  return interruptions;
 };
 
-const getTurnFailures = (events: readonly MessageStreamEvent[] | undefined) => {
-  const failures = new Map<string, { code: string; message: string }>();
+const getInterruptedTurns = (
+  events: readonly MessageStreamEvent[] | undefined,
+) => {
+  const interrupted = new Map<string, MessageStatus>();
   for (const event of events ?? []) {
     if (event.type === "turn.failed") {
-      failures.set(event.data.turnId, {
-        code: event.data.code,
-        message: event.data.message,
+      interrupted.set(event.data.turnId, {
+        type: "incomplete",
+        reason: "error",
+        error: { code: event.data.code, message: event.data.message },
       });
+    } else if (event.type === "turn.cancelled") {
+      interrupted.set(event.data.turnId, ASSISTANT_CANCELLED_STATUS);
     }
   }
-  return failures;
+  return interrupted;
 };
 
 /**
@@ -585,14 +592,14 @@ export const convertEveMessages = (
   data: EveMessageData,
   options: ConvertEveMessagesOptions = {},
 ): ThreadMessage[] => {
-  const turnFailures = getTurnFailures(options.events);
+  const interruptedTurns = getInterruptedTurns(options.events);
   return data.messages.map((message, index, messages) =>
-    convertEveMessageWithFailures(
+    convertEveMessageWithInterruptions(
       message,
       index,
       messages,
       options,
-      turnFailures,
+      interruptedTurns,
     ),
   );
 };

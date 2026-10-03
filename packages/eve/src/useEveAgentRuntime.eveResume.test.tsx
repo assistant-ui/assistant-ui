@@ -127,10 +127,6 @@ describe("useEveAgentRuntime against a resumed eve session", () => {
   });
 
   it("reports the replay as loading and holds a send typed during it until the replay ends", async () => {
-    let openReplay!: () => void;
-    const replayOpened = new Promise<void>((resolve) => {
-      openReplay = resolve;
-    });
     const { fetch, push, session } = createEveSessionFixture({
       tailIndex: parkedEvents.length - 1,
       onSend: () => setTimeout(() => push(copyEvents(nextTurnEvents)), 0),
@@ -150,8 +146,6 @@ describe("useEveAgentRuntime against a resumed eve session", () => {
     expect(fetch).toHaveBeenCalledOnce();
 
     await act(async () => {
-      openReplay();
-      await replayOpened;
       push(copyEvents(parkedEvents));
     });
 
