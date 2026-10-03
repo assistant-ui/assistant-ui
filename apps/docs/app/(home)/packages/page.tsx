@@ -119,13 +119,17 @@ async function Directory() {
     <PackageDirectory
       categories={directoryCategories}
       rows={directoryRows(npm)}
-      concentration={{
-        leaders,
-        tailNames: tail.map((row) => row.name),
-        tailCount: tail.length,
-        tailWeekly: tail.reduce((sum, row) => sum + row.weekly, 0),
-        total: ranked.reduce((sum, row) => sum + row.weekly, 0),
-      }}
+      concentration={
+        npm.totalWeekly === null
+          ? null
+          : {
+              leaders,
+              tailNames: tail.map((row) => row.name),
+              tailCount: tail.length,
+              tailWeekly: tail.reduce((sum, row) => sum + row.weekly, 0),
+              total: ranked.reduce((sum, row) => sum + row.weekly, 0),
+            }
+      }
     />
   );
 }
