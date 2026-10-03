@@ -585,6 +585,17 @@ describe("applySessionUpdateToContent", () => {
         resource: { uri: "file:///b.png", blob: "QUJD", mimeType: "image/png" },
       },
     });
+    content = chunk(content, {
+      sessionUpdate: "agent_message_chunk",
+      content: {
+        type: "resource",
+        resource: {
+          uri: "file:///c.pdf",
+          blob: "QUJD",
+          mimeType: "application/pdf",
+        },
+      },
+    });
     expect(content).toEqual([
       {
         type: "file",
@@ -594,6 +605,7 @@ describe("applySessionUpdateToContent", () => {
         filename: "a.pdf",
       },
       { type: "image", image: "data:image/png;base64,QUJD" },
+      { type: "file", data: "QUJD", mimeType: "application/pdf" },
     ]);
   });
 
