@@ -481,7 +481,7 @@ jobs:
             pnpm-workspace.yaml \
             turbo.json \
             packages/x-buildutils; then
-            pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/react-devtools..." --filter="@assistant-ui/ai-sdk..." --filter="@assistant-ui/core..." --filter="@assistant-ui/store..." --filter="...[$BASE]..."
+            pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/react-devtools..." --filter="@assistant-ui/ai-sdk..." --filter="@assistant-ui/core..." --filter="@assistant-ui/store..." --filter="...[$BASE]..." --filter="!@assistant-ui/api-surface"
           else
             pnpm install --frozen-lockfile
           fi
@@ -548,7 +548,7 @@ jobs:
             pnpm-workspace.yaml \
             turbo.json \
             packages/x-buildutils; then
-            pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/react-devtools..." --filter="...[$BASE]..."
+            pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/react-devtools..." --filter="...[$BASE]..." --filter="!@assistant-ui/api-surface"
           else
             pnpm install --frozen-lockfile
           fi
