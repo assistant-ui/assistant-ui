@@ -442,7 +442,20 @@ describe("compareSizes", () => {
         tools
           .filter((tool) => tool.tool === "pnpm")
           .map(({ cwd, args, CI }) => ({ cwd, args, CI })),
-      ).toEqual([{ cwd: baseRoot, args: ["install"], CI: "true" }]);
+      ).toEqual([
+        {
+          cwd: baseRoot,
+          args: [
+            "install",
+            "--filter=.",
+            "--filter=@assistant-ui/react-devtools...",
+            "--filter=@aui-test/gone...",
+            "--filter=@aui-test/kept...",
+            "--filter=@aui-test/same...",
+          ],
+          CI: "true",
+        },
+      ]);
       expect(builds[1]?.cwd).toBe(baseRoot);
       expect([...(builds[1]?.filters ?? [])].sort()).toEqual([
         "--filter=@aui-test/gone",
@@ -473,6 +486,65 @@ describe("compareSizes", () => {
       consoleOutput.restore();
     }
   });
+
+  it.each(["deleted", "private"])(
+    "installs the base graph when the only change is a %s package",
+    async (kind) => {
+      resetSizeMocks();
+      const consoleOutput = silenceConsole();
+      const head = realpathSync(mkdtempSync(join(tmpdir(), "aui-size-")));
+      const baseRoot = realpathSync(mkdtempSync(join(tmpdir(), "aui-size-")));
+      const bin = mkdtempSync(join(tmpdir(), "aui-size-bin-"));
+      const log = join(head, "tool-log.jsonl");
+      const report = join(head, "size.md");
+      try {
+        writePackage(head, "unaffected", { ".": "export const one = 1;\n" });
+        writePackage(baseRoot, "unaffected", {
+          ".": "export const one = 1;\n",
+        });
+        writePackage(baseRoot, "gone", { ".": "export const gone = 1;\n" });
+        if (kind === "private") {
+          writePackage(
+            head,
+            "gone",
+            { ".": "export const gone = 1;\n" },
+            { private: true },
+          );
+        }
+        writeToolStubs([head, baseRoot], [], log, bin);
+        sizeMocks.git.set("merge-base HEAD HEAD^1", "base");
+        sizeMocks.git.set("rev-parse HEAD^1", "head-parent");
+        sizeMocks.git.set("rev-parse --short base", "base123");
+        sizeMocks.stamp = { sha: "head123", dirty: false };
+        sizeMocks.git.set(
+          "diff --name-only base -- packages/*/package.json",
+          "packages/gone/package.json",
+        );
+        sizeMocks.refRoot = baseRoot;
+        vi.stubEnv("PATH", `${bin}${delimiter}${process.env["PATH"] ?? ""}`);
+
+        await compareSizes({ root: head, ref: "HEAD^1", report });
+
+        const install = readToolLog(log).find((tool) => tool.tool === "pnpm");
+        expect(install?.cwd).toBe(baseRoot);
+        expect(install?.args).toEqual([
+          "install",
+          "--filter=.",
+          "--filter=@assistant-ui/react-devtools...",
+          "--filter=@aui-test/gone...",
+        ]);
+        expect(readFileSync(report, "utf8")).toMatch(
+          /@aui-test\/gone.*removed/,
+        );
+      } finally {
+        vi.unstubAllEnvs();
+        rmSync(head, { recursive: true, force: true });
+        rmSync(baseRoot, { recursive: true, force: true });
+        rmSync(bin, { recursive: true, force: true });
+        consoleOutput.restore();
+      }
+    },
+  );
 
   it("skips the base checkout when no published package changed", async () => {
     resetSizeMocks();
