@@ -1,4 +1,10 @@
-import { useEffect, useId, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import type {
   AssistantRuntime,
   ChatModelAdapter,
@@ -12,7 +18,8 @@ import { useCloudThreadListAdapter } from "./cloud/useCloudThreadListAdapter";
 import { useRuntimeAdapters } from "./RuntimeAdapterProvider";
 import type { AssistantCloud } from "assistant-cloud";
 import { useReplaySafeEffect } from "@assistant-ui/store/internal";
-import { useIsServerRender } from "../utils/useIsServerRender";
+
+const subscribeNever = () => () => {};
 
 export type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
   cloud?: AssistantCloud | undefined;
@@ -24,6 +31,7 @@ export type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
 const useLocalThreadRuntime = (
   chatModel: ChatModelAdapter,
   { initialMessages, ...options }: LocalRuntimeOptions,
+  messageIdSeed: string | undefined,
 ): AssistantRuntime => {
   const { modelContext, ...threadListAdapters } = useRuntimeAdapters() ?? {};
   const opt = {
@@ -35,26 +43,25 @@ const useLocalThreadRuntime = (
     },
   };
 
-  const serverMessageIdSeed = useId();
-  const isServerRender = useIsServerRender();
   const [runtime] = useState(() => {
-    const messages = isServerRender
-      ? initialMessages?.map((message, index) => ({
-          ...message,
-          id: message.id ?? `${serverMessageIdSeed}-message-${index}`,
-          content:
-            typeof message.content === "string"
-              ? message.content
-              : message.content.map((part, partIndex) =>
-                  part.type === "tool-call" && !part.toolCallId
-                    ? {
-                        ...part,
-                        toolCallId: `${serverMessageIdSeed}-tool-${index}-${partIndex}`,
-                      }
-                    : part,
-                ),
-        }))
-      : initialMessages;
+    const messages =
+      messageIdSeed !== undefined
+        ? initialMessages?.map((message, index) => ({
+            ...message,
+            id: message.id ?? `${messageIdSeed}-message-${index}`,
+            content:
+              typeof message.content === "string"
+                ? message.content
+                : message.content.map((part, partIndex) =>
+                    part.type === "tool-call" && !part.toolCallId
+                      ? {
+                          ...part,
+                          toolCallId: `${messageIdSeed}-tool-${index}-${partIndex}`,
+                        }
+                      : part,
+                  ),
+          }))
+        : initialMessages;
     return new LocalRuntimeCore(opt, messages);
   });
 
@@ -136,10 +143,20 @@ export const useLocalRuntime = (
   chatModel: ChatModelAdapter,
   { cloud, ...options }: LocalRuntimeOptions = {},
 ): AssistantRuntime => {
+  const messageIdSeed = useId();
+  const isHydrating = useSyncExternalStore(
+    subscribeNever,
+    () => false,
+    () => true,
+  );
   const cloudAdapter = useCloudThreadListAdapter({ cloud });
   return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
-      return useLocalThreadRuntime(chatModel, options);
+      return useLocalThreadRuntime(
+        chatModel,
+        options,
+        isHydrating ? messageIdSeed : undefined,
+      );
     },
     adapter: cloudAdapter,
     allowNesting: true,

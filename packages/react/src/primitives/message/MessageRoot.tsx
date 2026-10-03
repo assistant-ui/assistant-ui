@@ -7,8 +7,6 @@ import {
   type ComponentPropsWithoutRef,
   type ForwardedRef,
   useCallback,
-  useId,
-  useSyncExternalStore,
 } from "react";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
@@ -22,20 +20,6 @@ import { parseCssLength } from "../thread/topAnchor/topAnchorUtils";
 type ThreadViewportStore = NonNullable<
   ReturnType<typeof useThreadViewportStore>
 >;
-
-const subscribeNever = () => () => {};
-const getSnapshot = () => false;
-const getServerSnapshot = () => true;
-
-const useHydrationSafeMessageId = (messageId: string) => {
-  const hydrationId = useId();
-  const isHydrating = useSyncExternalStore(
-    subscribeNever,
-    getSnapshot,
-    getServerSnapshot,
-  );
-  return isHydrating ? hydrationId : messageId;
-};
 
 const useIsHoveringRef = () => {
   const aui = useAui();
@@ -153,9 +137,8 @@ const MessagePrimitiveRootDefault = ({
   const isHoveringRef = useIsHoveringRef();
   const ref = useComposedRefs<HTMLDivElement>(forwardedRef, isHoveringRef);
   const messageId = useAuiState((s) => s.message.id);
-  const dataMessageId = useHydrationSafeMessageId(messageId);
 
-  return <Primitive.div {...props} ref={ref} data-message-id={dataMessageId} />;
+  return <Primitive.div {...props} ref={ref} data-message-id={messageId} />;
 };
 
 const MessagePrimitiveRootTopAnchor = ({
@@ -183,13 +166,12 @@ const MessagePrimitiveRootTopAnchor = ({
     topAnchorTargetRef,
   );
   const messageId = useAuiState((s) => s.message.id);
-  const dataMessageId = useHydrationSafeMessageId(messageId);
 
   return (
     <Primitive.div
       {...props}
       ref={ref}
-      data-message-id={dataMessageId}
+      data-message-id={messageId}
       data-aui-top-anchor-user={isTopAnchorUser ? "" : undefined}
       data-aui-top-anchor-target={isTopAnchorTarget ? "" : undefined}
     />

@@ -2,6 +2,7 @@
 
 import { act, render } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { hydrateRoot } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, expect, it, vi } from "vitest";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
@@ -117,6 +118,47 @@ it("prerenders a standalone local runtime without reading Math.random", () => {
   renderOnServer(<App onRuntime={() => {}} />);
 
   expect(random).not.toHaveBeenCalled();
+});
+
+it("hydrates nested local message and tool call ids", async () => {
+  const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+  let serverRuntime: AssistantRuntime | undefined;
+  const html = renderOnServer(
+    <Outer onRuntime={(runtime) => (serverRuntime = runtime)} />,
+  );
+  const serverMessages = serverRuntime!.thread.getState().messages;
+  expect(serverMessages.map(({ id }) => id)).toEqual([
+    expect.stringMatching(/-message-0$/),
+    expect.stringMatching(/-message-1$/),
+  ]);
+  const serverToolCall = serverMessages[1]!.content[1];
+  expect(serverToolCall).toMatchObject({
+    type: "tool-call",
+    toolCallId: expect.stringMatching(/-tool-1-1$/),
+  });
+
+  const container = document.createElement("div");
+  container.innerHTML = html;
+  let clientRuntime: AssistantRuntime | undefined;
+  let root: ReturnType<typeof hydrateRoot> | undefined;
+
+  try {
+    await act(async () => {
+      root = hydrateRoot(
+        container,
+        <Outer onRuntime={(runtime) => (clientRuntime = runtime)} />,
+      );
+    });
+
+    const clientMessages = clientRuntime!.thread.getState().messages;
+    expect(clientMessages.map(({ id }) => id)).toEqual(
+      serverMessages.map(({ id }) => id),
+    );
+    expect(clientMessages[1]!.content[1]).toEqual(serverToolCall);
+    expect(errors).not.toHaveBeenCalled();
+  } finally {
+    await act(async () => root?.unmount());
+  }
 });
 
 it("generates random initial message ids on the client", async () => {

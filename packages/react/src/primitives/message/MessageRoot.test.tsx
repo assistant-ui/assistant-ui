@@ -193,7 +193,7 @@ describe("MessagePrimitiveRoot", () => {
         .querySelector("[data-testid='hydration-message']")!
         .getAttribute("data-message-id");
 
-      expect(clientMessageId).not.toBe(serverMessageId);
+      expect(clientMessageId).toBe(serverMessageId);
       expect(domMessageId).toBe(clientMessageId);
       expect(
         errors.mock.calls.some((args) =>
