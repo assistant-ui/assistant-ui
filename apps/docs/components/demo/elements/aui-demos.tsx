@@ -446,12 +446,13 @@ const heatGraphData = Array.from({ length: 112 }, (_, index) => ({
   date: new Date(2026, 0, index + 1),
   count: (index * 7 + Math.floor(index / 9)) % 18,
 }));
+const heatGraphEnd = heatGraphData.at(-1)!.date;
 
 export function AuiHeatGraphDemo() {
   return (
     <DemoSurface>
       <div className="w-full max-w-2xl min-w-125 scale-[0.82]">
-        <HeatGraph data={heatGraphData} />
+        <HeatGraph data={heatGraphData} end={heatGraphEnd} />
       </div>
     </DemoSurface>
   );
