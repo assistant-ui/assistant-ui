@@ -40,8 +40,8 @@ const App = ({
   onRender,
 }: {
   onRuntime: (runtime: AssistantRuntime) => void;
-  messages?: readonly ThreadMessageLike[];
-  onRender?: () => void;
+  messages?: readonly ThreadMessageLike[] | undefined;
+  onRender?: (() => void) | undefined;
 }) => {
   const runtime = useLocalRuntime(chatModel, { initialMessages: messages });
   onRender?.();
@@ -59,8 +59,8 @@ const Outer = ({
   onRender,
 }: {
   onRuntime: (runtime: AssistantRuntime) => void;
-  messages?: readonly ThreadMessageLike[];
-  onRender?: () => void;
+  messages?: readonly ThreadMessageLike[] | undefined;
+  onRender?: (() => void) | undefined;
 }) => {
   const host = useExternalStoreRuntime<ThreadMessage>({
     messages: [],
