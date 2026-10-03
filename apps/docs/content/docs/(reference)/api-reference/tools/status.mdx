@@ -15,7 +15,9 @@ description: Read tool arguments, execution status, and result state inside assi
 ### useToolArgsStatus
 
 Reads whether each argument field for the current tool-call message part is
-still streaming or complete.
+still streaming or complete. `allPropsStatus` also accounts for fields that
+have not arrived yet: an empty `propStatus` does not mean the object is done.
+Arguments can be complete while `status` is still `"running"` during execution.
 
 Use inside a tool-call renderer to avoid showing incomplete argument values
 as final.
