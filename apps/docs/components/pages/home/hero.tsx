@@ -3,7 +3,7 @@
 import { Fragment } from "react";
 import { analytics } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
-import { StartSetupDialog } from "@/components/shared/start-setup-dialog";
+import { SetupWithButton } from "@/components/shared/setup-with-button";
 import { GitHubStars } from "@/components/pages/home/github-stars";
 import { NpmDownloads } from "@/components/pages/home/npm-downloads";
 import { typeDeck, typeHero } from "@/components/shared/type";
@@ -69,7 +69,7 @@ export function Hero({
           style={{ animationDelay: "700ms" }}
         >
           {checkoutEnabled ? (
-            <StartSetupDialog location="hero">Quick Start</StartSetupDialog>
+            <SetupWithButton location="hero" />
           ) : (
             <Button
               nativeButton={false}
