@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "node ../../scripts/prepare-example-bundles.mjs --dev && next dev",
     "build": "pnpm generate:source-snapshot && node ../../scripts/prepare-example-bundles.mjs && next build && pnpm verify:repo-source-traces",
+    "build:brand-kit": "tsx ./scripts/build-brand-kit.mts",
     "generate:type-docs": "tsx ./scripts/generate-type-docs.mts",
     "generate:api-reference": "tsx ./scripts/generate-api-reference.mts",
     "generate:agent-skills": "tsx ./scripts/generate-agent-skills.mts",
@@ -131,6 +132,7 @@
     "postcss": "^8.5.28",
     "react-grab": "^0.2.0",
     "redis": "^6.3.0",
+    "sharp": "^0.35.5",
     "tailwindcss": "^4.3.3",
     "ts-morph": "^28.0.0",
     "tsx": "^4.23.15",
