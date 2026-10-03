@@ -3,6 +3,7 @@ import type { ThreadRuntimeEventType } from "../../runtime/interfaces/thread-run
 import type {
   CreateAppendMessage,
   ThreadRuntime,
+  ThreadListItemRuntimeBinding,
 } from "../../runtime/api/thread-runtime";
 import { useMemo, useEffect, useCallback, type RefObject } from "react";
 import { useResource, resource, withKey } from "@assistant-ui/tap";
@@ -54,10 +55,13 @@ const MessageClientById = resource(useMessageClientById);
 
 const useThreadClient = ({
   runtime,
+  threadListItem,
 }: {
   runtime: ThreadRuntime;
+  threadListItem: ThreadListItemRuntimeBinding;
 }): ClientOutput<"thread"> => {
   const runtimeState = useSubscribable(runtime);
+  const threadListItemState = useSubscribable(threadListItem);
   const emit = useAssistantEmit();
 
   useEffect(() => {
@@ -72,7 +76,7 @@ const useThreadClient = ({
 
     for (const event of threadEvents) {
       const unsubscribe = runtime.unstable_on(event, () => {
-        const threadId = runtime.getState()?.threadId || "unknown";
+        const threadId = threadListItem.getState()?.id || "unknown";
         emit(`thread.${event}`, {
           threadId,
         });
@@ -82,7 +86,7 @@ const useThreadClient = ({
 
     unsubscribers.push(
       runtime.unstable_on("historyWriteError", (payload) => {
-        const threadId = runtime.getState()?.threadId || "unknown";
+        const threadId = threadListItem.getState()?.id || "unknown";
         // payload.error omitted: raw Error is not store-serializable; use runtime.unstable_on for it.
         emit("thread.historyWriteError", {
           threadId,
@@ -92,22 +96,22 @@ const useThreadClient = ({
         });
       }),
       runtime.unstable_on("toolApprovalAnswered", (payload) => {
-        const threadId = runtime.getState()?.threadId || "unknown";
+        const threadId = threadListItem.getState()?.id || "unknown";
         emit("thread.toolApprovalAnswered", { threadId, ...payload });
       }),
     );
 
     return () => runCleanups(unsubscribers);
-  }, [runtime, emit]);
+  }, [runtime, threadListItem, emit]);
 
   const threadIdRef = useMemo(
-    () => liveRef(() => runtime.getState()!.threadId),
-    [runtime],
+    () => liveRef(() => threadListItem.getState().id),
+    [threadListItem],
   );
   const emitThreadEvent = (
     event: "thread.cancelRun" | "thread.voiceStarted",
   ) => {
-    emit(event, { threadId: runtime.getState()!.threadId });
+    emit(event, { threadId: threadListItem.getState().id });
   };
   const isSuggestion = useCallback(
     (text: string) =>
@@ -160,10 +164,10 @@ const useThreadClient = ({
           runtime,
           id: m.id,
           threadIdRef,
-          threadId: runtimeState.threadId,
+          threadId: threadListItemState.id,
           isLast,
         }),
-        [runtime, m.id, threadIdRef, runtimeState.threadId, isLast],
+        [runtime, m.id, threadIdRef, threadListItemState.id, isLast],
       );
     }),
     ...pending.map((row, index) =>
@@ -226,7 +230,7 @@ const useThreadClient = ({
           .map((part) => (part.type === "text" ? part.text : ""))
           .join("");
         emit("composer.send", {
-          threadId: runtime.getState()!.threadId,
+          threadId: threadListItem.getState().id,
           chars: text.length,
           attachments: appended.attachments?.length ?? 0,
           ...(isSuggestion(text) ? { suggestion: true } : undefined),

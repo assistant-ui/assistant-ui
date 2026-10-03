@@ -133,7 +133,7 @@ describe("thread switch events", () => {
 
     await waitFor(() =>
       expect(listener).toHaveBeenCalledExactlyOnceWith({
-        threadId: runtime.thread.getState().threadId,
+        threadId: runtime.threads.mainItem.getState().id,
         operation: "append",
         messageIds: [runtime.thread.getState().messages[0]!.id],
         message: error.message,
@@ -459,18 +459,20 @@ describe("ThreadListRuntime.getById", () => {
 
     const threadB = runtime.threads.getById(threadBId);
     expect(threadB.getState()).toMatchObject({
-      threadId: threadBId,
       messages: [{ id: "message-b" }],
-      metadata: {
-        id: threadBId,
-        remoteId: "thread-b",
-        title: "B",
-        isMain: false,
-      },
+    });
+    expect(runtime.threads.getItemById(threadBId).getState()).toMatchObject({
+      id: threadBId,
+      remoteId: "thread-b",
+      title: "B",
+      isMain: false,
     });
     expect(runtime.thread.getState()).toMatchObject({
       messages: [{ id: "message-a" }],
-      metadata: { remoteId: "thread-a", isMain: true },
+    });
+    expect(runtime.threads.mainItem.getState()).toMatchObject({
+      remoteId: "thread-a",
+      isMain: true,
     });
 
     let observed = threadB.getState();
@@ -482,21 +484,25 @@ describe("ThreadListRuntime.getById", () => {
         await runtime.threads.getItemById(threadBId).rename("Renamed B");
       });
       expect(observed).toMatchObject({
-        threadId: threadBId,
         messages: [{ id: "message-b" }],
-        metadata: { title: "Renamed B", isMain: false },
+      });
+      expect(runtime.threads.getItemById(threadBId).getState()).toMatchObject({
+        title: "Renamed B",
+        isMain: false,
       });
 
       await switchTo(runtime, "thread-b");
-      expect(observed.metadata).toMatchObject({
+      expect(runtime.threads.mainItem.getState()).toMatchObject({
         title: "Renamed B",
         isMain: true,
       });
       await switchTo(runtime, "thread-a");
       expect(observed).toMatchObject({
-        threadId: threadBId,
         messages: [{ id: "message-b" }],
-        metadata: { title: "Renamed B", isMain: false },
+      });
+      expect(runtime.threads.getItemById(threadBId).getState()).toMatchObject({
+        title: "Renamed B",
+        isMain: false,
       });
     } finally {
       unsubscribe();

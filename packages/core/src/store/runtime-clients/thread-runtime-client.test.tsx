@@ -41,6 +41,11 @@ const renderThreadClient = (
   core: ExternalStoreThreadRuntimeCore,
   configureRuntime?: (runtime: ThreadRuntimeImpl) => void,
 ) => {
+  const threadListItemBinding = {
+    path,
+    getState: () => threadListItem,
+    subscribe: () => () => {},
+  };
   const runtime = new ThreadRuntimeImpl(
     {
       path,
@@ -48,17 +53,18 @@ const renderThreadClient = (
       subscribe: (callback) => core.subscribe(callback),
       outerSubscribe: (callback) => core.subscribe(callback),
     },
-    {
-      path,
-      getState: () => threadListItem,
-      subscribe: () => () => {},
-    },
+    threadListItemBinding,
   );
   configureRuntime?.(runtime);
   const captured: { current: AssistantClient | null } = { current: null };
   const App = () => (
     <AuiProvider
-      config={AuiConfig({ thread: ThreadClient({ runtime }) })}
+      config={AuiConfig({
+        thread: ThreadClient({
+          runtime,
+          threadListItem: threadListItemBinding,
+        }),
+      })}
       ref={(client: AssistantClient | null) => {
         captured.current = client;
       }}

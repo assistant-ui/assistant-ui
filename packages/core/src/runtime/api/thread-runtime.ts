@@ -140,19 +140,6 @@ export type ThreadListItemRuntimeBinding = SubscribableWithState<
 
 export type ThreadRuntimeState = {
   /**
-   * The thread ID.
-   * @deprecated This field is deprecated and will be removed in 0.12.0. Use `useThreadListItem().id` instead.
-   */
-  readonly threadId: string;
-
-  /**
-   * The thread metadata.
-   *
-   * @deprecated Use `useThreadListItem()` instead. This field is deprecated and will be removed in 0.12.0.
-   */
-  readonly metadata: ThreadListItemRuntimeState;
-
-  /**
    * Whether the thread is disabled. Disabled threads cannot receive new messages.
    */
   readonly isDisabled: boolean;
@@ -223,11 +210,8 @@ export const getThreadRuntimeCoreIsRunning = (
 
 export const getThreadState = (
   runtime: ThreadRuntimeCore,
-  threadListItemState: ThreadListItemRuntimeState,
 ): ThreadRuntimeState => {
   return Object.freeze({
-    threadId: threadListItemState.id,
-    metadata: threadListItemState,
     capabilities: runtime.capabilities,
     isDisabled: runtime.isDisabled,
     isLoading: runtime.isLoading,
@@ -370,11 +354,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
   ) {
     const stateBinding = new ShallowMemoizeSubject({
       path: threadBinding.path,
-      getState: () =>
-        getThreadState(
-          threadBinding.getState(),
-          threadListItemBinding.getState(),
-        ),
+      getState: () => getThreadState(threadBinding.getState()),
       subscribe: (callback) => {
         const sub1 = threadBinding.subscribe(callback);
         const sub2 = threadListItemBinding.subscribe(callback);

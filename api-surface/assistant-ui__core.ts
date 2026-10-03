@@ -4671,6 +4671,7 @@ type ThreadAssistantMessagePart = TextMessagePart | ReasoningMessagePart | ToolC
 declare const ThreadClient: Resource<ClientOutput<"thread">, [
   {
     runtime: ThreadRuntime;
+    threadListItem: ThreadListItemRuntimeBinding;
   }
 ]>;
 
@@ -5530,8 +5531,6 @@ type ThreadRuntimePath = {
 };
 
 type ThreadRuntimeState = {
-  readonly threadId: string;
-  readonly metadata: ThreadListItemRuntimeState;
   readonly isDisabled: boolean;
   readonly isLoading: boolean;
   readonly isRunning: boolean;
@@ -6466,7 +6465,7 @@ declare const getThreadData: (state: RemoteThreadState, threadIdOrRemoteId: stri
 
 declare const getThreadMessageText: (message: ThreadMessage | AppendMessage) => string;
 
-declare const getThreadState: (runtime: ThreadRuntimeCore, threadListItemState: ThreadListItemRuntimeState) => ThreadRuntimeState;
+declare const getThreadState: (runtime: ThreadRuntimeCore) => ThreadRuntimeState;
 
 declare global {
   interface Window {
