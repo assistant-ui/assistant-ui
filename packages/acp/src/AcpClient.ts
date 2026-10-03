@@ -122,6 +122,7 @@ export class AcpClient {
   private disposed = false;
   private cancelSent = false;
   private lostSessionId: string | undefined;
+  private loadingSessionId: string | undefined;
   private readonly explicitPermissionHandler: boolean;
   private readonly sessionUpdateListeners = new Set<AcpSessionUpdateListener>();
   private readonly connectionListeners = new Set<AcpConnectionListener>();
@@ -369,10 +370,7 @@ export class AcpClient {
   private async doNewSession(): Promise<string> {
     await this.connect();
     const lost = this.lostSessionId;
-    if (lost !== undefined) {
-      this.lostSessionId = undefined;
-      return this.reloadSession(lost);
-    }
+    if (lost !== undefined) return this.reloadSession(lost);
     const result = await this.request<{ sessionId: string }>("session/new", {
       cwd: this.options.cwd ?? "/",
       mcpServers: this.options.mcpServers ?? [],
@@ -386,7 +384,12 @@ export class AcpClient {
    * A dropped connection leaves the agent without the transcript the UI still
    * shows, so a reconnect must not quietly continue it. `session/load` restores
    * the session when the agent advertises it; otherwise the caller gets an
-   * error it can turn into a "start a new thread" prompt.
+   * error it can turn into a "start a new thread" prompt. The lost id survives a
+   * failed attempt, so every later one keeps refusing instead of forking.
+   *
+   * The agent answers `session/load` only after replaying the whole transcript
+   * as `session/update` notifications. That replay is history the thread state
+   * already holds, so it is dropped instead of streaming into the next reply.
    */
   private async reloadSession(sessionId: string): Promise<string> {
     const unusable = (reason: string) =>
@@ -397,6 +400,7 @@ export class AcpClient {
     if (!this.agentCapabilities?.loadSession) {
       throw unusable("the agent does not support session/load");
     }
+    this.loadingSessionId = sessionId;
     try {
       await this.request("session/load", {
         sessionId,
@@ -405,8 +409,11 @@ export class AcpClient {
       });
     } catch (error) {
       throw unusable(`session/load failed: ${toError(error).message}`);
+    } finally {
+      this.loadingSessionId = undefined;
     }
     this._sessionId = sessionId;
+    this.lostSessionId = undefined;
     this.emitConnectionChange();
     return sessionId;
   }
@@ -506,6 +513,7 @@ export class AcpClient {
 
   private handleNotification(msg: any): void {
     if (msg.method !== "session/update") return;
+    if (this.loadingSessionId !== undefined) return;
     const params = msg.params as
       | { sessionId: string; update: AcpSessionUpdate }
       | undefined;

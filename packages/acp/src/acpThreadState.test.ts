@@ -173,42 +173,6 @@ describe("reduceAcpThreadState", () => {
     expect(state.permissions).toEqual({});
   });
 
-  it("loads an exported repository and keeps parent links", () => {
-    const createdAt = new Date(0);
-    const state = reduceAcpThreadState(createAcpThreadState(), {
-      type: "load-complete",
-      headId: "a1",
-      items: [
-        {
-          parentId: null,
-          message: {
-            id: "u1",
-            role: "user",
-            createdAt,
-            content: [{ type: "text", text: "hi" }],
-            metadata: { unstable_data: [], unstable_annotations: [] },
-          } as never,
-        },
-        {
-          parentId: "u1",
-          message: {
-            id: "a1",
-            role: "assistant",
-            createdAt,
-            status: { type: "complete", reason: "stop" },
-            content: [{ type: "text", text: "hello" }],
-            metadata: { unstable_data: [], unstable_annotations: [] },
-          } as never,
-        },
-      ],
-    });
-    expect(state.loadState).toEqual({ type: "ready" });
-    expect(state.messageOrder).toEqual(["u1", "a1"]);
-    expect(state.headId).toBe("a1");
-    expect(state.messagesById["a1"]!.parentId).toBe("u1");
-    expect(state.messagesById["u1"]!.parentId).toBeNull();
-  });
-
   it("streams agent text into the running assistant message", () => {
     let state = running(createAcpThreadState());
     state = reduceAcpThreadState(state, {

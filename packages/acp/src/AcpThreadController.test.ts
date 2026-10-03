@@ -1,9 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type {
-  AppendMessage,
-  ThreadHistoryAdapter,
-  ThreadMessage,
-} from "@assistant-ui/core";
+import type { AppendMessage, ThreadMessage } from "@assistant-ui/core";
 import { AcpThreadController } from "./AcpThreadController";
 import { AcpClient, type AcpWebSocketLike } from "./AcpClient";
 import { filterPromptBlocks } from "./conversions";
@@ -173,26 +169,6 @@ const toolStatus = (c: AcpThreadController, toolCallId = "t1") => {
     (p) => p.type === "tool-call" && p.toolCallId === toolCallId,
   );
   return part?.type === "tool-call" ? part : undefined;
-};
-
-type FakeHistory = ThreadHistoryAdapter & {
-  appended: unknown[];
-  loadCalls: number;
-};
-
-const historyAdapter = (): FakeHistory => {
-  const adapter = {
-    appended: [] as unknown[],
-    loadCalls: 0,
-    load: async () => {
-      adapter.loadCalls += 1;
-      return { messages: [] as never[], headId: null };
-    },
-    append: async (item: unknown) => {
-      adapter.appended.push(item);
-    },
-  };
-  return adapter as unknown as FakeHistory;
 };
 
 let client: FakeClient;
@@ -529,51 +505,6 @@ describe("AcpThreadController", () => {
     expect(client.prompts).toHaveLength(2);
   });
 
-  it("loads history and records new messages through the adapter", async () => {
-    const history = historyAdapter();
-    const c = controller(client, { history });
-    await c.attach();
-    await c.load();
-
-    await c.append(userAppend("persist"));
-    expect(history.appended).toHaveLength(2);
-    const [userItem, assistantItem] = history.appended as [
-      { parentId: string | null; message: ThreadMessage },
-      { parentId: string | null; message: ThreadMessage },
-    ];
-    expect(userItem.parentId).toBeNull();
-    expect(userItem.message.role).toBe("user");
-    expect(assistantItem.parentId).toBe(userItem.message.id);
-    expect(assistantItem.message.role).toBe("assistant");
-  });
-
-  it("reloads when a history adapter is supplied later", async () => {
-    const c = controller(client);
-    await c.attach();
-    await c.load();
-    expect(c.getState().messageOrder).toEqual([]);
-
-    const history = historyAdapter();
-    await c.updateOptions({ client: asClient(client), history });
-    await c.load();
-    expect(history.loadCalls).toBe(1);
-  });
-
-  it("routes a history load rejection through onError", async () => {
-    const onError = vi.fn();
-    const history: ThreadHistoryAdapter = {
-      load: async () => {
-        throw new Error("history unavailable");
-      },
-    } as never;
-    const c = controller(client, { history, onError });
-    await c.attach();
-    await c.load();
-
-    expect(onError).toHaveBeenCalledWith(new Error("history unavailable"));
-    expect(c.getState().loadState).toEqual({ type: "ready" });
-  });
-
   it("replaces thread state from external messages", async () => {
     const c = controller(client);
     await c.attach();
@@ -703,9 +634,8 @@ describe("AcpThreadController", () => {
     await done;
   });
 
-  it("cancels the remote turn and persists it when detaching mid-run", async () => {
-    const history = historyAdapter();
-    const c = controller(client, { history });
+  it("cancels the remote turn when detaching mid-run", async () => {
+    const c = controller(client);
     await c.attach();
     await c.load();
 
@@ -717,14 +647,11 @@ describe("AcpThreadController", () => {
       content: { type: "text", text: "partial" },
     });
     expect(client.cancelCalls).toBe(0);
-    expect(history.appended).toHaveLength(1);
 
     await c.detach();
 
     expect(client.cancelCalls).toBe(1);
-    const persisted = history.appended.at(-1) as { message: ThreadMessage };
-    expect(persisted.message.role).toBe("assistant");
-    expect(persisted.message.status).toEqual({
+    expect(assistantOf(c).status).toEqual({
       type: "incomplete",
       reason: "cancelled",
     });
@@ -820,30 +747,6 @@ describe("AcpThreadController", () => {
       "prompt:send",
       "prompt:settled",
     ]);
-  });
-
-  it("loads a history adapter that replaces the one captured mid-load", async () => {
-    let releaseFirst!: () => void;
-    const first = {
-      load: () =>
-        new Promise((resolve) => {
-          releaseFirst = () => resolve({ messages: [], headId: null });
-        }),
-    } as never as ThreadHistoryAdapter;
-    const c = controller(client, { history: first });
-    await c.attach();
-    const firstLoad = c.load();
-    await flush();
-
-    const second = historyAdapter();
-    await c.updateOptions({ client: asClient(client), history: second });
-    const secondLoad = c.load();
-
-    releaseFirst();
-    await firstLoad;
-    await secondLoad;
-
-    expect(second.loadCalls).toBe(1);
   });
 
   it("sends composer attachments to the agent and keeps them in the transcript", async () => {

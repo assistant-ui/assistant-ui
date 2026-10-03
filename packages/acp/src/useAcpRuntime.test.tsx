@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { StrictMode, act, createElement } from "react";
+import { StrictMode, act, createElement, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
 const { tracked } = vi.hoisted(() => ({
@@ -31,7 +31,14 @@ vi.mock("./AcpClient", async (importOriginal) => {
   return { ...actual, AcpClient: TrackedAcpClient };
 });
 
-import type { AssistantRuntime } from "@assistant-ui/core";
+import type {
+  AssistantRuntime,
+  ThreadHistoryAdapter,
+} from "@assistant-ui/core";
+import {
+  RuntimeAdapterProvider,
+  type RuntimeAdapters,
+} from "@assistant-ui/core/react";
 import { AcpClient, cancelPermissionHandler } from "./AcpClient";
 import { useAcpRuntime } from "./useAcpRuntime";
 
@@ -44,24 +51,33 @@ let root: Root | undefined;
 const renderRuntime = (
   props: Parameters<typeof useAcpRuntime>[0],
   strict = false,
+  contextAdapters?: RuntimeAdapters,
 ) => {
   const runtimes: unknown[] = [];
   const Probe = (p: Parameters<typeof useAcpRuntime>[0]) => {
     runtimes.push(useAcpRuntime(p));
     return null;
   };
+  const wrap = (element: ReactElement) => {
+    const provided = contextAdapters ? (
+      <RuntimeAdapterProvider adapters={contextAdapters}>
+        {element}
+      </RuntimeAdapterProvider>
+    ) : (
+      element
+    );
+    return strict ? createElement(StrictMode, null, provided) : provided;
+  };
   const container = document.createElement("div");
   root = createRoot(container);
-  const element = createElement(Probe, props);
   act(() => {
-    root!.render(strict ? createElement(StrictMode, null, element) : element);
+    root!.render(wrap(createElement(Probe, props)));
   });
   return {
     runtimes,
     rerender(next: Parameters<typeof useAcpRuntime>[0]) {
-      const el = createElement(Probe, next);
       act(() => {
-        root!.render(strict ? createElement(StrictMode, null, el) : el);
+        root!.render(wrap(createElement(Probe, next)));
       });
     },
   };
@@ -191,6 +207,41 @@ describe("useAcpRuntime", () => {
     expect(capabilities.cancel).toBe(true);
     expect(capabilities.edit).toBe(false);
     expect(capabilities.reload).toBe(false);
+  });
+
+  it("leaves a thread-list history adapter alone", async () => {
+    const load = vi.fn(async () => ({
+      headId: "m1",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "m1",
+            role: "user",
+            createdAt: new Date(0),
+            content: [{ type: "text", text: "restored" }],
+            metadata: {
+              custom: {},
+              unstable_data: [],
+              unstable_annotations: [],
+            },
+          },
+        },
+      ],
+    }));
+    const history = {
+      load,
+      append: async () => {},
+    } as unknown as ThreadHistoryAdapter;
+
+    const { runtimes } = renderRuntime(baseProps, false, { history });
+    await flushTimers();
+
+    expect(load).not.toHaveBeenCalled();
+    const { messages } = (
+      runtimes.at(-1) as AssistantRuntime
+    ).thread.getState();
+    expect(messages).toEqual([]);
   });
 
   it("throws when neither client nor url is provided", () => {

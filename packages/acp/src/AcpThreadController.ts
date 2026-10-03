@@ -4,7 +4,6 @@ import {
   type AppendMessage,
   type MessageStatus,
   type RespondToToolApprovalOptions,
-  type ThreadHistoryAdapter,
   type ThreadMessage,
   type ThreadMessageLike,
 } from "@assistant-ui/core";
@@ -16,7 +15,6 @@ import {
   stopReasonToMessageStatus,
   threadContentToAcpBlocks,
 } from "./conversions";
-import { toThreadMessage } from "./acpMessageProjection";
 import {
   createAcpThreadState,
   reduceAcpThreadState,
@@ -43,7 +41,6 @@ export type AcpThreadControllerOptions = {
   autoConnect?: boolean | undefined;
   onError?: ((error: Error) => void) | undefined;
   onCancel?: (() => void) | undefined;
-  history?: ThreadHistoryAdapter | undefined;
 };
 
 export type AcpThreadControllerLike = {
@@ -76,7 +73,6 @@ type PendingPermission = {
 };
 
 type ClaimedRun = {
-  assistant: AcpAssistantMessage;
   token: number;
   prompt: Promise<AcpStopReason>;
 };
@@ -85,17 +81,13 @@ export class AcpThreadController implements AcpThreadControllerLike {
   private state: AcpThreadState;
   private readonly listeners = new Set<() => void>();
   private readonly pendingPermissions = new Map<string, PendingPermission>();
-  private readonly recordedHistoryIds = new Set<string>();
   private client: AcpClient;
   private permissionsMode: AcpPermissionsMode;
   private autoConnect: boolean;
   private onError: ((error: Error) => void) | undefined;
   private onCancel: (() => void) | undefined;
-  private history: ThreadHistoryAdapter | undefined;
   private loadPromise: Promise<void> | undefined;
   private hasLoaded = false;
-  private loadedHistory: ThreadHistoryAdapter | undefined;
-  private loadingHistory: ThreadHistoryAdapter | undefined;
   private runToken = 0;
   private permissionCounter = 0;
   private attached = false;
@@ -127,7 +119,6 @@ export class AcpThreadController implements AcpThreadControllerLike {
     this.autoConnect = options.autoConnect ?? true;
     this.onError = options.onError;
     this.onCancel = options.onCancel;
-    this.history = options.history;
     this.state = createAcpThreadState();
   }
 
@@ -177,7 +168,6 @@ export class AcpThreadController implements AcpThreadControllerLike {
     this.runToken += 1;
     await this.settlePermissions();
     if (this.state.run.type === "running") {
-      const assistantId = this.state.run.assistantId;
       this.dispatch({
         type: "run-end",
         status: { type: "incomplete", reason: "cancelled" },
@@ -187,7 +177,6 @@ export class AcpThreadController implements AcpThreadControllerLike {
       } catch {
         // an unsendable cancel must not reject teardown
       }
-      await this.persistAssistantHistory(assistantId);
     }
     this.hasLoaded = false;
   }
@@ -200,19 +189,13 @@ export class AcpThreadController implements AcpThreadControllerLike {
     this.autoConnect = options.autoConnect ?? true;
     this.onError = options.onError;
     this.onCancel = options.onCancel;
-    this.history = options.history;
     if (clientChanged) await this.attach();
   }
 
   async load(): Promise<void> {
-    if (this.loadPromise) {
-      return this.loadingHistory === this.history
-        ? this.loadPromise
-        : this.loadPromise.then(() => this.load());
-    }
-    if (this.hasLoaded && this.loadedHistory === this.history) return;
+    if (this.loadPromise) return this.loadPromise;
+    if (this.hasLoaded) return;
     this.dispatch({ type: "load-start" });
-    this.loadingHistory = this.history;
     this.loadPromise = this.doLoad().finally(() => {
       this.loadPromise = undefined;
     });
@@ -223,14 +206,12 @@ export class AcpThreadController implements AcpThreadControllerLike {
     const startRun = message.startRun ?? message.role === "user";
     const userMessage = this.toUserMessage(message);
     this.dispatch({ type: "append-message", message: userMessage });
-    await this.recordHistory(userMessage.parentId, userMessage);
     if (!startRun) return;
     await this.run(userMessage.id);
   }
 
   async cancel(): Promise<void> {
     if (this.state.run.type !== "running") return;
-    const assistantId = this.state.run.assistantId;
     this.runToken += 1;
     await this.settlePermissions();
     this.dispatch({
@@ -239,7 +220,6 @@ export class AcpThreadController implements AcpThreadControllerLike {
     });
     await this.client.cancel();
     invokeUserCallback("acp", "onCancel", this.onCancel);
-    await this.persistAssistantHistory(assistantId);
   }
 
   async respondToApproval(
@@ -279,8 +259,6 @@ export class AcpThreadController implements AcpThreadControllerLike {
       converted.push(toAcpThreadMessage(message, parentId));
       parentId = message.id;
     }
-    this.recordedHistoryIds.clear();
-    for (const id of seen) this.recordedHistoryIds.add(id);
     this.dispatch({
       type: "replace-messages",
       messages: converted,
@@ -331,48 +309,23 @@ export class AcpThreadController implements AcpThreadControllerLike {
     );
   }
 
+  /**
+   * Connects and marks the thread ready. The transcript is not restored from
+   * storage: the agent owns the conversation, and a UI that shows messages the
+   * agent has no context for would silently fork it.
+   */
   private async doLoad(): Promise<void> {
-    const history = this.history;
-    const connect = this.autoConnect
-      ? this.client.connect().then(
-          () => {
-            this.dispatch(this.connectionEvent("connected"));
-          },
-          (error: unknown) => {
-            this.dispatch(this.connectionEvent("disconnected"));
-            this.reportError(error);
-          },
-        )
-      : Promise.resolve(undefined);
-
-    const loaded = history
-      ? history.load().then(
-          (repository) => repository,
-          (error: unknown) => {
-            this.reportError(error);
-            return null;
-          },
-        )
-      : Promise.resolve(null);
-
-    const [repository] = await Promise.all([loaded, connect]);
-
+    if (this.autoConnect) {
+      try {
+        await this.client.connect();
+        this.dispatch(this.connectionEvent("connected"));
+      } catch (error) {
+        this.dispatch(this.connectionEvent("disconnected"));
+        this.reportError(error);
+      }
+    }
     this.hasLoaded = true;
-    this.loadedHistory = history;
-
-    if (!repository) {
-      this.dispatch({ type: "load-ready" });
-      return;
-    }
-    this.recordedHistoryIds.clear();
-    for (const { message } of repository.messages) {
-      this.recordedHistoryIds.add(message.id);
-    }
-    this.dispatch({
-      type: "load-complete",
-      items: repository.messages,
-      headId: repository.headId ?? null,
-    });
+    this.dispatch({ type: "load-ready" });
   }
 
   private async settleSupersededPrompt(): Promise<void> {
@@ -454,7 +407,7 @@ export class AcpThreadController implements AcpThreadControllerLike {
     if (dropped.length > 0) this.reportDroppedBlocks(dropped);
     const prompt = this.client.prompt(blocks);
     this.inflightPrompt = prompt;
-    return { assistant, token, prompt };
+    return { token, prompt };
   }
 
   private async run(userMessageId: string): Promise<void> {
@@ -462,7 +415,7 @@ export class AcpThreadController implements AcpThreadControllerLike {
       this.claimRun(userMessageId),
     );
     if (!claimed) return;
-    const { assistant, token, prompt } = claimed;
+    const { token, prompt } = claimed;
 
     let status: MessageStatus;
     try {
@@ -478,7 +431,6 @@ export class AcpThreadController implements AcpThreadControllerLike {
 
     await this.settlePermissions();
     this.dispatch({ type: "run-end", status });
-    await this.persistAssistantHistory(assistant.id);
   }
 
   private toUserMessage(message: AppendMessage): AcpUserMessage {
@@ -506,31 +458,6 @@ export class AcpThreadController implements AcpThreadControllerLike {
       attachments:
         threadMessage.role === "user" ? threadMessage.attachments : [],
     };
-  }
-
-  private async recordHistory(
-    parentId: string | null,
-    message: AcpThreadMessage,
-  ): Promise<void> {
-    const history = this.history;
-    if (!history || this.recordedHistoryIds.has(message.id)) return;
-    this.recordedHistoryIds.add(message.id);
-    try {
-      await history.append({ parentId, message: toThreadMessage(message) });
-    } catch {
-      this.recordedHistoryIds.delete(message.id);
-    }
-  }
-
-  private async persistAssistantHistory(assistantId: string): Promise<void> {
-    const message = this.state.messagesById[assistantId];
-    if (message?.role !== "assistant") return;
-    if (
-      message.status.type !== "complete" &&
-      message.status.type !== "incomplete"
-    )
-      return;
-    await this.recordHistory(message.parentId, message);
   }
 }
 

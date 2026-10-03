@@ -55,8 +55,6 @@ export function App() {
 | `webSocketFactory` | Inject a custom WebSocket implementation (tests, proxies).                   |
 | `onError`          | Error callback (connection failures, prompt errors).                         |
 | `onCancel`         | Called after a run has been cancelled.                                       |
-| `adapters.history` | Persist/restore the UI transcript. Restoring a transcript is the adapter's    |
-|                    | job; `session/load` is only used to recover a session the socket dropped.     |
 
 ### Bringing your own `AcpClient`
 
@@ -125,10 +123,14 @@ leaving the agent holding every turn the UI replaced, so the runtime wires
 neither `onEdit` nor `onReload` and both actions stay disabled. Fork-and-replay
 support belongs in a follow-up.
 
-**Restoring a transcript does not restore the agent's context.**
-`adapters.history` rebuilds the UI transcript, but the next turn starts from a
-fresh `session/new`, so the agent sees none of it. Replaying a stored transcript
-into an agent that supports `session/load` is not wired up yet.
+**There is no history adapter: the agent owns the transcript.**
+`useAcpRuntime` takes no `adapters.history` and ignores one a thread list
+provides through `RuntimeAdapterProvider`. A transcript restored from storage
+would put messages on screen that the next `session/new` knows nothing about, so
+the agent would answer from an empty context while the user reads a full
+conversation. Persisting the ACP `sessionId` with the thread and restoring it
+with `session/load` is what makes a restored thread real; it belongs in a
+follow-up.
 
 **A dropped connection cannot silently continue the thread.**
 The agent loses the session when the socket goes away. On reconnect the client

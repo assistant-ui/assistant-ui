@@ -1,6 +1,5 @@
 import type {
   CompleteAttachment,
-  ExportedMessageRepositoryItem,
   MessageStatus,
   ThreadAssistantMessage,
   ThreadUserMessagePart,
@@ -86,11 +85,6 @@ export type AcpThreadState = {
 export type AcpThreadEvent =
   | { readonly type: "load-start" }
   | { readonly type: "load-ready" }
-  | {
-      readonly type: "load-complete";
-      readonly items: readonly ExportedMessageRepositoryItem[];
-      readonly headId: string | null;
-    }
   | { readonly type: "load-error"; readonly error: string }
   | {
       readonly type: "connection";
@@ -314,23 +308,6 @@ export const reduceAcpThreadState = (
     case "load-error":
       return { ...state, loadState: { type: "error", error: event.error } };
 
-    case "load-complete": {
-      const messagesById: Record<string, AcpThreadMessage> = {};
-      const messageOrder: string[] = [];
-      for (const { message, parentId } of event.items) {
-        messagesById[message.id] = toAcpThreadMessage(message, parentId);
-        messageOrder.push(message.id);
-      }
-      return {
-        ...state,
-        loadState: { type: "ready" },
-        messagesById,
-        messageOrder,
-        headId: event.headId,
-        toolCallStatuses: {},
-      };
-    }
-
     case "connection":
       return {
         ...state,
@@ -442,32 +419,4 @@ export const reduceAcpThreadState = (
     default:
       return state;
   }
-};
-
-const toAcpThreadMessage = (
-  message: ExportedMessageRepositoryItem["message"],
-  parentId: string | null,
-): AcpThreadMessage => {
-  const createdAt = message.createdAt.getTime();
-  if (message.role === "assistant") {
-    return {
-      role: "assistant",
-      id: message.id,
-      parentId,
-      createdAt,
-      status: message.status,
-      content: message.content as readonly AssistantPart[],
-    };
-  }
-  return {
-    role: "user",
-    id: message.id,
-    parentId,
-    createdAt,
-    content:
-      message.role === "user"
-        ? (message.content as readonly ThreadUserMessagePart[])
-        : [],
-    attachments: message.role === "user" ? message.attachments : [],
-  };
 };

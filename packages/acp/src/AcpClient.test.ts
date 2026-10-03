@@ -442,6 +442,56 @@ describe("AcpClient", () => {
     expect(next.sent.some((f) => f.method === "session/new")).toBe(false);
   });
 
+  it("drops the session/load replay instead of streaming it into the thread", async () => {
+    const client = mockClient();
+    const ws = await withSession(client);
+    const updates: AcpSessionUpdate[] = [];
+    client.subscribeSessionUpdate((_sessionId, update) => {
+      updates.push(update);
+    });
+
+    ws.close();
+    const reloaded = client.ensureSession();
+    const next = lastWs();
+    await completeHandshake(next);
+    const load = await until(() =>
+      next.sent.find((f) => f.method === "session/load"),
+    );
+
+    const replay = (update: AcpSessionUpdate) =>
+      next.receive({
+        jsonrpc: "2.0",
+        method: "session/update",
+        params: { sessionId: "s1", update },
+      });
+    replay({
+      sessionUpdate: "user_message_chunk",
+      content: { type: "text", text: "earlier question" },
+    });
+    replay({
+      sessionUpdate: "tool_call",
+      toolCallId: "t1",
+      title: "read_file",
+      kind: "read",
+      status: "completed",
+    });
+    replay({
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: "earlier answer" },
+    });
+    expect(updates).toHaveLength(0);
+
+    next.receive({ jsonrpc: "2.0", id: load.id!, result: {} });
+    await expect(reloaded).resolves.toBe("s1");
+
+    const fresh: AcpSessionUpdate = {
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: "new answer" },
+    };
+    replay(fresh);
+    expect(updates).toEqual([fresh]);
+  });
+
   it("refuses to continue a lost session the agent cannot reload", async () => {
     const client = mockClient();
     const ws = await withSession(client);
@@ -452,6 +502,12 @@ describe("AcpClient", () => {
     await completeHandshake(next, {});
 
     await expect(reloaded).rejects.toThrow(
+      /dropped session s1.*does not support session\/load/s,
+    );
+    expect(client.sessionId).toBeUndefined();
+    expect(next.sent.some((f) => f.method === "session/new")).toBe(false);
+
+    await expect(client.ensureSession()).rejects.toThrow(
       /dropped session s1.*does not support session\/load/s,
     );
     expect(client.sessionId).toBeUndefined();
@@ -476,6 +532,21 @@ describe("AcpClient", () => {
     });
 
     await expect(reloaded).rejects.toThrow(
+      /session\/load failed.*unknown session/s,
+    );
+    expect(client.sessionId).toBeUndefined();
+    expect(next.sent.some((f) => f.method === "session/new")).toBe(false);
+
+    const loads = () => next.sent.filter((f) => f.method === "session/load");
+    const retried = client.ensureSession();
+    await until(() => (loads().length > 1 ? true : undefined));
+    next.receive({
+      jsonrpc: "2.0",
+      id: loads().at(-1)!.id!,
+      error: { code: -32602, message: "unknown session" },
+    });
+
+    await expect(retried).rejects.toThrow(
       /session\/load failed.*unknown session/s,
     );
     expect(client.sessionId).toBeUndefined();

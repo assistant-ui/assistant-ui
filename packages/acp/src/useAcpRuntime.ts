@@ -17,7 +17,6 @@ import type {
   RealtimeVoiceAdapter,
   RespondToToolApprovalOptions,
   SpeechSynthesisAdapter,
-  ThreadHistoryAdapter,
   ThreadMessage,
 } from "@assistant-ui/core";
 import { invokeUserCallback } from "@assistant-ui/core/internal";
@@ -67,13 +66,17 @@ export type UseAcpRuntimeOptions = ExternalStoreSharedOptions & {
   /** Called when a run is cancelled. */
   onCancel?: () => void;
 
+  /**
+   * There is deliberately no `history` adapter: the agent owns an ACP
+   * conversation, so a transcript restored from storage would show messages the
+   * next `session/new` knows nothing about.
+   */
   adapters?: {
     attachments?: AttachmentAdapter;
     speech?: SpeechSynthesisAdapter;
     dictation?: DictationAdapter;
     voice?: RealtimeVoiceAdapter;
     feedback?: FeedbackAdapter;
-    history?: ThreadHistoryAdapter;
   };
 };
 
@@ -137,7 +140,6 @@ const buildManagedClientOptions = (
 
 export function useAcpRuntime(options: UseAcpRuntimeOptions): AssistantRuntime {
   const runtimeAdapters = useRuntimeAdapters();
-  const historyAdapter = options.adapters?.history ?? runtimeAdapters?.history;
 
   const webSocketFactory = options.webSocketFactory;
   const webSocketFactoryRef = useRef(webSocketFactory);
@@ -210,7 +212,6 @@ export function useAcpRuntime(options: UseAcpRuntimeOptions): AssistantRuntime {
         autoConnect,
         ...(onError && { onError }),
         ...(onCancel && { onCancel }),
-        ...(historyAdapter && { history: historyAdapter }),
       });
       if (cancelled) return;
       await controller.load();
@@ -220,15 +221,7 @@ export function useAcpRuntime(options: UseAcpRuntimeOptions): AssistantRuntime {
     return () => {
       cancelled = true;
     };
-  }, [
-    autoConnect,
-    client,
-    controller,
-    historyAdapter,
-    onCancel,
-    onError,
-    permissions,
-  ]);
+  }, [autoConnect, client, controller, onCancel, onError, permissions]);
 
   const adapters = options.adapters;
   const adapterAdapters = useMemo(
