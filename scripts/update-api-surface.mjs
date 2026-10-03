@@ -3,7 +3,7 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { optionArgs, optionValues } from "./lib/script-options.mjs";
+import { hasOption, optionArgs, optionValues } from "./lib/script-options.mjs";
 import { apiSurfaceFileName, collectPackages } from "./lib/workspace.mjs";
 
 export const FULL_API_SURFACE_INPUTS = [
@@ -11,6 +11,7 @@ export const FULL_API_SURFACE_INPUTS = [
   "packages/x-buildutils",
   "scripts/generate-api-surface.mjs",
   "scripts/update-api-surface.mjs",
+  "scripts/check-api-surface.mjs",
   "scripts/lib/script-options.mjs",
   "scripts/lib/workspace.mjs",
   "package.json",
@@ -18,6 +19,7 @@ export const FULL_API_SURFACE_INPUTS = [
   "pnpm-workspace.yaml",
   "turbo.json",
   ".github/workflows/autofix.yaml",
+  ".github/workflows/code-quality.yaml",
 ];
 
 const touches = (file, input) => file === input || file.startsWith(`${input}/`);
@@ -87,8 +89,7 @@ function changedFilesSince(base) {
   return result.stdout.split("\0").filter((file) => file !== "");
 }
 
-function main() {
-  const args = process.argv.slice(2);
+export function resolveApiSurfaceFilters(args) {
   const bases = optionValues(args, "--base");
   const explicitFilters = optionValues(args, "--filter");
   if (bases.length > 1) throw new Error("Only one --base may be provided.");
@@ -97,7 +98,7 @@ function main() {
   }
 
   const base = bases[0];
-  const filters = base
+  return base
     ? filtersForApiSurfaceChanges(
         changedFilesSince(base),
         base,
@@ -106,6 +107,16 @@ function main() {
         ).map(({ pkg }) => pkg.name),
       )
     : explicitFilters;
+}
+
+function main() {
+  const args = process.argv.slice(2);
+  const filters = resolveApiSurfaceFilters(args);
+  if (hasOption(args, "--print-filters")) {
+    console.log(JSON.stringify(filters));
+    return;
+  }
+  const base = optionValues(args, "--base")[0];
   if (base) {
     console.log(
       filters.length > 0
@@ -114,7 +125,10 @@ function main() {
     );
   }
 
-  for (const [command, commandArgs] of apiSurfaceCommands(filters)) {
+  const commands = apiSurfaceCommands(filters);
+  for (const [command, commandArgs] of hasOption(args, "--build-only")
+    ? commands.slice(0, 1)
+    : commands) {
     run(command, commandArgs);
   }
 }

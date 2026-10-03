@@ -166,7 +166,6 @@ test("the build install follows the affected package graph", () => {
     "@assistant-ui/react-devtools...",
     "@assistant-ui/x-buildutils...",
     "@assistant-ui/x-performance",
-    "...[$BASE]...",
     "!./apps/*",
     "!./examples/*",
     "!./templates/*",
@@ -176,5 +175,16 @@ test("the build install follows the affected package graph", () => {
       filter,
     );
   }
+  assert.match(guardedInstall.groups.filteredInstall, /\$\{filters\[@\]\}/);
+  assert.match(
+    install,
+    /node scripts\/update-api-surface\.mjs --base "\$BASE" --print-filters/,
+  );
+  assert.match(install, /--filter=\.\/packages\/\*\.\.\./);
+  assert.match(
+    step("Build packages"),
+    /pnpm api-surface -- --base=.* --build-only/,
+  );
+  assert.match(step("Check API surface"), /--skip-build --base=/);
   assert.match(install, /else\n\s+pnpm install --frozen-lockfile\n\s+fi/);
 });

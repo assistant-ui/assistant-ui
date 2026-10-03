@@ -208,13 +208,15 @@ jobs:
             pnpm-workspace.yaml \
             turbo.json \
             packages/x-buildutils; then
+            plan=$(node scripts/update-api-surface.mjs --base "$BASE" --print-filters)
+            mapfile -t filters < <(jq -r 'if length == 0 then "--filter=./packages/*..." else .[] | "--filter=\(.)..." end' <<< "$plan")
             pnpm install --frozen-lockfile \
               --filter="." \
               --filter="@assistant-ui/api-surface" \
               --filter="@assistant-ui/react-devtools..." \
               --filter="@assistant-ui/x-buildutils..." \
               --filter="@assistant-ui/x-performance" \
-              --filter="...[$BASE]..." \
+              "${filters[@]}" \
               --filter="!./apps/*" \
               --filter="!./examples/*" \
               --filter="!./templates/*"
@@ -229,22 +231,18 @@ jobs:
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            # PR: Build packages changed compared to base branch
-            pnpm turbo build --filter="...[origin/${{ github.base_ref }}]" --filter="!./apps/*" --filter="!./examples/*" --filter="!./templates/*"
+            pnpm api-surface -- --base="origin/${{ github.base_ref }}" --build-only
           else
-            # Push to main: Build packages changed in last commit
-            pnpm turbo build --filter="...[HEAD^1]" --filter="!./apps/*" --filter="!./examples/*" --filter="!./templates/*"
+            pnpm api-surface -- --base="HEAD^1" --build-only
           fi
 
       - name: Check API surface
         if: steps.package_build_inputs.outputs.run == 'true'
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            # PR: Check API surface for packages changed compared to base branch
-            pnpm run api-surface:check -- --skip-build --filter="...[origin/${{ github.base_ref }}]"
+            pnpm run api-surface:check -- --skip-build --base="origin/${{ github.base_ref }}"
           else
-            # Push to main: Check API surface for packages changed in last commit
-            pnpm run api-surface:check -- --skip-build --filter="...[HEAD^1]"
+            pnpm run api-surface:check -- --skip-build --base="HEAD^1"
           fi
 
       - name: Check distribution barrels

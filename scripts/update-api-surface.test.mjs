@@ -9,6 +9,7 @@ import {
   apiSurfaceCommands,
   filtersForApiSurfaceChanges,
   requiresFullApiSurface,
+  resolveApiSurfaceFilters,
 } from "./update-api-surface.mjs";
 
 test("shared generator and build inputs require every API surface", () => {
@@ -17,12 +18,14 @@ test("shared generator and build inputs require every API surface", () => {
     "packages/x-buildutils/src/index.ts",
     "scripts/generate-api-surface.mjs",
     "scripts/update-api-surface.mjs",
+    "scripts/check-api-surface.mjs",
     "scripts/lib/workspace.mjs",
     "package.json",
     "pnpm-lock.yaml",
     "pnpm-workspace.yaml",
     "turbo.json",
     ".github/workflows/autofix.yaml",
+    ".github/workflows/code-quality.yaml",
   ]) {
     assert.equal(requiresFullApiSurface([file]), true, file);
     assert.deepEqual(filtersForApiSurfaceChanges([file], "origin/main"), []);
@@ -173,6 +176,7 @@ test("the CLI derives snapshot owners from current publishable manifests", () =>
     mkdirSync(path.join(repo, "scripts/lib"), { recursive: true });
     for (const file of [
       "update-api-surface.mjs",
+      "check-api-surface.mjs",
       "lib/workspace.mjs",
       "lib/script-options.mjs",
     ]) {
@@ -213,19 +217,45 @@ test("the CLI derives snapshot owners from current publishable manifests", () =>
       "-qm",
       "fixture",
     ]);
-    const plan = () =>
-      run(process.execPath, ["scripts/update-api-surface.mjs", "--base=HEAD"], {
+    const invoke = (script, args = []) =>
+      run(process.execPath, [`scripts/${script}`, "--base=HEAD", ...args], {
         env: {
           ...process.env,
           PATH: `${path.join(repo, "bin")}${path.delimiter}${process.env.PATH}`,
         },
-      })
+      });
+    const plan = (args = []) =>
+      invoke("update-api-surface.mjs", args)
         .trim()
         .split("\n")
         .slice(1)
         .map((line) => JSON.parse(line));
+    const checkPlan = () =>
+      invoke("check-api-surface.mjs", ["--skip-build"])
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line));
+    const expectedCheck = [
+      [
+        "scripts/generate-api-surface.mjs",
+        "--check",
+        "--filter",
+        "...[HEAD]",
+        "--filter",
+        "@assistant-ui/public",
+      ],
+      ["--filter", "@assistant-ui/api-surface", "check"],
+    ];
 
     writeFileSync(snapshot, "export const changed: true;\n");
+    assert.deepEqual(checkPlan(), expectedCheck);
+    assert.deepEqual(
+      JSON.parse(invoke("update-api-surface.mjs", ["--print-filters"])),
+      ["...[HEAD]", "@assistant-ui/public"],
+    );
+    assert.deepEqual(plan(["--build-only"]), [
+      apiSurfaceCommands(["...[HEAD]", "@assistant-ui/public"])[0][1],
+    ]);
     assert.deepEqual(
       plan(),
       apiSurfaceCommands(["...[HEAD]", "@assistant-ui/public"]).map(
@@ -233,6 +263,7 @@ test("the CLI derives snapshot owners from current publishable manifests", () =>
       ),
     );
     rmSync(snapshot);
+    assert.deepEqual(checkPlan(), expectedCheck);
     assert.deepEqual(
       plan(),
       apiSurfaceCommands(["...[HEAD]", "@assistant-ui/public"]).map(
@@ -245,6 +276,10 @@ test("the CLI derives snapshot owners from current publishable manifests", () =>
       "export {};\n",
     );
     run("git", ["add", "api-surface"]);
+    assert.deepEqual(checkPlan(), [
+      ["scripts/generate-api-surface.mjs", "--check"],
+      ["--filter", "@assistant-ui/api-surface", "check"],
+    ]);
     assert.deepEqual(
       plan(),
       apiSurfaceCommands([]).map(([, args]) => args),
@@ -252,6 +287,22 @@ test("the CLI derives snapshot owners from current publishable manifests", () =>
   } finally {
     rmSync(repo, { recursive: true, force: true });
   }
+});
+
+test("shared CLI selection preserves explicit filters and rejects ambiguous bases", () => {
+  assert.deepEqual(resolveApiSurfaceFilters([]), []);
+  assert.deepEqual(
+    resolveApiSurfaceFilters(["--", "--filter=one", "--filter", "two"]),
+    ["one", "two"],
+  );
+  assert.throws(
+    () => resolveApiSurfaceFilters(["--base=HEAD", "--base=main"]),
+    /Only one --base/,
+  );
+  assert.throws(
+    () => resolveApiSurfaceFilters(["--base=HEAD", "--filter=one"]),
+    /either --base or --filter/,
+  );
 });
 
 test("the planner watches its own implementation", () => {
