@@ -66,6 +66,17 @@ try {
     published.license = "MIT";
     published.files = ["dist", "LICENSE"];
     const normalizations = [];
+    if (original.name === "@assistant-ui/react-harness-sdk")
+      for (const name of [
+        "@assistant-ui/core",
+        "@assistant-ui/store",
+        "@assistant-ui/tap",
+      ]) {
+        const specifier = published.dependencies[name];
+        delete published.dependencies[name];
+        published.peerDependencies[name] = specifier;
+        normalizations.push(`${name} becomes a required peer ${specifier}`);
+      }
     if (published.dependencies?.["harness-sdk"] === "workspace:*") {
       const harness = JSON.parse(
         readFileSync(path.join(source, packages[0], "package.json"), "utf8"),

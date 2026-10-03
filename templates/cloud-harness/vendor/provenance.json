@@ -15,10 +15,13 @@
       "version": "0.0.2",
       "directory": "packages/harness-sdk/assistant-ui",
       "normalizations": [
+        "@assistant-ui/core becomes a required peer ^0.3.18",
+        "@assistant-ui/store becomes a required peer ^0.3.3",
+        "@assistant-ui/tap becomes a required peer ^0.9.6",
         "harness-sdk dependency becomes a required peer ^0.3.1"
       ],
       "filename": "assistant-ui-react-harness-sdk-0.0.2.tgz",
-      "sha256": "acd00f6fed94ce75e23aeca25c3d05d173a400194be140bdf84e8bc2e879527c"
+      "sha256": "7aed398d12e126e28ffcc216713b3cfe0200bbf51d1567b28d5b99dadf717307"
     }
   ]
 }

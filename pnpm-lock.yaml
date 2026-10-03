@@ -6157,15 +6157,24 @@ importers:
       '@assistant-ui/ai-sdk':
         specifier: workspace:*
         version: link:../../packages/ai-sdk
+      '@assistant-ui/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
       '@assistant-ui/react-harness-sdk':
         specifier: file:vendor/assistant-ui-react-harness-sdk-0.0.2.tgz
-        version: file:templates/cloud-harness/vendor/assistant-ui-react-harness-sdk-0.0.2.tgz(@assistant-ui/react@packages+react)(@types/react@19.3.0)(assistant-cloud@packages+cloud)(harness-sdk@file:templates/cloud-harness/vendor/harness-sdk-0.3.1.tgz(@types/react@19.3.0)(ai@7.0.123(zod@4.6.5))(react@19.3.0))(ioredis@5.11.1(supports-color@10.2.2))(next@16.3.8(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@types/node@26.6.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)
+        version: file:templates/cloud-harness/vendor/assistant-ui-react-harness-sdk-0.0.2.tgz(@assistant-ui/core@packages+core)(@assistant-ui/react@packages+react)(@assistant-ui/store@packages+store)(@assistant-ui/tap@packages+tap)(harness-sdk@file:templates/cloud-harness/vendor/harness-sdk-0.3.1.tgz(@types/react@19.3.0)(ai@7.0.123(zod@4.6.5))(react@19.3.0))(next@16.3.8(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@types/node@26.6.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown
+      '@assistant-ui/store':
+        specifier: workspace:*
+        version: link:../../packages/store
+      '@assistant-ui/tap':
+        specifier: workspace:*
+        version: link:../../packages/tap
       '@base-ui/react':
         specifier: ^1.8.0
         version: 1.8.0(@date-fns/tz@1.5.0)(@types/react@19.3.0)(date-fns@4.4.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -6831,44 +6840,19 @@ packages:
     resolution: {integrity: sha512-lSWTBMjAcmu2xn5yEDU7jh6QDV+C8GEKtdJ4pIQhXh26RkKQ7S3FuQlt+zZkUbTdJ4d3XyV1kPI/G0zWXxqaqw==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0}
 
-  '@assistant-ui/core@0.3.22':
-    resolution: {integrity: sha512-0ffExOL5TBZwySnDEx66wlTGuG7BivNAXRfvMpcqZQqEweiEcY6vFexexewYo8Dk1bP43gCeNPLwcjkBSyYpbQ==}
-    peerDependencies:
-      '@assistant-ui/store': ^0.3.16
-      '@assistant-ui/tap': ^0.9.20
-      '@types/react': '*'
-      assistant-cloud: ^0.2.1
-      react: ^18 || ^19
-    peerDependenciesMeta:
-      '@types/react':
-        optional: true
-      assistant-cloud:
-        optional: true
-      react:
-        optional: true
-
   '@assistant-ui/react-harness-sdk@file:templates/cloud-harness/vendor/assistant-ui-react-harness-sdk-0.0.2.tgz':
-    resolution: {integrity: sha512-hkimUk6PZWavqJ1Ba7riFxAhBqbkdG5GB9dIZTwdeYeSvpkj+9ywmcr0mjH3ZS7khKLCs5SG8b8lRfMWT3yIJQ==, tarball: file:templates/cloud-harness/vendor/assistant-ui-react-harness-sdk-0.0.2.tgz}
+    resolution: {integrity: sha512-jlkOynD0nTlLvDRO1TVz3689HqMk0hR3WAaSicvNlH2NmaYMCUSNmBfytvQs1tjK7EnzwSNdGuYi+X5uxojjPA==, tarball: file:templates/cloud-harness/vendor/assistant-ui-react-harness-sdk-0.0.2.tgz}
     version: 0.0.2
     peerDependencies:
+      '@assistant-ui/core': ^0.3.18
       '@assistant-ui/react': '>=0.15.9'
+      '@assistant-ui/store': ^0.3.3
+      '@assistant-ui/tap': ^0.9.6
       harness-sdk: ^0.3.1
       next: '>=15'
       react: ^18 || ^19
     peerDependenciesMeta:
       next:
-        optional: true
-
-  '@assistant-ui/store@0.3.16':
-    resolution: {integrity: sha512-XfG0rqGogih445q/AfCOg16TtdIsa0SQRyNV5YH9LvaqTVhld17J49uPtXTU79eJFTzNypt7q7EVLBhWoMng1g==}
-    peerDependencies:
-      '@assistant-ui/tap': ^0.9.20
-      '@types/react': '*'
-      react: ^18 || ^19
-    peerDependenciesMeta:
-      '@types/react':
-        optional: true
-      react:
         optional: true
 
   '@assistant-ui/tap@0.9.19':
@@ -14011,17 +13995,6 @@ packages:
   assign-symbols@1.0.0:
     resolution: {integrity: sha512-Q+JC7Whu8HhmTdBph/Tq59IoRtoy6KAm5zzPv00WdujX82lbAL8K7WVjne7vdCsAmbF4AYaDOPyO3k0kl8qIrw==}
     engines: {node: '>=0.10.0'}
-
-  assistant-stream@0.3.46:
-    resolution: {integrity: sha512-Up1GWAjDxsg85qo4s6977Mpe1A3mJKN1bV3H7wRyTVjOas3r6i5wSGwUqMyRCLkuvhLYWXOZIJ83bujIwjPM1w==}
-    peerDependencies:
-      ioredis: ^5.10.1 || ^6.0.0
-      redis: ^5.12.1
-    peerDependenciesMeta:
-      ioredis:
-        optional: true
-      redis:
-        optional: true
 
   ast-kit@2.2.0:
     resolution: {integrity: sha512-m1Q/RaVOnTp9JxPX+F+Zn7IcLYMzM8kZofDImfsKZd8MbR+ikdOzTeztStWqfrqIxZnYWryyI9ePm3NGjnZgGw==}
@@ -21991,42 +21964,16 @@ snapshots:
       is-potential-custom-element-name: 1.0.1
       lru-cache: 11.5.3
 
-  '@assistant-ui/core@0.3.22(@assistant-ui/store@0.3.16(@assistant-ui/tap@0.9.19(@types/react@19.3.0)(react@19.3.0))(@types/react@19.3.0)(react@19.3.0))(@assistant-ui/tap@0.9.19(@types/react@19.3.0)(react@19.3.0))(@types/react@19.3.0)(assistant-cloud@packages+cloud)(ioredis@5.11.1(supports-color@10.2.2))(react@19.3.0)':
+  '@assistant-ui/react-harness-sdk@file:templates/cloud-harness/vendor/assistant-ui-react-harness-sdk-0.0.2.tgz(@assistant-ui/core@packages+core)(@assistant-ui/react@packages+react)(@assistant-ui/store@packages+store)(@assistant-ui/tap@packages+tap)(harness-sdk@file:templates/cloud-harness/vendor/harness-sdk-0.3.1.tgz(@types/react@19.3.0)(ai@7.0.123(zod@4.6.5))(react@19.3.0))(next@16.3.8(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@types/node@26.6.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)':
     dependencies:
-      '@assistant-ui/store': 0.3.16(@assistant-ui/tap@0.9.19(@types/react@19.3.0)(react@19.3.0))(@types/react@19.3.0)(react@19.3.0)
-      '@assistant-ui/tap': 0.9.19(@types/react@19.3.0)(react@19.3.0)
-      assistant-stream: 0.3.46(ioredis@5.11.1(supports-color@10.2.2))
-      nanoid: 6.0.1
-    optionalDependencies:
-      '@types/react': 19.3.0
-      assistant-cloud: link:packages/cloud
-      react: 19.3.0
-    transitivePeerDependencies:
-      - ioredis
-      - redis
-
-  '@assistant-ui/react-harness-sdk@file:templates/cloud-harness/vendor/assistant-ui-react-harness-sdk-0.0.2.tgz(@assistant-ui/react@packages+react)(@types/react@19.3.0)(assistant-cloud@packages+cloud)(harness-sdk@file:templates/cloud-harness/vendor/harness-sdk-0.3.1.tgz(@types/react@19.3.0)(ai@7.0.123(zod@4.6.5))(react@19.3.0))(ioredis@5.11.1(supports-color@10.2.2))(next@16.3.8(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@types/node@26.6.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)':
-    dependencies:
-      '@assistant-ui/core': 0.3.22(@assistant-ui/store@0.3.16(@assistant-ui/tap@0.9.19(@types/react@19.3.0)(react@19.3.0))(@types/react@19.3.0)(react@19.3.0))(@assistant-ui/tap@0.9.19(@types/react@19.3.0)(react@19.3.0))(@types/react@19.3.0)(assistant-cloud@packages+cloud)(ioredis@5.11.1(supports-color@10.2.2))(react@19.3.0)
+      '@assistant-ui/core': link:packages/core
       '@assistant-ui/react': link:packages/react
-      '@assistant-ui/store': 0.3.16(@assistant-ui/tap@0.9.19(@types/react@19.3.0)(react@19.3.0))(@types/react@19.3.0)(react@19.3.0)
-      '@assistant-ui/tap': 0.9.19(@types/react@19.3.0)(react@19.3.0)
+      '@assistant-ui/store': link:packages/store
+      '@assistant-ui/tap': link:packages/tap
       harness-sdk: file:templates/cloud-harness/vendor/harness-sdk-0.3.1.tgz(@types/react@19.3.0)(ai@7.0.123(zod@4.6.5))(react@19.3.0)
       react: 19.3.0
     optionalDependencies:
       next: 16.3.8(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@types/node@26.6.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-    transitivePeerDependencies:
-      - '@types/react'
-      - assistant-cloud
-      - ioredis
-      - redis
-
-  '@assistant-ui/store@0.3.16(@assistant-ui/tap@0.9.19(@types/react@19.3.0)(react@19.3.0))(@types/react@19.3.0)(react@19.3.0)':
-    dependencies:
-      '@assistant-ui/tap': 0.9.19(@types/react@19.3.0)(react@19.3.0)
-    optionalDependencies:
-      '@types/react': 19.3.0
-      react: 19.3.0
 
   '@assistant-ui/tap@0.9.19(@types/react@19.3.0)(react@19.3.0)':
     optionalDependencies:
@@ -30682,15 +30629,6 @@ snapshots:
   assertion-error@2.0.1: {}
 
   assign-symbols@1.0.0: {}
-
-  assistant-stream@0.3.46(ioredis@5.11.1(supports-color@10.2.2)):
-    dependencies:
-      '@standard-schema/spec': 1.1.0
-      '@types/json-schema': 7.0.15
-      nanoid: 6.0.1
-      secure-json-parse: 4.1.0
-    optionalDependencies:
-      ioredis: 5.11.1(supports-color@10.2.2)
 
   ast-kit@2.2.0:
     dependencies:

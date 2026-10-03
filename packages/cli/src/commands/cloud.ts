@@ -342,7 +342,9 @@ export const setupCloud = async (
     "Add OPENAI_API_KEY to .env.local, then start the app with your package manager's dev command.",
   );
   logger.info(
-    `Share ${backend.origin}/#main with your teammates. Everyone using that link joins the same chat.`,
+    backend.protocol === "http:"
+      ? `Open ${backend.origin}/#main in two browser windows to try shared chat. Deploy or expose the app to share it with teammates.`
+      : 'Open your deployed app and use "Share this chat" to invite teammates to the same conversation.',
   );
 };
 

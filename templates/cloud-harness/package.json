@@ -15,8 +15,11 @@
   "dependencies": {
     "@ai-sdk/openai": "^4.0.82",
     "@assistant-ui/ai-sdk": "workspace:*",
+    "@assistant-ui/core": "workspace:*",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
+    "@assistant-ui/store": "workspace:*",
+    "@assistant-ui/tap": "workspace:*",
     "@base-ui/react": "^1.8.0",
     "ai": "^7.0.123",
     "class-variance-authority": "^0.7.1",
