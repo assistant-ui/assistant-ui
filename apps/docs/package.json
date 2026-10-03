@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "pnpm generate:source-snapshot && next build && pnpm verify:repo-source-traces",
+    "build:brand-kit": "tsx ./scripts/build-brand-kit.mts",
     "generate:type-docs": "tsx ./scripts/generate-type-docs.mts",
     "generate:api-reference": "tsx ./scripts/generate-api-reference.mts",
     "generate:agent-skills": "tsx ./scripts/generate-agent-skills.mts",
