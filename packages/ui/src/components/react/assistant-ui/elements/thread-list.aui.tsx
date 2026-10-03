@@ -25,10 +25,10 @@ import {
   forwardRef,
   Fragment,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ComponentPropsWithoutRef,
   type FC,
 } from "react";
@@ -121,32 +121,36 @@ const dateGroupLabel = (
 const startOfLocalDay = (date: Date) =>
   new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 
-const useStartOfToday = () => {
-  const [startOfToday, setStartOfToday] = useState<number | undefined>(
-    undefined,
-  );
-
-  useLayoutEffect(() => {
-    let timeout: number;
-    const scheduleNextDay = () => {
-      const now = new Date();
-      setStartOfToday(startOfLocalDay(now));
-      const startOfTomorrow = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate() + 1,
-      ).getTime();
-      timeout = window.setTimeout(
-        scheduleNextDay,
-        startOfTomorrow - now.getTime(),
-      );
-    };
-    scheduleNextDay();
-    return () => window.clearTimeout(timeout);
-  }, []);
-
-  return startOfToday;
+const subscribeToNextDay = (onDayChange: () => void) => {
+  let timeout: number;
+  const scheduleNextDay = () => {
+    const now = new Date();
+    const startOfTomorrow = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + 1,
+    ).getTime();
+    timeout = window.setTimeout(() => {
+      onDayChange();
+      scheduleNextDay();
+    }, startOfTomorrow - now.getTime());
+  };
+  scheduleNextDay();
+  return () => window.clearTimeout(timeout);
 };
+
+const getStartOfToday = () => startOfLocalDay(new Date());
+
+// A server render and hydration see no day start, so a prerender never reads
+// the clock; a client-only mount groups on its first render.
+const getServerStartOfToday = () => undefined;
+
+const useStartOfToday = () =>
+  useSyncExternalStore<number | undefined>(
+    subscribeToNextDay,
+    getStartOfToday,
+    getServerStartOfToday,
+  );
 
 export type ThreadListGroup = { label: string; indices: number[] };
 

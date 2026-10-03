@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import {
   AuiIf,
   ThreadListItemByIndexProvider,
@@ -40,14 +40,22 @@ const hasThreads = useAuiState((s) => s.threads.threadIds.length > 0);
 const threadIds = useAuiState((s) => s.threads.threadIds);
 const threadItems = useAuiState((s) => s.threads.threadItems);
 const startOfToday = ref<number | undefined>(undefined);
-onMounted(() => {
+let rollover: ReturnType<typeof setTimeout> | undefined;
+const scheduleNextDay = () => {
   const now = new Date();
   startOfToday.value = new Date(
     now.getFullYear(),
     now.getMonth(),
     now.getDate(),
   ).getTime();
-});
+  rollover = setTimeout(
+    scheduleNextDay,
+    new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime() -
+      now.getTime(),
+  );
+};
+onMounted(scheduleNextDay);
+onBeforeUnmount(() => clearTimeout(rollover));
 const query = computed(() =>
   (hasThreads.value ? search.value : "").trim().toLowerCase(),
 );

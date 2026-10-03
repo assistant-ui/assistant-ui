@@ -197,6 +197,27 @@ describe("vue thread list", () => {
     }
   });
 
+  it("regroups threads when the local date changes", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 7, 31, 23, 59, 58));
+    const { el, unmount } = mountThreadList(
+      makeAdapter([
+        {
+          remoteId: "t0",
+          title: "Late today",
+          lastMessageAt: new Date(2026, 7, 31, 12),
+        },
+      ]),
+    );
+
+    await settle(() => expect(texts(el, "group-label")).toEqual(["Today"]));
+
+    await vi.advanceTimersByTimeAsync(2_000);
+    await nextTick();
+    expect(texts(el, "group-label")).toEqual(["Yesterday"]);
+    unmount();
+  });
+
   it("renders one row per thread and no group labels when no thread has a date", async () => {
     const { el, unmount } = mountThreadList(
       makeAdapter(withTitles("First thread", "Second thread")),
