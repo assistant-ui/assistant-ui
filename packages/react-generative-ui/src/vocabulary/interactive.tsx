@@ -459,6 +459,7 @@ function DatePickerRender({
       : inputType === "datetime" && hydrated
         ? toPickerLocalDateTime(currentValue)
         : normalizeTemporalInputValue(currentValue);
+  const keyboardActive = React.useRef(false);
   const valueFromInput = (input: HTMLInputElement) => {
     const inputValue = normalizeTemporalInputValue(input.value);
     return inputType === "datetime"
@@ -530,23 +531,36 @@ function DatePickerRender({
         } else {
           e.currentTarget.removeAttribute(FIELD_VALUE_ATTR);
         }
+        // A change without a key down is a pick from the native picker, which commits at once; a typed value waits for blur or Enter.
+        const typed = keyboardActive.current;
         setSelection({
           initialValue,
           value: nextValue,
           anchor: selection.anchor,
-          committedValue: selection.committedValue,
-          edited: true,
+          committedValue: typed ? selection.committedValue : nextValue,
+          edited: typed,
         });
         updateBinding?.(nextValue);
+        if (!typed && nextValue !== selection.committedValue)
+          fire($action, $dispatch, nextValue, e.currentTarget);
       }}
-      onBlur={(e) => commit(e.currentTarget)}
+      onBlur={(e) => {
+        keyboardActive.current = false;
+        commit(e.currentTarget);
+      }}
       onKeyDown={(e) => {
         if (
           e.key === "Enter" &&
           !e.nativeEvent.isComposing &&
           !e.currentTarget.form
-        )
+        ) {
           commit(e.currentTarget);
+          return;
+        }
+        keyboardActive.current = true;
+      }}
+      onKeyUp={() => {
+        keyboardActive.current = false;
       }}
     />
   );
@@ -973,7 +987,7 @@ export const interactiveVocabulary = {
   },
   DatePicker: {
     description:
-      "A date, datetime, or time input. Carries `$action` describing the on-select behavior.",
+      "A date, datetime, or time input. Carries `$action`, which runs once per committed value: a pick from the picker, or a typed value on blur or Enter.",
     properties: z.object({
       inputType: z
         .enum(["date", "datetime", "time"])

@@ -55,6 +55,22 @@ const change = async (input: HTMLInputElement, value: string) => {
   });
 };
 
+const type = async (input: HTMLInputElement, value: string) => {
+  await React.act(async () => {
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "1", bubbles: true }),
+    );
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )!.set!.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(
+      new KeyboardEvent("keyup", { key: "1", bubbles: true }),
+    );
+  });
+};
+
 const blur = async (input: HTMLInputElement) => {
   await React.act(async () => {
     input.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
@@ -95,11 +111,11 @@ describe("DatePicker temporal contract", () => {
       '[data-aui="datepicker"]',
     )!;
     const note = container.querySelector<HTMLInputElement>('[name="note"]')!;
-    await change(input, "0002-12-15T12:00");
+    await type(input, "0002-12-15T12:00");
     expect(dispatch).not.toHaveBeenCalled();
-    await change(input, "0020-12-15T12:00");
+    await type(input, "0020-12-15T12:00");
     expect(dispatch).not.toHaveBeenCalled();
-    await change(input, "2025-12-16T12:00");
+    await type(input, "2025-12-16T12:00");
     note.value = "after";
     expect(dispatch).not.toHaveBeenCalled();
     await blur(input);
@@ -108,6 +124,67 @@ describe("DatePicker temporal contract", () => {
       when: "2025-12-16T17:00Z",
       note: "after",
       $input: "2025-12-16T17:00Z",
+    });
+    await blur(input);
+    expect(dispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it("dispatches a pick from the native picker at once", async () => {
+    const dispatch = vi.fn();
+    const container = await mount(
+      view({ value: "2025-12-15", $action: { type: "save" } }, dispatch),
+    );
+    const input = container.querySelector("input")!;
+    await change(input, "2025-12-20");
+    expect(dispatch).toHaveBeenCalledExactlyOnceWith({
+      type: "save",
+      $input: "2025-12-20",
+    });
+    await blur(input);
+    expect(dispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it("dispatches a pick at once after the keyboard opened the picker", async () => {
+    const dispatch = vi.fn();
+    const container = await mount(
+      view({ value: "2025-12-15", $action: { type: "save" } }, dispatch),
+    );
+    const input = container.querySelector("input")!;
+    await React.act(async () => {
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "ArrowDown",
+          altKey: true,
+          bubbles: true,
+        }),
+      );
+      input.dispatchEvent(
+        new KeyboardEvent("keyup", {
+          key: "ArrowDown",
+          altKey: true,
+          bubbles: true,
+        }),
+      );
+    });
+    await change(input, "2025-12-21");
+    expect(dispatch).toHaveBeenCalledExactlyOnceWith({
+      type: "save",
+      $input: "2025-12-21",
+    });
+  });
+
+  it("lets a pick replace a typed value that was never committed", async () => {
+    const dispatch = vi.fn();
+    const container = await mount(
+      view({ value: "2025-12-15", $action: { type: "save" } }, dispatch),
+    );
+    const input = container.querySelector("input")!;
+    await type(input, "2025-12-16");
+    expect(dispatch).not.toHaveBeenCalled();
+    await change(input, "2025-12-22");
+    expect(dispatch).toHaveBeenCalledExactlyOnceWith({
+      type: "save",
+      $input: "2025-12-22",
     });
     await blur(input);
     expect(dispatch).toHaveBeenCalledTimes(1);
@@ -148,7 +225,7 @@ describe("DatePicker temporal contract", () => {
       view({ value: "2025-12-15", $action: { type: "save" } }, dispatch),
     );
     const input = container.querySelector("input")!;
-    await change(input, "2025-12-16");
+    await type(input, "2025-12-16");
     await React.act(async () => {
       input.dispatchEvent(
         new KeyboardEvent("keydown", {
@@ -180,7 +257,7 @@ describe("DatePicker temporal contract", () => {
     let input = container.querySelector("input")!;
     await blur(input);
     expect(dispatch).not.toHaveBeenCalled();
-    await change(input, "2025-12-16");
+    await type(input, "2025-12-16");
     await blur(input);
     expect(dispatch).toHaveBeenCalledTimes(1);
     await React.act(async () =>
@@ -191,7 +268,7 @@ describe("DatePicker temporal contract", () => {
     input = container.querySelector("input")!;
     await blur(input);
     expect(dispatch).toHaveBeenCalledTimes(1);
-    await change(input, "2025-12-16");
+    await type(input, "2025-12-16");
     await blur(input);
     expect(dispatch).toHaveBeenLastCalledWith({
       type: "save",
@@ -418,7 +495,7 @@ describe("DatePicker temporal contract", () => {
       const container = await mount(<Surface />);
       const input = container.querySelector("input")!;
       expect(input.getAttribute("value")).toBe(shown);
-      await change(input, edited);
+      await type(input, edited);
       expect(update).toHaveBeenLastCalledWith("when", emitted);
       expect(dispatch).not.toHaveBeenCalled();
       await blur(input);
@@ -511,10 +588,10 @@ describe("DatePicker temporal contract", () => {
     };
     const container = await mount(<Surface />);
     const input = container.querySelector("input")!;
-    await change(input, "2026-07-16T08:30");
-    await change(input, "");
+    await type(input, "2026-07-16T08:30");
+    await type(input, "");
     expect(input.step).toBe("");
-    await change(input, "2026-07-16T09:45");
+    await type(input, "2026-07-16T09:45");
     await blur(input);
     expect(dispatch).toHaveBeenLastCalledWith({
       type: "save",
@@ -524,9 +601,9 @@ describe("DatePicker temporal contract", () => {
     await React.act(async () => replace!("2026-07-17T12:34:56+08:00"));
     await blur(input);
     expect(dispatch).toHaveBeenCalledTimes(1);
-    await change(input, "");
+    await type(input, "");
     expect(input.step).toBe("1");
-    await change(input, "2026-07-18T09:45:30");
+    await type(input, "2026-07-18T09:45:30");
     await blur(input);
     expect(dispatch).toHaveBeenLastCalledWith({
       type: "save",
