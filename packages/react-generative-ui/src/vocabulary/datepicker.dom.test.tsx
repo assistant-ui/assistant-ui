@@ -166,6 +166,47 @@ describe("DatePicker temporal contract", () => {
     });
   });
 
+  it.each(["PageUp", "PageDown", "Home", "End"])(
+    "holds a value stepped with %s for blur",
+    async (key) => {
+      const dispatch = vi.fn();
+      const container = await mount(
+        view({ value: "2025-12-15", $action: { type: "save" } }, dispatch),
+      );
+      const input = container.querySelector("input")!;
+      await React.act(async () => {
+        input.dispatchEvent(
+          new KeyboardEvent("keydown", { key, bubbles: true }),
+        );
+      });
+      await change(input, "2025-12-25");
+      expect(dispatch).not.toHaveBeenCalled();
+      await blur(input);
+      expect(dispatch).toHaveBeenCalledExactlyOnceWith({
+        type: "save",
+        $input: "2025-12-25",
+      });
+    },
+  );
+
+  it.each(["paste", "cut"])("holds a %s for blur", async (type) => {
+    const dispatch = vi.fn();
+    const container = await mount(
+      view({ value: "2025-12-15", $action: { type: "save" } }, dispatch),
+    );
+    const input = container.querySelector("input")!;
+    await React.act(async () => {
+      input.dispatchEvent(new Event(type, { bubbles: true }));
+    });
+    await change(input, "2025-12-26");
+    expect(dispatch).not.toHaveBeenCalled();
+    await blur(input);
+    expect(dispatch).toHaveBeenCalledExactlyOnceWith({
+      type: "save",
+      $input: "2025-12-26",
+    });
+  });
+
   it("dispatches a pick at once after a typed digit whose keyup never arrived", async () => {
     const dispatch = vi.fn();
     const container = await mount(

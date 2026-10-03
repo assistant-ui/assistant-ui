@@ -563,10 +563,25 @@ function DatePickerRender({
           !e.ctrlKey &&
           !e.metaKey &&
           (e.key.length === 1 ||
-            ["ArrowDown", "ArrowUp", "Backspace", "Delete"].includes(e.key));
+            [
+              "ArrowDown",
+              "ArrowUp",
+              "Backspace",
+              "Delete",
+              "End",
+              "Home",
+              "PageDown",
+              "PageUp",
+            ].includes(e.key));
       }}
       onKeyUp={() => {
         keyboardActive.current = false;
+      }}
+      onPaste={() => {
+        keyboardActive.current = true;
+      }}
+      onCut={() => {
+        keyboardActive.current = true;
       }}
     />
   );
