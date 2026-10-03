@@ -125,18 +125,20 @@ const parsed = await parseAdkRequest(req);
 // parsed.stateDelta contains session state changes
 
 const newMessage = toAdkContent(parsed);
+const stateDelta = validateSessionState(parsed.stateDelta);
 const events = runner.runAsync({
   userId,
   sessionId,
   newMessage,
-  stateDelta: parsed.stateDelta,
+  stateDelta,
 });
 return adkEventStream(events);
 ```
 
 `runConfig` and `stateDelta` arrive from the browser and must be treated as
-untrusted input. `createAdkApiRoute` ignores both by default. Opt in only after
-validating them on the server:
+untrusted input. Custom routes using `parseAdkRequest` must validate
+`parsed.stateDelta` before passing it to `runAsync`. `createAdkApiRoute` ignores
+both values by default; opt in only after validating them on the server:
 
 ```ts
 export const POST = createAdkApiRoute({
