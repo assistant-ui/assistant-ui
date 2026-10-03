@@ -63,7 +63,7 @@ export function Citations() {
 }
 ```
 
-The static element is controlled. `open` and `onOpenChange` belong to the caller.
+The static element is controlled. `open` and `onOpenChange` belong to the caller. Set `layout="list"` for compact rows; safe links, snippets and publication details remain available in both layouts.
 
 </StandaloneMode>
 
@@ -193,8 +193,12 @@ const sources = [
 | `sources` | `readonly Source[]` | Citation cards revealed by the pill. |
 | `open` | `boolean` | Whether the card grid is expanded. |
 | `onOpenChange` | `(open: boolean) => void` | Receives the expanded state. |
+| `layout` | `"grid" \| "list"` | Two-column cards by default, or compact rows. |
+| `hideTrigger` | `boolean` | Defaults to `false`. Hides the disclosure button when the caller supplies its own accessible control. |
 | `locale` | `string \| undefined` | Locale for `publishedAt` month and year. Defaults to `"en-US"`. |
 | `className` | `string \| undefined` | Extra classes merged onto the root. |
+
+`SourceGlyph` is exported for custom triggers. It takes a `domain: string` and renders its initial without fetching an icon.
 
 ### Source fields
 
