@@ -66,6 +66,9 @@ describe("cloud environment", () => {
         await readFile(path.join(directory, ".env.local"), "utf8"),
       ).toContain("OPENAI_API_KEY=existing-provider-key");
       expect(
+        await readFile(path.join(directory, ".env.local"), "utf8"),
+      ).toContain('ASSISTANT_API_KEY="private-cloud-key"');
+      expect(
         await readFile(path.join(directory, ".gitignore"), "utf8"),
       ).toContain(".env.local");
       if (process.platform !== "win32")

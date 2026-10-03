@@ -27,7 +27,7 @@
   "sideEffects": false,
   "scripts": {
     "build": "aui-build && node scripts/copy-cloud-harness-template.mjs",
-    "test": "vitest run",
+    "test": "vitest run && node --test scripts/copy-cloud-harness-template.test.mjs",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"

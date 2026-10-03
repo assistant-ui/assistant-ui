@@ -147,11 +147,15 @@ describe("cloud setup", () => {
 
   it("reuses an organization created by an interrupted setup", async () => {
     const directory = await fixture();
+    const before = fetchProjects.mock.calls.length;
     await setupCloud(directory, {
       ...options,
       newOrg: "team",
       project: "chat",
     });
+    expect(fetchProjects.mock.calls.slice(before)).toEqual([
+      [expect.anything(), "oauth-access", { id: "org-1" }],
+    ]);
     expect(fetchProjects).toHaveBeenCalledWith(
       expect.anything(),
       "oauth-access",

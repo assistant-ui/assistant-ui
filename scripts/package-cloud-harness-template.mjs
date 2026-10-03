@@ -69,6 +69,7 @@ try {
     } = original;
     published.license = "MIT";
     published.files = ["dist", "LICENSE"];
+    published.peerDependencies ??= {};
     const normalizations = [];
     for (const name of [
       "@assistant-ui/core",
