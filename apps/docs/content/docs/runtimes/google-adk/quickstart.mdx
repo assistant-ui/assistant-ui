@@ -17,7 +17,6 @@ point the client runtime at its absolute URL.
 ```ts title="app/api/chat/route.ts"
 import { createAdkApiRoute } from "@assistant-ui/react-google-adk/server";
 import { InMemoryRunner, LlmAgent } from "@google/adk";
-import { requireUser } from "@/lib/auth";
 
 const agent = new LlmAgent({
   name: "my_agent",
@@ -29,7 +28,7 @@ const runner = new InMemoryRunner({ agent, appName: "my-app" });
 
 export const POST = createAdkApiRoute({
   runner,
-  userId: async (req) => (await requireUser(req)).id,
+  userId: "local-user",
   sessionId: (_req, clientSessionId) => {
     if (!clientSessionId) throw new Error("Missing ADK session ID");
     return clientSessionId;
@@ -38,10 +37,11 @@ export const POST = createAdkApiRoute({
 ```
 
 `createAdkStream` sends the initialized assistant-ui thread ID as
-`clientSessionId`. Resolve `userId` from your authentication system before
-accepting it: the client-sent ID selects a conversation, but does not authorize
-access to it. Static user and session IDs are suitable only for a local,
-single-user development route.
+`clientSessionId`, and the route creates the corresponding ADK session before
+the first run. The static user above is suitable only for local, single-user
+development. Before deployment, resolve `userId` from your authentication
+system: the client-sent ID selects a conversation, but does not authorize access
+to it.
 
 </Step>
 <Step>

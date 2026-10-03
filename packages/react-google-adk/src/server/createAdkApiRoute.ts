@@ -6,9 +6,66 @@ import { adkEventStream, type AdkEventStreamOptions } from "./adkEventStream";
  * Avoids requiring `@google/adk` as a dependency.
  */
 type AdkRunner = {
+  readonly appName?: string;
+  readonly sessionService?: {
+    getSession(options: {
+      appName: string;
+      userId: string;
+      sessionId: string;
+    }): Promise<unknown | undefined>;
+    createSession(options: {
+      appName: string;
+      userId: string;
+      sessionId: string;
+    }): Promise<unknown>;
+  };
   runAsync(
     options: Record<string, unknown>,
   ): AsyncGenerator<any, void, undefined>;
+};
+
+type AdkSessionService = NonNullable<AdkRunner["sessionService"]>;
+
+const pendingSessions = new WeakMap<
+  AdkSessionService,
+  Map<string, Promise<void>>
+>();
+
+const ensureRunnerSession = async (
+  runner: AdkRunner,
+  userId: string,
+  sessionId: string,
+) => {
+  const { appName, sessionService } = runner;
+  if (!appName || !sessionService) return;
+
+  let serviceSessions = pendingSessions.get(sessionService);
+  if (!serviceSessions) {
+    serviceSessions = new Map();
+    pendingSessions.set(sessionService, serviceSessions);
+  }
+
+  const key = JSON.stringify([appName, userId, sessionId]);
+  let pending = serviceSessions.get(key);
+  if (!pending) {
+    pending = (async () => {
+      const session = await sessionService.getSession({
+        appName,
+        userId,
+        sessionId,
+      });
+      if (!session) {
+        await sessionService.createSession({ appName, userId, sessionId });
+      }
+    })();
+    serviceSessions.set(key, pending);
+  }
+
+  try {
+    await pending;
+  } finally {
+    if (serviceSessions.get(key) === pending) serviceSessions.delete(key);
+  }
 };
 
 export type CreateAdkApiRouteOptions = {
@@ -79,6 +136,8 @@ export function createAdkApiRoute(
       typeof options.sessionId === "function"
         ? await options.sessionId(req, parsed.sessionId)
         : options.sessionId;
+
+    await ensureRunnerSession(options.runner, userId, sessionId);
 
     const events = options.runner.runAsync({
       userId,
