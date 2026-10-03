@@ -61,3 +61,4 @@ allowBuilds:
   react-grab: false
   ssh2: false
   vue-demi: false
+  workerd@1.20260930.2: true

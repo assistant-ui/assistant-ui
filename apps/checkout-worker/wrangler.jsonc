@@ -1,0 +1,15 @@
+{
+  "$schema": "https://unpkg.com/wrangler/config-schema.json",
+  "name": "agent-checkout",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-01",
+  "dev": { "port": 8791 },
+  "routes": [
+    { "pattern": "setup.assistant-ui.com", "custom_domain": true },
+    { "pattern": "checkout.assistant-ui.com", "custom_domain": true },
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "CHECKOUT", "class_name": "CheckoutDO" }],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["CheckoutDO"] }],
+}
