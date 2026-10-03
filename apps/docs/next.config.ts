@@ -83,6 +83,7 @@ const csp = (frameAncestors: string) =>
 `.replace(/\n/g, "");
 
 const config: NextConfig = {
+  cacheComponents: true,
   // This app keeps a hand-written AGENTS.md, and the root one already points
   // agents at the bundled Next.js docs, so `next dev` must not append its block.
   agentRules: false,

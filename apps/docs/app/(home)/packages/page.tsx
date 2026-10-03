@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import {
@@ -29,11 +30,9 @@ export const metadata: Metadata = {
   ...createOgMetadata(title, description),
 };
 
-// api.npmjs.org allows about forty requests a minute per IP, which a build
-// shares with every other build on the platform, so npm is read at request time.
-export const dynamic = "force-dynamic";
-
 export default async function PackagesPage() {
+  // api.npmjs.org limits requests per IP, so npm is read at request time.
+  await connection();
   const npm = await fetchNpmDownloads();
 
   const ranked = PACKAGES.filter((pkg) => !pkg.deprecated)

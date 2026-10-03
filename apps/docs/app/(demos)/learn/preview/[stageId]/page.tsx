@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import {
   DEFAULT_LEARN_COURSE_ID,
@@ -6,9 +7,6 @@ import {
 } from "@/lib/xulux/learn/registry";
 import { getLearnPreview } from "@/lib/xulux/learn/preview-registry";
 import { PublicAssistantSessionBoundary } from "@/components/xulux/learn/PublicAssistantSessionBoundary";
-
-// Each preview needs its own server-side usage-budget session.
-export const dynamic = "force-dynamic";
 
 // The docs stylesheet sets `overflow-y: scroll` on html for gutter stability; inside the preview iframe that reserves a permanent scrollbar strip along the right edge wherever the platform draws classic scrollbars.
 const PreviewShell = ({ children }: { children: React.ReactNode }) => (
@@ -29,6 +27,8 @@ export default async function LearnStagePreviewPage({
 }: {
   params: Promise<{ stageId: string }>;
 }) {
+  // Each preview needs its own server-side usage-budget session.
+  await connection();
   if (!isAiPlaygroundEnabled) notFound();
 
   const { stageId } = await params;
