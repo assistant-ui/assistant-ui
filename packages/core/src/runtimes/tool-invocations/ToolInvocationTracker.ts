@@ -45,6 +45,7 @@ type ToolCallEntry = {
   hasResult: boolean;
   executionId?: symbol;
   skipExecute?: boolean;
+  executeStarted?: boolean;
 } & (
   | {
       /** Restored phase — observed during a history-load snapshot. */
@@ -136,7 +137,7 @@ export class ToolInvocationTracker {
   >();
   private readonly _executing = new Set<symbol>();
   /**
-   * Tool calls whose turn ended before they reached the executor. Held here
+   * Tool calls whose turn ended before their `execute` started. Held here
    * rather than on the entry because an entry is rebuilt whenever a snapshot
    * re-creates the call, and this is the one reason to skip that no later
    * snapshot carries.
@@ -331,10 +332,11 @@ export class ToolInvocationTracker {
    * Abort any in-flight `execute()` invocations. Resolves once all of them
    * have settled (or immediately if none are running).
    *
-   * `discardPending` additionally kills the calls that never reached the
-   * executor, for a caller ending the turn rather than interrupting it. The
+   * `discardPending` additionally kills the calls whose `execute` has not
+   * started, for a caller ending the turn rather than interrupting it. The
    * signal cannot reach those: they are waiting on the run to settle (A.10),
-   * and the settled snapshot arrives after this installs a fresh controller.
+   * or their args closed in the same tick and `execute` runs after this
+   * installs a fresh controller.
    */
   public abort(options?: { discardPending?: boolean }): Promise<void> {
     try {
@@ -352,7 +354,7 @@ export class ToolInvocationTracker {
       if (options?.discardPending) {
         for (const [toolCallId, entry] of this._entries) {
           if (!entry.controller) continue;
-          if (entry.argsComplete || entry.hasResult) continue;
+          if (entry.hasResult || entry.executeStarted) continue;
           this._discardedToolCallIds.add(toolCallId);
           entry.skipExecute = true;
         }
@@ -442,6 +444,7 @@ export class ToolInvocationTracker {
               if (!entry || entry.skipExecute) {
                 return new Promise(() => {}) as never;
               }
+              entry.executeStarted = true;
               return execute(args, context);
             },
           }),
