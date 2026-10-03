@@ -1,5 +1,7 @@
+import { cacheLife } from "next/cache";
 import {
   type GitHubContributor,
+  getCoAuthorUser,
   getCommitActivityStats,
   getCommitCoAuthors,
   getCommitsSince,
@@ -7,7 +9,6 @@ import {
   getReleases,
   getStarHistory,
   getUser,
-  getUserById,
 } from "./github";
 import {
   FLAGSHIP_PACKAGE,
@@ -444,22 +445,38 @@ const toContributor = (c: GitHubContributor): Contributor => ({
   contributions: c.contributions,
 });
 
-export async function fetchContributors(
-  revalidate?: number,
-): Promise<Contributor[] | null> {
-  const raw = await getContributors(undefined, revalidate);
-  if (raw === null) return null;
+export async function fetchContributors(): Promise<Contributor[] | null> {
+  try {
+    return await getCachedContributors();
+  } catch {
+    return null;
+  }
+}
+
+async function getCachedContributors(): Promise<Contributor[]> {
+  "use cache";
+  cacheLife("hours");
+  const raw = await getContributors();
+  if (raw === null) throw new Error("Contributors read incomplete");
   return raw.filter((c) => !isBot(c.login, c.type)).map(toContributor);
 }
 
 /* Claude has no GitHub account, so it never resolves as a "Bot"; it is matched by the co-author email every model variant shares. */
 const CLAUDE_CO_AUTHOR_EMAIL = "noreply@anthropic.com";
 
-export async function fetchBotCoAuthors(
-  revalidate?: number,
-): Promise<Contributor[]> {
-  const coAuthors = await getCommitCoAuthors(revalidate);
-  if (coAuthors === null) return [];
+export async function fetchBotCoAuthors(): Promise<Contributor[]> {
+  try {
+    return await getCachedBotCoAuthors();
+  } catch {
+    return [];
+  }
+}
+
+async function getCachedBotCoAuthors(): Promise<Contributor[]> {
+  "use cache";
+  cacheLife("hours");
+  const coAuthors = await getCommitCoAuthors();
+  if (coAuthors === null) throw new Error("Co-author scan incomplete");
 
   let claudeCount = 0;
   const accounts = new Map<
@@ -488,10 +505,7 @@ export async function fetchBotCoAuthors(
 
   const resolved = await Promise.all(
     Array.from(accounts.values()).map(async ({ id, login, count }) => {
-      const user =
-        id != null
-          ? await getUserById(id, revalidate)
-          : await getUser(login!, revalidate);
+      const user = await getCoAuthorUser(id ?? login!);
       if (!user || user.type !== "Bot") return null;
       return {
         login: user.login,
@@ -513,7 +527,7 @@ export async function fetchBotCoAuthors(
   const result = Array.from(byLogin.values());
 
   if (claudeCount > 0) {
-    const anthropic = await getUser("anthropics", revalidate);
+    const anthropic = await getUser("anthropics");
     result.push({
       login: "Claude",
       avatarUrl: anthropic?.avatarUrl ?? "/icons/anthropic.svg",
@@ -828,11 +842,19 @@ function projectInflightMonth(
   return Math.round(blended);
 }
 
-export async function fetchStarHistory(
-  revalidate?: number,
-): Promise<TimelinePoint[]> {
-  const weeks = await getStarHistory(revalidate);
-  if (!weeks || weeks.length < 2) return [];
+export async function fetchStarHistory(): Promise<TimelinePoint[]> {
+  try {
+    return await getCachedStarHistory();
+  } catch {
+    return [];
+  }
+}
+
+async function getCachedStarHistory(): Promise<TimelinePoint[]> {
+  "use cache";
+  cacheLife("hours");
+  const weeks = await getStarHistory();
+  if (!weeks || weeks.length < 2) throw new Error("Star history incomplete");
 
   const ordered = [...weeks].sort((a, b) => a.week - b.week);
   const now = Date.now();
