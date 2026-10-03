@@ -102,7 +102,9 @@ jobs:
           install: false
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        working-directory: examples/${{ matrix.example }}
+        run: |
+          node -e 'require("node:child_process").execSync(require("./vercel.json").installCommand, { stdio: "inherit" })'
 
       - name: Pull Vercel Environment Information
         working-directory: examples/${{ matrix.example }}

@@ -140,6 +140,35 @@ test("the workflow trigger paths are the union of the example inputs", () => {
   assert.deepEqual(triggerPaths, allInputs(repoRoot));
 });
 
+test("deployment installs use the same scoped command inside and outside Vercel", () => {
+  const root = JSON.parse(
+    readFileSync(path.join(repoRoot, "package.json"), "utf8"),
+  );
+  for (const example of examplesOf(planDeploys(repoRoot, null))) {
+    const config = JSON.parse(
+      readFileSync(
+        path.join(repoRoot, "examples", example, "vercel.json"),
+        "utf8",
+      ),
+    );
+    assert.equal(
+      config.installCommand,
+      `pnpm install --frozen-lockfile --filter=${root.name} --filter=${example}... --filter=@assistant-ui/react-devtools...`,
+    );
+  }
+  const workflow = readFileSync(path.join(repoRoot, WORKFLOW_FILE), "utf8");
+  const install = workflow.match(
+    /      - name: Install dependencies\n[\s\S]*?(?=\n      - name:)/,
+  )?.[0];
+  assert.ok(install);
+  assert.match(
+    install,
+    /working-directory: examples\/\$\{\{ matrix.example \}\}/,
+  );
+  assert.match(install, /require\("\.\/vercel.json"\)\.installCommand/);
+  assert.doesNotMatch(install, /run: pnpm install/);
+});
+
 test("the Expo native bundle workflow watches every bundle input", () => {
   const nativeWorkflowFile = ".github/workflows/expo-native-bundle.yaml";
   const workflow = readFileSync(
