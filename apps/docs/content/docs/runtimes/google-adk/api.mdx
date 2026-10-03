@@ -95,15 +95,27 @@ import {
 One-liner API route handler that combines request parsing and SSE streaming:
 
 ```ts
+import { requireUser } from "./auth"; // Your authentication helper
+
 export const POST = createAdkApiRoute({
   runner,
-  userId: "default-user",
-  sessionId: (req) =>
-    new URL(req.url).searchParams.get("sessionId") ?? "default",
+  userId: async (req) => (await requireUser(req)).id,
+  sessionId: (_req, clientSessionId) => {
+    if (!clientSessionId) throw new Error("Missing ADK session ID");
+    return clientSessionId;
+  },
 });
 ```
 
-Both `userId` and `sessionId` accept a static string or a function `(req: Request) => string | Promise<string>` for dynamic resolution.
+`userId` accepts a static string or a request resolver. `sessionId` accepts a
+static string or `(req, clientSessionId) => string | Promise<string>`; proxy
+mode supplies the initialized assistant-ui thread ID as `clientSessionId`.
+For ADK runners that expose `appName` and `sessionService`, the route creates a
+missing resolved session before the first run and coalesces concurrent creation
+within the server process.
+Authenticate the request when resolving `userId`, because a client-provided
+session ID is an identifier rather than authorization. Static IDs are intended
+only for local, single-user development.
 
 ### adkEventStream
 

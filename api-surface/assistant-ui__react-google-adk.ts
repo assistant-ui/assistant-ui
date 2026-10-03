@@ -239,6 +239,19 @@ type AdkRunConfig = {
 };
 
 type AdkRunner = {
+  readonly appName?: string;
+  readonly sessionService?: {
+    getSession(options: {
+      appName: string;
+      userId: string;
+      sessionId: string;
+    }): Promise<unknown | undefined>;
+    createSession(options: {
+      appName: string;
+      userId: string;
+      sessionId: string;
+    }): Promise<unknown>;
+  };
   runAsync(options: Record<string, unknown>): AsyncGenerator<any, void, undefined>;
 };
 
@@ -1041,7 +1054,7 @@ type ComposerSubmission = {
 type CreateAdkApiRouteOptions = {
   runner: AdkRunner;
   userId: string | ((req: Request) => string | Promise<string>);
-  sessionId: string | ((req: Request) => string | Promise<string>);
+  sessionId: string | ((req: Request, clientSessionId: string | undefined) => string | Promise<string>);
   onError?: AdkEventStreamOptions["onError"];
 };
 
@@ -1665,6 +1678,7 @@ type ParsedAdkRequest = {
   type: "message";
   text: string;
   parts?: Array<Record<string, unknown>> | undefined;
+  sessionId?: string | undefined;
   config: AdkSendMessageConfig;
   stateDelta?: Record<string, unknown> | undefined;
 } | {
@@ -1673,6 +1687,7 @@ type ParsedAdkRequest = {
   toolName: string;
   result: unknown;
   isError: boolean;
+  sessionId?: string | undefined;
   config: AdkSendMessageConfig;
   stateDelta?: Record<string, unknown> | undefined;
 };
