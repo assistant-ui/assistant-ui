@@ -510,6 +510,140 @@ describe("AcpClient", () => {
     expect(updates).toEqual([fresh]);
   });
 
+  it("keeps a timed-out session/load from streaming its late replay", async () => {
+    const client = mockClient({ requestTimeoutMs: 30_000 });
+    const ws = await withSession(client);
+    const updates: AcpSessionUpdate[] = [];
+    client.subscribeSessionUpdate((_sessionId, update) => {
+      updates.push(update);
+    });
+
+    ws.close();
+
+    // fake timers must be installed before session/load is sent, so its
+    // deadline is the one being advanced
+    vi.useFakeTimers();
+    try {
+      const reloaded = client.ensureSession();
+      const next = lastWs();
+      next.open();
+      const init = next.sent.find((f) => f.method === "initialize")!;
+      next.receive({
+        jsonrpc: "2.0",
+        id: init.id!,
+        result: {
+          protocolVersion: 1,
+          agentCapabilities: { loadSession: true },
+          agentInfo: { name: "menu-agent", version: "0.1.0" },
+        },
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      const load = next.sent.find((f) => f.method === "session/load")!;
+      expect(load.method).toBe("session/load");
+
+      const rejected = expect(reloaded).rejects.toThrow(
+        /session\/load failed.*timed out/s,
+      );
+      await vi.advanceTimersByTimeAsync(30_000);
+      await rejected;
+
+      // the socket is still open and the agent is still replaying
+      next.receive({ jsonrpc: "2.0", id: load.id!, result: {} });
+      next.receive({
+        jsonrpc: "2.0",
+        method: "session/update",
+        params: {
+          sessionId: "s1",
+          update: {
+            sessionUpdate: "agent_message_chunk",
+            content: { type: "text", text: "late replay" },
+          },
+        },
+      });
+      expect(updates).toHaveLength(0);
+      expect(client.sessionId).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("still delivers updates for another session while one is loading", async () => {
+    const client = mockClient();
+    const ws = await withSession(client);
+    const seen: string[] = [];
+    client.subscribeSessionUpdate((sessionId) => {
+      seen.push(sessionId);
+    });
+
+    ws.close();
+    const reloaded = client.ensureSession();
+    const next = lastWs();
+    await completeHandshake(next);
+    const load = await until(() =>
+      next.sent.find((f) => f.method === "session/load"),
+    );
+
+    const send = (sessionId: string) =>
+      next.receive({
+        jsonrpc: "2.0",
+        method: "session/update",
+        params: {
+          sessionId,
+          update: {
+            sessionUpdate: "agent_message_chunk",
+            content: { type: "text", text: "hi" },
+          },
+        },
+      });
+    send("s1");
+    send("s2");
+    expect(seen).toEqual(["s2"]);
+
+    next.receive({ jsonrpc: "2.0", id: load.id!, result: {} });
+    await expect(reloaded).resolves.toBe("s1");
+    send("s1");
+    expect(seen).toEqual(["s2", "s1"]);
+  });
+
+  it("does not send a prompt the caller aborted while the session was created", async () => {
+    const client = mockClient();
+    const abort = new AbortController();
+    const prompted = client.prompt(
+      [{ type: "text", text: "hello" }],
+      abort.signal,
+    );
+
+    const ws = await until(() =>
+      MockWebSocket.instances.at(-1)?.onopen ? lastWs() : undefined,
+    );
+    await completeHandshake(ws);
+    const newSession = await until(() =>
+      ws.sent.find((f) => f.method === "session/new"),
+    );
+
+    abort.abort();
+    ws.receive({
+      jsonrpc: "2.0",
+      id: newSession.id!,
+      result: { sessionId: "s1" },
+    });
+
+    await expect(prompted).resolves.toBe("cancelled");
+    expect(ws.sent.some((f) => f.method === "session/prompt")).toBe(false);
+    expect(client.sessionId).toBe("s1");
+  });
+
+  it("never connects for a prompt that was already aborted", async () => {
+    const client = mockClient();
+    const abort = new AbortController();
+    abort.abort();
+
+    await expect(
+      client.prompt([{ type: "text", text: "hello" }], abort.signal),
+    ).resolves.toBe("cancelled");
+    expect(MockWebSocket.instances).toHaveLength(0);
+  });
+
   it("refuses to continue a lost session the agent cannot reload", async () => {
     const client = mockClient();
     const ws = await withSession(client);

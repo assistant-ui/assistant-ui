@@ -41,10 +41,12 @@ class FakeClient {
   stopReason: string = "end_turn";
   promptError: Error | undefined = undefined;
   promptGate: (() => void) | undefined = undefined;
+  connectGate = false;
   cancelReleases = true;
   readonly releases: (() => void)[] = [];
 
   private release: (() => void) | undefined = undefined;
+  private connectRelease: (() => void) | undefined = undefined;
 
   subscribeSessionUpdate(
     listener: (sessionId: string, update: AcpSessionUpdate) => void,
@@ -71,6 +73,11 @@ class FakeClient {
 
   async connect() {
     this.connectCalls += 1;
+    if (this.connectGate) {
+      await new Promise<void>((resolve) => {
+        this.connectRelease = resolve;
+      });
+    }
     this.connectionState = "connected";
     this.sessionId = "s1";
     this.agentInfo = { name: "fake-agent", version: "0.0.1" };
@@ -86,7 +93,11 @@ class FakeClient {
     };
   }
 
-  async prompt(blocks: unknown[]) {
+  async prompt(blocks: unknown[], signal?: AbortSignal) {
+    if (signal?.aborted) {
+      this.log?.push("prompt:aborted");
+      return "cancelled";
+    }
     this.prompts.push(blocks);
     this.log?.push("prompt:send");
     if (this.promptGate) {
@@ -123,6 +134,11 @@ class FakeClient {
   unblock() {
     this.release?.();
     this.release = undefined;
+  }
+
+  unblockConnect() {
+    this.connectRelease?.();
+    this.connectRelease = undefined;
   }
 }
 
@@ -677,6 +693,51 @@ describe("AcpThreadController", () => {
 
     client.unblock();
     await done;
+  });
+
+  it("cancels a turn whose session is still being created", async () => {
+    const c = controller(client);
+    await c.attach();
+    await c.load();
+
+    // session/new (or a session/load replay) is what makes this window long
+    client.connectGate = true;
+    const done = c.append(userAppend("hello"));
+    await flush();
+    expect(c.getState().run.type).toBe("running");
+
+    await c.cancel();
+    expect(client.cancelCalls).toBe(1);
+
+    client.unblockConnect();
+    await done;
+    await flush();
+
+    expect(client.prompts).toHaveLength(0);
+    expect(assistantOf(c).status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+    expect(c.getState().run).toEqual({ type: "idle" });
+  });
+
+  it("does not send a prompt when a detach lands while the session is created", async () => {
+    const c = controller(client);
+    await c.attach();
+    await c.load();
+
+    client.connectGate = true;
+    const done = c.append(userAppend("hello"));
+    await flush();
+    expect(c.getState().run.type).toBe("running");
+
+    await c.detach();
+    client.unblockConnect();
+    await done;
+    await flush();
+
+    expect(client.prompts).toHaveLength(0);
+    expect(c.getState().run).toEqual({ type: "idle" });
   });
 
   it("does not launch a turn that a detach superseded", async () => {

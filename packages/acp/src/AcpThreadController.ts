@@ -93,6 +93,7 @@ export class AcpThreadController implements AcpThreadControllerLike {
   private permissionCounter = 0;
   private attached = false;
   private inflightPrompt: Promise<unknown> | undefined;
+  private runAbort: AbortController | undefined;
   private startLock: Promise<void> = Promise.resolve();
   private unsubscribeSessionUpdate: (() => void) | undefined;
   private unsubscribeConnectionChange: (() => void) | undefined;
@@ -170,6 +171,7 @@ export class AcpThreadController implements AcpThreadControllerLike {
     this.restorePermissionHandler = undefined;
     this.runToken += 1;
     this.detachToken += 1;
+    this.runAbort?.abort();
     await this.settlePermissions();
     if (this.state.run.type === "running") {
       this.dispatch({
@@ -217,6 +219,7 @@ export class AcpThreadController implements AcpThreadControllerLike {
   async cancel(): Promise<void> {
     if (this.state.run.type !== "running") return;
     this.runToken += 1;
+    this.runAbort?.abort();
     await this.settlePermissions();
     this.dispatch({
       type: "run-end",
@@ -384,7 +387,9 @@ export class AcpThreadController implements AcpThreadControllerLike {
 
   /**
    * A detach that lands while this prologue is waiting supersedes it: the turn
-   * would otherwise be launched on a controller nobody is listening to. The
+   * would otherwise be launched on a controller nobody is listening to. A cancel
+   * that lands while the session is still being created aborts the prompt
+   * instead, so `session/prompt` is never sent for a turn the user stopped. The
    * prompt is chained off `connect()` because `promptCapabilities` only exist
    * once the handshake has run, and filtering before it would withhold
    * attachments from an agent that does accept them.
@@ -410,6 +415,8 @@ export class AcpThreadController implements AcpThreadControllerLike {
     };
     this.dispatch({ type: "run-start", message: assistant });
     const token = this.runToken;
+    const abort = new AbortController();
+    this.runAbort = abort;
     const blocks = threadContentToAcpBlocks([
       ...user.content,
       ...user.attachments.flatMap((attachment) => attachment.content ?? []),
@@ -421,7 +428,7 @@ export class AcpThreadController implements AcpThreadControllerLike {
       );
       if (filtered.dropped.length > 0)
         this.reportDroppedBlocks(filtered.dropped);
-      return this.client.prompt(filtered.blocks);
+      return this.client.prompt(filtered.blocks, abort.signal);
     });
     this.inflightPrompt = prompt;
     return { token, prompt };

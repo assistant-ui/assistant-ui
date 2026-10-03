@@ -58,10 +58,17 @@ export function App() {
 
 ### Bringing your own `AcpClient`
 
-Pass `client` to share one connection between runtimes or to configure the
-transport yourself. The runtime **subscribes** to the client
-(`subscribeSessionUpdate` / `subscribeConnectionChange`) and unsubscribes when
-it unmounts, so your own listeners keep working alongside it.
+Pass `client` to configure the transport yourself — not to share one connection
+between runtimes. An `AcpClient` holds exactly one ACP session, so two runtimes
+on one client would prompt the same session and each show only its own half of
+the conversation: the silent fork the Limitations section warns about. Approvals
+cannot be shared either (see below), and whichever runtime unmounts first
+restores the handler it found at attach time, which can leave a still-mounted
+one without an approval UI. Give each runtime its own client.
+
+The runtime **subscribes** to the client (`subscribeSessionUpdate` /
+`subscribeConnectionChange`) and unsubscribes when it unmounts, so your own
+listeners keep working alongside it.
 
 Approvals are the one thing a client can only have one of. A client constructed
 with a `permissionHandler` keeps it — the runtime does not replace it, and the
@@ -136,10 +143,21 @@ follow-up.
 The agent loses the session when the socket goes away. On reconnect the client
 calls `session/load` for the session it lost, if `agentCapabilities.loadSession`
 advertises it, and otherwise rejects the next prompt with an error naming that
-session. It keeps rejecting until a load succeeds, so a retry cannot fork into a
-`session/new` whose agent lacks the transcript the user is reading; surface the
-error as a "start a new thread" prompt. The replay an agent sends while loading
-is dropped, because the thread already shows it.
+session. Every later prompt keeps rejecting until a load succeeds, so a retry
+cannot fork into a `session/new` whose agent lacks the transcript the user is
+reading. The replay an agent sends while loading is dropped, because the thread
+already shows it — and a load that fails or times out keeps dropping that
+session's updates rather than letting a late replay through.
+
+**Recovering from a lost session takes a new thread, not a retry.**
+`useAcpRuntime` drives a single thread with no thread list, so there is no
+`onSwitchToNewThread` to hang a reset on, and the transcript and the session
+have to go together: clearing one without the other is exactly the fork above.
+Surface the error as a "start a new thread" action that hands the hook a new
+`client`, changes one of the managed options (`url`, `cwd`, `mcpServers`,
+`clientInfo`), or remounts the provider — each builds a fresh client and
+controller with an empty transcript and a new session. Until that happens the
+thread stays put: it keeps showing what it has and refuses to prompt.
 
 **Attachments the agent did not opt into are withheld.**
 ACP's baseline prompt content is text and resource links; `image`, `audio` and

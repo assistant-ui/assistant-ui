@@ -72,7 +72,7 @@ declare class AcpClient {
   set permissionHandler(handler: AcpPermissionHandler);
   connect(): Promise<AcpInitializeResponse>;
   ensureSession(): Promise<string>;
-  prompt(content: readonly AcpContentBlock[]): Promise<AcpStopReason>;
+  prompt(content: readonly AcpContentBlock[], signal?: AbortSignal): Promise<AcpStopReason>;
   cancel(): Promise<void>;
   respondPermission(requestId: JsonRpcId, outcome: AcpPermissionOutcome): void;
   dispose(): void;

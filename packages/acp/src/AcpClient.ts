@@ -198,8 +198,18 @@ export class AcpClient {
     return this.sessionPromise;
   }
 
-  async prompt(content: readonly AcpContentBlock[]): Promise<AcpStopReason> {
+  /**
+   * Sends `session/prompt`. An aborted `signal` cancels the turn before it is
+   * sent, including while `session/new` or `session/load` is still in flight:
+   * an agent must never run a turn the user already stopped.
+   */
+  async prompt(
+    content: readonly AcpContentBlock[],
+    signal?: AbortSignal,
+  ): Promise<AcpStopReason> {
+    if (signal?.aborted) return "cancelled";
     const sessionId = await this.ensureSession();
+    if (signal?.aborted) return "cancelled";
     this.cancelSent = false;
     const result = await this.request<{ stopReason?: AcpStopReason }>(
       "session/prompt",
@@ -390,6 +400,9 @@ export class AcpClient {
    * The agent answers `session/load` only after replaying the whole transcript
    * as `session/update` notifications. That replay is history the thread state
    * already holds, so it is dropped instead of streaming into the next reply.
+   * A load that fails or times out leaves that fence down: the socket is still
+   * open, the agent may still be replaying, and the session stays unusable
+   * either way, so a late replay must not reach the thread.
    */
   private async reloadSession(sessionId: string): Promise<string> {
     const unusable = (reason: string) =>
@@ -409,9 +422,8 @@ export class AcpClient {
       });
     } catch (error) {
       throw unusable(`session/load failed: ${toError(error).message}`);
-    } finally {
-      this.loadingSessionId = undefined;
     }
+    this.loadingSessionId = undefined;
     this._sessionId = sessionId;
     this.lostSessionId = undefined;
     this.emitConnectionChange();
@@ -513,11 +525,11 @@ export class AcpClient {
 
   private handleNotification(msg: any): void {
     if (msg.method !== "session/update") return;
-    if (this.loadingSessionId !== undefined) return;
     const params = msg.params as
       | { sessionId: string; update: AcpSessionUpdate }
       | undefined;
     if (!params?.update) return;
+    if (params.sessionId === this.loadingSessionId) return;
     for (const listener of [...this.sessionUpdateListeners]) {
       invokeUserCallback(
         "acp",
