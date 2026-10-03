@@ -504,7 +504,12 @@ function DatePickerRender({
       }
       step={
         inputType !== "date"
-          ? getTemporalInputStep(selection.anchor, currentValue, min, max)
+          ? getTemporalInputStep(
+              selection.anchor,
+              hasInstantAnchor ? displayValue : currentValue,
+              min,
+              max,
+            )
           : undefined
       }
       onChange={(e) => {

@@ -721,6 +721,27 @@ describe("DatePicker temporal contract", () => {
     expect(new Date("2026-07-15T12:00Z").getTimezoneOffset()).toBe(240);
   });
 
+  it("keeps year edits stable across historical second-level offsets", async () => {
+    const container = await mount(
+      view({ inputType: "datetime", value: "2025-12-15T17:00Z" }),
+    );
+    const input = container.querySelector<HTMLInputElement>("input")!;
+
+    for (const [year, canonical] of [
+      ["0002", "0002-12-15T16:56:02Z"],
+      ["0020", "0020-12-15T16:56:02Z"],
+      ["0202", "0202-12-15T16:56:02Z"],
+      ["2025", "2025-12-15T17:00Z"],
+    ]) {
+      const local = `${year}-12-15T12:00`;
+      await change(input, local);
+      expect(input.value).toBe(local);
+      expect(input.step).toBe("");
+      expect(input.getAttribute(FIELD_VALUE_ATTR)).toBe(canonical);
+      expect(collectFormValues([input])).toEqual({ when: canonical });
+    }
+  });
+
   it("declares the three temporal input types and defaults to date", async () => {
     const schema = interactiveVocabulary.DatePicker.properties;
     for (const inputType of ["date", "datetime", "time"]) {
