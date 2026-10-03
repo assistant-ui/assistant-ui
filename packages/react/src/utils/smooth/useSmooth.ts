@@ -50,7 +50,7 @@ const DEFAULT_MAX_CHAR_INTERVAL_MS = 5;
 class TextStreamAnimator {
   private animationFrameId: number | null = null;
   private lastUpdateTime: number = performance.now();
-  public lastCommitTime: number = 0;
+  public lastCommitTime: number = -Infinity;
 
   public targetText: string = "";
   public drainMs: number = DEFAULT_DRAIN_MS;
@@ -240,7 +240,7 @@ export const useSmooth = (
       if (state.status.type === "running") {
         animatorRef.currentText = "";
         animatorRef.targetText = text;
-        animatorRef.lastCommitTime = 0;
+        animatorRef.lastCommitTime = -Infinity;
         animatorRef.start();
       } else {
         animatorRef.currentText = text;
