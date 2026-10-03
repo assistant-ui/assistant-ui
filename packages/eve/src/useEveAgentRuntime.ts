@@ -39,10 +39,12 @@ import {
   type UseEveAgentStatus,
 } from "eve/react";
 import {
+  collectTurnFailureEvents,
   convertEveMessages,
   findEveInputRequest,
   getEveMessageContent,
   toEveInputResponse,
+  type TurnFailureEventCache,
 } from "./convertEveMessages";
 import {
   collectTurnTimestamps,
@@ -297,21 +299,14 @@ const useEveThreadRuntime = (
     () => collectTurnTimestamps(agent.events, turnTimestampCacheRef.current),
     [agent.events],
   );
-  const failureEventsRef = useRef<typeof agent.events>([]);
-  const failureEvents = useMemo(() => {
-    const failures = agent.events.filter(
-      (event) => event.type === "turn.failed",
-    );
-    const previous = failureEventsRef.current;
-    if (
-      failures.length === previous.length &&
-      failures.every((event, index) => event === previous[index])
-    ) {
-      return previous;
-    }
-    failureEventsRef.current = failures;
-    return failures;
-  }, [agent.events]);
+  const failureEventCacheRef = useRef<TurnFailureEventCache>({
+    lastEvents: [],
+    failures: [],
+  });
+  const failureEvents = useMemo(
+    () => collectTurnFailureEvents(agent.events, failureEventCacheRef.current),
+    [agent.events],
+  );
 
   const convertedMessages = useMemo(() => {
     const createdAtByMessageId = createdAtByMessageIdRef.current;

@@ -6,6 +6,7 @@ import {
   type MessageStreamEvent,
 } from "eve/client";
 import {
+  collectTurnFailureEvents,
   convertEveMessages,
   findEveInputRequest,
   getEveMessageContent,
@@ -2299,5 +2300,41 @@ describe("findEveInputRequest", () => {
     expect(
       findEveInputRequest(bare as EveMessageData, "req_1"),
     ).toBeUndefined();
+  });
+});
+
+describe("collectTurnFailureEvents", () => {
+  const started = (turnId: string, sequence: number) =>
+    ({
+      type: "turn.started",
+      meta: eventMeta(sequence),
+      data: { turnId, sequence },
+    }) as const satisfies MessageStreamEvent;
+  const failed = (turnId: string, sequence: number) =>
+    ({
+      type: "turn.failed",
+      meta: eventMeta(sequence),
+      data: { turnId, sequence, code: "internal", message: "boom" },
+    }) as const satisfies MessageStreamEvent;
+
+  it("scans appended events and keeps the array until a failure arrives", () => {
+    const cache = { lastEvents: [], failures: [] };
+    const first = [started("t1", 0), failed("t1", 1)];
+    const failures = collectTurnFailureEvents(first, cache);
+    expect(failures).toEqual([first[1]]);
+    expect(collectTurnFailureEvents([...first, started("t2", 2)], cache)).toBe(
+      failures,
+    );
+    const second = [...first, started("t2", 2), failed("t2", 3)];
+    expect(collectTurnFailureEvents(second, cache)).toEqual([
+      first[1],
+      second[3],
+    ]);
+  });
+
+  it("rescans a log that does not extend the scanned one", () => {
+    const cache = { lastEvents: [], failures: [] };
+    collectTurnFailureEvents([started("t1", 0), failed("t1", 1)], cache);
+    expect(collectTurnFailureEvents([started("t2", 0)], cache)).toEqual([]);
   });
 });

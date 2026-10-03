@@ -533,6 +533,38 @@ const convertEveMessageWithFailures = (
   );
 };
 
+export type TurnFailureEventCache = {
+  lastEvents: readonly MessageStreamEvent[];
+  failures: readonly MessageStreamEvent[];
+};
+
+/**
+ * Collects the `turn.failed` events of an append-only event log, scanning
+ * only the events appended since the cached call. The returned array keeps
+ * its identity until a new failure arrives.
+ */
+export const collectTurnFailureEvents = (
+  events: readonly MessageStreamEvent[],
+  cache: TurnFailureEventCache,
+): readonly MessageStreamEvent[] => {
+  if (events === cache.lastEvents) return cache.failures;
+
+  const scanned = cache.lastEvents;
+  const resumesScan =
+    scanned.length === 0 ||
+    events[scanned.length - 1] === scanned[scanned.length - 1];
+
+  let failures = resumesScan ? cache.failures : [];
+  for (let i = resumesScan ? scanned.length : 0; i < events.length; i++) {
+    const event = events[i]!;
+    if (event.type === "turn.failed") failures = [...failures, event];
+  }
+
+  cache.lastEvents = events;
+  cache.failures = failures;
+  return failures;
+};
+
 const getTurnFailures = (events: readonly MessageStreamEvent[] | undefined) => {
   const failures = new Map<string, { code: string; message: string }>();
   for (const event of events ?? []) {
