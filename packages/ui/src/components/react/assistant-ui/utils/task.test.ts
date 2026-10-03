@@ -1,10 +1,9 @@
-import { act, createElement } from "react";
+import { act, createElement, useLayoutEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   formatElapsed,
-  formatUnknownValue,
   taskLabel,
   taskMeta,
   taskStateOf,
@@ -87,20 +86,6 @@ describe("formatElapsed", () => {
   });
 });
 
-describe("formatUnknownValue", () => {
-  it("formats strings, indented objects, errors, and circular values", () => {
-    const circular: { self?: unknown } = {};
-    circular.self = circular;
-
-    expect(formatUnknownValue("text")).toBe("text");
-    expect(formatUnknownValue({ value: "text" }, 2)).toBe(
-      '{\n  "value": "text"\n}',
-    );
-    expect(formatUnknownValue(new Error("boom"))).toBe("Error: boom");
-    expect(formatUnknownValue(circular)).toBe("[object Object]");
-  });
-});
-
 describe("useTaskElapsed", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -127,13 +112,21 @@ describe("useTaskElapsed", () => {
   }) => createElement("output", null, String(useTaskElapsed(timing, running)));
 
   it("does not read the clock during server render", () => {
+    const Baseline = () => {
+      useLayoutEffect(() => {});
+      return createElement("output", null, "undefined");
+    };
+    const expected = renderToString(createElement(Baseline));
     const now = vi.spyOn(Date, "now");
     try {
       expect(
         renderToString(
-          createElement(Probe, { running: true, timing: { startedAt: 5_000 } }),
+          createElement(Probe, {
+            running: true,
+            timing: { startedAt: 5_000 },
+          }),
         ),
-      ).toBe("<output>undefined</output>");
+      ).toBe(expected);
       expect(now).not.toHaveBeenCalled();
     } finally {
       now.mockRestore();
@@ -157,7 +150,7 @@ describe("useTaskElapsed", () => {
     expect(container.textContent).toBe("2400");
   });
 
-  it("ticks running work every second and stops when it no longer runs", async () => {
+  it("catches up on mount, ticks, and stops when work ends", async () => {
     vi.useFakeTimers();
     try {
       vi.setSystemTime(10_000);
@@ -182,6 +175,7 @@ describe("useTaskElapsed", () => {
         );
       });
       expect(container.textContent).toBe("undefined");
+      expect(vi.getTimerCount()).toBe(0);
 
       await act(async () => {
         vi.advanceTimersByTime(2_000);
