@@ -381,6 +381,31 @@ describe("useAISDKRuntime", () => {
     });
   });
 
+  it("keeps rendering through a run when the last assistant message has malformed parts", () => {
+    const chat = createChatHelpers([
+      { id: "user-1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [
+          null,
+          { text: "no type" },
+          { type: "text" },
+          { type: "text", text: "yo" },
+        ],
+      },
+    ]);
+    chat.status = "submitted";
+
+    const { result, rerender } = renderHook(() => useAISDKRuntime(chat));
+    act(() => {
+      chat.status = "ready";
+      rerender();
+    });
+
+    expect(textOf(result.current.thread.getState().messages.at(-1))).toBe("yo");
+  });
+
   it("marks output cancelled while a client tool is still executing", async () => {
     let resolveTool!: (value: string) => void;
     const execute = vi.fn(
@@ -526,6 +551,86 @@ describe("useAISDKRuntime", () => {
     );
     // Completed tool (tc-2) should remain unchanged
     expect(chat.messages[0].parts[1].state).toBe("output-available");
+  });
+
+  it("sends past an assistant message with malformed parts", async () => {
+    const chat = createChatHelpers([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          null,
+          { text: "no type" },
+          {
+            type: "tool-weather",
+            toolCallId: "tc-1",
+            state: "input-available",
+            input: { city: "NYC" },
+          },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBeGreaterThan(
+        0,
+      );
+    });
+
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "continue" }],
+      });
+    });
+
+    await waitFor(() => {
+      expect(chat.sendMessage).toHaveBeenCalledTimes(1);
+    });
+    expect(chat.messages[0].parts.slice(0, 2)).toEqual([
+      null,
+      { text: "no type" },
+    ]);
+    expect(chat.messages[0].parts[2].state).toBe("output-error");
+  });
+
+  it("answers a tool call in an earlier assistant message with malformed parts", async () => {
+    const chat = createChatHelpers([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          null,
+          {
+            type: "tool-weather",
+            toolCallId: "tc-1",
+            state: "input-available",
+            input: { city: "NYC" },
+          },
+        ],
+      },
+      { id: "u2", role: "user", parts: [{ type: "text", text: "and?" }] },
+      { id: "a2", role: "assistant", parts: [{ type: "text", text: "ok" }] },
+    ]);
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBe(3);
+    });
+
+    await act(async () => {
+      result.current.thread
+        .getMessageById("a1")
+        .getMessagePartByToolCallId("tc-1")
+        .addToolResult({ temp: 72 });
+    });
+
+    await waitFor(() => {
+      expect(chat.messages[0].parts[1].state).toBe("output-available");
+    });
+    expect(chat.messages[0].parts[0]).toBeNull();
+    expect(chat.messages[0].parts[1].output).toEqual({ temp: 72 });
   });
 
   it("strips stale approval when cancelling a tool pending approval so history stays valid", async () => {
