@@ -26,9 +26,7 @@ import { isExampleBundlesEnabled } from "@/lib/feature-flags";
 import { cn } from "@/lib/utils";
 
 export function generateStaticParams() {
-  return isExampleBundlesEnabled
-    ? EXAMPLE_BUNDLES.map(({ slug }) => ({ slug }))
-    : [];
+  return EXAMPLE_BUNDLES.map(({ slug }) => ({ slug }));
 }
 export async function generateMetadata({
   params,
