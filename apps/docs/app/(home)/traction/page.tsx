@@ -151,32 +151,42 @@ async function Stats() {
       label: "Public packages",
       caption: "shipped on npm",
     },
-    {
-      value: repo ? formatNumber(repo.forks) : "—",
-      label: "Forks",
-      caption: "of the main repo",
-    },
-    {
-      value:
-        commitStats.total != null ? commitStats.total.toLocaleString() : "—",
-      label: "Commits",
-      caption: "on assistant-ui/assistant-ui",
-    },
-    {
-      value: commitStats.firstCommitDate
-        ? daysSince(commitStats.firstCommitDate).toLocaleString()
-        : "—",
-      label: "Days in the open",
-      caption: "since the first commit",
-    },
-    {
-      value:
-        dependents && dependents.repos > 0
-          ? formatNumber(dependents.repos)
-          : "—",
-      label: "Public dependents",
-      caption: "repos on GitHub",
-    },
+    ...(repo
+      ? [
+          {
+            value: formatNumber(repo.forks),
+            label: "Forks",
+            caption: "of the main repo",
+          },
+        ]
+      : []),
+    ...(commitStats.total != null
+      ? [
+          {
+            value: commitStats.total.toLocaleString(),
+            label: "Commits",
+            caption: "on assistant-ui/assistant-ui",
+          },
+        ]
+      : []),
+    ...(commitStats.firstCommitDate
+      ? [
+          {
+            value: daysSince(commitStats.firstCommitDate).toLocaleString(),
+            label: "Days in the open",
+            caption: "since the first commit",
+          },
+        ]
+      : []),
+    ...(dependents && dependents.repos > 0
+      ? [
+          {
+            value: formatNumber(dependents.repos),
+            label: "Public dependents",
+            caption: "repos on GitHub",
+          },
+        ]
+      : []),
   ];
 
   return (

@@ -134,7 +134,7 @@ describe("TractionPage", () => {
     }
   });
 
-  it("keeps all eight stat cards when GitHub does not answer", async () => {
+  it("drops the stats GitHub did not answer instead of showing placeholders", async () => {
     const [stats] = sectionsOf(TractionPage());
     const rendered = stats!.type(stats!.props);
     await flush();
@@ -145,6 +145,6 @@ describe("TractionPage", () => {
     }
 
     const section = (await rendered) as ReactElement<{ children: ReactNode }>;
-    expect(Children.toArray(section.props.children)).toHaveLength(8);
+    expect(Children.toArray(section.props.children)).toHaveLength(4);
   });
 });
