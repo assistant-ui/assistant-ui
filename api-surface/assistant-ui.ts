@@ -346,6 +346,11 @@ export const cliSurface: CliSurfaceSnapshot = {
             {
               "flags": "--no-open",
               "description": "print the device sign-in URL without opening a browser"
+            },
+            {
+              "flags": "--setup-url <url>",
+              "description": "show device sign-in in an active setup wizard",
+              "required": true
             }
           ],
           "commands": []
@@ -421,6 +426,11 @@ export const cliSurface: CliSurfaceSnapshot = {
             {
               "flags": "--no-open",
               "description": "print the device sign-in URL without opening a browser"
+            },
+            {
+              "flags": "--setup-url <url>",
+              "description": "show device sign-in in an active setup wizard",
+              "required": true
             },
             {
               "flags": "--yes",
