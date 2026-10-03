@@ -51,12 +51,44 @@ const createSizeRegistry = (
 
 export type ThreadViewportState = {
   readonly isAtBottom: boolean;
+
+  /** Whether auto-scrolling on content growth is paused. */
+  readonly autoScrollPaused: boolean;
+
+  /**
+   * Pause auto-scrolling on content growth.
+   *
+   * Multiple callers can hold a pause concurrently. Auto-scrolling remains
+   * paused until every returned release function has been called, or until
+   * an explicit `resumeAutoScroll()` or `scrollToBottom()`.
+   *
+   * @returns A release function that unregisters this pause holder.
+   *
+   * @example
+   * ```tsx
+   * const pauseAutoScroll = useThreadViewport((s) => s.pauseAutoScroll);
+   *
+   * useEffect(() => {
+   *   if (!isExpanded) return;
+   *   const unpause = pauseAutoScroll();
+   *   return () => unpause();
+   * }, [isExpanded, pauseAutoScroll]);
+   * ```
+   */
+  readonly pauseAutoScroll: () => Unsubscribe;
+
+  /**
+   * Resume auto-scrolling immediately, clearing all active pause holders.
+   */
+  readonly resumeAutoScroll: () => void;
   readonly scrollToBottom: (config?: {
     behavior?: ScrollBehavior | undefined;
   }) => void;
   readonly onScrollToBottom: (
     callback: ({ behavior }: { behavior: ScrollBehavior }) => void,
   ) => Unsubscribe;
+  readonly onPauseAutoScroll: (callback: () => Unsubscribe) => Unsubscribe;
+  readonly onResumeAutoScroll: (callback: () => void) => Unsubscribe;
 
   /** Controls scroll anchoring: "top" anchors user messages at top, "bottom" is classic behavior */
   readonly turnAnchor: "top" | "bottom";
@@ -143,6 +175,8 @@ export const makeThreadViewportStore = (
   const scrollToBottomListeners = new Set<
     (config: { behavior: ScrollBehavior }) => void
   >();
+  const pauseAutoScrollListeners = new Set<() => Unsubscribe>();
+  const resumeAutoScrollListeners = new Set<() => void>();
 
   const viewportRegistry = createSizeRegistry((total) => {
     store.setState({
@@ -182,9 +216,45 @@ export const makeThreadViewportStore = (
     };
   };
 
+  const pauseHolders = new Set<symbol>();
+
   const store = create<ThreadViewportState>(() => ({
     isAtBottom: true,
+    autoScrollPaused: false,
+    pauseAutoScroll: () => {
+      if (pauseAutoScrollListeners.size > 0) {
+        const unsubs: Unsubscribe[] = [];
+        for (const listener of pauseAutoScrollListeners) {
+          unsubs.push(listener());
+        }
+        return () => {
+          for (const unsub of unsubs) {
+            unsub();
+          }
+        };
+      }
+      const id = Symbol();
+      pauseHolders.add(id);
+      store.setState({ autoScrollPaused: true });
+      return () => {
+        pauseHolders.delete(id);
+        if (pauseHolders.size === 0) {
+          store.setState({ autoScrollPaused: false });
+        }
+      };
+    },
+    resumeAutoScroll: () => {
+      pauseHolders.clear();
+      store.setState({ autoScrollPaused: false });
+      notifyEventListeners(
+        resumeAutoScrollListeners,
+        undefined,
+        "Thread viewport",
+      );
+    },
     scrollToBottom: ({ behavior = "auto" } = {}) => {
+      pauseHolders.clear();
+      store.setState({ autoScrollPaused: false });
       notifyEventListeners(
         scrollToBottomListeners,
         () => ({ behavior }),
@@ -195,6 +265,26 @@ export const makeThreadViewportStore = (
       scrollToBottomListeners.add(callback);
       return () => {
         scrollToBottomListeners.delete(callback);
+      };
+    },
+    onPauseAutoScroll: (callback) => {
+      pauseAutoScrollListeners.add(callback);
+      let releaseExisting: Unsubscribe | null = null;
+      if (pauseHolders.size > 0) {
+        releaseExisting = callback();
+      }
+      return () => {
+        pauseAutoScrollListeners.delete(callback);
+        if (releaseExisting) {
+          releaseExisting();
+          releaseExisting = null;
+        }
+      };
+    },
+    onResumeAutoScroll: (callback) => {
+      resumeAutoScrollListeners.add(callback);
+      return () => {
+        resumeAutoScrollListeners.delete(callback);
       };
     },
 
