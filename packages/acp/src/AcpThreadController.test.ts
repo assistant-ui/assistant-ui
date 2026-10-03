@@ -1223,4 +1223,42 @@ describe("AcpThreadController over a real AcpClient", () => {
     expect(c.getState().sessionId).toBe("s1");
     expect(assistantOf(c).status).toEqual({ type: "complete", reason: "stop" });
   });
+
+  it("sends no prompt when a cancel lands while session/new is unanswered", async () => {
+    StubSocket.instances = [];
+    const client = new AcpClient({
+      url: "ws://agent.test/",
+      webSocketFactory: () => new StubSocket(),
+    });
+    const c = new AcpThreadController({ client });
+    await c.attach();
+
+    const loaded = c.load();
+    const ws = StubSocket.instances.at(-1)!;
+    ws.open();
+    const initialize = await waitFor(() => ws.find("initialize"));
+    ws.reply(initialize.id, {
+      protocolVersion: 1,
+      agentCapabilities: {},
+      agentInfo: { name: "real-agent", version: "0.1.0" },
+    });
+    await loaded;
+
+    const done = c.append(userAppend("hello"));
+    const newSession = await waitFor(() => ws.find("session/new"));
+    expect(c.getState().run.type).toBe("running");
+
+    await c.cancel();
+    ws.reply(newSession.id, { sessionId: "s1" });
+    await done;
+    await flush();
+
+    expect(ws.find("session/prompt")).toBeUndefined();
+    expect(ws.find("session/cancel")).toBeUndefined();
+    expect(assistantOf(c).status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+    expect(c.getState().run).toEqual({ type: "idle" });
+  });
 });
