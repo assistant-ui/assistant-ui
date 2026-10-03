@@ -26,6 +26,16 @@ type SetupCommands = {
   "checkout/answer": (answer: { inputId: string; answer: string }) => void;
 };
 
+const validInputs = (inputs: unknown): inputs is SetupState["inputs"] =>
+  Array.isArray(inputs) &&
+  inputs.every(
+    (input) =>
+      input !== null &&
+      typeof input === "object" &&
+      typeof input.id === "string" &&
+      typeof input.status === "string",
+  );
+
 export const setupLoginUrl = (
   authorization: DeviceAuthorization,
   issuer: string,
@@ -78,6 +88,10 @@ export const connectCloudLoginSetup = async (url: string) => {
   let disposed = false;
   const reconcile = () => {
     const state = client.state;
+    if (state && !validInputs(state.inputs)) {
+      controller.abort(new Error("The setup returned invalid inputs."));
+      return Promise.resolve();
+    }
     if (
       disposed ||
       inputId === undefined ||
@@ -98,6 +112,10 @@ export const connectCloudLoginSetup = async (url: string) => {
   };
   const checkSession = () => {
     const next = client.state;
+    if (next && !validInputs(next.inputs)) {
+      controller.abort(new Error("The setup returned invalid inputs."));
+      return;
+    }
     if (next?.id === sessionId && Array.isArray(next.inputs) && pendingHref) {
       inputId ??= next.inputs.find(
         (input) =>
@@ -155,9 +173,9 @@ export const connectCloudLoginSetup = async (url: string) => {
     );
     const state = client.state!;
     if (
-      state.version !== 2 ||
+      state?.version !== 2 ||
       !state.id ||
-      !Array.isArray(state.inputs) ||
+      !validInputs(state.inputs) ||
       !["planning", "installing"].includes(state.status)
     ) {
       throw new Error(

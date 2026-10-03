@@ -78,6 +78,19 @@ describe("wizard cloud login", () => {
     expect(
       returnedToCloudLogin(request, "session", "#setup-login=another", saved),
     ).toBe(false);
+    const changedExpiry = new URL(request.help!.href!);
+    changedExpiry.searchParams.set(
+      "setup_expires",
+      String(cloudLoginDetails(request)!.expiresAt + 1_000),
+    );
+    expect(
+      returnedToCloudLogin(
+        { ...request, help: { ...request.help!, href: changedExpiry.href } },
+        "session",
+        `#setup-login=${attempt}`,
+        saved,
+      ),
+    ).toBe(false);
   });
   it.each([
     "https://accounts.assistant-ui.com.evil.test/device",

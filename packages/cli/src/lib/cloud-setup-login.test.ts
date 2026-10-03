@@ -178,6 +178,37 @@ describe("cloud setup device login", () => {
     expect(bridge.signal.aborted).toBe(true);
     await bridge.dispose();
   });
+  it.each([null, 1, "input", {}, { id: "q1" }, { status: "pending" }])(
+    "rejects malformed initial input entries: %j",
+    async (input) => {
+      fixture.state!.inputs = [input] as unknown as NonNullable<
+        typeof fixture.state
+      >["inputs"];
+      await expect(
+        connectCloudLoginSetup("https://checkout.test/session-a"),
+      ).rejects.toThrow("Start the setup");
+      expect(fixture.ask).not.toHaveBeenCalled();
+      expect(fixture.listeners.size).toBe(0);
+    },
+  );
+  it.each([null, 1, "input", {}, { id: "q1" }, { status: "pending" }])(
+    "cancels without throwing or answering malformed updated entries: %j",
+    async (input) => {
+      fixture.ask.mockResolvedValueOnce({ inputId: "q1" });
+      const bridge = await connectCloudLoginSetup(
+        "https://checkout.test/session-a",
+      );
+      await bridge.publish(authorization(), issuer);
+      fixture.state!.inputs = [input] as unknown as NonNullable<
+        typeof fixture.state
+      >["inputs"];
+      expect(update).not.toThrow();
+      expect(bridge.signal.aborted).toBe(true);
+      await bridge.complete("cancelled");
+      expect(fixture.answer).not.toHaveBeenCalled();
+      await bridge.dispose();
+    },
+  );
   it("disposes a connection that never supplies a snapshot before its deadline", async () => {
     fixture.state = undefined;
     fixture.status = "connecting";
