@@ -132,6 +132,7 @@
     "postcss": "^8.5.28",
     "react-grab": "^0.2.0",
     "redis": "^6.3.0",
+    "sharp": "^0.35.5",
     "tailwindcss": "^4.3.3",
     "ts-morph": "^28.0.0",
     "tsx": "^4.23.15",

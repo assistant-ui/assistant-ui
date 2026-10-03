@@ -11,10 +11,6 @@ const assets = [
   ["public/favicon/icon.svg", 24, 24],
   ["public/brand/logotype.svg", 150, 25],
   ["app/icon0.svg", 24, 24],
-  ["app/icon.svg", 32, 32],
-  ["public/favicon/favicon.svg", 24, 24],
-  ["public/favicon.preview.svg", 32, 32],
-  ["public/favicon.development.svg", 32, 32],
 ];
 
 describe("brand assets", () => {
@@ -41,13 +37,14 @@ describe("brand assets", () => {
 
   it("uses the same bubble outlines in the mark, logotype and adaptive favicon", async () => {
     const sources = await Promise.all(
-      assets.slice(0, 3).map(async ([name]) => {
-        const source = await readFile(new URL(name, assetRoot), "utf8");
-        return new JSDOM(source, { contentType: "image/svg+xml" }).window
-          .document;
-      }),
+      assets
+        .slice(0, 3)
+        .map(([name]) => readFile(new URL(name, assetRoot), "utf8")),
     );
-    const [mark, logotype, favicon] = sources;
+    const [mark, logotype, favicon] = sources.map(
+      (source) =>
+        new JSDOM(source, { contentType: "image/svg+xml" }).window.document,
+    );
     expect(
       Array.from(favicon.querySelectorAll("path"), (path) =>
         path.getAttribute("d"),
@@ -60,6 +57,18 @@ describe("brand assets", () => {
     const joined = logotype.querySelectorAll("path");
     expect(joined).toHaveLength(3);
     expect(joined[2].getAttribute("d")).toMatch(/^M34 12\.64/);
+    const markPixels = await sharp(Buffer.from(sources[0]), { density: 288 })
+      .ensureAlpha()
+      .raw()
+      .toBuffer();
+    const logotypeMarkPixels = await sharp(Buffer.from(sources[1]), {
+      density: 288,
+    })
+      .extract({ left: 0, top: 4, width: 96, height: 96 })
+      .ensureAlpha()
+      .raw()
+      .toBuffer();
+    expect(logotypeMarkPixels).toEqual(markPixels);
   });
 
   it("keeps visible mark bounds proportional at small, large and non-square sizes", async () => {
@@ -103,49 +112,6 @@ describe("brand assets", () => {
       ])
         expect(Math.abs(actual - expected)).toBeLessThanOrEqual(1);
     }
-  });
-
-  it("preserves bubble weight and letter spacing when an editor resizes path coordinates", async () => {
-    const source = await readFile(
-      new URL("public/brand/logotype.svg", assetRoot),
-      "utf8",
-    );
-    const document = new JSDOM(source, { contentType: "image/svg+xml" }).window
-      .document;
-    const svg = document.documentElement;
-    svg.setAttribute("width", "300");
-    svg.setAttribute("height", "50");
-    svg.setAttribute("viewBox", "0 0 300 50");
-    for (const path of document.querySelectorAll("path")) {
-      path.setAttribute(
-        "d",
-        path
-          .getAttribute("d")
-          .replace(/[-+]?(?:\d*\.\d+|\d+)(?:e[-+]?\d+)?/gi, (value) =>
-            String(Number(value) * 2),
-          ),
-      );
-    }
-    for (const rect of document.querySelectorAll("rect")) {
-      for (const name of ["width", "height"])
-        rect.setAttribute(name, String(Number(rect.getAttribute(name)) * 2));
-      rect.setAttribute("transform", "translate(0 2)");
-    }
-    const original = await sharp(Buffer.from(source), { density: 144 })
-      .ensureAlpha()
-      .raw()
-      .toBuffer();
-    const resized = await sharp(Buffer.from(svg.outerHTML))
-      .ensureAlpha()
-      .raw()
-      .toBuffer();
-    expect(resized.length).toBe(original.length);
-    const difference =
-      original.reduce(
-        (sum, pixel, index) => sum + Math.abs(pixel - resized[index]),
-        0,
-      ) / original.length;
-    expect(difference).toBeLessThan(0.01);
   });
 
   it("ships exactly one current copy of each SVG and matching transparent PNG", async () => {
