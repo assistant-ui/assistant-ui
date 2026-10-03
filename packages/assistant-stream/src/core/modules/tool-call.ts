@@ -3,7 +3,11 @@ import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import { NO_RESULT, type ToolResponseLike } from "../tool/ToolResponse";
 import type { ReadonlyJSONValue } from "../../utils/json/json-value";
 import type { UnderlyingReadable } from "../utils/stream/UnderlyingReadable";
-import { createTextStream, type TextStreamController } from "./text";
+import {
+  createTextStream,
+  type TextStreamController,
+  type TextStreamControllerImpl,
+} from "./text";
 import { closeIfOpen, enqueueIfOpen } from "../utils/stream/controller-guards";
 import {
   createControllerStream,
@@ -25,7 +29,7 @@ type ToolCallStreamOptions = {
   strict?: boolean | undefined;
 };
 
-class ToolCallStreamControllerImpl implements ToolCallStreamController {
+export class ToolCallStreamControllerImpl implements ToolCallStreamController {
   private _isClosed = false;
 
   private _mergeTask: Promise<void>;
@@ -82,7 +86,7 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
     return this._argsTextController;
   }
 
-  private _argsTextController!: TextStreamController;
+  private _argsTextController!: TextStreamControllerImpl;
 
   async setResponse(response: ToolResponseLike<ReadonlyJSONValue>) {
     if (this._isClosed) return;
@@ -128,6 +132,14 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
     });
     closeIfOpen(this._controller);
   }
+
+  __internal_truncate() {
+    if (this._isClosed) return;
+    this._isClosed = true;
+    this._argsTextController.__internal_truncate();
+    const end = () => closeIfOpen(this._controller);
+    this._mergeTask.then(end, end);
+  }
 }
 
 export const createToolCallStream = (
@@ -145,6 +157,6 @@ export const createToolCallStreamController = (
 ) => {
   return createControllerStreamPair<
     AssistantStreamChunk,
-    ToolCallStreamController
+    ToolCallStreamControllerImpl
   >((controller) => new ToolCallStreamControllerImpl(controller, options));
 };

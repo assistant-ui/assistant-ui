@@ -16,10 +16,11 @@ type TextStreamOptions = {
   strict?: boolean | undefined;
 };
 
-class TextStreamControllerImpl implements TextStreamController {
+export class TextStreamControllerImpl implements TextStreamController {
   private _controller: ReadableStreamDefaultController<AssistantStreamChunk>;
   private _strict: boolean;
   private _isClosed = false;
+  private _ignoreAppends = false;
   private _warnedDropped = false;
 
   constructor(
@@ -31,6 +32,7 @@ class TextStreamControllerImpl implements TextStreamController {
   }
 
   append(textDelta: string) {
+    if (this._ignoreAppends) return this;
     const chunk: AssistantStreamChunk = {
       type: "text-delta",
       path: [],
@@ -62,10 +64,23 @@ class TextStreamControllerImpl implements TextStreamController {
     });
     closeIfOpen(this._controller);
   }
+
+  __internal_close() {
+    if (this._isClosed) return;
+    this._ignoreAppends = true;
+    this.close();
+  }
+
+  __internal_truncate() {
+    if (this._isClosed) return;
+    this._ignoreAppends = true;
+    this._isClosed = true;
+    closeIfOpen(this._controller);
+  }
 }
 
 export const createTextStream = (
-  readable: UnderlyingReadable<TextStreamController>,
+  readable: UnderlyingReadable<TextStreamControllerImpl>,
   options: TextStreamOptions = {},
 ): AssistantStream => {
   return createControllerStream(
@@ -75,7 +90,8 @@ export const createTextStream = (
 };
 
 export const createTextStreamController = (options: TextStreamOptions = {}) => {
-  return createControllerStreamPair<AssistantStreamChunk, TextStreamController>(
-    (controller) => new TextStreamControllerImpl(controller, options),
-  );
+  return createControllerStreamPair<
+    AssistantStreamChunk,
+    TextStreamControllerImpl
+  >((controller) => new TextStreamControllerImpl(controller, options));
 };

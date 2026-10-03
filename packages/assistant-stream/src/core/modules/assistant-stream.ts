@@ -121,6 +121,7 @@ type AssistantStreamControllerState = {
       }
     | undefined;
   contentCounter: Counter;
+  openInputs: Set<() => void>;
   closeSubscriber?: () => void;
 };
 
@@ -136,6 +137,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       strict: options.strict ?? true,
       merger: createMergeStream(),
       contentCounter: new Counter(),
+      openInputs: new Set(),
     };
   }
 
@@ -153,6 +155,12 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
 
   __internal_getReadable() {
     return this._state.merger.readable;
+  }
+
+  __internal_endOpenInputs() {
+    this._state.append = undefined;
+    for (const end of this._state.openInputs) end();
+    this._state.openInputs.clear();
   }
 
   __internal_subscribeToClose(callback: () => void) {
@@ -179,9 +187,17 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
         throw error;
       });
     this._state.merger.addStream(transformer.readable, pipeTask);
+    return pipeTask;
   }
 
-  private _addPart(part: PartInit, stream: AssistantStream) {
+  private _trackOpenInput(pipeTask: Promise<void>, end: () => void) {
+    const { openInputs } = this._state;
+    openInputs.add(end);
+    const forget = () => openInputs.delete(end);
+    pipeTask.then(forget, forget);
+  }
+
+  private _addPart(part: PartInit, stream: AssistantStream, end?: () => void) {
     if (this._state.append) {
       this._state.append.controller.close();
       this._state.append = undefined;
@@ -192,10 +208,11 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       part,
       path: [],
     });
-    this._addTransformedStream(
+    const pipeTask = this._addTransformedStream(
       stream,
       new PathAppendEncoder(this._state.contentCounter.value),
     );
+    if (end) this._trackOpenInput(pipeTask, end);
   }
 
   merge(stream: AssistantStream) {
@@ -244,7 +261,9 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     const [stream, controller] = createTextStreamController({
       strict: this._state.strict,
     });
-    this._addPart(this._withParentIdOption({ type: "text" }), stream);
+    this._addPart(this._withParentIdOption({ type: "text" }), stream, () =>
+      controller.__internal_close(),
+    );
     return controller;
   }
 
@@ -255,6 +274,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     this._addPart(
       this._withParentIdOption({ type: "reasoning", ...options }),
       stream,
+      () => controller.__internal_close(),
     );
     return controller;
   }
@@ -277,6 +297,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
         ...(this._parentId && { parentId: this._parentId }),
       },
       stream,
+      () => controller.__internal_truncate(),
     );
 
     if (opt.argsText !== undefined) {
@@ -377,6 +398,7 @@ export function createAssistantStream(
           path: [],
           error: String(e),
         });
+        controller.__internal_endOpenInputs();
       } else if (!controller.__internal_isCancelled) {
         console.error(e);
       }
