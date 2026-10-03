@@ -37,11 +37,11 @@ export const POST = createAdkApiRoute({
 ```
 
 `createAdkStream` sends the initialized assistant-ui thread ID as
-`clientSessionId`, and the route creates the corresponding ADK session before
-the first run. The static user above is suitable only for local, single-user
-development. Before deployment, resolve `userId` from your authentication
-system: the client-sent ID selects a conversation, but does not authorize access
-to it.
+`clientSessionId`. When the runner exposes `appName` and `sessionService`, the
+route creates the corresponding ADK session before the first run. The static
+user above is suitable only for local, single-user development. Before
+deployment, resolve `userId` from your authentication system: the client-sent ID
+selects a conversation, but does not authorize access to it.
 
 </Step>
 <Step>
