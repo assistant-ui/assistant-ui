@@ -30,6 +30,7 @@ const mocks = vi.hoisted(() => {
       fetchNpmDownloads: vi.fn(async () => ({
         totalWeekly: 0,
         perPackage: {},
+        weeklyAvailability: { flagship: false, total: false },
       })),
       fetchStarHistory: vi.fn(async () => []),
       fetchContributors: vi.fn(async () => null),
@@ -134,7 +135,7 @@ describe("TractionPage", () => {
     }
   });
 
-  it("drops forks, commits, age, and dependents when GitHub does not answer", async () => {
+  it("drops unavailable GitHub and npm stats", async () => {
     const [stats] = sectionsOf(TractionPage());
     const rendered = stats!.type(stats!.props);
     await flush();
@@ -148,10 +149,8 @@ describe("TractionPage", () => {
     const cards = Children.toArray(section.props.children) as ReactElement<{
       label?: string;
     }>[];
-    expect(cards).toHaveLength(4);
+    expect(cards).toHaveLength(1);
     expect(cards.map((card) => card.props.label).filter(Boolean)).toEqual([
-      "GitHub stars",
-      "Contributors",
       "Public packages",
     ]);
   });

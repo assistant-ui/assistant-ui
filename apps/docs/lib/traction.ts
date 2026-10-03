@@ -358,6 +358,10 @@ export type PackageDownloads = {
 export type NpmDownloads = {
   totalWeekly: number;
   perPackage: Record<string, PackageDownloads>;
+  weeklyAvailability: {
+    flagship: boolean;
+    total: boolean;
+  };
 };
 
 export type TimelinePoint = {
@@ -537,7 +541,7 @@ async function fetchPackageDownloadRange(
   name: string,
   end: string,
   revalidate?: number,
-): Promise<PackageDownloads> {
+): Promise<PackageDownloads | null> {
   const downloads = await getDownloadsRange(
     name,
     shiftDays(end, -60),
@@ -545,7 +549,7 @@ async function fetchPackageDownloadRange(
     revalidate,
   );
   const all = downloads.map((d) => d.downloads);
-  if (all.length === 0) return EMPTY_DOWNLOADS;
+  if (all.length === 0) return null;
 
   const last60 = all.slice(-60);
   const last30 = last60.slice(-30);
@@ -571,17 +575,21 @@ export async function fetchNpmDownloads(
           pkg.name,
           end
             ? await fetchPackageDownloadRange(pkg.name, end, revalidate)
-            : EMPTY_DOWNLOADS,
+            : null,
         ] as const,
     ),
   );
   const perPackage: Record<string, PackageDownloads> = {};
   let totalWeekly = 0;
+  const weeklyAvailability = { flagship: false, total: end !== null };
   for (const [name, downloads] of entries) {
-    perPackage[name] = downloads;
-    totalWeekly += downloads.weekly;
+    perPackage[name] = downloads ?? EMPTY_DOWNLOADS;
+    if (downloads) totalWeekly += downloads.weekly;
+    else weeklyAvailability.total = false;
+    if (name === FLAGSHIP_PACKAGE)
+      weeklyAvailability.flagship = downloads !== null;
   }
-  return { totalWeekly, perPackage };
+  return { totalWeekly, perPackage, weeklyAvailability };
 }
 
 export const TIMELINE_PACKAGES = [

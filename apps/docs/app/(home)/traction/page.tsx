@@ -142,7 +142,16 @@ async function Stats() {
     getCommitStats(),
   ]);
 
-  const flagshipWeekly = npm.perPackage[FLAGSHIP_PACKAGE]?.weekly ?? 0;
+  const flagshipWeekly = npm.weeklyAvailability.flagship
+    ? (npm.perPackage[FLAGSHIP_PACKAGE]?.weekly ?? null)
+    : null;
+  const flagship =
+    flagshipWeekly === null
+      ? null
+      : { value: flagshipWeekly, caption: FLAGSHIP_PACKAGE };
+  const total = npm.weeklyAvailability.total
+    ? { value: npm.totalWeekly, caption: "across all packages" }
+    : null;
   const publicPackages = PACKAGES.filter((pkg) => !pkg.deprecated).length;
 
   const extraStats = [
@@ -191,26 +200,23 @@ async function Stats() {
 
   return (
     <section className="mt-12 grid grid-cols-2 gap-x-8 gap-y-10 md:mt-16 md:grid-cols-4 md:gap-x-12">
-      <Stat
-        value={repo ? formatCompact(repo.stars) : "—"}
-        label="GitHub stars"
-        caption="and counting"
-      />
-      <WeeklyDownloadsStat
-        flagship={{
-          value: flagshipWeekly,
-          caption: FLAGSHIP_PACKAGE,
-        }}
-        total={{
-          value: npm.totalWeekly,
-          caption: "across all packages",
-        }}
-      />
-      <Stat
-        value={contributors ? contributors.length.toString() : "—"}
-        label="Contributors"
-        caption="from the community"
-      />
+      {repo ? (
+        <Stat
+          value={formatCompact(repo.stars)}
+          label="GitHub stars"
+          caption="and counting"
+        />
+      ) : null}
+      {flagship || total ? (
+        <WeeklyDownloadsStat flagship={flagship} total={total} />
+      ) : null}
+      {contributors ? (
+        <Stat
+          value={contributors.length.toString()}
+          label="Contributors"
+          caption="from the community"
+        />
+      ) : null}
       {extraStats.map((stat) => (
         <Stat key={stat.label} {...stat} />
       ))}

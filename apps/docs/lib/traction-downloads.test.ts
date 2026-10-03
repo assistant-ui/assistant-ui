@@ -91,5 +91,43 @@ describe("fetchNpmDownloads", () => {
       monthly: 0,
       prevMonthly: 0,
     });
+    expect(downloads.weeklyAvailability).toEqual({
+      flagship: false,
+      total: false,
+    });
+  });
+
+  it("keeps a measured zero available", async () => {
+    getDownloadsRange.mockImplementation((_name, start, end) =>
+      Promise.resolve(
+        rangeRows(start, end).map(({ day }) => ({ day, downloads: 0 })),
+      ),
+    );
+
+    const downloads = await fetchNpmDownloads();
+
+    expect(downloads.totalWeekly).toBe(0);
+    expect(downloads.perPackage[FLAGSHIP_PACKAGE]?.weekly).toBe(0);
+    expect(downloads.weeklyAvailability).toEqual({
+      flagship: true,
+      total: true,
+    });
+  });
+
+  it("does not report a partial ecosystem total when a package range fails", async () => {
+    getDownloadsRange.mockImplementation((name, start, end) =>
+      Promise.resolve(
+        name === FLAGSHIP_PACKAGE
+          ? rangeRows(start, end).map(({ day }) => ({ day, downloads: 0 }))
+          : [],
+      ),
+    );
+
+    const downloads = await fetchNpmDownloads();
+
+    expect(downloads.weeklyAvailability).toEqual({
+      flagship: true,
+      total: false,
+    });
   });
 });
