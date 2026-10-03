@@ -9,6 +9,13 @@ export default defineConfig({
   test: {
     coverage: {
       include: ["src/**/*.{ts,tsx,vue}"],
+      thresholds: {
+        lines: 61,
+        functions: 54,
+        branches: 59,
+        statements: 60,
+        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+      },
     },
     fsModuleCache: true,
     projects: [

@@ -4,17 +4,13 @@ export default defineConfig({
   test: {
     coverage: {
       include: ["src/**/*.{ts,tsx}"],
-      exclude: ["src/testUtils.ts", "src/tests/**"],
       thresholds: {
-        lines: 94,
-        functions: 95,
-        branches: 86,
-        statements: 92,
+        lines: 98,
+        functions: 99,
+        branches: 97,
+        statements: 98,
         autoUpdate: (threshold) => Math.ceil(threshold) - 1,
       },
     },
-    environment: "jsdom",
-    include: ["src/**/*.test.{ts,tsx}"],
-    globals: true,
   },
 });

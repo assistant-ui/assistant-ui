@@ -3,15 +3,14 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     coverage: {
-      include: ["src/**/*.{ts,tsx}"],
+      include: ["app/**/*.{ts,tsx}", "components/**/*.{ts,tsx}"],
       thresholds: {
-        lines: 97,
-        functions: 98,
-        branches: 93,
-        statements: 97,
+        lines: 52,
+        functions: 28,
+        branches: 51,
+        statements: 54,
         autoUpdate: (threshold) => Math.ceil(threshold) - 1,
       },
     },
-    fsModuleCache: true,
   },
 });
