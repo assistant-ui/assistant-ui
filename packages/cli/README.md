@@ -111,6 +111,14 @@ locally with owner-only permissions; tokens never pass through the wizard or
 its generic secret inputs. Cancelling the sign-in question or setup cancels
 pending login. Returning from Accounts alone does not complete login.
 
+Before the npm patch is released, use the
+[verified wizard sign-in prerelease](https://www.assistant-ui.com/downloads/assistant-ui-wizard-login-ea9aae48e.tgz)
+with your active setup-agent connection URL:
+
+```bash
+npx --yes --package=https://www.assistant-ui.com/downloads/assistant-ui-wizard-login-ea9aae48e.tgz assistant-ui cloud login --setup-url "<active-setup-agent-url>"
+```
+
 ## Documentation
 
 Full command reference, flags, and template details at [assistant-ui.com/docs/cli](https://www.assistant-ui.com/docs/cli).

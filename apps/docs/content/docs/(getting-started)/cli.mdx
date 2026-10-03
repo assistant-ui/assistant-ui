@@ -220,6 +220,16 @@ waits for the CLI to poll Accounts and save owner-only credentials locally;
 returning alone never completes login. Tokens never pass through the wizard or
 its secret inputs. Cancelling the question or setup ends a pending login.
 
+Before the npm patch is released, wizard sign-in is available in the
+[verified CLI prerelease](/downloads/assistant-ui-wizard-login-ea9aae48e.tgz).
+Use the active setup-agent connection URL supplied by your agent:
+
+```bash
+npx --yes --package=https://www.assistant-ui.com/downloads/assistant-ui-wizard-login-ea9aae48e.tgz assistant-ui cloud login --setup-url "<active-setup-agent-url>"
+```
+
+This prerelease is separate from the existing hackathon setup download.
+
 ## add
 
 Use the `add` command to add individual components to your project.
