@@ -19,9 +19,37 @@ type Components = {
   CodeHeader?: ComponentType<Omit<CodeHeaderProps, "node">> | undefined;
 };
 
-const areChildrenEqual = (prev: string | unknown, next: string | unknown) => {
-  if (typeof prev === "string") return prev === next;
-  return JSON.stringify(prev) === JSON.stringify(next);
+const areValuesEqual = (prev: unknown, next: unknown, depth = 0): boolean => {
+  if (Object.is(prev, next)) return true;
+  if (depth >= 100) return false;
+  if (typeof prev !== "object" || prev === null) return false;
+  if (typeof next !== "object" || next === null) return false;
+
+  if (Array.isArray(prev)) {
+    if (!Array.isArray(next) || prev.length !== next.length) return false;
+    for (let i = 0; i < prev.length; i++) {
+      if (!areValuesEqual(prev[i], next[i], depth + 1)) return false;
+    }
+    return true;
+  }
+  if (Array.isArray(next)) return false;
+
+  const prevPrototype = Object.getPrototypeOf(prev);
+  const nextPrototype = Object.getPrototypeOf(next);
+  if (prevPrototype !== Object.prototype && prevPrototype !== null)
+    return false;
+  if (nextPrototype !== Object.prototype && nextPrototype !== null)
+    return false;
+
+  const prevRecord = prev as Record<string, unknown>;
+  const nextRecord = next as Record<string, unknown>;
+  const keys = Object.keys(prevRecord);
+  if (keys.length !== Object.keys(nextRecord).length) return false;
+  return keys.every(
+    (key) =>
+      Object.hasOwn(nextRecord, key) &&
+      areValuesEqual(prevRecord[key], nextRecord[key], depth + 1),
+  );
 };
 
 export const areNodesEqual = (
@@ -29,6 +57,7 @@ export const areNodesEqual = (
   next: Element | undefined,
 ) => {
   if (!prev || !next) return false;
+  if (prev === next) return true;
 
   const excludeMetadata = (props: Element["properties"]) => {
     const { position, data, ...rest } =
@@ -37,9 +66,10 @@ export const areNodesEqual = (
   };
 
   return (
-    JSON.stringify(excludeMetadata(prev.properties)) ===
-      JSON.stringify(excludeMetadata(next.properties)) &&
-    areChildrenEqual(prev.children, next.children)
+    areValuesEqual(
+      excludeMetadata(prev.properties),
+      excludeMetadata(next.properties),
+    ) && areValuesEqual(prev.children, next.children)
   );
 };
 
