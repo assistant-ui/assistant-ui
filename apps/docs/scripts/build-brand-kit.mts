@@ -25,7 +25,7 @@ export async function buildBrandKit() {
       );
       files[`${name} ${color}.svg`] = Buffer.from(svg);
       files[`${name} ${color}.png`] = await sharp(Buffer.from(svg), {
-        density: 384,
+        density: name === "logo" ? 1536 : 384,
       })
         .resize(512, height, {
           fit: "contain",

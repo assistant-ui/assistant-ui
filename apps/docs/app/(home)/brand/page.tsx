@@ -48,7 +48,7 @@ const ASSETS = [
     name: "Brand kit",
     href: "/assistant-ui-brand.zip",
     file: "assistant-ui-brand.zip",
-    size: "36 KB",
+    size: "36.6 KB",
   },
   {
     name: "Logomark",
