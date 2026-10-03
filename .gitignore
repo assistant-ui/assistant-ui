@@ -103,3 +103,5 @@ specs/*
 # Packaged independent example previews
 apps/docs/public/example-bundles/
 .example-source/
+
+packages/cli/templates/cloud-harness/

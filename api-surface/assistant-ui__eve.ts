@@ -1,6 +1,6 @@
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
-import { InputResponse } from "eve/client";
+import { InputResponse, MessageStreamEvent } from "eve/client";
 
 import { EveAuthorizationOutcome, EveAuthorizationPart, EveMessage, EveMessageData, EveMessageInputRequest, UseEveAgentHelpers, UseEveAgentOptions } from "eve/react";
 
@@ -681,6 +681,7 @@ type ConvertEveMessagesOptions = {
   readonly isRunning?: boolean | undefined;
   readonly error?: unknown;
   readonly getCreatedAt?: ((message: EveMessage) => Date) | undefined;
+  readonly events?: readonly MessageStreamEvent[] | undefined;
 };
 
 type CreateAppendMessage = string | {
