@@ -106,6 +106,9 @@ it("prerenders seeded messages without reading Math.random", () => {
   expect(
     repeatedRuntime!.thread.getState().messages.map(({ id }) => id),
   ).toEqual(messages.map(({ id }) => id));
+  expect(repeatedRuntime!.thread.getState().messages[1]!.content[1]).toEqual(
+    messages[1]!.content[1],
+  );
 });
 
 it("prerenders a standalone local runtime without reading Math.random", () => {
