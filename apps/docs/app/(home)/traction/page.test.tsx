@@ -1,51 +1,65 @@
+import {
+  Suspense,
+  isValidElement,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
-  const events: string[] = [];
-  let resolveTimeline!: (value: { series: never[]; data: never[] }) => void;
-  const timeline = new Promise<{ series: never[]; data: never[] }>(
-    (resolve) => {
-      resolveTimeline = resolve;
-    },
-  );
+  const requests: (() => void)[] = [];
+  const timelines: ((value: { series: never[]; data: never[] }) => void)[] = [];
 
   return {
-    events,
-    resolveTimeline: () => resolveTimeline({ series: [], data: [] }),
-    fetchNpmDownloads: vi.fn(async () => {
-      events.push("npm");
-      return { totalWeekly: 0, perPackage: {} };
-    }),
-    fetchStarHistory: vi.fn(async () => {
-      events.push("stars");
-      return [];
-    }),
-    fetchTimelineSeries: vi.fn(() => {
-      events.push("timeline");
-      return timeline;
-    }),
+    requests,
+    timelines,
+    connection: vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          requests.push(resolve);
+        }),
+    ),
+    traction: {
+      fetchTimelineSeries: vi.fn(
+        () =>
+          new Promise<{ series: never[]; data: never[] }>((resolve) => {
+            timelines.push(resolve);
+          }),
+      ),
+      fetchNpmDownloads: vi.fn(async () => ({
+        totalWeekly: 0,
+        perPackage: {},
+      })),
+      fetchStarHistory: vi.fn(async () => []),
+      fetchContributors: vi.fn(async () => null),
+      fetchBotCoAuthors: vi.fn(async () => []),
+      fetchCommitActivity: vi.fn(async () => []),
+      fetchReleaseActivity: vi.fn(async () => []),
+    },
+    github: {
+      getRepo: vi.fn(async () => null),
+      getDependents: vi.fn(async () => null),
+      getCommitStats: vi.fn(async () => ({
+        total: null,
+        firstCommitDate: null,
+      })),
+    },
   };
 });
 
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  connection: mocks.connection,
+}));
+
 vi.mock("@/lib/traction", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/traction")>()),
-  fetchNpmDownloads: mocks.fetchNpmDownloads,
-  fetchStarHistory: mocks.fetchStarHistory,
-  fetchTimelineSeries: mocks.fetchTimelineSeries,
-  fetchContributors: vi.fn(async () => null),
-  fetchBotCoAuthors: vi.fn(async () => []),
-  fetchCommitActivity: vi.fn(async () => []),
-  fetchReleaseActivity: vi.fn(async () => []),
+  ...mocks.traction,
 }));
 
 vi.mock("@/lib/github", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/github")>()),
-  getRepo: vi.fn(async () => null),
-  getDependents: vi.fn(async () => null),
-  getCommitStats: vi.fn(async () => ({
-    total: null,
-    firstCommitDate: null,
-  })),
+  ...mocks.github,
 }));
 
 vi.mock("@/components/shared/live-dot", () => ({ LiveDot: () => null }));
@@ -69,23 +83,47 @@ vi.mock("@/components/pages/traction/weekly-downloads-stat", () => ({
   WeeklyDownloadsStat: () => null,
 }));
 
-const { default: TractionPage, dynamic } = await import("./page");
+const { default: TractionPage } = await import("./page");
+
+type Section = ReactElement<object, (props: object) => Promise<ReactNode>>;
+
+const sectionsOf = (node: ReactNode): Section[] => {
+  if (Array.isArray(node)) return node.flatMap(sectionsOf);
+  if (!isValidElement<{ children?: ReactNode }>(node)) return [];
+  if (node.type === Suspense) return [node.props.children as Section];
+  return sectionsOf(node.props.children);
+};
+
+const flush = () => new Promise((resolve) => setTimeout(resolve));
 
 describe("TractionPage", () => {
-  it("renders at request time so npm is never read from a build", () => {
-    expect(dynamic).toBe("force-dynamic");
-  });
+  it("streams every read behind Suspense after the request, with npm's catalogue after the timeline", async () => {
+    const sections = sectionsOf(TractionPage());
+    expect(sections).toHaveLength(5);
 
-  it("starts every read except the package fan-out, which waits for the timeline", async () => {
-    const page = TractionPage();
+    const rendered = Promise.all(
+      sections.map((section) => section.type(section.props)),
+    );
+    await flush();
 
-    expect(mocks.fetchTimelineSeries).toHaveBeenCalled();
-    expect(mocks.fetchStarHistory).toHaveBeenCalled();
-    expect(mocks.fetchNpmDownloads).not.toHaveBeenCalled();
+    expect(mocks.requests).toHaveLength(5);
+    for (const read of [
+      ...Object.values(mocks.traction),
+      ...Object.values(mocks.github),
+    ]) {
+      expect(read).not.toHaveBeenCalled();
+    }
 
-    mocks.resolveTimeline();
-    await page;
+    for (const open of mocks.requests) open();
+    await flush();
 
-    expect(mocks.events).toEqual(["timeline", "stars", "npm"]);
+    expect(mocks.traction.fetchTimelineSeries).toHaveBeenCalled();
+    expect(mocks.traction.fetchStarHistory).toHaveBeenCalled();
+    expect(mocks.traction.fetchNpmDownloads).not.toHaveBeenCalled();
+
+    for (const resolve of mocks.timelines) resolve({ series: [], data: [] });
+    await rendered;
+
+    expect(mocks.traction.fetchNpmDownloads).toHaveBeenCalledOnce();
   });
 });

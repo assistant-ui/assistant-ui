@@ -9,6 +9,7 @@ import {
   type ConcentrationSegment,
 } from "@/components/pages/packages/download-concentration";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export type DirectoryRow = {
   name: string;
@@ -41,13 +42,14 @@ export function PackageDirectory({
 }: {
   categories: DirectoryCategory[];
   rows: DirectoryRow[];
+  /** `null` while npm has not answered yet. */
   concentration: {
     leaders: ConcentrationSegment[];
     tailNames: string[];
     tailCount: number;
     tailWeekly: number;
     total: number;
-  };
+  } | null;
 }) {
   const [active, setActive] = useState<string | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
@@ -57,18 +59,26 @@ export function PackageDirectory({
 
   // The page owns the leader/tail split; re-deriving it here would let the
   // highlight and the segment it belongs to drift apart.
-  const tailNames = new Set(concentration.tailNames);
+  const tailNames = new Set(concentration?.tailNames);
   const isLit = (name: string) =>
     hovered === TAIL_KEY ? tailNames.has(name) : hovered === name;
 
   return (
     <div className="flex flex-col gap-12 md:gap-14">
       <section>
-        <DownloadConcentration
-          {...concentration}
-          hovered={hovered}
-          onHover={setHovered}
-        />
+        {concentration ? (
+          <DownloadConcentration
+            {...concentration}
+            hovered={hovered}
+            onHover={setHovered}
+          />
+        ) : (
+          <div aria-busy="true" className="flex flex-col gap-4">
+            <h2 className="text-sm font-medium">Share of weekly downloads</h2>
+            <Skeleton className="h-2 w-full motion-reduce:animate-none" />
+            <Skeleton className="h-16 w-full motion-reduce:animate-none" />
+          </div>
+        )}
       </section>
 
       <nav
