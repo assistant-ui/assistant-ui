@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeftIcon, ArrowRightIcon, ChevronDownIcon } from "lucide-react";
@@ -278,9 +279,11 @@ export default async function ElementPage({
                     element.generative ? "min-h-[400px] py-10" : "h-[360px]",
                   )}
                 >
-                  <DemoStage replay={replayable}>
-                    <element.Component />
-                  </DemoStage>
+                  <Suspense fallback={null}>
+                    <DemoStage replay={replayable}>
+                      <element.Component />
+                    </DemoStage>
+                  </Suspense>
                 </div>
               )}
             </Figure>

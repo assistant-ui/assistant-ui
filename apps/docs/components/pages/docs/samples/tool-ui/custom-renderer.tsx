@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import {
   AssistantRuntimeProvider,
   AuiConfig,
@@ -82,7 +82,11 @@ function WeatherToolChat() {
     },
     {
       initialMessages: [
-        { role: "user", content: "What's the weather in San Francisco?" },
+        {
+          role: "user",
+          content: "What's the weather in San Francisco?",
+          createdAt: new Date("2026-09-26T12:00:00Z"),
+        },
       ],
     },
   );
@@ -101,7 +105,9 @@ function WeatherToolChat() {
 export function ToolUIRendererSample() {
   return (
     <SampleFrame className="bg-muted/40 h-120 overflow-hidden">
-      <WeatherToolChat />
+      <Suspense fallback={null}>
+        <WeatherToolChat />
+      </Suspense>
     </SampleFrame>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import {
   MessagePrimitive,
   MessagePartPrimitive,
@@ -11,14 +12,16 @@ export function MessagePrimitiveSample() {
   return (
     <div className="not-prose border-border/50 bg-muted/40 flex items-end rounded-xl border p-4">
       <div className="mx-auto flex w-full max-w-lg flex-col gap-3">
-        <SampleRuntimeProvider>
-          <ThreadPrimitive.Messages
-            components={{
-              UserMessage: CustomUserMessage,
-              AssistantMessage: CustomAssistantMessage,
-            }}
-          />
-        </SampleRuntimeProvider>
+        <Suspense fallback={null}>
+          <SampleRuntimeProvider>
+            <ThreadPrimitive.Messages
+              components={{
+                UserMessage: CustomUserMessage,
+                AssistantMessage: CustomAssistantMessage,
+              }}
+            />
+          </SampleRuntimeProvider>
+        </Suspense>
       </div>
     </div>
   );

@@ -16,6 +16,8 @@ const PreviewShell = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
+export const instant = false;
+
 export function generateStaticParams() {
   return listLearnStageIds(DEFAULT_LEARN_COURSE_ID).map((stageId) => ({
     stageId,

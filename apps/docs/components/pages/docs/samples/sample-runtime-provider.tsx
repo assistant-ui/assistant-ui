@@ -17,6 +17,8 @@ const noOpAdapter: ChatModelAdapter = {
   },
 };
 
+const CREATED_AT = new Date("2026-09-26T12:00:00Z");
+
 const defaultMessages: ThreadMessageLike[] = [
   { role: "user", content: "What is assistant-ui?" },
   {
@@ -56,7 +58,10 @@ export function SampleRuntimeProvider({
   children: ReactNode;
 }) {
   const runtime = useLocalRuntime(noOpAdapter, {
-    initialMessages: messages,
+    initialMessages: messages.map((message) => ({
+      createdAt: CREATED_AT,
+      ...message,
+    })),
     adapters,
   });
   return (

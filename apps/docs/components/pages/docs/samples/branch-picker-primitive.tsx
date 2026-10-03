@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import {
   AssistantRuntimeProvider,
   BranchPickerPrimitive,
@@ -24,9 +24,11 @@ const adapter: ChatModelAdapter = {
   },
 };
 
+const CREATED_AT = new Date("2026-09-26T12:00:00Z");
+
 const initialMessages: ThreadMessageLike[] = [
-  { role: "user", content: "What is assistant-ui?" },
-  { role: "assistant", content: responses[0]! },
+  { role: "user", content: "What is assistant-ui?", createdAt: CREATED_AT },
+  { role: "assistant", content: responses[0]!, createdAt: CREATED_AT },
 ];
 
 export function BranchPickerPrimitiveSample() {
@@ -35,11 +37,13 @@ export function BranchPickerPrimitiveSample() {
   return (
     <div className="not-prose border-border/50 bg-muted/40 flex items-end rounded-xl border p-6">
       <div className="mx-auto flex w-full max-w-lg flex-col gap-3">
-        <AssistantRuntimeProvider runtime={runtime}>
-          <ThreadPrimitive.Messages
-            components={{ UserMessage, AssistantMessage }}
-          />
-        </AssistantRuntimeProvider>
+        <Suspense fallback={null}>
+          <AssistantRuntimeProvider runtime={runtime}>
+            <ThreadPrimitive.Messages
+              components={{ UserMessage, AssistantMessage }}
+            />
+          </AssistantRuntimeProvider>
+        </Suspense>
       </div>
     </div>
   );
