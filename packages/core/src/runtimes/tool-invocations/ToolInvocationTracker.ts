@@ -651,7 +651,8 @@ export class ToolInvocationTracker {
     hasResult: boolean;
     clientOwned: boolean;
   }): boolean {
-    if (hasResult) return true;
+    // setResponse must enqueue the backend result before closing the args stream.
+    if (hasResult) return false;
     if (!isArgsTextComplete(argsText)) return false;
     return clientOwned || !this._isRunning;
   }
