@@ -2,6 +2,15 @@ import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import {
+  applyEdits,
+  format,
+  modify,
+  parse as parseJsonc,
+  parseTree,
+  type Node,
+  type ParseError,
+} from "jsonc-parser";
 import { logger } from "../lib/utils/logger";
 import { runSpawn, SpawnExitError, SpawnSignalError } from "../lib/run-spawn";
 import * as p from "@clack/prompts";
@@ -23,6 +32,7 @@ const MCP_CONFIGS: Record<
     getPath: () => string;
     config: object;
     replaceServerKey?: string;
+    jsoncServerKey?: string;
     postInstall?: string;
   }
 > = {
@@ -66,11 +76,13 @@ const MCP_CONFIGS: Record<
       },
     },
     replaceServerKey: "servers",
+    jsoncServerKey: "servers",
     postInstall:
       "Enable MCP in Settings → search 'MCP' → enable 'Chat > MCP'. Use Copilot Chat in Agent mode.",
   },
   zed: {
     name: "Zed",
+    jsoncServerKey: "context_servers",
     getPath: () => {
       if (process.platform === "win32") {
         return path.join(process.env.APPDATA || "", "Zed", "settings.json");
@@ -147,6 +159,65 @@ class McpConfigParseError extends Error {
 const getTargetFlag = (target: Exclude<MCPTarget, "claude-code">) =>
   `--${target}`;
 
+const lastPropertyValue = (node: Node, key: string) =>
+  node.children?.findLast((property) => property.children?.[0]?.value === key)
+    ?.children?.[1];
+
+function updateJsoncConfig(
+  content: string,
+  serverKey: string,
+  server: object,
+): string {
+  const formattingOptions = {
+    insertSpaces: true,
+    tabSize: 2,
+    eol: content.includes("\r\n") ? "\r\n" : "\n",
+    keepLines: false,
+  };
+  const root = parseTree(content);
+  // JSONC parsing uses the last duplicate key, but modify() targets the first.
+  const servers = root && lastPropertyValue(root, serverKey);
+  if (!servers) {
+    return applyEdits(
+      content,
+      modify(
+        content,
+        [serverKey],
+        { "assistant-ui": server },
+        { formattingOptions },
+      ),
+    );
+  }
+
+  const existing =
+    servers.type === "object"
+      ? lastPropertyValue(servers, "assistant-ui")
+      : servers;
+  const edit = existing
+    ? {
+        offset: existing.offset,
+        length: existing.length,
+        content: JSON.stringify(
+          servers.type === "object" ? server : { "assistant-ui": server },
+        ),
+      }
+    : modify(
+        content.slice(servers.offset, servers.offset + servers.length),
+        ["assistant-ui"],
+        server,
+        {},
+      ).map((edit) => ({ ...edit, offset: edit.offset + servers.offset }))[0]!;
+  const updated = applyEdits(content, [edit]);
+  return applyEdits(
+    updated,
+    format(
+      updated,
+      { offset: edit.offset, length: edit.content.length },
+      formattingOptions,
+    ),
+  );
+}
+
 async function installForTarget(target: MCPTarget): Promise<void> {
   if (target === "claude-code") {
     logger.info("Installing MCP server for Claude Code...");
@@ -209,10 +280,28 @@ async function installForTarget(target: MCPTarget): Promise<void> {
   }
 
   let existingConfig: any = {};
+  let content = "{}\n";
   if (fs.existsSync(configPath)) {
-    const content = fs.readFileSync(configPath, "utf-8");
+    content = fs.readFileSync(configPath, "utf-8");
     try {
-      existingConfig = JSON.parse(content);
+      if (targetConfig.jsoncServerKey) {
+        const errors: ParseError[] = [];
+        existingConfig = parseJsonc(content, errors, {
+          allowTrailingComma: true,
+          allowEmptyContent: true,
+        });
+        if (existingConfig === undefined) existingConfig = {};
+        if (
+          errors.length > 0 ||
+          existingConfig === null ||
+          typeof existingConfig !== "object" ||
+          Array.isArray(existingConfig)
+        ) {
+          throw new SyntaxError("Invalid MCP configuration");
+        }
+      } else {
+        existingConfig = JSON.parse(content);
+      }
     } catch {
       const flag = getTargetFlag(target);
       logger.error(`Could not parse ${targetConfig.name} MCP config.`);
@@ -235,7 +324,14 @@ async function installForTarget(target: MCPTarget): Promise<void> {
     };
   }
 
-  fs.writeFileSync(configPath, `${JSON.stringify(newConfig, null, 2)}\n`);
+  const updatedContent = targetConfig.jsoncServerKey
+    ? updateJsoncConfig(
+        content,
+        targetConfig.jsoncServerKey,
+        newConfig[targetConfig.jsoncServerKey]["assistant-ui"],
+      )
+    : `${JSON.stringify(newConfig, null, 2)}\n`;
+  fs.writeFileSync(configPath, updatedContent);
 
   logger.break();
   logger.success(`MCP server installed for ${targetConfig.name}!`);
