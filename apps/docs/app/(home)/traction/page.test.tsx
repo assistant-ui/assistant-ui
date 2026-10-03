@@ -1,4 +1,5 @@
 import {
+  Children,
   Suspense,
   isValidElement,
   type ReactElement,
@@ -125,5 +126,19 @@ describe("TractionPage", () => {
     await rendered;
 
     expect(mocks.traction.fetchNpmDownloads).toHaveBeenCalledOnce();
+  });
+
+  it("keeps all eight stat cards when GitHub does not answer", async () => {
+    const [stats] = sectionsOf(TractionPage());
+    const rendered = stats!.type(stats!.props);
+    await flush();
+    for (const open of mocks.requests.splice(0)) open();
+    await flush();
+    for (const resolve of mocks.timelines.splice(0)) {
+      resolve({ series: [], data: [] });
+    }
+
+    const section = (await rendered) as ReactElement<{ children: ReactNode }>;
+    expect(Children.toArray(section.props.children)).toHaveLength(8);
   });
 });
