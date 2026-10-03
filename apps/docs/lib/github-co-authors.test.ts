@@ -74,7 +74,11 @@ describe("getCoAuthorUser", () => {
       vi.fn(async () => new Response(null, { status: 404 })),
     );
 
-    await expect(getCoAuthorUser("missing")).resolves.toBeNull();
+    await expect(getCoAuthorUser("missing #bot")).resolves.toBeNull();
+    expect(fetch).toHaveBeenCalledWith(
+      "https://api.github.com/users/missing%20%23bot",
+      expect.anything(),
+    );
   });
 
   it("rejects a failed lookup", async () => {
@@ -84,6 +88,10 @@ describe("getCoAuthorUser", () => {
     );
 
     await expect(getCoAuthorUser(42)).rejects.toThrow("503");
+    expect(fetch).toHaveBeenCalledWith(
+      "https://api.github.com/user/42",
+      expect.anything(),
+    );
   });
 
   it("rejects a malformed account", async () => {

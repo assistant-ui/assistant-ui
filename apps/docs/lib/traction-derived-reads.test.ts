@@ -51,7 +51,7 @@ describe("fetchContributors", () => {
       },
     ]);
 
-    await expect(fetchContributors(0)).resolves.toEqual([
+    await expect(fetchContributors()).resolves.toEqual([
       {
         login: "alice",
         avatarUrl: "https://example.com/avatar",
@@ -59,7 +59,7 @@ describe("fetchContributors", () => {
         contributions: 3,
       },
     ]);
-    expect(getContributors).toHaveBeenCalledWith(undefined, 0);
+    expect(getContributors).toHaveBeenCalledWith();
   });
 
   it("returns null on an incomplete read", async () => {
@@ -94,7 +94,7 @@ describe("fetchBotCoAuthors", () => {
         : null,
     );
 
-    await expect(fetchBotCoAuthors(0)).resolves.toEqual([
+    await expect(fetchBotCoAuthors()).resolves.toEqual([
       {
         login: "helper[bot]",
         avatarUrl: "https://example.com/avatar",
@@ -102,9 +102,9 @@ describe("fetchBotCoAuthors", () => {
         contributions: 2,
       },
     ]);
-    expect(getCommitCoAuthors).toHaveBeenCalledWith(0);
-    expect(getCoAuthorUser).toHaveBeenCalledWith(1, 0);
-    expect(getCoAuthorUser).toHaveBeenCalledWith(2, 0);
+    expect(getCommitCoAuthors).toHaveBeenCalledWith();
+    expect(getCoAuthorUser).toHaveBeenCalledWith(1);
+    expect(getCoAuthorUser).toHaveBeenCalledWith(2);
   });
 
   it("returns an empty list on an incomplete scan", async () => {
@@ -114,10 +114,23 @@ describe("fetchBotCoAuthors", () => {
   });
 
   it("returns an empty list when an account lookup fails", async () => {
-    getCommitCoAuthors.mockResolvedValue([coAuthor(1, "helper")]);
-    getCoAuthorUser.mockRejectedValue(new Error("GitHub unavailable"));
+    getCommitCoAuthors.mockResolvedValue([
+      coAuthor(1, "helper"),
+      coAuthor(2, "unavailable"),
+    ]);
+    getCoAuthorUser.mockImplementation(async (identifier: number) => {
+      if (identifier === 2) throw new Error("GitHub unavailable");
+      return {
+        login: "helper[bot]",
+        type: "Bot",
+        avatarUrl: "https://example.com/avatar",
+        htmlUrl: "https://example.com/helper",
+      };
+    });
 
     await expect(fetchBotCoAuthors()).resolves.toEqual([]);
+    expect(getCoAuthorUser).toHaveBeenCalledWith(1);
+    expect(getCoAuthorUser).toHaveBeenCalledWith(2);
   });
 
   it("keeps the Claude fallback icon when its avatar lookup fails", async () => {
@@ -150,11 +163,11 @@ describe("fetchStarHistory", () => {
       { week: 1_704_585_600, total: 2, days: [] },
     ]);
 
-    await expect(fetchStarHistory(0)).resolves.toEqual([
+    await expect(fetchStarHistory()).resolves.toEqual([
       { date: "2024-01-14T00:00:00.000Z", value: 2 },
       { date: "2024-01-21T00:00:00.000Z", value: 5 },
     ]);
-    expect(getStarHistory).toHaveBeenCalledWith(0);
+    expect(getStarHistory).toHaveBeenCalledWith();
   });
 
   it.each([null, [{ week: 1_704_585_600, total: 2, days: [] }]])(
