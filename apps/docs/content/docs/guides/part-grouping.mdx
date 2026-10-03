@@ -399,10 +399,12 @@ const stream = createAssistantStream(async (controller) => {
   // Add parts with parentId
   const researchController = controller.withParentId("research-123");
 
-  await researchController.addToolCallPart({
+  researchController.addToolCallPart({
     toolName: "search",
     args: { query: "climate data" },
+    response: { result: "climate data results" },
   });
+  researchController.appendText("Key findings from the research:");
 
   // Add a data part with custom values
   controller.appendData({
