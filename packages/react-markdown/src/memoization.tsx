@@ -19,7 +19,12 @@ type Components = {
   CodeHeader?: ComponentType<Omit<CodeHeaderProps, "node">> | undefined;
 };
 
-const areValuesEqual = (prev: unknown, next: unknown, depth = 0): boolean => {
+const areValuesEqual = (
+  prev: unknown,
+  next: unknown,
+  depth = 0,
+  skipMetadata = false,
+): boolean => {
   if (Object.is(prev, next)) return true;
   if (depth >= 100) return false;
   if (typeof prev !== "object" || prev === null) return false;
@@ -43,13 +48,24 @@ const areValuesEqual = (prev: unknown, next: unknown, depth = 0): boolean => {
 
   const prevRecord = prev as Record<string, unknown>;
   const nextRecord = next as Record<string, unknown>;
-  const keys = Object.keys(prevRecord);
-  if (keys.length !== Object.keys(nextRecord).length) return false;
-  return keys.every(
-    (key) =>
-      Object.hasOwn(nextRecord, key) &&
-      areValuesEqual(prevRecord[key], nextRecord[key], depth + 1),
-  );
+  let prevKeys = 0;
+  for (const key in prevRecord) {
+    if (!Object.hasOwn(prevRecord, key)) continue;
+    if (skipMetadata && (key === "position" || key === "data")) continue;
+    if (
+      !Object.prototype.propertyIsEnumerable.call(nextRecord, key) ||
+      !areValuesEqual(prevRecord[key], nextRecord[key], depth + 1)
+    )
+      return false;
+    prevKeys++;
+  }
+  let nextKeys = 0;
+  for (const key in nextRecord) {
+    if (!Object.hasOwn(nextRecord, key)) continue;
+    if (skipMetadata && (key === "position" || key === "data")) continue;
+    nextKeys++;
+  }
+  return prevKeys === nextKeys;
 };
 
 export const areNodesEqual = (
@@ -59,17 +75,9 @@ export const areNodesEqual = (
   if (!prev || !next) return false;
   if (prev === next) return true;
 
-  const excludeMetadata = (props: Element["properties"]) => {
-    const { position, data, ...rest } =
-      (props as Record<string, unknown>) || {};
-    return rest;
-  };
-
   return (
-    areValuesEqual(
-      excludeMetadata(prev.properties),
-      excludeMetadata(next.properties),
-    ) && areValuesEqual(prev.children, next.children)
+    areValuesEqual(prev.properties, next.properties, 0, true) &&
+    areValuesEqual(prev.children, next.children)
   );
 };
 

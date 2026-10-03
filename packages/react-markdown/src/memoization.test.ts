@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import type { Element } from "hast";
 import { areNodesEqual } from "./memoization";
 
@@ -45,7 +45,7 @@ const createCodeNode = (size: number): Element => ({
 });
 
 describe("streamed code node comparisons", () => {
-  it.each([1000, 100000])(
+  it.each([10000, 100000])(
     "compares %i characters without serialization",
     (size) => {
       const prev = createCodeNode(size);
@@ -172,6 +172,63 @@ describe("structural comparison boundaries", () => {
     const next = createNode({
       children: [{ type: "text", value: "a", data: nextData }],
     });
+    expect(areNodesEqual(prev, next)).toBe(false);
+  });
+});
+
+describe("comparison allocation boundaries", () => {
+  it("compares root and nested properties without collecting keys", () => {
+    const prev = createCodeNode(10000);
+    const next = createCodeNode(10000);
+    const keys = vi.spyOn(Object, "keys");
+    let equal: boolean;
+    let calls: number;
+    try {
+      equal = areNodesEqual(prev, next);
+      calls = keys.mock.calls.length;
+    } finally {
+      keys.mockRestore();
+    }
+    expect(equal).toBe(true);
+    expect(calls).toBe(0);
+  });
+
+  it("skips root metadata without reading it", () => {
+    const prev = createCodeNode(10000);
+    const next = createCodeNode(10000);
+    for (const node of [prev, next]) {
+      for (const key of ["position", "data"]) {
+        Object.defineProperty(node.properties, key, {
+          enumerable: true,
+          get() {
+            throw new Error("ignored metadata was read");
+          },
+        });
+      }
+    }
+    expect(areNodesEqual(prev, next)).toBe(true);
+  });
+
+  it("detects an extra own property", () => {
+    const prev = createCodeNode(10000);
+    const next = createCodeNode(10000);
+    next.properties.title = "extra";
+    expect(areNodesEqual(prev, next)).toBe(false);
+    expect(areNodesEqual(next, prev)).toBe(false);
+  });
+
+  it("compares null-prototype properties", () => {
+    const prev = createCodeNode(10000);
+    const next = createCodeNode(10000);
+    prev.properties = Object.assign(Object.create(null), prev.properties);
+    next.properties = Object.assign(Object.create(null), next.properties);
+    expect(areNodesEqual(prev, next)).toBe(true);
+  });
+
+  it("does not match a non-enumerable key against an enumerable one", () => {
+    const prev = createNode({ properties: { title: "code" } });
+    const next = createNode({ properties: { id: "code" } });
+    Object.defineProperty(next.properties, "title", { value: "code" });
     expect(areNodesEqual(prev, next)).toBe(false);
   });
 });

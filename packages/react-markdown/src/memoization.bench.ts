@@ -10,7 +10,7 @@ const createNode = (size: number): Element => ({
 });
 
 describe("unchanged streamed code nodes", () => {
-  for (const size of [1000, 100000]) {
+  for (const size of [10000, 100000]) {
     const prev = createNode(size);
     const next = createNode(size);
     test(`${size} characters`, async ({ bench }) => {
