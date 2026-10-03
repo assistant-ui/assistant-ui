@@ -68,7 +68,7 @@ if (process.argv[2] === "install") {
   const config = JSON.parse(
     readFileSync(`examples/${example}/vercel.json`, "utf8"),
   );
-  run(
+  const nested = run(
     "nested-install",
     "pnpm",
     scoped
@@ -80,6 +80,16 @@ if (process.argv[2] === "install") {
         ]
       : ["install", "--frozen-lockfile"],
     { cwd: `examples/${example}` },
+  );
+  if (nested.exit !== 0) process.exit(1);
+  const nextConfigPath = `examples/${example}/next.config.ts`;
+  const nextConfig = readFileSync(nextConfigPath, "utf8");
+  writeFileSync(
+    nextConfigPath,
+    nextConfig.replace(
+      'output: "export",',
+      'output: "export", generateBuildId: () => "ci-install-comparison",',
+    ),
   );
   const build = run("build", "bash", ["-c", config.buildCommand], {
     cwd: `examples/${example}`,
