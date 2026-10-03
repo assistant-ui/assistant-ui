@@ -7,6 +7,7 @@ import {
   printParseErrorCode,
   type ParseError,
 } from "jsonc-parser";
+import { parseDocument } from "yaml";
 import { logger } from "./utils/logger";
 import { runSpawn, SpawnExitError, SpawnSignalError } from "./run-spawn";
 import { type PackageManagerName } from "./utils/package-manager";
@@ -294,6 +295,9 @@ export async function transformProject(
 ): Promise<TransformResult> {
   logger.step("Transforming package.json...");
   transformPackageJson(projectDir);
+  if (opts.packageManager === "pnpm") {
+    transformPnpmOverrides(projectDir);
+  }
 
   logger.step("Transforming project files...");
   transformTsConfig(projectDir);
@@ -376,6 +380,29 @@ function transformPackageJson(projectDir: string): void {
   pkg.name = dirName;
 
   fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
+}
+
+function transformPnpmOverrides(projectDir: string): void {
+  const pkg = JSON.parse(
+    fs.readFileSync(path.join(projectDir, "package.json"), "utf-8"),
+  );
+  const overrides = pkg.pnpm?.overrides;
+  if (!overrides || typeof overrides !== "object") return;
+
+  const workspacePath = path.join(projectDir, "pnpm-workspace.yaml");
+  const document = parseDocument(
+    fs.existsSync(workspacePath) ? fs.readFileSync(workspacePath, "utf-8") : "",
+  );
+
+  if (document.errors.length > 0) {
+    throw new SyntaxError(`Invalid pnpm-workspace.yaml: ${document.errors[0]}`);
+  }
+
+  for (const [selector, version] of Object.entries(overrides)) {
+    document.setIn(["overrides", selector], version);
+  }
+
+  fs.writeFileSync(workspacePath, document.toString());
 }
 
 function parseTsConfig(content: string): any {
