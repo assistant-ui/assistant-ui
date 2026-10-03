@@ -79,6 +79,13 @@ test("unmeasured runner sizes keep the existing schedule without planning", () =
   }
 });
 
+test("a multi-package proper subset of the suite stays serial", () => {
+  const { actual, calls } = execute({ all: [...full, task("c")] });
+  assert.equal(calls.length, 3);
+  assert.equal(actual.args[4], "--concurrency=1");
+  assert.equal(actual.options.env.VITEST_MAX_WORKERS, undefined);
+});
+
 test("serial fallback preserves an existing worker override", () => {
   let actual;
   runCiTests([], {
