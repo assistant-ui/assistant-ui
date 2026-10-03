@@ -1,5 +1,13 @@
 # @assistant-ui/react
 
+## 0.15.25
+
+### Patch Changes
+
+- [#8760](https://github.com/assistant-ui/assistant-ui/pull/8760) [`2e4d6a9`](https://github.com/assistant-ui/assistant-ui/commit/2e4d6a9788d066665b3a7c993ff5cdbb1c9da14a) - streaming text, running tool durations, and message stall detection read no wall clock during render, so a cacheComponents prerender no longer fails on them. ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`791d240`](https://github.com/assistant-ui/assistant-ui/commit/791d240209aa5e270a785260cab127b965f0500f), [`77a98c1`](https://github.com/assistant-ui/assistant-ui/commit/77a98c1ff8943822b4d6dec84e927f3b85a37956)]:
+  - @assistant-ui/core@0.3.24
+
 ## 0.15.24
 
 ### Patch Changes

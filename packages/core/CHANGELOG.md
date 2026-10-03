@@ -1,5 +1,13 @@
 # @assistant-ui/core
 
+## 0.3.24
+
+### Patch Changes
+
+- [#8749](https://github.com/assistant-ui/assistant-ui/pull/8749) [`791d240`](https://github.com/assistant-ui/assistant-ui/commit/791d240209aa5e270a785260cab127b965f0500f) - name local runtime initial messages from React's useId during a server render, so a Next.js cacheComponents prerender no longer reads Math.random; the browser keeps random ids ([@okisdev](https://github.com/okisdev))
+
+- [#8755](https://github.com/assistant-ui/assistant-ui/pull/8755) [`77a98c1`](https://github.com/assistant-ui/assistant-ui/commit/77a98c1ff8943822b4d6dec84e927f3b85a37956) - a server rendered local runtime now names id-less initial messages and tool calls the same way while the browser hydrates, so data-message-id and selection quotes match the client's messages ([@rupic-app](https://github.com/apps/rupic-app))
+
 ## 0.3.23
 
 ### Patch Changes
