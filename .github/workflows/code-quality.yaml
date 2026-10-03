@@ -182,8 +182,10 @@ jobs:
             run=$(git diff --name-only --no-renames -z "$BASE" HEAD | node scripts/package-build-inputs.mjs)
           else
             run=true
+            BASE=""
           fi
           echo "run=$run" >> "$GITHUB_OUTPUT"
+          echo "base=$BASE" >> "$GITHUB_OUTPUT"
 
       - name: Setup pnpm and node.js
         if: steps.package_build_inputs.outputs.run == 'true'
@@ -195,14 +197,11 @@ jobs:
 
       - name: Install dependencies
         if: steps.package_build_inputs.outputs.run == 'true'
+        env:
+          BASE: ${{ steps.package_build_inputs.outputs.base }}
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="origin/${{ github.base_ref }}"
-          else
-            BASE="${{ github.event.before }}"
-          fi
-          if git diff --quiet "$BASE" HEAD -- \
+          if [ -n "$BASE" ] && git diff --quiet "$BASE" HEAD -- \
             package.json \
             pnpm-lock.yaml \
             pnpm-workspace.yaml \
@@ -227,23 +226,16 @@ jobs:
       - name: Build packages
         if: steps.package_build_inputs.outputs.run == 'true'
         env:
+          BASE: ${{ steps.package_build_inputs.outputs.base }}
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            pnpm api-surface -- --base="origin/${{ github.base_ref }}" --build-only
-          else
-            pnpm api-surface -- --base="HEAD^1" --build-only
-          fi
+        run: pnpm api-surface -- --base="$BASE" --build-only
 
       - name: Check API surface
         if: steps.package_build_inputs.outputs.run == 'true'
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            pnpm run api-surface:check -- --skip-build --base="origin/${{ github.base_ref }}"
-          else
-            pnpm run api-surface:check -- --skip-build --base="HEAD^1"
-          fi
+        env:
+          BASE: ${{ steps.package_build_inputs.outputs.base }}
+        run: pnpm run api-surface:check -- --skip-build --base="$BASE"
 
       - name: Check distribution barrels
         if: steps.package_build_inputs.outputs.run == 'true'

@@ -262,6 +262,42 @@ test("the CLI derives snapshot owners from current publishable manifests", () =>
         ([, args]) => args,
       ),
     );
+    const commit = (message) =>
+      run("git", [
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-qm",
+        message,
+      ]);
+    run("git", ["add", "api-surface"]);
+    commit("snapshot change");
+    writeFileSync(path.join(repo, "README.md"), "unrelated second commit\n");
+    run("git", ["add", "README.md"]);
+    commit("readme change");
+    const multiCommit = run(
+      process.execPath,
+      ["scripts/check-api-surface.mjs", "--skip-build", "--base=HEAD~2"],
+      {
+        env: {
+          ...process.env,
+          PATH: `${path.join(repo, "bin")}${path.delimiter}${process.env.PATH}`,
+        },
+      },
+    )
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    assert.deepEqual(multiCommit[0], [
+      "scripts/generate-api-surface.mjs",
+      "--check",
+      "--filter",
+      "...[HEAD~2]",
+      "--filter",
+      "@assistant-ui/public",
+    ]);
     rmSync(snapshot);
     assert.deepEqual(checkPlan(), expectedCheck);
     assert.deepEqual(
@@ -291,6 +327,7 @@ test("the CLI derives snapshot owners from current publishable manifests", () =>
 
 test("shared CLI selection preserves explicit filters and rejects ambiguous bases", () => {
   assert.deepEqual(resolveApiSurfaceFilters([]), []);
+  assert.deepEqual(resolveApiSurfaceFilters(["--base="]), []);
   assert.deepEqual(
     resolveApiSurfaceFilters(["--", "--filter=one", "--filter", "two"]),
     ["one", "two"],
