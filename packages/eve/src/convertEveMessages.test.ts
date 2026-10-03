@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { EveMessageData, EveMessageInputRequest } from "eve/react";
-import { defaultMessageReducer, type EveAgentReducerEvent } from "eve/client";
+import {
+  defaultMessageReducer,
+  type EveAgentReducerEvent,
+  type MessageStreamEvent,
+} from "eve/client";
 import {
   convertEveMessages,
   findEveInputRequest,
@@ -1742,25 +1746,27 @@ describe("convertEveMessages", () => {
         });
       });
 
-      it("a failed turn converts to cancelled because the store surfaces no error for turn.failed", () => {
-        const state = replay([
-          ...midStreamEvents,
-          {
-            type: "turn.failed",
-            meta: eventMeta(3),
-            data: {
-              turnId: "turn_1",
-              sequence: 3,
-              code: "internal",
-              message: "boom",
-            },
+      it("a failed turn stays incomplete after Eve settles its message", () => {
+        const failureEvent = {
+          type: "turn.failed",
+          meta: eventMeta(3),
+          data: {
+            turnId: "turn_1",
+            sequence: 3,
+            code: "internal",
+            message: "boom",
           },
-        ]);
+        } as const satisfies MessageStreamEvent;
+        const state = replay([...midStreamEvents, failureEvent]);
 
-        const converted = convertEveMessages(state, { isRunning: false });
+        const converted = convertEveMessages(state, {
+          isRunning: false,
+          events: [failureEvent],
+        });
         expect(converted.at(-1)?.status).toEqual({
           type: "incomplete",
-          reason: "cancelled",
+          reason: "error",
+          error: { code: "internal", message: "boom" },
         });
       });
 

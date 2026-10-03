@@ -297,6 +297,21 @@ const useEveThreadRuntime = (
     () => collectTurnTimestamps(agent.events, turnTimestampCacheRef.current),
     [agent.events],
   );
+  const failureEventsRef = useRef<typeof agent.events>([]);
+  const failureEvents = useMemo(() => {
+    const failures = agent.events.filter(
+      (event) => event.type === "turn.failed",
+    );
+    const previous = failureEventsRef.current;
+    if (
+      failures.length === previous.length &&
+      failures.every((event, index) => event === previous[index])
+    ) {
+      return previous;
+    }
+    failureEventsRef.current = failures;
+    return failures;
+  }, [agent.events]);
 
   const convertedMessages = useMemo(() => {
     const createdAtByMessageId = createdAtByMessageIdRef.current;
@@ -310,6 +325,7 @@ const useEveThreadRuntime = (
     return convertEveMessages(agent.data, {
       isRunning,
       error: agent.error,
+      events: failureEvents,
       getCreatedAt: (message) => {
         const turnId = message.metadata?.turnId;
         const durable =
@@ -326,7 +342,7 @@ const useEveThreadRuntime = (
         return createdAt;
       },
     });
-  }, [agent.data, agent.error, isRunning, turnTimestamps]);
+  }, [agent.data, agent.error, failureEvents, isRunning, turnTimestamps]);
 
   const messages = stagedMessages ?? convertedMessages;
   const messagesRef = useRef(messages);

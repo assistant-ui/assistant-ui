@@ -31,6 +31,7 @@ import type {
   EveMessagePart,
 } from "eve/react";
 import type { InputResponse } from "eve/client";
+import type { MessageStreamEvent } from "eve/client";
 
 const ASSISTANT_COMPLETE_STATUS = {
   type: "complete",
@@ -64,6 +65,11 @@ export type ConvertEveMessagesOptions = {
    */
   readonly error?: unknown;
   readonly getCreatedAt?: ((message: EveMessage) => Date) | undefined;
+  /**
+   * The session's stream events. A `turn.failed` event marks its turn's
+   * assistant message as incomplete with the failure as its error.
+   */
+  readonly events?: readonly MessageStreamEvent[] | undefined;
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -88,8 +94,17 @@ const toMessageStatus = (
   index: number,
   messages: readonly EveMessage[],
   options: ConvertEveMessagesOptions,
+  turnFailures: ReadonlyMap<string, { code: string; message: string }>,
 ): MessageStatus => {
   if (message.role !== "assistant") return USER_FALLBACK_STATUS;
+
+  const failure =
+    message.metadata?.turnId === undefined
+      ? undefined
+      : turnFailures.get(message.metadata.turnId);
+  if (failure) {
+    return { type: "incomplete", reason: "error", error: failure };
+  }
 
   const isLast = index === messages.length - 1;
   const hasPendingApproval = message.parts.some(
@@ -123,9 +138,7 @@ const toMessageStatus = (
     return ASSISTANT_RUNNING_STATUS;
   }
 
-  // Eve's default reducer never terminalizes the "streaming" marker on
-  // cancellation or turn/session failure, so liveness comes from isRunning and
-  // a leftover marker means the turn was interrupted.
+  // Some eve versions leave the streaming marker after cancellation or failure.
   if (message.metadata?.status === "streaming") {
     if (options.isRunning === undefined) {
       return ASSISTANT_RUNNING_STATUS;
@@ -469,6 +482,21 @@ export const convertEveMessage = (
   index: number,
   messages: readonly EveMessage[],
   options: ConvertEveMessagesOptions = {},
+): ThreadMessage =>
+  convertEveMessageWithFailures(
+    message,
+    index,
+    messages,
+    options,
+    getTurnFailures(options.events),
+  );
+
+const convertEveMessageWithFailures = (
+  message: EveMessage,
+  index: number,
+  messages: readonly EveMessage[],
+  options: ConvertEveMessagesOptions,
+  turnFailures: ReadonlyMap<string, { code: string; message: string }>,
 ): ThreadMessage => {
   const createdAt = options.getCreatedAt?.(message) ?? new Date();
   const metadata = {
@@ -501,8 +529,21 @@ export const convertEveMessage = (
   return fromThreadMessageLike(
     like,
     message.id,
-    toMessageStatus(message, index, messages, options),
+    toMessageStatus(message, index, messages, options, turnFailures),
   );
+};
+
+const getTurnFailures = (events: readonly MessageStreamEvent[] | undefined) => {
+  const failures = new Map<string, { code: string; message: string }>();
+  for (const event of events ?? []) {
+    if (event.type === "turn.failed") {
+      failures.set(event.data.turnId, {
+        code: event.data.code,
+        message: event.data.message,
+      });
+    }
+  }
+  return failures;
 };
 
 /**
@@ -511,10 +552,18 @@ export const convertEveMessage = (
 export const convertEveMessages = (
   data: EveMessageData,
   options: ConvertEveMessagesOptions = {},
-): ThreadMessage[] =>
-  data.messages.map((message, index, messages) =>
-    convertEveMessage(message, index, messages, options),
+): ThreadMessage[] => {
+  const turnFailures = getTurnFailures(options.events);
+  return data.messages.map((message, index, messages) =>
+    convertEveMessageWithFailures(
+      message,
+      index,
+      messages,
+      options,
+      turnFailures,
+    ),
   );
+};
 
 /**
  * Structural subset of the `string | UserContent` message content Eve's `send`
