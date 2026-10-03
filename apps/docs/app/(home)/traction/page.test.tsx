@@ -134,7 +134,7 @@ describe("TractionPage", () => {
     }
   });
 
-  it("drops the stats GitHub did not answer instead of showing placeholders", async () => {
+  it("drops forks, commits, age, and dependents when GitHub does not answer", async () => {
     const [stats] = sectionsOf(TractionPage());
     const rendered = stats!.type(stats!.props);
     await flush();
@@ -145,6 +145,14 @@ describe("TractionPage", () => {
     }
 
     const section = (await rendered) as ReactElement<{ children: ReactNode }>;
-    expect(Children.toArray(section.props.children)).toHaveLength(4);
+    const cards = Children.toArray(section.props.children) as ReactElement<{
+      label?: string;
+    }>[];
+    expect(cards).toHaveLength(4);
+    expect(cards.map((card) => card.props.label).filter(Boolean)).toEqual([
+      "GitHub stars",
+      "Contributors",
+      "Public packages",
+    ]);
   });
 });
