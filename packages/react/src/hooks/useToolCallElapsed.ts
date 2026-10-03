@@ -10,7 +10,9 @@ import { useAuiState } from "@assistant-ui/store";
  * Reads `part.timing`. Returns `undefined` when the part is not a tool call,
  * carries no timing, ended without a recorded completion (the duration is
  * unknown), or when no message part scope is available (so kit components
- * stay renderable standalone, e.g. in docs previews).
+ * stay renderable standalone, e.g. in docs previews). A running call also
+ * returns `undefined` until the component mounts, so a server render never
+ * reads the clock.
  *
  * @example
  * ```tsx
