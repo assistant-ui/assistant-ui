@@ -26,7 +26,7 @@ import {
   type SettingToggle,
 } from "@/components/assistant-ui/elements/settings-panel";
 
-const MODELS = ["gpt-5.6-terra", "gpt-5.6-sol"];
+const MODELS = ["gpt-5.6-luna", "gpt-5.6-terra"];
 
 export function ModelSettings() {
   const aui = useAui();
@@ -152,7 +152,7 @@ export function Settings() {
 </div>
 ```
 
-`temperature` is clamped into `0…2` before it is displayed or handed to the range input, and a `NaN` clamps to `0`, so a bad value never reaches the DOM as an invalid attribute. Model choices are buttons only when `onModelChange` is supplied, and toggle rows use real `role="switch"` buttons only when `onToggle` is supplied; otherwise those values render as non-interactive labels and indicators. The textarea and slider remain visible, and an empty `models` or `toggles` array simply renders that section with nothing in it rather than a placeholder message. Interactive model controls use `aria-pressed` rather than radio semantics, and interactive toggles use `aria-checked`.
+`temperature` is clamped into `0…2` before it is displayed or handed to the range input, and a `NaN` clamps to `0`, so a bad value never reaches the DOM as an invalid attribute. Model choices are buttons only when `onModelChange` is supplied, and toggle rows use real `role="switch"` buttons only when `onToggle` is supplied; otherwise those values render as non-interactive labels and indicators. The textarea and slider remain visible, and an empty `models` or `toggles` array renders that section with nothing in it rather than a placeholder message. Interactive model controls use `aria-pressed` rather than radio semantics, and interactive toggles use `aria-checked`.
 
 ## Examples
 
@@ -166,7 +166,8 @@ A registered provider reaches your backend the same way a manual `ModelSelector`
 export async function POST(req: Request) {
   const { messages, config, system, callSettings } = await req.json();
   const result = streamText({
-    model: openai(config?.modelName ?? "gpt-5.6-terra"),
+    model: openai(config?.modelName ?? "gpt-5.6-luna"),
+    providerOptions: { openai: { reasoningEffort: "none" } },
     temperature: callSettings?.temperature,
     system,
     messages: await convertToModelMessages(messages),
@@ -174,6 +175,8 @@ export async function POST(req: Request) {
   return result.toUIMessageStreamResponse();
 }
 ```
+
+An OpenAI reasoning model accepts `temperature` only while its reasoning is off, so the route sets `reasoningEffort: "none"`. The AI SDK drops `temperature` for GPT-6 models at every effort, which is why this example uses GPT-5.6.
 
 A toggle can gate more than a value in `config`: include or omit an entry in the same provider's `tools` based on the toggle's `on` value, using whatever tool definition your app already registers elsewhere, and the model stops being offered that tool the instant the switch flips.
 

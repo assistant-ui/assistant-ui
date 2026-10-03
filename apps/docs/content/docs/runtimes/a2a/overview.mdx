@@ -24,6 +24,26 @@ If your backend is not A2A-compliant, see [picking a runtime](/docs/runtimes/pic
 - An A2A v1.0 compatible agent server.
 - React 18 or 19.
 
+## A2UI surfaces and stored conversations
+
+The runtime recognizes A2UI operation DataParts by an `a2ui` media type on the part or its metadata, or by the operation shape itself. It folds operations from status updates, agent messages, task snapshots, and artifacts into one surface state for the assistant message. Each renderable surface becomes a `present` tool call with id `a2ui:<surfaceId>`, so it renders through the same setup as [A2UI over AG-UI](/docs/tools/a2ui). A deleted surface disappears, and the original DataPart is not rendered as JSON or sent back to the agent.
+
+When you use a history adapter, the assistant message keeps the task data needed to restore what the user saw. Surface parts carry replayable operations in their tool artifact, and merged task artifacts live under `metadata.custom.a2a.artifacts`, with inline file bytes (`raw`) left out so a large file cannot push the message past a store's size limit; URLs, text, data, media types and file names are kept:
+
+```ts
+{
+  metadata: {
+    custom: {
+      a2a: {
+        artifacts: [{ artifactId: "report", parts: [{ text: "..." }] }],
+      },
+    },
+  },
+}
+```
+
+The Assistant Cloud history adapter has `update`, so a task paused for `input_required` or `auth_required` writes its assistant question to history. Other history adapters record the question only when they expose `update`; an append-only adapter stores only the settled assistant message.
+
 ## Install
 
 <PlatformTabs>

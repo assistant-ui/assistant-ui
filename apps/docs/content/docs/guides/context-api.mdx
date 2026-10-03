@@ -4,26 +4,26 @@ description: Read and update assistant state to build custom React components in
 platforms: ["react"]
 ---
 
-The Context API provides direct access to assistant-ui's state management system, enabling you to build custom components that integrate seamlessly with the assistant runtime.
+The Context API gives custom components access to the state, actions, and events of the assistant runtime.
 
 ## Introduction
 
-The Context API is assistant-ui's powerful state management system that enables you to build custom components with full access to the assistant's state and capabilities. It provides:
+The Context API provides:
 
 - **Reactive state access** - Subscribe to state changes with automatic re-renders
 - **Action execution** - Trigger operations like sending messages or reloading responses
 - **Event listening** - React to user interactions and system events
-- **Scope-aware design** - Components automatically know their context (message, thread, etc.)
+- **Scope-aware design** - Components resolve their context (message, thread, etc.) from where they render
 
-It's the foundation that powers all assistant-ui primitives. When the built-in components don't meet your needs, you can use the Context API to create custom components with the same capabilities.
+All assistant-ui primitives are built on it. When the built-in components don't meet your needs, use the Context API to build custom components with the same capabilities.
 
-The Context API is backed by the runtime you provide to `<AssistantRuntimeProvider>`. This runtime acts as a unified store that manages all assistant state, handles actions, and dispatches events across your entire application.
+The Context API is backed by the runtime you provide to `<AssistantRuntimeProvider>`. The runtime is the store that holds assistant state, handles actions, and dispatches events.
 
 ## Core Concepts
 
 ### Scopes and Hierarchy
 
-assistant-ui organizes state into **scopes** - logical boundaries that provide access to relevant data and actions. Each scope corresponds to a specific part of the chat interface and automatically provides context-aware functionality.
+assistant-ui organizes state into **scopes**. Each scope corresponds to a part of the chat interface and exposes the state and actions for that part.
 
 ```
 🗂️  ThreadList (threads) - Manages the list of conversations
@@ -47,9 +47,9 @@ assistant-ui organizes state into **scopes** - logical boundaries that provide a
 
 **How scopes work:**
 
-- Scopes are **automatically determined** by where your component is rendered
-- A button inside a `<ThreadPrimitive.Messages>` automatically gets `message` scope
-- A button inside a `<ComposerPrimitive.Attachments>` automatically gets `attachment` scope
+- Scopes are determined by where your component is rendered
+- A button inside a `<ThreadPrimitive.Messages>` gets `message` scope
+- A button inside a `<ComposerPrimitive.Attachments>` gets `attachment` scope
 - Child scopes can access parent scope data (e.g., a `message` component can access `thread` data)
 
 ```tsx
@@ -65,7 +65,7 @@ function MessageButton() {
 
 ### State Management Model
 
-The Context API follows a predictable state management pattern:
+The Context API separates four concerns:
 
 1. **State** is immutable and flows down through scopes
 2. **Actions** are methods that trigger state changes
@@ -76,7 +76,7 @@ The Context API follows a predictable state management pattern:
 
 ### useAuiState
 
-Read state reactively with automatic re-renders when values change. This hook works like Zustand's selector pattern - you provide a function that extracts the specific data you need, and your component only re-renders when that data changes.
+Read state and re-render when the selected value changes. This hook works like Zustand's selector pattern: you provide a function that extracts the data you need, and your component re-renders only when that data changes.
 
 ```tsx
 import { useAuiState } from "@assistant-ui/react";
@@ -92,7 +92,7 @@ const attachmentCount = useAuiState(
 const lastMessage = useAuiState((s) => s.thread.messages.at(-1));
 ```
 
-The selector function receives all available scopes for your component's location and should return a specific value. The component re-renders only when that returned value changes.
+The selector function receives all scopes available at your component's location.
 
 **Common patterns:**
 
@@ -122,7 +122,7 @@ const content = useAuiState((s) => s.message.content);
 
 ### useAui
 
-Access the API instance for imperative operations and actions. Unlike `useAuiState`, this hook does not subscribe to state updates: the client's identity only changes on structural changes (a scope resolving to a different instance), making it well suited for event handlers and imperative operations.
+Access the API instance for imperative operations and actions. Unlike `useAuiState`, this hook does not subscribe to state updates. The client's identity changes only on structural changes (a scope resolving to a different instance), so it suits event handlers and imperative operations.
 
 ```tsx
 import { useAui } from "@assistant-ui/react";
@@ -159,7 +159,7 @@ function CustomMessageActions() {
 }
 ```
 
-The API object doesn't cause re-renders on state updates. Use it for:
+Use the API object for:
 
 - **Triggering actions** in event handlers and callbacks
 - **Reading current state** imperatively when you don't need subscriptions
@@ -249,7 +249,7 @@ aui.tools.getState();
 
 ### useAuiEvent
 
-Subscribe to events with automatic cleanup on unmount. This hook is perfect for reacting to user interactions, system events, or integrating with external analytics.
+Subscribe to events. The subscription is removed on unmount. Use this hook to run side effects on user interactions and system events, such as analytics tracking.
 
 ```tsx
 import { useAuiEvent } from "@assistant-ui/react";
@@ -301,10 +301,12 @@ Each scope provides access to specific state and actions:
 - **ThreadList** (`threads`): Collection and management of threads
 - **ThreadListItem** (`threadListItem`): Individual thread in the list
 - **Thread** (`thread`): Conversation with messages
+- **Task** (`task`): Tool call in the thread that carries a nested conversation
 - **Message** (`message`): Individual message (user or assistant)
 - **Part** (`part`): Content part within a message (text, tool calls, etc.)
 - **ChainOfThought** (`chainOfThought`): Reasoning steps grouped within a message
 - **Composer** (`composer`): Text input for sending or editing messages
+- **QueueItem** (`queueItem`): Message queued in a composer
 - **Attachment** (`attachment`): File or media attached to a message or composer
 - **Suggestions** (`suggestions`): Collection of follow-up message suggestions
 - **Suggestion** (`suggestion`): Individual follow-up suggestion
@@ -313,7 +315,7 @@ Each scope provides access to specific state and actions:
 
 ### Scope Resolution
 
-The Context API automatically resolves the current scope based on component location:
+The Context API resolves the current scope from the component's location:
 
 ```tsx
 function MessageButton() {
@@ -330,7 +332,7 @@ function MessageButton() {
 
 ### Checking Scope Availability
 
-Read scopes that may be unavailable through the optional view — they resolve to `undefined` instead of throwing:
+Read scopes that may be unavailable through the optional view, where they resolve to `undefined` instead of throwing:
 
 ```tsx
 const role = useAuiState((s) => s.optional.message?.role);
@@ -498,7 +500,7 @@ const isRunning = useAuiState((s) => s.thread.isRunning);
 | Attachment     | `id`, `type`, `name`, `contentType`, `status`                                                   | File attachments metadata and content              |
 | Suggestions    | `suggestions`                                                                                    | Collection of follow-up message suggestions        |
 | Suggestion     | `title`, `label`, `prompt`                                                                       | Individual suggestion with title, label, and prompt |
-| ModelContext   | *(empty — use `register()` / `getToolCallParams()` methods; see [Model Context](/docs/copilots/model-context))* | System instructions, tools, and context providers |
+| ModelContext   | `modelName`, `toolNames`                                                                         | Model name and tool names from the merged model context; see [Model Context](/docs/copilots/model-context) |
 
 ### Available Actions by Scope
 
@@ -516,7 +518,7 @@ The table below covers the most commonly used actions. For the full catalog, see
 | Attachment     | `remove()`, `getState()`                                                                                          | File management                            |
 | Suggestions    | `suggestion({ index })`, `getState()`                                                                             | Access follow-up suggestions               |
 | Suggestion     | `getState()`                                                                                                      | Read individual suggestion data            |
-| ModelContext   | `register(provider)`, `getState()`                                                                                | Register providers; full details in [Model Context](/docs/copilots/model-context) |
+| ModelContext   | `register(provider)`, `getModelContext()`, `getState()`                                                           | Register providers; full details in [Model Context](/docs/copilots/model-context) |
 
 ### Events vs State Observation
 
@@ -534,24 +536,34 @@ The rule of thumb:
 | ----------------------------- | ---------------------------------------------------------------------------- |
 | `threads.selectionChanged`    | The main thread selection changed. Payload carries `threadId` (newly selected) and `previousThreadId`. Does not fire for the initially selected thread on mount. |
 | `thread.runStart` / `runEnd`  | A run started / ended on the thread (also visible as `isRunning` flipping)   |
+| `thread.cancelRun`            | The user stopped the run in progress on the thread                           |
 | `thread.initialize`           | The thread transitioned from new to initialized, before the first message is added |
 | `thread.modelContextUpdate`   | The model context provider notified a change. The model context lives in a provider, not in thread state, so this event has no state-derivable equivalent. |
 | `composer.send`               | The user sent the composer contents; `messageId` is set for edit-composer sends |
 | `composer.attachmentAdd`      | An attachment was added to the composer                                      |
-| `composer.attachmentAddError` | An `addAttachment()` call failed. Payload `reason` discriminates `no-adapter` / `not-accepted` / `adapter-error`. The event additionally surfaces a human-readable `message` (and the underlying `Error` instance via the low-level `runtime.unstable_on("attachmentAddError")` API; `useAuiEvent` payloads omit it because raw `Error` objects are not store-serializable). |
+| `composer.attachmentAddError` | An `addAttachment()` call failed. Payload `reason` is `no-adapter`, `not-accepted`, or `adapter-error`, and `message` is a human-readable description. The underlying `Error` instance is available only through the low-level `runtime.unstable_on("attachmentAddError")` API, because raw `Error` objects are not store-serializable. |
+| `composer.cancel`             | The composer cancelled the run in progress                                   |
+| `message.reload`              | The user asked for the assistant message to be generated again               |
+| `message.branchSwitched`      | The user moved to another branch at the message                              |
+| `message.copied`              | The user copied the message                                                  |
+| `message.speak`               | Speech synthesis started for the message                                     |
+| `message.error`               | The message entered an error status                                          |
+| `thread.toolApprovalAnswered` | A tool approval request was answered. Payload carries `messageId`, `toolCallId`, `toolName`, and `approved`. |
+| `thread.historyWriteError`    | A local runtime history write failed. Payload carries `threadId`, `operation` (`append`, `update`, or `delete`), affected `messageIds`, and a readable `message`. The underlying error is available only through the low-level `runtime.unstable_on("historyWriteError")` API. The stored history may differ from the thread. |
+| `thread.voiceStarted`         | The user started a voice session on the thread                               |
 
 #### Deprecated Events
 
 | Deprecated Event              | Use Instead                                                                  |
 | ----------------------------- | ---------------------------------------------------------------------------- |
-| `threadListItem.switchedTo`   | `threads.selectionChanged` — its `threadId` is the newly selected thread     |
-| `threadListItem.switchedAway` | `threads.selectionChanged` — its `previousThreadId` is the thread switched away from |
+| `threadListItem.switchedTo`   | `threads.selectionChanged`; its `threadId` is the newly selected thread      |
+| `threadListItem.switchedAway` | `threads.selectionChanged`; its `previousThreadId` is the thread switched away from |
 
 ## Troubleshooting
 
 ### Common Errors
 
-**"Cannot access [scope] outside of [scope] context"**
+**"The current scope does not have a "message" property."**
 
 ```tsx
 // ❌ This will throw if not inside a message component
@@ -561,7 +573,7 @@ const role = useAuiState((s) => s.message.role);
 const role = useAuiState((s) => s.optional.message?.role ?? "none");
 ```
 
-A component that renders outside `AssistantRuntimeProvider` has no scopes at all. Move it under the provider or publish the client to it; see [Reading State Outside the Thread](/docs/guides/state-outside-the-thread).
+A component that renders outside `AssistantRuntimeProvider` has no scopes at all, and the error asks for an `AuiProvider` instead. Move it under the provider or publish the client to it; see [Reading State Outside the Thread](/docs/guides/state-outside-the-thread).
 
 **"Maximum update depth exceeded" / Infinite re-renders**
 
@@ -577,7 +589,7 @@ const role = useAuiState((s) => s.message.role);
 const content = useAuiState((s) => s.message.content);
 ```
 
-**"Scope resolution failed" / Stale scope references**
+**Stale scope references**
 
 ```tsx
 // ❌ Storing scope references can lead to stale data

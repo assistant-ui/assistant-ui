@@ -20,7 +20,7 @@ Install the Vue binding, the AI SDK runtime, and an AI SDK provider:
 pnpm add @assistant-ui/vue @assistant-ui/ai-sdk ai @ai-sdk/openai react
 ```
 
-`react` is the AI SDK runtime's substrate — an optional peer of `@assistant-ui/ai-sdk`, so it does not install on its own. For `nuxi typecheck`, add `@types/react` as a dev dependency: a type-only react reference rides through the core runtime types.
+The AI SDK runtime runs on `react`. It is an optional peer of `@assistant-ui/ai-sdk`, so it does not install on its own. For `nuxi typecheck`, add `@types/react` as a dev dependency, because the core runtime types reference React types.
 
 ```bash
 pnpm add -D @types/react
@@ -100,7 +100,7 @@ export default defineEventHandler(async (event) => {
   }>(event);
 
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
     system,
   });

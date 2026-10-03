@@ -181,6 +181,8 @@ type ChatCallbacks<UI_MESSAGE extends UIMessage> = Pick<
   "onToolCall" | "onData" | "onFinish" | "onError" | "sendAutomaticallyWhen"
 >;
 
+const requestsByChat = new WeakMap<object, symbol>();
+
 /**
  * Constructs a `Chat` whose callbacks read the latest options through
  * `callbacksRef`, the forwarding `useChat` applies only to a chat it
@@ -189,9 +191,22 @@ type ChatCallbacks<UI_MESSAGE extends UIMessage> = Pick<
 export const createChat = <UI_MESSAGE extends UIMessage>(
   init: ChatInit<UI_MESSAGE>,
   callbacksRef: { readonly current: ChatCallbacks<UI_MESSAGE> | undefined },
-): Chat<UI_MESSAGE> =>
-  new Chat<UI_MESSAGE>({
+): Chat<UI_MESSAGE> => {
+  const transport = init.transport;
+  const chat = new Chat<UI_MESSAGE>({
     ...init,
+    ...(transport && {
+      transport: {
+        sendMessages: (options) => {
+          requestsByChat.set(chat, Symbol());
+          return transport.sendMessages(options);
+        },
+        reconnectToStream: (options) => {
+          requestsByChat.set(chat, Symbol());
+          return transport.reconnectToStream(options);
+        },
+      },
+    }),
     onToolCall: (arg) => callbacksRef.current?.onToolCall?.(arg),
     onData: (arg) => callbacksRef.current?.onData?.(arg),
     onFinish: (arg) => callbacksRef.current?.onFinish?.(arg),
@@ -199,6 +214,8 @@ export const createChat = <UI_MESSAGE extends UIMessage>(
     sendAutomaticallyWhen: (arg) =>
       callbacksRef.current?.sendAutomaticallyWhen?.(arg) ?? false,
   });
+  return chat;
+};
 
 export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
   options: ChatThreadOptions<UI_MESSAGE> | undefined,
@@ -271,7 +288,10 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
   );
 
   const runtime = useAISDKRuntime(chat, {
-    adapters,
+    adapters: {
+      ...adapters,
+      threadList: { threadId: id, ...adapters?.threadList },
+    },
     ...pickExternalStoreSharedOptions(options ?? {}),
     ...(toCreateMessage && { toCreateMessage }),
     ...(onResume && { onResume }),
@@ -282,6 +302,11 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(messageRepositoryInstance && {
       unstable_messageRepositoryInstance: messageRepositoryInstance,
     }),
+    // The chat outlives this runtime when a host mounts only the visible
+    // thread, so a host approval answer is kept with it. This is the Chat
+    // instance, not the useChat helpers, which are re-minted every render and
+    // would be a dead WeakMap key by the next one.
+    unstable_hostApprovalOwner: externalChat ?? ownedChat,
     ...(unstable_onBranchChange && { unstable_onBranchChange }),
   });
 
@@ -350,27 +375,41 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     }
     if (isLoadingHistory) return;
     resumedStreamIds.add(pendingStreamId);
-    chat.resumeStream().catch((err: unknown) => {
-      console.warn("[assistant-ui] resumable: resume failed", err);
-      try {
-        onResumeErrorRef.current?.(err);
-      } catch (callbackError) {
-        console.error(
-          "[assistant-ui] resumable: onResumeError callback failed",
-          callbackError,
-        );
-      } finally {
-        if (resumableStorage?.getStreamId(id) === pendingStreamId) {
-          resumableStorage.clear(id);
+    const activeChat = externalChat ?? ownedChat;
+    activeChat.clearError();
+    const pending = chat.resumeStream();
+    const request = requestsByChat.get(activeChat);
+    pending
+      .then(() => {
+        // Chat.error is shared with sends and resumes that can start before
+        // this promise settles, including inside the caller's onFinish.
+        if (requestsByChat.get(activeChat) === request && activeChat.error) {
+          throw activeChat.error;
         }
-      }
-    });
+      })
+      .catch((err: unknown) => {
+        console.warn("[assistant-ui] resumable: resume failed", err);
+        try {
+          onResumeErrorRef.current?.(err);
+        } catch (callbackError) {
+          console.error(
+            "[assistant-ui] resumable: onResumeError callback failed",
+            callbackError,
+          );
+        } finally {
+          if (resumableStorage?.getStreamId(id) === pendingStreamId) {
+            resumableStorage.clear(id);
+          }
+        }
+      });
   }, [
     chat,
+    externalChat,
     id,
     isChatRunning,
     isLoadingHistory,
     pendingStreamId,
+    ownedChat,
     resumableStorage,
     resumedStreamIds,
   ]);

@@ -13,9 +13,11 @@ import {
 import {
   applyA2uiOperations,
   convertSurfaceToUISpec,
+  surfaceToOperations,
   type A2uiState,
   type A2uiSurfaceState,
 } from "@assistant-ui/react-generative-ui/a2ui";
+import jsonpatch, { type Operation } from "fast-json-patch";
 import { readMcpAppResourceUri } from "../mcp-tool-result";
 import { projectAgUiToolApprovals } from "./tool-approval";
 import type { AgUiEvent, AgUiInterrupt } from "../types";
@@ -49,7 +51,7 @@ type PartOrderEntry =
   | { kind: "text"; key: string; subagentRunId?: string }
   | { kind: "reasoning"; key: string; subagentRunId?: string }
   | { kind: "tool-call"; toolCallId: string }
-  | { kind: "data"; name: string; value: unknown };
+  | { kind: "data"; name: string; value: unknown; subagentRunId?: string };
 
 type BuildContext = {
   subagentsByParentToolCallId: Map<string, string[]>;
@@ -95,6 +97,7 @@ type ToolCallState = {
   toolMessageId?: string;
   mcpAppResourceUri?: string;
   mcpAppServerId?: string;
+  artifact?: unknown;
   modelContent?: ToolModelContentPart[];
   snapshotResultApplied: boolean;
   subagentRunId?: string;
@@ -246,6 +249,10 @@ export class RunAggregator {
   private readonly toolCalls = new Map<string, ToolCallState>();
   private readonly a2uiBuckets = new Map<string, A2uiState>();
   private readonly a2uiToolCallIds = new Set<string>();
+  private readonly activityParts = new Map<
+    string,
+    { kind: "data"; name: string; value: unknown; subagentRunId?: string }
+  >();
   private readonly lastResolvedToolCallIdByScope = new Map<string, string>();
   private readonly partOrder: PartOrderEntry[] = [];
   private textPartCounter = 0;
@@ -319,6 +326,9 @@ export class RunAggregator {
         break;
       }
       case "RUN_CANCELLED": {
+        // A cancel can land after RUN_FINISHED while the response is still
+        // closing, and the answer it finished is already persisted as complete.
+        if (this.status?.type === "complete") break;
         this.status = { type: "incomplete", reason: "cancelled" };
         this.closeOpenSubagentRuns(this.status);
         this.emit();
@@ -503,7 +513,10 @@ export class RunAggregator {
           this.handleA2uiActivitySnapshot(event);
           break;
         }
-        if (event.activityType !== MCP_APPS_ACTIVITY_TYPE) break;
+        if (event.activityType !== MCP_APPS_ACTIVITY_TYPE) {
+          this.handleActivitySnapshot(event);
+          break;
+        }
         const activityScope = this.scopeOf(event);
         const toolCallId = event.content.toolCallId;
         const fallbackId =
@@ -619,9 +632,48 @@ export class RunAggregator {
         break;
       }
 
+      case "ACTIVITY_DELTA": {
+        this.handleActivityDelta(event);
+        break;
+      }
+
       default: {
         this.logger.debug?.("[agui] aggregator ignored event", event);
       }
+    }
+  }
+
+  private handleActivityDelta(
+    event: Extract<AgUiEvent, { type: "ACTIVITY_DELTA" }>,
+  ): void {
+    const scope = this.scopeOf(event);
+    const existing = this.activityParts.get(
+      this.partKey(scope, `message:${event.messageId}`),
+    );
+    if (!existing) {
+      this.logger.debug?.("[agui] activity delta has no snapshot", event);
+      return;
+    }
+    if (event.patch.length === 0) return;
+    try {
+      const result = jsonpatch.applyPatch(
+        existing.value,
+        event.patch as Operation[],
+        /* validateOperation */ true,
+        /* mutateDocument */ false,
+      );
+      if (!isPlainObject(result.newDocument)) {
+        this.logger.debug?.(
+          "[agui] activity delta produced non-object content",
+          event,
+        );
+        return;
+      }
+      existing.name = `agui-activity/${event.activityType}`;
+      existing.value = result.newDocument;
+      this.emit();
+    } catch (error) {
+      this.logger.error?.("[agui] failed to apply activity delta", error);
     }
   }
 
@@ -641,6 +693,42 @@ export class RunAggregator {
     this.a2uiBuckets.delete(messageId);
     this.a2uiBuckets.set(messageId, state);
     this.synthesizeA2uiToolCalls();
+    this.emit();
+  }
+
+  private handleActivitySnapshot(
+    event: Extract<AgUiEvent, { type: "ACTIVITY_SNAPSHOT" }>,
+  ): void {
+    const scope = this.scopeOf(event);
+    const key = this.partKey(
+      scope,
+      event.messageId !== undefined
+        ? `message:${event.messageId}`
+        : `type:${event.activityType}`,
+    );
+    const existing = this.activityParts.get(key);
+    if (existing) {
+      if (event.replace === false) return;
+      existing.name = `agui-activity/${event.activityType}`;
+      existing.value = event.content;
+    } else {
+      const part =
+        scope === ROOT_SCOPE
+          ? {
+              kind: "data" as const,
+              name: `agui-activity/${event.activityType}`,
+              value: event.content,
+            }
+          : {
+              kind: "data" as const,
+              name: `agui-activity/${event.activityType}`,
+              value: event.content,
+              subagentRunId: scope,
+            };
+      this.activityParts.set(key, part);
+      this.partOrder.push(part);
+      this.activeTextMessageIdByScope.delete(scope);
+    }
     this.emit();
   }
 
@@ -671,6 +759,7 @@ export class RunAggregator {
         parsedArgs: spec,
         result: {},
         isError: undefined,
+        artifact: { a2ui: surfaceToOperations(surface) },
         snapshotResultApplied: false,
       };
       if (!this.toolCalls.has(toolCallId)) {
@@ -729,6 +818,7 @@ export class RunAggregator {
     this.toolCalls.clear();
     this.a2uiBuckets.clear();
     this.a2uiToolCallIds.clear();
+    this.activityParts.clear();
     this.lastResolvedToolCallIdByScope.clear();
     this.partOrder.length = 0;
     this.textPartCounter = 0;
@@ -1097,6 +1187,7 @@ export class RunAggregator {
           argsText: entry.argsText,
           ...(approval ? { approval } : {}),
           ...(entry.result !== undefined ? { result: entry.result } : {}),
+          ...(entry.artifact !== undefined ? { artifact: entry.artifact } : {}),
           ...(entry.modelContent !== undefined
             ? { modelContent: entry.modelContent }
             : {}),

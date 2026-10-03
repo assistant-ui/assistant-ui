@@ -47,12 +47,14 @@ type CompleteAttachmentStatus = {
 
 type DataMessagePart<T = any> = {
   readonly type: "data";
+  readonly id?: string;
   readonly name: string;
   readonly data: T;
 };
 
 type FileMessagePart = {
   readonly type: "file";
+  readonly id?: string;
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
@@ -81,6 +83,7 @@ type GenerativeUISpec = {
 
 type ImageMessagePart = {
   readonly type: "image";
+  readonly id?: string;
   readonly image: string;
   readonly filename?: string;
   readonly providerMetadata?: PartProviderMetadata;
@@ -161,6 +164,7 @@ type ReadonlyJSONValue = null | string | number | boolean | ReadonlyJSONObject |
 
 type ReasoningMessagePart = {
   readonly type: "reasoning";
+  readonly id?: string;
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
   readonly unstable_summary?: string;
@@ -207,6 +211,7 @@ declare const TOOL_RESPONSE_SYMBOL: unique symbol;
 
 type TextMessagePart = {
   readonly type: "text";
+  readonly id?: string;
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
@@ -349,6 +354,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   };
   readonly parentId?: string;
   readonly messages?: readonly ThreadMessage[];
+  readonly unstable_interactions?: Unstable_ToolInteractionLog;
 };
 
 type ToolCallMessagePartComponent<TArgs = any, TResult = any> = ComponentType<ToolCallMessagePartProps<TArgs, TResult>>;
@@ -361,6 +367,7 @@ type ToolCallMessagePartProps<TArgs = any, TResult = unknown> = MessagePartState
   addResult: (result: TResult | ToolResponse<TResult>) => void;
   resume: (payload: unknown) => void;
   respondToApproval: (response: ToolApprovalResponse) => Promise<void>;
+  unstable_recordInteraction?: ((input: Unstable_ToolInteractionInput) => Promise<void>) | undefined;
 };
 
 type ToolCallMessagePartStatus = {
@@ -415,6 +422,26 @@ type Unstable_AudioMessagePart = {
     readonly data: string;
     readonly format: "mp3" | "wav";
   };
+};
+
+type Unstable_ToolInteraction = {
+  readonly type: "action";
+  readonly occurredAt: number;
+  readonly payload: ReadonlyJSONObject;
+} | {
+  readonly type: "human-response";
+  readonly occurredAt: number;
+  readonly payload: ReadonlyJSONValue;
+};
+
+type Unstable_ToolInteractionInput = {
+  readonly type: Unstable_ToolInteraction["type"];
+  readonly payload: unknown;
+};
+
+type Unstable_ToolInteractionLog = {
+  readonly entries: readonly Unstable_ToolInteraction[];
+  readonly omitted?: number;
 };
 
 type UseAssistantFormProps<TFieldValues extends FieldValues, TContext, TTransformedValues> = UseFormProps<TFieldValues, TContext, TTransformedValues> & {

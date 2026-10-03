@@ -15,7 +15,7 @@ const LazyAgentSetup = lazy(() =>
   })),
 );
 
-/** The shop's entry points load the catalog only on a build that has a shop, and only where one renders. */
+/** The shop's entry points load the catalog only on a build that has a checkout worker, and only where one renders. */
 export function CartButton(props: ComponentProps<typeof LazyCartButton>) {
   if (!checkoutEnabled) return null;
   return (

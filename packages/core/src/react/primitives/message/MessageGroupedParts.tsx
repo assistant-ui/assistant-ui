@@ -9,6 +9,7 @@ import type {
   ToolCallMessagePartStatus,
 } from "../../../types/message";
 import { getGroupSummary } from "../../../utils/getGroupStatus";
+import { getMessagePartKeys } from "../../../utils/getMessagePartKeys";
 import {
   buildGroupTree,
   GROUPBY_MEMO_KEY,
@@ -147,7 +148,8 @@ export namespace MessagePrimitiveGroupedParts {
      *
      * Leaf parts receive the same {@link EnrichedPartState} that
      * `<MessagePrimitive.Parts>` would produce (`toolUI`, `addResult`,
-     * `resume`, `respondToApproval`, `dataRendererUI`).
+     * `resume`, `respondToApproval`, `unstable_recordInteraction`,
+     * `dataRendererUI`).
      */
     readonly children: (info: RenderInfo<TKey>) => ReactNode;
   };
@@ -199,9 +201,6 @@ const renderNode = <TKey extends `group-${string}`>(
   render: (info: MessagePrimitiveGroupedParts.RenderInfo<TKey>) => ReactNode,
 ): ReactNode => {
   if (node.type === "part") {
-    // Key by part identity when available, else absolute part index — never
-    // the structural nodeKey, which leaves zombie fiber subscriptions when
-    // parts reshape (#4051).
     return (
       <MessagePartChildren
         key={node.idKey ? `part-${node.idKey}` : `part-${node.index}`}
@@ -225,7 +224,7 @@ const renderNode = <TKey extends `group-${string}`>(
   };
 
   return (
-    <Fragment key={node.idKey ?? node.nodeKey}>
+    <Fragment key={JSON.stringify([node.key, node.idKey ?? node.nodeKey])}>
       {render({
         part: groupPart,
         children: (
@@ -296,9 +295,7 @@ export const MessagePrimitiveGroupedParts = <TKey extends `group-${string}`>({
     const context: GroupByContext = { toolUIs };
     return buildGroupTree(
       parts.map((part) => groupBy(part, context) ?? []),
-      parts.map((part) =>
-        part.type === "tool-call" ? part.toolCallId : undefined,
-      ),
+      getMessagePartKeys(parts),
     );
     // oxlint-disable-next-line react/exhaustive-deps -- groupBy is captured via memoDep (either its identity or the helper's memoKey fingerprint); listing it directly would defeat the helper-tagged memo path
   }, [parts, memoDep, toolUIs]);

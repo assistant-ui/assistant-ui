@@ -2,7 +2,11 @@ import type { ToolModelContentPart } from "assistant-stream";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { ModelContext } from "../../model-context/types";
 import type { Unsubscribe } from "../../types/unsubscribe";
-import type { AppendMessage, ThreadMessage } from "../../types/message";
+import type {
+  AppendMessage,
+  ThreadMessage,
+  Unstable_ToolInteraction,
+} from "../../types/message";
 import type { RunConfig } from "../../types/message";
 import type { SpeechSynthesisAdapter } from "../../adapters/speech";
 import type { RealtimeVoiceAdapter } from "../../adapters/voice";
@@ -35,6 +39,8 @@ export type RuntimeCapabilities = {
   readonly attachments: boolean;
   readonly feedback: boolean;
   readonly queue: boolean;
+  /** Whether the thread can answer a waiting tool call by adding its result, resuming it, or responding to its approval. */
+  readonly answerToolCall: boolean;
 };
 
 export type AddToolResultOptions = {
@@ -56,6 +62,12 @@ export type AddToolResultOptions = {
 export type ResumeToolCallOptions = {
   toolCallId: string;
   payload: unknown;
+};
+
+export type Unstable_RecordToolInteractionOptions = {
+  messageId: string;
+  toolCallId: string;
+  interaction: Unstable_ToolInteraction;
 };
 
 export type RespondToToolApprovalOptions = {
@@ -104,6 +116,15 @@ export type SubmittedFeedback = {
 };
 
 export type ThreadRuntimeEventPayload = {
+  /**
+   * Truly transient. A history adapter write rejected, so the stored history may no longer match the thread. A write whose promise reaches a caller still rejects there as well, and the runtime logs every failed write with console.error.
+   */
+  historyWriteError: {
+    operation: "append" | "update" | "delete";
+    messageIds: readonly string[];
+    message: string;
+    error: unknown;
+  };
   toolApprovalAnswered: {
     messageId: string;
     toolCallId: string;
@@ -193,6 +214,13 @@ export type ThreadRuntimeCore = Readonly<{
    */
   respondToToolApproval: (
     options: RespondToToolApprovalOptions,
+  ) => Promise<void>;
+  /**
+   * Appends a validated interaction to a tool call part and persists it where
+   * the runtime persists messages. Rejects when the runtime cannot record it.
+   */
+  unstable_recordToolInteraction?: (
+    options: Unstable_RecordToolInteractionOptions,
   ) => Promise<void>;
 
   speak: (messageId: string) => void;

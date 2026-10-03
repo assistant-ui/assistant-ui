@@ -12,7 +12,10 @@ import {
   ExportedMessageRepository,
   MessageRepository,
 } from "../utils/message-repository";
-import { captureThreadRuntimeGeneration } from "../utils/thread-runtime-lifecycle";
+import {
+  captureThreadRuntimeDisposal,
+  captureThreadRuntimeGeneration,
+} from "../utils/thread-runtime-lifecycle";
 import { DefaultThreadComposerRuntimeCore } from "./default-thread-composer-runtime-core";
 import type {
   AddToolResultOptions,
@@ -99,6 +102,11 @@ export abstract class BaseThreadRuntimeCore
     _message: ThreadMessage,
   ): void | Promise<void> {}
 
+  protected _onMessageMetadataChanged(
+    _previousMessage: ThreadAssistantMessage,
+    _message: ThreadAssistantMessage,
+  ): void {}
+
   protected _dropVoiceMessage(messageId: string, notify: boolean) {
     const index = this._voiceMessages.findIndex(
       (voiceMessage) => voiceMessage.id === messageId,
@@ -149,6 +157,11 @@ export abstract class BaseThreadRuntimeCore
   constructor(_contextProvider: ModelContextProvider) {
     super();
     this._contextProvider = _contextProvider;
+    captureThreadRuntimeDisposal(this).addEventListener("abort", () => {
+      this.composer.__internal_dispose();
+      for (const composer of this._editComposers.values())
+        composer.__internal_dispose();
+    });
   }
 
   public getModelContext() {
@@ -296,7 +309,7 @@ export abstract class BaseThreadRuntimeCore
     adapter?.submit({ message, ...feedback });
 
     if (message.role === "assistant") {
-      const updatedMessage: ThreadMessage = {
+      const updatedMessage: ThreadAssistantMessage = {
         ...message,
         metadata: {
           ...message.metadata,
@@ -308,10 +321,11 @@ export abstract class BaseThreadRuntimeCore
       );
       if (voiceIdx === -1) {
         this.repository.addOrUpdateMessage(parentId, updatedMessage);
+        this._onMessageMetadataChanged(message, updatedMessage);
       } else {
         this._voiceMessages[voiceIdx] = updatedMessage;
         if (this._currentAssistantMsg === message) {
-          this._currentAssistantMsg = updatedMessage as ThreadAssistantMessage;
+          this._currentAssistantMsg = updatedMessage;
         }
         this._markVoiceMessagesDirty();
       }
@@ -550,6 +564,7 @@ export abstract class BaseThreadRuntimeCore
 
       unsubs.push(
         session.onModeChange((mode) => {
+          if (this._voiceSession !== session) return;
           currentMode = mode;
           if (this.voice) {
             this.voice = { ...this.voice, mode };
@@ -561,6 +576,7 @@ export abstract class BaseThreadRuntimeCore
 
       unsubs.push(
         session.onVolumeChange((volume) => {
+          if (this._voiceSession !== session) return;
           this._voiceVolume = volume;
           notifyEventListeners(
             this._voiceVolumeSubscribers,
@@ -573,6 +589,7 @@ export abstract class BaseThreadRuntimeCore
 
       unsubs.push(
         session.onTranscript((transcript) => {
+          if (this._voiceSession !== session) return;
           this._handleVoiceTranscript(transcript);
         }),
       );
@@ -598,8 +615,8 @@ export abstract class BaseThreadRuntimeCore
 
   private _currentAssistantMsg: ThreadAssistantMessage | null = null;
 
-  private _observeVoiceCommit(commit: void | Promise<void>) {
-    void Promise.resolve(commit).catch((error) => {
+  private _observeVoiceCommit(commit: () => void | Promise<void>) {
+    void new Promise<void>((resolve) => resolve(commit())).catch((error) => {
       console.error("[assistant-ui] Voice message commit failed", error);
     });
   }
@@ -614,7 +631,7 @@ export abstract class BaseThreadRuntimeCore
       this._currentAssistantMsg = null;
 
       if (transcript.isFinal) {
-        this._observeVoiceCommit(
+        this._observeVoiceCommit(() =>
           this._commitVoiceUserMessage({
             id: generateId(),
             role: "user",
@@ -660,9 +677,8 @@ export abstract class BaseThreadRuntimeCore
       }
 
       if (transcript.isFinal) {
-        this._observeVoiceCommit(
-          this._commitVoiceMessage(this._currentAssistantMsg),
-        );
+        const message = this._currentAssistantMsg;
+        this._observeVoiceCommit(() => this._commitVoiceMessage(message));
         this._currentAssistantMsg = null;
       }
 
@@ -673,10 +689,12 @@ export abstract class BaseThreadRuntimeCore
 
   private _commitVoiceUserMessage(message: ThreadMessage) {
     this._voiceMessages.push(message);
-    const committed = this._commitVoiceMessage(message);
-    this._markVoiceMessagesDirty();
-    this._notifySubscribers();
-    return committed;
+    try {
+      return this._commitVoiceMessage(message);
+    } finally {
+      this._markVoiceMessagesDirty();
+      this._notifySubscribers();
+    }
   }
 
   protected async _appendToVoiceSession(message: AppendMessage) {
@@ -737,7 +755,7 @@ export abstract class BaseThreadRuntimeCore
         ...(last as ThreadAssistantMessage),
         status: { type: "complete", reason: "stop" },
       };
-      this._observeVoiceCommit(
+      this._observeVoiceCommit(() =>
         this._commitVoiceMessage(this._voiceMessages[idx]!),
       );
       this._currentAssistantMsg = null;

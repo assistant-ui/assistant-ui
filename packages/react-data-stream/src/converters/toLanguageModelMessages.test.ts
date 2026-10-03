@@ -22,6 +22,20 @@ const convertFileData = (data: string) => {
 };
 
 describe("toLanguageModelMessages", () => {
+  it("skips an assistant message without content instead of throwing", () => {
+    expect(
+      toLanguageModelMessages([{ id: "a", role: "assistant" }] as never),
+    ).toEqual([]);
+  });
+
+  it("skips an attachment without content instead of throwing", () => {
+    expect(
+      toLanguageModelMessages([
+        { id: "u", role: "user", content: [], attachments: [{ id: "a" }] },
+      ] as never),
+    ).toEqual([]);
+  });
+
   it("preserves IDs when an earlier message produces no model message", () => {
     const messages: ThreadMessage[] = [
       {

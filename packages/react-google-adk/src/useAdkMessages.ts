@@ -1,12 +1,13 @@
+import { isRecord } from "@assistant-ui/core/internal";
 import {
   useState,
   useCallback,
-  useEffect,
   useInsertionEffect,
   useRef,
   useMemo,
 } from "react";
 import { generateId } from "@assistant-ui/core";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import { useAui } from "@assistant-ui/store";
 import {
   abortableIterable,
@@ -71,7 +72,6 @@ export const useAdkMessages = ({
   const [messageMetadata, setMessageMetadata] = useState<
     Map<string, AdkMessageMetadata>
   >(new Map());
-  const lastTransferToAgentRef = useRef<string | undefined>(undefined);
   // setMessagesImmediate and setLongRunningToolIds are the only writers of their state and publish these refs with it, so neither ref trails a commit.
   const messagesRef = useRef(messages);
   const longRunningToolIdsRef = useRef(longRunningToolIds);
@@ -168,10 +168,14 @@ export const useAdkMessages = ({
       for (const event of messagesToEvents(newMessagesWithId)) {
         accumulator.processEvent(event);
       }
-      setMessagesImmediate(accumulator.getMessages());
-      setLongRunningToolIds(accumulator.getLongRunningToolIds());
+      const initialMessages = accumulator.getMessages();
+      const initialMessageIds = new Set(initialMessages.map((m) => m.id));
+      const initialLongRunningToolIds = accumulator.getLongRunningToolIds();
+      setMessagesImmediate(initialMessages);
+      setLongRunningToolIds(initialLongRunningToolIds);
       setToolConfirmations(accumulator.getToolConfirmations());
       setAuthRequests(accumulator.getAuthRequests());
+      let lastTransferToAgent: string | undefined;
 
       // Google ADK replaces active runs, while React LangGraph queues sends.
       abortControllerRef.current?.abort();
@@ -226,8 +230,8 @@ export const useAdkMessages = ({
           }
 
           const transfer = accumulator.getLastTransferToAgent();
-          if (transfer && transfer !== lastTransferToAgentRef.current) {
-            lastTransferToAgentRef.current = transfer;
+          if (transfer && transfer !== lastTransferToAgent) {
+            lastTransferToAgent = transfer;
             invokeAdkRuntimeCallback(
               "onAgentTransfer",
               onAgentTransfer,
@@ -265,6 +269,33 @@ export const useAdkMessages = ({
         }
       } finally {
         if (abortControllerRef.current === abortController) {
+          if (abortController.signal.aborted) {
+            setLongRunningToolIds(
+              accumulator
+                .getLongRunningToolIds()
+                .filter((id) => initialLongRunningToolIds.includes(id)),
+            );
+            const updatedMessages = messagesRef.current;
+            const lastAssistantMessage = updatedMessages.findLast(
+              (m) => m.type === "ai",
+            );
+            if (
+              lastAssistantMessage &&
+              !initialMessageIds.has(lastAssistantMessage.id) &&
+              !lastAssistantMessage.status
+            ) {
+              setMessagesImmediate(
+                updatedMessages.map((m) =>
+                  m === lastAssistantMessage
+                    ? {
+                        ...lastAssistantMessage,
+                        status: { type: "incomplete", reason: "cancelled" },
+                      }
+                    : m,
+                ),
+              );
+            }
+          }
           abortControllerRef.current = null;
         }
       }
@@ -286,7 +317,7 @@ export const useAdkMessages = ({
     }
   }, []);
 
-  useEffect(() => cancel, [cancel]);
+  useReplaySafeEffect(() => cancel, []);
 
   return {
     messages,
@@ -395,9 +426,9 @@ export const messageToEvent = (msg: AdkMessage): AdkEvent => {
     role: "model",
     parts: [
       ...contentToParts(msg.content),
-      ...(msg.tool_calls?.map((tc) => ({
+      ...(msg.tool_calls ?? []).filter(isRecord).map((tc) => ({
         functionCall: { name: tc.name, id: tc.id, args: { ...tc.args } },
-      })) ?? []),
+      })),
     ],
   };
   return result;

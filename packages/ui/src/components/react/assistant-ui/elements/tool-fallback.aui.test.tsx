@@ -14,6 +14,7 @@ const stubs = vi.hoisted(() => ({
   useScrollLock: () => () => {},
   useToolCallElapsed: () => undefined,
   voice: { active: false },
+  capabilities: { answerToolCall: true },
 }));
 
 vi.mock("@assistant-ui/react", async (importOriginal) => ({
@@ -21,7 +22,12 @@ vi.mock("@assistant-ui/react", async (importOriginal) => ({
   useScrollLock: stubs.useScrollLock,
   useToolCallElapsed: stubs.useToolCallElapsed,
   useAuiState: (selector: (state: unknown) => unknown) =>
-    selector({ thread: { voice: stubs.voice.active ? {} : undefined } }),
+    selector({
+      thread: {
+        voice: stubs.voice.active ? {} : undefined,
+        capabilities: stubs.capabilities,
+      },
+    }),
 }));
 
 const pendingApproval = { id: "req_1" };
@@ -120,6 +126,21 @@ describe("ToolFallback", () => {
     expect(view.container.textContent).toContain("partial output");
   });
 
+  it.each([
+    [{ type: "running" }, "Running tool: test-tool"],
+    [
+      { type: "requires-action", reason: "interrupt" },
+      "Waiting on tool: test-tool",
+    ],
+    [{ type: "incomplete", reason: "error" }, "Failed tool: test-tool"],
+    [{ type: "incomplete", reason: "cancelled" }, "Cancelled tool: test-tool"],
+    [{ type: "complete" }, "Used tool: test-tool"],
+  ] as const)("names the %o call", (status, label) => {
+    renderTool({ status });
+
+    expect(screen.getByRole("button", { name: label })).toBeTruthy();
+  });
+
   it("does not offer a fabricated result for an unprojected interrupt", () => {
     renderTool({ addResult: vi.fn() });
 
@@ -147,6 +168,46 @@ describe("ToolFallback", () => {
       expect(respondToApproval).not.toHaveBeenCalled();
     } finally {
       stubs.voice.active = false;
+    }
+  });
+
+  it("shows the prompt without controls when the thread cannot answer", () => {
+    const respondToApproval = vi.fn();
+    stubs.capabilities.answerToolCall = false;
+    try {
+      const view = renderTool({
+        approval: {
+          id: "approval-1",
+          prompt: "Deploy to production?",
+          options: [
+            { id: "once", kind: "allow-once" },
+            { id: "reject", kind: "reject-once" },
+          ],
+        },
+        respondToApproval,
+      });
+      const approval = view.container.querySelector(
+        '[data-slot="tool-fallback-approval"]',
+      );
+      expect(approval?.textContent).toBe("Deploy to production?");
+      expect(approval?.querySelector("button, textarea")).toBeNull();
+    } finally {
+      stubs.capabilities.answerToolCall = true;
+    }
+  });
+
+  it("renders nothing for a waiting call without a prompt when the thread cannot answer", () => {
+    stubs.capabilities.answerToolCall = false;
+    try {
+      const view = renderTool({
+        interrupt: { type: "human", payload: {} },
+        resume: vi.fn(),
+      });
+      expect(
+        view.container.querySelector('[data-slot="tool-fallback-approval"]'),
+      ).toBeNull();
+    } finally {
+      stubs.capabilities.answerToolCall = true;
     }
   });
 
@@ -276,6 +337,120 @@ describe("ToolFallback", () => {
 
     expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
     expect(addResult).not.toHaveBeenCalled();
+  });
+});
+
+describe("settled approval receipts", () => {
+  const receipt = () =>
+    document.querySelector('[data-slot="tool-fallback-approval-receipt"]');
+
+  it("records the option a gate was allowed with, without controls", () => {
+    renderTool({
+      status: { type: "complete" },
+      approval: {
+        id: "req_1",
+        approved: true,
+        optionId: "always",
+        options: [
+          { id: "once", kind: "allow-once" },
+          { id: "always", kind: "allow-always" },
+        ],
+      },
+    });
+    fireEvent.click(screen.getByText("test-tool"));
+
+    expect(receipt()?.getAttribute("data-outcome")).toBe("allowed");
+    expect(receipt()?.textContent).toContain("Allowed");
+    expect(receipt()?.textContent).toContain("· Always allow");
+    expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
+  });
+
+  it("records a denial with the note that came with it", () => {
+    renderTool({
+      status: { type: "incomplete", reason: "error" },
+      approval: { id: "req_1", approved: false, text: "Not on production" },
+    });
+    fireEvent.click(screen.getByText("test-tool"));
+
+    expect(receipt()?.getAttribute("data-outcome")).toBe("refused");
+    expect(receipt()?.textContent).toContain("Denied");
+    expect(receipt()?.textContent).toContain("Not on production");
+  });
+
+  it("records the answer to a select question beside its prompt", () => {
+    render(
+      <ToolFallbackApproval
+        approval={{
+          id: "req_1",
+          prompt: "Which environment?",
+          display: "select",
+          approved: true,
+          optionId: "staging",
+          options: [
+            { id: "staging", kind: "_staging", label: "Staging" },
+            { id: "production", kind: "_production", label: "Production" },
+          ],
+        }}
+      />,
+    );
+
+    expect(receipt()?.textContent).toContain("Which environment?");
+    expect(receipt()?.textContent).toContain("Answered");
+    expect(receipt()?.textContent).toContain("· Staging");
+  });
+
+  it("records a free-form answer and a dismissal as answers, not decisions", () => {
+    const view = render(
+      <ToolFallbackApproval
+        approval={{
+          id: "req_1",
+          display: "text",
+          approved: true,
+          text: "Use the staging bucket",
+        }}
+      />,
+    );
+    expect(receipt()?.textContent).toContain("Answered");
+    expect(receipt()?.textContent).toContain("Use the staging bucket");
+
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{
+          id: "req_1",
+          display: "text",
+          dismissible: true,
+          approved: false,
+        }}
+      />,
+    );
+    expect(receipt()?.textContent).toContain("Dismissed");
+  });
+
+  it("records a request that closed without a decision", () => {
+    const view = render(
+      <ToolFallbackApproval
+        approval={{ id: "req_1", resolution: "expired" }}
+      />,
+    );
+    expect(receipt()?.getAttribute("data-outcome")).toBe("closed");
+    expect(receipt()?.textContent).toContain("Expired before a decision");
+
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{ id: "req_1", resolution: "cancelled" }}
+      />,
+    );
+    expect(receipt()?.textContent).toContain("Cancelled before a decision");
+  });
+
+  it("says when a policy decided instead of the user", () => {
+    render(
+      <ToolFallbackApproval
+        approval={{ id: "req_1", approved: true, isAutomatic: true }}
+      />,
+    );
+
+    expect(receipt()?.textContent).toContain("Allowed automatically");
   });
 });
 

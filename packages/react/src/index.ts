@@ -127,6 +127,7 @@ export type {
   AddToolResultOptions,
   SubmitFeedbackOptions,
   ThreadSuggestion,
+  ComposerSubmission,
   DictationState,
 } from "@assistant-ui/core";
 
@@ -517,6 +518,11 @@ export {
 export type { Assistant } from "./augmentations";
 
 // --- mcp-apps ---
+export {
+  CloudRendererHost,
+  type CloudRendererHostProps,
+} from "./cloud-renderer/CloudRendererHost";
+
 export {
   McpAppRenderer,
   McpAppsRemoteHost,

@@ -91,6 +91,7 @@ describe("OpenCodeEventSource", () => {
     });
 
     unsubscribe();
+    await Promise.resolve();
     source.subscribe(vi.fn());
 
     await waitFor(() => {
@@ -119,6 +120,7 @@ describe("OpenCodeEventSource", () => {
     expect(firstListener).not.toHaveBeenCalled();
 
     unsubscribe();
+    await Promise.resolve();
     const secondListener = vi.fn();
     source.subscribe(secondListener);
 

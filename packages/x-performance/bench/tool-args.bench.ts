@@ -1,4 +1,4 @@
-import { describe, test } from "vitest";
+import { describe, inject, test } from "vitest";
 import {
   unstable_toolResultStream,
   type AssistantStreamChunk,
@@ -64,7 +64,7 @@ describe("assistant-stream: execute-only tool arguments (16-char deltas)", () =>
             ),
           ),
         );
-      }).run();
+      }).run(inject("benchSampling"));
     });
   }
 });

@@ -1,6 +1,6 @@
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
-import { InputResponse } from "eve/client";
+import { InputResponse, MessageStreamEvent } from "eve/client";
 
 import { EveAuthorizationOutcome, EveAuthorizationPart, EveMessage, EveMessageData, EveMessageInputRequest, UseEveAgentHelpers, UseEveAgentOptions } from "eve/react";
 
@@ -26,10 +26,429 @@ type AppendMessage = Omit<ThreadMessage, "id"> & {
 
 type AsNumber<K> = K extends `${infer N extends number}` ? N | K : never;
 
+declare class AssistantCloud {
+  readonly threads: AssistantCloudThreads;
+  readonly projects: AssistantCloudProjects;
+  readonly auth: {
+    tokens: AssistantCloudAuthTokens;
+  };
+  readonly runs: AssistantCloudRuns;
+  readonly files: AssistantCloudFiles;
+  readonly events: AssistantCloudEvents;
+  readonly scores: AssistantCloudScores;
+  readonly telemetry: AssistantCloudTelemetryConfig;
+  readonly registerSdk: (sdk: SdkIdentity) => void;
+  constructor(config: AssistantCloudConfig);
+}
+
+declare class AssistantCloudAPI {
+  _auth: AssistantCloudAuthStrategy;
+  _baseUrl: string;
+  readonly registerSdk: (sdk: SdkIdentity) => void;
+  readonly sdkHeader: () => string;
+  constructor(config: AssistantCloudConfig);
+  initializeAuth(): Promise<boolean>;
+  makeRawRequest(endpoint: string, options?: MakeRequestOptions): Promise<Response>;
+  makeRequest(endpoint: string, options?: MakeRequestOptions): Promise<any>;
+}
+
+type AssistantCloudAuthStrategy = {
+  readonly strategy: "anon" | "api-key" | "jwt";
+  getAuthHeaders(): Promise<Record<string, string> | false>;
+  readAuthHeaders(headers: Headers): void;
+};
+
+declare class AssistantCloudAuthTokens {
+  #private;
+  constructor(cloud: AssistantCloudAPI);
+  create(): Promise<AssistantCloudAuthTokensCreateResponse>;
+}
+
+type AssistantCloudAuthTokensCreateResponse = {
+  token: string;
+};
+
+type AssistantCloudConfig = ({
+  baseUrl: string;
+  authToken: () => Promise<string | null>;
+} | {
+  baseUrl?: string;
+  apiKey: string;
+  userId: string;
+  workspaceId: string;
+} | {
+  baseUrl: string;
+  anonymous: true;
+}) & {
+  telemetry?: boolean | AssistantCloudTelemetryConfig;
+};
+
+type AssistantCloudEvent = {
+  kind: AssistantCloudEventKind;
+  thread_id?: string | undefined;
+  message_id?: string | undefined;
+  run_id?: string | undefined;
+  value?: number | undefined;
+  props?: Readonly<Record<string, string | number | boolean>> | undefined;
+};
+
+type AssistantCloudEventKind = "attachment_added" | "attachment_failed" | "branch_switched" | "error_shown" | "message_copied" | "message_edited" | "message_regenerated" | "message_sent" | "run_stopped" | "speech_started" | "suggestion_clicked" | "suggestions_shown" | "thread_switched" | "tool_approved" | "tool_rejected" | "voice_started";
+
+declare class AssistantCloudEvents {
+  #private;
+  constructor(cloud: AssistantCloudAPI, isEnabled: () => boolean);
+  track(event: AssistantCloudEvent): void;
+  dispose(): void;
+}
+
+declare class AssistantCloudFiles {
+  #private;
+  constructor(cloud: AssistantCloudAPI);
+  pdfToImages(body: PdfToImagesRequestBody): Promise<PdfToImagesResponse>;
+  generatePresignedUploadUrl(body: GeneratePresignedUploadUrlRequestBody): Promise<GeneratePresignedUploadUrlResponse>;
+  generatePresignedDownloadUrl(body: {
+    key: string;
+  } | {
+    url: string;
+  }): Promise<GeneratePresignedDownloadUrlResponse>;
+}
+
+type AssistantCloudMessageCreateResponse = {
+  message_id: string;
+};
+
+type AssistantCloudProjectThreadMessageListQuery = {
+  format?: string;
+  limit?: number;
+  after?: string;
+};
+
+type AssistantCloudProjectThreadMessageListResponse = {
+  messages: CloudMessage[];
+};
+
+declare class AssistantCloudProjectThreadMessages {
+  #private;
+  constructor(cloud: AssistantCloudAPI);
+  list(threadId: string, query?: AssistantCloudProjectThreadMessageListQuery): Promise<AssistantCloudProjectThreadMessageListResponse>;
+}
+
+declare class AssistantCloudProjectThreads {
+  #private;
+  readonly messages: AssistantCloudProjectThreadMessages;
+  constructor(cloud: AssistantCloudAPI);
+  list(query?: AssistantCloudProjectThreadsListQuery): Promise<AssistantCloudProjectThreadsListResponse>;
+}
+
+type AssistantCloudProjectThreadsListQuery = {
+  is_archived?: boolean;
+  limit?: number;
+  after?: string;
+};
+
+type AssistantCloudProjectThreadsListResponse = {
+  threads: CloudThread[];
+};
+
+declare class AssistantCloudProjects {
+  readonly threads: AssistantCloudProjectThreads;
+  constructor(cloud: AssistantCloudAPI);
+}
+
+type AssistantCloudRunReport = {
+  thread_id: string;
+  status: "completed" | "error" | "incomplete";
+  outcome_type?: "aborted" | "budget_denied" | "content_filter" | "disconnected" | "length" | "persistence_error" | "provider_error" | "rate_limited" | "server_error" | "timeout" | "validation_failed";
+  message_id?: string;
+  first_token_ms?: number;
+  release?: string;
+  environment?: string;
+  tags?: string[];
+  provider?: string;
+  trace_id?: string;
+  root_span_id?: string;
+  error_code?: string;
+  error?: string;
+  total_steps?: number;
+  tool_calls?: AssistantCloudRunReportToolCall[];
+  steps?: {
+    input_tokens?: number;
+    output_tokens?: number;
+    reasoning_tokens?: number;
+    cached_input_tokens?: number;
+    tool_calls?: AssistantCloudRunReportToolCall[];
+    start_ms?: number;
+    end_ms?: number;
+    finish_reason?: string;
+    input?: string;
+  }[];
+  input_tokens?: number;
+  output_tokens?: number;
+  reasoning_tokens?: number;
+  cached_input_tokens?: number;
+  cost_usd?: number;
+  cost_details?: {
+    input?: number;
+    input_cached_tokens?: number;
+    output?: number;
+    total?: number;
+  };
+  model_id?: string;
+  provider_type?: string;
+  duration_ms?: number;
+  output_text?: string;
+  attributes?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+};
+
+type AssistantCloudRunReportToolCall = {
+  tool_name: string;
+  tool_call_id: string;
+  tool_args?: string;
+  tool_result?: string;
+  tool_source?: "backend" | "frontend" | "mcp";
+  start_ms?: number;
+  end_ms?: number;
+  sampling_calls?: SamplingCallData[];
+};
+
+declare class AssistantCloudRuns {
+  #private;
+  constructor(cloud: AssistantCloudAPI);
+  __internal_getAssistantOptions(assistantId: string): {
+    api: string;
+    protocol: "ui-message-stream";
+    headers: () => Promise<{
+      Accept: string;
+      "Aui-Sdk": string;
+    }>;
+    body: (options?: {
+      threadId?: string;
+    }) => Promise<{
+      assistant_id: string;
+      response_format: string;
+      thread_id: string;
+    }>;
+  };
+  stream(body: AssistantCloudRunsStreamBody): Promise<AssistantStream>;
+  report(body: AssistantCloudRunReport): Promise<{
+    run_id: string;
+  }>;
+}
+
+type AssistantCloudRunsStreamBody = {
+  thread_id: string;
+  assistant_id: "system/thread_title";
+  messages: readonly unknown[];
+};
+
+type AssistantCloudScoreBody = {
+  name: string;
+  data_type: "boolean" | "categorical" | "numeric";
+  value?: number | boolean;
+  string_value?: string;
+  comment?: string;
+  thread_id?: string;
+  message_id?: string;
+  run_id?: string;
+};
+
+type AssistantCloudScoreResponse = {
+  score_id: string;
+  name: string;
+  data_type: "boolean" | "categorical" | "numeric";
+  value: number | null;
+  string_value: string | null;
+};
+
+declare class AssistantCloudScores {
+  #private;
+  constructor(cloud: AssistantCloudAPI);
+  create(body: AssistantCloudScoreBody): Promise<AssistantCloudScoreResponse>;
+}
+
+type AssistantCloudTelemetryConfig = {
+  enabled?: boolean;
+  events?: boolean;
+  messages?: boolean;
+  release?: string;
+  environment?: string;
+  tags?: string[];
+  beforeReport?: (report: AssistantCloudRunReport) => AssistantCloudRunReport | null;
+};
+
+type AssistantCloudThreadMessageCreateBody = {
+  parent_id: string | null;
+  format: "aui/v0" | string;
+  content: ReadonlyJSONObject;
+  external_id?: string | undefined;
+  parent_external_id?: string | undefined;
+};
+
+type AssistantCloudThreadMessageFeedbackBody = {
+  type: "negative" | "positive";
+  comment?: string;
+};
+
+type AssistantCloudThreadMessageFeedbackResponse = {
+  feedback_id: string;
+  type: "negative" | "positive";
+  comment?: string | null;
+};
+
+type AssistantCloudThreadMessageListQuery = {
+  format?: string;
+  limit?: number;
+  after?: string;
+};
+
+type AssistantCloudThreadMessageListResponse = {
+  messages: CloudMessage[];
+};
+
+type AssistantCloudThreadMessageUpdateBody = {
+  content: ReadonlyJSONObject;
+};
+
+declare class AssistantCloudThreadMessages {
+  #private;
+  constructor(cloud: AssistantCloudAPI);
+  list(threadId: string, query?: AssistantCloudThreadMessageListQuery): Promise<AssistantCloudThreadMessageListResponse>;
+  create(threadId: string, body: AssistantCloudThreadMessageCreateBody): Promise<AssistantCloudMessageCreateResponse>;
+  update(threadId: string, messageId: string, body: AssistantCloudThreadMessageUpdateBody): Promise<void>;
+  feedback(threadId: string, messageId: string, body: AssistantCloudThreadMessageFeedbackBody): Promise<AssistantCloudThreadMessageFeedbackResponse>;
+}
+
+declare class AssistantCloudThreads {
+  #private;
+  readonly messages: AssistantCloudThreadMessages;
+  constructor(cloud: AssistantCloudAPI);
+  list(query?: AssistantCloudThreadsListQuery): Promise<AssistantCloudThreadsListResponse>;
+  get(threadId: string): Promise<CloudThread>;
+  create(body: AssistantCloudThreadsCreateBody): Promise<AssistantCloudThreadsCreateResponse>;
+  update(threadId: string, body: AssistantCloudThreadsUpdateBody): Promise<void>;
+  claim(body: AssistantCloudThreadsClaimBody): Promise<AssistantCloudThreadsClaimResponse>;
+  delete(threadId: string): Promise<void>;
+}
+
+type AssistantCloudThreadsClaimBody = {
+  refresh_token: string;
+};
+
+type AssistantCloudThreadsClaimResponse = {
+  moved: number;
+};
+
+type AssistantCloudThreadsCreateBody = {
+  title?: string | undefined;
+  last_message_at: Date;
+  metadata?: unknown | undefined;
+  external_id?: string | undefined;
+  upsert?: boolean | undefined;
+};
+
+type AssistantCloudThreadsCreateResponse = {
+  thread_id: string;
+};
+
+type AssistantCloudThreadsListQuery = {
+  is_archived?: boolean;
+  limit?: number;
+  after?: string;
+};
+
+type AssistantCloudThreadsListResponse = {
+  threads: CloudThread[];
+};
+
+type AssistantCloudThreadsUpdateBody = {
+  title?: string | undefined;
+  last_message_at?: Date | undefined;
+  metadata?: unknown | undefined;
+  is_archived?: boolean | undefined;
+};
+
 type AssistantRuntime = {
   readonly threads: ThreadListRuntime;
   readonly thread: ThreadRuntime;
   registerModelContextProvider(provider: ModelContextProvider): Unsubscribe;
+};
+
+type AssistantStream = ReadableStream<AssistantStreamChunk>;
+
+declare const AssistantStream: {
+  toResponse(stream: AssistantStream, transformer: AssistantStreamEncoder): Response;
+  fromResponse(response: Response, transformer: ReadableWritablePair<AssistantStreamChunk, Uint8Array<ArrayBuffer>>): ReadableStream<AssistantStreamChunk>;
+  toByteStream(stream: AssistantStream, transformer: ReadableWritablePair<Uint8Array<ArrayBuffer>, AssistantStreamChunk>): ReadableStream<Uint8Array<ArrayBuffer>>;
+  fromByteStream(readable: ReadableStream<Uint8Array<ArrayBuffer>>, transformer: ReadableWritablePair<AssistantStreamChunk, Uint8Array<ArrayBuffer>>): ReadableStream<AssistantStreamChunk>;
+};
+
+type AssistantStreamChunk = {
+  readonly path: readonly number[];
+} & ({
+  readonly type: "part-start";
+  readonly part: PartInit;
+} | {
+  readonly type: "part-finish";
+} | {
+  readonly type: "tool-call-args-text-finish";
+} | {
+  readonly type: "text-delta";
+  readonly textDelta: string;
+} | {
+  readonly type: "annotations";
+  readonly annotations: ReadonlyJSONValue[];
+} | {
+  readonly type: "data";
+  readonly data: ReadonlyJSONValue[];
+} | {
+  readonly type: "step-start";
+  readonly messageId: string;
+} | {
+  readonly type: "step-finish";
+  readonly finishReason: "content-filter" | "error" | "length" | "other" | "stop" | "tool-calls" | "unknown";
+  readonly usage: {
+    readonly inputTokens: number;
+    readonly outputTokens: number;
+  };
+  readonly isContinued: boolean;
+} | {
+  readonly type: "message-finish";
+  readonly finishReason: "content-filter" | "error" | "length" | "other" | "stop" | "tool-calls" | "unknown";
+  readonly usage: {
+    readonly inputTokens: number;
+    readonly outputTokens: number;
+  };
+} | {
+  readonly type: "result";
+  readonly artifact?: ReadonlyJSONValue;
+  readonly result: ReadonlyJSONValue;
+  readonly isError: boolean;
+  readonly isPreliminary?: boolean;
+  readonly modelContent?: readonly ToolModelContentPart[];
+  readonly messages?: ReadonlyJSONValue;
+} | {
+  readonly type: "error";
+  readonly error: string;
+  readonly code?: string;
+  readonly severity?: "critical" | "info" | "warning";
+} | {
+  readonly type: "update-state";
+  readonly operations: AssistantTransportStateOperation[];
+});
+
+type AssistantStreamEncoder = ReadableWritablePair<Uint8Array<ArrayBuffer>, AssistantStreamChunk> & {
+  headers?: Headers;
+};
+
+type AssistantTransportStateOperation = {
+  readonly type: "set";
+  readonly path: readonly string[];
+  readonly value: ReadonlyJSONValue;
+} | {
+  readonly type: "append-text";
+  readonly path: readonly string[];
+  readonly value: string;
 };
 
 type AsyncIterableStream<T> = AsyncIterable<T> & ReadableStream<T>;
@@ -42,7 +461,9 @@ type AttachmentAdapter = {
     file: File;
   }): Promise<PendingAttachment> | AsyncGenerator<PendingAttachment, void>;
   remove(attachment: Attachment): Promise<void>;
-  send(attachment: PendingAttachment): Promise<CompleteAttachment>;
+  send(attachment: PendingAttachment, options?: {
+    signal?: AbortSignal;
+  }): Promise<CompleteAttachment>;
 };
 
 type AttachmentAddErrorEvent = {
@@ -120,6 +541,8 @@ type BaseComposerState = {
   readonly dictation: DictationState | undefined;
   readonly quote: QuoteInfo | undefined;
   readonly queue: readonly QueueItemState[];
+  readonly submission?: ComposerSubmission | undefined;
+  readonly inTransit?: readonly ComposerSubmission[] | undefined;
 };
 
 type BaseThreadMessage = {
@@ -163,6 +586,30 @@ type ChatModelRunResult = {
     readonly timing?: MessageTiming | undefined;
     readonly custom?: Record<string, unknown> | undefined;
   };
+};
+
+type CloudMessage = {
+  id: string;
+  parent_id: string | null;
+  height: number;
+  created_at: Date;
+  updated_at: Date;
+  format: "aui/v0" | string;
+  content: ReadonlyJSONObject;
+  external_id?: string | null | undefined;
+};
+
+type CloudThread = {
+  title: string;
+  last_message_at: Date;
+  metadata: unknown;
+  external_id: string | null;
+  id: string;
+  project_id: string;
+  created_at: Date;
+  updated_at: Date;
+  workspace_id: string;
+  is_archived: boolean;
 };
 
 type CompleteAttachment = BaseAttachment & {
@@ -222,10 +669,19 @@ type ComposerRuntimePath = (ThreadRuntimePath & {
 
 type ComposerRuntimeState = ThreadComposerState | EditComposerState;
 
+type ComposerSubmission = {
+  readonly id: string;
+  readonly role: MessageRole;
+  readonly text: string;
+  readonly quote: QuoteInfo | undefined;
+  readonly attachments: readonly Attachment[];
+};
+
 type ConvertEveMessagesOptions = {
   readonly isRunning?: boolean | undefined;
   readonly error?: unknown;
   readonly getCreatedAt?: ((message: EveMessage) => Date) | undefined;
+  readonly events?: readonly MessageStreamEvent[] | undefined;
 };
 
 type CreateAppendMessage = string | {
@@ -260,12 +716,14 @@ type CreateStartRunConfig = {
 
 type DataMessagePart<T = any> = {
   readonly type: "data";
+  readonly id?: string;
   readonly name: string;
   readonly data: T;
 };
 
 type DataPrefixedPart = {
   readonly type: `data-${string}`;
+  readonly id?: string;
   readonly data: any;
 };
 
@@ -329,6 +787,8 @@ type EditComposerState = BaseComposerState & {
   readonly sourceId: string | null;
 };
 
+type EveAgentOptions = Omit<UseEveAgentOptions<EveMessageData>, "reducer">;
+
 type EveAuthorizationData = {
   readonly state: EveAuthorizationPart["state"];
   readonly name: string;
@@ -376,6 +836,7 @@ declare const ExportedMessageRepository: {
 type ExternalStoreAdapter<T = ThreadMessage> = ExternalStoreAdapterBase<T> & (T extends ThreadMessage ? object : ExternalStoreMessageConverterAdapter<T>);
 
 type ExternalStoreAdapterBase<T> = {
+  unstable_persistsHistory?: boolean | undefined;
   isDisabled?: boolean | undefined;
   isSendDisabled?: boolean | undefined;
   isRunning?: boolean | undefined;
@@ -406,6 +867,7 @@ type ExternalStoreAdapterBase<T> = {
     payload: unknown;
   }) => void) | undefined;
   onRespondToToolApproval?: ((options: RespondToToolApprovalOptions) => Promise<void> | void) | undefined;
+  unstable_onRecordToolInteraction?: ((options: Unstable_RecordToolInteractionOptions) => Promise<void> | void) | undefined;
   convertMessage?: ExternalStoreMessageConverter<T> | undefined;
   adapters?: {
     attachments?: AttachmentAdapter | undefined;
@@ -483,6 +945,7 @@ type FeedbackAdapterFeedback = {
 
 type FileMessagePart = {
   readonly type: "file";
+  readonly id?: string;
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
@@ -500,6 +963,24 @@ type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown
   toModelOutput?: ToolModelOutputFunction<TArgs, TResult>;
   experimental_onSchemaValidationError?: OnSchemaValidationErrorFunction<TResult>;
   providerOptions?: ProviderOptions;
+};
+
+type GeneratePresignedDownloadUrlResponse = {
+  signedUrl: string;
+  expiresAt: string;
+  key: string;
+};
+
+type GeneratePresignedUploadUrlRequestBody = {
+  filename: string;
+};
+
+type GeneratePresignedUploadUrlResponse = {
+  success: boolean;
+  signedUrl: string;
+  expiresAt: string;
+  publicUrl: string;
+  key?: string;
 };
 
 type GenerativeUIMessagePart = {
@@ -534,6 +1015,7 @@ type HumanTool<TArgs extends Record<string, unknown> = Record<string, unknown>, 
 
 type ImageMessagePart = {
   readonly type: "image";
+  readonly id?: string;
   readonly image: string;
   readonly filename?: string;
   readonly providerMetadata?: PartProviderMetadata;
@@ -554,6 +1036,14 @@ type LanguageModelV1CallSettings = {
   frequencyPenalty?: number;
   seed?: number;
   headers?: Record<string, string | undefined>;
+};
+
+type MakeRequestOptions = {
+  method?: "POST" | "PUT" | "DELETE" | undefined;
+  headers?: Record<string, string> | undefined;
+  query?: Record<string, string | number | boolean> | undefined;
+  body?: object | undefined;
+  keepalive?: boolean | undefined;
 };
 
 type McpAppMetadata = {
@@ -605,6 +1095,7 @@ type MessagePartRuntime = {
   addToolResult(result: any | ToolResponse<any>): void;
   resumeToolCall(payload: unknown): void;
   respondToToolApproval(response: ToolApprovalResponse): Promise<void>;
+  unstable_recordInteraction?: (input: Unstable_ToolInteractionInput) => Promise<void>;
   readonly path: MessagePartRuntimePath;
   getState(): MessagePartState;
   subscribe(callback: () => void): Unsubscribe;
@@ -655,6 +1146,7 @@ declare class MessageRepository {
     index: number;
   };
   deleteMessage(messageId: string, replacementId?: string | null | undefined): void;
+  hasChildren(messageId: string): boolean;
   getBranches(messageId: string): string[];
   switchToBranch(messageId: string): void;
   resetHead(messageId: string | null): void;
@@ -751,8 +1243,50 @@ type ObjectKey<T> = keyof T & (string | number);
 
 type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<unknown, TResult>;
 
+type PartInit = {
+  readonly type: "text";
+  readonly parentId?: string;
+} | {
+  readonly type: "reasoning";
+  readonly unstable_summary?: string;
+  readonly parentId?: string;
+} | {
+  readonly type: "tool-call";
+  readonly toolCallId: string;
+  readonly toolName: string;
+  readonly parentId?: string;
+} | {
+  readonly type: "source";
+  readonly sourceType: "url";
+  readonly id: string;
+  readonly url: string;
+  readonly title?: string;
+  readonly parentId?: string;
+} | {
+  readonly type: "file";
+  readonly data: string;
+  readonly mimeType: string;
+  readonly parentId?: string;
+} | {
+  readonly type: "data";
+  readonly name: string;
+  readonly data: ReadonlyJSONValue;
+  readonly parentId?: string;
+};
+
 type PartProviderMetadata = {
   readonly [providerName: string]: ReadonlyJSONObject;
+};
+
+type PdfToImagesRequestBody = {
+  file_blob?: string | undefined;
+  file_url?: string | undefined;
+};
+
+type PdfToImagesResponse = {
+  success: boolean;
+  urls: string[];
+  message: string;
 };
 
 type PendingAttachment = BaseAttachment & {
@@ -850,6 +1384,7 @@ type RealtimeVoiceAdapter = {
 
 type ReasoningMessagePart = {
   readonly type: "reasoning";
+  readonly id?: string;
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
   readonly unstable_summary?: string;
@@ -892,6 +1427,21 @@ type RuntimeCapabilities = {
   readonly attachments: boolean;
   readonly feedback: boolean;
   readonly queue: boolean;
+  readonly answerToolCall: boolean;
+};
+
+type SamplingCallData = {
+  model_id?: string;
+  input_tokens?: number;
+  output_tokens?: number;
+  reasoning_tokens?: number;
+  cached_input_tokens?: number;
+  duration_ms?: number;
+};
+
+type SdkIdentity = {
+  name: string;
+  version: string;
 };
 
 type SendOptions = {
@@ -968,6 +1518,7 @@ declare const TOOL_RESPONSE_SYMBOL: unique symbol;
 
 type TextMessagePart = {
   readonly type: "text";
+  readonly id?: string;
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
@@ -1121,27 +1672,7 @@ type ThreadMessage = BaseThreadMessage & (ThreadSystemMessage | ThreadUserMessag
 
 type ThreadMessageLike = {
   readonly role: "assistant" | "system" | "user";
-  readonly content: string | readonly (TextMessagePart | ReasoningMessagePart | SourceMessagePart | ImageMessagePart | FileMessagePart | DataMessagePart | GenerativeUIMessagePart | Unstable_AudioMessagePart | DataPrefixedPart | {
-    readonly type: "tool-call";
-    readonly toolCallId?: string;
-    readonly toolName: string;
-    readonly args?: ReadonlyJSONObject;
-    readonly argsText?: string;
-    readonly artifact?: any;
-    readonly result?: any | undefined;
-    readonly isError?: boolean | undefined;
-    readonly isPreliminary?: boolean | undefined;
-    readonly parentId?: string | undefined;
-    readonly messages?: readonly ThreadMessage[] | undefined;
-    readonly interrupt?: {
-      type: "human";
-      payload: unknown;
-    };
-    readonly timing?: ToolCallTiming;
-    readonly mcp?: ToolCallMessagePartMcpMetadata;
-    readonly providerMetadata?: PartProviderMetadata;
-    readonly approval?: NonNullable<ToolCallMessagePart["approval"]>;
-  })[];
+  readonly content: string | readonly ThreadMessageLikePart[];
   readonly id?: string | undefined;
   readonly createdAt?: Date | undefined;
   readonly status?: MessageStatus | undefined;
@@ -1162,6 +1693,30 @@ type ThreadMessageLike = {
     readonly modality?: MessageModality | undefined;
     readonly custom?: Record<string, unknown> | undefined;
   } | undefined;
+};
+
+type ThreadMessageLikePart = ThreadUserMessagePart | ThreadAssistantMessagePart | DataPrefixedPart | {
+  readonly type: "tool-call";
+  readonly toolCallId?: string;
+  readonly toolName: string;
+  readonly args?: ReadonlyJSONObject;
+  readonly argsText?: string;
+  readonly artifact?: any;
+  readonly modelContent?: readonly ToolModelContentPart[] | undefined;
+  readonly result?: any | undefined;
+  readonly isError?: boolean | undefined;
+  readonly isPreliminary?: boolean | undefined;
+  readonly parentId?: string | undefined;
+  readonly messages?: readonly ThreadMessage[] | undefined;
+  readonly interrupt?: {
+    type: "human";
+    payload: unknown;
+  };
+  readonly timing?: ToolCallTiming;
+  readonly mcp?: ToolCallMessagePartMcpMetadata;
+  readonly providerMetadata?: PartProviderMetadata;
+  readonly approval?: NonNullable<ToolCallMessagePart["approval"]>;
+  readonly unstable_interactions?: Unstable_ToolInteractionLog;
 };
 
 type ThreadRuntime = {
@@ -1196,6 +1751,12 @@ type ThreadRuntime = {
 type ThreadRuntimeEventCallback<E extends ThreadRuntimeEventType> = (payload: ThreadRuntimeEventPayload[E]) => void;
 
 type ThreadRuntimeEventPayload = {
+  historyWriteError: {
+    operation: "append" | "delete" | "update";
+    messageIds: readonly string[];
+    message: string;
+    error: unknown;
+  };
   toolApprovalAnswered: {
     messageId: string;
     toolCallId: string;
@@ -1368,6 +1929,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   };
   readonly parentId?: string;
   readonly messages?: readonly ThreadMessage[];
+  readonly unstable_interactions?: Unstable_ToolInteractionLog;
 };
 
 type ToolCallMessagePartMcpMetadata = {
@@ -1496,9 +2058,35 @@ type Unstable_AudioMessagePart = {
   };
 };
 
+type Unstable_RecordToolInteractionOptions = {
+  messageId: string;
+  toolCallId: string;
+  interaction: Unstable_ToolInteraction;
+};
+
+type Unstable_ToolInteraction = {
+  readonly type: "action";
+  readonly occurredAt: number;
+  readonly payload: ReadonlyJSONObject;
+} | {
+  readonly type: "human-response";
+  readonly occurredAt: number;
+  readonly payload: ReadonlyJSONValue;
+};
+
+type Unstable_ToolInteractionInput = {
+  readonly type: Unstable_ToolInteraction["type"];
+  readonly payload: unknown;
+};
+
+type Unstable_ToolInteractionLog = {
+  readonly entries: readonly Unstable_ToolInteraction[];
+  readonly omitted?: number;
+};
+
 type Unsubscribe = () => void;
 
-type UseEveAgentRuntimeOptions = Omit<UseEveAgentOptions<EveMessageData>, "reducer"> & ExternalStoreSharedOptions & {
+type UseEveAgentRuntimeOptions = EveAgentOptions & ExternalStoreSharedOptions & {
   readonly adapters?: {
     readonly attachments?: AttachmentAdapter | undefined;
     readonly speech?: SpeechSynthesisAdapter | undefined;
@@ -1506,6 +2094,7 @@ type UseEveAgentRuntimeOptions = Omit<UseEveAgentOptions<EveMessageData>, "reduc
     readonly voice?: RealtimeVoiceAdapter | undefined;
     readonly feedback?: FeedbackAdapter | undefined;
   } | undefined;
+  readonly cloud?: AssistantCloud | undefined;
 };
 
 type VoiceSessionState = {

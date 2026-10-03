@@ -38,8 +38,6 @@ out/
 .eve
 
 # agent rules `next dev` generates in each app it runs from
-/apps/*/AGENTS.md
-/apps/*/CLAUDE.md
 /examples/**/AGENTS.md
 /examples/**/CLAUDE.md
 /templates/*/AGENTS.md
@@ -101,3 +99,9 @@ apps/docs/app/api/xulux/CLAUDE.md
 .specify/
 specs/*
 .test-output/
+
+# Packaged independent example previews
+apps/docs/public/example-bundles/
+.example-source/
+
+packages/cli/templates/cloud-harness/

@@ -13,6 +13,8 @@ export type PartProviderMetadata = {
 
 export type TextMessagePart = {
   readonly type: "text";
+  /** A stable identity the host supplies for this part, used as its render and store key when non-empty and no other part of the same type in the message shares it; otherwise the part is keyed by its type and position. */
+  readonly id?: string;
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
@@ -21,6 +23,8 @@ export type TextMessagePart = {
 
 export type ReasoningMessagePart = {
   readonly type: "reasoning";
+  /** A stable identity the host supplies for this part, used as its render and store key when non-empty and no other part of the same type in the message shares it; otherwise the part is keyed by its type and position. */
+  readonly id?: string;
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
   readonly unstable_summary?: string;
@@ -54,6 +58,8 @@ export type SourceMessagePart =
 
 export type ImageMessagePart = {
   readonly type: "image";
+  /** A stable identity the host supplies for this part, used as its render and store key when non-empty and no other part of the same type in the message shares it; otherwise the part is keyed by its type and position. */
+  readonly id?: string;
   readonly image: string;
   readonly filename?: string;
   readonly providerMetadata?: PartProviderMetadata;
@@ -61,6 +67,8 @@ export type ImageMessagePart = {
 
 export type FileMessagePart = {
   readonly type: "file";
+  /** A stable identity the host supplies for this part, used as its render and store key when non-empty and no other part of the same type in the message shares it; otherwise the part is keyed by its type and position. */
+  readonly id?: string;
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
@@ -89,6 +97,8 @@ export type Unstable_AudioMessagePart = {
 
 export type DataMessagePart<T = any> = {
   readonly type: "data";
+  /** A stable identity the host supplies for this part, used as its render and store key when non-empty and no other part of the same type in the message shares it; otherwise the part is keyed by its type and position. */
+  readonly id?: string;
   readonly name: string;
   readonly data: T;
 };
@@ -137,7 +147,7 @@ export type GenerativeUIMessagePart = {
   readonly type: "generative-ui";
   /** The JSON spec describing the UI tree. */
   readonly spec: GenerativeUISpec;
-  /** Optional id (useful for replays / stable keys). */
+  /** A stable identity the host supplies for this part, used as its render and store key when non-empty and no other part of the same type in the message shares it; otherwise the part is keyed by its type and position. */
   readonly id?: string;
   readonly parentId?: string;
 };
@@ -229,6 +239,38 @@ export type ToolApprovalResponse =
       readonly reason?: string;
     };
 
+/** One thing a user did in a tool call's rendered UI, stored with the call. */
+export type Unstable_ToolInteraction =
+  | {
+      /** A generative UI action the user fired, with the user's input under `$input`. */
+      readonly type: "action";
+      /** When the user acted, in epoch milliseconds. */
+      readonly occurredAt: number;
+      readonly payload: ReadonlyJSONObject;
+    }
+  | {
+      /** The answer the user gave to the tool's request for human input. */
+      readonly type: "human-response";
+      /** When the user answered, in epoch milliseconds. */
+      readonly occurredAt: number;
+      readonly payload: ReadonlyJSONValue;
+    };
+
+/**
+ * The interactions recorded on a tool call, oldest first. `omitted` counts
+ * earlier entries dropped to keep the log within its size limit.
+ */
+export type Unstable_ToolInteractionLog = {
+  readonly entries: readonly Unstable_ToolInteraction[];
+  readonly omitted?: number;
+};
+
+/** An interaction to record; the runtime validates the payload and stamps the time. */
+export type Unstable_ToolInteractionInput = {
+  readonly type: Unstable_ToolInteraction["type"];
+  readonly payload: unknown;
+};
+
 export type ToolCallMessagePart<
   TArgs = ReadonlyJSONObject,
   TResult = unknown,
@@ -293,7 +335,7 @@ export type ToolCallMessagePart<
     readonly optionId?: string;
     /** The free-form answer recorded at resolution, when one was given. */
     readonly text?: string;
-    /** Terminal non-decision state: the request was cancelled or expired without a user decision. Set by the host. */
+    /** Terminal non-decision state: the request was cancelled or expired without a user decision. Set by the host, or by `LocalRuntime` once a later turn follows the message. */
     readonly resolution?: "cancelled" | "expired";
   };
   /** Parent message-part ID when this part belongs to a nested structure. */
@@ -303,6 +345,11 @@ export type ToolCallMessagePart<
    * conversation.
    */
   readonly messages?: readonly ThreadMessage[];
+  /**
+   * What the user did in this call's rendered UI, recorded so a stored
+   * conversation shows the answer beside the question.
+   */
+  readonly unstable_interactions?: Unstable_ToolInteractionLog;
 };
 
 export type ThreadUserMessagePart =

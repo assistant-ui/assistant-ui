@@ -77,6 +77,40 @@ describe("optimistic tool outcomes", () => {
 });
 
 describe("ADK runtime callbacks", () => {
+  it("reports the same agent transfer again in a later run", async () => {
+    const onAgentTransfer = vi.fn();
+    const stream: AdkStreamCallback = async function* () {
+      yield {
+        id: "transfer",
+        actions: { transferToAgent: "researcher" },
+      };
+      yield {
+        id: "transfer-duplicate",
+        actions: { transferToAgent: "researcher" },
+      };
+    };
+    const { result } = renderHook(() =>
+      useAdkMessages({ stream, eventHandlers: { onAgentTransfer } }),
+    );
+
+    await act(async () => {
+      await result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "first" }],
+        {},
+      );
+      expect(onAgentTransfer).toHaveBeenCalledTimes(1);
+
+      await result.current.sendMessage(
+        [{ id: "user-2", type: "human", content: "second" }],
+        {},
+      );
+    });
+
+    expect(onAgentTransfer).toHaveBeenCalledTimes(2);
+    expect(onAgentTransfer).toHaveBeenNthCalledWith(1, "researcher");
+    expect(onAgentTransfer).toHaveBeenNthCalledWith(2, "researcher");
+  });
+
   it.each(["onAgentTransfer", "onCustomEvent", "onError"] as const)(
     "continues streaming when %s throws",
     async (callbackName) => {
@@ -305,6 +339,7 @@ describe("ADK stream lifecycle", () => {
     await started;
 
     unmount();
+    await act(async () => {});
 
     expect(runSignal?.aborted).toBe(true);
     await expect(sendPromise).resolves.toBeUndefined();
@@ -765,6 +800,19 @@ describe("optimistic multi-message sends", () => {
 });
 
 describe("messageToEvent (contentToParts)", () => {
+  it("skips a null tool_calls entry", () => {
+    const event = messageToEvent({
+      id: "ai-1",
+      type: "ai",
+      content: [],
+      tool_calls: [null, { id: "tc-1", name: "search", args: { q: "x" } }],
+    } as unknown as AdkMessage);
+
+    expect(event.content?.parts).toEqual([
+      { functionCall: { name: "search", id: "tc-1", args: { q: "x" } } },
+    ]);
+  });
+
   it.each([
     ["scalar", "false", { result: false }],
     ["array", "[1,2]", { results: [1, 2] }],

@@ -3,7 +3,7 @@ title: Migration from Web
 description: Migrate an existing @assistant-ui/react app to React Native.
 ---
 
-If you already have an assistant-ui web app, most of your code transfers directly. The runtime core is shared between `@assistant-ui/react` and `@assistant-ui/react-native` via `@assistant-ui/core` — only the UI layer changes.
+If you already have an assistant-ui web app, most of your code transfers directly. The runtime core is shared between `@assistant-ui/react` and `@assistant-ui/react-native` via `@assistant-ui/core`. Only the UI layer changes.
 
 ## What stays the same
 
@@ -19,8 +19,8 @@ If you already have an assistant-ui web app, most of your code transfers directl
 |---|---|
 | `AssistantRuntimeProvider` | `AssistantRuntimeProvider` (same name) |
 | DOM primitives (`div`, `button`, `input`) | Native primitives (`View`, `Pressable`, `TextInput`) |
-| CSS / Tailwind styling | React Native `StyleSheet` or inline styles |
-| Styled registry elements (shadcn components) | Build your own native UI with primitives |
+| CSS / Tailwind styling | Tailwind classes through Uniwind in the registry elements; `StyleSheet` or inline styles on the primitives |
+| Styled registry elements (shadcn components) | [Native registry elements](/docs/react-native/elements), or your own UI built with primitives |
 
 ## Step-by-step
 
@@ -36,16 +36,17 @@ If you already have an assistant-ui web app, most of your code transfers directl
 
 ### Keep your runtime hook
 
-Your `useChatRuntime` setup works as-is — no changes needed:
+Your `useChatRuntime` setup stays the same except for the `api` URL. A native build has no page origin to resolve `/api/chat` against, so pass an absolute URL:
 
 ```tsx title="hooks/use-app-runtime.ts"
-// This file is identical to your web version
 import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/ai-sdk";
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
 
 export function useAppRuntime() {
   return useChatRuntime({
     transport: new AssistantChatTransport({
-      api: "/api/chat",
+      api: `${API_URL}/api/chat`,
     }),
   });
 }
@@ -82,7 +83,7 @@ export default function App() {
 
 ### Rebuild the UI layer
 
-This is the main migration effort. Web components (the `thread` and `thread-list` elements) don't render in React Native. Replace them with native primitives:
+This is the main migration effort. Web components (the `thread` and `thread-list` elements) don't render in React Native. Install their [native counterparts](/docs/react-native/elements) from the registry, or build the screen from native primitives:
 
 ```tsx
 // Web — DOM-based
@@ -94,7 +95,7 @@ import {
   ComposerPrimitive,
   MessagePrimitive,
 } from "@assistant-ui/react-native";
-import { View } from "react-native";
+import { Text, View } from "react-native";
 
 function MyMessage() {
   return (
@@ -112,7 +113,9 @@ function ChatScreen() {
       </ThreadPrimitive.Messages>
       <ComposerPrimitive.Root>
         <ComposerPrimitive.Input placeholder="Message..." />
-        <ComposerPrimitive.Send />
+        <ComposerPrimitive.Send>
+          <Text>Send</Text>
+        </ComposerPrimitive.Send>
       </ComposerPrimitive.Root>
     </ThreadPrimitive.Root>
   );

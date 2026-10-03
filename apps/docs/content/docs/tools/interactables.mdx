@@ -30,7 +30,7 @@ Interactables allow both agents and users to read and edit tool UIs and componen
 - Settings panels or dashboards the agent can edit and interact with
 - Collaborative task lists, sticky notes, document editors
 - Making artifacts editable and versioned
-- Anything else, **any React component can be an interactable!**
+- Any other React component with state the model should read or edit
 
 ## Quick Start
 
@@ -127,7 +127,7 @@ function TaskBoard() {
 }
 ```
 
-That's all you need, `update_taskBoard` is generated automatically from your `stateSchema` once the `TaskBoard` component is mounted in your app.
+`update_taskBoard` is generated automatically from your `stateSchema` once the `TaskBoard` component is mounted in your app.
 
 <Callout type="tip">
   App-scoped state is shared across every thread and can be persisted by
@@ -202,7 +202,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(injectInteractableContext(messages)), // [!code ++]
   });
 
@@ -211,7 +211,7 @@ export async function POST(req: Request) {
 ```
 
 <Callout type="info">
-  The format of the snapshot sent to the model can be customized, see [State
+  The format of the snapshot sent to the model can be customized; see [State
   snapshots](#state-snapshots) for more details.
 </Callout>
 
@@ -281,12 +281,6 @@ const formatSnapshot = (entry: Unstable_InteractableSnapshotEntry) =>
     : `Current state of "${entry.name}" (id: "${entry.id}"): ${JSON.stringify(entry.state)}`;
 ```
 
-<Callout type="info">
-  When customizing format, remember to:
-  - Handle `partial: true` entries, whose `state` carries a shallow diff of only the fields that changed.
-  - Keep each instance's `id` visible so the model knows what the state belongs to.
-</Callout>
-
 Then wire it to your backend:
 
 - **AI SDK:** pass it as the second argument, `unstable_injectInteractableContext(messages, formatSnapshot)`.
@@ -305,7 +299,7 @@ An artifact combines two pieces that point at the same interactable:
 - a thread tool (`unstable_interactableTool`) the model calls to create the artifact inline (a button or small preview in the message), and
 - a panel you mount with `unstable_useInteractable` that opens that same instance at full size.
 
-Both use the same `id`, so they are one interactable, not two: the model creates it in the conversation, and the panel is just a larger view of the very same state. Because the thread holds the creating call, the artifact is **thread-scoped**: it persists with the thread's history (no [persistence adapter](#persistence) needed), and each message's trigger can open that message's version (see [Versions](#versions)).
+Both use the same `id`, so they are one interactable: the model creates it in the conversation, and the panel is a larger view of the same state. Because the thread holds the creating call, the artifact is **thread-scoped**: it persists with the thread's history (no [persistence adapter](#persistence) needed), and each message's trigger can open that message's version (see [Versions](#versions)).
 
 ```
   in the thread (model-created)            your layout (mounted once)
@@ -356,7 +350,7 @@ function ArtifactPanel({ id }: { id: string }) {
 }
 ```
 
-You don't mount anything per artifact: the model renders the inline part on its own, and `openArtifact(id)` is your own state setter for which artifact the panel currently shows. Outside message parts the hook always returns the live state (`version` is `undefined`), so the panel is plainly editable. The panel and the inline tool UIs register the same `id`, so they share one instance; registration is reference-counted, and the instance stays alive until the last one unmounts.
+You don't mount anything per artifact: the model renders the inline part on its own, and `openArtifact(id)` is your own state setter for which artifact the panel currently shows. Outside message parts the hook always returns the live state (`version` is `undefined`), so the panel edits the live state. The panel and the inline tool UIs register the same `id`, so they share one instance; registration is reference-counted, and the instance stays alive until the last one unmounts.
 
 <Callout type="warn">
   Keep one mount of the artifact on screen (hidden is fine) whenever its instance
@@ -368,9 +362,9 @@ You don't mount anything per artifact: the model renders the inline part on its 
 
 ## Companion tools
 
-The generated `update_{name}` tool covers everything that lives in the state: editing fields, and adding, updating, removing, or clearing items in a list. Reach for a separate frontend tool only for what state can't express: a side effect like sending, exporting, or saving.
+The generated `update_{name}` tool covers everything that lives in the state: editing fields, and adding, updating, removing, or clearing items in a list. Add a separate frontend tool only for what state can't express: a side effect like sending, exporting, or saving.
 
-Take an email composer the user and assistant co-edit. `update_email` keeps the draft in sync from both sides, but actually **sending** it is a side effect that no amount of state editing can perform. That is what a companion tool is for: `send_email` acts on the current draft and fires it.
+Take an email composer the user and assistant co-edit. `update_email` keeps the draft in sync from both sides, but **sending** it is a side effect that editing state cannot perform. A companion tool covers it: `send_email` sends the current draft.
 
 How you wire one depends on what its executor touches.
 
@@ -431,7 +425,7 @@ function SendEmailTool({ draft }: { draft: Email }) {
 }
 ```
 
-The split is the whole point: `update_email` edits the draft, `send_email` does the thing the draft can't describe. The executor reads the live `draft`, so it always sends what is currently on screen.
+`update_email` edits the draft, and `send_email` performs the side effect. The executor reads the live `draft`, so it always sends what is currently on screen.
 
 **Self-contained** (needs nothing from React, only its args and browser APIs): put a real `execute` with an inner `"use client"` directly in the toolkit. A `copy_share_link({ id })` that builds a URL and writes it to the clipboard is a good fit. See [Defining Tools](/docs/tools/defining-tools#frontend-tools).
 
@@ -517,7 +511,7 @@ A thread is an append-only log, so an instance accumulates **versions**: each us
 
 **This message's version.** Inside a thread-scoped `render`, `state` / `setState` are the **live** instance (there's exactly one, shared by every message), while `version` is **this message's** snapshot: `{ state, isLatest, restore }`. `version.state` is the interactable as it was at that point in the conversation; `restore()` sets the live state back to it.
 
-Those three fields are all you need, and two independent choices decide how history behaves:
+Two independent choices decide how history behaves:
 
 - **Editable or read-only?** Render the live `state` / `setState` to let any message edit the shared instance, or `version.state` read-only to freeze it.
 - **Restorable?** Offer `version.restore()` to roll an old version back to live, or leave it out.
@@ -665,8 +659,8 @@ aui.unstable_interactables.importState(snapshot);
 
 <Callout type="warn">
   If you change a Zod schema after state has been persisted, the loaded snapshot
-  may silently mis-match the new shape. The adapter does a shallow merge, so
-  extra fields are preserved and missing fields keep their initial values, but
+  may silently mis-match the new shape. Loaded state replaces the initial state
+  as a whole and is not validated, so fields added to the schema are missing and
   type mismatches are not caught at runtime. To avoid silent corruption, version
   your schema key (e.g. `"taskBoard_v2"`) or namespace it by schema hash
   whenever you make breaking changes. Alternatively, add a migration step in
@@ -677,7 +671,7 @@ aui.unstable_interactables.importState(snapshot);
 
 The same partial merge runs token by token as the model generates an `update_{name}` call, so the interactable fills in live: a field the model is writing updates character by character, and only the fields and array items the call touches change. Everything it doesn't mention stays exactly as it was. A nested object streams the same way: the fields the model hasn't reached yet keep their previous values instead of disappearing, and once the object closes it replaces the previous one, as the final merge does.
 
-That stability is concrete, not just visual. While one array item streams in, the items the model isn't editing keep their exact object identity for the whole stream, so a memoized row for them never re-renders:
+While one array item streams in, the items the model isn't editing keep their object identity for the whole stream, so a memoized row for them does not re-render:
 
 ```tsx
 import { memo } from "react";
@@ -699,9 +693,9 @@ function TaskBoard() {
 }
 ```
 
-As `update_taskBoard` streams an edit to one task, that row re-renders as its fields arrive while every other `TaskRow` stays put, no flicker and no work. You get a live-updating list for free; you only reach for the partial state when you want to show something extra during the stream.
+As `update_taskBoard` streams an edit to one task, that row re-renders as its fields arrive while every other `TaskRow` is left alone. The list updates live without extra code; use the partial state only when you want to show something extra during the stream.
 
-One case worth handling: at the very start of a fresh create the model may not have produced any items yet. Use the thread's `isRunning` to tell "still streaming, nothing yet" apart from "the model returned an empty result", and show a skeleton only for that gap:
+At the start of a create call the model may not have produced any items yet. Use the thread's `isRunning` to tell "still streaming, nothing yet" apart from "the model returned an empty result", and show a skeleton only for that gap:
 
 ```tsx
 import { useAuiState } from "@assistant-ui/react";
@@ -718,7 +712,7 @@ A `name` can have many live instances at once. They all share one `update_{name}
 
 How instances come into being differs by scope.
 
-### Thread-scoped: instances for free
+### Thread-scoped: one instance per call
 
 A thread-scoped interactable gets a fresh instance every time the model calls its tool. The instance `id` is the creating call's `toolCallId`, so two calls are two instances with no extra code on your side: the same `render` and the same `update_{name}` tool serve all of them. This is how a model spins up several artifacts or notepads in one conversation, each addressed by its own `toolCallId`.
 
@@ -772,7 +766,7 @@ Pass an explicit `id` whenever you need to reach a specific instance: to read or
   `id`. Nest it or name it differently (e.g. `noteId`).
 </Callout>
 
-`update_note` edits a note that is already mounted: its `title`, `content`, `color`, and any other schema fields. It cannot mount a new `NoteCard` or unmount one; which components exist is your app's state. If you want the model to add and remove notes, model them as a single interactable holding an array (one `notes` field), and `update_notes` then adds, updates, removes, and clears entries directly, the way the [Quick Start](#quick-start) task board does. Use separate mounted instances only when each note is genuinely its own component; mounting and unmounting those is app work you can expose as a [companion tool](#companion-tools).
+`update_note` edits a note that is already mounted: its `title`, `content`, `color`, and any other schema fields. It cannot mount a new `NoteCard` or unmount one; which components exist is your app's state. If you want the model to add and remove notes, model them as a single interactable holding an array (one `notes` field), and `update_notes` then adds, updates, removes, and clears entries directly, the way the [Quick Start](#quick-start) task board does. Use separate mounted instances only when each note is its own component; mounting and unmounting those is app work you can expose as a [companion tool](#companion-tools).
 
 ## Partial Updates
 
@@ -786,7 +780,7 @@ Auto-generated tools use a partial schema in which every top-level field is opti
 
 This is especially useful for large state objects where regenerating the entire state would be expensive and error-prone.
 
-For array fields whose items carry an `id`, the AI doesn't send a replacement array, it sends operations (`add`, `update`, `remove`, `clear`) and the framework applies them to the current list. Added items get their `id` from the framework; existing items are addressed by the `id` you gave them.
+For array fields, the AI sends operations (`add`, `remove`, `clear`) instead of a replacement array, and the framework applies them to the current list. Arrays whose items carry an `id` also accept `update`: added items get their `id` from the framework, and existing items are addressed by their `id`.
 
 <Callout type="info">
   Merge is shallow (one level deep). If the AI sends a nested object, it
@@ -796,11 +790,11 @@ For array fields whose items carry an `id`, the AI doesn't send a replacement ar
 
 ## How It Works
 
-1. **Register**: the interactable joins the `interactables` scope with its name, description, schema, and initial state.
+1. **Register**: the interactable joins the `unstable_interactables` scope with its name, description, schema, and initial state.
 2. **Generate the tool**: one `update_{name}` tool per name, with a partial schema (every top-level field optional, nested objects sent whole) plus a required `id`. The tool list stays stable as instances mount and unmount, so provider prompt caches stay warm.
 3. **Snapshot**: each sent user message carries the current state in `metadata.custom`, but only when the model doesn't already know it. A user edit stamps a snapshot; the model's own `update_*` calls and an in-message instance's create args don't. When the change fits a shallow merge it stamps only the changed fields (`partial: true`). Your route turns snapshots into model-visible text (see [State snapshots](#state-snapshots)).
 4. **Stream**: state updates field-by-field as the model generates the tool arguments, so the UI fills in live.
-5. **Merge**: only the fields the model sends are applied; the rest stay. Array fields keyed by `id` take operations (add/update/remove/clear) instead of a replacement array, and the framework mints ids for added items.
+5. **Merge**: only the fields the model sends are applied; the rest stay. Array fields take operations (add/remove/clear, plus update when items carry an `id`) instead of a replacement array, and the framework mints ids for items added to id-keyed arrays.
 6. **Both directions**: a model `update_*` updates state and re-renders; a user `setState` rides the next message as a fresh snapshot.
 
 ## Unmount Behavior
@@ -951,7 +945,7 @@ const [state, { id, setState, isPending, error, flush }] =
       name: "error",
       type: "unknown",
       required: true,
-      description: "Error from the last failed save.",
+      description: "Error from the last failed load or save.",
     },
     {
       name: "flush",
@@ -964,8 +958,7 @@ const [state, { id, setState, isPending, error, flush }] =
 
 <Callout type="info">
   Selection is not a built-in field. To tell the AI which interactable is
-  focused, add a selection field such as `selectedId` to your own state; see
-  [Selection](#selection).
+  focused, add a selection field such as `selectedId` to your own state.
 </Callout>
 
 ### `unstable_useInteractableState`
@@ -1069,7 +1062,7 @@ If you used an earlier version of the interactables API:
 
 - `useAssistantInteractable` and `useInteractableState` have been merged into a single [`unstable_useInteractable`](#unstable_useinteractable) hook that registers and returns state. `unstable_useInteractableState` remains for secondary readers.
 - Per-instance tools (`update_note_note-1`) are gone. Each name has one stable `update_{name}` tool with a required `id` parameter.
-- The top-level `selected` prop and `setSelected` method have been removed. Represent selection as ordinary state; see [Selection](#selection).
+- The top-level `selected` prop and `setSelected` method have been removed. Represent selection as ordinary state, such as a `selectedId` field.
 
 ## Full Example
 
