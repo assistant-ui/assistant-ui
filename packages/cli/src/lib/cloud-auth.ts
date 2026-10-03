@@ -15,6 +15,7 @@ import {
   isAccessDenied,
   type DeviceCredentials,
 } from "aui-auth/device";
+import { connectCloudLoginSetup } from "./cloud-setup-login";
 
 export type CloudAuthConfig = {
   issuer: string;
@@ -98,6 +99,7 @@ export const readCloudCredentials = async (
 export const saveCloudCredentials = async (
   config: CloudAuthConfig,
   credentials: DeviceCredentials,
+  signal?: AbortSignal,
 ): Promise<void> => {
   await mkdir(path.dirname(config.credentialsFile), {
     recursive: true,
@@ -110,6 +112,7 @@ export const saveCloudCredentials = async (
       `${JSON.stringify({ ...credentials, issuer: config.issuer, clientId: config.clientId }, null, 2)}\n`,
       { mode: 0o600, flag: "wx" },
     );
+    signal?.throwIfAborted();
     await rename(temporary, config.credentialsFile);
     await chmod(config.credentialsFile, 0o600);
   } finally {
@@ -133,29 +136,77 @@ const openBrowser = (url: string): void => {
 
 export const loginToCloud = async (
   config: CloudAuthConfig,
-  options: { noOpen?: boolean; print?: (text: string) => void } = {},
+  options: {
+    noOpen?: boolean;
+    setupUrl?: string;
+    print?: (text: string) => void;
+  } = {},
 ): Promise<DeviceCredentials> => {
+  if (
+    options.setupUrl &&
+    !["assistant-ui-cli", "assistant-ui-cli-dev"].includes(config.clientId)
+  ) {
+    throw new Error(
+      "Wizard sign-in requires the assistant-ui CLI OAuth client.",
+    );
+  }
   const login = createDeviceLogin({
     issuer: config.issuer,
     clientId: config.clientId,
   });
-  const authorization = await login.start();
   const print = options.print ?? console.log;
-  print(
-    `Confirm code ${authorization.userCode} at ${authorization.verificationUriComplete}`,
-  );
-  if (!options.noOpen) openBrowser(authorization.verificationUriComplete);
-  const credentials = await login.wait(authorization, {
-    signal: AbortSignal.timeout(10 * 60 * 1000),
-  });
-  await saveCloudCredentials(config, credentials);
-  print(`Signed in as ${credentials.user.email || credentials.user.id}.`);
-  return credentials;
+  const setup = options.setupUrl
+    ? await connectCloudLoginSetup(options.setupUrl)
+    : undefined;
+  const signal = AbortSignal.any([
+    AbortSignal.timeout(10 * 60 * 1000),
+    ...(setup ? [setup.signal] : []),
+  ]);
+  let credentials: DeviceCredentials | undefined;
+  let committed = false;
+  try {
+    signal.throwIfAborted();
+    const authorization = await login.start();
+    signal.throwIfAborted();
+    const approvalUrl =
+      (await setup?.publish(authorization, config.issuer)) ??
+      authorization.verificationUriComplete;
+    print(`Confirm code ${authorization.userCode} at ${approvalUrl}`);
+    if (!options.noOpen && !setup)
+      openBrowser(authorization.verificationUriComplete);
+    credentials = await login.wait(authorization, { signal });
+    signal.throwIfAborted();
+    await saveCloudCredentials(config, credentials, signal);
+    committed = true;
+    await setup?.complete("signed-in").catch(() => {
+      print("Signed in locally. The setup connection could not be updated.");
+    });
+    print(`Signed in as ${credentials.user.email || credentials.user.id}.`);
+    return credentials;
+  } catch (error) {
+    if (credentials && !committed) {
+      await login.revoke(credentials).catch(() => {
+        print(
+          "The cancelled login could not be revoked. End it from your Accounts Sessions page.",
+        );
+      });
+    }
+    await setup
+      ?.complete(signal.aborted ? "cancelled" : "failed")
+      .catch(() => {});
+    throw error;
+  } finally {
+    setup?.dispose();
+  }
 };
 
 export const cloudAccessToken = async (
   config: CloudAuthConfig,
-  options: { noOpen?: boolean; print?: (text: string) => void } = {},
+  options: {
+    noOpen?: boolean;
+    setupUrl?: string;
+    print?: (text: string) => void;
+  } = {},
 ): Promise<string> => {
   const saved = await readCloudCredentials(config);
   if (!saved) return (await loginToCloud(config, options)).tokens.accessToken;

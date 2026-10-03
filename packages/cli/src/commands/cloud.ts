@@ -47,6 +47,7 @@ type SetupOptions = {
   backendUrl: string;
   apiUrl: string;
   accessCode?: string;
+  setupUrl?: string;
   open?: boolean;
   yes?: boolean;
   skipInstall?: boolean;
@@ -307,6 +308,7 @@ export const setupCloud = async (
   const auth = cloudAuthConfig();
   const token = await cloudAccessToken(auth, {
     noOpen: options.open === false,
+    ...(options.setupUrl && { setupUrl: options.setupUrl }),
     print: logger.info,
   });
   const organization = await organizationForSetup(auth.issuer, token, options);
@@ -378,9 +380,14 @@ export const cloud = new Command()
         "--no-open",
         "print the device sign-in URL without opening a browser",
       )
-      .action(async (options: { open?: boolean }) => {
+      .option(
+        "--setup-url <url>",
+        "show device sign-in in an active setup wizard",
+      )
+      .action(async (options: { open?: boolean; setupUrl?: string }) => {
         await loginToCloud(cloudAuthConfig(), {
           noOpen: options.open === false,
+          ...(options.setupUrl && { setupUrl: options.setupUrl }),
           print: logger.info,
         });
       }),
@@ -420,6 +427,10 @@ export const cloud = new Command()
       .option(
         "--no-open",
         "print the device sign-in URL without opening a browser",
+      )
+      .option(
+        "--setup-url <url>",
+        "show device sign-in in an active setup wizard",
       )
       .option("--yes", "skip prompts; select resources with flags")
       .option("--skip-install", "skip installing scaffold dependencies")
