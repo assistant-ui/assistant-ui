@@ -183,8 +183,8 @@ export class DataStreamRuntimeAdapter implements ChatModelAdapter {
       }
       const decoder =
         protocol === "ui-message-stream"
-          ? new UIMessageStreamDecoder(
-              this.options.onData
+          ? new UIMessageStreamDecoder({
+              ...(this.options.onData
                 ? {
                     onData: (data) => {
                       invokeRuntimeCallback(
@@ -194,8 +194,10 @@ export class DataStreamRuntimeAdapter implements ChatModelAdapter {
                       );
                     },
                   }
-                : {},
-            )
+                : {}),
+              maxLineLength: this.options.maxStreamLineLength,
+              maxEventLength: this.options.maxStreamEventLength,
+            })
           : new DataStreamDecoder({
               maxLineLength: this.options.maxStreamLineLength,
             });

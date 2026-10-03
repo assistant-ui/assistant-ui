@@ -128,9 +128,9 @@ export type AssistantTransportOptions<T> = {
    * Resume runs always decode leniently. Defaults to `true`.
    */
   strict?: boolean;
-  /** Maximum UTF-16 code units accepted in one data-stream protocol line. */
+  /** Maximum UTF-16 code units accepted in one data-stream or SSE line. Defaults to 16 MiB. */
   maxStreamLineLength?: number | undefined;
-  /** Maximum UTF-16 code units retained across one assistant-transport event. */
+  /** Maximum UTF-16 code units retained across one assistant-transport event. Defaults to 16 MiB. */
   maxStreamEventLength?: number | undefined;
   converter: AssistantTransportStateConverter<T>;
   headers: HeadersValue | (() => Promise<HeadersValue>);
