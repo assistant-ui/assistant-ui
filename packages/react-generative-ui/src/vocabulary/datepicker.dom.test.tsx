@@ -158,18 +158,31 @@ describe("DatePicker temporal contract", () => {
           bubbles: true,
         }),
       );
-      input.dispatchEvent(
-        new KeyboardEvent("keyup", {
-          key: "ArrowDown",
-          altKey: true,
-          bubbles: true,
-        }),
-      );
     });
     await change(input, "2025-12-21");
     expect(dispatch).toHaveBeenCalledExactlyOnceWith({
       type: "save",
       $input: "2025-12-21",
+    });
+  });
+
+  it("dispatches a pick at once after a typed digit whose keyup never arrived", async () => {
+    const dispatch = vi.fn();
+    const container = await mount(
+      view({ value: "2025-12-15", $action: { type: "save" } }, dispatch),
+    );
+    const input = container.querySelector("input")!;
+    await React.act(async () => {
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "1", bubbles: true }),
+      );
+    });
+    await change(input, "2025-12-11");
+    expect(dispatch).not.toHaveBeenCalled();
+    await change(input, "2025-12-24");
+    expect(dispatch).toHaveBeenCalledExactlyOnceWith({
+      type: "save",
+      $input: "2025-12-24",
     });
   });
 

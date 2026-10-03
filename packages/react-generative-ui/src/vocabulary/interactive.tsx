@@ -531,8 +531,9 @@ function DatePickerRender({
         } else {
           e.currentTarget.removeAttribute(FIELD_VALUE_ATTR);
         }
-        // A change without a key down is a pick from the native picker, which commits at once; a typed value waits for blur or Enter.
+        // A change without an editing key down is a pick from the native picker, which commits at once; a typed value waits for blur or Enter.
         const typed = keyboardActive.current;
+        keyboardActive.current = false;
         setSelection({
           initialValue,
           value: nextValue,
@@ -557,7 +558,12 @@ function DatePickerRender({
           commit(e.currentTarget);
           return;
         }
-        keyboardActive.current = true;
+        keyboardActive.current =
+          !e.altKey &&
+          !e.ctrlKey &&
+          !e.metaKey &&
+          (e.key.length === 1 ||
+            ["ArrowDown", "ArrowUp", "Backspace", "Delete"].includes(e.key));
       }}
       onKeyUp={() => {
         keyboardActive.current = false;
