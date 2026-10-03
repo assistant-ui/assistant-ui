@@ -858,6 +858,8 @@ type AssistantTransportOptions$1<T> = {
   resumeStateApi?: string;
   protocol?: AssistantTransportProtocol;
   strict?: boolean;
+  maxStreamLineLength?: number | undefined;
+  maxStreamEventLength?: number | undefined;
   converter: AssistantTransportStateConverter$1<T>;
   headers: HeadersValue | (() => Promise<HeadersValue>);
   body?: object | (() => Promise<object | undefined>);
