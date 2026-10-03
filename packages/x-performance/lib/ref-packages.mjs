@@ -5,4 +5,5 @@ export const REF_PACKAGE_DIRS = {
   "assistant-stream": "packages/assistant-stream",
   "@assistant-ui/react": "packages/react",
   "@assistant-ui/react-markdown": "packages/react-markdown",
+  "@assistant-ui/react-pi": "packages/react-pi",
 };

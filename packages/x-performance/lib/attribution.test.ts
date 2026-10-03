@@ -94,6 +94,12 @@ describe("against the real workspace", () => {
     expect(
       [...(graph.get("@assistant-ui/react-markdown") ?? [])].sort(),
     ).toEqual(["@assistant-ui/react"]);
+    expect([...(graph.get("@assistant-ui/react-pi") ?? [])].sort()).toEqual([
+      "@assistant-ui/core",
+      "@assistant-ui/react",
+      "@assistant-ui/store",
+      "assistant-stream",
+    ]);
   });
 
   it("attributes each bench file to the dists it exercises", () => {
@@ -124,6 +130,14 @@ describe("against the real workspace", () => {
       "@assistant-ui/tap",
       "assistant-stream",
     ]);
+    expect(covers("bench/react-pi-message-projection.bench.ts")).toEqual([
+      "@assistant-ui/core",
+      "@assistant-ui/react",
+      "@assistant-ui/react-pi",
+      "@assistant-ui/store",
+      "@assistant-ui/tap",
+      "assistant-stream",
+    ]);
   });
 
   it("plans a core change as its own benches plus three controls", () => {
@@ -133,6 +147,7 @@ describe("against the real workspace", () => {
         "bench/from-thread-message-like.bench.ts",
         "bench/interactable-array-patches.bench.ts",
         "bench/markdown-streaming.bench.tsx",
+        "bench/react-pi-message-projection.bench.ts",
         "bench/thread-scaling.bench.tsx",
       ],
       controls: [
