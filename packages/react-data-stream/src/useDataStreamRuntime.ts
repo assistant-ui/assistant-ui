@@ -39,6 +39,8 @@ export type UseDataStreamRuntimeOptions = {
     | object
     | ((options: DataStreamRuntimeBodyOptions) => Promise<object | undefined>);
   sendExtraMessageFields?: boolean;
+  /** Maximum UTF-16 code units accepted in one data-stream protocol line. */
+  maxStreamLineLength?: number | undefined;
 } & LocalRuntimeOptions;
 
 export const useDataStreamRuntime = (

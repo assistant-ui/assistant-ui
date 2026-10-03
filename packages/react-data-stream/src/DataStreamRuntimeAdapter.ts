@@ -196,7 +196,9 @@ export class DataStreamRuntimeAdapter implements ChatModelAdapter {
                   }
                 : {},
             )
-          : new DataStreamDecoder();
+          : new DataStreamDecoder({
+              maxLineLength: this.options.maxStreamLineLength,
+            });
 
       const stream = result.body
         .pipeThrough(decoder)

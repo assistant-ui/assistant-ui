@@ -4,7 +4,7 @@ export class LineDecoderStream extends TransformStream<string, string> {
   private buffer = "";
   private skipNextLineFeed = false;
 
-  constructor(options?: { maxLineLength?: number }) {
+  constructor(options?: { maxLineLength?: number | undefined }) {
     const maxLineLength = options?.maxLineLength ?? DEFAULT_MAX_LINE_LENGTH;
     if (!Number.isSafeInteger(maxLineLength) || maxLineLength <= 0) {
       throw new RangeError("maxLineLength must be a positive safe integer");

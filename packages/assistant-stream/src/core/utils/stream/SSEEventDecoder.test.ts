@@ -201,11 +201,36 @@ describe("SSEEventDecoder", () => {
   });
 
   it("rejects an event whose data lines exceed the configured limit", () => {
-    const decoder = new SSEEventDecoder({ maxEventLength: 14 });
+    const decoder = new SSEEventDecoder({ maxEventLength: 2 });
     expect(decoder.push("data: a\n")).toEqual([]);
     expect(() => decoder.push("data: b\n")).toThrow(
-      "SSE event exceeds maxEventLength (16 > 14)",
+      "SSE event exceeds maxEventLength (3 > 2)",
     );
+  });
+
+  it("counts parsed data values toward the configured event limit", () => {
+    const decoder = new SSEEventDecoder({ maxEventLength: 3 });
+    expect(decoder.push("data: abc\n\n")).toEqual([{ data: "abc" }]);
+  });
+
+  it("rejects an unfinished data line that exceeds the event limit", () => {
+    const decoder = new SSEEventDecoder({ maxEventLength: 3 });
+    expect(decoder.push("data: ab")).toEqual([]);
+    expect(() => decoder.push("cd")).toThrow(
+      "SSE event exceeds maxEventLength (4 > 3)",
+    );
+  });
+
+  it("does not dispatch a partial frame after event overflow", () => {
+    const decoder = new SSEEventDecoder({
+      trailing: "dispatch",
+      maxEventLength: 2,
+    });
+    expect(decoder.push("data: a\n")).toEqual([]);
+    expect(() => decoder.push("data: b\n")).toThrow(
+      "SSE event exceeds maxEventLength (3 > 2)",
+    );
+    expect(decoder.flush()).toBeNull();
   });
 
   it("validates configured limits", () => {

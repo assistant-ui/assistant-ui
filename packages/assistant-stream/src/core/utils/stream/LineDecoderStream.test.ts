@@ -130,6 +130,14 @@ describe("LineDecoderStream", () => {
     ).rejects.toThrow("Stream line exceeds maxLineLength (5 > 4)");
   });
 
+  it("should accept lines that reach exactly the configured limit", async () => {
+    const stream = createTextStream(["1234\n", "12", "34\n"]);
+    const lines = await collectLines(
+      stream.pipeThrough(new LineDecoderStream({ maxLineLength: 4 })),
+    );
+    expect(lines).toEqual(["1234", "1234"]);
+  });
+
   it("should validate the configured line limit", () => {
     expect(() => new LineDecoderStream({ maxLineLength: 0 })).toThrow(
       "maxLineLength must be a positive safe integer",

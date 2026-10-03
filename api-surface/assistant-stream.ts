@@ -207,6 +207,8 @@ type AssistantTransformerTransformCallback<I> = (chunk: I, controller: Assistant
 declare class AssistantTransportDecoder extends PipeableTransformStream<Uint8Array<ArrayBuffer>, AssistantStreamChunk> {
   constructor(options?: {
     strict?: boolean | undefined;
+    maxLineLength?: number | undefined;
+    maxEventLength?: number | undefined;
   });
 }
 
@@ -287,6 +289,7 @@ declare class DataStreamEncoder extends PipeableTransformStream<AssistantStreamC
 
 type DataStreamOptions = {
   strict?: boolean | undefined;
+  maxLineLength?: number | undefined;
 };
 
 type DeepPartial<T> = T extends readonly any[] ? readonly DeepPartial<T[number]>[] : T extends {
@@ -707,8 +710,8 @@ declare class SSEEventDecoder {
 
 type SSEEventDecoderOptions = {
   trailing?: "dispatch" | "drop";
-  maxLineLength?: number;
-  maxEventLength?: number;
+  maxLineLength?: number | undefined;
+  maxEventLength?: number | undefined;
 };
 
 type SourcePart = {
