@@ -50,13 +50,19 @@ export function parseBumpLine(line) {
   return release && BUMP_VALUES.has(release.bump) ? release : null;
 }
 
+// Mirrors the block-mapping lines that `yaml`, the parser `@changesets/parse`
+// uses, accepts for a changeset: a plain key cannot start with a YAML
+// indicator (nor with `-` or `?` and a space, which open a sequence entry or a
+// complex key), the colon needs a space or tab after it even after a quoted
+// key, and only spaces and tabs count as whitespace (`\s` would also admit
+// U+00A0, a BOM or U+2028, which `yaml` rejects).
 function parseReleaseLine(line) {
-  const entry = line
-    .trim()
-    .match(/^(?:"([^"]*)"|'([^']*)'|([^#:][^:]*?))\s*:\s*(.*)$/);
+  const entry = line.match(
+    /^[ \t]*(?:"([^"]*)"|'([^']*)'|(?![-?][ \t])([^\s#:@`%!&*|>[\]{},'"][^:]*?))[ \t]*:[ \t]+(.*?)\r?$/,
+  );
   if (!entry) return null;
   const value = entry[4].match(
-    /^(?:"([^"]*)"|'([^']*)'|([^\s#]*))\s*(?:#.*)?$/,
+    /^(?:"([^"]*)"|'([^']*)'|([^ \t#]*))(?:[ \t]+#.*)?[ \t]*$/,
   );
   if (!value) return null;
   const bump = value[1] ?? value[2] ?? value[3];
@@ -72,6 +78,59 @@ const CHANGESET_SOURCE = /\s*---([\s\S]*?)\r?\n\s*---(\s*(?:\n|$)[\s\S]*)/;
 export function readChangesetSource(source) {
   const match = CHANGESET_SOURCE.exec(source);
   return match ? { frontmatter: match[1], body: match[2] } : null;
+}
+
+const visible = (text) =>
+  text.replace(
+    /[^\S ]/g,
+    (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`,
+  );
+
+function readChangesetReleases(source) {
+  const changeset = readChangesetSource(source);
+  if (!changeset) {
+    return {
+      releases: [],
+      errors: [
+        { name: "---", reason: "opens no frontmatter changesets can find" },
+      ],
+    };
+  }
+  const releases = [];
+  const errors = [];
+  const firstLine = source.slice(0, source.indexOf("---")).split("\n").length;
+  let indent;
+  for (const [index, line] of changeset.frontmatter.split("\n").entries()) {
+    if (/^[ \t]*(?:#.*)?\r?$/.test(line)) continue;
+    const release = parseReleaseLine(line);
+    const lineIndent = line.slice(0, line.length - line.trimStart().length);
+    const reason = !release
+      ? "is not a release changesets can parse"
+      : lineIndent.includes("\t")
+        ? "is indented with a tab, which YAML does not allow"
+        : indent !== undefined && lineIndent !== indent
+          ? "is indented differently from the first release"
+          : undefined;
+    if (reason) {
+      errors.push({
+        name: visible(line.replace(/\r$/, "").replace(/^ +| +$/g, "")),
+        line: firstLine + index,
+        reason,
+      });
+      continue;
+    }
+    indent ??= lineIndent;
+    if (releases.some(({ name }) => name === release.name)) {
+      errors.push({
+        name: release.name,
+        line: firstLine + index,
+        reason: "is named twice in one changeset",
+      });
+      continue;
+    }
+    releases.push(release);
+  }
+  return { releases, errors };
 }
 
 export function readWorkspacePackages(root) {
@@ -105,19 +164,17 @@ export function readWorkspacePackages(root) {
 function readChangesetBumps(root, files = null) {
   const changesetDir = path.join(root, ".changeset");
   const bumps = [];
+  const errors = [];
   for (const file of readdirSync(changesetDir).sort()) {
     if (!file.endsWith(".md") || file === "README.md") continue;
     if (files && !files.has(file)) continue;
-    const changeset = readChangesetSource(
+    const changeset = readChangesetReleases(
       readFileSync(path.join(changesetDir, file), "utf8"),
     );
-    if (!changeset) continue;
-    for (const line of changeset.frontmatter.split("\n")) {
-      const release = parseReleaseLine(line);
-      if (release) bumps.push({ file, ...release });
-    }
+    for (const release of changeset.releases) bumps.push({ file, ...release });
+    for (const error of changeset.errors) errors.push({ file, ...error });
   }
-  return bumps;
+  return { bumps, errors };
 }
 
 export function readSkipRules(config) {
@@ -365,8 +422,9 @@ export function runChangedPackageCheck(root, baseSha, headSha) {
       .filter((file) => path.posix.dirname(file) === ".changeset")
       .map((file) => path.posix.basename(file)),
   );
+  const changesets = readChangesetBumps(root, changesetFiles);
   const bumpedNames = new Set(
-    readChangesetBumps(root, changesetFiles)
+    changesets.bumps
       .filter(({ bump }) => BUMP_VALUES.has(bump))
       .map(({ name }) => name),
   );
@@ -406,6 +464,7 @@ export function runChangedPackageCheck(root, baseSha, headSha) {
 
   return {
     changedSourceCount: sourceFiles.length,
+    parseErrors: changesets.errors,
     missingChangesets: [...missing.values()].sort((a, b) =>
       a.name < b.name ? -1 : 1,
     ),
@@ -417,20 +476,35 @@ export function runCheck(root = repoRoot) {
   const rules = readSkipRules(
     readJson(path.join(root, ".changeset", "config.json")),
   );
+  const { bumps, errors } = readChangesetBumps(root);
   return {
     packageCount: packages.size,
-    problems: findUnreleasablePackages(
-      packages,
-      readChangesetBumps(root),
-      rules,
-    ),
+    parseErrors: errors,
+    problems: findUnreleasablePackages(packages, bumps, rules),
   };
 }
 
+function reportParseErrors(parseErrors) {
+  if (parseErrors.length === 0) return;
+  console.error("Changesets that `changeset version` cannot parse:\n");
+  for (const { file, line, name, reason } of parseErrors) {
+    const at = line === undefined ? file : `${file}:${line}`;
+    console.error(`  .changeset/${at}: "${name}" ${reason}`);
+  }
+  console.error(
+    '\nWrite each release as `"<package>": patch` on its own line between `---` fences, with the name quoted, each package once, and every line indented the same way with spaces.',
+  );
+}
+
 function main() {
-  const { packageCount, problems } = runCheck(process.env.CHANGESET_CHECK_ROOT);
+  const { packageCount, parseErrors, problems } = runCheck(
+    process.env.CHANGESET_CHECK_ROOT,
+  );
+
+  reportParseErrors(parseErrors);
 
   if (problems.length > 0) {
+    if (parseErrors.length > 0) console.error("");
     console.error("Changesets name packages that cannot be released:\n");
     for (const { file, name, reason } of problems) {
       console.error(`  .changeset/${file}: "${name}" ${reason}`);
@@ -442,8 +516,9 @@ function main() {
       "so `changeset version` aborts and every release stays blocked until the line is removed.",
     );
     console.error("\nDrop the offending line from the changeset frontmatter.");
-    process.exit(1);
   }
+
+  if (parseErrors.length > 0 || problems.length > 0) process.exit(1);
 
   console.log(
     `All changeset bumps name releasable workspace packages. (${packageCount} packages scanned)`,
@@ -485,7 +560,9 @@ function mainChangedPackages() {
     process.exit(1);
   }
 
+  reportParseErrors(result.parseErrors);
   if (result.missingChangesets.length > 0) {
+    if (result.parseErrors.length > 0) console.error("");
     console.error("Changed published packages without a changeset:\n");
     for (const missing of result.missingChangesets) {
       console.error(describeMissingChangeset(missing));
@@ -493,6 +570,8 @@ function mainChangedPackages() {
     console.error(
       "\nAdd a changeset from this PR that names every changed published package.",
     );
+  }
+  if (result.parseErrors.length > 0 || result.missingChangesets.length > 0) {
     process.exit(1);
   }
 
