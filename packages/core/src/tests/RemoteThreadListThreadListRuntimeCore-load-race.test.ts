@@ -159,6 +159,162 @@ describe("RemoteThreadListThreadListRuntimeCore load race", () => {
     expect(stopThreadRuntime).not.toHaveBeenCalledWith(localId);
   });
 
+  it("moves off the main thread when a delete of its listed duplicate lands on it", async () => {
+    const listDeferred = deferred<ListResult>();
+    const initializeDeferred = deferred<{
+      remoteId: string;
+      externalId: string;
+    }>();
+    const adapter = makeAdapter({
+      list: vi.fn(() => listDeferred.promise),
+      initialize: vi.fn(() => initializeDeferred.promise),
+    });
+    const core = createCore(adapter);
+
+    const loadPromise = core.getLoadThreadsPromise();
+    await core.switchToNewThread();
+    const localId = core.newThreadId!;
+    const initializePromise = core.initialize(localId);
+
+    listDeferred.resolve({
+      threads: [
+        { status: "regular", remoteId: "remote-1", externalId: "remote-1" },
+      ],
+    });
+    await loadPromise;
+
+    const deletePromise = core.delete("remote-1");
+    initializeDeferred.resolve({
+      remoteId: "remote-1",
+      externalId: "remote-1",
+    });
+    await initializePromise;
+    await deletePromise;
+
+    expect(adapter.delete).toHaveBeenCalledWith("remote-1");
+    expect(core.getItemById(localId)).toBeUndefined();
+    expect(core.mainThreadId).not.toBe(localId);
+    expect(core.getItemById(core.mainThreadId)?.status).toBe("new");
+  });
+
+  it("moves off a removed main thread while an unrelated switch is still loading", async () => {
+    const listDeferred = deferred<ListResult>();
+    const initializeDeferred = deferred<{
+      remoteId: string;
+      externalId: string;
+    }>();
+    const fetchDeferred = deferred<{ status: "regular"; remoteId: string }>();
+    const adapter = makeAdapter({
+      list: vi.fn(() => listDeferred.promise),
+      initialize: vi.fn(() => initializeDeferred.promise),
+      fetch: vi.fn(() => fetchDeferred.promise),
+    });
+    const core = createCore(adapter);
+
+    const loadPromise = core.getLoadThreadsPromise();
+    await core.switchToNewThread();
+    const localId = core.newThreadId!;
+    const initializePromise = core.initialize(localId);
+    const switching = core.switchToThread("remote-9").catch(() => {});
+
+    listDeferred.resolve({
+      threads: [
+        { status: "regular", remoteId: "remote-1", externalId: "remote-1" },
+      ],
+    });
+    await loadPromise;
+
+    const deletePromise = core.delete("remote-1").catch(() => {});
+    initializeDeferred.resolve({
+      remoteId: "remote-1",
+      externalId: "remote-1",
+    });
+    await initializePromise;
+    await vi.waitFor(() => {
+      expect(core.getItemById(core.mainThreadId)).toBeDefined();
+    });
+    fetchDeferred.resolve({ status: "regular", remoteId: "remote-9" });
+    await switching;
+    await deletePromise;
+    expect(core.getItemById(core.mainThreadId)?.remoteId).toBe("remote-9");
+  });
+
+  it("moves off the main thread when an archive of its listed duplicate settles before initialize", async () => {
+    const listDeferred = deferred<ListResult>();
+    const initializeDeferred = deferred<{
+      remoteId: string;
+      externalId: string;
+    }>();
+    const adapter = makeAdapter({
+      list: vi.fn(() => listDeferred.promise),
+      initialize: vi.fn(() => initializeDeferred.promise),
+    });
+    const core = createCore(adapter);
+
+    const loadPromise = core.getLoadThreadsPromise();
+    await core.switchToNewThread();
+    const localId = core.newThreadId!;
+    const initializePromise = core.initialize(localId);
+
+    listDeferred.resolve({
+      threads: [
+        { status: "regular", remoteId: "remote-1", externalId: "remote-1" },
+      ],
+    });
+    await loadPromise;
+    await core.archive("remote-1");
+
+    initializeDeferred.resolve({
+      remoteId: "remote-1",
+      externalId: "remote-1",
+    });
+    await initializePromise;
+    await vi.waitFor(() => {
+      expect(core.mainThreadId).not.toBe(localId);
+    });
+
+    expect(core.getItemById(localId)?.status).toBe("archived");
+    expect(core.getItemById(core.mainThreadId)?.status).toBe("new");
+  });
+
+  it("moves off the main thread when a delete of its listed duplicate settles before initialize", async () => {
+    const listDeferred = deferred<ListResult>();
+    const initializeDeferred = deferred<{
+      remoteId: string;
+      externalId: string;
+    }>();
+    const adapter = makeAdapter({
+      list: vi.fn(() => listDeferred.promise),
+      initialize: vi.fn(() => initializeDeferred.promise),
+    });
+    const core = createCore(adapter);
+
+    const loadPromise = core.getLoadThreadsPromise();
+    await core.switchToNewThread();
+    const localId = core.newThreadId!;
+    const initializePromise = core.initialize(localId);
+
+    listDeferred.resolve({
+      threads: [
+        { status: "regular", remoteId: "remote-1", externalId: "remote-1" },
+      ],
+    });
+    await loadPromise;
+    await core.delete("remote-1");
+
+    initializeDeferred.resolve({
+      remoteId: "remote-1",
+      externalId: "remote-1",
+    });
+    await initializePromise;
+    await vi.waitFor(() => {
+      expect(core.mainThreadId).not.toBe(localId);
+    });
+
+    expect(core.getItemById(localId)).toBeUndefined();
+    expect(core.getItemById(core.mainThreadId)?.status).toBe("new");
+  });
+
   it("does not leave the collapsed slot in both lists when the race reported it archived", async () => {
     const listDeferred = deferred<ListResult>();
     const initializeDeferred = deferred<{
