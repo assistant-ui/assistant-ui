@@ -687,6 +687,65 @@ describe("useLangGraphRuntime", () => {
     await waitFor(() => expect(isLoadingResult.current).toBe(false));
   });
 
+  it("resumes the graph with a frontend tool result on loaded history whose tool_calls hold a null entry", async () => {
+    const load = vi.fn(async () => ({
+      messages: [
+        { id: "human-1", type: "human" as const, content: "weather?" },
+        {
+          id: "ai-1",
+          type: "ai" as const,
+          content: "",
+          tool_calls: [
+            null,
+            { id: "tc-1", name: "get_weather", args: { city: "sf" } },
+          ],
+        } as unknown as LangChainMessage,
+      ],
+    }));
+    const streamMock = vi.fn(async function* (
+      _messages: LangChainMessage[],
+    ) {});
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+    const wrapper = wrapperFactory(runtimeResult.current);
+    const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() =>
+      expect(
+        auiResult.current.thread
+          .getState()
+          .messages.flatMap((m): readonly unknown[] => m.content),
+      ).toContainEqual(
+        expect.objectContaining({ type: "tool-call", toolCallId: "tc-1" }),
+      ),
+    );
+
+    act(() => {
+      runtimeResult.current.thread
+        .getMessageById("ai-1")
+        .getMessagePartByToolCallId("tc-1")
+        .addToolResult({ temperature: 72 });
+    });
+
+    await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+    expect(streamMock.mock.calls[0]?.[0]).toMatchObject([
+      {
+        type: "tool",
+        tool_call_id: "tc-1",
+        content: JSON.stringify({ temperature: 72 }),
+      },
+    ]);
+  });
+
   it("keeps the streamed version when the load returns the same message id", async () => {
     const pendingLoad = deferred<LoadResult>();
     const load = vi.fn(() => pendingLoad.promise);
