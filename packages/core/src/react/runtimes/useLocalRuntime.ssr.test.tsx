@@ -36,10 +36,15 @@ const initialMessages: readonly ThreadMessageLike[] = [
 
 const App = ({
   onRuntime,
+  messages = initialMessages,
+  onRender,
 }: {
   onRuntime: (runtime: AssistantRuntime) => void;
+  messages?: readonly ThreadMessageLike[];
+  onRender?: () => void;
 }) => {
-  const runtime = useLocalRuntime(chatModel, { initialMessages });
+  const runtime = useLocalRuntime(chatModel, { initialMessages: messages });
+  onRender?.();
   onRuntime(runtime);
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -50,8 +55,12 @@ const App = ({
 
 const Outer = ({
   onRuntime,
+  messages,
+  onRender,
 }: {
   onRuntime: (runtime: AssistantRuntime) => void;
+  messages?: readonly ThreadMessageLike[];
+  onRender?: () => void;
 }) => {
   const host = useExternalStoreRuntime<ThreadMessage>({
     messages: [],
@@ -60,7 +69,7 @@ const Outer = ({
   return (
     <AssistantRuntimeProvider runtime={host}>
       <ThreadListItemRuntimeProvider runtime={host.threads.mainItem}>
-        <App onRuntime={onRuntime} />
+        <App onRuntime={onRuntime} messages={messages} onRender={onRender} />
       </ThreadListItemRuntimeProvider>
     </AssistantRuntimeProvider>
   );
@@ -120,6 +129,50 @@ it("prerenders a standalone local runtime without reading Math.random", () => {
   expect(random).not.toHaveBeenCalled();
 });
 
+it("hydrates identified messages without re-rendering the local runtime owner", async () => {
+  const messages: readonly ThreadMessageLike[] = [
+    { ...initialMessages[0]!, id: "message-0" },
+    {
+      id: "message-1",
+      role: "assistant",
+      content: [
+        { type: "text", text: "A chat UI toolkit." },
+        {
+          type: "tool-call",
+          toolCallId: "tool-1",
+          toolName: "lookup",
+          args: {},
+        },
+      ],
+      createdAt: new Date("2026-01-01T00:00:01Z"),
+    },
+  ];
+  let renders = 0;
+  const app = (
+    <Outer
+      messages={messages}
+      onRuntime={() => {}}
+      onRender={() => renders++}
+    />
+  );
+  const html = renderOnServer(app);
+  renders = 0;
+
+  const container = document.createElement("div");
+  container.innerHTML = html;
+  let root: ReturnType<typeof hydrateRoot> | undefined;
+
+  try {
+    await act(async () => {
+      root = hydrateRoot(container, app);
+    });
+
+    expect(renders).toBe(1);
+  } finally {
+    await act(async () => root?.unmount());
+  }
+});
+
 it("hydrates nested local message and tool call ids", async () => {
   const errors = vi.spyOn(console, "error").mockImplementation(() => {});
   let serverRuntime: AssistantRuntime | undefined;
@@ -140,13 +193,17 @@ it("hydrates nested local message and tool call ids", async () => {
   const container = document.createElement("div");
   container.innerHTML = html;
   let clientRuntime: AssistantRuntime | undefined;
+  let clientRenders = 0;
   let root: ReturnType<typeof hydrateRoot> | undefined;
 
   try {
     await act(async () => {
       root = hydrateRoot(
         container,
-        <Outer onRuntime={(runtime) => (clientRuntime = runtime)} />,
+        <Outer
+          onRuntime={(runtime) => (clientRuntime = runtime)}
+          onRender={() => clientRenders++}
+        />,
       );
     });
 
@@ -155,7 +212,52 @@ it("hydrates nested local message and tool call ids", async () => {
       serverMessages.map(({ id }) => id),
     );
     expect(clientMessages[1]!.content[1]).toEqual(serverToolCall);
+    expect(clientRenders).toBe(2);
     expect(errors).not.toHaveBeenCalled();
+  } finally {
+    await act(async () => root?.unmount());
+  }
+});
+
+it("hydrates a missing tool call id when message ids are present", async () => {
+  const messages: readonly ThreadMessageLike[] = [
+    {
+      id: "message-0",
+      role: "assistant",
+      content: [{ type: "tool-call", toolName: "lookup", args: {} }],
+      createdAt: new Date("2026-01-01T00:00:00Z"),
+    },
+  ];
+  let serverRuntime: AssistantRuntime | undefined;
+  const html = renderOnServer(
+    <Outer
+      messages={messages}
+      onRuntime={(runtime) => (serverRuntime = runtime)}
+    />,
+  );
+  const serverMessage = serverRuntime!.thread.getState().messages[0]!;
+  expect(serverMessage.id).toBe("message-0");
+  expect(serverMessage.content[0]).toMatchObject({
+    toolCallId: expect.stringMatching(/-tool-0-0$/),
+  });
+
+  const container = document.createElement("div");
+  container.innerHTML = html;
+  let clientRuntime: AssistantRuntime | undefined;
+  let root: ReturnType<typeof hydrateRoot> | undefined;
+
+  try {
+    await act(async () => {
+      root = hydrateRoot(
+        container,
+        <Outer
+          messages={messages}
+          onRuntime={(runtime) => (clientRuntime = runtime)}
+        />,
+      );
+    });
+
+    expect(clientRuntime!.thread.getState().messages[0]).toEqual(serverMessage);
   } finally {
     await act(async () => root?.unmount());
   }

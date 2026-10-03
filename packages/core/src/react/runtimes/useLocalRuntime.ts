@@ -144,10 +144,19 @@ export const useLocalRuntime = (
   { cloud, ...options }: LocalRuntimeOptions = {},
 ): AssistantRuntime => {
   const messageIdSeed = useId();
+  const needsMessageIdSeed =
+    options.initialMessages?.some(
+      (message) =>
+        message.id === undefined ||
+        (typeof message.content !== "string" &&
+          message.content.some(
+            (part) => part.type === "tool-call" && !part.toolCallId,
+          )),
+    ) ?? false;
   const isHydrating = useSyncExternalStore(
     subscribeNever,
     () => false,
-    () => true,
+    () => needsMessageIdSeed,
   );
   const cloudAdapter = useCloudThreadListAdapter({ cloud });
   return useRemoteThreadListRuntime({
