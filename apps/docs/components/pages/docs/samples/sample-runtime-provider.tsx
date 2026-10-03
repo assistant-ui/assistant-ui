@@ -59,8 +59,8 @@ export function SampleRuntimeProvider({
 }) {
   const runtime = useLocalRuntime(noOpAdapter, {
     initialMessages: messages.map((message) => ({
-      createdAt: CREATED_AT,
       ...message,
+      createdAt: message.createdAt ?? CREATED_AT,
     })),
     adapters,
   });
