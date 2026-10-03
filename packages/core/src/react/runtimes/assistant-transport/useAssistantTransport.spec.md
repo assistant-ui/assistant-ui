@@ -94,6 +94,7 @@ setInTransitCommands(commands);
 - `isRunning: boolean`: Indicates whether a run is currently active (internal to scheduling).
   UI-facing `isRunning` is controlled by the converter output (see Converter).
 - On cancellation, invoke `callbacks.onCancel?.({ commands, updateState })` where `commands` contains all pending work at the time of cancel: `[...inTransitCommands, ...queuedCommands]`. Note: after the first snapshot arrives, `inTransitCommands` are cleared to `[]`, so cancels after first byte will not include them.
+- A cancel while a failed run awaits `onError` ends the run without waiting for it and invokes `onCancel` for the work queued since the failure. The `onError` promise keeps running, so its `updateState`, and the `onCancel` that reports the commands queued before the failure once it settles, can land after a later run has started.
 - RunConfig is not supported for now; any provided run configuration is ignored.
 
 Converter
