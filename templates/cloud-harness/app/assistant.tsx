@@ -1,10 +1,11 @@
 "use client";
 
-import { AuiConfig, AuiProvider, useAuiState } from "@assistant-ui/react";
+import { AuiConfig, AuiProvider } from "@assistant-ui/react";
 import { HarnessCloudThreadList } from "@assistant-ui/react-harness-sdk";
-import { useState, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { Button } from "@/components/ui/button";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 
 const credential = async () => {
   const response = await fetch("/api/credential", { cache: "no-store" });
@@ -14,20 +15,14 @@ const credential = async () => {
 };
 
 const ShareThread = () => {
-  const threadId = useAuiState((s) => s.threads.mainThreadId);
-  const [copiedThreadId, setCopiedThreadId] = useState<string>();
+  const { isCopied, copyToClipboard } = useCopyToClipboard();
   return (
     <Button
       variant="outline"
       size="sm"
-      onClick={async () => {
-        const url = new URL(window.location.href);
-        url.hash = threadId;
-        await navigator.clipboard.writeText(url.href);
-        setCopiedThreadId(threadId);
-      }}
+      onClick={() => copyToClipboard(window.location.href)}
     >
-      {copiedThreadId === threadId ? "Link copied" : "Share this chat"}
+      {isCopied ? "Link copied" : "Share this chat"}
     </Button>
   );
 };

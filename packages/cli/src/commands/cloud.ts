@@ -243,6 +243,17 @@ export const setupCloud = async (
     throw new Error("Choose --project or --new-project.");
   validateCloudUrl(options.apiUrl);
   const backend = new URL(options.backendUrl);
+  if (backend.username || backend.password || backend.search || backend.hash)
+    throw new Error(
+      "Backend URLs must not include credentials, queries, or fragments.",
+    );
+  if (
+    options.newOrg !== undefined &&
+    !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(options.newOrg)
+  )
+    throw new Error(
+      "Organization slugs must use lowercase letters, numbers, and hyphens.",
+    );
   if (
     backend.protocol !== "https:" &&
     !(
@@ -275,7 +286,7 @@ export const setupCloud = async (
         "This directory is already configured for another organization or project. Use a new directory.",
       );
     const environment = await readOptionalFile(path.join(target, ".env.local"));
-    if (!/^ASSISTANT_API_KEY=.+/m.test(environment))
+    if (!/^\s*(?:export\s+)?ASSISTANT_API_KEY\s*=\s*.+/m.test(environment))
       throw new Error(
         "This project is configured but its .env.local API key is missing. Restore it before running setup again.",
       );

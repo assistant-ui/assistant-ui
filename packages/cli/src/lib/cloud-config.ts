@@ -1,4 +1,12 @@
-import { mkdir, readFile, writeFile, link, rename, rm } from "node:fs/promises";
+import {
+  mkdir,
+  readFile,
+  writeFile,
+  link,
+  rename,
+  rm,
+  stat,
+} from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 
@@ -17,12 +25,15 @@ export type CloudProjectConfig = {
 export const writeCloudFile = async (
   file: string,
   contents: string,
-  options: { exclusive?: boolean } = {},
+  options: { exclusive?: boolean; mode?: number } = {},
 ): Promise<void> => {
   await mkdir(path.dirname(file), { recursive: true });
   const temporary = `${file}.${randomUUID()}.tmp`;
   try {
-    await writeFile(temporary, contents, { flag: "wx", mode: 0o600 });
+    await writeFile(temporary, contents, {
+      flag: "wx",
+      mode: options.mode ?? 0o600,
+    });
     if (options.exclusive) await link(temporary, file);
     else await rename(temporary, file);
   } finally {
@@ -109,6 +120,14 @@ export const writeCloudProjectConfig = async (
     await writeCloudFile(
       gitignoreFile,
       `${gitignore}${gitignore && !gitignore.endsWith("\n") ? "\n" : ""}.env.local\n`,
+      {
+        mode: await stat(gitignoreFile)
+          .then((info) => info.mode & 0o777)
+          .catch((error: NodeJS.ErrnoException) => {
+            if (error.code === "ENOENT") return 0o644;
+            throw error;
+          }),
+      },
     );
   }
   await writeCloudFile(envFile, environment);

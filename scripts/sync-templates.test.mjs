@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   cpSync,
+  existsSync,
   mkdtempSync,
   mkdirSync,
   readFileSync,
@@ -71,6 +72,10 @@ test("cloud harness kit follows canonical sources and minimal overrides while ke
     "export const Assistant = () => 'shared';\n",
   );
   write(
+    "templates/cloud-harness/hooks/removed.ts",
+    "export const removed = true;\n",
+  );
+  write(
     "templates/cloud-harness/app/api/chat/route.ts",
     "export const POST = () => 'harness';\n",
   );
@@ -95,11 +100,16 @@ test("cloud harness kit follows canonical sources and minimal overrides while ke
     encoding: "utf8",
   });
   assert.equal(check.status, 1);
+  assert.match(check.stdout, /stale mirrored cloud-harness/);
   assert.match(check.stdout, /cloud-harness kit file/);
   execFileSync("bash", [scriptFile, "--write"], {
     cwd: fixture,
     env: { ...process.env, PATH: `${fixture}/bin:${process.env.PATH}` },
   });
+  assert.equal(
+    existsSync(path.join(fixture, "templates/cloud-harness/hooks/removed.ts")),
+    false,
+  );
   assert.equal(
     readFileSync(
       path.join(

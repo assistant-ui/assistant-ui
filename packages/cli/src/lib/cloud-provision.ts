@@ -75,11 +75,14 @@ export const provisionCloudHarness = async (
   }
   const result = (await response.json()) as CloudProvisionResult;
   if (
-    !result.api_key ||
-    !result.harness_id ||
-    !result.workspace_id ||
-    !result.harness_origin ||
-    !result.api_origin ||
+    !result ||
+    [
+      result.api_key,
+      result.harness_id,
+      result.workspace_id,
+      result.harness_origin,
+      result.api_origin,
+    ].some((value) => typeof value !== "string" || value.length === 0) ||
     result.project_id !== request.project_id
   ) {
     throw new Error(

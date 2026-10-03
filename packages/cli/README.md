@@ -63,7 +63,7 @@ npx assistant-ui info
 ## Shared cloud chat
 
 ```bash
-assistant-ui cloud setup multiplayer-chat
+npx assistant-ui@latest cloud setup multiplayer-chat
 cd multiplayer-chat
 npm run dev
 ```
@@ -78,7 +78,7 @@ current conversation's URL.
 Select resources explicitly for a script or agent:
 
 ```bash
-assistant-ui cloud setup multiplayer-chat --org team --new-project hackathon-chat --backend-url http://localhost:3000/api/chat --yes
+npx assistant-ui@latest cloud setup multiplayer-chat --org team --new-project hackathon-chat --backend-url http://localhost:3000/api/chat --yes
 ```
 
 Use `--project <id-or-slug>` for an existing project. A hackathon access code
@@ -98,10 +98,10 @@ harness IDs. Browser clients receive short-lived credentials from the app's
 server and share the `hackathon` user. Add your application authentication to
 `/api/credential` when the chat needs individual users or private access.
 
-Run `assistant-ui cloud setup .` from an existing cloud-harness starter to resume
+Run `npx assistant-ui@latest cloud setup .` from an existing cloud-harness starter to resume
 setup. Existing environment values are preserved; conflicting cloud settings
-produce an error. `assistant-ui cloud login` signs in separately and
-`assistant-ui cloud logout` revokes the saved CLI login.
+produce an error. `npx assistant-ui@latest cloud login` signs in separately and
+`npx assistant-ui@latest cloud logout` revokes the saved CLI login.
 
 ## Documentation
 

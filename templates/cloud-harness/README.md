@@ -4,7 +4,7 @@ This Next.js starter connects assistant-ui to a hosted harness. Browser clients
 on the same URL share conversation state, replies, and cancellation through
 `HarnessCloudThreadList`.
 
-Run `assistant-ui cloud setup .` from this app to sign in and configure a project and harness.
+Run `npx assistant-ui@latest cloud setup .` from this app to sign in and configure a project and harness.
 Add your `OPENAI_API_KEY` to `.env.local`, install dependencies, and run `npm run dev`.
 Open the app in two browser windows, or use **Share this chat** to copy its link.
 Send a message from either window; both show the same reply as it streams.
@@ -13,8 +13,9 @@ Reload either window to restore the conversation.
 The URL fragment selects the thread. A fresh app uses `main` in the
 configured shared workspace. The server mints short-lived browser credentials for the
 shared `hackathon` user. `ASSISTANT_API_KEY` and `OPENAI_API_KEY` stay in the
-server environment. This starter admits visitors as the same shared user;
-add your application authentication to `/api/credential` before deploying a
+server environment. This starter admits visitors as the same shared user.
+Both `/api/credential` and `/api/chat` admit public visitors in this hackathon
+starter. Add your application authentication to both routes before deploying a
 private workspace.
 
 During local development, the existing harness runtime serves model requests

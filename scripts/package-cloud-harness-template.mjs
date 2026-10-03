@@ -5,6 +5,7 @@ import {
   mkdtempSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -12,8 +13,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const source = path.resolve(process.argv[2] ?? "../harness-sdk");
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const source = path.resolve(
+  process.argv[2] ?? path.join(root, "../harness-sdk"),
+);
 const vendor = path.join(root, "templates/cloud-harness/vendor");
 const packages = [
   "packages/harness-sdk/core",
@@ -126,6 +129,17 @@ try {
       sha256,
     });
   }
+  for (const filename of readdirSync(vendor))
+    if (
+      filename.endsWith(".tgz") &&
+      !artifacts.some((artifact) => artifact.filename === filename)
+    )
+      rmSync(path.join(vendor, filename));
+  const manifestFile = path.join(root, "templates/cloud-harness/package.json");
+  const manifest = JSON.parse(readFileSync(manifestFile, "utf8"));
+  for (const artifact of artifacts)
+    manifest.dependencies[artifact.name] = `file:vendor/${artifact.filename}`;
+  writeFileSync(manifestFile, `${JSON.stringify(manifest, null, 2)}\n`);
   cpSync(path.join(source, "LICENSE"), path.join(vendor, "LICENSE"));
   writeFileSync(
     path.join(vendor, "provenance.json"),

@@ -128,7 +128,7 @@ describe("cloud setup", () => {
     const directory = await fixture();
     await setupCloud(directory, options);
     const envFile = path.join(directory, ".env.local");
-    const custom = `${await readFile(envFile, "utf8")}OPENAI_API_KEY=custom-key\nCUSTOM_SETTING=keep-me\n`;
+    const custom = `${(await readFile(envFile, "utf8")).replace(/^ASSISTANT_API_KEY=/m, "export ASSISTANT_API_KEY=")}OPENAI_API_KEY=custom-key\nCUSTOM_SETTING=keep-me\n`;
     await writeFile(envFile, custom);
     const before = provisionCloudHarness.mock.calls.length;
     await setupCloud(directory, options);
@@ -185,6 +185,21 @@ describe("cloud setup", () => {
     await expect(
       setupCloud(directory, { ...options, org: "team", newOrg: "other" }),
     ).rejects.toThrow("Choose --org or --new-org");
+    expect(cloudAccessToken.mock.calls.length).toBe(before);
+  });
+
+  it("rejects URL credentials and invalid organization slugs before logging in", async () => {
+    const directory = await fixture();
+    const before = cloudAccessToken.mock.calls.length;
+    await expect(
+      setupCloud(directory, {
+        ...options,
+        backendUrl: "https://user:secret@app.example.com/api/chat",
+      }),
+    ).rejects.toThrow("credentials");
+    await expect(
+      setupCloud(directory, { ...options, newOrg: "Bad Org!" }),
+    ).rejects.toThrow("Organization slugs");
     expect(cloudAccessToken.mock.calls.length).toBe(before);
   });
 

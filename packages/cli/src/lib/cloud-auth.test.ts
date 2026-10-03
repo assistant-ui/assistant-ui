@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -70,6 +70,12 @@ describe("cloud login", () => {
       "http://localhost:3000",
     );
     expect(() => validateCloudUrl("http://cloud.example.com")).toThrow("HTTPS");
+    expect(() =>
+      validateCloudUrl("https://cloud.example.com?key=secret"),
+    ).toThrow();
+    expect(() =>
+      validateCloudUrl("https://cloud.example.com#fragment"),
+    ).toThrow();
   });
   it("saves approved device credentials with private permissions and no token output", async () => {
     const config = await fixture();
@@ -81,7 +87,8 @@ describe("cloud login", () => {
     const print = vi.fn();
     await loginToCloud(config, { noOpen: true, print });
     expect(await readCloudCredentials(config)).toMatchObject(credentials);
-    expect((await stat(config.credentialsFile)).mode & 0o777).toBe(0o600);
+    if (process.platform !== "win32")
+      expect((await stat(config.credentialsFile)).mode & 0o777).toBe(0o600);
     expect(JSON.stringify(print.mock.calls)).not.toContain("access-token");
     expect(JSON.stringify(print.mock.calls)).not.toContain("refresh-token");
   });
@@ -118,7 +125,9 @@ describe("cloud login", () => {
   it("revokes the login before forgetting its refresh token", async () => {
     const config = await fixture();
     await saveCloudCredentials(config, credentials);
-    login.revoke.mockResolvedValue(undefined);
+    login.revoke.mockImplementation(async () => {
+      expect(await readCloudCredentials(config)).toMatchObject(credentials);
+    });
     await logoutFromCloud(config);
     expect(login.revoke).toHaveBeenCalledWith(
       expect.objectContaining(credentials),
@@ -135,5 +144,29 @@ describe("cloud login", () => {
         issuer: "https://different.example.com",
       }),
     ).toBeNull();
+  });
+
+  it("revokes at the stored issuer even if configuration has changed", async () => {
+    const config = await fixture();
+    await saveCloudCredentials(config, credentials);
+    login.revoke.mockResolvedValue(undefined);
+    await logoutFromCloud({
+      ...config,
+      issuer: "https://other.example.com",
+      clientId: "other",
+    });
+    expect(createDeviceLogin).toHaveBeenLastCalledWith({
+      issuer: config.issuer,
+      clientId: config.clientId,
+    });
+    expect(await readCloudCredentials(config)).toBeNull();
+  });
+
+  it("reports malformed saved JSON values without reading their fields", async () => {
+    const config = await fixture();
+    await writeFile(config.credentialsFile, "null");
+    await expect(readCloudCredentials(config)).rejects.toThrow(
+      "Invalid saved login",
+    );
   });
 });

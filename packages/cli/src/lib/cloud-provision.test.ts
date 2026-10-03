@@ -107,4 +107,26 @@ describe("cloud provisioning", () => {
       }),
     ).rejects.toThrow("incomplete setup response");
   });
+
+  it("rejects malformed credentials instead of writing invalid app settings", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        Response.json({
+          project_id: input.project_id,
+          workspace_id: "workspace",
+          harness_id: "harness",
+          harness_origin: "https://harness.example.com",
+          api_origin: "https://project.example.com",
+          api_key: 123,
+        }),
+      ),
+    );
+    await expect(
+      provisionCloudHarness("https://cloud.example.com", "token", {
+        ...input,
+        idempotency_key: "id",
+      }),
+    ).rejects.toThrow("incomplete setup response");
+  });
 });

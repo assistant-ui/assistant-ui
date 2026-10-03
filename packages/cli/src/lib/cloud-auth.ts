@@ -32,6 +32,8 @@ export const validateCloudUrl = (value: string): string => {
   if (
     url.username ||
     url.password ||
+    url.search ||
+    url.hash ||
     (url.protocol !== "https:" &&
       !(
         url.protocol === "http:" &&
@@ -60,6 +62,7 @@ export const cloudAuthConfig = (): CloudAuthConfig => ({
 
 export const readCloudCredentials = async (
   config: CloudAuthConfig,
+  options: { matchConfig?: boolean } = {},
 ): Promise<SavedCredentials | null> => {
   let contents: string;
   try {
@@ -74,7 +77,12 @@ export const readCloudCredentials = async (
   } catch {
     throw new Error("Invalid saved login. Run assistant-ui cloud login again.");
   }
-  if (saved.issuer !== config.issuer || saved.clientId !== config.clientId) {
+  if (!saved || typeof saved !== "object")
+    throw new Error("Invalid saved login. Run assistant-ui cloud login again.");
+  if (
+    options.matchConfig !== false &&
+    (saved.issuer !== config.issuer || saved.clientId !== config.clientId)
+  ) {
     return null;
   }
   if (
@@ -173,11 +181,11 @@ export const cloudAccessToken = async (
 export const logoutFromCloud = async (
   config: CloudAuthConfig,
 ): Promise<void> => {
-  const saved = await readCloudCredentials(config);
+  const saved = await readCloudCredentials(config, { matchConfig: false });
   if (saved) {
     await createDeviceLogin({
-      issuer: config.issuer,
-      clientId: config.clientId,
+      issuer: validateCloudUrl(saved.issuer),
+      clientId: saved.clientId,
     }).revoke(saved);
   }
   await rm(config.credentialsFile, { force: true });

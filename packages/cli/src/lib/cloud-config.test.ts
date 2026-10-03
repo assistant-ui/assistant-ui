@@ -68,9 +68,10 @@ describe("cloud environment", () => {
       expect(
         await readFile(path.join(directory, ".gitignore"), "utf8"),
       ).toContain(".env.local");
-      expect(
-        (await stat(path.join(directory, ".env.local"))).mode & 0o777,
-      ).toBe(0o600);
+      if (process.platform !== "win32")
+        expect(
+          (await stat(path.join(directory, ".env.local"))).mode & 0o777,
+        ).toBe(0o600);
     } finally {
       await rm(directory, { recursive: true, force: true });
     }

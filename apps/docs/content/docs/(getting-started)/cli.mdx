@@ -156,7 +156,7 @@ Use `cloud setup` to create a multiplayer chat backed by a hosted
 [harness](/docs/cloud/harnesses):
 
 ```bash
-assistant-ui cloud setup multiplayer-chat
+npx assistant-ui@latest cloud setup multiplayer-chat
 ```
 
 The command signs you in with browser device OAuth, selects or creates an
@@ -169,7 +169,7 @@ chat** copies the current thread's URL.
 For a script or coding agent, select cloud resources with flags:
 
 ```bash
-assistant-ui cloud setup multiplayer-chat --org team --new-project hackathon-chat --backend-url http://localhost:3000/api/chat --yes
+npx assistant-ui@latest cloud setup multiplayer-chat --org team --new-project hackathon-chat --backend-url http://localhost:3000/api/chat --yes
 ```
 
 | Option | Effect |
@@ -207,9 +207,9 @@ Existing conversations keep their original backend, so open the deployed app
 with a fresh thread fragment such as `#deployed-chat`, then use **Share this
 chat**. Setup rejects a changed backend URL instead of silently ignoring it.
 
-Run `assistant-ui cloud setup .` inside a generated cloud-harness app to resume
-setup. `assistant-ui cloud login` signs in separately; `cloud login --no-open`
-prints the sign-in URL. `assistant-ui cloud logout` revokes and removes the
+Run `npx assistant-ui@latest cloud setup .` inside a generated cloud-harness app to resume
+setup. `npx assistant-ui@latest cloud login` signs in separately; `npx assistant-ui@latest cloud login --no-open`
+prints the sign-in URL. `npx assistant-ui@latest cloud logout` revokes and removes the
 saved CLI credentials.
 
 ## add
