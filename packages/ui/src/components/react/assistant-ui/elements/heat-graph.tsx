@@ -4,20 +4,10 @@ import * as HeatGraphPrimitive from "heat-graph";
 
 const COLORS = ["#ebedf0", "#c6d7f9", "#8fb0f3", "#5888e8", "#2563eb"];
 
-export function HeatGraph({
-  data,
-  start,
-  end,
-}: {
-  data: HeatGraphPrimitive.DataPoint[];
-  start?: string | Date | undefined;
-  end?: string | Date | undefined;
-}) {
+export function HeatGraph({ data }: { data: HeatGraphPrimitive.DataPoint[] }) {
   return (
     <HeatGraphPrimitive.Root
       data={data}
-      start={start}
-      end={end}
       weekStart="monday"
       colorScale={COLORS}
       className="flex flex-col gap-2"

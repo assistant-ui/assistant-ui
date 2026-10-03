@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import {
   VoiceStatesSample,
   VoiceVariantsSample,
@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import type { SyntaxHighlighterProps } from "@assistant-ui/react-markdown";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { VoiceOrb } from "@/components/assistant-ui/elements/voice.aui";
 import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
@@ -446,13 +447,19 @@ const heatGraphData = Array.from({ length: 112 }, (_, index) => ({
   date: new Date(2026, 0, index + 1),
   count: (index * 7 + Math.floor(index / 9)) % 18,
 }));
-const heatGraphEnd = heatGraphData.at(-1)!.date;
 
 export function AuiHeatGraphDemo() {
   return (
     <DemoSurface>
       <div className="w-full max-w-2xl min-w-125 scale-[0.82]">
-        <HeatGraph data={heatGraphData} end={heatGraphEnd} />
+        {/* HeatGraph draws the trailing year from today, so it renders per request. */}
+        <Suspense
+          fallback={
+            <Skeleton className="aspect-[5/1] w-full motion-reduce:animate-none" />
+          }
+        >
+          <HeatGraph data={heatGraphData} />
+        </Suspense>
       </div>
     </DemoSurface>
   );
