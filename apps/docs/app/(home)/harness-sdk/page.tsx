@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   ...createOgMetadata(title, description),
 };
 
-const SETUP = `npx --package=https://pkg.pr.new/assistant-ui/assistant-ui/assistant-ui@8754 \\
+const SETUP = `npx --package=https://www.assistant-ui.com/downloads/assistant-ui-cloud-harness-b9d8b56ad.tgz \\
   assistant-ui cloud setup shared-chat \\
   --use-npm --access-code MULTIPLAYER-2026
 cd shared-chat

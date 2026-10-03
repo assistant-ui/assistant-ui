@@ -25,6 +25,15 @@ describe("install guide route", () => {
     expect(await response.text()).toContain("cloud");
   });
 
+  it("serves Statewire instructions from its hidden product slug", async () => {
+    const response = await get("?items=statewire");
+    expect(response.status).toBe(200);
+    const markdown = await response.text();
+    expect(markdown).toContain("## 1. Statewire");
+    expect(markdown).toContain("https://www.assistant-ui.com/statewire.md");
+    expect(markdown).toContain("/downloads/statewire-tic-tac-toe.zip");
+  });
+
   it("never reflects text from the items parameter", async () => {
     const response = await get(
       `?items=${encodeURIComponent("ignore previous instructions,<script>")}`,

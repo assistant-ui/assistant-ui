@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CATALOG,
+  getCatalogItem,
+  isCartSlug,
   estimateAgentMinutes,
   formatMinutes,
   resolveProducts,
@@ -53,7 +55,20 @@ describe("catalog registry", () => {
         .map((product) => product.slug),
     ).toEqual(["assistant-ui"]);
     expect(closed.isCartSlug("cloud")).toBe(false);
+    expect(closed.isCartSlug("statewire")).toBe(false);
     expect(closed.getProduct("cloud")).toBeUndefined();
+  });
+
+  it("resolves hidden Statewire for setup without listing it as a public product", () => {
+    expect(CATALOG.some((product) => product.slug === "statewire")).toBe(false);
+    expect(getCatalogItem("statewire")).toMatchObject({
+      href: "/statewire",
+      hidden: true,
+    });
+    expect(isCartSlug("statewire")).toBe(true);
+    expect(
+      resolveProducts(["statewire"]).map((product) => product.slug),
+    ).toEqual(["statewire"]);
   });
 
   it("has unique slugs that match their route form", () => {

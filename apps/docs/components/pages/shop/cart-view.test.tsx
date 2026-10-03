@@ -2,7 +2,13 @@
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { clearCart, getCart, replaceCart } from "@/lib/catalog/cart-store";
+import {
+  clearCart,
+  getCart,
+  getCartInstructions,
+  replaceCart,
+  setCartInstructions,
+} from "@/lib/catalog/cart-store";
 import { CartView } from "./cart-view";
 
 const mocks = vi.hoisted(() => ({
@@ -36,6 +42,27 @@ afterEach(() => {
 });
 
 describe("CartView", () => {
+  it("makes the Statewire build brief visible and retains existing setup notes", () => {
+    replaceCart(["cloud", "statewire"]);
+    setCartInstructions("Preserve our existing routes.");
+    render(<CartView />);
+    const brief = screen.getByRole("textbox", {
+      name: "What do you want to build?",
+    });
+    expect(brief).toHaveProperty("value", "Preserve our existing routes.");
+    fireEvent.change(brief, {
+      target: {
+        value: "Preserve our existing routes. Add a shared task board.",
+      },
+    });
+    expect(getCartInstructions()).toBe(
+      "Preserve our existing routes. Add a shared task board.",
+    );
+    expect(
+      screen.queryByRole("textbox", { name: "Special instructions" }),
+    ).toBeNull();
+  });
+
   it("waits for hydration before rendering the cart shell", () => {
     mocks.hydrated = false;
 

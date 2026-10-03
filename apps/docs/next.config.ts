@@ -159,6 +159,16 @@ const config: NextConfig = {
   redirects: async () => [
     ...LEGACY_TAP_DOCS_REDIRECTS,
     {
+      source: "/hack",
+      destination: "/hackathon",
+      permanent: false,
+    },
+    {
+      source: "/multiplayer-hackathon",
+      destination: "/hackathon",
+      permanent: false,
+    },
+    {
       source: "/tap",
       destination: "/docs/tap",
       permanent: true,

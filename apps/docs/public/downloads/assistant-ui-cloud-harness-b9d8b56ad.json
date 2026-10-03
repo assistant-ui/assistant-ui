@@ -1,0 +1,49 @@
+{
+  "artifact": "assistant-ui-0.0.120-cloud-harness.0.tgz",
+  "sha256": "9acfd2e6affafcb236ceeb1aecc0690868dae37ea635ed0dbf8ad052832d655d",
+  "repository": "https://github.com/assistant-ui/assistant-ui",
+  "pull_request": "https://github.com/assistant-ui/assistant-ui/pull/8754",
+  "source_commit": "b9d8b56ad66db73498c15878a8c454663d290380",
+  "package_version": "0.0.120-cloud-harness.0",
+  "staged_manifest_transformations": [
+    {
+      "field": "version",
+      "from": "0.0.120",
+      "to": "0.0.120-cloud-harness.0",
+      "reason": "Unpublished review artifact; source version unchanged."
+    },
+    {
+      "field": "dependencies.@assistant-ui/agent-launcher",
+      "from": "^0.1.17",
+      "to": "^0.1.16",
+      "reason": "Source workspace version0.1.17 is unpublished. Published0.1.16 executable dist/launch.js is byte-identical and exports the same LaunchOptions; CLI legacy agent tests pass."
+    }
+  ],
+  "runtime_provenance": "templates/cloud-harness/vendor/provenance.json",
+  "verified": [
+    "CLI518tests",
+    "CLItypecheck/aui-build/lint/format",
+    "template sync4tests+repo check",
+    "fresh npm CLIartifact install",
+    "installedCLI scaffold+provision+resume with localAPI fixtures",
+    "generatedapp npm install/types/productionbuild",
+    "credential route user/workspace/serverkey scope; key absent browserbundle",
+    "workspace template typecheck/productionbuild after required host peers",
+    "CLI/docs generated surface checks",
+    "two independent Chrome contexts official Statewire transport mount/message/streamedreply/reload proof",
+    "required peers share tap across SDK/adapter/Statewire",
+    "Turbo full cache restores starter assets; template changes CLI hash",
+    "Share button copies canonical URL in independent browser proof",
+    "current b9d8b installed CLI help/cloud help/setup help + three vendor assets + fixture scaffold/provision/resume"
+  ],
+  "pending": [
+    "production OAuth registration and real device approval",
+    "deployed Cloud provision and hosted two-browser proof"
+  ],
+  "preview_publication": {
+    "workflow": "https://github.com/assistant-ui/assistant-ui/actions/runs/37113099210",
+    "build": "passed",
+    "publish": "blocked: pkg-pr-new GitHub app not installed or lacks repository access",
+    "fallback": "downloadable review tarball; not npm registry release"
+  }
+}

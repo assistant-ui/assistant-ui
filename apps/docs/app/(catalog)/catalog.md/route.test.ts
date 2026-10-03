@@ -22,6 +22,12 @@ describe("catalog markdown route", () => {
     expect(body).not.toMatch(/\b(?:cart|shop|checkout)\b/i);
   });
 
+  it("omits hidden Statewire from product and auxiliary listings", async () => {
+    const response = await get();
+    expect(response.status).toBe(200);
+    expect(await response.text()).not.toMatch(/statewire/i);
+  });
+
   it("answers 404 when the shop is closed", async () => {
     vi.stubEnv("NEXT_PUBLIC_CHECKOUT_URL", "");
     vi.stubEnv("NODE_ENV", "production");

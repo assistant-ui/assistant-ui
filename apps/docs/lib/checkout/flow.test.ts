@@ -53,6 +53,28 @@ describe("checkout flow", () => {
     );
   });
 
+  it("carries the Statewire build brief and notes through reload and cancellation", async () => {
+    setupStorage();
+    const s = await load();
+    s.replaceCart(["statewire"]);
+    s.setCartInstructions(
+      "Build a shared whiteboard. Preserve our existing authentication.",
+    );
+    expect(s.checkoutCart()?.instructions).toBe(
+      "Build a shared whiteboard. Preserve our existing authentication.",
+    );
+    const restored = await load();
+    expect(restored.getCheckoutSession()?.products).toEqual(["statewire"]);
+    expect(restored.getCheckoutSession()?.instructions).toBe(
+      "Build a shared whiteboard. Preserve our existing authentication.",
+    );
+    restored.abandonCheckout();
+    expect(restored.getCart()).toEqual(["statewire"]);
+    expect(restored.getCartInstructions()).toBe(
+      "Build a shared whiteboard. Preserve our existing authentication.",
+    );
+  });
+
   it("moves the cart into the checkout and back on abandon, merging", async () => {
     setupStorage();
     const s = await load();
