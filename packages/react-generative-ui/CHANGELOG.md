@@ -1,5 +1,13 @@
 # @assistant-ui/react-generative-ui
 
+## 0.0.24
+
+### Patch Changes
+
+- [#8748](https://github.com/assistant-ui/assistant-ui/pull/8748) [`70c9a6e`](https://github.com/assistant-ui/assistant-ui/commit/70c9a6e3cd7ab73071f0b4edf1040a035773ffe7) - a DatePicker with its own action dispatches it once per committed value: a pick from the native picker commits at once, and a typed value commits on blur or on Enter outside a form, instead of dispatching every intermediate value while typing ([@okisdev](https://github.com/okisdev))
+
+- [#8756](https://github.com/assistant-ui/assistant-ui/pull/8756) [`48601e4`](https://github.com/assistant-ui/assistant-ui/commit/48601e40fed32f8ec469fd1f17a64ad24a3e7484) - keep a datetime DatePicker's value stable while a year is typed in a time zone whose historical offset has seconds, by submitting second precision when the offset needs it ([@rupic-app](https://github.com/apps/rupic-app))
+
 ## 0.0.23
 
 ### Patch Changes
