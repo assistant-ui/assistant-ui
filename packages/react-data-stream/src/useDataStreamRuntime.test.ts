@@ -68,6 +68,39 @@ afterEach(() => {
 });
 
 describe("useDataStreamRuntime request errors", () => {
+  it.each([
+    {
+      name: "line",
+      response: "data: [DONE]\n\n",
+      limits: { maxStreamLineLength: 5 },
+      expectedError: "maxLineLength",
+    },
+    {
+      name: "event",
+      response: "data: a\ndata: b\n\n",
+      limits: { maxStreamLineLength: 7, maxStreamEventLength: 2 },
+      expectedError: "maxEventLength",
+    },
+  ])("forwards the configured $name limit", async (testCase) => {
+    const onError = vi.fn();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(testCase.response)),
+    );
+
+    const adapter = createAdapter({
+      api: "/api/chat",
+      protocol: "ui-message-stream",
+      ...testCase.limits,
+      onError,
+    });
+
+    await expect(runToCompletion(adapter, createRunOptions())).rejects.toThrow(
+      testCase.expectedError,
+    );
+    expect(onError).toHaveBeenCalledOnce();
+  });
+
   it.each(["headers", "body"] as const)(
     "reports async %s resolution failures",
     async (option) => {

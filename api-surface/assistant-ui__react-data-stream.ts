@@ -2011,6 +2011,8 @@ type UseDataStreamRuntimeOptions = {
   headers?: HeadersValue | (() => Promise<HeadersValue>);
   body?: object | ((options: DataStreamRuntimeBodyOptions) => Promise<object | undefined>);
   sendExtraMessageFields?: boolean;
+  maxStreamLineLength?: number | undefined;
+  maxStreamEventLength?: number | undefined;
 } & LocalRuntimeOptions;
 
 type VoiceSessionState = {
