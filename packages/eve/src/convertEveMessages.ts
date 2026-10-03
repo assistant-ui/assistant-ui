@@ -19,7 +19,10 @@ import {
 } from "@assistant-ui/core";
 import {
   httpUrlPattern,
+  resolveFileMediaType,
   resolveFilePartSource,
+  resolveImageMediaType,
+  toMediaWireUrl,
 } from "@assistant-ui/core/internal";
 import type {
   EveAuthorizationOutcome,
@@ -373,7 +376,7 @@ const convertFilePart = (
   return {
     type: "file",
     data: part.url,
-    mimeType: part.mediaType ?? "unknown/unknown",
+    mimeType: resolveFileMediaType(part.url, part.mediaType),
     ...(part.filename && { filename: part.filename }),
     ...(httpUrlPattern.test(part.url) && { sourceType: "url" as const }),
   };
@@ -625,12 +628,21 @@ export type EveMessageContent =
  * Converts an assistant-ui append message into the message payload accepted by
  * Eve's `send` API.
  */
+type OutboundPart = AppendMessage["content"][number] & {
+  readonly contentType?: string | undefined;
+};
+
 export const getEveMessageContent = (
   message: AppendMessage,
 ): EveMessageContent => {
-  const content = [
+  const content: OutboundPart[] = [
     ...message.content,
-    ...(message.attachments?.flatMap((attachment) => attachment.content) ?? []),
+    ...(message.attachments?.flatMap((attachment) =>
+      attachment.content.map((part) => ({
+        ...part,
+        contentType: attachment.contentType,
+      })),
+    ) ?? []),
   ];
 
   const parts = content.flatMap((part) => {
@@ -647,13 +659,15 @@ export const getEveMessageContent = (
           ...(part.filename && { filename: part.filename }),
         };
 
-      case "image":
+      case "image": {
+        const mediaType = resolveImageMediaType(part.image, part.contentType);
         return {
           type: "file" as const,
-          data: part.image,
-          mediaType: "image/*",
+          data: toMediaWireUrl(part.image, mediaType),
+          mediaType,
           ...(part.filename && { filename: part.filename }),
         };
+      }
 
       case "audio": {
         // A data URL's own media type wins over `mediaType` downstream, so the
