@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-streamdown",
-  "version": "0.3.18",
+  "version": "0.3.19",
   "description": "Streamdown-based markdown rendering for assistant-ui",
   "keywords": [
     "markdown",
@@ -38,7 +38,7 @@
     "bench": "vitest bench --run"
   },
   "dependencies": {
-    "@assistant-ui/react-markdown": "^0.14.18",
+    "@assistant-ui/react-markdown": "^0.14.19",
     "@types/hast": "^3.0.5",
     "micromark-util-html-tag-name": "^2.0.1",
     "rehype-harden": "^1.1.8",
