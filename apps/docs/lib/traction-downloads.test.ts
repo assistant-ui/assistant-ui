@@ -84,16 +84,13 @@ describe("fetchNpmDownloads", () => {
     const downloads = await fetchNpmDownloads();
 
     expect(getDownloadsRange).not.toHaveBeenCalled();
-    expect(downloads.totalWeekly).toBe(0);
+    expect(downloads.flagshipWeekly).toBeNull();
+    expect(downloads.totalWeekly).toBeNull();
     expect(downloads.perPackage[FLAGSHIP_PACKAGE]).toEqual({
       weekly: 0,
       series: [],
       monthly: 0,
       prevMonthly: 0,
-    });
-    expect(downloads.weeklyAvailability).toEqual({
-      flagship: false,
-      total: false,
     });
   });
 
@@ -106,12 +103,8 @@ describe("fetchNpmDownloads", () => {
 
     const downloads = await fetchNpmDownloads();
 
+    expect(downloads.flagshipWeekly).toBe(0);
     expect(downloads.totalWeekly).toBe(0);
-    expect(downloads.perPackage[FLAGSHIP_PACKAGE]?.weekly).toBe(0);
-    expect(downloads.weeklyAvailability).toEqual({
-      flagship: true,
-      total: true,
-    });
   });
 
   it("does not report a partial ecosystem total when a package range fails", async () => {
@@ -125,9 +118,7 @@ describe("fetchNpmDownloads", () => {
 
     const downloads = await fetchNpmDownloads();
 
-    expect(downloads.weeklyAvailability).toEqual({
-      flagship: true,
-      total: false,
-    });
+    expect(downloads.flagshipWeekly).toBe(0);
+    expect(downloads.totalWeekly).toBeNull();
   });
 });

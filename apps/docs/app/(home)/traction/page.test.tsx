@@ -28,9 +28,9 @@ const mocks = vi.hoisted(() => {
           }),
       ),
       fetchNpmDownloads: vi.fn(async () => ({
-        totalWeekly: 0,
+        flagshipWeekly: null,
+        totalWeekly: null,
         perPackage: {},
-        weeklyAvailability: { flagship: false, total: false },
       })),
       fetchStarHistory: vi.fn(async () => []),
       fetchContributors: vi.fn(async () => null),

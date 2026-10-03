@@ -142,16 +142,14 @@ async function Stats() {
     getCommitStats(),
   ]);
 
-  const flagshipWeekly = npm.weeklyAvailability.flagship
-    ? (npm.perPackage[FLAGSHIP_PACKAGE]?.weekly ?? null)
-    : null;
   const flagship =
-    flagshipWeekly === null
+    npm.flagshipWeekly === null
       ? null
-      : { value: flagshipWeekly, caption: FLAGSHIP_PACKAGE };
-  const total = npm.weeklyAvailability.total
-    ? { value: npm.totalWeekly, caption: "across all packages" }
-    : null;
+      : { value: npm.flagshipWeekly, caption: FLAGSHIP_PACKAGE };
+  const total =
+    npm.totalWeekly === null
+      ? null
+      : { value: npm.totalWeekly, caption: "across all packages" };
   const publicPackages = PACKAGES.filter((pkg) => !pkg.deprecated).length;
 
   const extraStats = [

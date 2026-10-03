@@ -356,12 +356,9 @@ export type PackageDownloads = {
 };
 
 export type NpmDownloads = {
-  totalWeekly: number;
+  flagshipWeekly: number | null;
+  totalWeekly: number | null;
   perPackage: Record<string, PackageDownloads>;
-  weeklyAvailability: {
-    flagship: boolean;
-    total: boolean;
-  };
 };
 
 export type TimelinePoint = {
@@ -580,16 +577,16 @@ export async function fetchNpmDownloads(
     ),
   );
   const perPackage: Record<string, PackageDownloads> = {};
-  let totalWeekly = 0;
-  const weeklyAvailability = { flagship: false, total: end !== null };
+  let flagshipWeekly: number | null = null;
+  let totalWeekly: number | null = 0;
   for (const [name, downloads] of entries) {
     perPackage[name] = downloads ?? EMPTY_DOWNLOADS;
-    if (downloads) totalWeekly += downloads.weekly;
-    else weeklyAvailability.total = false;
-    if (name === FLAGSHIP_PACKAGE)
-      weeklyAvailability.flagship = downloads !== null;
+    totalWeekly =
+      downloads && totalWeekly !== null ? totalWeekly + downloads.weekly : null;
+    if (name === FLAGSHIP_PACKAGE && downloads)
+      flagshipWeekly = downloads.weekly;
   }
-  return { totalWeekly, perPackage, weeklyAvailability };
+  return { flagshipWeekly, totalWeekly, perPackage };
 }
 
 export const TIMELINE_PACKAGES = [
