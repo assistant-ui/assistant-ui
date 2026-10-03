@@ -175,6 +175,7 @@ describe("useTaskElapsed", () => {
         );
       });
       expect(container.textContent).toBe("undefined");
+      expect(vi.getTimerCount()).toBe(0);
 
       await act(async () => {
         vi.advanceTimersByTime(2_000);

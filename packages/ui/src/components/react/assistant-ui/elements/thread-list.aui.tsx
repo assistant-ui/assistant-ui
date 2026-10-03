@@ -156,8 +156,9 @@ export type ThreadListGroup = { label: string; indices: number[] };
 
 /**
  * Filters the thread list by title and buckets the matches by last activity
- * (Today, Yesterday, Earlier). `groups` is null when no thread carries a
- * date, in which case `filteredIndices` keeps the runtime order.
+ * (Today, Yesterday, Earlier). `groups` is null when no thread carries a date
+ * or while the local day start is unknown during server render and hydration,
+ * in which case `filteredIndices` keeps the runtime order.
  */
 export const useThreadListGroups = (searchQuery = "") => {
   const threadIds = useAuiState((s) => s.threads.threadIds);

@@ -156,10 +156,11 @@ describe("vue thread list", () => {
       threadItems: datedItems,
       main: STUB_THREAD_STATE,
     };
-    const StaticItem = resource(({ index }: { index: number }) => ({
+    const useStaticItem = ({ index }: { index: number }) => ({
       getState: () => datedItems[index]!,
-    }));
-    const StaticThreads = resource(() => {
+    });
+    const StaticItem = resource(useStaticItem);
+    const useStaticThreads = () => {
       const older = useClientResource(StaticItem({ index: 0 }));
       const newer = useClientResource(StaticItem({ index: 1 }));
       const items = [older.methods, newer.methods];
@@ -168,7 +169,8 @@ describe("vue thread list", () => {
         item: ({ index }: { index: number }) => items[index],
         switchToNewThread: () => {},
       };
-    });
+    };
+    const StaticThreads = resource(useStaticThreads);
     const app = createSSRApp(
       defineComponent({
         setup: () => () =>

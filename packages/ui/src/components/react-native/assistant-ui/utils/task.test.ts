@@ -128,14 +128,16 @@ describe("useTaskElapsed", () => {
 
   it("does not read the clock during server render", () => {
     const now = vi.spyOn(Date, "now");
-
-    expect(
-      renderToString(
-        createElement(Probe, { running: true, timing: { startedAt: 5_000 } }),
-      ),
-    ).toBe("<output>undefined</output>");
-    expect(now).not.toHaveBeenCalled();
-    now.mockRestore();
+    try {
+      expect(
+        renderToString(
+          createElement(Probe, { running: true, timing: { startedAt: 5_000 } }),
+        ),
+      ).toBe("<output>undefined</output>");
+      expect(now).not.toHaveBeenCalled();
+    } finally {
+      now.mockRestore();
+    }
   });
 
   it("returns undefined without timing and the completed duration for settled work", async () => {
