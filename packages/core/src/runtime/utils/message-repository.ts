@@ -27,7 +27,7 @@ export const ExportedMessageRepository = {
     const conv = messages.map((m) =>
       fromThreadMessageLike(
         m,
-        generateId(),
+        m.id ?? generateId(),
         getRepositoryContentAutoStatus(m.content),
       ),
     );

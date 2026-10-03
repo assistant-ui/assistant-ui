@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type {
   AssistantRuntime,
   ChatModelAdapter,
@@ -12,9 +12,11 @@ import { useCloudThreadListAdapter } from "./cloud/useCloudThreadListAdapter";
 import { useRuntimeAdapters } from "./RuntimeAdapterProvider";
 import type { AssistantCloud } from "assistant-cloud";
 import { useReplaySafeEffect } from "@assistant-ui/store/internal";
+import { useIsServerRender } from "../utils/useIsServerRender";
 
 export type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
   cloud?: AssistantCloud | undefined;
+  /** A message without an id gets a generated id, and a message without createdAt is stamped with the current time. Set createdAt on each initial message when prerendering a page with Next.js cacheComponents. */
   initialMessages?: readonly ThreadMessageLike[] | undefined;
   adapters?: Omit<LocalRuntimeOptionsBase["adapters"], "chatModel"> | undefined;
 };
@@ -33,7 +35,28 @@ const useLocalThreadRuntime = (
     },
   };
 
-  const [runtime] = useState(() => new LocalRuntimeCore(opt, initialMessages));
+  const serverMessageIdSeed = useId();
+  const isServerRender = useIsServerRender();
+  const [runtime] = useState(() => {
+    const messages = isServerRender
+      ? initialMessages?.map((message, index) => ({
+          ...message,
+          id: message.id ?? `${serverMessageIdSeed}-message-${index}`,
+          content:
+            typeof message.content === "string"
+              ? message.content
+              : message.content.map((part, partIndex) =>
+                  part.type === "tool-call" && !part.toolCallId
+                    ? {
+                        ...part,
+                        toolCallId: `${serverMessageIdSeed}-tool-${index}-${partIndex}`,
+                      }
+                    : part,
+                ),
+        }))
+      : initialMessages;
+    return new LocalRuntimeCore(opt, messages);
+  });
 
   const aui = useAui();
   const historyLoadPromiseRef = useRef<Promise<void> | undefined>(undefined);
