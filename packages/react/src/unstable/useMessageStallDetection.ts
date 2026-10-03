@@ -59,7 +59,7 @@ export function unstable_useMessageStallDetection(
   const running = activity[0] === true;
   const lastActivityRef = useRef(0);
   const [stalled, setStalled] = useState(false);
-  const [, setTick] = useState(0);
+  const [now, setNow] = useState(0);
 
   useEffect(() => {
     if (!running) return undefined;
@@ -73,26 +73,30 @@ export function unstable_useMessageStallDetection(
       return undefined;
     }
 
+    const stall = () => {
+      setNow(Date.now());
+      setStalled(true);
+    };
     const sinceActivity = Date.now() - lastActivityRef.current;
     if (sinceActivity >= thresholdMs) {
-      setStalled(true);
+      stall();
       return undefined;
     }
 
     setStalled(false);
-    const id = setTimeout(() => setStalled(true), thresholdMs - sinceActivity);
+    const id = setTimeout(stall, thresholdMs - sinceActivity);
     return () => clearTimeout(id);
   }, [running, activity, thresholdMs]);
 
   useEffect(() => {
     if (!stalled) return undefined;
-    const id = setInterval(() => setTick((t) => t + 1), 1000);
+    const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, [stalled]);
 
   if (!stalled) return { stalled: false, stalledForMs: 0 };
   return {
     stalled: true,
-    stalledForMs: Math.max(0, Date.now() - lastActivityRef.current),
+    stalledForMs: Math.max(0, now - lastActivityRef.current),
   };
 }
