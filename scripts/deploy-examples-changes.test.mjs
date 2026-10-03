@@ -166,3 +166,22 @@ test("the Expo native bundle workflow watches every bundle input", () => {
   assert.deepEqual(pathBlocks[0], expectedPaths);
   assert.deepEqual(pathBlocks[1], expectedPaths);
 });
+
+test("the Expo native bundle installs only its workspace graph", () => {
+  const workflow = readFileSync(
+    path.join(repoRoot, ".github/workflows/expo-native-bundle.yaml"),
+    "utf8",
+  );
+  const setup = workflow.match(
+    /      - name: Setup pnpm and node\.js\n[\s\S]*?(?=\n      - name:)/,
+  );
+  const install = workflow.match(
+    /      - name: Install dependencies\n[\s\S]*?(?=\n      - name:)/,
+  );
+
+  assert.match(setup?.[0] ?? "", /cache: false/);
+  assert.match(
+    install?.[0] ?? "",
+    /pnpm install --frozen-lockfile --filter \. --filter="@assistant-ui\/react-devtools\.\.\." --filter="with-expo\.\.\."/,
+  );
+});
