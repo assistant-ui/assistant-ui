@@ -388,6 +388,39 @@ describe("reduceAcpThreadState", () => {
     });
   });
 
+  it("does not carry a settled status into a reused tool call id", () => {
+    let state = running(createAcpThreadState());
+    state = reduceAcpThreadState(
+      state,
+      update({
+        sessionUpdate: "tool_call",
+        toolCallId: "t1",
+        title: "Search",
+        status: "completed",
+        content: textContent("done"),
+      }),
+    );
+    expect(state.toolCallStatuses).toEqual({ t1: "completed" });
+
+    state = running(state, "a2");
+    expect(state.toolCallStatuses).toEqual({});
+
+    state = reduceAcpThreadState(
+      state,
+      update({
+        sessionUpdate: "tool_call",
+        toolCallId: "t1",
+        title: "Search again",
+      }),
+    );
+
+    const part = contentOf(state, "a2").find(
+      (p) => p.type === "tool-call" && p.toolCallId === "t1",
+    );
+    expect(part).toBeDefined();
+    expect(part).not.toHaveProperty("result");
+  });
+
   it("marks the assistant as requiring action on a permission request", () => {
     let state = running(createAcpThreadState());
     state = reduceAcpThreadState(state, permissionRequest("p1"));

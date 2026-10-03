@@ -213,8 +213,8 @@ export class AcpClient {
     this.settlePermissions({ outcome: "cancelled" });
     if (!this._sessionId || this._connectionState !== "connected") return;
     if (this.cancelSent) return;
-    this.cancelSent = true;
     this.sendNotification("session/cancel", { sessionId: this._sessionId });
+    this.cancelSent = true;
   }
 
   respondPermission(requestId: JsonRpcId, outcome: AcpPermissionOutcome): void {

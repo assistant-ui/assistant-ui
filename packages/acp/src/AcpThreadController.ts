@@ -89,6 +89,7 @@ export class AcpThreadController implements AcpThreadControllerLike {
   private loadPromise: Promise<void> | undefined;
   private hasLoaded = false;
   private runToken = 0;
+  private detachToken = 0;
   private permissionCounter = 0;
   private attached = false;
   private inflightPrompt: Promise<unknown> | undefined;
@@ -149,7 +150,9 @@ export class AcpThreadController implements AcpThreadControllerLike {
       const client = this.client;
       const previous = client.permissionHandler;
       this.restorePermissionHandler = () => {
-        client.permissionHandler = previous;
+        if (client.permissionHandler === this.boundPermissionHandler) {
+          client.permissionHandler = previous;
+        }
       };
       client.permissionHandler = this.boundPermissionHandler;
     }
@@ -166,6 +169,7 @@ export class AcpThreadController implements AcpThreadControllerLike {
     this.restorePermissionHandler?.();
     this.restorePermissionHandler = undefined;
     this.runToken += 1;
+    this.detachToken += 1;
     await this.settlePermissions();
     if (this.state.run.type === "running") {
       this.dispatch({
@@ -378,11 +382,20 @@ export class AcpThreadController implements AcpThreadControllerLike {
     return result;
   }
 
+  /**
+   * A detach that lands while this prologue is waiting supersedes it: the turn
+   * would otherwise be launched on a controller nobody is listening to. The
+   * prompt is chained off `connect()` because `promptCapabilities` only exist
+   * once the handshake has run, and filtering before it would withhold
+   * attachments from an agent that does accept them.
+   */
   private async claimRun(
     userMessageId: string,
   ): Promise<ClaimedRun | undefined> {
+    const attached = this.detachToken;
     if (this.state.run.type === "running") await this.cancel();
     await this.settleSupersededPrompt();
+    if (attached !== this.detachToken) return undefined;
 
     const user = this.state.messagesById[userMessageId];
     if (user?.role !== "user") return undefined;
@@ -397,15 +410,19 @@ export class AcpThreadController implements AcpThreadControllerLike {
     };
     this.dispatch({ type: "run-start", message: assistant });
     const token = this.runToken;
-    const { blocks, dropped } = filterPromptBlocks(
-      threadContentToAcpBlocks([
-        ...user.content,
-        ...user.attachments.flatMap((attachment) => attachment.content ?? []),
-      ]),
-      this.client.agentCapabilities?.promptCapabilities,
-    );
-    if (dropped.length > 0) this.reportDroppedBlocks(dropped);
-    const prompt = this.client.prompt(blocks);
+    const blocks = threadContentToAcpBlocks([
+      ...user.content,
+      ...user.attachments.flatMap((attachment) => attachment.content ?? []),
+    ]);
+    const prompt = this.client.connect().then((initialized) => {
+      const filtered = filterPromptBlocks(
+        blocks,
+        initialized.agentCapabilities?.promptCapabilities,
+      );
+      if (filtered.dropped.length > 0)
+        this.reportDroppedBlocks(filtered.dropped);
+      return this.client.prompt(filtered.blocks);
+    });
     this.inflightPrompt = prompt;
     return { token, prompt };
   }

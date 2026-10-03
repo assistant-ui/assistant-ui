@@ -344,6 +344,7 @@ export const reduceAcpThreadState = (
       return {
         ...withMessage(state, event.message),
         run: { type: "running", assistantId: event.message.id },
+        toolCallStatuses: {},
       };
 
     case "session-update":

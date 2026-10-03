@@ -23,6 +23,7 @@ class FakeClient {
   sessionId: string | undefined = undefined;
   agentInfo: { name: string; version: string } | undefined = undefined;
   agentCapabilities: Record<string, unknown> | undefined = undefined;
+  pendingCapabilities: Record<string, unknown> | undefined = undefined;
   permissionHandler: PermissionHandler | undefined = undefined;
   hasConfiguredPermissionHandler = false;
 
@@ -73,10 +74,14 @@ class FakeClient {
     this.connectionState = "connected";
     this.sessionId = "s1";
     this.agentInfo = { name: "fake-agent", version: "0.0.1" };
+    if (this.pendingCapabilities) {
+      this.agentCapabilities = this.pendingCapabilities;
+      this.pendingCapabilities = undefined;
+    }
     for (const listener of [...this.connectionListeners]) listener("connected");
     return {
       protocolVersion: 1,
-      agentCapabilities: {},
+      agentCapabilities: this.agentCapabilities ?? {},
       agentInfo: this.agentInfo,
     };
   }
@@ -245,6 +250,20 @@ describe("AcpThreadController", () => {
       sessionUpdate: 0,
       connection: 0,
     });
+  });
+
+  it("keeps a permission handler the caller installed while attached", async () => {
+    const c = controller(client);
+    await c.attach();
+    expect(client.permissionHandler).toBeDefined();
+
+    const callerHandler: PermissionHandler = async () => ({
+      outcome: "cancelled",
+    });
+    client.permissionHandler = callerHandler;
+
+    await c.detach();
+    expect(client.permissionHandler).toBe(callerHandler);
   });
 
   it("connects on load and records the handshake", async () => {
@@ -660,6 +679,28 @@ describe("AcpThreadController", () => {
     await done;
   });
 
+  it("does not launch a turn that a detach superseded", async () => {
+    const c = controller(client);
+    await c.attach();
+    await c.load();
+
+    client.promptGate = () => {};
+    client.cancelReleases = false;
+    const first = c.append(userAppend("1"));
+    await flush();
+    const queued = c.append(userAppend("2"));
+    await flush();
+    expect(client.prompts).toHaveLength(1);
+
+    await c.detach();
+    client.unblock();
+    await first;
+    await queued;
+
+    expect(client.prompts).toHaveLength(1);
+    expect(c.getState().run).toEqual({ type: "idle" });
+  });
+
   it("shares the superseded-prompt wait between concurrent replacements", async () => {
     const c = controller(client);
     await c.attach();
@@ -816,7 +857,37 @@ describe("AcpThreadController", () => {
     expect(user.role === "user" ? user.attachments : []).toHaveLength(1);
   });
 
-  it("downgrades an embedded resource to a link without embeddedContext", () => {
+  it("keeps first-turn attachments the handshake advertises support for", async () => {
+    const c = controller(client, { autoConnect: false });
+    await c.attach();
+    await c.load();
+    expect(client.connectCalls).toBe(0);
+    client.pendingCapabilities = { promptCapabilities: { image: true } };
+
+    await c.append(
+      userAppend("look", {
+        attachments: [
+          {
+            id: "a1",
+            type: "image",
+            name: "cat.png",
+            contentType: "image/png",
+            status: { type: "complete" },
+            content: [{ type: "image", image: "data:image/png;base64,QUJD" }],
+          },
+        ],
+      }),
+    );
+
+    expect(client.prompts).toEqual([
+      [
+        { type: "text", text: "look" },
+        { type: "image", data: "QUJD", mimeType: "image/png" },
+      ],
+    ]);
+  });
+
+  it("keeps what survives of an embedded resource the agent cannot accept", () => {
     const blocks = [
       { type: "text", text: "hi" },
       {
@@ -827,6 +898,22 @@ describe("AcpThreadController", () => {
           mimeType: "text/plain",
         },
       },
+      {
+        type: "resource",
+        resource: {
+          uri: "https://files.test/a.pdf",
+          blob: "QUJD",
+          mimeType: "application/pdf",
+        },
+      },
+      {
+        type: "resource",
+        resource: {
+          uri: "file:///local.pdf",
+          blob: "QUJD",
+          mimeType: "application/pdf",
+        },
+      },
       { type: "image", data: "QUJD", mimeType: "image/png" },
       { type: "audio", data: "QUJD", mimeType: "audio/mp3" },
     ] as Parameters<typeof filterPromptBlocks>[0];
@@ -834,14 +921,15 @@ describe("AcpThreadController", () => {
     expect(filterPromptBlocks(blocks, undefined)).toEqual({
       blocks: [
         { type: "text", text: "hi" },
+        { type: "text", text: "body" },
         {
           type: "resource_link",
-          uri: "file:///a.txt",
-          name: "file:///a.txt",
-          mimeType: "text/plain",
+          uri: "https://files.test/a.pdf",
+          name: "https://files.test/a.pdf",
+          mimeType: "application/pdf",
         },
       ],
-      dropped: [blocks[2], blocks[3]],
+      dropped: [blocks[3], blocks[4], blocks[5]],
     });
 
     expect(
@@ -849,8 +937,8 @@ describe("AcpThreadController", () => {
         image: true,
         audio: true,
         embeddedContext: true,
-      }).dropped,
-    ).toEqual([]);
+      }),
+    ).toEqual({ blocks, dropped: [] });
   });
 });
 

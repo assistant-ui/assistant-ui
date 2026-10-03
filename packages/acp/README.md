@@ -136,15 +136,20 @@ follow-up.
 The agent loses the session when the socket goes away. On reconnect the client
 calls `session/load` for the session it lost, if `agentCapabilities.loadSession`
 advertises it, and otherwise rejects the next prompt with an error naming that
-session. Surface the error as a "start a new thread" prompt: retrying on the
-same client starts a fresh session that does not have the transcript on screen.
+session. It keeps rejecting until a load succeeds, so a retry cannot fork into a
+`session/new` whose agent lacks the transcript the user is reading; surface the
+error as a "start a new thread" prompt. The replay an agent sends while loading
+is dropped, because the thread already shows it.
 
 **Attachments the agent did not opt into are withheld.**
 ACP's baseline prompt content is text and resource links; `image`, `audio` and
 embedded `resource` blocks all need `agentCapabilities.promptCapabilities`.
-Blocks the agent cannot accept are left out of `session/prompt` — an embedded
-resource is downgraded to a resource link instead — and reported through
-`onError`. The message keeps its attachments in the transcript either way.
+Whatever the agent cannot accept is left out of `session/prompt` and reported
+through `onError`. An embedded resource keeps what survives instead of being
+withheld — its text travels as a text block, and a URI the agent can fetch
+travels as a resource link — so only inline bytes behind a client-local `file:`
+URI, which survive neither way, end up dropped and reported. The message keeps
+its attachments in the transcript either way.
 
 **`cwd` defaults to `"/"`.** ACP requires an absolute path; set `cwd` when the
 agent's file or terminal tools need a real project root.

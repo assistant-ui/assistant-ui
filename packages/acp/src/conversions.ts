@@ -123,10 +123,16 @@ const resourceLinkOf = (
     : undefined),
 });
 
+/** A `file:` URI names a client-local file, which the agent cannot fetch. */
+const isAgentRetrievable = (uri: string) => !uri.startsWith("file:");
+
 /**
  * Text and resource links are the ACP baseline; every other block type has to
  * be opted into through `promptCapabilities`. An embedded resource the agent
- * cannot accept is downgraded to a link rather than dropped.
+ * cannot accept keeps whatever survives: its text travels as text, and a URI
+ * the agent can fetch travels as a resource link. Inline bytes behind a
+ * client-local URI survive neither way and are withheld like any other block
+ * the agent cannot accept.
  */
 export function filterPromptBlocks(
   blocks: readonly AcpContentBlock[],
@@ -142,10 +148,18 @@ export function filterPromptBlocks(
       case "audio":
         (capabilities?.audio ? kept : dropped).push(block);
         break;
-      case "resource":
-        if (capabilities?.embeddedContext) kept.push(block);
-        else kept.push(resourceLinkOf(block));
+      case "resource": {
+        if (capabilities?.embeddedContext) {
+          kept.push(block);
+          break;
+        }
+        const text = "text" in block.resource ? block.resource.text : undefined;
+        if (text !== undefined) kept.push({ type: "text", text });
+        else if (isAgentRetrievable(block.resource.uri))
+          kept.push(resourceLinkOf(block));
+        else dropped.push(block);
         break;
+      }
       default:
         kept.push(block);
     }

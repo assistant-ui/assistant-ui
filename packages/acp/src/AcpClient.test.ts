@@ -27,6 +27,7 @@ class MockWebSocket {
 
   sent: JsonRpcFrame[] = [];
   closed = false;
+  failSends = 0;
 
   constructor(url: string) {
     this.url = url;
@@ -34,6 +35,10 @@ class MockWebSocket {
   }
 
   send(data: string) {
+    if (this.failSends > 0) {
+      this.failSends -= 1;
+      throw new Error("send failed");
+    }
     this.sent.push(JSON.parse(data) as JsonRpcFrame);
   }
 
@@ -412,6 +417,19 @@ describe("AcpClient", () => {
     expect(cancels()).toHaveLength(2);
     answer(1);
     await expect(second).resolves.toBe("cancelled");
+  });
+
+  it("retries session/cancel when the transport throws", async () => {
+    const client = mockClient();
+    const ws = await withSession(client);
+    const cancels = () => ws.sent.filter((f) => f.method === "session/cancel");
+    ws.failSends = 1;
+
+    await expect(client.cancel()).rejects.toThrow("send failed");
+    expect(cancels()).toHaveLength(0);
+
+    await client.cancel();
+    expect(cancels()).toHaveLength(1);
   });
 
   it("reloads a lost session on reconnect instead of starting a new one", async () => {
