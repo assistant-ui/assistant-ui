@@ -3,12 +3,12 @@
 import {
   useEffect,
   useId,
-  useLayoutEffect,
   useRef,
   useState,
   type ComponentProps,
   type ReactNode,
 } from "react";
+import { useIsomorphicLayoutEffect } from "../../assistant-ui/utils/useIsomorphicLayoutEffect";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -115,7 +115,7 @@ export function CodeBlock({
   const isCollapsible = collapsedLines > 0 && lineCount > collapsedLines;
   const isCollapsed = isCollapsible && !expanded;
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const viewport = viewportRef.current;
 
     if (!viewport || collapsedLines <= 0) {

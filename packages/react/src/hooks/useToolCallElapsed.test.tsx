@@ -1,5 +1,3 @@
-// @vitest-environment jsdom
-
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -27,9 +25,13 @@ describe("useToolCallElapsed", () => {
 
   it("does not read the wall clock during server render", () => {
     const nowSpy = vi.spyOn(Date, "now");
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
     const Probe = () => <span>{useToolCallElapsed() ?? "none"}</span>;
 
     expect(renderToString(<Probe />)).toBe("<span>none</span>");
     expect(nowSpy).not.toHaveBeenCalled();
+    expect(errors.mock.calls.flat().join(" ")).not.toMatch(
+      /useLayoutEffect does nothing on the server/,
+    );
   });
 });

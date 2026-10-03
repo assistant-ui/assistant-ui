@@ -1,8 +1,9 @@
 "use client";
 
 import type { ComponentProps } from "react";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useIsomorphicLayoutEffect } from "../utils/useIsomorphicLayoutEffect";
 
 export const paper = "bg-background border border-border/60 dark:bg-popover";
 
@@ -83,7 +84,7 @@ export function SwapLabel({
   const layers = [useRef<HTMLSpanElement>(null), useRef<HTMLSpanElement>(null)];
   const [width, setWidth] = useState<number | null>(null);
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const target = layers[active]?.current;
     if (!target) return undefined;
     const measure = () =>

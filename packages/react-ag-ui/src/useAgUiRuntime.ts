@@ -3,12 +3,12 @@
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   useSyncExternalStore,
 } from "react";
+import { useIsomorphicLayoutEffect } from "./useIsomorphicLayoutEffect";
 import {
   useExternalStoreRuntime,
   useExternalStoreSharedOptions,
@@ -149,7 +149,7 @@ export function useAgUiRuntime(
   const queueController = options.unstable_enableMessageQueue
     ? queueRef.current
     : null;
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (options.unstable_enableMessageQueue || !queueRef.current) return;
     const controller = queueRef.current;
     queueRef.current = null;

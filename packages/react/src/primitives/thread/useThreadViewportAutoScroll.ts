@@ -1,7 +1,7 @@
 "use client";
 
 import { useComposedRefs } from "radix-ui/internal";
-import { useCallback, useLayoutEffect, useRef, type RefCallback } from "react";
+import { useCallback, useRef, type RefCallback } from "react";
 import { useAuiEvent, useAuiState } from "@assistant-ui/store";
 import {
   isUserScrollUp,
@@ -13,6 +13,7 @@ import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { writableStore } from "../../context/ReadonlyStore";
 import { useThreadViewportStore } from "../../context/react/ThreadViewportContext";
+import { useIsomorphicLayoutEffect } from "../../utils/useIsomorphicLayoutEffect";
 
 // Enter and Space activate a focused control, which is how a collapsible tool
 // call expands without a pointer event ever firing. No other key changes thread
@@ -95,7 +96,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   const followBottomRef = useRef(autoScroll);
   const previousAutoScrollRef = useRef(autoScroll);
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const previousAutoScroll = previousAutoScrollRef.current;
     previousAutoScrollRef.current = autoScroll;
     if (previousAutoScroll || !autoScroll) return;
@@ -131,7 +132,10 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     [cancelScheduledFrame, scrollToBottom],
   );
 
-  useLayoutEffect(() => () => cancelScheduledFrame(), [cancelScheduledFrame]);
+  useIsomorphicLayoutEffect(
+    () => () => cancelScheduledFrame(),
+    [cancelScheduledFrame],
+  );
 
   const hasActiveTopAnchor = useCallback(() => {
     const state = threadViewportStore.getState();
@@ -252,7 +256,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     };
   });
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!scrollToBottomOnInitialize) return;
     if (!hasMessages) {
       initializeScrollRequestedRef.current = false;

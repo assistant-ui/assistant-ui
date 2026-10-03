@@ -1,6 +1,7 @@
 "use client";
 
-import { useLayoutEffect, useMemo, useRef } from "react";
+import { useMemo, useRef } from "react";
+import { useIsomorphicLayoutEffect } from "../utils/useIsomorphicLayoutEffect";
 import type {
   Unstable_TriggerAdapter,
   Unstable_TriggerItem,
@@ -71,7 +72,7 @@ export function unstable_useSlashCommandAdapter(
     : nextItems;
 
   // The adapter's callbacks must only observe commands from committed renders.
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     commandsRef.current = commands;
     committedItemsRef.current = items;
   }, [commands, items]);

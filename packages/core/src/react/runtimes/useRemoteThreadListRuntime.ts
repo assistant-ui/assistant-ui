@@ -2,12 +2,12 @@ import {
   useState,
   useEffect,
   useInsertionEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useEffectEvent,
   useId,
 } from "react";
+import { useIsomorphicLayoutEffect } from "../utils/useIsomorphicLayoutEffect";
 import { BaseAssistantRuntimeCore } from "../../runtime/base/base-assistant-runtime-core";
 import { AssistantRuntimeImpl } from "../../runtime/api/assistant-runtime";
 import type { RemoteThreadListOptions } from "../../runtimes/remote-thread-list/types";
@@ -107,7 +107,7 @@ export const useRemoteThreadListRuntime = (
   // The layout phase re-renders hosted threads before this commit yields. An
   // insertion effect cannot notify subscribers, so descendant layout effects
   // of the same commit still see the previous hook.
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     runtimeHookStore.setState(options.runtimeHook);
   }, [runtimeHookStore, options.runtimeHook]);
 
