@@ -1,5 +1,7 @@
+import { cacheLife } from "next/cache";
 import {
   type GitHubContributor,
+  getCoAuthorUser,
   getCommitActivityStats,
   getCommitCoAuthors,
   getCommitsSince,
@@ -7,7 +9,6 @@ import {
   getReleases,
   getStarHistory,
   getUser,
-  getUserById,
 } from "./github";
 import {
   FLAGSHIP_PACKAGE,
@@ -447,8 +448,20 @@ const toContributor = (c: GitHubContributor): Contributor => ({
 export async function fetchContributors(
   revalidate?: number,
 ): Promise<Contributor[] | null> {
+  try {
+    return await getCachedContributors(revalidate);
+  } catch {
+    return null;
+  }
+}
+
+async function getCachedContributors(
+  revalidate?: number,
+): Promise<Contributor[]> {
+  "use cache";
+  cacheLife("hours");
   const raw = await getContributors(undefined, revalidate);
-  if (raw === null) return null;
+  if (raw === null) throw new Error("Contributors read incomplete");
   return raw.filter((c) => !isBot(c.login, c.type)).map(toContributor);
 }
 
@@ -458,8 +471,20 @@ const CLAUDE_CO_AUTHOR_EMAIL = "noreply@anthropic.com";
 export async function fetchBotCoAuthors(
   revalidate?: number,
 ): Promise<Contributor[]> {
+  try {
+    return await getCachedBotCoAuthors(revalidate);
+  } catch {
+    return [];
+  }
+}
+
+async function getCachedBotCoAuthors(
+  revalidate?: number,
+): Promise<Contributor[]> {
+  "use cache";
+  cacheLife("hours");
   const coAuthors = await getCommitCoAuthors(revalidate);
-  if (coAuthors === null) return [];
+  if (coAuthors === null) throw new Error("Co-author scan incomplete");
 
   let claudeCount = 0;
   const accounts = new Map<
@@ -488,10 +513,7 @@ export async function fetchBotCoAuthors(
 
   const resolved = await Promise.all(
     Array.from(accounts.values()).map(async ({ id, login, count }) => {
-      const user =
-        id != null
-          ? await getUserById(id, revalidate)
-          : await getUser(login!, revalidate);
+      const user = await getCoAuthorUser(id ?? login!, revalidate);
       if (!user || user.type !== "Bot") return null;
       return {
         login: user.login,
@@ -831,8 +853,20 @@ function projectInflightMonth(
 export async function fetchStarHistory(
   revalidate?: number,
 ): Promise<TimelinePoint[]> {
+  try {
+    return await getCachedStarHistory(revalidate);
+  } catch {
+    return [];
+  }
+}
+
+async function getCachedStarHistory(
+  revalidate?: number,
+): Promise<TimelinePoint[]> {
+  "use cache";
+  cacheLife("hours");
   const weeks = await getStarHistory(revalidate);
-  if (!weeks || weeks.length < 2) return [];
+  if (!weeks || weeks.length < 2) throw new Error("Star history incomplete");
 
   const ordered = [...weeks].sort((a, b) => a.week - b.week);
   const now = Date.now();
