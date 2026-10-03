@@ -73,7 +73,7 @@ describe("PackagesPage", () => {
     expect(mocks.fetchNpmDownloads).toHaveBeenCalledOnce();
   });
 
-  it("hides concentration when a package read failed", async () => {
+  it("reports the share as unavailable when a package read failed", async () => {
     mocks.fetchNpmDownloads.mockResolvedValueOnce({
       flagshipWeekly: 900,
       totalWeekly: null,
@@ -93,7 +93,13 @@ describe("PackagesPage", () => {
       },
     });
 
-    expect((await resolveDirectory()).props.concentration).toBeNull();
+    expect((await resolveDirectory()).props.concentration).toEqual({
+      leaders: [],
+      tailNames: [],
+      tailCount: 0,
+      tailWeekly: 0,
+      total: 0,
+    });
   });
 
   it("totals concentration from the ranked weekly downloads after a complete read", async () => {
@@ -113,7 +119,7 @@ describe("PackagesPage", () => {
     };
     mocks.fetchNpmDownloads.mockResolvedValueOnce({
       flagshipWeekly: 900,
-      totalWeekly: 1000,
+      totalWeekly: 5000,
       perPackage,
     });
 

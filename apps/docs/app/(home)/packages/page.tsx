@@ -104,13 +104,16 @@ async function Directory() {
   await connection();
   const npm = await fetchNpmDownloads();
 
-  const ranked = PACKAGES.filter((pkg) => !pkg.deprecated)
-    .map((pkg) => ({
-      name: pkg.name,
-      weekly: npm.perPackage[pkg.name]?.weekly ?? 0,
-    }))
-    .filter((row) => row.weekly > 0)
-    .sort((a, b) => b.weekly - a.weekly);
+  const ranked =
+    npm.totalWeekly === null
+      ? []
+      : PACKAGES.filter((pkg) => !pkg.deprecated)
+          .map((pkg) => ({
+            name: pkg.name,
+            weekly: npm.perPackage[pkg.name]?.weekly ?? 0,
+          }))
+          .filter((row) => row.weekly > 0)
+          .sort((a, b) => b.weekly - a.weekly);
 
   const leaders = ranked.slice(0, 4);
   const tail = ranked.slice(4);
@@ -119,17 +122,13 @@ async function Directory() {
     <PackageDirectory
       categories={directoryCategories}
       rows={directoryRows(npm)}
-      concentration={
-        npm.totalWeekly === null
-          ? null
-          : {
-              leaders,
-              tailNames: tail.map((row) => row.name),
-              tailCount: tail.length,
-              tailWeekly: tail.reduce((sum, row) => sum + row.weekly, 0),
-              total: ranked.reduce((sum, row) => sum + row.weekly, 0),
-            }
-      }
+      concentration={{
+        leaders,
+        tailNames: tail.map((row) => row.name),
+        tailCount: tail.length,
+        tailWeekly: tail.reduce((sum, row) => sum + row.weekly, 0),
+        total: ranked.reduce((sum, row) => sum + row.weekly, 0),
+      }}
     />
   );
 }
