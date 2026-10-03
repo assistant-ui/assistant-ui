@@ -1704,6 +1704,7 @@ type ExternalStoreAdapterBase<T> = {
   isDisabled?: boolean | undefined;
   isSendDisabled?: boolean | undefined;
   isRunning?: boolean | undefined;
+  canResume?: boolean | undefined;
   isLoading?: boolean | undefined;
   messages?: readonly T[];
   messageRepository?: ExportedMessageRepository;
@@ -1810,7 +1811,8 @@ type ExternalThreadProps = {
   onReload?: (parentId: string | null) => void;
   onStartRun?: () => void;
   onCancel?: () => void;
-  onResume?: (() => void) | undefined;
+  onResume?: (() => void | Promise<void>) | undefined;
+  canResume?: boolean | undefined;
   onRefetchThread?: (() => Promise<void>) | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
   onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
@@ -3961,6 +3963,7 @@ type ThreadRuntimeCore = Readonly<{
   isSendDisabled: boolean;
   isLoading: boolean;
   isRunning?: boolean | undefined;
+  canResume?: boolean | undefined;
   messages: readonly ThreadMessage[];
   state: ReadonlyJSONValue;
   suggestions: readonly ThreadSuggestion$1[];
@@ -4080,6 +4083,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
       isSendDisabled: boolean;
       isLoading: boolean;
       isRunning?: boolean | undefined;
+      canResume?: boolean | undefined;
       messages: readonly ThreadMessage[];
       state: ReadonlyJSONValue;
       suggestions: readonly ThreadSuggestion$1[];
@@ -4145,6 +4149,7 @@ type ThreadRuntimeState = {
   readonly isDisabled: boolean;
   readonly isLoading: boolean;
   readonly isRunning: boolean;
+  readonly canResume?: boolean;
   readonly capabilities: RuntimeCapabilities;
   readonly messages: readonly ThreadMessage[];
   readonly state: ReadonlyJSONValue;
@@ -4159,6 +4164,7 @@ type ThreadState = {
   readonly isDisabled: boolean;
   readonly isLoading: boolean;
   readonly isRunning: boolean;
+  readonly canResume?: boolean;
   readonly capabilities: RuntimeCapabilities;
   readonly messages: readonly MessageState[];
   readonly tasks: readonly TaskState[];

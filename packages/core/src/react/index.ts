@@ -334,6 +334,7 @@ export { unstable_useThreadMessageIds } from "./primitive-hooks/useThreadMessage
 export { useThreadIsRunning } from "./primitive-hooks/useThreadIsRunning";
 export { useThreadIsEmpty } from "./primitive-hooks/useThreadIsEmpty";
 export { useComposerSend } from "./primitive-hooks/useComposerSend";
+export { useComposerResume } from "./primitive-hooks/useComposerResume";
 export { useComposerCancel } from "./primitive-hooks/useComposerCancel";
 export { useComposerDictate } from "./primitive-hooks/useComposerDictate";
 export { useComposerAddAttachment } from "./primitive-hooks/useComposerAddAttachment";

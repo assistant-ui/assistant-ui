@@ -54,6 +54,7 @@ import {
 import { EMPTY_QUEUE_ITEMS } from "../../runtime/queue/queue-item";
 import type { QuoteInfo } from "../../types/quote";
 import { captureThreadRuntimeGeneration } from "../../runtime/utils/thread-runtime-lifecycle";
+import { getThreadRuntimeCoreIsRunning } from "../../runtime/api/thread-runtime";
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
 
@@ -108,6 +109,25 @@ export class ExternalStoreThreadRuntimeCore
   public get isLoading() {
     return this._store.isLoading ?? false;
   }
+  private _pendingResume: Promise<void> | undefined;
+
+  private _clearPendingResume(pending: Promise<void> | undefined) {
+    if (!pending || this._pendingResume !== pending) return;
+    this._pendingResume = undefined;
+    this._notifySubscribers();
+  }
+  public get canResume(): boolean {
+    return (
+      !!this._store.canResume &&
+      !!this._store.onResume &&
+      !this._pendingResume &&
+      !this.isDisabled &&
+      !getThreadRuntimeCoreIsRunning(this) &&
+      !this.isLoading &&
+      !this.voice
+    );
+  }
+
   // Unlike `isLoading`: pass `undefined` through to preserve the `getThreadState` fallback.
   public get isRunning(): boolean | undefined {
     if (this._hasExecutingTools(this._store)) return true;
@@ -255,6 +275,7 @@ export class ExternalStoreThreadRuntimeCore
       repositoryInstance !== this.repository;
     if (repositoryChanged) {
       this.repository = repositoryInstance;
+      this._pendingResume = undefined;
       this._pendingDeleteEvictions.clear();
       // Keep the live placeholder so resetHead cannot evict an id still used
       // by clients rendering the previous snapshot.
@@ -633,13 +654,16 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     const onBranchChange = this._store.unstable_onBranchChange;
-    const previousHeadId = onBranchChange
-      ? this.repository.canonicalHeadId
-      : null;
+    const pendingResume = this._pendingResume;
+    const previousHeadId =
+      onBranchChange || pendingResume ? this.repository.canonicalHeadId : null;
 
     this.repository.switchToBranch(branchId);
     this._pendingDeleteEvictions.clear();
     this.updateMessages(this.repository.getMessages());
+    if (pendingResume && this.repository.canonicalHeadId !== previousHeadId) {
+      this._clearPendingResume(pendingResume);
+    }
     if (onBranchChange) {
       this._notifyBranchChange(previousHeadId, onBranchChange);
     }
@@ -892,8 +916,25 @@ export class ExternalStoreThreadRuntimeCore
       throw new Error("Cannot start a run while a voice session is connected");
     if (this._isVoiceMessage(config.sourceId))
       throw new Error("Voice transcript messages cannot be reloaded");
-
-    await this._store.onResume(config);
+    const store = this._store;
+    if (this._pendingResume) return this._pendingResume;
+    if (store.canResume !== true) return store.onResume!(config);
+    let start!: () => void;
+    const promise = new Promise<void>((resolve, reject) => {
+      start = () => {
+        try {
+          resolve(store.onResume!(config));
+        } catch (error) {
+          reject(error);
+        }
+      };
+    }).finally(() => {
+      this._clearPendingResume(promise);
+    });
+    this._pendingResume = promise;
+    this._notifySubscribers();
+    start();
+    return promise;
   }
 
   public exportExternalState(): any {
@@ -914,9 +955,11 @@ export class ExternalStoreThreadRuntimeCore
     // back here via __internal_setAdapter. The tracker publishes the
     // cleared status map itself, so adapter-side statuses reset only when
     // the tracker is the source of truth.
+    const pendingResume = this._pendingResume;
     this._runTrackerUpdate(() => this._toolInvocations?.reset());
 
     this._store.onLoadExternalState(state);
+    this._clearPendingResume(pendingResume);
   }
 
   /**
@@ -925,6 +968,7 @@ export class ExternalStoreThreadRuntimeCore
    * without run-cancel semantics (`onCancel`, composer draft restoration).
    */
   public unstable_notifySessionReset(): void {
+    this._clearPendingResume(this._pendingResume);
     this._runTrackerUpdate(() => this._toolInvocations?.reset());
     this._store.queue?.__internal_notifyCancelled?.();
   }
@@ -1094,13 +1138,17 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public override reset(initialMessages?: readonly ThreadMessageLike[]) {
+    const pendingResume = this._pendingResume;
     const repo = new MessageRepository();
     repo.import(ExportedMessageRepository.fromArray(initialMessages ?? []));
     this.updateMessages(repo.getMessages());
+    this._clearPendingResume(pendingResume);
   }
 
   public override import(data: ExportedMessageRepository) {
+    const pendingResume = this._pendingResume;
     super.import(data);
+    this._clearPendingResume(pendingResume);
 
     if (this._store.onImport) {
       this._store.onImport(this.repository.getMessages());

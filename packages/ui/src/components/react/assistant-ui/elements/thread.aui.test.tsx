@@ -12,7 +12,9 @@ import {
   type ChatModelAdapter,
   ExportedMessageRepository,
   type RealtimeVoiceAdapter,
+  type ThreadMessage,
   useAui,
+  useExternalStoreRuntime,
   useLocalRuntime,
 } from "@assistant-ui/react";
 import { useEffect } from "react";
@@ -61,6 +63,28 @@ function TestThread(props: ThreadProps) {
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <Thread {...props} />
+    </AssistantRuntimeProvider>
+  );
+}
+
+function ResumableTestThread({
+  onResume,
+  onNew,
+}: {
+  onResume: () => Promise<void>;
+  onNew: () => Promise<void>;
+}) {
+  const runtime = useExternalStoreRuntime<ThreadMessage>({
+    messages: [],
+    isRunning: false,
+    canResume: true,
+    onResume,
+    onNew,
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
     </AssistantRuntimeProvider>
   );
 }
@@ -165,6 +189,47 @@ afterEach(async () => {
 });
 
 describe("Thread", () => {
+  it("resumes an available checkpoint from an empty composer without sending", async () => {
+    const onResume = vi.fn(async () => {});
+    const onNew = vi.fn(async () => {});
+    render(<ResumableTestThread onResume={onResume} onNew={onNew} />);
+
+    const resume = await screen.findByRole("button", {
+      name: "Resume generating",
+    });
+    expect(screen.queryByRole("button", { name: "Send message" })).toBeNull();
+    await act(async () => {
+      fireEvent.click(resume);
+    });
+
+    expect(onResume).toHaveBeenCalledOnce();
+    expect(onNew).not.toHaveBeenCalled();
+  });
+
+  it("shows Send for a draft and restores Resume when the draft is cleared", async () => {
+    const onResume = vi.fn(async () => {});
+    const onNew = vi.fn(async () => {});
+    render(<ResumableTestThread onResume={onResume} onNew={onNew} />);
+    await screen.findByRole("button", { name: "Resume generating" });
+    const input = screen.getByRole("textbox");
+
+    fireEvent.change(input, { target: { value: "A new request" } });
+    expect(
+      await screen.findByRole("button", { name: "Send message" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Resume generating" }),
+    ).toBeNull();
+
+    fireEvent.change(input, { target: { value: "" } });
+    expect(
+      await screen.findByRole("button", { name: "Resume generating" }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Send message" })).toBeNull();
+    expect(onResume).not.toHaveBeenCalled();
+    expect(onNew).not.toHaveBeenCalled();
+  });
+
   it("focuses the composer by default", async () => {
     render(<TestThread />);
 

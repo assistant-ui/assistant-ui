@@ -59,6 +59,7 @@ import {
   PhoneIcon,
   RefreshCwIcon,
   SquareIcon,
+  PlayIcon,
   ThumbsDownIcon,
   ThumbsUpIcon,
 } from "lucide-react";
@@ -71,6 +72,9 @@ import {
 } from "react";
 
 export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
+
+const shouldShowComposerResume = (s: AssistantState) =>
+  !!s.thread.canResume && s.composer.type === "thread" && s.composer.isEmpty;
 
 /**
  * Optional component overrides for the thread. `AssistantMessage` and
@@ -487,9 +491,10 @@ const ComposerAction: FC = () => {
         </AuiIf>
         <AuiIf
           condition={(s) =>
-            !s.composer.canCancel ||
-            (s.thread.voice !== undefined &&
-              s.composer.submission === undefined)
+            (!s.composer.canCancel ||
+              (s.thread.voice !== undefined &&
+                s.composer.submission === undefined)) &&
+            !shouldShowComposerResume(s)
           }
         >
           <ComposerPrimitive.Send asChild>
@@ -505,6 +510,21 @@ const ComposerAction: FC = () => {
               <ArrowUpIcon className="aui-composer-send-icon size-4" />
             </TooltipIconButton>
           </ComposerPrimitive.Send>
+        </AuiIf>
+        <AuiIf condition={shouldShowComposerResume}>
+          <ComposerPrimitive.Resume asChild>
+            <TooltipIconButton
+              tooltip="Resume generating"
+              side="bottom"
+              type="button"
+              variant="default"
+              size="icon"
+              className="aui-composer-resume size-7 rounded-full"
+              aria-label="Resume generating"
+            >
+              <PlayIcon className="aui-composer-resume-icon size-4" />
+            </TooltipIconButton>
+          </ComposerPrimitive.Resume>
         </AuiIf>
         <AuiIf
           condition={(s) =>
