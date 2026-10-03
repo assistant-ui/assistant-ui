@@ -132,10 +132,12 @@ describe("GeoMap", () => {
       />,
     );
 
-    await waitFor(() => expect(leaflet.map).toHaveBeenCalledTimes(1));
+    await waitFor(() => {
+      expect(leaflet.map).toHaveBeenCalledTimes(1);
+      expect(leaflet.marker).toHaveBeenCalledTimes(1);
+    });
 
     expect(screen.queryByText("Outside")).toBeNull();
-    expect(leaflet.marker).toHaveBeenCalledTimes(1);
     expect(leaflet.polyline).not.toHaveBeenCalled();
   });
 
