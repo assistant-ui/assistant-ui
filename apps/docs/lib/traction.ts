@@ -357,6 +357,7 @@ export type PackageDownloads = {
 
 export type NpmDownloads = {
   totalWeekly: number;
+  weeklyAvailability: { total: boolean };
   perPackage: Record<string, PackageDownloads>;
 };
 
@@ -537,13 +538,14 @@ async function fetchPackageDownloadRange(
   name: string,
   end: string,
   revalidate?: number,
-): Promise<PackageDownloads> {
+): Promise<PackageDownloads | null> {
   const downloads = await getDownloadsRange(
     name,
     shiftDays(end, -60),
     end,
     revalidate,
   );
+  if (downloads === null) return null;
   const all = downloads.map((d) => d.downloads);
   if (all.length === 0) return EMPTY_DOWNLOADS;
 
@@ -577,11 +579,18 @@ export async function fetchNpmDownloads(
   );
   const perPackage: Record<string, PackageDownloads> = {};
   let totalWeekly = 0;
+  let totalWeeklyAvailable = end !== null;
   for (const [name, downloads] of entries) {
-    perPackage[name] = downloads;
-    totalWeekly += downloads.weekly;
+    if (downloads === null) totalWeeklyAvailable = false;
+    const packageDownloads = downloads ?? EMPTY_DOWNLOADS;
+    perPackage[name] = packageDownloads;
+    totalWeekly += packageDownloads.weekly;
   }
-  return { totalWeekly, perPackage };
+  return {
+    totalWeekly: totalWeeklyAvailable ? totalWeekly : 0,
+    weeklyAvailability: { total: totalWeeklyAvailable },
+    perPackage,
+  };
 }
 
 export const TIMELINE_PACKAGES = [
@@ -743,7 +752,9 @@ async function fetchDownloadsTimelineForEnd(
       monthEnd(settled),
       revalidate ?? NPM_REVALIDATE.COLD,
     );
-    if (!settledDailies.length) return { points: [], complete: false };
+    if (settledDailies === null || settledDailies.length === 0) {
+      return { points: [], complete: false };
+    }
     dailies.push(...settledDailies);
   }
   let complete = true;
@@ -755,7 +766,7 @@ async function fetchDownloadsTimelineForEnd(
       npmEnd,
       revalidate ?? NPM_REVALIDATE.WARM,
     );
-    if (tailDailies.length) dailies.push(...tailDailies);
+    if (tailDailies && tailDailies.length) dailies.push(...tailDailies);
     else complete = false;
   }
   if (!dailies.length) return { points: [], complete: false };

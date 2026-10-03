@@ -73,6 +73,36 @@ describe("fetchNpmDownloads", () => {
       monthly: 23 * EARLIER_DAY + LAST_WEEK.downloads,
       prevMonthly: 30 * EARLIER_DAY,
     });
+    expect(downloads.weeklyAvailability).toEqual({ total: true });
+  });
+
+  it("withholds the total when any active package range is unavailable", async () => {
+    getDownloadsRange.mockImplementation(
+      (name: string, start: string, end: string) =>
+        Promise.resolve(
+          name === FLAGSHIP_PACKAGE ? null : rangeRows(start, end),
+        ),
+    );
+
+    const downloads = await fetchNpmDownloads();
+
+    expect(downloads.totalWeekly).toBe(0);
+    expect(downloads.weeklyAvailability).toEqual({ total: false });
+    expect(downloads.perPackage[FLAGSHIP_PACKAGE]).toEqual({
+      weekly: 0,
+      series: [],
+      monthly: 0,
+      prevMonthly: 0,
+    });
+  });
+
+  it("keeps a successful empty range complete", async () => {
+    getDownloadsRange.mockResolvedValue([]);
+
+    const downloads = await fetchNpmDownloads();
+
+    expect(downloads.totalWeekly).toBe(0);
+    expect(downloads.weeklyAvailability).toEqual({ total: true });
   });
 
   it.each([
@@ -85,6 +115,7 @@ describe("fetchNpmDownloads", () => {
 
     expect(getDownloadsRange).not.toHaveBeenCalled();
     expect(downloads.totalWeekly).toBe(0);
+    expect(downloads.weeklyAvailability).toEqual({ total: false });
     expect(downloads.perPackage[FLAGSHIP_PACKAGE]).toEqual({
       weekly: 0,
       series: [],

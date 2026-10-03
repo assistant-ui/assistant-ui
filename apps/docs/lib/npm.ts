@@ -53,11 +53,12 @@ async function npmGetJson(path: string, revalidate: number): Promise<unknown> {
 async function npmFetch(
   path: string,
   revalidate: number,
-): Promise<NpmDailyDownloads[]> {
+): Promise<NpmDailyDownloads[] | null> {
   const data = (await npmGetJson(path, revalidate)) as {
     downloads?: NpmDailyDownloads[];
   } | null;
-  return data?.downloads ?? [];
+  if (data === null) return null;
+  return data.downloads ?? [];
 }
 
 export function getDownloadsRange(
@@ -65,7 +66,7 @@ export function getDownloadsRange(
   startDate: string,
   endDate: string,
   revalidate: number = NPM_REVALIDATE.WARM,
-): Promise<NpmDailyDownloads[]> {
+): Promise<NpmDailyDownloads[] | null> {
   return npmFetch(
     `/downloads/range/${startDate}:${endDate}/${pkg}`,
     revalidate,

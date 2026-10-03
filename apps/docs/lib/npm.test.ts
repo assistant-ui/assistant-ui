@@ -51,7 +51,7 @@ describe("npm", () => {
   it("carries a long revalidation for settled history", async () => {
     respond({ downloads: [] });
 
-    await range(NPM_REVALIDATE.COLD);
+    await expect(range(NPM_REVALIDATE.COLD)).resolves.toEqual([]);
 
     expect(fetchMock.mock.calls[0]![1]).toEqual({
       next: { revalidate: NPM_REVALIDATE.COLD },
@@ -66,12 +66,18 @@ describe("npm", () => {
     expect(fetchMock.mock.calls[0]![1]).toEqual({ cache: "no-store" });
   });
 
-  it("reads a refused request as no data, and says so", async () => {
+  it("preserves a refused request as unavailable, and says so", async () => {
     respond(null, false, 429);
 
-    await expect(range()).resolves.toEqual([]);
+    await expect(range()).resolves.toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining("429"));
+  });
+
+  it("keeps a successful empty range distinct from a refusal", async () => {
+    respond({ downloads: [] });
+
+    await expect(range()).resolves.toEqual([]);
   });
 
   it("reads the week npm names alongside its count", async () => {

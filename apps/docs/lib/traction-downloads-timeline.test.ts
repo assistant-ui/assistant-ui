@@ -146,7 +146,9 @@ describe("fetchDownloadsTimeline", () => {
   it("returns nothing when the tail cannot be read", async () => {
     getDownloadsRange.mockImplementation(
       (_pkg: string, start: string, end: string) =>
-        Promise.resolve(start.startsWith("2026-09") ? [] : daysIn(start, end)),
+        Promise.resolve(
+          start.startsWith("2026-09") ? null : daysIn(start, end),
+        ),
     );
 
     const points = await fetchDownloadsTimeline("@assistant-ui/react");
@@ -157,7 +159,9 @@ describe("fetchDownloadsTimeline", () => {
   it("returns nothing when the settled history cannot be read", async () => {
     getDownloadsRange.mockImplementation(
       (_pkg: string, start: string, end: string) =>
-        Promise.resolve(start.startsWith("2025-09") ? [] : daysIn(start, end)),
+        Promise.resolve(
+          start.startsWith("2025-09") ? null : daysIn(start, end),
+        ),
     );
 
     const points = await fetchDownloadsTimeline("@assistant-ui/react");
@@ -166,7 +170,7 @@ describe("fetchDownloadsTimeline", () => {
   });
 
   it("returns nothing when npm is unreachable for both windows", async () => {
-    getDownloadsRange.mockResolvedValue([]);
+    getDownloadsRange.mockResolvedValue(null);
 
     await expect(
       fetchDownloadsTimeline("@assistant-ui/react"),
@@ -256,7 +260,7 @@ describe("fetchTimelineSeries", () => {
       (pkg: string, start: string, end: string) =>
         Promise.resolve(
           pkg === "quiet" && start.startsWith("2026-09")
-            ? []
+            ? null
             : daysIn(start, end),
         ),
     );
@@ -276,7 +280,7 @@ describe("fetchTimelineSeries", () => {
       (pkg: string, start: string, end: string) =>
         Promise.resolve(
           pkg === "quiet" && start.startsWith("2025-09")
-            ? []
+            ? null
             : daysIn(start, end),
         ),
     );

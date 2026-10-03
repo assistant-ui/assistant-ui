@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => {
   return {
     requests,
     timelines,
+    weeklyDownloadsStat: vi.fn(() => null),
     connection: vi.fn(
       () =>
         new Promise<void>((resolve) => {
@@ -28,7 +29,8 @@ const mocks = vi.hoisted(() => {
           }),
       ),
       fetchNpmDownloads: vi.fn(async () => ({
-        totalWeekly: 0,
+        totalWeekly: 42,
+        weeklyAvailability: { total: false },
         perPackage: {},
       })),
       fetchStarHistory: vi.fn(async () => []),
@@ -81,7 +83,7 @@ vi.mock("@/components/pages/traction/star-history-chart", () => ({
   StarHistoryChart: () => null,
 }));
 vi.mock("@/components/pages/traction/weekly-downloads-stat", () => ({
-  WeeklyDownloadsStat: () => null,
+  WeeklyDownloadsStat: mocks.weeklyDownloadsStat,
 }));
 
 const { default: TractionPage } = await import("./page");
@@ -132,6 +134,15 @@ describe("TractionPage", () => {
     ]) {
       expect(read).toHaveBeenCalled();
     }
+
+    const [stats] = await rendered;
+    const downloadStat = Children.toArray(
+      (stats as ReactElement<{ children: ReactNode }>).props.children,
+    ).find(
+      (child) =>
+        isValidElement(child) && child.type === mocks.weeklyDownloadsStat,
+    ) as ReactElement<{ total: { value: number } }>;
+    expect(downloadStat.props.total.value).toBe(0);
   });
 
   it("drops forks, commits, age, and dependents when GitHub does not answer", async () => {

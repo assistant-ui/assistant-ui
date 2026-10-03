@@ -202,7 +202,7 @@ async function Stats() {
           caption: FLAGSHIP_PACKAGE,
         }}
         total={{
-          value: npm.totalWeekly,
+          value: npm.weeklyAvailability.total ? npm.totalWeekly : 0,
           caption: "across all packages",
         }}
       />
