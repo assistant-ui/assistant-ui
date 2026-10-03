@@ -11,6 +11,10 @@ export type ToolCallTreeEntry = {
   readonly messageId: string;
 };
 
+export type WalkToolCallTreeOptions = {
+  readonly shouldDescend?: (part: ToolCallMessagePart) => boolean;
+};
+
 /**
  * Walk every tool-call part reachable from `messages`. A tool call projects a
  * child run as nested messages on `ToolCallMessagePart.messages`, so a
@@ -22,19 +26,77 @@ export type ToolCallTreeEntry = {
  * nested call is the child run's message rather than the top-level message the
  * tree hangs from. Only assistant messages are descended, the same rule
  * {@link mapToolCallPartsDeep} rewrites under, so a part this reports is always
- * a part that can be written back.
+ * a part that can be written back. Returning false from `shouldDescend` prunes
+ * a part's nested messages. Cyclic branches are yielded once and not revisited.
  */
 export function* walkToolCallTree(
   messages: readonly ThreadMessage[],
+  options?: WalkToolCallTreeOptions,
 ): Generator<ToolCallTreeEntry> {
-  for (const message of messages) {
-    if (message?.role !== "assistant" || !Array.isArray(message.content)) {
+  type Frame =
+    | {
+        readonly type: "messages";
+        readonly values: readonly ThreadMessage[];
+        index: number;
+      }
+    | {
+        readonly type: "content";
+        readonly values: readonly ThreadAssistantMessagePart[];
+        readonly messageId: string;
+        index: number;
+      };
+
+  const frames: Frame[] = [{ type: "messages", values: messages, index: 0 }];
+  let activeMessageArrays: WeakSet<object> | undefined;
+
+  const pushMessagesFrame = (
+    frame: Extract<Frame, { readonly type: "messages" }>,
+  ): boolean => {
+    if (!activeMessageArrays) {
+      activeMessageArrays = new WeakSet<object>();
+      for (const active of frames) {
+        if (active.type === "messages") {
+          activeMessageArrays.add(active.values);
+        }
+      }
+    }
+    if (activeMessageArrays.has(frame.values)) {
+      return false;
+    }
+    activeMessageArrays.add(frame.values);
+    frames.push(frame);
+    return true;
+  };
+
+  while (frames.length > 0) {
+    const frame = frames[frames.length - 1]!;
+    if (frame.index >= frame.values.length) {
+      frames.pop();
+      if (frame.type === "messages") {
+        activeMessageArrays?.delete(frame.values);
+      }
       continue;
     }
-    for (const part of message.content) {
-      if (!part || part.type !== "tool-call") continue;
-      yield { part, messageId: message.id };
-      if (part.messages?.length) yield* walkToolCallTree(part.messages);
+
+    if (frame.type === "messages") {
+      const message = frame.values[frame.index++];
+      if (message?.role !== "assistant" || !Array.isArray(message.content)) {
+        continue;
+      }
+      frames.push({
+        type: "content",
+        values: message.content,
+        messageId: message.id,
+        index: 0,
+      });
+      continue;
+    }
+
+    const part = frame.values[frame.index++];
+    if (!part || part.type !== "tool-call") continue;
+    yield { part, messageId: frame.messageId };
+    if (part.messages?.length && options?.shouldDescend?.(part) !== false) {
+      pushMessagesFrame({ type: "messages", values: part.messages, index: 0 });
     }
   }
 }
@@ -45,12 +107,13 @@ export function* walkToolCallTree(
  */
 export function* iterateToolCallParts(
   content: readonly ThreadAssistantMessagePart[],
+  options?: WalkToolCallTreeOptions,
 ): Generator<ToolCallMessagePart> {
   for (const part of content) {
     if (!part || part.type !== "tool-call") continue;
     yield part;
-    if (part.messages?.length) {
-      for (const entry of walkToolCallTree(part.messages)) {
+    if (part.messages?.length && options?.shouldDescend?.(part) !== false) {
+      for (const entry of walkToolCallTree(part.messages, options)) {
         yield entry.part;
       }
     }
@@ -67,31 +130,127 @@ export function mapToolCallPartsDeep(
   content: readonly ThreadAssistantMessagePart[],
   fn: (part: ToolCallMessagePart) => ToolCallMessagePart,
 ): { content: readonly ThreadAssistantMessagePart[]; changed: boolean } {
-  let changed = false;
-  const next = content.map((part): ThreadAssistantMessagePart => {
-    if (part.type !== "tool-call") return part;
-    let mapped = fn(part);
-    if (mapped.messages !== undefined) {
-      let nestedChanged = false;
-      const nestedMessages = mapped.messages.map((nested) => {
-        if (nested.role !== "assistant" || !Array.isArray(nested.content)) {
-          return nested;
-        }
-        const assistant = nested as ThreadAssistantMessage;
-        const result = mapToolCallPartsDeep(assistant.content, fn);
-        if (!result.changed) return nested;
-        nestedChanged = true;
-        return { ...assistant, content: result.content };
-      });
-      if (nestedChanged) {
-        mapped =
-          mapped === part
-            ? { ...part, messages: nestedMessages }
-            : { ...mapped, messages: nestedMessages };
-      }
+  type ContentFrame = {
+    readonly type: "content";
+    readonly values: readonly ThreadAssistantMessagePart[];
+    readonly parent?: {
+      readonly frame: MessagesFrame;
+      readonly message: ThreadAssistantMessage;
+    };
+    readonly next: ThreadAssistantMessagePart[];
+    index: number;
+    changed: boolean;
+  };
+
+  type MessagesFrame = {
+    readonly type: "messages";
+    readonly values: readonly ThreadMessage[];
+    readonly originalPart: ToolCallMessagePart;
+    readonly mappedPart: ToolCallMessagePart;
+    readonly parent: ContentFrame;
+    readonly next: ThreadMessage[];
+    index: number;
+    changed: boolean;
+  };
+
+  const root: ContentFrame = {
+    type: "content",
+    values: content,
+    next: [],
+    index: 0,
+    changed: false,
+  };
+  const frames: Array<ContentFrame | MessagesFrame> = [root];
+  let activeMessageArrays: WeakSet<object> | undefined;
+
+  const pushMessagesFrame = (frame: MessagesFrame): boolean => {
+    activeMessageArrays ??= new WeakSet<object>();
+    if (activeMessageArrays.has(frame.values)) {
+      return false;
     }
-    if (mapped !== part) changed = true;
-    return mapped;
-  });
-  return changed ? { content: next, changed } : { content, changed };
+    activeMessageArrays.add(frame.values);
+    frames.push(frame);
+    return true;
+  };
+
+  while (frames.length > 0) {
+    const frame = frames[frames.length - 1]!;
+
+    if (frame.type === "content") {
+      if (frame.index >= frame.values.length) {
+        frames.pop();
+        const nextContent = frame.changed ? frame.next : frame.values;
+        if (!frame.parent) {
+          return { content: nextContent, changed: frame.changed };
+        }
+
+        const { frame: parent, message } = frame.parent;
+        if (frame.changed) {
+          parent.next.push({ ...message, content: nextContent });
+          parent.changed = true;
+        } else {
+          parent.next.push(message);
+        }
+        continue;
+      }
+
+      const part = frame.values[frame.index++]!;
+      if (part.type !== "tool-call") {
+        frame.next.push(part);
+        continue;
+      }
+
+      const mapped = fn(part);
+      if (mapped.messages === undefined) {
+        frame.next.push(mapped);
+        if (mapped !== part) frame.changed = true;
+        continue;
+      }
+
+      const descended = pushMessagesFrame({
+        type: "messages",
+        values: mapped.messages,
+        originalPart: part,
+        mappedPart: mapped,
+        parent: frame,
+        next: [],
+        index: 0,
+        changed: false,
+      });
+      if (!descended) {
+        frame.next.push(mapped);
+        if (mapped !== part) frame.changed = true;
+      }
+      continue;
+    }
+
+    if (frame.index >= frame.values.length) {
+      frames.pop();
+      activeMessageArrays?.delete(frame.values);
+      const mapped = frame.changed
+        ? { ...frame.mappedPart, messages: frame.next }
+        : frame.mappedPart;
+      frame.parent.next.push(mapped);
+      if (mapped !== frame.originalPart) frame.parent.changed = true;
+      continue;
+    }
+
+    const nested = frame.values[frame.index++]!;
+    if (nested.role !== "assistant" || !Array.isArray(nested.content)) {
+      frame.next.push(nested);
+      continue;
+    }
+
+    const assistant = nested as ThreadAssistantMessage;
+    frames.push({
+      type: "content",
+      values: assistant.content,
+      parent: { frame, message: assistant },
+      next: [],
+      index: 0,
+      changed: false,
+    });
+  }
+
+  throw new Error("Tool-call tree traversal ended without a root result");
 }
