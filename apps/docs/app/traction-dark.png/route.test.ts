@@ -41,11 +41,4 @@ describe("GET /traction-dark.png", () => {
     await response;
     expect(mocks.renderTractionImage).toHaveBeenCalledWith("dark");
   });
-
-  it("renders the dark theme", async () => {
-    const response = GET();
-    mocks.requests.shift()?.();
-    await response;
-    expect(mocks.renderTractionImage).toHaveBeenCalledWith("dark");
-  });
 });

@@ -126,6 +126,12 @@ describe("TractionPage", () => {
     await rendered;
 
     expect(mocks.traction.fetchNpmDownloads).toHaveBeenCalledOnce();
+    for (const read of [
+      ...Object.values(mocks.traction),
+      ...Object.values(mocks.github),
+    ]) {
+      expect(read).toHaveBeenCalled();
+    }
   });
 
   it("keeps all eight stat cards when GitHub does not answer", async () => {
