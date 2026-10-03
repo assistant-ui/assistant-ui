@@ -133,6 +133,22 @@ export const classifyThreads = (
   return { threadIds, archivedThreadIds, threadIdMap, threadData };
 };
 
+// Merges a fetched thread into a state: a remote id that already resolves to
+// a slot refreshes that slot; an unknown one is appended, since it may live on
+// a page that has not loaded yet.
+export const mergeFetchedThread = (
+  state: RemoteThreadState,
+  thread: RemoteThreadMetadata,
+): RemoteThreadState => ({
+  ...state,
+  ...classifyThreads([thread], {
+    threadIds: [...state.threadIds],
+    archivedThreadIds: [...state.archivedThreadIds],
+    threadIdMap: state.threadIdMap,
+    threadData: state.threadData,
+  }),
+});
+
 export type RemoteThreadState = {
   readonly isLoading: boolean;
   readonly loadError: unknown;
