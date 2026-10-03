@@ -66,21 +66,14 @@ export function PackageDirectory({
   return (
     <div className="flex flex-col gap-12 md:gap-14">
       <section>
-        {concentration ? (
+        {concentration && concentration.total > 0 ? (
           <DownloadConcentration
             {...concentration}
             hovered={hovered}
             onHover={setHovered}
           />
         ) : (
-          <div aria-busy="true" className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
-              <h2 className="text-sm font-medium">Share of weekly downloads</h2>
-              <Skeleton className="h-4 w-56 motion-reduce:animate-none" />
-            </div>
-            <Skeleton className="h-2 w-full motion-reduce:animate-none" />
-            <Skeleton className="h-16 w-full motion-reduce:animate-none md:h-4" />
-          </div>
+          <SharePlaceholder pending={concentration === null} />
         )}
       </section>
 
@@ -133,7 +126,6 @@ export function PackageDirectory({
                     row={row}
                     lit={hovered !== null && isLit(row.name)}
                     dimmed={hovered !== null && !isLit(row.name)}
-                    pending={concentration === null}
                   />
                 ))}
             </div>
@@ -180,16 +172,35 @@ function FilterChip({
   );
 }
 
+function SharePlaceholder({ pending }: { pending: boolean }) {
+  const bar = cn(
+    "w-full motion-reduce:animate-none",
+    !pending && "animate-none",
+  );
+  return (
+    <div aria-busy={pending || undefined} className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+        <h2 className="text-sm font-medium">Share of weekly downloads</h2>
+        {pending ? (
+          <Skeleton className="h-4 w-56 motion-reduce:animate-none" />
+        ) : (
+          <p className="text-muted-foreground text-xs">unavailable right now</p>
+        )}
+      </div>
+      <Skeleton className={cn("h-2", bar)} />
+      <Skeleton className={cn("h-16 md:h-4", bar)} />
+    </div>
+  );
+}
+
 function PackageRow({
   row,
   lit,
   dimmed,
-  pending,
 }: {
   row: DirectoryRow;
   lit: boolean;
   dimmed: boolean;
-  pending: boolean;
 }) {
   return (
     <a
@@ -232,7 +243,7 @@ function PackageRow({
             <Sparkline values={row.series} className="text-foreground/40" />
           </span>
         </span>
-      ) : pending ? (
+      ) : (
         <span
           aria-hidden
           className="invisible flex shrink-0 items-baseline gap-3 font-mono text-[11px]"
@@ -240,7 +251,7 @@ function PackageRow({
           0 /wk
           <span className="hidden h-[18px] w-16 md:block" />
         </span>
-      ) : null}
+      )}
     </a>
   );
 }
