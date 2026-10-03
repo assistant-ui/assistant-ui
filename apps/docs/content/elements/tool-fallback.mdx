@@ -101,6 +101,8 @@ approval: {
 
 Choosing "Always allow" here shows a confirm/back step before it calls `respondToApproval({ optionId: "always" })`; the other two resolve immediately. In a thread that cannot answer tool calls, where `s.thread.capabilities.answerToolCall` is `false` as in a sub-agent transcript, the block shows only the prompt.
 
+On the web and React Native, changing `approval.id` starts a fresh request in both the default renderer and the composed approval component, clearing the previous request's input, confirmation, error, and submission state.
+
 ### Receipt of a settled request
 
 Once `approval.approved` or `approval.resolution` is set, the controls give way to a receipt, so scrolling back never shows a live button for a decision already made. The receipt keeps the prompt and states what happened in the past tense: "Allowed" or "Denied" for a decision, "Answered" or "Dismissed" for a question, and "Cancelled before a decision" or "Expired before a decision" for a request that closed unanswered. The chosen option's label follows the verb, a typed `text` and a host `reason` follow on their own lines, and `isAutomatic` appends "automatically" when a policy decided instead of the user.

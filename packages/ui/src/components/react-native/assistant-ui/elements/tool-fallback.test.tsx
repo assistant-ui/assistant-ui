@@ -282,6 +282,24 @@ describe("ToolFallback", () => {
     expect(resume).toHaveBeenCalledWith({ approved: false });
   });
 
+  it("accepts another interrupt after the run resumes", async () => {
+    const resume = vi.fn();
+    await renderTool({ interrupt: { type: "human", payload: {} }, resume });
+    await press("Allow");
+    expect(isDisabled("Allow")).toBe(true);
+
+    await renderTool({ status: { type: "running" }, resume });
+    expect(buttonNames()).toEqual([]);
+    await renderTool({ interrupt: { type: "human", payload: {} }, resume });
+    expect(isDisabled("Deny")).toBe(false);
+    await press("Deny");
+
+    expect(resume.mock.calls).toEqual([
+      [{ approved: true }],
+      [{ approved: false }],
+    ]);
+  });
+
   it("keeps the addResult fallback for tool-call actions", async () => {
     const addResult = vi.fn();
     await renderTool({
@@ -600,5 +618,131 @@ describe("ToolFallbackApproval", () => {
 
     expect(respondToApproval).toHaveBeenLastCalledWith({ approved: false });
     expect(container.querySelector('[role="alert"]')).toBeNull();
+  });
+});
+
+describe("approval request state", () => {
+  it.each(["default", "composed"])(
+    "clears the submission lock for a new request in the %s renderer",
+    async (renderer) => {
+      const respondToApproval = vi.fn(async () => {});
+      const renderApproval = (id: string) =>
+        renderer === "default"
+          ? renderTool({ approval: { id }, respondToApproval })
+          : show(
+              <ToolFallbackApproval
+                approval={{ id }}
+                respondToApproval={respondToApproval}
+              />,
+            );
+
+      await renderApproval("first-request");
+      await press("Allow");
+      expect(isDisabled("Allow")).toBe(true);
+      await renderApproval("next-request");
+      expect(isDisabled("Deny")).toBe(false);
+      await press("Deny");
+
+      expect(respondToApproval.mock.calls).toEqual([
+        [{ approved: true }],
+        [{ approved: false }],
+      ]);
+    },
+  );
+
+  it("preserves a same-request draft but clears the draft and error for a new request", async () => {
+    const approval = {
+      ...pendingApproval,
+      display: "text" as const,
+      prompt: "Which environment?",
+    };
+    const respondToApproval = vi.fn(async () => {
+      throw new Error("Environment unavailable");
+    });
+    await show(
+      <ToolFallbackApproval
+        approval={approval}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    await type("Which environment?", "staging");
+    await show(
+      <ToolFallbackApproval
+        approval={{ ...approval, prompt: "Choose an environment" }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    expect(container.querySelector("textarea")?.value).toBe("staging");
+    await press("Send");
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      "Environment unavailable",
+    );
+
+    await show(
+      <ToolFallbackApproval
+        approval={{ ...approval, id: "next-request" }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    expect(container.querySelector("textarea")?.value).toBe("");
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    expect(isDisabled("Send")).toBe(false);
+  });
+
+  it("leaves confirmation when a different request arrives", async () => {
+    const approval = {
+      ...pendingApproval,
+      options: [{ id: "once", kind: "allow-once", confirm: true }],
+    };
+    const respondToApproval = vi.fn(async () => {});
+    await show(
+      <ToolFallbackApproval
+        approval={approval}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    await press("Allow");
+    expect(buttonNames()).toEqual(["Confirm", "Back"]);
+
+    await show(
+      <ToolFallbackApproval
+        approval={{ ...approval, id: "next-request" }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+    expect(buttonNames()).toEqual(["Allow", "Deny"]);
+    expect(respondToApproval).not.toHaveBeenCalled();
+  });
+
+  it("ignores an earlier request's rejection while the next is pending", async () => {
+    let rejectPrevious!: (error: Error) => void;
+    const previousResponse = new Promise<void>((_, reject) => {
+      rejectPrevious = reject;
+    });
+    const nextResponse = vi.fn(() => new Promise<void>(() => {}));
+    await show(
+      <ToolFallbackApproval
+        approval={pendingApproval}
+        respondToApproval={() => previousResponse}
+      />,
+    );
+    await press("Allow");
+
+    await show(
+      <ToolFallbackApproval
+        approval={{ id: "next-request" }}
+        respondToApproval={nextResponse}
+      />,
+    );
+    expect(isDisabled("Allow")).toBe(false);
+    await press("Allow");
+    expect(nextResponse).toHaveBeenCalledTimes(1);
+    await act(async () =>
+      rejectPrevious(new Error("Previous request expired")),
+    );
+
+    expect(isDisabled("Allow")).toBe(true);
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    expect(h.announce).not.toHaveBeenCalled();
   });
 });
