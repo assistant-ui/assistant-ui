@@ -330,8 +330,6 @@ declare class AcpThreadController implements AcpThreadControllerLike {
   updateOptions(options: AcpThreadControllerOptions): Promise<void>;
   load(): Promise<void>;
   append(message: AppendMessage): Promise<void>;
-  edit(message: AppendMessage): Promise<void>;
-  reload(parentId: string | null): Promise<void>;
   cancel(): Promise<void>;
   respondToApproval(options: RespondToToolApprovalOptions): Promise<void>;
   applyExternalMessages(messages: readonly ThreadMessage[]): Promise<void>;
@@ -346,8 +344,6 @@ type AcpThreadControllerLike = {
   updateOptions(options: AcpThreadControllerOptions): Promise<void>;
   load(): Promise<void>;
   append(message: AppendMessage): Promise<void>;
-  edit(message: AppendMessage): Promise<void>;
-  reload(parentId: string | null): Promise<void>;
   cancel(): Promise<void>;
   respondToApproval(options: RespondToToolApprovalOptions): Promise<void>;
   applyExternalMessages(messages: readonly ThreadMessage[]): Promise<void>;

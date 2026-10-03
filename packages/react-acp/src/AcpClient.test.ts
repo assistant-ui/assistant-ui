@@ -438,6 +438,50 @@ describe("AcpClient", () => {
     expect(ws.closed).toBe(true);
   });
 
+  it("does not open a socket when a listener disposes during connecting", async () => {
+    const client = mockClient();
+    const states: string[] = [];
+    client.onConnectionChange = (state) => {
+      states.push(state);
+      if (state === "connecting") client.dispose();
+    };
+
+    await expect(client.connect()).rejects.toThrow("disposed");
+
+    expect(MockWebSocket.instances).toHaveLength(0);
+    expect(client.connectionState).toBe("disconnected");
+    expect(states).toEqual(["connecting", "disconnected"]);
+  });
+
+  it("reports disconnected once when dispose interrupts a handshake", async () => {
+    const client = mockClient();
+    const pending = client.connect();
+    const ws = lastWs();
+    ws.open();
+    await until(() => ws.sent.find((f) => f.method === "initialize"));
+
+    const states: string[] = [];
+    client.onConnectionChange = (state) => states.push(state);
+    client.dispose();
+
+    await expect(pending).rejects.toThrow("disposed");
+    expect(states).toEqual(["disconnected"]);
+  });
+
+  it("reports disconnected once when the socket errors then closes", async () => {
+    const client = mockClient();
+    const states: string[] = [];
+    client.onConnectionChange = (state) => states.push(state);
+    const pending = client.connect();
+    const ws = lastWs();
+
+    ws.onerror?.({});
+    ws.onclose?.({});
+
+    await expect(pending).rejects.toThrow();
+    expect(states).toEqual(["connecting", "disconnected"]);
+  });
+
   it("notifies onConnectionChange once the session id is known", async () => {
     const client = mockClient();
     const seen: (string | undefined)[] = [];

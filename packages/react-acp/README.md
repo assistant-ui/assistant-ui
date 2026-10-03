@@ -103,15 +103,14 @@ request is answered with JSON-RPC `-32601`.
 
 ## Limitations
 
-**Editing or regenerating a message does not branch the agent's transcript.**
+**Editing and regenerating a message are not offered.**
 An ACP v1 session's history lives on the agent and can only be appended to —
-stable v1 has no fork or rewind primitive. `onEdit` and `onReload` create a
-branch in the assistant-ui thread and re-send the edited user message as the
-next `session/prompt` on the *same* session, so the agent still has the turns
-the UI replaced and will answer conditioned on them. This matches
-[`@assistant-ui/react-a2a`](../react-a2a/README.md), whose `reload()` likewise
-re-sends into the same server context. Fork-and-replay support belongs in a
-follow-up.
+stable v1 has no fork or rewind primitive (`session/fork` is in the schema but
+marked UNSTABLE, and takes no turn anchor). Re-sending an edited or reloaded
+user message on the *same* session would branch the assistant-ui thread while
+leaving the agent holding every turn the UI replaced, so the runtime wires
+neither `onEdit` nor `onReload` and both actions stay disabled. Fork-and-replay
+support belongs in a follow-up.
 
 **Restoring a transcript does not restore the agent's context.**
 `adapters.history` rebuilds the UI transcript, but the next turn starts from a

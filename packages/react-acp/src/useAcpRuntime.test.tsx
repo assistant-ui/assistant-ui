@@ -31,6 +31,7 @@ vi.mock("./AcpClient", async (importOriginal) => {
   return { ...actual, AcpClient: TrackedAcpClient };
 });
 
+import type { AssistantRuntime } from "@assistant-ui/core";
 import { AcpClient } from "./AcpClient";
 import { useAcpRuntime } from "./useAcpRuntime";
 
@@ -178,6 +179,18 @@ describe("useAcpRuntime", () => {
     await flushTimers();
 
     expect(tracked.teardown).toEqual(["cancel", "dispose"]);
+  });
+
+  it("offers cancel but not edit or reload over a linear ACP session", async () => {
+    const { runtimes } = renderRuntime(baseProps);
+    await flushTimers();
+
+    const { capabilities } = (
+      runtimes.at(-1) as AssistantRuntime
+    ).thread.getState();
+    expect(capabilities.cancel).toBe(true);
+    expect(capabilities.edit).toBe(false);
+    expect(capabilities.reload).toBe(false);
   });
 
   it("throws when neither client nor url is provided", () => {

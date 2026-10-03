@@ -55,8 +55,6 @@ export type AcpThreadControllerLike = {
   updateOptions(options: AcpThreadControllerOptions): Promise<void>;
   load(): Promise<void>;
   append(message: AppendMessage): Promise<void>;
-  edit(message: AppendMessage): Promise<void>;
-  reload(parentId: string | null): Promise<void>;
   cancel(): Promise<void>;
   respondToApproval(options: RespondToToolApprovalOptions): Promise<void>;
   applyExternalMessages(messages: readonly ThreadMessage[]): Promise<void>;
@@ -157,10 +155,17 @@ export class AcpThreadController implements AcpThreadControllerLike {
     this.runToken += 1;
     await this.settlePermissions();
     if (this.state.run.type === "running") {
+      const assistantId = this.state.run.assistantId;
       this.dispatch({
         type: "run-end",
         status: { type: "incomplete", reason: "cancelled" },
       });
+      try {
+        await this.client.cancel();
+      } catch {
+        // an unsendable cancel must not reject teardown
+      }
+      await this.persistAssistantHistory(assistantId);
     }
     this.hasLoaded = false;
   }
@@ -199,21 +204,6 @@ export class AcpThreadController implements AcpThreadControllerLike {
     await this.recordHistory(userMessage.parentId, userMessage);
     if (!startRun) return;
     await this.run(userMessage.id);
-  }
-
-  async edit(message: AppendMessage): Promise<void> {
-    await this.append(message);
-  }
-
-  async reload(parentId: string | null): Promise<void> {
-    const chain = parentId === null ? [] : this.chainTo(parentId);
-    for (let i = chain.length - 1; i >= 0; i--) {
-      const message = chain[i]!;
-      if (message.role === "user") {
-        await this.run(message.id);
-        return;
-      }
-    }
   }
 
   async cancel(): Promise<void> {
@@ -356,7 +346,6 @@ export class AcpThreadController implements AcpThreadControllerLike {
   private async settleSupersededPrompt(): Promise<void> {
     const previous = this.inflightPrompt;
     if (!previous) return;
-    this.inflightPrompt = undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
     await Promise.race([
       previous.then(noop, noop),
@@ -365,6 +354,7 @@ export class AcpThreadController implements AcpThreadControllerLike {
       }),
     ]);
     if (timer !== undefined) clearTimeout(timer);
+    if (this.inflightPrompt === previous) this.inflightPrompt = undefined;
   }
 
   private async settlePermissions(): Promise<void> {
@@ -457,20 +447,6 @@ export class AcpThreadController implements AcpThreadControllerLike {
       attachments:
         threadMessage.role === "user" ? threadMessage.attachments : [],
     };
-  }
-
-  private chainTo(messageId: string): readonly AcpThreadMessage[] {
-    const chain: AcpThreadMessage[] = [];
-    let id: string | null = messageId;
-    const seen = new Set<string>();
-    while (id && !seen.has(id)) {
-      seen.add(id);
-      const message: AcpThreadMessage | undefined = this.state.messagesById[id];
-      if (!message) break;
-      chain.unshift(message);
-      id = message.parentId;
-    }
-    return chain;
   }
 
   private async recordHistory(

@@ -280,8 +280,6 @@ export function useAcpRuntime(options: UseAcpRuntimeOptions): AssistantRuntime {
         messageRepository,
         extras,
         onNew: (message: AppendMessage) => controller.append(message),
-        onEdit: (message: AppendMessage) => controller.edit(message),
-        onReload: (parentId: string | null) => controller.reload(parentId),
         onCancel: () => controller.cancel(),
         onRespondToToolApproval: (approval: RespondToToolApprovalOptions) =>
           controller.respondToApproval(approval),

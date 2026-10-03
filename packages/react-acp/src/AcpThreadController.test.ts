@@ -44,6 +44,7 @@ class FakeClient {
   stopReason: string = "end_turn";
   promptError: Error | undefined = undefined;
   promptGate: (() => void) | undefined = undefined;
+  cancelReleases = true;
 
   private release: (() => void) | undefined = undefined;
 
@@ -76,6 +77,7 @@ class FakeClient {
   async cancel() {
     this.cancelCalls += 1;
     this.log?.push("client.cancel");
+    if (!this.cancelReleases) return;
     this.release?.();
     this.release = undefined;
   }
@@ -445,28 +447,6 @@ describe("AcpThreadController", () => {
     expect(client.prompts).toHaveLength(2);
   });
 
-  it("reloads from the last user message before the given parent", async () => {
-    const c = controller(client);
-    await c.attach();
-    await c.load();
-    await c.append(userAppend("again"));
-
-    const assistantId = assistantOf(c).id;
-    client.prompts.length = 0;
-    await c.reload(assistantId);
-
-    expect(client.prompts).toEqual([[{ type: "text", text: "again" }]]);
-    expect(client.prompts).toHaveLength(1);
-  });
-
-  it("does nothing when reloading an unknown message", async () => {
-    const c = controller(client);
-    await c.attach();
-    await c.load();
-    await c.reload("missing");
-    expect(client.prompts).toEqual([]);
-  });
-
   it("loads history and records new messages through the adapter", async () => {
     const history = historyAdapter();
     const c = controller(client, { history });
@@ -636,6 +616,70 @@ describe("AcpThreadController", () => {
 
     client.unblock();
     await done;
+  });
+
+  it("cancels the remote turn and persists it when detaching mid-run", async () => {
+    const history = historyAdapter();
+    const c = controller(client, { history });
+    await c.attach();
+    await c.load();
+
+    client.promptGate = () => {};
+    const done = c.append(userAppend("x"));
+    await flush();
+    client.emit({
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: "partial" },
+    });
+    expect(client.cancelCalls).toBe(0);
+    expect(history.appended).toHaveLength(1);
+
+    await c.detach();
+
+    expect(client.cancelCalls).toBe(1);
+    const persisted = history.appended.at(-1) as { message: ThreadMessage };
+    expect(persisted.message.role).toBe("assistant");
+    expect(persisted.message.status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+
+    client.unblock();
+    await done;
+  });
+
+  it("shares the superseded-prompt wait between concurrent replacements", async () => {
+    const c = controller(client);
+    await c.attach();
+    await c.load();
+
+    const order: string[] = [];
+    client.log = order;
+    client.promptGate = () => {};
+    // the agent keeps the turn open after session/cancel, as a real one does
+    client.cancelReleases = false;
+    const first = c.append(userAppend("1"));
+    await flush();
+    expect(order).toEqual(["prompt:send"]);
+
+    const replacements = [c.append(userAppend("2")), c.append(userAppend("3"))];
+    await flush();
+    const sent = () => order.filter((entry) => entry === "prompt:send").length;
+    expect(sent()).toBe(1);
+
+    client.promptGate = undefined;
+    client.unblock();
+    await Promise.all([first, ...replacements]);
+
+    const sends = order.flatMap((entry, index) =>
+      entry === "prompt:send" ? [index] : [],
+    );
+    const settled = order.indexOf("prompt:settled");
+    expect(sends).toHaveLength(3);
+    expect(settled).toBeGreaterThan(-1);
+    for (const send of sends.slice(1)) {
+      expect(send).toBeGreaterThan(settled);
+    }
   });
 
   it("awaits the superseded prompt before starting the replacement run", async () => {

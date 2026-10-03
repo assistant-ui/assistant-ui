@@ -213,12 +213,9 @@ export class AcpClient {
       }
     }
     this.failPending(new Error("AcpClient disposed"));
-    this.initializeResult = undefined;
-    this._sessionId = undefined;
     this.connectPromise = undefined;
     this.sessionPromise = undefined;
-    this._connectionState = "disconnected";
-    this.emitConnectionChange();
+    this.notifyDisconnected();
   }
 
   private emitConnectionChange() {
@@ -236,6 +233,21 @@ export class AcpClient {
     this.emitConnectionChange();
   }
 
+  /**
+   * Drops session data and reports `"disconnected"`. Notifies only when something
+   * observable changed, so a handshake failure followed by `onclose` — or a
+   * `dispose()` that interrupted one — reports it exactly once.
+   */
+  private notifyDisconnected() {
+    const hadSession =
+      this._sessionId !== undefined || this.initializeResult !== undefined;
+    this._sessionId = undefined;
+    this.initializeResult = undefined;
+    const stateChanged = this._connectionState !== "disconnected";
+    this._connectionState = "disconnected";
+    if (stateChanged || hadSession) this.emitConnectionChange();
+  }
+
   private settlePermissions(outcome: AcpPermissionOutcome): void {
     if (this.pendingPermissions.size === 0) return;
     const settle = [...this.pendingPermissions.values()];
@@ -245,16 +257,19 @@ export class AcpClient {
 
   private doConnect(): Promise<AcpInitializeResponse> {
     return new Promise<AcpInitializeResponse>((resolve, reject) => {
-      this.setConnectionState("connecting");
       let settled = false;
       const fail = (error: Error) => {
         if (settled) return;
         settled = true;
         this.failHandshake = undefined;
-        this.setConnectionState("disconnected");
+        this.notifyDisconnected();
         reject(error);
       };
+      // registered first: a synchronous onConnectionChange listener may dispose
+      // the client, and dispose() must be able to fail this handshake
       this.failHandshake = fail;
+      this.setConnectionState("connecting");
+      if (settled) return;
 
       let ws: AcpWebSocketLike;
       try {
@@ -330,10 +345,7 @@ export class AcpClient {
     this.failPending(new Error("ACP WebSocket connection closed"));
     this.settlePermissions({ outcome: "cancelled" });
     this.ws = undefined;
-    this._sessionId = undefined;
-    this.initializeResult = undefined;
-    this._connectionState = "disconnected";
-    this.emitConnectionChange();
+    this.notifyDisconnected();
   }
 
   private failPending(error: Error): void {
