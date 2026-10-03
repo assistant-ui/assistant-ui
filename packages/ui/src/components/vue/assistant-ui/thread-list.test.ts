@@ -271,6 +271,43 @@ describe("vue thread list", () => {
     unmount();
   });
 
+  it.each([
+    { dayLength: 23, boundaryOffset: 23.5, labels: ["Yesterday", "Earlier"] },
+    { dayLength: 25, boundaryOffset: 24.5, labels: ["Yesterday"] },
+  ])(
+    "uses local calendar boundaries when the previous day has $dayLength hours",
+    async ({ dayLength, boundaryOffset, labels }) => {
+      const startOfToday = freezeClockAtMidday();
+      vi.spyOn(Date.prototype, "setDate").mockImplementation(function (
+        this: Date,
+      ) {
+        return this.setTime(this.getTime() - dayLength * 60 * 60 * 1_000);
+      });
+
+      const { el, unmount } = mountThreadList(
+        makeAdapter([
+          {
+            remoteId: "t0",
+            title: "Recent yesterday",
+            lastMessageAt: new Date(startOfToday - 60 * 60 * 1_000),
+          },
+          {
+            remoteId: "t1",
+            title: "Boundary thread",
+            lastMessageAt: new Date(
+              startOfToday - boundaryOffset * 60 * 60 * 1_000,
+            ),
+          },
+        ]),
+      );
+
+      await settle(() => expect(slots(el, "item-title")).toHaveLength(2));
+      expect(texts(el, "group-label")).toEqual(labels);
+
+      unmount();
+    },
+  );
+
   it("groups a dateless thread under Today once any thread carries a date", async () => {
     const startOfToday = freezeClockAtMidday();
     const { el, unmount } = mountThreadList(
