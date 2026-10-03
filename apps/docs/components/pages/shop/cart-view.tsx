@@ -109,8 +109,8 @@ export function CartView() {
   }
 
   const estimate = formatMinutes(estimateAgentMinutes(products));
-  const includesStatewire = products.some(
-    (product) => product.slug === "statewire",
+  const includesBuildProduct = products.some(
+    (product) => product.slug === "statewire" || product.slug === "harness-sdk",
   );
 
   return (
@@ -163,25 +163,25 @@ export function CartView() {
           ))}
         </ul>
 
-        {includesStatewire ? (
+        {includesBuildProduct ? (
           <div className="mt-6 flex flex-col gap-3">
             <label
-              htmlFor="statewire-cart-build"
+              htmlFor="product-cart-build"
               className="text-base font-medium"
             >
               What do you want to build?
             </label>
             <p
-              id="statewire-cart-build-help"
+              id="product-cart-build-help"
               className="text-muted-foreground text-base sm:text-sm"
             >
               Your agent uses this brief and your existing setup notes to build
-              with Statewire and Durable Objects.
+              with the selected products.
             </p>
             <textarea
-              id="statewire-cart-build"
-              name="statewire-build"
-              aria-describedby="statewire-cart-build-help"
+              id="product-cart-build"
+              name="product-build"
+              aria-describedby="product-cart-build-help"
               placeholder="Describe the shared application you want to build."
               value={instructions}
               onChange={(event) => setCartInstructions(event.target.value)}

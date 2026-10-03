@@ -22,13 +22,13 @@ npm ci
 npm run dev
 \`\`\`
 
-Open http://localhost:8797/ in two tabs. The lobby matches visitors into a shared game. An explicit ?room=<name> URL joins that room directly. The Worker serves frontend assets and the Statewire routes.
+Open http://localhost:8797/ in two tabs. The lobby matches visitors into a shared game. An explicit \`?room=<name>\` URL joins that room directly. The Worker serves frontend assets and the Statewire routes.
 
 ## Adapt to the user's application
 
 Keep the user's existing framework and package manager. Copy the vendor archives into the chosen project before installing them so dependency paths survive cleanup of the temporary starter. Adapt worker/index.ts, worker/lobby.ts, src/game.ts and src/App.tsx to the build brief; preserve existing application code and Wrangler migration history.
 
-The host is a tap resource. useStatewireState initializes state from the saved snapshot; useStatewireCommands defines server-validated operations. getStateHost supplies snapshot and subscribe to the Durable Objects adapter. Mount it with StatewireDurableObject, export the class named by the binding, and use routeStatewireRequest for /<binding>/<instance-name> routing. Add a SQLite migration for each new Durable Object class.
+The host is a tap resource. useStatewireState initializes state from the saved snapshot; useStatewireCommands defines server-validated operations. getStateHost supplies snapshot and subscribe to the Durable Objects adapter. Mount it with StatewireDurableObject, export the class named by the binding, and use routeStatewireRequest for \`/<binding>/<instance-name>\` routing, including \`/game/<roomId>\` and \`/lobby/<lobbyId>\` in the starter. Add a SQLite migration for each new Durable Object class.
 
 In React, useStatewire with StatewireWebsocket reads replicated state and sends commands. Keep the host as the source of truth. A separate named room gets separate state. Add trusted authorization for private data; the starter's browser-generated player IDs are demo identifiers, not authentication.
 

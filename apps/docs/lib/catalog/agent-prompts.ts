@@ -7,12 +7,14 @@ import { ELEMENT_AGENT_PROMPTS } from "./products/elements.agent";
 import { GUIDE_AGENT_PROMPTS } from "./products/guides.agent";
 import { REACT_APP_AGENT_PROMPTS } from "./products/react-app.agent";
 import { STATEWIRE_AGENT_PROMPTS } from "./products/statewire.agent";
+import { HARNESS_SDK_AGENT_PROMPTS } from "./products/harness-sdk.agent";
 
 const agentPrompts = new Map<string, string>([
   ...REACT_APP_AGENT_PROMPTS,
   ...ASSISTANT_UI_AGENT_PROMPTS,
   ...CLOUD_AGENT_PROMPTS,
   ...STATEWIRE_AGENT_PROMPTS,
+  ...HARNESS_SDK_AGENT_PROMPTS,
   ...AGENT_TOOLS_AGENT_PROMPTS,
   ...GUIDE_AGENT_PROMPTS,
   ...ELEMENT_AGENT_PROMPTS,

@@ -36,9 +36,15 @@ export class Game extends StatewireDurableObject<Env>(
 ) {}
 
 export default {
-  fetch: (request: Request, env: Env) =>
-    routeStatewireRequest(request, env)
-      ?? env.ASSETS.fetch(request),
+  fetch: async (request: Request, env: Env) => {
+    const response = await routeStatewireRequest(request, env);
+    if (response) return response;
+    const path = new URL(request.url).pathname;
+    if (["/game/", "/lobby/"].some((prefix) => path.startsWith(prefix))) {
+      return new Response("Not found", { status: 404 });
+    }
+    return env.ASSETS.fetch(request);
+  },
 };`;
 
 const START = `unzip statewire-tic-tac-toe.zip
@@ -55,6 +61,7 @@ const WRANGLER = `{
     "binding": "ASSETS",
     "run_worker_first": ["/game/*", "/lobby/*"]
   },
+  "dev": { "port": 8797 },
   "durable_objects": {
     "bindings": [
       { "name": "GAME", "class_name": "Game" },

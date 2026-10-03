@@ -56,19 +56,20 @@ describe("catalog registry", () => {
     ).toEqual(["assistant-ui"]);
     expect(closed.isCartSlug("cloud")).toBe(false);
     expect(closed.isCartSlug("statewire")).toBe(false);
+    expect(closed.isCartSlug("harness-sdk")).toBe(false);
     expect(closed.getProduct("cloud")).toBeUndefined();
   });
 
-  it("resolves hidden Statewire for setup without listing it as a public product", () => {
-    expect(CATALOG.some((product) => product.slug === "statewire")).toBe(false);
-    expect(getCatalogItem("statewire")).toMatchObject({
-      href: "/statewire",
-      hidden: true,
-    });
-    expect(isCartSlug("statewire")).toBe(true);
-    expect(
-      resolveProducts(["statewire"]).map((product) => product.slug),
-    ).toEqual(["statewire"]);
+  it.each([
+    ["statewire", "/statewire"],
+    ["harness-sdk", "/harness-sdk"],
+  ])("resolves hidden %s for setup without public listing", (slug, href) => {
+    expect(CATALOG.some((product) => product.slug === slug)).toBe(false);
+    expect(getCatalogItem(slug)).toMatchObject({ href, hidden: true });
+    expect(isCartSlug(slug)).toBe(true);
+    expect(resolveProducts([slug]).map((product) => product.slug)).toEqual([
+      slug,
+    ]);
   });
 
   it("has unique slugs that match their route form", () => {

@@ -22,10 +22,10 @@ describe("catalog markdown route", () => {
     expect(body).not.toMatch(/\b(?:cart|shop|checkout)\b/i);
   });
 
-  it("omits hidden Statewire from product and auxiliary listings", async () => {
+  it("omits hidden products from product and auxiliary listings", async () => {
     const response = await get();
     expect(response.status).toBe(200);
-    expect(await response.text()).not.toMatch(/statewire/i);
+    expect(await response.text()).not.toMatch(/statewire|harness-sdk/i);
   });
 
   it("answers 404 when the shop is closed", async () => {
