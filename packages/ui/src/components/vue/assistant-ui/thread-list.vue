@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import {
   AuiIf,
   ThreadListItemByIndexProvider,
@@ -39,6 +39,15 @@ const search = ref("");
 const hasThreads = useAuiState((s) => s.threads.threadIds.length > 0);
 const threadIds = useAuiState((s) => s.threads.threadIds);
 const threadItems = useAuiState((s) => s.threads.threadItems);
+const startOfToday = ref<number | undefined>(undefined);
+onMounted(() => {
+  const now = new Date();
+  startOfToday.value = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  ).getTime();
+});
 const query = computed(() =>
   (hasThreads.value ? search.value : "").trim().toLowerCase(),
 );
@@ -57,23 +66,20 @@ const threadListGroups = computed(() => {
     )
     .map(({ index }) => index);
 
-  if (!filteredIndices.some((index) => dates[index])) {
+  if (
+    startOfToday.value === undefined ||
+    !filteredIndices.some((index) => dates[index])
+  ) {
     return { filteredIndices, groups: null };
   }
 
-  const now = new Date();
-  const startOfToday = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-  ).getTime();
   const time = (index: number) =>
     dates[index]?.getTime() ?? Number.MAX_SAFE_INTEGER;
   const sorted = [...filteredIndices].sort((a, b) => time(b) - time(a));
   const groups: { label: string; indices: number[] }[] = [];
 
   for (const index of sorted) {
-    const label = dateGroupLabel(dates[index], startOfToday);
+    const label = dateGroupLabel(dates[index], startOfToday.value);
     const lastGroup = groups[groups.length - 1];
 
     if (lastGroup?.label === label) {

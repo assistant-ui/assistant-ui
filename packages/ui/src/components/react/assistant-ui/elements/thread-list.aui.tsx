@@ -25,6 +25,7 @@ import {
   forwardRef,
   Fragment,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -121,11 +122,11 @@ const startOfLocalDay = (date: Date) =>
   new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 
 const useStartOfToday = () => {
-  const [startOfToday, setStartOfToday] = useState(() =>
-    startOfLocalDay(new Date()),
+  const [startOfToday, setStartOfToday] = useState<number | undefined>(
+    undefined,
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     let timeout: number;
     const scheduleNextDay = () => {
       const now = new Date();
@@ -174,7 +175,10 @@ export const useThreadListGroups = (searchQuery = "") => {
             .includes(query),
       )
       .map(({ index }) => index);
-    if (!filteredIndices.some((index) => dates[index])) {
+    if (
+      startOfToday === undefined ||
+      !filteredIndices.some((index) => dates[index])
+    ) {
       return { threadIds, filteredIndices, groups: null };
     }
 

@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createApp, defineComponent, h, nextTick } from "vue";
+import { createApp, createSSRApp, defineComponent, h, nextTick } from "vue";
+import { renderToString } from "vue/server-renderer";
 import { resource } from "@assistant-ui/tap";
-import { AuiConfig } from "@assistant-ui/store/client";
+import { AuiConfig, useClientResource } from "@assistant-ui/store/client";
 import { RemoteThreadList } from "@assistant-ui/core/store";
 import type {
   RemoteThreadListAdapter,
@@ -122,6 +123,80 @@ afterEach(() => {
 });
 
 describe("vue thread list", () => {
+  it("server renders dated threads in runtime order without reading the clock", async () => {
+    const datedItems = [
+      {
+        id: "older",
+        remoteId: "older",
+        externalId: undefined,
+        title: "Older thread",
+        lastMessageAt: new Date("2026-08-29T12:00:00Z"),
+        status: "regular" as const,
+        isRunning: false,
+      },
+      {
+        id: "newer",
+        remoteId: "newer",
+        externalId: undefined,
+        title: "Newer thread",
+        lastMessageAt: new Date("2026-08-31T12:00:00Z"),
+        status: "regular" as const,
+        isRunning: false,
+      },
+    ];
+    const state = {
+      mainThreadId: "older",
+      newThreadId: null,
+      isLoading: false,
+      loadError: undefined,
+      isLoadingMore: false,
+      hasMore: false,
+      threadIds: datedItems.map((item) => item.id),
+      archivedThreadIds: [],
+      threadItems: datedItems,
+      main: STUB_THREAD_STATE,
+    };
+    const StaticItem = resource(({ index }: { index: number }) => ({
+      getState: () => datedItems[index]!,
+    }));
+    const StaticThreads = resource(() => {
+      const older = useClientResource(StaticItem({ index: 0 }));
+      const newer = useClientResource(StaticItem({ index: 1 }));
+      const items = [older.methods, newer.methods];
+      return {
+        getState: () => state,
+        item: ({ index }: { index: number }) => items[index],
+        switchToNewThread: () => {},
+      };
+    });
+    const app = createSSRApp(
+      defineComponent({
+        setup: () => () =>
+          h(
+            AuiProvider,
+            { config: AuiConfig({ threads: StaticThreads() as never }) },
+            { default: () => h(ThreadList) },
+          ),
+      }),
+    );
+    const clock = vi.spyOn(globalThis, "Date");
+    const now = vi.spyOn(Date, "now");
+    try {
+      const html = await renderToString(app);
+      expect(html).toContain("Older thread");
+      expect(html).toContain("Newer thread");
+      expect(html.indexOf("Older thread")).toBeLessThan(
+        html.indexOf("Newer thread"),
+      );
+      expect(html).not.toContain('data-slot="aui_thread-list-group-label"');
+      expect(clock).not.toHaveBeenCalledWith();
+      expect(now).not.toHaveBeenCalled();
+    } finally {
+      now.mockRestore();
+      clock.mockRestore();
+    }
+  });
+
   it("renders one row per thread and no group labels when no thread has a date", async () => {
     const { el, unmount } = mountThreadList(
       makeAdapter(withTitles("First thread", "Second thread")),
@@ -259,7 +334,13 @@ describe("vue thread list", () => {
       ]),
     );
 
-    await settle(() => expect(slots(el, "item-title")).toHaveLength(4));
+    await settle(() =>
+      expect(texts(el, "group-label")).toEqual([
+        "Today",
+        "Yesterday",
+        "Earlier",
+      ]),
+    );
     expect(texts(el, "group-label")).toEqual(["Today", "Yesterday", "Earlier"]);
     expect(texts(el, "item-title")).toEqual([
       "Just now",
@@ -284,7 +365,9 @@ describe("vue thread list", () => {
       ]),
     );
 
-    await settle(() => expect(slots(el, "item-title")).toHaveLength(2));
+    await settle(() =>
+      expect(texts(el, "group-label")).toEqual(["Today", "Earlier"]),
+    );
     expect(texts(el, "group-label")).toEqual(["Today", "Earlier"]);
     expect(texts(el, "item-title")).toEqual(["No date", "Last week"]);
 
