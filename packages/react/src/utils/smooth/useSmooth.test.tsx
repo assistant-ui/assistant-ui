@@ -200,7 +200,7 @@ describe("useSmooth", () => {
       return raf.length;
     });
     vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
-    let now = 1_000_000;
+    let now = 0;
     vi.spyOn(performance, "now").mockImplementation(() => now);
 
     const frame = () => {

@@ -49,7 +49,7 @@ const DEFAULT_MAX_CHAR_INTERVAL_MS = 5;
 
 class TextStreamAnimator {
   private animationFrameId: number | null = null;
-  private lastUpdateTime: number = performance.now();
+  private lastUpdateTime: number = 0;
   public lastCommitTime: number = -Infinity;
 
   public targetText: string = "";
@@ -214,8 +214,8 @@ export const useSmooth = (
     }
   }, [smoothStatusStore, enabled, text, displayedText, state.status]);
 
-  const [animatorRef] = useState<TextStreamAnimator>(
-    new TextStreamAnimator(displayedText, setText),
+  const [animatorRef] = useState(
+    () => new TextStreamAnimator(displayedText, setText),
   );
 
   useEffect(() => {
