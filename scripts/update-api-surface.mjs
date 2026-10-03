@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { optionArgs, optionValues } from "./lib/script-options.mjs";
+import { apiSurfaceFileName, collectPackages } from "./lib/workspace.mjs";
 
 export const FULL_API_SURFACE_INPUTS = [
   "api-surface",
@@ -21,14 +22,29 @@ export const FULL_API_SURFACE_INPUTS = [
 
 const touches = (file, input) => file === input || file.startsWith(`${input}/`);
 
-export function requiresFullApiSurface(changedFiles) {
-  return changedFiles.some((file) =>
-    FULL_API_SURFACE_INPUTS.some((input) => touches(file, input)),
+export function requiresFullApiSurface(changedFiles, packageNames = []) {
+  const knownSnapshots = new Set(
+    packageNames.map((name) => `api-surface/${apiSurfaceFileName(name)}`),
+  );
+  return changedFiles.some(
+    (file) =>
+      !knownSnapshots.has(file) &&
+      FULL_API_SURFACE_INPUTS.some((input) => touches(file, input)),
   );
 }
 
-export function filtersForApiSurfaceChanges(changedFiles, base) {
-  return requiresFullApiSurface(changedFiles) ? [] : [`...[${base}]`];
+export function filtersForApiSurfaceChanges(
+  changedFiles,
+  base,
+  packageNames = [],
+) {
+  if (requiresFullApiSurface(changedFiles, packageNames)) return [];
+
+  const changed = new Set(changedFiles);
+  const snapshotOwners = packageNames.filter((name) =>
+    changed.has(`api-surface/${apiSurfaceFileName(name)}`),
+  );
+  return [`...[${base}]`, ...snapshotOwners.sort()];
 }
 
 export function apiSurfaceCommands(filters) {
@@ -82,7 +98,13 @@ function main() {
 
   const base = bases[0];
   const filters = base
-    ? filtersForApiSurfaceChanges(changedFilesSince(base), base)
+    ? filtersForApiSurfaceChanges(
+        changedFilesSince(base),
+        base,
+        collectPackages(process.cwd(), undefined, (a, b) =>
+          a.localeCompare(b),
+        ).map(({ pkg }) => pkg.name),
+      )
     : explicitFilters;
   if (base) {
     console.log(

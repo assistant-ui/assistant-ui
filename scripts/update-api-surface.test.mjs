@@ -1,4 +1,8 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 import {
   FULL_API_SURFACE_INPUTS,
@@ -36,6 +40,77 @@ test("package changes use the affected package graph", () => {
   ]);
 });
 
+test("a known snapshot selects its owner alongside the affected source graph", () => {
+  const files = [
+    "api-surface/assistant-ui__react-google-adk.ts",
+    "packages/react-google-adk/src/AdkClient.ts",
+  ];
+  const packages = ["@assistant-ui/react", "@assistant-ui/react-google-adk"];
+  assert.equal(requiresFullApiSurface(files, packages), false);
+  assert.deepEqual(
+    filtersForApiSurfaceChanges(files, "origin/main", packages),
+    ["...[origin/main]", "@assistant-ui/react-google-adk"],
+  );
+});
+
+test("snapshot-only edits and deletions still select their current owners", () => {
+  assert.deepEqual(
+    filtersForApiSurfaceChanges(
+      ["api-surface/assistant-ui__react.ts"],
+      "origin/main",
+      ["@assistant-ui/react"],
+    ),
+    ["...[origin/main]", "@assistant-ui/react"],
+  );
+});
+
+test("multiple snapshots select scoped and unscoped owners deterministically", () => {
+  assert.deepEqual(
+    filtersForApiSurfaceChanges(
+      [
+        "api-surface/assistant-ui.ts",
+        "api-surface/assistant-ui__react.ts",
+        "api-surface/assistant-ui.ts",
+      ],
+      "origin/main",
+      ["assistant-ui", "@assistant-ui/react", "create-assistant-ui"],
+    ),
+    ["...[origin/main]", "@assistant-ui/react", "assistant-ui"],
+  );
+});
+
+test("unknown snapshots and shared inputs retain the full fallback", () => {
+  for (const extraFile of [
+    "api-surface/removed-package.ts",
+    "api-surface/package.json",
+    "api-surface/tsconfig.json",
+    "api-surface/nested/assistant-ui__react.ts",
+    "pnpm-lock.yaml",
+    "packages/x-buildutils/src/index.ts",
+  ]) {
+    const files = ["api-surface/assistant-ui__react.ts", extraFile];
+    assert.equal(requiresFullApiSurface(files, ["@assistant-ui/react"]), true);
+    assert.deepEqual(
+      filtersForApiSurfaceChanges(files, "origin/main", [
+        "@assistant-ui/react",
+      ]),
+      [],
+      extraFile,
+    );
+  }
+});
+
+test("snapshots for renamed, removed, or now-private packages require a full run", () => {
+  assert.deepEqual(
+    filtersForApiSurfaceChanges(
+      ["api-surface/assistant-ui__old-name.ts"],
+      "origin/main",
+      ["@assistant-ui/new-name"],
+    ),
+    [],
+  );
+});
+
 test("similarly prefixed packages do not trigger the shared-input fallback", () => {
   assert.equal(
     requiresFullApiSurface(["packages/x-buildutils-extra/src/index.ts"]),
@@ -50,26 +125,133 @@ test("a full run builds and generates every publishable package", () => {
   ]);
 });
 
-test("an affected run applies the same filters to build and generation", () => {
-  assert.deepEqual(apiSurfaceCommands(["...[origin/main]"]), [
+test("an affected run applies the source and snapshot filters to build and generation", () => {
+  assert.deepEqual(
+    apiSurfaceCommands(["...[origin/main]", "@assistant-ui/react"]),
     [
-      "pnpm",
       [
-        "exec",
-        "turbo",
-        "build",
-        "--filter",
-        "...[origin/main]",
-        "--filter=!./apps/*",
-        "--filter=!./examples/*",
-        "--filter=!./templates/*",
+        "pnpm",
+        [
+          "exec",
+          "turbo",
+          "build",
+          "--filter",
+          "...[origin/main]",
+          "--filter",
+          "@assistant-ui/react",
+          "--filter=!./apps/*",
+          "--filter=!./examples/*",
+          "--filter=!./templates/*",
+        ],
+      ],
+      [
+        "node",
+        [
+          "scripts/generate-api-surface.mjs",
+          "--filter",
+          "...[origin/main]",
+          "--filter",
+          "@assistant-ui/react",
+        ],
       ],
     ],
-    [
-      "node",
-      ["scripts/generate-api-surface.mjs", "--filter", "...[origin/main]"],
-    ],
-  ]);
+  );
+});
+
+test("the CLI derives snapshot owners from current publishable manifests", () => {
+  const repo = mkdtempSync(path.join(tmpdir(), "api-surface-planner-"));
+  const run = (command, args, options = {}) => {
+    const result = spawnSync(command, args, {
+      cwd: repo,
+      encoding: "utf8",
+      ...options,
+    });
+    assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
+    return result.stdout;
+  };
+  try {
+    mkdirSync(path.join(repo, "scripts/lib"), { recursive: true });
+    for (const file of [
+      "update-api-surface.mjs",
+      "lib/workspace.mjs",
+      "lib/script-options.mjs",
+    ]) {
+      cpSync(new URL(file, import.meta.url), path.join(repo, "scripts", file));
+    }
+    const recorder = `console.log(JSON.stringify(process.argv.slice(2)));\n`;
+    writeFileSync(
+      path.join(repo, "scripts/generate-api-surface.mjs"),
+      `console.log(JSON.stringify([${JSON.stringify(path.join("scripts", "generate-api-surface.mjs"))}, ...process.argv.slice(2)]));\n`,
+    );
+    mkdirSync(path.join(repo, "bin"));
+    writeFileSync(
+      path.join(repo, "bin/pnpm"),
+      `#!${process.execPath}\n${recorder}`,
+      { mode: 0o755 },
+    );
+    for (const [dir, pkg] of Object.entries({
+      public: { name: "@assistant-ui/public" },
+      private: { name: "@assistant-ui/private", private: true },
+    })) {
+      mkdirSync(path.join(repo, "packages", dir), { recursive: true });
+      writeFileSync(
+        path.join(repo, "packages", dir, "package.json"),
+        JSON.stringify(pkg),
+      );
+    }
+    mkdirSync(path.join(repo, "api-surface"));
+    const snapshot = path.join(repo, "api-surface/assistant-ui__public.ts");
+    writeFileSync(snapshot, "export {};\n");
+    run("git", ["init", "-q"]);
+    run("git", ["add", "."]);
+    run("git", [
+      "-c",
+      "user.name=Test",
+      "-c",
+      "user.email=test@example.com",
+      "commit",
+      "-qm",
+      "fixture",
+    ]);
+    const plan = () =>
+      run(process.execPath, ["scripts/update-api-surface.mjs", "--base=HEAD"], {
+        env: {
+          ...process.env,
+          PATH: `${path.join(repo, "bin")}${path.delimiter}${process.env.PATH}`,
+        },
+      })
+        .trim()
+        .split("\n")
+        .slice(1)
+        .map((line) => JSON.parse(line));
+
+    writeFileSync(snapshot, "export const changed: true;\n");
+    assert.deepEqual(
+      plan(),
+      apiSurfaceCommands(["...[HEAD]", "@assistant-ui/public"]).map(
+        ([, args]) => args,
+      ),
+    );
+    rmSync(snapshot);
+    assert.deepEqual(
+      plan(),
+      apiSurfaceCommands(["...[HEAD]", "@assistant-ui/public"]).map(
+        ([, args]) => args,
+      ),
+    );
+
+    writeFileSync(
+      path.join(repo, "api-surface/assistant-ui__private.ts"),
+      "export {};\n",
+    );
+    run("git", ["add", "api-surface"]);
+    assert.deepEqual(
+      plan(),
+      apiSurfaceCommands([]).map(([, args]) => args),
+    );
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
 });
 
 test("the planner watches its own implementation", () => {
