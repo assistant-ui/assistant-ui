@@ -13,6 +13,50 @@ import type {
 } from "./types";
 
 describe("reduceOpenCodeThreadState", () => {
+  it.each(["permission", "question"] as const)(
+    "ignores an unchanged $kind reconciliation",
+    (kind) => {
+      const request =
+        kind === "permission"
+          ? {
+              id: "perm_1",
+              sessionId: "ses_1",
+              permission: "fs.write",
+              patterns: [],
+              metadata: {},
+              always: [],
+              askedAt: 1,
+              raw: {},
+            }
+          : {
+              id: "q_1",
+              sessionID: "ses_1",
+              questions: [],
+              askedAt: 1,
+            };
+      const initial = createOpenCodeThreadState("ses_1");
+      const state = reduceOpenCodeThreadState(
+        initial,
+        (kind === "permission"
+          ? { type: "permission.asked", request }
+          : { type: "question.asked", request }) as never,
+      );
+      const pending =
+        kind === "permission"
+          ? { ...state.interactions.permissions.pending }
+          : { ...state.interactions.questions.pending };
+
+      const reconciled = reduceOpenCodeThreadState(
+        state,
+        (kind === "permission"
+          ? { type: "permissions.reconciled", pending }
+          : { type: "questions.reconciled", pending }) as never,
+      );
+
+      expect(reconciled).toBe(state);
+    },
+  );
+
   it("keeps sessionStatus as server truth across run start and send failure", () => {
     const initial = createOpenCodeThreadState("ses_1");
     const pending: PendingUserMessage = {
