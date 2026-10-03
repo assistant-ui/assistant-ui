@@ -36,6 +36,7 @@
     "build": "aui-build",
     "dev": "vite demo",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

@@ -82,6 +82,7 @@
   },
   "scripts": {
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json && tsc --noEmit -p src/components/react-native/tsconfig.json && tsc --noEmit -p src/components/react-native/tsconfig.test.json",
     "test:peer-react18": "vitest run --config vitest.peer-react18.config.ts",
     "test:types:peer-react18": "aui-react18-types tsconfig.peer-react18.json src/components/react-native/tsconfig.peer-react18.json"
