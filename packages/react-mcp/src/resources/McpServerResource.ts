@@ -21,6 +21,7 @@ import { assertValidServerId } from "../utils/serverId";
 import {
   hasPersistedCredentials,
   isAuthStateForServerUrl,
+  isSecureNetworkUrl,
 } from "../utils/serverUrl";
 import { validateElicitationContent } from "./validateElicitationContent";
 import type { MCPStorage } from "./storage/types";
@@ -258,6 +259,11 @@ const useMcpServerResourceInstance = (
 
   const buildTransport = useEffectEvent(
     async (generation: number): Promise<StreamableHTTPClientTransport> => {
+      if (props.auth.type !== "none" && !isSecureNetworkUrl(props.url)) {
+        throw new Error(
+          `Authenticated MCP server "${props.id}" must use HTTPS or loopback HTTP.`,
+        );
+      }
       if (props.auth.type === "oauth") {
         const generationOwner = { current: generation };
         const authProvider = createOAuthProvider({
