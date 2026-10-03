@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/ai-sdk",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "description": "Vercel AI SDK adapter for assistant-ui",
   "keywords": [
     "ai-sdk",
@@ -58,11 +58,11 @@
   "dependencies": {
     "@ai-sdk/mcp": "^2.0.63",
     "@ai-sdk/react": "^4.0.126",
-    "@assistant-ui/core": "^0.3.22",
-    "@assistant-ui/store": "^0.3.16",
-    "@assistant-ui/tap": "^0.9.20",
+    "@assistant-ui/core": "^0.3.23",
+    "@assistant-ui/store": "^0.3.17",
+    "@assistant-ui/tap": "^0.9.21",
     "assistant-cloud": "workspace:^",
-    "assistant-stream": "^0.3.46"
+    "assistant-stream": "^0.3.47"
   },
   "peerDependencies": {
     "@types/react": "*",

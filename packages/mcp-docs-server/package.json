@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/mcp-docs-server",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Stdio proxy for the hosted assistant-ui documentation MCP server",
   "keywords": [
     "mcp",
