@@ -124,8 +124,11 @@ both feed the extras hooks from the response as well.
 A tool call's `toolName` is the key apps register tool UIs against, so it has to
 be stable for the life of the call: the protocol's programmatic `name` when the
 agent sends one, then its `kind` (`read`/`edit`/`execute`/…), and only then the
-human-readable `title`. The `title` and `kind` stay readable on the part as
-`providerMetadata.acp`, so a renderer can still show the label.
+human-readable `title`. A `tool_call_update` carries only what changed, so the
+three are accumulated across a call's updates: a frame that omits `name` cannot
+downgrade the key to the title it happens to carry. All three stay readable on
+the part as `providerMetadata.acp` (`{ name?, kind?, title? }`), so a renderer
+can still show the label.
 
 Browser clients advertise **no** filesystem or terminal capabilities, so a
 conforming ACP agent will never send `fs/*` or `terminal/*` requests; any such

@@ -30,6 +30,7 @@ import type {
   AcpToolCallContent,
   AcpToolCallStatus,
   AcpToolCallUpdate,
+  AcpToolKind,
 } from "./types";
 
 type AssistantPart = ThreadAssistantMessage["content"][number];
@@ -284,29 +285,64 @@ const safeStringify = (value: unknown): string => {
 /** Namespace this package uses on a part's `providerMetadata`. */
 const ACP_METADATA_NAMESPACE = "acp";
 
+/** The three fields a `tool_call` or `tool_call_update` can name a call by. */
+type AcpToolIdentityFields = {
+  readonly name?: string | null;
+  readonly kind?: AcpToolKind | null;
+  readonly title?: string | null;
+};
+
+/**
+ * What a call is known by, accumulated across updates and kept on the part as
+ * `providerMetadata.acp`: a renderer shows `title`, while `toolName` is
+ * resolved from the most specific field the agent has sent so far.
+ */
+type AcpToolIdentity = {
+  readonly name?: string;
+  readonly kind?: string;
+  readonly title?: string;
+};
+
+const identityOf = (part: ToolCallMessagePart): AcpToolIdentity | undefined =>
+  part.providerMetadata?.[ACP_METADATA_NAMESPACE] as
+    | AcpToolIdentity
+    | undefined;
+
+/**
+ * A `tool_call_update` carries only what changed: omitting `name`, `kind` or
+ * `title` — or sending `null` — leaves the existing value in place, so a later
+ * frame must not drop one an earlier frame reported.
+ */
+const mergedIdentityOf = (
+  update: AcpToolIdentityFields,
+  previous: AcpToolIdentity | undefined,
+): AcpToolIdentity => {
+  const identity: Record<string, string> = {};
+  const name = update.name ?? previous?.name;
+  const kind = update.kind ?? previous?.kind;
+  const title = update.title ?? previous?.title;
+  if (name !== undefined) identity.name = name;
+  if (kind !== undefined) identity.kind = kind;
+  if (title !== undefined) identity.title = title;
+  return identity as AcpToolIdentity;
+};
+
+const sameIdentity = (
+  identity: AcpToolIdentity,
+  previous: AcpToolIdentity | undefined,
+): boolean =>
+  identity.name === previous?.name &&
+  identity.kind === previous?.kind &&
+  identity.title === previous?.title;
+
 /**
  * `toolName` is the key apps register tool UIs against, so it has to stay
  * stable for the life of a call: the protocol's programmatic `name` first,
  * then the `kind` enum, and only then the human-readable `title`.
  */
-const toolNameOf = (update: AcpToolCallUpdate): string | undefined => {
-  const name = update.name || update.kind || update.title;
+const toolNameOf = (identity: AcpToolIdentity): string | undefined => {
+  const name = identity.name || identity.kind || identity.title;
   return name || undefined;
-};
-
-/**
- * The `title` a stable `toolName` was chosen over, plus the `kind` it may have
- * come from, so a renderer can still show the human-readable label.
- */
-const toolMetadataOf = (
-  update: AcpToolCallUpdate,
-): ReadonlyJSONObject | undefined => {
-  const meta: Record<string, string> = {};
-  const title = update.title ?? undefined;
-  const kind = update.kind ?? undefined;
-  if (title !== undefined) meta.title = title;
-  if (kind !== undefined) meta.kind = kind;
-  return Object.keys(meta).length > 0 ? meta : undefined;
 };
 
 const settledResult = (
@@ -328,16 +364,16 @@ export function buildToolCallPart(
     ? (update.rawInput as ReadonlyJSONObject)
     : {};
   const status = update.status ?? knownStatus ?? "pending";
-  const metadata = toolMetadataOf(update);
+  const identity = mergedIdentityOf(update, undefined);
   const part: ToolCallMessagePart = {
     type: "tool-call",
     toolCallId: update.toolCallId,
-    toolName: toolNameOf(update) ?? "tool_call",
+    toolName: toolNameOf(identity) ?? "tool_call",
     args,
     argsText:
       update.rawInput !== undefined ? safeStringify(update.rawInput) : "",
-    ...(metadata !== undefined && {
-      providerMetadata: { [ACP_METADATA_NAMESPACE]: metadata },
+    ...(Object.keys(identity).length > 0 && {
+      providerMetadata: { [ACP_METADATA_NAMESPACE]: identity },
     }),
   };
   if (!isSettled(status)) {
@@ -361,23 +397,18 @@ export function mergeToolCallPart(
     next = { ...next, ...patch };
   };
 
-  const toolName = toolNameOf(update);
+  const previous = identityOf(existing);
+  const identity = mergedIdentityOf(update, previous);
+  const toolName = toolNameOf(identity);
   if (toolName && toolName !== next.toolName) set({ toolName });
 
-  const metadata = toolMetadataOf(update);
-  if (metadata !== undefined) {
-    const previous = next.providerMetadata?.[ACP_METADATA_NAMESPACE];
-    if (
-      previous?.title !== metadata.title ||
-      previous?.kind !== metadata.kind
-    ) {
-      set({
-        providerMetadata: {
-          ...next.providerMetadata,
-          [ACP_METADATA_NAMESPACE]: metadata,
-        },
-      });
-    }
+  if (!sameIdentity(identity, previous)) {
+    set({
+      providerMetadata: {
+        ...next.providerMetadata,
+        [ACP_METADATA_NAMESPACE]: identity,
+      },
+    });
   }
 
   if (update.rawInput !== undefined) {

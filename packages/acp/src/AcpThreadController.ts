@@ -345,9 +345,10 @@ export class AcpThreadController implements AcpThreadControllerLike {
    * out. `session/update` carries no turn id, so a still-running old turn
    * would render its remaining frames inside the new assistant message. There
    * is no deadline: ACP requires an agent to answer a cancelled
-   * `session/prompt` with `stopReason: "cancelled"`, and a request an agent
-   * ignores either times out or rejects when the socket drops, so the wait
-   * always ends.
+   * `session/prompt` with `stopReason: "cancelled"`, and `session/prompt` is
+   * exempt from `requestTimeoutMs` because a turn has no bounded duration. The
+   * wait therefore ends on that answer, or on the rejection the client sends
+   * its pending requests when the socket drops.
    */
   private async settleSupersededPrompt(): Promise<void> {
     const previous = this.inflightPrompt;

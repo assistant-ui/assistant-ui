@@ -515,6 +515,71 @@ describe("mergeToolCallPart", () => {
     ).toBe(renamed);
   });
 
+  it("keeps a programmatic tool name when a later update only changes the title", () => {
+    const started = buildToolCallPart({
+      toolCallId: "t1",
+      title: "Search",
+      name: "web_search",
+      status: "in_progress",
+    });
+    expect(started.toolName).toBe("web_search");
+
+    const retitled = mergeToolCallPart(started, {
+      toolCallId: "t1",
+      title: "Searching the web",
+    });
+    expect(retitled.toolName).toBe("web_search");
+    expect(retitled.providerMetadata).toEqual({
+      acp: { name: "web_search", title: "Searching the web" },
+    });
+  });
+
+  it("keeps the kind an earlier update reported when a later one omits it", () => {
+    const started = buildToolCallPart({
+      toolCallId: "t1",
+      title: "Reading src/a.ts",
+      kind: "read",
+    });
+    const retitled = mergeToolCallPart(started, {
+      toolCallId: "t1",
+      title: "Read src/a.ts",
+    });
+    expect(retitled.toolName).toBe("read");
+    expect(retitled.providerMetadata).toEqual({
+      acp: { kind: "read", title: "Read src/a.ts" },
+    });
+  });
+
+  it("treats a null name on an update as unchanged", () => {
+    const started = buildToolCallPart({
+      toolCallId: "t1",
+      title: "Search",
+      name: "web_search",
+    });
+    const nulled = mergeToolCallPart(started, {
+      toolCallId: "t1",
+      name: null,
+      title: "Search the web",
+    });
+    expect(nulled.toolName).toBe("web_search");
+    expect(nulled.providerMetadata).toEqual({
+      acp: { name: "web_search", title: "Search the web" },
+    });
+  });
+
+  it("adopts a programmatic name the agent reports after the call started", () => {
+    const started = buildToolCallPart({
+      toolCallId: "t1",
+      title: "Search",
+      kind: "read",
+    });
+    expect(started.toolName).toBe("read");
+    expect(
+      mergeToolCallPart(started, { toolCallId: "t1", name: "web_search" })
+        .toolName,
+    ).toBe("web_search");
+  });
+
   const text = (value: string) =>
     [{ type: "content", content: { type: "text", text: value } }] as const;
 
