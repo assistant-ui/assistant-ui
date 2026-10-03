@@ -17,7 +17,7 @@ import type {
   SubgraphDiscoverySnapshot,
 } from "@langchain/react";
 
-export type { LangChainContentBlock } from "./converter";
+export type { LangChainContentBlock, LangChainMediaBlock } from "./converter";
 
 export type LangChainToolCall = {
   id: string;
