@@ -4,10 +4,10 @@ export const agentTools: CatalogProduct = {
   slug: "agent-tools",
   href: "/components/agent-tools",
   purchase: "cart",
-  name: "Agent tools",
-  tagline: "Tools the model can call, each with its own UI in the thread.",
+  name: "Agent Tool",
+  tagline: "An action the model can call, with its own UI in the thread.",
   description:
-    "A toolkit with a schema, an executor, and a component that renders each call in the chat. Say what the tools should do during setup; your agent writes the rest into your project.",
+    "A tool with a schema, an executor, and a component that renders its calls in the thread. Specify an action for each tool; your coding agent writes it into your existing assistant-ui project.",
   kind: "library",
   audience: "existing assistant-ui apps",
   license: "MIT",
@@ -17,7 +17,7 @@ export const agentTools: CatalogProduct = {
   repo: "https://github.com/assistant-ui/assistant-ui",
   packages: ["@assistant-ui/react", "@assistant-ui/ai-sdk"],
   includes: [
-    "A toolkit file with each tool's schema and executor",
+    "A tool schema and executor added to your project toolkit, creating one if needed",
     "A component per tool that renders the call while it runs and once it has a result",
     "Registration on the assistant and in the chat route",
   ],

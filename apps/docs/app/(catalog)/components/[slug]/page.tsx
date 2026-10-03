@@ -5,6 +5,7 @@ import { demoCanvasClass } from "@/components/demo/utils/canvas";
 import { DemoCard } from "@/components/pages/elements/demo-card";
 import { getElement } from "@/components/pages/elements/registry";
 import { AddToCartButton } from "@/components/pages/shop/add-to-cart-button";
+import { AgentToolPresets } from "@/components/pages/shop/agent-tool-presets";
 import { StartSetupDialog } from "@/components/shared/start-setup-dialog";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import { PageFrame } from "@/components/shared/page-frame";
@@ -76,6 +77,9 @@ export default async function ProductPage({
           )}
         </div>
       </header>
+      {product.slug === "agent-tools" ? (
+        <AgentToolPresets headingLevel={2} />
+      ) : null}
 
       {preview ? (
         <figure className="mt-12">
