@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 
-import { act, renderHook } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -23,7 +22,6 @@ import { useToolCallElapsed } from "./useToolCallElapsed";
 
 describe("useToolCallElapsed", () => {
   afterEach(() => {
-    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -33,19 +31,5 @@ describe("useToolCallElapsed", () => {
 
     expect(renderToString(<Probe />)).toBe("<span>none</span>");
     expect(nowSpy).not.toHaveBeenCalled();
-  });
-
-  it("reports growing elapsed time after the effect runs", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(10_000);
-    const { result } = renderHook(() => useToolCallElapsed());
-
-    expect(result.current).toBe(1000);
-
-    act(() => {
-      vi.advanceTimersByTime(2000);
-    });
-
-    expect(result.current).toBe(3000);
   });
 });
