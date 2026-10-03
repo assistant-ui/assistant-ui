@@ -411,15 +411,17 @@ function DatePickerRender({
     initialValue,
     value: initialValue,
     anchor: initialValue,
+    committedValue: initialValue,
+    edited: false,
   });
   if (selection.initialValue !== initialValue) {
+    const isEcho = isBound && initialValue === selection.value;
     setSelection({
       initialValue,
       value: initialValue,
-      anchor:
-        isBound && initialValue === selection.value
-          ? selection.anchor
-          : initialValue,
+      anchor: isEcho ? selection.anchor : initialValue,
+      committedValue: isEcho ? selection.committedValue : initialValue,
+      edited: isEcho && selection.edited,
     });
   }
   const currentValue = isBound ? initialValue : selection.value;
@@ -457,6 +459,19 @@ function DatePickerRender({
       : inputType === "datetime" && hydrated
         ? toPickerLocalDateTime(currentValue)
         : normalizeTemporalInputValue(currentValue);
+  const valueFromInput = (input: HTMLInputElement) => {
+    const inputValue = normalizeTemporalInputValue(input.value);
+    return inputType === "datetime"
+      ? fromLocalDateTime(inputValue, selection.anchor)
+      : inputValue;
+  };
+  const commit = (input: HTMLInputElement) => {
+    if (!selection.edited) return;
+    const nextValue = valueFromInput(input);
+    setSelection({ ...selection, committedValue: nextValue, edited: false });
+    if (nextValue !== selection.committedValue)
+      fire($action, $dispatch, nextValue, input);
+  };
   return (
     <input
       key={isBound ? undefined : initialValue}
@@ -508,11 +523,7 @@ function DatePickerRender({
           : undefined
       }
       onChange={(e) => {
-        const inputValue = normalizeTemporalInputValue(e.currentTarget.value);
-        const nextValue =
-          inputType === "datetime"
-            ? fromLocalDateTime(inputValue, selection.anchor)
-            : inputValue;
+        const nextValue = valueFromInput(e.currentTarget);
         const canonical = canonicalFieldValue(nextValue);
         if (canonical !== undefined) {
           e.currentTarget.setAttribute(FIELD_VALUE_ATTR, canonical);
@@ -523,9 +534,19 @@ function DatePickerRender({
           initialValue,
           value: nextValue,
           anchor: selection.anchor,
+          committedValue: selection.committedValue,
+          edited: true,
         });
         updateBinding?.(nextValue);
-        fire($action, $dispatch, nextValue, e.currentTarget);
+      }}
+      onBlur={(e) => commit(e.currentTarget)}
+      onKeyDown={(e) => {
+        if (
+          e.key === "Enter" &&
+          !e.nativeEvent.isComposing &&
+          !e.currentTarget.form
+        )
+          commit(e.currentTarget);
       }}
     />
   );
