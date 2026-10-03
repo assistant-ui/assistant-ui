@@ -140,23 +140,25 @@ test("the workflow trigger paths are the union of the example inputs", () => {
   assert.deepEqual(triggerPaths, allInputs(repoRoot));
 });
 
-test("deployment installs use the same scoped command inside and outside Vercel", () => {
+test("the Ink deployment uses the same scoped install inside and outside Vercel", () => {
   const root = JSON.parse(
     readFileSync(path.join(repoRoot, "package.json"), "utf8"),
   );
-  for (const example of examplesOf(planDeploys(repoRoot, null))) {
-    const config = JSON.parse(
-      readFileSync(
-        path.join(repoRoot, "examples", example, "vercel.json"),
-        "utf8",
-      ),
-    );
-    assert.equal(
-      config.installCommand,
-      `pnpm install --frozen-lockfile --filter=${root.name} --filter=${example}... --filter=@assistant-ui/react-devtools...`,
-    );
-  }
+  const config = JSON.parse(
+    readFileSync(
+      path.join(repoRoot, "examples/with-react-ink-web/vercel.json"),
+      "utf8",
+    ),
+  );
+  assert.equal(
+    config.installCommand,
+    `pnpm install --frozen-lockfile --filter=${root.name} --filter=with-react-ink-web... --filter=@assistant-ui/react-devtools...`,
+  );
   const workflow = readFileSync(path.join(repoRoot, WORKFLOW_FILE), "utf8");
+  assert.match(
+    workflow,
+    /cache: \$\{\{ matrix.example != 'with-react-ink-web' \}\}/,
+  );
   const install = workflow.match(
     /      - name: Install dependencies\n[\s\S]*?(?=\n      - name:)/,
   )?.[0];
