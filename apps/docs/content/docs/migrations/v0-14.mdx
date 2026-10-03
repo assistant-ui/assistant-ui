@@ -285,7 +285,7 @@ The `components` prop is still supported on all primitives but is deprecated and
 
 Some APIs marked `@deprecated` are intentionally kept for one more release to give downstream runtimes time to migrate:
 
-- `ThreadState.threadId` and `ThreadState.metadata`: use `useAuiState((s) => s.threadListItem)` (see [v0.12 guide](/docs/migrations/v0-12)). Will be removed in a future minor release.
+- `ThreadState.threadId` and `ThreadState.metadata`: use `useAuiState((s) => s.threadListItem)` (see [v0.12 guide](/docs/migrations/v0-12)). Removed in [v0.16](/docs/migrations/v0-16).
 - Legacy context hooks under `legacy-runtime/hooks/*` (`useThreadRuntime`, `useMessageRuntime`, etc.): replaced by `useAui()` / `useAuiState()` in v0.12 and removed in [v0.15](/docs/migrations/v0-15). The codemod migrates these.
 - Primitive `If` components (`ThreadIf`, `MessageIf`, `ComposerIf`, `ThreadEmpty`): replaced by `AuiIf`. The codemod migrates these.
 

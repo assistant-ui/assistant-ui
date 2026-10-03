@@ -22,7 +22,11 @@ Migrate this codebase from assistant-ui v0.15 to v0.16.
    AttachmentRuntimeState or ThreadListItemRuntimeState.
 4. Leave uses that describe useAuiState selections or aui.<scope>.getState()
    results unchanged.
-5. Typecheck, build, and run tests; fix any remaining fallout.
+5. Replace ThreadRuntimeState.threadId and ThreadRuntimeState.metadata reads
+   with the active thread list item's id and state: use
+   runtime.threads.mainItem.getState().id for the ID and
+   runtime.threads.mainItem.getState() for metadata.
+6. Typecheck, build, and run tests; fix any remaining fallout.
 ```
 
 `npx assistant-ui upgrade` does not apply this change: whether a use needs the new name depends on where its value comes from, and TypeScript reports every use that does.
@@ -55,11 +59,15 @@ The two shapes differ in these fields:
 
 | Name | Only in the runtime state (`*RuntimeState`) | Only in the store state |
 | --- | --- | --- |
-| `ThreadState` | `threadId`, `metadata` | `isEmpty`, `tasks`, `composer`; `messages` holds `MessageState` |
+| `ThreadState` | none | `isEmpty`, `tasks`, `composer`; `messages` holds `MessageState` |
 | `MessageState` | none | `parts`, `composer`, `isCopied`, `isHovering` |
 | `ComposerState` | `parentId` and `sourceId` on an edit composer | none |
 | `AttachmentState` | `source` | none |
 | `ThreadListItemState` | `isMain` | none |
+
+## Thread ID and Metadata
+
+`ThreadRuntimeState` no longer includes `threadId` or `metadata`. Read the ID from `runtime.threads.mainItem.getState().id` and the thread metadata from `runtime.threads.mainItem.getState()`. For a specific thread, use its `ThreadListItemRuntimeState` from `runtime.threads.getItemById(id).getState()`.
 
 ## Getting Help
 
