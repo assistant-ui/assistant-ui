@@ -408,6 +408,11 @@ export abstract class BaseComposerRuntimeCore
         ? []
         : [result.value],
     );
+    if (!submission.text.trim() && finalAttachments.length === 0) {
+      this._endSubmission();
+      this._notifySubscribers();
+      return;
+    }
     this._dispatch(generation, submission, finalAttachments, context, true);
   }
 
