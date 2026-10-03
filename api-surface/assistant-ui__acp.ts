@@ -68,6 +68,8 @@ declare class AcpClient {
   get sessionId(): string | undefined;
   get agentInfo(): AcpImplementation | undefined;
   get agentCapabilities(): AcpAgentCapabilities | undefined;
+  get modes(): AcpSessionModeState | undefined;
+  get configOptions(): readonly AcpSessionConfigOption[] | undefined;
   get permissionHandler(): AcpPermissionHandler;
   set permissionHandler(handler: AcpPermissionHandler);
   connect(): Promise<AcpInitializeResponse>;
@@ -278,6 +280,19 @@ type AcpSessionConfigOption = {
   }[];
 } & ReadonlyJSONObject;
 
+type AcpSessionMode = {
+  readonly id: AcpSessionModeId;
+  readonly name: string;
+  readonly description?: string | null;
+};
+
+type AcpSessionModeId = string;
+
+type AcpSessionModeState = {
+  readonly currentModeId: AcpSessionModeId;
+  readonly availableModes: readonly AcpSessionMode[];
+};
+
 type AcpSessionUpdate = {
   readonly sessionUpdate: "user_message_chunk";
   readonly content: AcpContentBlock;
@@ -381,6 +396,8 @@ type AcpThreadEvent = {
   readonly sessionId: string | undefined;
   readonly agentInfo?: AcpImplementation | undefined;
   readonly agentCapabilities?: AcpAgentCapabilities | undefined;
+  readonly sessionModes?: AcpSessionModeState | undefined;
+  readonly sessionConfigOptions?: readonly AcpSessionConfigOption[] | undefined;
 } | {
   readonly type: "append-message";
   readonly message: AcpThreadMessage;

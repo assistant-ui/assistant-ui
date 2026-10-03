@@ -7,6 +7,8 @@ import { toThreadMessage } from "./acpMessageProjection";
 import type {
   AcpConnectionState,
   AcpPermissionRequest,
+  AcpSessionConfigOption,
+  AcpSessionModeState,
   AcpSessionUpdate,
   AcpToolCallStatus,
 } from "./types";
@@ -26,6 +28,8 @@ class FakeClient {
   pendingCapabilities: Record<string, unknown> | undefined = undefined;
   permissionHandler: PermissionHandler | undefined = undefined;
   hasConfiguredPermissionHandler = false;
+  modes: AcpSessionModeState | undefined = undefined;
+  configOptions: readonly AcpSessionConfigOption[] | undefined = undefined;
 
   private readonly sessionUpdateListeners = new Set<
     (sessionId: string, update: AcpSessionUpdate) => void
@@ -295,6 +299,22 @@ describe("AcpThreadController", () => {
 
     await c.load();
     expect(client.connectCalls).toBe(1);
+  });
+
+  it("feeds the session modes and config options the client reports", async () => {
+    client.modes = {
+      currentModeId: "code",
+      availableModes: [{ id: "code", name: "Code" }],
+    };
+    client.configOptions = [{ type: "boolean", currentValue: true }];
+    const c = controller(client);
+    await c.attach();
+    await c.load();
+
+    expect(c.getState().currentModeId).toBe("code");
+    expect(c.getState().configOptions).toEqual([
+      { type: "boolean", currentValue: true },
+    ]);
   });
 
   it("skips connecting when autoConnect is false", async () => {
@@ -851,6 +871,91 @@ describe("AcpThreadController", () => {
     ]);
   });
 
+  it("waits for a superseded prompt past any deadline", async () => {
+    vi.useFakeTimers();
+    try {
+      const c = controller(client);
+      await c.attach();
+      await c.load();
+
+      client.promptGate = () => {};
+      client.cancelReleases = false;
+      const first = c.append(userAppend("1"));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(client.prompts).toHaveLength(1);
+
+      const second = c.append(userAppend("2"));
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(client.prompts).toHaveLength(1);
+
+      client.promptGate = undefined;
+      client.unblock();
+      await vi.advanceTimersByTimeAsync(0);
+      await Promise.all([first, second]);
+
+      expect(client.prompts).toHaveLength(2);
+      expect(assistantOf(c).status).toEqual({
+        type: "complete",
+        reason: "stop",
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("ends a turn whose content the agent cannot receive at all", async () => {
+    const errors: Error[] = [];
+    const c = controller(client, { onError: (error) => errors.push(error) });
+    await c.attach();
+    await c.load();
+
+    await c.append(
+      userAppend("", {
+        content: [],
+        attachments: [
+          {
+            id: "a1",
+            type: "image",
+            name: "cat.png",
+            contentType: "image/png",
+            status: { type: "complete" },
+            content: [{ type: "image", image: "data:image/png;base64,QUJD" }],
+          },
+        ],
+      }),
+    );
+
+    expect(client.prompts).toEqual([]);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]!.message).toContain("image");
+    expect(assistantOf(c).status).toEqual({
+      type: "incomplete",
+      reason: "error",
+      error: errors[0]!.message,
+    });
+    expect(c.getState().run.type).toBe("idle");
+  });
+
+  it("ends a turn that has nothing to send at all", async () => {
+    const errors: Error[] = [];
+    const c = controller(client, { onError: (error) => errors.push(error) });
+    await c.attach();
+    await c.load();
+
+    await c.append(userAppend("", { content: [] }));
+
+    expect(client.prompts).toEqual([]);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]!.message).toBe(
+      "The message has no content the agent can receive.",
+    );
+    expect(assistantOf(c).status).toEqual({
+      type: "incomplete",
+      reason: "error",
+      error: errors[0]!.message,
+    });
+  });
+
   it("sends composer attachments to the agent and keeps them in the transcript", async () => {
     client.agentCapabilities = { promptCapabilities: { image: true } };
     const c = controller(client);
@@ -1000,6 +1105,39 @@ describe("AcpThreadController", () => {
         embeddedContext: true,
       }),
     ).toEqual({ blocks, dropped: [] });
+  });
+
+  it("reads a resource URI scheme case-insensitively", () => {
+    const blocks = [
+      {
+        type: "resource",
+        resource: {
+          uri: "FILE:///local.pdf",
+          blob: "QUJD",
+          mimeType: "application/pdf",
+        },
+      },
+      {
+        type: "resource",
+        resource: {
+          uri: "HTTPS://files.test/a.pdf",
+          blob: "QUJD",
+          mimeType: "application/pdf",
+        },
+      },
+    ] as Parameters<typeof filterPromptBlocks>[0];
+
+    expect(filterPromptBlocks(blocks, undefined)).toEqual({
+      blocks: [
+        {
+          type: "resource_link",
+          uri: "HTTPS://files.test/a.pdf",
+          name: "HTTPS://files.test/a.pdf",
+          mimeType: "application/pdf",
+        },
+      ],
+      dropped: [blocks[0]],
+    });
   });
 });
 

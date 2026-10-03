@@ -8,7 +8,11 @@ import {
   type AcpThreadState,
   type AcpUserMessage,
 } from "./acpThreadState";
-import type { AcpPermissionRequest, AcpSessionUpdate } from "./types";
+import type {
+  AcpPermissionRequest,
+  AcpSessionConfigOption,
+  AcpSessionUpdate,
+} from "./types";
 
 const user = (id: string, parentId: string | null = null): AcpUserMessage => ({
   role: "user",
@@ -117,6 +121,38 @@ describe("reduceAcpThreadState", () => {
     });
     expect(state.sessionId).toBe("s2");
     expect(state.agentInfo).toEqual({ name: "agent", version: "1.0.0" });
+  });
+
+  it("takes the session modes and config options a connection reports", () => {
+    const configOptions: AcpSessionConfigOption[] = [
+      { type: "boolean", currentValue: true },
+    ];
+    let state = reduceAcpThreadState(createAcpThreadState(), {
+      type: "connection",
+      connectionState: "connected",
+      sessionId: "s1",
+      sessionModes: {
+        currentModeId: "code",
+        availableModes: [{ id: "code", name: "Code" }],
+      },
+      sessionConfigOptions: configOptions,
+    });
+    expect(state.currentModeId).toBe("code");
+    expect(state.configOptions).toEqual(configOptions);
+
+    state = reduceAcpThreadState(
+      state,
+      update({ sessionUpdate: "current_mode_update", currentModeId: "plan" }),
+    );
+    expect(state.currentModeId).toBe("plan");
+
+    state = reduceAcpThreadState(state, {
+      type: "connection",
+      connectionState: "connected",
+      sessionId: "s1",
+    });
+    expect(state.currentModeId).toBe("plan");
+    expect(state.configOptions).toEqual(configOptions);
   });
 
   it("clears the session id when the client loses it", () => {

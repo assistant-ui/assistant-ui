@@ -62,9 +62,11 @@ Pass `client` to configure the transport yourself — not to share one connectio
 between runtimes. An `AcpClient` holds exactly one ACP session, so two runtimes
 on one client would prompt the same session and each show only its own half of
 the conversation: the silent fork the Limitations section warns about. Approvals
-cannot be shared either (see below), and whichever runtime unmounts first
-restores the handler it found at attach time, which can leave a still-mounted
-one without an approval UI. Give each runtime its own client.
+cannot be shared either (see below): a runtime puts back the handler it
+replaced only while that handler is still the current one, so the last of two
+to unmount reinstates one owned by a controller that is already gone, and every
+later permission request is cancelled without ever reaching an approval UI.
+Give each runtime its own client.
 
 The runtime **subscribes** to the client (`subscribeSessionUpdate` /
 `subscribeConnectionChange`) and unsubscribes when it unmounts, so your own
@@ -104,16 +106,26 @@ import {
 | `session/prompt`                           | append / run                                             |
 | `agent_message_chunk`                      | text content part (streamed)                             |
 | `agent_thought_chunk`                      | reasoning content part (streamed)                        |
-| `tool_call` / `tool_call_update`           | tool-call content part (title, args, result, status)     |
+| `tool_call` / `tool_call_update`           | tool-call content part (name, args, result, status)      |
 | `session/request_permission`               | tool-call approval (`requires-action` until answered)    |
 | `session/cancel`                           | cancel                                                   |
 | `plan`                                     | `useAcpPlan`                                             |
 | `session_info_update`                      | `useAcpSessionTitle`                                     |
-| `current_mode_update`                      | `useAcpCurrentModeId`                                    |
+| `modes` + `current_mode_update`            | `useAcpCurrentModeId`                                    |
 | `available_commands_update`                | `useAcpAvailableCommands`                                |
-| `config_option_update`                     | `useAcpConfigOptions`                                    |
+| `configOptions` + `config_option_update`   | `useAcpConfigOptions`                                    |
 | `usage_update`                             | `useAcpUsage`                                            |
 | `initialize` → `agentInfo`/`agentCapabilities` | `useAcpAgentInfo` / `useAcpAgentCapabilities`        |
+
+`session/new` and `session/load` report the session's initial `modes` and
+`configOptions`; the two `_update` notifications only fire on later changes, so
+both feed the extras hooks from the response as well.
+
+A tool call's `toolName` is the key apps register tool UIs against, so it has to
+be stable for the life of the call: the protocol's programmatic `name` when the
+agent sends one, then its `kind` (`read`/`edit`/`execute`/…), and only then the
+human-readable `title`. The `title` and `kind` stay readable on the part as
+`providerMetadata.acp`, so a renderer can still show the label.
 
 Browser clients advertise **no** filesystem or terminal capabilities, so a
 conforming ACP agent will never send `fs/*` or `terminal/*` requests; any such
@@ -155,9 +167,10 @@ session's updates rather than letting a late replay through.
 have to go together: clearing one without the other is exactly the fork above.
 Surface the error as a "start a new thread" action that hands the hook a new
 `client`, changes one of the managed options (`url`, `cwd`, `mcpServers`,
-`clientInfo`), or remounts the provider — each builds a fresh client and
-controller with an empty transcript and a new session. Until that happens the
-thread stays put: it keeps showing what it has and refuses to prompt.
+`clientInfo`), or remounts the component that calls `useAcpRuntime` — each
+builds a fresh client and controller with an empty transcript and a new
+session. Until that happens the thread stays put: it keeps showing what it has
+and refuses to prompt.
 
 **Attachments the agent did not opt into are withheld.**
 ACP's baseline prompt content is text and resource links; `image`, `audio` and

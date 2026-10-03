@@ -59,9 +59,6 @@ export type AcpThreadControllerLike = {
 
 const FALLBACK_USER_STATUS = { type: "complete", reason: "unknown" } as const;
 
-/** Upper bound on waiting for a cancelled turn's `session/prompt` to settle. */
-const SUPERSEDED_PROMPT_TIMEOUT_MS = 5000;
-
 const noop = () => {};
 
 const toError = (error: unknown): Error =>
@@ -299,6 +296,12 @@ export class AcpThreadController implements AcpThreadControllerLike {
       ...(this.client.agentCapabilities !== undefined && {
         agentCapabilities: this.client.agentCapabilities,
       }),
+      ...(this.client.modes !== undefined && {
+        sessionModes: this.client.modes,
+      }),
+      ...(this.client.configOptions !== undefined && {
+        sessionConfigOptions: this.client.configOptions,
+      }),
     };
   }
 
@@ -306,14 +309,16 @@ export class AcpThreadController implements AcpThreadControllerLike {
     invokeUserCallback("acp", "onError", this.onError, toError(error));
   }
 
-  private reportDroppedBlocks(dropped: readonly AcpContentBlock[]): void {
+  private droppedBlocksError(dropped: readonly AcpContentBlock[]): Error {
     const kinds = [...new Set(dropped.map((block) => block.type))].join(", ");
-    this.reportError(
-      new Error(
-        `The agent's promptCapabilities do not cover ${kinds}; dropped ` +
-          `${dropped.length} block(s) from this prompt.`,
-      ),
+    return new Error(
+      `The agent's promptCapabilities do not cover ${kinds}; dropped ` +
+        `${dropped.length} block(s) from this prompt.`,
     );
+  }
+
+  private reportDroppedBlocks(dropped: readonly AcpContentBlock[]): void {
+    this.reportError(this.droppedBlocksError(dropped));
   }
 
   /**
@@ -335,17 +340,19 @@ export class AcpThreadController implements AcpThreadControllerLike {
     this.dispatch({ type: "load-ready" });
   }
 
+  /**
+   * Waits for a prompt this run superseded to settle before the next one goes
+   * out. `session/update` carries no turn id, so a still-running old turn
+   * would render its remaining frames inside the new assistant message. There
+   * is no deadline: ACP requires an agent to answer a cancelled
+   * `session/prompt` with `stopReason: "cancelled"`, and a request an agent
+   * ignores either times out or rejects when the socket drops, so the wait
+   * always ends.
+   */
   private async settleSupersededPrompt(): Promise<void> {
     const previous = this.inflightPrompt;
     if (!previous) return;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    await Promise.race([
-      previous.then(noop, noop),
-      new Promise<void>((resolve) => {
-        timer = setTimeout(resolve, SUPERSEDED_PROMPT_TIMEOUT_MS);
-      }),
-    ]);
-    if (timer !== undefined) clearTimeout(timer);
+    await previous.then(noop, noop);
     if (this.inflightPrompt === previous) this.inflightPrompt = undefined;
   }
 
@@ -421,14 +428,20 @@ export class AcpThreadController implements AcpThreadControllerLike {
       ...user.content,
       ...user.attachments.flatMap((attachment) => attachment.content ?? []),
     ]);
-    const prompt = this.client.connect().then((initialized) => {
+    const client = this.client;
+    const prompt = client.connect().then((initialized) => {
       const filtered = filterPromptBlocks(
         blocks,
         initialized.agentCapabilities?.promptCapabilities,
       );
+      if (filtered.blocks.length === 0) {
+        throw filtered.dropped.length > 0
+          ? this.droppedBlocksError(filtered.dropped)
+          : new Error("The message has no content the agent can receive.");
+      }
       if (filtered.dropped.length > 0)
         this.reportDroppedBlocks(filtered.dropped);
-      return this.client.prompt(filtered.blocks, abort.signal);
+      return client.prompt(filtered.blocks, abort.signal);
     });
     this.inflightPrompt = prompt;
     return { token, prompt };

@@ -13,6 +13,7 @@ import type {
   AcpPermissionRequest,
   AcpPlanEntry,
   AcpSessionConfigOption,
+  AcpSessionModeState,
   AcpSessionUpdate,
   AcpToolCallStatus,
   AcpUsage,
@@ -92,6 +93,10 @@ export type AcpThreadEvent =
       readonly sessionId: string | undefined;
       readonly agentInfo?: AcpImplementation | undefined;
       readonly agentCapabilities?: AcpAgentCapabilities | undefined;
+      readonly sessionModes?: AcpSessionModeState | undefined;
+      readonly sessionConfigOptions?:
+        | readonly AcpSessionConfigOption[]
+        | undefined;
     }
   | { readonly type: "append-message"; readonly message: AcpThreadMessage }
   | {
@@ -316,6 +321,12 @@ export const reduceAcpThreadState = (
         ...(event.agentInfo !== undefined && { agentInfo: event.agentInfo }),
         ...(event.agentCapabilities !== undefined && {
           agentCapabilities: event.agentCapabilities,
+        }),
+        ...(event.sessionModes !== undefined && {
+          currentModeId: event.sessionModes.currentModeId,
+        }),
+        ...(event.sessionConfigOptions !== undefined && {
+          configOptions: event.sessionConfigOptions,
         }),
       };
 

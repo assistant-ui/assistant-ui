@@ -124,7 +124,7 @@ const resourceLinkOf = (
 });
 
 /** A `file:` URI names a client-local file, which the agent cannot fetch. */
-const isAgentRetrievable = (uri: string) => !uri.startsWith("file:");
+const isAgentRetrievable = (uri: string) => !/^file:/i.test(uri);
 
 /**
  * Text and resource links are the ACP baseline; every other block type has to
@@ -281,9 +281,32 @@ const safeStringify = (value: unknown): string => {
   }
 };
 
+/** Namespace this package uses on a part's `providerMetadata`. */
+const ACP_METADATA_NAMESPACE = "acp";
+
+/**
+ * `toolName` is the key apps register tool UIs against, so it has to stay
+ * stable for the life of a call: the protocol's programmatic `name` first,
+ * then the `kind` enum, and only then the human-readable `title`.
+ */
 const toolNameOf = (update: AcpToolCallUpdate): string | undefined => {
-  const name = update.name || update.title;
+  const name = update.name || update.kind || update.title;
   return name || undefined;
+};
+
+/**
+ * The `title` a stable `toolName` was chosen over, plus the `kind` it may have
+ * come from, so a renderer can still show the human-readable label.
+ */
+const toolMetadataOf = (
+  update: AcpToolCallUpdate,
+): ReadonlyJSONObject | undefined => {
+  const meta: Record<string, string> = {};
+  const title = update.title ?? undefined;
+  const kind = update.kind ?? undefined;
+  if (title !== undefined) meta.title = title;
+  if (kind !== undefined) meta.kind = kind;
+  return Object.keys(meta).length > 0 ? meta : undefined;
 };
 
 const settledResult = (
@@ -305,13 +328,17 @@ export function buildToolCallPart(
     ? (update.rawInput as ReadonlyJSONObject)
     : {};
   const status = update.status ?? knownStatus ?? "pending";
+  const metadata = toolMetadataOf(update);
   const part: ToolCallMessagePart = {
     type: "tool-call",
     toolCallId: update.toolCallId,
-    toolName: toolNameOf(update) ?? update.kind ?? "tool_call",
+    toolName: toolNameOf(update) ?? "tool_call",
     args,
     argsText:
       update.rawInput !== undefined ? safeStringify(update.rawInput) : "",
+    ...(metadata !== undefined && {
+      providerMetadata: { [ACP_METADATA_NAMESPACE]: metadata },
+    }),
   };
   if (!isSettled(status)) {
     if (update.rawOutput === undefined) return part;
@@ -336,6 +363,22 @@ export function mergeToolCallPart(
 
   const toolName = toolNameOf(update);
   if (toolName && toolName !== next.toolName) set({ toolName });
+
+  const metadata = toolMetadataOf(update);
+  if (metadata !== undefined) {
+    const previous = next.providerMetadata?.[ACP_METADATA_NAMESPACE];
+    if (
+      previous?.title !== metadata.title ||
+      previous?.kind !== metadata.kind
+    ) {
+      set({
+        providerMetadata: {
+          ...next.providerMetadata,
+          [ACP_METADATA_NAMESPACE]: metadata,
+        },
+      });
+    }
+  }
 
   if (update.rawInput !== undefined) {
     const argsText = safeStringify(update.rawInput);

@@ -156,7 +156,7 @@ describe("AcpClient", () => {
     expect(init.params).toMatchObject({
       protocolVersion: 1,
       clientCapabilities: {},
-      clientInfo: { name: "acp" },
+      clientInfo: { name: "@assistant-ui/acp", version: "0.0.0" },
     });
 
     ws.receive({
@@ -197,6 +197,44 @@ describe("AcpClient", () => {
       cwd: "/srv/app",
       mcpServers: [],
     });
+  });
+
+  it("keeps the modes and config options session/new reports", async () => {
+    const client = mockClient();
+    const pending = client.ensureSession();
+    await connectClient(client);
+    const ws = lastWs();
+    const newSession = await until(() =>
+      ws.sent.find((f) => f.method === "session/new"),
+    );
+    expect(client.modes).toBeUndefined();
+    expect(client.configOptions).toBeUndefined();
+
+    ws.receive({
+      jsonrpc: "2.0",
+      id: newSession.id!,
+      result: {
+        sessionId: "s1",
+        modes: {
+          currentModeId: "code",
+          availableModes: [{ id: "code", name: "Code" }],
+        },
+        configOptions: [{ type: "boolean", currentValue: true, id: "verbose" }],
+      },
+    });
+
+    await expect(pending).resolves.toBe("s1");
+    expect(client.modes).toEqual({
+      currentModeId: "code",
+      availableModes: [{ id: "code", name: "Code" }],
+    });
+    expect(client.configOptions).toEqual([
+      { type: "boolean", currentValue: true, id: "verbose" },
+    ]);
+
+    ws.close();
+    expect(client.modes).toBeUndefined();
+    expect(client.configOptions).toBeUndefined();
   });
 
   it("sends prompts and dispatches session/update notifications", async () => {
@@ -458,6 +496,32 @@ describe("AcpClient", () => {
     await expect(reloaded).resolves.toBe("s1");
     expect(client.sessionId).toBe("s1");
     expect(next.sent.some((f) => f.method === "session/new")).toBe(false);
+  });
+
+  it("keeps the modes and config options a session/load response reports", async () => {
+    const client = mockClient();
+    const ws = await withSession(client);
+    expect(client.modes).toBeUndefined();
+
+    ws.close();
+    const reloaded = client.ensureSession();
+    const next = lastWs();
+    await completeHandshake(next);
+    const load = await until(() =>
+      next.sent.find((f) => f.method === "session/load"),
+    );
+    next.receive({
+      jsonrpc: "2.0",
+      id: load.id!,
+      result: {
+        modes: { currentModeId: "plan", availableModes: [] },
+        configOptions: [],
+      },
+    });
+
+    await expect(reloaded).resolves.toBe("s1");
+    expect(client.modes).toEqual({ currentModeId: "plan", availableModes: [] });
+    expect(client.configOptions).toEqual([]);
   });
 
   it("drops the session/load replay instead of streaming it into the thread", async () => {

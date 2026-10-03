@@ -166,6 +166,19 @@ export type AcpUsage = {
   readonly cost?: AcpCost | null;
 };
 
+export type AcpSessionModeId = string;
+
+export type AcpSessionMode = {
+  readonly id: AcpSessionModeId;
+  readonly name: string;
+  readonly description?: string | null;
+};
+
+export type AcpSessionModeState = {
+  readonly currentModeId: AcpSessionModeId;
+  readonly availableModes: readonly AcpSessionMode[];
+};
+
 export type AcpSessionUpdate =
   | {
       readonly sessionUpdate: "user_message_chunk";

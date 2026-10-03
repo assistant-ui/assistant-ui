@@ -10,6 +10,8 @@ import {
   type AcpMcpServer,
   type AcpPermissionOutcome,
   type AcpPermissionRequest,
+  type AcpSessionConfigOption,
+  type AcpSessionModeState,
   type AcpSessionUpdate,
   type AcpStopReason,
 } from "./types";
@@ -64,6 +66,12 @@ export type AcpClientOptions = {
   permissionHandler?: AcpPermissionHandler;
 };
 
+type AcpSessionResponse = {
+  sessionId: string;
+  modes?: AcpSessionModeState | null;
+  configOptions?: readonly AcpSessionConfigOption[] | null;
+};
+
 type JsonRpcId = number | string;
 
 type PendingRequest = {
@@ -97,6 +105,11 @@ export const cancelPermissionHandler: AcpPermissionHandler = () => ({
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
 
+const ACP_CLIENT_VERSION: string =
+  typeof __AUI_PACKAGE_VERSION__ === "string"
+    ? __AUI_PACKAGE_VERSION__
+    : "0.0.0";
+
 const defaultWebSocketFactory: AcpWebSocketFactory = (url) =>
   new WebSocket(url) as unknown as AcpWebSocketLike;
 
@@ -123,6 +136,8 @@ export class AcpClient {
   private cancelSent = false;
   private lostSessionId: string | undefined;
   private loadingSessionId: string | undefined;
+  private sessionModes: AcpSessionModeState | undefined;
+  private sessionConfigOptions: readonly AcpSessionConfigOption[] | undefined;
   private readonly explicitPermissionHandler: boolean;
   private readonly sessionUpdateListeners = new Set<AcpSessionUpdateListener>();
   private readonly connectionListeners = new Set<AcpConnectionListener>();
@@ -167,6 +182,16 @@ export class AcpClient {
 
   get agentCapabilities(): AcpAgentCapabilities | undefined {
     return this.initializeResult?.agentCapabilities;
+  }
+
+  /** Initial mode state reported by `session/new` or `session/load`. */
+  get modes(): AcpSessionModeState | undefined {
+    return this.sessionModes;
+  }
+
+  /** Initial config options reported by `session/new` or `session/load`. */
+  get configOptions(): readonly AcpSessionConfigOption[] | undefined {
+    return this.sessionConfigOptions;
   }
 
   get permissionHandler(): AcpPermissionHandler {
@@ -289,6 +314,8 @@ export class AcpClient {
     if (this._sessionId !== undefined) this.lostSessionId = this._sessionId;
     this._sessionId = undefined;
     this.initializeResult = undefined;
+    this.sessionModes = undefined;
+    this.sessionConfigOptions = undefined;
     this.cancelSent = false;
     const stateChanged = this._connectionState !== "disconnected";
     this._connectionState = "disconnected";
@@ -340,8 +367,8 @@ export class AcpClient {
                 protocolVersion: ACP_PROTOCOL_VERSION,
                 clientCapabilities: {},
                 clientInfo: this.options.clientInfo ?? {
-                  name: "acp",
-                  version: "0.1.0",
+                  name: "@assistant-ui/acp",
+                  version: ACP_CLIENT_VERSION,
                 },
               },
             );
@@ -381,11 +408,13 @@ export class AcpClient {
     await this.connect();
     const lost = this.lostSessionId;
     if (lost !== undefined) return this.reloadSession(lost);
-    const result = await this.request<{ sessionId: string }>("session/new", {
+    const result = await this.request<AcpSessionResponse>("session/new", {
       cwd: this.options.cwd ?? "/",
       mcpServers: this.options.mcpServers ?? [],
     });
     this._sessionId = result.sessionId;
+    this.sessionModes = result.modes ?? undefined;
+    this.sessionConfigOptions = result.configOptions ?? undefined;
     this.emitConnectionChange();
     return result.sessionId;
   }
@@ -414,8 +443,9 @@ export class AcpClient {
       throw unusable("the agent does not support session/load");
     }
     this.loadingSessionId = sessionId;
+    let loaded: AcpSessionResponse;
     try {
-      await this.request("session/load", {
+      loaded = await this.request<AcpSessionResponse>("session/load", {
         sessionId,
         cwd: this.options.cwd ?? "/",
         mcpServers: this.options.mcpServers ?? [],
@@ -426,6 +456,8 @@ export class AcpClient {
     this.loadingSessionId = undefined;
     this._sessionId = sessionId;
     this.lostSessionId = undefined;
+    this.sessionModes = loaded.modes ?? undefined;
+    this.sessionConfigOptions = loaded.configOptions ?? undefined;
     this.emitConnectionChange();
     return sessionId;
   }

@@ -353,6 +353,18 @@ describe("buildToolCallPart", () => {
     ).toBe("web_search");
   });
 
+  it("prefers a stable kind over a title that changes", () => {
+    const part = buildToolCallPart({
+      toolCallId: "t1",
+      title: "Reading src/a.ts",
+      kind: "read",
+    });
+    expect(part.toolName).toBe("read");
+    expect(part.providerMetadata).toEqual({
+      acp: { title: "Reading src/a.ts", kind: "read" },
+    });
+  });
+
   it("falls back to kind then a placeholder when unnamed", () => {
     expect(buildToolCallPart({ toolCallId: "t1", kind: "read" }).toolName).toBe(
       "read",
@@ -476,6 +488,31 @@ describe("mergeToolCallPart", () => {
     });
     expect(merged.toolName).toBe("Search the web");
     expect(merged.args).toEqual({ query: "salsa" });
+  });
+
+  it("keeps a kind-derived tool name while the title changes", () => {
+    const started = buildToolCallPart({
+      toolCallId: "t1",
+      title: "Reading src/a.ts",
+      kind: "read",
+      status: "in_progress",
+    });
+    const renamed = mergeToolCallPart(started, {
+      toolCallId: "t1",
+      title: "Read src/a.ts",
+      kind: "read",
+    });
+    expect(renamed.toolName).toBe("read");
+    expect(renamed.providerMetadata).toEqual({
+      acp: { title: "Read src/a.ts", kind: "read" },
+    });
+    expect(
+      mergeToolCallPart(renamed, {
+        toolCallId: "t1",
+        title: "Read src/a.ts",
+        kind: "read",
+      }),
+    ).toBe(renamed);
   });
 
   const text = (value: string) =>
