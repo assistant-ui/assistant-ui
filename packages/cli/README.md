@@ -103,6 +103,22 @@ setup. Existing environment values are preserved; conflicting cloud settings
 produce an error. `npx assistant-ui@latest cloud login` signs in separately and
 `npx assistant-ui@latest cloud logout` revokes the saved CLI login.
 
+When an agent is installing from an active setup wizard, pass its setup-agent
+URL with `--setup-url <url>` to `cloud login` or `cloud setup`. The wizard shows
+the device approval code and sends you to Accounts for explicit consent, then
+returns to the same setup. The CLI polls Accounts directly and saves credentials
+locally with owner-only permissions; tokens never pass through the wizard or
+its generic secret inputs. Cancelling the sign-in question or setup cancels
+pending login. Returning from Accounts alone does not complete login.
+
+Before the npm patch is released, use the
+[verified wizard sign-in prerelease](https://www.assistant-ui.com/downloads/assistant-ui-wizard-login-ea9aae48e.tgz)
+with your active setup-agent connection URL:
+
+```bash
+npx --yes --package=https://www.assistant-ui.com/downloads/assistant-ui-wizard-login-ea9aae48e.tgz assistant-ui cloud login --setup-url "<active-setup-agent-url>"
+```
+
 ## Documentation
 
 Full command reference, flags, and template details at [assistant-ui.com/docs/cli](https://www.assistant-ui.com/docs/cli).
