@@ -32,7 +32,11 @@ export type AcpPermissionHandler = (
 export type AcpClientOptions = {
   /** WebSocket endpoint of the ACP agent, e.g. `ws://127.0.0.1:2770/`. */
   url: string;
-  /** Working directory passed to `session/new`. Must be an absolute path. */
+  /**
+   * Working directory passed to `session/new`. ACP requires an absolute path;
+   * defaults to `"/"`. Set this when the agent's file tools should be rooted
+   * somewhere specific.
+   */
   cwd?: string;
   /** MCP servers passed to `session/new`. */
   mcpServers?: readonly AcpMcpServer[];
@@ -102,6 +106,7 @@ export class AcpClient {
     (outcome: AcpPermissionOutcome) => void
   >();
   private connectPromise: Promise<AcpInitializeResponse> | undefined;
+  private failHandshake: ((error: Error) => void) | undefined;
   private sessionPromise: Promise<string> | undefined;
   private initializeResult: AcpInitializeResponse | undefined;
   private _sessionId: string | undefined;
@@ -191,8 +196,9 @@ export class AcpClient {
   }
 
   dispose(): void {
-    this.settlePermissions({ outcome: "cancelled" });
     this.disposed = true;
+    this.settlePermissions({ outcome: "cancelled" });
+    this.failHandshake?.(new Error("AcpClient disposed"));
     const ws = this.ws;
     this.ws = undefined;
     if (ws) {
@@ -200,25 +206,34 @@ export class AcpClient {
       ws.onmessage = null;
       ws.onerror = null;
       ws.onclose = null;
-      ws.close();
+      try {
+        ws.close();
+      } catch {
+        // a throwing transport must not strand the cleanup below
+      }
     }
     this.failPending(new Error("AcpClient disposed"));
     this.initializeResult = undefined;
     this._sessionId = undefined;
     this.connectPromise = undefined;
     this.sessionPromise = undefined;
-    this.setConnectionState("disconnected");
+    this._connectionState = "disconnected";
+    this.emitConnectionChange();
+  }
+
+  private emitConnectionChange() {
+    invokeUserCallback(
+      "react-acp",
+      "onConnectionChange",
+      this.onConnectionChange,
+      this._connectionState,
+    );
   }
 
   private setConnectionState(state: AcpConnectionState) {
     if (this._connectionState === state) return;
     this._connectionState = state;
-    invokeUserCallback(
-      "react-acp",
-      "onConnectionChange",
-      this.onConnectionChange,
-      state,
-    );
+    this.emitConnectionChange();
   }
 
   private settlePermissions(outcome: AcpPermissionOutcome): void {
@@ -235,9 +250,11 @@ export class AcpClient {
       const fail = (error: Error) => {
         if (settled) return;
         settled = true;
+        this.failHandshake = undefined;
         this.setConnectionState("disconnected");
         reject(error);
       };
+      this.failHandshake = fail;
 
       let ws: AcpWebSocketLike;
       try {
@@ -270,6 +287,7 @@ export class AcpClient {
             this.initializeResult = result;
             if (settled) return;
             settled = true;
+            this.failHandshake = undefined;
             this.setConnectionState("connected");
             resolve(result);
           } catch (error) {
@@ -300,10 +318,11 @@ export class AcpClient {
   private async doNewSession(): Promise<string> {
     await this.connect();
     const result = await this.request<{ sessionId: string }>("session/new", {
-      cwd: this.options.cwd ?? ".",
+      cwd: this.options.cwd ?? "/",
       mcpServers: this.options.mcpServers ?? [],
     });
     this._sessionId = result.sessionId;
+    this.emitConnectionChange();
     return result.sessionId;
   }
 
@@ -313,7 +332,8 @@ export class AcpClient {
     this.ws = undefined;
     this._sessionId = undefined;
     this.initializeResult = undefined;
-    this.setConnectionState("disconnected");
+    this._connectionState = "disconnected";
+    this.emitConnectionChange();
   }
 
   private failPending(error: Error): void {
@@ -381,7 +401,11 @@ export class AcpClient {
       if (settled) return;
       settled = true;
       this.pendingPermissions.delete(requestId);
-      this.sendRaw({ jsonrpc: "2.0", id: requestId, result: { outcome } });
+      try {
+        this.sendRaw({ jsonrpc: "2.0", id: requestId, result: { outcome } });
+      } catch {
+        // the socket is already gone; permission replies are best-effort
+      }
     };
     this.pendingPermissions.set(requestId, reply);
 

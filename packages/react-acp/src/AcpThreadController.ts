@@ -65,6 +65,11 @@ export type AcpThreadControllerLike = {
 
 const FALLBACK_USER_STATUS = { type: "complete", reason: "unknown" } as const;
 
+/** Upper bound on waiting for a cancelled turn's `session/prompt` to settle. */
+const SUPERSEDED_PROMPT_TIMEOUT_MS = 5000;
+
+const noop = () => {};
+
 const toError = (error: unknown): Error =>
   error instanceof Error ? error : new Error(String(error));
 
@@ -87,9 +92,11 @@ export class AcpThreadController implements AcpThreadControllerLike {
   private loadPromise: Promise<void> | undefined;
   private hasLoaded = false;
   private loadedHistory: ThreadHistoryAdapter | undefined;
+  private loadingHistory: ThreadHistoryAdapter | undefined;
   private runToken = 0;
   private permissionCounter = 0;
   private attached = false;
+  private inflightPrompt: Promise<unknown> | undefined;
 
   private readonly boundOnSessionUpdate = (
     _sessionId: string,
@@ -149,6 +156,12 @@ export class AcpThreadController implements AcpThreadControllerLike {
     }
     this.runToken += 1;
     await this.settlePermissions();
+    if (this.state.run.type === "running") {
+      this.dispatch({
+        type: "run-end",
+        status: { type: "incomplete", reason: "cancelled" },
+      });
+    }
     this.hasLoaded = false;
   }
 
@@ -165,9 +178,14 @@ export class AcpThreadController implements AcpThreadControllerLike {
   }
 
   async load(): Promise<void> {
-    if (this.loadPromise) return this.loadPromise;
+    if (this.loadPromise) {
+      return this.loadingHistory === this.history
+        ? this.loadPromise
+        : this.loadPromise.then(() => this.load());
+    }
     if (this.hasLoaded && this.loadedHistory === this.history) return;
     this.dispatch({ type: "load-start" });
+    this.loadingHistory = this.history;
     this.loadPromise = this.doLoad().finally(() => {
       this.loadPromise = undefined;
     });
@@ -277,9 +295,7 @@ export class AcpThreadController implements AcpThreadControllerLike {
     return {
       type: "connection",
       connectionState,
-      ...(this.client.sessionId !== undefined && {
-        sessionId: this.client.sessionId,
-      }),
+      sessionId: this.client.sessionId,
       ...(this.client.agentInfo !== undefined && {
         agentInfo: this.client.agentInfo,
       }),
@@ -297,18 +313,8 @@ export class AcpThreadController implements AcpThreadControllerLike {
     const history = this.history;
     const connect = this.autoConnect
       ? this.client.connect().then(
-          (result) => {
-            this.dispatch({
-              type: "connection",
-              connectionState: "connected",
-              ...(this.client.sessionId !== undefined && {
-                sessionId: this.client.sessionId,
-              }),
-              ...(result.agentInfo != null && { agentInfo: result.agentInfo }),
-              ...(result.agentCapabilities !== undefined && {
-                agentCapabilities: result.agentCapabilities,
-              }),
-            });
+          () => {
+            this.dispatch(this.connectionEvent("connected"));
           },
           (error: unknown) => {
             this.dispatch(this.connectionEvent("disconnected"));
@@ -347,6 +353,20 @@ export class AcpThreadController implements AcpThreadControllerLike {
     });
   }
 
+  private async settleSupersededPrompt(): Promise<void> {
+    const previous = this.inflightPrompt;
+    if (!previous) return;
+    this.inflightPrompt = undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    await Promise.race([
+      previous.then(noop, noop),
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, SUPERSEDED_PROMPT_TIMEOUT_MS);
+      }),
+    ]);
+    if (timer !== undefined) clearTimeout(timer);
+  }
+
   private async settlePermissions(): Promise<void> {
     if (this.pendingPermissions.size === 0) return;
     const pending = [...this.pendingPermissions.values()];
@@ -373,6 +393,7 @@ export class AcpThreadController implements AcpThreadControllerLike {
 
   private async run(userMessageId: string): Promise<void> {
     if (this.state.run.type === "running") await this.cancel();
+    await this.settleSupersededPrompt();
 
     const user = this.state.messagesById[userMessageId];
     if (user?.role !== "user") return;
@@ -387,15 +408,22 @@ export class AcpThreadController implements AcpThreadControllerLike {
     };
     this.dispatch({ type: "run-start", message: assistant });
     const token = this.runToken;
-    const blocks = threadContentToAcpBlocks(user.content);
+    const blocks = threadContentToAcpBlocks([
+      ...user.content,
+      ...user.attachments.flatMap((attachment) => attachment.content ?? []),
+    ]);
 
     let status: MessageStatus;
+    const prompt = this.client.prompt(blocks);
+    this.inflightPrompt = prompt;
     try {
-      status = stopReasonToMessageStatus(await this.client.prompt(blocks));
+      status = stopReasonToMessageStatus(await prompt);
     } catch (error) {
       const err = toError(error);
       status = { type: "incomplete", reason: "error", error: err.message };
       this.reportError(err);
+    } finally {
+      if (this.inflightPrompt === prompt) this.inflightPrompt = undefined;
     }
     if (token !== this.runToken) return;
 
@@ -426,6 +454,8 @@ export class AcpThreadController implements AcpThreadControllerLike {
         threadMessage.role === "user"
           ? (threadMessage.content as AcpUserMessage["content"])
           : [],
+      attachments:
+        threadMessage.role === "user" ? threadMessage.attachments : [],
     };
   }
 
@@ -490,5 +520,6 @@ const toAcpThreadMessage = (
     parentId,
     createdAt,
     content: message.role === "user" ? message.content : [],
+    attachments: message.role === "user" ? message.attachments : [],
   };
 };

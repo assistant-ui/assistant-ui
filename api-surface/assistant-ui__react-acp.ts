@@ -377,7 +377,7 @@ type AcpThreadEvent = {
 } | {
   readonly type: "connection";
   readonly connectionState: AcpConnectionState;
-  readonly sessionId?: string | undefined;
+  readonly sessionId: string | undefined;
   readonly agentInfo?: AcpImplementation | undefined;
   readonly agentCapabilities?: AcpAgentCapabilities | undefined;
 } | {
@@ -489,6 +489,7 @@ type AcpUserMessage = {
   readonly parentId: string | null;
   readonly createdAt: number;
   readonly content: readonly ThreadUserMessagePart[];
+  readonly attachments: readonly CompleteAttachment[];
 };
 
 type AcpWebSocketFactory = (url: string) => AcpWebSocketLike;

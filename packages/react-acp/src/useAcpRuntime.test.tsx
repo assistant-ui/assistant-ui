@@ -4,7 +4,11 @@ import { StrictMode, act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
 const { tracked } = vi.hoisted(() => ({
-  tracked: { constructions: 0, disposed: 0 },
+  tracked: {
+    constructions: 0,
+    disposed: 0,
+    teardown: [] as string[],
+  },
 }));
 
 vi.mock("./AcpClient", async (importOriginal) => {
@@ -14,8 +18,13 @@ vi.mock("./AcpClient", async (importOriginal) => {
       super(options);
       tracked.constructions += 1;
     }
+    override async cancel(): Promise<void> {
+      tracked.teardown.push("cancel");
+      return super.cancel();
+    }
     override dispose(): void {
       tracked.disposed += 1;
+      tracked.teardown.push("dispose");
       super.dispose();
     }
   }
@@ -77,6 +86,7 @@ afterEach(async () => {
   await new Promise<void>((resolve) => setTimeout(resolve, 0));
   tracked.constructions = 0;
   tracked.disposed = 0;
+  tracked.teardown = [];
   vi.restoreAllMocks();
 });
 
@@ -141,6 +151,33 @@ describe("useAcpRuntime", () => {
 
     expect(tracked.constructions).toBe(2);
     expect(tracked.disposed).toBe(1);
+  });
+
+  it("rebuilds the registry when the client prop changes", async () => {
+    const first = new AcpClient({ url: "ws://127.0.0.1:2770/" });
+    const second = new AcpClient({ url: "ws://127.0.0.1:2771/" });
+    const { rerender } = renderRuntime({ client: first, autoConnect: false });
+    await flushTimers();
+    expect(first.onConnectionChange).toBeDefined();
+
+    rerender({ client: second, autoConnect: false });
+    await flushTimers();
+
+    expect(second.onConnectionChange).toBeDefined();
+    expect(first.onConnectionChange).toBeUndefined();
+    expect(tracked.disposed).toBe(0);
+  });
+
+  it("cancels the remote turn before disposing the managed client", async () => {
+    renderRuntime(baseProps);
+    await flushTimers();
+    tracked.teardown = [];
+
+    act(() => root?.unmount());
+    root = undefined;
+    await flushTimers();
+
+    expect(tracked.teardown).toEqual(["cancel", "dispose"]);
   });
 
   it("throws when neither client nor url is provided", () => {

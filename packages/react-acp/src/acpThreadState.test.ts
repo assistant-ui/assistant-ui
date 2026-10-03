@@ -16,6 +16,7 @@ const user = (id: string, parentId: string | null = null): AcpUserMessage => ({
   parentId,
   createdAt: 1,
   content: [{ type: "text", text: "hi" }],
+  attachments: [],
 });
 
 const assistant = (
@@ -88,7 +89,7 @@ describe("reduceAcpThreadState", () => {
     expect(failed.loadState).toEqual({ type: "error", error: "boom" });
   });
 
-  it("records connection details without clearing earlier ones", () => {
+  it("records connection details without clearing earlier agent info", () => {
     let state = reduceAcpThreadState(createAcpThreadState(), {
       type: "connection",
       connectionState: "connected",
@@ -101,11 +102,26 @@ describe("reduceAcpThreadState", () => {
 
     state = reduceAcpThreadState(state, {
       type: "connection",
-      connectionState: "disconnected",
+      connectionState: "connected",
+      sessionId: "s2",
     });
-    expect(state.connectionState).toBe("disconnected");
-    expect(state.sessionId).toBe("s1");
+    expect(state.sessionId).toBe("s2");
     expect(state.agentInfo).toEqual({ name: "agent", version: "1.0.0" });
+  });
+
+  it("clears the session id when the client loses it", () => {
+    const connected = reduceAcpThreadState(createAcpThreadState(), {
+      type: "connection",
+      connectionState: "connected",
+      sessionId: "s1",
+    });
+    const disconnected = reduceAcpThreadState(connected, {
+      type: "connection",
+      connectionState: "disconnected",
+      sessionId: undefined,
+    });
+    expect(disconnected.connectionState).toBe("disconnected");
+    expect(disconnected.sessionId).toBeUndefined();
   });
 
   it("appends messages and moves the head", () => {

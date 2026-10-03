@@ -423,4 +423,75 @@ describe("AcpClient", () => {
     lastWs().open();
     await expect(pending).rejects.toThrow("initialize timed out after 20ms");
   });
+
+  it("rejects connect when the client is disposed mid-handshake", async () => {
+    const client = mockClient();
+    const pending = client.connect();
+    const ws = lastWs();
+    ws.open();
+    await until(() => ws.sent.find((f) => f.method === "initialize"));
+
+    client.dispose();
+
+    await expect(pending).rejects.toThrow("disposed");
+    expect(client.connectionState).toBe("disconnected");
+    expect(ws.closed).toBe(true);
+  });
+
+  it("notifies onConnectionChange once the session id is known", async () => {
+    const client = mockClient();
+    const seen: (string | undefined)[] = [];
+    client.onConnectionChange = () => {
+      seen.push(client.sessionId);
+    };
+
+    await withSession(client);
+
+    expect(seen).toContain("s1");
+  });
+
+  it("sends an absolute cwd to session/new by default", async () => {
+    const client = mockClient();
+    const ws = await withSession(client);
+
+    expect(ws.sent.find((f) => f.method === "session/new")?.params).toEqual({
+      cwd: "/",
+      mcpServers: [],
+    });
+  });
+
+  it("finishes dispose cleanup when the transport throws on close", async () => {
+    const client = mockClient();
+    const ws = await withSession(client);
+    ws.close = () => {
+      throw new Error("transport exploded");
+    };
+    const inflight = client.prompt([{ type: "text", text: "hi" }]);
+    await until(() =>
+      ws.sent.some((f) => f.method === "session/prompt") ? true : undefined,
+    );
+
+    expect(() => client.dispose()).not.toThrow();
+
+    expect(client.sessionId).toBeUndefined();
+    expect(client.connectionState).toBe("disconnected");
+    await expect(inflight).rejects.toThrow("disposed");
+  });
+
+  it("still cleans up when a permission reply cannot be sent on dispose", async () => {
+    const client = mockClient({
+      permissionHandler: () => new Promise(() => {}),
+    });
+    const ws = await withSession(client);
+    ws.receive(permissionRequest(91));
+    await new Promise((r) => setTimeout(r, 0));
+    ws.send = () => {
+      throw new Error("transport exploded");
+    };
+
+    expect(() => client.dispose()).not.toThrow();
+
+    expect(client.sessionId).toBeUndefined();
+    expect(client.connectionState).toBe("disconnected");
+  });
 });

@@ -5,7 +5,12 @@ import type {
   ThreadMessage,
 } from "@assistant-ui/core";
 import { AcpThreadController } from "./AcpThreadController";
-import { cancelPermissionHandler, type AcpClient } from "./AcpClient";
+import {
+  AcpClient,
+  cancelPermissionHandler,
+  type AcpWebSocketLike,
+} from "./AcpClient";
+import { toThreadMessage } from "./acpMessageProjection";
 import type {
   AcpConnectionState,
   AcpPermissionRequest,
@@ -57,12 +62,14 @@ class FakeClient {
 
   async prompt(blocks: unknown[]) {
     this.prompts.push(blocks);
+    this.log?.push("prompt:send");
     if (this.promptGate) {
       await new Promise<void>((resolve) => {
         this.release = resolve;
       });
     }
     if (this.promptError) throw this.promptError;
+    this.log?.push("prompt:settled");
     return this.stopReason;
   }
 
@@ -394,7 +401,11 @@ describe("AcpThreadController", () => {
     await done;
 
     expect(client.cancelCalls).toBe(1);
-    expect(calls).toEqual(["client.cancel", "onCancel"]);
+    expect(
+      calls.filter(
+        (entry) => entry === "client.cancel" || entry === "onCancel",
+      ),
+    ).toEqual(["client.cancel", "onCancel"]);
     expect(assistantOf(c).status).toEqual({
       type: "incomplete",
       reason: "cancelled",
@@ -603,5 +614,196 @@ describe("AcpThreadController", () => {
 
     client.unblock();
     await done;
+  });
+
+  it("marks the run cancelled when detaching mid-turn", async () => {
+    const c = controller(client);
+    await c.attach();
+    await c.load();
+
+    client.promptGate = () => {};
+    const done = c.append(userAppend("x"));
+    await flush();
+    expect(c.getState().run.type).toBe("running");
+
+    await c.detach();
+
+    expect(c.getState().run).toEqual({ type: "idle" });
+    expect(assistantOf(c).status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+
+    client.unblock();
+    await done;
+  });
+
+  it("awaits the superseded prompt before starting the replacement run", async () => {
+    const c = controller(client);
+    await c.attach();
+    await c.load();
+
+    const order: string[] = [];
+    client.log = order;
+    client.promptGate = () => {};
+    const first = c.append(userAppend("1"));
+    await flush();
+    expect(order).toEqual(["prompt:send"]);
+
+    client.promptGate = undefined;
+    const second = c.append(userAppend("2"));
+    await first;
+    await second;
+
+    expect(order).toEqual([
+      "prompt:send",
+      "client.cancel",
+      "prompt:settled",
+      "prompt:send",
+      "prompt:settled",
+    ]);
+  });
+
+  it("loads a history adapter that replaces the one captured mid-load", async () => {
+    let releaseFirst!: () => void;
+    const first = {
+      load: () =>
+        new Promise((resolve) => {
+          releaseFirst = () => resolve({ messages: [], headId: null });
+        }),
+    } as never as ThreadHistoryAdapter;
+    const c = controller(client, { history: first });
+    await c.attach();
+    const firstLoad = c.load();
+    await flush();
+
+    const second = historyAdapter();
+    await c.updateOptions({ client: asClient(client), history: second });
+    const secondLoad = c.load();
+
+    releaseFirst();
+    await firstLoad;
+    await secondLoad;
+
+    expect(second.loadCalls).toBe(1);
+  });
+
+  it("sends composer attachments to the agent and keeps them in the transcript", async () => {
+    const c = controller(client);
+    await c.attach();
+    await c.load();
+
+    await c.append(
+      userAppend("look", {
+        attachments: [
+          {
+            id: "a1",
+            type: "image",
+            name: "cat.png",
+            contentType: "image/png",
+            status: { type: "complete" },
+            content: [{ type: "image", image: "data:image/png;base64,QUJD" }],
+          },
+        ],
+      }),
+    );
+
+    expect(client.prompts).toEqual([
+      [
+        { type: "text", text: "look" },
+        { type: "image", data: "QUJD", mimeType: "image/png" },
+      ],
+    ]);
+
+    const state = c.getState();
+    const [userId] = state.messageOrder;
+    const user = state.messagesById[userId!]!;
+    expect(user.role).toBe("user");
+    expect(user.role === "user" ? user.attachments : []).toHaveLength(1);
+    expect(toThreadMessage(user).attachments).toHaveLength(1);
+  });
+});
+
+type StubFrame = {
+  id?: number | string;
+  method?: string;
+  params?: unknown;
+};
+
+class StubSocket implements AcpWebSocketLike {
+  static instances: StubSocket[] = [];
+
+  onopen: ((event?: unknown) => void) | null = null;
+  onmessage: ((event: { data: unknown }) => void) | null = null;
+  onclose: ((event?: { code?: number; reason?: string }) => void) | null = null;
+  onerror: ((event?: unknown) => void) | null = null;
+  sent: StubFrame[] = [];
+
+  constructor() {
+    StubSocket.instances.push(this);
+  }
+
+  send(data: string) {
+    this.sent.push(JSON.parse(data) as StubFrame);
+  }
+
+  close() {}
+
+  open() {
+    this.onopen?.({});
+  }
+
+  find(method: string) {
+    return this.sent.find((frame) => frame.method === method);
+  }
+
+  reply(id: number | string | undefined, result: unknown) {
+    this.onmessage?.({ data: JSON.stringify({ jsonrpc: "2.0", id, result }) });
+  }
+}
+
+const waitFor = async <T>(fn: () => T | undefined, ms = 2000): Promise<T> => {
+  const start = Date.now();
+  for (;;) {
+    const value = fn();
+    if (value !== undefined) return value;
+    if (Date.now() - start > ms) throw new Error("timed out waiting");
+    await new Promise((r) => setTimeout(r, 5));
+  }
+};
+
+describe("AcpThreadController over a real AcpClient", () => {
+  it("reports the session id that the first prompt creates lazily", async () => {
+    StubSocket.instances = [];
+    const client = new AcpClient({
+      url: "ws://agent.test/",
+      webSocketFactory: () => new StubSocket(),
+    });
+    const c = new AcpThreadController({ client });
+    await c.attach();
+
+    const loaded = c.load();
+    const ws = StubSocket.instances.at(-1)!;
+    ws.open();
+    const initialize = await waitFor(() => ws.find("initialize"));
+    ws.reply(initialize.id, {
+      protocolVersion: 1,
+      agentCapabilities: {},
+      agentInfo: { name: "real-agent", version: "0.1.0" },
+    });
+    await loaded;
+
+    expect(c.getState().connectionState).toBe("connected");
+    expect(c.getState().sessionId).toBeUndefined();
+
+    const done = c.append(userAppend("hi"));
+    const newSession = await waitFor(() => ws.find("session/new"));
+    ws.reply(newSession.id, { sessionId: "s1" });
+    const prompt = await waitFor(() => ws.find("session/prompt"));
+    ws.reply(prompt.id, { stopReason: "end_turn" });
+    await done;
+
+    expect(c.getState().sessionId).toBe("s1");
+    expect(assistantOf(c).status).toEqual({ type: "complete", reason: "stop" });
   });
 });

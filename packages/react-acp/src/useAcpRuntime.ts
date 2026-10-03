@@ -42,7 +42,10 @@ export type UseAcpRuntimeOptions = ExternalStoreSharedOptions & {
   client?: AcpClient;
   /** WebSocket endpoint of the ACP agent, e.g. `ws://127.0.0.1:2770/`. */
   url?: string;
-  /** Working directory passed to `session/new`. Must be an absolute path. */
+  /**
+   * Working directory passed to `session/new`. ACP requires an absolute path;
+   * defaults to `"/"`.
+   */
   cwd?: string;
   /** MCP servers passed to `session/new`. */
   mcpServers?: readonly AcpMcpServer[];
@@ -107,7 +110,10 @@ const createRegistry = (
       if (!ownsClient) return;
       disposeTimer ??= setTimeout(() => {
         disposeTimer = undefined;
-        client.dispose();
+        void client.cancel().then(
+          () => client.dispose(),
+          () => client.dispose(),
+        );
       }, 0);
     },
   };
@@ -164,17 +170,18 @@ export function useAcpRuntime(options: UseAcpRuntimeOptions): AssistantRuntime {
           webSocketFactory: stableWebSocketFactory,
         });
 
+  const ownsClient = !externalClient;
+
   const [pinned, setPinned] = useState(() =>
-    createRegistry(registryKey, createRegistryClient(), !externalClient),
+    createRegistry(registryKey, createRegistryClient(), ownsClient),
   );
 
   let registry = pinned;
-  if (registry.key !== registryKey) {
-    registry = createRegistry(
-      registryKey,
-      createRegistryClient(),
-      !externalClient,
-    );
+  const clientChanged = externalClient
+    ? registry.client !== externalClient
+    : registry.key !== registryKey;
+  if (clientChanged) {
+    registry = createRegistry(registryKey, createRegistryClient(), ownsClient);
     setPinned(registry);
   }
 
@@ -269,6 +276,7 @@ export function useAcpRuntime(options: UseAcpRuntimeOptions): AssistantRuntime {
         ...shared,
         isLoading,
         isRunning,
+        unstable_persistsHistory: true,
         messageRepository,
         extras,
         onNew: (message: AppendMessage) => controller.append(message),

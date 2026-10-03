@@ -25,6 +25,7 @@ export const toThreadMessageLike = (
         role: "user",
         createdAt: new Date(message.createdAt),
         content: message.content,
+        attachments: message.attachments,
       };
 
 export const toThreadMessage = (message: AcpThreadMessage): ThreadMessage =>

@@ -46,7 +46,8 @@ export function App() {
 | ------------------ | --------------------------------------------------------------------------- |
 | `url`              | WebSocket endpoint of the ACP agent (`ws://` / `wss://`).                    |
 | `client`           | Pre-built `AcpClient` (alternative to `url`).                                |
-| `cwd`              | Working directory for `session/new` (default `"."`).                         |
+| `cwd`              | Absolute working directory for `session/new` (default `"/"`). Set it when    |
+|                    | the agent's file tools need a project root.                                  |
 | `mcpServers`       | MCP servers to pass to `session/new`.                                        |
 | `clientInfo`       | Client identity for the `initialize` handshake.                              |
 | `permissions`      | `"ask"` (default) or `"auto-allow"`.                                         |
@@ -99,3 +100,24 @@ import {
 Browser clients advertise **no** filesystem or terminal capabilities, so a
 conforming ACP agent will never send `fs/*` or `terminal/*` requests; any such
 request is answered with JSON-RPC `-32601`.
+
+## Limitations
+
+**Editing or regenerating a message does not branch the agent's transcript.**
+An ACP v1 session's history lives on the agent and can only be appended to —
+stable v1 has no fork or rewind primitive. `onEdit` and `onReload` create a
+branch in the assistant-ui thread and re-send the edited user message as the
+next `session/prompt` on the *same* session, so the agent still has the turns
+the UI replaced and will answer conditioned on them. This matches
+[`@assistant-ui/react-a2a`](../react-a2a/README.md), whose `reload()` likewise
+re-sends into the same server context. Fork-and-replay support belongs in a
+follow-up.
+
+**Restoring a transcript does not restore the agent's context.**
+`adapters.history` rebuilds the UI transcript, but the next turn starts from a
+fresh `session/new`, so the agent sees none of it. ACP's optional
+`session/load` — gated on `agentCapabilities.loadSession` — is not used yet and
+is the intended fix for this.
+
+**`cwd` defaults to `"/"`.** ACP requires an absolute path; set `cwd` when the
+agent's file or terminal tools need a real project root.

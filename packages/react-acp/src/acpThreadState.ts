@@ -1,4 +1,5 @@
 import type {
+  CompleteAttachment,
   ExportedMessageRepositoryItem,
   MessageStatus,
   ThreadAssistantMessage,
@@ -41,6 +42,7 @@ export type AcpUserMessage = {
   readonly parentId: string | null;
   readonly createdAt: number;
   readonly content: readonly ThreadUserMessagePart[];
+  readonly attachments: readonly CompleteAttachment[];
 };
 
 export type AcpAssistantMessage = {
@@ -91,7 +93,7 @@ export type AcpThreadEvent =
   | {
       readonly type: "connection";
       readonly connectionState: AcpConnectionState;
-      readonly sessionId?: string | undefined;
+      readonly sessionId: string | undefined;
       readonly agentInfo?: AcpImplementation | undefined;
       readonly agentCapabilities?: AcpAgentCapabilities | undefined;
     }
@@ -303,7 +305,7 @@ export const reduceAcpThreadState = (
       return {
         ...state,
         connectionState: event.connectionState,
-        ...(event.sessionId !== undefined && { sessionId: event.sessionId }),
+        sessionId: event.sessionId,
         ...(event.agentInfo !== undefined && { agentInfo: event.agentInfo }),
         ...(event.agentCapabilities !== undefined && {
           agentCapabilities: event.agentCapabilities,
@@ -435,5 +437,6 @@ const toAcpThreadMessage = (
       message.role === "user"
         ? (message.content as readonly ThreadUserMessagePart[])
         : [],
+    attachments: message.role === "user" ? message.attachments : [],
   };
 };
