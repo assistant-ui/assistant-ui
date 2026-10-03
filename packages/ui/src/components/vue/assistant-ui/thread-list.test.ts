@@ -220,6 +220,35 @@ describe("vue thread list", () => {
     unmount();
   });
 
+  it("groups threads by calendar day across a daylight saving transition", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 2, 9, 12));
+    const { el, unmount } = mountThreadList(
+      makeAdapter([
+        {
+          remoteId: "before-yesterday",
+          title: "Before yesterday",
+          lastMessageAt: new Date(2026, 2, 7, 23, 30),
+        },
+        {
+          remoteId: "yesterday",
+          title: "Yesterday",
+          lastMessageAt: new Date(2026, 2, 8, 0, 30),
+        },
+      ]),
+    );
+
+    await settle(() => {
+      expect(texts(el, "group-label")).toEqual(["Yesterday", "Earlier"]);
+      expect(texts(el, "item-title")).toEqual([
+        "Yesterday",
+        "Before yesterday",
+      ]);
+    });
+
+    unmount();
+  });
+
   it("renders one row per thread and no group labels when no thread has a date", async () => {
     const { el, unmount } = mountThreadList(
       makeAdapter(withTitles("First thread", "Second thread")),
