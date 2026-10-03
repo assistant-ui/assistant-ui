@@ -934,6 +934,28 @@ describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
     expect(voice.session.disconnect).not.toHaveBeenCalled();
   });
 
+  it("resets the volume and notifies volume subscribers when a session ends on its own", () => {
+    const voice = createVoiceAdapter();
+    const runtime = new TestRuntime(voice);
+    runtime.connectVoice();
+
+    const snapshots: number[] = [];
+    const unsubscribe = runtime.subscribeVoiceVolume(() => {
+      snapshots.push(runtime.getVoiceVolume());
+    });
+
+    voice.emitVolume(0.8);
+    expect(runtime.getVoiceVolume()).toBe(0.8);
+    expect(snapshots).toEqual([0.8]);
+
+    voice.emitStatus({ type: "ended", reason: "finished" });
+
+    expect(runtime.getVoiceVolume()).toBe(0);
+    expect(snapshots).toEqual([0.8, 0]);
+    expect(runtime.voice).toBeUndefined();
+    unsubscribe();
+  });
+
   it("releases ended-session handlers when setup notification throws", () => {
     const listenerError = new Error("ended notification failed");
     const cleanupError = new Error("status cleanup failed");
