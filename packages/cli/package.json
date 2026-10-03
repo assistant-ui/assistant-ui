@@ -21,11 +21,12 @@
     "bin",
     "dist",
     "src",
-    "README.md"
+    "README.md",
+    "templates/cloud-harness"
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "aui-build",
+    "build": "aui-build && node scripts/copy-cloud-harness-template.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "test:watch": "vitest",
@@ -34,6 +35,7 @@
   "dependencies": {
     "@assistant-ui/agent-launcher": "workspace:^",
     "@clack/prompts": "^1.8.1",
+    "aui-auth": "^0.0.11",
     "chalk": "^6.0.1",
     "cli-progress": "^3.12.0",
     "commander": "^15.0.0",

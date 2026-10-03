@@ -51,7 +51,8 @@ The **Connect** tab offers an assistant-ui snippet and an Other snippet; the tab
 
 ```tsx title="assistant-ui"
 import { AuiConfig, AuiProvider } from "@assistant-ui/react";
-import { HarnessThread, HarnessCloudThreadList } from "@assistant-ui/react-harness-sdk";
+import { HarnessCloudThreadList } from "@assistant-ui/react-harness-sdk";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 const config = AuiConfig({
   threads: HarnessCloudThreadList({
@@ -62,13 +63,13 @@ const config = AuiConfig({
   }),
 });
 
-export function Chat() {
+export const Chat = () => {
   return (
     <AuiProvider config={config}>
-      <HarnessThread />
+      <Thread />
     </AuiProvider>
   );
-}
+};
 ```
 
 ```tsx title="Other"
@@ -89,7 +90,7 @@ const { messages, sendMessage } = useHarness({
 
 `userId` is optional and defaults to the cloud's system user. `transport` accepts `"http"`, the default SSE transport, or `"websocket"`.
 
-`@assistant-ui/react-harness-sdk` is not published during the preview, and the `harness-sdk` release on npm does not include `HarnessCloud` yet, so these snippets show the API the Connect tab hands out, not an install you can run yet.
+`@assistant-ui/react-harness-sdk` is not published during the preview, and the `harness-sdk` release on npm does not include `HarnessCloud` yet. The [cloud-harness starter](/docs/getting-started/cli#cloud) bundles these official runtime packages so you can run a shared conversation with `assistant-ui cloud setup my-app`.
 
 ## Costs and limits
 

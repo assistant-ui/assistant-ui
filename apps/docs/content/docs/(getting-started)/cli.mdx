@@ -67,6 +67,7 @@ This command scaffolds a project from assistant-ui starter templates or examples
 | `minimal` | Bare-bones starting point | `npx assistant-ui create -t minimal` |
 | `cloud` | Cloud-backed persistence starter | `npx assistant-ui create -t cloud` |
 | `cloud-clerk` | Cloud-backed starter with Clerk auth | `npx assistant-ui create -t cloud-clerk` |
+| `cloud-harness` | Hosted harness with a shared conversation across browsers | `assistant-ui cloud setup my-app` |
 | `langchain` | LangGraph starter with the react-langchain adapter | `npx assistant-ui create -t langchain` |
 | `mcp` | MCP tools + MCP Apps renderer starter | `npx assistant-ui create -t mcp` |
 | `eve` | Eve agent + Next.js starter | `npx assistant-ui create -t eve` |
@@ -134,7 +135,7 @@ Arguments:
   project-directory         name of the project directory
 
 Options:
-  -t, --template <template>      template to use (default, minimal, cloud, cloud-clerk, langchain, mcp, eve)
+  -t, --template <template>      template to use (default, minimal, cloud, cloud-clerk, cloud-harness, langchain, mcp, eve)
   -e, --example <example>        create from an example (e.g., with-langgraph)
   -p, --preset <name-or-url>     preset name or URL (e.g., chatgpt)
   --native                       create an Expo / React Native project
@@ -148,6 +149,62 @@ Options:
   --no-skills                    skip adding assistant-ui agent skills
   -h, --help                     display help for command
 ```
+
+## cloud
+
+Use `cloud setup` to create a multiplayer chat backed by a hosted
+[harness](/docs/cloud/harnesses):
+
+```bash
+assistant-ui cloud setup multiplayer-chat
+```
+
+The command signs you in with browser device OAuth, selects or creates an
+organization and project, provisions the harness, and installs a Next.js app.
+Add your `OPENAI_API_KEY` to its `.env.local`, then run the app's `dev` script.
+Open `http://localhost:3000/#main` in two browsers to join the same conversation.
+Both clients receive the shared messages and streaming replies. **Share this
+chat** copies the current thread's URL.
+
+For a script or coding agent, select cloud resources with flags:
+
+```bash
+assistant-ui cloud setup multiplayer-chat --org team --new-project hackathon-chat --backend-url http://localhost:3000/api/chat --yes
+```
+
+| Option | Effect |
+| --- | --- |
+| `--org <id-or-slug>` | Select an existing organization. |
+| `--new-org <slug>` | Create an organization. |
+| `--project <id-or-slug>` | Select an existing project. |
+| `--new-project <slug>` | Create a project. |
+| `--name <name>` | Set the display name of a new organization or project. |
+| `--harness-name <name>` | Name the shared chat harness. |
+| `--backend-url <url>` | Set the absolute chat endpoint; defaults to `http://localhost:3000/api/chat`. |
+| `--access-code <code>` | Redeem a hackathon harness access code; also reads `ASSISTANT_UI_ACCESS_CODE`. |
+| `--api-url <url>` | Select the cloud management server; also reads `ASSISTANT_UI_CLOUD_URL`. |
+| `--no-open` | Print the device sign-in URL without opening a browser. |
+| `--yes` | Skip prompts; choose resources with flags. |
+| `--skip-install` | Leave dependency installation to you. |
+| `--use-npm`, `--use-pnpm`, `--use-yarn`, `--use-bun` | Choose a package manager. |
+
+The server's project API key is written to `.env.local` with owner-only
+permissions and a Git ignore entry. Public environment values identify the
+cloud API, harness origin, and workspace. `.assistant-ui/cloud.json` records
+the selected cloud resources. Existing environment values are preserved, and
+conflicting settings stop setup.
+
+The starter's `/api/credential` route issues short-lived credentials for the
+shared `hackathon` user. The browser uses `HarnessCloudThreadList` to connect
+to the hosted conversation, and the AI SDK chat route holds the model API key.
+Add application authentication to `/api/credential` for private access or
+individual users. Local development uses the runtime's browser tunnel; a
+deployed app supplies its public HTTPS chat endpoint to `--backend-url`.
+
+Run `assistant-ui cloud setup .` inside a generated cloud-harness app to resume
+setup. `assistant-ui cloud login` signs in separately; `cloud login --no-open`
+prints the sign-in URL. `assistant-ui cloud logout` revokes and removes the
+saved CLI credentials.
 
 ## add
 

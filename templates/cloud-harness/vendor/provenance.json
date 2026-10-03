@@ -1,0 +1,24 @@
+{
+  "repository": "https://github.com/assistant-ui/harness-sdk",
+  "revision": "3d3a180f0400b84267f62969d42f8b102bed4479",
+  "artifacts": [
+    {
+      "name": "harness-sdk",
+      "version": "0.3.1",
+      "directory": "packages/harness-sdk/core",
+      "normalizations": [],
+      "filename": "harness-sdk-0.3.1.tgz",
+      "sha256": "d21396a1dde2e8f5e8ea28bffec3cc71fb62e2c2eabeef0d4adc287e20a64447"
+    },
+    {
+      "name": "@assistant-ui/react-harness-sdk",
+      "version": "0.0.2",
+      "directory": "packages/harness-sdk/assistant-ui",
+      "normalizations": [
+        "harness-sdk dependency becomes a required peer ^0.3.1"
+      ],
+      "filename": "assistant-ui-react-harness-sdk-0.0.2.tgz",
+      "sha256": "acd00f6fed94ce75e23aeca25c3d05d173a400194be140bdf84e8bc2e879527c"
+    }
+  ]
+}

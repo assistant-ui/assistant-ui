@@ -1,5 +1,14 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import {
+  cpSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -19,6 +28,114 @@ const requiredMatch = (source, pattern, label) => {
   assert.ok(match, label);
   return match;
 };
+
+test("cloud harness kit follows canonical sources and minimal overrides while keeping its app routes", (t) => {
+  const fixture = mkdtempSync(path.join(tmpdir(), "aui-template-sync-"));
+  t.after(() => rmSync(fixture, { recursive: true, force: true }));
+  const write = (relative, value) => {
+    const file = path.join(fixture, relative);
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, value);
+  };
+  mkdirSync(path.join(fixture, "scripts"));
+  cpSync(path.join(repoRoot, scriptFile), path.join(fixture, scriptFile));
+  const canonical = "export const ToolFallback = () => 2;\n";
+  const previous = "export const ToolFallback = () => 1;\n";
+  const override = "export const Thread = () => 'minimal';\n";
+  write(
+    `${sourceRoot}/components/react/assistant-ui/elements/tool-fallback.aui.tsx`,
+    canonical,
+  );
+  write(
+    `${sourceRoot}/components/react/assistant-ui/elements/thread.aui.tsx`,
+    "export const Thread = () => 'full';\n",
+  );
+  write(
+    "templates/minimal/components/assistant-ui/elements/tool-fallback.aui.tsx",
+    previous,
+  );
+  write(
+    "templates/minimal/components/assistant-ui/elements/thread.aui.tsx",
+    override,
+  );
+  write(
+    "templates/cloud-harness/components/assistant-ui/elements/tool-fallback.aui.tsx",
+    previous,
+  );
+  write(
+    "templates/cloud-harness/components/assistant-ui/elements/thread.aui.tsx",
+    "export const Thread = () => 'stale';\n",
+  );
+  write(
+    "templates/cloud-harness/app/assistant.tsx",
+    "export const Assistant = () => 'shared';\n",
+  );
+  write(
+    "templates/cloud-harness/app/api/chat/route.ts",
+    "export const POST = () => 'harness';\n",
+  );
+  for (const [source, target] of [
+    [
+      "apps/registry/app/api/chat/route.ts",
+      "templates/minimal/app/api/chat/route.ts",
+    ],
+    [
+      "apps/registry/app/ai-sdk/assistant.tsx",
+      "templates/minimal/app/assistant.tsx",
+    ],
+  ]) {
+    write(source, "export const fixture = 1;\n");
+    write(target, "export const fixture = 1;\n");
+  }
+  write("bin/pnpm", "#!/bin/sh\nexit 0\n");
+  execFileSync("chmod", ["+x", path.join(fixture, "bin/pnpm")]);
+  execFileSync("git", ["init", "--quiet"], { cwd: fixture });
+  const check = spawnSync("bash", [scriptFile], {
+    cwd: fixture,
+    encoding: "utf8",
+  });
+  assert.equal(check.status, 1);
+  assert.match(check.stdout, /cloud-harness kit file/);
+  execFileSync("bash", [scriptFile, "--write"], {
+    cwd: fixture,
+    env: { ...process.env, PATH: `${fixture}/bin:${process.env.PATH}` },
+  });
+  assert.equal(
+    readFileSync(
+      path.join(
+        fixture,
+        "templates/cloud-harness/components/assistant-ui/elements/tool-fallback.aui.tsx",
+      ),
+      "utf8",
+    ),
+    canonical,
+  );
+  assert.equal(
+    readFileSync(
+      path.join(
+        fixture,
+        "templates/cloud-harness/components/assistant-ui/elements/thread.aui.tsx",
+      ),
+      "utf8",
+    ),
+    override,
+  );
+  assert.equal(
+    readFileSync(
+      path.join(fixture, "templates/cloud-harness/app/assistant.tsx"),
+      "utf8",
+    ),
+    "export const Assistant = () => 'shared';\n",
+  );
+  assert.equal(
+    readFileSync(
+      path.join(fixture, "templates/cloud-harness/app/api/chat/route.ts"),
+      "utf8",
+    ),
+    "export const POST = () => 'harness';\n",
+  );
+  execFileSync("bash", [scriptFile], { cwd: fixture });
+});
 
 const sourceRoot = requiredMatch(
   script,
