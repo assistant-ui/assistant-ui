@@ -55,8 +55,21 @@ export function App() {
 | `webSocketFactory` | Inject a custom WebSocket implementation (tests, proxies).                   |
 | `onError`          | Error callback (connection failures, prompt errors).                         |
 | `onCancel`         | Called after a run has been cancelled.                                       |
-| `adapters.history` | Persist/restore the transcript. This adapter does not use ACP's optional     |
-|                    | `session/load`; restoring a transcript is the history adapter's job.          |
+| `adapters.history` | Persist/restore the UI transcript. Restoring a transcript is the adapter's    |
+|                    | job; `session/load` is only used to recover a session the socket dropped.     |
+
+### Bringing your own `AcpClient`
+
+Pass `client` to share one connection between runtimes or to configure the
+transport yourself. The runtime **subscribes** to the client
+(`subscribeSessionUpdate` / `subscribeConnectionChange`) and unsubscribes when
+it unmounts, so your own listeners keep working alongside it.
+
+Approvals are the one thing a client can only have one of. A client constructed
+with a `permissionHandler` keeps it — the runtime does not replace it, and the
+approval UI stays out of the way. A client without one gets the runtime's
+handler for as long as the runtime is mounted, and the refusing default back
+when it unmounts.
 
 ### Extras hooks
 
@@ -114,9 +127,22 @@ support belongs in a follow-up.
 
 **Restoring a transcript does not restore the agent's context.**
 `adapters.history` rebuilds the UI transcript, but the next turn starts from a
-fresh `session/new`, so the agent sees none of it. ACP's optional
-`session/load` — gated on `agentCapabilities.loadSession` — is not used yet and
-is the intended fix for this.
+fresh `session/new`, so the agent sees none of it. Replaying a stored transcript
+into an agent that supports `session/load` is not wired up yet.
+
+**A dropped connection cannot silently continue the thread.**
+The agent loses the session when the socket goes away. On reconnect the client
+calls `session/load` for the session it lost, if `agentCapabilities.loadSession`
+advertises it, and otherwise rejects the next prompt with an error naming that
+session. Surface the error as a "start a new thread" prompt: retrying on the
+same client starts a fresh session that does not have the transcript on screen.
+
+**Attachments the agent did not opt into are withheld.**
+ACP's baseline prompt content is text and resource links; `image`, `audio` and
+embedded `resource` blocks all need `agentCapabilities.promptCapabilities`.
+Blocks the agent cannot accept are left out of `session/prompt` — an embedded
+resource is downgraded to a resource link instead — and reported through
+`onError`. The message keeps its attachments in the transcript either way.
 
 **`cwd` defaults to `"/"`.** ACP requires an absolute path; set `cwd` when the
 agent's file or terminal tools need a real project root.

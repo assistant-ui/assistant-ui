@@ -477,6 +477,58 @@ describe("mergeToolCallPart", () => {
     expect(merged.toolName).toBe("Search the web");
     expect(merged.args).toEqual({ query: "salsa" });
   });
+
+  const text = (value: string) =>
+    [{ type: "content", content: { type: "text", text: value } }] as const;
+
+  it("keeps a streamed result preliminary while the known status is running", () => {
+    const pending = buildToolCallPart({ toolCallId: "t1", title: "search" });
+    const streamed = mergeToolCallPart(
+      pending,
+      { toolCallId: "t1", content: text("half") },
+      "in_progress",
+    );
+    expect(streamed).toMatchObject({ result: "half", isPreliminary: true });
+
+    const settled = mergeToolCallPart(
+      streamed,
+      { toolCallId: "t1", status: "completed" },
+      "in_progress",
+    );
+    expect(settled).toMatchObject({
+      result: "half",
+      isPreliminary: false,
+      isError: false,
+    });
+  });
+
+  it("never infers completion from a result already on the part", () => {
+    const streamed = mergeToolCallPart(running, {
+      toolCallId: "t1",
+      content: text("half"),
+    });
+    expect(streamed.result).toBe("half");
+
+    const next = mergeToolCallPart(streamed, { toolCallId: "t1" });
+    expect(next).toBe(streamed);
+    expect(next.isPreliminary).toBe(true);
+    expect(next.isError).toBeUndefined();
+  });
+
+  it("replaces streamed content instead of dropping later updates", () => {
+    const first = mergeToolCallPart(running, {
+      toolCallId: "t1",
+      content: text("one"),
+    });
+    expect(first.result).toBe("one");
+
+    const second = mergeToolCallPart(first, {
+      toolCallId: "t1",
+      content: text("one two"),
+    });
+    expect(second.result).toBe("one two");
+    expect(second.isPreliminary).toBe(true);
+  });
 });
 
 describe("applySessionUpdateToContent", () => {

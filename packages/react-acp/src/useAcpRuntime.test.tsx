@@ -32,7 +32,7 @@ vi.mock("./AcpClient", async (importOriginal) => {
 });
 
 import type { AssistantRuntime } from "@assistant-ui/core";
-import { AcpClient } from "./AcpClient";
+import { AcpClient, cancelPermissionHandler } from "./AcpClient";
 import { useAcpRuntime } from "./useAcpRuntime";
 
 (
@@ -159,13 +159,13 @@ describe("useAcpRuntime", () => {
     const second = new AcpClient({ url: "ws://127.0.0.1:2771/" });
     const { rerender } = renderRuntime({ client: first, autoConnect: false });
     await flushTimers();
-    expect(first.onConnectionChange).toBeDefined();
+    expect(first.permissionHandler).not.toBe(cancelPermissionHandler);
 
     rerender({ client: second, autoConnect: false });
     await flushTimers();
 
-    expect(second.onConnectionChange).toBeDefined();
-    expect(first.onConnectionChange).toBeUndefined();
+    expect(second.permissionHandler).not.toBe(cancelPermissionHandler);
+    expect(first.permissionHandler).toBe(cancelPermissionHandler);
     expect(tracked.disposed).toBe(0);
   });
 

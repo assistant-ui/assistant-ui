@@ -73,11 +73,10 @@ const mockClient = (
     ...options,
   });
 
-async function connectClient(client: AcpClient): Promise<void> {
-  const pending = client.connect();
-  const ws = await until(() =>
-    MockWebSocket.instances.at(-1)?.onopen ? lastWs() : undefined,
-  );
+async function completeHandshake(
+  ws: MockWebSocket,
+  agentCapabilities: Record<string, unknown> = { loadSession: true },
+): Promise<void> {
   ws.open();
   const init = await until(() =>
     ws.sent.find((f) => f.method === "initialize"),
@@ -87,10 +86,18 @@ async function connectClient(client: AcpClient): Promise<void> {
     id: init.id!,
     result: {
       protocolVersion: 1,
-      agentCapabilities: { loadSession: true },
+      agentCapabilities,
       agentInfo: { name: "menu-agent", version: "0.1.0" },
     },
   });
+}
+
+async function connectClient(client: AcpClient): Promise<void> {
+  const pending = client.connect();
+  const ws = await until(() =>
+    MockWebSocket.instances.at(-1)?.onopen ? lastWs() : undefined,
+  );
+  await completeHandshake(ws);
   await pending;
 }
 
@@ -201,8 +208,9 @@ describe("AcpClient", () => {
     });
 
     const updates: Array<{ sessionId: string; update: AcpSessionUpdate }> = [];
-    client.onSessionUpdate = (sessionId, update) =>
-      updates.push({ sessionId, update });
+    client.subscribeSessionUpdate((sessionId, update) =>
+      updates.push({ sessionId, update }),
+    );
     ws.receive({
       jsonrpc: "2.0",
       method: "session/update",
@@ -223,6 +231,36 @@ describe("AcpClient", () => {
       result: { stopReason: "end_turn" },
     });
     expect(await promptPromise).toBe("end_turn");
+  });
+
+  it("notifies every session update listener until it unsubscribes", async () => {
+    const client = mockClient();
+    const ws = await withSession(client);
+    const first: string[] = [];
+    const second: string[] = [];
+    const unsubscribe = client.subscribeSessionUpdate((_id, update) =>
+      first.push(update.sessionUpdate),
+    );
+    client.subscribeSessionUpdate((_id, update) =>
+      second.push(update.sessionUpdate),
+    );
+
+    const title = (value: string) => ({
+      jsonrpc: "2.0" as const,
+      method: "session/update",
+      params: {
+        sessionId: "s1",
+        update: { sessionUpdate: "session_info_update", title: value },
+      },
+    });
+    ws.receive(title("one"));
+    expect(first).toEqual(["session_info_update"]);
+    expect(second).toEqual(["session_info_update"]);
+
+    unsubscribe();
+    ws.receive(title("two"));
+    expect(first).toHaveLength(1);
+    expect(second).toHaveLength(2);
   });
 
   it("surfaces JSON-RPC errors as AcpError", async () => {
@@ -266,6 +304,14 @@ describe("AcpClient", () => {
     expect(response.result).toEqual({
       outcome: { outcome: "selected", optionId: "allow-1" },
     });
+  });
+
+  it("reports whether the caller configured a permission handler", () => {
+    expect(mockClient().hasConfiguredPermissionHandler).toBe(false);
+    expect(
+      mockClient({ permissionHandler: autoAllowPermissionHandler })
+        .hasConfiguredPermissionHandler,
+    ).toBe(true);
   });
 
   it("replies cancelled when the permission handler throws synchronously", async () => {
@@ -331,11 +377,109 @@ describe("AcpClient", () => {
     expect(cancel.id).toBeUndefined();
 
     const states: string[] = [];
-    client.onConnectionChange = (state) => states.push(state);
+    client.subscribeConnectionChange((state) => states.push(state));
     ws.onclose?.({});
     expect(client.connectionState).toBe("disconnected");
     expect(client.sessionId).toBeUndefined();
     expect(states).toEqual(["disconnected"]);
+  });
+
+  it("sends session/cancel once per turn", async () => {
+    const client = mockClient();
+    const ws = await withSession(client);
+    const cancels = () => ws.sent.filter((f) => f.method === "session/cancel");
+    const prompts = () => ws.sent.filter((f) => f.method === "session/prompt");
+    const answer = (index: number) => {
+      const frame = prompts()[index]!;
+      ws.receive({
+        jsonrpc: "2.0",
+        id: frame.id!,
+        result: { stopReason: "cancelled" },
+      });
+    };
+
+    const first = client.prompt([{ type: "text", text: "hi" }]);
+    await until(() => (prompts().length > 0 ? true : undefined));
+    await client.cancel();
+    await client.cancel();
+    expect(cancels()).toHaveLength(1);
+    answer(0);
+    await expect(first).resolves.toBe("cancelled");
+
+    const second = client.prompt([{ type: "text", text: "again" }]);
+    await until(() => (prompts().length > 1 ? true : undefined));
+    await client.cancel();
+    expect(cancels()).toHaveLength(2);
+    answer(1);
+    await expect(second).resolves.toBe("cancelled");
+  });
+
+  it("reloads a lost session on reconnect instead of starting a new one", async () => {
+    const client = mockClient();
+    const ws = await withSession(client);
+    expect(client.sessionId).toBe("s1");
+
+    ws.close();
+    expect(client.sessionId).toBeUndefined();
+
+    const reloaded = client.ensureSession();
+    const next = lastWs();
+    expect(next).not.toBe(ws);
+    await completeHandshake(next);
+
+    const load = await until(() =>
+      next.sent.find((f) => f.method === "session/load"),
+    );
+    expect(load.params).toEqual({
+      sessionId: "s1",
+      cwd: "/",
+      mcpServers: [],
+    });
+    next.receive({ jsonrpc: "2.0", id: load.id!, result: {} });
+
+    await expect(reloaded).resolves.toBe("s1");
+    expect(client.sessionId).toBe("s1");
+    expect(next.sent.some((f) => f.method === "session/new")).toBe(false);
+  });
+
+  it("refuses to continue a lost session the agent cannot reload", async () => {
+    const client = mockClient();
+    const ws = await withSession(client);
+    ws.close();
+
+    const reloaded = client.ensureSession();
+    const next = lastWs();
+    await completeHandshake(next, {});
+
+    await expect(reloaded).rejects.toThrow(
+      /dropped session s1.*does not support session\/load/s,
+    );
+    expect(client.sessionId).toBeUndefined();
+    expect(next.sent.some((f) => f.method === "session/new")).toBe(false);
+  });
+
+  it("reports a rejected session/load rather than forking the conversation", async () => {
+    const client = mockClient();
+    const ws = await withSession(client);
+    ws.close();
+
+    const reloaded = client.ensureSession();
+    const next = lastWs();
+    await completeHandshake(next);
+    const load = await until(() =>
+      next.sent.find((f) => f.method === "session/load"),
+    );
+    next.receive({
+      jsonrpc: "2.0",
+      id: load.id!,
+      error: { code: -32602, message: "unknown session" },
+    });
+
+    await expect(reloaded).rejects.toThrow(
+      /session\/load failed.*unknown session/s,
+    );
+    expect(client.sessionId).toBeUndefined();
+    expect(next.sent.some((f) => f.method === "session/new")).toBe(false);
   });
 
   it("rejects in-flight requests when the connection closes", async () => {
@@ -404,11 +548,11 @@ describe("AcpClient", () => {
     expect(ws.closed).toBe(true);
   });
 
-  it("keeps connect resolving when onConnectionChange throws", async () => {
+  it("keeps connect resolving when a connection listener throws", async () => {
     const client = mockClient();
-    client.onConnectionChange = () => {
+    client.subscribeConnectionChange(() => {
       throw new Error("listener exploded");
-    };
+    });
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     await expect(connectClient(client)).resolves.toBeUndefined();
@@ -441,10 +585,10 @@ describe("AcpClient", () => {
   it("does not open a socket when a listener disposes during connecting", async () => {
     const client = mockClient();
     const states: string[] = [];
-    client.onConnectionChange = (state) => {
+    client.subscribeConnectionChange((state) => {
       states.push(state);
       if (state === "connecting") client.dispose();
-    };
+    });
 
     await expect(client.connect()).rejects.toThrow("disposed");
 
@@ -461,7 +605,7 @@ describe("AcpClient", () => {
     await until(() => ws.sent.find((f) => f.method === "initialize"));
 
     const states: string[] = [];
-    client.onConnectionChange = (state) => states.push(state);
+    client.subscribeConnectionChange((state) => states.push(state));
     client.dispose();
 
     await expect(pending).rejects.toThrow("disposed");
@@ -471,7 +615,7 @@ describe("AcpClient", () => {
   it("reports disconnected once when the socket errors then closes", async () => {
     const client = mockClient();
     const states: string[] = [];
-    client.onConnectionChange = (state) => states.push(state);
+    client.subscribeConnectionChange((state) => states.push(state));
     const pending = client.connect();
     const ws = lastWs();
 
@@ -482,12 +626,12 @@ describe("AcpClient", () => {
     expect(states).toEqual(["connecting", "disconnected"]);
   });
 
-  it("notifies onConnectionChange once the session id is known", async () => {
+  it("notifies connection listeners once the session id is known", async () => {
     const client = mockClient();
     const seen: (string | undefined)[] = [];
-    client.onConnectionChange = () => {
+    client.subscribeConnectionChange(() => {
       seen.push(client.sessionId);
-    };
+    });
 
     await withSession(client);
 

@@ -5,11 +5,8 @@ import type {
   ThreadMessage,
 } from "@assistant-ui/core";
 import { AcpThreadController } from "./AcpThreadController";
-import {
-  AcpClient,
-  cancelPermissionHandler,
-  type AcpWebSocketLike,
-} from "./AcpClient";
+import { AcpClient, type AcpWebSocketLike } from "./AcpClient";
+import { filterPromptBlocks } from "./conversions";
 import { toThreadMessage } from "./acpMessageProjection";
 import type {
   AcpConnectionState,
@@ -30,12 +27,15 @@ class FakeClient {
   sessionId: string | undefined = undefined;
   agentInfo: { name: string; version: string } | undefined = undefined;
   agentCapabilities: Record<string, unknown> | undefined = undefined;
-  onSessionUpdate:
-    | ((sessionId: string, update: AcpSessionUpdate) => void)
-    | undefined = undefined;
-  onConnectionChange: ((state: AcpConnectionState) => void) | undefined =
-    undefined;
   permissionHandler: PermissionHandler | undefined = undefined;
+  hasConfiguredPermissionHandler = false;
+
+  private readonly sessionUpdateListeners = new Set<
+    (sessionId: string, update: AcpSessionUpdate) => void
+  >();
+  private readonly connectionListeners = new Set<
+    (state: AcpConnectionState) => void
+  >();
 
   connectCalls = 0;
   cancelCalls = 0;
@@ -45,15 +45,39 @@ class FakeClient {
   promptError: Error | undefined = undefined;
   promptGate: (() => void) | undefined = undefined;
   cancelReleases = true;
+  readonly releases: (() => void)[] = [];
 
   private release: (() => void) | undefined = undefined;
+
+  subscribeSessionUpdate(
+    listener: (sessionId: string, update: AcpSessionUpdate) => void,
+  ) {
+    this.sessionUpdateListeners.add(listener);
+    return () => {
+      this.sessionUpdateListeners.delete(listener);
+    };
+  }
+
+  subscribeConnectionChange(listener: (state: AcpConnectionState) => void) {
+    this.connectionListeners.add(listener);
+    return () => {
+      this.connectionListeners.delete(listener);
+    };
+  }
+
+  listenerCounts() {
+    return {
+      sessionUpdate: this.sessionUpdateListeners.size,
+      connection: this.connectionListeners.size,
+    };
+  }
 
   async connect() {
     this.connectCalls += 1;
     this.connectionState = "connected";
     this.sessionId = "s1";
     this.agentInfo = { name: "fake-agent", version: "0.0.1" };
-    this.onConnectionChange?.("connected");
+    for (const listener of [...this.connectionListeners]) listener("connected");
     return {
       protocolVersion: 1,
       agentCapabilities: {},
@@ -67,6 +91,7 @@ class FakeClient {
     if (this.promptGate) {
       await new Promise<void>((resolve) => {
         this.release = resolve;
+        this.releases.push(resolve);
       });
     }
     if (this.promptError) throw this.promptError;
@@ -83,7 +108,10 @@ class FakeClient {
   }
 
   emit(update: AcpSessionUpdate) {
-    this.onSessionUpdate?.(this.sessionId ?? "", update);
+    const sessionId = this.sessionId ?? "";
+    for (const listener of [...this.sessionUpdateListeners]) {
+      listener(sessionId, update);
+    }
   }
 
   ask(request: AcpPermissionRequest) {
@@ -174,19 +202,73 @@ beforeEach(() => {
 });
 
 describe("AcpThreadController", () => {
-  it("wires and unwires client handlers on attach/detach", async () => {
+  it("subscribes on attach and unsubscribes on detach", async () => {
     const c = controller(client);
     await c.attach();
-    expect(client.onSessionUpdate).toBeDefined();
-    expect(client.onConnectionChange).toBeDefined();
+    expect(client.listenerCounts()).toEqual({
+      sessionUpdate: 1,
+      connection: 1,
+    });
     expect(client.permissionHandler).toBeDefined();
     expect(c.getState().connectionState).toBe("disconnected");
 
     await c.attach();
+    expect(client.listenerCounts()).toEqual({
+      sessionUpdate: 1,
+      connection: 1,
+    });
+
+    const installed = client.permissionHandler;
     await c.detach();
-    expect(client.onSessionUpdate).toBeUndefined();
-    expect(client.onConnectionChange).toBeUndefined();
-    expect(client.permissionHandler).toBe(cancelPermissionHandler);
+    expect(client.listenerCounts()).toEqual({
+      sessionUpdate: 0,
+      connection: 0,
+    });
+    expect(client.permissionHandler).toBeUndefined();
+    expect(client.permissionHandler).not.toBe(installed);
+  });
+
+  it("leaves a caller-owned client's listener and permission handler in place", async () => {
+    const callerHandler: PermissionHandler = async () => ({
+      outcome: "cancelled",
+    });
+    client.permissionHandler = callerHandler;
+    client.hasConfiguredPermissionHandler = true;
+    const seen: AcpSessionUpdate[] = [];
+    const unsubscribe = client.subscribeSessionUpdate((_id, update) =>
+      seen.push(update),
+    );
+
+    const c = controller(client);
+    await c.attach();
+    await c.load();
+    expect(client.permissionHandler).toBe(callerHandler);
+    expect(client.listenerCounts()).toEqual({
+      sessionUpdate: 2,
+      connection: 1,
+    });
+
+    client.emit({ sessionUpdate: "session_info_update", title: "kept" });
+    expect(seen).toHaveLength(1);
+    expect(c.getState().sessionTitle).toBe("kept");
+
+    await expect(client.ask(permissionRequest())).resolves.toEqual({
+      outcome: "cancelled",
+    });
+    expect(c.getState().permissions).toEqual({});
+
+    await c.detach();
+    expect(client.permissionHandler).toBe(callerHandler);
+    expect(client.listenerCounts()).toEqual({
+      sessionUpdate: 1,
+      connection: 0,
+    });
+
+    unsubscribe();
+    expect(client.listenerCounts()).toEqual({
+      sessionUpdate: 0,
+      connection: 0,
+    });
   });
 
   it("connects on load and records the handshake", async () => {
@@ -531,7 +613,10 @@ describe("AcpThreadController", () => {
     c.subscribe(second);
     await c.dispose();
     expect(second).not.toHaveBeenCalled();
-    expect(client.onSessionUpdate).toBeUndefined();
+    expect(client.listenerCounts()).toEqual({
+      sessionUpdate: 0,
+      connection: 0,
+    });
   });
 
   it("survives a throwing subscriber", async () => {
@@ -682,6 +767,35 @@ describe("AcpThreadController", () => {
     }
   });
 
+  it("gives concurrent replacements distinct run tokens", async () => {
+    const c = controller(client);
+    await c.attach();
+    await c.load();
+
+    client.promptGate = () => {};
+    const first = c.append(userAppend("1"));
+    await flush();
+    expect(client.prompts).toHaveLength(1);
+
+    const replacements = [c.append(userAppend("2")), c.append(userAppend("3"))];
+    await flush();
+    await flush();
+    expect(client.prompts).toHaveLength(3);
+    expect(c.getState().run.type).toBe("running");
+    const pending = assistantOf(c).id;
+
+    client.releases[1]!();
+    await flush();
+    await flush();
+
+    expect(c.getState().run.type).toBe("running");
+    expect(assistantOf(c).id).toBe(pending);
+
+    client.releases[2]!();
+    await Promise.all([first, ...replacements]);
+    expect(c.getState().run.type).not.toBe("running");
+  });
+
   it("awaits the superseded prompt before starting the replacement run", async () => {
     const c = controller(client);
     await c.attach();
@@ -733,6 +847,7 @@ describe("AcpThreadController", () => {
   });
 
   it("sends composer attachments to the agent and keeps them in the transcript", async () => {
+    client.agentCapabilities = { promptCapabilities: { image: true } };
     const c = controller(client);
     await c.attach();
     await c.load();
@@ -765,6 +880,74 @@ describe("AcpThreadController", () => {
     expect(user.role).toBe("user");
     expect(user.role === "user" ? user.attachments : []).toHaveLength(1);
     expect(toThreadMessage(user).attachments).toHaveLength(1);
+  });
+
+  it("withholds attachments the agent's promptCapabilities do not cover", async () => {
+    const errors: Error[] = [];
+    const c = controller(client, { onError: (error) => errors.push(error) });
+    await c.attach();
+    await c.load();
+
+    await c.append(
+      userAppend("look", {
+        attachments: [
+          {
+            id: "a1",
+            type: "image",
+            name: "cat.png",
+            contentType: "image/png",
+            status: { type: "complete" },
+            content: [{ type: "image", image: "data:image/png;base64,QUJD" }],
+          },
+        ],
+      }),
+    );
+
+    expect(client.prompts).toEqual([[{ type: "text", text: "look" }]]);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]!.message).toContain("image");
+
+    const state = c.getState();
+    const [userId] = state.messageOrder;
+    const user = state.messagesById[userId!]!;
+    expect(user.role === "user" ? user.attachments : []).toHaveLength(1);
+  });
+
+  it("downgrades an embedded resource to a link without embeddedContext", () => {
+    const blocks = [
+      { type: "text", text: "hi" },
+      {
+        type: "resource",
+        resource: {
+          uri: "file:///a.txt",
+          text: "body",
+          mimeType: "text/plain",
+        },
+      },
+      { type: "image", data: "QUJD", mimeType: "image/png" },
+      { type: "audio", data: "QUJD", mimeType: "audio/mp3" },
+    ] as Parameters<typeof filterPromptBlocks>[0];
+
+    expect(filterPromptBlocks(blocks, undefined)).toEqual({
+      blocks: [
+        { type: "text", text: "hi" },
+        {
+          type: "resource_link",
+          uri: "file:///a.txt",
+          name: "file:///a.txt",
+          mimeType: "text/plain",
+        },
+      ],
+      dropped: [blocks[2], blocks[3]],
+    });
+
+    expect(
+      filterPromptBlocks(blocks, {
+        image: true,
+        audio: true,
+        embeddedContext: true,
+      }).dropped,
+    ).toEqual([]);
   });
 });
 

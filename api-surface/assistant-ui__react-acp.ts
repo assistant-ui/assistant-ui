@@ -60,9 +60,10 @@ type AcpBlobResourceContents = {
 
 declare class AcpClient {
   #private;
-  onSessionUpdate: ((sessionId: string, update: AcpSessionUpdate) => void) | undefined;
-  onConnectionChange: ((state: AcpConnectionState) => void) | undefined;
   constructor(options: AcpClientOptions);
+  subscribeSessionUpdate(listener: AcpSessionUpdateListener): () => void;
+  subscribeConnectionChange(listener: AcpConnectionListener): () => void;
+  get hasConfiguredPermissionHandler(): boolean;
   get connectionState(): AcpConnectionState;
   get sessionId(): string | undefined;
   get agentInfo(): AcpImplementation | undefined;
@@ -94,6 +95,8 @@ type AcpClientOptions = {
   requestTimeoutMs?: number;
   permissionHandler?: AcpPermissionHandler;
 };
+
+type AcpConnectionListener = (state: AcpConnectionState) => void;
 
 type AcpConnectionState = "connected" | "connecting" | "disconnected";
 
@@ -234,6 +237,11 @@ type AcpPlanEntryPriority = "high" | "low" | "medium";
 
 type AcpPlanEntryStatus = "completed" | "in_progress" | "pending";
 
+type AcpPromptBlocks = {
+  readonly blocks: AcpContentBlock[];
+  readonly dropped: AcpContentBlock[];
+};
+
 type AcpPromptCapabilities = {
   readonly image?: boolean;
   readonly audio?: boolean;
@@ -305,6 +313,8 @@ type AcpSessionUpdate = {
 } | ({
   readonly sessionUpdate: "usage_update";
 } & AcpUsage);
+
+type AcpSessionUpdateListener = (sessionId: string, update: AcpSessionUpdate) => void;
 
 type AcpStopReason = "cancelled" | "end_turn" | "max_tokens" | "max_turn_requests" | "refusal";
 
@@ -425,6 +435,7 @@ type AcpThreadState = {
   readonly availableCommands: readonly AcpAvailableCommand[] | undefined;
   readonly configOptions: readonly AcpSessionConfigOption[] | undefined;
   readonly usage: AcpUsage | undefined;
+  readonly toolCallStatuses: Readonly<Record<string, AcpToolCallStatus>>;
 };
 
 type AcpToolCall = {
@@ -2252,19 +2263,21 @@ declare function applySessionUpdateToContent(content: readonly AssistantPart[], 
   readonly sessionUpdate: string;
 } & Partial<AcpToolCallUpdate> & {
   readonly content?: AcpContentBlock;
-}): readonly AssistantPart[] | undefined;
+}, knownStatus?: AcpToolCallStatus | undefined): readonly AssistantPart[] | undefined;
 
-declare function applyToolCallUpdate(content: readonly AssistantPart[], update: AcpToolCallUpdate): readonly AssistantPart[] | undefined;
+declare function applyToolCallUpdate(content: readonly AssistantPart[], update: AcpToolCallUpdate, knownStatus?: AcpToolCallStatus | undefined): readonly AssistantPart[] | undefined;
 
 declare function attachToolCallApproval(content: readonly AssistantPart[], update: AcpToolCallUpdate, approval: NonNullable<ToolCallMessagePart["approval"]>): readonly AssistantPart[];
 
 declare const autoAllowPermissionHandler: AcpPermissionHandler;
 
-declare function buildToolCallPart(update: AcpToolCallUpdate): ToolCallMessagePart;
+declare function buildToolCallPart(update: AcpToolCallUpdate, knownStatus?: AcpToolCallStatus | undefined): ToolCallMessagePart;
 
 declare const cancelPermissionHandler: AcpPermissionHandler;
 
 declare const createAcpThreadState: () => AcpThreadState;
+
+declare function filterPromptBlocks(blocks: readonly AcpContentBlock[], capabilities: AcpPromptCapabilities | undefined): AcpPromptBlocks;
 
 declare global {
   interface Window {
@@ -2274,7 +2287,7 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { ACP_PROTOCOL_VERSION, AcpAgentCapabilities, AcpAnnotations, AcpApprovalDecision, AcpAssistantMessage, AcpAudioContentBlock, AcpAuthMethod, AcpAvailableCommand, AcpBlobResourceContents, AcpClient, AcpClientCapabilities, AcpClientOptions, AcpConnectionState, AcpContentBlock, AcpCost, AcpEmbeddedResourceContentBlock, AcpEnvVariable, AcpError, AcpExtras, AcpHttpHeader, AcpImageContentBlock, AcpImplementation, AcpInitializeResponse, AcpLoadState, AcpMcpCapabilities, AcpMcpServer, AcpPendingPermission, AcpPermissionHandler, AcpPermissionOption, AcpPermissionOptionKind, AcpPermissionOutcome, AcpPermissionRequest, AcpPermissionsMode, AcpPlanEntry, AcpPlanEntryPriority, AcpPlanEntryStatus, AcpPromptCapabilities, AcpResourceContents, AcpResourceLinkContentBlock, AcpRunState, AcpSessionConfigOption, AcpSessionUpdate, AcpStopReason, AcpTextContentBlock, AcpTextResourceContents, AcpThreadController, AcpThreadControllerLike, AcpThreadControllerOptions, AcpThreadEvent, AcpThreadMessage, AcpThreadState, AcpToolCall, AcpToolCallContent, AcpToolCallLocation, AcpToolCallStatus, AcpToolCallUpdate, AcpToolKind, AcpUsage, AcpUserMessage, AcpWebSocketFactory, AcpWebSocketLike, EMPTY_ACP_THREAD_STATE, UseAcpRuntimeOptions, acpExtras, appendContentBlock, applySessionUpdateToContent, applyToolCallUpdate, attachToolCallApproval, autoAllowPermissionHandler, buildToolCallPart, cancelPermissionHandler, createAcpThreadState, isAcpStateRunning, isAllowKind, isRejectKind, mergeToolCallPart, permissionOptionToApprovalOption, projectAcpThreadRepository, reduceAcpThreadState, resolvePermissionOutcome, resolveToolCallApproval, stopReasonToMessageStatus, threadContentToAcpBlocks, toThreadMessage, toThreadMessageLike, toolCallContentToText, useAcpAgentCapabilities, useAcpAgentInfo, useAcpAvailableCommands, useAcpConfigOptions, useAcpConnectionState, useAcpControllerState, useAcpCurrentModeId, useAcpPlan, useAcpRuntime, useAcpSessionId, useAcpSessionTitle, useAcpUsage };
+  export { ACP_PROTOCOL_VERSION, AcpAgentCapabilities, AcpAnnotations, AcpApprovalDecision, AcpAssistantMessage, AcpAudioContentBlock, AcpAuthMethod, AcpAvailableCommand, AcpBlobResourceContents, AcpClient, AcpClientCapabilities, AcpClientOptions, AcpConnectionListener, AcpConnectionState, AcpContentBlock, AcpCost, AcpEmbeddedResourceContentBlock, AcpEnvVariable, AcpError, AcpExtras, AcpHttpHeader, AcpImageContentBlock, AcpImplementation, AcpInitializeResponse, AcpLoadState, AcpMcpCapabilities, AcpMcpServer, AcpPendingPermission, AcpPermissionHandler, AcpPermissionOption, AcpPermissionOptionKind, AcpPermissionOutcome, AcpPermissionRequest, AcpPermissionsMode, AcpPlanEntry, AcpPlanEntryPriority, AcpPlanEntryStatus, AcpPromptBlocks, AcpPromptCapabilities, AcpResourceContents, AcpResourceLinkContentBlock, AcpRunState, AcpSessionConfigOption, AcpSessionUpdate, AcpSessionUpdateListener, AcpStopReason, AcpTextContentBlock, AcpTextResourceContents, AcpThreadController, AcpThreadControllerLike, AcpThreadControllerOptions, AcpThreadEvent, AcpThreadMessage, AcpThreadState, AcpToolCall, AcpToolCallContent, AcpToolCallLocation, AcpToolCallStatus, AcpToolCallUpdate, AcpToolKind, AcpUsage, AcpUserMessage, AcpWebSocketFactory, AcpWebSocketLike, EMPTY_ACP_THREAD_STATE, UseAcpRuntimeOptions, acpExtras, appendContentBlock, applySessionUpdateToContent, applyToolCallUpdate, attachToolCallApproval, autoAllowPermissionHandler, buildToolCallPart, cancelPermissionHandler, createAcpThreadState, filterPromptBlocks, isAcpStateRunning, isAllowKind, isRejectKind, mergeToolCallPart, permissionOptionToApprovalOption, projectAcpThreadRepository, reduceAcpThreadState, resolvePermissionOutcome, resolveToolCallApproval, stopReasonToMessageStatus, threadContentToAcpBlocks, toThreadMessage, toThreadMessageLike, toolCallContentToText, useAcpAgentCapabilities, useAcpAgentInfo, useAcpAvailableCommands, useAcpConfigOptions, useAcpConnectionState, useAcpControllerState, useAcpCurrentModeId, useAcpPlan, useAcpRuntime, useAcpSessionId, useAcpSessionTitle, useAcpUsage };
 }
 
 declare const isAcpStateRunning: (state: AcpThreadState) => boolean;
@@ -2283,7 +2296,7 @@ declare function isAllowKind(kind: AcpPermissionOptionKind): boolean;
 
 declare function isRejectKind(kind: AcpPermissionOptionKind): boolean;
 
-declare function mergeToolCallPart(existing: ToolCallMessagePart, update: AcpToolCallUpdate): ToolCallMessagePart;
+declare function mergeToolCallPart(existing: ToolCallMessagePart, update: AcpToolCallUpdate, knownStatus?: AcpToolCallStatus | undefined): ToolCallMessagePart;
 
 declare function permissionOptionToApprovalOption(option: AcpPermissionOption): ToolApprovalOption;
 

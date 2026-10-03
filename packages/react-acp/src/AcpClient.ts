@@ -29,6 +29,13 @@ export type AcpPermissionHandler = (
   request: AcpPermissionRequest,
 ) => AcpPermissionOutcome | Promise<AcpPermissionOutcome>;
 
+export type AcpSessionUpdateListener = (
+  sessionId: string,
+  update: AcpSessionUpdate,
+) => void;
+
+export type AcpConnectionListener = (state: AcpConnectionState) => void;
+
 export type AcpClientOptions = {
   /** WebSocket endpoint of the ACP agent, e.g. `ws://127.0.0.1:2770/`. */
   url: string;
@@ -113,16 +120,36 @@ export class AcpClient {
   private _connectionState: AcpConnectionState = "disconnected";
   private _permissionHandler: AcpPermissionHandler;
   private disposed = false;
-
-  onSessionUpdate:
-    | ((sessionId: string, update: AcpSessionUpdate) => void)
-    | undefined;
-  onConnectionChange: ((state: AcpConnectionState) => void) | undefined;
+  private cancelSent = false;
+  private lostSessionId: string | undefined;
+  private readonly explicitPermissionHandler: boolean;
+  private readonly sessionUpdateListeners = new Set<AcpSessionUpdateListener>();
+  private readonly connectionListeners = new Set<AcpConnectionListener>();
 
   constructor(options: AcpClientOptions) {
     this.options = options;
+    this.explicitPermissionHandler = options.permissionHandler !== undefined;
     this._permissionHandler =
       options.permissionHandler ?? cancelPermissionHandler;
+  }
+
+  subscribeSessionUpdate(listener: AcpSessionUpdateListener): () => void {
+    this.sessionUpdateListeners.add(listener);
+    return () => {
+      this.sessionUpdateListeners.delete(listener);
+    };
+  }
+
+  subscribeConnectionChange(listener: AcpConnectionListener): () => void {
+    this.connectionListeners.add(listener);
+    return () => {
+      this.connectionListeners.delete(listener);
+    };
+  }
+
+  /** Whether the caller supplied `permissionHandler` in the client options. */
+  get hasConfiguredPermissionHandler(): boolean {
+    return this.explicitPermissionHandler;
   }
 
   get connectionState(): AcpConnectionState {
@@ -172,6 +199,7 @@ export class AcpClient {
 
   async prompt(content: readonly AcpContentBlock[]): Promise<AcpStopReason> {
     const sessionId = await this.ensureSession();
+    this.cancelSent = false;
     const result = await this.request<{ stopReason?: AcpStopReason }>(
       "session/prompt",
       { sessionId, prompt: content },
@@ -183,6 +211,8 @@ export class AcpClient {
   async cancel(): Promise<void> {
     this.settlePermissions({ outcome: "cancelled" });
     if (!this._sessionId || this._connectionState !== "connected") return;
+    if (this.cancelSent) return;
+    this.cancelSent = true;
     this.sendNotification("session/cancel", { sessionId: this._sessionId });
   }
 
@@ -216,15 +246,19 @@ export class AcpClient {
     this.connectPromise = undefined;
     this.sessionPromise = undefined;
     this.notifyDisconnected();
+    this.sessionUpdateListeners.clear();
+    this.connectionListeners.clear();
   }
 
   private emitConnectionChange() {
-    invokeUserCallback(
-      "react-acp",
-      "onConnectionChange",
-      this.onConnectionChange,
-      this._connectionState,
-    );
+    for (const listener of [...this.connectionListeners]) {
+      invokeUserCallback(
+        "react-acp",
+        "onConnectionChange",
+        listener,
+        this._connectionState,
+      );
+    }
   }
 
   private setConnectionState(state: AcpConnectionState) {
@@ -241,8 +275,10 @@ export class AcpClient {
   private notifyDisconnected() {
     const hadSession =
       this._sessionId !== undefined || this.initializeResult !== undefined;
+    if (this._sessionId !== undefined) this.lostSessionId = this._sessionId;
     this._sessionId = undefined;
     this.initializeResult = undefined;
+    this.cancelSent = false;
     const stateChanged = this._connectionState !== "disconnected";
     this._connectionState = "disconnected";
     if (stateChanged || hadSession) this.emitConnectionChange();
@@ -332,6 +368,11 @@ export class AcpClient {
 
   private async doNewSession(): Promise<string> {
     await this.connect();
+    const lost = this.lostSessionId;
+    if (lost !== undefined) {
+      this.lostSessionId = undefined;
+      return this.reloadSession(lost);
+    }
     const result = await this.request<{ sessionId: string }>("session/new", {
       cwd: this.options.cwd ?? "/",
       mcpServers: this.options.mcpServers ?? [],
@@ -339,6 +380,35 @@ export class AcpClient {
     this._sessionId = result.sessionId;
     this.emitConnectionChange();
     return result.sessionId;
+  }
+
+  /**
+   * A dropped connection leaves the agent without the transcript the UI still
+   * shows, so a reconnect must not quietly continue it. `session/load` restores
+   * the session when the agent advertises it; otherwise the caller gets an
+   * error it can turn into a "start a new thread" prompt.
+   */
+  private async reloadSession(sessionId: string): Promise<string> {
+    const unusable = (reason: string) =>
+      new Error(
+        `The ACP connection dropped session ${sessionId} and it could not be ` +
+          `restored (${reason}). Start a new thread to continue.`,
+      );
+    if (!this.agentCapabilities?.loadSession) {
+      throw unusable("the agent does not support session/load");
+    }
+    try {
+      await this.request("session/load", {
+        sessionId,
+        cwd: this.options.cwd ?? "/",
+        mcpServers: this.options.mcpServers ?? [],
+      });
+    } catch (error) {
+      throw unusable(`session/load failed: ${toError(error).message}`);
+    }
+    this._sessionId = sessionId;
+    this.emitConnectionChange();
+    return sessionId;
   }
 
   private handleClose(): void {
@@ -440,13 +510,15 @@ export class AcpClient {
       | { sessionId: string; update: AcpSessionUpdate }
       | undefined;
     if (!params?.update) return;
-    invokeUserCallback(
-      "react-acp",
-      "onSessionUpdate",
-      this.onSessionUpdate,
-      params.sessionId,
-      params.update,
-    );
+    for (const listener of [...this.sessionUpdateListeners]) {
+      invokeUserCallback(
+        "react-acp",
+        "onSessionUpdate",
+        listener,
+        params.sessionId,
+        params.update,
+      );
+    }
   }
 
   private request<TResult>(

@@ -60,6 +60,16 @@ const contentOf = (state: AcpThreadState, id = "a1") => {
   return message?.role === "assistant" ? message.content : [];
 };
 
+const toolPartOf = (state: AcpThreadState, toolCallId = "t1") => {
+  const part = contentOf(state).find(
+    (p) => p.type === "tool-call" && p.toolCallId === toolCallId,
+  );
+  return part?.type === "tool-call" ? part : undefined;
+};
+
+const textContent = (text: string) =>
+  [{ type: "content", content: { type: "text", text } }] as const;
+
 describe("reduceAcpThreadState", () => {
   it("starts from the empty state", () => {
     const state = createAcpThreadState();
@@ -314,6 +324,104 @@ describe("reduceAcpThreadState", () => {
       update({ sessionUpdate: "usage_update", used: 10, size: 100 }),
     );
     expect(state.usage).toEqual({ used: 10, size: 100, cost: null });
+  });
+
+  it("keeps a running tool call open while its content streams", () => {
+    let state = running(createAcpThreadState());
+    state = reduceAcpThreadState(
+      state,
+      update({
+        sessionUpdate: "tool_call",
+        toolCallId: "t1",
+        title: "Search",
+        status: "in_progress",
+      }),
+    );
+    state = reduceAcpThreadState(
+      state,
+      update({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "t1",
+        content: textContent("partial"),
+      }),
+    );
+    state = reduceAcpThreadState(
+      state,
+      update({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "t1",
+        content: textContent("partial and more"),
+      }),
+    );
+
+    expect(state.toolCallStatuses).toEqual({ t1: "in_progress" });
+    expect(toolPartOf(state)).toMatchObject({
+      result: "partial and more",
+      isPreliminary: true,
+    });
+    expect(toolPartOf(state)?.isError).toBeUndefined();
+  });
+
+  it("does not infer completion from a streamed tool result", () => {
+    let state = running(createAcpThreadState());
+    state = reduceAcpThreadState(
+      state,
+      update({ sessionUpdate: "tool_call", toolCallId: "t1", title: "Search" }),
+    );
+    for (const text of ["first", "second"]) {
+      state = reduceAcpThreadState(
+        state,
+        update({
+          sessionUpdate: "tool_call_update",
+          toolCallId: "t1",
+          content: textContent(text),
+        }),
+      );
+    }
+
+    expect(state.toolCallStatuses).toEqual({});
+    expect(toolPartOf(state)).toMatchObject({
+      result: "second",
+      isPreliminary: true,
+    });
+  });
+
+  it("settles a tool call when a later update reports its status", () => {
+    let state = running(createAcpThreadState());
+    state = reduceAcpThreadState(
+      state,
+      update({
+        sessionUpdate: "tool_call",
+        toolCallId: "t1",
+        title: "Search",
+        status: "in_progress",
+      }),
+    );
+    state = reduceAcpThreadState(
+      state,
+      update({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "t1",
+        content: textContent("done"),
+      }),
+    );
+    expect(toolPartOf(state)?.isPreliminary).toBe(true);
+
+    state = reduceAcpThreadState(
+      state,
+      update({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "t1",
+        status: "completed",
+      }),
+    );
+
+    expect(state.toolCallStatuses).toEqual({ t1: "completed" });
+    expect(toolPartOf(state)).toMatchObject({
+      result: "done",
+      isPreliminary: false,
+      isError: false,
+    });
   });
 
   it("marks the assistant as requiring action on a permission request", () => {

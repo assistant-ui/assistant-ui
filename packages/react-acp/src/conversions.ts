@@ -19,10 +19,13 @@ import {
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import type {
   AcpContentBlock,
+  AcpEmbeddedResourceContentBlock,
   AcpPermissionOption,
   AcpPermissionOptionKind,
   AcpPermissionOutcome,
   AcpPermissionRequest,
+  AcpPromptCapabilities,
+  AcpResourceLinkContentBlock,
   AcpStopReason,
   AcpToolCallContent,
   AcpToolCallStatus,
@@ -102,6 +105,52 @@ export function threadContentToAcpBlocks(
     }
   }
   return blocks;
+}
+
+export type AcpPromptBlocks = {
+  readonly blocks: AcpContentBlock[];
+  readonly dropped: AcpContentBlock[];
+};
+
+const resourceLinkOf = (
+  block: AcpEmbeddedResourceContentBlock,
+): AcpResourceLinkContentBlock => ({
+  type: "resource_link",
+  uri: block.resource.uri,
+  name: block.resource.uri,
+  ...(block.resource.mimeType
+    ? { mimeType: block.resource.mimeType }
+    : undefined),
+});
+
+/**
+ * Text and resource links are the ACP baseline; every other block type has to
+ * be opted into through `promptCapabilities`. An embedded resource the agent
+ * cannot accept is downgraded to a link rather than dropped.
+ */
+export function filterPromptBlocks(
+  blocks: readonly AcpContentBlock[],
+  capabilities: AcpPromptCapabilities | undefined,
+): AcpPromptBlocks {
+  const kept: AcpContentBlock[] = [];
+  const dropped: AcpContentBlock[] = [];
+  for (const block of blocks) {
+    switch (block.type) {
+      case "image":
+        (capabilities?.image ? kept : dropped).push(block);
+        break;
+      case "audio":
+        (capabilities?.audio ? kept : dropped).push(block);
+        break;
+      case "resource":
+        if (capabilities?.embeddedContext) kept.push(block);
+        else kept.push(resourceLinkOf(block));
+        break;
+      default:
+        kept.push(block);
+    }
+  }
+  return { blocks: kept, dropped };
 }
 
 const blockToText = (block: AcpContentBlock): string | undefined => {
@@ -236,11 +285,12 @@ const settledResult = (
 
 export function buildToolCallPart(
   update: AcpToolCallUpdate,
+  knownStatus?: AcpToolCallStatus | undefined,
 ): ToolCallMessagePart {
   const args = isRecord(update.rawInput)
     ? (update.rawInput as ReadonlyJSONObject)
     : {};
-  const status = update.status ?? "pending";
+  const status = update.status ?? knownStatus ?? "pending";
   const part: ToolCallMessagePart = {
     type: "tool-call",
     toolCallId: update.toolCallId,
@@ -263,6 +313,7 @@ export function buildToolCallPart(
 export function mergeToolCallPart(
   existing: ToolCallMessagePart,
   update: AcpToolCallUpdate,
+  knownStatus?: AcpToolCallStatus | undefined,
 ): ToolCallMessagePart {
   let next = existing;
   const set = (patch: Partial<ToolCallMessagePart>) => {
@@ -284,8 +335,7 @@ export function mergeToolCallPart(
     }
   }
 
-  const status =
-    update.status ?? (next.result === undefined ? "pending" : "completed");
+  const status = update.status ?? knownStatus ?? "pending";
 
   if (isSettled(status)) {
     const result = settledResult(update, next);
@@ -311,9 +361,11 @@ export function mergeToolCallPart(
     return next;
   }
 
-  if (update.content != null && next.result === undefined) {
+  if (update.content != null) {
     const text = toolCallContentToText(update.content);
-    if (text !== undefined) set({ result: text, isPreliminary: true });
+    if (text !== undefined && text !== next.result) {
+      set({ result: text, isPreliminary: true });
+    }
   }
   return next;
 }
@@ -342,11 +394,14 @@ const replaceAt = (
 export function applyToolCallUpdate(
   content: readonly AssistantPart[],
   update: AcpToolCallUpdate,
+  knownStatus?: AcpToolCallStatus | undefined,
 ): readonly AssistantPart[] | undefined {
   const index = findToolCallIndex(content, update.toolCallId);
-  if (index === -1) return [...content, buildToolCallPart(update)];
+  if (index === -1) {
+    return [...content, buildToolCallPart(update, knownStatus)];
+  }
   const existing = content[index] as ToolCallMessagePart;
-  const merged = mergeToolCallPart(existing, update);
+  const merged = mergeToolCallPart(existing, update, knownStatus);
   return merged === existing ? undefined : replaceAt(content, index, merged);
 }
 
@@ -469,6 +524,7 @@ export function applySessionUpdateToContent(
   update: { readonly sessionUpdate: string } & Partial<AcpToolCallUpdate> & {
       readonly content?: AcpContentBlock;
     },
+  knownStatus?: AcpToolCallStatus | undefined,
 ): readonly AssistantPart[] | undefined {
   switch (update.sessionUpdate) {
     case "agent_message_chunk":
@@ -482,7 +538,7 @@ export function applySessionUpdateToContent(
     case "tool_call":
     case "tool_call_update":
       return typeof update.toolCallId === "string"
-        ? applyToolCallUpdate(content, update as AcpToolCallUpdate)
+        ? applyToolCallUpdate(content, update as AcpToolCallUpdate, knownStatus)
         : undefined;
     default:
       return undefined;

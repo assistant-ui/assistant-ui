@@ -15,6 +15,7 @@ import type {
   AcpPlanEntry,
   AcpSessionConfigOption,
   AcpSessionUpdate,
+  AcpToolCallStatus,
   AcpUsage,
 } from "./types";
 import {
@@ -79,6 +80,7 @@ export type AcpThreadState = {
   readonly availableCommands: readonly AcpAvailableCommand[] | undefined;
   readonly configOptions: readonly AcpSessionConfigOption[] | undefined;
   readonly usage: AcpUsage | undefined;
+  readonly toolCallStatuses: Readonly<Record<string, AcpToolCallStatus>>;
 };
 
 export type AcpThreadEvent =
@@ -137,6 +139,7 @@ export const EMPTY_ACP_THREAD_STATE: AcpThreadState = {
   availableCommands: undefined,
   configOptions: undefined,
   usage: undefined,
+  toolCallStatuses: {},
 };
 
 export const createAcpThreadState = (): AcpThreadState =>
@@ -256,14 +259,40 @@ const reduceSessionUpdate = (
     }
     case "user_message_chunk":
       return state;
-    default:
-      return patchAssistant(state, (message) => {
+    default: {
+      const toolCall = update as Parameters<
+        typeof applySessionUpdateToContent
+      >[1];
+      const toolCallId =
+        typeof toolCall.toolCallId === "string"
+          ? toolCall.toolCallId
+          : undefined;
+      const knownStatus =
+        toolCallId === undefined
+          ? undefined
+          : state.toolCallStatuses[toolCallId];
+      const next = patchAssistant(state, (message) => {
         const content = applySessionUpdateToContent(
           message.content,
-          update as Parameters<typeof applySessionUpdateToContent>[1],
+          toolCall,
+          knownStatus,
         );
         return content === undefined ? undefined : { ...message, content };
       });
+      const reportedStatus = toolCall.status ?? undefined;
+      if (toolCallId === undefined || reportedStatus === undefined) {
+        return next;
+      }
+      return next.toolCallStatuses[toolCallId] === reportedStatus
+        ? next
+        : {
+            ...next,
+            toolCallStatuses: {
+              ...next.toolCallStatuses,
+              [toolCallId]: reportedStatus,
+            },
+          };
+    }
   }
 };
 
@@ -298,6 +327,7 @@ export const reduceAcpThreadState = (
         messagesById,
         messageOrder,
         headId: event.headId,
+        toolCallStatuses: {},
       };
     }
 
@@ -329,6 +359,7 @@ export const reduceAcpThreadState = (
         headId: event.headId,
         run: { type: "idle" },
         permissions: {},
+        toolCallStatuses: {},
       };
     }
 

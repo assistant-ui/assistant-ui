@@ -22,9 +22,21 @@ class StubClient {
   sessionId: string | undefined = undefined;
   agentInfo: undefined = undefined;
   agentCapabilities: undefined = undefined;
-  onSessionUpdate: SessionUpdateHandler | undefined = undefined;
-  onConnectionChange: ((state: string) => void) | undefined = undefined;
   permissionHandler: unknown = undefined;
+  hasConfiguredPermissionHandler = false;
+
+  private readonly sessionUpdateListeners = new Set<SessionUpdateHandler>();
+
+  subscribeSessionUpdate(listener: SessionUpdateHandler) {
+    this.sessionUpdateListeners.add(listener);
+    return () => {
+      this.sessionUpdateListeners.delete(listener);
+    };
+  }
+
+  subscribeConnectionChange(_listener: (state: string) => void) {
+    return () => {};
+  }
 
   async connect() {
     return { protocolVersion: 1, agentCapabilities: {} };
@@ -35,7 +47,10 @@ class StubClient {
   async cancel() {}
 
   emit(update: AcpSessionUpdate) {
-    this.onSessionUpdate?.(this.sessionId ?? "", update);
+    const sessionId = this.sessionId ?? "";
+    for (const listener of [...this.sessionUpdateListeners]) {
+      listener(sessionId, update);
+    }
   }
 }
 

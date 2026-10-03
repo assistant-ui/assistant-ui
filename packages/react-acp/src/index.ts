@@ -24,7 +24,9 @@ export {
 } from "./AcpClient";
 export type {
   AcpClientOptions,
+  AcpConnectionListener,
   AcpPermissionHandler,
+  AcpSessionUpdateListener,
   AcpWebSocketFactory,
   AcpWebSocketLike,
 } from "./AcpClient";
@@ -112,6 +114,7 @@ export {
   applyToolCallUpdate,
   attachToolCallApproval,
   buildToolCallPart,
+  filterPromptBlocks,
   isAllowKind,
   isRejectKind,
   mergeToolCallPart,
@@ -122,4 +125,4 @@ export {
   threadContentToAcpBlocks,
   toolCallContentToText,
 } from "./conversions";
-export type { AcpApprovalDecision } from "./conversions";
+export type { AcpApprovalDecision, AcpPromptBlocks } from "./conversions";

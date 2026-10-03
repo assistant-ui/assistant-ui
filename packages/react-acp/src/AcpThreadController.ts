@@ -9,12 +9,9 @@ import {
   type ThreadMessageLike,
 } from "@assistant-ui/core";
 import { invokeUserCallback } from "@assistant-ui/core/internal";
+import { autoAllowPermissionHandler, type AcpClient } from "./AcpClient";
 import {
-  autoAllowPermissionHandler,
-  cancelPermissionHandler,
-  type AcpClient,
-} from "./AcpClient";
-import {
+  filterPromptBlocks,
   resolvePermissionOutcome,
   stopReasonToMessageStatus,
   threadContentToAcpBlocks,
@@ -31,9 +28,11 @@ import {
 } from "./acpThreadState";
 import type {
   AcpConnectionState,
+  AcpContentBlock,
   AcpPermissionOutcome,
   AcpPermissionRequest,
   AcpSessionUpdate,
+  AcpStopReason,
 } from "./types";
 
 export type AcpPermissionsMode = "ask" | "auto-allow";
@@ -76,6 +75,12 @@ type PendingPermission = {
   resolve: (outcome: AcpPermissionOutcome) => void;
 };
 
+type ClaimedRun = {
+  assistant: AcpAssistantMessage;
+  token: number;
+  prompt: Promise<AcpStopReason>;
+};
+
 export class AcpThreadController implements AcpThreadControllerLike {
   private state: AcpThreadState;
   private readonly listeners = new Set<() => void>();
@@ -95,6 +100,10 @@ export class AcpThreadController implements AcpThreadControllerLike {
   private permissionCounter = 0;
   private attached = false;
   private inflightPrompt: Promise<unknown> | undefined;
+  private startLock: Promise<void> = Promise.resolve();
+  private unsubscribeSessionUpdate: (() => void) | undefined;
+  private unsubscribeConnectionChange: (() => void) | undefined;
+  private restorePermissionHandler: (() => void) | undefined;
 
   private readonly boundOnSessionUpdate = (
     _sessionId: string,
@@ -131,27 +140,40 @@ export class AcpThreadController implements AcpThreadControllerLike {
     };
   };
 
+  /**
+   * Subscribes instead of assigning: a caller-owned `AcpClient` keeps its own
+   * listeners, and a `permissionHandler` the caller configured stays in charge
+   * of approvals. Whatever this replaces is restored by `detach()`.
+   */
   async attach(): Promise<void> {
     if (this.attached) return;
     this.attached = true;
-    this.client.onSessionUpdate = this.boundOnSessionUpdate;
-    this.client.onConnectionChange = this.boundOnConnectionChange;
-    this.client.permissionHandler = this.boundPermissionHandler;
+    this.unsubscribeSessionUpdate = this.client.subscribeSessionUpdate(
+      this.boundOnSessionUpdate,
+    );
+    this.unsubscribeConnectionChange = this.client.subscribeConnectionChange(
+      this.boundOnConnectionChange,
+    );
+    if (!this.client.hasConfiguredPermissionHandler) {
+      const client = this.client;
+      const previous = client.permissionHandler;
+      this.restorePermissionHandler = () => {
+        client.permissionHandler = previous;
+      };
+      client.permissionHandler = this.boundPermissionHandler;
+    }
     this.dispatch(this.connectionEvent(this.client.connectionState));
   }
 
   async detach(): Promise<void> {
     if (!this.attached) return;
     this.attached = false;
-    if (this.client.onSessionUpdate === this.boundOnSessionUpdate) {
-      this.client.onSessionUpdate = undefined;
-    }
-    if (this.client.onConnectionChange === this.boundOnConnectionChange) {
-      this.client.onConnectionChange = undefined;
-    }
-    if (this.client.permissionHandler === this.boundPermissionHandler) {
-      this.client.permissionHandler = cancelPermissionHandler;
-    }
+    this.unsubscribeSessionUpdate?.();
+    this.unsubscribeSessionUpdate = undefined;
+    this.unsubscribeConnectionChange?.();
+    this.unsubscribeConnectionChange = undefined;
+    this.restorePermissionHandler?.();
+    this.restorePermissionHandler = undefined;
     this.runToken += 1;
     await this.settlePermissions();
     if (this.state.run.type === "running") {
@@ -299,6 +321,16 @@ export class AcpThreadController implements AcpThreadControllerLike {
     invokeUserCallback("react-acp", "onError", this.onError, toError(error));
   }
 
+  private reportDroppedBlocks(dropped: readonly AcpContentBlock[]): void {
+    const kinds = [...new Set(dropped.map((block) => block.type))].join(", ");
+    this.reportError(
+      new Error(
+        `The agent's promptCapabilities do not cover ${kinds}; dropped ` +
+          `${dropped.length} block(s) from this prompt.`,
+      ),
+    );
+  }
+
   private async doLoad(): Promise<void> {
     const history = this.history;
     const connect = this.autoConnect
@@ -381,12 +413,26 @@ export class AcpThreadController implements AcpThreadControllerLike {
     });
   }
 
-  private async run(userMessageId: string): Promise<void> {
+  /**
+   * Serializes run prologues so two concurrent replacements cannot capture the
+   * same `runToken`. The lock covers the prologue up to sending the prompt, not
+   * the turn itself: the loser's prompt only settles because the winner cancels
+   * it, and that cancel happens inside the prologue.
+   */
+  private withStartLock<T>(fn: () => Promise<T>): Promise<T> {
+    const result = this.startLock.then(fn, fn);
+    this.startLock = result.then(noop, noop);
+    return result;
+  }
+
+  private async claimRun(
+    userMessageId: string,
+  ): Promise<ClaimedRun | undefined> {
     if (this.state.run.type === "running") await this.cancel();
     await this.settleSupersededPrompt();
 
     const user = this.state.messagesById[userMessageId];
-    if (user?.role !== "user") return;
+    if (user?.role !== "user") return undefined;
 
     const assistant: AcpAssistantMessage = {
       role: "assistant",
@@ -398,14 +444,27 @@ export class AcpThreadController implements AcpThreadControllerLike {
     };
     this.dispatch({ type: "run-start", message: assistant });
     const token = this.runToken;
-    const blocks = threadContentToAcpBlocks([
-      ...user.content,
-      ...user.attachments.flatMap((attachment) => attachment.content ?? []),
-    ]);
-
-    let status: MessageStatus;
+    const { blocks, dropped } = filterPromptBlocks(
+      threadContentToAcpBlocks([
+        ...user.content,
+        ...user.attachments.flatMap((attachment) => attachment.content ?? []),
+      ]),
+      this.client.agentCapabilities?.promptCapabilities,
+    );
+    if (dropped.length > 0) this.reportDroppedBlocks(dropped);
     const prompt = this.client.prompt(blocks);
     this.inflightPrompt = prompt;
+    return { assistant, token, prompt };
+  }
+
+  private async run(userMessageId: string): Promise<void> {
+    const claimed = await this.withStartLock(() =>
+      this.claimRun(userMessageId),
+    );
+    if (!claimed) return;
+    const { assistant, token, prompt } = claimed;
+
+    let status: MessageStatus;
     try {
       status = stopReasonToMessageStatus(await prompt);
     } catch (error) {
