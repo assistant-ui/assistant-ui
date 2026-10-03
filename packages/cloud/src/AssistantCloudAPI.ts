@@ -153,6 +153,10 @@ export class AssistantCloudAPI {
     return !!(await this._auth.getAuthHeaders());
   }
 
+  public invalidateAuth(): void {
+    this._auth.invalidate();
+  }
+
   public async makeRawRequest(
     endpoint: string,
     options: MakeRequestOptions = {},
@@ -189,7 +193,7 @@ export class AssistantCloudAPI {
       ...(options.keepalive ? { keepalive: true } : {}),
     });
 
-    this._auth.readAuthHeaders(response.headers);
+    this._auth.readAuthHeaders(response.headers, new Headers(headers));
 
     if (!response.ok) {
       const text = await response.text();

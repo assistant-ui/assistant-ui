@@ -35,7 +35,8 @@ const withAuthTokenDeadline = async <T>(
 export type AssistantCloudAuthStrategy = {
   readonly strategy: "anon" | "jwt" | "api-key";
   getAuthHeaders(): Promise<Record<string, string> | false>;
-  readAuthHeaders(headers: Headers): void;
+  readAuthHeaders(headers: Headers, requestHeaders?: Headers): void;
+  invalidate(): void;
 };
 
 const getJwtExpiry = (jwt: string): number => {
@@ -124,6 +125,7 @@ export class AssistantCloudJWTAuthStrategy implements AssistantCloudAuthStrategy
   private cachedToken: string | null = null;
   private tokenExpiry: number | null = null;
   private tokenRequest: Promise<Record<string, string> | false> | null = null;
+  private generation = 0;
   #authTokenCallback: () => Promise<string | null>;
 
   constructor(authTokenCallback: () => Promise<string | null>) {
@@ -133,7 +135,6 @@ export class AssistantCloudJWTAuthStrategy implements AssistantCloudAuthStrategy
   public async getAuthHeaders(): Promise<Record<string, string> | false> {
     const currentTime = Date.now();
 
-    // Use cached token if it's valid for at least 30 more seconds
     if (
       this.cachedToken &&
       this.tokenExpiry &&
@@ -143,7 +144,7 @@ export class AssistantCloudJWTAuthStrategy implements AssistantCloudAuthStrategy
     }
 
     if (!this.tokenRequest) {
-      this.tokenRequest = this.fetchAuthHeaders();
+      this.tokenRequest = this.fetchAuthHeaders(this.generation);
     }
 
     const tokenRequest = this.tokenRequest;
@@ -156,9 +157,17 @@ export class AssistantCloudJWTAuthStrategy implements AssistantCloudAuthStrategy
     }
   }
 
-  private async fetchAuthHeaders(): Promise<Record<string, string> | false> {
+  private async fetchAuthHeaders(
+    generation: number,
+  ): Promise<Record<string, string> | false> {
     const token = await this.#authTokenCallback();
-    if (!token) return false;
+    if (generation !== this.generation) return false;
+
+    if (!token) {
+      this.cachedToken = null;
+      this.tokenExpiry = null;
+      return false;
+    }
 
     const tokenExpiry = getJwtExpiry(token);
     this.cachedToken = token;
@@ -167,7 +176,17 @@ export class AssistantCloudJWTAuthStrategy implements AssistantCloudAuthStrategy
     return { Authorization: `Bearer ${token}` };
   }
 
-  public readAuthHeaders(headers: Headers) {
+  public readAuthHeaders(headers: Headers, requestHeaders?: Headers) {
+    const requestAuthHeader = requestHeaders?.get("Authorization");
+    if (
+      requestAuthHeader !== null &&
+      requestAuthHeader !== undefined &&
+      requestAuthHeader !==
+        (this.cachedToken ? `Bearer ${this.cachedToken}` : undefined)
+    ) {
+      return;
+    }
+
     const authHeader = headers.get("Authorization");
     if (!authHeader) return;
 
@@ -179,6 +198,13 @@ export class AssistantCloudJWTAuthStrategy implements AssistantCloudAuthStrategy
     const tokenExpiry = getJwtExpiry(token);
     this.cachedToken = token;
     this.tokenExpiry = tokenExpiry;
+  }
+
+  public invalidate(): void {
+    this.generation++;
+    this.cachedToken = null;
+    this.tokenExpiry = null;
+    this.tokenRequest = null;
   }
 }
 
@@ -206,6 +232,8 @@ export class AssistantCloudAPIKeyAuthStrategy implements AssistantCloudAuthStrat
   public readAuthHeaders() {
     // No operation needed for API key auth
   }
+
+  public invalidate(): void {}
 }
 
 const LEGACY_AUI_REFRESH_TOKEN_NAME = "aui:refresh_token";
@@ -434,7 +462,11 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
     return this.jwtStrategy.getAuthHeaders();
   }
 
-  public readAuthHeaders(headers: Headers): void {
-    this.jwtStrategy.readAuthHeaders(headers);
+  public readAuthHeaders(headers: Headers, requestHeaders?: Headers): void {
+    this.jwtStrategy.readAuthHeaders(headers, requestHeaders);
+  }
+
+  public invalidate(): void {
+    this.jwtStrategy.invalidate();
   }
 }

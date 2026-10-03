@@ -32,7 +32,7 @@ The header must be `Authorization: Bearer <value>`. A missing header answers 401
 
 After a credential is verified, its expected host must equal the request origin. An API key is bound to the backend host. A provider or internal token is bound to the project frontend host. A mismatch answers `403 "Origin does not match project ID"`, so a browser token cannot be replayed to another project host.
 
-An accepted provider JWT is exchanged for the cloud's HS256 token in the `Authorization` response header. It carries the user, workspace, project and frontend issuer, is valid for five minutes, and is usable ten seconds before issue. The SDK caches it until 30 seconds before expiry and shares one provider token request while a refresh is in flight.
+An accepted provider JWT is exchanged for the cloud's HS256 token in the `Authorization` response header. It carries the user, workspace, project and frontend issuer, is valid for five minutes, and is usable ten seconds before issue. The SDK caches it until 30 seconds before expiry and shares one provider token request while a refresh is in flight. When the signed-in user or workspace changes, recreate the client or call `cloud.auth.invalidate()` before making requests for the new session.
 
 The API records the `Aui-Sdk` header in the background. The SDK sends its own name and version, then registered identities, on every request it makes with a credential; the anonymous token routes do not carry it. It reads the first 8 space-separated entries, valid or not, then records valid `name/version` entries. A matched Name claim also records the user's display name. See [auth providers](/docs/cloud/auth-providers) for both settings.
 
@@ -74,12 +74,12 @@ A workspace owns its threads. A request can read and write only the threads in i
 | 403 | `Anonymous access is not allowed` | Anonymous sessions are disabled for the project. |
 | 404 | `Project not found` | The anonymous route's project does not exist. |
 
-Keep a browser client stable across renders. Creating it in `useMemo`, keyed to the token getter, preserves its exchanged token cache and its shared refresh request.
+Keep a browser client stable across renders. Creating it in `useMemo`, keyed to the token getter and a stable user or session identifier, preserves its exchanged token cache while replacing the client when its identity changes.
 
 ```tsx title="use-cloud.ts"
 const cloud = useMemo(
   () => new AssistantCloud({ baseUrl, authToken }),
-  [authToken, baseUrl],
+  [authToken, baseUrl, sessionId],
 );
 ```
 
