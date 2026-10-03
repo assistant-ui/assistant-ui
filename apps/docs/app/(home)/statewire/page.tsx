@@ -7,7 +7,7 @@ import { StatewireSetup } from "@/components/pages/shop/statewire-setup";
 import { createOgMetadata } from "@/lib/og";
 import { cn } from "@/lib/utils";
 
-const title = "statewire";
+const title = "Build shared state with Statewire";
 const description =
   "Build multiplayer counters, boards, and workflows with Statewire and Cloudflare Durable Objects.";
 

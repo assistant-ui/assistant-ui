@@ -36,9 +36,10 @@
     "Share button copies canonical URL in independent browser verification",
     "current b9d8b installed CLI help, cloud help, setup help, three vendor assets and fixture scaffold/provision/resume",
     "production OAuth public client registration and real device sign-in",
-    "production Cloud project, harness and API key provisioning with the event access code"
+    "production Cloud project, harness and API key provisioning with the event access code",
+    "production hosted transport with three independent browsers: bidirectional partial/final streaming, exact-once reload history, non-serving client reload during a stream, clipboard share, hash isolation, credential200/no-store; deterministic AI SDK model"
   ],
-  "pending": ["hosted two-browser chat verification"],
+  "pending": [],
   "preview_publication": {
     "workflow": "https://github.com/assistant-ui/assistant-ui/actions/runs/37113099210",
     "build": "passed",

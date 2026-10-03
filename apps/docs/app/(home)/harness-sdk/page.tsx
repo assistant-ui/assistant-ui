@@ -8,7 +8,7 @@ import { HarnessSetup } from "@/components/pages/shop/statewire-setup";
 import { createOgMetadata } from "@/lib/og";
 import { cn } from "@/lib/utils";
 
-const title = "harness-sdk";
+const title = "Build a shared AI chat with harness-sdk";
 const description =
   "Use harness-sdk with assistant-ui and Assistant Cloud to let multiple people join the same AI conversation.";
 

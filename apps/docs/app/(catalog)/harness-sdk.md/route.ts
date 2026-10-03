@@ -8,7 +8,7 @@ harness-sdk is an alpha runtime for an AI conversation shared across browser cli
 
 ## Verified CLI preview
 
-The installable preview is ${BASE_URL}/downloads/assistant-ui-cloud-harness-b9d8b56ad.tgz. Its CLI executable and bundled starter install have been checked. The assistant-ui-cli public OAuth client is registered. Real device sign-in and production provisioning have passed; hosted shared-chat verification is still in progress. Report authorization failures accurately instead of inventing a successful Cloud setup.
+The installable preview is ${BASE_URL}/downloads/assistant-ui-cloud-harness-b9d8b56ad.tgz. Its CLI executable and bundled starter install have been checked. The assistant-ui-cli public OAuth client is registered. Real device sign-in and production provisioning have passed; hosted shared-chat verification has passed using a deterministic AI SDK model with real production credentials and transport. Report authorization failures accurately instead of inventing a successful Cloud setup.
 
 After choosing a new application directory, the npm setup command is:
 

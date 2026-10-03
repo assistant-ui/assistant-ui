@@ -5,12 +5,12 @@ describe("harness-sdk setup markdown", () => {
   it("serves alpha setup instructions with accurate verification status", async () => {
     const response = GET();
     expect(response.status).toBe(200);
-    expect(Object.fromEntries(response.headers)).toMatchObject({
+    expect(Object.fromEntries(response.headers)).toEqual({
       "cache-control": "no-cache, must-revalidate",
       "content-type": "text/markdown; charset=utf-8",
+      etag: expect.stringMatching(/^"sha256-[0-9a-f]{64}"$/),
       "x-robots-tag": "noindex, follow",
     });
-    expect(response.headers.get("etag")).toMatch(/^"sha256-[0-9a-f]{64}"$/);
     const markdown = await response.text();
     expect(markdown).toContain("assistant-ui-cloud-harness-b9d8b56ad.tgz");
     expect(markdown).toContain("--access-code MULTIPLAYER-2026");
