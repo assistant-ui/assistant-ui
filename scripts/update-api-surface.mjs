@@ -3,13 +3,16 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { changedFilesSince } from "./lib/changed-files.mjs";
 import { optionArgs, optionValues } from "./lib/script-options.mjs";
 
 export const FULL_API_SURFACE_INPUTS = [
   "api-surface",
   "packages/x-buildutils",
   "scripts/generate-api-surface.mjs",
+  "scripts/autofix-install.mjs",
   "scripts/update-api-surface.mjs",
+  "scripts/lib/changed-files.mjs",
   "scripts/lib/script-options.mjs",
   "scripts/lib/workspace.mjs",
   "package.json",
@@ -55,20 +58,6 @@ function run(command, args, options = {}) {
     ...options,
   });
   if (result.status !== 0) process.exit(result.status ?? 1);
-}
-
-function changedFilesSince(base) {
-  const result = spawnSync(
-    "git",
-    ["diff", "--name-only", "--no-renames", "-z", base],
-    { cwd: process.cwd(), encoding: "utf8" },
-  );
-  if (result.status !== 0) {
-    throw new Error(
-      `Unable to determine API surface inputs since ${base}:\n${result.stdout}${result.stderr}`,
-    );
-  }
-  return result.stdout.split("\0").filter((file) => file !== "");
 }
 
 function main() {
