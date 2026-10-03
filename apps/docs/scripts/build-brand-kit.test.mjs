@@ -152,6 +152,8 @@ describe("brand assets", () => {
         const storedPixels = await sharp(files[pngFile]).raw().toBuffer();
         const rebuiltPixels = await sharp(rebuilt[pngFile]).raw().toBuffer();
         expect(storedPixels.length).toBe(rebuiltPixels.length);
+        expect(storedPixels[3]).toBe(0);
+        expect(storedPixels[storedPixels.length - 1]).toBe(0);
         const difference =
           storedPixels.reduce(
             (sum, pixel, index) => sum + Math.abs(pixel - rebuiltPixels[index]),
