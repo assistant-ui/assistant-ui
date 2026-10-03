@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { useAuiState } from "@assistant-ui/store";
 
 /**
@@ -32,12 +32,12 @@ export const useToolCallElapsed = (): number | undefined => {
   });
   const running =
     timing !== undefined && timing.completedAt === undefined && partRunning;
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState<number | undefined>(undefined);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!running) return undefined;
-    // The clock is an external source; this catches the elapsed value up before
-    // the interval takes over.
+    // The clock is read only after mount so a prerender never reads it; the
+    // layout effect still catches the elapsed value up before the first paint.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -47,6 +47,6 @@ export const useToolCallElapsed = (): number | undefined => {
   if (timing === undefined) return undefined;
   if (timing.completedAt !== undefined)
     return Math.max(0, timing.completedAt - timing.startedAt);
-  if (!running) return undefined;
+  if (!running || now === undefined) return undefined;
   return Math.max(0, now - timing.startedAt);
 };
