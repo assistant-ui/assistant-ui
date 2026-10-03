@@ -1,5 +1,6 @@
 import { afterEach, describe, it, expect, vi } from "vitest";
 import type { RemoteThreadListResponse } from "../runtimes/remote-thread-list/types";
+import { InMemoryThreadListAdapter } from "../runtimes/remote-thread-list/adapter/in-memory";
 import {
   createCore,
   deferred,
@@ -35,6 +36,21 @@ describe("RemoteThreadListThreadListRuntimeCore.reload", () => {
     await core.reload();
     expect(listFn).toHaveBeenCalledTimes(2);
     expect(core.threadIds).toEqual(["t-1"]);
+  });
+
+  it("keeps an initialized in-memory thread after reload", async () => {
+    const core = createCore(new InMemoryThreadListAdapter());
+
+    await core.getLoadThreadsPromise();
+    await core.switchToNewThread();
+    const threadId = core.mainThreadId;
+    expect(threadId).toBeDefined();
+
+    await core.initialize(threadId!);
+    expect(core.threadIds).toEqual([threadId]);
+
+    await core.reload();
+    expect(core.threadIds).toEqual([threadId]);
   });
 
   it("returns the same cached promise from getLoadThreadsPromise when reload is not called", async () => {
