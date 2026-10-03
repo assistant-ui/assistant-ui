@@ -171,6 +171,34 @@ test("the Ink deployment uses the same scoped install inside and outside Vercel"
   assert.doesNotMatch(install, /run: pnpm install/);
 });
 
+test("the Ink install includes every explicitly built workspace", () => {
+  const config = JSON.parse(
+    readFileSync(
+      path.join(repoRoot, "examples/with-react-ink-web/vercel.json"),
+      "utf8",
+    ),
+  );
+  const filters = (command) =>
+    [...command.matchAll(/--filter=(\S+)/g)].map((match) => match[1]);
+  const installed = spawnSync(
+    "pnpm",
+    [
+      "list",
+      "--depth=-1",
+      "--json",
+      ...filters(config.installCommand).map((filter) => `--filter=${filter}`),
+    ],
+    { cwd: repoRoot, encoding: "utf8" },
+  );
+  assert.equal(installed.status, 0, installed.stderr);
+  const names = new Set(JSON.parse(installed.stdout).map((pkg) => pkg.name));
+  const builds = filters(config.buildCommand);
+  assert.ok(builds.length > 0);
+  for (const name of builds) {
+    assert.ok(names.has(name), `${name} is built but not installed`);
+  }
+});
+
 test("the Expo native bundle workflow watches every bundle input", () => {
   const nativeWorkflowFile = ".github/workflows/expo-native-bundle.yaml";
   const workflow = readFileSync(
