@@ -239,6 +239,19 @@ type AdkRunConfig = {
 };
 
 type AdkRunner = {
+  readonly appName?: string;
+  readonly sessionService?: {
+    getSession(options: {
+      appName: string;
+      userId: string;
+      sessionId: string;
+    }): Promise<unknown | undefined>;
+    createSession(options: {
+      appName: string;
+      userId: string;
+      sessionId: string;
+    }): Promise<unknown>;
+  };
   runAsync(options: Record<string, unknown>): AsyncGenerator<any, void, undefined>;
 };
 
