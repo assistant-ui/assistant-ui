@@ -146,6 +146,50 @@ afterEach(() => {
 });
 
 describe("useAssistantTransportRuntime", () => {
+  it.each([
+    {
+      name: "line",
+      response: "data: [DONE]\n\n",
+      limits: { maxStreamLineLength: 5 },
+      expectedError: "maxLineLength",
+    },
+    {
+      name: "event",
+      response: "data: a\ndata: b\n\n",
+      limits: { maxStreamLineLength: 7, maxStreamEventLength: 2 },
+      expectedError: "maxEventLength",
+    },
+  ])("forwards the configured $name limit", async (testCase) => {
+    const onError = vi.fn();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(testCase.response)),
+    );
+
+    const { aui, sendCommand } = mountRuntime({
+      protocol: "assistant-transport",
+      ...testCase.limits,
+      onError,
+    });
+    await waitFor(() =>
+      expect(
+        (aui().thread.getState().extras as { sendCommand?: unknown })
+          ?.sendCommand,
+      ).toBeTypeOf("function"),
+    );
+
+    act(() => sendCommand(createMessageCommand("hello")));
+
+    await waitFor(() =>
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: expect.stringContaining(testCase.expectedError),
+        }),
+        expect.anything(),
+      ),
+    );
+  });
+
   it.each([false, 0, "", null])(
     "preserves the falsy tool artifact %j",
     async (artifact) => {

@@ -185,6 +185,63 @@ describe("SSEEventDecoder", () => {
     expect(decoder.flush()).toBeNull();
   });
 
+  it("rejects an unterminated line that exceeds the configured limit", () => {
+    const decoder = new SSEEventDecoder({ maxLineLength: 8 });
+    expect(decoder.push("data: ")).toEqual([]);
+    expect(() => decoder.push("abc")).toThrow(
+      "SSE line exceeds maxLineLength (9 > 8)",
+    );
+  });
+
+  it("rejects a complete line that exceeds the configured limit", () => {
+    const decoder = new SSEEventDecoder({ maxLineLength: 8 });
+    expect(() => decoder.push("data: abc\n")).toThrow(
+      "SSE line exceeds maxLineLength (9 > 8)",
+    );
+  });
+
+  it("rejects an event whose data lines exceed the configured limit", () => {
+    const decoder = new SSEEventDecoder({ maxEventLength: 2 });
+    expect(decoder.push("data: a\n")).toEqual([]);
+    expect(() => decoder.push("data: b\n")).toThrow(
+      "SSE event exceeds maxEventLength (3 > 2)",
+    );
+  });
+
+  it("counts parsed data values toward the configured event limit", () => {
+    const decoder = new SSEEventDecoder({ maxEventLength: 3 });
+    expect(decoder.push("data: abc\n\n")).toEqual([{ data: "abc" }]);
+  });
+
+  it("rejects an unfinished data line that exceeds the event limit", () => {
+    const decoder = new SSEEventDecoder({ maxEventLength: 3 });
+    expect(decoder.push("data: ab")).toEqual([]);
+    expect(() => decoder.push("cd")).toThrow(
+      "SSE event exceeds maxEventLength (4 > 3)",
+    );
+  });
+
+  it("does not dispatch a partial frame after event overflow", () => {
+    const decoder = new SSEEventDecoder({
+      trailing: "dispatch",
+      maxEventLength: 2,
+    });
+    expect(decoder.push("data: a\n")).toEqual([]);
+    expect(() => decoder.push("data: b\n")).toThrow(
+      "SSE event exceeds maxEventLength (3 > 2)",
+    );
+    expect(decoder.flush()).toBeNull();
+  });
+
+  it("validates configured limits", () => {
+    expect(() => new SSEEventDecoder({ maxLineLength: 0 })).toThrow(
+      "maxLineLength must be a positive safe integer",
+    );
+    expect(() => new SSEEventDecoder({ maxEventLength: Infinity })).toThrow(
+      "maxEventLength must be a positive safe integer",
+    );
+  });
+
   it.each(["\n", "\r", "\r\n"])(
     "decodes fragmented events with %j delimiters",
     (newline) => {
