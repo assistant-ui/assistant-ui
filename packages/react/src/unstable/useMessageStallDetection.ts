@@ -57,7 +57,7 @@ export function unstable_useMessageStallDetection(
   );
 
   const running = activity[0] === true;
-  const lastActivityRef = useRef(Date.now());
+  const lastActivityRef = useRef(0);
   const [stalled, setStalled] = useState(false);
   const [, setTick] = useState(0);
 
