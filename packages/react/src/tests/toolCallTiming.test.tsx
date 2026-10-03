@@ -47,8 +47,15 @@ const ElapsedProbe: FC = () => {
 };
 
 const StallProbe: FC = () => {
-  const { stalled } = unstable_useMessageStallDetection({ thresholdMs: 2000 });
-  return <span data-testid="stalled">{String(stalled)}</span>;
+  const { stalled, stalledForMs } = unstable_useMessageStallDetection({
+    thresholdMs: 2000,
+  });
+  return (
+    <>
+      <span data-testid="stalled">{String(stalled)}</span>
+      <span data-testid="stalled-for">{stalledForMs}</span>
+    </>
+  );
 };
 
 const RuntimeProvider: FC<
@@ -224,6 +231,16 @@ describe("unstable_useMessageStallDetection", () => {
     });
 
     expect(screen.getByTestId("stalled").textContent).toBe("true");
+    const stalledFor = () =>
+      Number(screen.getByTestId("stalled-for").textContent);
+    const atStall = stalledFor();
+    expect(atStall).toBeGreaterThanOrEqual(2000);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+
+    expect(stalledFor()).toBeGreaterThan(atStall);
   });
 
   it("never stalls on settled messages", async () => {

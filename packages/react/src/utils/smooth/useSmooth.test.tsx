@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { act, renderHook } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   MessagePartState,
@@ -68,7 +69,7 @@ const driveAndCount = (minCommitMs: number) => {
     .spyOn(globalThis, "cancelAnimationFrame")
     .mockImplementation(() => {});
   let now = 1000;
-  const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => now);
+  const nowSpy = vi.spyOn(performance, "now").mockImplementation(() => now);
 
   const state = runningState("0123456789");
   const { result, unmount } = renderHook(() =>
@@ -103,6 +104,16 @@ describe("useSmooth", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     Reflect.deleteProperty(window, "matchMedia");
+  });
+
+  it("does not read the wall clock during server render", () => {
+    const nowSpy = vi.spyOn(Date, "now");
+    const Probe = () => (
+      <span>{useSmooth(runningState("streaming"), true).text}</span>
+    );
+
+    expect(renderToString(<Probe />)).toBe("<span></span>");
+    expect(nowSpy).not.toHaveBeenCalled();
   });
 
   it("returns the input state unchanged when disabled", () => {
@@ -189,8 +200,8 @@ describe("useSmooth", () => {
       return raf.length;
     });
     vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
-    let now = 1_000_000;
-    vi.spyOn(Date, "now").mockImplementation(() => now);
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
 
     const frame = () => {
       if (raf.length === 0) return;
@@ -246,7 +257,7 @@ describe("useSmooth", () => {
     });
     vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
     let now = 1000;
-    vi.spyOn(Date, "now").mockImplementation(() => now);
+    vi.spyOn(performance, "now").mockImplementation(() => now);
 
     const frame = () => {
       if (raf.length === 0) return;
@@ -297,7 +308,7 @@ describe("useSmooth", () => {
     });
     vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
     let now = 1000;
-    vi.spyOn(Date, "now").mockImplementation(() => now);
+    vi.spyOn(performance, "now").mockImplementation(() => now);
 
     const frame = () => {
       if (raf.length === 0) return;

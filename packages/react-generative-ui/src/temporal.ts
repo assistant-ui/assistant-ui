@@ -243,6 +243,10 @@ export const fromLocalDateTime = (
   return formatTemporalInstant({
     ...previous,
     epochMs: date.getTime(),
+    ...(previous.precision === "minutes" &&
+    (temporal.precision === "seconds" || date.getUTCSeconds() !== 0)
+      ? { precision: "seconds" }
+      : {}),
     ...(date.getMilliseconds() ===
     new Date(previous.epochMs).getUTCMilliseconds()
       ? {}

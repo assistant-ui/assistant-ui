@@ -109,6 +109,9 @@ export function CartView() {
   }
 
   const estimate = formatMinutes(estimateAgentMinutes(products));
+  const includesBuildProduct = products.some(
+    (product) => product.slug === "statewire" || product.slug === "harness-sdk",
+  );
 
   return (
     <div className="grid gap-12 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-16">
@@ -160,36 +163,64 @@ export function CartView() {
           ))}
         </ul>
 
-        <details className="group/instructions mt-6">
-          <summary className="text-muted-foreground hover:text-foreground focus-visible:ring-ring flex w-fit cursor-pointer list-none items-center gap-2 rounded-md py-2 text-sm focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
-            <PlusIcon
-              aria-hidden="true"
-              className="size-4 shrink-0 group-open/instructions:rotate-45"
-            />
-            {instructions.trim()
-              ? "Edit special instructions"
-              : "Add special instructions"}
-          </summary>
-          <div className="pt-2">
+        {includesBuildProduct ? (
+          <div className="mt-6 flex flex-col gap-3">
+            <label
+              htmlFor="product-cart-build"
+              className="text-base font-medium"
+            >
+              What do you want to build?
+            </label>
             <p
-              id="setup-instructions-help"
+              id="product-cart-build-help"
               className="text-muted-foreground text-base sm:text-sm"
             >
-              Your agent will inspect your project and ask about anything it
-              needs.
+              Your agent uses this brief and your existing setup notes to build
+              with the selected products.
             </p>
             <textarea
-              name="setup-instructions"
-              aria-label="Special instructions"
-              aria-describedby="setup-instructions-help"
-              placeholder="Leave this empty unless you have a very specific, unusual requirement."
+              id="product-cart-build"
+              name="product-build"
+              aria-describedby="product-cart-build-help"
+              placeholder="Describe the shared application you want to build."
               value={instructions}
               onChange={(event) => setCartInstructions(event.target.value)}
-              rows={3}
-              className="border-input placeholder:text-muted-foreground focus-visible:ring-ring mt-3 w-full resize-y rounded-xl border bg-transparent px-3 py-3 text-base focus-visible:ring-2 focus-visible:outline-none sm:text-sm"
+              rows={4}
+              className="border-input placeholder:text-muted-foreground focus-visible:ring-ring rounded-control w-full resize-y border bg-transparent px-3 py-3 text-base focus-visible:ring-2 focus-visible:outline-none sm:text-sm"
             />
           </div>
-        </details>
+        ) : (
+          <details className="group/instructions mt-6">
+            <summary className="text-muted-foreground hover:text-foreground focus-visible:ring-ring flex w-fit cursor-pointer list-none items-center gap-2 rounded-md py-2 text-sm focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+              <PlusIcon
+                aria-hidden="true"
+                className="size-4 shrink-0 group-open/instructions:rotate-45"
+              />
+              {instructions.trim()
+                ? "Edit special instructions"
+                : "Add special instructions"}
+            </summary>
+            <div className="pt-2">
+              <p
+                id="setup-instructions-help"
+                className="text-muted-foreground text-base sm:text-sm"
+              >
+                Your agent will inspect your project and ask about anything it
+                needs.
+              </p>
+              <textarea
+                name="setup-instructions"
+                aria-label="Special instructions"
+                aria-describedby="setup-instructions-help"
+                placeholder="Leave this empty unless you have a very specific, unusual requirement."
+                value={instructions}
+                onChange={(event) => setCartInstructions(event.target.value)}
+                rows={3}
+                className="border-input placeholder:text-muted-foreground focus-visible:ring-ring mt-3 w-full resize-y rounded-xl border bg-transparent px-3 py-3 text-base focus-visible:ring-2 focus-visible:outline-none sm:text-sm"
+              />
+            </div>
+          </details>
+        )}
       </div>
 
       <aside
