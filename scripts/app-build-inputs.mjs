@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 
 export const APP_BUILD_INPUTS = [
   ".github/workflows/code-quality.yaml",
+  "apps/docs/content",
   "examples",
   "packages",
   "templates",
@@ -12,6 +13,13 @@ export const APP_BUILD_INPUTS = [
   "scripts/app-build-inputs.mjs",
   "scripts/app-build-inputs.test.mjs",
   "turbo.json",
+  "scripts/lib/script-options.mjs",
+  "scripts/build-example-bundle.mjs",
+  "scripts/package-example-bundles.mjs",
+  "scripts/prepare-example-bundles.mjs",
+  "scripts/run-example-bundles.mjs",
+  "scripts/example-bundles.json",
+  "scripts/example-bundles.test.mjs",
 ];
 
 const touches = (file, input) => file === input || file.startsWith(`${input}/`);

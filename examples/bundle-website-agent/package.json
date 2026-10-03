@@ -1,0 +1,28 @@
+{
+  "name": "bundle-website-agent",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node ../../scripts/build-example-bundle.mjs --outdir build",
+    "preview:build": "node ../../scripts/build-example-bundle.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/ai-sdk": "workspace:*",
+    "ai": "^7.0.101",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "bundle-shared": "workspace:*"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "vitest": "^5.0.3",
+    "jsdom": "^30.0.1",
+    "@testing-library/react": "^16.3.3"
+  }
+}
