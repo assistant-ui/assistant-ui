@@ -1,5 +1,5 @@
 {
-  "name": "@assistant-ui/react-acp",
+  "name": "@assistant-ui/acp",
   "version": "0.1.0",
   "description": "ACP (Agent Client Protocol) adapter for assistant-ui",
   "keywords": [
@@ -69,7 +69,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/assistant-ui/assistant-ui.git",
-    "directory": "packages/react-acp"
+    "directory": "packages/acp"
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"

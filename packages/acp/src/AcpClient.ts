@@ -253,7 +253,7 @@ export class AcpClient {
   private emitConnectionChange() {
     for (const listener of [...this.connectionListeners]) {
       invokeUserCallback(
-        "react-acp",
+        "acp",
         "onConnectionChange",
         listener,
         this._connectionState,
@@ -329,7 +329,7 @@ export class AcpClient {
                 protocolVersion: ACP_PROTOCOL_VERSION,
                 clientCapabilities: {},
                 clientInfo: this.options.clientInfo ?? {
-                  name: "react-acp",
+                  name: "acp",
                   version: "0.1.0",
                 },
               },
@@ -495,7 +495,7 @@ export class AcpClient {
     try {
       handled = Promise.resolve(this.permissionHandler(params));
     } catch (error) {
-      invokeUserCallback("react-acp", "permissionHandler", () => {
+      invokeUserCallback("acp", "permissionHandler", () => {
         throw error;
       });
       reply({ outcome: "cancelled" });
@@ -512,7 +512,7 @@ export class AcpClient {
     if (!params?.update) return;
     for (const listener of [...this.sessionUpdateListeners]) {
       invokeUserCallback(
-        "react-acp",
+        "acp",
         "onSessionUpdate",
         listener,
         params.sessionId,

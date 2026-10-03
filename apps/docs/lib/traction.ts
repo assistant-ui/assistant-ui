@@ -210,7 +210,7 @@ export const PACKAGES: PackageInfo[] = [
     category: "protocols",
   },
   {
-    name: "@assistant-ui/react-acp",
+    name: "@assistant-ui/acp",
     description: "ACP v1 agent-client protocol adapter.",
     category: "protocols",
   },

@@ -215,7 +215,7 @@ export function useAcpRuntime(options: UseAcpRuntimeOptions): AssistantRuntime {
       if (cancelled) return;
       await controller.load();
     })().catch((error: unknown) => {
-      invokeUserCallback("react-acp", "onError", onError, toError(error));
+      invokeUserCallback("acp", "onError", onError, toError(error));
     });
     return () => {
       cancelled = true;

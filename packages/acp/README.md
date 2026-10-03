@@ -1,4 +1,4 @@
-# `@assistant-ui/react-acp`
+# `@assistant-ui/acp`
 
 [ACP (Agent Client Protocol)](https://agentclientprotocol.com/) adapter for
 [assistant-ui](https://www.assistant-ui.com/). The sequel to
@@ -17,14 +17,14 @@ agents like [crow](https://crow-ai.dev) (`crow acp --http`).
 ## Installation
 
 ```sh
-npm install @assistant-ui/react-acp @assistant-ui/react
+npm install @assistant-ui/acp @assistant-ui/react
 ```
 
 ## Usage
 
 ```tsx
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import { useAcpRuntime } from "@assistant-ui/react-acp";
+import { useAcpRuntime } from "@assistant-ui/acp";
 
 export function App() {
   const runtime = useAcpRuntime({
@@ -87,7 +87,7 @@ import {
   useAcpSessionId,
   useAcpSessionTitle,
   useAcpUsage,
-} from "@assistant-ui/react-acp";
+} from "@assistant-ui/acp";
 ```
 
 ## How it maps ACP → assistant-ui

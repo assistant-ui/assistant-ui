@@ -151,7 +151,7 @@ describe("AcpClient", () => {
     expect(init.params).toMatchObject({
       protocolVersion: 1,
       clientCapabilities: {},
-      clientInfo: { name: "react-acp" },
+      clientInfo: { name: "acp" },
     });
 
     ws.receive({

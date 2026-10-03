@@ -238,7 +238,7 @@ export class AcpThreadController implements AcpThreadControllerLike {
       status: { type: "incomplete", reason: "cancelled" },
     });
     await this.client.cancel();
-    invokeUserCallback("react-acp", "onCancel", this.onCancel);
+    invokeUserCallback("acp", "onCancel", this.onCancel);
     await this.persistAssistantHistory(assistantId);
   }
 
@@ -299,7 +299,7 @@ export class AcpThreadController implements AcpThreadControllerLike {
     if (next === this.state) return;
     this.state = next;
     for (const listener of [...this.listeners]) {
-      invokeUserCallback("react-acp", "subscribe", listener);
+      invokeUserCallback("acp", "subscribe", listener);
     }
   }
 
@@ -318,7 +318,7 @@ export class AcpThreadController implements AcpThreadControllerLike {
   }
 
   private reportError(error: unknown): void {
-    invokeUserCallback("react-acp", "onError", this.onError, toError(error));
+    invokeUserCallback("acp", "onError", this.onError, toError(error));
   }
 
   private reportDroppedBlocks(dropped: readonly AcpContentBlock[]): void {

@@ -71,7 +71,7 @@ afterEach(() => {
   extrasRef.current = undefined;
 });
 
-describe("react-acp hooks", () => {
+describe("acp hooks", () => {
   it("reads every accessor from the runtime extras", () => {
     extrasRef.current = provideExtras();
 
