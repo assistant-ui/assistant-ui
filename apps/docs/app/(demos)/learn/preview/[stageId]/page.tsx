@@ -29,9 +29,9 @@ export default async function LearnStagePreviewPage({
 }: {
   params: Promise<{ stageId: string }>;
 }) {
+  if (!isAiPlaygroundEnabled) notFound();
   // Each preview needs its own server-side usage-budget session.
   await connection();
-  if (!isAiPlaygroundEnabled) notFound();
 
   const { stageId } = await params;
   let previewDefinition;
