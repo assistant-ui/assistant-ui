@@ -44,7 +44,8 @@
     },
     "lint": {},
     "test": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "passThroughEnv": ["VITEST_MAX_WORKERS"]
     },
     "typecheck": {
       "dependsOn": ["^build"]
