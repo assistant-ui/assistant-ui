@@ -662,6 +662,28 @@ describe("McpServerResource connection lifecycle", () => {
     }
   });
 
+  it.each(["javascript:", "data:", "file:"])(
+    "rejects %s OAuth authorization URLs from the current connection",
+    async (protocol) => {
+      const root = mount({ auth: { type: "oauth" } });
+
+      try {
+        await root.getValue().connect();
+
+        await expect(
+          getOAuthProvider(0).redirectToAuthorization(
+            new URL(`${protocol}unsafe`),
+          ),
+        ).rejects.toThrow(
+          `Unsupported MCP OAuth authorization URL protocol: ${protocol}`,
+        );
+        expect(root.getValue().getState().authorizationUrl).toBeNull();
+      } finally {
+        root.unmount();
+      }
+    },
+  );
+
   it("ignores authorization URLs after disconnect", async () => {
     const root = mount({ auth: { type: "oauth" } });
 
