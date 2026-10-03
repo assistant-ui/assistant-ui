@@ -164,11 +164,6 @@ const config: NextConfig = {
       permanent: false,
     },
     {
-      source: "/multiplayer-hackathon",
-      destination: "/hackathon",
-      permanent: false,
-    },
-    {
       source: "/tap",
       destination: "/docs/tap",
       permanent: true,
