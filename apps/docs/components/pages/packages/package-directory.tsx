@@ -173,10 +173,7 @@ function FilterChip({
 }
 
 function SharePlaceholder({ pending }: { pending: boolean }) {
-  const bar = cn(
-    "w-full motion-reduce:animate-none",
-    !pending && "animate-none",
-  );
+  const bar = cn("w-full motion-reduce:animate-none", !pending && "invisible");
   return (
     <div aria-busy={pending || undefined} className="flex flex-col gap-4">
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">

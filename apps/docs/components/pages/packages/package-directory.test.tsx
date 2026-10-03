@@ -32,6 +32,8 @@ const render = (
   );
 
 const statSlots = (html: string) => html.split("0 /wk").length - 1;
+const hiddenBars = (html: string) =>
+  html.match(/data-slot="skeleton" class="[^"]*\binvisible\b/g)?.length ?? 0;
 
 describe("PackageDirectory", () => {
   it("lays out an unanswered npm read like the loading shell", () => {
@@ -46,7 +48,9 @@ describe("PackageDirectory", () => {
 
     expect(loading).toContain('aria-busy="true"');
     expect(unavailable).not.toContain('aria-busy="true"');
-    expect(unavailable).toContain("Share of weekly downloads");
+    expect(unavailable).toContain("unavailable right now");
+    expect(hiddenBars(loading)).toBe(0);
+    expect(hiddenBars(unavailable)).toBe(2);
     expect(statSlots(loading)).toBe(liveRows);
     expect(statSlots(unavailable)).toBe(liveRows);
   });
