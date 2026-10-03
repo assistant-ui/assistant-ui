@@ -1,0 +1,618 @@
+import { invokeUserCallback } from "@assistant-ui/core/internal";
+import { isAllowKind } from "./conversions";
+import {
+  ACP_PROTOCOL_VERSION,
+  type AcpAgentCapabilities,
+  type AcpConnectionState,
+  type AcpContentBlock,
+  type AcpImplementation,
+  type AcpInitializeResponse,
+  type AcpMcpServer,
+  type AcpPermissionOutcome,
+  type AcpPermissionRequest,
+  type AcpSessionConfigOption,
+  type AcpSessionModeState,
+  type AcpSessionUpdate,
+  type AcpStopReason,
+} from "./types";
+
+export type AcpWebSocketLike = {
+  send(data: string): void;
+  close(code?: number, reason?: string): void;
+  onopen: ((event?: unknown) => void) | null;
+  onmessage: ((event: { data: unknown }) => void) | null;
+  onclose: ((event?: { code?: number; reason?: string }) => void) | null;
+  onerror: ((event?: unknown) => void) | null;
+};
+
+export type AcpWebSocketFactory = (url: string) => AcpWebSocketLike;
+
+export type AcpPermissionHandler = (
+  request: AcpPermissionRequest,
+) => AcpPermissionOutcome | Promise<AcpPermissionOutcome>;
+
+export type AcpSessionUpdateListener = (
+  sessionId: string,
+  update: AcpSessionUpdate,
+) => void;
+
+export type AcpConnectionListener = (state: AcpConnectionState) => void;
+
+export type AcpClientOptions = {
+  /** WebSocket endpoint of the ACP agent, e.g. `ws://127.0.0.1:2770/`. */
+  url: string;
+  /**
+   * Working directory passed to `session/new`. ACP requires an absolute path;
+   * defaults to `"/"`. Set this when the agent's file tools should be rooted
+   * somewhere specific.
+   */
+  cwd?: string;
+  /** MCP servers passed to `session/new`. */
+  mcpServers?: readonly AcpMcpServer[];
+  /** Client identity for the `initialize` handshake. */
+  clientInfo?: AcpImplementation;
+  /** Inject a WebSocket implementation (tests / custom transports). */
+  webSocketFactory?: AcpWebSocketFactory;
+  /**
+   * Reply deadline for lifecycle requests, in milliseconds. `session/prompt`
+   * is exempt because a turn has no bounded duration.
+   */
+  requestTimeoutMs?: number;
+  /**
+   * Answers `session/request_permission`. Defaults to
+   * `cancelPermissionHandler`, which refuses every request: an agent must
+   * never be allowed to act on a decision the caller did not configure.
+   */
+  permissionHandler?: AcpPermissionHandler;
+};
+
+type AcpSessionResponse = {
+  sessionId: string;
+  modes?: AcpSessionModeState | null;
+  configOptions?: readonly AcpSessionConfigOption[] | null;
+};
+
+type JsonRpcId = number | string;
+
+type PendingRequest = {
+  resolve: (result: any) => void;
+  reject: (error: Error) => void;
+  timer: ReturnType<typeof setTimeout> | undefined;
+};
+
+export class AcpError extends Error {
+  readonly code: number;
+  readonly data: unknown;
+
+  constructor(message: string, code: number, data?: unknown) {
+    super(message);
+    this.name = "AcpError";
+    this.code = code;
+    this.data = data;
+  }
+}
+
+export const autoAllowPermissionHandler: AcpPermissionHandler = (request) => {
+  const option = request.options.find((o) => isAllowKind(o.kind));
+  return option
+    ? { outcome: "selected", optionId: option.optionId }
+    : { outcome: "cancelled" };
+};
+
+export const cancelPermissionHandler: AcpPermissionHandler = () => ({
+  outcome: "cancelled",
+});
+
+const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
+
+const ACP_CLIENT_VERSION: string =
+  typeof __AUI_PACKAGE_VERSION__ === "string"
+    ? __AUI_PACKAGE_VERSION__
+    : "0.0.0";
+
+const defaultWebSocketFactory: AcpWebSocketFactory = (url) =>
+  new WebSocket(url) as unknown as AcpWebSocketLike;
+
+const toError = (error: unknown): Error =>
+  error instanceof Error ? error : new Error(String(error));
+
+export class AcpClient {
+  private readonly options: AcpClientOptions;
+  private ws: AcpWebSocketLike | undefined;
+  private nextId = 1;
+  private readonly pending = new Map<JsonRpcId, PendingRequest>();
+  private readonly pendingPermissions = new Map<
+    JsonRpcId,
+    (outcome: AcpPermissionOutcome) => void
+  >();
+  private connectPromise: Promise<AcpInitializeResponse> | undefined;
+  private failHandshake: ((error: Error) => void) | undefined;
+  private sessionPromise: Promise<string> | undefined;
+  private initializeResult: AcpInitializeResponse | undefined;
+  private _sessionId: string | undefined;
+  private _connectionState: AcpConnectionState = "disconnected";
+  private _permissionHandler: AcpPermissionHandler;
+  private disposed = false;
+  private cancelSent = false;
+  private lostSessionId: string | undefined;
+  private loadingSessionId: string | undefined;
+  private sessionModes: AcpSessionModeState | undefined;
+  private sessionConfigOptions: readonly AcpSessionConfigOption[] | undefined;
+  private readonly explicitPermissionHandler: boolean;
+  private readonly sessionUpdateListeners = new Set<AcpSessionUpdateListener>();
+  private readonly connectionListeners = new Set<AcpConnectionListener>();
+
+  constructor(options: AcpClientOptions) {
+    this.options = options;
+    this.explicitPermissionHandler = options.permissionHandler !== undefined;
+    this._permissionHandler =
+      options.permissionHandler ?? cancelPermissionHandler;
+  }
+
+  subscribeSessionUpdate(listener: AcpSessionUpdateListener): () => void {
+    this.sessionUpdateListeners.add(listener);
+    return () => {
+      this.sessionUpdateListeners.delete(listener);
+    };
+  }
+
+  subscribeConnectionChange(listener: AcpConnectionListener): () => void {
+    this.connectionListeners.add(listener);
+    return () => {
+      this.connectionListeners.delete(listener);
+    };
+  }
+
+  /** Whether the caller supplied `permissionHandler` in the client options. */
+  get hasConfiguredPermissionHandler(): boolean {
+    return this.explicitPermissionHandler;
+  }
+
+  get connectionState(): AcpConnectionState {
+    return this._connectionState;
+  }
+
+  get sessionId(): string | undefined {
+    return this._sessionId;
+  }
+
+  get agentInfo(): AcpImplementation | undefined {
+    return this.initializeResult?.agentInfo ?? undefined;
+  }
+
+  get agentCapabilities(): AcpAgentCapabilities | undefined {
+    return this.initializeResult?.agentCapabilities;
+  }
+
+  /** Initial mode state reported by `session/new` or `session/load`. */
+  get modes(): AcpSessionModeState | undefined {
+    return this.sessionModes;
+  }
+
+  /** Initial config options reported by `session/new` or `session/load`. */
+  get configOptions(): readonly AcpSessionConfigOption[] | undefined {
+    return this.sessionConfigOptions;
+  }
+
+  get permissionHandler(): AcpPermissionHandler {
+    return this._permissionHandler;
+  }
+
+  set permissionHandler(handler: AcpPermissionHandler) {
+    this._permissionHandler = handler;
+  }
+
+  connect(): Promise<AcpInitializeResponse> {
+    if (this.disposed) {
+      return Promise.reject(new Error("AcpClient is disposed"));
+    }
+    if (this._connectionState === "connected" && this.initializeResult) {
+      return Promise.resolve(this.initializeResult);
+    }
+    this.connectPromise ??= this.doConnect().finally(() => {
+      this.connectPromise = undefined;
+    });
+    return this.connectPromise;
+  }
+
+  ensureSession(): Promise<string> {
+    if (this._sessionId) return Promise.resolve(this._sessionId);
+    this.sessionPromise ??= this.doNewSession().finally(() => {
+      this.sessionPromise = undefined;
+    });
+    return this.sessionPromise;
+  }
+
+  /**
+   * Sends `session/prompt`. An aborted `signal` cancels the turn before it is
+   * sent, including while `session/new` or `session/load` is still in flight:
+   * an agent must never run a turn the user already stopped.
+   */
+  async prompt(
+    content: readonly AcpContentBlock[],
+    signal?: AbortSignal,
+  ): Promise<AcpStopReason> {
+    if (signal?.aborted) return "cancelled";
+    const sessionId = await this.ensureSession();
+    if (signal?.aborted) return "cancelled";
+    this.cancelSent = false;
+    const result = await this.request<{ stopReason?: AcpStopReason }>(
+      "session/prompt",
+      { sessionId, prompt: content },
+      undefined,
+    );
+    return result.stopReason ?? "end_turn";
+  }
+
+  async cancel(): Promise<void> {
+    this.settlePermissions({ outcome: "cancelled" });
+    if (!this._sessionId || this._connectionState !== "connected") return;
+    if (this.cancelSent) return;
+    this.sendNotification("session/cancel", { sessionId: this._sessionId });
+    this.cancelSent = true;
+  }
+
+  respondPermission(requestId: JsonRpcId, outcome: AcpPermissionOutcome): void {
+    const settle = this.pendingPermissions.get(requestId);
+    if (settle) {
+      settle(outcome);
+      return;
+    }
+    this.sendRaw({ jsonrpc: "2.0", id: requestId, result: { outcome } });
+  }
+
+  dispose(): void {
+    this.disposed = true;
+    this.settlePermissions({ outcome: "cancelled" });
+    this.failHandshake?.(new Error("AcpClient disposed"));
+    const ws = this.ws;
+    this.ws = undefined;
+    if (ws) {
+      ws.onopen = null;
+      ws.onmessage = null;
+      ws.onerror = null;
+      ws.onclose = null;
+      try {
+        ws.close();
+      } catch {
+        // a throwing transport must not strand the cleanup below
+      }
+    }
+    this.failPending(new Error("AcpClient disposed"));
+    this.connectPromise = undefined;
+    this.sessionPromise = undefined;
+    this.notifyDisconnected();
+    this.sessionUpdateListeners.clear();
+    this.connectionListeners.clear();
+  }
+
+  private emitConnectionChange() {
+    for (const listener of [...this.connectionListeners]) {
+      invokeUserCallback(
+        "acp",
+        "onConnectionChange",
+        listener,
+        this._connectionState,
+      );
+    }
+  }
+
+  private setConnectionState(state: AcpConnectionState) {
+    if (this._connectionState === state) return;
+    this._connectionState = state;
+    this.emitConnectionChange();
+  }
+
+  /**
+   * Drops session data and reports `"disconnected"`. Notifies only when something
+   * observable changed, so a handshake failure followed by `onclose` — or a
+   * `dispose()` that interrupted one — reports it exactly once.
+   */
+  private notifyDisconnected() {
+    const hadSession =
+      this._sessionId !== undefined || this.initializeResult !== undefined;
+    if (this._sessionId !== undefined) this.lostSessionId = this._sessionId;
+    this._sessionId = undefined;
+    this.initializeResult = undefined;
+    this.sessionModes = undefined;
+    this.sessionConfigOptions = undefined;
+    this.cancelSent = false;
+    const stateChanged = this._connectionState !== "disconnected";
+    this._connectionState = "disconnected";
+    if (stateChanged || hadSession) this.emitConnectionChange();
+  }
+
+  private settlePermissions(outcome: AcpPermissionOutcome): void {
+    if (this.pendingPermissions.size === 0) return;
+    const settle = [...this.pendingPermissions.values()];
+    this.pendingPermissions.clear();
+    for (const resolve of settle) resolve(outcome);
+  }
+
+  private doConnect(): Promise<AcpInitializeResponse> {
+    return new Promise<AcpInitializeResponse>((resolve, reject) => {
+      let settled = false;
+      const fail = (error: Error) => {
+        if (settled) return;
+        settled = true;
+        this.failHandshake = undefined;
+        this.notifyDisconnected();
+        reject(error);
+      };
+      // registered first: a synchronous onConnectionChange listener may dispose
+      // the client, and dispose() must be able to fail this handshake
+      this.failHandshake = fail;
+      this.setConnectionState("connecting");
+      if (settled) return;
+
+      let ws: AcpWebSocketLike;
+      try {
+        ws = (this.options.webSocketFactory ?? defaultWebSocketFactory)(
+          this.options.url,
+        );
+      } catch (error) {
+        fail(toError(error));
+        return;
+      }
+      this.ws = ws;
+      const isCurrent = () => this.ws === ws;
+
+      ws.onopen = () => {
+        if (!isCurrent()) return;
+        void (async () => {
+          try {
+            const result = await this.request<AcpInitializeResponse>(
+              "initialize",
+              {
+                protocolVersion: ACP_PROTOCOL_VERSION,
+                clientCapabilities: {},
+                clientInfo: this.options.clientInfo ?? {
+                  name: "@assistant-ui/acp",
+                  version: ACP_CLIENT_VERSION,
+                },
+              },
+            );
+            if (!isCurrent()) return;
+            this.initializeResult = result;
+            if (settled) return;
+            settled = true;
+            this.failHandshake = undefined;
+            this.setConnectionState("connected");
+            resolve(result);
+          } catch (error) {
+            if (!isCurrent()) return;
+            fail(toError(error));
+            ws.close();
+          }
+        })();
+      };
+      ws.onmessage = (event) => {
+        if (!isCurrent()) return;
+        this.handleMessage(typeof event.data === "string" ? event.data : "");
+      };
+      ws.onclose = () => {
+        if (!isCurrent()) return;
+        this.handleClose();
+        fail(new Error("ACP WebSocket closed before handshake completed"));
+      };
+      ws.onerror = () => {
+        if (!isCurrent()) return;
+        fail(
+          new Error(`ACP WebSocket connection to ${this.options.url} failed`),
+        );
+      };
+    });
+  }
+
+  private async doNewSession(): Promise<string> {
+    await this.connect();
+    const lost = this.lostSessionId;
+    if (lost !== undefined) return this.reloadSession(lost);
+    const result = await this.request<AcpSessionResponse>("session/new", {
+      cwd: this.options.cwd ?? "/",
+      mcpServers: this.options.mcpServers ?? [],
+    });
+    this._sessionId = result.sessionId;
+    this.sessionModes = result.modes ?? undefined;
+    this.sessionConfigOptions = result.configOptions ?? undefined;
+    this.emitConnectionChange();
+    return result.sessionId;
+  }
+
+  /**
+   * A dropped connection leaves the agent without the transcript the UI still
+   * shows, so a reconnect must not quietly continue it. `session/load` restores
+   * the session when the agent advertises it; otherwise the caller gets an
+   * error it can turn into a "start a new thread" prompt. The lost id survives a
+   * failed attempt, so every later one keeps refusing instead of forking.
+   *
+   * The agent answers `session/load` only after replaying the whole transcript
+   * as `session/update` notifications. That replay is history the thread state
+   * already holds, so it is dropped instead of streaming into the next reply.
+   * A load that fails or times out leaves that fence down: the socket is still
+   * open, the agent may still be replaying, and the session stays unusable
+   * either way, so a late replay must not reach the thread.
+   */
+  private async reloadSession(sessionId: string): Promise<string> {
+    const unusable = (reason: string) =>
+      new Error(
+        `The ACP connection dropped session ${sessionId} and it could not be ` +
+          `restored (${reason}). Start a new thread to continue.`,
+      );
+    if (!this.agentCapabilities?.loadSession) {
+      throw unusable("the agent does not support session/load");
+    }
+    this.loadingSessionId = sessionId;
+    let loaded: AcpSessionResponse;
+    try {
+      loaded = await this.request<AcpSessionResponse>("session/load", {
+        sessionId,
+        cwd: this.options.cwd ?? "/",
+        mcpServers: this.options.mcpServers ?? [],
+      });
+    } catch (error) {
+      throw unusable(`session/load failed: ${toError(error).message}`);
+    }
+    this.loadingSessionId = undefined;
+    this._sessionId = sessionId;
+    this.lostSessionId = undefined;
+    this.sessionModes = loaded.modes ?? undefined;
+    this.sessionConfigOptions = loaded.configOptions ?? undefined;
+    this.emitConnectionChange();
+    return sessionId;
+  }
+
+  private handleClose(): void {
+    this.failPending(new Error("ACP WebSocket connection closed"));
+    this.settlePermissions({ outcome: "cancelled" });
+    this.ws = undefined;
+    this.notifyDisconnected();
+  }
+
+  private failPending(error: Error): void {
+    for (const [, pending] of this.pending) {
+      if (pending.timer !== undefined) clearTimeout(pending.timer);
+      pending.reject(error);
+    }
+    this.pending.clear();
+  }
+
+  private handleMessage(raw: string): void {
+    let msg: any;
+    try {
+      msg = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    if (!msg || typeof msg !== "object") return;
+
+    if (typeof msg.method === "string") {
+      if (msg.id !== undefined) this.handleServerRequest(msg);
+      else this.handleNotification(msg);
+      return;
+    }
+
+    if (msg.id === undefined) return;
+    const pending = this.pending.get(msg.id);
+    if (!pending) return;
+    this.pending.delete(msg.id);
+    if (pending.timer !== undefined) clearTimeout(pending.timer);
+    if (msg.error) {
+      pending.reject(
+        new AcpError(
+          msg.error.message ?? "ACP request failed",
+          msg.error.code ?? -1,
+          msg.error.data,
+        ),
+      );
+    } else {
+      pending.resolve(msg.result);
+    }
+  }
+
+  private handleServerRequest(msg: any): void {
+    if (msg.method === "session/request_permission") {
+      this.handlePermissionRequest(
+        msg.id as JsonRpcId,
+        msg.params as AcpPermissionRequest,
+      );
+      return;
+    }
+    this.sendRaw({
+      jsonrpc: "2.0",
+      id: msg.id,
+      error: { code: -32601, message: `Method not supported: ${msg.method}` },
+    });
+  }
+
+  private handlePermissionRequest(
+    requestId: JsonRpcId,
+    params: AcpPermissionRequest,
+  ): void {
+    let settled = false;
+    const reply = (outcome: AcpPermissionOutcome) => {
+      if (settled) return;
+      settled = true;
+      this.pendingPermissions.delete(requestId);
+      try {
+        this.sendRaw({ jsonrpc: "2.0", id: requestId, result: { outcome } });
+      } catch {
+        // the socket is already gone; permission replies are best-effort
+      }
+    };
+    this.pendingPermissions.set(requestId, reply);
+
+    let handled: Promise<AcpPermissionOutcome>;
+    try {
+      handled = Promise.resolve(this.permissionHandler(params));
+    } catch (error) {
+      invokeUserCallback("acp", "permissionHandler", () => {
+        throw error;
+      });
+      reply({ outcome: "cancelled" });
+      return;
+    }
+    void handled.then(reply, () => reply({ outcome: "cancelled" }));
+  }
+
+  private handleNotification(msg: any): void {
+    if (msg.method !== "session/update") return;
+    const params = msg.params as
+      | { sessionId: string; update: AcpSessionUpdate }
+      | undefined;
+    if (!params?.update) return;
+    if (params.sessionId === this.loadingSessionId) return;
+    for (const listener of [...this.sessionUpdateListeners]) {
+      invokeUserCallback(
+        "acp",
+        "onSessionUpdate",
+        listener,
+        params.sessionId,
+        params.update,
+      );
+    }
+  }
+
+  private request<TResult>(
+    method: string,
+    params: unknown,
+    timeoutMs: number | undefined = this.options.requestTimeoutMs ??
+      DEFAULT_REQUEST_TIMEOUT_MS,
+  ): Promise<TResult> {
+    if (this._connectionState !== "connected" && method !== "initialize") {
+      return Promise.reject(
+        new Error(`Cannot send ${method}: ACP client is not connected`),
+      );
+    }
+    const id = this.nextId++;
+    return new Promise<TResult>((resolve, reject) => {
+      const timer =
+        timeoutMs === undefined
+          ? undefined
+          : setTimeout(() => {
+              if (!this.pending.has(id)) return;
+              this.pending.delete(id);
+              reject(new Error(`ACP ${method} timed out after ${timeoutMs}ms`));
+            }, timeoutMs);
+      if (timer !== undefined) {
+        (timer as unknown as { unref?: () => void }).unref?.();
+      }
+      this.pending.set(id, { resolve, reject, timer });
+      try {
+        this.sendRaw({ jsonrpc: "2.0", id, method, params });
+      } catch (error) {
+        this.pending.delete(id);
+        if (timer !== undefined) clearTimeout(timer);
+        reject(toError(error));
+      }
+    });
+  }
+
+  private sendNotification(method: string, params: unknown): void {
+    this.sendRaw({ jsonrpc: "2.0", method, params });
+  }
+
+  private sendRaw(frame: unknown): void {
+    this.ws?.send(JSON.stringify(frame));
+  }
+}

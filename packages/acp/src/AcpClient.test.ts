@@ -1,0 +1,972 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  AcpClient,
+  AcpError,
+  autoAllowPermissionHandler,
+  cancelPermissionHandler,
+} from "./AcpClient";
+import type { AcpSessionUpdate } from "./types";
+
+type JsonRpcFrame = {
+  jsonrpc: "2.0";
+  id?: number | string;
+  method?: string;
+  params?: unknown;
+  result?: unknown;
+  error?: { code: number; message: string; data?: unknown };
+};
+
+class MockWebSocket {
+  static instances: MockWebSocket[] = [];
+
+  readonly url: string;
+  onopen: ((event?: unknown) => void) | null = null;
+  onmessage: ((event: { data: unknown }) => void) | null = null;
+  onclose: ((event?: { code?: number; reason?: string }) => void) | null = null;
+  onerror: ((event?: unknown) => void) | null = null;
+
+  sent: JsonRpcFrame[] = [];
+  closed = false;
+  failSends = 0;
+
+  constructor(url: string) {
+    this.url = url;
+    MockWebSocket.instances.push(this);
+  }
+
+  send(data: string) {
+    if (this.failSends > 0) {
+      this.failSends -= 1;
+      throw new Error("send failed");
+    }
+    this.sent.push(JSON.parse(data) as JsonRpcFrame);
+  }
+
+  close() {
+    if (this.closed) return;
+    this.closed = true;
+    this.onclose?.({});
+  }
+
+  open() {
+    this.onopen?.({});
+  }
+
+  receive(frame: JsonRpcFrame) {
+    this.onmessage?.({ data: JSON.stringify(frame) });
+  }
+}
+
+async function until<T>(fn: () => T | undefined, ms = 2000): Promise<T> {
+  const start = Date.now();
+  for (;;) {
+    const value = fn();
+    if (value !== undefined) return value;
+    if (Date.now() - start > ms) throw new Error("timed out waiting");
+    await new Promise((r) => setTimeout(r, 5));
+  }
+}
+
+const lastWs = () => MockWebSocket.instances.at(-1)!;
+
+const mockClient = (
+  options?: Partial<ConstructorParameters<typeof AcpClient>[0]>,
+) =>
+  new AcpClient({
+    url: "ws://agent.test/",
+    webSocketFactory: (url) => new MockWebSocket(url),
+    ...options,
+  });
+
+async function completeHandshake(
+  ws: MockWebSocket,
+  agentCapabilities: Record<string, unknown> = { loadSession: true },
+): Promise<void> {
+  ws.open();
+  const init = await until(() =>
+    ws.sent.find((f) => f.method === "initialize"),
+  );
+  ws.receive({
+    jsonrpc: "2.0",
+    id: init.id!,
+    result: {
+      protocolVersion: 1,
+      agentCapabilities,
+      agentInfo: { name: "menu-agent", version: "0.1.0" },
+    },
+  });
+}
+
+async function connectClient(client: AcpClient): Promise<void> {
+  const pending = client.connect();
+  const ws = await until(() =>
+    MockWebSocket.instances.at(-1)?.onopen ? lastWs() : undefined,
+  );
+  await completeHandshake(ws);
+  await pending;
+}
+
+async function withSession(client: AcpClient): Promise<MockWebSocket> {
+  const sessionPromise = client.ensureSession();
+  await connectClient(client);
+  const ws = lastWs();
+  const newSession = await until(() =>
+    ws.sent.find((f) => f.method === "session/new"),
+  );
+  ws.receive({
+    jsonrpc: "2.0",
+    id: newSession.id!,
+    result: { sessionId: "s1" },
+  });
+  await sessionPromise;
+  return ws;
+}
+
+const permissionRequest = (id: number): JsonRpcFrame => ({
+  jsonrpc: "2.0",
+  id,
+  method: "session/request_permission",
+  params: {
+    sessionId: "s1",
+    toolCall: { toolCallId: "t1", title: "write_file" },
+    options: [
+      { optionId: "reject-1", name: "Reject", kind: "reject_once" },
+      { optionId: "allow-1", name: "Allow", kind: "allow_once" },
+    ],
+  },
+});
+
+beforeEach(() => {
+  MockWebSocket.instances = [];
+});
+
+describe("AcpClient", () => {
+  it("runs the initialize handshake over the WebSocket", async () => {
+    const client = mockClient();
+    const pending = client.connect();
+    expect(client.connectionState).toBe("connecting");
+
+    const ws = lastWs();
+    expect(ws.url).toBe("ws://agent.test/");
+    ws.open();
+
+    const init = await until(() =>
+      ws.sent.find((f) => f.method === "initialize"),
+    );
+    expect(init.params).toMatchObject({
+      protocolVersion: 1,
+      clientCapabilities: {},
+      clientInfo: { name: "@assistant-ui/acp", version: "0.0.0" },
+    });
+
+    ws.receive({
+      jsonrpc: "2.0",
+      id: init.id!,
+      result: { protocolVersion: 1, agentInfo: { name: "crow", version: "1" } },
+    });
+
+    const result = await pending;
+    expect(result.agentInfo?.name).toBe("crow");
+    expect(client.connectionState).toBe("connected");
+    expect(client.agentInfo?.name).toBe("crow");
+    expect(ws.sent.some((f) => f.method === "notifications/initialized")).toBe(
+      false,
+    );
+  });
+
+  it("rejects connect when the socket errors before handshake", async () => {
+    const client = mockClient();
+    const pending = client.connect();
+    lastWs().onerror?.({});
+    await expect(pending).rejects.toThrow(
+      "connection to ws://agent.test/ failed",
+    );
+    expect(client.connectionState).toBe("disconnected");
+  });
+
+  it("creates one session and reuses it", async () => {
+    const client = mockClient({ cwd: "/srv/app" });
+    const first = client.ensureSession();
+    const second = client.ensureSession();
+    const ws = await withSession(client);
+
+    expect(await first).toBe("s1");
+    expect(await second).toBe("s1");
+    expect(ws.sent.filter((f) => f.method === "session/new")).toHaveLength(1);
+    expect(ws.sent.find((f) => f.method === "session/new")?.params).toEqual({
+      cwd: "/srv/app",
+      mcpServers: [],
+    });
+  });
+
+  it("keeps the modes and config options session/new reports", async () => {
+    const client = mockClient();
+    const pending = client.ensureSession();
+    await connectClient(client);
+    const ws = lastWs();
+    const newSession = await until(() =>
+      ws.sent.find((f) => f.method === "session/new"),
+    );
+    expect(client.modes).toBeUndefined();
+    expect(client.configOptions).toBeUndefined();
+
+    ws.receive({
+      jsonrpc: "2.0",
+      id: newSession.id!,
+      result: {
+        sessionId: "s1",
+        modes: {
+          currentModeId: "code",
+          availableModes: [{ id: "code", name: "Code" }],
+        },
+        configOptions: [{ type: "boolean", currentValue: true, id: "verbose" }],
+      },
+    });
+
+    await expect(pending).resolves.toBe("s1");
+    expect(client.modes).toEqual({
+      currentModeId: "code",
+      availableModes: [{ id: "code", name: "Code" }],
+    });
+    expect(client.configOptions).toEqual([
+      { type: "boolean", currentValue: true, id: "verbose" },
+    ]);
+
+    ws.close();
+    expect(client.modes).toBeUndefined();
+    expect(client.configOptions).toBeUndefined();
+  });
+
+  it("sends prompts and dispatches session/update notifications", async () => {
+    const client = mockClient();
+    const promptPromise = client.prompt([{ type: "text", text: "hi" }]);
+    const ws = await withSession(client);
+
+    const prompt = await until(() =>
+      ws.sent.find((f) => f.method === "session/prompt"),
+    );
+    expect(prompt.params).toEqual({
+      sessionId: "s1",
+      prompt: [{ type: "text", text: "hi" }],
+    });
+
+    const updates: Array<{ sessionId: string; update: AcpSessionUpdate }> = [];
+    client.subscribeSessionUpdate((sessionId, update) =>
+      updates.push({ sessionId, update }),
+    );
+    ws.receive({
+      jsonrpc: "2.0",
+      method: "session/update",
+      params: {
+        sessionId: "s1",
+        update: {
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: "Hello!" },
+        },
+      },
+    });
+    expect(updates).toHaveLength(1);
+    expect(updates[0]!.sessionId).toBe("s1");
+
+    ws.receive({
+      jsonrpc: "2.0",
+      id: prompt.id!,
+      result: { stopReason: "end_turn" },
+    });
+    expect(await promptPromise).toBe("end_turn");
+  });
+
+  it("notifies every session update listener until it unsubscribes", async () => {
+    const client = mockClient();
+    const ws = await withSession(client);
+    const first: string[] = [];
+    const second: string[] = [];
+    const unsubscribe = client.subscribeSessionUpdate((_id, update) =>
+      first.push(update.sessionUpdate),
+    );
+    client.subscribeSessionUpdate((_id, update) =>
+      second.push(update.sessionUpdate),
+    );
+
+    const title = (value: string) => ({
+      jsonrpc: "2.0" as const,
+      method: "session/update",
+      params: {
+        sessionId: "s1",
+        update: { sessionUpdate: "session_info_update", title: value },
+      },
+    });
+    ws.receive(title("one"));
+    expect(first).toEqual(["session_info_update"]);
+    expect(second).toEqual(["session_info_update"]);
+
+    unsubscribe();
+    ws.receive(title("two"));
+    expect(first).toHaveLength(1);
+    expect(second).toHaveLength(2);
+  });
+
+  it("surfaces JSON-RPC errors as AcpError", async () => {
+    const client = mockClient();
+    const promptPromise = client.prompt([{ type: "text", text: "hi" }]);
+    const ws = await withSession(client);
+    const prompt = await until(() =>
+      ws.sent.find((f) => f.method === "session/prompt"),
+    );
+    ws.receive({
+      jsonrpc: "2.0",
+      id: prompt.id!,
+      error: { code: -32000, message: "model exploded" },
+    });
+    await expect(promptPromise).rejects.toBeInstanceOf(AcpError);
+    await expect(promptPromise).rejects.toThrow("model exploded");
+  });
+
+  it("refuses permission requests unless the caller opts in", async () => {
+    const client = mockClient();
+    expect(client.permissionHandler).toBe(cancelPermissionHandler);
+    await connectClient(client);
+    const ws = lastWs();
+
+    ws.receive(permissionRequest(77));
+
+    const response = await until(() => ws.sent.find((f) => f.id === 77));
+    expect(response.result).toEqual({ outcome: { outcome: "cancelled" } });
+  });
+
+  it("routes permission requests through the configured handler", async () => {
+    const client = mockClient({
+      permissionHandler: autoAllowPermissionHandler,
+    });
+    await connectClient(client);
+    const ws = lastWs();
+
+    ws.receive(permissionRequest(78));
+
+    const response = await until(() => ws.sent.find((f) => f.id === 78));
+    expect(response.result).toEqual({
+      outcome: { outcome: "selected", optionId: "allow-1" },
+    });
+  });
+
+  it("reports whether the caller configured a permission handler", () => {
+    expect(mockClient().hasConfiguredPermissionHandler).toBe(false);
+    expect(
+      mockClient({ permissionHandler: autoAllowPermissionHandler })
+        .hasConfiguredPermissionHandler,
+    ).toBe(true);
+  });
+
+  it("replies cancelled when the permission handler throws synchronously", async () => {
+    const client = mockClient({
+      permissionHandler: () => {
+        throw new Error("handler exploded");
+      },
+    });
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    await connectClient(client);
+    const ws = lastWs();
+
+    ws.receive(permissionRequest(79));
+
+    const response = await until(() => ws.sent.find((f) => f.id === 79));
+    expect(response.result).toEqual({ outcome: { outcome: "cancelled" } });
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
+  it("replies cancelled to outstanding permission requests on cancel", async () => {
+    const client = mockClient({
+      permissionHandler: () => new Promise(() => {}),
+    });
+    const ws = await withSession(client);
+    ws.receive(permissionRequest(80));
+    await new Promise((r) => setTimeout(r, 0));
+
+    await client.cancel();
+
+    const response = await until(() => ws.sent.find((f) => f.id === 80));
+    expect(response.result).toEqual({ outcome: { outcome: "cancelled" } });
+    expect(ws.sent.find((f) => f.method === "session/cancel")?.params).toEqual({
+      sessionId: "s1",
+    });
+  });
+
+  it("rejects unsupported server requests", async () => {
+    const client = mockClient();
+    await connectClient(client);
+    const ws = lastWs();
+
+    ws.receive({
+      jsonrpc: "2.0",
+      id: 81,
+      method: "terminal/create",
+      params: {},
+    });
+
+    const response = await until(() => ws.sent.find((f) => f.id === 81));
+    expect(response.error?.code).toBe(-32601);
+  });
+
+  it("sends session/cancel as a notification and clears the session on close", async () => {
+    const client = mockClient();
+    const ws = await withSession(client);
+
+    await client.cancel();
+    const cancel = await until(() =>
+      ws.sent.find((f) => f.method === "session/cancel"),
+    );
+    expect(cancel.params).toEqual({ sessionId: "s1" });
+    expect(cancel.id).toBeUndefined();
+
+    const states: string[] = [];
+    client.subscribeConnectionChange((state) => states.push(state));
+    ws.onclose?.({});
+    expect(client.connectionState).toBe("disconnected");
+    expect(client.sessionId).toBeUndefined();
+    expect(states).toEqual(["disconnected"]);
+  });
+
+  it("sends session/cancel once per turn", async () => {
+    const client = mockClient();
+    const ws = await withSession(client);
+    const cancels = () => ws.sent.filter((f) => f.method === "session/cancel");
+    const prompts = () => ws.sent.filter((f) => f.method === "session/prompt");
+    const answer = (index: number) => {
+      const frame = prompts()[index]!;
+      ws.receive({
+        jsonrpc: "2.0",
+        id: frame.id!,
+        result: { stopReason: "cancelled" },
+      });
+    };
+
+    const first = client.prompt([{ type: "text", text: "hi" }]);
+    await until(() => (prompts().length > 0 ? true : undefined));
+    await client.cancel();
+    await client.cancel();
+    expect(cancels()).toHaveLength(1);
+    answer(0);
+    await expect(first).resolves.toBe("cancelled");
+
+    const second = client.prompt([{ type: "text", text: "again" }]);
+    await until(() => (prompts().length > 1 ? true : undefined));
+    await client.cancel();
+    expect(cancels()).toHaveLength(2);
+    answer(1);
+    await expect(second).resolves.toBe("cancelled");
+  });
+
+  it("retries session/cancel when the transport throws", async () => {
+    const client = mockClient();
+    const ws = await withSession(client);
+    const cancels = () => ws.sent.filter((f) => f.method === "session/cancel");
+    ws.failSends = 1;
+
+    await expect(client.cancel()).rejects.toThrow("send failed");
+    expect(cancels()).toHaveLength(0);
+
+    await client.cancel();
+    expect(cancels()).toHaveLength(1);
+  });
+
+  it("reloads a lost session on reconnect instead of starting a new one", async () => {
+    const client = mockClient();
+    const ws = await withSession(client);
+    expect(client.sessionId).toBe("s1");
+
+    ws.close();
+    expect(client.sessionId).toBeUndefined();
+
+    const reloaded = client.ensureSession();
+    const next = lastWs();
+    expect(next).not.toBe(ws);
+    await completeHandshake(next);
+
+    const load = await until(() =>
+      next.sent.find((f) => f.method === "session/load"),
+    );
+    expect(load.params).toEqual({
+      sessionId: "s1",
+      cwd: "/",
+      mcpServers: [],
+    });
+    next.receive({ jsonrpc: "2.0", id: load.id!, result: {} });
+
+    await expect(reloaded).resolves.toBe("s1");
+    expect(client.sessionId).toBe("s1");
+    expect(next.sent.some((f) => f.method === "session/new")).toBe(false);
+  });
+
+  it("keeps the modes and config options a session/load response reports", async () => {
+    const client = mockClient();
+    const ws = await withSession(client);
+    expect(client.modes).toBeUndefined();
+
+    ws.close();
+    const reloaded = client.ensureSession();
+    const next = lastWs();
+    await completeHandshake(next);
+    const load = await until(() =>
+      next.sent.find((f) => f.method === "session/load"),
+    );
+    next.receive({
+      jsonrpc: "2.0",
+      id: load.id!,
+      result: {
+        modes: { currentModeId: "plan", availableModes: [] },
+        configOptions: [],
+      },
+    });
+
+    await expect(reloaded).resolves.toBe("s1");
+    expect(client.modes).toEqual({ currentModeId: "plan", availableModes: [] });
+    expect(client.configOptions).toEqual([]);
+  });
+
+  it("drops the session/load replay instead of streaming it into the thread", async () => {
+    const client = mockClient();
+    const ws = await withSession(client);
+    const updates: AcpSessionUpdate[] = [];
+    client.subscribeSessionUpdate((_sessionId, update) => {
+      updates.push(update);
+    });
+
+    ws.close();
+    const reloaded = client.ensureSession();
+    const next = lastWs();
+    await completeHandshake(next);
+    const load = await until(() =>
+      next.sent.find((f) => f.method === "session/load"),
+    );
+
+    const replay = (update: AcpSessionUpdate) =>
+      next.receive({
+        jsonrpc: "2.0",
+        method: "session/update",
+        params: { sessionId: "s1", update },
+      });
+    replay({
+      sessionUpdate: "user_message_chunk",
+      content: { type: "text", text: "earlier question" },
+    });
+    replay({
+      sessionUpdate: "tool_call",
+      toolCallId: "t1",
+      title: "read_file",
+      kind: "read",
+      status: "completed",
+    });
+    replay({
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: "earlier answer" },
+    });
+    expect(updates).toHaveLength(0);
+
+    next.receive({ jsonrpc: "2.0", id: load.id!, result: {} });
+    await expect(reloaded).resolves.toBe("s1");
+
+    const fresh: AcpSessionUpdate = {
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: "new answer" },
+    };
+    replay(fresh);
+    expect(updates).toEqual([fresh]);
+  });
+
+  it("keeps a timed-out session/load from streaming its late replay", async () => {
+    const client = mockClient({ requestTimeoutMs: 30_000 });
+    const ws = await withSession(client);
+    const updates: AcpSessionUpdate[] = [];
+    client.subscribeSessionUpdate((_sessionId, update) => {
+      updates.push(update);
+    });
+
+    ws.close();
+
+    // fake timers must be installed before session/load is sent, so its
+    // deadline is the one being advanced
+    vi.useFakeTimers();
+    try {
+      const reloaded = client.ensureSession();
+      const next = lastWs();
+      next.open();
+      const init = next.sent.find((f) => f.method === "initialize")!;
+      next.receive({
+        jsonrpc: "2.0",
+        id: init.id!,
+        result: {
+          protocolVersion: 1,
+          agentCapabilities: { loadSession: true },
+          agentInfo: { name: "menu-agent", version: "0.1.0" },
+        },
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      const load = next.sent.find((f) => f.method === "session/load")!;
+      expect(load.method).toBe("session/load");
+
+      const rejected = expect(reloaded).rejects.toThrow(
+        /session\/load failed.*timed out/s,
+      );
+      await vi.advanceTimersByTimeAsync(30_000);
+      await rejected;
+
+      // the socket is still open and the agent is still replaying
+      next.receive({ jsonrpc: "2.0", id: load.id!, result: {} });
+      next.receive({
+        jsonrpc: "2.0",
+        method: "session/update",
+        params: {
+          sessionId: "s1",
+          update: {
+            sessionUpdate: "agent_message_chunk",
+            content: { type: "text", text: "late replay" },
+          },
+        },
+      });
+      expect(updates).toHaveLength(0);
+      expect(client.sessionId).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("still delivers updates for another session while one is loading", async () => {
+    const client = mockClient();
+    const ws = await withSession(client);
+    const seen: string[] = [];
+    client.subscribeSessionUpdate((sessionId) => {
+      seen.push(sessionId);
+    });
+
+    ws.close();
+    const reloaded = client.ensureSession();
+    const next = lastWs();
+    await completeHandshake(next);
+    const load = await until(() =>
+      next.sent.find((f) => f.method === "session/load"),
+    );
+
+    const send = (sessionId: string) =>
+      next.receive({
+        jsonrpc: "2.0",
+        method: "session/update",
+        params: {
+          sessionId,
+          update: {
+            sessionUpdate: "agent_message_chunk",
+            content: { type: "text", text: "hi" },
+          },
+        },
+      });
+    send("s1");
+    send("s2");
+    expect(seen).toEqual(["s2"]);
+
+    next.receive({ jsonrpc: "2.0", id: load.id!, result: {} });
+    await expect(reloaded).resolves.toBe("s1");
+    send("s1");
+    expect(seen).toEqual(["s2", "s1"]);
+  });
+
+  it("does not send a prompt the caller aborted while the session was created", async () => {
+    const client = mockClient();
+    const abort = new AbortController();
+    const prompted = client.prompt(
+      [{ type: "text", text: "hello" }],
+      abort.signal,
+    );
+
+    const ws = await until(() =>
+      MockWebSocket.instances.at(-1)?.onopen ? lastWs() : undefined,
+    );
+    await completeHandshake(ws);
+    const newSession = await until(() =>
+      ws.sent.find((f) => f.method === "session/new"),
+    );
+
+    abort.abort();
+    ws.receive({
+      jsonrpc: "2.0",
+      id: newSession.id!,
+      result: { sessionId: "s1" },
+    });
+
+    await expect(prompted).resolves.toBe("cancelled");
+    expect(ws.sent.some((f) => f.method === "session/prompt")).toBe(false);
+    expect(client.sessionId).toBe("s1");
+  });
+
+  it("never connects for a prompt that was already aborted", async () => {
+    const client = mockClient();
+    const abort = new AbortController();
+    abort.abort();
+
+    await expect(
+      client.prompt([{ type: "text", text: "hello" }], abort.signal),
+    ).resolves.toBe("cancelled");
+    expect(MockWebSocket.instances).toHaveLength(0);
+  });
+
+  it("refuses to continue a lost session the agent cannot reload", async () => {
+    const client = mockClient();
+    const ws = await withSession(client);
+    ws.close();
+
+    const reloaded = client.ensureSession();
+    const next = lastWs();
+    await completeHandshake(next, {});
+
+    await expect(reloaded).rejects.toThrow(
+      /dropped session s1.*does not support session\/load/s,
+    );
+    expect(client.sessionId).toBeUndefined();
+    expect(next.sent.some((f) => f.method === "session/new")).toBe(false);
+
+    await expect(client.ensureSession()).rejects.toThrow(
+      /dropped session s1.*does not support session\/load/s,
+    );
+    expect(client.sessionId).toBeUndefined();
+    expect(next.sent.some((f) => f.method === "session/new")).toBe(false);
+  });
+
+  it("reports a rejected session/load rather than forking the conversation", async () => {
+    const client = mockClient();
+    const ws = await withSession(client);
+    ws.close();
+
+    const reloaded = client.ensureSession();
+    const next = lastWs();
+    await completeHandshake(next);
+    const load = await until(() =>
+      next.sent.find((f) => f.method === "session/load"),
+    );
+    next.receive({
+      jsonrpc: "2.0",
+      id: load.id!,
+      error: { code: -32602, message: "unknown session" },
+    });
+
+    await expect(reloaded).rejects.toThrow(
+      /session\/load failed.*unknown session/s,
+    );
+    expect(client.sessionId).toBeUndefined();
+    expect(next.sent.some((f) => f.method === "session/new")).toBe(false);
+
+    const loads = () => next.sent.filter((f) => f.method === "session/load");
+    const retried = client.ensureSession();
+    await until(() => (loads().length > 1 ? true : undefined));
+    next.receive({
+      jsonrpc: "2.0",
+      id: loads().at(-1)!.id!,
+      error: { code: -32602, message: "unknown session" },
+    });
+
+    await expect(retried).rejects.toThrow(
+      /session\/load failed.*unknown session/s,
+    );
+    expect(client.sessionId).toBeUndefined();
+    expect(next.sent.some((f) => f.method === "session/new")).toBe(false);
+  });
+
+  it("rejects in-flight requests when the connection closes", async () => {
+    const client = mockClient();
+    const promptPromise = client.prompt([{ type: "text", text: "hi" }]);
+    const ws = await withSession(client);
+    await until(() => ws.sent.find((f) => f.method === "session/prompt"));
+
+    ws.onclose?.({});
+    await expect(promptPromise).rejects.toThrow("connection closed");
+  });
+
+  it("ignores a superseded socket", async () => {
+    const client = mockClient();
+    const first = client.connect();
+    const stale = lastWs();
+    stale.onerror?.({});
+    await expect(first).rejects.toThrow();
+
+    const second = client.connect();
+    const current = lastWs();
+    current.open();
+    const init = await until(() =>
+      current.sent.find((f) => f.method === "initialize"),
+    );
+    current.receive({
+      jsonrpc: "2.0",
+      id: init.id!,
+      result: { protocolVersion: 1 },
+    });
+    await expect(second).resolves.toBeDefined();
+
+    stale.onclose?.({});
+    expect(client.connectionState).toBe("connected");
+  });
+
+  it("clears the session and handshake result on dispose", async () => {
+    const client = mockClient();
+    const ws = await withSession(client);
+    expect(client.sessionId).toBe("s1");
+
+    client.dispose();
+
+    expect(ws.closed).toBe(true);
+    expect(ws.onmessage).toBeNull();
+    expect(ws.onclose).toBeNull();
+    expect(client.sessionId).toBeUndefined();
+    expect(client.agentInfo).toBeUndefined();
+    expect(client.connectionState).toBe("disconnected");
+    await expect(client.connect()).rejects.toThrow("disposed");
+  });
+
+  it("answers outstanding permission requests before closing on dispose", async () => {
+    const client = mockClient({
+      permissionHandler: () => new Promise(() => {}),
+    });
+    const ws = await withSession(client);
+    ws.receive(permissionRequest(90));
+    await new Promise((r) => setTimeout(r, 0));
+
+    client.dispose();
+
+    expect(ws.sent.find((f) => f.id === 90)?.result).toEqual({
+      outcome: { outcome: "cancelled" },
+    });
+    expect(ws.closed).toBe(true);
+  });
+
+  it("keeps connect resolving when a connection listener throws", async () => {
+    const client = mockClient();
+    client.subscribeConnectionChange(() => {
+      throw new Error("listener exploded");
+    });
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(connectClient(client)).resolves.toBeUndefined();
+    expect(client.connectionState).toBe("connected");
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
+  it("times out a lifecycle request the agent never answers", async () => {
+    const client = mockClient({ requestTimeoutMs: 20 });
+    const pending = client.connect();
+    lastWs().open();
+    await expect(pending).rejects.toThrow("initialize timed out after 20ms");
+  });
+
+  it("rejects connect when the client is disposed mid-handshake", async () => {
+    const client = mockClient();
+    const pending = client.connect();
+    const ws = lastWs();
+    ws.open();
+    await until(() => ws.sent.find((f) => f.method === "initialize"));
+
+    client.dispose();
+
+    await expect(pending).rejects.toThrow("disposed");
+    expect(client.connectionState).toBe("disconnected");
+    expect(ws.closed).toBe(true);
+  });
+
+  it("does not open a socket when a listener disposes during connecting", async () => {
+    const client = mockClient();
+    const states: string[] = [];
+    client.subscribeConnectionChange((state) => {
+      states.push(state);
+      if (state === "connecting") client.dispose();
+    });
+
+    await expect(client.connect()).rejects.toThrow("disposed");
+
+    expect(MockWebSocket.instances).toHaveLength(0);
+    expect(client.connectionState).toBe("disconnected");
+    expect(states).toEqual(["connecting", "disconnected"]);
+  });
+
+  it("reports disconnected once when dispose interrupts a handshake", async () => {
+    const client = mockClient();
+    const pending = client.connect();
+    const ws = lastWs();
+    ws.open();
+    await until(() => ws.sent.find((f) => f.method === "initialize"));
+
+    const states: string[] = [];
+    client.subscribeConnectionChange((state) => states.push(state));
+    client.dispose();
+
+    await expect(pending).rejects.toThrow("disposed");
+    expect(states).toEqual(["disconnected"]);
+  });
+
+  it("reports disconnected once when the socket errors then closes", async () => {
+    const client = mockClient();
+    const states: string[] = [];
+    client.subscribeConnectionChange((state) => states.push(state));
+    const pending = client.connect();
+    const ws = lastWs();
+
+    ws.onerror?.({});
+    ws.onclose?.({});
+
+    await expect(pending).rejects.toThrow();
+    expect(states).toEqual(["connecting", "disconnected"]);
+  });
+
+  it("notifies connection listeners once the session id is known", async () => {
+    const client = mockClient();
+    const seen: (string | undefined)[] = [];
+    client.subscribeConnectionChange(() => {
+      seen.push(client.sessionId);
+    });
+
+    await withSession(client);
+
+    expect(seen).toContain("s1");
+  });
+
+  it("sends an absolute cwd to session/new by default", async () => {
+    const client = mockClient();
+    const ws = await withSession(client);
+
+    expect(ws.sent.find((f) => f.method === "session/new")?.params).toEqual({
+      cwd: "/",
+      mcpServers: [],
+    });
+  });
+
+  it("finishes dispose cleanup when the transport throws on close", async () => {
+    const client = mockClient();
+    const ws = await withSession(client);
+    ws.close = () => {
+      throw new Error("transport exploded");
+    };
+    const inflight = client.prompt([{ type: "text", text: "hi" }]);
+    await until(() =>
+      ws.sent.some((f) => f.method === "session/prompt") ? true : undefined,
+    );
+
+    expect(() => client.dispose()).not.toThrow();
+
+    expect(client.sessionId).toBeUndefined();
+    expect(client.connectionState).toBe("disconnected");
+    await expect(inflight).rejects.toThrow("disposed");
+  });
+
+  it("still cleans up when a permission reply cannot be sent on dispose", async () => {
+    const client = mockClient({
+      permissionHandler: () => new Promise(() => {}),
+    });
+    const ws = await withSession(client);
+    ws.receive(permissionRequest(91));
+    await new Promise((r) => setTimeout(r, 0));
+    ws.send = () => {
+      throw new Error("transport exploded");
+    };
+
+    expect(() => client.dispose()).not.toThrow();
+
+    expect(client.sessionId).toBeUndefined();
+    expect(client.connectionState).toBe("disconnected");
+  });
+});
