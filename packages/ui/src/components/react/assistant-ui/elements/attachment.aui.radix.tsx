@@ -180,7 +180,7 @@ const AttachmentUI: FC = () => {
                     "after:ring-destructive/60 dark:after:ring-destructive/60",
                 )}
                 role={src ? "button" : "group"}
-                tabIndex={0}
+                tabIndex={src ? 0 : undefined}
                 onKeyDown={
                   src
                     ? (e) => {
@@ -242,7 +242,6 @@ const AttachmentRemove: FC<{ name: string }> = ({ name }) => {
     <AttachmentPrimitive.Remove asChild>
       <TooltipIconButton
         tooltip={`Remove ${name}`}
-        aria-label={`Remove ${name}`}
         className="aui-attachment-tile-remove absolute end-1 top-1 size-5 rounded-full bg-black/50! text-white after:absolute after:-inset-1.5 hover:bg-black/70! hover:text-white! active:scale-[0.96] motion-reduce:transition-none"
         side="top"
       >

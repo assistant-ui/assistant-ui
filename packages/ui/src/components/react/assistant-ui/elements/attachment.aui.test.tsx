@@ -81,11 +81,13 @@ beforeAll(() => {
 
 beforeEach(() => {
   let id = 0;
-  vi.stubGlobal("URL", {
-    ...URL,
-    createObjectURL: vi.fn(() => `blob:attachment-${id++}`),
-    revokeObjectURL: vi.fn(),
-  });
+  vi.stubGlobal(
+    "URL",
+    class extends URL {
+      static createObjectURL = vi.fn(() => `blob:attachment-${id++}`);
+      static revokeObjectURL = vi.fn();
+    },
+  );
 });
 
 afterEach(() => {
@@ -120,6 +122,25 @@ describe.each(flavors)("%s attachment element", (_, Attachments) => {
     expect(screen.getByAltText("Preview of screenshot.png")).toBeTruthy();
   });
 
+  it.each(["Enter", " "])("opens the preview with %j", async (key) => {
+    render(
+      <TestAttachments
+        file={new File(["image"], "screenshot.png", { type: "image/png" })}
+        Attachments={Attachments}
+      />,
+    );
+
+    const preview = await screen.findByRole("button", {
+      name: "Preview screenshot.png",
+    });
+    fireEvent.keyDown(preview, { key });
+    fireEvent.keyUp(preview, { key });
+
+    expect(
+      await screen.findByRole("heading", { name: "Preview screenshot.png" }),
+    ).toBeTruthy();
+  });
+
   it("keeps a file without a preview out of the button interaction model", async () => {
     render(
       <TestAttachments
@@ -133,6 +154,7 @@ describe.each(flavors)("%s attachment element", (_, Attachments) => {
     });
     expect(tile.className).toContain("cursor-default");
     expect(tile.className).not.toContain("active:scale-[0.96]");
+    expect(tile.getAttribute("tabindex")).toBeNull();
     expect(
       screen.queryByRole("button", { name: "Document attachment report.txt" }),
     ).toBeNull();

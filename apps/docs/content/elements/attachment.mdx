@@ -76,12 +76,13 @@ Standalone, there is nothing to stage or upload: this element exists to reflect 
 
 ```tsx
 <div> {/* AttachmentPrimitive.Root */}
-  <button aria-label="Image attachment" /* or "Document attachment" / "File attachment", plus ", uploading" / ", upload failed" */>
+  <button aria-label="Preview filename.png">
     {/* thumbnail: the image itself, or a file icon fallback */}
     {/* uploading: a blurred spinner overlay */}
     {/* error: a blurred alert overlay */}
   </button>
-  <button aria-label="Remove file">{/* composer only */}</button>
+  {/* Attachments without a preview use a non-focusable group instead. */}
+  <button aria-label="Remove filename.png">{/* composer only */}</button>
 </div>
 ```
 
