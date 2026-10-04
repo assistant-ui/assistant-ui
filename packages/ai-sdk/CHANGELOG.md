@@ -1,5 +1,49 @@
 # @assistant-ui/ai-sdk
 
+## 0.0.10
+
+### Patch Changes
+
+- [#8684](https://github.com/assistant-ui/assistant-ui/pull/8684) [`5b65868`](https://github.com/assistant-ui/assistant-ui/commit/5b65868690ca9b20b1d7b98291f71668f3a2b8cd) - forward data part ids from AI SDK messages in both directions. ([@okisdev](https://github.com/okisdev))
+
+- [#8507](https://github.com/assistant-ui/assistant-ui/pull/8507) [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`f7eae39`](https://github.com/assistant-ui/assistant-ui/commit/f7eae391102fb59f060ff6fdfe00064f7f75d71c), [`63233dc`](https://github.com/assistant-ui/assistant-ui/commit/63233dc0b7dc53950c1bd44b3ae7d329148f3afc), [`241b5f1`](https://github.com/assistant-ui/assistant-ui/commit/241b5f19ffdad8c4f1b5904aaf7669ca51c2b98a), [`5b65868`](https://github.com/assistant-ui/assistant-ui/commit/5b65868690ca9b20b1d7b98291f71668f3a2b8cd), [`6b7df95`](https://github.com/assistant-ui/assistant-ui/commit/6b7df959b3429715b98a30374c9d1e6685c87cbd), [`098c140`](https://github.com/assistant-ui/assistant-ui/commit/098c140228e1412519e5d2dad1019e2c98a04ab9), [`351b8cd`](https://github.com/assistant-ui/assistant-ui/commit/351b8cd2fac54ea56f123404b2e7efa4a27f8bfd), [`3ea546a`](https://github.com/assistant-ui/assistant-ui/commit/3ea546a3e3d8b04253e095972a007ffc789d895d), [`d33ad09`](https://github.com/assistant-ui/assistant-ui/commit/d33ad09c2c328252d94c111672356704a1515abc), [`4290eac`](https://github.com/assistant-ui/assistant-ui/commit/4290eac87d98fd96ce0a16fd078c0f72b860f0d4)]:
+  - @assistant-ui/core@0.3.23
+  - assistant-stream@0.3.47
+  - assistant-cloud@0.2.5
+  - @assistant-ui/store@0.3.17
+  - @assistant-ui/tap@0.9.21
+
+## 0.0.9
+
+### Patch Changes
+
+- [#8584](https://github.com/assistant-ui/assistant-ui/pull/8584) [`3bec0dc`](https://github.com/assistant-ui/assistant-ui/commit/3bec0dccecb9b845c0ed35f21a5ec93a627e9df5) - fix: give chat thread events the thread list's id instead of a placeholder ([@okisdev](https://github.com/okisdev))
+
+- [#8324](https://github.com/assistant-ui/assistant-ui/pull/8324) [`60c7137`](https://github.com/assistant-ui/assistant-ui/commit/60c71373e5c5463f6c701eda93dc59299397cf38) - fix(ai-sdk): deliver a host tool approval answer when an earlier stored tool part is `approval-requested` without an `approval` object ([@samdickson22](https://github.com/samdickson22))
+
+- [#7795](https://github.com/assistant-ui/assistant-ui/pull/7795) [`e558705`](https://github.com/assistant-ui/assistant-ui/commit/e55870543c1a3f1c8c4971c5283fd9d6ed9ea8f5) - fix: keep a host tool-approval answer with its chat across runtime remounts and settled tool results ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8561](https://github.com/assistant-ui/assistant-ui/pull/8561) [`7583ee3`](https://github.com/assistant-ui/assistant-ui/commit/7583ee330a3f0ad5e71d490b4dadd27574537a4c) - fix(ai-sdk): store a message paused on an unanswered tool approval, so a reload keeps the approval request. ([@ronfogel](https://github.com/ronfogel))
+
+- [#8151](https://github.com/assistant-ui/assistant-ui/pull/8151) [`dabe34f`](https://github.com/assistant-ui/assistant-ui/commit/dabe34fca8a31bf7f8afac89827bf3bf683942e6) - perf: streaming tool input that contains a long run of `}`, `]` or `"` no longer stalls the thread on every update ([@samdickson22](https://github.com/samdickson22))
+
+- [#8578](https://github.com/assistant-ui/assistant-ui/pull/8578) [`2875042`](https://github.com/assistant-ui/assistant-ui/commit/2875042512e52fbbeeee8984194596485aa67ae0) - fix: persist successful host approval answers after switching owners ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8499](https://github.com/assistant-ui/assistant-ui/pull/8499) [`e01a6d5`](https://github.com/assistant-ui/assistant-ui/commit/e01a6d52802d26fad1bf06484773cfaf6bad8cdd) - Report automatic reconnect errors exposed through the AI SDK's `Chat.error`, invoke `onResumeError`, and clear only the failed checkpoint. A replacement checkpoint remains intact if the callback starts another run. Errors from a subsequent send or resume are not attributed to a completed reconnect. ([@minwookshin](https://github.com/minwookshin))
+  
+  Clear matching checkpoints on reconnect HTTP 204/404 responses. Track reconnect ownership so delayed responses and finish events cannot replace or clear a newer checkpoint. Internal ownership headers are removed before the network request.
+
+- [#8518](https://github.com/assistant-ui/assistant-ui/pull/8518) [`e73db99`](https://github.com/assistant-ui/assistant-ui/commit/e73db990bfb860f428da6b5979f07ef416ab3fd4) - fix: runtime hooks keep their clients, runs, streams, queued sends and pending history copies across a fast refresh or a StrictMode replay instead of rebuilding or tearing them down ([@okisdev](https://github.com/okisdev))
+
+- [#8492](https://github.com/assistant-ui/assistant-ui/pull/8492) [`237e16f`](https://github.com/assistant-ui/assistant-ui/commit/237e16fd2e242bfcd2e5e3a1aa92f01936e70249) - fix: cancel unanswered approvals once a later AI SDK message follows them, and store late tool results in their originating message without resuming the obsolete run. with `cancelPendingToolCallsOnSend: false` and `onRespondToToolApproval`, superseded approvals settle as cancelled. an idle joined message keeps its auto status when the last entry has an open tool call, and the last message keeps `running` during a run. ([@krpadesigns-aiux](https://github.com/krpadesigns-aiux))
+- Updated dependencies [[`2e066e2`](https://github.com/assistant-ui/assistant-ui/commit/2e066e20ef116f234e10aa8ae42181c8130bc595), [`f77dbea`](https://github.com/assistant-ui/assistant-ui/commit/f77dbeafd3b0dfb4aaf7c440ec35a0e46f39014d), [`98f3dbd`](https://github.com/assistant-ui/assistant-ui/commit/98f3dbd5133e6679e96f65a1b1ee6268eecf8469), [`7a41e54`](https://github.com/assistant-ui/assistant-ui/commit/7a41e5435d11bbe0d9e5b2e7c377e50091aa0a71), [`f054d07`](https://github.com/assistant-ui/assistant-ui/commit/f054d07e8ad26a5fdc339d61b946a813ec6400b4), [`b1a3211`](https://github.com/assistant-ui/assistant-ui/commit/b1a32114e94dbe60decea1590b9f4acb011fc721), [`ce5b7ed`](https://github.com/assistant-ui/assistant-ui/commit/ce5b7ed5e07bd2a26c9e30e02455b9749c31ae53), [`d7d3d2e`](https://github.com/assistant-ui/assistant-ui/commit/d7d3d2e2e2f76c5f3c64f113c450894d919c70d8), [`bb6122a`](https://github.com/assistant-ui/assistant-ui/commit/bb6122a3419f3161ba24139605b6058485d513e7), [`cec9fd4`](https://github.com/assistant-ui/assistant-ui/commit/cec9fd4bf1d17aeff969f5ff57e4c5b34ea3ea61), [`ac91c4c`](https://github.com/assistant-ui/assistant-ui/commit/ac91c4c9a81dfb9a8fee608cdab591ea2b61842d), [`f0a0488`](https://github.com/assistant-ui/assistant-ui/commit/f0a0488b859f946c75aea6a11b601ea0d57db6a9), [`c66cc10`](https://github.com/assistant-ui/assistant-ui/commit/c66cc1048a47433fd5277a8a40cc666cad25a5f6), [`c978a22`](https://github.com/assistant-ui/assistant-ui/commit/c978a22899fe4bca2f8a899c967cc771c468d772), [`038cd9f`](https://github.com/assistant-ui/assistant-ui/commit/038cd9f82b418afe9e6d0080648738f78586fbca), [`fa460c6`](https://github.com/assistant-ui/assistant-ui/commit/fa460c6b3f541b67b84057017cc5844822770d46), [`5df393f`](https://github.com/assistant-ui/assistant-ui/commit/5df393f0bbd84cd2a73731d60d2e973d991cbd27), [`9eba158`](https://github.com/assistant-ui/assistant-ui/commit/9eba158fb89f90ea04f8d5ab50521b4995a57f9a), [`e72ac92`](https://github.com/assistant-ui/assistant-ui/commit/e72ac92e97194a40829406c64105b65a04425667), [`1e9493f`](https://github.com/assistant-ui/assistant-ui/commit/1e9493f6d2c09fe29f191a50aa51d82ec81dc925), [`f6374de`](https://github.com/assistant-ui/assistant-ui/commit/f6374de43f48623bee033674c9b2082432110269), [`cf19d4b`](https://github.com/assistant-ui/assistant-ui/commit/cf19d4b5b752a5704e9602e528bcacbd475463dd), [`d7d3d2e`](https://github.com/assistant-ui/assistant-ui/commit/d7d3d2e2e2f76c5f3c64f113c450894d919c70d8), [`e79b815`](https://github.com/assistant-ui/assistant-ui/commit/e79b8157d6242c690f99be4ecd8bdd8a54dea7b9), [`1b49876`](https://github.com/assistant-ui/assistant-ui/commit/1b4987679015b542ccd20460a6d8b6b3f55841a8), [`e971918`](https://github.com/assistant-ui/assistant-ui/commit/e97191896249681cf1dc599bb81f611e4ebc88cc), [`73c7de7`](https://github.com/assistant-ui/assistant-ui/commit/73c7de74a56af8ec0acb4fa304019868b077b5b0), [`fda7946`](https://github.com/assistant-ui/assistant-ui/commit/fda79463beaaccbe26d220bab2f47a1a634de699), [`a5208c1`](https://github.com/assistant-ui/assistant-ui/commit/a5208c148c6a005e510f4d5051467a56ce456981), [`2b6597a`](https://github.com/assistant-ui/assistant-ui/commit/2b6597aa15f5b43978a287f9bb5f90547eca7110), [`e73db99`](https://github.com/assistant-ui/assistant-ui/commit/e73db990bfb860f428da6b5979f07ef416ab3fd4), [`a4f6ce9`](https://github.com/assistant-ui/assistant-ui/commit/a4f6ce9a642aef81fbbc965b2c5051e4ab8e903f), [`c980b36`](https://github.com/assistant-ui/assistant-ui/commit/c980b36c33a0b8c384184eded99acc46122484e3), [`fd28612`](https://github.com/assistant-ui/assistant-ui/commit/fd2861260f93695c75392764a15faaa2818e00bc), [`9946dc1`](https://github.com/assistant-ui/assistant-ui/commit/9946dc1f2bc9b8baebccf5f172a31868c5aa20f9), [`3e33ac2`](https://github.com/assistant-ui/assistant-ui/commit/3e33ac2317ec86eed9251ce133cd9d6a38ec8c22)]:
+  - @assistant-ui/store@0.3.16
+  - @assistant-ui/core@0.3.22
+  - assistant-stream@0.3.46
+  - assistant-cloud@0.2.4
+  - @assistant-ui/tap@0.9.20
+
 ## 0.0.8
 
 ### Patch Changes

@@ -601,4 +601,111 @@ describe("ToolFallbackApproval", () => {
     expect(respondToApproval).toHaveBeenLastCalledWith({ approved: false });
     expect(container.querySelector('[role="alert"]')).toBeNull();
   });
+
+  describe('display "questions"', () => {
+    const questions = [
+      {
+        id: "scope",
+        header: "Scope",
+        prompt: "Which files?",
+        options: [
+          { id: "src", label: "src" },
+          { id: "tests", label: "tests" },
+        ],
+        multiple: true,
+      },
+      { id: "note", prompt: "Anything else?" },
+    ];
+
+    it("sends every question's answer once each is answered, without an allow or deny path", async () => {
+      const respondToApproval = vi.fn(async () => {});
+      await show(
+        <ToolFallbackApproval
+          approval={{ ...pendingApproval, display: "questions", questions }}
+          respondToApproval={respondToApproval}
+        />,
+      );
+
+      expect(buttonNames()).toEqual(["src", "tests", "Send"]);
+      expect(isDisabled("Send")).toBe(true);
+
+      await press("src");
+      await press("tests");
+      expect(button("src")?.getAttribute("aria-pressed")).toBe("true");
+      expect(isDisabled("Send")).toBe(true);
+      await type("Anything else?", "keep it short");
+      expect(isDisabled("Send")).toBe(false);
+
+      await press("Send");
+      await settle();
+      expect(respondToApproval).toHaveBeenCalledWith({
+        answers: {
+          scope: { optionIds: ["src", "tests"] },
+          note: { text: "keep it short" },
+        },
+      });
+    });
+
+    it("renders a pending questionnaire and its settled answers through the tool fallback", async () => {
+      await renderTool({
+        status: { type: "requires-action", reason: "interrupt" },
+        approval: { ...pendingApproval, display: "questions", questions },
+      } as never);
+      expect(buttonNames()).toContain("Send");
+      expect(buttonNames()).not.toContain("Allow");
+
+      await renderTool({
+        status: { type: "complete" },
+        approval: {
+          ...pendingApproval,
+          display: "questions",
+          questions,
+          approved: true,
+          answers: { scope: { optionIds: ["tests"] }, note: { text: "ok" } },
+        },
+      } as never);
+      expect(container.textContent).toContain("Scope · tests");
+      expect(buttonNames()).not.toContain("Send");
+    });
+
+    it("offers a dismissal only when the request is dismissible", async () => {
+      const respondToApproval = vi.fn(async () => {});
+      await show(
+        <ToolFallbackApproval
+          approval={{
+            ...pendingApproval,
+            display: "questions",
+            dismissible: true,
+            questions,
+          }}
+          respondToApproval={respondToApproval}
+        />,
+      );
+
+      await press("Dismiss");
+      await settle();
+      expect(respondToApproval).toHaveBeenCalledWith({ approved: false });
+    });
+
+    it("records each answer under its question once answered", async () => {
+      await show(
+        <ToolFallbackApproval
+          approval={{
+            ...pendingApproval,
+            display: "questions",
+            questions,
+            approved: true,
+            answers: {
+              scope: { optionIds: ["src"] },
+              note: { text: "keep it short" },
+            },
+          }}
+        />,
+      );
+
+      expect(container.textContent).toContain("Answered");
+      expect(container.textContent).toContain("Scope · src");
+      expect(container.textContent).toContain("Anything else? · keep it short");
+    });
+  });
 });

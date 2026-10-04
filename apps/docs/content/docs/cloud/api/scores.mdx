@@ -78,10 +78,10 @@ curl https://backend.assistant-api.com/v1/scores \
 | Status | Body | When |
 |---|---|---|
 | `201` | `{ score_id, name, data_type, value, string_value }` | The score was stored. |
-| `400` | `{ "success": false, "error": … }` | A field failed validation. The messages include `value is required for numeric scores`, `boolean scores require value to be true, false, 1, or 0`, `string_value is required for categorical scores`, `categorical scores cannot include value`, `only categorical scores can include string_value`, `a score must target a message, run, or thread` and `a score must target exactly one message, run, or thread`. |
-| `400` | Plain text: `message_id must belong to thread_id` | The message is not in the supplied thread. |
-| `404` | Plain text: `Thread not found` | The target thread is not visible in the caller's scope. |
-| `404` | Plain text: `Run not found` | The target run is not visible in the caller's scope. |
+| `400` | `{ "error": "Schema validation error", "details": […] }` | A field failed validation. The messages include `value is required for numeric scores`, `boolean scores require value to be true, false, 1, or 0`, `string_value is required for categorical scores`, `categorical scores cannot include value`, `only categorical scores can include string_value`, `a score must target a message, run, or thread` and `a score must target exactly one message, run, or thread`. |
+| `400` | `{ "error": "message_id must belong to thread_id" }` | The message is not in the supplied thread. |
+| `404` | `{ "error": "Thread not found" }` | The target thread is not visible in the caller's scope. |
+| `404` | `{ "error": "Run not found" }` | The target run is not visible in the caller's scope. |
 
 The score source is `api` for a server API key write, `end_user` for user feedback or a JWT score write, `human` for a dashboard manual score including a conversation review, and `evaluator` for an evaluator rule's verdict. Scores are upserted per target and author. Message scores conflict on `(message_id, name, author_id)`, run scores on `(run_id, name, author_id)`, and thread scores on `(thread_id, name, author_id)`; a conflict updates the existing row and its `updated_at`. Read scores back from the [project API](/docs/cloud/api/project).
 
