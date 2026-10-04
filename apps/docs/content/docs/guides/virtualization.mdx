@@ -16,7 +16,7 @@ Virtualizing per message leaves one very large cell whenever an assistant messag
 
 - a `"message"` row per user or system message (and per assistant message being edited),
 - a `"part"` row per top-level node of each assistant message's part grouping, so every part is its own row unless `groupBy` coalesces adjacent ones (a reasoning run, for example),
-- a `"turn-end"` row after each turn's last message, where a turn footer, the action bar or a loading indicator goes.
+- a `"turn-end"` row after each turn's last message once the turn has an assistant reply, where a turn footer or the action bar goes. A turn still waiting for its first reply has no turn-end row yet, so render a pending indicator after the last row while `s.thread.isRunning` is true.
 
 ```tsx
 import {
@@ -41,7 +41,7 @@ function VirtualThread() {
 }
 ```
 
-`row.key` is stable while tokens stream, when parts arrive and when earlier messages are prepended (as long as messages keep their ids), so use it as the virtualizer's item key. The selector returns the same array while a streamed token leaves the rows unchanged, so the list re-renders only when rows appear, disappear or regroup. Create one selector per list, at module scope or with `useState`; `groupBy` takes the same functions as `MessagePrimitive.GroupedParts`.
+`row.key` is stable while tokens stream, when parts arrive and when earlier messages are prepended (as long as messages keep their ids), so use it as the virtualizer's item key. The selector returns the same array while a streamed token leaves the rows unchanged, so the list re-renders only when rows appear, disappear, regroup or a turn completes. Create one selector per list, at module scope or with `useState`; `groupBy` takes the same functions as `MessagePrimitive.GroupedParts`.
 
 ## Rendering a row
 
@@ -53,7 +53,8 @@ const renderRow: ComponentProps<typeof ThreadPrimitive.Row>["children"] = (
 ) => {
   switch (info.type) {
     case "message":
-      return <UserMessage />;
+      if (info.message.composer.isEditing) return <EditComposer />;
+      return info.message.role === "system" ? <SystemMessage /> : <UserMessage />;
     case "part":
       switch (info.part.type) {
         case "group-reasoning":
@@ -66,8 +67,8 @@ const renderRow: ComponentProps<typeof ThreadPrimitive.Row>["children"] = (
           return null;
       }
     case "turn-end":
-      return info.turn?.completedAt === undefined ? null : (
-        <p>Worked for {formatDuration(info.turn.completedAt - info.turn.startedAt)}</p>
+      return info.row.completedAt === undefined ? null : (
+        <p>Worked for {formatDuration(info.row.completedAt - info.row.startedAt)}</p>
       );
   }
 };
@@ -79,7 +80,7 @@ const renderRow: ComponentProps<typeof ThreadPrimitive.Row>["children"] = (
 ))}
 ```
 
-A part row's `part` and `children` follow `MessagePrimitive.GroupedParts`: a group part wraps `children`, a leaf part renders itself, and returning `null` for a tool or data leaf renders its registered UI. A turn-end row renders in the scope of the turn's last message and receives `turn`: `startedAt` is the turn's first message `createdAt`, and `completedAt`, absent while the turn runs or waits on the user, is the latest end the turn records (the last assistant message's stream timing or a part's `timing.completedAt`), falling back to the last message's `createdAt`. A row whose message has left the thread renders nothing, so a row the virtualizer keeps for a frame after a deletion is safe.
+A message row is a user or system message, or any message being edited. A part row's `part` and `children` follow `MessagePrimitive.GroupedParts`: a group part wraps `children`, a leaf part renders itself, and returning `null` for a tool or data leaf renders its registered UI. A turn-end row renders in the scope of the turn's last message and carries the turn's span: `row.startedAt` is the turn's first message `createdAt`, and `row.completedAt` is the latest end the turn records, from an assistant message's stream timing (`metadata.timing`) or a reasoning or tool call part's `timing.completedAt`. `completedAt` is absent while the turn runs or waits on the user, and when nothing in the turn records an end, so a host that follows an agent supplies those times on its messages. A row whose message has left the thread renders nothing, so a row the virtualizer keeps for a frame after a deletion is safe.
 
 `ThreadPrimitive.MessageByIndex` and `ThreadPrimitive.Unstable_MessageById` still render one whole message, for a list that virtualizes per message.
 
