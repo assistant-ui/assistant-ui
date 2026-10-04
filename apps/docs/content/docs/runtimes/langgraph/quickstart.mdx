@@ -25,10 +25,12 @@ NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID=your_graph_id
 ```
 
 ```sh
-npm run dev
+npm run dev:frontend
 ```
 
-Skip ahead to [streaming](/docs/runtimes/langgraph/streaming) to start adding features.
+`npm run dev` also starts the template's bundled agent with `langgraphjs dev`, which needs `ANTHROPIC_API_KEY`.
+
+The template connects to LangGraph through `useStreamRuntime` from [`@assistant-ui/react-langchain`](/docs/runtimes/langchain); continue on that page to add features. To use `useLangGraphRuntime`, follow the manual setup below.
 
 </Tab>
 <Tab value="React Native">
@@ -403,7 +405,7 @@ Follow the [Ink setup](/docs/ink) to add a terminal Thread, composer, and suppor
 
 For development, the client above hits LangGraph Cloud directly using `NEXT_PUBLIC_LANGGRAPH_API_URL`. For production, proxy through your own backend so your API key never reaches the client. Limit the proxy to the endpoints you actually need.
 
-```ts title="@/app/api/[...path]/route.ts"
+```ts title="@/app/api/[..._path]/route.ts"
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "edge";

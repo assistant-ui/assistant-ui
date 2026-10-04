@@ -1,8 +1,10 @@
 import { render, screen, act } from "@testing-library/react";
-import { Activity } from "react";
+import { Activity, version } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CodeBlock as CodeBlockBase } from "./code-block";
 import { CodeBlock as CodeBlockRadix } from "../radix/code-block";
+
+const onReact18 = version.startsWith("18.");
 
 const flavors = [
   ["base", CodeBlockBase],
@@ -97,72 +99,80 @@ describe.each(flavors)(
       expect(vi.getTimerCount()).toBe(0);
     });
 
-    it("returns to idle when hidden and shown by Activity", async () => {
-      const view = render(
-        <Activity mode="visible">
-          <CodeBlock copyText="hello" />
-        </Activity>,
-      );
-
-      await clickCopy();
-      expect(isCopied()).toBe(true);
-
-      await act(async () => {
-        view.rerender(
-          <Activity mode="hidden">
-            <CodeBlock copyText="hello" />
-          </Activity>,
-        );
-      });
-
-      await act(async () => {
-        vi.advanceTimersByTime(5000);
-      });
-
-      await act(async () => {
-        view.rerender(
+    // Activity is React 19 only.
+    it.skipIf(onReact18)(
+      "returns to idle when hidden and shown by Activity",
+      async () => {
+        const view = render(
           <Activity mode="visible">
             <CodeBlock copyText="hello" />
           </Activity>,
         );
-      });
 
-      expect(isCopied()).toBe(false);
-    });
+        await clickCopy();
+        expect(isCopied()).toBe(true);
 
-    it("reports a write that settles while hidden and comes back idle", async () => {
-      let settle!: () => void;
-      stubClipboard(
-        () =>
-          new Promise<void>((resolve) => {
-            settle = resolve;
-          }),
-      );
-      const onCopied = vi.fn();
-      const tree = (mode: "visible" | "hidden") => (
-        <Activity mode={mode}>
-          <CodeBlock copyText="hello" onCopied={onCopied} />
-        </Activity>
-      );
-      const view = render(tree("visible"));
+        await act(async () => {
+          view.rerender(
+            <Activity mode="hidden">
+              <CodeBlock copyText="hello" />
+            </Activity>,
+          );
+        });
 
-      await act(async () => {
-        screen.getByLabelText("Copy code").click();
-      });
-      await act(async () => {
-        view.rerender(tree("hidden"));
-      });
-      await act(async () => {
-        settle();
-        await Promise.resolve();
-      });
-      await act(async () => {
-        view.rerender(tree("visible"));
-      });
+        await act(async () => {
+          vi.advanceTimersByTime(5000);
+        });
 
-      expect(onCopied).toHaveBeenCalledOnce();
-      expect(isCopied()).toBe(false);
-    });
+        await act(async () => {
+          view.rerender(
+            <Activity mode="visible">
+              <CodeBlock copyText="hello" />
+            </Activity>,
+          );
+        });
+
+        expect(isCopied()).toBe(false);
+      },
+    );
+
+    // Activity is React 19 only.
+    it.skipIf(onReact18)(
+      "reports a write that settles while hidden and comes back idle",
+      async () => {
+        let settle!: () => void;
+        stubClipboard(
+          () =>
+            new Promise<void>((resolve) => {
+              settle = resolve;
+            }),
+        );
+        const onCopied = vi.fn();
+        const tree = (mode: "visible" | "hidden") => (
+          <Activity mode={mode}>
+            <CodeBlock copyText="hello" onCopied={onCopied} />
+          </Activity>
+        );
+        const view = render(tree("visible"));
+
+        await act(async () => {
+          screen.getByLabelText("Copy code").click();
+        });
+        await act(async () => {
+          view.rerender(tree("hidden"));
+        });
+        await act(async () => {
+          settle();
+          await Promise.resolve();
+        });
+        await act(async () => {
+          view.rerender(tree("visible"));
+        });
+
+        expect(onCopied).toHaveBeenCalledOnce();
+        expect(isCopied()).toBe(false);
+      },
+    );
   },
 );
 

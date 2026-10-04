@@ -9,7 +9,7 @@ A searchable list of saved prompts that previews the highlighted one, body and v
 
 <RuntimeMode>
 
-With a runtime, there is no saved-prompt library to read: assistant-ui has no concept of prompts you bookmarked for reuse. That catalog, its storage, and its search are entirely yours, exactly as in the standalone lane. The one place a runtime is actually involved is the moment a prompt gets used.
+assistant-ui does not store saved prompts, so there is no library to read from the runtime. The catalog, its storage, and its search are yours, as in the standalone lane. The runtime is involved only when a prompt is inserted.
 
 <Steps>
   <Step>
@@ -121,9 +121,9 @@ export function PromptLibraryPanel({
 
 ```tsx
 <div data-slot="prompt-library">
-  <div role="combobox" aria-expanded aria-controls>
+  <div>
     <svg /* bookmark icon */ />
-    <input placeholder="Search prompts" />
+    <input role="combobox" aria-expanded aria-controls placeholder="Search prompts" />
   </div>
   <div role="listbox" aria-label="Saved prompts">
     {/* one option row per match, filtered by name */}
@@ -133,7 +133,7 @@ export function PromptLibraryPanel({
 </div>
 ```
 
-Filtering matches `prompts` against `query` by substring on `name` only, case-insensitively; the preview panel at the bottom renders only when `selectedId` is among the current matches, so a query that filters the selected prompt out of the list hides its preview along with it. With `onSelect`, arrow keys move the highlighted row within the current matches; if the previously selected id has been filtered out, the first press starts from the edge the direction implies rather than jumping from a phantom position. Enter inserts the highlighted match, the same action a double click on a row performs. With only `onInsert`, rows are tabbable and insert on one pointer or keyboard activation.
+Filtering matches `prompts` against `query` by substring on `name` only, case-insensitively; the preview panel at the bottom renders only when `selectedId` is among the current matches, so a query that filters the selected prompt out of the list hides its preview along with it. With `onSelect`, arrow keys move the highlighted row within the current matches; if the selected id has been filtered out, ArrowDown starts from the first match and ArrowUp from the last. Enter inserts the highlighted match, the same action a double click on a row performs. With only `onInsert`, rows are tabbable and insert on one pointer or keyboard activation.
 
 ## Examples
 

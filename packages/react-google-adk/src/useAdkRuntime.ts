@@ -1,6 +1,5 @@
 import {
   useCallback,
-  useEffect,
   useInsertionEffect,
   useMemo,
   useRef,
@@ -30,6 +29,7 @@ import {
   useExternalStoreRuntime,
 } from "@assistant-ui/core/react";
 import { useAui } from "@assistant-ui/store";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import type { AssistantCloud } from "assistant-cloud";
 import type { RemoteThreadListAdapter } from "@assistant-ui/core";
 import type {
@@ -201,7 +201,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   useInsertionEffect(() => {
     loadRef.current = load;
   }, [load]);
-  const loadController = useMemo(createAbortableThreadLoad, []);
+  const [loadController] = useState(createAbortableThreadLoad);
   const messagesRef = useRef(messages);
   useInsertionEffect(() => {
     messagesRef.current = messages;
@@ -403,7 +403,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     [threadListItem, loadController, applySnapshot],
   );
 
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     runLoad();
     return () => {
       // Whatever is current, not this effect's own controller: a refetch swaps
@@ -411,7 +411,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       loadController.abort();
       setIsLoadingThread(false);
     };
-  }, [loadController, runLoad]);
+  }, [threadListItem]);
 
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),

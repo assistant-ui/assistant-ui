@@ -98,8 +98,6 @@ const runtime = useLocalRuntime(adapter, {
 });
 ```
 
-The runtime example combines `selected` and `note` into `comment`. Send structured reasons in their own request only when the backend must keep them separate.
-
   </Step>
 </Steps>
 
@@ -180,7 +178,7 @@ Reasons toggle independently as a multi-select (`aria-pressed`, any number activ
 
 ### Auto-reset after sending
 
-Clearing `sent`, `selected`, and `note` a few seconds after a send lets the same trigger open a fresh form next time, matching the confirmation's own short lifetime:
+Clearing `sent`, `selected`, and `note` a few seconds after a send lets the same trigger open a fresh form next time:
 
 ```tsx
 useEffect(() => {

@@ -1,6 +1,5 @@
 import { useRef } from "./useRef";
 import { isDevelopment } from "../core/helpers/env";
-import { useCallback } from "./useCallback";
 import {
   getCurrentResourceFiber,
   peekResourceFiber,
@@ -34,12 +33,9 @@ export function useEffectEvent<T extends (...args: any[]) => any>(
     });
   }
 
-  return useCallback(
-    ((...args: Parameters<T>) => {
-      if (isDevelopment && peekResourceFiber())
-        throw new Error("useEffectEvent cannot be called during render");
-      return callbackRef.current(...args);
-    }) as T,
-    [],
-  );
+  return useRef(((...args: Parameters<T>) => {
+    if (isDevelopment && peekResourceFiber())
+      throw new Error("useEffectEvent cannot be called during render");
+    return callbackRef.current(...args);
+  }) as T).current;
 }

@@ -7,6 +7,7 @@ import test from "node:test";
 import {
   compareVersions,
   findDriftedAllowBuilds,
+  findDriftedMetroConfigPins,
   findInconsistentNodePins,
   findStaleCoursePins,
   findUnmarkedActionRefs,
@@ -45,6 +46,14 @@ function createWorkspace({ problems = false } = {}) {
       dependencies: { "fixture-dep": problems ? "1.0.0" : "2.0.0" },
     },
   );
+  writeJson(root, "examples/with-expo/package.json", {
+    name: "with-expo",
+    private: true,
+    dependencies: { "react-native": "0.86.3" },
+    devDependencies: {
+      "@react-native/metro-config": problems ? "0.87.1" : "0.86.3",
+    },
+  });
   writeFileSync(
     path.join(root, "pnpm-workspace.yaml"),
     [
@@ -321,6 +330,32 @@ test("findStaleCoursePins reports only exact pins below workspace floors", () =>
   ]);
 });
 
+test("findDriftedMetroConfigPins holds the pin to the declared react-native", () => {
+  const project = (devDependencies) => ({
+    dependencies: { "react-native": "0.86.3" },
+    devDependencies,
+  });
+
+  assert.deepEqual(
+    findDriftedMetroConfigPins([
+      {
+        file: "aligned",
+        pkg: project({ "@react-native/metro-config": "0.86.3" }),
+      },
+      {
+        file: "drifted",
+        pkg: project({ "@react-native/metro-config": "0.87.1" }),
+      },
+      { file: "dropped", pkg: project({ expo: "~57.0.25" }) },
+      { file: "no-react-native", pkg: { devDependencies: {} } },
+    ]),
+    [
+      { file: "drifted", pin: "0.87.1", reactNative: "0.86.3" },
+      { file: "dropped", pin: null, reactNative: "0.86.3" },
+    ],
+  );
+});
+
 test("prevailingFloor picks the most declared floor and breaks ties high", () => {
   assert.deepEqual(
     prevailingFloor(
@@ -444,6 +479,7 @@ test("runCheck reads workflow, lockfile, workspace, and course fixtures", () => 
       nodePins: [],
       allowBuilds: [],
       coursePins: [],
+      metroConfigPins: [],
     });
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -490,6 +526,10 @@ test("the executable reports every seeded problem and exits 1", () => {
     assert.match(
       result.stderr,
       /"fixture-dep" is 1\.0\.0, workspace is on 2\.0\.0/,
+    );
+    assert.match(
+      result.stderr,
+      /"@react-native\/metro-config" is 0\.87\.1, "react-native" is 0\.86\.3/,
     );
   } finally {
     rmSync(root, { recursive: true, force: true });

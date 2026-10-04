@@ -153,7 +153,7 @@ export const projectAdkToolApprovals = (
   for (const message of messages) {
     if (message.type !== "ai") continue;
     for (const call of message.tool_calls ?? []) {
-      if (call.name !== ADK_REQUEST_CONFIRMATION) continue;
+      if (call?.name !== ADK_REQUEST_CONFIRMATION) continue;
       const approved = replies.get(call.id);
       const approval: AdkToolApproval = {
         id: call.id,
