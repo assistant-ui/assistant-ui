@@ -1055,6 +1055,29 @@ describe("useThreadViewportAutoScroll", () => {
       expect(getViewport().scrollTop).toBe(4 * 80 + 40);
     });
 
+    it("lets go of the held rows once something else scrolls the viewport", async () => {
+      await renderAt(0);
+      await loadEarlier();
+
+      act(() => {
+        getViewport().scrollTo({ top: 100 });
+      });
+      messageHeights.set("message-3", 120);
+      act(notifyResizeObservers);
+
+      expect(getViewport().scrollTop).toBe(100);
+    });
+
+    it("holds the row the reader sees, not the old first message, while content between them settles", async () => {
+      await renderAt(100);
+      await loadEarlier();
+      expect(getViewport().scrollTop).toBe(4 * 80 + 100);
+
+      messageHeights.set("message-4", 120);
+      act(notifyResizeObservers);
+      expect(getViewport().scrollTop).toBe(4 * 80 + 100 + 40);
+    });
+
     it("does not treat a thread switch as a page, even when the new thread repeats the old first message", async () => {
       const SwitchingThread = () => {
         const [thread, setThread] = useState({
