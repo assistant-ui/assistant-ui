@@ -29,6 +29,7 @@ import {
   useRemoteThreadListRuntime,
   useRuntimeAdapters,
 } from "@assistant-ui/core/react";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import { useAui } from "@assistant-ui/store";
 import type { AssistantCloud } from "assistant-cloud";
 import {
@@ -38,10 +39,12 @@ import {
   type UseEveAgentStatus,
 } from "eve/react";
 import {
+  collectInterruptedTurnEvents,
   convertEveMessages,
   findEveInputRequest,
   getEveMessageContent,
   toEveInputResponse,
+  type InterruptedTurnEventCache,
 } from "./convertEveMessages";
 import {
   collectTurnTimestamps,
@@ -296,6 +299,15 @@ const useEveThreadRuntime = (
     () => collectTurnTimestamps(agent.events, turnTimestampCacheRef.current),
     [agent.events],
   );
+  const interruptionCacheRef = useRef<InterruptedTurnEventCache>({
+    lastEvents: [],
+    interruptions: [],
+  });
+  const interruptionEvents = useMemo(
+    () =>
+      collectInterruptedTurnEvents(agent.events, interruptionCacheRef.current),
+    [agent.events],
+  );
 
   const convertedMessages = useMemo(() => {
     const createdAtByMessageId = createdAtByMessageIdRef.current;
@@ -309,6 +321,7 @@ const useEveThreadRuntime = (
     return convertEveMessages(agent.data, {
       isRunning,
       error: agent.error,
+      events: interruptionEvents,
       getCreatedAt: (message) => {
         const turnId = message.metadata?.turnId;
         const durable =
@@ -325,7 +338,7 @@ const useEveThreadRuntime = (
         return createdAt;
       },
     });
-  }, [agent.data, agent.error, isRunning, turnTimestamps]);
+  }, [agent.data, agent.error, interruptionEvents, isRunning, turnTimestamps]);
 
   const messages = stagedMessages ?? convertedMessages;
   const messagesRef = useRef(messages);
@@ -378,9 +391,16 @@ const useEveThreadRuntime = (
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
-      sendEpochRef.current += 1;
     };
   }, []);
+
+  // A replay (Fast Refresh, StrictMode) must not cancel the sends queued behind the active turn.
+  useReplaySafeEffect(
+    () => () => {
+      sendEpochRef.current += 1;
+    },
+    [],
+  );
 
   // A replay rides the send chain because `resume()` rejects during a turn and upstream refuses sends while it runs; the reset counter keeps a cancel from dropping a refetch, and the hook's own replay on mount joins this one since upstream shares concurrent `resume()` calls.
   const enqueueResume = useCallback(
@@ -405,7 +425,7 @@ const useEveThreadRuntime = (
     };
   }, [enqueueResume, resumesOnMount]);
 
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     if (!cloudThread?.isNew) return;
     return () => cloudThread.sessions.release(cloudThread.id);
   }, [cloudThread]);

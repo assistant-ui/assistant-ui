@@ -108,6 +108,35 @@ export class ExternalStoreThreadRuntimeCore
   public get isLoading() {
     return this._store.isLoading ?? false;
   }
+  public get hasEarlier() {
+    return (
+      this._store.hasEarlier === true && this._store.onLoadEarlier !== undefined
+    );
+  }
+  private _loadingEarlier: Promise<void> | undefined;
+  public get isLoadingEarlier() {
+    return this._loadingEarlier !== undefined;
+  }
+  public loadEarlier(): Promise<void> {
+    if (this._loadingEarlier) return this._loadingEarlier;
+    const onLoadEarlier = this._store.onLoadEarlier;
+    if (!this.hasEarlier || !onLoadEarlier) return Promise.resolve();
+    const loading = Promise.resolve()
+      .then(() => onLoadEarlier())
+      .catch((error: unknown) => {
+        console.error(
+          "[ExternalStoreThreadRuntimeCore] onLoadEarlier callback rejected",
+          error,
+        );
+      })
+      .finally(() => {
+        this._loadingEarlier = undefined;
+        this._notifySubscribers();
+      });
+    this._loadingEarlier = loading;
+    this._notifySubscribers();
+    return loading;
+  }
   // Unlike `isLoading`: pass `undefined` through to preserve the `getThreadState` fallback.
   public get isRunning(): boolean | undefined {
     if (this._hasExecutingTools(this._store)) return true;
@@ -256,6 +285,13 @@ export class ExternalStoreThreadRuntimeCore
     if (repositoryChanged) {
       this.repository = repositoryInstance;
       this._pendingDeleteEvictions.clear();
+      // Keep the live placeholder so resetHead cannot evict an id still used
+      // by clients rendering the previous snapshot.
+      const head = this.repository.getMessages();
+      const tail = head.at(-1);
+      this._optimistic = tail?.metadata.isOptimistic
+        ? { id: tail.id, parentId: head.at(-2)?.id ?? null }
+        : null;
     }
     if (oldStore?.queue !== store.queue) {
       this._transformedQueue = undefined;

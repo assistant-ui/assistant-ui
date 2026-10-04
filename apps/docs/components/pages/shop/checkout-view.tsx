@@ -24,16 +24,16 @@ function EmptyState() {
         Nothing here yet.
       </h1>
       <p className={cn("mt-4", typeDeck)}>
-        Add a product from the shop, then start setup to have your coding agent
-        install it.
+        Add a product from the Components page, then start setup to have your
+        coding agent install it.
       </p>
       <Button
         nativeButton={false}
         className="mt-8"
-        render={<Link href="/shop" />}
+        render={<Link href="/components" />}
       >
         <ArrowLeftIcon data-icon="inline-start" />
-        Browse the shop
+        Browse components
       </Button>
     </div>
   );

@@ -45,22 +45,20 @@ export function ImageGallery({
   className,
   ...props
 }: ImageGalleryProps) {
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [failedImages, setFailedImages] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const index =
-    activeIndex === null
-      ? 0
-      : Math.floor(clamp(activeIndex, 0, Math.max(0, images.length - 1)));
-  const activeImage = activeIndex === null ? undefined : images[index];
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const index = images.findIndex((image) => image.id === activeId);
+  if (activeId !== null && index === -1) setActiveId(null);
+  const activeImage = index === -1 ? undefined : images[index];
   const sourceHref = safeHref(activeImage?.source?.url);
   const visibleCount = Math.floor(clamp(maxVisible, 1, images.length));
   const visibleImages = images.slice(0, visibleCount);
 
   const close = useCallback(() => {
-    setActiveIndex(null);
+    setActiveId(null);
     triggerRef.current?.focus();
   }, []);
 
@@ -70,23 +68,23 @@ export function ImageGallery({
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "ArrowLeft" && index > 0) {
         event.preventDefault();
-        setActiveIndex(index - 1);
+        setActiveId(images[index - 1]?.id ?? null);
       } else if (event.key === "ArrowRight" && index < images.length - 1) {
         event.preventDefault();
-        setActiveIndex(index + 1);
+        setActiveId(images[index + 1]?.id ?? null);
       }
     };
     // The dialog stops keydown propagation, so only a capture listener sees the arrows.
     document.addEventListener("keydown", onKeyDown, true);
 
     return () => document.removeEventListener("keydown", onKeyDown, true);
-  }, [activeImage, images.length, index]);
+  }, [activeImage, images, index]);
 
   const open = (nextIndex: number, trigger: HTMLButtonElement) => {
     const image = images[nextIndex];
     if (!image) return;
     triggerRef.current = trigger;
-    setActiveIndex(nextIndex);
+    setActiveId(image.id);
     onOpen?.(image.id);
   };
 
@@ -174,7 +172,7 @@ export function ImageGallery({
                 type="button"
                 aria-label="Previous image"
                 disabled={index === 0}
-                onClick={() => setActiveIndex(index - 1)}
+                onClick={() => setActiveId(images[index - 1]?.id ?? null)}
                 className={cn(
                   ghostButton,
                   "size-8 shrink-0 disabled:pointer-events-none disabled:opacity-30",
@@ -219,7 +217,7 @@ export function ImageGallery({
                 type="button"
                 aria-label="Next image"
                 disabled={index === images.length - 1}
-                onClick={() => setActiveIndex(index + 1)}
+                onClick={() => setActiveId(images[index + 1]?.id ?? null)}
                 className={cn(
                   ghostButton,
                   "size-8 shrink-0 disabled:pointer-events-none disabled:opacity-30",

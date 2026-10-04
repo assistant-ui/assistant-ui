@@ -172,7 +172,7 @@ Both lanes take `className` on the root. Each card uses the shared `paper` surfa
 
 <RuntimeMode>
 
-A tool call's `status` only distinguishes running from complete, so the mapping above reads as two states: `0` while a worker's call is in flight, `100` once its result lands. A smoother live percentage needs your own progress channel, for example an app-level store keyed by the call's `toolCallId` that a websocket or polling update fills in, read into `progress` the same way.
+A tool call's `status` carries no percentage, so the mapping above reads as two states: `0` while a worker's call is in flight, `100` once its result lands. A smoother live percentage needs your own progress channel, for example an app-level store keyed by the call's `toolCallId` that a websocket or polling update fills in, read into `progress` the same way.
 
 </RuntimeMode>
 
@@ -212,7 +212,7 @@ async function runWorker(index: number) {
 |------|------|---------|-------------|
 | `agents` | `readonly SubagentItem[]` | required | The roster, in display order. |
 | `completedCount` | `number` | required | How many agents, counted from the front of `agents`, are done. |
-| `progress` | `readonly number[]` | required | Bar width and accessible progress value per agent, index-aligned with `agents`. Values are clamped to `0…100`; out-of-range or `NaN` entries read as `0`. |
+| `progress` | `readonly number[]` | required | Bar width and accessible progress value per agent, index-aligned with `agents`. Values are clamped to `0…100`; missing or `NaN` entries read as `0`. |
 | `showSummary` | `boolean` | required | Whether the trailing summary card renders. |
 | `summaryAgent` | `SubagentItem` | required | Name and model for the summary card. |
 | `className` | `string` | | Merged onto the root. |

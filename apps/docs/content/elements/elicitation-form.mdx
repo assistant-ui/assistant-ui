@@ -163,7 +163,7 @@ export function PublishRequest() {
 
 ### Map a field's kind from your own schema
 
-If your fields come from a JSON-Schema-shaped source rather than being hand-authored, derive `kind` the same way the runtime lane derives it from `requestedSchema`:
+If your fields come from a JSON-Schema-shaped source rather than being hand-authored, derive `kind` from each property's schema, as the runtime lane's `fieldKind` does for `requestedSchema`:
 
 ```tsx
 function toElicitationField(
@@ -188,12 +188,12 @@ function toElicitationField(
 <div data-slot="elicitation-form">
   <div>{/* plug icon, server name, "needs input" tag */}</div>
   <p>{/* message */}</p>
-  <div>{/* one row per field: label (+ "*" when required), then a pill group, a switch, or a static value chip depending on kind */}</div>
+  <div>{/* one row per field: label (+ "*" when required), then a pill group, a switch, a text input, or a static value chip depending on kind and state */}</div>
   <div>{/* Decline / Send while state is "request"; a settled "Sent to {server}" or "Declined" row otherwise */}</div>
 </div>
 ```
 
-`state` fully replaces the footer rather than disabling it: once it leaves `"request"`, the Decline and Send controls are gone, not just inactive. While state is `"request"`, supplying `onFieldChange` makes text, choice, and toggle fields editable; keep `fields` in controlled state and write each reported value back by name. Without the callback, or after the request settles, fields remain display-only. A `"choice"` field renders every option in `options` as a pill, highlighting whichever one equals `value`, so the element trusts you to keep `value` one of the listed options. A `"toggle"` field reads truthiness from the literal string `"true"`, not from a boolean.
+Once `state` leaves `"request"`, a settled row replaces the Decline and Send controls; they are removed, not disabled. While state is `"request"`, supplying `onFieldChange` makes text, choice, and toggle fields editable; keep `fields` in controlled state and write each reported value back by name. Without the callback, or after the request settles, fields remain display-only. A `"choice"` field renders every option in `options` as a pill, highlighting whichever one equals `value`, so the element trusts you to keep `value` one of the listed options. A `"toggle"` field reads truthiness from the literal string `"true"`, not from a boolean.
 
 ## Examples
 
@@ -232,7 +232,7 @@ const required = new Set(
 
 <RuntimeMode>
 
-The protocol has three terminal actions, not two: `McpElicitationPrimitive.Cancel` submits `{ action: "cancel" }` alongside Accept's `"accept"` and Decline's `"decline"`. Add it as a third control when your host distinguishes "explicitly declined" from "dismissed without answering":
+The protocol has three terminal actions: `McpElicitationPrimitive.Cancel` submits `{ action: "cancel" }` alongside Accept's `"accept"` and Decline's `"decline"`. Add it as a third control when your host distinguishes "explicitly declined" from "dismissed without answering":
 
 ```tsx
 <McpElicitationPrimitive.Cancel className="text-foreground/45 h-8 rounded-full px-3.5 text-xs">
