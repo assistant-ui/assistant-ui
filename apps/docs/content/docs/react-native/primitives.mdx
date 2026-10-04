@@ -87,28 +87,36 @@ The built-in auto-scroll behavior assumes the default, non-inverted `FlatList` d
 A `FlatList` over the thread flattened into rows, for long threads where one assistant message holds many parts: a row per user or system message (and per message being edited), per top-level node of an assistant message's part grouping, and per turn end. Each row renders through [`ThreadPrimitive.Row`](/docs/primitives/thread#row), so it mounts only that row's scopes, and rows keep stable keys while tokens stream and earlier pages arrive.
 
 ```tsx
-<ThreadPrimitive.RowsFlatList
-  inverted
-  groupBy={groupPartByType({ reasoning: ["group-reasoning"] })}
->
+import { groupPartByType, ThreadPrimitive } from "@assistant-ui/react-native";
+
+const groupBy = groupPartByType({ reasoning: ["group-reasoning"] });
+
+<ThreadPrimitive.RowsFlatList inverted groupBy={groupBy}>
   {(info) => {
     switch (info.type) {
       case "message":
-        return <MyUserMessage />;
+        if (info.message.composer.isEditing) return <MyEditComposer />;
+        return info.message.role === "system" ? (
+          <MySystemMessage />
+        ) : (
+          <MyUserMessage />
+        );
       case "part":
         return renderPart(info.part, info.children);
       case "turn-end":
         return <TurnFooter row={info.row} />;
     }
   }}
-</ThreadPrimitive.RowsFlatList>
+</ThreadPrimitive.RowsFlatList>;
 ```
+
+Keep `groupBy` at module scope (or in `useCallback`): a new function on every render rebuilds the row cache and re-renders every row.
 
 | Prop | Type | Description |
 |------|------|-------------|
 | `children` | `(info) => ReactNode` | Render function for each row, with the same contract as `ThreadPrimitive.Row` |
-| `groupBy` | `(part, context) => readonly group-${string}[] \| null` | Coalesces adjacent assistant parts into one row, like `MessagePrimitive.GroupedParts`; without it every part is its own row |
-| `inverted` | `boolean` | Renders the newest row at offset 0. Earlier pages load through `onEndReached`, and `maintainVisibleContentPosition` defaults to `{ minIndexForVisible: 1, autoscrollToTopThreshold: 4 }` so the visible row stays put and the list follows new rows while it is at the bottom |
+| `groupBy` | ``(part, context) => readonly `group-${string}`[] \| null`` | Coalesces adjacent assistant parts into one row, like `MessagePrimitive.GroupedParts`; without it every part is its own row. Keep its identity stable |
+| `inverted` | `boolean` | Renders the newest row at offset 0. Earlier pages load through `onEndReached`, and `maintainVisibleContentPosition` defaults to `{ minIndexForVisible: 0, autoscrollToTopThreshold: 4 }`, so the visible row stays put while rows arrive and the list follows new rows while it is at the bottom |
 | `autoScroll`, `scrollToBottomOnRunStart`, `scrollToBottomOnInitialize`, `scrollToBottomOnThreadSwitch` | `boolean` | As on `ThreadPrimitive.MessagesFlatList`; with `inverted`, the bottom is offset 0 |
 | `history` | `{ hasMore: boolean; isLoadingMore: boolean; loadMore: () => void }` | As on `ThreadPrimitive.MessagesFlatList`: defaults to the runtime's `thread.hasEarlier` paging, and loads at the start of the list, or at its end when `inverted` |
 | `...rest` | `FlatListProps` | Standard FlatList props, except `data`, `renderItem`, `keyExtractor`, and `children` |
