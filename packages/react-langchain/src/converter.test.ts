@@ -102,6 +102,32 @@ describe("convertLangChainContentBlock standard content blocks", () => {
     });
   });
 
+  it("reads the Python base64 field of an image block", () => {
+    expect(
+      convertLangChainContentBlock({
+        type: "image",
+        mime_type: "image/png",
+        base64: "ZmFrZQ==",
+      }),
+    ).toEqual({ type: "image", image: "data:image/png;base64,ZmFrZQ==" });
+  });
+
+  it("resolves the Python file_id field as an id source", () => {
+    expect(
+      convertLangChainContentBlock({
+        type: "file",
+        mime_type: "application/pdf",
+        file_id: "file-python-123",
+      }),
+    ).toEqual({
+      type: "file",
+      filename: "file",
+      data: "file-python-123",
+      mimeType: "application/pdf",
+      sourceType: "id",
+    });
+  });
+
   it("converts a video block to a file part", () => {
     expect(
       convertLangChainContentBlock({

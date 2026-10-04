@@ -1099,6 +1099,35 @@ describe("convertLangChainMessages standard content blocks", () => {
       ],
     });
   });
+
+  it("converts Python standard media fields", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "human-python-media",
+      content: [
+        { type: "image", mime_type: "image/png", base64: "ZmFrZQ==" },
+        {
+          type: "file",
+          mime_type: "application/pdf",
+          file_id: "file-python-123",
+        },
+      ],
+    } as unknown as LangChainMessage);
+
+    expect(result).toMatchObject({
+      role: "user",
+      content: [
+        { type: "image", image: "data:image/png;base64,ZmFrZQ==" },
+        {
+          type: "file",
+          filename: "file",
+          data: "file-python-123",
+          mimeType: "application/pdf",
+          sourceType: "id",
+        },
+      ],
+    });
+  });
 });
 
 describe("getMessageContent file blocks", () => {

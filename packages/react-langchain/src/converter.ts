@@ -53,16 +53,18 @@ export type LangChainContentBlock =
 
 /**
  * One block covers both multimodal vocabularies: the standard content blocks
- * key their payload off `mimeType` plus a `data`/`url`/`fileId` field, while
- * the legacy data content blocks key it off `mime_type` plus `source_type`.
+ * key their payload off a camelCase JavaScript field or snake_case Python
+ * field, while the legacy data content blocks use a `source_type` discriminator.
  */
 type LangChainMediaBlock = {
   type: "image" | "video" | "audio" | "file" | "text-plain";
   mimeType?: string;
   mime_type?: string;
   data?: string | Uint8Array;
+  base64?: string | Uint8Array;
   url?: string;
   fileId?: string;
+  file_id?: string;
   id?: string;
   text?: string;
   source_type?: "base64" | "url" | "id" | "text";
@@ -91,14 +93,17 @@ const resolveMediaSource = (
       return typeof part.id === "string"
         ? { data: part.id, sourceType: "id" }
         : undefined;
-    case "base64":
-      return typeof part.data === "string" ? { data: part.data } : undefined;
+    case "base64": {
+      const data = part.data ?? part.base64;
+      return typeof data === "string" ? { data } : undefined;
+    }
   }
   if (typeof part.url === "string")
     return { data: part.url, sourceType: "url" };
-  if (typeof part.fileId === "string")
-    return { data: part.fileId, sourceType: "id" };
-  if (typeof part.data === "string") return { data: part.data };
+  const fileId = part.fileId ?? part.file_id;
+  if (typeof fileId === "string") return { data: fileId, sourceType: "id" };
+  const data = part.data ?? part.base64;
+  if (typeof data === "string") return { data };
   return undefined;
 };
 

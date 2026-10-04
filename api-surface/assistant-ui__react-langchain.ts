@@ -1107,8 +1107,10 @@ type LangChainMediaBlock = {
   mimeType?: string;
   mime_type?: string;
   data?: string | Uint8Array;
+  base64?: string | Uint8Array;
   url?: string;
   fileId?: string;
+  file_id?: string;
   id?: string;
   text?: string;
   source_type?: "base64" | "id" | "text" | "url";
