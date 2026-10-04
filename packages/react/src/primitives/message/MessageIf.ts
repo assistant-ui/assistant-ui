@@ -34,9 +34,14 @@ const useMessageIf = (props: UseMessageIfProps) => {
 
     if (props.hasBranches === true && branchCount < 2) return false;
 
-    if (props.user && role !== "user") return false;
-    if (props.assistant && role !== "assistant") return false;
-    if (props.system && role !== "system") return false;
+    if (props.user === true && role !== "user") return false;
+    if (props.user === false && role === "user") return false;
+
+    if (props.assistant === true && role !== "assistant") return false;
+    if (props.assistant === false && role === "assistant") return false;
+
+    if (props.system === true && role !== "system") return false;
+    if (props.system === false && role === "system") return false;
 
     if (props.lastOrHover === true && !isHovering && !isLast) return false;
     if (props.last !== undefined && props.last !== isLast) return false;

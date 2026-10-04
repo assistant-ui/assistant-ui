@@ -1,6 +1,15 @@
-import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { resource } from "@assistant-ui/tap";
+import { useClientResource } from "@assistant-ui/store/client";
+import { hydrateRoot } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import {
   AuiConfig,
   AuiProvider,
@@ -95,11 +104,117 @@ const freezeClockAtMidday = () => {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
   cleanup();
   document.body.replaceChildren();
 });
 
 describe("ThreadList", () => {
+  it("server renders dated threads in runtime order and groups after hydration", async () => {
+    const startOfToday = freezeClockAtMidday();
+    const datedItems = [
+      {
+        id: "older",
+        remoteId: "older",
+        externalId: undefined,
+        title: "Older thread",
+        lastMessageAt: new Date(startOfToday - 2 * 86_400_000),
+        status: "regular" as const,
+        isRunning: false,
+      },
+      {
+        id: "newer",
+        remoteId: "newer",
+        externalId: undefined,
+        title: "Newer thread",
+        lastMessageAt: new Date(startOfToday + 60_000),
+        status: "regular" as const,
+        isRunning: false,
+      },
+    ];
+    const state = {
+      mainThreadId: "older",
+      newThreadId: null,
+      isLoading: false,
+      loadError: undefined,
+      isLoadingMore: false,
+      hasMore: false,
+      threadIds: datedItems.map((item) => item.id),
+      archivedThreadIds: [],
+      threadItems: datedItems,
+      main: STUB_THREAD_STATE,
+    };
+    const useStaticItem = ({ index }: { index: number }) => ({
+      getState: () => datedItems[index]!,
+    });
+    const StaticItem = resource(useStaticItem);
+    const useStaticThreads = () => {
+      const older = useClientResource(StaticItem({ index: 0 }));
+      const newer = useClientResource(StaticItem({ index: 1 }));
+      const items = [older.methods, newer.methods];
+      return {
+        getState: () => state,
+        item: ({ index }: { index: number }) => items[index],
+        switchToNewThread: () => {},
+      };
+    };
+    const StaticThreads = resource(useStaticThreads);
+    const app = (
+      <AuiProvider config={AuiConfig({ threads: StaticThreads() as never })}>
+        <ThreadList />
+      </AuiProvider>
+    );
+    const container = document.body.appendChild(document.createElement("div"));
+    let root: ReturnType<typeof hydrateRoot> | undefined;
+    const RealDate = Date;
+    try {
+      vi.stubGlobal(
+        "Date",
+        new Proxy(RealDate, {
+          construct(target, args, newTarget) {
+            if (args.length === 0) throw new Error("server read the clock");
+            return Reflect.construct(target, args, newTarget);
+          },
+          get(target, property, receiver) {
+            if (property === "now") {
+              return () => {
+                throw new Error("server read the clock");
+              };
+            }
+            return Reflect.get(target, property, receiver);
+          },
+        }),
+      );
+      try {
+        container.innerHTML = renderToString(app);
+      } finally {
+        vi.unstubAllGlobals();
+      }
+
+      expect(texts(container, "item-title")).toEqual([
+        "Older thread",
+        "Newer thread",
+      ]);
+      expect(slots(container, "group-label")).toHaveLength(0);
+
+      const error = vi.spyOn(console, "error");
+      await act(async () => {
+        root = hydrateRoot(container, app);
+      });
+      expect(
+        error.mock.calls.some((args) =>
+          args.some((arg) => /hydrat|mismatch/i.test(String(arg))),
+        ),
+      ).toBe(false);
+      expect(texts(container, "group-label")).toEqual(["Today", "Earlier"]);
+    } finally {
+      await act(async () => {
+        root?.unmount();
+      });
+      container.remove();
+    }
+  });
+
   it("renders one row per thread and no group labels when no thread has a date", async () => {
     const { container } = renderThreadList(
       makeAdapter(withTitles("First thread", "Second thread")),
@@ -255,6 +370,74 @@ describe("ThreadList", () => {
     await waitFor(() => expect(slots(container, "item-title")).toHaveLength(2));
     expect(texts(container, "group-label")).toEqual(["Today", "Earlier"]);
     expect(texts(container, "item-title")).toEqual(["No date", "Last week"]);
+  });
+
+  it.each([
+    { dayLength: 23, boundaryOffset: 23.5, labels: ["Yesterday", "Earlier"] },
+    { dayLength: 25, boundaryOffset: 24.5, labels: ["Yesterday"] },
+  ])(
+    "uses local calendar boundaries when the previous day has $dayLength hours",
+    async ({ dayLength, boundaryOffset, labels }) => {
+      const startOfToday = freezeClockAtMidday();
+      vi.spyOn(Date.prototype, "setDate").mockImplementation(function (
+        this: Date,
+      ) {
+        return this.setTime(this.getTime() - dayLength * 60 * 60 * 1_000);
+      });
+
+      const { container } = renderThreadList(
+        makeAdapter([
+          {
+            remoteId: "t0",
+            title: "Recent yesterday",
+            lastMessageAt: new Date(startOfToday - 60 * 60 * 1_000),
+          },
+          {
+            remoteId: "t1",
+            title: "Boundary thread",
+            lastMessageAt: new Date(
+              startOfToday - boundaryOffset * 60 * 60 * 1_000,
+            ),
+          },
+        ]),
+      );
+
+      await waitFor(() =>
+        expect(slots(container, "item-title")).toHaveLength(2),
+      );
+      expect(texts(container, "group-label")).toEqual(labels);
+    },
+  );
+
+  it("regroups threads when the local date changes", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 7, 31, 23, 59, 59, 500));
+
+    const { container } = renderThreadList(
+      makeAdapter([
+        {
+          remoteId: "t0",
+          title: "Late today",
+          lastMessageAt: new Date(2026, 7, 31, 12),
+        },
+      ]),
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(texts(container, "group-label")).toEqual(["Today"]);
+
+    vi.setSystemTime(new Date(2026, 7, 31, 23, 59, 59, 498));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(texts(container, "group-label")).toEqual(["Today"]);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+    expect(texts(container, "group-label")).toEqual(["Yesterday"]);
   });
 
   it("opens the item menu and archives through the menu item", async () => {

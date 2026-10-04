@@ -77,6 +77,7 @@ Request body:
       "type": "add-message",
       "message": {
         "role": "user",
+        "id": "client-message-id",
         "parts": [
           {
             "type": "text",

@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { livePage, pageTrail } from "./setup-wizard-page";
+import { livePage, pageKey, pageTrail } from "./setup-wizard-page";
 import {
   initialCheckoutState,
   type Checkout,
 } from "../../../lib/checkout/protocol";
 
 const session = { id: "test", products: ["assistant-ui"], startedAt: 1 };
+const read = { ...session, introSeen: true };
 const input = (id: string, stepId?: string): Checkout.Input => ({
   id,
   prompt: id,
@@ -28,7 +29,7 @@ const page = (
 ) =>
   livePage({
     state: { ...initialCheckoutState(), createdAt: 1, ...overrides },
-    session,
+    session: read,
     phase: "connected",
     openInputs: [],
     planPending: false,
@@ -37,18 +38,14 @@ const page = (
 
 describe("livePage", () => {
   it("opens with the introduction until it was seen, then asks to connect", () => {
-    expect(page({}, { phase: "unconnected" })).toEqual({ id: "welcome" });
-    expect(
-      page(
-        {},
-        { phase: "unconnected", session: { ...session, introSeen: true } },
-      ),
-    ).toEqual({ id: "connect" });
-    expect(page({}, { phase: "waiting" })).toEqual({ id: "welcome" });
-    expect(
-      page({}, { phase: "waiting", session: { ...session, introSeen: true } }),
-    ).toEqual({ id: "connect" });
+    expect(page({}, { phase: "unconnected", session })).toEqual({
+      id: "welcome",
+    });
+    expect(page({}, { phase: "unconnected" })).toEqual({ id: "connect" });
+    expect(page({}, { phase: "waiting", session })).toEqual({ id: "welcome" });
+    expect(page({}, { phase: "waiting" })).toEqual({ id: "connect" });
     expect(page({ status: "waiting" })).toEqual({ id: "connect" });
+    expect(page({ status: "planning" })).toEqual({ id: "working" });
   });
 
   it("shows the agent's first open question before anything else it wants", () => {
@@ -74,7 +71,7 @@ describe("livePage", () => {
     });
   });
 
-  it("offers to finish once the agent proposes it, and shows the work again once the user wrote back", () => {
+  it("offers to finish once the agent proposes it, and shows the work again once a step reopens", () => {
     const completion = { proposedAt: 5 };
     expect(page({ status: "installing", completion })).toEqual({
       id: "finish",
@@ -85,6 +82,15 @@ describe("livePage", () => {
         completion,
         log: [
           { id: "l1", role: "user", phase: "installing", at: 6, text: "More" },
+        ],
+      }),
+    ).toEqual({ id: "finish" });
+    expect(
+      page({
+        status: "installing",
+        completion,
+        steps: [
+          { id: "s1", title: "Dark mode", status: "active", createdAt: 7 },
         ],
       }),
     ).toEqual({ id: "install" });
@@ -114,33 +120,99 @@ describe("livePage", () => {
 });
 
 describe("pageTrail", () => {
+  const ids = (trail: ReturnType<typeof pageTrail>) => trail.map(pageKey);
+
   it("lets the user step back only through pages the setup has passed", () => {
     const state = { ...initialCheckoutState(), createdAt: 1 };
-    expect(pageTrail(state, { id: "connect" })).toEqual(["welcome", "connect"]);
-    expect(pageTrail(state, { id: "working" })).toEqual([
+    expect(ids(pageTrail(state, { id: "connect" }))).toEqual([
+      "welcome",
+      "connect",
+    ]);
+    expect(ids(pageTrail(state, { id: "working" }))).toEqual([
       "welcome",
       "connect",
       "working",
     ]);
     const planned = { ...state, plans: [plan("approved")] };
-    expect(pageTrail(planned, { id: "plan" })).toEqual([
+    expect(ids(pageTrail(planned, { id: "plan" }))).toEqual([
       "welcome",
       "connect",
       "plan",
     ]);
     const installing: Checkout.State = { ...planned, status: "installing" };
-    expect(pageTrail(installing, { id: "install" })).toEqual([
+    expect(ids(pageTrail(installing, { id: "install" }))).toEqual([
       "welcome",
       "connect",
       "plan",
       "install",
     ]);
-    expect(pageTrail(installing, { id: "finish" })).toEqual([
+    expect(ids(pageTrail(installing, { id: "finish" }))).toEqual([
       "welcome",
       "connect",
       "plan",
       "install",
       "finish",
+    ]);
+  });
+
+  it("keeps every answer the user gave, in the order they gave them, before the page it led to", () => {
+    const answered = (
+      id: string,
+      phase: Checkout.Status,
+      answeredAt: number,
+      status: Checkout.InputStatus = "answered",
+    ): Checkout.Input => ({
+      ...input(id),
+      phase,
+      status,
+      answeredAt,
+      ...(status === "answered" && { answer: "yes" }),
+    });
+    const state: Checkout.State = {
+      ...initialCheckoutState(),
+      createdAt: 1,
+      status: "installing",
+      plans: [plan("approved")],
+      inputs: [
+        answered("q2", "planning", 4),
+        answered("q1", "planning", 3, "dismissed"),
+        { ...input("q3"), phase: "installing" },
+        answered("q4", "installing", 9),
+      ],
+    };
+    const live = { id: "question", input: state.inputs[2]!, total: 1 } as const;
+    expect(ids(pageTrail(state, live))).toEqual([
+      "welcome",
+      "connect",
+      "answer:q1",
+      "answer:q2",
+      "plan",
+      "answer:q4",
+      "install",
+      "question:q3",
+    ]);
+  });
+
+  it("leaves no page behind for a product the agent proposed and the browser added", () => {
+    const state: Checkout.State = {
+      ...initialCheckoutState(),
+      createdAt: 1,
+      status: "planning",
+      inputs: [
+        {
+          ...input("p1"),
+          kind: "product",
+          product: "assistant-ui",
+          status: "answered",
+          answer: "assistant-ui",
+          answeredAt: 2,
+        },
+      ],
+    };
+    expect(ids(pageTrail(state, { id: "working" }))).toEqual([
+      "welcome",
+      "connect",
+      "working",
     ]);
   });
 });

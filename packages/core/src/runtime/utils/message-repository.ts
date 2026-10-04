@@ -27,7 +27,7 @@ export const ExportedMessageRepository = {
     const conv = messages.map((m) =>
       fromThreadMessageLike(
         m,
-        generateId(),
+        m.id ?? generateId(),
         getRepositoryContentAutoStatus(m.content),
       ),
     );
@@ -87,6 +87,96 @@ const findHead = (
   let current = message;
   while (current.next) current = current.next;
   return "current" in current ? current : null;
+};
+
+// A history may store a message before its parent, for example one that
+// commits appends concurrently, so such a message is added after its parent.
+const withParentsFirst = (
+  messages: ExportedMessageRepository["messages"],
+  isStored: (id: string) => boolean,
+) => {
+  const listed = new Set(messages.map((item) => item.message.id));
+  const added = new Set<string>();
+  const waiting = new Map<string, ExportedMessageRepository["messages"]>();
+  const ordered: ExportedMessageRepository["messages"] = [];
+  for (const item of messages) {
+    const { parentId } = item;
+    if (
+      parentId !== null &&
+      listed.has(parentId) &&
+      !added.has(parentId) &&
+      !isStored(parentId)
+    ) {
+      const children = waiting.get(parentId);
+      if (children) children.push(item);
+      else waiting.set(parentId, [item]);
+      continue;
+    }
+    for (let i = ordered.push(item) - 1; i < ordered.length; i++) {
+      const { id } = ordered[i]!.message;
+      if (added.has(id)) continue;
+      added.add(id);
+      const children = waiting.get(id);
+      if (!children) continue;
+      waiting.delete(id);
+      ordered.push(...children);
+    }
+  }
+  for (const children of waiting.values()) ordered.push(...children);
+  return ordered;
+};
+
+export const withoutOrphanedMessages = (
+  repository: ExportedMessageRepository,
+): { repository: ExportedMessageRepository; droppedIds: string[] } => {
+  const listed = new Set(repository.messages.map((item) => item.message.id));
+  const children = new Map<string, string[]>();
+  const pending: string[] = [];
+  for (const { message, parentId } of repository.messages) {
+    if (parentId === null) continue;
+    const siblings = children.get(parentId);
+    if (siblings) siblings.push(message.id);
+    else children.set(parentId, [message.id]);
+    if (!listed.has(parentId)) pending.push(message.id);
+  }
+
+  const dropped = new Set<string>();
+  for (let i = 0; i < pending.length; i++) {
+    const id = pending[i]!;
+    if (dropped.has(id)) continue;
+    dropped.add(id);
+    for (const child of children.get(id) ?? []) pending.push(child);
+  }
+  const headMissing =
+    repository.headId != null && !listed.has(repository.headId);
+  if (dropped.size === 0 && !headMissing) return { repository, droppedIds: [] };
+
+  const droppedIds: string[] = [];
+  const keptParents = new Set<string>();
+  const messages = repository.messages.filter(({ message, parentId }) => {
+    if (dropped.has(message.id)) {
+      droppedIds.push(message.id);
+      return false;
+    }
+    if (parentId !== null) keptParents.add(parentId);
+    return true;
+  });
+  let { headId } = repository;
+  if (headId != null && (headMissing || dropped.has(headId))) {
+    headId = null;
+    for (const { message } of messages) {
+      if (!keptParents.has(message.id)) headId = message.id;
+    }
+  }
+
+  return {
+    repository: {
+      ...repository,
+      messages,
+      ...(headId !== undefined && { headId }),
+    },
+    droppedIds,
+  };
 };
 
 class CachedValue<T> {
@@ -345,6 +435,10 @@ export class MessageRepository {
     this._messages.dirty();
   }
 
+  hasChildren(messageId: string) {
+    return (this.messages.get(messageId)?.children.length ?? 0) > 0;
+  }
+
   getBranches(messageId: string) {
     const message = this.messages.get(messageId);
     if (!message)
@@ -467,8 +561,8 @@ export class MessageRepository {
     // Optimistic messages are ephemeral and never persisted. A persisted child
     // of an optimistic node is re-parented onto its nearest persisted ancestor
     // so the exported tree never references a skipped id.
-    // Import and external-state conversion require parents before children, so
-    // the tree is walked in pre-order rather than iterated in insertion order.
+    // External-state conversion requires parents before children, so the tree
+    // is walked in pre-order rather than iterated in insertion order.
     const pending = [...this.root.children].reverse();
     while (pending.length > 0) {
       const message = this.messages.get(pending.pop()!);
@@ -494,10 +588,11 @@ export class MessageRepository {
   }
 
   import({ headId, messages }: ExportedMessageRepository) {
-    for (const { message, parentId } of messages) {
+    const ordered = withParentsFirst(messages, (id) => this.messages.has(id));
+    for (const { message, parentId } of ordered) {
       this.addOrUpdateMessage(parentId, message);
     }
 
-    this.resetHead(headId ?? messages.at(-1)?.message.id ?? null);
+    this.resetHead(headId ?? ordered.at(-1)?.message.id ?? null);
   }
 }

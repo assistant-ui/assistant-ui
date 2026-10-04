@@ -31,6 +31,7 @@ import {
 } from "@/lib/catalog/cart-store";
 import { getCatalogItem, resolveProducts } from "@/lib/catalog";
 import { checkoutCart } from "@/lib/checkout/flow";
+import { useCheckoutSession } from "@/lib/checkout/session-store";
 import { cn } from "@/lib/utils";
 
 const checkoutLabel = (checkout: CheckoutContextValue) => {
@@ -137,8 +138,7 @@ function CheckoutProgressButton({
       >
         <PopoverTitle>Resume setup anytime</PopoverTitle>
         <PopoverDescription>
-          Your session stays open. Use this button to return to your agent,
-          follow its progress, or answer a question.
+          Your session stays open. Use this button to return to your agent.
         </PopoverDescription>
         <Button
           variant="outline"
@@ -176,6 +176,7 @@ export function CartButton({ className }: { className?: string }) {
 }
 
 function CartPopoverButton({ checkoutActive }: { checkoutActive: boolean }) {
+  const queued = useCheckoutSession() !== null;
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLAnchorElement>(null);
   const pathname = usePathname();
@@ -238,7 +239,7 @@ function CartPopoverButton({ checkoutActive }: { checkoutActive: boolean }) {
               "animate-in fade-in-0 zoom-in-95 duration-200",
               checkoutActive && "rounded-r-none",
             )}
-            render={<Link ref={anchorRef} href="/shop/cart" />}
+            render={<Link ref={anchorRef} href="/components/cart" />}
           />
         }
       >
@@ -254,17 +255,17 @@ function CartPopoverButton({ checkoutActive }: { checkoutActive: boolean }) {
             <NavGlyph kind={added.glyph} />
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{added.name}</p>
-              <p className="text-muted-foreground text-sm">Added to cart</p>
+              <p className="text-muted-foreground text-sm">
+                {queued ? "Added to next setup" : "Added to setup"}
+              </p>
             </div>
           </div>
-          <dl className="border-foreground/10 flex flex-col gap-2 border-t px-4 py-3 text-sm">
+          <dl className="border-foreground/10 flex flex-col gap-2 border-t p-4 text-sm">
             <div className="flex justify-between gap-4">
-              <dt className="text-muted-foreground">In cart</dt>
+              <dt className="text-muted-foreground">
+                {queued ? "In next setup" : "In setup"}
+              </dt>
               <dd className="tabular-nums">{countLabel}</dd>
-            </div>
-            <div className="flex justify-between gap-4 font-medium">
-              <dt>Total</dt>
-              <dd className="tabular-nums">$0.00</dd>
             </div>
           </dl>
           <div
@@ -276,7 +277,7 @@ function CartPopoverButton({ checkoutActive }: { checkoutActive: boolean }) {
             <Button
               variant="outline"
               nativeButton={false}
-              render={<Link href="/shop/cart" onClick={close} />}
+              render={<Link href="/components/cart" onClick={close} />}
             >
               View cart
             </Button>

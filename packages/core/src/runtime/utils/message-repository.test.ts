@@ -3,6 +3,7 @@ import type { ThreadMessage } from "../../types/message";
 import {
   ExportedMessageRepository,
   MessageRepository,
+  withoutOrphanedMessages,
 } from "./message-repository";
 
 const nestedRunningAssistant: ThreadMessage = {
@@ -66,6 +67,105 @@ const snapshot = (repository: MessageRepository) => ({
   exported: repository.export(),
 });
 
+describe("withoutOrphanedMessages", () => {
+  it("keeps a child listed before its parent", () => {
+    const stored: ExportedMessageRepository = {
+      headId: "child",
+      messages: [
+        { message: message("child"), parentId: "parent" },
+        { message: message("parent"), parentId: null },
+      ],
+    };
+
+    const { repository, droppedIds } = withoutOrphanedMessages(stored);
+
+    expect(repository).toEqual(stored);
+    expect(droppedIds).toEqual([]);
+    const imported = new MessageRepository();
+    imported.import(repository);
+    expect(imported.getMessages().map((m) => m.id)).toEqual([
+      "parent",
+      "child",
+    ]);
+  });
+
+  it("drops a missing parent's child and descendants while keeping an independent branch", () => {
+    const stored: ExportedMessageRepository = {
+      headId: "kept-child",
+      messages: [
+        { message: message("grandchild"), parentId: "child" },
+        { message: message("kept-root"), parentId: null },
+        { message: message("child"), parentId: "missing" },
+        { message: message("descendant"), parentId: "grandchild" },
+        { message: message("kept-child"), parentId: "kept-root" },
+      ],
+    };
+
+    const { repository, droppedIds } = withoutOrphanedMessages(stored);
+
+    expect(droppedIds).toEqual(["grandchild", "child", "descendant"]);
+    expect(repository).toEqual({
+      headId: "kept-child",
+      messages: [stored.messages[1], stored.messages[4]],
+    });
+    expect(() => new MessageRepository().import(stored)).toThrow(
+      /Parent message not found/,
+    );
+    const imported = new MessageRepository();
+    imported.import(repository);
+    expect(imported.getMessages().map((m) => m.id)).toEqual([
+      "kept-root",
+      "kept-child",
+    ]);
+  });
+
+  it("replaces a dropped head with the most recently listed kept leaf", () => {
+    const stored: ExportedMessageRepository = {
+      headId: "orphan",
+      messages: [
+        { message: message("older-leaf"), parentId: "root" },
+        { message: message("latest-leaf"), parentId: "root" },
+        { message: message("root"), parentId: null },
+        { message: message("orphan"), parentId: "missing" },
+      ],
+    };
+
+    const { repository, droppedIds } = withoutOrphanedMessages(stored);
+
+    expect(droppedIds).toEqual(["orphan"]);
+    expect(repository.headId).toBe("latest-leaf");
+    expect(repository.messages).toEqual(stored.messages.slice(0, 3));
+    const imported = new MessageRepository();
+    imported.import(repository);
+    expect(imported.headId).toBe("latest-leaf");
+    expect(imported.getMessages().map((m) => m.id)).toEqual([
+      "root",
+      "latest-leaf",
+    ]);
+    expect(imported.getMessage("older-leaf").parentId).toBe("root");
+    expect(imported.export().messages).toHaveLength(3);
+  });
+
+  it("replaces a head that names no stored message with the most recently listed leaf", () => {
+    const stored: ExportedMessageRepository = {
+      headId: "never-stored",
+      messages: [
+        { message: message("root"), parentId: null },
+        { message: message("leaf"), parentId: "root" },
+      ],
+    };
+
+    const { repository, droppedIds } = withoutOrphanedMessages(stored);
+
+    expect(droppedIds).toEqual([]);
+    expect(repository).toEqual({ ...stored, headId: "leaf" });
+    expect(() => new MessageRepository().import(stored)).toThrow();
+    const imported = new MessageRepository();
+    imported.import(repository);
+    expect(imported.headId).toBe("leaf");
+  });
+});
+
 describe("MessageRepository rejected operations", () => {
   it("keeps the old content when an update is rejected as a cycle", () => {
     const repository = new MessageRepository();
@@ -113,5 +213,60 @@ describe("MessageRepository rejected operations", () => {
 
     expect(snapshot(repository)).toEqual(before);
     expect(repository.getMessage("a").message.id).toBe("a");
+  });
+});
+
+describe("MessageRepository import order", () => {
+  it("imports a message listed before its parent", () => {
+    const repository = new MessageRepository();
+    repository.import({
+      messages: [
+        { message: message("child"), parentId: "parent" },
+        { message: message("parent"), parentId: null },
+      ],
+    });
+
+    expect(repository.headId).toBe("child");
+    expect(repository.getMessages().map((m) => m.id)).toEqual([
+      "parent",
+      "child",
+    ]);
+  });
+
+  it("keeps the listed order for a message whose parent the repository holds", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, message("p"));
+    const newer = message("c", "newer");
+
+    repository.import({
+      headId: "c",
+      messages: [
+        { message: message("c"), parentId: "p" },
+        { message: newer, parentId: null },
+        { message: message("p"), parentId: null },
+      ],
+    });
+
+    expect(repository.getMessages()).toEqual([newer]);
+  });
+
+  it("heads a history stored out of order at its latest message", () => {
+    const repository = new MessageRepository();
+    repository.import({
+      messages: [
+        { message: message("question"), parentId: null },
+        { message: message("follow-up"), parentId: "paused" },
+        { message: message("answer"), parentId: "follow-up" },
+        { message: message("paused"), parentId: "question" },
+      ],
+    });
+
+    expect(repository.headId).toBe("answer");
+    expect(repository.getMessages().map((m) => m.id)).toEqual([
+      "question",
+      "paused",
+      "follow-up",
+      "answer",
+    ]);
   });
 });

@@ -372,6 +372,7 @@ type AssistantCloudThreadsCreateBody = {
   last_message_at: Date;
   metadata?: unknown | undefined;
   external_id?: string | undefined;
+  upsert?: boolean | undefined;
 };
 
 type AssistantCloudThreadsCreateResponse = {
@@ -791,12 +792,14 @@ type CreateStartRunConfig = {
 
 type DataMessagePart<T = any> = {
   readonly type: "data";
+  readonly id?: string;
   readonly name: string;
   readonly data: T;
 };
 
 type DataPrefixedPart = {
   readonly type: `data-${string}`;
+  readonly id?: string;
   readonly data: any;
 };
 
@@ -906,6 +909,8 @@ type ExternalStoreAdapterBase<T> = {
   isSendDisabled?: boolean | undefined;
   isRunning?: boolean | undefined;
   isLoading?: boolean | undefined;
+  hasEarlier?: boolean | undefined;
+  onLoadEarlier?: (() => Promise<void>) | undefined;
   messages?: readonly T[];
   messageRepository?: ExportedMessageRepository;
   unstable_messageRepositoryInstance?: MessageRepository | undefined;
@@ -1010,6 +1015,7 @@ type FeedbackAdapterFeedback = {
 
 type FileMessagePart = {
   readonly type: "file";
+  readonly id?: string;
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
@@ -1079,6 +1085,7 @@ type HumanTool<TArgs extends Record<string, unknown> = Record<string, unknown>, 
 
 type ImageMessagePart = {
   readonly type: "image";
+  readonly id?: string;
   readonly image: string;
   readonly filename?: string;
   readonly providerMetadata?: PartProviderMetadata;
@@ -1199,6 +1206,11 @@ type MessagePartStreamStatus = {
   readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
 };
 
+type MessagePartTiming = {
+  readonly startedAt: number;
+  readonly completedAt?: number;
+};
+
 declare class MessageRepository {
   #private;
   get headId(): string | null;
@@ -1211,6 +1223,7 @@ declare class MessageRepository {
     index: number;
   };
   deleteMessage(messageId: string, replacementId?: string | null | undefined): void;
+  hasChildren(messageId: string): boolean;
   getBranches(messageId: string): string[];
   switchToBranch(messageId: string): void;
   resetHead(messageId: string | null): void;
@@ -1779,9 +1792,11 @@ type RealtimeVoiceAdapter = {
 
 type ReasoningMessagePart = {
   readonly type: "reasoning";
+  readonly id?: string;
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
   readonly unstable_summary?: string;
+  readonly timing?: MessagePartTiming;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -1799,6 +1814,7 @@ type RespondToToolApprovalOptions = {
   approved: boolean;
   optionId?: string;
   text?: string;
+  answers?: Readonly<Record<string, ToolApprovalAnswer>>;
   reason?: string;
 };
 
@@ -1825,6 +1841,7 @@ type RuntimeCapabilities = {
   readonly attachments: boolean;
   readonly feedback: boolean;
   readonly queue: boolean;
+  readonly answerToolCall: boolean;
 };
 
 declare const STREAM_RECONNECTED_EVENT_TYPE = "stream.reconnected";
@@ -1921,6 +1938,7 @@ declare const TOOL_RESPONSE_SYMBOL: unique symbol;
 
 type TextMessagePart = {
   readonly type: "text";
+  readonly id?: string;
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
@@ -2133,6 +2151,7 @@ type ThreadRuntime = {
   importExternalState(state: any): void;
   subscribe(callback: () => void): Unsubscribe;
   cancelRun(): void;
+  loadEarlier(): Promise<void>;
   unstable_notifySessionReset(): void;
   getModelContext(): ModelContext;
   export(): ExportedMessageRepository;
@@ -2153,6 +2172,12 @@ type ThreadRuntime = {
 type ThreadRuntimeEventCallback<E extends ThreadRuntimeEventType> = (payload: ThreadRuntimeEventPayload[E]) => void;
 
 type ThreadRuntimeEventPayload = {
+  historyWriteError: {
+    operation: "append" | "delete" | "update";
+    messageIds: readonly string[];
+    message: string;
+    error: unknown;
+  };
   toolApprovalAnswered: {
     messageId: string;
     toolCallId: string;
@@ -2182,6 +2207,8 @@ type ThreadRuntimeState = {
   readonly metadata: ThreadListItemRuntimeState;
   readonly isDisabled: boolean;
   readonly isLoading: boolean;
+  readonly hasEarlier: boolean;
+  readonly isLoadingEarlier: boolean;
   readonly isRunning: boolean;
   readonly capabilities: RuntimeCapabilities;
   readonly messages: readonly ThreadMessage[];
@@ -2244,7 +2271,12 @@ type ThreadUserMessagePart = TextMessagePart | ImageMessagePart | FileMessagePar
 
 type Tool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = FrontendTool<TArgs, TResult> | BackendTool<TArgs, TResult> | HumanTool<TArgs, TResult> | ProviderTool<TArgs, TResult> | McpTool | ToolWithoutType<TArgs, TResult>;
 
-type ToolApprovalDisplay = "decision" | "select" | "text";
+type ToolApprovalAnswer = {
+  readonly optionIds?: readonly string[];
+  readonly text?: string;
+};
+
+type ToolApprovalDisplay = "decision" | "questions" | "select" | "text";
 
 type ToolApprovalOption = {
   readonly id: string;
@@ -2259,6 +2291,21 @@ type ToolApprovalOption = {
 };
 
 type ToolApprovalOptionKind = "allow-always" | "allow-once" | "reject-always" | "reject-once";
+
+type ToolApprovalQuestion = {
+  readonly id: string;
+  readonly prompt: string;
+  readonly header?: string;
+  readonly options?: readonly ToolApprovalQuestionOption[];
+  readonly multiple?: boolean;
+  readonly allowFreeform?: boolean;
+};
+
+type ToolApprovalQuestionOption = {
+  readonly id: string;
+  readonly label: string;
+  readonly description?: string;
+};
 
 type ToolApprovalResponse = {
   readonly approved: boolean;
@@ -2275,6 +2322,9 @@ type ToolApprovalResponse = {
   readonly reason?: string;
 } | {
   readonly text: string;
+  readonly reason?: string;
+} | {
+  readonly answers: Readonly<Record<string, ToolApprovalAnswer>>;
   readonly reason?: string;
 };
 
@@ -2321,6 +2371,8 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
     readonly options?: readonly ToolApprovalOption[];
     readonly optionId?: string;
     readonly text?: string;
+    readonly questions?: readonly ToolApprovalQuestion[];
+    readonly answers?: Readonly<Record<string, ToolApprovalAnswer>>;
     readonly resolution?: "cancelled" | "expired";
   };
   readonly parentId?: string;
@@ -2353,10 +2405,7 @@ interface ToolCallResponseReader<TResult> {
   get: () => Promise<ToolResponse<TResult>>;
 }
 
-type ToolCallTiming = {
-  readonly startedAt: number;
-  readonly completedAt?: number;
-};
+type ToolCallTiming = MessagePartTiming;
 
 type ToolDisplay = "inline" | "standalone";
 

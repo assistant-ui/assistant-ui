@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveProducts } from "./index";
+import { CATALOG_ITEMS, resolveProducts } from "./index";
 import { buildInstallPrompt } from "./build-install-prompt";
 
 describe("buildInstallPrompt", () => {
@@ -13,5 +13,10 @@ describe("buildInstallPrompt", () => {
       "https://www.assistant-ui.com/docs/runtimes/pick-a-runtime.md",
     );
     expect(prompt).toContain("llms.txt");
+  });
+
+  it("reads as an install guide, without the shop's wording", () => {
+    const prompt = buildInstallPrompt(CATALOG_ITEMS);
+    expect(prompt).not.toMatch(/\b(?:cart|shop|checkout)\b/i);
   });
 });
