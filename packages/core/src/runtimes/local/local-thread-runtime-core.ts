@@ -1546,6 +1546,7 @@ export class LocalThreadRuntimeCore
     approved,
     optionId,
     text,
+    answers,
     reason,
   }: RespondToToolApprovalOptions): Promise<void> {
     if (this.voice)
@@ -1604,6 +1605,7 @@ export class LocalThreadRuntimeCore
         approved,
         ...(optionId != null && { optionId }),
         ...(text != null && { text }),
+        ...(answers != null && { answers }),
         ...(reason != null && { reason }),
       };
       if (approved) return { ...c, approval };

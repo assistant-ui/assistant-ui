@@ -7,7 +7,7 @@ import type {
   ThreadMessage,
   Unstable_ToolInteraction,
 } from "../../types/message";
-import type { RunConfig } from "../../types/message";
+import type { RunConfig, ToolApprovalAnswer } from "../../types/message";
 import type { SpeechSynthesisAdapter } from "../../adapters/speech";
 import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type {
@@ -77,6 +77,8 @@ export type RespondToToolApprovalOptions = {
   optionId?: string;
   /** The free-form answer, when the request asked for one. */
   text?: string;
+  /** The answers to a `display: "questions"` request, keyed by question id. */
+  answers?: Readonly<Record<string, ToolApprovalAnswer>>;
   reason?: string;
 };
 

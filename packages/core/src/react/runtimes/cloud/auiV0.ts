@@ -6,7 +6,9 @@ import type {
   ToolCallMessagePartMcpMetadata,
   ToolCallTiming,
   ToolApprovalDisplay,
+  ToolApprovalAnswer,
   ToolApprovalOption,
+  ToolApprovalQuestion,
   ReasoningMessagePart,
   TextMessagePart,
   ImageMessagePart,
@@ -49,6 +51,8 @@ type AuiV0ToolApproval = {
   readonly options?: readonly ToolApprovalOption[];
   readonly optionId?: string;
   readonly text?: string;
+  readonly questions?: readonly ToolApprovalQuestion[];
+  readonly answers?: Readonly<Record<string, ToolApprovalAnswer>>;
   readonly resolution?: "cancelled" | "expired";
 };
 
