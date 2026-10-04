@@ -182,6 +182,58 @@ describe("auiV0Encode", () => {
     expect(toolCall).toMatchObject({ approval: { id: "a1" } });
   });
 
+  it("round-trips an answered questionnaire approval", () => {
+    const approval = {
+      id: "a1",
+      display: "questions" as const,
+      questions: [
+        {
+          id: "scope",
+          prompt: "Which files?",
+          options: [{ id: "src", label: "src" }],
+          multiple: true,
+        },
+      ],
+      approved: true,
+      answers: { scope: { optionIds: ["src"] } },
+    };
+    const encoded = auiV0Encode({
+      id: "m1",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "ask",
+          args: {},
+          argsText: "{}",
+          result: "ok",
+          approval,
+        },
+      ],
+    });
+
+    const { message } = auiV0Decode({
+      id: "cloud",
+      parent_id: null,
+      format: "aui/v0",
+      content: encoded,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0Decode>[0]);
+
+    const toolCall = message.content.find((p) => p.type === "tool-call");
+    expect(toolCall).toMatchObject({ approval });
+  });
+
   it("preserves user attachments in the core cloud encoder", () => {
     const encoded = auiV0Encode({
       id: "m1",
