@@ -30,6 +30,7 @@ export type {
   ToolApprovalQuestionOption,
   ToolApprovalResponse,
   ToolCallMessagePart,
+  MessagePartTiming,
   ToolCallTiming,
   Unstable_ToolInteraction,
   Unstable_ToolInteractionInput,

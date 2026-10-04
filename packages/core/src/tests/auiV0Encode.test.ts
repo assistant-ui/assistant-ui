@@ -607,6 +607,47 @@ describe("auiV0Decode", () => {
     ]);
   });
 
+  it("round-trips reasoning timing", () => {
+    const encoded = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        {
+          type: "reasoning",
+          text: "thinking",
+          timing: { startedAt: 1_000, completedAt: 13_000 },
+        },
+        { type: "reasoning", text: "untimed" },
+      ],
+    });
+
+    const { message } = auiV0Decode({
+      id: "cloud",
+      parent_id: null,
+      format: "aui/v0",
+      content: encoded,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0Decode>[0]);
+
+    expect(message.content).toEqual([
+      {
+        type: "reasoning",
+        text: "thinking",
+        timing: { startedAt: 1_000, completedAt: 13_000 },
+      },
+      { type: "reasoning", text: "untimed" },
+    ]);
+  });
+
   it("round-trips a reasoning summary without text", () => {
     const encoded = auiV0Encode({
       id: "local",
