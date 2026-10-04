@@ -180,7 +180,7 @@ const timing = part.timing;
 />
 ```
 
-Runtimes built on assistant-stream stamp `timing` on each reasoning part as it streams. An external store host that follows an agent's records supplies `timing: { startedAt, completedAt }` on its reasoning parts itself, in epoch milliseconds.
+`useDataStreamRuntime` and `useAssistantTransportRuntime` stamp `timing` on each reasoning part as it streams. Other runtimes, the AI SDK and LangGraph ones and a `ChatModelAdapter` among them, leave it unset, so the trigger shows no duration unless the host supplies `timing: { startedAt, completedAt }` on its reasoning parts, in epoch milliseconds; an external store host that follows an agent's records does that from the times they carry.
 
 </RuntimeMode>
 
@@ -288,13 +288,16 @@ function AssistantReasoning() {
   });
   const thoughtSeconds = useAuiState((s) => {
     const timings = s.message.parts.flatMap((part) =>
-      part.type === "reasoning" && part.timing?.completedAt !== undefined
-        ? [part.timing]
-        : [],
+      part.type === "reasoning" && part.timing ? [part.timing] : [],
     );
     if (timings.length === 0) return undefined;
-    const startedAt = Math.min(...timings.map((t) => t.startedAt));
-    const completedAt = Math.max(...timings.map((t) => t.completedAt ?? 0));
+    let startedAt = Infinity;
+    let completedAt = -Infinity;
+    for (const timing of timings) {
+      if (timing.completedAt === undefined) return undefined;
+      startedAt = Math.min(startedAt, timing.startedAt);
+      completedAt = Math.max(completedAt, timing.completedAt);
+    }
     return Math.round((completedAt - startedAt) / 1000);
   });
   const [userOpen, setUserOpen] = useState<boolean | null>(null);

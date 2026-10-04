@@ -46,7 +46,10 @@ function useMessageTrace(): { spans: TraceSpan[]; totalMs: number } {
       continue;
     const streamStart = timing?.streamStartTime ?? part.timing.startedAt;
     spans.push({
-      id: part.type === "tool-call" ? part.toolCallId : `reasoning-${index}`,
+      id:
+        part.type === "tool-call"
+          ? `tool-${part.toolCallId}`
+          : `reasoning-${index}`,
       name: part.type === "tool-call" ? part.toolName : "reasoning",
       depth: 1,
       startMs: Math.max(0, part.timing.startedAt - streamStart),
@@ -195,7 +198,7 @@ A tool call whose status settles as anything other than `"running"` or `"complet
 | Selector | Type | Description |
 |----------|------|-------------|
 | `useMessageTiming()` | `MessageTiming \| undefined` | `streamStartTime` anchors every span's `startMs`; `totalStreamTime` is the message-level span's duration. |
-| `s.message.parts` | `readonly PartState[]` | Filter for `part.type === "tool-call"`. Each carries `part.timing?.startedAt` / `part.timing?.completedAt` and `part.status.type`. |
+| `s.message.parts` | `readonly PartState[]` | Filter for `part.type === "tool-call"` and `part.type === "reasoning"`. Each carries `part.timing?.startedAt` / `part.timing?.completedAt` and `part.status.type`. |
 
 There is no dedicated trace primitive: the depth, id, and status mapping above are yours to write, the way `useMessageTrace` does.
 
