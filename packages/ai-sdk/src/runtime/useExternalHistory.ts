@@ -25,6 +25,7 @@ import {
   useCallback,
   useMemo,
 } from "react";
+import { normalizeToolApprovalAnswers } from "../converters/toolApprovalAnswers";
 
 export const toExportedMessageRepository = <TMessage>(
   toThreadMessages: (messages: TMessage[]) => ThreadMessage[],
@@ -51,9 +52,20 @@ export const toExportedMessageRepository = <TMessage>(
   };
 };
 
+const hasUnansweredApproval = (message: ThreadMessage) =>
+  message.content.some(
+    (part) =>
+      part.type === "tool-call" &&
+      part.approval != null &&
+      part.approval.approved === undefined &&
+      part.approval.resolution === undefined,
+  );
+
+// Core reports a run paused on an unanswered approval as an interrupt, not as tool calls.
 const isAwaitingToolApproval = (message: ThreadMessage) =>
   message.status?.type === "requires-action" &&
-  message.status.reason === "tool-calls";
+  (message.status.reason === "tool-calls" ||
+    (message.status.reason === "interrupt" && hasUnansweredApproval(message)));
 
 const isTerminalMessage = (message: ThreadMessage) =>
   message.status === undefined ||
@@ -120,6 +132,7 @@ const collectToolApprovalResponses = (
           approved: response.approved,
           ...(response.optionId != null && { optionId: response.optionId }),
           ...(response.text != null && { text: response.text }),
+          ...(response.answers != null && { answers: response.answers }),
           ...(response.reason != null && { reason: response.reason }),
         },
       ] as const,
@@ -235,6 +248,7 @@ const restoreToolData = <TMessage>(
   if (toolApprovalResponses && isRecord(approvalResponses)) {
     for (const [approvalId, value] of Object.entries(approvalResponses)) {
       if (!isRecord(value) || typeof value.approved !== "boolean") continue;
+      const answers = normalizeToolApprovalAnswers(value.answers);
       toolApprovalResponses.set(approvalId, {
         approvalId,
         approved: value.approved,
@@ -242,6 +256,7 @@ const restoreToolData = <TMessage>(
           optionId: value.optionId,
         }),
         ...(typeof value.text === "string" && { text: value.text }),
+        ...(answers && Object.keys(answers).length > 0 && { answers }),
         ...(typeof value.reason === "string" && { reason: value.reason }),
       });
     }

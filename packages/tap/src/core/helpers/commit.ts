@@ -3,17 +3,18 @@ import { throwAggregated } from "./throwAggregated";
 import { depsShallowEqual } from "../../hooks/utils/depsShallowEqual";
 
 export function commitAllCallbacks(callbacks: CommitCallbacks): void {
-  const errors: unknown[] = [];
+  if (callbacks.length === 0) return;
+  let errors: unknown[] | undefined;
 
   for (let i = 0; i < callbacks.length; i++) {
     try {
       callbacks[i]!();
     } catch (error) {
-      errors.push(error);
+      (errors ??= []).push(error);
     }
   }
 
-  throwAggregated(errors, "Errors during commit");
+  if (errors !== undefined) throwAggregated(errors, "Errors during commit");
 }
 
 function setupEffect(cell: EffectCell): void {
@@ -47,21 +48,24 @@ const effectNeedsRun = (cell: EffectCell): boolean => {
   return !depsShallowEqual(cell.deps!, cell.setupDeps);
 };
 
-export function reconcileEffects<R>(fiber: ResourceFiber<R>): void {
-  const errors: unknown[] = [];
-  const pending: EffectCell[] = [];
+function reconcileCells(
+  cells: EffectCell[],
+  errors: unknown[] | undefined,
+): unknown[] | undefined {
+  let pending: EffectCell[] | undefined;
 
-  for (const cell of fiber.effectCells) {
-    if (effectNeedsRun(cell)) pending.push(cell);
+  for (const cell of cells) {
+    if (effectNeedsRun(cell)) (pending ??= []).push(cell);
   }
 
+  if (pending === undefined) return errors;
   for (const cell of pending) {
     cell.deps = null;
     if (cell.cleanup === undefined) continue;
     try {
       cell.cleanup();
     } catch (e) {
-      errors.push(e);
+      (errors ??= []).push(e);
     } finally {
       cell.cleanup = undefined;
     }
@@ -70,27 +74,38 @@ export function reconcileEffects<R>(fiber: ResourceFiber<R>): void {
     try {
       setupEffect(cell);
     } catch (e) {
-      errors.push(e);
+      (errors ??= []).push(e);
     }
   }
-
-  throwAggregated(errors, "Errors during commit");
+  return errors;
 }
 
-export function cleanupAllEffects<R>(executionContext: ResourceFiber<R>) {
-  const errors: unknown[] = [];
-  for (const cell of executionContext.effectCells) {
+export function reconcileEffects<R>(
+  fiber: ResourceFiber<R>,
+  includeInsertion = true,
+): void {
+  let errors: unknown[] | undefined;
+  if (fiber.insertionCells !== null && includeInsertion) {
+    errors = reconcileCells(fiber.insertionCells, errors);
+  }
+  errors = reconcileCells(fiber.effectCells, errors);
+  if (errors !== undefined) throwAggregated(errors, "Errors during commit");
+}
+
+export function cleanupCells(cells: EffectCell[]): void {
+  let errors: unknown[] | undefined;
+  for (const cell of cells) {
     cell.deps = null;
 
     if (cell.cleanup) {
       try {
         cell.cleanup?.();
       } catch (e) {
-        errors.push(e);
+        (errors ??= []).push(e);
       } finally {
         cell.cleanup = undefined;
       }
     }
   }
-  throwAggregated(errors, "Errors during cleanup");
+  if (errors !== undefined) throwAggregated(errors, "Errors during cleanup");
 }

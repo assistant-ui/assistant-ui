@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
+import { resource } from "@assistant-ui/tap";
+import { createAssistantClient } from "../createAssistantClient";
 import {
   createClientAccessor,
   createErrorClientAccessor,
   getClientId,
 } from "../utils/client-accessor";
 import type { ClientMethods, ClientNames } from "../types/client";
+
+const ResourceClient = resource(() => ({ getState: () => ({}) }));
 
 const meta = {
   name: "thread" as ClientNames,
@@ -33,6 +37,26 @@ describe("getClientId", () => {
 
     expect(getClientId(outer)).toBe(getClientId(methods));
     expect(getClientId(outer)).toBe(getClientId(inner));
+  });
+
+  it("resolves forwarding wrappers to their resource client", () => {
+    const handle = createAssistantClient({ thread: ResourceClient() } as never);
+    handle.subscribe(() => {});
+    const client = getClientId(
+      handle.getClient().thread,
+    ) as unknown as ClientMethods;
+    const delegating = new Proxy({} as ClientMethods, {
+      get: (_, prop) => (client as Record<PropertyKey, unknown>)[prop],
+    });
+    const transparent = new Proxy(client, {});
+    const receiverPreserving = new Proxy(client, {
+      get: (target, prop, receiver) => Reflect.get(target, prop, receiver),
+    });
+
+    expect(getClientId(delegating)).toBe(getClientId(client));
+    expect(getClientId(transparent)).toBe(getClientId(client));
+    expect(getClientId(receiverPreserving)).toBe(getClientId(client));
+    handle.destroy();
   });
 
   it("is distinct per bound instance", () => {

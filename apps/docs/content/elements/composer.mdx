@@ -113,7 +113,7 @@ export function ChatBox() {
         <ComposerToolbar>
           <ComposerAttachButton onClick={() => addAttachment()} />
           <ComposerActions>
-            <ComposerSend streaming={sending} idle={!sending && text.trim().length > 0} onClick={send} />
+            <ComposerSend streaming={sending} idle={text.trim().length === 0} onClick={send} />
           </ComposerActions>
         </ComposerToolbar>
       </ComposerBar>
@@ -127,7 +127,7 @@ export function ChatBox() {
 
 ### Read the toolbar's own behavior
 
-`ComposerAttachButton` disables itself automatically when it receives no `onClick`, so an unwired button never renders as clickable. `ComposerSend` never disables itself; it only changes appearance between an inert-looking fill (`!idle`), the ink send button (`idle`), and the ink stop button (`streaming`), so a caller that wants an actually-disabled send button passes `disabled` through `...props`.
+`ComposerAttachButton` disables itself when it receives no `onClick`, so an unwired button never renders as clickable. `ComposerSend` never disables itself; it only changes appearance between a dim fill (`idle`), the ink send button (`!idle`), and the ink stop button (`streaming`). To disable it, pass `disabled`, which is forwarded to the `button`.
 
   </Step>
 </Steps>
@@ -152,7 +152,7 @@ export function ChatBox() {
 </div>
 ```
 
-`ComposerBar` is the only piece with real visual state of its own: `dragActive` tints it and rounds its corners into a drop target. Every other piece here is a plain, unstyled-by-default building block; the composition (what sits in the toolbar, whether the model trigger or voice button appears) is up to the page that assembles them.
+`ComposerBar` takes `dragActive`, which tints it as a drop target, and `ComposerSend` switches its fill and icon from `streaming` and `idle`. The other pieces hold no state; the composition (what sits in the toolbar, whether the model trigger or voice button appears) is up to the page that assembles them.
 
 ## Examples
 
@@ -160,7 +160,7 @@ export function ChatBox() {
 
 <RuntimeMode>
 
-`AuiIf` mounts exactly one of the two, matching how `Thread`'s own composer switches them; a runtime with the queue capability enabled would still let a send reach the queue while running, so that composition unmounts `Send` a beat before the button's own `canSend` logic would otherwise have kept it live:
+`AuiIf` mounts exactly one of the two, matching how `Thread`'s own composer switches them. On a runtime with the queue capability, `Send` would stay enabled during a run so a message can be queued; this composition unmounts it for the length of the run instead:
 
 ```tsx
 <ComposerActions>
@@ -185,7 +185,7 @@ A single `ComposerSend` swaps its own icon; drive `streaming` from whatever you 
 
 ```tsx
 <ComposerActions>
-  <ComposerSend streaming={isSending} idle={!isSending} onClick={isSending ? cancel : send} />
+  <ComposerSend streaming={isSending} idle={text.length === 0} onClick={isSending ? cancel : send} />
 </ComposerActions>
 ```
 
@@ -193,7 +193,7 @@ A single `ComposerSend` swaps its own icon; drive `streaming` from whatever you 
 
 ### Restyle the bar
 
-Every piece here takes `className`, and the rounded corners, borders, and hover states all come from the shared `paper`, `ghostButton`, and `inkButton` tokens in `surfaces.tsx`. Restyling those tokens restyles every element in the catalog that uses them, not just the composer.
+Every piece here takes `className`, and the rounded corners, borders, and hover states all come from the shared `paper`, `ghostButton`, and `inkButton` tokens in `surfaces.tsx`. Restyling those tokens restyles every element in the catalog that uses them, not only the composer.
 
 ```tsx
 <ComposerBar className="max-w-2xl rounded-2xl p-4" />
@@ -207,7 +207,7 @@ Every piece here takes `className`, and the rounded corners, borders, and hover 
 
 | Part | Renders | Notes |
 |------|---------|-------|
-| `Root` | `form` | Sends on submit, which `Input` triggers on Enter; `compact` collapses it to a single row while the text holds at most one line and there are no attachments, quote, queued messages, or active dictation. |
+| `Root` | `form` | Sends on submit, which `Input` triggers on Enter; `compact` sets `data-compact` while the text holds at most one line and there are no attachments, quote, queued messages, or active dictation, so styles can collapse it to a single row. |
 | `Input` | auto-resizing `textarea` | Controlled by the runtime; disabled while the thread is disabled or dictation is active. `submitMode` (`"enter"` \| `"ctrlEnter"` \| `"none"`) controls Enter's behavior. |
 | `Send` | `button` | Disabled while `!s.composer.canSend`, and also while the thread is running unless it has the queue capability. |
 | `Cancel` | `button` | Disabled while `!s.composer.canCancel`. |
@@ -243,14 +243,14 @@ All other `div` props are forwarded.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `dragActive` | `boolean` | `false` | Tints the bar and dashes its border for a drop target. |
+| `dragActive` | `boolean` | `false` | Tints the bar as a drop target and sets `data-drag-active`. |
 | `className` | `string` | | Merged onto the root. |
 
 ### ComposerInput
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `onSubmit` | `() => void` | | Called on Enter (not Shift+Enter, and not mid-IME composition). |
+| `onSubmit` | `() => void` | | Called on Enter, with or without modifiers, except mid-IME composition or when your own `onKeyDown` calls `preventDefault()`. |
 | `className` | `string` | | Merged onto the `input`. |
 
 All other `input` props are forwarded.
@@ -270,6 +270,6 @@ Plain `div`s (`data-slot="composer-toolbar"` and `data-slot="composer-actions"`)
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `streaming` | `boolean` | required | Shows the stop icon and the ink fill. |
-| `idle` | `boolean` | required | Shows the ink fill when not streaming; a dim fill otherwise. |
+| `idle` | `boolean` | required | Whether there is nothing to send. Shows a dim fill while `true` and not streaming; the ink fill otherwise. |
 
 </StandaloneMode>

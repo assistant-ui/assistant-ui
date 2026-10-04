@@ -10,13 +10,15 @@ export default {
     pool: "threads",
     fsModuleCache: true,
     globals: true,
+    setupFiles: ["./test/setup.ts"],
     env: {
       NEXT_PUBLIC_CHECKOUT_URL: "https://checkout.test",
-      NEXT_PUBLIC_SHOP_ENABLED: "1",
     },
     // The generated repo source tree is a verbatim copy of the monorepo, and
     // vitest discovers dotted directories, so its tests would be collected here.
     exclude: [...defaultExclude, "generated/.repo-source/**"],
+    // Extensionless next imports in aui-auth's ESM build only resolve once vitest transforms it.
+    server: { deps: { inline: ["aui-auth"] } },
   },
   resolve: {
     alias: {

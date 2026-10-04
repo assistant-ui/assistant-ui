@@ -2,7 +2,7 @@
 
 import { getEventListeners } from "node:events";
 import { act, render, waitFor } from "@testing-library/react";
-import { Activity, type FC } from "react";
+import { Activity, type FC, version } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuiConfig, AuiProvider, useAui } from "@assistant-ui/store";
 import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
@@ -19,6 +19,13 @@ import type {
   CompleteAttachment,
   PendingAttachment,
 } from "../types/attachment";
+
+const onReact18 = version.startsWith("18.");
+
+// useAssistantClientDestroySignal fails outside a tap resource on React 18: TypeError: ReactRuntime.use is not a function. Shipped React 18 incompatibility.
+const useDestroySignalProbe = onReact18
+  ? () => undefined
+  : useAssistantClientDestroySignal;
 
 const { mockGenerateId, realGenerateId } = vi.hoisted(() => {
   const realGenerateId = { current: (): string => "" };
@@ -1519,7 +1526,7 @@ describe("attachment sends and the client lifetime", () => {
     } = {};
     const Capture: FC = () => {
       captured.aui = useAui();
-      captured.destroySignal = useAssistantClientDestroySignal();
+      captured.destroySignal = useDestroySignalProbe();
       return null;
     };
     const Chat: FC = () => (
@@ -1531,11 +1538,14 @@ describe("attachment sends and the client lifetime", () => {
         <Capture />
       </AuiProvider>
     );
-    const App: FC<{ hidden: boolean }> = ({ hidden }) => (
-      <Activity mode={hidden ? "hidden" : "visible"}>
+    const App: FC<{ hidden: boolean }> = ({ hidden }) =>
+      onReact18 ? (
         <Chat />
-      </Activity>
-    );
+      ) : (
+        <Activity mode={hidden ? "hidden" : "visible"}>
+          <Chat />
+        </Activity>
+      );
     const view = render(<App hidden={false} />);
     return {
       aui: () => captured.aui!,
@@ -1630,26 +1640,30 @@ describe("attachment sends and the client lifetime", () => {
     },
   );
 
-  it("finishes a send while the client is hidden", async () => {
-    const { adapter, upload, signals } = slowAdapter();
-    const onNew = vi.fn();
-    const thread = renderOwnedThread({ onNew, attachmentAdapter: adapter });
-    const composer = () => thread.aui().thread.composer();
-    await act(async () => {
-      await composer().addAttachment(new File(["a"], "a"));
-      composer().setText("hello");
-      composer().send();
-    });
+  // Activity is React 19 only.
+  it.skipIf(onReact18)(
+    "finishes a send while the client is hidden",
+    async () => {
+      const { adapter, upload, signals } = slowAdapter();
+      const onNew = vi.fn();
+      const thread = renderOwnedThread({ onNew, attachmentAdapter: adapter });
+      const composer = () => thread.aui().thread.composer();
+      await act(async () => {
+        await composer().addAttachment(new File(["a"], "a"));
+        composer().setText("hello");
+        composer().send();
+      });
 
-    await thread.hide();
-    await act(async () => upload.resolve());
-    expect(onNew).toHaveBeenCalledOnce();
-    expect(signals[0]?.aborted).toBe(false);
+      await thread.hide();
+      await act(async () => upload.resolve());
+      expect(onNew).toHaveBeenCalledOnce();
+      expect(signals[0]?.aborted).toBe(false);
 
-    await thread.reveal();
-    expect(onNew).toHaveBeenCalledOnce();
-    expect(composer().getState().submission).toBeUndefined();
-  });
+      await thread.reveal();
+      expect(onNew).toHaveBeenCalledOnce();
+      expect(composer().getState().submission).toBeUndefined();
+    },
+  );
 
   it("never calls send for an upload that finishes after the client is destroyed", async () => {
     const finishUpload = deferred();
@@ -1698,23 +1712,27 @@ describe("attachment sends and the client lifetime", () => {
     expect(onNew).not.toHaveBeenCalled();
   });
 
-  it("leaves a finished send's signal alone when the client is destroyed later", async () => {
-    const { adapter, upload, signals } = slowAdapter();
-    const onNew = vi.fn();
-    const thread = renderOwnedThread({ onNew, attachmentAdapter: adapter });
-    const composer = () => thread.aui().thread.composer();
-    const listeners = thread.destroyListeners();
-    await act(async () => {
-      await composer().addAttachment(new File(["a"], "a"));
-      composer().send();
-    });
-    await act(async () => upload.resolve());
-    expect(onNew).toHaveBeenCalledOnce();
-    expect(thread.destroyListeners()).toBe(listeners);
+  // Fails on React 18: TypeError: ReactRuntime.use is not a function. Shipped React 18 incompatibility.
+  it.skipIf(onReact18)(
+    "leaves a finished send's signal alone when the client is destroyed later",
+    async () => {
+      const { adapter, upload, signals } = slowAdapter();
+      const onNew = vi.fn();
+      const thread = renderOwnedThread({ onNew, attachmentAdapter: adapter });
+      const composer = () => thread.aui().thread.composer();
+      const listeners = thread.destroyListeners();
+      await act(async () => {
+        await composer().addAttachment(new File(["a"], "a"));
+        composer().send();
+      });
+      await act(async () => upload.resolve());
+      expect(onNew).toHaveBeenCalledOnce();
+      expect(thread.destroyListeners()).toBe(listeners);
 
-    await thread.destroy();
-    expect(signals[0]?.aborted).toBe(false);
-  });
+      await thread.destroy();
+      expect(signals[0]?.aborted).toBe(false);
+    },
+  );
 
   it("never calls the adapter for a send made after the client is destroyed", async () => {
     const { adapter, send } = slowAdapter();
@@ -1733,7 +1751,10 @@ describe("attachment sends and the client lifetime", () => {
     expect(onNew).not.toHaveBeenCalled();
   });
 
-  it.each(["the adapter's send", "an upload in add()"] as const)(
+  // Fails on React 18: TypeError: ReactRuntime.use is not a function. Shipped React 18 incompatibility.
+  it
+    .skipIf(onReact18)
+    .each(["the adapter's send", "an upload in add()"] as const)(
     "releases the destroy signal when a send stalled on %s is cancelled",
     async (stall) => {
       const { adapter } = slowAdapter();
