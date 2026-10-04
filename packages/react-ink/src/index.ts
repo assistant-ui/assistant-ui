@@ -424,6 +424,11 @@ export type {
   ToolCallMessagePartMcpMetadata,
   ToolCallMessagePartStatus,
   ToolExecutionStatus,
+  DirectiveFormatter,
+  DirectiveSegment,
+  TriggerAdapter,
+  TriggerCategory,
+  TriggerItem,
   Unstable_DirectiveFormatter,
   Unstable_DirectiveSegment,
   Unstable_TriggerItem,
@@ -438,5 +443,6 @@ export {
   MessageNotSentError,
   pickExternalStoreSharedOptions,
   toolApprovalAcceptsText,
+  defaultDirectiveFormatter,
   unstable_defaultDirectiveFormatter,
 } from "@assistant-ui/core";
