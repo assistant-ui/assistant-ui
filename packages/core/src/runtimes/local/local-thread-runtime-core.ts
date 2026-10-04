@@ -47,6 +47,7 @@ import {
   captureThreadRuntimeGeneration,
   invalidateThreadRuntime,
 } from "../../runtime/utils/thread-runtime-lifecycle";
+import { mapToolCallPartsDeep } from "../../runtime/utils/tool-call-tree";
 
 class AbortError extends Error {
   override name = "AbortError";
@@ -134,26 +135,12 @@ const withLocalPauseReasons = (
 
 const withoutToolInteractions = (message: ThreadMessage): ThreadMessage => {
   if (message.role !== "assistant") return message;
-  let hasInteractions = false;
-  const content = message.content.map((part): ThreadAssistantMessagePart => {
-    if (part.type !== "tool-call") return part;
-    const nestedMessages = part.messages?.map(withoutToolInteractions);
-    const hasNestedInteractions = nestedMessages?.some(
-      (nestedMessage, index) => nestedMessage !== part.messages?.[index],
-    );
-    if (
-      part.unstable_interactions === undefined &&
-      hasNestedInteractions !== true
-    ) {
-      return part;
-    }
-    hasInteractions = true;
+  const result = mapToolCallPartsDeep(message.content, (part) => {
+    if (part.unstable_interactions === undefined) return part;
     const { unstable_interactions: _, ...withoutInteractions } = part;
-    return hasNestedInteractions
-      ? { ...withoutInteractions, messages: nestedMessages! }
-      : withoutInteractions;
+    return withoutInteractions;
   });
-  return hasInteractions ? { ...message, content } : message;
+  return result.changed ? { ...message, content: result.content } : message;
 };
 
 export class LocalThreadRuntimeCore

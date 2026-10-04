@@ -27,14 +27,37 @@ export type ToolCallTreeEntry = {
 export function* walkToolCallTree(
   messages: readonly ThreadMessage[],
 ): Generator<ToolCallTreeEntry> {
-  for (const message of messages) {
-    if (message?.role !== "assistant" || !Array.isArray(message.content)) {
+  const stack: {
+    messages: readonly ThreadMessage[];
+    messageIndex: number;
+    partIndex: number;
+  }[] = [{ messages, messageIndex: 0, partIndex: 0 }];
+
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1]!;
+    if (frame.messageIndex >= frame.messages.length) {
+      stack.pop();
       continue;
     }
-    for (const part of message.content) {
-      if (!part || part.type !== "tool-call") continue;
-      yield { part, messageId: message.id };
-      if (part.messages?.length) yield* walkToolCallTree(part.messages);
+
+    const message = frame.messages[frame.messageIndex]!;
+    if (message?.role !== "assistant" || !Array.isArray(message.content)) {
+      frame.messageIndex++;
+      frame.partIndex = 0;
+      continue;
+    }
+
+    if (frame.partIndex >= message.content.length) {
+      frame.messageIndex++;
+      frame.partIndex = 0;
+      continue;
+    }
+
+    const part = message.content[frame.partIndex++];
+    if (!part || part.type !== "tool-call") continue;
+    yield { part, messageId: message.id };
+    if (part.messages?.length) {
+      stack.push({ messages: part.messages, messageIndex: 0, partIndex: 0 });
     }
   }
 }
@@ -67,31 +90,130 @@ export function mapToolCallPartsDeep(
   content: readonly ThreadAssistantMessagePart[],
   fn: (part: ToolCallMessagePart) => ToolCallMessagePart,
 ): { content: readonly ThreadAssistantMessagePart[]; changed: boolean } {
-  let changed = false;
-  const next = content.map((part): ThreadAssistantMessagePart => {
-    if (part.type !== "tool-call") return part;
-    let mapped = fn(part);
-    if (mapped.messages !== undefined) {
-      let nestedChanged = false;
-      const nestedMessages = mapped.messages.map((nested) => {
-        if (nested.role !== "assistant" || !Array.isArray(nested.content)) {
-          return nested;
+  type ContentFrame = {
+    kind: "content";
+    content: readonly ThreadAssistantMessagePart[];
+    length: number;
+    index: number;
+    next: ThreadAssistantMessagePart[];
+    changed: boolean;
+    pendingPart:
+      | { part: ToolCallMessagePart; mapped: ToolCallMessagePart }
+      | undefined;
+  };
+  type MessagesFrame = {
+    kind: "messages";
+    messages: readonly ThreadMessage[];
+    length: number;
+    index: number;
+    next: ThreadMessage[];
+    changed: boolean;
+    pendingMessage: ThreadAssistantMessage | undefined;
+  };
+  type Frame = ContentFrame | MessagesFrame;
+
+  const stack: Frame[] = [
+    {
+      kind: "content",
+      content,
+      length: content.length,
+      index: 0,
+      next: [],
+      changed: false,
+      pendingPart: undefined,
+    },
+  ];
+
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1]!;
+    if (frame.index < frame.length) {
+      const index = frame.index++;
+      if (frame.kind === "content") {
+        if (!(index in frame.content)) {
+          frame.next.length++;
+          continue;
         }
-        const assistant = nested as ThreadAssistantMessage;
-        const result = mapToolCallPartsDeep(assistant.content, fn);
-        if (!result.changed) return nested;
-        nestedChanged = true;
-        return { ...assistant, content: result.content };
-      });
-      if (nestedChanged) {
-        mapped =
-          mapped === part
-            ? { ...part, messages: nestedMessages }
-            : { ...mapped, messages: nestedMessages };
+        const part = frame.content[index]!;
+        if (part.type !== "tool-call") {
+          frame.next.push(part);
+          continue;
+        }
+
+        const mapped = fn(part);
+        if (mapped.messages === undefined) {
+          frame.next.push(mapped);
+          if (mapped !== part) frame.changed = true;
+          continue;
+        }
+
+        frame.pendingPart = { part, mapped };
+        stack.push({
+          kind: "messages",
+          messages: mapped.messages,
+          length: mapped.messages.length,
+          index: 0,
+          next: [],
+          changed: false,
+          pendingMessage: undefined,
+        });
+        continue;
       }
+
+      if (!(index in frame.messages)) {
+        frame.next.length++;
+        continue;
+      }
+      const nested = frame.messages[index]!;
+      if (nested.role !== "assistant" || !Array.isArray(nested.content)) {
+        frame.next.push(nested);
+        continue;
+      }
+
+      const assistant = nested as ThreadAssistantMessage;
+      frame.pendingMessage = assistant;
+      stack.push({
+        kind: "content",
+        content: assistant.content,
+        length: assistant.content.length,
+        index: 0,
+        next: [],
+        changed: false,
+        pendingPart: undefined,
+      });
+      continue;
     }
-    if (mapped !== part) changed = true;
-    return mapped;
-  });
-  return changed ? { content: next, changed } : { content, changed };
+
+    stack.pop();
+    if (stack.length === 0) {
+      return {
+        content:
+          frame.kind === "content" && frame.changed ? frame.next : content,
+        changed: frame.changed,
+      };
+    }
+
+    const parent = stack[stack.length - 1]!;
+    if (frame.kind === "content" && parent.kind === "messages") {
+      const assistant = parent.pendingMessage!;
+      parent.pendingMessage = undefined;
+      const nested = frame.changed
+        ? { ...assistant, content: frame.next }
+        : assistant;
+      parent.next.push(nested);
+      if (nested !== assistant) parent.changed = true;
+      continue;
+    }
+
+    if (frame.kind === "messages" && parent.kind === "content") {
+      const pending = parent.pendingPart!;
+      parent.pendingPart = undefined;
+      const mapped = frame.changed
+        ? { ...pending.mapped, messages: frame.next }
+        : pending.mapped;
+      parent.next.push(mapped);
+      if (mapped !== pending.part) parent.changed = true;
+    }
+  }
+
+  return { content, changed: false };
 }

@@ -66,6 +66,20 @@ const tree = () => {
   return { a, b, c, d };
 };
 
+const deepToolCall = (depth: number) => {
+  let part = toolCall(String(depth - 1));
+  for (let index = depth - 2; index >= 0; index--) {
+    part = toolCall(String(index), [
+      {
+        id: `m${index + 1}`,
+        role: "assistant",
+        content: [part],
+      } as unknown as ThreadMessage,
+    ]);
+  }
+  return part;
+};
+
 describe("walkToolCallTree", () => {
   it("yields every part in document order, each ahead of its descendants", () => {
     const { a } = tree();
@@ -113,6 +127,22 @@ describe("walkToolCallTree", () => {
         (entry) => entry.part.toolCallId,
       ),
     ).toEqual(["a"]);
+  });
+
+  it("walks deeply nested calls in document order", () => {
+    const depth = 10_000;
+    const entries = [
+      ...walkToolCallTree([assistant("root", [deepToolCall(depth)])]),
+    ];
+
+    expect(entries).toHaveLength(depth);
+    expect(entries.map((entry) => entry.part.toolCallId)).toEqual(
+      Array.from({ length: depth }, (_, index) => String(index)),
+    );
+    expect(entries[0]?.part.toolCallId).toBe("0");
+    expect(entries[1]?.messageId).toBe("m1");
+    expect(entries.at(-1)?.part.toolCallId).toBe(String(depth - 1));
+    expect(entries.at(-1)?.messageId).toBe(`m${depth - 1}`);
   });
 });
 
@@ -187,5 +217,51 @@ describe("mapToolCallPartsDeep", () => {
     expect(mapped).not.toBe(a);
     expect(mapped.messages?.[1]).toBe(sibling);
     expect(mapped.messages?.[0]).not.toBe(nested);
+  });
+
+  it("rewrites a deeply nested part without changing untouched siblings", () => {
+    const depth = 10_000;
+    const sibling = toolCall("sibling");
+    const content = [deepToolCall(depth), sibling];
+    const unchanged = mapToolCallPartsDeep(content, (part) => part);
+
+    expect(unchanged.changed).toBe(false);
+    expect(unchanged.content).toBe(content);
+
+    let visited = 0;
+    const result = mapToolCallPartsDeep(content, (part) => {
+      visited++;
+      return part.toolCallId === String(depth - 1)
+        ? { ...part, isError: true }
+        : part;
+    });
+
+    expect(result.changed).toBe(true);
+    expect(visited).toBe(depth + 1);
+    expect(result.content[1]).toBe(sibling);
+    let leaf = result.content[0] as ToolCallMessagePart;
+    for (let index = 0; index < depth - 1; index++) {
+      leaf = leaf.messages?.[0]?.content[0] as ToolCallMessagePart;
+    }
+    expect(leaf.toolCallId).toBe(String(depth - 1));
+    expect(leaf.isError).toBe(true);
+  });
+
+  it("maps nested messages returned by the callback", () => {
+    const original = toolCall("outer", [assistant("old", [toolCall("old")])]);
+    const replacement = toolCall("replacement");
+    const calls: string[] = [];
+
+    const result = mapToolCallPartsDeep([original], (part) => {
+      calls.push(part.toolCallId);
+      return part.toolCallId === "outer"
+        ? { ...part, messages: [assistant("new", [replacement])] }
+        : part;
+    });
+
+    expect(calls).toEqual(["outer", "replacement"]);
+    expect(
+      (result.content[0] as ToolCallMessagePart).messages?.[0]?.content[0],
+    ).toBe(replacement);
   });
 });
