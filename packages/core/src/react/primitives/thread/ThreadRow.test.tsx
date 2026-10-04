@@ -58,7 +58,7 @@ const renderRow: ThreadPrimitiveRow.Props["children"] = (info) => {
     case "turn-end":
       return (
         <footer data-testid="turn-end">
-          {`${info.turn?.startedAt}-${info.turn?.completedAt ?? "running"}`}
+          {`${info.row.startedAt}-${info.row.completedAt ?? "open"}`}
         </footer>
       );
     case "part": {
@@ -155,7 +155,7 @@ describe("ThreadPrimitive.Row", () => {
       />,
     );
 
-    expect(screen.getByTestId("turn-end").textContent).toBe("1000-running");
+    expect(screen.getByTestId("turn-end").textContent).toBe("1000-open");
   });
 
   it("renders nothing for a row whose message left the thread", () => {

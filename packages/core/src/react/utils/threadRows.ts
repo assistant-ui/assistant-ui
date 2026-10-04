@@ -19,8 +19,9 @@ import {
  * - `"part"`: one top-level node of an assistant message's part grouping: a
  *   single part, or a group of adjacent parts that `groupBy` coalesced.
  * - `"turn-end"`: closes a turn (a user message, or the thread start, and the
- *   messages up to the next user message) once the turn has a reply; it renders
- *   in the scope of the turn's last message.
+ *   messages up to the next user message) once the turn has an assistant
+ *   reply; it renders in the scope of the turn's last message and carries the
+ *   turn's wall-clock span.
  */
 export type ThreadRow =
   | {
@@ -47,6 +48,15 @@ export type ThreadRow =
       /** The turn's last message, whose scope the row renders in. */
       readonly messageId: string;
       readonly turnMessageId: string;
+      /** The turn's first message `createdAt`, in epoch milliseconds. */
+      readonly startedAt: number;
+      /**
+       * The latest end the turn records, in epoch milliseconds: an assistant
+       * message's stream timing or a reasoning or tool call part's
+       * `timing.completedAt`. Absent while the turn runs or waits on the user,
+       * and when nothing in the turn records an end.
+       */
+      readonly completedAt?: number;
     };
 
 export type ThreadRowsOptions = {
@@ -72,6 +82,40 @@ export const getThreadRowNode = (row: ThreadRow): GroupNode | undefined =>
 const EMPTY_ROWS: readonly ThreadRow[] = Object.freeze([]);
 const NO_TOOL_UIS = {};
 
+const recordedEnds = new WeakMap<MessageState, number | null>();
+
+const getRecordedEnd = (message: MessageState): number | null => {
+  const cached = recordedEnds.get(message);
+  if (cached !== undefined) return cached;
+  let end: number | null = null;
+  if (message.role === "assistant") {
+    const timing = message.metadata.timing;
+    if (timing?.totalStreamTime !== undefined)
+      end = timing.streamStartTime + timing.totalStreamTime;
+    for (const part of message.parts) {
+      const completedAt =
+        part.type === "reasoning" || part.type === "tool-call"
+          ? part.timing?.completedAt
+          : undefined;
+      if (completedAt !== undefined)
+        end = end === null ? completedAt : Math.max(end, completedAt);
+    }
+  }
+  recordedEnds.set(message, end);
+  return end;
+};
+
+const isSameNode = (a: GroupNode | undefined, b: GroupNode): boolean => {
+  if (!a || a.nodeKey !== b.nodeKey || a.idKey !== b.idKey) return false;
+  if (a.type === "part") return b.type === "part" && a.index === b.index;
+  return (
+    b.type === "group" &&
+    a.key === b.key &&
+    a.children.length === b.children.length &&
+    a.children.every((child, i) => isSameNode(child, b.children[i]!))
+  );
+};
+
 const isSameRow = (a: ThreadRow, b: ThreadRow) => {
   if (
     a.type !== b.type ||
@@ -80,6 +124,8 @@ const isSameRow = (a: ThreadRow, b: ThreadRow) => {
     a.turnMessageId !== b.turnMessageId
   )
     return false;
+  if (a.type === "turn-end" && b.type === "turn-end")
+    return a.startedAt === b.startedAt && a.completedAt === b.completedAt;
   if (a.type !== "part" || b.type !== "part") return true;
   return (
     a.group === b.group &&
@@ -90,11 +136,11 @@ const isSameRow = (a: ThreadRow, b: ThreadRow) => {
 
 /**
  * Creates a selector for `useAuiState` that flattens the current thread into
- * {@link ThreadRow}s. The selector returns the same array for the same thread
- * state, and keeps returning the previous array and row objects while a
- * streamed token leaves the row structure unchanged, so a list keyed by
- * `row.key` re-renders only when rows appear, disappear or regroup. Create one
- * selector per list, at module scope or with `useState`.
+ * rows (see {@link ThreadRow}). The selector returns the same array for the
+ * same thread state, and keeps returning the previous array and row objects
+ * while a streamed token leaves the rows unchanged, so a list keyed by
+ * `row.key` re-renders only when rows appear, disappear, regroup or a turn
+ * completes. Create one selector per list, at module scope or with `useState`.
  *
  * @example
  * ```tsx
@@ -123,7 +169,12 @@ export const createThreadRowsSelector = (options: ThreadRowsOptions = {}) => {
 
   const reuse = (row: ThreadRow, node?: GroupNode) => {
     const existing = previous.get(row.key);
-    const next = existing && isSameRow(existing, row) ? existing : row;
+    const next =
+      existing &&
+      isSameRow(existing, row) &&
+      (!node || isSameNode(rowNodes.get(existing), node))
+        ? existing
+        : row;
     if (node) rowNodes.set(next, node);
     return next;
   };
@@ -186,14 +237,21 @@ export const createThreadRowsSelector = (options: ThreadRowsOptions = {}) => {
 
     const rows: ThreadRow[] = [];
     let turnMessageId: string | undefined;
+    let turnStartedAt = 0;
+    let turnEnd: number | null = null;
     let turnHasReply = false;
     for (let index = 0; index < messages.length; index++) {
       const message = messages[index]!;
       if (message.role === "user" || turnMessageId === undefined) {
         turnMessageId = message.id;
+        turnStartedAt = message.createdAt.getTime();
+        turnEnd = null;
         turnHasReply = false;
       }
-      if (message.role !== "user") turnHasReply = true;
+      if (message.role === "assistant") turnHasReply = true;
+      const end = getRecordedEnd(message);
+      if (end !== null)
+        turnEnd = turnEnd === null ? end : Math.max(turnEnd, end);
 
       const messageCache = byMessage.get(message);
       const messageRows =
@@ -210,15 +268,20 @@ export const createThreadRowsSelector = (options: ThreadRowsOptions = {}) => {
       rows.push(...messageRows);
 
       const next = messages[index + 1];
-      if (turnHasReply && (next === undefined || next.role === "user"))
+      if (turnHasReply && (next === undefined || next.role === "user")) {
+        const status = message.status?.type;
+        const settled = status !== "running" && status !== "requires-action";
         rows.push(
           reuse({
             type: "turn-end",
             key: `turn-end:${turnMessageId}`,
             messageId: message.id,
             turnMessageId,
+            startedAt: turnStartedAt,
+            ...(settled && turnEnd !== null && { completedAt: turnEnd }),
           }),
         );
+      }
     }
 
     const result =

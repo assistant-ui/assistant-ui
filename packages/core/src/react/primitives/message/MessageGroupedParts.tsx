@@ -201,7 +201,12 @@ const PartChildrenSentinel: FC = () => {
 export const renderGroupNode = <TKey extends `group-${string}`>(
   node: GroupNode,
   parts: readonly PartState[],
-  render: (info: MessagePrimitiveGroupedParts.RenderInfo<TKey>) => ReactNode,
+  render: (info: {
+    readonly part:
+      | MessagePrimitiveGroupedParts.GroupPart<TKey>
+      | EnrichedPartState;
+    readonly children: ReactNode;
+  }) => ReactNode,
 ): ReactNode => {
   if (node.type === "part") {
     return (

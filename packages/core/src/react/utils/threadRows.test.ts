@@ -2,24 +2,42 @@ import { describe, expect, it } from "vitest";
 import type { AssistantState } from "@assistant-ui/store";
 import type { MessageState } from "../../store/scopes/message";
 import { groupPartByType } from "./groupParts";
-import { createThreadRowsSelector, type ThreadRow } from "./threadRows";
+import {
+  createThreadRowsSelector,
+  getThreadRowNode,
+  type ThreadRow,
+} from "./threadRows";
 
-type Part = { type: string; text?: string; toolCallId?: string; id?: string };
+type Part = {
+  type: string;
+  text?: string;
+  toolCallId?: string;
+  toolName?: string;
+  id?: string;
+  timing?: { startedAt: number; completedAt?: number };
+};
 
 const message = (
   id: string,
   role: "user" | "assistant" | "system",
   parts: readonly Part[] = [{ type: "text", text: id }],
-  extra: { isEditing?: boolean } = {},
+  extra: {
+    isEditing?: boolean;
+    createdAt?: number;
+    running?: boolean;
+    timing?: { streamStartTime: number; totalStreamTime: number };
+  } = {},
 ) =>
   ({
     id,
     role,
     parts: parts.map((part) => ({ status: { type: "complete" }, ...part })),
     content: parts,
-    status: { type: "complete", reason: "stop" },
-    createdAt: new Date(0),
-    metadata: { custom: {} },
+    status: extra.running
+      ? { type: "running" }
+      : { type: "complete", reason: "stop" },
+    createdAt: new Date(extra.createdAt ?? 0),
+    metadata: { custom: {}, ...(extra.timing && { timing: extra.timing }) },
     composer: { isEditing: extra.isEditing ?? false },
   }) as unknown as MessageState;
 
@@ -180,7 +198,78 @@ describe("createThreadRowsSelector", () => {
     expect(select(threadB)).toBe(b);
   });
 
-  it("groups by the tool UI registry when one is present", () => {
+  it("counts only assistant messages as a turn's reply", () => {
+    const select = createThreadRowsSelector();
+
+    expect(
+      summary(
+        select(
+          state([
+            message("s1", "system"),
+            message("u1", "user"),
+            message("s2", "system"),
+            message("u2", "user"),
+            message("a2", "assistant"),
+          ]),
+        ),
+      ),
+    ).toEqual([
+      "s1:message",
+      "u1:message",
+      "s2:message",
+      "u2:message",
+      "a2:part[0]",
+      "a2:turn-end",
+    ]);
+  });
+
+  it("spans a turn from its first message to the latest end its replies record", () => {
+    const select = createThreadRowsSelector();
+    const turnEnd = (messages: readonly MessageState[]) =>
+      select(state(messages)).find((row) => row.type === "turn-end");
+    const user = message("u1", "user", undefined, { createdAt: 1_000 });
+
+    expect(
+      turnEnd([
+        user,
+        message(
+          "a1",
+          "assistant",
+          [
+            {
+              type: "tool-call",
+              toolCallId: "t1",
+              timing: { startedAt: 2_000, completedAt: 9_000 },
+            },
+          ],
+          { createdAt: 2_000 },
+        ),
+        message("a2", "assistant", undefined, {
+          createdAt: 9_000,
+          timing: { streamStartTime: 9_000, totalStreamTime: 3_000 },
+        }),
+      ]),
+    ).toMatchObject({ startedAt: 1_000, completedAt: 12_000 });
+
+    const untimed = turnEnd([
+      user,
+      message("a1", "assistant", undefined, { createdAt: 5_000 }),
+    ]);
+    expect(untimed).toMatchObject({ startedAt: 1_000 });
+    expect(untimed).not.toHaveProperty("completedAt");
+
+    expect(
+      turnEnd([
+        user,
+        message("a1", "assistant", undefined, {
+          running: true,
+          timing: { streamStartTime: 2_000, totalStreamTime: 1_000 },
+        }),
+      ]),
+    ).not.toHaveProperty("completedAt");
+  });
+
+  it("splits tool calls the registry renders standalone out of their group", () => {
     const select = createThreadRowsSelector({
       groupBy: groupPartByType({
         "tool-call": ["group-tool"],
@@ -188,13 +277,45 @@ describe("createThreadRowsSelector", () => {
       }),
     });
     const tools = message("a1", "assistant", [
-      { type: "tool-call", toolCallId: "t1" },
-      { type: "tool-call", toolCallId: "t2" },
+      { type: "tool-call", toolCallId: "t1", toolName: "search" },
+      { type: "tool-call", toolCallId: "t2", toolName: "deploy" },
+      { type: "tool-call", toolCallId: "t3", toolName: "search" },
     ]);
 
     expect(summary(select(state([tools])))).toEqual([
-      "a1:group-tool[0,1]",
+      "a1:group-tool[0,1,2]",
       "a1:turn-end",
     ]);
+    expect(
+      summary(select(state([tools], { deploy: [{ standalone: true }] }))),
+    ).toEqual([
+      "a1:group-tool[0]",
+      "a1:part[1]",
+      "a1:group-tool[2]",
+      "a1:turn-end",
+    ]);
+  });
+
+  it("replaces a row whose nested grouping changes while its parts stay put", () => {
+    const select = createThreadRowsSelector({
+      groupBy: groupPartByType({
+        "tool-call": ["group-chain", "group-tool"],
+        "standalone-tool-call": ["group-chain"],
+      }),
+    });
+    const tools = message("a1", "assistant", [
+      { type: "tool-call", toolCallId: "t1", toolName: "search" },
+      { type: "tool-call", toolCallId: "t2", toolName: "deploy" },
+    ]);
+
+    const [before] = select(state([tools]));
+    const [after] = select(state([tools], { deploy: [{ standalone: true }] }));
+
+    expect(summary([before!])).toEqual(summary([after!]));
+    expect(after).not.toBe(before);
+    expect(getThreadRowNode(after!)).toMatchObject({
+      type: "group",
+      children: [{ type: "group", key: "group-tool" }, { type: "part" }],
+    });
   });
 });
