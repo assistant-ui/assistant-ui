@@ -69,13 +69,7 @@ const tree = () => {
 const deepTree = (depth: number) => {
   let part = toolCall(String(depth - 1));
   for (let index = depth - 2; index >= 0; index--) {
-    part = toolCall(String(index), [
-      {
-        id: `m${index + 1}`,
-        role: "assistant",
-        content: [part],
-      } as ThreadMessage,
-    ]);
+    part = toolCall(String(index), [assistant(`m${index + 1}`, [part])]);
   }
   return part;
 };

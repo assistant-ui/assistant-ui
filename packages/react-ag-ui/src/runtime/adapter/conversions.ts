@@ -6,9 +6,6 @@ import type {
   ThreadMessageLike as CoreThreadMessageLike,
   PartProviderMetadata,
   ReasoningMessagePart,
-  ThreadMessage,
-  ToolCallMessagePartMcpMetadata,
-  ToolModelContentPart,
 } from "@assistant-ui/core";
 import {
   getAutoStatus,
@@ -100,28 +97,16 @@ export type AgUiMessage =
       error?: string;
     };
 
-type ToolCallPart = {
-  type: "tool-call";
-  toolCallId?: string;
-  toolName: string;
-  argsText?: string;
-  args?: ReadonlyJSONObject;
-  result?: unknown;
-  artifact?: unknown;
-  isError?: boolean;
-  modelContent?: readonly ToolModelContentPart[];
-  unstable_toolMessageId?: string;
-  mcp?: ToolCallMessagePartMcpMetadata;
-  messages?: readonly ThreadMessage[];
-  approval?: CoreToolCallPartApproval;
-};
-
-type CoreToolCallPartApproval = NonNullable<
-  Extract<
-    Exclude<CoreThreadMessageLike["content"], string>[number],
-    { type: "tool-call" }
-  >["approval"]
+type CoreToolCallPart = Extract<
+  Exclude<CoreThreadMessageLike["content"], string>[number],
+  { type: "tool-call" }
 >;
+
+type ToolCallPart = Omit<CoreToolCallPart, "result" | "isError"> & {
+  result?: unknown;
+  isError?: boolean | undefined;
+  unstable_toolMessageId?: string;
+};
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;

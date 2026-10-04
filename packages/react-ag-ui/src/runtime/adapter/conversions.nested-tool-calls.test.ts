@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
+import type { ThreadMessageLike } from "@assistant-ui/core";
 import { toAgUiMessages } from "./conversions";
 
-type Message = Parameters<typeof toAgUiMessages>[0][number];
-type ToolCall = Exclude<Message["content"], string>[number] & {
-  type: "tool-call";
-};
+type Message = ThreadMessageLike;
+type ToolCall = Extract<
+  Exclude<Message["content"], string>[number],
+  { type: "tool-call" }
+>;
 
 const toolCall = (
   toolCallId: string,

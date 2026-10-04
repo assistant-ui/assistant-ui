@@ -27,7 +27,9 @@ export type WalkToolCallTreeOptions = {
  * tree hangs from. Only assistant messages are descended, the same rule
  * {@link mapToolCallPartsDeep} rewrites under, so a part this reports is always
  * a part that can be written back. Returning false from `shouldDescend` prunes
- * a part's nested messages. Cyclic branches are yielded once and not revisited.
+ * a part's nested messages. A cyclic branch terminates rather than recursing
+ * forever; a part on the cycle may be yielded more than once before the repeat
+ * is detected.
  */
 export function* walkToolCallTree(
   messages: readonly ThreadMessage[],
@@ -124,7 +126,9 @@ export function* iterateToolCallParts(
  * Rebuild `content` with `fn` applied to every tool-call part in the tree.
  * Arrays and nested messages are reused wherever `fn` returned the part it was
  * given, so an unchanged subtree keeps its identity and `changed` reports
- * whether anything moved.
+ * whether anything moved. A cyclic branch terminates rather than recursing
+ * forever; a part on the cycle may be mapped more than once before the repeat
+ * is detected.
  */
 export function mapToolCallPartsDeep(
   content: readonly ThreadAssistantMessagePart[],
