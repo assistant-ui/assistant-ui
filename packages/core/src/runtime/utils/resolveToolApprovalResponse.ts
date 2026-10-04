@@ -55,6 +55,13 @@ const validateAnswers = (
       : undefined;
     const optionIds = answer?.optionIds ?? [];
     const text = answer?.text;
+    if (
+      !Array.isArray(optionIds) ||
+      (text !== undefined && typeof text !== "string")
+    )
+      throw new Error(
+        `Question "${question.id}" takes optionIds as an array and text as a string`,
+      );
     if (optionIds.length === 0 && (text === undefined || text.trim() === ""))
       throw new Error(
         `Tool approval "${approval.id}" is missing an answer to question "${question.id}"`,

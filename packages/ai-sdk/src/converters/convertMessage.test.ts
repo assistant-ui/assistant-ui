@@ -703,7 +703,11 @@ describe("AISDKMessageConverter", () => {
           descriptor: {
             display: "questions",
             questions: [{ id: "note", prompt: "Anything else?" }],
-            answers: { note: { text: "no", optionIds: [1, "x"] }, bad: "x" },
+            answers: {
+              note: { text: "no", optionIds: [1, "x"] },
+              bad: "x",
+              empty: { optionIds: [1] },
+            },
           },
         },
       },

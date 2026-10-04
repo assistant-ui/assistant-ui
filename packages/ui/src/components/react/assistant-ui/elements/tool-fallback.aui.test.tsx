@@ -945,6 +945,35 @@ describe("ToolFallbackApproval", () => {
       expect(Object.hasOwn(answers, "constructor")).toBe(true);
       expect(Object.hasOwn(answers, "__proto__")).toBe(true);
       expect(answers["constructor"]).toEqual({ optionIds: ["a"] });
+      expect(
+        Object.getOwnPropertyDescriptor(answers, "__proto__")?.value,
+      ).toEqual({ text: "ok" });
+    });
+
+    it("renders a pending questionnaire and its settled answers through the tool fallback", () => {
+      const view = renderTool({
+        approval: { ...pendingApproval, display: "questions", questions },
+        respondToApproval: vi.fn(async () => {}),
+      });
+      expect(button("Send")).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
+
+      view.unmount();
+      renderTool({
+        approval: {
+          ...pendingApproval,
+          display: "questions",
+          questions,
+          approved: true,
+          answers: {
+            scope: { optionIds: ["tests"] },
+            style: { optionIds: ["verbose"] },
+            note: { text: "ok" },
+          },
+        },
+      });
+      expect(answeredReceipt()?.textContent).toContain("Scope · tests");
+      expect(screen.queryByRole("button", { name: "Send" })).toBeNull();
     });
 
     it("offers a dismissal only when the request is dismissible", async () => {

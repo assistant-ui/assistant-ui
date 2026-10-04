@@ -249,7 +249,7 @@ export type ToolApprovalAnswer = {
  * Whether the request asks for a free-form answer, on its own or alongside its
  * options. Renderers read this to decide whether to offer a text affordance,
  * and the runtime reads it to reject a `text` response the host cannot record.
- * A `display: "questions"` request takes typed answers per question instead.
+ * A `display: "questions"` request takes its answers per question instead.
  */
 export const toolApprovalAcceptsText = (approval: {
   readonly display?: ToolApprovalDisplay;

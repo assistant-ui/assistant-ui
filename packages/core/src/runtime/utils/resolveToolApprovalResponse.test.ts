@@ -298,6 +298,15 @@ describe("resolveToolApprovalResponse", () => {
         error: "takes one option, not 2",
       },
       {
+        name: "option ids that are not an array",
+        answers: {
+          scope: { optionIds: "src" },
+          style: { optionIds: ["terse"] },
+          note: { text: "x" },
+        },
+        error: "takes optionIds as an array",
+      },
+      {
         name: "a typed answer the question does not accept",
         answers: {
           scope: { optionIds: ["src"], text: "everything" },
@@ -308,7 +317,9 @@ describe("resolveToolApprovalResponse", () => {
       },
     ])("rejects $name", ({ answers, error }) => {
       expect(() =>
-        resolveToolApprovalResponse(questionnaire, { answers }),
+        resolveToolApprovalResponse(questionnaire, {
+          answers: answers as never,
+        }),
       ).toThrow(error);
     });
 

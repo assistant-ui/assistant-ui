@@ -682,7 +682,7 @@ const runtime = useChatRuntime({
 });
 ```
 
-The handler runs for every approval request in the thread, including tools that use the AI SDK's `needsApproval`. Hand the requests your backend does not own to `respondViaAISDK`, which sends them through `addToolApprovalResponse` exactly as when the option is omitted, so only `approved` and `reason` travel. The handler receives the full response (`approvalId`, `approved`, and optional `optionId`, `text` and `reason`) together with the `toolCallId` and `toolName` it answers.
+The handler runs for every approval request in the thread, including tools that use the AI SDK's `needsApproval`. Hand the requests your backend does not own to `respondViaAISDK`, which sends them through `addToolApprovalResponse` exactly as when the option is omitted, so only `approved` and `reason` travel. The handler receives the full response (`approvalId`, `approved`, and optional `optionId`, `text`, `answers` and `reason`, where `answers` holds a `display: "questions"` request's answers keyed by question id) together with the `toolCallId` and `toolName` it answers.
 
 The answer applies as soon as the handler starts and stays out of the `useChat` messages, so `sendAutomaticallyWhen` cannot send it to your chat route. `AISDKThreads` passes its `Chat` as `unstable_hostApprovalOwner`, so an in-memory answer survives switching away and back. A direct `useAISDKRuntime` caller can pass the `Chat` it renders:
 

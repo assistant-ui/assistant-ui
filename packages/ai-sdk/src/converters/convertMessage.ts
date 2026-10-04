@@ -288,7 +288,9 @@ const normalizeToolApprovalAnswers = (
         }),
         ...(typeof text === "string" && { text }),
       };
-      return [[id, answer]];
+      return answer.optionIds?.length || answer.text !== undefined
+        ? [[id, answer]]
+        : [];
     }),
   );
 };

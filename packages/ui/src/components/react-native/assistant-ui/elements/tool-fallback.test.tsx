@@ -632,6 +632,7 @@ describe("ToolFallbackApproval", () => {
       await press("src");
       await press("tests");
       expect(button("src")?.getAttribute("aria-pressed")).toBe("true");
+      expect(isDisabled("Send")).toBe(true);
       await type("Anything else?", "keep it short");
       expect(isDisabled("Send")).toBe(false);
 
@@ -643,6 +644,28 @@ describe("ToolFallbackApproval", () => {
           note: { text: "keep it short" },
         },
       });
+    });
+
+    it("renders a pending questionnaire and its settled answers through the tool fallback", async () => {
+      await renderTool({
+        status: { type: "requires-action", reason: "interrupt" },
+        approval: { ...pendingApproval, display: "questions", questions },
+      } as never);
+      expect(buttonNames()).toContain("Send");
+      expect(buttonNames()).not.toContain("Allow");
+
+      await renderTool({
+        status: { type: "complete" },
+        approval: {
+          ...pendingApproval,
+          display: "questions",
+          questions,
+          approved: true,
+          answers: { scope: { optionIds: ["tests"] }, note: { text: "ok" } },
+        },
+      } as never);
+      expect(container.textContent).toContain("Scope · tests");
+      expect(buttonNames()).not.toContain("Send");
     });
 
     it("offers a dismissal only when the request is dismissible", async () => {
