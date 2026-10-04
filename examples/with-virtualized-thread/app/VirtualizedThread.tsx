@@ -125,18 +125,16 @@ export const VirtualizedThread: FC = () => {
     getScrollElement: () => scrollerRef.current,
     initialRect: { height: 800, width: 800 },
     overscan: 4,
-    scrollToFn: (offset, _options, instance) => {
+    scrollToFn: (offset, { adjustments = 0, behavior }, instance) => {
       const el = instance.scrollElement;
       if (!el) return;
+      const top = offset + adjustments;
       if (stickyRef.current) {
         const maxScroll = el.scrollHeight - el.clientHeight;
-        if (
-          maxScroll - el.scrollTop <= AT_BOTTOM_THRESHOLD &&
-          offset < maxScroll
-        )
+        if (maxScroll - el.scrollTop <= AT_BOTTOM_THRESHOLD && top < maxScroll)
           return;
       }
-      el.scrollTo(0, offset);
+      el.scrollTo({ top, ...(behavior && { behavior }) });
     },
   });
 
