@@ -1880,6 +1880,12 @@ type FileMessagePartComponent = ComponentType<FileMessagePartProps>;
 
 type FileMessagePartProps = MessagePartState & FileMessagePart;
 
+type FlatListHistory = {
+  hasMore: boolean;
+  isLoadingMore: boolean;
+  loadMore: () => void;
+};
+
 type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
   type: "frontend";
   description?: string | undefined;
@@ -3849,11 +3855,7 @@ type ThreadMessagesFlatListProps = Omit<FlatListProps<ThreadMessage>, "children"
   scrollToBottomOnRunStart?: boolean | undefined;
   scrollToBottomOnInitialize?: boolean | undefined;
   scrollToBottomOnThreadSwitch?: boolean | undefined;
-  history?: {
-    hasMore: boolean;
-    isLoadingMore: boolean;
-    loadMore: () => void;
-  } | undefined;
+  history?: FlatListHistory | undefined;
 };
 
 type ThreadMessagesProps = ThreadMessagesFlatListProps;
@@ -3967,6 +3969,26 @@ type ThreadRow = {
   readonly turnMessageId: string;
   readonly startedAt: number;
   readonly completedAt?: number;
+};
+
+declare const ThreadRowsFlatList: import("react").ForwardRefExoticComponent<Omit<FlatListProps<ThreadRow>, "children" | "data" | "keyExtractor" | "renderItem"> & {
+  groupBy?: ThreadRowsOptions["groupBy"];
+  children: ThreadPrimitiveRow.Props["children"];
+  autoScroll?: boolean | undefined;
+  scrollToBottomOnRunStart?: boolean | undefined;
+  scrollToBottomOnInitialize?: boolean | undefined;
+  scrollToBottomOnThreadSwitch?: boolean | undefined;
+  history?: FlatListHistory | undefined;
+} & import("react").RefAttributes<FlatList<ThreadRow>>>;
+
+type ThreadRowsFlatListProps = Omit<FlatListProps<ThreadRow>, "children" | "data" | "keyExtractor" | "renderItem"> & {
+  groupBy?: ThreadRowsOptions["groupBy"];
+  children: ThreadPrimitiveRow.Props["children"];
+  autoScroll?: boolean | undefined;
+  scrollToBottomOnRunStart?: boolean | undefined;
+  scrollToBottomOnInitialize?: boolean | undefined;
+  scrollToBottomOnThreadSwitch?: boolean | undefined;
+  history?: FlatListHistory | undefined;
 };
 
 type ThreadRowsOptions = {
@@ -5044,7 +5066,7 @@ declare namespace threadList_d_exports {
 }
 
 declare namespace thread_d_exports {
-  export { ThreadEmpty as Empty, ThreadEmptyProps as EmptyProps, ThreadIf as If, ThreadIfProps as IfProps, ThreadPrimitiveMessageByIndex as MessageByIndex, ThreadMessages as Messages, ThreadMessagesFlatList as MessagesFlatList, ThreadMessagesFlatListProps as MessagesFlatListProps, ThreadMessagesProps as MessagesProps, ThreadRoot as Root, ThreadRootProps as RootProps, ThreadPrimitiveRow as Row, ThreadSuggestion as Suggestion, ThreadPrimitiveSuggestionByIndex as SuggestionByIndex, ThreadSuggestionProps as SuggestionProps, ThreadPrimitiveSuggestions as Suggestions, ThreadPrimitiveUnstable_MessageById as Unstable_MessageById };
+  export { ThreadEmpty as Empty, ThreadEmptyProps as EmptyProps, ThreadIf as If, ThreadIfProps as IfProps, ThreadPrimitiveMessageByIndex as MessageByIndex, ThreadMessages as Messages, ThreadMessagesFlatList as MessagesFlatList, ThreadMessagesFlatListProps as MessagesFlatListProps, ThreadMessagesProps as MessagesProps, ThreadRoot as Root, ThreadRootProps as RootProps, ThreadPrimitiveRow as Row, ThreadRowsFlatList as RowsFlatList, ThreadRowsFlatListProps as RowsFlatListProps, ThreadSuggestion as Suggestion, ThreadPrimitiveSuggestionByIndex as SuggestionByIndex, ThreadSuggestionProps as SuggestionProps, ThreadPrimitiveSuggestions as Suggestions, ThreadPrimitiveUnstable_MessageById as Unstable_MessageById };
 }
 
 declare function tool<const TSchema extends StandardSchemaParameters, TResult = any>(tool: Tool<StandardSchemaInput<TSchema>, TResult> & {
