@@ -997,7 +997,6 @@ describe("ExternalThread attachments", () => {
     act(() => {
       composer().setText("discarded");
       composer().send();
-      composer().send();
     });
     await act(() => composer().reset());
     expect(remove).toHaveBeenCalledWith(
