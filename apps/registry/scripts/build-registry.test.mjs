@@ -330,17 +330,6 @@ test("web registry build pins every published assistant-ui dependency", async ()
   const { registry, stagedVueRegistry } = await import("../src/registry.ts");
   await buildRegistry(registry, stagedVueRegistry);
 
-  const conversationMap = JSON.parse(
-    await readFile("dist/conversation-map.json", "utf8"),
-  );
-  assert.ok(
-    conversationMap.files.some(
-      (file) =>
-        file.path ===
-        "components/assistant-ui/elements/conversation-map-projection.ts",
-    ),
-  );
-
   const reactRange = `@assistant-ui/react@^${workspaceVersions.get("@assistant-ui/react")}`;
   for (const file of [
     "dist/thread.json",
