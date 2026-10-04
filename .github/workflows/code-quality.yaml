@@ -30,6 +30,8 @@ on:
       - "scripts/app-build-inputs.test.mjs"
       - "scripts/package-build-inputs.mjs"
       - "scripts/package-build-inputs.test.mjs"
+      - "scripts/prepare-ci-base.mjs"
+      - "scripts/prepare-ci-base.test.mjs"
       - ".github/workflows/deploy-examples.yaml"
       - ".github/workflows/expo-native-bundle.yaml"
       - "scripts/lib/script-options.mjs"
@@ -68,6 +70,8 @@ on:
       - "scripts/app-build-inputs.test.mjs"
       - "scripts/package-build-inputs.mjs"
       - "scripts/package-build-inputs.test.mjs"
+      - "scripts/prepare-ci-base.mjs"
+      - "scripts/prepare-ci-base.test.mjs"
       - ".github/workflows/deploy-examples.yaml"
       - ".github/workflows/expo-native-bundle.yaml"
       - "scripts/lib/script-options.mjs"
@@ -168,8 +172,15 @@ jobs:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
-          fetch-depth: 0
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
           persist-credentials: false
+
+      - name: Prepare CI comparison base
+        if: github.event_name == 'pull_request'
+        run: node scripts/prepare-ci-base.mjs
+
+      - name: Test CI comparison base preparation
+        run: node --test scripts/prepare-ci-base.test.mjs
 
       - name: Detect package build inputs
         id: package_build_inputs
@@ -322,7 +333,11 @@ jobs:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
-          fetch-depth: 0
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
+
+      - name: Prepare CI comparison base
+        if: github.event_name == 'pull_request'
+        run: node scripts/prepare-ci-base.mjs
 
       - name: Detect app build inputs
         id: app_build_inputs
@@ -389,7 +404,11 @@ jobs:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
-          fetch-depth: 0
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
+
+      - name: Prepare CI comparison base
+        if: github.event_name == 'pull_request'
+        run: node scripts/prepare-ci-base.mjs
 
       - name: Detect API reference inputs
         id: api_ref
@@ -458,7 +477,11 @@ jobs:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
-          fetch-depth: 0
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
+
+      - name: Prepare CI comparison base
+        if: github.event_name == 'pull_request'
+        run: node scripts/prepare-ci-base.mjs
 
       - name: Setup pnpm and node.js
         uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
@@ -525,7 +548,11 @@ jobs:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
-          fetch-depth: 0
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
+
+      - name: Prepare CI comparison base
+        if: github.event_name == 'pull_request'
+        run: node scripts/prepare-ci-base.mjs
 
       - name: Setup pnpm and node.js
         uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
