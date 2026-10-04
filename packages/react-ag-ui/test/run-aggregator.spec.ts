@@ -692,6 +692,24 @@ describe("RunAggregator", () => {
     });
 
     handle({
+      type: "REASONING_MESSAGE_START",
+      messageId: "settled",
+      timestamp: 1_700_000_002_500,
+    });
+    expect(getLastResult(results).content[0]).toHaveProperty("timing", {
+      startedAt: 1_700_000_000_000,
+    });
+    handle({
+      type: "REASONING_MESSAGE_END",
+      messageId: "settled",
+      timestamp: 1_700_000_002_800,
+    });
+    expect(getLastResult(results).content[0]).toHaveProperty("timing", {
+      startedAt: 1_700_000_000_000,
+      completedAt: 1_700_000_002_800,
+    });
+
+    handle({
       type: "THINKING_TEXT_MESSAGE_START",
       timestamp: 1_700_000_003_000,
     });

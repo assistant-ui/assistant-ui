@@ -1489,9 +1489,10 @@ export class RunAggregator {
       );
     }
     const entry = this.reasoningParts.get(key);
-    if (
+    if (entry?.timing) {
+      entry.timing = { startedAt: entry.timing.startedAt };
+    } else if (
       entry &&
-      !entry.timing &&
       typeof timestamp === "number" &&
       Number.isFinite(timestamp)
     ) {
