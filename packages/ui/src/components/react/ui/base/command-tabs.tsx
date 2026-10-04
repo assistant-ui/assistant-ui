@@ -48,16 +48,17 @@ export function CommandTabs({
   const copyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
-  const isMounted = useRef(true);
+  const copyScope = useRef(0);
 
   const commandsRef = useRef(commands);
   commandsRef.current = commands;
 
   useEffect(() => {
-    isMounted.current = true;
     return () => {
-      isMounted.current = false;
+      copyScope.current += 1;
       clearTimeout(copyTimer.current);
+      copyTimer.current = undefined;
+      setCopied(false);
     };
   }, []);
 
@@ -136,16 +137,20 @@ export function CommandTabs({
           type="button"
           aria-label="Copy command"
           onClick={async () => {
+            const scope = copyScope.current;
             try {
               await navigator.clipboard.writeText(command);
             } catch {
               return;
             }
-            if (!isMounted.current) return;
+            if (scope !== copyScope.current) return;
 
             setCopied(true);
             clearTimeout(copyTimer.current);
-            copyTimer.current = setTimeout(() => setCopied(false), 1500);
+            copyTimer.current = setTimeout(() => {
+              copyTimer.current = undefined;
+              setCopied(false);
+            }, 1500);
           }}
           className="text-muted-foreground hover:text-foreground grid size-6 shrink-0 place-items-center rounded-sm transition-colors"
         >
