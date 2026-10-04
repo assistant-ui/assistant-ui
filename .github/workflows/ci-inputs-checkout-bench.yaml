@@ -100,7 +100,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        revision: [d95cfa2067, 81fbef68ce]
+        revision:
+          - d95cfa2067f3dc8d392f51674caa582170996950
+          - 81fbef68cebf900905191e04a9fbba23683c72aa
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Run checkout regression tests
