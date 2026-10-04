@@ -74,8 +74,8 @@ beforeAll(() => {
     unobserve() {}
     disconnect() {}
   } as unknown as typeof ResizeObserver;
-  globalThis.URL.createObjectURL ??= () => "blob:attachment";
-  globalThis.URL.revokeObjectURL ??= () => {};
+  globalThis.URL.createObjectURL = () => "blob:attachment";
+  globalThis.URL.revokeObjectURL = () => {};
 });
 
 afterEach(() => {

@@ -147,10 +147,7 @@ export function StartSetupDialog({
               </label>
             ))}
           </fieldset>
-          <DialogFooter className="border-foreground/10 bg-foreground/[0.025] flex-row items-center justify-between border-t px-6 py-4 sm:justify-between sm:px-8">
-            <span className="text-muted-foreground text-xs">
-              Your project. Your choice.
-            </span>
+          <DialogFooter className="border-foreground/10 bg-foreground/[0.025] flex-row items-center justify-end border-t px-6 py-4 sm:px-8">
             <Button type="submit" disabled={mode === null}>
               Continue
               <ArrowRightIcon aria-hidden data-icon="inline-end" />

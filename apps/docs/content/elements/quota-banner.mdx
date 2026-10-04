@@ -72,7 +72,7 @@ const resetsIn = formatDistanceToNowStrict(resetAt);
 
 ### Restyle the banner
 
-The fill bar's filled portion and the button both read the shared surface tokens from `surfaces.tsx`, the button is `inkButton`, and the root is `paper`. `className` on the root merges with these.
+The button and the root read shared surface tokens from `surfaces.tsx`: the button is `inkButton` and the root is `paper`. `className` on the root merges with these.
 
 ```tsx
 <QuotaBanner className="max-w-none" /* ... */ />

@@ -187,7 +187,7 @@ The element owns no index math: `onStep` reports a raw `-1` or `1`, not a comput
 
 <RuntimeMode>
 
-Matching against `s.thread.messages` means the search follows the thread: switch threads (or let a run stream in more text) and the same `ThreadSearchBar` re-scans automatically, since `useAuiState` re-renders on every store update. Restrict the scan to text parts only, as in Getting started, so reasoning and tool-call parts are not skipped by returning matches to text that never renders as anything the user typed or read.
+Matching against `s.thread.messages` means the search follows the thread: switch threads (or let a run stream in more text) and the same `ThreadSearchBar` re-scans, since `useAuiState` re-renders whenever the selected messages change. Scan text parts only, as in Getting started, so the search does not return matches from reasoning or tool-call parts.
 
 </RuntimeMode>
 

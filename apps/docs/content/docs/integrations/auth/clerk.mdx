@@ -79,7 +79,7 @@ export async function GET() {
 }
 ```
 
-For organization-scoped threads (Clerk Orgs), pull `orgId` from `auth()` and add it to the where clause. The combination is a stable workspace key:
+For organization-scoped threads (Clerk Orgs), add an `orgId` column to the `threads` table, pull `orgId` from `auth()`, and add it to the where clause. The combination is a stable workspace key:
 
 ```ts
 import { and, eq } from "drizzle-orm";
@@ -142,7 +142,7 @@ Sign in. Check:
 
 - **Cookies are automatic.** Clerk's session cookie travels with same-origin fetches; no `credentials: "include"` is needed for browser requests to your own API routes.
 - **Server contexts.** `auth()` from `@clerk/nextjs/server` runs in any Next.js server context: server components, route handlers, and server actions. See Clerk's [`auth()` reference](https://clerk.com/docs/references/nextjs/auth) for the supported surfaces.
-- **Cloud users.** If you use AssistantCloud, prefer the [Clerk JWT template integration](/docs/cloud/authorization) over the pattern on this page. Cloud handles workspace assignment and you don't need to build the thread persistence yourself.
+- **Cloud users.** If you use AssistantCloud, prefer the [Clerk JWT template integration](/docs/cloud/auth-providers) over the pattern on this page. Cloud handles workspace assignment and you don't need to build the thread persistence yourself.
 - **B2B with organizations.** Clerk Orgs map cleanly to multi-tenant chat: scope by `orgId` in addition to `userId`, surface Clerk's `<OrganizationSwitcher>` (from `@clerk/nextjs`), and re-fetch threads on org change.
 
 ## Related

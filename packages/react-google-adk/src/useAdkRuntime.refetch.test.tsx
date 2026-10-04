@@ -11,6 +11,7 @@ import type {
 import { useAui } from "@assistant-ui/store";
 import { useAdkRuntime } from "./useAdkRuntime";
 import type { AdkMessage, AdkThreadSnapshot } from "./types";
+import { settleOutsideAct } from "./tests/settleOutsideAct";
 
 const deferred = <T,>() => {
   let resolve!: (value: T) => void;
@@ -97,9 +98,9 @@ const renderAdk = async (
   });
   await waitFor(() => expect(capture.runtime).not.toBeNull());
 
-  await act(async () => {
-    await capture.runtime!.threads.switchToThread("adk-1");
-  });
+  await settleOutsideAct(() =>
+    capture.runtime!.threads.switchToThread("adk-1"),
+  );
 
   return { capture, streamMock, unmount };
 };
@@ -250,9 +251,9 @@ describe("useAdkRuntime refetch", () => {
     await act(async () => {
       render(<Inner />);
     });
-    await act(async () => {
-      await capture.runtime!.threads.switchToThread("adk-1");
-    });
+    await settleOutsideAct(() =>
+      capture.runtime!.threads.switchToThread("adk-1"),
+    );
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
     let settled = false;
@@ -329,6 +330,7 @@ describe("useAdkRuntime refetch", () => {
     expect(signals[1]?.aborted).toBe(false);
 
     unmount();
+    await act(async () => {});
 
     expect(signals[1]?.aborted).toBe(true);
     pending.resolve({ messages: [] });

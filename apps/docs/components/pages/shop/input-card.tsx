@@ -4,8 +4,13 @@ import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { ChoiceInputCard } from "@/components/pages/shop/choice-input-card";
-import { ProductInputCard } from "@/components/pages/shop/product-input-card";
+import {
+  CloudProjectInputCard,
+  asksForCloudProject,
+} from "@/components/pages/shop/cloud-project-input-card";
 import { ModelInputCard } from "@/components/pages/shop/model-input-card";
+import { CloudLoginInputCard } from "./cloud-login-input-card";
+import { isCloudLoginInput } from "@/lib/checkout/cloud-login";
 import {
   InputLinks,
   NoteField,
@@ -137,14 +142,18 @@ export function InputCard({
   input: Checkout.Input;
   checkout: CheckoutContextValue;
 }) {
+  if (isCloudLoginInput(input))
+    return <CloudLoginInputCard input={input} checkout={checkout} />;
   switch (input.kind) {
     case "choice":
       return <ChoiceInputCard input={input} checkout={checkout} />;
     case "model":
       return <ModelInputCard input={input} checkout={checkout} />;
-    case "product":
-      return <ProductInputCard input={input} checkout={checkout} />;
     default:
-      return <TextInputCard input={input} checkout={checkout} />;
+      return asksForCloudProject(input) && !asksForSecret(input) ? (
+        <CloudProjectInputCard input={input} checkout={checkout} />
+      ) : (
+        <TextInputCard input={input} checkout={checkout} />
+      );
   }
 }

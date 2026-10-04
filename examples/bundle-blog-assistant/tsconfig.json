@@ -1,0 +1,9 @@
+{
+  "extends": "../bundle-shared/tsconfig.json",
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "../bundle-shared/**/*.tsx",
+    "../bundle-shared/**/*.ts"
+  ]
+}
