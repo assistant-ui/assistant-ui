@@ -275,20 +275,22 @@ const normalizeToolApprovalAnswers = (
   if (!answers || typeof answers !== "object" || Array.isArray(answers))
     return undefined;
 
-  const normalized: Record<string, ToolApprovalAnswer> = {};
-  for (const [id, value] of Object.entries(answers)) {
-    if (!value || typeof value !== "object" || Array.isArray(value)) continue;
-    const { optionIds, text } = value as Record<string, unknown>;
-    normalized[id] = {
-      ...(Array.isArray(optionIds) && {
-        optionIds: optionIds.filter(
-          (optionId): optionId is string => typeof optionId === "string",
-        ),
-      }),
-      ...(typeof text === "string" && { text }),
-    };
-  }
-  return normalized;
+  return Object.fromEntries(
+    Object.entries(answers).flatMap(([id, value]) => {
+      if (!value || typeof value !== "object" || Array.isArray(value))
+        return [];
+      const { optionIds, text } = value as Record<string, unknown>;
+      const answer: ToolApprovalAnswer = {
+        ...(Array.isArray(optionIds) && {
+          optionIds: optionIds.filter(
+            (optionId): optionId is string => typeof optionId === "string",
+          ),
+        }),
+        ...(typeof text === "string" && { text }),
+      };
+      return [[id, answer]];
+    }),
+  );
 };
 
 const APPROVAL_DESCRIPTOR_FIELDS = [

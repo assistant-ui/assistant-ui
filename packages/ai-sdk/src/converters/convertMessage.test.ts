@@ -736,6 +736,39 @@ describe("AISDKMessageConverter", () => {
     expect(responded.answers).toEqual({
       note: { text: "no", optionIds: ["x"] },
     });
+    expect(
+      convertWith(JSON.parse('{"__proto__":{"text":"kept"}}')).answers
+        .__proto__,
+    ).toEqual({ text: "kept" });
+
+    function convertWith(answers: unknown) {
+      const metadata: AISDKMessageConverterMetadata = {
+        supportsRichToolApprovalResponses: true,
+      };
+      return AISDKMessageConverter.toThreadMessages(
+        [
+          {
+            id: "a2",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-ask",
+                toolCallId: "tc-3",
+                state: "approval-responded",
+                input: {},
+                approval: {
+                  id: "approval-3",
+                  approved: true,
+                  descriptor: { display: "questions", answers },
+                },
+              },
+            ],
+          } as any,
+        ],
+        false,
+        metadata,
+      )[0]?.content.map((part) => (part as { approval?: any }).approval)[0];
+    }
 
     const [builtIn] = convert(false)!;
     expect(builtIn).not.toHaveProperty("display");

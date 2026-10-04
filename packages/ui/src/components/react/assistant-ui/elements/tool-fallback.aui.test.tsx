@@ -913,6 +913,40 @@ describe("ToolFallbackApproval", () => {
       );
     });
 
+    it("answers questions whose ids name object prototype keys", async () => {
+      const respondToApproval = vi.fn(async (_response: unknown) => {});
+      render(
+        <ToolFallbackApproval
+          approval={{
+            ...pendingApproval,
+            display: "questions",
+            questions: [
+              {
+                id: "constructor",
+                prompt: "Pick one",
+                options: [{ id: "a", label: "A" }],
+              },
+              { id: "__proto__", prompt: "Say more" },
+            ],
+          }}
+          respondToApproval={respondToApproval}
+        />,
+      );
+
+      fireEvent.click(button("A"));
+      fireEvent.change(screen.getByRole("textbox", { name: "Say more" }), {
+        target: { value: "ok" },
+      });
+      fireEvent.click(button("Send"));
+      await waitFor(() => expect(respondToApproval).toHaveBeenCalled());
+      const { answers } = respondToApproval.mock.calls[0]![0] as {
+        answers: Record<string, unknown>;
+      };
+      expect(Object.hasOwn(answers, "constructor")).toBe(true);
+      expect(Object.hasOwn(answers, "__proto__")).toBe(true);
+      expect(answers["constructor"]).toEqual({ optionIds: ["a"] });
+    });
+
     it("offers a dismissal only when the request is dismissible", async () => {
       const respondToApproval = vi.fn(async () => {});
       render(

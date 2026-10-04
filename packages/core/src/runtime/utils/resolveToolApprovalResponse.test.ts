@@ -280,6 +280,15 @@ describe("resolveToolApprovalResponse", () => {
         error: 'no option with id "terse"',
       },
       {
+        name: "an option repeated on a multiple-choice question",
+        answers: {
+          scope: { optionIds: ["src", "src"] },
+          style: { optionIds: ["terse"] },
+          note: { text: "x" },
+        },
+        error: "lists an option more than once",
+      },
+      {
         name: "two options on a single-choice question",
         answers: {
           scope: { optionIds: ["src"] },
@@ -323,6 +332,35 @@ describe("resolveToolApprovalResponse", () => {
           { answers: { a: { text: "x" } } },
         ),
       ).toThrow('declares question "a" more than once');
+    });
+
+    it("resolves questions whose ids name object prototype keys", () => {
+      const answers = JSON.parse(
+        '{"constructor":{"text":"a"},"__proto__":{"text":"b"}}',
+      );
+      expect(
+        resolveToolApprovalResponse(
+          {
+            id: "q",
+            display: "questions",
+            questions: [
+              { id: "constructor", prompt: "A?" },
+              { id: "__proto__", prompt: "B?" },
+            ],
+          },
+          { answers },
+        ),
+      ).toEqual({ approvalId: "q", approved: true, answers });
+      expect(() =>
+        resolveToolApprovalResponse(
+          {
+            id: "q",
+            display: "questions",
+            questions: [{ id: "constructor", prompt: "A?" }],
+          },
+          { answers: {} },
+        ),
+      ).toThrow('missing an answer to question "constructor"');
     });
 
     it("rejects answers on a request that asks no questions", () => {

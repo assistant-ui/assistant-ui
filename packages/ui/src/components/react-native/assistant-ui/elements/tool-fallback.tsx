@@ -140,7 +140,9 @@ const ToolFallbackApprovalReceipt: FC<{
         approval.questions?.map((question) => {
           const labels = answerLabels(
             question,
-            approval.answers?.[question.id],
+            approval.answers && Object.hasOwn(approval.answers, question.id)
+              ? approval.answers[question.id]
+              : undefined,
           );
           if (labels.length === 0) return null;
           return (
@@ -218,25 +220,28 @@ const ToolFallbackApprovalQuestions: FC<{
   onDismiss: () => void;
 }> = ({ questions, dismissible, disabled, onSend, onDismiss }) => {
   const hydrated = useHydrated();
-  const [selected, setSelected] = useState<Record<string, readonly string[]>>(
-    {},
+  const [selected, setSelected] = useState<
+    ReadonlyMap<string, readonly string[]>
+  >(() => new Map());
+  const [typed, setTyped] = useState<ReadonlyMap<string, string>>(
+    () => new Map(),
   );
-  const [typed, setTyped] = useState<Record<string, string>>({});
 
   const toggle = (question: ToolApprovalQuestion, optionId: string) =>
     setSelected((current) => {
-      const chosen = current[question.id] ?? [];
+      const chosen = current.get(question.id) ?? [];
       const next = chosen.includes(optionId)
         ? chosen.filter((id) => id !== optionId)
         : question.multiple
           ? [...chosen, optionId]
           : [optionId];
-      return { ...current, [question.id]: next };
+      return new Map(current).set(question.id, next);
     });
 
   const answerOf = (question: ToolApprovalQuestion): ToolApprovalAnswer => {
-    const optionIds = selected[question.id] ?? [];
-    const text = typed[question.id]?.trim() ? typed[question.id] : undefined;
+    const optionIds = selected.get(question.id) ?? [];
+    const draft = typed.get(question.id);
+    const text = draft?.trim() ? draft : undefined;
     return {
       ...(optionIds.length > 0 && { optionIds }),
       ...(text !== undefined && { text }),
@@ -253,7 +258,7 @@ const ToolFallbackApprovalQuestions: FC<{
   return (
     <>
       {questions.map((question) => {
-        const chosen = selected[question.id] ?? [];
+        const chosen = selected.get(question.id) ?? [];
         return (
           <View
             key={question.id}
@@ -298,9 +303,11 @@ const ToolFallbackApprovalQuestions: FC<{
             ) : null}
             {questionAcceptsText(question) ? (
               <TextInput
-                value={typed[question.id] ?? ""}
+                value={typed.get(question.id) ?? ""}
                 onChangeText={(value) =>
-                  setTyped((current) => ({ ...current, [question.id]: value }))
+                  setTyped((current) =>
+                    new Map(current).set(question.id, value),
+                  )
                 }
                 editable={!disabled}
                 multiline

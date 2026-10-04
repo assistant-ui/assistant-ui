@@ -63,6 +63,10 @@ const validateAnswers = (
       throw new Error(
         `Question "${question.id}" takes one option, not ${optionIds.length}`,
       );
+    if (new Set(optionIds).size !== optionIds.length)
+      throw new Error(
+        `Question "${question.id}" lists an option more than once`,
+      );
     for (const optionId of optionIds) {
       if (!question.options?.some((option) => option.id === optionId))
         throw new Error(
