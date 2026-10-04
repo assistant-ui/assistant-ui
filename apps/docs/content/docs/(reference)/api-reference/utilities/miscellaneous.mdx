@@ -61,6 +61,16 @@ const createMessageQueue: (driver: MessageQueueDriver) => MessageQueueController
 const createSimpleTitleAdapter: () => TitleGenerationAdapter;
 ```
 
+### defaultDirectiveFormatter
+
+Default directive formatter using the `:type[label]{name=id}` syntax.
+
+When `id` equals `label`, the `{name=…}` attribute is omitted for brevity.
+
+```ts
+const defaultDirectiveFormatter: DirectiveFormatter;
+```
+
 ### DevToolsHooks
 
 <ParametersTable {...DevToolsHooks} />
@@ -115,16 +125,6 @@ threads title themselves.
 ### Suggestions
 
 <ParametersTable {...Suggestions} />
-
-### unstable_defaultDirectiveFormatter
-
-Default directive formatter using the `:type[label]{name=id}` syntax.
-
-When `id` equals `label`, the `{name=…}` attribute is omitted for brevity.
-
-```ts
-const unstable_defaultDirectiveFormatter: Unstable_DirectiveFormatter;
-```
 
 ### unstable_defaultWebMcpFilter
 
@@ -192,5 +192,15 @@ const fromThreadMessageLike: (like: ThreadMessageLike, fallbackId: string, fallb
 
 ```ts
 const generateId: (size?: number) => string;
+```
+
+### unstable_defaultDirectiveFormatter
+
+<Callout type="warn">
+<strong>Deprecated.</strong> Use `defaultDirectiveFormatter` instead.
+</Callout>
+
+```ts
+const unstable_defaultDirectiveFormatter: DirectiveFormatter;
 ```
 {/* api-reference:end */}

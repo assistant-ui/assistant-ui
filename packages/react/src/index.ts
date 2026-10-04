@@ -498,16 +498,32 @@ export {
   useTriggerPopoverTriggers as unstable_useTriggerPopoverTriggers,
   useTriggerPopoverTriggersOptional as unstable_useTriggerPopoverTriggersOptional,
   type RegisteredTrigger as Unstable_RegisteredTrigger,
-  type TriggerMatch as Unstable_TriggerMatch,
-  type TriggerMatcher as Unstable_TriggerMatcher,
+  type TriggerMatch,
+  type TriggerMatcher,
   type TriggerBehavior as Unstable_TriggerBehavior,
 } from "./primitives/composer/trigger";
+import type {
+  TriggerMatch,
+  TriggerMatcher,
+} from "./primitives/composer/trigger";
+/** @deprecated Use `TriggerMatch` instead. */
+export type Unstable_TriggerMatch = TriggerMatch;
+/** @deprecated Use `TriggerMatcher` instead. */
+export type Unstable_TriggerMatcher = TriggerMatcher;
 export type {
+  DirectiveFormatter,
+  DirectiveSegment,
+  TriggerAdapter,
+  TriggerCategory,
+  TriggerItem,
   Unstable_DirectiveFormatter,
   Unstable_DirectiveSegment,
   Unstable_TriggerItem,
 } from "@assistant-ui/core";
-export { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
+export {
+  defaultDirectiveFormatter,
+  unstable_defaultDirectiveFormatter,
+} from "@assistant-ui/core";
 
 // Unstable - composer input history (terminal-style ArrowUp/ArrowDown recall)
 export {
