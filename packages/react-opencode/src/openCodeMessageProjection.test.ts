@@ -124,7 +124,39 @@ describe("projectOpenCodeThreadMessages", () => {
                 status: "completed",
                 input: { path: "README.md" },
                 output: { ok: true },
+                time: { start: 1_700_000_000_000, end: 1_700_000_002_000 },
               },
+            } as never,
+            {
+              id: "tool-2",
+              callID: "call-2",
+              sessionID: "ses_1",
+              messageID: "assistant-1",
+              type: "tool",
+              tool: "read",
+              state: {
+                status: "running",
+                input: {},
+                time: { start: 1_700_000_003_000, end: 1_700_000_004_000 },
+              },
+            } as never,
+            {
+              id: "tool-3",
+              callID: "call-3",
+              sessionID: "ses_1",
+              messageID: "assistant-1",
+              type: "tool",
+              tool: "read",
+              state: { status: "pending", input: {} },
+            } as never,
+            {
+              id: "tool-4",
+              callID: "call-4",
+              sessionID: "ses_1",
+              messageID: "assistant-1",
+              type: "tool",
+              tool: "read",
+              state: { status: "running", input: {}, time: { start: "bad" } },
             } as never,
           ],
           shadowParts: undefined,
@@ -133,14 +165,19 @@ describe("projectOpenCodeThreadMessages", () => {
     };
 
     const messages = projectOpenCodeThreadMessages(state);
-    expect(messages[0]?.content).toMatchObject([
-      {
-        type: "tool-call",
-        toolCallId: "call-1",
-        toolName: "read",
-        result: { ok: true },
-      },
-    ]);
+    expect(messages[0]?.content).toHaveLength(4);
+    expect(messages[0]?.content[0]).toMatchObject({
+      type: "tool-call",
+      toolCallId: "call-1",
+      toolName: "read",
+      result: { ok: true },
+      timing: { startedAt: 1_700_000_000_000, completedAt: 1_700_000_002_000 },
+    });
+    expect(messages[0]?.content[1]).toHaveProperty("timing", {
+      startedAt: 1_700_000_003_000,
+    });
+    expect(messages[0]?.content[2]).not.toHaveProperty("timing");
+    expect(messages[0]?.content[3]).not.toHaveProperty("timing");
   });
 
   it("projects Task child sessions into nested tool-call messages", () => {
@@ -705,6 +742,30 @@ describe("projectOpenCodeThreadMessages", () => {
               messageID: "assistant-1",
               type: "reasoning",
               text: "Confirming\\n\\nI checked the file.",
+              time: { start: 1_700_000_000_000, end: 1_700_000_002_000 },
+            } as never,
+            {
+              id: "reasoning-2",
+              sessionID: "ses_1",
+              messageID: "assistant-1",
+              type: "reasoning",
+              text: "Still thinking",
+              time: { start: 1_700_000_003_000 },
+            } as never,
+            {
+              id: "reasoning-3",
+              sessionID: "ses_1",
+              messageID: "assistant-1",
+              type: "reasoning",
+              text: "No time",
+            } as never,
+            {
+              id: "reasoning-4",
+              sessionID: "ses_1",
+              messageID: "assistant-1",
+              type: "reasoning",
+              text: "Bad time",
+              time: { end: 1_700_000_005_000 },
             } as never,
           ],
           shadowParts: undefined,
@@ -713,12 +774,17 @@ describe("projectOpenCodeThreadMessages", () => {
     };
 
     const messages = projectOpenCodeThreadMessages(state);
-    expect(messages[0]?.content).toMatchObject([
-      {
-        type: "reasoning",
-        text: "Confirming\n\nI checked the file.",
-      },
-    ]);
+    expect(messages[0]?.content).toHaveLength(4);
+    expect(messages[0]?.content[0]).toMatchObject({
+      type: "reasoning",
+      text: "Confirming\n\nI checked the file.",
+      timing: { startedAt: 1_700_000_000_000, completedAt: 1_700_000_002_000 },
+    });
+    expect(messages[0]?.content[1]).toHaveProperty("timing", {
+      startedAt: 1_700_000_003_000,
+    });
+    expect(messages[0]?.content[2]).not.toHaveProperty("timing");
+    expect(messages[0]?.content[3]).not.toHaveProperty("timing");
   });
 
   it("projects unsupported OpenCode parts into visible data fallbacks", () => {
