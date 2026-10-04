@@ -94,6 +94,10 @@ export type ExternalThreadProps = {
   messages: readonly ExternalThreadMessage[];
   isRunning?: boolean;
   isLoading?: boolean | undefined;
+  /** Whether messages exist before the first one in `messages`; takes effect with `onLoadEarlier`. */
+  hasEarlier?: boolean | undefined;
+  /** Loads the page before the first message, which the host prepends to `messages`; one call runs at a time. */
+  onLoadEarlier?: (() => Promise<void>) | undefined;
   state?: ReadonlyJSONValue | undefined;
   extras?: unknown;
   /**
@@ -1368,6 +1372,8 @@ const useExternalThread = ({
   messages: messagesProp,
   isRunning = false,
   isLoading = false,
+  hasEarlier: hasEarlierProp = false,
+  onLoadEarlier,
   state: threadState,
   extras,
   isSendDisabled = false,
@@ -1393,6 +1399,30 @@ const useExternalThread = ({
     () => dedupeMessagesById(messagesProp),
     [messagesProp],
   );
+
+  const hasEarlier = hasEarlierProp && !!onLoadEarlier;
+  const loadingEarlierRef = useRef<Promise<void> | undefined>(undefined);
+  const [isLoadingEarlier, setIsLoadingEarlier] = useState(false);
+  const loadEarlier = useCallback((): Promise<void> => {
+    if (loadingEarlierRef.current) return loadingEarlierRef.current;
+    if (!hasEarlier || !onLoadEarlier) return Promise.resolve();
+    const loading = Promise.resolve()
+      .then(() => onLoadEarlier())
+      .catch((error: unknown) => {
+        console.error(
+          "[ExternalThread] onLoadEarlier callback rejected",
+          error,
+        );
+      })
+      .finally(() => {
+        if (loadingEarlierRef.current !== loading) return;
+        loadingEarlierRef.current = undefined;
+        setIsLoadingEarlier(false);
+      });
+    loadingEarlierRef.current = loading;
+    setIsLoadingEarlier(true);
+    return loading;
+  }, [hasEarlier, onLoadEarlier]);
 
   // Local entries are optimistic: they apply only while the message's
   // external submittedFeedback still equals the value seen at click time.
@@ -1623,6 +1653,8 @@ const useExternalThread = ({
       isEmpty: messageStates.length === 0 && !isLoading,
       isDisabled: false,
       isLoading,
+      hasEarlier,
+      isLoadingEarlier,
       isRunning,
       capabilities: {
         edit: hasEdit,
@@ -1653,6 +1685,8 @@ const useExternalThread = ({
   }, [
     isRunning,
     isLoading,
+    hasEarlier,
+    isLoadingEarlier,
     threadState,
     extras,
     hasQueue,
@@ -1728,6 +1762,7 @@ const useExternalThread = ({
       onResume();
     },
     cancelRun: handleCancelRun,
+    loadEarlier,
     ...(onRefetchThread && { unstable_refetchThread: onRefetchThread }),
     importExternalState: (state: unknown) => {
       if (!onLoadExternalState)
