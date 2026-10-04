@@ -12,6 +12,10 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
+import {
+  API_REFERENCE_INPUTS,
+  hasApiReferenceInputs,
+} from "./api-reference-inputs.mjs";
 
 const root = process.cwd();
 const sample = Number(process.env.SAMPLE);
@@ -221,6 +225,61 @@ if (process.argv[2] === "checkout") {
   } finally {
     writeFileSync(source, baseline);
   }
+} else if (process.argv[2] === "readme-plan") {
+  const generated = "apps/docs/content/docs/(reference)/api-reference";
+  writeFileSync(
+    join(out, "pages-before.json"),
+    JSON.stringify(
+      readdirSync(generated, { recursive: true, withFileTypes: true })
+        .filter((entry) => entry.isFile())
+        .map((entry) => {
+          const file = join(entry.parentPath, entry.name);
+          return [file, hash(readFileSync(file))];
+        })
+        .sort(([a], [b]) => a.localeCompare(b)),
+    ),
+  );
+  appendFileSync(
+    "packages/core/README.md",
+    "\nCI benchmark README-only edit.\n",
+  );
+  const files = git(root, "diff", "--name-only", "--no-renames", "-z")
+    .split("\0")
+    .filter(Boolean);
+  assert.deepEqual(files, ["packages/core/README.md"]);
+  const variant = process.env.VARIANT;
+  const selected =
+    variant === "candidate"
+      ? hasApiReferenceInputs(files)
+      : files.some((file) =>
+          API_REFERENCE_INPUTS.some(
+            (input) => file === input || file.startsWith(`${input}/`),
+          ),
+        );
+  assert.equal(selected, variant === "baseline");
+  appendFileSync(process.env.GITHUB_OUTPUT, `run=${selected}\n`);
+  writeFileSync(
+    join(out, "plan.json"),
+    JSON.stringify({ variant, files, selected }),
+  );
+  console.log({ variant, files, selected });
+} else if (process.argv[2] === "readme-verify") {
+  const before = JSON.parse(
+    readFileSync(join(out, "pages-before.json"), "utf8"),
+  );
+  for (const [file, digest] of before)
+    assert.equal(hash(readFileSync(file)), digest, file);
+  assert.equal(
+    git(
+      root,
+      "status",
+      "--porcelain",
+      "--",
+      "apps/docs/content/docs/(reference)/api-reference",
+    ),
+    "",
+  );
+  console.log(`All ${before.length} generated files unchanged.`);
 } else {
-  throw new Error("Expected checkout or docs");
+  throw new Error("Expected checkout, docs, readme-plan, or readme-verify");
 }

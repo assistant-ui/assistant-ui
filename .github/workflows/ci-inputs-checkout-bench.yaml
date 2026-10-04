@@ -6,6 +6,7 @@ permissions:
   contents: read
 jobs:
   checkout:
+    if: false
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -30,6 +31,7 @@ jobs:
           path: bench-results/
           retention-days: 7
   docs:
+    if: false
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -53,3 +55,74 @@ jobs:
           name: docs-${{ matrix.sample }}
           path: bench-results/
           retention-days: 7
+  readme:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        sample: [0, 1, 2]
+        variant: [baseline, candidate]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - name: Detect README-only inputs
+        id: api_ref
+        env:
+          VARIANT: ${{ matrix.variant }}
+        run: node scripts/bench-ci-inputs-checkout.mjs readme-plan
+      - name: Setup pnpm and node.js
+        if: steps.api_ref.outputs.run == 'true'
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b
+        with:
+          runtime: node@24
+          cache: true
+          install: false
+      - name: Install dependencies
+        if: steps.api_ref.outputs.run == 'true'
+        run: pnpm install --frozen-lockfile
+      - name: Generate API reference (strict)
+        if: steps.api_ref.outputs.run == 'true'
+        run: pnpm -C apps/docs generate:api-reference -- --strict
+      - name: Verify unchanged generated pages
+        run: node scripts/bench-ci-inputs-checkout.mjs readme-verify
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: readme-${{ matrix.sample }}-${{ matrix.variant }}
+          path: bench-results/
+          retention-days: 7
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Run checkout regression tests
+        run: node --test scripts/prepare-ci-base.test.mjs
+      - name: Run path selection tests
+        run: node --test scripts/package-build-inputs.test.mjs scripts/app-build-inputs.test.mjs scripts/api-reference-inputs.test.mjs
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: perf/ci-checkout-evaluation
+          fetch-depth: 2
+          persist-credentials: false
+          path: candidate
+      - name: Prepare actual shallow checkout
+        working-directory: candidate
+        env:
+          GITHUB_BASE_REF: main
+        run: node scripts/prepare-ci-base.mjs
+      - name: Capture shallow comparison
+        run: git -C candidate diff --name-status origin/main HEAD > "$RUNNER_TEMP/shallow-diff"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: perf/ci-checkout-evaluation
+          fetch-depth: 0
+          persist-credentials: false
+          path: baseline
+      - name: Verify actual checkouts agree
+        run: |
+          git -C baseline diff --name-status origin/main HEAD > "$RUNNER_TEMP/full-diff"
+          diff "$RUNNER_TEMP/full-diff" "$RUNNER_TEMP/shallow-diff"
+          test "$(git -C candidate merge-base HEAD origin/main)" = "$(git -C baseline merge-base HEAD origin/main)"
