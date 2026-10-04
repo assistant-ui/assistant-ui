@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 
-import { Activity, act } from "react";
+import { Activity, act, version } from "react";
 import type { UIMessage } from "ai";
 import type { SuggestionAdapter } from "@assistant-ui/core";
 import { afterAll, afterEach, expect, it, vi } from "vitest";
+
+const onReact18 = version.startsWith("18.");
 
 type Family = { current: unknown };
 type RendererInternals = {
@@ -143,32 +145,38 @@ it("aborts pending AI SDK suggestion generation on unmount", async () => {
   expect(signal.aborted).toBe(true);
 });
 
-it("aborts pending AI SDK suggestion generation when Activity hides", async () => {
-  const chat = createChat();
-  const { generate } = makeGeneration();
-  const Host = () => {
-    useAISDKRuntime(chat as never, { adapters: { suggestion: { generate } } });
-    return null;
-  };
-  const view = render(
-    <Activity mode="visible">
-      <Host />
-    </Activity>,
-  );
-  settleChat(chat);
-  view.rerender(
-    <Activity mode="visible">
-      <Host />
-    </Activity>,
-  );
-  await waitFor(() => expect(generate).toHaveBeenCalledTimes(1));
-  const signal = generate.mock.calls[0]![0].signal!;
+// Activity is React 19 only.
+it.skipIf(onReact18)(
+  "aborts pending AI SDK suggestion generation when Activity hides",
+  async () => {
+    const chat = createChat();
+    const { generate } = makeGeneration();
+    const Host = () => {
+      useAISDKRuntime(chat as never, {
+        adapters: { suggestion: { generate } },
+      });
+      return null;
+    };
+    const view = render(
+      <Activity mode="visible">
+        <Host />
+      </Activity>,
+    );
+    settleChat(chat);
+    view.rerender(
+      <Activity mode="visible">
+        <Host />
+      </Activity>,
+    );
+    await waitFor(() => expect(generate).toHaveBeenCalledTimes(1));
+    const signal = generate.mock.calls[0]![0].signal!;
 
-  view.rerender(
-    <Activity mode="hidden">
-      <Host />
-    </Activity>,
-  );
-  await act(async () => {});
-  expect(signal.aborted).toBe(true);
-});
+    view.rerender(
+      <Activity mode="hidden">
+        <Host />
+      </Activity>,
+    );
+    await act(async () => {});
+    expect(signal.aborted).toBe(true);
+  },
+);
