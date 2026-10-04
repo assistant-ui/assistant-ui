@@ -1,6 +1,6 @@
 ---
 title: Thread Virtualization
-description: Render very long threads with @tanstack/react-virtual, with ThreadPrimitive.Unstable_MessageById and ThreadPrimitive.MessageByIndex.
+description: Render very long threads with @tanstack/react-virtual, one row per user message, assistant part and turn end, with createThreadRowsSelector and ThreadPrimitive.Row.
 platforms: ["react"]
 ---
 
@@ -10,96 +10,78 @@ Virtualization mounts only the messages near the viewport and represents the res
 
 Probably not. The default kit already renders message bodies with `content-visibility: auto` and `contain-intrinsic-size`, which skips paint work for off-screen messages, and `ThreadPrimitive.Viewport` handles auto-scroll. That covers typical threads. Reach for virtualization when React mount and update cost itself becomes the bottleneck: threads with hundreds to thousands of messages, or very heavy per-message content, where typing latency degrades because every message stays mounted.
 
-## Rendering Messages By Id
+## Rows, not messages
 
-For virtualized rows, use message ids as the row identity. `unstable_useThreadMessageIds` returns the thread's ids with stable array identity across content-only updates, and `ThreadPrimitive.Unstable_MessageById` renders one message with the same `components` surface as `MessageByIndex`. Unknown ids render `null`, which is useful when a virtual row unmounts after a message was removed.
+Virtualizing per message leaves one very large cell whenever an assistant message is long: an agent turn is often a single message with a reasoning run and hundreds of tool calls. Virtualize rows instead. `createThreadRowsSelector` flattens the thread into rows, and `useAuiState` reads them:
 
-```tsx
-const MESSAGE_COMPONENTS = { UserMessage, AssistantMessage };
-
-const messageIds = unstable_useThreadMessageIds();
-
-return messageIds.map((messageId) => (
-  <ThreadPrimitive.Unstable_MessageById
-    key={messageId}
-    messageId={messageId}
-    components={MESSAGE_COMPONENTS}
-  />
-));
-```
-
-<Callout type="warn">
-  `unstable_useThreadMessageIds` and `ThreadPrimitive.Unstable_MessageById` are
-  experimental and may change in any release.
-</Callout>
-
-## Rendering Messages By Index
-
-`ThreadPrimitive.MessageByIndex` is still supported and is the smaller API when
-you already have a stable index from a fixed-order list. It renders a single
-message at that index and memoizes on the index plus the per-field `components`
-identity:
+- a `"message"` row per user or system message (and per assistant message being edited),
+- a `"part"` row per top-level node of each assistant message's part grouping, so every part is its own row unless `groupBy` coalesces adjacent ones (a reasoning run, for example),
+- a `"turn-end"` row after each turn's last message, where a turn footer, the action bar or a loading indicator goes.
 
 ```tsx
-const MESSAGE_COMPONENTS = { UserMessage, AssistantMessage };
+import {
+  createThreadRowsSelector,
+  groupPartByType,
+  useAuiState,
+} from "@assistant-ui/react";
 
-<ThreadPrimitive.MessageByIndex index={index} components={MESSAGE_COMPONENTS} />;
-```
+const selectRows = createThreadRowsSelector({
+  groupBy: groupPartByType({ reasoning: ["group-reasoning"] }),
+});
 
-For virtualizers, prefer the id-based API above when you can. Index rows are more
-fragile when messages are inserted, removed, reordered, or when a virtual row
-briefly outlives the item it was created for.
-
-## Grouping into turns
-
-The example virtualizes per user turn (a user message plus the responses that follow it), which gives the virtualizer stable, meaningfully sized items. Keep the id and role together in a stable row shape so the turn array only rebuilds when message membership or roles change:
-
-```tsx
-type MessageRow = {
-  id: string;
-  role: "user" | "assistant" | "system";
-};
-
-const useThreadMessageRows = (): readonly MessageRow[] => {
-  const prevRowsRef = useRef<readonly MessageRow[]>([]);
-
-  return useAuiState((s) => {
-    const messages = s.thread.messages;
-    const prev = prevRowsRef.current;
-    if (
-      prev.length === messages.length &&
-      prev.every((row, index) => {
-        const message = messages[index]!;
-        return row.id === message.id && row.role === message.role;
-      })
-    ) {
-      return prev;
-    }
-
-    const next = messages.map(({ id, role }) => ({ id, role }));
-    prevRowsRef.current = next;
-    return next;
+function VirtualThread() {
+  const rows = useAuiState(selectRows);
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getItemKey: (index) => rows[index]!.key,
+    estimateSize: () => 80,
+    getScrollElement: () => scrollerRef.current,
   });
-};
-
-const messageRows = useThreadMessageRows();
-const turns = useMemo(
-  () => buildTurns(messageRows),
-  [messageRows],
-);
+  // ...
+}
 ```
 
-Then each virtual turn renders the ids it owns:
+`row.key` is stable while tokens stream, when parts arrive and when earlier messages are prepended (as long as messages keep their ids), so use it as the virtualizer's item key. The selector returns the same array while a streamed token leaves the rows unchanged, so the list re-renders only when rows appear, disappear or regroup. Create one selector per list, at module scope or with `useState`; `groupBy` takes the same functions as `MessagePrimitive.GroupedParts`.
+
+## Rendering a row
+
+`ThreadPrimitive.Row` renders one row and mounts only the scopes it needs: the row's message, and for a part row only that row's parts. Its render function switches on `type`:
 
 ```tsx
-{turn.messageIds.map((messageId) => (
-  <ThreadPrimitive.Unstable_MessageById
-    key={messageId}
-    messageId={messageId}
-    components={MESSAGE_COMPONENTS}
-  />
+const renderRow: ComponentProps<typeof ThreadPrimitive.Row>["children"] = (
+  info,
+) => {
+  switch (info.type) {
+    case "message":
+      return <UserMessage />;
+    case "part":
+      switch (info.part.type) {
+        case "group-reasoning":
+          return <Reasoning>{info.children}</Reasoning>;
+        case "text":
+          return <MarkdownText />;
+        case "tool-call":
+          return info.part.toolUI ?? <ToolFallback {...info.part} />;
+        default:
+          return null;
+      }
+    case "turn-end":
+      return info.turn?.completedAt === undefined ? null : (
+        <p>Worked for {formatDuration(info.turn.completedAt - info.turn.startedAt)}</p>
+      );
+  }
+};
+
+{virtualizer.getVirtualItems().map((item) => (
+  <div key={item.key} data-index={item.index} ref={virtualizer.measureElement}>
+    <ThreadPrimitive.Row row={rows[item.index]!}>{renderRow}</ThreadPrimitive.Row>
+  </div>
 ))}
 ```
+
+A part row's `part` and `children` follow `MessagePrimitive.GroupedParts`: a group part wraps `children`, a leaf part renders itself, and returning `null` for a tool or data leaf renders its registered UI. A turn-end row renders in the scope of the turn's last message and receives `turn`: `startedAt` is the turn's first message `createdAt`, and `completedAt`, absent while the turn runs or waits on the user, is the latest end the turn records (the last assistant message's stream timing or a part's `timing.completedAt`), falling back to the last message's `createdAt`. A row whose message has left the thread renders nothing, so a row the virtualizer keeps for a frame after a deletion is safe.
+
+`ThreadPrimitive.MessageByIndex` and `ThreadPrimitive.Unstable_MessageById` still render one whole message, for a list that virtualizes per message.
 
 ## Padding spacers, not absolute positioning
 
