@@ -28,11 +28,13 @@ import { ThreadPrimitiveScrollToBottom } from "./ThreadScrollToBottom";
 import { ThreadPrimitiveViewport } from "./ThreadViewport";
 import {
   ExportedMessageRepository,
+  useExternalStoreRuntime,
   useLocalRuntime,
   type ChatModelAdapter,
   type ThreadHistoryAdapter,
   type ThreadMessageLike,
 } from "../../index";
+import { ThreadPrimitiveLoadEarlier } from "./ThreadLoadEarlier";
 
 const adapter: ChatModelAdapter = {
   async *run() {},
@@ -907,5 +909,75 @@ describe("useThreadViewportAutoScroll", () => {
     viewportMeasurementOffset += 200;
     act(notifyResizeObservers);
     expect(screen.getByTestId("is-at-bottom").textContent).toBe("false");
+  });
+
+  describe("earlier messages", () => {
+    const pagedMessages: ThreadMessageLike[] = messages.map(
+      (message, index) => ({
+        ...message,
+        id: `message-${index}`,
+      }),
+    );
+
+    const PagedThread = ({ follow = false }: { follow?: boolean }) => {
+      const [loaded, setLoaded] = useState(pagedMessages.slice(4));
+      const runtime = useExternalStoreRuntime<ThreadMessageLike>({
+        messages: loaded,
+        convertMessage: (message) => message,
+        onNew: async () => {},
+        hasEarlier: loaded.length < pagedMessages.length,
+        onLoadEarlier: async () => setLoaded(pagedMessages),
+      });
+
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {follow ? <BottomAnchorThread /> : <Thread />}
+          <ThreadPrimitiveLoadEarlier data-testid="load-earlier" />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    const renderAt = async (scrollTop: number, follow = false) => {
+      render(<PagedThread follow={follow} />);
+      await waitFor(() =>
+        expect(screen.getAllByTestId("thread-message")).toHaveLength(4),
+      );
+      act(() => {
+        getViewport().scrollTop = scrollTop;
+        fireEvent.scroll(getViewport());
+      });
+    };
+
+    const loadEarlier = async () => {
+      await act(async () => {
+        fireEvent.click(screen.getByTestId("load-earlier"));
+      });
+      await waitFor(() =>
+        expect(screen.getAllByTestId("thread-message")).toHaveLength(8),
+      );
+      act(notifyResizeObservers);
+    };
+
+    it("keeps the rows a reader scrolled to in place when an earlier page is prepended", async () => {
+      await renderAt(0);
+
+      await loadEarlier();
+
+      expect(getViewport().scrollTop).toBe(4 * 80);
+      expect(
+        (screen.getByTestId("load-earlier") as HTMLButtonElement).disabled,
+      ).toBe(true);
+    });
+
+    it.each([false, true])(
+      "keeps a reader at the bottom at the bottom (auto-follow %s)",
+      async (follow) => {
+        await renderAt(4 * 80 - 100, follow);
+
+        await loadEarlier();
+
+        expect(getViewport().scrollTop).toBe(8 * 80 - 100);
+      },
+    );
   });
 });

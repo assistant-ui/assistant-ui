@@ -2,7 +2,7 @@
 
 import { useComposedRefs } from "radix-ui/internal";
 import { useCallback, useLayoutEffect, useRef, type RefCallback } from "react";
-import { useAuiEvent, useAuiState } from "@assistant-ui/store";
+import { useAui, useAuiEvent, useAuiState } from "@assistant-ui/store";
 import {
   isUserScrollUp,
   isViewportAtBottom,
@@ -72,8 +72,10 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   scrollToBottomOnInitialize = true,
   scrollToBottomOnThreadSwitch = true,
 }: useThreadViewportAutoScroll.Options): RefCallback<TElement> => {
+  const aui = useAui();
   const divRef = useRef<TElement>(null);
   const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
+  const firstMessageId = useAuiState((s) => s.thread.messages[0]?.id);
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const initializeScrollRequestedRef = useRef(false);
   const scheduledFrameRef = useRef<number | null>(null);
@@ -251,6 +253,37 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       el.removeEventListener("keydown", cancelOnKeyDown);
     };
   });
+
+  // Earlier messages prepended above the reader keep its distance from the
+  // bottom; where the browser already anchored the scroll, this is a no-op.
+  const previousFirstMessageIdRef = useRef(firstMessageId);
+  useLayoutEffect(() => {
+    const previousFirstMessageId = previousFirstMessageIdRef.current;
+    previousFirstMessageIdRef.current = firstMessageId;
+    const div = divRef.current;
+    if (
+      !div ||
+      previousFirstMessageId === undefined ||
+      previousFirstMessageId === firstMessageId ||
+      (autoScroll && followBottomRef.current) ||
+      scrollingToBottomBehaviorRef.current !== null
+    )
+      return;
+    const prepended = aui.thread
+      .getState()
+      .messages.some(
+        (message, index) => index > 0 && message.id === previousFirstMessageId,
+      );
+    if (!prepended) return;
+
+    const top =
+      div.scrollHeight - (lastScrollHeight.current - lastScrollTop.current);
+    if (Math.abs(div.scrollTop - top) >= 1) {
+      div.scrollTo({ top, behavior: "instant" });
+    }
+    lastScrollTop.current = div.scrollTop;
+    lastScrollHeight.current = div.scrollHeight;
+  }, [aui, autoScroll, firstMessageId]);
 
   useLayoutEffect(() => {
     if (!scrollToBottomOnInitialize) return;
