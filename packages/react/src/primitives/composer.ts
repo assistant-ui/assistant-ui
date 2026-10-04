@@ -1,3 +1,5 @@
+import type { TriggerMatch, TriggerMatcher } from "./composer/trigger";
+
 export { ComposerPrimitiveRoot as Root } from "./composer/ComposerRoot";
 export { ComposerPrimitiveInput as Input } from "./composer/ComposerInput";
 export { ComposerPrimitiveSend as Send } from "./composer/ComposerSend";
@@ -15,41 +17,27 @@ export { ComposerPrimitiveQuoteText as QuoteText } from "./composer/ComposerQuot
 export { ComposerPrimitiveQuoteDismiss as QuoteDismiss } from "./composer/ComposerQuote";
 export { ComposerPrimitiveQueue as Queue } from "./composer/ComposerQueue";
 
-import {
-  ComposerPrimitiveTriggerPopover,
-  ComposerPrimitiveTriggerPopoverRoot,
-  ComposerPrimitiveTriggerPopoverCategories,
-  ComposerPrimitiveTriggerPopoverCategoryItem,
-  ComposerPrimitiveTriggerPopoverItems,
-  ComposerPrimitiveTriggerPopoverItem,
-  ComposerPrimitiveTriggerPopoverBack,
-} from "./composer/trigger";
-import type { TriggerMatch, TriggerMatcher } from "./composer/trigger";
-
 export { ComposerPrimitiveTriggerPopover as TriggerPopover } from "./composer/trigger";
 /** @deprecated Use `ComposerPrimitive.TriggerPopover` instead. */
-export const Unstable_TriggerPopover = ComposerPrimitiveTriggerPopover;
+export { ComposerPrimitiveTriggerPopover as Unstable_TriggerPopover } from "./composer/trigger";
 export { ComposerPrimitiveTriggerPopoverRoot as TriggerPopoverRoot } from "./composer/trigger";
 /** @deprecated Use `ComposerPrimitive.TriggerPopoverRoot` instead. */
-export const Unstable_TriggerPopoverRoot = ComposerPrimitiveTriggerPopoverRoot;
+export { ComposerPrimitiveTriggerPopoverRoot as Unstable_TriggerPopoverRoot } from "./composer/trigger";
 export { ComposerPrimitiveTriggerPopoverCategories as TriggerPopoverCategories } from "./composer/trigger";
 /** @deprecated Use `ComposerPrimitive.TriggerPopoverCategories` instead. */
-export const Unstable_TriggerPopoverCategories =
-  ComposerPrimitiveTriggerPopoverCategories;
+export { ComposerPrimitiveTriggerPopoverCategories as Unstable_TriggerPopoverCategories } from "./composer/trigger";
 export { ComposerPrimitiveTriggerPopoverCategoryItem as TriggerPopoverCategoryItem } from "./composer/trigger";
 /** @deprecated Use `ComposerPrimitive.TriggerPopoverCategoryItem` instead. */
-export const Unstable_TriggerPopoverCategoryItem =
-  ComposerPrimitiveTriggerPopoverCategoryItem;
+export { ComposerPrimitiveTriggerPopoverCategoryItem as Unstable_TriggerPopoverCategoryItem } from "./composer/trigger";
 export { ComposerPrimitiveTriggerPopoverItems as TriggerPopoverItems } from "./composer/trigger";
 /** @deprecated Use `ComposerPrimitive.TriggerPopoverItems` instead. */
-export const Unstable_TriggerPopoverItems =
-  ComposerPrimitiveTriggerPopoverItems;
+export { ComposerPrimitiveTriggerPopoverItems as Unstable_TriggerPopoverItems } from "./composer/trigger";
 export { ComposerPrimitiveTriggerPopoverItem as TriggerPopoverItem } from "./composer/trigger";
 /** @deprecated Use `ComposerPrimitive.TriggerPopoverItem` instead. */
-export const Unstable_TriggerPopoverItem = ComposerPrimitiveTriggerPopoverItem;
+export { ComposerPrimitiveTriggerPopoverItem as Unstable_TriggerPopoverItem } from "./composer/trigger";
 export { ComposerPrimitiveTriggerPopoverBack as TriggerPopoverBack } from "./composer/trigger";
 /** @deprecated Use `ComposerPrimitive.TriggerPopoverBack` instead. */
-export const Unstable_TriggerPopoverBack = ComposerPrimitiveTriggerPopoverBack;
+export { ComposerPrimitiveTriggerPopoverBack as Unstable_TriggerPopoverBack } from "./composer/trigger";
 export { useTriggerPopoverRootContext as unstable_useTriggerPopoverRootContext } from "./composer/trigger";
 export { useTriggerPopoverRootContextOptional as unstable_useTriggerPopoverRootContextOptional } from "./composer/trigger";
 export { useTriggerPopoverScopeContext as unstable_useTriggerPopoverScopeContext } from "./composer/trigger";
