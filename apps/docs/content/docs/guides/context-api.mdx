@@ -492,7 +492,7 @@ const isRunning = useAuiState((s) => s.thread.isRunning);
 | -------------- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
 | ThreadList     | `mainThreadId`, `newThreadId`, `threadIds`, `archivedThreadIds`, `isLoading`, `threadItems` (`readonly ThreadListItemState[]`) | Manages all available conversation threads |
 | ThreadListItem | `id`, `title`, `status`, `remoteId`, `externalId`, `custom?: Record<string, unknown>`           | Individual thread metadata and status; `custom` carries arbitrary per-thread metadata set by remote runtimes |
-| Thread         | `isRunning` (may be explicitly set by the runtime rather than derived from last-message status), `isLoading`, `isDisabled`, `isEmpty`, `messages`, `tasks`, `capabilities`, `suggestions` | Active conversation state and message history |
+| Thread         | `isRunning` (may be explicitly set by the runtime rather than derived from last-message status), `isLoading`, `isDisabled`, `isEmpty`, `hasEarlier`, `isLoadingEarlier`, `messages`, `tasks`, `capabilities`, `suggestions` | Active conversation state and message history |
 | Message        | `role`, `content`, `status`, `attachments`, `parts`, `parentId`, `branchNumber`, `branchCount`, `isLast`, `index` | Individual message content and metadata |
 | Part           | `type`, `status`, `text`, `toolCallId`, `toolName`                                              | Content parts within messages (text, tool calls)   |
 | ChainOfThought | `parts`, `collapsed`, `status`                                                                   | Reasoning steps grouped within a message           |

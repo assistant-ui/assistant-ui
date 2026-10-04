@@ -5,6 +5,28 @@ description: Keep a long thread light by loading older messages above the window
 
 A thread that has run for weeks does not need every message in memory to open. Keep the last page loaded, and let the list ask for the page above it when the reader reaches the top. The runtime treats the loaded window as the whole thread, so nothing else changes: the composer, the message actions and the elements work on what is loaded, and the list keeps the message being read in place while a page lands above it.
 
+## Paging through the runtime
+
+An external store adapter can own the window: `hasEarlier` says whether an older page exists, and `onLoadEarlier` fetches the page before the first loaded message and prepends it. The runtime runs one load at a time and reports it as `thread.isLoadingEarlier`, and the thread element and `ThreadPrimitive.MessagesFlatList` read both when they get no `history` prop:
+
+```tsx
+const runtime = useExternalStoreRuntime({
+  messages,
+  convertMessage,
+  onNew,
+  hasEarlier,
+  onLoadEarlier: async () => {
+    const page = await fetchPageBefore(messages[0]!.id, PAGE_SIZE);
+    setMessages((current) => [...page, ...current]);
+    setHasEarlier(page.length === PAGE_SIZE);
+  },
+});
+
+<Thread />;
+```
+
+A rejected `onLoadEarlier` is logged and ends the load; catch inside it to show a retry control like the one below. The rest of this page builds the same window in app state and hands it to the `history` prop instead, which takes precedence when both are present.
+
 ## The runtime side
 
 `useExternalStoreRuntime` renders whatever `messages` holds, so a window is the last page of the conversation in that array, and loading older messages is prepending the page before it. Three things keep that cheap and correct:

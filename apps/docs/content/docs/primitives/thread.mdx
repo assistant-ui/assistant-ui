@@ -355,6 +355,18 @@ Scrolls the viewport to the bottom. Disabled when the viewport is already at the
 
 <PrimitivesTypeTable type="ThreadPrimitiveScrollToBottomProps" parameters={ThreadPrimitiveDocs.ScrollToBottom.props.filter(p => p.name !== "asChild")} />
 
+### LoadEarlier
+
+Loads the page before the first loaded message through `aui.thread.loadEarlier()`. Disabled while `thread.hasEarlier` is false or a page is loading (`thread.isLoadingEarlier`); the runtime decides both, for example an external store adapter's `hasEarlier` and `onLoadEarlier`. Renders a `<button>` element unless `asChild` is set. The viewport keeps the visible messages in place when the page lands above them.
+
+```tsx
+<AuiIf condition={(s) => s.thread.hasEarlier || s.thread.isLoadingEarlier}>
+  <ThreadPrimitive.LoadEarlier className="self-center text-sm">
+    Load earlier messages
+  </ThreadPrimitive.LoadEarlier>
+</AuiIf>
+```
+
 ### Suggestions
 
 Renders suggestion prompts via a component.

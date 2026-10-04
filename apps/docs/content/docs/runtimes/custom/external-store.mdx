@@ -442,6 +442,30 @@ const runtime = useExternalStoreRuntime({
 });
 ```
 
+## Paging earlier messages
+
+A long thread can open on its latest page and fetch older messages on demand. Report whether older messages exist with `hasEarlier`, and load the page before the first message in `onLoadEarlier`:
+
+```tsx
+const runtime = useExternalStoreRuntime({
+  messages,
+  convertMessage,
+  onNew,
+  hasEarlier: cursor !== null,
+  onLoadEarlier: async () => {
+    const page = await fetchMessagesBefore(cursor);
+    setMessages((current) => [...page.messages, ...current]);
+    setCursor(page.previousCursor);
+  },
+});
+```
+
+The runtime surfaces them as `thread.hasEarlier`, `thread.isLoadingEarlier` and `aui.thread.loadEarlier()`. `ThreadPrimitive.LoadEarlier` is a button that loads the next page and is disabled while none exists or one is loading, `ThreadPrimitive.Viewport` keeps the visible messages in place when the page lands above them, and the React Native `ThreadPrimitive.MessagesFlatList` loads one when the list nears its start.
+
+- Give every message a stable `id`; a message without one is renumbered when earlier ones arrive, which remounts it.
+- Merge the page into the latest `messages`, not a copy taken when the request started, so tokens that streamed meanwhile are kept.
+- With `messageRepository`, publish the full merged repository with its head; a repository replaces the previous one rather than extending it.
+
 ## Multi-thread
 
 `ExternalStoreRuntime` uses `ExternalStoreThreadListAdapter` (synchronous, inline). See [threads](/docs/runtimes/concepts/threads#externalstorethreadlistadapter) for the contract and best practices on keeping `currentThreadId` in sync with your store.
@@ -777,6 +801,19 @@ useExternalStoreRuntime({
       type: "boolean",
       description:
         "Whether the adapter is in a loading state. Displays a loading indicator instead of the composer.",
+    },
+    {
+      name: "hasEarlier",
+      type: "boolean",
+      description:
+        "Whether messages exist before the first one in messages. Surfaces as thread.hasEarlier, but only together with onLoadEarlier.",
+      default: "false",
+    },
+    {
+      name: "onLoadEarlier",
+      type: "() => Promise<void>",
+      description:
+        "Loads the page before the first message; prepend it to messages. One call runs at a time, thread.isLoadingEarlier stays true until the promise settles, and a rejection is logged rather than passed on.",
     },
     {
       name: "suggestions",
