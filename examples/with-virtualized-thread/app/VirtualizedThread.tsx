@@ -44,18 +44,31 @@ const UserMessage: FC = () => (
   </MessagePrimitive.Root>
 );
 
+const SystemMessage: FC = () => (
+  <MessagePrimitive.Root
+    data-role="system"
+    className="text-muted-foreground text-center text-xs"
+  >
+    <MessagePrimitive.Parts />
+  </MessagePrimitive.Root>
+);
+
 const renderRow: ComponentProps<typeof ThreadPrimitive.Row>["children"] = (
   info,
 ) => {
   switch (info.type) {
     case "message":
-      return <UserMessage />;
+      return info.message.role === "system" ? (
+        <SystemMessage />
+      ) : (
+        <UserMessage />
+      );
     case "turn-end": {
-      const { turn } = info;
-      if (turn?.completedAt === undefined) return null;
+      const { startedAt, completedAt } = info.row;
+      if (completedAt === undefined) return null;
       return (
         <p className="text-muted-foreground text-xs">
-          Worked for {formatDuration(turn.completedAt - turn.startedAt)}
+          Worked for {formatDuration(completedAt - startedAt)}
         </p>
       );
     }

@@ -29,21 +29,32 @@ const agentReply = (i: number): ThreadMessageLike["content"] => [
 
 export const generateSeedMessages = (): ThreadMessageLike[] =>
   Array.from({ length: SEED_COUNT }, (_, i) => {
-    const isUser = i % 2 === 0;
-    const isAgentTurn = !isUser && i % 20 === 1;
+    const askedAt = START + Math.floor(i / 2) * 600_000;
+    if (i % 2 === 0)
+      return {
+        id: `seed-${i}`,
+        role: "user" as const,
+        createdAt: new Date(askedAt),
+        content: `Question ${i / 2 + 1}: tell me more about long threads.`,
+      };
+
+    const isAgentTurn = i % 20 === 1;
+    const streamStartTime = askedAt + 1_000;
     return {
       id: `seed-${i}`,
-      role: isUser ? ("user" as const) : ("assistant" as const),
-      createdAt: new Date(
-        START +
-          Math.floor(i / 2) * 600_000 +
-          (isUser ? 0 : isAgentTurn ? 192_000 : 4_000),
-      ),
-      content: isUser
-        ? `Question ${i / 2 + 1}: tell me more about long threads.`
-        : isAgentTurn
-          ? agentReply(i)
-          : SNIPPETS.slice(0, (i % 3) + 1).join("\n\n"),
+      role: "assistant" as const,
+      createdAt: new Date(streamStartTime),
+      content: isAgentTurn
+        ? agentReply(i)
+        : SNIPPETS.slice(0, (i % 3) + 1).join("\n\n"),
+      metadata: {
+        timing: {
+          streamStartTime,
+          totalStreamTime: isAgentTurn ? 191_000 : 3_000,
+          totalChunks: 1,
+          toolCallCount: isAgentTurn ? AGENT_TOOL_CALLS : 0,
+        },
+      },
     };
   });
 
