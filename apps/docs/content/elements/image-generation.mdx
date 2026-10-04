@@ -202,7 +202,7 @@ See [Tool UI](/docs/tools/tool-ui) for the full tool-call part shape.
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `prompt` | `string` | required | Shown below the frame once generation finishes. |
-| `generating` | `boolean` | required | Shows the pulsing dot grid, the blurred gradient, and the shimmering prompt label while true. |
+| `generating` | `boolean` | required | While true, shows the pulsing dot grid and a shimmering "Generating" label in place of the prompt, and hides the gradient. |
 | `onRegenerate` | `() => void` | | Renders the regenerate button and runs when it is activated. The button is disabled while generating. |
 | `className` | `string` | | Merged onto the root. |
 

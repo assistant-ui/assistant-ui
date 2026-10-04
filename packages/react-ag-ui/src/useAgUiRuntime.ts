@@ -114,6 +114,10 @@ export function useAgUiRuntime(
   // A dispatch whose count never moves was never observed as busy, so no
   // falling edge is coming to release the queue.
   const busyEdgesRef = useRef(0);
+  const lastQueueEdgeRef = useRef<{
+    controller: MessageQueueController;
+    busy: boolean;
+  } | null>(null);
   if (options.unstable_enableMessageQueue && !queueRef.current) {
     queueRef.current = createMessageQueue({
       run: (message) => {
@@ -172,11 +176,18 @@ export function useAgUiRuntime(
   // refusal would lose the message instead of keeping it visible.
   const queueBusy = isRunning || core.getPendingInterrupts() !== null;
   useEffect(() => {
+    if (!queueController) return;
+    if (
+      lastQueueEdgeRef.current?.controller === queueController &&
+      lastQueueEdgeRef.current.busy === queueBusy
+    )
+      return;
+    lastQueueEdgeRef.current = { controller: queueController, busy: queueBusy };
     if (queueBusy) {
       busyEdgesRef.current++;
-      queueController?.notifyBusy();
+      queueController.notifyBusy();
     } else {
-      queueController?.notifyIdle();
+      queueController.notifyIdle();
     }
   }, [queueBusy, queueController]);
 

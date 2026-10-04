@@ -14,17 +14,6 @@ type ToolCallLike = {
     | undefined;
 };
 
-/**
- * The single resolution order every surface renders a tool call through.
- *
- * A registered tool UI is the most specific, then the component a call site
- * named for this tool, then the generic MCP App renderer, which claims only a
- * call whose resource is a `ui://` app. A surface with no per-tool components
- * passes `byName` as undefined.
- *
- * The render type is a parameter so this stays free of React types and the
- * framework-neutral `internal` entry can carry it.
- */
 export const resolveToolRender = <TRender>(
   toolsState: ToolRenderState<TRender>,
   part: ToolCallLike,

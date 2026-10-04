@@ -185,6 +185,19 @@ describe("toCreateMessage", () => {
     ]);
   });
 
+  it("forwards a data part id", () => {
+    const message = {
+      ...baseMessage,
+      content: [
+        { type: "data", name: "workflow", id: "p1", data: { field: 1 } },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(toCreateMessage(message).parts).toEqual([
+      { type: "data-workflow", id: "p1", data: { field: 1 } },
+    ]);
+  });
+
   it("converts a data part inside an attachment without throwing", () => {
     const message = {
       ...baseMessage,

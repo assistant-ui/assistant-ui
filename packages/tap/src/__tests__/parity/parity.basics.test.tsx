@@ -211,6 +211,7 @@ const scenarios: Scenario[] = [
   },
   {
     name: "updater setState from both strict effect mounts chains",
+    react18ReplaysUpdaters: true,
     use: (log) => {
       const [count, setCount] = useState(0);
       const runs = useRef(0);
@@ -238,6 +239,7 @@ const scenarios: Scenario[] = [
   },
   {
     name: "updater returning a different value per invocation",
+    react18ReplaysUpdaters: true,
     divergence: { bridge: "multiset" },
     use: (log) => {
       const [count, setCount] = useState(0);

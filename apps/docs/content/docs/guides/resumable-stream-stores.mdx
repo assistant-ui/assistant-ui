@@ -4,7 +4,7 @@ description: Implement the ResumableStreamStore interface to back resumable stre
 platforms: ["react"]
 ---
 
-The built-in InMemory and Redis adapters cover most deployments. Write your own `ResumableStreamStore` when you need a backend you already operate (Postgres, MySQL), an edge-native primitive (Cloudflare Durable Objects, Workers KV), an HTTP-only key-value service (Upstash REST), or a realtime database (InstantDB). The contract is six required async methods, plus one optional method, over an opaque `streamId` and a monotonic byte log.
+The built-in in-memory and Redis stores cover most deployments. Write your own `ResumableStreamStore` when you need a backend you already operate (Postgres, MySQL), an edge-native primitive (Cloudflare Durable Objects, Workers KV), an HTTP-only key-value service (Upstash REST), or a realtime database (InstantDB). The contract is six required async methods, plus one optional method, over an opaque `streamId` and a monotonic byte log.
 
 ## Interface walkthrough
 
@@ -53,7 +53,7 @@ After `append` resolves, changes to the input buffer must not change stored byte
 
 Changes to a yielded chunk must not affect other reads. In-memory stores must copy bytes on append and read, including Node.js `Buffer` inputs.
 
-`status(streamId)` returns one of `"streaming" | "done" | "error" | "missing"` synchronously with respect to the underlying store. It exists so the context can decide whether to start a new producer or attach a consumer without holding a `read` iterator open.
+`status(streamId)` returns one of `"streaming" | "done" | "error" | "missing"`. The context calls it from `resume` and `requireResume` to detect a missing stream without opening a `read` iterator.
 
 `delete(streamId)` removes all state for the stream. It must be a no-op when the stream does not exist, and it should cause active `read` iterables to terminate (treat outstanding readers as if the stream finalized).
 
@@ -66,7 +66,7 @@ Changes to a yielded chunk must not affect other reads. In-memory stores must co
 - Durable Objects: a single object instance per `streamId` plus a boolean field.
 - Upstash REST: `set` with `nx=true`.
 
-If your backend cannot offer atomicity, do not paper over it with read-then-write; you will silently produce two writers for the same stream under contention, and consumers will observe interleaved bytes.
+If your backend cannot offer atomicity, do not substitute a read followed by a write. Under contention it produces two writers for the same stream, and consumers observe interleaved bytes.
 
 `acquireLease(streamId, options?)` is optional. It elects exactly like `acquire`, but a `"producer"` result also carries a lease (`{ role: "producer", lease: { token } }`; consumers get `{ role: "consumer" }`). The context prefers it when present and passes the lease to every `append` and `finalize` call from that producer task; `delete` takes no lease and stays administrative. Store a per-acquisition token with the stream and, when a lease is given, reject `append` with `ResumableStreamError("missing")` and make `finalize` a no-op that resolves `false` when the stream exists and the token no longer matches (a stream with no state at all still reports not found from `finalize`, since there is no successor to defer to). This is what stops a producer whose stream expired from writing into the stream a later `acquire` created under the same `streamId`. A store without `acquireLease` still works through `acquire`, but forfeits that fence: an expired producer that keeps running can append to or finalize its successor's stream.
 
@@ -74,12 +74,12 @@ The target for that check is the same atomicity `acquire` has: compare the token
 
 ## The cursor contract
 
-Cursors are opaque strings. Callers never inspect them; the store assigns them, the context echoes them back on the next `read` call, and the store uses them to resume from the correct position. Two rules:
+Cursors are opaque strings. Callers never inspect them; the store assigns them, a caller passes one back on a later `read` call, and the store uses it to resume from the correct position. The context itself always reads from the beginning. Two rules:
 
 - Cursors must be strictly monotonic per stream. Whatever scheme you pick (sequence number, ULID, Postgres `bigserial`, Redis stream id), entry N+1 sorts after entry N.
 - The empty string means start from the beginning. `read(streamId, "", signal)` yields every entry the store has, oldest first.
 
-You do not need cross-stream ordering. You do need a deterministic mapping from cursor back to position so that `read` can resume a consumer that disconnected mid-replay.
+You do not need cross-stream ordering. You do need a deterministic mapping from cursor back to position so that `read` can continue from any cursor it has yielded.
 
 ## A worked example
 
@@ -163,7 +163,7 @@ When a stream expires, treat it the same as `finalize(streamId, "error", "Stream
 
 ## Wiring it up
 
-`createResumableStreamContext` takes any object that satisfies `ResumableStreamStore`. There is no registry and no extra configuration; pass your instance as `store`:
+`createResumableStreamContext` takes any object that satisfies `ResumableStreamStore`. Pass your instance as `store`:
 
 ```ts title="/lib/resumable-context.ts"
 import { createResumableStreamContext } from "assistant-stream/resumable";

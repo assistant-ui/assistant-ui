@@ -27,7 +27,7 @@ export const ExportedMessageRepository = {
     const conv = messages.map((m) =>
       fromThreadMessageLike(
         m,
-        generateId(),
+        m.id ?? generateId(),
         getRepositoryContentAutoStatus(m.content),
       ),
     );
@@ -124,6 +124,59 @@ const withParentsFirst = (
   }
   for (const children of waiting.values()) ordered.push(...children);
   return ordered;
+};
+
+export const withoutOrphanedMessages = (
+  repository: ExportedMessageRepository,
+): { repository: ExportedMessageRepository; droppedIds: string[] } => {
+  const listed = new Set(repository.messages.map((item) => item.message.id));
+  const children = new Map<string, string[]>();
+  const pending: string[] = [];
+  for (const { message, parentId } of repository.messages) {
+    if (parentId === null) continue;
+    const siblings = children.get(parentId);
+    if (siblings) siblings.push(message.id);
+    else children.set(parentId, [message.id]);
+    if (!listed.has(parentId)) pending.push(message.id);
+  }
+
+  const dropped = new Set<string>();
+  for (let i = 0; i < pending.length; i++) {
+    const id = pending[i]!;
+    if (dropped.has(id)) continue;
+    dropped.add(id);
+    for (const child of children.get(id) ?? []) pending.push(child);
+  }
+  const headMissing =
+    repository.headId != null && !listed.has(repository.headId);
+  if (dropped.size === 0 && !headMissing) return { repository, droppedIds: [] };
+
+  const droppedIds: string[] = [];
+  const keptParents = new Set<string>();
+  const messages = repository.messages.filter(({ message, parentId }) => {
+    if (dropped.has(message.id)) {
+      droppedIds.push(message.id);
+      return false;
+    }
+    if (parentId !== null) keptParents.add(parentId);
+    return true;
+  });
+  let { headId } = repository;
+  if (headId != null && (headMissing || dropped.has(headId))) {
+    headId = null;
+    for (const { message } of messages) {
+      if (!keptParents.has(message.id)) headId = message.id;
+    }
+  }
+
+  return {
+    repository: {
+      ...repository,
+      messages,
+      ...(headId !== undefined && { headId }),
+    },
+    droppedIds,
+  };
 };
 
 class CachedValue<T> {

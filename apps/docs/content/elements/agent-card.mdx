@@ -65,7 +65,7 @@ export function ConnectedAgentCard() {
 }
 ```
 
-`useA2AAgentCard` returns `undefined` until the client has fetched the card, so the connect check above stands in for a loading state. The A2A protocol has no model identifier on the card itself and no separate connect step beyond reaching the agent, which is why `model` is a value your app supplies and `connected` is simply `true` once the card exists.
+`useA2AAgentCard` returns `undefined` until the client has fetched the card, so the connect check above stands in for a loading state. The A2A protocol has no model identifier on the card itself and no separate connect step beyond reaching the agent, which is why `model` is a value your app supplies and `connected` is `true` once the card exists.
 
   </Step>
 </Steps>
@@ -130,7 +130,7 @@ export default function AgentPage() {
 </div>
 ```
 
-The name, provider, endpoint, and model text all truncate rather than wrap. The button is the only interactive part: while `connected` is true it renders disabled with a check icon and the label "Connected"; otherwise it calls `onConnect` on click. An empty `skills` array simply renders no rows in that section, with no placeholder text.
+The name, provider, and endpoint truncate rather than wrap; the model label keeps its full width. The button is the only interactive part: while `connected` is true it renders disabled with a check icon and the label "Connected"; otherwise it calls `onConnect` on click. An empty `skills` array renders no rows and no placeholder text.
 
 ## Examples
 
@@ -219,7 +219,7 @@ The root uses the shared `paper` surface; the version badge, endpoint, and model
 | `description` | `string` | required | One paragraph, shown in full. |
 | `provider` | `string` | required | Shown under the name, truncated. |
 | `version` | `string` | required | Rendered as `v{version}` next to the name. |
-| `model` | `string` | required | Shown in the footer row, truncated. |
+| `model` | `string` | required | Shown in the footer row, never truncated. |
 | `endpoint` | `string` | required | Shown in the footer row, truncated. |
 | `skills` | `readonly AgentSkill[]` | required | Rendered as name/description rows; empty renders nothing. |
 | `connected` | `boolean` | required | Disables the button and swaps its label/icon when true. |

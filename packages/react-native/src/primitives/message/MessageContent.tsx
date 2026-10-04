@@ -1,16 +1,19 @@
 import { type ReactElement, Fragment, useMemo } from "react";
 import { Text } from "react-native";
-import {
-  type ThreadUserMessagePart,
-  type ThreadAssistantMessagePart,
-  type MessagePartState,
+import type {
+  ThreadUserMessagePart,
+  ThreadAssistantMessagePart,
+  MessagePartState,
 } from "@assistant-ui/core";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import type {
   ToolCallMessagePartProps,
   DataMessagePartProps,
 } from "@assistant-ui/core/react";
-import { resolveToolRender } from "@assistant-ui/core/internal";
+import {
+  getMessagePartKeys,
+  resolveToolRender,
+} from "@assistant-ui/core/internal";
 
 type MessageContentPart = ThreadUserMessagePart | ThreadAssistantMessagePart;
 type MessageContentStatePart = MessagePartState;
@@ -123,11 +126,12 @@ export const MessageContent = ({
   renderData,
 }: MessageContentProps) => {
   const content = useAuiState((s) => s.message.parts);
+  const partKeys = getMessagePartKeys(content);
 
   return (
     <>
       {content.map((part, index) => {
-        const key = `${part.type}-${index}`;
+        const key = partKeys[index];
         switch (part.type) {
           case "text":
             return (
