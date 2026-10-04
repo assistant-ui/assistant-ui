@@ -38,6 +38,16 @@ const isRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === "object" && value !== null;
 };
 
+const projectPartTiming = (value: unknown, includeEnd = true) => {
+  if (!isRecord(value) || !Number.isFinite(value.start)) return undefined;
+  return {
+    startedAt: value.start as number,
+    ...(includeEnd && Number.isFinite(value.end)
+      ? { completedAt: value.end as number }
+      : {}),
+  };
+};
+
 const getProjectedCreatedAt = (message: OpenCodeProjectedThreadMessage) => {
   return message.createdAt instanceof Date
     ? message.createdAt.getTime()
@@ -291,9 +301,11 @@ const projectAssistantContent = (
         {
           const text = sanitizeReasoningText(part.text);
           if (!text) break;
+          const timing = projectPartTiming(part.time);
           content.push({
             type: "reasoning",
             text,
+            ...(timing ? { timing } : {}),
             ...(currentStepId() ? { parentId: currentStepId() } : {}),
           });
         }
@@ -305,6 +317,12 @@ const projectAssistantContent = (
 
       case "tool": {
         const toolState = mapToolState(part.state);
+        const timing = projectPartTiming(
+          isRecord(part.state) && "time" in part.state
+            ? part.state.time
+            : undefined,
+          part.state?.status === "completed" || part.state?.status === "error",
+        );
         const toolCallId = part.callID ?? part.id ?? `tool-${index}`;
         const childSessionId = getOpenCodeTaskSessionId(part);
         const childState = childSessionId
@@ -324,6 +342,7 @@ const projectAssistantContent = (
           toolName: part.tool ?? "tool",
           args: toolState.args as never,
           argsText: toolState.argsText,
+          ...(timing ? { timing } : {}),
           ...(toolState.result !== undefined
             ? { result: toolState.result }
             : {}),

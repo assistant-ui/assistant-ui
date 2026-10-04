@@ -545,7 +545,7 @@ const Composer: FC = () => {
   });
 
   return (
-    <ComposerPrimitive.Unstable_TriggerPopoverRoot>
+    <ComposerPrimitive.TriggerPopoverRoot>
       <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
         <ComposerPrimitive.AttachmentDropzone asChild>
           <div
@@ -573,7 +573,7 @@ const Composer: FC = () => {
           emptyItemsLabel="No matching commands"
         />
       </ComposerPrimitive.Root>
-    </ComposerPrimitive.Unstable_TriggerPopoverRoot>
+    </ComposerPrimitive.TriggerPopoverRoot>
   );
 };
 
@@ -863,7 +863,7 @@ const EditComposer: FC = () => {
       data-slot="aui_edit-composer-wrapper"
       className="mx-auto flex w-full max-w-(--thread-max-width) flex-col px-2"
     >
-      <ComposerPrimitive.Unstable_TriggerPopoverRoot>
+      <ComposerPrimitive.TriggerPopoverRoot>
         <ComposerPrimitive.Root className="aui-edit-composer-root border-foreground/10 focus-within:border-foreground/25 ml-auto flex w-full max-w-[85%] cursor-text flex-col rounded-(--composer-radius) border bg-(--composer-bg) transition-[border-color]">
           <LexicalComposerInput
             directiveChip={DirectiveChip}
@@ -883,7 +883,7 @@ const EditComposer: FC = () => {
             </ComposerPrimitive.Send>
           </div>
         </ComposerPrimitive.Root>
-      </ComposerPrimitive.Unstable_TriggerPopoverRoot>
+      </ComposerPrimitive.TriggerPopoverRoot>
     </MessagePrimitive.Root>
   );
 };

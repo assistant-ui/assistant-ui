@@ -64,11 +64,11 @@ const createSimpleTitleAdapter: () => TitleGenerationAdapter;
 ### createThreadRowsSelector
 
 Creates a selector for `useAuiState` that flattens the current thread into
-ThreadRows. The selector returns the same array for the same thread
-state, and keeps returning the previous array and row objects while a
-streamed token leaves the row structure unchanged, so a list keyed by
-`row.key` re-renders only when rows appear, disappear or regroup. Create one
-selector per list, at module scope or with `useState`.
+rows (see ThreadRow). The selector returns the same array for the
+same thread state, and keeps returning the previous array and row objects
+while a streamed token leaves the rows unchanged, so a list keyed by
+`row.key` re-renders only when rows appear, disappear, regroup or a turn
+completes. Create one selector per list, at module scope or with `useState`.
 
 ```tsx
 const selectRows = createThreadRowsSelector({
@@ -83,6 +83,16 @@ function VirtualThread() {
 
 ```ts
 const createThreadRowsSelector: (options?: ThreadRowsOptions) => (state: AssistantState) => readonly ThreadRow[];
+```
+
+### defaultDirectiveFormatter
+
+Default directive formatter using the `:type[label]{name=id}` syntax.
+
+When `id` equals `label`, the `{name=…}` attribute is omitted for brevity.
+
+```ts
+const defaultDirectiveFormatter: DirectiveFormatter;
 ```
 
 ### DevToolsHooks
@@ -139,16 +149,6 @@ threads title themselves.
 ### Suggestions
 
 <ParametersTable {...Suggestions} />
-
-### unstable_defaultDirectiveFormatter
-
-Default directive formatter using the `:type[label]{name=id}` syntax.
-
-When `id` equals `label`, the `{name=…}` attribute is omitted for brevity.
-
-```ts
-const unstable_defaultDirectiveFormatter: Unstable_DirectiveFormatter;
-```
 
 ### unstable_defaultWebMcpFilter
 
@@ -216,5 +216,15 @@ const fromThreadMessageLike: (like: ThreadMessageLike, fallbackId: string, fallb
 
 ```ts
 const generateId: (size?: number) => string;
+```
+
+### unstable_defaultDirectiveFormatter
+
+<Callout type="warn">
+<strong>Deprecated.</strong> Use `defaultDirectiveFormatter` instead.
+</Callout>
+
+```ts
+const unstable_defaultDirectiveFormatter: DirectiveFormatter;
 ```
 {/* api-reference:end */}
