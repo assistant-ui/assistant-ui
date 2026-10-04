@@ -198,7 +198,7 @@ Both lanes render into `ComposerMenu`, which takes `className` and reads `open` 
 | `TriggerPopover.Action` | behavior | `onExecute(item)`, `formatter?`, `removeOnExecute?` (default `false`, which leaves the command's directive text in the input). |
 | `TriggerPopoverItems` | render prop | `{(items) => ReactNode}`; renders only while a category is active or search mode is on. |
 | `TriggerPopoverItem` | `button` | `item`, `index?`; gets `data-highlighted` under keyboard navigation. |
-| `TriggerPopoverCategories` / `CategoryItem` / `Back` | render prop / `button` / `button` | Only needed when the adapter groups commands into categories. |
+| `TriggerPopoverCategories` / `TriggerPopoverCategoryItem` / `TriggerPopoverBack` | render prop / `button` / `button` | Only needed when the adapter groups commands into categories. |
 
 ### unstable_useSlashCommandAdapter
 
