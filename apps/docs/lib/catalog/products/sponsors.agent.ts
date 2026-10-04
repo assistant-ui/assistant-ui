@@ -82,4 +82,14 @@ Verify: after an approved deploy, open the app's URL and confirm it serves. Othe
 
 Verify: create an inbox, send a test message to it from the app, and confirm it arrives.`,
   ],
+  [
+    "sponsors/coderabbit",
+    `${ground("https://docs.coderabbit.ai/cli")}
+
+1. Check whether the CodeRabbit CLI is installed (\`coderabbit --version\`). If it is not, install it with the command the docs show for the user's platform.
+2. Check that the CLI is signed in. If it is not, tell the user to run \`cr auth login\` themselves so they finish sign-in in their browser; never ask for their credentials or a token.
+3. Pull request reviews come from the CodeRabbit GitHub app. Point the user to https://app.coderabbit.ai/login to sign up and add it to their repository; do not try to install it yourself.
+
+Verify: once the other products are installed, run \`coderabbit review --uncommitted\` and report what it finds. Fix only the findings the user agrees with.`,
+  ],
 ]);

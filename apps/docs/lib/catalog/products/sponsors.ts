@@ -84,4 +84,12 @@ export const SPONSOR_PRODUCTS: readonly CatalogItem[] = [
     docs: "https://docs.agentmail.to",
     agentMinutes: [4, 6],
   }),
+  sponsor({
+    slug: "sponsors/coderabbit",
+    name: "CodeRabbit",
+    tagline: "AI code reviews on every pull request and in your terminal.",
+    href: "https://www.coderabbit.ai",
+    docs: "https://docs.coderabbit.ai",
+    agentMinutes: [2, 3],
+  }),
 ];
