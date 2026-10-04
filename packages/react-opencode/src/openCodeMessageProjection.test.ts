@@ -800,10 +800,11 @@ describe("projectOpenCodeThreadMessages", () => {
         },
       },
     };
-    const [malformedPart] =
-      projectOpenCodeThreadMessages(malformedState)[0]?.content ?? [];
+    const [malformedMessage] = projectOpenCodeThreadMessages(malformedState);
+    const [malformedPart] = malformedMessage?.content ?? [];
     expect(malformedPart).toMatchObject({ type: "tool-call" });
     expect(malformedPart).not.toHaveProperty("approval");
+    expect(malformedMessage?.status?.type).not.toBe("requires-action");
   });
 
   it("normalizes escaped newlines in reasoning parts", () => {

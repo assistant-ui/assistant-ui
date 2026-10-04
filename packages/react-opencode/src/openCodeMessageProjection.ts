@@ -263,13 +263,7 @@ const hasPendingInteractionForToolCall = (
     return true;
   }
 
-  for (const request of Object.values(state.interactions.questions.pending)) {
-    if (request.tool?.callID === toolCallId) {
-      return true;
-    }
-  }
-
-  return false;
+  return getQuestionIndex(state).pendingByCallId.has(toolCallId);
 };
 
 const hasPendingInteractionForMessage = (
