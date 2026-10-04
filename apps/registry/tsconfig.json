@@ -1,6 +1,7 @@
 {
   "extends": "@assistant-ui/x-buildutils/ts/base-node",
   "compilerOptions": {
+    "allowImportingTsExtensions": true,
     "paths": {
       "@/components/assistant-ui/*": [
         "../../packages/ui/src/components/react/assistant-ui/*"
@@ -18,5 +19,5 @@
     }
   },
   "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist", "templates"]
 }

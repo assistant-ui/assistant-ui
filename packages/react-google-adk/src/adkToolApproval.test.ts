@@ -206,10 +206,6 @@ describe("projectAdkToolApprovals", () => {
     ]);
   });
 
-  /**
-   * ADK Python spells the confirmation args in snake_case, which the event
-   * accumulator already reads both ways.
-   */
   it("gates the call named by a snake_case confirmation request", () => {
     const { approvals } = projectAdkToolApprovals([
       aiCall(GATED_CALL, "delete_file", { path: "/tmp/a" }),
@@ -229,6 +225,25 @@ describe("projectAdkToolApprovals", () => {
     ]);
     expect(approvals.size).toBe(0);
     expect(key).toBe("");
+  });
+
+  it("skips a null tool_calls entry", () => {
+    const { approvals } = projectAdkToolApprovals([
+      {
+        id: "ai-1",
+        type: "ai",
+        content: [],
+        tool_calls: [
+          null,
+          {
+            id: CONFIRMATION_CALL,
+            name: "adk_request_confirmation",
+            args: { originalFunctionCall: { id: GATED_CALL } },
+          },
+        ],
+      } as unknown as AdkMessage,
+    ]);
+    expect([...approvals.keys()]).toEqual([CONFIRMATION_CALL, GATED_CALL]);
   });
 });
 

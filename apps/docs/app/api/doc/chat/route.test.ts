@@ -1,9 +1,9 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   requireSession: vi.fn(),
   checkRateLimit: vi.fn(),
-  getModel: vi.fn(),
+  resolveChatModel: vi.fn(),
 }));
 
 vi.mock("@/lib/anonymous-session", async (importOriginal) => ({
@@ -18,7 +18,7 @@ vi.mock("@/lib/rate-limit", async (importOriginal) => ({
 
 vi.mock("@/lib/ai/provider", async (importOriginal) => ({
   ...(await importOriginal()),
-  getModel: mocks.getModel,
+  resolveChatModel: mocks.resolveChatModel,
 }));
 
 // @/lib/source and @/lib/llm-components import the build-generated
@@ -35,17 +35,11 @@ vi.mock("@/lib/source", () => {
   return {
     source: emptySource,
     examples: emptySource,
-    tapDocs: emptySource,
-    getTapDocsPage: vi.fn(),
   };
 });
 
 import type { UIMessageChunk } from "ai";
 import { POST, withReadDocSources } from "./route";
-
-afterEach(() => {
-  vi.clearAllMocks();
-});
 
 describe("POST /api/doc/chat access boundary", () => {
   it("rejects a direct request before rate limiting or model selection", async () => {
@@ -61,7 +55,7 @@ describe("POST /api/doc/chat access boundary", () => {
 
     expect(response.status).toBe(403);
     expect(mocks.checkRateLimit).not.toHaveBeenCalled();
-    expect(mocks.getModel).not.toHaveBeenCalled();
+    expect(mocks.resolveChatModel).not.toHaveBeenCalled();
   });
 
   it("lets a valid session reach ordinary input validation", async () => {
@@ -84,7 +78,99 @@ describe("POST /api/doc/chat access boundary", () => {
       expect.any(Request),
       "session_1234567890",
     );
-    expect(mocks.getModel).not.toHaveBeenCalled();
+    expect(mocks.resolveChatModel).not.toHaveBeenCalled();
+  });
+
+  it("rejects oversized frontend tools before model selection", async () => {
+    mocks.requireSession.mockReturnValue({
+      id: "session_1234567890",
+      expiresAt: Date.now() + 60_000,
+    });
+    mocks.checkRateLimit.mockResolvedValue(null);
+
+    const response = await POST(
+      new Request("https://www.assistant-ui.com/api/doc/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            {
+              id: "user-message",
+              role: "user",
+              parts: [{ type: "text", text: "Search the docs" }],
+            },
+          ],
+          tools: {
+            search: {
+              description: "x".repeat(96_000),
+              parameters: { type: "object", properties: {} },
+            },
+          },
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.text()).resolves.toBe("Tools too large");
+    expect(mocks.resolveChatModel).not.toHaveBeenCalled();
+  });
+
+  it("rejects an oversized page context before model selection", async () => {
+    mocks.requireSession.mockReturnValue({
+      id: "session_1234567890",
+      expiresAt: Date.now() + 60_000,
+    });
+    mocks.checkRateLimit.mockResolvedValue(null);
+
+    const response = await POST(
+      new Request("https://www.assistant-ui.com/api/doc/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            {
+              id: "user-message",
+              role: "user",
+              parts: [{ type: "text", text: "How do I use Thread?" }],
+            },
+          ],
+          tools: {},
+          system: "x".repeat(4_001),
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.text()).resolves.toBe("Page context too long");
+    expect(mocks.resolveChatModel).not.toHaveBeenCalled();
+  });
+
+  it("accepts page context at the exact limit", async () => {
+    mocks.requireSession.mockReturnValue({
+      id: "session_1234567890",
+      expiresAt: Date.now() + 60_000,
+    });
+    mocks.checkRateLimit.mockResolvedValue(null);
+
+    await POST(
+      new Request("https://www.assistant-ui.com/api/doc/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            {
+              id: "user-message",
+              role: "user",
+              parts: [{ type: "text", text: "How do I use Thread?" }],
+            },
+          ],
+          tools: {},
+          system: "x".repeat(4_000),
+        }),
+      }),
+    );
+
+    expect(mocks.resolveChatModel).toHaveBeenCalledOnce();
   });
 });
 

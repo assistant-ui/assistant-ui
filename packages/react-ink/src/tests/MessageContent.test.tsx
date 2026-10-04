@@ -1,7 +1,7 @@
-import type { ReactElement } from "react";
+import { useState, type ReactElement } from "react";
 import { Text } from "ink";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup } from "ink-testing-library";
+import { cleanup, render } from "ink-testing-library";
 import { MessageContent } from "../primitives/message/MessageContent";
 import {
   mockMessageState,
@@ -43,11 +43,69 @@ vi.mock("@assistant-ui/core/react", async (importOriginal) => {
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
   resetPartContext();
 });
 
 describe("MessageContent", () => {
+  it("keeps each seed with its id when identified parts swap", async () => {
+    const SeededText = ({ text }: { text: string }) => {
+      const [seed] = useState(text);
+      return <Text>{`${seed}:${text}`}</Text>;
+    };
+    const renderText: NonNullable<
+      Parameters<typeof MessageContent>[0]["renderText"]
+    > = ({ part }) => <SeededText text={part.text} />;
+    mockMessageState(mockUseAuiState, {
+      message: {
+        parts: [
+          { type: "text", id: "p1", text: "first" },
+          { type: "text", id: "p2", text: "second" },
+        ],
+      },
+    });
+    const instance = render(<MessageContent renderText={renderText} />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    mockMessageState(mockUseAuiState, {
+      message: {
+        parts: [
+          { type: "text", id: "p2", text: "second updated" },
+          { type: "text", id: "p1", text: "first updated" },
+        ],
+      },
+    });
+    instance.rerender(<MessageContent renderText={renderText} />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(instance.lastFrame()).toBe(
+      "second:second updated\nfirst:first updated",
+    );
+  });
+
+  it("keeps a text seed while streaming and resets it for a replacement id", async () => {
+    let content = [{ type: "text", id: "p1", text: "old" }];
+    mockMessageState(mockUseAuiState, { message: { parts: content } });
+    const SeededText = ({ text }: { text: string }) => {
+      const [seed] = useState(text);
+      return <Text>{`${seed}:${text}`}</Text>;
+    };
+    const renderText: NonNullable<
+      Parameters<typeof MessageContent>[0]["renderText"]
+    > = ({ part }) => <SeededText text={part.text} />;
+    const instance = render(<MessageContent renderText={renderText} />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    content = [{ type: "text", id: "p1", text: "old streamed" }];
+    mockMessageState(mockUseAuiState, { message: { parts: content } });
+    instance.rerender(<MessageContent renderText={renderText} />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(instance.lastFrame()).toContain("old:old streamed");
+
+    content = [{ type: "text", id: "p2", text: "new" }];
+    mockMessageState(mockUseAuiState, { message: { parts: content } });
+    instance.rerender(<MessageContent renderText={renderText} />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(instance.lastFrame()).toContain("new:new");
+  });
+
   it("renders incomplete tool calls as errors instead of running forever", async () => {
     mockMessageState(mockUseAuiState, {
       tools: { toolUIs: {} },
@@ -222,7 +280,21 @@ describe("MessageContent", () => {
   });
 
   it("uses registered tool UI before renderToolCall", async () => {
-    const ToolUI = () => <Text>registered tool</Text>;
+    const recordInteraction = vi.fn();
+    const ToolUI = ({
+      unstable_recordInteraction,
+    }: {
+      unstable_recordInteraction?: (input: {
+        type: "action";
+        payload: { choice: string };
+      }) => Promise<void>;
+    }) => {
+      void unstable_recordInteraction?.({
+        type: "action",
+        payload: { choice: "retry" },
+      });
+      return <Text>registered tool</Text>;
+    };
     mockMessageState(mockUseAuiState, {
       tools: { toolUIs: { search: [{ render: ToolUI }] } },
       dataRenderers: { renderers: {}, fallbacks: [] },
@@ -244,6 +316,7 @@ describe("MessageContent", () => {
         part: () => ({
           addToolResult: vi.fn(),
           resumeToolCall: vi.fn(),
+          unstable_recordInteraction: recordInteraction,
         }),
       },
     });
@@ -253,6 +326,10 @@ describe("MessageContent", () => {
     );
 
     expect(frame).toBe("registered tool");
+    expect(recordInteraction).toHaveBeenCalledWith({
+      type: "action",
+      payload: { choice: "retry" },
+    });
   });
 
   it("uses registered named data renderer before renderData", async () => {

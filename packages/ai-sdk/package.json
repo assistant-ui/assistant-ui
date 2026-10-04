@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/ai-sdk",
-  "version": "0.0.5",
+  "version": "0.0.10",
   "description": "Vercel AI SDK adapter for assistant-ui",
   "keywords": [
     "ai-sdk",
@@ -48,22 +48,25 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
+    "test:peer-react18": "vitest run --config vitest.peer-react18.config.ts",
     "test:react-compiler": "vitest run --config vitest.react-compiler.config.ts",
     "test:standalone": "vitest run --project standalone",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:types:peer-react18": "aui-react18-types"
   },
   "dependencies": {
-    "@ai-sdk/mcp": "^2.0.45",
-    "@ai-sdk/react": "^4.0.96",
-    "@assistant-ui/core": "^0.3.18",
-    "@assistant-ui/store": "^0.3.13",
-    "@assistant-ui/tap": "^0.9.17",
-    "ai": "^7.0.93",
-    "assistant-cloud": "*",
-    "assistant-stream": "^0.3.42"
+    "@ai-sdk/mcp": "^2.0.63",
+    "@ai-sdk/react": "^4.0.126",
+    "@assistant-ui/core": "^0.3.23",
+    "@assistant-ui/store": "^0.3.17",
+    "@assistant-ui/tap": "^0.9.21",
+    "assistant-cloud": "workspace:^",
+    "assistant-stream": "^0.3.47"
   },
   "peerDependencies": {
     "@types/react": "*",
+    "ai": "^7.0.101",
     "react": "^18 || ^19"
   },
   "peerDependenciesMeta": {
@@ -76,13 +79,15 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@assistant-ui/x-react18": "workspace:*",
     "@testing-library/react": "^16.3.3",
     "@types/json-schema": "^7.0.15",
-    "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.7",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "ai": "^7.0.123",
     "jsdom": "^30.0.1",
-    "react": "^19.2.8",
-    "vitest": "^4.1.11"
+    "react": "^19.3.0",
+    "vitest": "^5.0.3"
   },
   "publishConfig": {
     "access": "public",

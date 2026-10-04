@@ -9,6 +9,5 @@ vi.mock("fumadocs-mdx:collections/server", () => {
     docs: emptyCollection,
     elements: [],
     examples: [],
-    tapDocs: emptyCollection,
   };
 });

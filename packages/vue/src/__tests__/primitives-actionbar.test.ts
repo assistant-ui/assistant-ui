@@ -44,7 +44,7 @@ let nextId = 0;
 const freshId = (prefix: string) => `${prefix}-${nextId++}`;
 
 const createEditableRuntime = () => {
-  let messages: DemoMessage[] = [];
+  let messages: readonly DemoMessage[] = [];
   let isRunning = false;
   const makeAdapter = (): ExternalStoreAdapter<DemoMessage> => ({
     messages,
@@ -80,7 +80,7 @@ const createEditableRuntime = () => {
   const core = new ExternalStoreRuntimeCore(makeAdapter());
   const runtime = new AssistantRuntimeImpl(core);
   const sync = () => core.setAdapter(makeAdapter());
-  const seed = (next: DemoMessage[]) => {
+  const seed = (next: readonly DemoMessage[]) => {
     messages = next;
     sync();
   };

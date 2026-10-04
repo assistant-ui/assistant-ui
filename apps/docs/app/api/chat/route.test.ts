@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   requireSession: vi.fn(),
@@ -38,10 +38,6 @@ vi.mock("@/lib/demo-usage", () => ({
 
 import { POST } from "./route";
 
-afterEach(() => {
-  vi.clearAllMocks();
-});
-
 describe("POST /api/chat access boundary", () => {
   it("rejects a direct request before model selection", async () => {
     mocks.requireSession.mockReturnValue(
@@ -79,6 +75,69 @@ describe("POST /api/chat access boundary", () => {
     );
 
     expect(response.status).toBe(429);
+    expect(mocks.resolveChatModel).not.toHaveBeenCalled();
+  });
+
+  it("rejects oversized frontend tools before model selection", async () => {
+    mocks.requireSession.mockReturnValue({
+      id: "session_1234567890",
+      expiresAt: Date.now() + 60_000,
+    });
+    mocks.checkRateLimit.mockResolvedValue(null);
+
+    const response = await POST(
+      new Request("https://www.assistant-ui.com/api/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            {
+              id: "user-message",
+              role: "user",
+              parts: [{ type: "text", text: "Search the docs" }],
+            },
+          ],
+          tools: {
+            search: {
+              description: "x".repeat(96_000),
+              parameters: { type: "object", properties: {} },
+            },
+          },
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.text()).resolves.toBe("Tools too large");
+    expect(mocks.resolveChatModel).not.toHaveBeenCalled();
+  });
+
+  it("rejects malformed frontend tools before model selection", async () => {
+    mocks.requireSession.mockReturnValue({
+      id: "session_1234567890",
+      expiresAt: Date.now() + 60_000,
+    });
+    mocks.checkRateLimit.mockResolvedValue(null);
+
+    const response = await POST(
+      new Request("https://www.assistant-ui.com/api/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            {
+              id: "user-message",
+              role: "user",
+              parts: [{ type: "text", text: "Search the docs" }],
+            },
+          ],
+          tools: "search",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.text()).resolves.toBe("Invalid tools format");
     expect(mocks.resolveChatModel).not.toHaveBeenCalled();
   });
 });

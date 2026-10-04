@@ -1,15 +1,15 @@
+import { cacheLife } from "next/cache";
 import { NextResponse } from "next/server";
 import type { DocumentRecord } from "fumadocs-core/search/algolia";
-import { design, elementsDocs, source, getTapDocsPages } from "@/lib/source";
+import { design, elementsDocs, source } from "@/lib/source";
 
-export const revalidate = false;
-
-export async function GET() {
+async function getResults() {
+  "use cache";
+  cacheLife("max");
   const results: DocumentRecord[] = [];
 
   for (const page of [
     ...source.getPages(),
-    ...getTapDocsPages(),
     ...design.getPages(),
     ...elementsDocs.getPages(),
   ]) {
@@ -22,7 +22,11 @@ export async function GET() {
     });
   }
 
-  return NextResponse.json(results, {
+  return results;
+}
+
+export async function GET() {
+  return NextResponse.json(await getResults(), {
     headers: {
       "X-Robots-Tag": "noindex, follow",
     },

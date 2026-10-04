@@ -13,7 +13,7 @@ This is the [assistant-ui](https://assistant-ui.com) starter project with [Assis
 
 ### 2. Configure Assistant Cloud + Clerk
 
-Follow the docs guide to connect Clerk to Assistant Cloud (JWT template + Auth Rule): https://www.assistant-ui.com/docs/cloud/authorization#setting-up-the-clerk-auth-provider
+Follow the docs guide to connect Clerk to Assistant Cloud (JWT template + Auth Rule): https://www.assistant-ui.com/docs/cloud/auth-providers
 
 <details>
 <summary>Setting up the Clerk Auth Provider</summary>

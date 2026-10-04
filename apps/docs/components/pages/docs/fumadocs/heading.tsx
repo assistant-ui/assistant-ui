@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, type ComponentProps } from "react";
+import type { ComponentProps } from "react";
 import { CheckIcon, LinkIcon } from "lucide-react";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { cn } from "@/lib/utils";
 
 type HeadingTag = "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
@@ -12,13 +13,9 @@ export function Heading({
   children,
   ...props
 }: ComponentProps<"h1"> & { as?: HeadingTag }) {
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    if (!copied) return;
-    const timeout = setTimeout(() => setCopied(false), 1500);
-    return () => clearTimeout(timeout);
-  }, [copied]);
+  const { isCopied: copied, copyToClipboard } = useCopyToClipboard({
+    copiedDuration: 1500,
+  });
 
   if (!props.id) {
     return (
@@ -29,13 +26,9 @@ export function Heading({
   }
 
   const onCopy = () => {
-    if (!navigator.clipboard) return;
     const url = new URL(window.location.href);
     url.hash = props.id as string;
-    navigator.clipboard.writeText(url.href).then(
-      () => setCopied(true),
-      () => undefined,
-    );
+    copyToClipboard(url.href);
   };
 
   return (

@@ -1,6 +1,6 @@
 ---
 title: Cloudflare Agents
-description: Wire Cloudflare's stateful agent framework into a React chat UI with assistant-ui via the standard AI SDK runtime. WebSocket transport, server-side persistence, tool calling, all preserved.
+description: Connect Cloudflare's stateful agent framework to a React chat UI with assistant-ui through the AI SDK runtime, keeping its WebSocket transport, server-side persistence, and tool calling.
 platforms: ["react"]
 ---
 
@@ -17,7 +17,7 @@ This is an integration guide, not a runtime adapter. assistant-ui does not ship 
 
 Cloudflare Agents handles the server half: a Durable Object subclasses `AIChatAgent` from `@cloudflare/ai-chat`, owns the message history, and streams responses back over a WebSocket. `@cloudflare/ai-chat/react`'s `useAgentChat` hook wraps that WebSocket and exposes the same `messages`, `sendMessage`, `regenerate`, `status`, `stop`, `setMessages`, `addToolOutput` surface that the AI SDK's `useChat` does, plus a few Cloudflare-specific extras (`clearHistory`, `isServerStreaming`, `isToolContinuation`).
 
-assistant-ui handles the client half. `useAISDKRuntime` from [`@assistant-ui/ai-sdk`](/docs/runtimes/ai-sdk/v7) reads exactly those AI SDK methods off whatever you pass in, so feeding it `useAgentChat`'s return value yields a fully-featured runtime: streaming, tool calling, edit, reload, history import and export, attachments, suggestions.
+assistant-ui handles the client half. `useAISDKRuntime` from [`@assistant-ui/ai-sdk`](/docs/runtimes/ai-sdk/v7) reads exactly those AI SDK methods off whatever you pass in, so feeding it `useAgentChat`'s return value yields a runtime with streaming, tool calling, edit, reload, history import and export, attachments, and suggestions.
 
 Shared adapters (attachments, speech, feedback, history) work the same way as described in [adapters](/docs/runtimes/concepts/adapters). Multi-thread support needs a [custom thread list](/docs/runtimes/concepts/threads) wired around `useAISDKRuntime`; [AssistantCloud](/docs/cloud) integrates via `useChatRuntime` (which constructs its own `useChat` internally) and is not compatible with the `useAgentChat` wiring shown here.
 
@@ -69,7 +69,7 @@ export type Env = {
 export class Chat extends AIChatAgent<Env> {
   async onChatMessage(onFinish: Parameters<typeof streamText>[0]["onFinish"]) {
     return streamText({
-      model: openai("gpt-5.6-luna"),
+      model: openai("gpt-6-luna"),
       messages: await convertToModelMessages(this.messages),
       onFinish,
     });
@@ -245,13 +245,13 @@ NEXT_PUBLIC_AGENT_HOST=http://localhost:8787
 
 - `clearHistory()` sends a `cf_agent_chat_clear` frame and wipes the Durable Object's SQLite store. Bind it to a "Clear chat" button if you need server-side history reset; `setMessages([])` alone only clears the client view.
 - `isServerStreaming` is `true` while the server is pushing tokens, independent of client-initiated request state. Use it for a universal streaming indicator.
-- `isToolContinuation` distinguishes "server auto-continuing after a tool result" from "user just sent a new message". Useful for typing-indicator gating.
+- `isToolContinuation` distinguishes "server auto-continuing after a tool result" from "user just sent a new message". Use it to gate a typing indicator.
 
 Destructure these alongside `chat` and pass them into your UI directly; they don't need to flow through the runtime.
 
 ### `setMessages` round-trips through the Durable Object
 
-`useAgentChat` overrides `setMessages` to broadcast the new list over the WebSocket so the Durable Object's SQLite history stays in sync. This means assistant-ui's `onImport`, `onEdit`, `onReload`, and pending-tool cancellation paths all persist server-side automatically. The tradeoff is one extra WebSocket round-trip per mutation, which can race if the connection is lagging; assume eventual consistency, not transactional.
+`useAgentChat` overrides `setMessages` to broadcast the new list over the WebSocket so the Durable Object's SQLite history stays in sync. As a result, assistant-ui's `onImport`, `onEdit`, `onReload`, and pending-tool cancellation paths all persist server-side. Each mutation costs one extra WebSocket round-trip, which can race if the connection is lagging, so treat the history as eventually consistent.
 
 ### Authenticate the Worker before going to production
 

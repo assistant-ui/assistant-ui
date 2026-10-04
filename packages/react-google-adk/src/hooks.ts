@@ -2,6 +2,7 @@ import { generateId } from "@assistant-ui/core";
 import { useAui } from "@assistant-ui/store";
 import { useShallowSelector } from "@assistant-ui/store/internal";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
+import { toAdkAuthReply } from "./adkAuthRequest";
 import { adkExtras } from "./adkExtras";
 import { toAdkConfirmationReply } from "./adkToolApproval";
 import type {
@@ -74,23 +75,21 @@ export const useAdkConfirmTool = () => {
       .send([toAdkConfirmationReply(toolCallId, confirmed, payload)], {});
 };
 
-/** Returns a function to submit auth credentials for a pending auth request. */
+/**
+ * Returns a function to submit auth credentials for a pending auth request.
+ * The reply carries the request's auth config with the credential as its
+ * `exchangedAuthCredential`, which is the shape ADK resumes the tool on, so the
+ * id must name a request `useAdkAuthRequests` currently lists.
+ */
 export const useAdkSubmitAuth = () => {
   const aui = useAui();
-  return (toolCallId: string, credential: AdkAuthCredential) =>
-    adkExtras.get(aui).send(
-      [
-        {
-          id: generateId(),
-          type: "tool",
-          tool_call_id: toolCallId,
-          name: "adk_request_credential",
-          content: JSON.stringify(credential),
-          status: "success",
-        },
-      ],
+  return (toolCallId: string, credential: AdkAuthCredential) => {
+    const extras = adkExtras.get(aui);
+    return extras.send(
+      [toAdkAuthReply(toolCallId, credential, extras.authRequests)],
       {},
     );
+  };
 };
 
 /** Returns a function to submit the user's answer for a pending `adk_request_input` HITL interrupt. */

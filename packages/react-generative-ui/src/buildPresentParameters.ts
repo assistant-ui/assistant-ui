@@ -2,6 +2,7 @@ import { toJSONSchema } from "assistant-stream";
 import type { JSONSchema7, JSONSchema7Definition } from "json-schema";
 import { TYPE_KEY } from "./constants";
 import type { GenerativeUILibrary } from "./types";
+import { scopeSchema } from "./scopeSchema";
 
 /**
  * Builds the JSON schema for the `present` tool from a {@link GenerativeUILibrary}.
@@ -31,14 +32,20 @@ export function buildPresentParameters(
   // advisory hint here, not a strict per-component contract.
   const props = new Map<string, JSONSchema7Definition>();
   const propOwners = new Map<string, string[]>();
-  for (const name of names) {
-    const propsSchema = toJSONSchema(library[name]!.properties);
+  const componentSchemas: Record<string, JSONSchema7> = {};
+  for (const [index, name] of names.entries()) {
+    const definition = `component${index}`;
+    const { schema: propsSchema, referenced } = scopeSchema(
+      toJSONSchema(library[name]!.properties),
+      `#/$defs/${definition}`,
+    );
     if (propsSchema.type !== "object") {
       throw new Error(
         `[@assistant-ui/react-generative-ui] Component "${name}": ` +
           "`properties` must be an object schema (e.g. `z.object({ ... })`).",
       );
     }
+    let merged = false;
     for (const [key, schema] of Object.entries(propsSchema.properties ?? {})) {
       if (key.startsWith("$") || key === "children") continue;
       // secure-json-parse rejects the whole tool-argument payload on this key,
@@ -46,8 +53,16 @@ export function buildPresentParameters(
       if (key === "__proto__") continue;
       if (!props.has(key)) {
         props.set(key, schema);
+        merged = true;
       }
       propOwners.set(key, [...(propOwners.get(key) ?? []), name]);
+    }
+    if (referenced && merged) {
+      // `$schema` is only valid at a schema-resource root, and an embedded
+      // `$id` would both collide across components and re-base the pointers
+      // scopeSchema just rewrote to be document-root relative.
+      const { $schema: _, $id: _id, ...embedded } = propsSchema;
+      componentSchemas[definition] = embedded;
     }
   }
 
@@ -101,7 +116,7 @@ export function buildPresentParameters(
 
   return {
     ...node,
-    $defs: { node, children },
+    $defs: { node, children, ...componentSchemas },
   };
 }
 

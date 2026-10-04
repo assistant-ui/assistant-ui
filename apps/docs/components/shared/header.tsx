@@ -13,6 +13,7 @@ import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
 import { NavItems, NavItemsRoot } from "@/components/shared/nav-items";
 import { HeaderBrandLink } from "@/components/shared/header-brand-link";
+import { CartButton } from "@/components/shared/shop-entry";
 import { headerBarClassName } from "@/components/shared/header-chrome";
 import { useScrolled } from "@/hooks/use-scrolled";
 
@@ -47,7 +48,7 @@ function SearchButton({ onToggle }: { onToggle: () => void }) {
         aria-label="Search (⌘K)"
       >
         Search
-        <KbdGroup className="hidden lg:inline-flex">
+        <KbdGroup className="hidden xl:inline-flex">
           <Kbd>⌘</Kbd>
           <Kbd>K</Kbd>
         </KbdGroup>
@@ -68,18 +69,19 @@ export function Header() {
         <div
           className={headerBarClassName(
             scrolled,
-            "mx-auto flex h-12 w-full max-w-7xl items-center justify-between px-4 md:grid md:grid-cols-[1fr_auto_1fr]",
+            "mx-auto flex h-12 w-full max-w-7xl items-center justify-between px-4 lg:grid lg:grid-cols-[1fr_auto_1fr]",
           )}
         >
           <HeaderBrandLink className="justify-self-start" />
 
           <NavItems
             items={NAV_ITEMS}
-            className="hidden items-center md:flex"
+            className="hidden items-center lg:flex"
             contentClassName="mx-auto max-w-7xl"
           />
 
-          <div className="flex items-center justify-end gap-2">
+          <div className="flex items-center justify-end gap-2 max-sm:[&:has([data-cart-button]:not([data-empty]))_[data-header-cloud]]:hidden">
+            <CartButton />
             <SearchButton onToggle={() => setSearchOpen((prev) => !prev)} />
             <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
 
@@ -90,7 +92,7 @@ export function Header() {
               aria-label="Ask AI (⌘I)"
             >
               Ask AI
-              <KbdGroup className="hidden lg:inline-flex">
+              <KbdGroup className="hidden xl:inline-flex">
                 <Kbd>⌘</Kbd>
                 <Kbd>I</Kbd>
               </KbdGroup>
@@ -98,6 +100,8 @@ export function Header() {
             <Button
               size="sm"
               nativeButton={false}
+              data-header-cloud=""
+              className="max-[340px]:hidden"
               render={
                 <a href={CLOUD_URL} target="_blank" rel="noopener noreferrer" />
               }
@@ -108,7 +112,7 @@ export function Header() {
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors md:hidden"
+              className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors lg:hidden"
               aria-label="Toggle menu"
             >
               {mobileMenuOpen ? (
@@ -122,7 +126,7 @@ export function Header() {
 
         <div
           className={cn(
-            "bg-background fixed inset-x-0 top-12 bottom-0 z-40 transition-opacity duration-200 md:hidden",
+            "bg-background fixed inset-x-0 top-12 bottom-0 z-40 transition-opacity duration-200 lg:hidden",
             mobileMenuOpen ? "opacity-100" : "pointer-events-none opacity-0",
           )}
         >
@@ -159,7 +163,7 @@ export function Header() {
                   </span>
                   {item.groups.map((group) => (
                     <div key={group.label} className="flex flex-col">
-                      <span className="text-muted-foreground py-3 font-mono text-sm tracking-wide uppercase">
+                      <span className="text-muted-foreground py-3 text-xs font-medium">
                         {group.label}
                       </span>
                       {group.items.map((link) =>

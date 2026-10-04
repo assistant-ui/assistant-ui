@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import type { FileMessagePartComponent } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
+import { AudioPlayer, VideoPlayer } from "./media-player";
 
 const fileVariants = cva(
   "aui-file-root inline-flex items-center gap-3 rounded-lg transition-colors",
@@ -68,15 +69,72 @@ function getFileDataKind(
   if (sourceType === "url" && /^data:/i.test(data)) return "data-uri";
   if (sourceType) return sourceType;
   if (/^data:/i.test(data)) return "data-uri";
-  if (/^https?:\/\//i.test(data)) return "url";
+  if (/^(https?:\/\/|blob:)/i.test(data)) return "url";
   return "base64";
 }
 
+function isUnsafeScheme(data: string): boolean {
+  return (
+    /^[a-z][a-z\d+.-]*:/i.test(data) &&
+    !/^(data:|https?:\/\/|blob:)/i.test(data)
+  );
+}
+
+function getFileHref(
+  data: string,
+  mimeType: string,
+  sourceType?: "url" | "id",
+): string | null {
+  if (isUnsafeScheme(data)) return null;
+  const kind = getFileDataKind(data, sourceType);
+  if (kind === "id") return null;
+  if (kind === "data-uri") return /^data:[^,]*,/i.test(data) ? data : null;
+  if (kind === "url") return /^(https?:\/\/|blob:)/i.test(data) ? data : null;
+  return `data:${mimeType};base64,${data}`;
+}
+
+function getBase64PayloadSize(payload: string): number {
+  const padding = payload.endsWith("==") ? 2 : payload.endsWith("=") ? 1 : 0;
+  const firstNonBase64 = payload.search(/[^A-Za-z\d+/]/);
+  if (
+    (firstNonBase64 !== -1 && firstNonBase64 !== payload.length - padding) ||
+    payload.length % 4 === 1 ||
+    (padding > 0 && payload.length % 4 !== 0)
+  ) {
+    return 0;
+  }
+  return Math.floor((payload.length * 3) / 4) - padding;
+}
+
 function getBase64Size(base64: string): number {
-  const commaIndex = base64.indexOf(",");
-  const base64Data = commaIndex >= 0 ? base64.slice(commaIndex + 1) : base64;
-  const padding = (base64Data.match(/=/g) || []).length;
-  return Math.floor((base64Data.length * 3) / 4) - padding;
+  const payload = /[\t\n\f\r ]/.test(base64)
+    ? base64.replace(/[\t\n\f\r ]/g, "")
+    : base64;
+  return getBase64PayloadSize(payload);
+}
+
+function getDataUrlSize(data: string): number {
+  const fragment = data.indexOf("#");
+  const end = fragment < 0 ? data.length : fragment;
+  const comma = data.indexOf(",");
+  if (comma < 0 || comma >= end) {
+    return 0;
+  }
+  let payload = data.slice(comma + 1, end);
+  if (/;base64$/i.test(data.slice(0, comma))) {
+    if (/[%\t\n\f\r ]/.test(payload)) {
+      payload = payload
+        .replace(/%([\da-f]{2})/gi, (_match, hex: string) =>
+          String.fromCharCode(Number.parseInt(hex, 16)),
+        )
+        .replace(/[\t\n\f\r ]/g, "");
+    }
+    return getBase64PayloadSize(payload);
+  }
+
+  // Each percent escape is one byte, including octets that are not valid UTF-8.
+  return new TextEncoder().encode(payload.replace(/%[\da-f]{2}/gi, "_"))
+    .byteLength;
 }
 
 function formatFileSize(bytes: number): string {
@@ -186,9 +244,8 @@ function FileDownload({
 }: FileDownloadProps) {
   if (typeof data !== "string") return null;
   const kind = getFileDataKind(data, sourceType);
-  if (kind === "id") return null;
-  if (kind === "url" && !/^(https?:\/\/|blob:)/i.test(data)) return null;
-  const href = kind === "base64" ? `data:${mimeType};base64,${data}` : data;
+  const href = getFileHref(data, mimeType, sourceType);
+  if (!href) return null;
 
   return (
     <a
@@ -200,10 +257,51 @@ function FileDownload({
         "text-muted-foreground hover:bg-accent hover:text-accent-foreground shrink-0 rounded-md p-1 transition-colors",
         className,
       )}
+      aria-label={!children ? `Download ${filename || "file"}` : undefined}
       {...props}
     >
       {children || <DownloadIcon className="size-4" />}
     </a>
+  );
+}
+
+export interface FilePlayerProps extends Omit<
+  React.ComponentProps<"div">,
+  "children"
+> {
+  data: string;
+  mimeType: string;
+  filename?: string | undefined;
+  sourceType?: "url" | "id" | undefined;
+}
+
+function FilePlayer({
+  data,
+  mimeType,
+  filename,
+  sourceType,
+  className,
+  ...props
+}: FilePlayerProps) {
+  const src = getFileHref(data, mimeType, sourceType);
+  const normalizedMimeType = mimeType.toLowerCase();
+
+  if (
+    !src ||
+    (!normalizedMimeType.startsWith("audio/") &&
+      !normalizedMimeType.startsWith("video/"))
+  ) {
+    return null;
+  }
+
+  return (
+    <div data-slot="file-player" className={cn("w-full", className)} {...props}>
+      {normalizedMimeType.startsWith("audio/") ? (
+        <AudioPlayer src={src} title={filename} />
+      ) : (
+        <VideoPlayer src={src} title={filename} />
+      )}
+    </div>
   );
 }
 
@@ -216,6 +314,39 @@ const FileImpl: FileMessagePartComponent = ({
   const kind = getFileDataKind(data, sourceType);
   const showSize =
     typeof data === "string" && (kind === "base64" || kind === "data-uri");
+  const mediaSource = getFileHref(data, mimeType, sourceType);
+  const isMedia =
+    mimeType.toLowerCase().startsWith("audio/") ||
+    mimeType.toLowerCase().startsWith("video/");
+
+  if (mediaSource && isMedia) {
+    return (
+      <div className="flex w-full max-w-xl flex-col gap-2">
+        <FilePlayer
+          data={data}
+          mimeType={mimeType}
+          {...(filename !== undefined && { filename })}
+          {...(sourceType !== undefined && { sourceType })}
+        />
+        <div className="flex min-w-0 items-center justify-end gap-2 px-1">
+          {showSize && (
+            <FileSize
+              bytes={
+                kind === "data-uri" ? getDataUrlSize(data) : getBase64Size(data)
+              }
+              className="text-foreground/45 text-[11px]"
+            />
+          )}
+          <FileDownload
+            data={data}
+            mimeType={mimeType}
+            {...(filename !== undefined && { filename })}
+            {...(sourceType !== undefined && { sourceType })}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <FileRoot>
@@ -223,7 +354,12 @@ const FileImpl: FileMessagePartComponent = ({
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <FileName>{filename}</FileName>
         {showSize && (
-          <FileSize bytes={getBase64Size(data)} className="text-xs" />
+          <FileSize
+            bytes={
+              kind === "data-uri" ? getDataUrlSize(data) : getBase64Size(data)
+            }
+            className="text-xs"
+          />
         )}
       </div>
       <FileDownload
@@ -242,6 +378,7 @@ const File = memo(FileImpl) as unknown as FileMessagePartComponent & {
   Name: typeof FileName;
   Size: typeof FileSize;
   Download: typeof FileDownload;
+  Player: typeof FilePlayer;
 };
 
 File.displayName = "File";
@@ -250,6 +387,7 @@ File.Icon = FileIconDisplay;
 File.Name = FileName;
 File.Size = FileSize;
 File.Download = FileDownload;
+File.Player = FilePlayer;
 
 export {
   File,
@@ -258,6 +396,7 @@ export {
   FileName,
   FileSize,
   FileDownload,
+  FilePlayer,
   fileVariants,
   getMimeTypeIcon,
   getFileDataKind,

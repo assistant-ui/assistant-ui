@@ -50,6 +50,20 @@ export type DictationState = {
   readonly inputDisabled?: boolean;
 };
 
+/**
+ * A message the user sent that the thread does not show as one of its own
+ * yet, because its attachments are still being prepared or the runtime has
+ * not shown it since taking it. A send that cannot be delivered takes its
+ * content back into the draft, so a submission is always in flight.
+ */
+export type ComposerSubmission = {
+  readonly id: string;
+  readonly role: MessageRole;
+  readonly text: string;
+  readonly quote: QuoteInfo | undefined;
+  readonly attachments: readonly Attachment[];
+};
+
 export type SendOptions = {
   startRun?: boolean;
   /** Process this message next; only meaningful with the `queue` capability. */
@@ -86,6 +100,11 @@ export type ComposerRuntimeCore = Readonly<{
 
   send: (options?: SendOptions) => void;
   cancel: () => void;
+
+  /** The message this composer sent while its attachments are prepared. */
+  submission?: ComposerSubmission | undefined;
+  /** Messages this composer handed to the runtime that the thread does not show yet. */
+  inTransit?: readonly ComposerSubmission[] | undefined;
 
   queue: readonly QueueItemState[];
   moveQueueItem: (queueItemId: string, placement: QueuePlacement) => void;

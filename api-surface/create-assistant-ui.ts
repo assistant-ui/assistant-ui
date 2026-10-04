@@ -14,7 +14,7 @@ export const cliSurface: CliSurfaceSnapshot = {
   "options": [
     {
       "flags": "-t, --template <template>",
-      "description": "template to use (default, minimal, cloud, cloud-clerk, langchain, mcp, eve)",
+      "description": "template to use (default, minimal, cloud, cloud-clerk, cloud-harness, langchain, mcp, eve)",
       "required": true
     },
     {
@@ -62,6 +62,12 @@ export const cliSurface: CliSurfaceSnapshot = {
     {
       "flags": "--no-skills",
       "description": "skip adding assistant-ui agent skills"
+    },
+    {
+      "flags": "--cwd <cwd>",
+      "description": "the working directory. defaults to the current directory.",
+      "required": true,
+      "hidden": true
     },
     {
       "flags": "--debug-source-root <path>",

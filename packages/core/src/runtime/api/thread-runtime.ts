@@ -14,10 +14,11 @@ import type { ThreadMessageLike } from "../utils/thread-message-like";
 import {
   type MessageRuntime,
   MessageRuntimeImpl,
-  type MessageState,
+  type MessageRuntimeState,
 } from "./message-runtime";
 import { NestedSubscriptionSubject } from "../../subscribable/subscribable";
 import {
+  runCleanups,
   ShallowMemoizeSubject,
   SKIP_UPDATE,
 } from "../../subscribable/subscribable";
@@ -31,10 +32,10 @@ import type {
   ThreadListItemRuntimePath,
   ThreadRuntimePath,
 } from "./paths";
-import type { ThreadListItemState } from "./bindings";
+import type { ThreadListItemRuntimeState } from "./bindings";
 import type { AppendMessage, ThreadMessage } from "../../types/message";
 import type { Unsubscribe } from "../../types/unsubscribe";
-import { isMessageNotSentError } from "../../types/error";
+import { reportRunFailure } from "../../utils/report-run-failure";
 import type { RunConfig } from "../../types/message";
 import { EventSubscriptionSubject } from "../../subscribable/subscribable";
 import { symbolInnerMessage } from "../utils/external-store-message";
@@ -133,11 +134,11 @@ export type ThreadRuntimeCoreBinding = SubscribableWithState<
 };
 
 export type ThreadListItemRuntimeBinding = SubscribableWithState<
-  ThreadListItemState,
+  ThreadListItemRuntimeState,
   ThreadListItemRuntimePath
 >;
 
-export type ThreadState = {
+export type ThreadRuntimeState = {
   /**
    * The thread ID.
    * @deprecated This field is deprecated and will be removed in 0.12.0. Use `useThreadListItem().id` instead.
@@ -149,7 +150,7 @@ export type ThreadState = {
    *
    * @deprecated Use `useThreadListItem()` instead. This field is deprecated and will be removed in 0.12.0.
    */
-  readonly metadata: ThreadListItemState;
+  readonly metadata: ThreadListItemRuntimeState;
 
   /**
    * Whether the thread is disabled. Disabled threads cannot receive new messages.
@@ -160,6 +161,16 @@ export type ThreadState = {
    * Whether the thread is loading its history.
    */
   readonly isLoading: boolean;
+
+  /**
+   * Whether messages exist before the first loaded one, for a runtime that pages long threads.
+   */
+  readonly hasEarlier: boolean;
+
+  /**
+   * Whether the page before the first loaded message is being loaded.
+   */
+  readonly isLoadingEarlier: boolean;
 
   /**
    * Whether the thread is running. A thread is considered running when there is an active stream connection to the backend.
@@ -202,6 +213,11 @@ export type ThreadState = {
 };
 
 /**
+ * @deprecated Use `ThreadRuntimeState`. From `@assistant-ui/react` 0.16, `ThreadState` names the thread state read through `useAuiState`.
+ */
+export type ThreadState = ThreadRuntimeState;
+
+/**
  * The canonical `isRunning` derivation. A runtime that tracks run state itself
  * reports it directly; the rest fall back to the trailing assistant message.
  */
@@ -217,14 +233,16 @@ export const getThreadRuntimeCoreIsRunning = (
 
 export const getThreadState = (
   runtime: ThreadRuntimeCore,
-  threadListItemState: ThreadListItemState,
-): ThreadState => {
+  threadListItemState: ThreadListItemRuntimeState,
+): ThreadRuntimeState => {
   return Object.freeze({
     threadId: threadListItemState.id,
     metadata: threadListItemState,
     capabilities: runtime.capabilities,
     isDisabled: runtime.isDisabled,
     isLoading: runtime.isLoading,
+    hasEarlier: runtime.hasEarlier ?? false,
+    isLoadingEarlier: runtime.isLoadingEarlier ?? false,
     isRunning: getThreadRuntimeCoreIsRunning(runtime),
     messages: runtime.messages,
     state: runtime.state,
@@ -249,7 +267,7 @@ export type ThreadRuntime = {
   /**
    * Gets a snapshot of the thread state.
    */
-  getState(): ThreadState;
+  getState(): ThreadRuntimeState;
 
   /**
    * Append a new message to the thread.
@@ -302,6 +320,11 @@ export type ThreadRuntime = {
   subscribe(callback: () => void): Unsubscribe;
   cancelRun(): void;
   /**
+   * Loads the page before the first loaded message; resolves at once when
+   * `hasEarlier` is false. Concurrent calls share one load.
+   */
+  loadEarlier(): Promise<void>;
+  /**
    * Notifies the runtime that the adapter discarded its backing session.
    * Clears session-scoped tool-invocation state without run-cancel side
    * effects such as composer draft restoration. Internal API for
@@ -351,10 +374,10 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
   }
 
   private readonly _threadBinding: ThreadRuntimeCoreBinding & {
-    getStateState(): ThreadState;
+    getStateState(): ThreadRuntimeState;
   };
   private readonly _stateBinding: ShallowMemoizeSubject<
-    ThreadState,
+    ThreadRuntimeState,
     ThreadRuntimePath
   >;
 
@@ -372,10 +395,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
       subscribe: (callback) => {
         const sub1 = threadBinding.subscribe(callback);
         const sub2 = threadListItemBinding.subscribe(callback);
-        return () => {
-          sub1();
-          sub2();
-        };
+        return () => runCleanups([sub1, sub2]);
       },
     });
 
@@ -407,6 +427,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     this.append = this.append.bind(this);
     this.deleteMessage = this.deleteMessage.bind(this);
     this.resumeRun = this.resumeRun.bind(this);
+    this.loadEarlier = this.loadEarlier.bind(this);
     this.importExternalState = this.importExternalState.bind(this);
     this.exportExternalState = this.exportExternalState.bind(this);
     this.startRun = this.startRun.bind(this);
@@ -438,17 +459,14 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
   }
 
   public append(message: CreateAppendMessage) {
-    const task = this._threadBinding
-      .getState()
-      .append(
-        toAppendMessage(this._threadBinding.getState().messages, message),
-      );
-    // An undispatched send is reported to the composer, so it is a control
-    // signal rather than a failure to surface; every other rejection keeps
-    // reaching the host untouched.
-    void Promise.resolve(task).catch((error) => {
-      if (!isMessageNotSentError(error)) throw error;
-    });
+    reportRunFailure(
+      "Message append",
+      this._threadBinding
+        .getState()
+        .append(
+          toAppendMessage(this._threadBinding.getState().messages, message),
+        ),
+    );
   }
 
   public deleteMessage(messageId: string) {
@@ -481,6 +499,10 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
 
   public cancelRun() {
     this._threadBinding.getState().cancelRun();
+  }
+
+  public loadEarlier() {
+    return this._threadBinding.getState().loadEarlier?.() ?? Promise.resolve();
   }
 
   public unstable_notifySessionReset() {
@@ -595,7 +617,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
 
             speech:
               speechState?.messageId === message.id ? speechState : undefined,
-          } satisfies MessageState;
+          } satisfies MessageRuntimeState;
         },
         subscribe: (callback) => this._threadBinding.subscribe(callback),
       }),
@@ -617,6 +639,11 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
       subject = new EventSubscriptionSubject<ThreadRuntimeEventType>({
         event,
         binding: this._threadBinding,
+        // The main thread binding starts on a placeholder core whose model
+        // context is empty and swaps to the real one once it attaches, so a
+        // subscriber that read the context before that would keep the
+        // placeholder's forever.
+        notifyOnRebind: event === "modelContextUpdate",
       });
       this._eventSubscriptionSubjects.set(event, subject);
     }

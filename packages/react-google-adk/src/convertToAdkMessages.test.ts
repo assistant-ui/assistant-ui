@@ -7,6 +7,7 @@ import {
 import { convertAdkMessage } from "./convertAdkMessages";
 import type { AppendMessage } from "@assistant-ui/core";
 import type { AdkMessage } from "./types";
+import { contentToParts } from "./contentToParts";
 
 const makeAppendMessage = (content: AppendMessage["content"]): AppendMessage =>
   ({
@@ -80,6 +81,20 @@ describe("getPendingToolCalls", () => {
 });
 
 describe("getPendingCancellations", () => {
+  it("skips a null tool_calls entry and cancels the rest", () => {
+    const messages = [
+      {
+        id: "ai-1",
+        type: "ai",
+        content: [],
+        tool_calls: [null, { id: "tc-1", name: "tool_a", args: {} }],
+      },
+    ] as unknown as AdkMessage[];
+    expect(getPendingCancellations(messages, [])).toMatchObject([
+      { type: "tool", name: "tool_a", tool_call_id: "tc-1", status: "error" },
+    ]);
+  });
+
   it("emits a {cancelled:true} tool message for every pending tool call", () => {
     const messages: AdkMessage[] = [
       aiWithToolCalls("ai-1", [{ id: "tc-1", name: "tool_a" }]),
@@ -155,6 +170,81 @@ describe("getPendingCancellations", () => {
 });
 
 describe("getMessageContent", () => {
+  it("sends activity messages as text parts", () => {
+    expect(
+      contentToParts([{ type: "activity", message: "Working on it" }]),
+    ).toEqual([{ text: "Working on it" }]);
+  });
+
+  it("serializes data URL images as inline data", () => {
+    const content = getMessageContent(
+      makeAppendMessage([
+        { type: "image", image: "data:image/png;base64,AAAA" },
+      ]),
+    );
+
+    expect(contentToParts(content)).toEqual([
+      { inlineData: { mimeType: "image/png", data: "AAAA" } },
+    ]);
+  });
+
+  it("infers an image MIME type when the data URL declares a generic type", () => {
+    const content = getMessageContent(
+      makeAppendMessage([
+        {
+          type: "image",
+          image: "data:application/octet-stream;base64,iVBORw0KGgo=",
+        },
+      ]),
+    );
+
+    expect(contentToParts(content)).toEqual([
+      { inlineData: { mimeType: "image/png", data: "iVBORw0KGgo=" } },
+    ]);
+  });
+
+  it("prefers an attachment's declared image MIME type", () => {
+    const message = makeAppendMessage([]);
+    const content = getMessageContent({
+      ...message,
+      attachments: [
+        {
+          id: "attachment-1",
+          type: "image",
+          name: "photo.webp",
+          contentType: "image/webp",
+          status: { type: "complete" },
+          content: [{ type: "image", image: "data:image/png;base64,AAAA" }],
+        },
+      ],
+    });
+
+    expect(contentToParts(content)).toEqual([
+      { inlineData: { mimeType: "image/webp", data: "AAAA" } },
+    ]);
+  });
+
+  it("resolves wildcard attachment MIME types to a concrete image type", () => {
+    const message = makeAppendMessage([]);
+    const content = getMessageContent({
+      ...message,
+      attachments: [
+        {
+          id: "attachment-1",
+          type: "image",
+          name: "photo.jpg",
+          contentType: "image/*",
+          status: { type: "complete" },
+          content: [{ type: "image", image: "data:image/jpeg;base64,AAAA" }],
+        },
+      ],
+    });
+
+    expect(contentToParts(content)).toEqual([
+      { inlineData: { mimeType: "image/jpeg", data: "AAAA" } },
+    ]);
+  });
+
   it("preserves file part data and mimeType end-to-end", () => {
     const result = getMessageContent(
       makeAppendMessage([

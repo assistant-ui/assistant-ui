@@ -15,20 +15,23 @@ import { useDocsSidebar } from "@/components/pages/docs/contexts/sidebar";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { HeaderBrandLink } from "@/components/shared/header-brand-link";
+import { CartButton } from "@/components/shared/shop-entry";
 import { headerBarClassName } from "@/components/shared/header-chrome";
 import { useScrolled } from "@/hooks/use-scrolled";
 import { analytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { usePlatform } from "@/components/pages/docs/platform/context";
+import { PlatformSwitcher } from "@/components/pages/docs/platform/switcher";
 import {
   buildPlatformSections,
   findPathToNode,
+  getPlatformHomeUrl,
 } from "@/components/pages/docs/platform/tree";
 
 interface DocsHeaderProps {
   section: string;
   sectionHref: string;
-  mobileSectionTree?: PageTree.Root | undefined;
+  tree: PageTree.Root;
 }
 
 function AskAIButton() {
@@ -43,7 +46,7 @@ function AskAIButton() {
       aria-label="Ask AI (⌘I)"
     >
       Ask AI
-      <KbdGroup className="hidden lg:inline-flex">
+      <KbdGroup className="hidden xl:inline-flex">
         <Kbd>⌘</Kbd>
         <Kbd>I</Kbd>
       </KbdGroup>
@@ -62,7 +65,7 @@ function HeaderSearch() {
         analytics.search.opened("header");
         setOpenSearch(true);
       }}
-      className="text-muted-foreground hover:text-foreground w-full max-w-96 shrink justify-start gap-2 font-normal"
+      className="text-muted-foreground hover:text-foreground w-full max-w-96 shrink justify-start gap-2 font-normal max-xl:hidden"
     >
       <Search className="size-3.5 shrink-0" />
       <span className="flex-1 text-left">Search...</span>
@@ -72,6 +75,27 @@ function HeaderSearch() {
         ))}
       </KbdGroup>
     </Button>
+  );
+}
+
+function SearchIconButton({ className }: { className?: string }) {
+  const { setOpenSearch } = useSearchContext();
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        analytics.search.opened("header");
+        setOpenSearch(true);
+      }}
+      className={cn(
+        "text-muted-foreground hover:text-foreground flex cursor-pointer items-center justify-center transition-colors",
+        className,
+      )}
+      aria-label="Search"
+    >
+      <Search className="size-4" />
+    </button>
   );
 }
 
@@ -125,12 +149,7 @@ function MobileSectionBreadcrumb({
   );
 }
 
-export function DocsHeader({
-  section,
-  sectionHref,
-  mobileSectionTree,
-}: DocsHeaderProps) {
-  const { setOpenSearch } = useSearchContext();
+export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
   const {
     open: sidebarOpen,
     setOpen: setSidebarOpen,
@@ -138,6 +157,11 @@ export function DocsHeader({
   } = useDocsSidebar();
   const [navMenuOpen, setNavMenuOpen] = useState(false);
   const scrolled = useScrolled();
+  const { platform } = usePlatform();
+  const homeHref = useMemo(
+    () => getPlatformHomeUrl(tree, platform) ?? sectionHref,
+    [tree, platform, sectionHref],
+  );
 
   const sectionFilter = (item: (typeof NAV_ITEMS)[number]) =>
     item.type !== "link" || item.href !== sectionHref;
@@ -170,46 +194,28 @@ export function DocsHeader({
           )}
         >
           <div className="flex min-w-0 flex-1 items-center">
-            <HeaderBrandLink labelClassName="hidden sm:inline" />
-            <span
-              className={cn(
-                "text-muted-foreground/40 mx-3",
-                mobileSectionTree && "max-md:hidden",
-              )}
-            >
+            <HeaderBrandLink labelClassName="hidden sm:inline md:max-lg:hidden" />
+            <span className="text-muted-foreground/40 mx-3 max-md:hidden">
               /
             </span>
             <Link
-              href={sectionHref}
-              className={cn(
-                "text-foreground hover:text-foreground/80 text-sm font-medium transition-colors",
-                mobileSectionTree && "max-md:hidden",
-              )}
+              href={homeHref}
+              className="text-foreground hover:text-foreground/80 text-sm font-medium transition-colors max-md:hidden"
             >
               {section}
             </Link>
-            {mobileSectionTree && (
-              <MobileSectionBreadcrumb
-                tree={mobileSectionTree}
-                section={section}
-              />
-            )}
+            <span className="flex items-center max-lg:hidden">
+              <span className="text-muted-foreground mx-1.5 text-sm">for</span>
+              <PlatformSwitcher tree={tree} />
+            </span>
+            <MobileSectionBreadcrumb tree={tree} section={section} />
           </div>
 
           {/* Mobile controls */}
           <div className="ml-auto flex shrink-0 items-center gap-1 md:hidden">
+            <CartButton />
             <AskAIButton />
-            <button
-              type="button"
-              onClick={() => {
-                analytics.search.opened("header");
-                setOpenSearch(true);
-              }}
-              className="text-muted-foreground hover:text-foreground flex size-8 cursor-pointer items-center justify-center transition-colors"
-              aria-label="Search"
-            >
-              <Search className="size-4" />
-            </button>
+            <SearchIconButton className="size-8" />
             <button
               type="button"
               onClick={handleNavMenuToggle}
@@ -239,18 +245,9 @@ export function DocsHeader({
           {/* Condensed nav: md to lg */}
           <div className="ml-auto hidden items-center gap-4 md:flex lg:hidden">
             <div className="flex items-center gap-2">
+              <CartButton />
               <AskAIButton />
-              <button
-                type="button"
-                onClick={() => {
-                  analytics.search.opened("header");
-                  setOpenSearch(true);
-                }}
-                className="text-muted-foreground hover:text-foreground flex size-7 cursor-pointer items-center justify-center transition-colors"
-                aria-label="Search"
-              >
-                <Search className="size-4" />
-              </button>
+              <SearchIconButton className="size-7" />
             </div>
             <div className="flex shrink-0 items-center">
               <NavItems
@@ -259,28 +256,15 @@ export function DocsHeader({
               />
               {moreItems.length > 0 && <MoreDropdown items={moreItems} />}
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <Button
-                size="sm"
-                nativeButton={false}
-                render={
-                  <a
-                    href={CLOUD_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  />
-                }
-              >
-                Cloud
-              </Button>
-              <ThemeToggle />
-            </div>
+            <ThemeToggle />
           </div>
 
           {/* Full nav: lg+ */}
           <div className="ml-auto hidden items-center gap-4 lg:flex">
             <div className="flex min-w-0 items-center gap-2">
+              <CartButton />
               <AskAIButton />
+              <SearchIconButton className="size-7 xl:hidden" />
               <HeaderSearch />
             </div>
             <NavItems

@@ -136,7 +136,7 @@ function settle(id: string, ok: boolean) {
 </div>
 ```
 
-The header summary only ever counts `ready` and `running` rows: it reads `"{ready} ready"` whenever at least one run is ready, otherwise `"{running} in flight"`. A `failed` run counts toward neither number, so an inbox holding only failed runs reads `"0 in flight"`. Each row is a button: disabled and unclickable while `running`, clickable for both `ready` and `failed` (so a failed run can still be opened, not just dismissed). `summary` is optional per row and only renders when present. With an empty `runs` array the header still renders with `"0 in flight"` and no rows follow; there is no placeholder message.
+The header summary only ever counts `ready` and `running` rows: it reads `"{ready} ready"` whenever at least one run is ready, otherwise `"{running} in flight"`. A `failed` run counts toward neither number, so an inbox holding only failed runs reads `"0 in flight"`. With `onCollect`, each row is a button: disabled while `running` and clickable for both `ready` and `failed`. Without it, every row is non-interactive status content. `summary` is optional per row and only renders when present. With an empty `runs` array the header still renders with `"0 in flight"` and no rows follow; there is no placeholder message.
 
 ## Examples
 
@@ -199,7 +199,7 @@ The root uses the shared `paper` surface; the summary count, per-run summary, an
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `runs` | `readonly BackgroundRun[]` | required | The rows to render, in order. |
-| `onCollect` | `(id: string) => void` | | Called when a `ready` or `failed` row is clicked. Not called for `running` rows. |
+| `onCollect` | `(id: string) => void` | | Called when a `ready` or `failed` row is clicked. Without it, every row renders as non-interactive status content. |
 | `className` | `string` | | Merged onto the root. |
 
 ### BackgroundRun

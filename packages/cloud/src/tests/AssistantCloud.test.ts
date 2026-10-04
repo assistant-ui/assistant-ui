@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { AssistantCloud } from "../AssistantCloud";
 import type { AssistantCloudTelemetryConfig } from "../AssistantCloudAPI";
 
@@ -13,6 +13,11 @@ const createCloud = (
   });
 
 describe("AssistantCloud telemetry config", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
   it("defaults to enabled", () => {
     expect(createCloud().telemetry.enabled).toBe(true);
     expect(createCloud(true).telemetry.enabled).toBe(true);
@@ -29,6 +34,27 @@ describe("AssistantCloud telemetry config", () => {
       events: false,
     });
   });
+
+  it.each(["enabled", "events"] as const)(
+    "does not resume pending events after telemetry %s is disabled",
+    async (property) => {
+      vi.useFakeTimers();
+      const fetchMock = vi.fn().mockRejectedValueOnce(new Error("offline"));
+      vi.stubGlobal("fetch", fetchMock);
+      const cloud = createCloud();
+
+      for (let index = 0; index < 20; index++) {
+        cloud.events.track({ kind: "message_sent" });
+      }
+      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+
+      cloud.telemetry[property] = false;
+      cloud.telemetry[property] = true;
+      await vi.runAllTimersAsync();
+
+      expect(fetchMock).toHaveBeenCalledOnce();
+    },
+  );
 
   it("stays enabled when the config object carries an undefined enabled", () => {
     const beforeReport: NonNullable<
@@ -56,6 +82,34 @@ describe("AssistantCloud telemetry config", () => {
       release: "web-2026.09.08",
       environment: "production",
       tags: ["region:sg", "tier:paid"],
+    });
+  });
+
+  it("forwards registered SDK identities to requests and stream options", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers(),
+      text: vi.fn().mockResolvedValue(JSON.stringify({ threads: [] })),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const cloud = createCloud();
+    cloud.registerSdk({ name: "@assistant-ui/core", version: "0.3.18" });
+
+    await cloud.threads.list();
+
+    const [, init] = fetchMock.mock.calls[0]!;
+    expect(init.headers).toMatchObject({
+      "Aui-Sdk": expect.stringMatching(
+        /^assistant-cloud\/.* @assistant-ui\/core\/0\.3\.18$/,
+      ),
+    });
+    await expect(
+      cloud.runs.__internal_getAssistantOptions("assistant-id").headers(),
+    ).resolves.toMatchObject({
+      "Aui-Sdk": expect.stringMatching(
+        /^assistant-cloud\/.* @assistant-ui\/core\/0\.3\.18$/,
+      ),
     });
   });
 });

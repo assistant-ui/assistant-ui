@@ -7,7 +7,7 @@ platforms: ["react"]
 import { MastraIcon } from "@/components/icons/mastra";
 import { VercelIcon } from "@/components/icons/vercel";
 
-Run Mastra in-process inside your Next.js application. The agent code, the API route, and the assistant-ui frontend all live in one project. This is the lowest-friction path: one deploy target, one set of env vars, no cross-origin plumbing.
+Run Mastra in-process inside your Next.js application. The agent code, the API route, and the assistant-ui frontend all live in one project. There is one deploy target, one set of env vars, and no cross-origin configuration.
 
 For independent scaling, see [separate server](/docs/integrations/frameworks/mastra/separate-server) instead.
 
@@ -81,11 +81,11 @@ export const chefAgent = new Agent({
   instructions:
     "You are Michel, a practical and experienced home chef. " +
     "You help people cook with whatever ingredients they have available.",
-  model: "openai/gpt-5.6-luna",
+  model: "openai/gpt-6-luna",
 });
 ```
 
-`model: "openai/gpt-5.6-luna"` uses Mastra's model router. Set the provider key in `.env.local` so Next.js auto-loads it:
+`model: "openai/gpt-6-luna"` uses Mastra's model router. Set the provider key in `.env.local` so Next.js auto-loads it:
 
 ```sh title=".env.local"
 OPENAI_API_KEY=sk-...

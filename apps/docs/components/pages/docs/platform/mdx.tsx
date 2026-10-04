@@ -5,9 +5,11 @@ import {
   PlatformScope,
   isVisibleForPlatform,
   PLATFORM_LABELS,
-  PLATFORMS,
+  SURFACES,
   type Platform,
+  type Surface,
   usePlatformOrDefault,
+  useSurfaceOrDefault,
 } from "./context";
 import {
   Tabs,
@@ -16,9 +18,9 @@ import {
 } from "@/components/pages/docs/fumadocs/tabs";
 import { rewritePlatformPackages } from "./rewrite";
 
-const ITEMS = PLATFORMS.map((p) => PLATFORM_LABELS[p]);
-const VALUE_TO_PLATFORM: Record<string, Platform> = Object.fromEntries(
-  PLATFORMS.map((p) => [escapeValue(PLATFORM_LABELS[p]), p]),
+const ITEMS = SURFACES.map((p) => PLATFORM_LABELS[p]);
+const VALUE_TO_SURFACE: Record<string, Surface> = Object.fromEntries(
+  SURFACES.map((p) => [escapeValue(PLATFORM_LABELS[p]), p]),
 );
 
 export type PlatformTabsProps = Omit<
@@ -27,22 +29,22 @@ export type PlatformTabsProps = Omit<
 >;
 
 export function PlatformTabs(props: PlatformTabsProps): React.ReactElement {
-  const platform = usePlatformOrDefault();
+  const surface = useSurfaceOrDefault();
   return (
-    <PlatformTabsInner key={platform} defaultPlatform={platform} {...props} />
+    <PlatformTabsInner key={surface} defaultSurface={surface} {...props} />
   );
 }
 
 // Local tab selection previews this group only, does not update
 // global platform. Global overrides this on navigation (via key remount).
 function PlatformTabsInner({
-  defaultPlatform,
+  defaultSurface,
   ...props
-}: PlatformTabsProps & { defaultPlatform: Platform }): React.ReactElement {
-  const [localPlatform, setLocalPlatform] = useState(defaultPlatform);
+}: PlatformTabsProps & { defaultSurface: Surface }): React.ReactElement {
+  const [localPlatform, setLocalPlatform] = useState<Surface>(defaultSurface);
 
   const handleValueChange = useCallback((value: string) => {
-    const next = VALUE_TO_PLATFORM[value];
+    const next = VALUE_TO_SURFACE[value];
     if (next) setLocalPlatform(next);
   }, []);
 

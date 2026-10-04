@@ -9,7 +9,7 @@ import {
 } from "vue";
 import { AuiConfig, Derived } from "@assistant-ui/store/client";
 import type { AssistantClient } from "@assistant-ui/store/client";
-import type { AttachmentMethods } from "@assistant-ui/core/store";
+import type { AttachmentMethods, MessageState } from "@assistant-ui/core/store";
 import { AuiProvider } from "../AuiProvider";
 import { useAui } from "../useAui";
 import { createLastValidCache, createStaleReporter } from "./lastValidCache";
@@ -22,7 +22,14 @@ const attachmentSourceOf = (
 const attachmentCountOf = (
   aui: AssistantClient,
   source: "composer" | "message",
-) => attachmentSourceOf(aui, source).getState().attachments?.length ?? 0;
+) => {
+  const state = attachmentSourceOf(aui, source).getState();
+  const attachments =
+    source === "message"
+      ? ((state as MessageState).submission?.attachments ?? state.attachments)
+      : state.attachments;
+  return attachments?.length ?? 0;
+};
 
 /**
  * Scopes the subtree to the attachment at `index` of `source` (the composer's

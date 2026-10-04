@@ -13,12 +13,21 @@ import { ToolFallback, ToolFallbackApproval } from "./tool-fallback.aui";
 const stubs = vi.hoisted(() => ({
   useScrollLock: () => () => {},
   useToolCallElapsed: () => undefined,
+  voice: { active: false },
+  capabilities: { answerToolCall: true },
 }));
 
 vi.mock("@assistant-ui/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/react")>()),
   useScrollLock: stubs.useScrollLock,
   useToolCallElapsed: stubs.useToolCallElapsed,
+  useAuiState: (selector: (state: unknown) => unknown) =>
+    selector({
+      thread: {
+        voice: stubs.voice.active ? {} : undefined,
+        capabilities: stubs.capabilities,
+      },
+    }),
 }));
 
 const pendingApproval = { id: "req_1" };
@@ -106,6 +115,32 @@ describe("ToolFallback", () => {
     expect(view.container.textContent).toContain("[Unserializable value]");
   });
 
+  it("keeps the output a cancelled tool streamed before it was cut off", () => {
+    const view = renderTool({
+      status: { type: "incomplete", reason: "cancelled" },
+      result: "partial output",
+    });
+
+    expect(view.container.textContent).toContain("Cancelled tool: test-tool");
+    fireEvent.click(screen.getByRole("button", { name: /Cancelled tool/ }));
+    expect(view.container.textContent).toContain("partial output");
+  });
+
+  it.each([
+    [{ type: "running" }, "Running tool: test-tool"],
+    [
+      { type: "requires-action", reason: "interrupt" },
+      "Waiting on tool: test-tool",
+    ],
+    [{ type: "incomplete", reason: "error" }, "Failed tool: test-tool"],
+    [{ type: "incomplete", reason: "cancelled" }, "Cancelled tool: test-tool"],
+    [{ type: "complete" }, "Used tool: test-tool"],
+  ] as const)("names the %o call", (status, label) => {
+    renderTool({ status });
+
+    expect(screen.getByRole("button", { name: label })).toBeTruthy();
+  });
+
   it("does not offer a fabricated result for an unprojected interrupt", () => {
     renderTool({ addResult: vi.fn() });
 
@@ -120,6 +155,60 @@ describe("ToolFallback", () => {
     fireEvent.click(screen.getByRole("button", { name: "Allow" }));
 
     expect(respondToApproval).toHaveBeenCalledWith({ approved: true });
+  });
+
+  it("locks approval controls while a voice session is connected", () => {
+    const respondToApproval = vi.fn();
+    stubs.voice.active = true;
+    try {
+      renderTool({ approval: { id: "approval-1" }, respondToApproval });
+      const allow = button("Allow");
+      expect(allow.disabled).toBe(true);
+      fireEvent.click(allow);
+      expect(respondToApproval).not.toHaveBeenCalled();
+    } finally {
+      stubs.voice.active = false;
+    }
+  });
+
+  it("shows the prompt without controls when the thread cannot answer", () => {
+    const respondToApproval = vi.fn();
+    stubs.capabilities.answerToolCall = false;
+    try {
+      const view = renderTool({
+        approval: {
+          id: "approval-1",
+          prompt: "Deploy to production?",
+          options: [
+            { id: "once", kind: "allow-once" },
+            { id: "reject", kind: "reject-once" },
+          ],
+        },
+        respondToApproval,
+      });
+      const approval = view.container.querySelector(
+        '[data-slot="tool-fallback-approval"]',
+      );
+      expect(approval?.textContent).toBe("Deploy to production?");
+      expect(approval?.querySelector("button, textarea")).toBeNull();
+    } finally {
+      stubs.capabilities.answerToolCall = true;
+    }
+  });
+
+  it("renders nothing for a waiting call without a prompt when the thread cannot answer", () => {
+    stubs.capabilities.answerToolCall = false;
+    try {
+      const view = renderTool({
+        interrupt: { type: "human", payload: {} },
+        resume: vi.fn(),
+      });
+      expect(
+        view.container.querySelector('[data-slot="tool-fallback-approval"]'),
+      ).toBeNull();
+    } finally {
+      stubs.capabilities.answerToolCall = true;
+    }
   });
 
   it("resumes a part-level interrupt", () => {
@@ -251,6 +340,120 @@ describe("ToolFallback", () => {
   });
 });
 
+describe("settled approval receipts", () => {
+  const receipt = () =>
+    document.querySelector('[data-slot="tool-fallback-approval-receipt"]');
+
+  it("records the option a gate was allowed with, without controls", () => {
+    renderTool({
+      status: { type: "complete" },
+      approval: {
+        id: "req_1",
+        approved: true,
+        optionId: "always",
+        options: [
+          { id: "once", kind: "allow-once" },
+          { id: "always", kind: "allow-always" },
+        ],
+      },
+    });
+    fireEvent.click(screen.getByText("test-tool"));
+
+    expect(receipt()?.getAttribute("data-outcome")).toBe("allowed");
+    expect(receipt()?.textContent).toContain("Allowed");
+    expect(receipt()?.textContent).toContain("· Always allow");
+    expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
+  });
+
+  it("records a denial with the note that came with it", () => {
+    renderTool({
+      status: { type: "incomplete", reason: "error" },
+      approval: { id: "req_1", approved: false, text: "Not on production" },
+    });
+    fireEvent.click(screen.getByText("test-tool"));
+
+    expect(receipt()?.getAttribute("data-outcome")).toBe("refused");
+    expect(receipt()?.textContent).toContain("Denied");
+    expect(receipt()?.textContent).toContain("Not on production");
+  });
+
+  it("records the answer to a select question beside its prompt", () => {
+    render(
+      <ToolFallbackApproval
+        approval={{
+          id: "req_1",
+          prompt: "Which environment?",
+          display: "select",
+          approved: true,
+          optionId: "staging",
+          options: [
+            { id: "staging", kind: "_staging", label: "Staging" },
+            { id: "production", kind: "_production", label: "Production" },
+          ],
+        }}
+      />,
+    );
+
+    expect(receipt()?.textContent).toContain("Which environment?");
+    expect(receipt()?.textContent).toContain("Answered");
+    expect(receipt()?.textContent).toContain("· Staging");
+  });
+
+  it("records a free-form answer and a dismissal as answers, not decisions", () => {
+    const view = render(
+      <ToolFallbackApproval
+        approval={{
+          id: "req_1",
+          display: "text",
+          approved: true,
+          text: "Use the staging bucket",
+        }}
+      />,
+    );
+    expect(receipt()?.textContent).toContain("Answered");
+    expect(receipt()?.textContent).toContain("Use the staging bucket");
+
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{
+          id: "req_1",
+          display: "text",
+          dismissible: true,
+          approved: false,
+        }}
+      />,
+    );
+    expect(receipt()?.textContent).toContain("Dismissed");
+  });
+
+  it("records a request that closed without a decision", () => {
+    const view = render(
+      <ToolFallbackApproval
+        approval={{ id: "req_1", resolution: "expired" }}
+      />,
+    );
+    expect(receipt()?.getAttribute("data-outcome")).toBe("closed");
+    expect(receipt()?.textContent).toContain("Expired before a decision");
+
+    view.rerender(
+      <ToolFallbackApproval
+        approval={{ id: "req_1", resolution: "cancelled" }}
+      />,
+    );
+    expect(receipt()?.textContent).toContain("Cancelled before a decision");
+  });
+
+  it("says when a policy decided instead of the user", () => {
+    render(
+      <ToolFallbackApproval
+        approval={{ id: "req_1", approved: true, isAutomatic: true }}
+      />,
+    );
+
+    expect(receipt()?.textContent).toContain("Allowed automatically");
+  });
+});
+
 describe("ToolFallbackApproval", () => {
   it("reports a synchronous refusal and keeps the controls actionable", async () => {
     let refuses = true;
@@ -316,6 +519,85 @@ describe("ToolFallbackApproval", () => {
     expect(screen.getByText("Delete the release branch?")).toBeTruthy();
   });
 
+  it("preserves line breaks in the request's prompt", () => {
+    render(
+      <ToolFallbackApproval
+        approval={{
+          ...pendingApproval,
+          prompt:
+            "Session cwd not found\nThe directory /tmp/project does not exist",
+        }}
+        respondToApproval={vi.fn(async () => {})}
+      />,
+    );
+
+    expect(
+      screen
+        .getByText(/Session cwd not found/)
+        .classList.contains("whitespace-pre-line"),
+    ).toBe(true);
+  });
+
+  it("preserves line breaks in an option confirmation description", () => {
+    render(
+      <ToolFallbackApproval
+        approval={{
+          ...pendingApproval,
+          options: [
+            {
+              id: "red",
+              kind: "_red",
+              label: "Red",
+              description: "First line\nSecond line",
+              confirm: true,
+            },
+          ],
+        }}
+        respondToApproval={vi.fn(async () => {})}
+      />,
+    );
+
+    fireEvent.click(button("Red"));
+
+    expect(
+      screen.getByText(/First line/).classList.contains("whitespace-pre-line"),
+    ).toBe(true);
+  });
+
+  it("preserves line breaks in an error reason", () => {
+    render(
+      <ToolFallback.Error
+        status={{
+          type: "incomplete",
+          reason: "error",
+          error: "First line\nSecond line",
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByText(/First line/).classList.contains("whitespace-pre-line"),
+    ).toBe(true);
+  });
+
+  it("preserves line breaks in a rejected response's message", async () => {
+    render(
+      <ToolFallbackApproval
+        approval={pendingApproval}
+        respondToApproval={vi.fn(async () => {
+          throw new Error("First line\nSecond line");
+        })}
+      />,
+    );
+
+    fireEvent.click(button("Allow"));
+
+    await screen.findByRole("alert");
+    expect(
+      screen.getByRole("alert").classList.contains("whitespace-pre-line"),
+    ).toBe(true);
+  });
+
   it("answers a free-form request with text instead of a fabricated decision", () => {
     const respondToApproval = vi.fn(async () => {});
 
@@ -332,6 +614,7 @@ describe("ToolFallbackApproval", () => {
 
     expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Deny" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Dismiss" })).toBeNull();
 
     fireEvent.change(
       screen.getByRole("textbox", { name: "Which environment?" }),
@@ -342,6 +625,148 @@ describe("ToolFallbackApproval", () => {
     fireEvent.click(button("Send"));
 
     expect(respondToApproval).toHaveBeenCalledWith({ text: "staging" });
+  });
+
+  it("sends an empty answer to a text question as the answer it is", () => {
+    const respondToApproval = vi.fn(async () => {});
+
+    render(
+      <ToolFallbackApproval
+        approval={{
+          ...pendingApproval,
+          prompt: "Custom instructions?",
+          display: "text",
+        }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+
+    expect(button("Send").disabled).toBe(false);
+    fireEvent.click(button("Send"));
+
+    expect(respondToApproval).toHaveBeenCalledWith({ text: "" });
+  });
+
+  it("dismisses a text question that accepts it without the typed draft", () => {
+    const respondToApproval = vi.fn(async () => {});
+
+    render(
+      <ToolFallbackApproval
+        approval={{
+          ...pendingApproval,
+          prompt: "Which environment?",
+          display: "text",
+          dismissible: true,
+        }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Deny" })).toBeNull();
+    fireEvent.change(
+      screen.getByRole("textbox", { name: "Which environment?" }),
+      { target: { value: "stag" } },
+    );
+    fireEvent.click(button("Dismiss"));
+
+    expect(respondToApproval).toHaveBeenCalledTimes(1);
+    expect(respondToApproval).toHaveBeenCalledWith({ approved: false });
+    expect(button("Send").disabled).toBe(true);
+  });
+
+  it("dismisses a select question that accepts it beside its options", () => {
+    const respondToApproval = vi.fn(async () => {});
+
+    render(
+      <ToolFallbackApproval
+        approval={{
+          ...pendingApproval,
+          prompt: "Which environment?",
+          display: "select",
+          dismissible: true,
+          options: [
+            { id: "0", kind: "_0", label: "Staging" },
+            { id: "1", kind: "_1", label: "Production" },
+          ],
+        }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+
+    const names = screen
+      .getAllByRole("button")
+      .map((element) => element.textContent);
+    expect(names).toEqual(["Staging", "Production", "Dismiss"]);
+    expect(screen.queryByRole("button", { name: "Deny" })).toBeNull();
+
+    fireEvent.click(button("Dismiss"));
+
+    expect(respondToApproval).toHaveBeenCalledWith({ approved: false });
+  });
+
+  it("places one dismissal beside Send when a select question also takes text", () => {
+    const respondToApproval = vi.fn(async () => {});
+
+    render(
+      <ToolFallbackApproval
+        approval={{
+          ...pendingApproval,
+          prompt: "Which environment?",
+          display: "select",
+          allowFreeform: true,
+          dismissible: true,
+          options: [{ id: "0", kind: "_0", label: "Staging" }],
+        }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+
+    const names = screen
+      .getAllByRole("button")
+      .map((element) => element.textContent);
+    expect(names).toEqual(["Staging", "Send", "Dismiss"]);
+    expect(button("Dismiss").parentElement).toBe(button("Send").parentElement);
+
+    fireEvent.click(button("Dismiss"));
+
+    expect(respondToApproval).toHaveBeenCalledWith({ approved: false });
+  });
+
+  it("offers a dismissal on a select question that declares no options", () => {
+    const respondToApproval = vi.fn(async () => {});
+
+    render(
+      <ToolFallbackApproval
+        approval={{
+          ...pendingApproval,
+          prompt: "Which environment?",
+          display: "select",
+          dismissible: true,
+        }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+
+    fireEvent.click(button("Dismiss"));
+
+    expect(respondToApproval).toHaveBeenCalledWith({ approved: false });
+  });
+
+  it("keeps a decision's refusal as its only dismissal", () => {
+    render(
+      <ToolFallbackApproval
+        approval={{
+          ...pendingApproval,
+          prompt: "Delete the release branch?",
+          dismissible: true,
+        }}
+        respondToApproval={vi.fn(async () => {})}
+      />,
+    );
+
+    expect(button("Allow")).toBeTruthy();
+    expect(button("Deny")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Dismiss" })).toBeNull();
   });
 
   it("keeps the decision controls when a gate also takes a typed answer", () => {
@@ -412,5 +837,216 @@ describe("ToolFallbackApproval", () => {
     expect(button("Staging")).toBeTruthy();
     expect(button("Production")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Deny" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Dismiss" })).toBeNull();
+  });
+
+  describe('display "questions"', () => {
+    const answeredReceipt = () =>
+      document.querySelector('[data-slot="tool-fallback-approval-receipt"]');
+    const questions = [
+      {
+        id: "scope",
+        header: "Scope",
+        prompt: "Which files?",
+        options: [
+          { id: "src", label: "src" },
+          { id: "tests", label: "tests" },
+        ],
+        multiple: true,
+      },
+      {
+        id: "style",
+        prompt: "Which style?",
+        options: [
+          { id: "terse", label: "Terse", description: "Short answers" },
+          { id: "verbose", label: "Verbose" },
+        ],
+      },
+      { id: "note", prompt: "Anything else?" },
+    ];
+
+    it("sends every question's answer once each is answered, without an allow or deny path", async () => {
+      const respondToApproval = vi.fn(async () => {});
+      render(
+        <ToolFallbackApproval
+          approval={{ ...pendingApproval, display: "questions", questions }}
+          respondToApproval={respondToApproval}
+        />,
+      );
+
+      expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Deny" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Dismiss" })).toBeNull();
+      expect(button("Send").disabled).toBe(true);
+
+      fireEvent.click(button("src"));
+      fireEvent.click(button("tests"));
+      expect(button("src").getAttribute("aria-pressed")).toBe("true");
+      expect(button("tests").getAttribute("aria-pressed")).toBe("true");
+
+      fireEvent.click(screen.getByRole("button", { name: /Terse/ }));
+      fireEvent.click(button("Verbose"));
+      expect(
+        screen
+          .getByRole("button", { name: /Terse/ })
+          .getAttribute("aria-pressed"),
+      ).toBe("false");
+      expect(button("Send").disabled).toBe(true);
+
+      fireEvent.change(
+        screen.getByRole("textbox", { name: "Anything else?" }),
+        {
+          target: { value: "keep it short" },
+        },
+      );
+      expect(button("Send").disabled).toBe(false);
+
+      fireEvent.click(button("Send"));
+      await waitFor(() =>
+        expect(respondToApproval).toHaveBeenCalledWith({
+          answers: {
+            scope: { optionIds: ["src", "tests"] },
+            style: { optionIds: ["verbose"] },
+            note: { text: "keep it short" },
+          },
+        }),
+      );
+    });
+
+    it("answers questions whose ids name object prototype keys", async () => {
+      const respondToApproval = vi.fn(async (_response: unknown) => {});
+      render(
+        <ToolFallbackApproval
+          approval={{
+            ...pendingApproval,
+            display: "questions",
+            questions: [
+              {
+                id: "constructor",
+                prompt: "Pick one",
+                options: [{ id: "a", label: "A" }],
+              },
+              { id: "__proto__", prompt: "Say more" },
+            ],
+          }}
+          respondToApproval={respondToApproval}
+        />,
+      );
+
+      fireEvent.click(button("A"));
+      fireEvent.change(screen.getByRole("textbox", { name: "Say more" }), {
+        target: { value: "ok" },
+      });
+      fireEvent.click(button("Send"));
+      await waitFor(() => expect(respondToApproval).toHaveBeenCalled());
+      const { answers } = respondToApproval.mock.calls[0]![0] as {
+        answers: Record<string, unknown>;
+      };
+      expect(Object.hasOwn(answers, "constructor")).toBe(true);
+      expect(Object.hasOwn(answers, "__proto__")).toBe(true);
+      expect(answers["constructor"]).toEqual({ optionIds: ["a"] });
+      expect(
+        Object.getOwnPropertyDescriptor(answers, "__proto__")?.value,
+      ).toEqual({ text: "ok" });
+    });
+
+    it("renders a pending questionnaire and its settled answers through the tool fallback", () => {
+      const view = renderTool({
+        approval: { ...pendingApproval, display: "questions", questions },
+        respondToApproval: vi.fn(async () => {}),
+      });
+      expect(button("Send")).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
+
+      view.unmount();
+      renderTool({
+        approval: {
+          ...pendingApproval,
+          display: "questions",
+          questions,
+          approved: true,
+          answers: {
+            scope: { optionIds: ["tests"] },
+            style: { optionIds: ["verbose"] },
+            note: { text: "ok" },
+          },
+        },
+      });
+      expect(answeredReceipt()?.textContent).toContain("Scope · tests");
+      expect(screen.queryByRole("button", { name: "Send" })).toBeNull();
+    });
+
+    it("offers a dismissal only when the request is dismissible", async () => {
+      const respondToApproval = vi.fn(async () => {});
+      render(
+        <ToolFallbackApproval
+          approval={{
+            ...pendingApproval,
+            display: "questions",
+            dismissible: true,
+            questions,
+          }}
+          respondToApproval={respondToApproval}
+        />,
+      );
+
+      fireEvent.click(button("Dismiss"));
+      await waitFor(() =>
+        expect(respondToApproval).toHaveBeenCalledWith({ approved: false }),
+      );
+    });
+
+    it("reopens the controls with the error when the host rejects the answers", async () => {
+      render(
+        <ToolFallbackApproval
+          approval={{
+            ...pendingApproval,
+            display: "questions",
+            questions: [{ id: "note", prompt: "Anything else?" }],
+          }}
+          respondToApproval={vi.fn(async () => {
+            throw new Error("Stale request");
+          })}
+        />,
+      );
+
+      fireEvent.change(
+        screen.getByRole("textbox", { name: "Anything else?" }),
+        {
+          target: { value: "no" },
+        },
+      );
+      fireEvent.click(button("Send"));
+
+      expect((await screen.findByRole("alert")).textContent).toBe(
+        "Stale request",
+      );
+      expect(button("Send").disabled).toBe(false);
+    });
+
+    it("records each answer under its question once answered", () => {
+      render(
+        <ToolFallbackApproval
+          approval={{
+            ...pendingApproval,
+            display: "questions",
+            questions,
+            approved: true,
+            answers: {
+              scope: { optionIds: ["src", "tests"] },
+              style: { optionIds: ["terse"] },
+              note: { text: "keep it short" },
+            },
+          }}
+        />,
+      );
+
+      expect(answeredReceipt()?.textContent).toContain("Answered");
+      expect(answeredReceipt()?.textContent).toContain("Scope · src, tests");
+      expect(answeredReceipt()?.textContent).toContain("Which style? · Terse");
+      expect(answeredReceipt()?.textContent).toContain(
+        "Anything else? · keep it short",
+      );
+    });
   });
 });

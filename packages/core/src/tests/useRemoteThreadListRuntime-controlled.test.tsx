@@ -7,11 +7,16 @@ import { AssistantRuntimeProvider } from "../react/AssistantRuntimeProvider";
 import { useExternalStoreRuntime } from "../react/runtimes/useExternalStoreRuntime";
 import { useRemoteThreadListRuntime } from "../react/runtimes/useRemoteThreadListRuntime";
 import type { AssistantRuntime } from "../runtime/api/assistant-runtime";
+import type { ThreadMessage } from "../types/message";
 import type {
   RemoteThreadListAdapter,
   RemoteThreadMetadata,
 } from "../runtimes/remote-thread-list/types";
-import { deferred, makeAdapter } from "./remote-thread-list-test-helpers";
+import {
+  actSettled,
+  deferred,
+  makeAdapter,
+} from "./remote-thread-list-test-helpers";
 
 const EMPTY_MESSAGES: readonly never[] = [];
 
@@ -23,7 +28,7 @@ const makeThreadMetadata = (remoteId: string): RemoteThreadMetadata => ({
 });
 
 const useTestThreadRuntime = () =>
-  useExternalStoreRuntime({
+  useExternalStoreRuntime<ThreadMessage>({
     messages: EMPTY_MESSAGES,
     isRunning: false,
     onNew: async () => {},
@@ -257,16 +262,88 @@ describe("useRemoteThreadListRuntime controlled threadId", () => {
     await waitForRemoteThread(runtimeRef, "thread-a");
     onThreadIdChange.mockClear();
 
-    await act(async () => {
-      await runtimeRef.current!.threads.switchToThread("thread-b");
-    });
+    await actSettled(() =>
+      runtimeRef.current!.threads.switchToThread("thread-b"),
+    );
     expect(onThreadIdChange).toHaveBeenLastCalledWith("thread-b");
 
     onThreadIdChange.mockClear();
-    await act(async () => {
-      await runtimeRef.current!.threads.switchToNewThread();
-    });
+    await actSettled(() => runtimeRef.current!.threads.switchToNewThread());
     expect(onThreadIdChange).toHaveBeenLastCalledWith(undefined);
+  });
+
+  it("finishes a runtime switch whose thread fetch resolves after the act that starts it", async () => {
+    const adapter = makeAdapter({
+      fetch: vi.fn(
+        (threadId: string) =>
+          new Promise<RemoteThreadMetadata>((resolve) =>
+            setTimeout(() => resolve(makeThreadMetadata(threadId)), 20),
+          ),
+      ),
+    });
+    const onThreadIdChange = vi.fn();
+    const runtimeRef: RuntimeRef = { current: null };
+
+    render(
+      <ControlledRuntime
+        adapter={adapter}
+        threadId="thread-a"
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+    await waitForRemoteThread(runtimeRef, "thread-a");
+
+    await actSettled(() =>
+      runtimeRef.current!.threads.switchToThread("thread-b"),
+    );
+    expect(runtimeRef.current!.threads.mainItem.getState().remoteId).toBe(
+      "thread-b",
+    );
+    expect(onThreadIdChange).toHaveBeenLastCalledWith("thread-b");
+  });
+
+  it("contains rejected callback promises on runtime-initiated switches", async () => {
+    const callbackError = new Error("async host callback failed");
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const adapter = makeAdapter();
+    const onThreadIdChange = vi.fn(async () => {
+      throw callbackError;
+    });
+    const runtimeRef: RuntimeRef = { current: null };
+
+    const { unmount } = render(
+      <ControlledRuntime
+        adapter={adapter}
+        threadId="thread-a"
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+
+    try {
+      await waitForRemoteThread(runtimeRef, "thread-a");
+
+      await expect(
+        actSettled(() =>
+          runtimeRef.current!.threads.switchToThread("thread-b"),
+        ),
+      ).resolves.toBeUndefined();
+
+      await waitFor(() => {
+        expect(errorSpy).toHaveBeenCalledWith(
+          "[assistant-ui] onThreadIdChange callback threw an error",
+          callbackError,
+        );
+      });
+      expect(onThreadIdChange).toHaveBeenCalledExactlyOnceWith("thread-b");
+      expect(runtimeRef.current!.threads.mainItem.getState().remoteId).toBe(
+        "thread-b",
+      );
+    } finally {
+      unmount();
+      errorSpy.mockRestore();
+    }
   });
 
   it("does not retain suppression after an initial switch fails", async () => {
@@ -296,15 +373,15 @@ describe("useRemoteThreadListRuntime controlled threadId", () => {
       expect(runtimeRef.current).not.toBeNull();
     });
 
-    await act(async () => {
-      await runtimeRef.current!.threads.switchToThread("thread-b");
-    });
+    await actSettled(() =>
+      runtimeRef.current!.threads.switchToThread("thread-b"),
+    );
     expect(onThreadIdChange).toHaveBeenLastCalledWith("thread-b");
 
     onThreadIdChange.mockClear();
-    await act(async () => {
-      await runtimeRef.current!.threads.switchToThread("thread-a");
-    });
+    await actSettled(() =>
+      runtimeRef.current!.threads.switchToThread("thread-a"),
+    );
     expect(onThreadIdChange).toHaveBeenLastCalledWith("thread-a");
   });
 
@@ -346,9 +423,9 @@ describe("useRemoteThreadListRuntime controlled threadId", () => {
       expect(adapter.fetch).toHaveBeenCalledWith("thread-b");
     });
 
-    await act(async () => {
-      await runtimeRef.current!.threads.switchToThread("thread-b");
-    });
+    await actSettled(() =>
+      runtimeRef.current!.threads.switchToThread("thread-b"),
+    );
     expect(onThreadIdChange).toHaveBeenCalledExactlyOnceWith("thread-b");
 
     await act(async () => {

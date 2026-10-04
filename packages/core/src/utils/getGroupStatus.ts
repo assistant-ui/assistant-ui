@@ -1,31 +1,80 @@
 import type {
   MessagePartStatus,
+  MessagePartTiming,
   ToolCallMessagePartStatus,
 } from "../types/message";
 import { COMPLETE_STATUS, RUNNING_STATUS } from "./normalizePartStatus";
 
 type PartWithStatus = {
   readonly status: MessagePartStatus | ToolCallMessagePartStatus;
+  readonly timing?: MessagePartTiming;
 };
 
 export const getGroupStatus = (
   parts: readonly (PartWithStatus | undefined)[],
-  indices?: readonly number[],
 ): MessagePartStatus | ToolCallMessagePartStatus => {
-  if (indices) {
-    for (const index of indices) {
-      if (parts[index]?.status.type === "running") return RUNNING_STATUS;
-    }
-
-    const lastIndex = indices.at(-1);
-    return lastIndex === undefined
-      ? COMPLETE_STATUS
-      : (parts[lastIndex]?.status ?? COMPLETE_STATUS);
-  }
-
   for (const part of parts) {
     if (part?.status.type === "running") return RUNNING_STATUS;
   }
 
   return parts.at(-1)?.status ?? COMPLETE_STATUS;
+};
+
+export const getGroupSummary = (
+  parts: readonly (PartWithStatus | undefined)[],
+  indices: readonly number[],
+) => {
+  const counts = {
+    running: 0,
+    complete: 0,
+    incomplete: 0,
+    requiresAction: 0,
+  };
+  let status: MessagePartStatus | ToolCallMessagePartStatus = COMPLETE_STATUS;
+  let isRunning = false;
+  let startedAt: number | undefined;
+  let completedAt: number | undefined;
+  let isSettled = true;
+
+  for (const index of indices) {
+    const timing = parts[index]?.timing;
+    if (timing) {
+      startedAt = Math.min(startedAt ?? timing.startedAt, timing.startedAt);
+      if (timing.completedAt === undefined) isSettled = false;
+      else
+        completedAt = Math.max(
+          completedAt ?? timing.completedAt,
+          timing.completedAt,
+        );
+    }
+    status = parts[index]?.status ?? COMPLETE_STATUS;
+    switch (status.type) {
+      case "running":
+        counts.running++;
+        isRunning = true;
+        break;
+      case "complete":
+        counts.complete++;
+        break;
+      case "incomplete":
+        counts.incomplete++;
+        break;
+      case "requires-action":
+        counts.requiresAction++;
+        break;
+    }
+  }
+
+  const timing: MessagePartTiming | undefined =
+    startedAt === undefined
+      ? undefined
+      : !isRunning && isSettled && completedAt !== undefined
+        ? { startedAt, completedAt }
+        : { startedAt };
+
+  return {
+    status: isRunning ? RUNNING_STATUS : status,
+    counts,
+    ...(timing && { timing }),
+  };
 };

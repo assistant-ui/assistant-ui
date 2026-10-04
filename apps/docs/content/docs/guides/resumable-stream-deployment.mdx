@@ -172,9 +172,11 @@ export const resumableContext = createResumableStreamContext({
 
 Keep synchronous hook work cheap. `onAcquire` runs on the `run()` request path for producers and consumers alike, while the remaining hooks run on the producer's streaming hot path. Returned promises are observed for failures but are not awaited.
 
+A producer fenced out of its stream, because the stream expired and a later `run` reacquired the same `streamId`, reports once through `onError` and never through `onFinalize`; the `onFinalize` for that stream comes from the producer that finalized it. The reported error is a `ResumableStreamError` whose `code` is `"missing"` when the fence is what stopped the producer; when the producer's own source failed first, that failure is what `onError` receives.
+
 ## Resource limits
 
-The in-memory store enforces three caps that the Redis adapters intentionally leave to the underlying database. Set them whenever your process can be reached by untrusted callers.
+The in-memory store enforces three caps. The Redis adapters accept `maxChunkBytes` and leave the other two to the underlying database. Set them whenever your process can be reached by untrusted callers.
 
 ```ts
 import { createInMemoryResumableStreamStore } from "assistant-stream/resumable";
@@ -190,7 +192,7 @@ const store = createInMemoryResumableStreamStore({
 - `maxEntriesPerStream` caps the per-stream entry count. This bounds how much any single stream can grow before it starts erroring; pair it with TTLs so finalized streams clear quickly.
 - `maxStreams` caps total live streams. Useful as a backstop in shared development environments and in single-tenant containers; in serverless deployments the platform already constrains concurrency.
 
-These limits exist on the in-memory store. For Redis, configure `maxmemory` and an eviction policy on the server, and rely on application-level rate limiting upstream.
+`maxEntriesPerStream` and `maxStreams` exist only on the in-memory store. For Redis, configure `maxmemory` and an eviction policy on the server, and rely on application-level rate limiting upstream.
 
 ## Incident response
 
@@ -198,7 +200,7 @@ The streamId leaks through response headers, browser session storage, server acc
 
 What to log up front, so you have it when you need it:
 
-- The acquiring user id, request id, and IP for every `acquire` call (via `onAcquire`).
+- The acquiring user id, request id, and IP for every stream, logged from the route handler. `onAcquire` receives only the stream id and role.
 - The finalize status (and any error) for every stream (via `onFinalize`).
 - The owner-binding writes and reads, with the user id and the streamId.
 

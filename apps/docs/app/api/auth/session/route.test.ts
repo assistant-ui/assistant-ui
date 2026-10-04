@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 const mocks = vi.hoisted(() => ({
@@ -33,10 +33,6 @@ const configured = (resolution: { session: unknown; cookies: string[] }) => {
 beforeEach(() => {
   mocks.accounts = null;
   delete process.env.ASSISTANT_API_KEY;
-});
-
-afterEach(() => {
-  vi.clearAllMocks();
 });
 
 describe("GET /api/auth/session", () => {

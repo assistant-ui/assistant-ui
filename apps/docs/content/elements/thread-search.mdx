@@ -140,7 +140,7 @@ Matching runs `${title} ${preview}` against the query, case-insensitively, so an
 
 <RuntimeMode>
 
-`group` and `pinned` are not runtime concepts. The date-bucketed grouping above matches what the installed thread list uses internally; build your own buckets (by project, by tag) the same way, from whatever field your app tracks. Pinning has to live somewhere too, and `custom` is exactly the place: it is a free-form bag every thread list item carries, read with `item.custom?.pinned` and written with `aui.threads.item({ id }).updateCustom(...)`. `updateCustom` replaces the whole bag rather than merging, so spread the existing value when flipping one field:
+`group` and `pinned` are not runtime concepts. The date-bucketed grouping above uses the same Today, Yesterday, and Earlier labels as the installed thread list; build your own buckets (by project, by tag) the same way, from whatever field your app tracks. Store the pinned flag in `custom`, a free-form bag every thread list item carries, read with `item.custom?.pinned` and written with `aui.threads.item({ id }).updateCustom(...)`. `updateCustom` replaces the whole bag rather than merging, so spread the existing value when flipping one field:
 
 ```tsx
 function togglePinned(id: string) {
@@ -153,7 +153,7 @@ function togglePinned(id: string) {
 
 <StandaloneMode>
 
-Standalone, `group` and `pinned` are just fields on the objects you pass, so pinning is exactly whatever `setThreads` you write when a pin control fires. Nothing about the element inspects how those threads were produced.
+Standalone, `group` and `pinned` are fields on the objects you pass, so pinning is whatever `setThreads` call you write when a pin control fires. The element does not inspect how those threads were produced.
 
 </StandaloneMode>
 
@@ -192,7 +192,7 @@ This element has no dedicated primitive: it is fed from `useAuiState` selectors,
 | `query` | `string` | required | The current search text. |
 | `activeId` | `string` | required | Id of the highlighted thread. |
 | `onQueryChange` | `(query: string) => void` | | Called as the user types. |
-| `onSelect` | `(id: string) => void` | | Called with a thread's id when its row is clicked, and immediately on every Arrow Down or Arrow Up press in the search input; there is no separate highlight step, so moving is selecting. |
+| `onSelect` | `(id: string) => void` | | Called with a thread's id when its row is clicked, and immediately on every Arrow Down or Arrow Up press in the search input. Without it, rows render as non-interactive results and arrow keys do not select. |
 | `className` | `string` | | Merged onto the root. |
 
 All other `div` props are forwarded to the root.

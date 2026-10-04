@@ -69,7 +69,7 @@ export const messages = pgTable(
 The four message columns (`id`, `parent_id`, `format`, `content`) are the contract `withFormat` writes against. `format` records which adapter encoded the row so multiple runtimes can coexist on one table; `useChatRuntime` sets it from `fmt.format`.
 
 <Callout type="warn">
-  `content` is not arbitrary JSON. It must be the payload the active format adapter produced via `fmt.encode(item)`, and it is read back through `fmt.decode`; the route handlers below are a pass-through that never inspects it. For `useChatRuntime` (AI SDK v6) a valid stored row looks like:
+  `content` is not arbitrary JSON. It must be the payload the active format adapter produced via `fmt.encode(item)`, and it is read back through `fmt.decode`; the route handlers below are a pass-through that never inspects it. For `useChatRuntime` a valid stored row looks like:
 
   ```json
   {
@@ -157,7 +157,7 @@ export async function PATCH(
 }
 ```
 
-A `POST /api/threads/[id]/title` endpoint that calls your model with the first few messages and returns `{ title }` completes the set. The shape mirrors the others; treat it as `streamText` plus a JSON response.
+A `POST /api/threads/[id]/title` endpoint completes the set. It checks ownership like the other handlers, calls your model with the first few messages, and returns `{ title }` as JSON.
 
 </Step>
 <Step>
@@ -203,6 +203,12 @@ export async function POST(
   const session = await auth();
   if (!session?.user) return new Response(null, { status: 401 });
 
+  const [thread] = await db
+    .select({ id: threads.id })
+    .from(threads)
+    .where(and(eq(threads.id, id), eq(threads.userId, session.user.id)));
+  if (!thread) return new Response(null, { status: 404 });
+
   const body = (await req.json()) as {
     id: string;
     parent_id: string | null;
@@ -227,7 +233,7 @@ export async function POST(
 
 ### Implement `RemoteThreadListAdapter`
 
-The adapter calls your endpoints. `unstable_useAdapters` injects the per-thread history adapter on the `RemoteThreadList` store entry and on `useRemoteThreadListRuntime` when `unstable_Provider` is omitted. `unstable_Provider` is an optional React face for that runtime. On the `RemoteThreadList` store entry, key the thread factory with `withKey(id, …)` so history reloads when the visible thread changes.
+The adapter calls your endpoints. `unstable_useAdapters` injects the per-thread history adapter on the `RemoteThreadList` store entry and on `useRemoteThreadListRuntime` when `unstable_Provider` is omitted. `unstable_Provider` is an optional React component that `useRemoteThreadListRuntime` renders instead. On the `RemoteThreadList` store entry, key the thread factory with `withKey(id, …)` so history reloads when the visible thread changes.
 
 <PlatformTabs>
 <Tab value="React">
@@ -263,7 +269,7 @@ function useThreadListAdapters() {
             messages: rows.map((row: any) =>
               fmt.decode({
                 id: row.id,
-                parent_id: row.parent_id,
+                parent_id: row.parentId,
                 format: row.format,
                 content: row.content,
               }),
@@ -384,7 +390,7 @@ function useThreadListAdapters() {
             messages: rows.map((row: any) =>
               fmt.decode({
                 id: row.id,
-                parent_id: row.parent_id,
+                parent_id: row.parentId,
                 format: row.format,
                 content: row.content,
               }),
@@ -475,7 +481,7 @@ export const threadListAdapter: RemoteThreadListAdapter = {
 };
 ```
 
-`API_URL` points at the backend that hosts the route handlers above (e.g. `https://your-app.example`). Set it from your env. `fetch` is global on React Native; no polyfill required.
+`API_URL` points at the backend that hosts the route handlers above (e.g. `https://your-app.example`). Set it from your env. React Native provides a global `fetch`, so no polyfill is required.
 
 </Tab>
 <Tab value="React Ink">
@@ -509,7 +515,7 @@ function useThreadListAdapters() {
             messages: rows.map((row: any) =>
               fmt.decode({
                 id: row.id,
-                parent_id: row.parent_id,
+                parent_id: row.parentId,
                 format: row.format,
                 content: row.content,
               }),
@@ -600,7 +606,7 @@ export const threadListAdapter: RemoteThreadListAdapter = {
 };
 ```
 
-`API_URL` points at the backend that hosts the route handlers above. Node 20+ exposes `fetch` globally; no extra dependency needed.
+`API_URL` points at the backend that hosts the route handlers above. Node 20+ exposes `fetch` globally, so no extra dependency is needed.
 
 </Tab>
 </PlatformTabs>
@@ -729,6 +735,14 @@ export function MyProvider({ children }: { children: React.ReactNode }) {
 </Tab>
 </PlatformTabs>
 
+The runtime and its adapters retain state for the persistence scope under which they mounted. If that scope can change without a page reload, render `MyProvider` with a key containing every identifier your persistence endpoints use. The routes in this guide authorize every operation against the signed-in account, so the account id is sufficient. If your routes also filter by workspace, combine the account and workspace ids.
+
+```tsx
+<MyProvider key={accountId}>{children}</MyProvider>
+```
+
+This works the same way with the React, React Native, and React Ink versions above. The key remounts `useRemoteThreadListRuntime` and all per-thread runtimes, so the new scope starts with a fresh thread list, history, and composer. Any in-flight run from the old scope is stopped during unmount. Keying only `AssistantRuntimeProvider` does not remount the hook that owns the runtime.
+
 </Step>
 <Step>
 
@@ -747,8 +761,8 @@ Send a message in a fresh thread. Check the database:
 ## Notes
 
 - **First-message race.** `append` may fire before the thread row exists. The example above always awaits `aui.threadListItem.initialize()` before writing; do the same in any custom implementation.
-- **Reload after async auth.** If `auth()` resolves after the initial `list()` call, threads won't appear until the user refreshes. Call `aui.threads.reload()` from a `useEffect` watching the session. Pattern is documented in [threads](/docs/runtimes/concepts/threads#reloading-after-async-authentication).
-- **Format string.** The `format` column is *not* a free-text label; it identifies the on-disk shape so multiple runtimes can coexist. Don't strip it. Don't make assumptions about its value (`useChatRuntime` is responsible for setting and decoding it).
+- **Reload after async auth.** If `auth()` resolves after the initial `list()` call, threads won't appear until the user refreshes. Call `aui.threads.reload()` from a `useEffect` watching the session. See [threads](/docs/runtimes/concepts/threads#reloading-after-async-authentication).
+- **Format string.** The `format` column identifies the stored shape so multiple runtimes can coexist. Store it as written and pass it back unchanged; `useChatRuntime` sets and decodes it.
 - **Pending approvals need `update`.** Tool call approvals persist across reloads only when the formatted adapter implements `update`; omitting it keeps the pre-approval snapshot out of storage by design.
 - **`unstable_Provider` synchronous-children rule.** The Provider must render `children` on first commit; do not gate them behind suspense, loading state, or `useEffect`. Load data inside an always-rendered child.
 

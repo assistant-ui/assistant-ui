@@ -1,4 +1,5 @@
 import { CONSENT_STORAGE_KEY } from "./consent";
+import { RENDERER_PATH } from "./renderer";
 
 export const UMAMI_SAMPLE_RATE = 0.01;
 
@@ -67,8 +68,9 @@ export function setUmamiTrackingEnabled(enabled: boolean): void {
  * Not an invariant: a visit straddling the month boundary is still half sent,
  * at about E[visit] / 30d.
  *
- * The script exits for visitors broadcasting Global Privacy Control and for
- * visitors who declined the consent banner. It still runs while a choice is
+ * The script exits for visitors broadcasting Global Privacy Control, for
+ * visitors who declined the consent banner, and on the conversation renderer,
+ * which the Assistant Cloud dashboard frames. It still runs while a choice is
  * pending because the measurement is first-party, cookieless, and sampled —
  * the audience-measurement posture the privacy policy describes; keep the
  * policy's cookies section in sync when changing this.
@@ -77,6 +79,7 @@ export const umamiBootstrapScript = `
 (function(){
   try{
     if(navigator.globalPrivacyControl===true){return;}
+    if(window.location&&window.location.pathname===${JSON.stringify(RENDERER_PATH)}){return;}
     if(window.localStorage.getItem(${JSON.stringify(CONSENT_STORAGE_KEY)})==="denied"){return;}
     var k=${JSON.stringify(STORAGE_KEY)},t=new Date(Date.now()),b=t.getUTCFullYear()*12+t.getUTCMonth(),s=null;
     var raw=window.localStorage.getItem(k);

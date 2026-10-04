@@ -7,7 +7,7 @@ platforms: ["react"]
 import { ActionBarPrimitiveSample } from "@/components/pages/docs/samples/action-bar-primitive";
 import { ActionBarPrimitive as ActionBarPrimitiveDocs } from "@/generated/primitiveDocs";
 
-The ActionBar primitive provides message actions: copy, reload, edit, feedback, speech, and export. It handles intelligent visibility with auto-hide on hover, automatic disabling based on message state, and floating behavior. You compose the buttons; the primitive handles action state and availability.
+The ActionBar primitive provides message actions: copy, reload, edit, feedback, speech, and export. It hides and shows the bar on hover, disables buttons based on message state, and marks a bar revealed by hover as floating. You compose the buttons; the primitive handles action state and availability.
 
 <Tabs items={["Preview", "Code"]}>
   <Tab>
@@ -81,7 +81,7 @@ The `autohide` prop controls when the action bar is visible:
 - **`"not-last"`**: hidden on all messages except the last, shown on hover
 - **`"always"`**: hidden on all messages, shown on hover
 
-When `autohideFloat` is set, hidden action bars get the `data-floating` attribute instead of being removed from the DOM. This lets you animate them with CSS:
+An auto-hidden action bar is not rendered until the message is hovered. When `autohideFloat` is set, the bar that appears on hover gets the `data-floating` attribute, which you can target with CSS:
 
 ```tsx
 <ActionBarPrimitive.Root
@@ -97,11 +97,11 @@ The `"single-branch"` option for `autohideFloat` only floats when the message ha
 
 ### Automatic Disabling
 
-Action buttons automatically disable based on state, with no manual wiring needed:
+Action buttons disable themselves based on state:
 
 - **Copy**: disabled when there's no copyable text content or an assistant message is still running
-- **Reload**: disabled when the thread is running or the message role isn't assistant
-- **Edit**: disabled when the message is already being edited
+- **Reload**: disabled when the thread is running or disabled, the message role isn't assistant, or the runtime doesn't support reload
+- **Edit**: disabled when the message is already being edited or the runtime doesn't support editing
 - **Speak**: disabled when there's no speakable text or an assistant message is still running
 
 ### Copy State
@@ -117,7 +117,7 @@ After clicking Copy, the button gets a `data-copied` attribute for a configurabl
 
 ### Feedback Buttons
 
-Feedback buttons track submission state with `data-submitted`:
+Feedback buttons track submission state with `data-submitted` and expose it to assistive technology with `aria-pressed`:
 
 ```tsx
 <ActionBarPrimitive.FeedbackPositive className="data-[submitted]:text-green-500">
@@ -264,10 +264,10 @@ Downloads message as Markdown or calls custom handler. Renders a `<button>` elem
 ### Speech Toggle
 
 ```tsx
-<AuiIf condition={(s) => !s.message.isSpeaking}>
+<AuiIf condition={(s) => s.message.speech == null}>
   <ActionBarPrimitive.Speak>Play</ActionBarPrimitive.Speak>
 </AuiIf>
-<AuiIf condition={(s) => s.message.isSpeaking}>
+<AuiIf condition={(s) => s.message.speech != null}>
   <ActionBarPrimitive.StopSpeaking>Stop</ActionBarPrimitive.StopSpeaking>
 </AuiIf>
 ```
@@ -340,7 +340,7 @@ See the [ActionBarMorePrimitive API Reference](/docs/api-reference/primitives/ac
 
 ## Relationship to Components
 
-The shadcn [Thread](/elements/thread) component uses `ActionBarPrimitive` inside its `AssistantMessage` (with Copy, Reload, and an export dropdown) and `UserMessage` (with Edit). If those defaults work, use the component. Reach for `ActionBarPrimitive` directly when you need different actions, custom layout, or actions outside the standard thread UI.
+The shadcn [Thread](/elements/thread) component uses `ActionBarPrimitive` inside its `AssistantMessage` (with Copy, feedback buttons when the runtime supports feedback, Reload, and an export dropdown) and `UserMessage` (with Edit). If those defaults work, use the component. Reach for `ActionBarPrimitive` directly when you need different actions, custom layout, or actions outside the standard thread UI.
 
 ActionBar is commonly paired with [BranchPicker](/docs/primitives/branch-picker) for navigating between alternative responses on assistant messages.
 

@@ -1,4 +1,20 @@
-import type { ElementDoc } from "./element-docs";
+interface ElementPropRow {
+  name: string;
+  type: string;
+  required?: boolean;
+  defaultValue?: string;
+  description: string;
+}
+
+interface ElementPropsTable {
+  component: string;
+  rows: ElementPropRow[];
+}
+
+interface ElementDoc {
+  usage: string;
+  props: ElementPropsTable[];
+}
 
 const usageOnly = (usage: string): ElementDoc => ({ usage, props: [] });
 
@@ -85,10 +101,10 @@ export const AUI_ELEMENT_DOCS: Record<string, ElementDoc> = {
 <File type="file" filename="report.pdf" mimeType="application/pdf" data={data} />`,
   ),
   "directive-text": usageOnly(
-    `import { unstable_defaultDirectiveFormatter } from "@assistant-ui/react";
+    `import { defaultDirectiveFormatter } from "@assistant-ui/react";
 import { createDirectiveText } from "@/components/assistant-ui/elements/directive-text.aui";
 
-const DirectiveText = createDirectiveText(unstable_defaultDirectiveFormatter);`,
+const DirectiveText = createDirectiveText(defaultDirectiveFormatter);`,
   ),
   "shiki-highlighter": usageOnly(
     `import { SyntaxHighlighter } from "@/components/assistant-ui/elements/shiki-highlighter.aui";

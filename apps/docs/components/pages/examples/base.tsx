@@ -84,7 +84,7 @@ import {
   type DirectiveChipProps,
 } from "@assistant-ui/react-lexical";
 import Image from "next/image";
-import { useState, type FC, type ReactNode } from "react";
+import { Suspense, useState, type FC, type ReactNode } from "react";
 import { ModelSelector } from "@/components/assistant-ui/elements/model-selector.aui";
 import { docsModelOptions } from "@/components/pages/docs/assistant/docs-model-options";
 import { DEFAULT_MODEL_ID } from "@/lib/model";
@@ -219,7 +219,8 @@ const Thread: FC = () => {
       className="aui-root aui-thread-root bg-background @container flex h-full flex-col"
       style={{
         ["--thread-max-width" as string]: "44rem",
-        ["--composer-bg" as string]: "var(--color-card)",
+        ["--composer-bg" as string]:
+          "color-mix(in oklab, var(--color-muted) 30%, transparent)",
         ["--composer-radius" as string]: "var(--radius-thread)",
         ["--composer-padding" as string]: "8px",
       }}
@@ -291,7 +292,7 @@ const ThreadScrollToBottom: FC = () => {
 
 const ThreadWelcome: FC = () => {
   return (
-    <div className="aui-thread-welcome-root mx-auto mb-6 flex w-full max-w-(--thread-max-width) flex-col items-center px-4 text-center">
+    <div className="aui-thread-welcome-root mx-auto mb-6 flex w-full max-w-(--thread-max-width) flex-col px-2">
       <p className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-2xl font-medium tracking-tight duration-200">
         How can I help you today?
       </p>
@@ -402,7 +403,7 @@ const SUGGESTION_GROUPS: SuggestionGroup[] = [
 ];
 
 const suggestionChipClass =
-  "aui-thread-welcome-suggestion text-foreground hover:bg-muted border-border/60 h-auto gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-normal whitespace-nowrap transition-colors [&_svg]:size-4";
+  "aui-thread-welcome-suggestion border-foreground/10 hover:bg-foreground/[0.03] hover:border-foreground/25 rounded-md border px-2.5 py-1 text-sm whitespace-nowrap transition-colors ease-in motion-reduce:transition-none [&_svg]:size-4";
 
 const ThreadSuggestions: FC = () => {
   const aui = useAui();
@@ -519,6 +520,22 @@ function DirectiveChip(props: DirectiveChipProps) {
   );
 }
 
+const composerPlaceholder = "Send a message... (@ to mention, / for commands)";
+
+const composerInputClassName =
+  "aui-composer-input [&_.aui-lexical-placeholder]:text-muted-foreground/60 relative max-h-48 min-h-10 w-full resize-none bg-transparent px-2.5 py-1 text-base leading-6 outline-none [&_.aui-directive-chip]:inline-flex [&_.aui-directive-chip]:items-baseline [&_.aui-directive-chip]:gap-1 [&_.aui-directive-chip]:rounded-md [&_.aui-directive-chip]:bg-blue-100 [&_.aui-directive-chip]:px-1.5 [&_.aui-directive-chip]:py-0.5 [&_.aui-directive-chip]:text-[13px] [&_.aui-directive-chip]:leading-none [&_.aui-directive-chip]:font-medium [&_.aui-directive-chip]:text-blue-700 dark:[&_.aui-directive-chip]:bg-blue-900/50 dark:[&_.aui-directive-chip]:text-blue-300 [&_.aui-directive-chip-icon]:self-center [&_.aui-lexical-input]:min-h-lh [&_.aui-lexical-input]:outline-none [&_.aui-lexical-placeholder]:pointer-events-none [&_.aui-lexical-placeholder]:absolute [&_.aui-lexical-placeholder]:top-0 [&_.aui-lexical-placeholder]:right-0 [&_.aui-lexical-placeholder]:left-0 [&_.aui-lexical-placeholder]:truncate [&_.aui-lexical-placeholder]:px-2.5 [&_.aui-lexical-placeholder]:py-1";
+
+const ComposerInputFallback: FC = () => (
+  <div
+    aria-hidden
+    className={`aui-lexical-editor ${composerInputClassName}`}
+    style={{ overflowY: "auto" }}
+  >
+    <div className="aui-lexical-input" />
+    <div className="aui-lexical-placeholder">{composerPlaceholder}</div>
+  </div>
+);
+
 const Composer: FC = () => {
   const mention = unstable_useMentionAdapter({ fallbackIcon: WrenchIcon });
   const slash = unstable_useSlashCommandAdapter({
@@ -528,20 +545,22 @@ const Composer: FC = () => {
   });
 
   return (
-    <ComposerPrimitive.Unstable_TriggerPopoverRoot>
+    <ComposerPrimitive.TriggerPopoverRoot>
       <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
         <ComposerPrimitive.AttachmentDropzone asChild>
           <div
             data-slot="aui_composer-shell"
-            className="border-border/60 data-[dragging=true]:border-ring focus-within:border-border dark:border-muted-foreground/15 dark:focus-within:border-muted-foreground/30 flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) transition-[border-color] data-[dragging=true]:border-dashed data-[dragging=true]:bg-[color-mix(in_oklab,var(--color-accent)_50%,var(--color-background))]"
+            className="border-foreground/10 focus-within:border-foreground/25 data-[dragging=true]:border-ring flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) transition-[border-color] data-[dragging=true]:border-dashed data-[dragging=true]:bg-[color-mix(in_oklab,var(--color-accent)_50%,var(--color-background))]"
           >
             <ComposerQuotePreview />
             <ComposerAttachments />
-            <LexicalComposerInput
-              directiveChip={DirectiveChip}
-              placeholder="Send a message... (@ to mention, / for commands)"
-              className="aui-composer-input [&_.aui-lexical-placeholder]:text-muted-foreground/60 relative max-h-48 min-h-10 w-full resize-none bg-transparent px-2.5 py-1 text-base leading-6 outline-none [&_.aui-directive-chip]:inline-flex [&_.aui-directive-chip]:items-baseline [&_.aui-directive-chip]:gap-1 [&_.aui-directive-chip]:rounded-md [&_.aui-directive-chip]:bg-blue-100 [&_.aui-directive-chip]:px-1.5 [&_.aui-directive-chip]:py-0.5 [&_.aui-directive-chip]:text-[13px] [&_.aui-directive-chip]:leading-none [&_.aui-directive-chip]:font-medium [&_.aui-directive-chip]:text-blue-700 dark:[&_.aui-directive-chip]:bg-blue-900/50 dark:[&_.aui-directive-chip]:text-blue-300 [&_.aui-directive-chip-icon]:self-center [&_.aui-lexical-input]:min-h-lh [&_.aui-lexical-input]:outline-none [&_.aui-lexical-placeholder]:pointer-events-none [&_.aui-lexical-placeholder]:absolute [&_.aui-lexical-placeholder]:top-0 [&_.aui-lexical-placeholder]:right-0 [&_.aui-lexical-placeholder]:left-0 [&_.aui-lexical-placeholder]:truncate [&_.aui-lexical-placeholder]:px-2.5 [&_.aui-lexical-placeholder]:py-1"
-            />
+            <Suspense fallback={<ComposerInputFallback />}>
+              <LexicalComposerInput
+                directiveChip={DirectiveChip}
+                placeholder={composerPlaceholder}
+                className={composerInputClassName}
+              />
+            </Suspense>
             <ComposerAction />
           </div>
         </ComposerPrimitive.AttachmentDropzone>
@@ -554,7 +573,7 @@ const Composer: FC = () => {
           emptyItemsLabel="No matching commands"
         />
       </ComposerPrimitive.Root>
-    </ComposerPrimitive.Unstable_TriggerPopoverRoot>
+    </ComposerPrimitive.TriggerPopoverRoot>
   );
 };
 
@@ -803,7 +822,7 @@ const UserMessage: FC = () => {
       <UserMessageAttachments />
 
       <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
-        <div className="aui-user-message-content peer bg-muted text-foreground rounded-thread px-4 py-2 wrap-break-word empty:hidden">
+        <div className="aui-user-message-content peer bg-muted text-foreground rounded-(--composer-radius) px-4 py-2 wrap-break-word empty:hidden">
           <MessagePrimitive.Quote>
             {(quote) => <QuoteBlock {...quote} />}
           </MessagePrimitive.Quote>
@@ -816,7 +835,7 @@ const UserMessage: FC = () => {
 
       <BranchPicker
         data-slot="aui_user-branch-picker"
-        className="col-span-full col-start-1 row-start-3 -mr-1 justify-end"
+        className="col-span-full col-start-1 -mr-1 justify-end"
       />
     </MessagePrimitive.Root>
   );
@@ -844,8 +863,8 @@ const EditComposer: FC = () => {
       data-slot="aui_edit-composer-wrapper"
       className="mx-auto flex w-full max-w-(--thread-max-width) flex-col px-2"
     >
-      <ComposerPrimitive.Unstable_TriggerPopoverRoot>
-        <ComposerPrimitive.Root className="aui-edit-composer-root border-border/60 dark:border-muted-foreground/15 ml-auto flex w-full max-w-[85%] cursor-text flex-col rounded-(--composer-radius) border bg-(--composer-bg)">
+      <ComposerPrimitive.TriggerPopoverRoot>
+        <ComposerPrimitive.Root className="aui-edit-composer-root border-foreground/10 focus-within:border-foreground/25 ml-auto flex w-full max-w-[85%] cursor-text flex-col rounded-(--composer-radius) border bg-(--composer-bg) transition-[border-color]">
           <LexicalComposerInput
             directiveChip={DirectiveChip}
             autoFocus
@@ -853,22 +872,18 @@ const EditComposer: FC = () => {
           />
           <div className="aui-edit-composer-footer mx-2.5 mb-2.5 flex items-center gap-1.5 self-end">
             <ComposerPrimitive.Cancel asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 rounded-full px-3.5"
-              >
+              <Button variant="ghost" size="sm" className="h-8 px-3">
                 Cancel
               </Button>
             </ComposerPrimitive.Cancel>
             <ComposerPrimitive.Send asChild>
-              <Button size="sm" className="h-8 rounded-full px-3.5">
+              <Button size="sm" className="h-8 px-3">
                 Update
               </Button>
             </ComposerPrimitive.Send>
           </div>
         </ComposerPrimitive.Root>
-      </ComposerPrimitive.Unstable_TriggerPopoverRoot>
+      </ComposerPrimitive.TriggerPopoverRoot>
     </MessagePrimitive.Root>
   );
 };

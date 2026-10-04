@@ -1,3 +1,4 @@
+import { cacheLife } from "next/cache";
 import type * as PageTree from "fumadocs-core/page-tree";
 import { NextResponse, type NextRequest } from "next/server";
 import {
@@ -19,15 +20,8 @@ import {
   readPageTool,
   searchDocsTool,
 } from "@/lib/mcp-tool-definitions";
-import {
-  examples,
-  getTapDocsPage,
-  getTapDocsPages,
-  source,
-  design,
-  elementsDocs,
-  tapDocs,
-} from "@/lib/source";
+import { examples, source, design, elementsDocs } from "@/lib/source";
+import { rewriteLegacyTapDocsPath } from "@/lib/legacy-tap-docs";
 import { buildXuluxMcpCatalog } from "@/lib/xulux/mcp-catalog";
 import {
   createTemplatePreview,
@@ -36,7 +30,6 @@ import {
 } from "@/lib/xulux/template-service";
 import { normalizeMcpRequestHeaders } from "./normalize-mcp-headers";
 
-export const revalidate = false;
 // One sandbox call bounds the template tools at 30s and the rest is in-process
 // rendering, so this sits well under the platform default and an overrun
 // surfaces here rather than at the CDN in front of it.
@@ -120,10 +113,6 @@ function allPages() {
       kind: "elements" as const,
       page,
     })),
-    ...getTapDocsPages().map((page) => ({
-      kind: "tap" as const,
-      page,
-    })),
   ];
 }
 
@@ -172,11 +161,13 @@ function normalizePathname(rawPath: string, requestUrl?: string) {
 
 function normalizePageUrlPrefix(rawPath: string) {
   const pathname = normalizePathname(rawPath);
-  return pathname ? `/${pathname}` : "";
+  return rewriteLegacyTapDocsPath(pathname) ?? (pathname ? `/${pathname}` : "");
 }
 
 function normalizePath(rawPath: string, requestUrl: string) {
-  const value = normalizePathname(rawPath, requestUrl);
+  const normalizedPath = normalizePathname(rawPath, requestUrl);
+  const legacyPath = rewriteLegacyTapDocsPath(normalizedPath);
+  const value = legacyPath ? legacyPath.slice(1) : normalizedPath;
   if (!value) return { kind: "docs" as const, slugs: [] };
 
   if (value.includes("..")) {
@@ -187,7 +178,6 @@ function normalizePath(rawPath: string, requestUrl: string) {
   if (value === "examples") return { kind: "examples" as const, slugs: [] };
   if (value === "design") return { kind: "design" as const, slugs: [] };
   if (value === "elements") return { kind: "elements" as const, slugs: [] };
-  if (value === "tap/docs") return { kind: "tap" as const, slugs: [] };
   if (value.startsWith("docs/")) {
     return {
       kind: "docs" as const,
@@ -210,12 +200,6 @@ function normalizePath(rawPath: string, requestUrl: string) {
     return {
       kind: "elements" as const,
       slugs: value.slice("elements/".length).split("/").filter(Boolean),
-    };
-  }
-  if (value.startsWith("tap/docs/")) {
-    return {
-      kind: "tap" as const,
-      slugs: value.slice("tap/docs/".length).split("/").filter(Boolean),
     };
   }
   return { kind: "docs" as const, slugs: value.split("/").filter(Boolean) };
@@ -273,7 +257,6 @@ function getNavigation() {
     examples: examples.pageTree.children.map(serializeNode),
     design: design.pageTree.children.map(serializeNode),
     elements: elementsDocs.pageTree.children.map(serializeNode),
-    tapDocs: tapDocs.pageTree.children.map(serializeNode),
   };
 }
 
@@ -307,9 +290,7 @@ async function readPage(path: string | undefined, requestUrl: string) {
         ? design.getPage(normalized.slugs)
         : normalized.kind === "elements"
           ? elementsDocs.getPage(normalized.slugs)
-          : normalized.kind === "tap"
-            ? getTapDocsPage(normalized.slugs)
-            : source.getPage(normalized.slugs);
+          : source.getPage(normalized.slugs);
 
   if (!page) throw new Error(`Page not found: ${path}`);
 
@@ -631,6 +612,20 @@ function acceptsEventStream(request: NextRequest) {
     .some((range) => range.split(";")[0]?.trim() === "text/event-stream");
 }
 
+async function getManifest() {
+  "use cache";
+  cacheLife("max");
+  return {
+    name: "assistant-ui-docs",
+    protocol: "mcp",
+    endpoints: ["/mcp", "/.well-known/mcp", "/docs/mcp"],
+    tools: toolDefinitions.map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+    })),
+  };
+}
+
 export async function GET(request: NextRequest) {
   // `Accept: text/event-stream` opens the Streamable HTTP server-to-client
   // stream, which this stateless endpoint does not offer; a 200 reads as a
@@ -646,15 +641,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  return jsonResponse({
-    name: "assistant-ui-docs",
-    protocol: "mcp",
-    endpoints: ["/mcp", "/.well-known/mcp", "/docs/mcp"],
-    tools: toolDefinitions.map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-    })),
-  });
+  return jsonResponse(await getManifest());
 }
 
 export async function POST(request: NextRequest) {

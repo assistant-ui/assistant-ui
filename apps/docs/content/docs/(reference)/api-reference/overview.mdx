@@ -47,7 +47,7 @@ The React API reference is organized by how you build with assistant-ui:
     Runtime extension points for attachments, persistence, feedback, speech, dictation, and suggestions.
   </Card>
   <Card title="Integrations" href="/docs/api-reference/integrations/ai-sdk">
-    Package-level APIs for integrations such as `@assistant-ui/ai-sdk` and `@assistant-ui/cloud-ai-sdk`.
+    Package-level APIs for integrations such as `@assistant-ui/ai-sdk` and `assistant-cloud`.
   </Card>
   <Card title="Runtime State" href="/docs/api-reference/runtimes/assistant-runtime">
     Runtime action and state shapes used by `useAui` and `useAuiState`.
@@ -130,7 +130,7 @@ Register toolkits and tool UIs
 - [`Toolkit`](/docs/api-reference/tools/toolkits#toolkit)
 - [`Tools`](/docs/api-reference/tools/toolkits#tools)
 
-Programmatically access the list of registered tool UIs via `useAuiState((s) => s.tools)` and `useAui().tools()`.
+Programmatically access the list of registered tool UIs via `useAuiState((s) => s.tools)` and `useAui().tools`.
 
 ### ThreadListPrimitive
 
@@ -174,12 +174,12 @@ The context for a single thread. Currently always corresponds to the runtime's m
 Programmatically access the thread's state and actions.
 
 - State: `useAuiState((s) => s.thread)`
-- Actions: `useAui().thread()`
+- Actions: `useAui().thread`
 - Composer: `useAuiState((s) => s.composer)`
 
 ### ModelContext
 
-- `useAui().thread().getModelContext()`
+- `useAui().thread.getModelContext()`
 
 ### ThreadViewportStore
 
@@ -280,7 +280,7 @@ Manages the state and actions for the message composer
 ### ComposerRuntime
 
 - State: `useAuiState((s) => s.composer)`
-- Actions: `useAui().composer()`
+- Actions: `useAui().composer`
 
 ### ComposerPrimitive
 
@@ -335,7 +335,7 @@ Manages the state and actions for individual messages
 
 - State: `useAuiState((s) => s.message)`
 - Edit Composer: `useAuiState((s) => s.message.composer)`
-- Actions: `useAui().message()`
+- Actions: `useAui().message`
 - Utilities: `useAuiState((s) => s.message.isCopied)` / `useAuiState((s) => s.message.isHovering)`
 
 ### MessagePrimitive
@@ -455,7 +455,7 @@ Manages the state and actions for message parts within messages
 ### MessagePartRuntime
 
 - State: `useAuiState((s) => s.part)`
-- Actions: `useAui().part()`
+- Actions: `useAui().part`
 
 ### MessagePartPrimitive
 
@@ -484,7 +484,7 @@ Manages the state and actions for attachments in messages and composer
 ### AttachmentRuntime
 
 - State: `useAuiState((s) => s.attachment)`
-- Actions: `useAui().attachment()`
+- Actions: `useAui().attachment`
 
 ### AttachmentPrimitive
 
@@ -521,7 +521,7 @@ Manages the state and actions for individual thread list items
 ### ThreadListItemRuntime
 
 - State: `useAuiState((s) => s.threadListItem)`
-- Actions: `useAui().threadListItem()`
+- Actions: `useAui().threadListItem`
 
 ### ThreadListItem
 

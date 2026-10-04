@@ -6,8 +6,31 @@ import {
   useMemo,
 } from "react";
 import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
+import { useShallowSelector } from "@assistant-ui/store/internal";
 import type { SuggestionState } from "../../../store/scopes/suggestion";
+import type { ThreadSuggestion } from "../../../runtime/interfaces/thread-runtime-core";
 import { SuggestionByIndexProvider } from "../../providers/SuggestionByIndexProvider";
+
+/**
+ * A suggestion carries no id, so its identity is its content. Repeats of the
+ * same content get an occurrence suffix, because React keys must be unique
+ * and two suggestions that render the same thing are interchangeable.
+ */
+const toSuggestionKeys = (
+  suggestions: readonly ThreadSuggestion[],
+): string[] => {
+  const seen = new Map<string, number>();
+  return suggestions.map((suggestion) => {
+    const content = JSON.stringify([
+      suggestion.title,
+      suggestion.label,
+      suggestion.prompt,
+    ]);
+    const occurrence = seen.get(content) ?? 0;
+    seen.set(content, occurrence + 1);
+    return occurrence === 0 ? content : `${content}:${occurrence}`;
+  });
+};
 
 type SuggestionsComponentConfig = {
   /** Component used to render each suggestion */
@@ -67,14 +90,14 @@ ThreadPrimitiveSuggestionByIndex.displayName =
 const ThreadPrimitiveSuggestionsInner: FC<{
   children: (value: { suggestion: SuggestionState }) => ReactNode;
 }> = ({ children }) => {
-  const suggestionsLength = useAuiState(
-    (s) => s.suggestions.suggestions.length,
+  const suggestionKeys = useAuiState(
+    useShallowSelector((s) => toSuggestionKeys(s.suggestions.suggestions)),
   );
 
   return useMemo(() => {
-    if (suggestionsLength === 0) return null;
-    return Array.from({ length: suggestionsLength }, (_, index) => (
-      <SuggestionByIndexProvider key={index} index={index}>
+    if (suggestionKeys.length === 0) return null;
+    return suggestionKeys.map((suggestionKey, index) => (
+      <SuggestionByIndexProvider key={suggestionKey} index={index}>
         <RenderChildrenWithAccessor
           getItemState={(aui) =>
             aui.suggestions.suggestion({ index }).getState()
@@ -90,7 +113,7 @@ const ThreadPrimitiveSuggestionsInner: FC<{
         </RenderChildrenWithAccessor>
       </SuggestionByIndexProvider>
     ));
-  }, [suggestionsLength, children]);
+  }, [suggestionKeys, children]);
 };
 
 /**

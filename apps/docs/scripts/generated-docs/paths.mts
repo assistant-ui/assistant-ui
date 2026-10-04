@@ -64,13 +64,23 @@ export const INTEGRATION_PACKAGES = [
     entry: path.join(REPO_ROOT, "packages/react-data-stream/src/index.ts"),
   },
   {
-    slug: "cloud-ai-sdk",
-    packageName: "@assistant-ui/cloud-ai-sdk",
-    entry: path.join(REPO_ROOT, "packages/cloud-ai-sdk/src/index.ts"),
-  },
-  {
     slug: "eve",
     packageName: "@assistant-ui/eve",
     entry: path.join(REPO_ROOT, "packages/eve/src/index.ts"),
+  },
+  {
+    slug: "assistant-cloud",
+    packageName: "assistant-cloud",
+    entry: path.join(REPO_ROOT, "packages/cloud/src/index.ts"),
+  },
+  {
+    slug: "assistant-cloud-ai-sdk",
+    packageName: "assistant-cloud/ai-sdk",
+    entry: path.join(REPO_ROOT, "packages/cloud/src/ai-sdk/index.ts"),
+  },
+  {
+    slug: "assistant-cloud-telemetry",
+    packageName: "assistant-cloud/telemetry",
+    entry: path.join(REPO_ROOT, "packages/cloud/src/telemetry/index.ts"),
   },
 ] as const;

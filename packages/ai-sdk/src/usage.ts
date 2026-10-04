@@ -1,4 +1,4 @@
-/// <reference types="@assistant-ui/core/react" />
+/// <reference types="@assistant-ui/core/react" preserve="true" />
 import { useMemo } from "react";
 import { useAuiState } from "@assistant-ui/store";
 

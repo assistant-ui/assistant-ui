@@ -17,6 +17,8 @@ npx assistant-ui@latest upgrade
 
 This will automatically handle the hook renames and update your imports.
 
+Hook and component renames follow imports from `@assistant-ui/*`, including aliases, and leave unrelated or shadowed bindings unchanged. Imports through a local re-export need manual review. Unlike the v0.15 accessor codemod's existing hook-name fallback, this rename requires a direct assistant-ui import so it does not rename an unrelated hook.
+
 ## Breaking Changes
 
 ### 1. Assistant API Hooks Renamed
@@ -94,7 +96,7 @@ The codemod will:
 
 **Backwards Compatibility:**
 
-The old names are still available as deprecated exports until v0.13:
+In v0.12 and v0.13 the old names still work as deprecated exports. [v0.14](/docs/migrations/v0-14) removes them:
 
 ```tsx
 // Still works, but deprecated
@@ -142,6 +144,8 @@ The following hooks have been removed:
 - `useThreadModelConfig` → Removed. Use `useAui().thread().getModelContext()` instead.
 - `useThreadComposer` → Use `useAuiState((s) => s.thread.composer)`
 - `useThreadList` → Use `useAuiState((s) => s.threads)`
+
+[v0.15](/docs/migrations/v0-15) removes these deprecated hooks.
 
 #### Migration Examples
 

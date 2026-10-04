@@ -11,7 +11,6 @@ import {
   PathAppendEncoder,
   PathMergeEncoder,
 } from "../utils/stream/path-utils";
-import { DataStreamEncoder } from "../serialization/data-stream/DataStream";
 import type { DataPart, FilePart, SourcePart } from "../utils/types";
 import { generateId } from "../utils/generateId";
 import type {
@@ -267,7 +266,9 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     const toolName = opt.toolName;
     const toolCallId = opt.toolCallId ?? generateId();
 
-    const [stream, controller] = createToolCallStreamController();
+    const [stream, controller] = createToolCallStreamController({
+      strict: this._state.strict,
+    });
     this._addPart(
       {
         type: "tool-call",
@@ -412,20 +413,4 @@ export function createAssistantStreamController(
     return promise;
   }, options);
   return [stream, controller] as const;
-}
-
-/**
- * Creates a `Response` whose body is an encoded {@link AssistantStream}.
- *
- * This is the HTTP-route convenience form of {@link createAssistantStream}; it
- * uses {@link DataStreamEncoder} so the response can be consumed by matching
- * assistant-ui data stream decoders.
- */
-export function createAssistantStreamResponse(
-  callback: (controller: AssistantStreamController) => PromiseLike<void> | void,
-) {
-  return AssistantStream.toResponse(
-    createAssistantStream(callback),
-    new DataStreamEncoder(),
-  );
 }

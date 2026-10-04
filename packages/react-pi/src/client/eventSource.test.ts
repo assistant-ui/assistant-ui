@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { createSseDecoder, openPiEventStream } from "./eventSource";
+import {
+  createPiEventStreamConnection,
+  createSseDecoder,
+  openPiEventStream,
+} from "./eventSource";
 import type {
   PiAnyClientEvent,
   PiAssistantMessage,
@@ -575,6 +579,73 @@ describe("openPiEventStream", () => {
     expect(fetchImpl).toHaveBeenCalledOnce();
   });
 
+  it("settles when closed during a pending reconnect delay", async () => {
+    const reconnectDelay = vi.fn(() => new Promise<void>(() => {}));
+    const fetchImpl = vi.fn(async () =>
+      sseResponse([]),
+    ) as unknown as typeof fetch;
+    const connection = createPiEventStreamConnection({
+      url: "/events",
+      fetchImpl,
+      reconnectDelay,
+      onEvent: vi.fn(),
+    });
+
+    await vi.waitFor(() => expect(reconnectDelay).toHaveBeenCalledOnce());
+    connection.close();
+
+    await connection.finished;
+    expect(fetchImpl).toHaveBeenCalledOnce();
+  });
+
+  it("retains reconnect requests made while a failed reader is cancelling", async () => {
+    let finishCancel!: () => void;
+    const firstBody = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode(
+            rawSseFrame({
+              type: "message_start",
+              threadId: "t1",
+              seq: 1,
+            }),
+          ),
+        );
+      },
+      cancel: () =>
+        new Promise<void>((resolve) => {
+          finishCancel = resolve;
+        }),
+    });
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(firstBody, {
+          headers: { "content-type": "text/event-stream" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(new ReadableStream<Uint8Array>(), {
+          headers: { "content-type": "text/event-stream" },
+        }),
+      ) as unknown as typeof fetch;
+    const connection = createPiEventStreamConnection({
+      url: "/events",
+      expectedThreadId: "t1",
+      fetchImpl,
+      reconnectDelay: () => new Promise<void>(() => {}),
+      onEvent: vi.fn(),
+    });
+
+    await vi.waitFor(() => expect(finishCancel).toBeTypeOf("function"));
+    expect(connection.reconnect()).toBe(true);
+    finishCancel();
+
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+    connection.close();
+    await connection.finished;
+  });
+
   it.each(["throws", "rejects"] as const)(
     "reconnects when the error callback %s",
     async (failureMode) => {
@@ -653,6 +724,7 @@ describe("openPiEventStream", () => {
               }
               close();
               resolve();
+              return undefined;
             },
           });
         });
@@ -888,7 +960,7 @@ describe("openPiEventStream", () => {
       const events: PiAnyClientEvent[] = [];
       const errors: unknown[] = [];
       const fetchImpl = vi
-        .fn()
+        .fn<(url: RequestInfo | URL, init?: RequestInit) => Promise<Response>>()
         .mockResolvedValueOnce(
           sseResponse([
             rawSseFrame(malformedEvent),
@@ -899,7 +971,7 @@ describe("openPiEventStream", () => {
           sseResponse([
             sseFrame({ type: "agent_end", threadId: "t1", seq: 2 }),
           ]),
-        ) as unknown as typeof fetch;
+        );
 
       await new Promise<void>((resolve) => {
         const close = openPiEventStream({
@@ -1104,7 +1176,7 @@ describe("openPiEventStream", () => {
     "requests a snapshot after a %s live-only stream",
     async (failure) => {
       const fetchImpl = vi
-        .fn()
+        .fn<(url: RequestInfo | URL, init?: RequestInit) => Promise<Response>>()
         .mockImplementationOnce(async () => {
           if (failure === "error") throw new Error("network drop");
           return sseResponse(
@@ -1125,7 +1197,7 @@ describe("openPiEventStream", () => {
               },
             }),
           ]),
-        ) as unknown as typeof fetch;
+        );
 
       const event = await new Promise<PiAnyClientEvent>((resolve) => {
         const close = openPiEventStream({

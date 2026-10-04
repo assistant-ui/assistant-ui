@@ -6,6 +6,8 @@ import {
   API_CATALOG_LINK_HEADER,
 } from "./lib/agent-discovery-routes";
 import { isWebMcpEnabled } from "./lib/feature-flags";
+import { RENDERER_ALLOWED_ORIGINS, RENDERER_PATH } from "./lib/renderer";
+import { LEGACY_TAP_DOCS_REDIRECTS } from "./lib/legacy-tap-docs";
 import {
   docsMarkdownAcceptRewrites,
   docsMarkdownFileRewrites,
@@ -49,33 +51,46 @@ const faviconRewrites = faviconVariant
     ]
   : [];
 
+// The SDK packages resolve to their sources through tsconfig paths, so no
+// package build stamps their version; a deployment reports its commit instead.
+const sdkVersion = process.env.VERCEL_GIT_COMMIT_SHA
+  ? `0.0.0+${process.env.VERCEL_GIT_COMMIT_SHA.slice(0, 7)}`
+  : undefined;
+
 // Chrome applies form-action to the redirects that follow a submit, and the
 // sign-out form lands on the accounts end-session endpoint.
 const authOrigin = process.env.NEXT_PUBLIC_AUTH_URL ?? "";
 
 // The playground AI Builder renders same-origin preview routes inside an iframe.
-// Keep frame ancestors self-only so external sites still cannot embed docs pages.
-const cspHeader = `
+// Keep frame ancestors self-only so external sites still cannot embed docs pages;
+// only the conversation renderer also admits the Assistant Cloud dashboard.
+// Cloudflare Web Analytics injects its beacon at the edge, so script-src names
+// static.cloudflareinsights.com although nothing in the repo loads it.
+const csp = (frameAncestors: string) =>
+  `
     default-src 'self';
     connect-src *;
     frame-src * blob:;
-    script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ""};
+    script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ""} https://static.cloudflareinsights.com;
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     img-src * blob: data:;
     font-src 'self' https://fonts.gstatic.com data:;
     object-src 'none';
     base-uri 'self';
     form-action 'self' ${authOrigin};
-    frame-ancestors 'self';
+    frame-ancestors ${frameAncestors};
     upgrade-insecure-requests;
-`;
+`.replace(/\n/g, "");
 
 const config: NextConfig = {
-  experimental: {
-    // Learn previews compile several complete lesson stages into the docs app.
-    // Bound build concurrency so Vercel and other constrained builders do not
-    // run out of memory while Turbopack compiles those routes in parallel.
-    cpus: 2,
+  cacheComponents: true,
+  // A prerender cannot read the clock, so the copyright year is fixed at build time.
+  env: { COPYRIGHT_YEAR: String(new Date().getFullYear()) },
+  // This app keeps a hand-written AGENTS.md, and the root one already points
+  // agents at the bundled Next.js docs, so `next dev` must not append its block.
+  agentRules: false,
+  compiler: {
+    define: sdkVersion ? { __AUI_PACKAGE_VERSION__: sdkVersion } : {},
   },
   transpilePackages: ["@assistant-ui/ui", "shiki"],
   serverExternalPackages: ["just-bash"],
@@ -98,7 +113,16 @@ const config: NextConfig = {
       headers: [
         {
           key: "Content-Security-Policy",
-          value: cspHeader.replace(/\n/g, ""),
+          value: csp("'self'"),
+        },
+      ],
+    },
+    {
+      source: RENDERER_PATH,
+      headers: [
+        {
+          key: "Content-Security-Policy",
+          value: csp(["'self'", ...RENDERER_ALLOWED_ORIGINS].join(" ")),
         },
       ],
     },
@@ -136,6 +160,57 @@ const config: NextConfig = {
     })),
   ],
   redirects: async () => [
+    ...LEGACY_TAP_DOCS_REDIRECTS,
+    {
+      source: "/hack",
+      destination: "/hackathon",
+      permanent: false,
+    },
+    {
+      source: "/tap",
+      destination: "/docs/tap",
+      permanent: true,
+    },
+    {
+      source: "/shop/cart.md",
+      destination: "/install.md",
+      permanent: true,
+    },
+    {
+      source: "/cloud-ai-sdk",
+      destination: "/docs/cloud/migrate-cloud-ai-sdk",
+      permanent: true,
+    },
+    {
+      source: "/docs/api-reference/integrations/cloud-ai-sdk",
+      destination: "/docs/cloud/migrate-cloud-ai-sdk",
+      permanent: true,
+    },
+    {
+      source: "/docs/cloud/ai-sdk-assistant-ui",
+      destination: "/docs/cloud/ai-sdk",
+      permanent: true,
+    },
+    {
+      source: "/docs/integrations/observability/helicone",
+      destination: "/docs/integrations",
+      permanent: true,
+    },
+    {
+      source: "/docs/cloud/telemetry",
+      destination: "/docs/cloud/run-reports",
+      permanent: true,
+    },
+    {
+      source: "/docs/cloud/overview",
+      destination: "/docs/cloud/dashboard/overview",
+      permanent: true,
+    },
+    {
+      source: "/docs/cloud/alerts",
+      destination: "/docs/cloud/settings/alerts",
+      permanent: true,
+    },
     {
       source: "/elements/reasoning-panel",
       destination: "/elements/reasoning",
@@ -442,22 +517,6 @@ const config: NextConfig = {
         destination: "/llms.mdx/elements/:path*",
       },
       {
-        source: "/tap/docs.md",
-        destination: "/tap-llms.mdx",
-      },
-      {
-        source: "/tap/docs.mdx",
-        destination: "/tap-llms.mdx",
-      },
-      {
-        source: "/tap/docs/:path*.md",
-        destination: "/tap-llms.mdx/:path*",
-      },
-      {
-        source: "/tap/docs/:path*.mdx",
-        destination: "/tap-llms.mdx/:path*",
-      },
-      {
         source: "/",
         has: [
           { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
@@ -506,13 +565,6 @@ const config: NextConfig = {
         destination: "/llms.mdx/elements/:path*",
       },
       {
-        source: "/tap/docs/:path*",
-        has: [
-          { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
-        ],
-        destination: "/tap-llms.mdx/:path*",
-      },
-      {
         source: "/umami/:path*",
         destination: "https://assistant-ui-umami.vercel.app/:path*",
       },
@@ -544,4 +596,5 @@ const config: NextConfig = {
 
 const withMDX = createMDX();
 
-export default withAui(withMDX(config));
+// Keep MDX outermost so Next.js waits for its collection generation.
+export default withMDX(withAui(config));

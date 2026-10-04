@@ -2,8 +2,12 @@ import type { ToolModelContentPart } from "assistant-stream";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { ModelContext } from "../../model-context/types";
 import type { Unsubscribe } from "../../types/unsubscribe";
-import type { AppendMessage, ThreadMessage } from "../../types/message";
-import type { RunConfig } from "../../types/message";
+import type {
+  AppendMessage,
+  ThreadMessage,
+  Unstable_ToolInteraction,
+} from "../../types/message";
+import type { RunConfig, ToolApprovalAnswer } from "../../types/message";
 import type { SpeechSynthesisAdapter } from "../../adapters/speech";
 import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type {
@@ -35,6 +39,8 @@ export type RuntimeCapabilities = {
   readonly attachments: boolean;
   readonly feedback: boolean;
   readonly queue: boolean;
+  /** Whether the thread can answer a waiting tool call by adding its result, resuming it, or responding to its approval. */
+  readonly answerToolCall: boolean;
 };
 
 export type AddToolResultOptions = {
@@ -58,6 +64,12 @@ export type ResumeToolCallOptions = {
   payload: unknown;
 };
 
+export type Unstable_RecordToolInteractionOptions = {
+  messageId: string;
+  toolCallId: string;
+  interaction: Unstable_ToolInteraction;
+};
+
 export type RespondToToolApprovalOptions = {
   approvalId: string;
   approved: boolean;
@@ -65,12 +77,15 @@ export type RespondToToolApprovalOptions = {
   optionId?: string;
   /** The free-form answer, when the request asked for one. */
   text?: string;
+  /** The answers to a `display: "questions"` request, keyed by question id. */
+  answers?: Readonly<Record<string, ToolApprovalAnswer>>;
   reason?: string;
 };
 
 export type SubmitFeedbackOptions = {
   messageId: string;
   type: "negative" | "positive";
+  comment?: string;
 };
 
 export type ThreadSuggestion = {
@@ -91,13 +106,33 @@ export type VoiceSessionState = {
   readonly status: RealtimeVoiceAdapter.Status;
   readonly isMuted: boolean;
   readonly mode: RealtimeVoiceAdapter.Mode;
+  /**
+   * Whether the running session takes typed text. While true, `append` routes a plain text user message into the session and the thread composer can send.
+   */
+  readonly canSendText: boolean;
 };
 
 export type SubmittedFeedback = {
   readonly type: "negative" | "positive";
+  readonly comment?: string;
 };
 
 export type ThreadRuntimeEventPayload = {
+  /**
+   * Truly transient. A history adapter write rejected, so the stored history may no longer match the thread. A write whose promise reaches a caller still rejects there as well, and the runtime logs every failed write with console.error.
+   */
+  historyWriteError: {
+    operation: "append" | "update" | "delete";
+    messageIds: readonly string[];
+    message: string;
+    error: unknown;
+  };
+  toolApprovalAnswered: {
+    messageId: string;
+    toolCallId: string;
+    toolName: string;
+    approved: boolean;
+  };
   /**
    * @deprecated State-derivable. Observe `state.isRunning` flipping to `true`
    * via `subscribe` + `getState` instead. Note: this event fires at the
@@ -182,6 +217,13 @@ export type ThreadRuntimeCore = Readonly<{
   respondToToolApproval: (
     options: RespondToToolApprovalOptions,
   ) => Promise<void>;
+  /**
+   * Appends a validated interaction to a tool call part and persists it where
+   * the runtime persists messages. Rejects when the runtime cannot record it.
+   */
+  unstable_recordToolInteraction?: (
+    options: Unstable_RecordToolInteractionOptions,
+  ) => Promise<void>;
 
   speak: (messageId: string) => void;
   stopSpeaking: () => void;
@@ -216,6 +258,15 @@ export type ThreadRuntimeCore = Readonly<{
    */
   isSendDisabled: boolean;
   isLoading: boolean;
+  /** Whether messages exist before the first one; absent on runtimes that load whole threads. */
+  hasEarlier?: boolean;
+  /** Whether a `loadEarlier` call is in flight. */
+  isLoadingEarlier?: boolean;
+  /**
+   * Loads the page before the first message, sharing one in-flight call.
+   * Never rejects: a failed load is logged and ends the load.
+   */
+  loadEarlier?(): Promise<void>;
   /**
    * Optional explicit thread-level running flag. When provided, takes
    * precedence over the last-message-status heuristic. When omitted, falls

@@ -10,12 +10,7 @@ import { ApplyForm } from "@/components/pages/careers/apply-form";
 import { sceneFor } from "@/components/pages/careers/scenes";
 import { GlyphPlate } from "@/components/shared/glyph-scene";
 import { PageFrame } from "@/components/shared/page-frame";
-import {
-  typeDeck,
-  typeEyebrow,
-  typePage,
-  typeSection,
-} from "@/components/shared/type";
+import { typeDeck, typePage, typeSection } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 import { ArrowLeft } from "lucide-react";
 
@@ -112,7 +107,7 @@ export default function CareerRolePage({
         </div>
         <aside className="max-lg:hidden">
           <div className="lg:sticky lg:top-24">
-            <p className={typeEyebrow}>Role</p>
+            <h2 className="text-sm font-medium">Role</h2>
             <dl className="border-foreground/10 mt-4 border-t">
               <RoleFact label="Location" value={role.data.location} />
               <RoleFact label="Type" value={role.data.type} />
@@ -144,8 +139,7 @@ export default function CareerRolePage({
                 className="w-24 shrink-0"
               />
               <span className="min-w-0">
-                <span className={typeEyebrow}>Also open</span>
-                <span className="mt-1.5 block truncate text-sm font-medium">
+                <span className="block truncate text-sm font-medium">
                   {other.data.title}
                 </span>
               </span>
@@ -160,9 +154,7 @@ export default function CareerRolePage({
 function RoleFact({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-4 py-2">
-      <dt className="text-muted-foreground font-mono text-[11px] tracking-wide uppercase">
-        {label}
-      </dt>
+      <dt className="text-muted-foreground text-sm">{label}</dt>
       <dd className="text-sm">{value}</dd>
     </div>
   );
