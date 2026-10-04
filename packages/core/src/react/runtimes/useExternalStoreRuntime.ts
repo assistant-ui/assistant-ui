@@ -1,13 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useInsertionEffect, useMemo, useState } from "react";
 import { ExternalStoreRuntimeCore } from "../../runtimes/internal";
 import type { ExternalStoreAdapter } from "../../runtimes/external-store/external-store-adapter";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import { AssistantRuntimeImpl } from "../../runtime/internal";
-import { invalidateThreadRuntime } from "../../runtime/utils/thread-runtime-lifecycle";
+import {
+  disposeThreadRuntime,
+  invalidateThreadRuntime,
+} from "../../runtime/utils/thread-runtime-lifecycle";
 import { useRuntimeAdapters } from "./RuntimeAdapterProvider";
 import { ExternalStoreHistoryCopy } from "./external-store-history-copy";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
+import { useIsRemoteThreadRuntimeHosted } from "./RemoteThreadRuntimeHostContext";
 
 export const useExternalStoreRuntime = <T>(
   store: ExternalStoreAdapter<T>,
@@ -32,8 +37,21 @@ export const useExternalStoreRuntime = <T>(
     };
   }, [copiesHistory, feedback, historyCopy, store]);
   const [runtime] = useState(() => new ExternalStoreRuntimeCore(adaptedStore));
+  const isHosted = useIsRemoteThreadRuntimeHosted();
+  const [lifetime] = useState(() => ({ generation: 0 }));
 
-  useEffect(() => {
+  useInsertionEffect(() => {
+    if (isHosted) return;
+    const generation = ++lifetime.generation;
+    return () =>
+      queueMicrotask(() => {
+        if (lifetime.generation === generation) {
+          disposeThreadRuntime(runtime.threads.getMainThreadRuntimeCore());
+        }
+      });
+  }, [isHosted, lifetime, runtime]);
+
+  useReplaySafeEffect(() => {
     return () => {
       invalidateThreadRuntime(runtime.threads.getMainThreadRuntimeCore());
     };
@@ -43,7 +61,7 @@ export const useExternalStoreRuntime = <T>(
     runtime.setAdapter(adaptedStore);
   });
 
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     if (!copiesHistory || !history) return;
     return historyCopy.attach(
       runtime.threads.getMainThreadRuntimeCore(),

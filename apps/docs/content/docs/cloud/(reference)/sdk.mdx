@@ -62,11 +62,11 @@ An anonymous client shares an in flight token request for the same storage and b
 
 ## Identify the SDK and send requests
 
-`registerSdk({ name, version })` trims both strings and ignores an identity when either contains a nonprintable token character. It accepts every remaining printable token and registers each `name/version` once, preserving the first insertion order. Every request carries `Aui-Sdk`, beginning with `assistant-cloud/<version>` and followed by registered identities separated by spaces. The server reads only the first eight space-separated tokens and records unique entries only when their names use lowercase npm style names and their versions use strict SemVer.
+`registerSdk({ name, version })` trims both strings and ignores the identity unless each is a nonempty run of printable ASCII characters with no spaces. It registers each `name/version` once, in first insertion order. Every request carries `Aui-Sdk`, beginning with `assistant-cloud/<version>` and followed by registered identities separated by spaces. The server reads only the first eight space-separated tokens and records unique entries only when their names use lowercase npm style names and their versions use strict SemVer.
 
-The client adds `/v1` to every namespace route, serializes object bodies as JSON, and always sets `Content-Type: application/json`. The caller can set `Accept`, but cannot replace the content type or `Aui-Sdk`. Query strings use `URLSearchParams`: `true` becomes `true`, numbers become strings, and `false` is dropped. Only event delivery uses `keepalive`.
+The client adds `/v1` to every namespace route, serializes object bodies as JSON, and always sets `Content-Type: application/json`. The caller can set `Accept`, but cannot replace the content type or `Aui-Sdk`. Query strings use `URLSearchParams`: `true` becomes `true`, numbers become strings, and `false` is dropped. `threads.list` and `projects.threads.list` send `is_archived` as a string, so `is_archived: false` reaches the server. Only event delivery uses `keepalive`.
 
-Most client requests have no retry policy. Scheduled and 20-event event flushes retry a failed send after 250 milliseconds and then 1,000 milliseconds. `CloudRunReporter` is the one exception to deduplication: it releases a report key after a `CloudAPIError` with status `429`, so a later observation can send that report. A `204`, `content-length: 0`, or blank response body resolves as `undefined`.
+Most client requests have no retry policy. Scheduled and 20-event event flushes retry a failed send after 250 milliseconds and then 1,000 milliseconds. `CloudRunReporter` does not retry either, but it releases a report key after a `CloudAPIError` with status `429`, so a later observation can send that report. A `204`, `content-length: 0`, or blank response body resolves as `undefined`.
 
 ## Handle errors
 
@@ -280,7 +280,7 @@ await reporter.report({
 | `AssistantCloudSpanProcessorOptions` | The optional span filter type. |
 | `assistantCloudTraceExportOptions` | Builds the `/v1/traces` URL and bearer header, and throws `An Assistant Cloud API key is required` without an API key. |
 | `createAssistantCloudTraceExporter` | Creates the OTLP trace exporter for Assistant Cloud. |
-| `isAssistantCloudSpan` | Recognizes a span with a GenAI operation attribute or an `gen_ai.`, `ai.`, or `llm.` name prefix. |
+| `isAssistantCloudSpan` | Recognizes a span with a GenAI operation attribute or a `gen_ai.`, `ai.`, or `llm.` name prefix. |
 | `createAssistantCloudSpanProcessor` | Wraps a batch processor that filters spans on end, using `isAssistantCloudSpan` by default. |
 | `assistantCloudTraceMetadata` | Reads a valid active trace context as `{ traceId }`. |
 | `withAssistantCloudTraceMetadata` | Adds a trace ID only to metadata for a `start` message part. |

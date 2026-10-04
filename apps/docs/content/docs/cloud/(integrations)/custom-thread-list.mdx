@@ -34,7 +34,7 @@ The wrapper always enables nested runtimes with `allowNesting: true`. It has no 
 
 ## Use the adapter directly
 
-`useCloudThreadListAdapter` creates a React-stable adapter. `createCloudThreadListAdapter` creates the same adapter outside a React hook and can receive either its options or a function that returns current options.
+`useCloudThreadListAdapter` creates a React-stable adapter. `createCloudThreadListAdapter` creates the same adapter outside a React hook and can receive either its options or a function that returns current options. Import it from `@assistant-ui/core/react`; `@assistant-ui/react` does not export it.
 
 ```tsx title="app/chat/use-thread-list.ts"
 import { useCloudThreadListAdapter } from "@assistant-ui/react";
@@ -43,7 +43,10 @@ const adapter = useCloudThreadListAdapter({
   cloud,
   sdk: { name: "@acme/chat", version: "1.0.0" },
   create: async () => ({ externalId: await backend.createThread() }),
-  delete: async (threadId) => backend.deleteThread(threadId),
+  delete: async (cloudThreadId) => {
+    const { external_id } = await cloud.threads.get(cloudThreadId);
+    if (external_id) await backend.deleteThread(external_id);
+  },
 });
 ```
 

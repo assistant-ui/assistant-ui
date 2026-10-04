@@ -10,7 +10,7 @@ import {
 import { type PackageManagerName } from "./utils/package-manager";
 
 export const SKILLS_PACKAGE = "assistant-ui/skills";
-export const SKILLS_COMMIT = "4007601e2e16762060f02d45ad82f453eed5409a";
+export const SKILLS_COMMIT = "139674dc888ee076982b6726e8e6f5d0fe0b5f67";
 export const SKILLS_PLUGIN_SOURCE = `gh:${SKILLS_PACKAGE}/assistant-ui#${SKILLS_COMMIT}`;
 
 export function resolveSkillsInstall(params: {
