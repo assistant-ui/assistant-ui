@@ -405,9 +405,17 @@ export type {
   ThreadSuggestion,
   ToolCallMessagePartMcpMetadata,
   ToolExecutionStatus,
+  DirectiveFormatter,
+  DirectiveSegment,
+  TriggerAdapter,
+  TriggerCategory,
+  TriggerItem,
   Unstable_DirectiveFormatter,
   Unstable_DirectiveSegment,
   Unstable_TriggerItem,
   VoiceSessionState,
 } from "@assistant-ui/core";
-export { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
+export {
+  defaultDirectiveFormatter,
+  unstable_defaultDirectiveFormatter,
+} from "@assistant-ui/core";
