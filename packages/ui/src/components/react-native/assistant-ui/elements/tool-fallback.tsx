@@ -3,7 +3,9 @@ import { cn } from "@/lib/utils";
 import {
   toolApprovalAcceptsText,
   useAuiState,
+  type ToolApprovalAnswer,
   type ToolApprovalOption,
+  type ToolApprovalQuestion,
   type ToolCallMessagePart,
   type ToolCallMessagePartComponent,
   type ToolCallMessagePartProps,
@@ -11,7 +13,7 @@ import {
 } from "@assistant-ui/react-native";
 import { WrenchIcon } from "lucide-react-native";
 import { type FC, useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import { Platform, Pressable, Text, TextInput, View } from "react-native";
 import {
   field,
   inkButton,
@@ -48,7 +50,22 @@ const approvalOptionLabel = (option: ToolApprovalOption) =>
   option.id;
 
 const isQuestion = (approval: ToolCallMessagePart["approval"]) =>
-  approval?.display === "select" || approval?.display === "text";
+  approval?.display === "select" ||
+  approval?.display === "text" ||
+  approval?.display === "questions";
+
+const questionAcceptsText = (question: ToolApprovalQuestion) =>
+  !question.options?.length || question.allowFreeform === true;
+
+const answerLabels = (
+  question: ToolApprovalQuestion,
+  answer: ToolApprovalAnswer | undefined,
+) => [
+  ...(answer?.optionIds ?? []).map(
+    (id) => question.options?.find((option) => option.id === id)?.label ?? id,
+  ),
+  ...(answer?.text?.trim() ? [answer.text] : []),
+];
 
 const isSettled = (approval: ToolCallMessagePart["approval"]) =>
   approval != null &&
@@ -119,6 +136,25 @@ const ToolFallbackApprovalReceipt: FC<{
           </Text>
         ) : null}
       </Text>
+      {approval.answers &&
+        approval.questions?.map((question) => {
+          const labels = answerLabels(
+            question,
+            approval.answers?.[question.id],
+          );
+          if (labels.length === 0) return null;
+          return (
+            <Text
+              key={question.id}
+              className="aui-tool-fallback-approval-receipt-answer text-foreground text-sm"
+            >
+              <Text className="text-muted-foreground">
+                {question.header ?? question.prompt}
+              </Text>
+              {` · ${labels.join(", ")}`}
+            </Text>
+          );
+        })}
       {notes.map((text) => (
         <Text
           key={text}
@@ -144,14 +180,19 @@ export const offersInterruptAction = (
 const ApprovalButton: FC<{
   label: string;
   primary?: boolean;
+  pressed?: boolean;
   disabled: boolean;
   onPress: () => void;
-}> = ({ label, primary = false, disabled, onPress }) => (
+}> = ({ label, primary = false, pressed, disabled, onPress }) => (
   <Pressable
     onPress={onPress}
     disabled={disabled}
     accessibilityRole="button"
     accessibilityLabel={label}
+    {...(pressed !== undefined &&
+      (Platform.OS === "web"
+        ? { "aria-pressed": pressed }
+        : { "aria-selected": pressed }))}
     hitSlop={textButtonHitSlop}
     className={cn(
       "h-8 justify-center rounded-full px-3.5 disabled:opacity-50",
@@ -168,6 +209,145 @@ const ApprovalButton: FC<{
     </Text>
   </Pressable>
 );
+
+const ToolFallbackApprovalQuestions: FC<{
+  questions: readonly ToolApprovalQuestion[];
+  dismissible: boolean;
+  disabled: boolean;
+  onSend: (answers: Record<string, ToolApprovalAnswer>) => void;
+  onDismiss: () => void;
+}> = ({ questions, dismissible, disabled, onSend, onDismiss }) => {
+  const hydrated = useHydrated();
+  const [selected, setSelected] = useState<Record<string, readonly string[]>>(
+    {},
+  );
+  const [typed, setTyped] = useState<Record<string, string>>({});
+
+  const toggle = (question: ToolApprovalQuestion, optionId: string) =>
+    setSelected((current) => {
+      const chosen = current[question.id] ?? [];
+      const next = chosen.includes(optionId)
+        ? chosen.filter((id) => id !== optionId)
+        : question.multiple
+          ? [...chosen, optionId]
+          : [optionId];
+      return { ...current, [question.id]: next };
+    });
+
+  const answerOf = (question: ToolApprovalQuestion): ToolApprovalAnswer => {
+    const optionIds = selected[question.id] ?? [];
+    const text = typed[question.id]?.trim() ? typed[question.id] : undefined;
+    return {
+      ...(optionIds.length > 0 && { optionIds }),
+      ...(text !== undefined && { text }),
+    };
+  };
+
+  const complete =
+    questions.length > 0 &&
+    questions.every((question) => {
+      const answer = answerOf(question);
+      return answer.optionIds !== undefined || answer.text !== undefined;
+    });
+
+  return (
+    <>
+      {questions.map((question) => {
+        const chosen = selected[question.id] ?? [];
+        return (
+          <View
+            key={question.id}
+            accessibilityLabel={question.prompt}
+            className="aui-tool-fallback-approval-question gap-2"
+          >
+            <Text className="aui-tool-fallback-approval-question-prompt text-foreground text-sm">
+              {question.header ? (
+                <Text className="text-muted-foreground text-xs font-medium uppercase">
+                  {`${question.header}  `}
+                </Text>
+              ) : null}
+              {question.prompt}
+            </Text>
+            {question.options && question.options.length > 0 ? (
+              <View className="flex-row flex-wrap items-center gap-2">
+                {question.options.map((option) => (
+                  <ApprovalButton
+                    key={option.id}
+                    label={option.label}
+                    primary={chosen.includes(option.id)}
+                    pressed={chosen.includes(option.id)}
+                    disabled={disabled}
+                    onPress={() => toggle(question, option.id)}
+                  />
+                ))}
+              </View>
+            ) : null}
+            {question.options?.some((option) => option.description) ? (
+              <View className="gap-0.5">
+                {question.options.map((option) =>
+                  option.description ? (
+                    <Text
+                      key={option.id}
+                      className="text-muted-foreground text-xs"
+                    >
+                      {`${option.label}: ${option.description}`}
+                    </Text>
+                  ) : null,
+                )}
+              </View>
+            ) : null}
+            {questionAcceptsText(question) ? (
+              <TextInput
+                value={typed[question.id] ?? ""}
+                onChangeText={(value) =>
+                  setTyped((current) => ({ ...current, [question.id]: value }))
+                }
+                editable={!disabled}
+                multiline
+                textAlignVertical="top"
+                accessibilityLabel={question.prompt}
+                placeholder={
+                  question.options?.length
+                    ? "Or type an answer"
+                    : "Type your answer"
+                }
+                placeholderTextColorClassName={
+                  hydrated ? "accent-muted-foreground/60" : undefined
+                }
+                className={cn(
+                  "text-foreground web:resize-none web:outline-none min-h-16 rounded-lg px-2.5 py-2 text-sm",
+                  field,
+                )}
+              />
+            ) : null}
+          </View>
+        );
+      })}
+      <View className="flex-row flex-wrap items-center gap-2">
+        <ApprovalButton
+          label="Send"
+          primary
+          disabled={disabled || !complete}
+          onPress={() => {
+            if (disabled || !complete) return;
+            onSend(
+              Object.fromEntries(
+                questions.map((question) => [question.id, answerOf(question)]),
+              ),
+            );
+          }}
+        />
+        {dismissible ? (
+          <ApprovalButton
+            label="Dismiss"
+            disabled={disabled}
+            onPress={onDismiss}
+          />
+        ) : null}
+      </View>
+    </>
+  );
+};
 
 export const ToolFallbackApproval: FC<
   Partial<
@@ -369,6 +549,23 @@ export const ToolFallbackApproval: FC<
       )}
     </View>
   ) : null;
+
+  if (approval?.display === "questions" && respondToApproval) {
+    return (
+      <View className={cn("aui-tool-fallback-approval gap-3", className)}>
+        {subject}
+        {promptText}
+        <ToolFallbackApprovalQuestions
+          questions={approval.questions ?? []}
+          dismissible={approval.dismissible === true}
+          disabled={submitted}
+          onSend={(answers) => submit(() => respondToApproval({ answers }))}
+          onDismiss={dismiss}
+        />
+        {errorText}
+      </View>
+    );
+  }
 
   if (confirming) {
     const confirmMeta =
