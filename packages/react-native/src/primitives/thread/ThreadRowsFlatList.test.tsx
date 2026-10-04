@@ -207,7 +207,7 @@ describe("ThreadRowsFlatList", () => {
       "message",
     ]);
     expect(props.maintainVisibleContentPosition).toEqual({
-      minIndexForVisible: 1,
+      minIndexForVisible: 0,
       autoscrollToTopThreshold: 4,
     });
     expect(props.onEndReachedThreshold).toBe(1);

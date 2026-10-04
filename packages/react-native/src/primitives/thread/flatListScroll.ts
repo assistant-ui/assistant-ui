@@ -8,6 +8,7 @@ import {
 } from "react";
 import {
   type FlatList,
+  type FlatListProps,
   type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -76,6 +77,165 @@ export const useHistoryLoad = <TInfo>(
     handleReached,
   };
 };
+
+type ScrollProps = Pick<
+  FlatListProps<unknown>,
+  "onLayout" | "onScroll" | "onContentSizeChange" | "scrollEventThrottle"
+>;
+
+export const useFlatListScrollProps = ({
+  autoScroll,
+  scrollToBottomOnInitialize,
+  scrollToBottomOnRunStart,
+  scrollToBottomOnThreadSwitch,
+  onLayout,
+  onScroll,
+  onContentSizeChange,
+  scrollEventThrottle,
+  handleAutoScrollLayout,
+  handleAutoScrollScroll,
+  handleAutoScrollContentSizeChange,
+}: ScrollProps & {
+  autoScroll: boolean | undefined;
+  scrollToBottomOnInitialize: boolean | undefined;
+  scrollToBottomOnRunStart: boolean | undefined;
+  scrollToBottomOnThreadSwitch: boolean | undefined;
+  handleAutoScrollLayout: NonNullable<ScrollProps["onLayout"]>;
+  handleAutoScrollScroll: NonNullable<ScrollProps["onScroll"]>;
+  handleAutoScrollContentSizeChange: NonNullable<
+    ScrollProps["onContentSizeChange"]
+  >;
+}) => {
+  const handleLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      handleAutoScrollLayout(event);
+      onLayout?.(event);
+    },
+    [handleAutoScrollLayout, onLayout],
+  );
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      handleAutoScrollScroll(event);
+      onScroll?.(event);
+    },
+    [handleAutoScrollScroll, onScroll],
+  );
+  const handleContentSizeChange = useCallback(
+    (width: number, height: number) => {
+      handleAutoScrollContentSizeChange(width, height);
+      onContentSizeChange?.(width, height);
+    },
+    [handleAutoScrollContentSizeChange, onContentSizeChange],
+  );
+
+  const scrollTracking =
+    (autoScroll ?? true) ||
+    (scrollToBottomOnInitialize ?? true) ||
+    (scrollToBottomOnRunStart ?? true) ||
+    (scrollToBottomOnThreadSwitch ?? true);
+
+  return scrollTracking
+    ? {
+        onContentSizeChange: handleContentSizeChange,
+        onLayout: handleLayout,
+        onScroll: handleScroll,
+        scrollEventThrottle: scrollEventThrottle ?? 16,
+      }
+    : {
+        ...(onContentSizeChange && { onContentSizeChange }),
+        ...(onLayout && { onLayout }),
+        ...(onScroll && { onScroll }),
+        ...(scrollEventThrottle !== undefined && { scrollEventThrottle }),
+      };
+};
+
+type PagingProps<T> = Pick<
+  FlatListProps<T>,
+  | "onStartReached"
+  | "onStartReachedThreshold"
+  | "onEndReached"
+  | "onEndReachedThreshold"
+>;
+
+type StartReached = NonNullable<FlatListProps<unknown>["onStartReached"]>;
+type EndReached = NonNullable<FlatListProps<unknown>["onEndReached"]>;
+
+export function getFlatListPagingProps<T>(
+  edge: "start",
+  history: FlatListHistory | undefined,
+  canLoadMore: boolean,
+  handleReached: StartReached,
+  userProps: PagingProps<T>,
+): PagingProps<T>;
+export function getFlatListPagingProps<T>(
+  edge: "end",
+  history: FlatListHistory | undefined,
+  canLoadMore: boolean,
+  handleReached: EndReached,
+  userProps: PagingProps<T>,
+): PagingProps<T>;
+export function getFlatListPagingProps<T>(
+  edge: "start" | "end",
+  history: FlatListHistory | undefined,
+  canLoadMore: boolean,
+  handleReached: StartReached & EndReached,
+  userProps: PagingProps<T>,
+): PagingProps<T>;
+export function getFlatListPagingProps<T>(
+  edge: "start" | "end",
+  history: FlatListHistory | undefined,
+  canLoadMore: boolean,
+  handleReached: StartReached | EndReached,
+  {
+    onStartReached,
+    onStartReachedThreshold,
+    onEndReached,
+    onEndReachedThreshold,
+  }: PagingProps<T>,
+): PagingProps<T> {
+  const startProps = history
+    ? {
+        ...(canLoadMore
+          ? { onStartReached: handleReached as StartReached }
+          : onStartReached
+            ? { onStartReached }
+            : {}),
+        onStartReachedThreshold: onStartReachedThreshold ?? 1,
+      }
+    : {
+        ...(onStartReached && { onStartReached }),
+        ...(onStartReachedThreshold !== undefined && {
+          onStartReachedThreshold,
+        }),
+      };
+  const endProps = history
+    ? {
+        ...(canLoadMore
+          ? { onEndReached: handleReached as EndReached }
+          : onEndReached
+            ? { onEndReached }
+            : {}),
+        onEndReachedThreshold: onEndReachedThreshold ?? 1,
+      }
+    : {
+        ...(onEndReached && { onEndReached }),
+        ...(onEndReachedThreshold !== undefined && { onEndReachedThreshold }),
+      };
+
+  return edge === "start"
+    ? {
+        ...startProps,
+        ...(onEndReached && { onEndReached }),
+        ...(onEndReachedThreshold !== undefined && { onEndReachedThreshold }),
+      }
+    : {
+        ...(onStartReached && { onStartReached }),
+        ...(onStartReachedThreshold !== undefined && {
+          onStartReachedThreshold,
+        }),
+        ...endProps,
+      };
+}
 
 export const setForwardedRef = <T>(ref: ForwardedRef<T>, value: T | null) => {
   if (typeof ref === "function") {

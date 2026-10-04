@@ -1880,6 +1880,12 @@ type FileMessagePartComponent = ComponentType<FileMessagePartProps>;
 
 type FileMessagePartProps = MessagePartState & FileMessagePart;
 
+type FlatListHistory = {
+  hasMore: boolean;
+  isLoadingMore: boolean;
+  loadMore: () => void;
+};
+
 type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
   type: "frontend";
   description?: string | undefined;
@@ -3849,11 +3855,7 @@ type ThreadMessagesFlatListProps = Omit<FlatListProps<ThreadMessage>, "children"
   scrollToBottomOnRunStart?: boolean | undefined;
   scrollToBottomOnInitialize?: boolean | undefined;
   scrollToBottomOnThreadSwitch?: boolean | undefined;
-  history?: {
-    hasMore: boolean;
-    isLoadingMore: boolean;
-    loadMore: () => void;
-  } | undefined;
+  history?: FlatListHistory | undefined;
 };
 
 type ThreadMessagesProps = ThreadMessagesFlatListProps;
@@ -3976,7 +3978,7 @@ declare const ThreadRowsFlatList: import("react").ForwardRefExoticComponent<Omit
   scrollToBottomOnRunStart?: boolean | undefined;
   scrollToBottomOnInitialize?: boolean | undefined;
   scrollToBottomOnThreadSwitch?: boolean | undefined;
-  history?: ThreadMessagesFlatListProps["history"];
+  history?: FlatListHistory | undefined;
 } & import("react").RefAttributes<FlatList<ThreadRow>>>;
 
 type ThreadRowsFlatListProps = Omit<FlatListProps<ThreadRow>, "children" | "data" | "keyExtractor" | "renderItem"> & {
@@ -3986,7 +3988,7 @@ type ThreadRowsFlatListProps = Omit<FlatListProps<ThreadRow>, "children" | "data
   scrollToBottomOnRunStart?: boolean | undefined;
   scrollToBottomOnInitialize?: boolean | undefined;
   scrollToBottomOnThreadSwitch?: boolean | undefined;
-  history?: ThreadMessagesFlatListProps["history"];
+  history?: FlatListHistory | undefined;
 };
 
 type ThreadRowsOptions = {

@@ -1,11 +1,5 @@
 import { forwardRef, useCallback, useMemo } from "react";
-import {
-  FlatList,
-  type FlatListProps,
-  type LayoutChangeEvent,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-} from "react-native";
+import { FlatList, type FlatListProps } from "react-native";
 import {
   createThreadRowsSelector,
   ThreadPrimitiveRow,
@@ -13,10 +7,12 @@ import {
   type ThreadRowsOptions,
 } from "@assistant-ui/core/react";
 import { useAuiState } from "@assistant-ui/store";
-import type { ThreadMessagesFlatListProps } from "./ThreadMessages";
 import {
+  type FlatListHistory,
+  getFlatListPagingProps,
   useComposedFlatListRef,
   useFlatListAutoScroll,
+  useFlatListScrollProps,
   useHistoryLoad,
   useThreadHistory,
 } from "./flatListScroll";
@@ -25,7 +21,7 @@ export type ThreadRowsFlatListProps = Omit<
   FlatListProps<ThreadRow>,
   "data" | "renderItem" | "children" | "keyExtractor"
 > & {
-  /** Coalesces adjacent assistant parts into one row. */
+  /** Same contract as `MessagePrimitive.GroupedParts`; keep a stable identity (module scope or `useCallback`) or every row cache rebuilds and re-renders. */
   groupBy?: ThreadRowsOptions["groupBy"];
   /** Renders each row through `ThreadPrimitive.Row`. */
   children: ThreadPrimitiveRow.Props["children"];
@@ -33,7 +29,8 @@ export type ThreadRowsFlatListProps = Omit<
   scrollToBottomOnRunStart?: boolean | undefined;
   scrollToBottomOnInitialize?: boolean | undefined;
   scrollToBottomOnThreadSwitch?: boolean | undefined;
-  history?: ThreadMessagesFlatListProps["history"];
+  /** Pages older messages from app state or the runtime when the list nears its history edge. */
+  history?: FlatListHistory | undefined;
 };
 
 /** Virtualizes flattened thread rows while keeping the visible row anchored. */
@@ -97,89 +94,48 @@ export const ThreadRowsFlatList = forwardRef<
     );
     const keyExtractor = useCallback((row: ThreadRow) => row.key, []);
 
-    const scrollTracking =
-      (autoScroll ?? true) ||
-      (scrollToBottomOnInitialize ?? true) ||
-      (scrollToBottomOnRunStart ?? true) ||
-      (scrollToBottomOnThreadSwitch ?? true);
-    const handleLayout = useCallback(
-      (event: LayoutChangeEvent) => {
-        handleAutoScrollLayout(event);
-        onLayout?.(event);
-      },
-      [handleAutoScrollLayout, onLayout],
-    );
-    const handleScroll = useCallback(
-      (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-        handleAutoScrollScroll(event);
-        onScroll?.(event);
-      },
-      [handleAutoScrollScroll, onScroll],
-    );
-    const handleContentSizeChange = useCallback(
-      (width: number, height: number) => {
-        handleAutoScrollContentSizeChange(width, height);
-        onContentSizeChange?.(width, height);
-      },
-      [handleAutoScrollContentSizeChange, onContentSizeChange],
-    );
+    const scrollProps = useFlatListScrollProps({
+      autoScroll,
+      scrollToBottomOnInitialize,
+      scrollToBottomOnRunStart,
+      scrollToBottomOnThreadSwitch,
+      onContentSizeChange,
+      onLayout,
+      onScroll,
+      scrollEventThrottle,
+      handleAutoScrollContentSizeChange,
+      handleAutoScrollLayout,
+      handleAutoScrollScroll,
+    });
     type StartInfo = Parameters<
       NonNullable<FlatListProps<ThreadRow>["onStartReached"]>
     >[0];
     type EndInfo = Parameters<
       NonNullable<FlatListProps<ThreadRow>["onEndReached"]>
     >[0];
-    const { canLoadMore, handleReached } = useHistoryLoad<StartInfo | EndInfo>(
-      effectiveHistory,
-      (info) => {
+    const onHistoryReached = useCallback(
+      (info: StartInfo | EndInfo) => {
         if (inverted) onEndReached?.(info as EndInfo);
         else onStartReached?.(info as StartInfo);
       },
+      [inverted, onEndReached, onStartReached],
     );
-
-    const pagingProps = inverted
-      ? {
-          ...(onStartReached && { onStartReached }),
-          ...(onStartReachedThreshold !== undefined && {
-            onStartReachedThreshold,
-          }),
-          ...(effectiveHistory
-            ? {
-                ...(canLoadMore
-                  ? { onEndReached: handleReached }
-                  : onEndReached
-                    ? { onEndReached }
-                    : {}),
-                onEndReachedThreshold: onEndReachedThreshold ?? 1,
-              }
-            : {
-                ...(onEndReached && { onEndReached }),
-                ...(onEndReachedThreshold !== undefined && {
-                  onEndReachedThreshold,
-                }),
-              }),
-        }
-      : {
-          ...(onEndReached && { onEndReached }),
-          ...(onEndReachedThreshold !== undefined && {
-            onEndReachedThreshold,
-          }),
-          ...(effectiveHistory
-            ? {
-                ...(canLoadMore
-                  ? { onStartReached: handleReached }
-                  : onStartReached
-                    ? { onStartReached }
-                    : {}),
-                onStartReachedThreshold: onStartReachedThreshold ?? 1,
-              }
-            : {
-                ...(onStartReached && { onStartReached }),
-                ...(onStartReachedThreshold !== undefined && {
-                  onStartReachedThreshold,
-                }),
-              }),
-        };
+    const { canLoadMore, handleReached } = useHistoryLoad<StartInfo | EndInfo>(
+      effectiveHistory,
+      onHistoryReached,
+    );
+    const pagingProps = getFlatListPagingProps(
+      inverted ? "end" : "start",
+      effectiveHistory,
+      canLoadMore,
+      handleReached,
+      {
+        onStartReached,
+        onStartReachedThreshold,
+        onEndReached,
+        onEndReachedThreshold,
+      },
+    );
 
     return (
       <FlatList
@@ -190,22 +146,10 @@ export const ThreadRowsFlatList = forwardRef<
         inverted={inverted}
         maintainVisibleContentPosition={
           inverted
-            ? { minIndexForVisible: 1, autoscrollToTopThreshold: 4 }
+            ? { minIndexForVisible: 0, autoscrollToTopThreshold: 4 }
             : { minIndexForVisible: 0 }
         }
-        {...(scrollTracking
-          ? {
-              onContentSizeChange: handleContentSizeChange,
-              onLayout: handleLayout,
-              onScroll: handleScroll,
-              scrollEventThrottle: scrollEventThrottle ?? 16,
-            }
-          : {
-              ...(onContentSizeChange && { onContentSizeChange }),
-              ...(onLayout && { onLayout }),
-              ...(onScroll && { onScroll }),
-              ...(scrollEventThrottle !== undefined && { scrollEventThrottle }),
-            })}
+        {...scrollProps}
         {...pagingProps}
         {...flatListProps}
       />

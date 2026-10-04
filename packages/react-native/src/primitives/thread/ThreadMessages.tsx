@@ -6,20 +6,17 @@ import {
   memo,
   useCallback,
 } from "react";
-import {
-  FlatList,
-  type FlatListProps,
-  type LayoutChangeEvent,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-} from "react-native";
+import { FlatList, type FlatListProps } from "react-native";
 import type { ThreadMessage } from "@assistant-ui/core";
 import type { MessageState } from "@assistant-ui/core/store";
 import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
 import { MessageByIndexProvider } from "@assistant-ui/core/react";
 import {
+  type FlatListHistory,
+  getFlatListPagingProps,
   useComposedFlatListRef,
   useFlatListAutoScroll,
+  useFlatListScrollProps,
   useHistoryLoad,
   useThreadHistory,
 } from "./flatListScroll";
@@ -71,13 +68,7 @@ export type ThreadMessagesFlatListProps = Omit<
      * runtime's `thread.hasEarlier` / `isLoadingEarlier` / `loadEarlier()`;
      * pass it to drive paging from app state instead.
      */
-    history?:
-      | {
-          hasMore: boolean;
-          isLoadingMore: boolean;
-          loadMore: () => void;
-        }
-      | undefined;
+    history?: FlatListHistory | undefined;
   };
 
 /** @deprecated Use ThreadMessagesFlatListProps instead. */
@@ -203,6 +194,8 @@ export const ThreadMessagesFlatList = forwardRef<
       onScroll,
       onStartReached,
       onStartReachedThreshold,
+      onEndReached,
+      onEndReachedThreshold,
       scrollEventThrottle,
       scrollToBottomOnInitialize,
       scrollToBottomOnRunStart,
@@ -245,39 +238,35 @@ export const ThreadMessagesFlatList = forwardRef<
 
     const keyExtractor = useCallback((item: ThreadMessage) => item.id, []);
 
-    const scrollTracking =
-      (autoScroll ?? true) ||
-      (scrollToBottomOnInitialize ?? true) ||
-      (scrollToBottomOnRunStart ?? true) ||
-      (scrollToBottomOnThreadSwitch ?? true);
-
-    const handleLayout = useCallback(
-      (event: LayoutChangeEvent) => {
-        handleAutoScrollLayout(event);
-        onLayout?.(event);
-      },
-      [handleAutoScrollLayout, onLayout],
-    );
-
-    const handleScroll = useCallback(
-      (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-        handleAutoScrollScroll(event);
-        onScroll?.(event);
-      },
-      [handleAutoScrollScroll, onScroll],
-    );
-
-    const handleContentSizeChange = useCallback(
-      (width: number, height: number) => {
-        handleAutoScrollContentSizeChange(width, height);
-        onContentSizeChange?.(width, height);
-      },
-      [handleAutoScrollContentSizeChange, onContentSizeChange],
-    );
+    const scrollProps = useFlatListScrollProps({
+      autoScroll,
+      scrollToBottomOnInitialize,
+      scrollToBottomOnRunStart,
+      scrollToBottomOnThreadSwitch,
+      onContentSizeChange,
+      onLayout,
+      onScroll,
+      scrollEventThrottle,
+      handleAutoScrollContentSizeChange,
+      handleAutoScrollLayout,
+      handleAutoScrollScroll,
+    });
 
     const { canLoadMore, handleReached } = useHistoryLoad(
       effectiveHistory,
       onStartReached,
+    );
+    const pagingProps = getFlatListPagingProps(
+      "start",
+      effectiveHistory,
+      canLoadMore,
+      handleReached,
+      {
+        onStartReached,
+        onStartReachedThreshold,
+        onEndReached,
+        onEndReachedThreshold,
+      },
     );
 
     return (
@@ -287,34 +276,8 @@ export const ThreadMessagesFlatList = forwardRef<
         renderItem={renderItem}
         keyExtractor={keyExtractor}
         maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
-        {...(scrollTracking
-          ? {
-              onContentSizeChange: handleContentSizeChange,
-              onLayout: handleLayout,
-              onScroll: handleScroll,
-              scrollEventThrottle: scrollEventThrottle ?? 16,
-            }
-          : {
-              ...(onContentSizeChange && { onContentSizeChange }),
-              ...(onLayout && { onLayout }),
-              ...(onScroll && { onScroll }),
-              ...(scrollEventThrottle !== undefined && { scrollEventThrottle }),
-            })}
-        {...(effectiveHistory
-          ? {
-              ...(canLoadMore
-                ? { onStartReached: handleReached }
-                : onStartReached
-                  ? { onStartReached }
-                  : {}),
-              onStartReachedThreshold: onStartReachedThreshold ?? 1,
-            }
-          : {
-              ...(onStartReached && { onStartReached }),
-              ...(onStartReachedThreshold !== undefined && {
-                onStartReachedThreshold,
-              }),
-            })}
+        {...scrollProps}
+        {...pagingProps}
         {...flatListProps}
       />
     );
