@@ -2,10 +2,14 @@ import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
 } from "assistant-stream/utils";
-import type { ToolCallTiming, ToolModelContentPart } from "assistant-stream";
+import type {
+  MessagePartTiming,
+  ToolCallTiming,
+  ToolModelContentPart,
+} from "assistant-stream";
 import type { CompleteAttachment } from "./attachment";
 
-export type { ToolCallTiming, ToolModelContentPart };
+export type { MessagePartTiming, ToolCallTiming, ToolModelContentPart };
 
 export type PartProviderMetadata = {
   readonly [providerName: string]: ReadonlyJSONObject;
@@ -28,6 +32,8 @@ export type ReasoningMessagePart = {
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
   readonly unstable_summary?: string;
+  /** Wall-clock timing for this reasoning part, when the runtime or host tracks it. */
+  readonly timing?: MessagePartTiming;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
