@@ -3,6 +3,7 @@
 import {
   isMcpAppUri,
   type ChatModelRunResult,
+  type MessagePartTiming,
   type MessageStatus,
   type MessageTiming,
   type ThreadAssistantMessagePart,
@@ -217,7 +218,10 @@ export class RunAggregator {
   private interrupts: AgUiInterrupt[] | undefined;
   private readonly textParts = new Map<string, { buffer: string }>();
   private readonly activeTextMessageIdByScope = new Map<string, string>();
-  private readonly reasoningParts = new Map<string, string>(); // key → buffer
+  private readonly reasoningParts = new Map<
+    string,
+    { buffer: string; timing?: MessagePartTiming }
+  >();
   private readonly reasoningSignatures = new Map<string, string>();
   private readonly reasoningSignatureIds = new Map<string, string>();
   // Signatures captured while thinking is hidden have no block to live on;
@@ -396,6 +400,7 @@ export class RunAggregator {
           this.scopeOf("subagentRunId" in event ? event : {}),
           "messageId" in event ? event.messageId : undefined,
           event.type === "REASONING_MESSAGE_START",
+          event.timestamp,
         );
         break;
       case "REASONING_ENCRYPTED_VALUE":
@@ -454,11 +459,11 @@ export class RunAggregator {
         break;
       case "THINKING_TEXT_MESSAGE_END":
       case "THINKING_END":
-        this.handleReasoningEnd(ROOT_SCOPE);
+        this.handleReasoningEnd(ROOT_SCOPE, event.timestamp);
         break;
       case "REASONING_MESSAGE_END":
       case "REASONING_END":
-        this.handleReasoningEnd(this.scopeOf(event));
+        this.handleReasoningEnd(this.scopeOf(event), event.timestamp);
         break;
 
       case "TOOL_CALL_START": {
@@ -1222,7 +1227,8 @@ export class RunAggregator {
 
       if (part.kind === "reasoning") {
         if (this.showThinking) {
-          const buffer = this.reasoningParts.get(part.key) ?? "";
+          const entry = this.reasoningParts.get(part.key);
+          const buffer = entry?.buffer ?? "";
           const isActive =
             this.activeReasoningKeyByScope.get(rawScope) === part.key;
           if (buffer.length > 0 || isActive) {
@@ -1235,6 +1241,7 @@ export class RunAggregator {
             snapshot.push({
               type: "reasoning",
               text: buffer,
+              ...(entry?.timing ? { timing: entry.timing } : {}),
               ...(Object.keys(meta).length > 0
                 ? { providerMetadata: { [AG_UI_METADATA_NAMESPACE]: meta } }
                 : {}),
@@ -1441,6 +1448,7 @@ export class RunAggregator {
     scope: string,
     messageId?: string,
     isMessageId = false,
+    timestamp?: number,
   ): void {
     if (!this.showThinking) {
       // Hidden-reasoning bookkeeping stays root-only for this task — a
@@ -1473,12 +1481,21 @@ export class RunAggregator {
       this.reasoningMessageIds.set(key, messageId);
     }
     if (!this.reasoningParts.has(key)) {
-      this.reasoningParts.set(key, "");
+      this.reasoningParts.set(key, { buffer: "" });
       this.partOrder.push(
         scope === ROOT_SCOPE
           ? { kind: "reasoning", key }
           : { kind: "reasoning", key, subagentRunId: scope },
       );
+    }
+    const entry = this.reasoningParts.get(key);
+    if (
+      entry &&
+      !entry.timing &&
+      typeof timestamp === "number" &&
+      Number.isFinite(timestamp)
+    ) {
+      entry.timing = { startedAt: timestamp };
     }
     this.activeReasoningKeyByScope.set(scope, key);
     this.emit();
@@ -1506,14 +1523,24 @@ export class RunAggregator {
     }
     const key = this.activeReasoningKeyByScope.get(scope);
     if (!key) return;
-    this.reasoningParts.set(key, (this.reasoningParts.get(key) ?? "") + delta);
+    const entry = this.reasoningParts.get(key);
+    if (entry) entry.buffer += delta;
     this.emit();
   }
 
-  private handleReasoningEnd(scope: string): void {
+  private handleReasoningEnd(scope: string, timestamp?: number): void {
     if (!this.showThinking) {
       if (scope === ROOT_SCOPE) this.hiddenActiveReasoning = "none";
       return;
+    }
+    const key = this.activeReasoningKeyByScope.get(scope);
+    const entry = key ? this.reasoningParts.get(key) : undefined;
+    if (
+      entry?.timing &&
+      typeof timestamp === "number" &&
+      Number.isFinite(timestamp)
+    ) {
+      entry.timing = { ...entry.timing, completedAt: timestamp };
     }
     this.activeReasoningKeyByScope.delete(scope);
     this.emit();
