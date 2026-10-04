@@ -43,7 +43,7 @@ type InternalToolExecutionOptions = {
     toolCallId: string;
     toolName: string;
     executionId: symbol;
-  }) => void;
+  }) => unknown;
   onExecutionStart?:
     | ((toolCallId: string, toolName: string, executionId: symbol) => void)
     | undefined;
@@ -216,7 +216,7 @@ function getToolStreamResponse(
     executionId: symbol;
   },
   human: InternalHumanCallback,
-) {
+): unknown {
   const executionContext = {
     toolCallId: context.toolCallId,
     abortSignal,
@@ -224,7 +224,7 @@ function getToolStreamResponse(
       human(context.toolCallId, payload, context.executionId),
     [TOOL_EXECUTION_ID]: context.executionId,
   } as ToolExecutionContext;
-  tools?.[context.toolName]?.streamCall?.(reader, executionContext);
+  return tools?.[context.toolName]?.streamCall?.(reader, executionContext);
 }
 
 const isPendingToolCall = (

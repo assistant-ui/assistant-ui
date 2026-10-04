@@ -1584,4 +1584,113 @@ describe("unstable_runPendingTools", () => {
       },
     );
   });
+
+  describe("streamCall callbacks", () => {
+    it("keeps streamed arguments flowing and waits for callback completion", async () => {
+      const inputController =
+        promiseWithResolvers<
+          ReadableStreamDefaultController<AssistantStreamChunk>
+        >();
+      const callbackStarted = promiseWithResolvers<void>();
+      const callbackReachedArgs = promiseWithResolvers<void>();
+      const releaseCallback = promiseWithResolvers<void>();
+      let callbackFinished = false;
+      const input = new ReadableStream<AssistantStreamChunk>({
+        start(controller) {
+          inputController.resolve(controller);
+        },
+      });
+      const output = input.pipeThrough(
+        unstable_toolResultStream(
+          {
+            lookup: {
+              parameters: { type: "object", properties: {} },
+              streamCall: async (reader) => {
+                callbackStarted.resolve();
+                expect(await reader.args.get("x")).toBe("later");
+                callbackReachedArgs.resolve();
+                await releaseCallback.promise;
+                callbackFinished = true;
+              },
+            },
+          },
+          new AbortController().signal,
+          async () => {},
+        ),
+      );
+      const drain = output.pipeTo(new WritableStream());
+      const writer = await inputController.promise;
+
+      writer.enqueue({
+        type: "part-start",
+        path: [],
+        part: {
+          type: "tool-call",
+          toolCallId: "tc-stream-call",
+          toolName: "lookup",
+        },
+      });
+      await callbackStarted.promise;
+      writer.enqueue({
+        type: "text-delta",
+        path: [0],
+        textDelta: '{"x":"later"}',
+      });
+      writer.enqueue({ type: "tool-call-args-text-finish", path: [0] });
+      writer.enqueue({ type: "part-finish", path: [0] });
+      writer.close();
+      await callbackReachedArgs.promise;
+
+      const closedBeforeCallback = await Promise.race([
+        drain.then(() => true),
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 0)),
+      ]);
+      expect(closedBeforeCallback).toBe(false);
+
+      releaseCallback.resolve();
+      await drain;
+      expect(callbackFinished).toBe(true);
+    });
+
+    it("errors the assistant stream when the callback rejects", async () => {
+      const callbackError = new Error("streamCall failed");
+      const input = new ReadableStream<AssistantStreamChunk>({
+        start(controller) {
+          controller.enqueue({
+            type: "part-start",
+            path: [],
+            part: {
+              type: "tool-call",
+              toolCallId: "tc-stream-call-error",
+              toolName: "lookup",
+            },
+          });
+          controller.close();
+        },
+      });
+
+      const unhandledRejections = await captureUnhandledRejections(async () => {
+        await expect(
+          input
+            .pipeThrough(
+              unstable_toolResultStream(
+                {
+                  lookup: {
+                    parameters: { type: "object", properties: {} },
+                    streamCall: async () => {
+                      throw callbackError;
+                    },
+                  },
+                },
+                new AbortController().signal,
+                async () => {},
+              ),
+            )
+            .pipeTo(new WritableStream()),
+        ).rejects.toBe(callbackError);
+      });
+
+      expect(unhandledRejections).toEqual([]);
+    });
+  });
 });

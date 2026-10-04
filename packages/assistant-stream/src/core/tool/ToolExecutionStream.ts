@@ -62,7 +62,7 @@ type InternalToolExecutionOptions = {
     toolCallId: string;
     toolName: string;
     executionId: symbol;
-  }) => void;
+  }) => unknown;
   onExecutionStart?:
     | ((toolCallId: string, toolName: string, executionId: symbol) => void)
     | undefined;
@@ -114,6 +114,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
   constructor(options: ToolExecutionOptions) {
     const internalOptions = options as unknown as InternalToolExecutionOptions;
     const toolCallPromises = new Map<symbol, PromiseLike<void>>();
+    const streamCallPromises = new Set<Promise<void>>();
     const toolCallControllers = new Map<
       symbol,
       ToolCallReaderImpl<ReadonlyJSONObject, ReadonlyJSONValue>
@@ -152,12 +153,25 @@ export class ToolExecutionStream extends PipeableTransformStream<
                 executionIdsByPath.set(String(partIndex), executionId);
                 toolCallControllers.set(executionId, reader);
 
-                internalOptions.streamCall({
+                const callbackResult = internalOptions.streamCall({
                   reader,
                   toolCallId: chunk.part.toolCallId,
                   toolName: chunk.part.toolName,
                   executionId,
                 });
+                if (callbackResult !== undefined) {
+                  let promise!: Promise<void>;
+                  promise = Promise.resolve(callbackResult).then(
+                    () => {
+                      streamCallPromises.delete(promise);
+                    },
+                    (error) => {
+                      streamCallPromises.delete(promise);
+                      controller.error(error);
+                    },
+                  );
+                  streamCallPromises.add(promise);
+                }
               }
               break;
             }
@@ -350,7 +364,10 @@ export class ToolExecutionStream extends PipeableTransformStream<
           }
         },
         async flush() {
-          await Promise.all(toolCallPromises.values());
+          await Promise.all([
+            ...toolCallPromises.values(),
+            ...streamCallPromises,
+          ]);
         },
       });
 
