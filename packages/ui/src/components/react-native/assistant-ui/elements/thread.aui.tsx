@@ -127,7 +127,7 @@ export type ThreadHistory = {
 
 export type ThreadProps = {
   components?: ThreadComponents | undefined;
-  /** A windowed thread: the list asks for older messages when it reaches its start and shows the loading edge above them. */
+  /** A windowed thread: the list asks for older messages when it reaches its start and shows the loading edge above them. Omit it to page through the runtime's `thread.hasEarlier` and `loadEarlier()`. */
   history?: ThreadHistory | undefined;
 };
 
@@ -401,7 +401,13 @@ export const Thread: FC<ThreadProps> = ({
                 <ThreadHistorySkeleton />
               </AuiIf>
               <AuiIf condition={(s) => s.thread.messages.length > 0}>
-                {history?.isLoadingMore && <HistoryEdge />}
+                <AuiIf
+                  condition={(s) =>
+                    history ? history.isLoadingMore : s.thread.isLoadingEarlier
+                  }
+                >
+                  <HistoryEdge />
+                </AuiIf>
                 <ThreadPrimitive.MessagesFlatList
                   // Viewability props cannot change once a FlatList is mounted.
                   key={Rail ? "tracked" : "plain"}

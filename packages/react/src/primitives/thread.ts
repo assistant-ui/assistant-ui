@@ -9,6 +9,7 @@ export { ThreadPrimitiveMessageByIndex as MessageByIndex } from "./thread/Thread
 export { ThreadPrimitiveUnstable_MessageById as Unstable_MessageById } from "./thread/ThreadMessages";
 export { ThreadPrimitiveRow as Row } from "./thread/ThreadMessages";
 export { ThreadPrimitiveScrollToBottom as ScrollToBottom } from "./thread/ThreadScrollToBottom";
+export { ThreadPrimitiveLoadEarlier as LoadEarlier } from "./thread/ThreadLoadEarlier";
 export { ThreadPrimitiveSuggestion as Suggestion } from "./thread/ThreadSuggestion";
 export {
   ThreadPrimitiveSuggestions as Suggestions,
