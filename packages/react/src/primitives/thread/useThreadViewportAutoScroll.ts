@@ -417,6 +417,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   });
 
   useAuiEvent("thread.runStart", () => {
+    prependAnchorRef.current = null;
     if (!scrollToBottomOnRunStart) return;
     if (threadViewportStore.getState().turnAnchor === "top") return;
     scheduleScrollToBottom("auto");

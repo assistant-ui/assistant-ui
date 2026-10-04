@@ -957,16 +957,22 @@ describe("useThreadViewportAutoScroll", () => {
 
     type PagedThreadProps = {
       follow?: boolean;
+      running?: boolean;
       /** Runs in the same update that prepends the page. */
       onPrepend?: () => void;
     };
 
-    const PagedThread = ({ follow = false, onPrepend }: PagedThreadProps) => {
+    const PagedThread = ({
+      follow = false,
+      running = false,
+      onPrepend,
+    }: PagedThreadProps) => {
       const [loaded, setLoaded] = useState(pagedMessages.slice(4));
       const runtime = useExternalStoreRuntime<ThreadMessageLike>({
         messages: loaded,
         convertMessage: (message) => message,
         onNew: async () => {},
+        isRunning: running,
         hasEarlier: loaded.length < pagedMessages.length,
         onLoadEarlier: async () => {
           onPrepend?.();
@@ -1053,6 +1059,26 @@ describe("useThreadViewportAutoScroll", () => {
       messageHeights.set("message-2", 120);
       act(notifyResizeObservers);
       expect(getViewport().scrollTop).toBe(4 * 80 + 40);
+    });
+
+    it("lets go of the held rows when a run starts, so the new turn can take the viewport", async () => {
+      const { rerender } = render(<PagedThread />);
+      await waitFor(() =>
+        expect(screen.getAllByTestId("thread-message")).toHaveLength(4),
+      );
+      act(() => {
+        getViewport().scrollTop = 0;
+        fireEvent.scroll(getViewport());
+      });
+      await loadEarlier();
+
+      await act(async () => {
+        rerender(<PagedThread running />);
+      });
+      messageHeights.set("message-3", 120);
+      act(notifyResizeObservers);
+
+      expect(getViewport().scrollTop).toBe(4 * 80);
     });
 
     it("lets go of the held rows once something else scrolls the viewport", async () => {
