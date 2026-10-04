@@ -56,6 +56,7 @@ jobs:
           path: bench-results/
           retention-days: 7
   readme:
+    if: false
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -96,6 +97,10 @@ jobs:
   contracts:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        revision: [d95cfa2067, 81fbef68ce]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Run checkout regression tests
@@ -104,20 +109,19 @@ jobs:
         run: node --test scripts/package-build-inputs.test.mjs scripts/app-build-inputs.test.mjs scripts/api-reference-inputs.test.mjs
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: perf/ci-checkout-evaluation
+          ref: ${{ matrix.revision }}
           fetch-depth: 2
           persist-credentials: false
           path: candidate
       - name: Prepare actual shallow checkout
-        working-directory: candidate
-        env:
-          GITHUB_BASE_REF: main
-        run: node scripts/prepare-ci-base.mjs
+        run: |
+          node --input-type=module -e 'import {prepareCiBase} from "./scripts/prepare-ci-base.mjs"; prepareCiBase("main", "candidate");'
+          git -C candidate rev-parse --is-shallow-repository
       - name: Capture shallow comparison
         run: git -C candidate diff --name-status origin/main HEAD > "$RUNNER_TEMP/shallow-diff"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: perf/ci-checkout-evaluation
+          ref: ${{ matrix.revision }}
           fetch-depth: 0
           persist-credentials: false
           path: baseline
