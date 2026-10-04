@@ -783,6 +783,27 @@ describe("projectOpenCodeThreadMessages", () => {
     expect(
       projectOpenCodeThreadMessages(rejectedState)[0]?.content,
     ).toMatchObject([{ type: "tool-call", approval: { approved: false } }]);
+
+    const malformedState: OpenCodeThreadState = {
+      ...state,
+      interactions: {
+        ...state.interactions,
+        questions: {
+          pending: {
+            question_1: {
+              ...state.interactions.questions.pending.question_1!,
+              questions: undefined as never,
+            },
+          },
+          answered: {},
+          rejected: {},
+        },
+      },
+    };
+    const [malformedPart] =
+      projectOpenCodeThreadMessages(malformedState)[0]?.content ?? [];
+    expect(malformedPart).toMatchObject({ type: "tool-call" });
+    expect(malformedPart).not.toHaveProperty("approval");
   });
 
   it("normalizes escaped newlines in reasoning parts", () => {

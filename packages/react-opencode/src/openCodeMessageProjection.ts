@@ -22,6 +22,7 @@ import {
   projectResolvedOpenCodePermissionApproval,
 } from "./openCodePermissionApproval";
 import {
+  isProjectableOpenCodeQuestion,
   projectAnsweredOpenCodeQuestionApproval,
   projectOpenCodeQuestionApproval,
   projectRejectedOpenCodeQuestionApproval,
@@ -197,19 +198,22 @@ const getQuestionIndex = (state: OpenCodeThreadState): QuestionIndex => {
 
   const pendingByCallId = new Map<string, PendingQuestion>();
   for (const request of Object.values(questions.pending)) {
-    if (request.tool?.callID) pendingByCallId.set(request.tool.callID, request);
+    if (request.tool?.callID && isProjectableOpenCodeQuestion(request))
+      pendingByCallId.set(request.tool.callID, request);
   }
 
   const answeredByCallId = new Map<string, AnsweredQuestion>();
   for (const entry of Object.values(questions.answered)) {
     const callId = entry.request.tool?.callID;
-    if (callId) answeredByCallId.set(callId, entry);
+    if (callId && isProjectableOpenCodeQuestion(entry.request))
+      answeredByCallId.set(callId, entry);
   }
 
   const rejectedByCallId = new Map<string, RejectedQuestion>();
   for (const entry of Object.values(questions.rejected)) {
     const callId = entry.request.tool?.callID;
-    if (callId) rejectedByCallId.set(callId, entry);
+    if (callId && isProjectableOpenCodeQuestion(entry.request))
+      rejectedByCallId.set(callId, entry);
   }
 
   const index: QuestionIndex = {

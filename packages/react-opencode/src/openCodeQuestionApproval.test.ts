@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isProjectableOpenCodeQuestion,
   projectAnsweredOpenCodeQuestionApproval,
   projectOpenCodeQuestionApproval,
   projectRejectedOpenCodeQuestionApproval,
@@ -36,6 +37,7 @@ describe("OpenCode question approvals", () => {
     expect(projectOpenCodeQuestionApproval(request)).toEqual({
       id: "question-1",
       display: "questions",
+      dismissible: true,
       questions: [
         {
           id: "0",
@@ -80,5 +82,32 @@ describe("OpenCode question approvals", () => {
       }),
     ).toEqual([["Changed", "All"], ["details"]]);
     expect(toOpenCodeQuestionAnswers(request, {})).toEqual([[], []]);
+  });
+
+  it("skips a request without questions and tolerates a question without options", () => {
+    const empty = {
+      id: "question-2",
+      sessionID: "session-1",
+    } as unknown as OpenCodeQuestionRequest;
+    const noOptions = {
+      id: "question-3",
+      sessionID: "session-1",
+      questions: [{ question: "Why?", header: "" }],
+    } as unknown as OpenCodeQuestionRequest;
+
+    expect(isProjectableOpenCodeQuestion(empty)).toBe(false);
+    expect(isProjectableOpenCodeQuestion(noOptions)).toBe(true);
+    expect(projectOpenCodeQuestionApproval(noOptions).questions).toEqual([
+      { id: "0", prompt: "Why?", allowFreeform: true },
+    ]);
+    expect(
+      projectAnsweredOpenCodeQuestionApproval({
+        request: noOptions,
+        answers: [["because"]],
+      }).answers,
+    ).toEqual({ "0": { text: "because" } });
+    expect(
+      toOpenCodeQuestionAnswers(noOptions, { "0": { text: "because" } }),
+    ).toEqual([["because"]]);
   });
 });

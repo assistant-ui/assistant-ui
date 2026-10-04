@@ -3,28 +3,52 @@ import type { ToolApprovalAnswer } from "@assistant-ui/core";
 import type { OpenCodeQuestionRequest, QuestionAnswer } from "./types";
 
 type ToolCallApproval = NonNullable<ToolCallMessagePart["approval"]>;
+type QuestionInfo = OpenCodeQuestionRequest["questions"][number];
+
+const questionsOf = (
+  request: OpenCodeQuestionRequest,
+): readonly QuestionInfo[] =>
+  Array.isArray(request.questions) ? request.questions : [];
+
+const optionsOf = (info: QuestionInfo) =>
+  Array.isArray(info?.options)
+    ? info.options.filter((option) => typeof option?.label === "string")
+    : [];
+
+/** Whether the request carries questions a questionnaire can ask. */
+export const isProjectableOpenCodeQuestion = (
+  request: OpenCodeQuestionRequest,
+) => questionsOf(request).length > 0;
 
 export const projectOpenCodeQuestionApproval = (
   request: OpenCodeQuestionRequest,
 ): ToolCallApproval => ({
   id: request.id,
   display: "questions",
-  questions: request.questions.map((info, index) => ({
-    id: String(index),
-    prompt: info.question,
-    ...(info.header ? { header: info.header } : {}),
-    ...(info.options.length > 0
-      ? {
-          options: info.options.map((option) => ({
-            id: option.label,
-            label: option.label,
-            ...(option.description ? { description: option.description } : {}),
-          })),
-        }
-      : {}),
-    ...(info.multiple ? { multiple: true } : {}),
-    ...(info.custom === false ? {} : { allowFreeform: true }),
-  })),
+  dismissible: true,
+  questions: questionsOf(request).map((info, index) => {
+    const options = optionsOf(info);
+    return {
+      id: String(index),
+      prompt: typeof info?.question === "string" ? info.question : "",
+      ...(typeof info?.header === "string" && info.header
+        ? { header: info.header }
+        : {}),
+      ...(options.length > 0
+        ? {
+            options: options.map((option) => ({
+              id: option.label,
+              label: option.label,
+              ...(typeof option.description === "string" && option.description
+                ? { description: option.description }
+                : {}),
+            })),
+          }
+        : {}),
+      ...(info?.multiple ? { multiple: true } : {}),
+      ...(info?.custom === false ? {} : { allowFreeform: true }),
+    };
+  }),
 });
 
 export const projectAnsweredOpenCodeQuestionApproval = (entry: {
@@ -33,8 +57,8 @@ export const projectAnsweredOpenCodeQuestionApproval = (entry: {
 }): ToolCallApproval => {
   const answers: Record<string, ToolApprovalAnswer> = {};
 
-  entry.request.questions.forEach((info, index) => {
-    const labels = new Set(info.options.map((option) => option.label));
+  questionsOf(entry.request).forEach((info, index) => {
+    const labels = new Set(optionsOf(info).map((option) => option.label));
     const values = entry.answers[index] ?? [];
     const optionIds = values.filter((value) => labels.has(value));
     const text = values
@@ -66,7 +90,7 @@ export const toOpenCodeQuestionAnswers = (
   request: OpenCodeQuestionRequest,
   answers: Readonly<Record<string, ToolApprovalAnswer>>,
 ): QuestionAnswer[] =>
-  request.questions.map((_, index) => {
+  questionsOf(request).map((_, index) => {
     const answer = answers[String(index)];
     return [
       ...(answer?.optionIds ?? []),
