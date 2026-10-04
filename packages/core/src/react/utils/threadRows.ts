@@ -289,8 +289,10 @@ export const createThreadRowsSelector = (options: ThreadRowsOptions = {}) => {
       rows.every((row, index) => row === previousRows[index])
         ? previousRows
         : rows;
-    previous = new Map(result.map((row) => [row.key, row]));
-    previousRows = result;
+    if (result !== previousRows) {
+      previous = new Map(result.map((row) => [row.key, row]));
+      previousRows = result;
+    }
     byInput.set(messages, { toolUIs: toolUIsKey, rows: result });
     return result;
   };
