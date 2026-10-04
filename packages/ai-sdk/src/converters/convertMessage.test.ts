@@ -666,6 +666,82 @@ describe("AISDKMessageConverter", () => {
     ]);
   });
 
+  it("reads questions and recorded answers from the approval descriptor for a custom response channel", () => {
+    const questions = [
+      {
+        id: "scope",
+        prompt: "Which files?",
+        header: "Scope",
+        options: [
+          { id: "src", label: "src", description: "Sources" },
+          { id: 1, label: "invalid" },
+        ],
+        multiple: true,
+      },
+      { id: "note", prompt: "Anything else?", allowFreeform: "yes" },
+      { prompt: "No id" },
+    ];
+    const parts = [
+      {
+        type: "tool-ask",
+        toolCallId: "tc-1",
+        state: "approval-requested",
+        input: {},
+        approval: {
+          id: "approval-1",
+          descriptor: { display: "questions", questions },
+        },
+      },
+      {
+        type: "tool-ask",
+        toolCallId: "tc-2",
+        state: "approval-responded",
+        input: {},
+        approval: {
+          id: "approval-2",
+          approved: true,
+          descriptor: {
+            display: "questions",
+            questions: [{ id: "note", prompt: "Anything else?" }],
+            answers: { note: { text: "no", optionIds: [1, "x"] }, bad: "x" },
+          },
+        },
+      },
+    ];
+
+    const convert = (supportsRichToolApprovalResponses: boolean) => {
+      const metadata: AISDKMessageConverterMetadata = {
+        supportsRichToolApprovalResponses,
+      };
+      return AISDKMessageConverter.toThreadMessages(
+        [{ id: "a1", role: "assistant", parts } as any],
+        false,
+        metadata,
+      )[0]?.content.map((part) => (part as { approval?: any }).approval);
+    };
+
+    const [requested, responded] = convert(true)!;
+    expect(requested.display).toBe("questions");
+    expect(requested.questions).toEqual([
+      {
+        id: "scope",
+        prompt: "Which files?",
+        header: "Scope",
+        options: [{ id: "src", label: "src", description: "Sources" }],
+        multiple: true,
+      },
+      { id: "note", prompt: "Anything else?" },
+    ]);
+    expect(responded.approved).toBe(true);
+    expect(responded.answers).toEqual({
+      note: { text: "no", optionIds: ["x"] },
+    });
+
+    const [builtIn] = convert(false)!;
+    expect(builtIn).not.toHaveProperty("display");
+    expect(builtIn).not.toHaveProperty("questions");
+  });
+
   it("ignores a non-boolean dismissible field from the approval descriptor", () => {
     const metadata: AISDKMessageConverterMetadata = {
       supportsRichToolApprovalResponses: true,
